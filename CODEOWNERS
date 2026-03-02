@@ -1,0 +1,36 @@
+# ============================================
+# CODEOWNERS - Quantum Bluff
+# Format: [pattern] [@usernames]
+# ============================================
+
+# Backend - Azra et Soheil
+/backend/        @azra @soheil
+/src/backend/    @azra @soheil
+/api/            @azra @soheil
+pom.xml          @azra @soheil
+
+# Frontend - Mohamed et Yigit
+/frontend/       @mohamed @yigit
+/src/frontend/   @mohamed @yigit
+/src/components/ @mohamed @yigit
+*.js             @mohamed @yigit
+*.jsx            @mohamed @yigit
+*.css            @mohamed @yigit
+
+# Sécurité/Réseau - Linda et Massi
+/security/       @linda @massi
+/docker/         @linda @massi
+/config/         @linda @massi
+Dockerfile       @linda @massi
+*.yml            @linda @massi
+
+# Base de données - Elhadj
+/database/       @elhadj
+/migrations/     @elhadj
+/sql/            @elhadj
+*.sql            @elhadj
+
+# Fichiers critiques - toi et ton tech lead
+README.md        @aguech @mohamed
+.gitlab-ci.yml   @aguech @mohamed
+CODEOWNERS       @aguech @mohamed
