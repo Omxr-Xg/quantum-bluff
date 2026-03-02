@@ -1,0 +1,120 @@
+# ============================================
+# CODEOWNERS - Quantum Bluff
+# Format: [pattern] [@usernames]
+# ============================================
+
+# ============================================
+# BACKEND - Équipe Azra et Soheil
+# ============================================
+/backend/           @abayrak @amirkhani
+/src/backend/       @abayrak @amirkhani
+/api/               @abayrak @amirkhani
+/models/            @abayrak @amirkhani
+/services/          @abayrak @amirkhani
+/controllers/       @abayrak @amirkhani
+pom.xml             @abayrak @amirkhani
+build.gradle        @abayrak @amirkhani
+*.java              @abayrak @amirkhani
+*.py                @abayrak @amirkhani
+*.go                @abayrak @amirkhani
+
+# ============================================
+# FRONTEND - Équipe Mohamed (tech lead) et Yigit
+# ============================================
+/frontend/          @chouban @yayyildiz
+/src/frontend/      @chouban @yayyildiz
+/src/components/    @chouban @yayyildiz
+/src/pages/         @chouban @yayyildiz
+/src/styles/        @chouban @yayyildiz
+/public/            @chouban @yayyildiz
+*.js                @chouban @yayyildiz
+*.jsx               @chouban @yayyildiz
+*.ts                @chouban @yayyildiz
+*.tsx               @chouban @yayyildiz
+*.css               @chouban @yayyildiz
+*.scss              @chouban @yayyildiz
+*.html              @chouban @yayyildiz
+package.json        @chouban @yayyildiz
+
+# ============================================
+# SÉCURITÉ & RÉSEAU - Équipe Linda (responsable) et Massi
+# ============================================
+/security/          @baouab @mbadsi
+/network/           @baouab @mbadsi
+/docker/            @baouab @mbadsi
+/kubernetes/        @baouab @mbadsi
+/config/            @baouab @mbadsi
+/.gitlab/           @baouab @mbadsi
+/scripts/           @baouab @mbadsi
+Dockerfile          @baouab @mbadsi
+docker-compose.yml  @baouab @mbadsi
+*.yaml              @baouab @mbadsi
+*.yml               @baouab @mbadsi
+*.conf              @baouab @mbadsi
+*.pem               @baouab @mbadsi
+*.key               @baouab @mbadsi
+*.crt               @baouab @mbadsi
+nginx.conf          @baouab @mbadsi
+apache.conf         @baouab @mbadsi
+
+# ============================================
+# BASE DE DONNÉES - Elhadj
+# ============================================
+/database/          @ea.bah
+/migrations/        @ea.bah
+/sql/               @ea.bah
+/db/                @ea.bah
+/prisma/            @ea.bah
+/sequelize/         @ea.bah
+*.sql               @ea.bah
+*.db                @ea.bah
+schema.prisma       @ea.bah
+seed.sql            @ea.bah
+migration.sql       @ea.bah
+
+# ============================================
+# FICHIERS CRITIQUES (Toi + tech lead + Linda)
+# ============================================
+README.md           @aguech @chouban @baouab
+.gitignore          @aguech @chouban @baouab
+.gitlab-ci.yml      @aguech @chouban @baouab @mbadsi
+CODEOWNERS          @aguech @chouban @baouab
+LICENSE             @aguech @chouban @baouab
+.editorconfig       @aguech @chouban @baouab
+.env.example        @aguech @chouban @baouab @mbadsi
+
+# ============================================
+# ARCHITECTURE GLOBALE (Toi + tech lead)
+# ============================================
+/architecture/      @aguech @chouban
+/docs/architecture/ @aguech @chouban
+ADR/                @aguech @chouban
+*.architecture.md   @aguech @chouban
+
+# ============================================
+# DOCUMENTATION - Tout le monde
+# ============================================
+/docs/              @aguech @chouban @yayyildiz @abayrak @amirkhani @baouab @mbadsi @ea.bah
+*.md                @aguech @chouban @yayyildiz @abayrak @amirkhani @baouab @mbadsi @ea.bah
+*.txt               @aguech @chouban @yayyildiz @abayrak @amirkhani @baouab @mbadsi @ea.bah
+
+# ============================================
+# TESTS - Responsables selon la partie testée
+# ============================================
+/test/backend/      @abayrak @amirkhani
+/test/frontend/     @chouban @yayyildiz
+/test/security/     @baouab @mbadsi
+/test/database/     @ea.bah
+/test/integration/  @aguech @chouban @baouab @abayrak @amirkhani @chouban @yayyildiz
+*.test.js           @chouban @yayyildiz
+*.spec.js           @chouban @yayyildiz
+*Test.java          @abayrak @amirkhani
+*Tests.java         @abayrak @amirkhani
+
+# ============================================
+# CI/CD (Toi + tech lead + Linda)
+# ============================================
+.gitlab/            @aguech @chouban @baouab @mbadsi
+.gitlab-ci/         @aguech @chouban @baouab @mbadsi
+ci/                 @aguech @chouban @baouab @mbadsi
+*.gitlab-ci.yml     @aguech @chouban @baouab @mbadsi
