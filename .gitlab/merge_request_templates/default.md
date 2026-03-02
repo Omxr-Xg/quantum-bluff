@@ -1,17 +1,34 @@
-## 📝 Qu'est-ce qui est fait ?
-[Décris ici la fonctionnalité ou le bug corrigé]
+## 📌 Description
+<!-- Explique clairement ce que fait cette MR -->
 
-## ✅ Validation requise
-- [ ] Relu par Tech Lead ou Chef de projet
+## 🔗 Lien vers l'issue
+<!-- Closes #123 -->
 
-## 👥 Équipe concernée
-- [ ] Front-end (Mohamed/Yigit)
-- [ ] Back-end (Azra/Soheil)
-- [ ] Sécurité/Réseau (Linda/Massi)
-- [ ] Base de données (Elhadj)
+## ✅ Type de changement
+- [ ] Feature (nouvelle fonctionnalité)
+- [ ] Fix (correction de bug)
+- [ ] Refactor (pas de changement fonctionnel)
+- [ ] Docs (documentation)
+- [ ] Chore (maintenance technique)
+- [ ] Hotfix (urgence)
 
-## 🧪 Tests effectués
-[Explique ce qui a été testé]
+## 🧪 Comment tester
+<!-- Étapes pour tester manuellement -->
 
-## 🔗 Liens utiles
-[Lien vers le ticket, la documentation, etc.]
+## ✅ Checklist
+- [ ] Tests unitaires ajoutés/mis à jour
+- [ ] Documentation mise à jour
+- [ ] Pipeline CI vert
+- [ ] Relu par un reviewer
+
+## 👥 Reviewers requis
+<!-- Sélectionne selon les sections modifiées -->
+- [ ] Backend (@azra, @soheil)
+- [ ] Frontend (@mohamed, @yigit)
+- [ ] Sécurité (@linda, @massi)
+- [ ] BDD (@elhadj)
+
+## 🚨 Impact potentiel
+- [ ] Breaking change
+- [ ] Performance
+- [ ] Sécurité
