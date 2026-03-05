@@ -49,8 +49,8 @@ Feedback Multi-sensoriel : Alertes visuelles (flashs de bordure) pour les utilis
 Contraste Étendu : Palette de couleurs "Poker Club Privé" optimisée pour un ratio de contraste supérieur aux normes minimales, assurant une lisibilité maximale en toutes circonstances.
 
 # 5. STRUCTURE DU CODE SOURCE
-`
-.src
+```txt
+.src 
 ├── .app
 │   ├── App.tsx (Configuration des Providers et du Router)
 │   ├── routes.ts (Définition de l'architecture de navigation)
@@ -61,8 +61,7 @@ Contraste Étendu : Palette de couleurs "Poker Club Privé" optimisée pour un r
 │   ├── theme.css (Variables CSS, tokens de design, utilitaires)
 │   └── fonts.css (Importation des typographies système)
 └── .utils (Algorithmes de calcul, gestion des avatars et utilitaires)
-`
-
+```
 # 6. PROCÉDURE DE DÉPLOIEMENT ET RÉFÉRENTIEL
 Le projet suit un workflow d'intégration continue standard :
 1. Installation des dépendances via `npm install`.
