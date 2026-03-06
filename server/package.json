@@ -7,17 +7,24 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "NODE_OPTIONS='--loader ts-node/esm --no-warnings' nodemon src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "lint": "eslint . --ext .ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.4",
+    "@eslint/js": "^10.0.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "eslint": "^10.0.2",
+    "globals": "^17.4.0",
     "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
