@@ -16,6 +16,10 @@ io.on('connection', (socket) => {
 });
 
 const PORT = 3000;
+// Route de test pour vérifier que le serveur répond au navigateur
+app.get('/', (req, res) => {
+  res.send('🚀 Le serveur Quantum Bluff répond bien !');
+});
 httpServer.listen(PORT, () => {
   console.log(`[SERVER] Le moteur de Quantum Bluff tourne sur http://localhost:${PORT}`);
 });
