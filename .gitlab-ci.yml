@@ -3,10 +3,9 @@
 # Configuration CI/CD professionnelle
 # ============================================
 
-# Désactiver Auto DevOps (mais c'est dans l'interface)
-# Cette ligne empêche GitLab d'ajouter des jobs automatiques
+# Explicitly disable Auto DevOps
 variables:
-  AUTO_DEVOPS: "off"  # ← AJOUT IMPORTANT
+  AUTO_DEVOPS: "off"  # ← THIS IS CRITICAL
   DOCKER_DRIVER: overlay2
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
   NODE_OPTIONS: "--max-old-space-size=4096"
