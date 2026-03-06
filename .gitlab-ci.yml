@@ -3,21 +3,15 @@
 # Configuration CI/CD professionnelle
 # ============================================
 
-# Définition des stages (étapes du pipeline)
-stages:
-  - lint           # Vérification du style de code
-  - test           # Tests unitaires
-  - test-security  # Tests de sécurité
-  - build          # Compilation
-  - analyze        # Analyse de code
-  - deploy-staging # Déploiement sur staging
-  - deploy-prod    # Déploiement sur production (manuel)
-
-# Variables globales
+# Désactiver Auto DevOps (mais c'est dans l'interface)
+# Cette ligne empêche GitLab d'ajouter des jobs automatiques
 variables:
+  AUTO_DEVOPS: "off"  # ← AJOUT IMPORTANT
   DOCKER_DRIVER: overlay2
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
   NODE_OPTIONS: "--max-old-space-size=4096"
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
 
 # Cache pour accélérer les pipelines
 cache:
@@ -26,6 +20,16 @@ cache:
     - node_modules/
     - frontend/node_modules/
     - backend/target/
+
+# Stages
+stages:
+  - lint
+  - test
+  - test-security
+  - build
+  - analyze
+  - deploy-staging
+  - deploy-prod
 
 # ============================================
 # BACKEND - JAVA/MAVEN
@@ -180,6 +184,9 @@ security:scan-docker:
   image: docker:latest
   services:
     - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   script:
     - echo "🔐 Scan des images Docker..."
     - docker build -t quantum-bluff:latest .
@@ -224,6 +231,30 @@ analyze:sonarqube:
     - frontend:test
 
 # ============================================
+# BUILD DOCKER IMAGE (optionnel)
+# ============================================
+
+build:docker:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - echo "🐳 Construction de l'image Docker..."
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:latest
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - develop
+    - main
+    - /^release\/.*$/
+
+# ============================================
 # DÉPLOIEMENTS
 # ============================================
 
@@ -255,7 +286,7 @@ deploy:production:
     url: https://quantum-bluff.fr
   only:
     - main
-  when: manual  # Déploiement manuel uniquement
+  when: manual
   dependencies:
     - backend:build
     - frontend:build
