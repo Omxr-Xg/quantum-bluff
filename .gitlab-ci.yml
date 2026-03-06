@@ -11,6 +11,9 @@ variables:
   NODE_OPTIONS: "--max-old-space-size=4096"
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
+  # Prevent any Auto DevOps template inclusion
+
+include: []  # ← This ensures no implicit includes
 
 # Cache pour accélérer les pipelines
 cache:
