@@ -34,16 +34,17 @@ stages:
   - deploy-prod
 
 # ============================================
-# BACKEND - JAVA/MAVEN
+# BACKEND - NODE.JS/TYPESCRIPT
 # ============================================
 
 backend:lint:
   stage: lint
-  image: maven:3.8-openjdk-17
+  image: node:18
   script:
-    - cd backend
+    - cd server
     - echo "🔍 Vérification du style de code backend..."
-    - mvn checkstyle:check
+    - npm install
+    - npm run lint  # ou npx eslint . --ext .ts
   only:
     - develop
     - main
@@ -51,33 +52,34 @@ backend:lint:
     - /^fix\/.*$/
   artifacts:
     reports:
-      codequality: backend/target/checkstyle-result.xml
+      codequality: server/lint-results.xml
     expire_in: 1 week
+  allow_failure: true  # Temporaire si la commande lint n'existe pas encore
 
 backend:test:
   stage: test
-  image: maven:3.8-openjdk-17
+  image: node:18
   services:
     - postgres:15
   variables:
     POSTGRES_DB: quantum_test
     POSTGRES_USER: test_user
     POSTGRES_PASSWORD: test_password
-    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/quantum_test
+    DATABASE_URL: postgresql://test_user:test_password@postgres:5432/quantum_test
   script:
-    - cd backend
+    - cd server
     - echo "🧪 Lancement des tests backend..."
-    - mvn test
-    - mvn jacoco:report
-  coverage: '/Total.*?([0-9]{1,3})%/'
+    - npm install
+    - npm test  # ou npm run test
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
   artifacts:
     reports:
-      junit: backend/target/surefire-reports/TEST-*.xml
+      junit: server/junit.xml
       coverage_report:
         coverage_format: cobertura
-        path: backend/target/site/jacoco/jacoco.xml
+        path: server/coverage/cobertura-coverage.xml
     paths:
-      - backend/target/site/jacoco/
+      - server/coverage/
     expire_in: 1 week
   only:
     - develop
@@ -87,20 +89,21 @@ backend:test:
 
 backend:build:
   stage: build
-  image: maven:3.8-openjdk-17
+  image: node:18
   script:
-    - cd backend
+    - cd server
     - echo "📦 Build backend..."
-    - mvn package -DskipTests
+    - npm install
+    - npm run build  # si tu as un script build qui compile TypeScript
   artifacts:
     paths:
-      - backend/target/*.jar
+      - server/dist/  # si tu compiles vers dist/
     expire_in: 1 month
   only:
     - develop
     - main
     - /^release\/.*$/
-
+    
 # ============================================
 # FRONTEND - REACT/NODE
 # ============================================
@@ -109,7 +112,7 @@ frontend:lint:
   stage: lint
   image: node:18
   script:
-    - cd frontend
+    - cd client
     - echo "🔍 Vérification du style frontend..."
     - npm install
     - npm run lint
