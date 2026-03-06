@@ -58,7 +58,7 @@ backend:lint:
 
 backend:test:
   stage: test
-  image: node:18
+  image: node:20  # ← Changement de node:18 à node:20
   services:
     - postgres:15
   variables:
@@ -70,7 +70,7 @@ backend:test:
     - cd server
     - echo "🧪 Lancement des tests backend..."
     - npm install
-    - npm test  # ou npm run test
+    - npm test
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
   artifacts:
     reports:
