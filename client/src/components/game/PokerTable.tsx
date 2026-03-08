@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
-import { logoDataUrl } from "../assets/logo";
-import { getPlayerAvatar } from "../utils/avatars";
+import { logoDataUrl } from "@/assets/logo-data";
+import { getPlayerAvatar } from "@/utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Clock } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
