@@ -1,10 +1,41 @@
 import { ReactNode } from "react";
-import { logoDataUrl } from "../assets/logo"; // Vérifie ce chemin !
-import { getPlayerAvatar } from "../utils/avatars"; // Vérifie ce chemin !
-import { ImageWithFallback } from "./figma/ImageWithFallback"; // Vérifie ce chemin !
+import { logoDataUrl } from "../assets/logo";
+import { getPlayerAvatar } from "../utils/avatars";
+import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Clock } from "lucide-react";
-import { useDeviceType } from "./ui/use-mobile"; // Vérifie ce chemin !
+import { useDeviceType } from "./ui/use-mobile";
+import { calculatePlayerPositions } from "../../utils/tablePositions";
 
+// ==========================================
+// Constants and helper functions
+// ==========================================
+const SUITS = {
+  hearts: "♥",
+  diamonds: "♦",
+  clubs: "♣",
+  spades: "♠",
+};
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const getSuitSymbol = (suit: string): string => {
+  return SUITS[suit as keyof typeof SUITS] || "";
+};
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const getSuitColor = (suit: string): string => {
+  return suit === "hearts" || suit === "diamonds"
+    ? "text-red-600"
+    : "text-gray-900";
+};
+
+const getPlayerCountryCode = (playerId: number): string => {
+  const countryCodes = ["us", "gb", "ca", "de", "fr", "es", "it", "nl", "au", "br", "mx", "at"];
+  return countryCodes[playerId % countryCodes.length];
+};
+
+// ==========================================
+// Interfaces
+// ==========================================
 interface Card {
   suit: string;
   value: string;
@@ -25,77 +56,29 @@ interface Player {
 interface PokerTableProps {
   players: Player[];
   children?: ReactNode;
-  communitySafeZone?: number; 
+  // communitySafeZone?: number; // Commented out if not used
 }
 
 // ==========================================
-// 1. LA FONCTION MATHÉMATIQUE (Exigée par la Phase 3)
-// Sortie du composant pour être testable !
+// Main Component
 // ==========================================
-export function calculatePlayerPositions(count: number, isMobile = false, isTablet = false) {
-  const tableWidth = isMobile ? 320 : isTablet ? 650 : 950;
-  const tableHeight = isMobile ? 180 : isTablet ? 300 : 420;
-  const radiusX = tableWidth / 2;
-  const radiusY = tableHeight / 2;
-  
-  const startAngle = Math.PI / 2; 
-  const angleStep = (2 * Math.PI) / count; 
-  
-  const positions = [];
-
-  for (let position = 0; position < count; position++) {
-    const angle = startAngle + (position * angleStep);
-    let x = radiusX * Math.cos(angle);
-    let y = radiusY * Math.sin(angle);
-    
-    // Décalage pour le joueur principal (en bas)
-    if (position === 0) {
-      y = y + (isMobile ? 20 : isTablet ? 30 : 40);
-    }
-    positions.push({ x, y });
-  }
-
-  return positions;
-}
-
-// ==========================================
-// 2. LE COMPOSANT REACT
-// ==========================================
-export function PokerTable({ players, children, communitySafeZone = 180 }: PokerTableProps) {
+export function PokerTable({ players, children }: PokerTableProps) {
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
   
-  // On calcule TOUTES les positions une seule fois pour cette taille d'écran
+  // Calculate all positions once for this screen size
   const allPositions = calculatePlayerPositions(players.length > 0 ? players.length : 1, isMobile, isTablet);
-  
-  const getPlayerCountryCode = (playerId: number) => {
-    const countryCodes = ["us", "gb", "ca", "de", "fr", "es", "it", "nl", "au", "br", "mx", "at"];
-    return countryCodes[playerId % countryCodes.length];
-  };
-
-  const getSuitSymbol = (suit: string) => {
-    const suits: { [key: string]: string } = {
-      hearts: "♥",
-      diamonds: "♦",
-      clubs: "♣",
-      spades: "♠",
-    };
-    return suits[suit] || "";
-  };
-
-  const getSuitColor = (suit: string) => {
-    return suit === "hearts" || suit === "diamonds"
-      ? "text-red-600"
-      : "text-gray-900";
-  };
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center" style={{ perspective: isMobile ? '800px' : isTablet ? '1000px' : '1200px' }}>
-      {/* Table de poker (Forme Pilule) avec effet 3D */}
+    <div 
+      className="relative w-full h-full flex items-center justify-center" 
+      style={{ perspective: isMobile ? '800px' : isTablet ? '1000px' : '1200px' }}
+    >
+      {/* Poker table with 3D effect */}
       <div className="relative" style={{ transformStyle: 'preserve-3d' }}>
         
-        {/* 1. Épaisseur 3D de la table (La base très sombre en dessous) */}
+        {/* 1. Table base */}
         <div 
           className={`absolute ${isMobile ? 'w-[320px] h-[180px]' : isTablet ? 'w-[650px] h-[300px]' : 'w-[950px] h-[420px]'} rounded-full`}
           style={{
@@ -106,9 +89,9 @@ export function PokerTable({ players, children, communitySafeZone = 180 }: Poker
               : '0 45px 80px -15px rgba(0, 0, 0, 0.95)',
             zIndex: 1
           }}
-        ></div>
+        />
 
-        {/* 2. Le Rebord extérieur en cuir noir (Cushion) */}
+        {/* 2. Outer leather cushion */}
         <div 
           className={`${isMobile ? 'w-[320px] h-[180px]' : isTablet ? 'w-[650px] h-[300px]' : 'w-[950px] h-[420px]'} rounded-full relative`}
           style={{
@@ -118,7 +101,7 @@ export function PokerTable({ players, children, communitySafeZone = 180 }: Poker
             zIndex: 2
           }}
         >
-          {/* 3. L'anneau métallique / cuivré intérieur (Copper Trim) */}
+          {/* 3. Copper trim */}
           <div 
             className="absolute rounded-full"
             style={{
@@ -127,7 +110,7 @@ export function PokerTable({ players, children, communitySafeZone = 180 }: Poker
               boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.8)'
             }}
           >
-            {/* 4. Le Tapis Vert (Felt) */}
+            {/* 4. Green felt */}
             <div 
               className="absolute rounded-full overflow-hidden"
               style={{
@@ -136,11 +119,17 @@ export function PokerTable({ players, children, communitySafeZone = 180 }: Poker
                 boxShadow: 'inset 0 6px 15px rgba(0,0,0,0.7)'
               }}
             >
-              <div className="absolute rounded-full border-[1.5px] border-white/20" style={{ inset: isMobile ? '15px' : isTablet ? '30px' : '45px' }}></div>
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_60%)] pointer-events-none"></div>
+              <div 
+                className="absolute rounded-full border-[1.5px] border-white/20" 
+                style={{ inset: isMobile ? '15px' : isTablet ? '30px' : '45px' }}
+              />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_60%)] pointer-events-none" />
 
-              {/* Cartes communes au centre */}
-              <div className={`absolute ${isMobile ? 'top-8' : isTablet ? 'top-12' : 'top-16'} left-1/2 -translate-x-1/2 w-full flex justify-center`} style={{ zIndex: 5 }}>
+              {/* Community cards */}
+              <div 
+                className={`absolute ${isMobile ? 'top-8' : isTablet ? 'top-12' : 'top-16'} left-1/2 -translate-x-1/2 w-full flex justify-center`} 
+                style={{ zIndex: 5 }}
+              >
                 {children}
               </div>
             </div>
@@ -148,10 +137,10 @@ export function PokerTable({ players, children, communitySafeZone = 180 }: Poker
         </div>
       </div>
 
-      {/* Joueurs autour de la table */}
+      {/* Players around the table */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 50 }}>
         
-        {/* Mises des joueurs */}
+        {/* Player bets */}
         {players.map((player) => {
           if (player.bet <= 0) return null;
           
@@ -173,7 +162,7 @@ export function PokerTable({ players, children, communitySafeZone = 180 }: Poker
             >
               <div className="flex items-center gap-1.5">
                 <div className={`relative ${isMobile ? 'w-5 h-5' : isTablet ? 'w-6 h-6' : 'w-7 h-7'} drop-shadow-md`}>
-                  <div className="absolute inset-0 bg-[#5c1616] rounded-full translate-y-[3px]"></div>
+                  <div className="absolute inset-0 bg-[#5c1616] rounded-full translate-y-[3px]" />
                   <div className="absolute inset-0 z-10">
                     <img src={logoDataUrl} alt="Jeton" className="w-full h-full object-contain" />
                   </div>
@@ -186,9 +175,8 @@ export function PokerTable({ players, children, communitySafeZone = 180 }: Poker
           );
         })}
         
-        {/* Rendu des Avatars */}
+        {/* Player avatars */}
         {players.map((player) => {
-          // On utilise la position pré-calculée par notre nouvelle fonction !
           const pos = allPositions[player.position]; 
 
           return (
@@ -202,7 +190,6 @@ export function PokerTable({ players, children, communitySafeZone = 180 }: Poker
               }}
             >
               <div className={`flex items-center ${isMobile ? 'gap-2' : isTablet ? 'gap-2.5' : 'gap-3'}`}>
-                {/* Info du joueur */}
                 <div className="flex flex-col items-center gap-1 relative">
                   {player.isActive && player.position !== 0 && (
                     <div className="whitespace-nowrap mb-0.5">
@@ -214,7 +201,6 @@ export function PokerTable({ players, children, communitySafeZone = 180 }: Poker
                   )}
 
                   <div className="relative z-10">
-                    {/* Logique d'avatar simplifiée pour l'exemple (ton code d'origine fonctionne très bien ici) */}
                     <div className={`${
                       player.position === 0 
                         ? (isMobile ? 'w-14 h-14' : isTablet ? 'w-16 h-16' : 'w-20 h-20')
@@ -242,12 +228,17 @@ export function PokerTable({ players, children, communitySafeZone = 180 }: Poker
                         className={`absolute bottom-0 right-0 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'} rounded-full bg-white shadow-xl flex items-center justify-center border-2 border-gray-300 overflow-hidden`}
                         style={{ transform: 'translate(-20%, -10%)', zIndex: 35 }}
                       >
-                        <img src={`https://flagcdn.com/w40/${getPlayerCountryCode(player.id)}.png`} className="w-full h-full object-cover" />
+                        <img 
+                          src={`https://flagcdn.com/w40/${getPlayerCountryCode(player.id)}.png`} 
+                          className="w-full h-full object-cover" 
+                          alt={`Flag of player ${player.id}`}
+                        />
                       </div>
                     )}
                   </div>
 
-                  {/* Le reste de ton code (Cartes pour Diana, Cadre Nom/Solde, Dos des cartes) reste identique ici ! */}
+                  {/* Player info - name and chips would go here */}
+                  {/* You can add the player name and chips display here */}
                   
                 </div>
               </div>
