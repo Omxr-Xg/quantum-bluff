@@ -1,15 +1,17 @@
 version: "3.9"
+
 services:
-  db:
-    build: .
+  postgres:
+    image: postgres:16
     container_name: postgres_db
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_USER: admin
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: defaultdb
+      POSTGRES_PASSWORD: My027
+      POSTGRES_DB: quantum_bluff
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+
 volumes:
   pgdata:
