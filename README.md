@@ -50,17 +50,29 @@ Contraste Étendu : Palette de couleurs "Poker Club Privé" optimisée pour un r
 
 # 5. STRUCTURE DU CODE SOURCE
 ```txt
-.src 
-├── .app
-│   ├── App.tsx (Configuration des Providers et du Router)
-│   ├── routes.ts (Définition de l'architecture de navigation)
-│   ├── .pages (Vues : Login, Register, Lobby, Game, etc.)
-│   ├── .components (Composants UI réutilisables et atomiques)
-│   └── .contexts (AccessibilityContext pour la gestion des modes)
-├── .styles
-│   ├── theme.css (Variables CSS, tokens de design, utilitaires)
-│   └── fonts.css (Importation des typographies système)
-└── .utils (Algorithmes de calcul, gestion des avatars et utilitaires)
+quantum-bluff/
+├── client/                         ← Frontend (Mohamed, Yigit)
+│   └── src/
+├── server/                         ← Backend (Azra, Soheil)
+│   └── src/
+│       ├── auth/                   ← Fichiers de Linda (déplacés ici)
+│       │   ├── hash.utils.ts
+│       │   └── jwt.service.ts
+│       ├── middleware/             ← Fichiers de Linda (déplacés ici)
+│       │   ├── auth.middleware.ts
+│       │   └── socketAuth.middleware.ts
+│       ├── config/
+│       ├── logic/
+│       ├── models/
+│       ├── sockets/
+│       ├── types/
+│       └── index.ts
+├── database/                        ← Infra BDD (Elhadj) ✅ OK
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   └── init.sql
+├── README.md                        
+└── .gitlab-ci.yml
 ```
 # 6. PROCÉDURE DE DÉPLOIEMENT ET RÉFÉRENTIEL
 Le projet suit un workflow d'intégration continue standard :
