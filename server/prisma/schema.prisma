@@ -1,13 +1,13 @@
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")  // ← Ajoute cette ligne
 }
 
-// Le reste du schéma reste identique
 model User {
   id        String   @id @default(uuid())
   username  String   @unique
