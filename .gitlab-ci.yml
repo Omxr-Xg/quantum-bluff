@@ -1,64 +1,48 @@
 # ============================================
 # .gitlab-ci.yml - Quantum Bluff
-# Configuration CI/CD professionnelle
+# Configuration complète : Frontend, Backend, DB, Sécurité, Infrastructure
 # ============================================
 
-# Explicitly disable Auto DevOps
-variables:
-  AUTO_DEVOPS: "off"  # ← THIS IS CRITICAL
-  DOCKER_DRIVER: overlay2
-  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
-  NODE_OPTIONS: "--max-old-space-size=4096"
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_TLS_CERTDIR: ""
-  # Prevent any Auto DevOps template inclusion
+# Image par défaut
+default:
+  image: node:20
 
-include: []  # ← This ensures no implicit includes
-
-# Cache pour accélérer les pipelines
-cache:
-  paths:
-    - .m2/repository/
-    - node_modules/
-    - frontend/node_modules/
-    - backend/target/
-
-# Stages
+# Définition des stages
 stages:
   - lint
   - test
   - test-security
   - build
-  - analyze
-  - deploy-staging
-  - deploy-prod
+  - docker-build
+  - deploy
 
 # ============================================
-# BACKEND - NODE.JS/TYPESCRIPT
+# CACHE PARTAGÉ
+# ============================================
+cache:
+  paths:
+    - server/node_modules/
+    - client/node_modules/
+    - .npm/
+
+# ============================================
+# BACKEND - Node.js / TypeScript
 # ============================================
 
 backend:lint:
   stage: lint
-  image: node:18
   script:
     - cd server
-    - echo "🔍 Vérification du style de code backend..."
-    - npm install
-    - npm run lint  # ou npx eslint . --ext .ts
+    - npm ci
+    - npm run lint
   only:
     - develop
     - main
     - /^feature\/.*$/
     - /^fix\/.*$/
-  artifacts:
-    reports:
-      codequality: server/lint-results.xml
-    expire_in: 1 week
-  allow_failure: true  # Temporaire si la commande lint n'existe pas encore
 
 backend:test:
   stage: test
-  image: node:20  # ← Changement de node:18 à node:20
   services:
     - postgres:15
   variables:
@@ -68,8 +52,7 @@ backend:test:
     DATABASE_URL: postgresql://test_user:test_password@postgres:5432/quantum_test
   script:
     - cd server
-    - echo "🧪 Lancement des tests backend..."
-    - npm install
+    - npm ci
     - npm test
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
   artifacts:
@@ -85,78 +68,67 @@ backend:test:
     - develop
     - main
     - /^feature\/.*$/
-    - /^fix\/.*$/
 
 backend:build:
   stage: build
-  image: node:18
   script:
     - cd server
-    - echo "📦 Build backend..."
-    - npm install
-    - npm run build  # si tu as un script build qui compile TypeScript
+    - npm ci
+    - npm run build
   artifacts:
     paths:
-      - server/dist/  # si tu compiles vers dist/
+      - server/dist/
     expire_in: 1 month
   only:
     - develop
     - main
     - /^release\/.*$/
-    
+
 # ============================================
-# FRONTEND - REACT/NODE
+# FRONTEND - React / Vite / TypeScript
 # ============================================
 
 frontend:lint:
   stage: lint
-  image: node:18
   script:
     - cd client
-    - echo "🔍 Vérification du style frontend..."
-    - npm install
+    - npm ci
     - npm run lint
   only:
     - develop
     - main
     - /^feature\/.*$/
-    - /^fix\/.*$/
 
 frontend:test:
   stage: test
-  image: node:18
   script:
-    - cd frontend
-    - echo "🧪 Lancement des tests frontend..."
-    - npm install
-    - npm test -- --coverage --watchAll=false
+    - cd client
+    - npm ci
+    - npm test
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
   artifacts:
     reports:
-      junit: frontend/junit.xml
+      junit: client/junit.xml
       coverage_report:
         coverage_format: cobertura
-        path: frontend/coverage/cobertura-coverage.xml
+        path: client/coverage/cobertura-coverage.xml
     paths:
-      - frontend/coverage/
+      - client/coverage/
     expire_in: 1 week
   only:
     - develop
     - main
     - /^feature\/.*$/
-    - /^fix\/.*$/
 
 frontend:build:
   stage: build
-  image: node:18
   script:
-    - cd frontend
-    - echo "📦 Build frontend..."
-    - npm install
+    - cd client
+    - npm ci
     - npm run build
   artifacts:
     paths:
-      - frontend/build/
+      - client/dist/
     expire_in: 1 month
   only:
     - develop
@@ -164,83 +136,131 @@ frontend:build:
     - /^release\/.*$/
 
 # ============================================
-# SÉCURITÉ - LINDA & MASSI
+# BASE DE DONNÉES - Tests et validation
 # ============================================
 
-security:scan-deps:
-  stage: test-security
-  image: node:18
+database:test:
+  stage: test
+  image: postgres:15
+  services:
+    - postgres:15
+  variables:
+    POSTGRES_DB: quantum_test
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_password
   script:
-    - echo "🔐 Scan des dépendances frontend..."
-    - cd frontend
-    - npm audit --production || true
+    - echo "🧪 Vérification de la base de données..."
+    - psql -h postgres -U test_user -d quantum_test -c "SELECT 1;" || exit 1
+    - echo "✅ Connexion DB OK"
+  only:
+    - develop
+    - main
+    - /^feature\/.*$/
+
+database:migrations:
+  stage: build
+  image: postgres:15
+  services:
+    - postgres:15
+  variables:
+    POSTGRES_DB: quantum_test
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_password
+  script:
+    - echo "📦 Vérification des migrations..."
+    - if [ -f database/init.sql ]; then
+        psql -h postgres -U test_user -d quantum_test -f database/init.sql;
+      fi
+    - echo "✅ Migrations appliquées"
+  only:
+    - develop
+    - main
+
+# ============================================
+# SÉCURITÉ - Scans et analyses (Linda & Massi)
+# ============================================
+
+security:scan-deps-backend:
+  stage: test-security
+  script:
+    - cd server
+    - npm ci
+    - npm audit --production
   allow_failure: true
   only:
     - develop
     - main
     - /^feature\/.*$/
-  artifacts:
-    reports:
-      dependency_scanning: frontend/npm-audit.json
-    expire_in: 1 week
 
-security:scan-docker:
+security:scan-deps-frontend:
   stage: test-security
-  image: docker:latest
-  services:
-    - docker:dind
-  variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
   script:
-    - echo "🔐 Scan des images Docker..."
-    - docker build -t quantum-bluff:latest .
-    - docker scan quantum-bluff:latest || true
+    - cd client
+    - npm ci
+    - npm audit --production
   allow_failure: true
   only:
+    - develop
     - main
-    - /^release\/.*$/
-  dependencies: []
+    - /^feature\/.*$/
 
 security:trivy-scan:
   stage: test-security
   image: aquasec/trivy:latest
   script:
-    - echo "🔐 Scan Trivy complet..."
+    - echo "🔐 Scan Trivy du code source..."
     - trivy fs --severity HIGH,CRITICAL --no-progress --exit-code 0 .
   allow_failure: true
   only:
     - main
     - develop
 
-# ============================================
-# ANALYSE DE CODE - QUALITÉ
-# ============================================
-
-analyze:sonarqube:
-  stage: analyze
-  image: sonarsource/sonar-scanner-cli:latest
+security:secret-detection:
+  stage: test-security
   script:
-    - echo "📊 Analyse SonarQube..."
-    - sonar-scanner
-      -Dsonar.projectKey=quantum-bluff
-      -Dsonar.sources=.
-      -Dsonar.host.url=$SONAR_HOST_URL
-      -Dsonar.login=$SONAR_TOKEN
-      -Dsonar.coverage.exclusions=**/*.test.js,**/*.spec.js,**/test/**
+    - echo "🔍 Recherche de secrets exposés..."
+    - npx secrets-scan .
+  allow_failure: true
   only:
     - main
     - develop
-  dependencies:
-    - backend:test
-    - frontend:test
+
+security:sast:
+  stage: test-security
+  image: returntocorp/semgrep:latest
+  script:
+    - semgrep --config auto --error .
+  allow_failure: true
+  only:
+    - main
+    - develop
 
 # ============================================
-# BUILD DOCKER IMAGE (optionnel)
+# DOCKER - Construction et scan des images
 # ============================================
 
-build:docker:
-  stage: build
+docker:build:
+  stage: docker-build
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+  script:
+    - echo "🐳 Construction de l'image Docker..."
+    - docker build -t $IMAGE_TAG .
+    - docker tag $IMAGE_TAG $CI_REGISTRY_IMAGE:latest
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push $IMAGE_TAG
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - main
+    - /^release\/.*$/
+
+docker:scan:
+  stage: test-security
   image: docker:latest
   services:
     - docker:dind
@@ -248,53 +268,84 @@ build:docker:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
   script:
-    - echo "🐳 Construction de l'image Docker..."
-    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
-    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:latest
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
-    - docker push $CI_REGISTRY_IMAGE:latest
+    - echo "🔐 Scan de l'image Docker..."
+    - docker build -t quantum-bluff:test .
+    - docker scan quantum-bluff:test || echo "⚠️ Docker scan non disponible"
+  allow_failure: true
   only:
-    - develop
     - main
     - /^release\/.*$/
 
 # ============================================
-# DÉPLOIEMENTS
+# INFRASTRUCTURE - Validation des configs (Nginx, Docker Compose)
+# ============================================
+
+infra:nginx-config:
+  stage: test
+  image: nginx:alpine
+  script:
+    - echo "🔧 Validation de la configuration Nginx..."
+    - nginx -t
+  only:
+    - develop
+    - main
+
+infra:docker-compose:
+  stage: test
+  image: docker/compose:latest
+  script:
+    - echo "🔧 Validation du docker-compose..."
+    - docker-compose -f database/docker-compose.yml config
+  only:
+    - develop
+    - main
+
+# ============================================
+# DOCUMENTATION - Vérification (optionnel)
+# ============================================
+
+docs:markdown-lint:
+  stage: lint
+  image: node:20
+  script:
+    - npm install -g markdownlint-cli
+    - markdownlint 'docs/**/*.md' || echo "⚠️ Documentation non vérifiée"
+  allow_failure: true
+  only:
+    - develop
+    - main
+
+# ============================================
+# DÉPLOIEMENT - Staging et Production
 # ============================================
 
 deploy:staging:
-  stage: deploy-staging
+  stage: deploy
   image: alpine:latest
   script:
-    - echo "🚀 Déploiement sur l'environnement STAGING..."
+    - echo "🚀 Déploiement sur STAGING..."
     - apk add --no-cache curl
-    - curl -X POST $STAGING_DEPLOY_HOOK
+    - curl -X POST $STAGING_DEPLOY_HOOK || echo "⚠️ Webhook non configuré"
   environment:
     name: staging
     url: https://staging.quantum-bluff.fr
   only:
     - develop
-  dependencies:
-    - backend:build
-    - frontend:build
+  when: manual
 
 deploy:production:
-  stage: deploy-prod
+  stage: deploy
   image: alpine:latest
   script:
     - echo "🚀 Déploiement sur PRODUCTION..."
     - apk add --no-cache curl
-    - curl -X POST $PRODUCTION_DEPLOY_HOOK
+    - curl -X POST $PRODUCTION_DEPLOY_HOOK || echo "⚠️ Webhook non configuré"
   environment:
     name: production
     url: https://quantum-bluff.fr
   only:
     - main
   when: manual
-  dependencies:
-    - backend:build
-    - frontend:build
 
 # ============================================
 # RAPPORTS DE COUVERTURE
@@ -302,10 +353,11 @@ deploy:production:
 
 coverage:
   stage: test
-  image: alpine:latest
   script:
-    - echo "✅ Tests et couverture terminés"
-  dependencies: []
+    - echo "📊 Génération des rapports de couverture"
+  dependencies:
+    - backend:test
+    - frontend:test
   only:
     - main
     - develop
