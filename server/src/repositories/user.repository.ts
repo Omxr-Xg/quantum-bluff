@@ -2,6 +2,10 @@ import { PrismaClient } from "@prisma/client";
 
 import { prisma } from "../services/db.service";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const prisma = new PrismaClient();
+
+
 export class UserRepository {
   static async create(data: {
     username: string;
