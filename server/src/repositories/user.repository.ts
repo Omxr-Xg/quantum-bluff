@@ -1,5 +1,7 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { PrismaClient } from "@prisma/client";
-
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _prisma = new PrismaClient();
 
 export class UserRepository {
   static async create(data: {
