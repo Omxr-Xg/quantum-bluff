@@ -5,21 +5,17 @@ import tsPlugin from "@typescript-eslint/eslint-plugin";
 
 export default [
   {
-    // Files to ignore completely
     ignores: [
       "dist/",
       "node_modules/",
       "coverage/",
-      "*.config.js",
-      "*.config.cjs",
-      "jest.config.cjs"
+      "**/*.config.js",
+      "**/*.config.cjs"
     ]
   },
-  // Base recommended config
   js.configs.recommended,
-  // TypeScript configuration
   {
-    files: ["**/*.ts", "**/*.tsx"],
+    files: ["**/*.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
