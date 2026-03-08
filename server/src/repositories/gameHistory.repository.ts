@@ -1,4 +1,3 @@
-import { PrismaClient } from "@prisma/client";
 import { prisma } from "../services/db.service";
 
 export interface HandSummary {
