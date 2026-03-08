@@ -1,9 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 
-import { prisma } from "../services/db.service";
+import { PrismaClient } from '@prisma/client';
 
+// Will be used for database operations
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const prisma = new PrismaClient();
+
 
 
 export class UserRepository {
