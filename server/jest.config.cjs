@@ -1,3 +1,6 @@
+// server/jest.config.cjs
+/* eslint-env node */
+/* eslint-disable @typescript-eslint/no-require-imports */
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',

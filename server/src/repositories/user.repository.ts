@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-const _prisma = new PrismaClient();
+
 
 export class UserRepository {
   static async create(data: {
