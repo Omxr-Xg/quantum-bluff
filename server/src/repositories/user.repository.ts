@@ -1,4 +1,3 @@
-// server/src/repositories/user.repository.ts
 import { prisma } from '../config/database';
 
 export class UserRepository {
@@ -23,12 +22,11 @@ export class UserRepository {
     email: string; 
     password: string 
   }) {
-    // Crée l'utilisateur avec ses stats par défaut
     return prisma.user.create({
       data: {
         ...data,
         stats: {
-          create: {} // Crée automatiquement UserStats avec valeurs par défaut
+          create: {}
         }
       },
       include: {
@@ -41,21 +39,6 @@ export class UserRepository {
     return prisma.user.update({
       where: { id },
       data: { chips }
-    });
-  }
-
-  async recordGameHistory(data: {
-    winnerId: string;
-    tableId: string;
-    gameId: string;
-    board: string[];
-    pot: number;
-  }) {
-    return prisma.gameHistory.create({
-      data,
-      include: {
-        winner: true
-      }
     });
   }
 
