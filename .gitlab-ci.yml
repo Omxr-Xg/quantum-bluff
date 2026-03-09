@@ -74,6 +74,7 @@ backend:build:
   script:
     - cd server
     - npm ci
+    - npx prisma generate
     - npm run build
   artifacts:
     paths:

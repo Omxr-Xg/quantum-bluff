@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "NODE_OPTIONS='--loader ts-node/esm --no-warnings' nodemon src/index.ts",
+    "postinstall": "prisma generate",
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "test": "jest",
