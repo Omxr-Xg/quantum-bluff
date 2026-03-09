@@ -1,0 +1,24 @@
+cd ~/Movies/quantum-bluff/database
+
+# Sauvegarde l'original (au cas où)
+cp docker-compose.yml docker-compose.yml.bak
+
+# Crée la nouvelle version sans le numéro de version problématique
+cat > docker-compose.yml << 'EOF'
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: My027
+      POSTGRES_DB: quantum_bluff
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+EOF
