@@ -1,7 +1,7 @@
 import { useState } from "react";  // Removed useEffect
 import { useNavigate } from "react-router";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X } from "lucide-react";
-import { QuantumBluffLogo } from "../assets/logo";
+import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { getUserProfile, saveUserProfile } from "../utils/userProfile";
 
 // ==========================================
