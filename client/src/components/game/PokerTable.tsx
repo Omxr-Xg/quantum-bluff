@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";  // ← type-only import
-import { logoDataUrl } from "@/assets/logo";
+import type { ReactNode } from "react";
+import { logoDataUrl } from "@/assets/logo-data";
 import { getPlayerAvatar } from "@/utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Clock } from "lucide-react";
