@@ -1,10 +1,5 @@
-cd ~/Movies/quantum-bluff/database
+version: "3.9"
 
-# Sauvegarde l'original (au cas où)
-cp docker-compose.yml docker-compose.yml.bak
-
-# Crée la nouvelle version sans le numéro de version problématique
-cat > docker-compose.yml << 'EOF'
 services:
   postgres:
     image: postgres:16
@@ -17,8 +12,6 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
 
 volumes:
   pgdata:
-EOF
