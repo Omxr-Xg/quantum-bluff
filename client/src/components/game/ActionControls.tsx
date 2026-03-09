@@ -8,7 +8,6 @@ interface ActionControlsProps {
   onRaise?: (amount: number) => void;
   minRaise?: number;
   maxRaise?: number;
-  playerChips?: number;
   currentBet?: number;
   isPlayerTurn?: boolean;
 }
@@ -20,7 +19,6 @@ export const ActionControls = ({
   onRaise,
   minRaise = 20,
   maxRaise = 1000,
-  playerChips = 1000,
   currentBet = 0,
   isPlayerTurn = true,
 }: ActionControlsProps) => {
