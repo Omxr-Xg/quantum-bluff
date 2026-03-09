@@ -1,2 +1,2 @@
-export * from './user.repository';
-export * from './gameHistory.repository';
+export { userRepository } from './user.repository.js';
+export { gameHistoryRepository } from './gameHistory.repository.js';
