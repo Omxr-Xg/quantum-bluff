@@ -1,8 +1,7 @@
-import { prisma } from '../config/database';
+import { prisma } from '../config/database.js';
 
 async function main() {
   console.log('Seeding database...');
-  // Add your seed logic here
   console.log('Seed completed!');
 }
 
