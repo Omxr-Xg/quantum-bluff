@@ -1,3 +1,3 @@
-export const getPlayerAvatar = (playerName: string): string | null => {
+export const getPlayerAvatar = (_playerName: string): string | null => {
   return null;
 };
