@@ -3,19 +3,8 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactRefresh from "eslint-plugin-react-refresh";
 
-export default [
-  {
-    ignores: [
-      "dist/**",
-      "node_modules/**",
-      "vite.config.ts",
-      "src/test/**",
-      "src/__tests__/**",
-      "*.test.ts",
-      "*.test.tsx",
-      "*.config.ts"
-    ]
-  },
+export default tseslint.config(
+  { ignores: ["dist/**", "electron.js"] },  // ← AJOUTER electron.js ICI
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -24,21 +13,18 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.node,
-        ...globals.es2020,
       },
-      parser: tseslint.parser,
+      parserOptions: {
+        project: true,
+        tsconfigRootDir: ".",
+      },
     },
     plugins: {
-      "@typescript-eslint": tseslint.plugin,
       "react-refresh": reactRefresh,
     },
     rules: {
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
-      "@typescript-eslint/no-unused-vars": ["error", { 
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_"
-      }],
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     },
-  },
-];
+  }
+);
