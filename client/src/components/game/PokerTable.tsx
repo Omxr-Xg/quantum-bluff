@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import type { ReactNode } from "react";  // ← type-only import
 import { logoDataUrl } from "@/assets/logo";
 import { getPlayerAvatar } from "@/utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
@@ -6,36 +6,23 @@ import { Clock } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
 import { calculatePlayerPositions } from "../../utils/tablePositions";
 
-// ==========================================
-// Constants and helper functions
-// ==========================================
-const SUITS = {
-  hearts: "♥",
-  diamonds: "♦",
-  clubs: "♣",
-  spades: "♠",
-};
+// Constantes (gardées)
+// const SUITS = {
+//   hearts: "♥",
+//   diamonds: "♦",
+//   clubs: "♣",
+//   spades: "♠",
+// };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const getSuitSymbol = (suit: string): string => {
-  return SUITS[suit as keyof typeof SUITS] || "";
-};
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const getSuitColor = (suit: string): string => {
-  return suit === "hearts" || suit === "diamonds"
-    ? "text-red-600"
-    : "text-gray-900";
-};
+// Fonctions inutilisées - on les supprime
+// const getSuitSymbol = ... (supprimé)
+// const getSuitColor = ... (supprimé)
 
 const getPlayerCountryCode = (playerId: number): string => {
   const countryCodes = ["us", "gb", "ca", "de", "fr", "es", "it", "nl", "au", "br", "mx", "at"];
   return countryCodes[playerId % countryCodes.length];
 };
 
-// ==========================================
-// Interfaces
-// ==========================================
 interface Card {
   suit: string;
   value: string;
@@ -56,25 +43,17 @@ interface Player {
 interface PokerTableProps {
   players: Player[];
   children?: ReactNode;
-  // communitySafeZone?: number; // Commented out if not used
 }
 
-// ==========================================
-// Main Component
-// ==========================================
 export function PokerTable({ players, children }: PokerTableProps) {
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
   
-  // Calculate all positions once for this screen size
   const allPositions = calculatePlayerPositions(players.length > 0 ? players.length : 1, isMobile, isTablet);
 
   return (
-    <div 
-      className="relative w-full h-full flex items-center justify-center" 
-      style={{ perspective: isMobile ? '800px' : isTablet ? '1000px' : '1200px' }}
-    >
+    <div className="relative w-full h-full flex items-center justify-center" style={{ perspective: isMobile ? '800px' : isTablet ? '1000px' : '1200px' }}>
       {/* Poker table with 3D effect */}
       <div className="relative" style={{ transformStyle: 'preserve-3d' }}>
         

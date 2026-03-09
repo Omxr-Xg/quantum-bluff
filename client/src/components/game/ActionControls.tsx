@@ -1,6 +1,6 @@
 import { X, Check, TrendingUp } from "lucide-react";
 import { useState } from "react";
-import { useIsMobile } from "../ui/use-mobile";
+import { useDeviceType } from "../ui/use-mobile";
 
 // 1. On a renommé l'interface selon les specs
 interface ActionControlsProps {
