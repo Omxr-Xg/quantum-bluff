@@ -9,19 +9,31 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default tseslint.config(
-  { ignores: ["dist/**", "electron.js", "vite.config.ts"] },
+  {
+    ignores: [
+      "dist/**",
+      "electron.js",
+      "vite.config.ts",
+      "vite.config.d.ts",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "src/__tests__/**",
+      "src/test/**",
+      "example.test.tsx"
+    ]
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
       globals: {
         ...globals.browser,
         ...globals.node,
       },
       parserOptions: {
-        project: true,
-        tsconfigRootDir: __dirname,  // ← Maintenant c'est un chemin absolu
+        project: "./tsconfig.json",
+        tsconfigRootDir: __dirname,
       },
     },
     plugins: {
