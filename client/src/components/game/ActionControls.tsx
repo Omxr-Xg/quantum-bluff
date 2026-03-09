@@ -1,111 +1,72 @@
-import { X, Check, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { useDeviceType } from "../ui/use-mobile";
 
-// 1. On a renommé l'interface selon les specs
 interface ActionControlsProps {
-  onFold: () => void;
-  onCall: (amount: number) => void;
-  onRaise: (amount: number) => void;
-  callAmount: number;
-  minRaise: number;
-  maxRaise: number;
+  onFold?: () => void;
+  onCheck?: () => void;
+  onCall?: () => void;
+  onRaise?: (amount: number) => void;
+  minRaise?: number;
+  maxRaise?: number;
+  playerChips?: number;
+  currentBet?: number;
+  isPlayerTurn?: boolean;
 }
 
-// 2. On a renommé le composant selon les specs
-export function ActionControls({ 
-  onFold, 
-  onCall, 
-  onRaise, 
-  callAmount,
-  minRaise,
-  maxRaise
-}: ActionControlsProps) {
+export const ActionControls = ({
+  onFold,
+  onCheck,
+  onCall,
+  onRaise,
+  minRaise = 20,
+  maxRaise = 1000,
+  playerChips = 1000,
+  currentBet = 0,
+  isPlayerTurn = true,
+}: ActionControlsProps) => {
   const [raiseAmount, setRaiseAmount] = useState(minRaise);
-  const [showRaiseSlider, setShowRaiseSlider] = useState(false);
-  const isMobile = useIsMobile();
+  const deviceType = useDeviceType();
+  const isMobile = deviceType === "mobile";
 
-  const handleRaiseClick = () => {
-    if (showRaiseSlider) {
-      onRaise(raiseAmount);
-      setShowRaiseSlider(false);
-    } else {
-      setShowRaiseSlider(true);
-    }
-  };
+  if (!isPlayerTurn) return null;
 
   return (
-    <div className={`absolute ${isMobile ? 'bottom-[140px]' : 'bottom-[180px]'} left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 sm:gap-3`}>
-      {/* Slider pour la relance */}
-      {showRaiseSlider && (
-        <div className="bg-gray-900/95 backdrop-blur-sm rounded-xl sm:rounded-2xl px-4 py-3 sm:px-6 sm:py-4 shadow-2xl border-2 border-gray-700">
-          <div className="flex flex-col gap-2 sm:gap-3">
-            <div className="text-white text-xs sm:text-sm font-semibold text-center">
-              Montant de la relance
-            </div>
-            <div className="text-yellow-400 text-xl sm:text-2xl font-bold text-center">
-              ${raiseAmount.toLocaleString()}
-            </div>
-            <input
-              type="range"
-              min={minRaise}
-              max={maxRaise}
-              value={raiseAmount}
-              onChange={(e) => setRaiseAmount(Number(e.target.value))}
-              className={`${isMobile ? 'w-48' : 'w-64'} h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-yellow-500`}
-            />
-            <div className="flex justify-between text-xs text-gray-400">
-              <span>${minRaise.toLocaleString()}</span>
-              <span>${maxRaise.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Boutons d'action */}
-      <div className="flex gap-2 sm:gap-4">
-        {/* Bouton Se coucher */}
+    <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-2 p-4 bg-gray-800 rounded-lg`}>
+      <button
+        onClick={onFold}
+        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+      >
+        Fold
+      </button>
+      <button
+        onClick={onCheck}
+        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        Check
+      </button>
+      <button
+        onClick={onCall}
+        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+      >
+        Call {currentBet}
+      </button>
+      <div className="flex items-center gap-2">
+        <input
+          type="range"
+          min={minRaise}
+          max={maxRaise}
+          value={raiseAmount}
+          onChange={(e) => setRaiseAmount(Number(e.target.value))}
+          className="w-32"
+        />
+        <span>{raiseAmount}</span>
         <button
-          onClick={onFold}
-          className={`group relative bg-gradient-to-br from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white ${isMobile ? 'px-4 py-3' : 'px-8 py-4'} rounded-lg sm:rounded-xl shadow-2xl border-2 sm:border-4 border-red-500 hover:border-red-400 transition-all transform active:scale-95 touch-manipulation`}
+          onClick={() => onRaise?.(raiseAmount)}
+          className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
         >
-          <div className="flex items-center gap-2 sm:gap-3">
-            <X className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'}`} />
-            <div className={isMobile ? 'text-left' : ''}>
-              <div className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'}`}>Se coucher</div>
-              {!isMobile && <div className="text-xs opacity-90">Fold</div>}
-            </div>
-          </div>
-        </button>
-
-        {/* Bouton Suivre */}
-        <button
-          onClick={() => onCall(callAmount)}
-          className={`group relative bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white ${isMobile ? 'px-4 py-3' : 'px-8 py-4'} rounded-lg sm:rounded-xl shadow-2xl border-2 sm:border-4 border-blue-500 hover:border-blue-400 transition-all transform active:scale-95 touch-manipulation`}
-        >
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Check className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'}`} />
-            <div className={isMobile ? 'text-left' : ''}>
-              <div className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'}`}>Suivre</div>
-              {!isMobile && <div className="text-xs opacity-90">Call ${callAmount}</div>}
-            </div>
-          </div>
-        </button>
-
-        {/* Bouton Relancer */}
-        <button
-          onClick={handleRaiseClick}
-          className={`group relative bg-gradient-to-br from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white ${isMobile ? 'px-4 py-3' : 'px-8 py-4'} rounded-lg sm:rounded-xl shadow-2xl border-2 sm:border-4 border-green-500 hover:border-green-400 transition-all transform active:scale-95 touch-manipulation`}
-        >
-          <div className="flex items-center gap-2 sm:gap-3">
-            <TrendingUp className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'}`} />
-            <div className={isMobile ? 'text-left' : ''}>
-              <div className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'}`}>Relancer</div>
-              {!isMobile && <div className="text-xs opacity-90">Raise</div>}
-            </div>
-          </div>
+          Raise
         </button>
       </div>
     </div>
   );
-}
+};

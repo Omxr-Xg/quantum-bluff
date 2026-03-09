@@ -3,7 +3,7 @@ import { logoDataUrl } from "@/assets/logo";
 import { getPlayerAvatar } from "@/utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Clock } from "lucide-react";
-import { useDeviceType } from "./ui/use-mobile";
+import { useDeviceType } from "../ui/use-mobile";
 import { calculatePlayerPositions } from "../../utils/tablePositions";
 
 // Constantes (gardées)
@@ -189,7 +189,7 @@ export function PokerTable({ players, children }: PokerTableProps) {
                     }`}>
                       {getPlayerAvatar(player.name) ? (
                         <ImageWithFallback
-                          src={getPlayerAvatar(player.name)}
+                          src={getPlayerAvatar(player.name) || ''}
                           alt={`${player.name}'s avatar`}
                           className="w-full h-full rounded-full object-cover"
                         />
