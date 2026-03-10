@@ -12,7 +12,7 @@
 // - Categories (high->low): 8 Straight Flush, 7 Four, 6 Full House, 5 Flush, 4 Straight,
 //                          3 Trips, 2 Two Pair, 1 One Pair, 0 High Card
 
-import type { Card, Player, Rank, Suit } from "./types/poker.js";
+import type { Card, Player, Rank, Suit } from "../types/poker";
 
 // ------------------------------
 // Rank helpers
