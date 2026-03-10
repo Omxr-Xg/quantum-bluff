@@ -1,10 +1,15 @@
 {
-  "devDependencies": {
-    "@types/pg": "^8.18.0",
-    "pg": "^8.20.0"
+  "name": "quantum-bluff-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "dev": "concurrently -n \"DB,SERVER,CLIENT\" -c \"blue,magenta,cyan\" \"npm:dev:db\" \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:db": "cd database && sudo docker-compose up -d",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev"
   },
-  "dependencies": {
-    "@prisma/adapter-pg": "^7.4.2",
-    "@prisma/client": "^7.4.2"
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   }
 }
