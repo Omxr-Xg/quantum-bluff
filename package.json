@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "start": "npm run install:all && npm run dev",
     "dev": "concurrently -n \"DB,SERVER,CLIENT\" -c \"blue,magenta,cyan\" \"npm:dev:db\" \"npm:dev:server\" \"npm:dev:client\"",
     "dev:db": "cd database && sudo docker-compose up -d",
-    "dev:server": "cd server && npm run dev",
-    "dev:client": "cd client && npm run dev"
+    "dev:server": "cd server && npm install && npm run dev",
+    "dev:client": "cd client && npm install && npm run dev"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
