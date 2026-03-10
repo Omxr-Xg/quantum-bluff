@@ -3,7 +3,7 @@
 // Branch: feature/back-game-logic
 
 import { randomInt } from "crypto";
-import type { Card, Deck, Player, Rank, Suit } from "./types/poker";
+import type { Card, Deck, Player, Rank, Suit } from "../types/poker";
 
 // ------------------------------
 // Constants
