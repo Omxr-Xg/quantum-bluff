@@ -15,7 +15,7 @@ import { findWinner } from './Evaluator';
 
 export class GameTable {
   public readonly id: string;
-  private deck: ReturnType<typeof generateDeck>;
+  private deck!: ReturnType<typeof generateDeck>;
   public state: GameState;
 
   constructor(id: string, players: Player[]) {
