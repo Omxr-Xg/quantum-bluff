@@ -4,6 +4,11 @@ services:
   postgres:
     image: postgres:16
     container_name: postgres_db
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: My027
