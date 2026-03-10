@@ -1,11 +1,9 @@
-// server/src/__tests__/GameTable.test.ts
-// QUANTUM BLUFF - GAME TABLE TESTS (Azra QA Phase 3)
-
+// server/src/__tests__/GameTable.test.ts - PATHS FINAUX
 import { GameTable } from '../logic/GameTable';
 import type { Player } from '../types/poker';
 
-// Mock Deck.ts
-jest.mock('../logic/Deck', () => ({
+// ✅ PATHS CORRECTS depuis src/__tests__/
+jest.mock('./logic/Deck', () => ({
   generateDeck: () => ({ cards: [], burnedCards: [], dealtCount: 0 }),
   shuffle: jest.fn(),
   dealInitialCards: jest.fn((deck, players) => players),
@@ -14,8 +12,7 @@ jest.mock('../logic/Deck', () => ({
   dealRiver: jest.fn(() => ({ suit: 'H', rank: 'Q', value: 12 }))
 }));
 
-// Mock Evaluator.ts
-jest.mock('../logic/Evaluator', () => ({
+jest.mock('./logic/Evaluator', () => ({
   findWinner: jest.fn(() => 'p1'),
   getHandValue: jest.fn(() => 1000)
 }));
@@ -32,12 +29,12 @@ describe('GameTable - Moteur Principal', () => {
   });
 
   test('startHand initialise deck + PREFLOP', () => {
-    const { shuffle, dealInitialCards } = require('../logic/Deck');
+    const Deck = require('./logic/Deck');
     
     table.startHand();
     
-    expect(shuffle).toHaveBeenCalled();
-    expect(dealInitialCards).toHaveBeenCalled();
+    expect(Deck.shuffle).toHaveBeenCalled();
+    expect(Deck.dealInitialCards).toHaveBeenCalled();
     expect(table.state.phase).toBe('PREFLOP');
     expect(table.state.pot).toBe(0);
   });
