@@ -186,7 +186,7 @@ security:scan-deps-backend:
   script:
     - cd server
     - npm ci
-    - npm audit --production || true
+    - npm audit --production
   allow_failure: true
   only:
     - develop
