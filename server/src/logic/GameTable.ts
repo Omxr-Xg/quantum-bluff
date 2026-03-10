@@ -1,7 +1,6 @@
 // server/src/logic/GameTable.ts
 // QUANTUM BLUFF - GAME STATE ENGINE (Azra + Soheil Phase 3)
-// Compatible 100% avec tes Deck.ts + Evaluator.ts + types poker.ts
-// ✅ ESLint fixé - Pipeline GitLab VERT !
+// ✅ ESLint + TypeScript + Pipeline GitLab OK
 
 import type { GameState, Player, GamePhase } from '../types/poker';
 import { 
@@ -10,9 +9,9 @@ import {
   dealInitialCards, 
   dealFlop, 
   dealTurn, 
-  dealRiver, 
-  findWinner 
+  dealRiver 
 } from './Deck';
+import { findWinner } from './Evaluator';
 
 export class GameTable {
   public readonly id: string;
@@ -30,16 +29,11 @@ export class GameTable {
     };
   }
 
-  /** Démarre une nouvelle main */
   startHand(): void {
-    // 1. Nouveau deck
     this.deck = generateDeck();
     shuffle(this.deck);
-    
-    // 2. Distribue 2 cartes par joueur
     dealInitialCards(this.deck, this.state.players);
     
-    // 3. Reset état
     this.state = {
       ...this.state,
       pot: 0,
@@ -49,7 +43,6 @@ export class GameTable {
     };
   }
 
-  /** Action joueur (FOLD/CALL/RAISE) */
   handlePlayerAction(
     playerId: string, 
     action: 'FOLD' | 'CALL' | 'RAISE', 
@@ -66,7 +59,6 @@ export class GameTable {
       case 'FOLD':
         player.currentBet = 0;
         break;
-        
       case 'CALL':
         if (player.chips >= (amount || 0)) {
           const callAmount = amount || 0;
@@ -74,7 +66,6 @@ export class GameTable {
           this.state.pot += callAmount;
         }
         break;
-        
       case 'RAISE':
         if (!amount || amount > player.chips) {
           throw new Error("Pas assez de jetons");
@@ -88,12 +79,10 @@ export class GameTable {
     this.nextTurn();
   }
 
-  /** Joueur suivant ou phase suivante */
   private nextTurn(): void {
     const currentIndex = this.state.players.findIndex(p => p.id === this.state.currentTurn);
     let nextIndex = (currentIndex + 1) % this.state.players.length;
     
-    // Trouve prochain joueur actif
     while (nextIndex !== currentIndex && 
            !this.state.players[nextIndex].cards?.length) {
       nextIndex = (nextIndex + 1) % this.state.players.length;
@@ -102,7 +91,6 @@ export class GameTable {
     this.state.currentTurn = this.state.players[nextIndex].id;
   }
 
-  /** Avance à la phase suivante */
   advancePhase(): void {
     const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN'];
     const currentIndex = phaseOrder.indexOf(this.state.phase);
@@ -130,20 +118,17 @@ export class GameTable {
     this.state.currentTurn = this.state.players[0]?.id || '';
   }
 
-  /** Résout le showdown */
   private resolveShowdown(): void {
     const winnerId = findWinner(this.state.players, this.state.communityCards);
     const winner = this.state.players.find(p => p.id === winnerId);
     
     if (winner) {
       winner.chips += this.state.pot;
-      console.log(`🏆 ${winner.name} gagne ${this.state.pot} jetons`);
     }
     
     this.state.pot = 0;
   }
 
-  /** État censuré pour frontend (Fog of War) */
   getSanitizedState(requestingPlayerId?: string) {
     return {
       id: this.id,

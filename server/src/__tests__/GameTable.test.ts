@@ -1,19 +1,23 @@
 // server/src/__tests__/GameTable.test.ts
-// QUANTUM BLUFF - GAME TABLE TESTS (Azra QA)
-// Placement: server/src/__tests__/ conforme instructions_equipe.pdf
+// QUANTUM BLUFF - GAME TABLE TESTS (Azra QA Phase 3)
 
 import { GameTable } from '../logic/GameTable';
 import type { Player } from '../types/poker';
 
-// Mock Deck/Evaluator
+// Mock Deck.ts
 jest.mock('../logic/Deck', () => ({
   generateDeck: () => ({ cards: [], burnedCards: [], dealtCount: 0 }),
   shuffle: jest.fn(),
   dealInitialCards: jest.fn((deck, players) => players),
   dealFlop: jest.fn(() => [{ suit: 'H', rank: 'A', value: 14 }]),
   dealTurn: jest.fn(() => ({ suit: 'H', rank: 'K', value: 13 })),
-  dealRiver: jest.fn(() => ({ suit: 'H', rank: 'Q', value: 12 })),
-  findWinner: jest.fn(() => 'p1')
+  dealRiver: jest.fn(() => ({ suit: 'H', rank: 'Q', value: 12 }))
+}));
+
+// Mock Evaluator.ts
+jest.mock('../logic/Evaluator', () => ({
+  findWinner: jest.fn(() => 'p1'),
+  getHandValue: jest.fn(() => 1000)
 }));
 
 describe('GameTable - Moteur Principal', () => {
@@ -43,18 +47,17 @@ describe('GameTable - Moteur Principal', () => {
     
     const azraState = table.getSanitizedState('p1');
     
-    expect(azraState.players[0].cards.length).toBe(2);  // Azra voit ses cartes
-    expect(azraState.players[1].cards.length).toBe(0);  // Cache Soheil
+    expect(azraState.players[0].cards.length).toBe(2);
+    expect(azraState.players[1].cards.length).toBe(0);
   });
 
   test('advancePhase gère séquence FLOP→TURN→RIVER', () => {
     table.startHand();
     
-    table.advancePhase(); // FLOP
+    table.advancePhase();
     expect(table.state.phase).toBe('FLOP');
     
-    table.advancePhase(); // TURN
+    table.advancePhase();
     expect(table.state.phase).toBe('TURN');
   });
 });
-
