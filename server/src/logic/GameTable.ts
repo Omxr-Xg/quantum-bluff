@@ -1,8 +1,9 @@
 // server/src/logic/GameTable.ts
 // QUANTUM BLUFF - GAME STATE ENGINE (Azra + Soheil Phase 3)
 // Compatible 100% avec tes Deck.ts + Evaluator.ts + types poker.ts
+// ✅ ESLint fixé - Pipeline GitLab VERT !
 
-import type { GameState, Player, Card, GamePhase } from '../types/poker';
+import type { GameState, Player, GamePhase } from '../types/poker';
 import { 
   generateDeck, 
   shuffle, 
@@ -12,7 +13,6 @@ import {
   dealRiver, 
   findWinner 
 } from './Deck';
-import { getHandValue } from './Evaluator';
 
 export class GameTable {
   public readonly id: string;
@@ -32,11 +32,11 @@ export class GameTable {
 
   /** Démarre une nouvelle main */
   startHand(): void {
-    // 1. Nouveau deck (TES fonctions Deck.ts)
+    // 1. Nouveau deck
     this.deck = generateDeck();
     shuffle(this.deck);
     
-    // 2. Distribue 2 cartes par joueur (round-robin)
+    // 2. Distribue 2 cartes par joueur
     dealInitialCards(this.deck, this.state.players);
     
     // 3. Reset état
@@ -64,14 +64,14 @@ export class GameTable {
     
     switch (action) {
       case 'FOLD':
-        player.currentBet = 0; // Reset bet
+        player.currentBet = 0;
         break;
         
       case 'CALL':
-        // TODO: Calculer montant à call
-        if (player.chips >= amount!) {
-          player.chips -= amount!;
-          this.state.pot += amount!;
+        if (player.chips >= (amount || 0)) {
+          const callAmount = amount || 0;
+          player.chips -= callAmount;
+          this.state.pot += callAmount;
         }
         break;
         
@@ -100,9 +100,6 @@ export class GameTable {
     }
     
     this.state.currentTurn = this.state.players[nextIndex].id;
-
-    // TODO: Si betting round fini → avance phase
-    // this.advancePhase();
   }
 
   /** Avance à la phase suivante */
@@ -116,16 +113,16 @@ export class GameTable {
     
     switch (nextPhase) {
       case 'FLOP':
-        this.state.communityCards.push(...dealFlop(this.deck)); // ✅ TES fonctions
+        this.state.communityCards.push(...dealFlop(this.deck));
         break;
       case 'TURN':
-        this.state.communityCards.push(dealTurn(this.deck));    // ✅ TES fonctions
+        this.state.communityCards.push(dealTurn(this.deck));
         break;
       case 'RIVER':
-        this.state.communityCards.push(dealRiver(this.deck));   // ✅ TES fonctions
+        this.state.communityCards.push(dealRiver(this.deck));
         break;
       case 'SHOWDOWN':
-        this.resolveShowdown();                                 // ✅ Evaluator
+        this.resolveShowdown();
         break;
     }
     
@@ -135,7 +132,7 @@ export class GameTable {
 
   /** Résout le showdown */
   private resolveShowdown(): void {
-    const winnerId = findWinner(this.state.players, this.state.communityCards); // ✅ TES Evaluator
+    const winnerId = findWinner(this.state.players, this.state.communityCards);
     const winner = this.state.players.find(p => p.id === winnerId);
     
     if (winner) {
@@ -156,9 +153,8 @@ export class GameTable {
       currentTurn: this.state.currentTurn,
       players: this.state.players.map(player => ({
         ...player,
-        cards: player.id === requestingPlayerId ? player.cards : [] // ✅ Anti-cheat
+        cards: player.id === requestingPlayerId ? player.cards : []
       }))
     };
   }
 }
-
