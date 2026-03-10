@@ -12,7 +12,10 @@ interface FilterState {
   hiddenBets: boolean;
 }
 
+type FilterValue = number | boolean | null;
+
 export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
+
   const [activeFilters, setActiveFilters] = useState<FilterState>({
     maxBet: null,
     minPlayers: null,
@@ -20,15 +23,20 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
     hiddenBets: false
   });
 
-  const toggleFilter = (filterKey: keyof FilterState, value: any) => {
-    const newFilters = { ...activeFilters, [filterKey]: value };
+  const toggleFilter = (filterKey: keyof FilterState, value: FilterValue) => {
+
+    const newFilters: FilterState = {
+      ...activeFilters,
+      [filterKey]: value
+    };
+
     setActiveFilters(newFilters);
     onFilterChange(newFilters);
   };
 
   const quickTags = [
     {
-      key: "maxBet",
+      key: "maxBet" as keyof FilterState,
       value: 50,
       label: "Mises < 50$",
       icon: DollarSign,
@@ -36,7 +44,7 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
       color: "green"
     },
     {
-      key: "maxBet",
+      key: "maxBet" as keyof FilterState,
       value: 100,
       label: "Mises < 100$",
       icon: DollarSign,
@@ -44,7 +52,7 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
       color: "blue"
     },
     {
-      key: "minPlayers",
+      key: "minPlayers" as keyof FilterState,
       value: 4,
       label: "4+ Joueurs",
       icon: Users,
@@ -52,7 +60,7 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
       color: "purple"
     },
     {
-      key: "noBots",
+      key: "noBots" as keyof FilterState,
       value: true,
       label: "Sans Bots",
       icon: Bot,
@@ -60,7 +68,7 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
       color: "red"
     },
     {
-      key: "hiddenBets",
+      key: "hiddenBets" as keyof FilterState,
       value: true,
       label: "Paris Caches",
       icon: Zap,
@@ -93,25 +101,33 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
   };
 
   const resetFilters = () => {
-    const resetState = {
+
+    const resetState: FilterState = {
       maxBet: null,
       minPlayers: null,
       noBots: false,
       hiddenBets: false
     };
+
     setActiveFilters(resetState);
     onFilterChange(resetState);
   };
 
-  const hasActiveFilters = Object.values(activeFilters).some(v => v !== null && v !== false);
+  const hasActiveFilters = Object.values(activeFilters)
+    .some(v => v !== null && v !== false);
 
   return (
     <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-slate-700 p-4">
+
       <div className="flex items-center justify-between mb-3">
+
         <div className="flex items-center gap-2">
           <Filter className="w-5 h-5 text-purple-400" />
-          <h3 className="text-white font-semibold">Filtres Rapides</h3>
+          <h3 className="text-white font-semibold">
+            Filtres Rapides
+          </h3>
         </div>
+
         {hasActiveFilters && (
           <button
             onClick={resetFilters}
@@ -120,41 +136,70 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
             Reinitialiser
           </button>
         )}
+
       </div>
 
       <div className="flex flex-wrap gap-2">
+
         {quickTags.map((tag) => {
+
           const Icon = tag.icon;
-          const colors = colorClasses[tag.color as keyof typeof colorClasses];
-          
+
+          const colors =
+            colorClasses[tag.color as keyof typeof colorClasses];
+
           return (
             <button
               key={tag.label}
               onClick={() => {
+
                 if (tag.key === "maxBet" || tag.key === "minPlayers") {
-                  toggleFilter(tag.key, tag.active ? null : tag.value);
+
+                  toggleFilter(
+                    tag.key,
+                    tag.active ? null : (tag.value as number)
+                  );
+
                 } else {
-                  toggleFilter(tag.key as keyof FilterState, !tag.active);
+
+                  toggleFilter(
+                    tag.key,
+                    !tag.active
+                  );
+
                 }
+
               }}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 font-semibold text-sm transition-all transform hover:scale-105 ${
-                tag.active ? colors.active : colors.inactive
+                tag.active
+                  ? colors.active
+                  : colors.inactive
               }`}
             >
+
               <Icon className="w-4 h-4" />
+
               {tag.label}
+
             </button>
           );
+
         })}
+
       </div>
 
       {hasActiveFilters && (
+
         <div className="mt-3 pt-3 border-t border-slate-700">
+
           <p className="text-xs text-gray-400">
             Filtres actifs: Reduction de la charge memorielle par reconnaissance
           </p>
+
         </div>
+
       )}
+
     </div>
   );
 }

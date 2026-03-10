@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 
 interface PlayerTimerProps {
   playerName: string;
@@ -8,7 +7,7 @@ interface PlayerTimerProps {
   maxTime: number;
 }
 
-export function PlayerTimer({ playerName, isActive, timeLeft, maxTime }: PlayerTimerProps) {
+export function PlayerTimer({ playerName: _playerName, isActive, timeLeft, maxTime }: PlayerTimerProps) {
   const percentage = (timeLeft / maxTime) * 100;
   
   const getColorByTime = () => {
@@ -120,6 +119,7 @@ interface CardSymbol {
 }
 
 export function AccessibleCard({ suit, value, showLargeSymbol = false }: CardSymbol & { showLargeSymbol?: boolean }) {
+
   const suitSymbols = {
     heart: "♥",
     diamond: "♦",
@@ -148,10 +148,12 @@ export function AccessibleCard({ suit, value, showLargeSymbol = false }: CardSym
           {suitNames[suit]}
         </div>
       )}
+
       <div className={`absolute top-2 left-2 flex flex-col items-center ${suitColors[suit]}`}>
         <span className="text-2xl font-bold">{value}</span>
         <span className="text-3xl leading-none">{suitSymbols[suit]}</span>
       </div>
+
       <div className="absolute inset-0 flex items-center justify-center">
         <span className={`${suitColors[suit]} ${showLargeSymbol ? "text-6xl" : "text-4xl"}`}>
           {suitSymbols[suit]}
