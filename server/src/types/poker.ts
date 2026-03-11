@@ -53,6 +53,7 @@ export interface Player {
    * Useful when handling PLAYER_ACTION (bet/call/raise).
    */
   currentBet?: number;
+  isActive: boolean;
 }
 
 // ==============================
