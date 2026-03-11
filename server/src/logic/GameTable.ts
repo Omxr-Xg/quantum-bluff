@@ -1,10 +1,8 @@
-// server/src/logic/GameTable.ts
-// QUANTUM BLUFF - GAME STATE ENGINE (Azra + Soheil Phase 3)
-// ✅ ESLint + TypeScript + Pipeline GitLab OK
-
-import type { GameState, Player, GamePhase, Card } from '../types/poker.js';
+import type { GameState, Player, GamePhase } from '../types/poker.js';
 import { Deck } from './Deck.js';
-import { getHandValue, findWinner } from './Evaluator.js';
+import { findWinner } from './Evaluator.js';
+// Supprimé: Card (inutilisé)
+// Supprimé: getHandValue (inutilisé)
 
 export class GameTable {
   public readonly id: string;
@@ -198,9 +196,10 @@ export class GameTable {
         chips: player.chips,
         bet: player.currentBet || 0,
         position: player.position || 0,
-        isActive: player.isActive || true,
+        role: player.role,
+        isActive: player.isActive,
         isDealer: player.isDealer || false,
-        isConnected: player.isConnected || true,
+        isConnected: player.isConnected !== false,
         cards: player.id === requestingPlayerId ? player.cards : []
       }))
     };
