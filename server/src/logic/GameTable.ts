@@ -88,7 +88,18 @@ export class GameTable {
     }
 
     const player = this.state.players[playerIndex];
-    
+    if (action === 'CALL' && amount && amount > player.chips) {
+      throw new Error("Pas assez de jetons pour suivre");
+    }
+  
+    if (action === 'RAISE') {
+      if (!amount || amount < 20) {
+        throw new Error("La relance minimum est de 20");
+      }
+      if (amount > player.chips) {
+        throw new Error("Pas assez de jetons pour relancer");
+      }
+    }
     switch (action) {
       case 'FOLD':
         player.currentBet = 0;
