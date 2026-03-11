@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="5" failures="0" errors="0" time="0.204">
-  <testsuite name="GameTable - Moteur Principal" errors="0" failures="0" skipped="0" timestamp="2026-03-11T19:42:11" time="0.156" tests="3">
-    <testcase classname="GameTable - Moteur Principal constructor initialise GameState PREFLOP" name="GameTable - Moteur Principal constructor initialise GameState PREFLOP" time="0.001">
-    </testcase>
-    <testcase classname="GameTable - Moteur Principal getSanitizedState structure + Fog of War" name="GameTable - Moteur Principal getSanitizedState structure + Fog of War" time="0">
-    </testcase>
-    <testcase classname="GameTable - Moteur Principal handlePlayerAction valide tour du joueur" name="GameTable - Moteur Principal handlePlayerAction valide tour du joueur" time="0.003">
+<testsuites name="jest tests" tests="5" failures="0" errors="0" time="1.333">
+  <testsuite name="Backend health check" errors="0" failures="0" skipped="0" timestamp="2026-03-11T19:50:01" time="1.04" tests="1">
+    <testcase classname="Backend health check should pass basic test" name="Backend health check should pass basic test" time="0">
     </testcase>
   </testsuite>
-  <testsuite name="Example test" errors="0" failures="0" skipped="0" timestamp="2026-03-11T19:42:12" time="0.009" tests="1">
+  <testsuite name="Example test" errors="0" failures="0" skipped="0" timestamp="2026-03-11T19:50:02" time="0.066" tests="1">
     <testcase classname="Example test should pass" name="Example test should pass" time="0">
     </testcase>
   </testsuite>
-  <testsuite name="Backend health check" errors="0" failures="0" skipped="0" timestamp="2026-03-11T19:42:12" time="0.01" tests="1">
-    <testcase classname="Backend health check should pass basic test" name="Backend health check should pass basic test" time="0">
+  <testsuite name="GameTable - Moteur Principal" errors="0" failures="0" skipped="0" timestamp="2026-03-11T19:50:03" time="0.126" tests="3">
+    <testcase classname="GameTable - Moteur Principal constructor initialise GameState PREFLOP" name="GameTable - Moteur Principal constructor initialise GameState PREFLOP" time="0">
+    </testcase>
+    <testcase classname="GameTable - Moteur Principal getSanitizedState structure + Fog of War" name="GameTable - Moteur Principal getSanitizedState structure + Fog of War" time="0.001">
+    </testcase>
+    <testcase classname="GameTable - Moteur Principal handlePlayerAction valide tour du joueur" name="GameTable - Moteur Principal handlePlayerAction valide tour du joueur" time="0.004">
     </testcase>
   </testsuite>
 </testsuites>

@@ -40,3 +40,4 @@ describe('GameTable - Moteur Principal', () => {
     expect(() => table.handlePlayerAction('p2', 'CALL')).toThrow('Pas ton tour');
   });
 });
+
