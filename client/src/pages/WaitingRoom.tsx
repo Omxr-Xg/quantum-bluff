@@ -43,7 +43,7 @@ export function WaitingRoom() {
   const onlineFriends = friends.filter(f => f.isOnline);
 
   return (
-    <div className="size-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
+    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
       <div className="max-w-6xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">

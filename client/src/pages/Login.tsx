@@ -31,7 +31,7 @@ export function Login() {
 
 
   return (
-    <div className="size-full relative overflow-hidden bg-slate-900 flex items-center justify-center min-h-screen p-4 sm:p-6 font-sans">
+    <div className="w-full min-h-screen relative overflow-hidden bg-slate-900 flex items-center justify-center min-h-screen p-4 sm:p-6 font-sans">
       
       {/* FONDS IMMERSIF DU START SCREEN (CORRIGÉ AVEC CARTES ANIMÉES ET INCLINÉES) */}
       <div className="absolute inset-0">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Play } from "lucide-react";
+import { ArrowLeft, Play, X, Check, TrendingUp } from "lucide-react";
 import { PokerTable } from "../components/PokerTable";
 import { CommunityCards } from "../components/CommunityCards";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -154,7 +154,7 @@ export function TutorialGame() {
   };
 
   return (
-    <div className="size-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-hidden relative">
+    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-hidden relative">
       {/* Fenêtre de dialogue */}
       <div className={`fixed ${getDialogPosition()} z-[70] max-w-lg animate-bounce-in`}>
         <div className="bg-gradient-to-br from-yellow-900 to-yellow-950 rounded-2xl border-4 border-yellow-400 shadow-2xl p-6 relative">
