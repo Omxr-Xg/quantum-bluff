@@ -1,19 +1,15 @@
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/src'],
-  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '/tests.old/',      // ← Ignorer les anciens tests
-    '/services.old/'     // ← Ignorer les anciens services
-  ],
+  roots: ['<rootDir>/dist'],
+  testMatch: ['**/__tests__/**/*.js', '**/?(*.)+(spec|test).js'],
+  testPathIgnorePatterns: ['/node_modules/'],
+  transform: {
+    '^.+\\.js$': 'babel-jest',  // ← Transformer les fichiers JS avec Babel
+  },
   collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/**/__tests__/**',
-    '!src/tests.old/**',    // ← Ignorer aussi de la couverture
-    '!src/services.old/**'
+    'dist/**/*.js',
+    '!dist/**/*.d.ts',
+    '!dist/**/__tests__/**',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'cobertura'],
