@@ -2,8 +2,8 @@
 // QUANTUM BLUFF - GAME TABLE TESTS SIMPLIFIÉS
 // ✅ Pas de mocks = pas d'erreurs paths
 
-import { GameTable } from '../logic/GameTable';
-import type { Player } from '../types/poker';
+import { GameTable } from '../logic/GameTable.js';
+import type { Player } from '../types/poker.js';
 
 describe('GameTable - Moteur Principal', () => {
   let table: GameTable;

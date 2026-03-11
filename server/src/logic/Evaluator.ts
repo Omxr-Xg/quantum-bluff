@@ -1,49 +1,14 @@
-<<<<<<< HEAD
-import { Card } from '../types/poker.js';
-
-export enum HandRank {
-  HIGH_CARD = 1,
-  PAIR = 2,
-  TWO_PAIR = 3,
-  THREE_OF_KIND = 4,
-  STRAIGHT = 5,
-  FLUSH = 6,
-  FULL_HOUSE = 7,
-  FOUR_OF_KIND = 8,
-  STRAIGHT_FLUSH = 9,
-  ROYAL_FLUSH = 10
-}
-
-export class Evaluator {
-  static evaluateHand(cards: Card[]): { rank: HandRank; value: number } {
-    // Implémentation simplifiée pour l'instant
-    return { rank: HandRank.HIGH_CARD, value: 0 };
-  }
-
-  static compareHands(hand1: Card[], hand2: Card[]): number {
-    const eval1 = this.evaluateHand(hand1);
-    const eval2 = this.evaluateHand(hand2);
-    
-    if (eval1.rank > eval2.rank) return 1;
-    if (eval1.rank < eval2.rank) return -1;
-    return 0;
-  }
-=======
-// server/src/Evaluator.ts
+// server/src/logic/Evaluator.ts
 // QUANTUM BLUFF - PHASE 3 ALPHA - HAND EVALUATOR (Soheil)
-// Branch: feature/back-game-logic
 //
-// Exports required by spec:
+// Exports required:
 // - getHandValue(cards): number
 // - findWinner(players, board): string
 //
-// Notes:
-// - This implementation scores Texas Hold'em hands from up to 7 cards (2 hole + board).
-// - Score is a single number built from (category + tie breakers).
-// - Categories (high->low): 8 Straight Flush, 7 Four, 6 Full House, 5 Flush, 4 Straight,
-//                          3 Trips, 2 Two Pair, 1 One Pair, 0 High Card
+// This implementation scores Texas Hold'em hands from up to 7 cards (2 hole + board).
+// Score is a single number built from (category + tie breakers).
 
-import type { Card, Player, Rank, Suit } from "../types/poker";
+import type { Card, Player, Rank, Suit } from "../types/poker.js";
 
 // ------------------------------
 // Rank helpers
@@ -102,7 +67,6 @@ function findStraightHigh(values: number[]): number {
       run++;
       if (run >= 5) {
         // highest of the 5-card straight is the first element of the run
-        // When run hits 5 at i, the start is uniq[i - 3]
         const startIndex = i - 3;
         return uniq[startIndex];
       }
@@ -330,5 +294,42 @@ export function findWinners(players: Player[], board: Card[]): string[] {
   }
 
   return winners;
->>>>>>> 477ccfa9959fca998e9876e327157bc16bfd9428
+}
+
+// ------------------------------
+// Class wrapper for backward compatibility
+// ------------------------------
+export enum HandRank {
+  HIGH_CARD = 1,
+  PAIR = 2,
+  TWO_PAIR = 3,
+  THREE_OF_KIND = 4,
+  STRAIGHT = 5,
+  FLUSH = 6,
+  FULL_HOUSE = 7,
+  FOUR_OF_KIND = 8,
+  STRAIGHT_FLUSH = 9,
+  ROYAL_FLUSH = 10
+}
+
+export class Evaluator {
+  static evaluateHand(cards: Card[]): { rank: HandRank; value: number } {
+    const score = getHandValue(cards);
+    // Convert score to rank (simplified)
+    let rank = HandRank.HIGH_CARD;
+    if (score > 0) {
+      const category = Math.floor(score / Math.pow(15, 5));
+      rank = (category + 1) as HandRank;
+    }
+    return { rank, value: score };
+  }
+
+  static compareHands(hand1: Card[], hand2: Card[]): number {
+    const score1 = getHandValue(hand1);
+    const score2 = getHandValue(hand2);
+    
+    if (score1 > score2) return 1;
+    if (score1 < score2) return -1;
+    return 0;
+  }
 }

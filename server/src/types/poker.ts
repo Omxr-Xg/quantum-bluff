@@ -54,6 +54,9 @@ export interface Player {
    */
   currentBet?: number;
   isActive: boolean;
+  position?: number;        // ← Ajoute
+  isDealer?: boolean;       // ← Ajoute
+  isConnected?: boolean;    // ← Ajoute
 }
 
 // ==============================
