@@ -1,5 +1,4 @@
-// server/test/test-utils.ts
-import type { Card, Rank, Suit } from "../types/poker.js";
+import type { Card, Rank, Suit } from "./types/poker.js";
 
 const RANK_VALUE: Record<Rank, number> = {
   "2": 2,
@@ -33,14 +32,11 @@ export function assertEq<T>(actual: T, expected: T, message: string): void {
   }
 }
 
-export function assertArrayEq<T>(
-  actual: T[],
-  expected: T[],
-  message: string,
-): void {
+export function assertArrayEq<T>(actual: T[], expected: T[], message: string): void {
   const same =
     actual.length === expected.length &&
     actual.every((v, i) => v === expected[i]);
+
   if (!same) {
     throw new Error(
       `❌ TEST FAILED: ${message}\n   expected=${JSON.stringify(expected)}\n   actual=${JSON.stringify(actual)}`,
