@@ -53,7 +53,7 @@ backend:test:
   script:
     - cd server
     - npm ci
-    - - npm run test:coverage
+    - npm run test:coverage
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
   artifacts:
     reports:
@@ -311,7 +311,7 @@ docs:markdown-lint:
   image: node:20
   script:
     - npm install -g markdownlint-cli
-    - markdownlint 'docs/**/*.md' || echo "⚠️ Documentation non vérifiée"
+    - markdownlint 'Docs/**/*.md' || echo "⚠️ Documentation non vérifiée"
   allow_failure: true
   only:
     - develop
