@@ -9,8 +9,8 @@ describe('GameTable - Moteur Principal', () => {
   let table: GameTable;
   
   const players: Player[] = [
-    { id: 'p1', name: 'Azra', cards: [], chips: 1000, role: 'PLAYER' as const },
-    { id: 'p2', name: 'Soheil', cards: [], chips: 1000, role: 'PLAYER' as const }
+    { id: 'p1', name: 'Azra', cards: [], chips: 1000, role: 'PLAYER' as const ,isActive: true },
+    { id: 'p2', name: 'Soheil', cards: [], chips: 1000, role: 'PLAYER' as const ,isActive: true }
   ];
 
   beforeEach(() => {
