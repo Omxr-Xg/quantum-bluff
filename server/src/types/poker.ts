@@ -65,6 +65,7 @@ export interface Player {
 export type GamePhase = 'PREFLOP' | 'FLOP' | 'TURN' | 'RIVER' | 'SHOWDOWN';
 
 export interface GameState {
+  id?: string;
   pot: number;
   communityCards: Card[];
   players: Player[];

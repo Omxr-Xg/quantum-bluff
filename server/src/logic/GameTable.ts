@@ -173,19 +173,21 @@ export class GameTable {
   }
 
   // Obtenir l'état complet de la table
-  getState(): GameState {
-    return {
-      pot: this.state.pot,
-      communityCards: this.state.communityCards,
-      players: this.state.players,
-      currentTurn: this.state.currentTurn,
-      phase: this.state.phase
-    };
-  }
+  getState(): GameState & { id: string } {
+  return {
+    id: this.id,
+    pot: this.state.pot,
+    communityCards: this.state.communityCards,
+    players: this.state.players,
+    currentTurn: this.state.currentTurn,
+    phase: this.state.phase
+  };
+}
 
   // Obtenir l'état filtré pour un joueur (sans voir les cartes des autres)
   getSanitizedState(requestingPlayerId?: string): GameState {
     return {
+      id: this.id,
       pot: this.state.pot,
       communityCards: this.state.communityCards,
       currentTurn: this.state.currentTurn,
