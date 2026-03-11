@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { X, Trophy, TrendingUp, Award, Coins, ArrowLeft, Home } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -13,7 +13,7 @@ interface HiddenBet {
   winAmount?: number;
 }
 
-export function HiddenBetsResults() {
+export function HiddenBetsResult() {
   const navigate = useNavigate();
 
   // Données de démonstration
