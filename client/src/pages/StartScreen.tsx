@@ -40,7 +40,7 @@ export function StartScreen() {
   };
 
   return (
-    <div className="size-full relative overflow-hidden bg-slate-900"> {/* Fond Bleu Foncé conservé */}
+    <div className="w-full min-h-screen relative overflow-hidden bg-slate-900"> {/* Fond Bleu Foncé conservé */}
       {/* Background sophistiqué */}
       <div className="absolute inset-0">
         {/* Gradient de base */}
