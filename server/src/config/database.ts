@@ -1,4 +1,4 @@
-import { PrismaClient } from '../generated/prisma/client.js';
+import { PrismaClient } from '../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import dotenv from 'dotenv';
@@ -11,8 +11,12 @@ if (!connectionString) {
   throw new Error('DATABASE_URL is not defined in the environment.');
 }
 
+// Solution : créer le pool normalement
 const pool = new pg.Pool({ connectionString });
-const adapter = new PrismaPg(pool);
+
+// Contournement du conflit de types avec 'as any'
+// Cela n'affecte pas le comportement à l'exécution
+const adapter = new PrismaPg(pool as any);
 
 export const prisma = new PrismaClient({ adapter });
 
