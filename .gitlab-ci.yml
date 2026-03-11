@@ -230,8 +230,9 @@ security:secret-detection:
 security:sast:
   stage: test-security
   image: returntocorp/semgrep:latest
+  dependencies: []
   script:
-    - semgrep --config auto --error .
+    - semgrep --config auto --error --exclude server/coverage --exclude client/coverage .
   allow_failure: true
   only:
     - main
