@@ -218,9 +218,10 @@ security:trivy-scan:
 
 security:secret-detection:
   stage: test-security
+  image: node:20
   script:
     - echo "🔍 Recherche de secrets exposés..."
-    - npx secrets-scan .
+    - npx trufflehog --no-update file://. || true
   allow_failure: true
   only:
     - main

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
-import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
+import { QuantumBluffLogo } from "../assets/logo";
 import { getUserProfile, saveUserProfile } from "../utils/userProfile";
 
 export function Login() {

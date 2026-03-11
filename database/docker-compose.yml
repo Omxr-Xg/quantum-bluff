@@ -4,6 +4,11 @@ services:
   postgres:
     image: postgres:16
     container_name: postgres_db
+    security_opt:
+      - no-new-privileges:true
+    read_only: true           # <-- protection activée
+    tmpfs:
+      - /tmp                  # <-- fichiers temporaires autorisés
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: My027
@@ -11,7 +16,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data  # volume persistant autorisé en écriture
     restart: unless-stopped
 
 volumes:

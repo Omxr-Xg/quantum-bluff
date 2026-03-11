@@ -1,18 +1,8 @@
-import { useState } from "react";  // Removed useEffect
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X } from "lucide-react";
-import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
+import { QuantumBluffLogo } from "../assets/logo";
 import { getUserProfile, saveUserProfile } from "../utils/userProfile";
-
-// ==========================================
-// 1. MOVE Criterion OUTSIDE the component
-// ==========================================
-const Criterion = ({ met, label }: { met: boolean; label: string }) => (
-  <div className={`flex items-center gap-2 text-xs transition-colors ${met ? 'text-green-400' : 'text-red-500'}`}>
-    {met ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-    <span>{label}</span>
-  </div>
-);
 
 export function Register() {
   const [username, setUsername] = useState("");
@@ -24,15 +14,23 @@ export function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ username?: string; email?: string; confirmPassword?: string }>({});
   
-  // ==========================================
-  // 2. REMOVED useState for passwordCriteria
-  // ==========================================
+  const [passwordCriteria, setPasswordCriteria] = useState({
+    length: false,
+    uppercase: false,
+    number: false,
+    special: false,
+  });
 
   const navigate = useNavigate();
 
-  // ==========================================
-  // 3. REMOVED useEffect entirely
-  // ==========================================
+  useEffect(() => {
+    setPasswordCriteria({
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      number: /[0-9]/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    });
+  }, [password]);
 
   const validateEmailFormat = (val: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
@@ -56,16 +54,6 @@ export function Register() {
     }
   };
 
-  // ==========================================
-  // 4. Calculate passwordCriteria directly
-  // ==========================================
-  const passwordCriteria = {
-    length: password.length >= 8,
-    uppercase: /[A-Z]/.test(password),
-    number: /[0-9]/.test(password),
-    special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-  };
-
   const isFormValid = 
     username.length >= 3 && 
     validateEmailFormat(email) && 
@@ -85,14 +73,18 @@ export function Register() {
         username: username,
         email: email 
       });
+      // Ici on va vers le lobby après inscription réussie
       navigate("/lobby");
       setIsLoading(false);
     }, 1500);
   };
 
-  // ==========================================
-  // 5. REMOVED Criterion from inside component
-  // ==========================================
+  const Criterion = ({ met, label }: { met: boolean; label: string }) => (
+    <div className={`flex items-center gap-2 text-xs transition-colors ${met ? 'text-green-400' : 'text-red-500'}`}>
+      {met ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+      <span>{label}</span>
+    </div>
+  );
 
   return (
     <div className="size-full relative overflow-hidden bg-slate-900 flex items-center justify-center min-h-screen p-4 sm:p-6 font-sans">
