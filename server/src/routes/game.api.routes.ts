@@ -2,11 +2,9 @@ import express from 'express';
 import { prisma } from '../config/database.js';
 import { GameTable } from '../logic/GameTable.js';
 import type { Player } from '../types/poker.js';
+import { activeGames } from '../shared/activeGames.js';
 
 const router = express.Router();
-
-// Stockage temporaire des parties en cours (à remplacer par Redis plus tard)
-const activeGames: Map<string, GameTable> = new Map();
 
 // POST /api/game/start - Démarrer une partie depuis une salle d'attente
 router.post('/start', async (req, res) => {
@@ -92,6 +90,8 @@ router.post('/start', async (req, res) => {
 // GET /api/game/:gameId - Récupérer l'état d'une partie
 router.get('/:gameId', (req, res) => {
   const { gameId } = req.params;
+  console.log(`🔍 Recherche de la partie: ${gameId}. Clés dans le Map:`, Array.from(activeGames.keys()));
+  
   const game = activeGames.get(gameId);
 
   if (!game) {

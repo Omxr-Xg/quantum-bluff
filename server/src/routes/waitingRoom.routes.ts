@@ -1,5 +1,8 @@
 import express from 'express';
 import { prisma } from '../config/database.js';
+import { GameTable } from '../logic/GameTable.js';
+import type { Player } from '../types/poker.js';
+import { activeGames } from '../shared/activeGames.js';
 
 const router = express.Router();
 
@@ -300,6 +303,7 @@ router.put('/:roomId/ready', async (req, res) => {
 });
 
 // POST /api/waiting-room/:roomId/start - Démarrer la partie
+// POST /api/waiting-room/:roomId/start - Démarrer la partie
 router.post('/:roomId/start', async (req, res) => {
   try {
     const { roomId } = req.params;
@@ -307,7 +311,13 @@ router.post('/:roomId/start', async (req, res) => {
 
     const room = await prisma.waitingRoom.findUnique({
       where: { id: roomId },
-      include: { players: true }
+      include: { 
+        players: {
+          include: {
+            user: true
+          }
+        }
+      }
     });
 
     if (!room) {
@@ -327,9 +337,31 @@ router.post('/:roomId/start', async (req, res) => {
       return res.status(400).json({ error: 'Tous les joueurs ne sont pas prêts' });
     }
 
-    // TODO: Créer la partie (GameTable)
+    // 🔥 CRÉATION DE LA PARTIE
     const gameId = `game_${Date.now()}`;
 
+    // Convertir les joueurs pour GameTable
+    const players: Player[] = room.players.map((rp, index) => ({
+      id: rp.user.id,
+      name: rp.user.username,
+      cards: [],
+      chips: 1000,
+      role: 'PLAYER',
+      isActive: true,
+      position: index,
+      isDealer: false,
+      isConnected: true
+    }));
+
+    // Créer et initialiser la partie
+    const gameTable = new GameTable(gameId, players);
+    gameTable.startHand();
+
+    // Stocker dans le Map
+    activeGames.set(gameId, gameTable);
+    console.log(`✅ Partie ${gameId} créée et stockée. Taille du Map: ${activeGames.size}`);
+
+    // Mettre à jour la salle
     await prisma.waitingRoom.update({
       where: { id: roomId },
       data: {
@@ -343,6 +375,16 @@ router.post('/:roomId/start', async (req, res) => {
     console.error('Erreur démarrage:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
+});
+
+// GET /api/waiting-room/active/games - Liste des parties actives
+router.get('/active/games', (req, res) => {
+  const games = Array.from(activeGames.entries()).map(([id, game]) => ({
+    id,
+    players: game.state.players.length,
+    phase: game.state.phase
+  }));
+  res.json(games);
 });
 
 export default router;
