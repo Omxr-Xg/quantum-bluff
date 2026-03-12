@@ -38,6 +38,11 @@ export function Register() {
         password 
       }).unwrap();
       console.log("✅ Inscription réussie:", response);
+      
+      // 🔵 AJOUTER CES LIGNES
+      localStorage.setItem('userId', response.id);
+      localStorage.setItem('username', response.username);
+      
       navigate("/lobby");
     } catch (err) {
       console.error("❌ Erreur d'inscription:", err);

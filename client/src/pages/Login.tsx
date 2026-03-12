@@ -14,17 +14,22 @@ export function Login() {
   const isFormValid = email.length > 0 && password.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isFormValid) return;
+  e.preventDefault();
+  if (!isFormValid) return;
 
-    try {
-      const response = await login({ email, password }).unwrap();
-      console.log("✅ Connexion réussie:", response);
-      navigate("/lobby");
-    } catch (err) {
-      console.error("❌ Erreur de connexion:", err);
-    }
-  };
+  try {
+    const response = await login({ email, password }).unwrap();
+    console.log("✅ Connexion réussie:", response);
+    
+    // 🔵 AJOUTER CES LIGNES
+    localStorage.setItem('userId', response.id);
+    localStorage.setItem('username', response.username);
+    
+    navigate("/lobby");
+  } catch (err) {
+    console.error("❌ Erreur de connexion:", err);
+  }
+};
 
   return (
     <div className="w-full min-h-screen relative overflow-hidden bg-slate-900 flex items-center justify-center min-h-screen p-4 sm:p-6 font-sans">
