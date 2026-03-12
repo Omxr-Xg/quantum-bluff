@@ -12,6 +12,8 @@ import friendsRoutes from './routes/friends.routes.js'
 import { GameGateway } from './sockets/game.gateway.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
 
+import waitingRoomRoutes from './routes/waitingRoom.routes.js';
+
 const app = express()
 
 // sécurité HTTP
@@ -32,6 +34,7 @@ app.use(express.json())
 app.use('/api', gameRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/friends', friendsRoutes)
+app.use('/api/waiting-room', waitingRoomRoutes);
 
 app.get('/', (_req, res) => {
   res.send('🚀 Quantum Bluff API - Le serveur répond !')

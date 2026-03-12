@@ -26,6 +26,9 @@ model User {
   friendshipsAsUser1 Friendship[] @relation("User1")
   friendshipsAsUser2 Friendship[] @relation("User2")
 
+  // Salle d'attente intégrée
+  roomPlayers  RoomPlayer[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -85,4 +88,40 @@ enum RequestStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+model WaitingRoom {
+  id           String   @id @default(uuid())
+  name         String
+  hostId       String
+  maxPlayers   Int      @default(9)
+  status       RoomStatus @default(WAITING) // WAITING, STARTING, IN_GAME
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  players      RoomPlayer[]
+  gameId       String? // Lien vers la partie quand elle démarre
+
+  @@map("waiting_rooms")
+}
+
+model RoomPlayer {
+  id           String   @id @default(uuid())
+  roomId       String
+  userId       String
+  isReady      Boolean  @default(false)
+  joinedAt     DateTime @default(now())
+  position     Int?     // Position à la table (optionnel)
+
+  room         WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, userId])
+  @@map("room_players")
+}
+
+enum RoomStatus {
+  WAITING
+  STARTING
+  IN_GAME
 }

@@ -127,6 +127,29 @@ export class GameGateway {
       socket.on('disconnect', () => {
         console.log('👋 Joueur déconnecté:', socket.id)
       })
+      // Dans setupHandlers(), après les événements existants
+
+      // Rejoindre une salle d'attente
+      socket.on('JOIN_WAITING_ROOM', (roomId: string, userId: string) => {
+        socket.join(`waiting:${roomId}`);
+        console.log(`👤 Joueur ${userId} a rejoint la salle ${roomId}`);
+      });
+
+      // Quitter une salle d'attente
+      socket.on('LEAVE_WAITING_ROOM', (roomId: string, userId: string) => {
+        socket.leave(`waiting:${roomId}`);
+        console.log(`👤 Joueur ${userId} a quitté la salle ${roomId}`);
+      });
+
+      // Mise à jour du statut prêt
+      socket.on('PLAYER_READY', (data: { roomId: string; userId: string; isReady: boolean }) => {
+        this.io.to(`waiting:${data.roomId}`).emit('PLAYER_READY_UPDATE', data);
+      });
+
+      // Démarrage de partie
+      socket.on('GAME_STARTING', (roomId: string) => {
+        this.io.to(`waiting:${roomId}`).emit('GAME_STARTED');
+      });
     })
   }
 }
