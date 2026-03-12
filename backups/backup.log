@@ -1,0 +1,13 @@
+[2026-03-12 23:41:18] 🚀 Démarrage du backup 2026-03-12_23-41-18
+[2026-03-12 23:41:18] 📦 Backup de la base de données...
+[2026-03-12 23:41:18] ✅ Backup DB réussi: db_2026-03-12_23-41-18.sql
+[2026-03-12 23:41:18] ✅ Compression terminée: db_2026-03-12_23-41-18.sql.gz
+[2026-03-12 23:41:18] 📦 Backup des fichiers de configuration...
+[2026-03-12 23:41:18] ✅ Backup config réussi: config_2026-03-12_23-41-18.tar.gz
+[2026-03-12 23:41:18] 🧹 Nettoyage des backups de plus de 7 jours...
+[2026-03-12 23:41:18] ✅ Backup terminé avec succès
+[2026-03-12 23:41:18] ℹ️ Espace disque: 14%
+[2026-03-12 23:41:18] 📋 Backups des 7 derniers jours:
+[2026-03-12 23:41:18]    -rw-r--r--  1 omxxr  staff   2.2K Mar 12 23:41 config_2026-03-12_23-41-18.tar.gz
+[2026-03-12 23:41:18]    -rw-r--r--  1 omxxr  staff   4.9K Mar 12 23:41 db_2026-03-12_23-41-18.sql.gz
+[2026-03-12 23:41:18] 🎉 Backup terminé !
