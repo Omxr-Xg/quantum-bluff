@@ -62,7 +62,7 @@ router.post('/start', async (req, res) => {
     if (io) {
       io.to(roomId).emit('GAME_STARTED', { gameId });
       // Faire rejoindre tous les joueurs à la nouvelle room de jeu
-      waitingRoom.players.forEach(p => {
+      waitingRoom.players.forEach(_p => {
         // Ici il faudrait avoir une correspondance socketId ↔ userId
         // Pour l'instant, on notifie juste
       });
