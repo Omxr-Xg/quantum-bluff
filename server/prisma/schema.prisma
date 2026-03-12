@@ -1,5 +1,6 @@
+// prisma/schema.prisma
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
@@ -18,6 +19,12 @@ model User {
 
   stats     UserStats?
   histories GameHistory[] @relation("WinnerHistory")
+
+  // Relations amis (AJOUTER CES LIGNES)
+  sentRequests  FriendRequest[] @relation("Sender")
+  receivedRequests FriendRequest[] @relation("Receiver")
+  friendshipsAsUser1 Friendship[] @relation("User1")
+  friendshipsAsUser2 Friendship[] @relation("User2")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -44,4 +51,38 @@ model GameHistory {
   winnerId  String
 
   createdAt DateTime @default(now())
+}
+
+// AJOUTER CES NOUVEAUX MODELES
+model FriendRequest {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  status     RequestStatus @default(PENDING)
+
+  sender   User @relation("Sender", fields: [senderId], references: [id])
+  receiver User @relation("Receiver", fields: [receiverId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([senderId, receiverId])
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  user1Id   String
+  user2Id   String
+  createdAt DateTime @default(now())
+
+  user1 User @relation("User1", fields: [user1Id], references: [id])
+  user2 User @relation("User2", fields: [user2Id], references: [id])
+
+  @@unique([user1Id, user2Id])
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }

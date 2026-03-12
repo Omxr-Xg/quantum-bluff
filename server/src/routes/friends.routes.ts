@@ -1,4 +1,3 @@
-cat > friends.routes.ts << 'EOF'
 import express from 'express';
 import { prisma } from '../config/database.js';
 
@@ -211,4 +210,3 @@ router.get('/:userId', async (req, res) => {
 });
 
 export default router;
-EOF
