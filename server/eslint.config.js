@@ -8,6 +8,7 @@ export default [
     ignores: [
       "dist/",
       "node_modules/",
+      "src/generated/**",
       "coverage/",
       "**/*.config.js",
       "**/*.config.cjs"
