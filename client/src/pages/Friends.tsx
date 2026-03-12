@@ -3,6 +3,10 @@ import { useNavigate } from "react-router";
 import { UserPlus, Search, ArrowLeft, MessageCircle, Users, X, Check, Loader2, Gamepad2, Home } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { FriendSearch } from '../components/FriendSearch';
+import { useGetFriendsQuery, useGetFriendRequestsQuery } from '../services/api';
+import { useUser } from '../hooks/useUser';
+import { Check, X, User } from 'lucide-react';
 
 interface Friend {
   id: number;
