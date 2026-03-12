@@ -129,6 +129,19 @@ export function Game() {
         }
         updatedPlayers[playerIndex].cards.push(card);
         setPlayersState([...updatedPlayers]);
+        const finalPlayers = [...updatedPlayers];
+        finalPlayers.forEach((player, idx) => {
+          if (player.name !== "Vous") {
+            // Distribue des cartes aléatoires aux bots
+            const suits = ["hearts", "diamonds", "clubs", "spades"];
+            const values = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
+            player.cards = [
+              { suit: suits[Math.floor(Math.random() * 4)], value: values[Math.floor(Math.random() * 13)] },
+              { suit: suits[Math.floor(Math.random() * 4)], value: values[Math.floor(Math.random() * 13)] }
+            ];
+          }
+        });
+        setPlayersState(finalPlayers);
         setDeck([...newDeck]);
         setDealingCard(cardIndex);
         
@@ -214,7 +227,7 @@ export function Game() {
           position: i,
           isActive: i === 0,
           isDealer: false,
-          cards: ["", ""],
+          cards: [{ suit: "hearts", value: "A" },{ suit: "spades", value: "K" }],
           difficulty: difficulty,
           isConnected: true
         });
@@ -228,7 +241,7 @@ export function Game() {
         position: botCount,
         isActive: false,
         isDealer: false,
-        cards: ["", ""],
+        cards: [{ suit: "hearts", value: "A" },{ suit: "spades", value: "K" }],
         isConnected: true
       });
       
@@ -267,6 +280,7 @@ export function Game() {
 
   const tablePlayers = activePlayers.map((player, index) => {
     const humanPlayer = player.name === "Diana" || player.name === "Vous";
+    console.log("Player cards:", player.cards);
     if (humanPlayer) {
       return { 
         ...player, 
