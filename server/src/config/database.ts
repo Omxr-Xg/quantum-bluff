@@ -16,6 +16,7 @@ const pool = new pg.Pool({ connectionString });
 
 // Contournement du conflit de types avec 'as any'
 // Cela n'affecte pas le comportement à l'exécution
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const adapter = new PrismaPg(pool as any);
 
 export const prisma = new PrismaClient({ adapter });

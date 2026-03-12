@@ -3,7 +3,7 @@ import { prisma } from '../config/database.js';
 import { GameTable } from '../logic/GameTable.js';
 import type { Player } from '../types/poker.js';
 import { activeGames } from '../shared/activeGames.js';
-import { Server } from 'socket.io';
+//import { Server } from 'socket.io';
 
 const router = express.Router();
 
@@ -39,14 +39,14 @@ router.post('/start', async (req, res) => {
     }
 
     // Convertir les utilisateurs en joueurs pour GameTable
-    const players: Player[] = waitingRoom.players.map((rp, index) => ({
+    const players: Player[] = waitingRoom.players.map((rp, _index) => ({
       id: rp.user.id,
       name: rp.user.username,
       cards: [],
       chips: 1000, // Jetons de départ
       role: 'PLAYER',
       isActive: true,
-      position: index,
+      position: _index,
       isDealer: false,
       isConnected: true
     }));

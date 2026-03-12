@@ -1,6 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { GameTable } from '../logic/GameTable.js';
-import { Player } from '../types/poker.js';
+//import { Player } from '../types/poker.js';
 import { activeGames } from '../shared/activeGames.js';
 
 export class GameGateway {
