@@ -1,13 +1,17 @@
 import express from 'express';
 import { prisma } from '../config/database.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
+
+// toutes les routes nécessitent un token
+router.use(authMiddleware);
 
 // Rechercher des utilisateurs par nom d'utilisateur
 router.get('/search', async (req, res) => {
   try {
     const { query } = req.query;
-    
+
     if (!query || typeof query !== 'string') {
       return res.status(400).json({ error: 'Query parameter required' });
     }
@@ -34,6 +38,7 @@ router.get('/search', async (req, res) => {
     });
 
     res.json(users);
+
   } catch (error) {
     console.error('Erreur recherche:', error);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -43,7 +48,9 @@ router.get('/search', async (req, res) => {
 // Envoyer une demande d'ami
 router.post('/request', async (req, res) => {
   try {
-    const { senderId, receiverUsername } = req.body;
+
+    const senderId = req.userId;
+    const { receiverUsername } = req.body;
 
     const receiver = await prisma.user.findUnique({
       where: { username: receiverUsername }
@@ -51,6 +58,10 @@ router.post('/request', async (req, res) => {
 
     if (!receiver) {
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    if (receiver.id === senderId) {
+      return res.status(400).json({ error: 'Impossible de s’ajouter soi-même' });
     }
 
     // Vérifier si une demande existe déjà
@@ -90,6 +101,7 @@ router.post('/request', async (req, res) => {
     });
 
     res.json(request);
+
   } catch (error) {
     console.error('Erreur envoi demande:', error);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -97,9 +109,10 @@ router.post('/request', async (req, res) => {
 });
 
 // Liste des demandes reçues
-router.get('/requests/:userId', async (req, res) => {
+router.get('/requests', async (req, res) => {
   try {
-    const { userId } = req.params;
+
+    const userId = req.userId;
 
     const requests = await prisma.friendRequest.findMany({
       where: {
@@ -118,17 +131,19 @@ router.get('/requests/:userId', async (req, res) => {
     });
 
     res.json(requests);
+
   } catch (error) {
     console.error('Erreur récupération demandes:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
-// Accepter/Refuser une demande
+// Accepter ou refuser une demande
 router.put('/request/:requestId', async (req, res) => {
   try {
+
     const { requestId } = req.params;
-    const { status } = req.body; // ACCEPTED ou REJECTED
+    const { status } = req.body;
 
     if (!['ACCEPTED', 'REJECTED'].includes(status)) {
       return res.status(400).json({ error: 'Status invalide' });
@@ -140,26 +155,29 @@ router.put('/request/:requestId', async (req, res) => {
     });
 
     if (status === 'ACCEPTED') {
-      // Créer la relation d'amitié
+
       await prisma.friendship.create({
         data: {
           user1Id: request.senderId,
           user2Id: request.receiverId
         }
       });
+
     }
 
     res.json({ success: true });
+
   } catch (error) {
     console.error('Erreur mise à jour demande:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
-// Liste des amis d'un utilisateur
-router.get('/:userId', async (req, res) => {
+// Liste des amis
+router.get('/', async (req, res) => {
   try {
-    const { userId } = req.params;
+
+    const userId = req.userId;
 
     const friendships = await prisma.friendship.findMany({
       where: {
@@ -198,11 +216,12 @@ router.get('/:userId', async (req, res) => {
       }
     });
 
-    const friends = friendships.map(f => 
+    const friends = friendships.map(f =>
       f.user1Id === userId ? f.user2 : f.user1
     );
 
     res.json(friends);
+
   } catch (error) {
     console.error('Erreur récupération amis:', error);
     res.status(500).json({ error: 'Erreur serveur' });
