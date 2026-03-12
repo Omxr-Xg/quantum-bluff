@@ -3,6 +3,7 @@ import { prisma } from '../config/database.js';
 import { GameTable } from '../logic/GameTable.js';
 import type { Player } from '../types/poker.js';
 import { activeGames } from '../shared/activeGames.js';
+import { Server } from 'socket.io';
 
 const router = express.Router();
 
@@ -57,6 +58,15 @@ router.post('/start', async (req, res) => {
 
     // Sauvegarder la partie active
     activeGames.set(gameId, gameTable);
+    const io = req.app.get('io'); // Récupérer l'instance Socket.io
+    if (io) {
+      io.to(roomId).emit('GAME_STARTED', { gameId });
+      // Faire rejoindre tous les joueurs à la nouvelle room de jeu
+      waitingRoom.players.forEach(p => {
+        // Ici il faudrait avoir une correspondance socketId ↔ userId
+        // Pour l'instant, on notifie juste
+      });
+    }
 
     // Mettre à jour le statut de la salle d'attente
     await prisma.waitingRoom.update({
