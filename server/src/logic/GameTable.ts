@@ -25,7 +25,7 @@ export class GameTable {
       communityCards: [],
       players,
       currentTurn: players[0]?.id || '',
-      phase: 'WAITING'
+      phase: 'PREFLOP'
     }
 
     this.normalizePlayers()
@@ -39,14 +39,12 @@ export class GameTable {
       player.position = index
       player.isDealer = false
       player.isConnected = player.isConnected ?? true
-      if (!player.role) {
-        player.role = 'PLAYER'
-      }
+      player.role = player.role ?? 'PLAYER'
     })
   }
 
   private getActivePlayers(): Player[] {
-    return this.state.players.filter((player) => player.isActive && player.chips >= 0)
+    return this.state.players.filter((player) => player.isActive && player.isConnected !== false)
   }
 
   private getNextActivePlayerIndex(startIndex: number): number {
@@ -113,6 +111,8 @@ export class GameTable {
   }
 
   private setBlinds(): void {
+    if (this.state.players.length < 2) return
+
     this.assignPositions()
     this.postBlind('SMALL_BLIND', 10)
     this.postBlind('BIG_BLIND', 20)
@@ -248,7 +248,7 @@ export class GameTable {
   addPlayer(player: Player): void {
     player.cards = player.cards ?? []
     player.currentBet = 0
-    player.isActive = true
+    player.isActive = player.isActive ?? true
     player.position = this.state.players.length
     player.isDealer = false
     player.isConnected = player.isConnected ?? true
@@ -280,10 +280,28 @@ export class GameTable {
     return !!player && player.isActive && this.state.currentTurn === playerId
   }
 
+  calculateBet(playerId: string, amount: number): number {
+    const player = this.getPlayerState(playerId)
+    return player ? Math.min(amount, player.chips) : 0
+  }
+
   calculateCallAmount(playerId: string): number {
     const player = this.getPlayerState(playerId)
     if (!player) return 0
     return Math.max(0, this.highestBet - (player.currentBet || 0))
+  }
+
+  applyBet(playerId: string, amount: number): void {
+    const playerIndex = this.state.players.findIndex((p) => p.id === playerId)
+    if (playerIndex === -1) return
+
+    const player = this.state.players[playerIndex]
+    const betAmount = Math.min(amount, player.chips)
+
+    player.chips -= betAmount
+    this.state.pot += betAmount
+    player.currentBet = (player.currentBet || 0) + betAmount
+    this.highestBet = Math.max(this.highestBet, player.currentBet || 0)
   }
 
   handlePlayerAction(
@@ -297,7 +315,7 @@ export class GameTable {
       throw new Error('Joueur introuvable')
     }
 
-    if (this.state.phase === 'WAITING' || this.state.phase === 'SHOWDOWN') {
+    if (this.state.phase === 'SHOWDOWN') {
       throw new Error('Aucune action possible maintenant')
     }
 
@@ -328,19 +346,20 @@ export class GameTable {
         throw new Error('Montant de relance invalide')
       }
 
-      const totalTargetBet = (player.currentBet || 0) + callAmount + amount
-
       if (amount < 20) {
         throw new Error('La relance minimum est de 20')
       }
 
-      if (totalTargetBet > player.chips + (player.currentBet || 0)) {
+      const totalToPut = callAmount + amount
+
+      if (totalToPut > player.chips) {
         throw new Error('Pas assez de jetons pour relancer')
       }
     }
 
     if (action === 'FOLD') {
       player.isActive = false
+      player.currentBet = player.currentBet || 0
       this.actedPlayerIds.add(player.id)
 
       if (this.getActivePlayers().length === 1) {
@@ -400,7 +419,7 @@ export class GameTable {
   }
 
   advancePhase(): void {
-    if (this.state.phase === 'WAITING' || this.state.phase === 'SHOWDOWN') {
+    if (this.state.phase === 'SHOWDOWN') {
       return
     }
 
