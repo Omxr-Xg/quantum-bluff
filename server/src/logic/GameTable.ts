@@ -333,6 +333,10 @@ export class GameTable {
       throw new Error('Impossible de check, une mise est à suivre')
     }
 
+    if (action === 'CALL' && callAmount <= 0) {
+      throw new Error('Rien à suivre')
+    }
+
     if (action === 'CALL' && callAmount > player.chips) {
       throw new Error('Pas assez de jetons pour suivre')
     }
