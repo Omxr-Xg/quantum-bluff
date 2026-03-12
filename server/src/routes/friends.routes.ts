@@ -49,7 +49,7 @@ router.get('/search', async (req, res) => {
 router.post('/request', async (req, res) => {
   try {
 
-    const senderId = req.userId;
+    const senderId = req.userId!;
     const { receiverUsername } = req.body;
 
     const receiver = await prisma.user.findUnique({
@@ -177,7 +177,7 @@ router.put('/request/:requestId', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
 
-    const userId = req.userId;
+    const userId = req.userId!;
 
     const friendships = await prisma.friendship.findMany({
       where: {
