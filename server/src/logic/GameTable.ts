@@ -1,113 +1,289 @@
-import type { GameState, Player, GamePhase } from '../types/poker.js';
-import { Deck } from './Deck.js';
-import { findWinner } from './Evaluator.js';
+import type { GamePhase, GameState, Player } from '../types/poker.js'
+import { Deck } from './Deck.js'
+import { findWinner } from './Evaluator.js'
 
 export class GameTable {
-  public readonly id: string;
-  private deck: Deck;
-  public state: GameState;
+  public readonly id: string
+  private deck: Deck
+  public state: GameState
+  private dealerIndex: number
+  private highestBet: number
+  private actedPlayerIds: Set<string>
+  private handStarted: boolean
 
   constructor(id: string, players: Player[]) {
-    this.id = id;
-    this.deck = new Deck();
+    this.id = id
+    this.deck = new Deck()
+    this.dealerIndex = 0
+    this.highestBet = 0
+    this.actedPlayerIds = new Set()
+    this.handStarted = false
+
     this.state = {
+      id,
       pot: 0,
       communityCards: [],
       players,
       currentTurn: players[0]?.id || '',
-      phase: 'PREFLOP'
-    };
+      phase: 'WAITING'
+    }
+
+    this.normalizePlayers()
+  }
+
+  private normalizePlayers(): void {
+    this.state.players.forEach((player, index) => {
+      player.cards = player.cards ?? []
+      player.currentBet = player.currentBet ?? 0
+      player.isActive = player.isActive ?? true
+      player.position = index
+      player.isDealer = false
+      player.isConnected = player.isConnected ?? true
+      if (!player.role) {
+        player.role = 'PLAYER'
+      }
+    })
+  }
+
+  private getActivePlayers(): Player[] {
+    return this.state.players.filter((player) => player.isActive && player.chips >= 0)
+  }
+
+  private getNextActivePlayerIndex(startIndex: number): number {
+    if (this.state.players.length === 0) return -1
+
+    let index = startIndex
+
+    for (let i = 0; i < this.state.players.length; i++) {
+      index = (index + 1) % this.state.players.length
+      const player = this.state.players[index]
+
+      if (player.isActive && player.isConnected !== false) {
+        return index
+      }
+    }
+
+    return -1
+  }
+
+  private assignPositions(): void {
+    this.state.players.forEach((player, index) => {
+      player.position = index
+      player.isDealer = false
+      player.role = 'PLAYER'
+      player.currentBet = 0
+    })
+
+    if (this.state.players.length === 0) return
+
+    const dealer = this.state.players[this.dealerIndex]
+    dealer.role = 'DEALER'
+    dealer.isDealer = true
+
+    if (this.state.players.length === 2) {
+      const bigBlindIndex = this.getNextActivePlayerIndex(this.dealerIndex)
+      if (bigBlindIndex !== -1) {
+        this.state.players[bigBlindIndex].role = 'BIG_BLIND'
+      }
+      return
+    }
+
+    const smallBlindIndex = this.getNextActivePlayerIndex(this.dealerIndex)
+    if (smallBlindIndex !== -1) {
+      this.state.players[smallBlindIndex].role = 'SMALL_BLIND'
+    }
+
+    const bigBlindIndex =
+      smallBlindIndex !== -1 ? this.getNextActivePlayerIndex(smallBlindIndex) : -1
+
+    if (bigBlindIndex !== -1) {
+      this.state.players[bigBlindIndex].role = 'BIG_BLIND'
+    }
+  }
+
+  private postBlind(role: 'SMALL_BLIND' | 'BIG_BLIND', amount: number): void {
+    const player = this.state.players.find((p) => p.role === role)
+    if (!player) return
+
+    const blindAmount = Math.min(amount, player.chips)
+    player.chips -= blindAmount
+    player.currentBet = blindAmount
+    this.state.pot += blindAmount
+    this.highestBet = Math.max(this.highestBet, blindAmount)
   }
 
   private setBlinds(): void {
-    if (this.state.players.length < 2) return;
+    this.assignPositions()
+    this.postBlind('SMALL_BLIND', 10)
+    this.postBlind('BIG_BLIND', 20)
+  }
+
+  private getPreflopFirstPlayerId(): string {
+    if (this.state.players.length === 2) {
+      return this.state.players[this.dealerIndex]?.id || ''
+    }
+
+    const bigBlindIndex = this.state.players.findIndex((p) => p.role === 'BIG_BLIND')
+    const firstIndex = bigBlindIndex === -1 ? 0 : this.getNextActivePlayerIndex(bigBlindIndex)
+
+    return firstIndex === -1 ? this.state.players[0]?.id || '' : this.state.players[firstIndex].id
+  }
+
+  private getPostflopFirstPlayerId(): string {
+    const firstIndex = this.getNextActivePlayerIndex(this.dealerIndex)
+    return firstIndex === -1 ? this.state.players[0]?.id || '' : this.state.players[firstIndex].id
+  }
+
+  private resetBetsForNewRound(): void {
+    this.highestBet = 0
+    this.actedPlayerIds.clear()
 
     for (const player of this.state.players) {
-      player.role = 'PLAYER';
-      player.currentBet = 0;
+      player.currentBet = 0
+    }
+  }
+
+  private isBettingRoundComplete(): boolean {
+    const activePlayers = this.getActivePlayers()
+
+    if (activePlayers.length <= 1) {
+      return true
     }
 
-    this.state.players[0].role = 'DEALER';
+    return activePlayers.every(
+      (player) =>
+        this.actedPlayerIds.has(player.id) && (player.currentBet || 0) === this.highestBet
+    )
+  }
 
-    if (this.state.players.length === 2) {
-      this.state.players[1].role = 'BIG_BLIND';
-    } else {
-      this.state.players[1].role = 'SMALL_BLIND';
-      this.state.players[2].role = 'BIG_BLIND';
+  private awardPotToSingleRemainingPlayer(): void {
+    const activePlayers = this.getActivePlayers()
+    if (activePlayers.length !== 1) return
+
+    activePlayers[0].chips += this.state.pot
+    this.state.pot = 0
+    this.state.phase = 'SHOWDOWN'
+    this.state.currentTurn = ''
+  }
+
+  private moveToNextPhase(): void {
+    const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
+    const currentIndex = phaseOrder.indexOf(this.state.phase)
+
+    if (currentIndex === -1 || currentIndex === phaseOrder.length - 1) {
+      return
     }
 
-    const smallBlind = this.state.players.find((p) => p.role === 'SMALL_BLIND');
-    const bigBlind = this.state.players.find((p) => p.role === 'BIG_BLIND');
+    const nextPhase = phaseOrder[currentIndex + 1]
+    this.state.phase = nextPhase
 
-    if (smallBlind) {
-      const amount = Math.min(10, smallBlind.chips);
-      smallBlind.chips -= amount;
-      smallBlind.currentBet = amount;
-      this.state.pot += amount;
+    if (nextPhase === 'FLOP') {
+      this.resetBetsForNewRound()
+      this.state.communityCards.push(...this.deck.dealFlop())
+      this.state.currentTurn = this.getPostflopFirstPlayerId()
+      return
     }
 
-    if (bigBlind) {
-      const amount = Math.min(20, bigBlind.chips);
-      bigBlind.chips -= amount;
-      bigBlind.currentBet = amount;
-      this.state.pot += amount;
+    if (nextPhase === 'TURN') {
+      this.resetBetsForNewRound()
+      this.state.communityCards.push(this.deck.dealTurn())
+      this.state.currentTurn = this.getPostflopFirstPlayerId()
+      return
     }
+
+    if (nextPhase === 'RIVER') {
+      this.resetBetsForNewRound()
+      this.state.communityCards.push(this.deck.dealRiver())
+      this.state.currentTurn = this.getPostflopFirstPlayerId()
+      return
+    }
+
+    if (nextPhase === 'SHOWDOWN') {
+      this.resolveShowdown()
+      this.state.currentTurn = ''
+    }
+  }
+
+  private advanceTurn(): void {
+    const currentIndex = this.state.players.findIndex((p) => p.id === this.state.currentTurn)
+    const nextIndex = currentIndex === -1 ? -1 : this.getNextActivePlayerIndex(currentIndex)
+
+    if (nextIndex === -1) {
+      this.state.currentTurn = ''
+      return
+    }
+
+    this.state.currentTurn = this.state.players[nextIndex].id
   }
 
   startHand(): void {
-    this.deck = new Deck();
-    this.deck.shuffle();
-
-    for (const player of this.state.players) {
-      player.cards = [];
-      player.currentBet = 0;
-      player.isActive = true;
+    if (this.state.players.length < 2) {
+      throw new Error('Il faut au moins 2 joueurs pour démarrer')
     }
 
-    this.state = {
-      ...this.state,
-      pot: 0,
-      communityCards: [],
-      phase: 'PREFLOP',
-      currentTurn: this.state.players[0]?.id || ''
-    };
+    if (this.handStarted) {
+      this.dealerIndex = (this.dealerIndex + 1) % this.state.players.length
+    }
 
-    this.deck.dealInitialCards(this.state.players);
-    this.setBlinds();
+    this.handStarted = true
+    this.deck = new Deck()
+    this.deck.shuffle()
+    this.state.pot = 0
+    this.state.communityCards = []
+    this.state.phase = 'PREFLOP'
+    this.highestBet = 0
+    this.actedPlayerIds.clear()
+
+    for (const player of this.state.players) {
+      player.cards = []
+      player.currentBet = 0
+      player.isActive = player.chips > 0
+    }
+
+    this.deck.dealInitialCards(this.state.players)
+    this.setBlinds()
+    this.state.currentTurn = this.getPreflopFirstPlayerId()
   }
 
   addPlayer(player: Player): void {
-    this.state.players.push(player);
+    player.cards = player.cards ?? []
+    player.currentBet = 0
+    player.isActive = true
+    player.position = this.state.players.length
+    player.isDealer = false
+    player.isConnected = player.isConnected ?? true
+    player.role = 'PLAYER'
+    this.state.players.push(player)
   }
 
   removePlayer(playerId: string): void {
-    this.state.players = this.state.players.filter((p) => p.id !== playerId);
+    this.state.players = this.state.players.filter((p) => p.id !== playerId)
+    this.state.players.forEach((player, index) => {
+      player.position = index
+    })
+
+    if (this.dealerIndex >= this.state.players.length) {
+      this.dealerIndex = 0
+    }
+
+    if (this.state.currentTurn === playerId) {
+      this.state.currentTurn = this.state.players[0]?.id || ''
+    }
   }
 
   getPlayerState(playerId: string): Player | undefined {
-    return this.state.players.find((p) => p.id === playerId);
+    return this.state.players.find((p) => p.id === playerId)
   }
 
   canPlayerAct(playerId: string): boolean {
-    const player = this.getPlayerState(playerId);
-    return player ? player.isActive : false;
+    const player = this.getPlayerState(playerId)
+    return !!player && player.isActive && this.state.currentTurn === playerId
   }
 
-  calculateBet(playerId: string, amount: number): number {
-    const player = this.getPlayerState(playerId);
-    return player ? Math.min(amount, player.chips) : 0;
-  }
-
-  applyBet(playerId: string, amount: number): void {
-    const playerIndex = this.state.players.findIndex((p) => p.id === playerId);
-    if (playerIndex === -1) return;
-
-    const player = this.state.players[playerIndex];
-    const betAmount = Math.min(amount, player.chips);
-
-    player.chips -= betAmount;
-    this.state.pot += betAmount;
-    player.currentBet = (player.currentBet || 0) + betAmount;
+  calculateCallAmount(playerId: string): number {
+    const player = this.getPlayerState(playerId)
+    if (!player) return 0
+    return Math.max(0, this.highestBet - (player.currentBet || 0))
   }
 
   handlePlayerAction(
@@ -115,124 +291,133 @@ export class GameTable {
     action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK',
     amount?: number
   ): void {
-    const playerIndex = this.state.players.findIndex((p) => p.id === playerId);
+    const player = this.getPlayerState(playerId)
 
-    if (
-      playerIndex === -1 ||
-      this.state.players[playerIndex].id !== this.state.currentTurn
-    ) {
-      throw new Error('Pas ton tour !');
+    if (!player) {
+      throw new Error('Joueur introuvable')
     }
 
-    const player = this.state.players[playerIndex];
+    if (this.state.phase === 'WAITING' || this.state.phase === 'SHOWDOWN') {
+      throw new Error('Aucune action possible maintenant')
+    }
 
-    if (action === 'CALL' && amount && amount > player.chips) {
-      throw new Error('Pas assez de jetons pour suivre');
+    if (this.state.currentTurn !== playerId) {
+      throw new Error('Pas ton tour !')
+    }
+
+    if (!player.isActive) {
+      throw new Error('Joueur inactif')
+    }
+
+    const callAmount = this.calculateCallAmount(playerId)
+
+    if (action === 'CHECK' && callAmount > 0) {
+      throw new Error('Impossible de check, une mise est à suivre')
+    }
+
+    if (action === 'CALL' && callAmount <= 0) {
+      throw new Error('Rien à suivre')
+    }
+
+    if (action === 'CALL' && callAmount > player.chips) {
+      throw new Error('Pas assez de jetons pour suivre')
     }
 
     if (action === 'RAISE') {
-      if (!amount || amount < 20) {
-        throw new Error('La relance minimum est de 20');
+      if (typeof amount !== 'number' || amount <= 0) {
+        throw new Error('Montant de relance invalide')
       }
-      if (amount > player.chips) {
-        throw new Error('Pas assez de jetons pour relancer');
+
+      const totalTargetBet = (player.currentBet || 0) + callAmount + amount
+
+      if (amount < 20) {
+        throw new Error('La relance minimum est de 20')
+      }
+
+      if (totalTargetBet > player.chips + (player.currentBet || 0)) {
+        throw new Error('Pas assez de jetons pour relancer')
       }
     }
 
-    switch (action) {
-      case 'FOLD':
-        player.currentBet = 0;
-        player.isActive = false;
-        break;
+    if (action === 'FOLD') {
+      player.isActive = false
+      this.actedPlayerIds.add(player.id)
 
-      case 'CHECK':
-        break;
+      if (this.getActivePlayers().length === 1) {
+        this.awardPotToSingleRemainingPlayer()
+        return
+      }
 
-      case 'CALL':
-        if (player.chips >= (amount || 0)) {
-          const callAmount = amount || 0;
-          player.chips -= callAmount;
-          this.state.pot += callAmount;
-          player.currentBet = (player.currentBet || 0) + callAmount;
-        }
-        break;
+      if (this.isBettingRoundComplete()) {
+        this.moveToNextPhase()
+        return
+      }
 
-      case 'RAISE':
-        if (!amount || amount > player.chips) {
-          throw new Error('Pas assez de jetons');
-        }
-        player.chips -= amount;
-        player.currentBet = (player.currentBet || 0) + amount;
-        this.state.pot += amount;
-        break;
+      this.advanceTurn()
+      return
     }
 
-    this.nextTurn();
-  }
+    if (action === 'CHECK') {
+      this.actedPlayerIds.add(player.id)
 
-  private nextTurn(): void {
-    const currentIndex = this.state.players.findIndex(
-      (p) => p.id === this.state.currentTurn
-    );
-    let nextIndex = (currentIndex + 1) % this.state.players.length;
+      if (this.isBettingRoundComplete()) {
+        this.moveToNextPhase()
+        return
+      }
 
-    while (
-      nextIndex !== currentIndex &&
-      (!this.state.players[nextIndex].cards?.length ||
-        !this.state.players[nextIndex].isActive)
-    ) {
-      nextIndex = (nextIndex + 1) % this.state.players.length;
+      this.advanceTurn()
+      return
     }
 
-    this.state.currentTurn = this.state.players[nextIndex].id;
+    if (action === 'CALL') {
+      player.chips -= callAmount
+      player.currentBet = (player.currentBet || 0) + callAmount
+      this.state.pot += callAmount
+      this.actedPlayerIds.add(player.id)
+
+      if (this.isBettingRoundComplete()) {
+        this.moveToNextPhase()
+        return
+      }
+
+      this.advanceTurn()
+      return
+    }
+
+    if (action === 'RAISE') {
+      const raiseAmount = amount as number
+      const totalToPut = callAmount + raiseAmount
+
+      player.chips -= totalToPut
+      player.currentBet = (player.currentBet || 0) + totalToPut
+      this.state.pot += totalToPut
+      this.highestBet = player.currentBet || 0
+      this.actedPlayerIds.clear()
+      this.actedPlayerIds.add(player.id)
+
+      this.advanceTurn()
+    }
   }
 
   advancePhase(): void {
-    const phaseOrder: GamePhase[] = [
-      'PREFLOP',
-      'FLOP',
-      'TURN',
-      'RIVER',
-      'SHOWDOWN'
-    ];
-    const currentIndex = phaseOrder.indexOf(this.state.phase);
-
-    if (currentIndex === -1 || currentIndex === phaseOrder.length - 1) return;
-
-    const nextPhase = phaseOrder[currentIndex + 1];
-
-    switch (nextPhase) {
-      case 'FLOP':
-        this.state.communityCards.push(...this.deck.dealFlop());
-        break;
-      case 'TURN':
-        this.state.communityCards.push(this.deck.dealTurn());
-        break;
-      case 'RIVER':
-        this.state.communityCards.push(this.deck.dealRiver());
-        break;
-      case 'SHOWDOWN':
-        this.resolveShowdown();
-        break;
+    if (this.state.phase === 'WAITING' || this.state.phase === 'SHOWDOWN') {
+      return
     }
 
-    this.state.phase = nextPhase;
-    this.state.currentTurn = this.state.players[0]?.id || '';
+    this.moveToNextPhase()
   }
 
   private resolveShowdown(): void {
-    const activePlayers = this.state.players.filter((p) => p.isActive);
-    const playersToEvaluate =
-      activePlayers.length > 0 ? activePlayers : this.state.players;
-
-    const winnerId = findWinner(playersToEvaluate, this.state.communityCards);
-    const winner = this.state.players.find((p) => p.id === winnerId);
+    const activePlayers = this.getActivePlayers()
+    const playersToEvaluate = activePlayers.length > 0 ? activePlayers : this.state.players
+    const winnerId = findWinner(playersToEvaluate, this.state.communityCards)
+    const winner = this.state.players.find((p) => p.id === winnerId)
 
     if (winner) {
-      winner.chips += this.state.pot;
+      winner.chips += this.state.pot
     }
 
-    this.state.pot = 0;
+    this.state.pot = 0
   }
 
   getState(): GameState & { id: string } {
@@ -243,7 +428,7 @@ export class GameTable {
       players: this.state.players,
       currentTurn: this.state.currentTurn,
       phase: this.state.phase
-    };
+    }
   }
 
   getSanitizedState(requestingPlayerId?: string): GameState {
@@ -265,6 +450,6 @@ export class GameTable {
         isConnected: player.isConnected !== false,
         cards: player.id === requestingPlayerId ? player.cards : []
       }))
-    };
+    }
   }
 }

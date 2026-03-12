@@ -1,108 +1,132 @@
-// server/src/sockets/game.gateway.ts
-import { Server, Socket } from 'socket.io';
-import { GameTable } from '../logic/GameTable.js';
-import { Player } from '../types/poker.js';
+import { Server, Socket } from 'socket.io'
+import { gameService } from '../services/game.service.js'
+import type { Player } from '../types/poker.js'
 
 export class GameGateway {
-  private gameTables: Map<string, GameTable> = new Map();
-  private io: Server;
+  private io: Server
 
   constructor(io: Server) {
-    this.io = io;
-    this.setupHandlers();
+    this.io = io
+    this.setupHandlers()
   }
 
   private setupHandlers() {
     this.io.on('connection', (socket: Socket) => {
-      console.log('🎮 Joueur connecté:', socket.id);
+      console.log('🎮 Joueur connecté:', socket.id)
 
-      // Rejoindre une partie
-      socket.on('JOIN_GAME', (data: { gameId: string; player: Player }) => {
-        const { gameId, player } = data;
-        
-        let gameTable = this.gameTables.get(gameId);
-        if (!gameTable) {
-          // Créer une nouvelle table avec le joueur
-          gameTable = new GameTable(gameId, [player]);
-          this.gameTables.set(gameId, gameTable);
-        } else {
-          // Ajouter le joueur à la table existante
-          gameTable.addPlayer(player);
+      socket.on('JOIN_GAME', (data: { gameId: string; playerName?: string; player?: Player }) => {
+        const { gameId, playerName, player } = data
+
+        try {
+          let joined
+
+          if (playerName) {
+            joined = gameService.joinGame(gameId, playerName)
+          } else if (player) {
+            const game = gameService.getGame(gameId)
+            if (!game) {
+              socket.emit('ERROR', { message: 'Partie introuvable' })
+              return
+            }
+            game.addPlayer(player)
+            joined = {
+              gameId,
+              playerId: player.id,
+              player,
+              gameState: game.getSanitizedState(player.id)
+            }
+          } else {
+            socket.emit('ERROR', { message: 'Nom du joueur invalide' })
+            return
+          }
+
+          socket.join(gameId)
+          socket.data.gameId = gameId
+          socket.data.playerId = joined.playerId
+
+          socket.emit('GAME_JOINED', {
+            gameId: joined.gameId,
+            playerId: joined.playerId,
+            gameState: joined.gameState
+          })
+
+          this.io.to(gameId).emit('GAME_UPDATE', joined.gameState)
+        } catch (error) {
+          socket.emit('ERROR', { message: (error as Error).message })
         }
+      })
 
-        socket.join(gameId);
-        socket.emit('GAME_JOINED', { gameId, playerId: player.id });
-        
-        // Envoyer l'état actuel à tous les joueurs de la room
-        this.io.to(gameId).emit('GAME_UPDATE', gameTable.getSanitizedState());
-      });
+      socket.on('CREATE_GAME', (data: { playerName: string }) => {
+        try {
+          const created = gameService.createGame(data.playerName)
 
-      // Démarrer une partie
+          socket.join(created.gameId)
+          socket.data.gameId = created.gameId
+          socket.data.playerId = created.playerId
+
+          socket.emit('GAME_CREATED', created)
+          this.io.to(created.gameId).emit('GAME_UPDATE', created.gameState)
+        } catch (error) {
+          socket.emit('ERROR', { message: (error as Error).message })
+        }
+      })
+
       socket.on('START_GAME', (gameId: string) => {
-        const gameTable = this.gameTables.get(gameId);
-        if (!gameTable) {
-          socket.emit('ERROR', { message: 'Partie introuvable' });
-          return;
-        }
+        const game = gameService.getGame(gameId)
 
-        gameTable.startHand();
-        this.io.to(gameId).emit('GAME_UPDATE', gameTable.getSanitizedState());
-        this.io.to(gameId).emit('GAME_STARTED');
-      });
-
-      // Action d'un joueur
-      socket.on('PLAYER_ACTION', (data: { 
-        gameId: string; 
-        playerId: string; 
-        action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'; 
-        amount?: number;
-      }) => {
-        const { gameId, playerId, action, amount } = data;
-        const gameTable = this.gameTables.get(gameId);
-
-        if (!gameTable) {
-          socket.emit('ERROR', { message: 'Partie introuvable' });
-          return;
+        if (!game) {
+          socket.emit('ERROR', { message: 'Partie introuvable' })
+          return
         }
 
         try {
-          gameTable.handlePlayerAction(playerId, action, amount);
-          
-          // Vérifier si la phase doit avancer
-          // (logique simplifiée - à améliorer selon vos règles)
-          this.io.to(gameId).emit('GAME_UPDATE', gameTable.getSanitizedState(playerId));
+          game.startHand()
+          this.io.to(gameId).emit('GAME_STARTED')
+          this.io.to(gameId).emit('GAME_UPDATE', game.getSanitizedState())
         } catch (error) {
-          socket.emit('ERROR', { message: (error as Error).message });
+          socket.emit('ERROR', { message: (error as Error).message })
         }
-      });
+      })
 
-      // Avancer à la phase suivante (pour le dealer/automatique)
-      socket.on('ADVANCE_PHASE', (gameId: string) => {
-        const gameTable = this.gameTables.get(gameId);
-        if (!gameTable) {
-          socket.emit('ERROR', { message: 'Partie introuvable' });
-          return;
+      socket.on(
+        'PLAYER_ACTION',
+        (data: {
+          gameId: string
+          playerId: string
+          action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
+          amount?: number
+        }) => {
+          const { gameId, playerId, action, amount } = data
+          const game = gameService.getGame(gameId)
+
+          if (!game) {
+            socket.emit('ERROR', { message: 'Partie introuvable' })
+            return
+          }
+
+          try {
+            game.handlePlayerAction(playerId, action, amount)
+            this.io.to(gameId).emit('GAME_UPDATE', game.getSanitizedState(playerId))
+          } catch (error) {
+            socket.emit('ERROR', { message: (error as Error).message })
+          }
+        }
+      )
+
+      socket.on('GET_GAME_STATE', (gameId: string) => {
+        const game = gameService.getGame(gameId)
+
+        if (!game) {
+          socket.emit('ERROR', { message: 'Partie introuvable' })
+          return
         }
 
-        gameTable.advancePhase();
-        this.io.to(gameId).emit('GAME_UPDATE', gameTable.getSanitizedState());
-      });
+        socket.emit('GAME_UPDATE', game.getSanitizedState(socket.data.playerId))
+      })
 
-      // Déconnexion
       socket.on('disconnect', () => {
-        console.log('👋 Joueur déconnecté:', socket.id);
-        // Gérer la déconnexion (retirer le joueur des parties, etc.)
-      });
-    });
-  }
-
-  // Obtenir une table par son ID
-  getTable(gameId: string): GameTable | undefined {
-    return this.gameTables.get(gameId);
-  }
-
-  // Supprimer une table
-  removeTable(gameId: string): void {
-    this.gameTables.delete(gameId);
+        console.log('👋 Joueur déconnecté:', socket.id)
+      })
+    })
   }
 }
