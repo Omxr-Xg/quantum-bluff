@@ -20,6 +20,11 @@ router.get('/games', (req, res) => {
 
 router.post('/games', (req, res) => {
   const { playerName } = req.body
+
+  if (!playerName || typeof playerName !== 'string') {
+    return res.status(400).json({ error: 'Nom du joueur invalide' })
+  }
+
   const playerId = `player_${Date.now()}`
 
   const player: Player = {
@@ -27,7 +32,11 @@ router.post('/games', (req, res) => {
     name: playerName,
     cards: [],
     chips: 1000,
-    role: 'PLAYER'
+    role: 'PLAYER',
+    isActive: true,
+    position: 0,
+    isDealer: false,
+    isConnected: true
   }
 
   players.set(playerId, player)
@@ -44,10 +53,18 @@ router.post('/games/:gameId/join', (req, res) => {
   const { gameId } = req.params
   const { playerName } = req.body
 
+  if (!playerName || typeof playerName !== 'string') {
+    return res.status(400).json({ error: 'Nom du joueur invalide' })
+  }
+
   const gameTable = games.get(gameId)
 
   if (!gameTable) {
     return res.status(404).json({ error: 'Partie introuvable' })
+  }
+
+  if (gameTable.state.players.length >= 9) {
+    return res.status(400).json({ error: 'La partie est complète' })
   }
 
   const playerId = `player_${Date.now()}`
@@ -57,11 +74,14 @@ router.post('/games/:gameId/join', (req, res) => {
     name: playerName,
     cards: [],
     chips: 1000,
-    role: 'PLAYER'
+    role: 'PLAYER',
+    isActive: true,
+    position: gameTable.state.players.length,
+    isDealer: false,
+    isConnected: true
   }
 
   players.set(playerId, player)
-
   gameTable.addPlayer(player)
 
   res.json({
