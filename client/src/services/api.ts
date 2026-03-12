@@ -1,11 +1,32 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 
+// Types
+interface User {
+  id: string;
+  username: string;
+  level: number;
+  stats: {
+    wins: number;
+    totalGames: number;
+  };
+}
+
+interface FriendRequest {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  sender: User;
+}
+
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
     baseUrl: 'http://localhost:3000/api',
   }),
-  tagTypes: ['User', 'Game'],
+  tagTypes: ['User', 'Game', 'Friend', 'FriendRequest'],
   endpoints: (builder) => ({
     // Auth endpoints
     login: builder.mutation({
@@ -14,19 +35,24 @@ export const api = createApi({
         method: 'POST',
         body: credentials,
       }),
+      invalidatesTags: ['User'],
     }),
+
     register: builder.mutation({
       query: (userData) => ({
         url: '/auth/register',
         method: 'POST',
         body: userData,
       }),
+      invalidatesTags: ['User'],
     }),
+
     // Game endpoints
     getGames: builder.query({
       query: () => '/games',
       providesTags: ['Game'],
     }),
+
     createGame: builder.mutation({
       query: (playerName) => ({
         url: '/games',
@@ -35,6 +61,7 @@ export const api = createApi({
       }),
       invalidatesTags: ['Game'],
     }),
+
     joinGame: builder.mutation({
       query: ({ gameId, playerName }) => ({
         url: `/games/${gameId}/join`,
@@ -42,6 +69,42 @@ export const api = createApi({
         body: { playerName },
       }),
       invalidatesTags: ['Game'],
+    }),
+
+    // Friend endpoints
+    searchUsers: builder.query<User[], string>({
+      query: (query) => `/friends/search?query=${query}`,
+      providesTags: (result) => 
+        result ? result.map(({ id }) => ({ type: 'Friend', id } as const)) : ['Friend'],
+    }),
+
+    sendFriendRequest: builder.mutation<FriendRequest, { senderId: string; receiverUsername: string }>({
+      query: ({ senderId, receiverUsername }) => ({
+        url: '/friends/request',
+        method: 'POST',
+        body: { senderId, receiverUsername },
+      }),
+      invalidatesTags: ['FriendRequest'],
+    }),
+
+    getFriendRequests: builder.query<FriendRequest[], string>({
+      query: (userId) => `/friends/requests/${userId}`,
+      providesTags: ['FriendRequest'],
+    }),
+
+    respondToFriendRequest: builder.mutation<void, { requestId: string; status: 'ACCEPTED' | 'REJECTED' }>({
+      query: ({ requestId, status }) => ({
+        url: `/friends/request/${requestId}`,
+        method: 'PUT',
+        body: { status },
+      }),
+      invalidatesTags: ['FriendRequest', 'Friend'],
+    }),
+
+    getFriends: builder.query<User[], string>({
+      query: (userId) => `/friends/${userId}`,
+      providesTags: (result) =>
+        result ? result.map(({ id }) => ({ type: 'Friend', id } as const)) : ['Friend'],
     }),
   }),
 })
@@ -52,4 +115,9 @@ export const {
   useGetGamesQuery,
   useCreateGameMutation,
   useJoinGameMutation,
+  useSearchUsersQuery,
+  useSendFriendRequestMutation,
+  useGetFriendRequestsQuery,
+  useRespondToFriendRequestMutation,
+  useGetFriendsQuery,
 } = api
