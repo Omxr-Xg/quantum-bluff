@@ -1,92 +1,103 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { UserPlus, Search, ArrowLeft, MessageCircle, Users, X, Check, Loader2, Gamepad2, Home } from "lucide-react";
+import { UserPlus, Search, ArrowLeft, MessageCircle, Users, X, Check, Loader2, Gamepad2 } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-import { FriendSearch } from '../components/FriendSearch';
-import { useGetFriendsQuery, useGetFriendRequestsQuery } from '../services/api';
-import { useUser } from '../hooks/useUser';
-import { Check, X, User } from 'lucide-react';
-
-interface Friend {
-  id: number;
-  name: string;
-  avatar: string;
-  isOnline: boolean;
-  lastSeen?: string;
-  level: number;
-  wins: number;
-}
+import { useUser } from "../hooks/useUser";
+import { 
+  useGetFriendsQuery, 
+  useGetFriendRequestsQuery,
+  useSearchUsersQuery,
+  useSendFriendRequestMutation,
+  useRespondToFriendRequestMutation 
+} from "../services/api";
 
 export function Friends() {
   const navigate = useNavigate();
+  const { userId } = useUser();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "online" | "offline">("all");
+  const [activeTab, setActiveTab] = useState<"all">("all");
   const [showAddFriend, setShowAddFriend] = useState(false);
-  const [friendId, setFriendId] = useState("");
+  const [friendUsername, setFriendUsername] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [searchSuccess, setSearchSuccess] = useState(false);
-  const [selectedChat, setSelectedChat] = useState<number | null>(null);
+  const [selectedChat, setSelectedChat] = useState<string | null>(null);
+
+  // Requêtes API
+  const { data: friends, refetch: refetchFriends, isLoading: loadingFriends } = useGetFriendsQuery(userId!, {
+    skip: !userId
+  });
+  
+  const { data: requests, refetch: refetchRequests } = useGetFriendRequestsQuery(userId!, {
+    skip: !userId
+  });
+
+  const [sendRequest, { isLoading: sendingRequest }] = useSendFriendRequestMutation();
+  const [respondRequest] = useRespondToFriendRequestMutation();
+
+  // Recherche d'utilisateurs
+  const { data: searchData, isLoading: searching } = useSearchUsersQuery(searchQuery, {
+    skip: searchQuery.length < 2 || !showAddFriend
+  });
 
   // Vérifier si on vient d'une partie en cours
   const isInGame = sessionStorage.getItem("currentGame");
 
-  const friendsList: Friend[] = [
-    { id: 1, name: "Alice", avatar: "A", isOnline: true, level: 25, wins: 142 },
-    { id: 2, name: "Bob", avatar: "B", isOnline: true, level: 18, wins: 89 },
-    { id: 3, name: "Charlie", avatar: "C", isOnline: false, lastSeen: "Il y a 2h", level: 32, wins: 201 },
-    { id: 4, name: "Diana", avatar: "D", isOnline: true, level: 15, wins: 67 },
-    { id: 5, name: "Eve", avatar: "E", isOnline: false, lastSeen: "Il y a 1 jour", level: 28, wins: 156 },
-    { id: 6, name: "Frank", avatar: "F", isOnline: false, lastSeen: "Il y a 3 jours", level: 22, wins: 98 },
-  ];
+  const filteredFriends = friends?.filter((friend) => {
+    const matchesSearch = friend.username.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
+  }) || [];
 
-  const filteredFriends = friendsList.filter((friend) => {
-    const matchesSearch = friend.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTab =
-      activeTab === "all" ||
-      (activeTab === "online" && friend.isOnline) ||
-      (activeTab === "offline" && !friend.isOnline);
-    return matchesSearch && matchesTab;
-  });
-
-  const onlineCount = friendsList.filter((f) => f.isOnline).length;
-  const offlineCount = friendsList.filter((f) => !f.isOnline).length;
-
-  const handleAddFriend = async () => {
-    setSearchError("");
-    setSearchSuccess(false);
-
-    if (!friendId.trim()) {
-      setSearchError("Veuillez entrer un identifiant");
+  const handleSearchUser = () => {
+    if (!friendUsername.trim() || friendUsername.length < 2) {
+      setSearchError("Minimum 2 caractères");
       return;
     }
-
-    if (friendId.length < 4) {
-      setSearchError("L'identifiant doit contenir au moins 4 caractères");
-      return;
-    }
-
     setIsSearching(true);
-
+    setSearchError("");
+    
+    // La recherche se fait automatiquement via le hook
     setTimeout(() => {
-      if (friendId === "error123") {
-        setSearchError("Utilisateur introuvable");
-        setIsSearching(false);
-        return;
+      if (searchData && searchData.length > 0) {
+        setSearchResults(searchData);
+        setSearchError("");
+      } else {
+        setSearchError("Aucun utilisateur trouvé");
       }
-
-      setSearchSuccess(true);
       setIsSearching(false);
-      setTimeout(() => {
-        setShowAddFriend(false);
-        setFriendId("");
-        setSearchSuccess(false);
-      }, 2000);
-    }, 1500);
+    }, 500);
   };
 
-  const openChat = (friendId: number) => {
+  const handleSendRequest = async (username: string) => {
+    if (!userId) return;
+    
+    try {
+      await sendRequest({ senderId: userId, receiverUsername: username }).unwrap();
+      setSearchSuccess(true);
+      setSearchResults([]);
+      setFriendUsername("");
+      setTimeout(() => {
+        setSearchSuccess(false);
+        setShowAddFriend(false);
+      }, 2000);
+    } catch (err) {
+      setSearchError("Erreur lors de l'envoi de la demande");
+    }
+  };
+
+  const handleRespond = async (requestId: string, status: 'ACCEPTED' | 'REJECTED') => {
+    try {
+      await respondRequest({ requestId, status }).unwrap();
+      refetchFriends();
+      refetchRequests();
+    } catch (err) {
+      console.error('Erreur:', err);
+    }
+  };
+
+  const openChat = (friendId: string) => {
     setSelectedChat(friendId);
   };
 
@@ -94,7 +105,7 @@ export function Friends() {
     setSelectedChat(null);
   };
 
-  const selectedFriend = friendsList.find(f => f.id === selectedChat);
+  const selectedFriend = friends?.find(f => f.id === selectedChat);
 
   return (
     <div className="size-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
@@ -140,11 +151,50 @@ export function Friends() {
           <div>
             <h1 className="text-4xl font-bold text-white mb-1">Mes Amis</h1>
             <p className="text-gray-400">
-              {onlineCount} en ligne • {offlineCount} hors ligne
+              {friends?.length || 0} amis
             </p>
           </div>
         </div>
 
+        {/* Demandes d'amis reçues */}
+        {requests && requests.length > 0 && (
+          <div className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/30 rounded-2xl shadow-xl border border-yellow-600 p-6 mb-6">
+            <h2 className="text-xl text-yellow-400 font-bold mb-4 flex items-center gap-2">
+              <UserPlus className="w-5 h-5" />
+              Demandes d'amis ({requests.length})
+            </h2>
+            <div className="space-y-3">
+              {requests.map((req) => (
+                <div key={req.id} className="flex items-center justify-between bg-black/30 p-3 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold">
+                        {req.sender.username.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="text-white font-medium">{req.sender.username}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleRespond(req.id, 'ACCEPTED')}
+                      className="bg-green-600 hover:bg-green-500 text-white p-2 rounded-lg"
+                    >
+                      <Check className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleRespond(req.id, 'REJECTED')}
+                      className="bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Barre de recherche */}
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-xl border border-slate-700 p-6 mb-6">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -156,120 +206,70 @@ export function Friends() {
               className="w-full bg-slate-900/50 border border-slate-600 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
             />
           </div>
-
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={() => setActiveTab("all")}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                activeTab === "all"
-                  ? "bg-green-600 text-white"
-                  : "bg-slate-700 text-gray-400 hover:bg-slate-600"
-              }`}
-            >
-              Tous ({friendsList.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("online")}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                activeTab === "online"
-                  ? "bg-green-600 text-white"
-                  : "bg-slate-700 text-gray-400 hover:bg-slate-600"
-              }`}
-            >
-              En ligne ({onlineCount})
-            </button>
-            <button
-              onClick={() => setActiveTab("offline")}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                activeTab === "offline"
-                  ? "bg-green-600 text-white"
-                  : "bg-slate-700 text-gray-400 hover:bg-slate-600"
-              }`}
-            >
-              Hors ligne ({offlineCount})
-            </button>
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredFriends.map((friend) => (
-            <div
-              key={friend.id}
-              className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-xl border border-slate-700 p-6 hover:border-green-500/50 transition-all"
-            >
-              <div className="flex items-start gap-4">
-                <div className="relative">
+        {/* Liste d'amis */}
+        {loadingFriends ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 text-green-400 animate-spin" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredFriends.map((friend) => (
+              <div
+                key={friend.id}
+                className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-xl border border-slate-700 p-6 hover:border-green-500/50 transition-all"
+              >
+                <div className="flex items-start gap-4">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white overflow-hidden flex items-center justify-center shadow-lg">
-                    {getPlayerAvatar(friend.name) ? (
+                    {getPlayerAvatar(friend.username) ? (
                       <ImageWithFallback
-                        src={getPlayerAvatar(friend.name)}
-                        alt={`${friend.name}'s avatar`}
+                        src={getPlayerAvatar(friend.username)}
+                        alt={`${friend.username}'s avatar`}
                         className="w-16 h-16 rounded-full object-cover"
                       />
                     ) : (
                       <span className="text-white text-2xl font-bold">
-                        {friend.avatar}
+                        {friend.username.charAt(0).toUpperCase()}
                       </span>
                     )}
                   </div>
-                  <div
-                    className={`absolute bottom-0 right-0 w-5 h-5 rounded-full border-2 border-slate-800 ${
-                      friend.isOnline ? "bg-green-500" : "bg-gray-500"
-                    }`}
-                  ></div>
-                </div>
 
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-xl font-bold text-white">
-                      {friend.name}
-                    </h3>
-                    <span className="text-yellow-400 text-sm font-semibold">
-                      Niveau {friend.level}
-                    </span>
-                  </div>
-
-                  {friend.isOnline ? (
-                    <div className="flex items-center gap-1 text-green-400 text-sm mb-3">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>En ligne</span>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-xl font-bold text-white">
+                        {friend.username}
+                      </h3>
+                      <span className="text-yellow-400 text-sm font-semibold">
+                        Niveau {friend.level}
+                      </span>
                     </div>
-                  ) : (
+
                     <div className="text-gray-400 text-sm mb-3">
-                      {friend.lastSeen}
+                      Niveau {friend.level}
                     </div>
-                  )}
 
-                  <div className="text-gray-400 text-sm mb-4">
-                    🏆 {friend.wins} victoires
-                  </div>
+                    <div className="text-gray-400 text-sm mb-4">
+                      🏆 {friend.stats?.wins || 0} victoires
+                    </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
-                        friend.isOnline
-                          ? "bg-green-600 hover:bg-green-500 text-white"
-                          : "bg-slate-700 text-gray-400 cursor-not-allowed"
-                      }`}
-                      disabled={!friend.isOnline}
-                    >
-                      <Users className="w-4 h-4" />
-                      Inviter
-                    </button>
-                    <button 
-                      onClick={() => openChat(friend.id)}
-                      className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold transition-all"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                    </button>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => openChat(friend.id)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold transition-all"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Discuter
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {filteredFriends.length === 0 && (
+        {filteredFriends.length === 0 && !loadingFriends && (
           <div className="text-center py-12">
             <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
               <Users className="w-10 h-10 text-gray-600" />
@@ -279,6 +279,7 @@ export function Friends() {
         )}
       </div>
 
+      {/* Modal Ajouter un ami */}
       {showAddFriend && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full">
@@ -292,9 +293,10 @@ export function Friends() {
               <button
                 onClick={() => {
                   setShowAddFriend(false);
-                  setFriendId("");
+                  setFriendUsername("");
                   setSearchError("");
                   setSearchSuccess(false);
+                  setSearchResults([]);
                 }}
                 className="w-10 h-10 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center justify-center transition-all"
               >
@@ -304,61 +306,83 @@ export function Friends() {
 
             <div className="p-6">
               <p className="text-gray-400 mb-4">
-                Entrez l'identifiant unique de votre ami pour l'ajouter à votre liste.
+                Entrez le nom d'utilisateur de votre ami pour lui envoyer une demande.
               </p>
 
               <div className="mb-4">
-                <label htmlFor="friendId" className="block text-sm font-semibold text-gray-300 mb-2">
-                  Identifiant du joueur
+                <label htmlFor="friendUsername" className="block text-sm font-semibold text-gray-300 mb-2">
+                  Nom d'utilisateur
                 </label>
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
-                    id="friendId"
+                    id="friendUsername"
                     type="text"
-                    value={friendId}
+                    value={friendUsername}
                     onChange={(e) => {
-                      setFriendId(e.target.value);
+                      setFriendUsername(e.target.value);
                       setSearchError("");
                     }}
-                    placeholder="Ex: player#1234"
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearchUser()}
+                    placeholder="Nom du joueur"
                     className="w-full bg-slate-900/50 border border-slate-600 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                   />
                 </div>
-                {searchError && (
-                  <p className="text-red-500 text-sm mt-2 flex items-center gap-2">
-                    <X className="w-4 h-4" />
-                    {searchError}
-                  </p>
-                )}
-                {searchSuccess && (
-                  <p className="text-green-500 text-sm mt-2 flex items-center gap-2">
-                    <Check className="w-4 h-4" />
-                    Ami ajouté avec succès !
-                  </p>
-                )}
               </div>
 
-              <div className="bg-blue-600/10 border border-blue-600/30 rounded-xl p-4 mb-6">
-                <p className="text-blue-300 text-sm">
-                  Vous pouvez trouver votre propre identifiant dans votre profil.
+              {/* Résultats de recherche */}
+              {searching && (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="w-6 h-6 text-green-400 animate-spin" />
+                </div>
+              )}
+
+              {searchResults.length > 0 && !searching && (
+                <div className="mb-4">
+                  <h3 className="text-white font-semibold mb-2">Résultats :</h3>
+                  {searchResults.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between bg-slate-700/50 p-3 rounded-lg mb-2">
+                      <span className="text-white">{user.username}</span>
+                      <button
+                        onClick={() => handleSendRequest(user.username)}
+                        disabled={sendingRequest}
+                        className="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded-lg text-sm"
+                      >
+                        Ajouter
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {searchError && (
+                <p className="text-red-500 text-sm mt-2 flex items-center gap-2">
+                  <X className="w-4 h-4" />
+                  {searchError}
                 </p>
-              </div>
+              )}
+              
+              {searchSuccess && (
+                <p className="text-green-500 text-sm mt-2 flex items-center gap-2">
+                  <Check className="w-4 h-4" />
+                  Demande envoyée avec succès !
+                </p>
+              )}
 
               <button
-                onClick={handleAddFriend}
-                disabled={isSearching}
-                className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl shadow-lg transform hover:scale-105 active:scale-95 disabled:hover:scale-100 transition-all flex items-center justify-center gap-2"
+                onClick={handleSearchUser}
+                disabled={searching || sendingRequest}
+                className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl shadow-lg transform hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
-                {isSearching ? (
+                {searching || sendingRequest ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Recherche en cours...</span>
+                    <span>Recherche...</span>
                   </>
                 ) : (
                   <>
-                    <UserPlus className="w-5 h-5" />
-                    <span>Ajouter</span>
+                    <Search className="w-5 h-5" />
+                    <span>Rechercher</span>
                   </>
                 )}
               </button>
@@ -367,33 +391,37 @@ export function Friends() {
         </div>
       )}
 
+      {/* Chat modal (garde le même code que dans l'original) */}
       {selectedChat && selectedFriend && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 max-w-2xl w-full h-[600px] flex flex-col">
             <div className="p-6 border-b border-slate-700 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="relative">
+                <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white overflow-hidden flex items-center justify-center">
-                    {getPlayerAvatar(selectedFriend.name) ? (
+                    {getPlayerAvatar(selectedFriend.username) ? (
                       <ImageWithFallback
-                        src={getPlayerAvatar(selectedFriend.name)}
-                        alt={`${selectedFriend.name}'s avatar`}
+                        src={getPlayerAvatar(selectedFriend.username)}
+                        alt={`${selectedFriend.username}'s avatar`}
                         className="w-12 h-12 rounded-full object-cover"
                       />
                     ) : (
                       <span className="text-white text-xl font-bold">
-                        {selectedFriend.avatar}
+                        {selectedFriend.username.charAt(0).toUpperCase()}
                       </span>
                     )}
                   </div>
-                  {selectedFriend.isOnline && (
-                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-slate-800"></div>
-                  )}
+                  <div>
+                    <h2 className="text-xl font-bold text-white">{selectedFriend.username}</h2>
+                    <p className="text-sm text-gray-400">
+                      Niveau {selectedFriend.level}
+                    </p>
+                  </div>
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">{selectedFriend.name}</h2>
+                  <h2 className="text-xl font-bold text-white">{selectedFriend.username}</h2>
                   <p className="text-sm text-gray-400">
-                    {selectedFriend.isOnline ? "En ligne" : selectedFriend.lastSeen}
+                    Niveau {selectedFriend.level}
                   </p>
                 </div>
               </div>
