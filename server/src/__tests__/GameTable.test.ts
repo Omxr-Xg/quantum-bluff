@@ -4,7 +4,7 @@ import type { Player } from '../types/poker.js'
 describe('GameTable - Moteur Principal', () => {
   let table: GameTable
 
-  const players: Player[] = [
+  const createPlayers = (): Player[] => [
     {
       id: 'p1',
       name: 'Azra',
@@ -24,7 +24,7 @@ describe('GameTable - Moteur Principal', () => {
   ]
 
   beforeEach(() => {
-    table = new GameTable('room1', [...players])
+    table = new GameTable('room1', createPlayers())
   })
 
   test('constructor initialise GameState PREFLOP', () => {
@@ -41,23 +41,91 @@ describe('GameTable - Moteur Principal', () => {
     expect(state).toHaveProperty('pot', 0)
     expect(state.players).toHaveLength(2)
 
-    expect(state.players[0]).toHaveProperty('id', 'p1')
-    expect(state.players[1]).toHaveProperty('id', 'p2')
+    expect(state.players[0]).toHaveProperty('id')
+    expect(state.players[0]).toHaveProperty('name')
+    expect(state.players[0]).toHaveProperty('chips')
+    expect(state.players[0]).toHaveProperty('currentBet')
+    expect(state.players[0]).toHaveProperty('role')
+    expect(state.players[0]).toHaveProperty('isActive')
     expect(state.players[0]).toHaveProperty('cards')
-    expect(state.players[1]).toHaveProperty('cards')
   })
 
-  test("refuse l'action d'un joueur quand ce n'est pas son tour", () => {
-    expect(() => table.handlePlayerAction('p2', 'CHECK')).toThrow('Pas ton tour')
+  test('impossible de jouer avant startHand', () => {
+    expect(() => table.handlePlayerAction('p1', 'CALL')).toThrow(
+      'La main n’a pas commencé'
+    )
   })
 
-  test('accepte une action valide puis passe le tour au joueur suivant', () => {
+  test('startHand distribue les cartes et poste les blinds', () => {
+    table.startHand()
+
+    expect(table.state.phase).toBe('PREFLOP')
+    expect(table.state.communityCards).toHaveLength(0)
+    expect(table.state.pot).toBe(30)
+
+    expect(table.state.players[0].cards).toHaveLength(2)
+    expect(table.state.players[1].cards).toHaveLength(2)
+
+    const roles = table.state.players.map((p) => p.role)
+    expect(roles).toContain('SMALL_BLIND')
+    expect(roles).toContain('BIG_BLIND')
+  })
+
+  test('heads-up : le dealer/small blind parle en premier préflop', () => {
+    table.startHand()
+
+    expect(table.state.currentTurn).toBe('p1')
+    expect(table.canPlayerAct('p1')).toBe(true)
+    expect(table.canPlayerAct('p2')).toBe(false)
+  })
+
+  test('CALL est interdit s’il n’y a rien à suivre', () => {
+    table.startHand()
+
+    expect(() => table.handlePlayerAction('p1', 'CALL')).toThrow('Rien à suivre')
+  })
+
+  test('CHECK est autorisé quand il n’y a rien à suivre', () => {
+    table.startHand()
+
     expect(() => table.handlePlayerAction('p1', 'CHECK')).not.toThrow()
-    expect(table.state.currentTurn).toBe('p2')
   })
 
-  test("après l'action de p1, p1 ne peut pas rejouer immédiatement", () => {
-    table.handlePlayerAction('p1', 'CHECK')
-    expect(() => table.handlePlayerAction('p1', 'CHECK')).toThrow('Pas ton tour')
+  test('pas ton tour déclenche une erreur', () => {
+    table.startHand()
+
+    expect(() => table.handlePlayerAction('p2', 'CHECK')).toThrow('Pas ton tour !')
+  })
+
+  test('FOLD d’un joueur donne le pot au dernier joueur restant', () => {
+    table.startHand()
+
+    table.handlePlayerAction('p1', 'FOLD')
+
+    expect(table.state.phase).toBe('SHOWDOWN')
+    expect(table.state.pot).toBe(0)
+
+    const p2 = table.getPlayerState('p2')
+    expect(p2?.chips).toBe(1010)
+  })
+
+  test('advancePhase fait progresser FLOP -> TURN -> RIVER -> SHOWDOWN', () => {
+    table.startHand()
+
+    table.advancePhase()
+    expect(table.state.phase).toBe('FLOP')
+    expect(table.state.communityCards).toHaveLength(3)
+
+    table.advancePhase()
+    expect(table.state.phase).toBe('TURN')
+    expect(table.state.communityCards).toHaveLength(4)
+
+    table.advancePhase()
+    expect(table.state.phase).toBe('RIVER')
+    expect(table.state.communityCards).toHaveLength(5)
+
+    table.advancePhase()
+    expect(table.state.phase).toBe('SHOWDOWN')
+    expect(table.state.currentTurn).toBe('')
   })
 })

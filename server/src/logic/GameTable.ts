@@ -2,6 +2,8 @@ import type { GamePhase, GameState, Player } from '../types/poker.js'
 import { Deck } from './Deck.js'
 import { findWinner } from './Evaluator.js'
 
+type PlayerAction = 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
+
 export class GameTable {
   public readonly id: string
   private deck: Deck
@@ -10,6 +12,8 @@ export class GameTable {
   private highestBet: number
   private actedPlayerIds: Set<string>
   private handStarted: boolean
+  private readonly smallBlindAmount: number
+  private readonly bigBlindAmount: number
 
   constructor(id: string, players: Player[]) {
     this.id = id
@@ -18,6 +22,8 @@ export class GameTable {
     this.highestBet = 0
     this.actedPlayerIds = new Set()
     this.handStarted = false
+    this.smallBlindAmount = 10
+    this.bigBlindAmount = 20
 
     this.state = {
       id,
@@ -33,7 +39,7 @@ export class GameTable {
 
   private normalizePlayers(): void {
     this.state.players.forEach((player, index) => {
-      player.cards = player.cards ?? []
+      player.cards = Array.isArray(player.cards) ? player.cards : []
       player.currentBet = player.currentBet ?? 0
       player.isActive = player.isActive ?? true
       player.position = index
@@ -43,11 +49,21 @@ export class GameTable {
     })
   }
 
-  private getActivePlayers(): Player[] {
-    return this.state.players.filter((player) => player.isActive && player.isConnected !== false)
+  private getConnectedPlayers(): Player[] {
+    return this.state.players.filter((player) => player.isConnected !== false)
   }
 
-  private getNextActivePlayerIndex(startIndex: number): number {
+  private getActivePlayers(): Player[] {
+    return this.state.players.filter(
+      (player) => player.isActive && player.isConnected !== false
+    )
+  }
+
+  private getPlayerIndexById(playerId: string): number {
+    return this.state.players.findIndex((player) => player.id === playerId)
+  }
+
+  private getNextEligiblePlayerIndex(startIndex: number): number {
     if (this.state.players.length === 0) return -1
 
     let index = startIndex
@@ -64,7 +80,7 @@ export class GameTable {
     return -1
   }
 
-  private assignPositions(): void {
+  private assignPositionsAndRoles(): void {
     this.state.players.forEach((player, index) => {
       player.position = index
       player.isDealer = false
@@ -72,27 +88,36 @@ export class GameTable {
       player.currentBet = 0
     })
 
-    if (this.state.players.length === 0) return
-
-    const dealer = this.state.players[this.dealerIndex]
-    dealer.role = 'DEALER'
-    dealer.isDealer = true
-
-    if (this.state.players.length === 2) {
-      const bigBlindIndex = this.getNextActivePlayerIndex(this.dealerIndex)
-      if (bigBlindIndex !== -1) {
-        this.state.players[bigBlindIndex].role = 'BIG_BLIND'
-      }
+    const connectedPlayers = this.getConnectedPlayers()
+    if (connectedPlayers.length < 2 || this.state.players.length === 0) {
       return
     }
 
-    const smallBlindIndex = this.getNextActivePlayerIndex(this.dealerIndex)
+    const dealer = this.state.players[this.dealerIndex]
+    dealer.isDealer = true
+
+    if (this.state.players.length === 2) {
+      dealer.role = 'SMALL_BLIND'
+
+      const bigBlindIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
+      if (bigBlindIndex !== -1) {
+        this.state.players[bigBlindIndex].role = 'BIG_BLIND'
+      }
+
+      return
+    }
+
+    dealer.role = 'DEALER'
+
+    const smallBlindIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
     if (smallBlindIndex !== -1) {
       this.state.players[smallBlindIndex].role = 'SMALL_BLIND'
     }
 
     const bigBlindIndex =
-      smallBlindIndex !== -1 ? this.getNextActivePlayerIndex(smallBlindIndex) : -1
+      smallBlindIndex !== -1
+        ? this.getNextEligiblePlayerIndex(smallBlindIndex)
+        : -1
 
     if (bigBlindIndex !== -1) {
       this.state.players[bigBlindIndex].role = 'BIG_BLIND'
@@ -111,11 +136,11 @@ export class GameTable {
   }
 
   private setBlinds(): void {
-    if (this.state.players.length < 2) return
+    if (this.getConnectedPlayers().length < 2) return
 
-    this.assignPositions()
-    this.postBlind('SMALL_BLIND', 10)
-    this.postBlind('BIG_BLIND', 20)
+    this.assignPositionsAndRoles()
+    this.postBlind('SMALL_BLIND', this.smallBlindAmount)
+    this.postBlind('BIG_BLIND', this.bigBlindAmount)
   }
 
   private getPreflopFirstPlayerId(): string {
@@ -123,15 +148,28 @@ export class GameTable {
       return this.state.players[this.dealerIndex]?.id || ''
     }
 
-    const bigBlindIndex = this.state.players.findIndex((p) => p.role === 'BIG_BLIND')
-    const firstIndex = bigBlindIndex === -1 ? 0 : this.getNextActivePlayerIndex(bigBlindIndex)
+    const bigBlindIndex = this.state.players.findIndex(
+      (player) => player.role === 'BIG_BLIND'
+    )
 
-    return firstIndex === -1 ? this.state.players[0]?.id || '' : this.state.players[firstIndex].id
+    const firstIndex =
+      bigBlindIndex === -1 ? 0 : this.getNextEligiblePlayerIndex(bigBlindIndex)
+
+    return firstIndex === -1
+      ? this.state.players[0]?.id || ''
+      : this.state.players[firstIndex].id
   }
 
   private getPostflopFirstPlayerId(): string {
-    const firstIndex = this.getNextActivePlayerIndex(this.dealerIndex)
-    return firstIndex === -1 ? this.state.players[0]?.id || '' : this.state.players[firstIndex].id
+    if (this.state.players.length === 2) {
+      return this.state.players[this.dealerIndex]?.id || ''
+    }
+
+    const firstIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
+
+    return firstIndex === -1
+      ? this.state.players[0]?.id || ''
+      : this.state.players[firstIndex].id
   }
 
   private resetBetsForNewRound(): void {
@@ -152,12 +190,14 @@ export class GameTable {
 
     return activePlayers.every(
       (player) =>
-        this.actedPlayerIds.has(player.id) && (player.currentBet || 0) === this.highestBet
+        this.actedPlayerIds.has(player.id) &&
+        (player.currentBet || 0) === this.highestBet
     )
   }
 
   private awardPotToSingleRemainingPlayer(): void {
     const activePlayers = this.getActivePlayers()
+
     if (activePlayers.length !== 1) return
 
     activePlayers[0].chips += this.state.pot
@@ -198,15 +238,14 @@ export class GameTable {
       return
     }
 
-    if (nextPhase === 'SHOWDOWN') {
-      this.resolveShowdown()
-      this.state.currentTurn = ''
-    }
+    this.resolveShowdown()
+    this.state.currentTurn = ''
   }
 
   private advanceTurn(): void {
-    const currentIndex = this.state.players.findIndex((p) => p.id === this.state.currentTurn)
-    const nextIndex = currentIndex === -1 ? -1 : this.getNextActivePlayerIndex(currentIndex)
+    const currentIndex = this.getPlayerIndexById(this.state.currentTurn)
+    const nextIndex =
+      currentIndex === -1 ? -1 : this.getNextEligiblePlayerIndex(currentIndex)
 
     if (nextIndex === -1) {
       this.state.currentTurn = ''
@@ -217,7 +256,7 @@ export class GameTable {
   }
 
   startHand(): void {
-    if (this.state.players.length < 2) {
+    if (this.getConnectedPlayers().length < 2) {
       throw new Error('Il faut au moins 2 joueurs pour démarrer')
     }
 
@@ -237,7 +276,9 @@ export class GameTable {
     for (const player of this.state.players) {
       player.cards = []
       player.currentBet = 0
-      player.isActive = player.chips > 0
+      player.isActive = player.isConnected !== false && player.chips > 0
+      player.isDealer = false
+      player.role = 'PLAYER'
     }
 
     this.deck.dealInitialCards(this.state.players)
@@ -246,33 +287,54 @@ export class GameTable {
   }
 
   addPlayer(player: Player): void {
-    player.cards = player.cards ?? []
+    player.cards = Array.isArray(player.cards) ? player.cards : []
     player.currentBet = 0
     player.isActive = player.isActive ?? true
     player.position = this.state.players.length
     player.isDealer = false
     player.isConnected = player.isConnected ?? true
     player.role = 'PLAYER'
+
     this.state.players.push(player)
   }
 
   removePlayer(playerId: string): void {
-    this.state.players = this.state.players.filter((p) => p.id !== playerId)
+    const removedIndex = this.getPlayerIndexById(playerId)
+
+    this.state.players = this.state.players.filter((player) => player.id !== playerId)
+
     this.state.players.forEach((player, index) => {
       player.position = index
     })
+
+    if (this.state.players.length === 0) {
+      this.dealerIndex = 0
+      this.state.currentTurn = ''
+      return
+    }
+
+    if (removedIndex !== -1 && removedIndex < this.dealerIndex) {
+      this.dealerIndex -= 1
+    }
 
     if (this.dealerIndex >= this.state.players.length) {
       this.dealerIndex = 0
     }
 
     if (this.state.currentTurn === playerId) {
-      this.state.currentTurn = this.state.players[0]?.id || ''
+      const fallbackIndex = this.getNextEligiblePlayerIndex(
+        Math.max(0, removedIndex - 1)
+      )
+
+      this.state.currentTurn =
+        fallbackIndex === -1
+          ? this.state.players[0]?.id || ''
+          : this.state.players[fallbackIndex].id
     }
   }
 
   getPlayerState(playerId: string): Player | undefined {
-    return this.state.players.find((p) => p.id === playerId)
+    return this.state.players.find((player) => player.id === playerId)
   }
 
   canPlayerAct(playerId: string): boolean {
@@ -292,7 +354,7 @@ export class GameTable {
   }
 
   applyBet(playerId: string, amount: number): void {
-    const playerIndex = this.state.players.findIndex((p) => p.id === playerId)
+    const playerIndex = this.getPlayerIndexById(playerId)
     if (playerIndex === -1) return
 
     const player = this.state.players[playerIndex]
@@ -306,13 +368,17 @@ export class GameTable {
 
   handlePlayerAction(
     playerId: string,
-    action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK',
+    action: PlayerAction,
     amount?: number
   ): void {
     const player = this.getPlayerState(playerId)
 
     if (!player) {
       throw new Error('Joueur introuvable')
+    }
+
+    if (!this.handStarted) {
+      throw new Error('La main n’a pas commencé')
     }
 
     if (this.state.phase === 'SHOWDOWN') {
@@ -346,8 +412,8 @@ export class GameTable {
         throw new Error('Montant de relance invalide')
       }
 
-      if (amount < 20) {
-        throw new Error('La relance minimum est de 20')
+      if (amount < this.bigBlindAmount) {
+        throw new Error(`La relance minimum est de ${this.bigBlindAmount}`)
       }
 
       const totalToPut = callAmount + amount
@@ -359,7 +425,6 @@ export class GameTable {
 
     if (action === 'FOLD') {
       player.isActive = false
-      player.currentBet = player.currentBet || 0
       this.actedPlayerIds.add(player.id)
 
       if (this.getActivePlayers().length === 1) {
@@ -403,22 +468,24 @@ export class GameTable {
       return
     }
 
-    if (action === 'RAISE') {
-      const raiseAmount = amount as number
-      const totalToPut = callAmount + raiseAmount
+    const raiseAmount = amount as number
+    const totalToPut = callAmount + raiseAmount
 
-      player.chips -= totalToPut
-      player.currentBet = (player.currentBet || 0) + totalToPut
-      this.state.pot += totalToPut
-      this.highestBet = player.currentBet || 0
-      this.actedPlayerIds.clear()
-      this.actedPlayerIds.add(player.id)
+    player.chips -= totalToPut
+    player.currentBet = (player.currentBet || 0) + totalToPut
+    this.state.pot += totalToPut
+    this.highestBet = player.currentBet || 0
+    this.actedPlayerIds.clear()
+    this.actedPlayerIds.add(player.id)
 
-      this.advanceTurn()
-    }
+    this.advanceTurn()
   }
 
   advancePhase(): void {
+    if (!this.handStarted) {
+      throw new Error('La main n’a pas commencé')
+    }
+
     if (this.state.phase === 'SHOWDOWN') {
       return
     }
@@ -428,9 +495,11 @@ export class GameTable {
 
   private resolveShowdown(): void {
     const activePlayers = this.getActivePlayers()
-    const playersToEvaluate = activePlayers.length > 0 ? activePlayers : this.state.players
+    const playersToEvaluate =
+      activePlayers.length > 0 ? activePlayers : this.state.players
+
     const winnerId = findWinner(playersToEvaluate, this.state.communityCards)
-    const winner = this.state.players.find((p) => p.id === winnerId)
+    const winner = this.state.players.find((player) => player.id === winnerId)
 
     if (winner) {
       winner.chips += this.state.pot
@@ -461,7 +530,7 @@ export class GameTable {
         id: player.id,
         name: player.name,
         chips: player.chips,
-        bet: player.currentBet || 0,
+        currentBet: player.currentBet || 0,
         position: player.position || 0,
         role: player.role,
         isActive: player.isActive,
