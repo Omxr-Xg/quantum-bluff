@@ -508,6 +508,39 @@ export class GameTable {
     this.state.pot = 0
   }
 
+    /**
+   * Version simplifiée de handlePlayerAction pour l'interface externe
+   * Utilise automatiquement le joueur dont c'est le tour
+   */
+  handlePlayerActionExternal(action: PlayerAction, amount?: number): void {
+    const player = this.getPlayerState(this.state.currentTurn)
+    if (!player) throw new Error('Aucun joueur actif')
+    this.handlePlayerAction(player.id, action, amount)
+  }
+
+  /**
+   * Passe au joueur suivant
+   */
+  nextTurn(): void {
+    this.advanceTurn()
+  }
+
+  /**
+   * Vérifie si le tour de mise est terminé
+   */
+  bettingRoundComplete(): boolean {
+    return this.isBettingRoundComplete()
+  }
+
+  /**
+   * Termine le tour de mise et passe à la phase suivante
+   */
+  endBettingRound(): void {
+    if (this.bettingRoundComplete()) {
+      this.moveToNextPhase()
+    }
+  }
+
   getState(): GameState & { id: string } {
     return {
       id: this.id,

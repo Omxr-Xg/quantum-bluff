@@ -133,3 +133,60 @@ describe('GameTable - Moteur Principal', () => {
     expect(table.state.currentTurn).toBe('')
   })
 })
+  // Tests pour les nouvelles méthodes
+describe('GameTable - Nouvelles méthodes simplifiées', () => {
+  let table: GameTable
+  let players: Player[]
+
+  beforeEach(() => {
+    players = [
+      { 
+        id: 'p1', name: 'Azra', cards: [], chips: 1000, 
+        role: 'PLAYER', isActive: true, position: 0, isConnected: true 
+      },
+      { 
+        id: 'p2', name: 'Soheil', cards: [], chips: 1000, 
+        role: 'PLAYER', isActive: true, position: 1, isConnected: true 
+      }
+    ]
+    table = new GameTable('room1', players)
+    table.startHand()
+  })
+
+  test('nextTurn() passe au joueur suivant', () => {
+    const firstTurn = table.state.currentTurn
+    table.nextTurn()
+    expect(table.state.currentTurn).not.toBe(firstTurn)
+  })
+
+  test('bettingRoundComplete() détecte la fin du tour', () => {
+    expect(table.bettingRoundComplete()).toBe(false)
+  })
+
+  test('endBettingRound() termine le tour si complet', () => {
+    const initialPhase = table.state.phase
+    table.endBettingRound()
+    // Ne change pas car pas complet
+    expect(table.state.phase).toBe(initialPhase)
+  })
+
+  test('handlePlayerAction() avec CHECK', () => {
+  const currentPlayerId = table.state.currentTurn
+  
+    // En préflop avec blinds, CHECK n'est pas possible
+    // Donc on s'attend à ce que ça lance une erreur
+    expect(() => table.handlePlayerAction(currentPlayerId, 'CHECK')).toThrow('Impossible de check, une mise est à suivre')
+  })
+
+  // Ajoute un test pour CALL (valide)
+  test('handlePlayerAction() avec CALL', () => {
+    const currentPlayerId = table.state.currentTurn
+    expect(() => table.handlePlayerAction(currentPlayerId, 'CALL')).not.toThrow()
+  })
+
+  // Ajoute un test pour FOLD
+  test('handlePlayerAction() avec FOLD', () => {
+    const currentPlayerId = table.state.currentTurn
+    expect(() => table.handlePlayerAction(currentPlayerId, 'FOLD')).not.toThrow()
+  })
+})
