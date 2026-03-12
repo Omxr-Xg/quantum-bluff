@@ -31,6 +31,9 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@index([username])
+  @@index([email])
+  @@index([createdAt])
 }
 
 model UserStats {
@@ -70,6 +73,10 @@ model FriendRequest {
   updatedAt DateTime @updatedAt
 
   @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Friendship {
@@ -82,6 +89,8 @@ model Friendship {
   user2 User @relation("User2", fields: [user2Id], references: [id])
 
   @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
 }
 
 enum RequestStatus {
