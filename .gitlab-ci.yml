@@ -295,10 +295,16 @@ infra:nginx-config:
 
 infra:docker-compose:
   stage: test
-  image: docker/compose:latest
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   script:
     - echo "🔧 Validation du docker-compose..."
-    - docker compose -f database/docker-compose.yml config
+    - apk add --no-cache docker-compose  # ← Installation de docker-compose
+    - docker-compose -f database/docker-compose.yml config
   only:
     - develop
     - main
