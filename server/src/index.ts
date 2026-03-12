@@ -4,12 +4,14 @@ import { Server } from 'socket.io'
 import cors from 'cors'
 import gameRoutes from './routes/game.routes.js'
 import { GameGateway } from './sockets/game.gateway.js'
+import authRoutes from './routes/auth.routes.js';
 
 const app = express()
 
 app.use(cors())
 app.use(express.json())
 app.use('/api', gameRoutes)
+app.use('/api/auth', authRoutes);
 
 app.get('/', (_req, res) => {
   res.send('🚀 Quantum Bluff API - Le serveur répond !')

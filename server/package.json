@@ -11,7 +11,7 @@
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-  "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=cobertura"
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=cobertura"
   },
   "keywords": [],
   "author": "",
@@ -45,7 +45,7 @@
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.2",
-    "@prisma/client": "^7.4.2",
+    "@prisma/client": "^6.19.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",

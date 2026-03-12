@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
-import { getUserProfile, saveUserProfile } from "../utils/userProfile";
+import { useRegisterMutation } from "../services/api";
 
 export function Register() {
   const [username, setUsername] = useState("");
@@ -11,72 +11,37 @@ export function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ username?: string; email?: string; confirmPassword?: string }>({});
-  
-  const [passwordCriteria, setPasswordCriteria] = useState({
-    length: false,
-    uppercase: false,
-    number: false,
-    special: false,
-  });
-
+  const [register, { isLoading, error }] = useRegisterMutation();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    setPasswordCriteria({
-      length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      number: /[0-9]/.test(password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-    });
-  }, [password]);
-
-  const validateEmailFormat = (val: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
-  };
-
-  const handleEmailBlur = () => {
-    if (!email) {
-      setErrors(prev => ({ ...prev, email: "L'email est requis" }));
-    } else if (!validateEmailFormat(email)) {
-      setErrors(prev => ({ ...prev, email: "Format d'email invalide" }));
-    } else {
-      setErrors(prev => ({ ...prev, email: undefined }));
-    }
-  };
-
-  const handleUsernameBlur = () => {
-    if (username.length < 3) {
-      setErrors(prev => ({ ...prev, username: "Minimum 3 caractères" }));
-    } else {
-      setErrors(prev => ({ ...prev, username: undefined }));
-    }
+  const passwordCriteria = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
   };
 
   const isFormValid = 
     username.length >= 3 && 
-    validateEmailFormat(email) && 
+    email.includes('@') && 
     Object.values(passwordCriteria).every(Boolean) && 
-    password === confirmPassword && 
-    confirmPassword.length > 0;
+    password === confirmPassword;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
 
-    setIsLoading(true);
-    setTimeout(() => {
-      const userProfile = getUserProfile();
-      saveUserProfile({ 
-        ...userProfile, 
-        username: username,
-        email: email 
-      });
-      // Ici on va vers le lobby après inscription réussie
+    try {
+      const response = await register({ 
+        username, 
+        email, 
+        password 
+      }).unwrap();
+      console.log("✅ Inscription réussie:", response);
       navigate("/lobby");
-      setIsLoading(false);
-    }, 1500);
+    } catch (err) {
+      console.error("❌ Erreur d'inscription:", err);
+    }
   };
 
   const Criterion = ({ met, label }: { met: boolean; label: string }) => (
@@ -87,15 +52,29 @@ export function Register() {
   );
 
   return (
-    <div className="size-full relative overflow-hidden bg-slate-900 flex items-center justify-center min-h-screen p-4 sm:p-6 font-sans">
+    <div className="w-full min-h-screen relative overflow-hidden bg-slate-900 flex items-center justify-center p-4 sm:p-6 font-sans">
       
-      {/* FONDS IMMERSIF */}
+      {/* FONDS IMMERSIF (identique au Login) */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"></div>
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 60px, rgba(139, 92, 246, 0.2) 60px, rgba(139, 92, 246, 0.2) 61px)` }} />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(15,23,42,0.8)_100%)]"></div>
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[100px] animate-pulse-slow"></div>
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: "1s" }}></div>
+      </div>
+
+      {/* Cartes animées (optionnel, peut rester) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
+        <div className="absolute top-[15%] left-[8%] animate-float-card">
+          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-purple-500/30 rotate-12 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-6xl text-purple-400/40 font-bold">♠</div>
+          </div>
+        </div>
+        <div className="absolute top-[55%] right-[12%] animate-float-card-delayed" style={{ animationDelay: "1s" }}>
+          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-purple-500/30 -rotate-12 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-6xl text-purple-400/40 font-bold">♥</div>
+          </div>
+        </div>
       </div>
 
       <div className="relative z-10 w-full max-w-md my-10">
@@ -117,40 +96,33 @@ export function Register() {
             <div>
               <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Nom d'utilisateur</label>
               <div className="relative group">
-                <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${errors.username ? 'text-red-500' : 'text-[#717171] group-focus-within:text-[#e81cff]'}`} />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
                 <input
                   type="text"
                   value={username}
-                  onChange={(e) => {
-                    setUsername(e.target.value);
-                    if(errors.username) setErrors(prev => ({...prev, username: undefined}));
-                  }}
-                  onBlur={handleUsernameBlur}
+                  onChange={(e) => setUsername(e.target.value)}
                   placeholder="PokerMaster"
-                  className={`w-full bg-transparent border rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 ${errors.username ? 'border-red-500' : 'border-[#414141] focus:border-[#e81cff]'}`}
+                  className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
+                  required
+                  minLength={3}
                 />
               </div>
-              {errors.username && <p className="text-red-400 text-[10px] mt-1 ml-1">{errors.username}</p>}
             </div>
 
             {/* Email */}
             <div>
               <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Email</label>
               <div className="relative group">
-                <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${errors.email ? 'text-red-500' : 'text-[#717171] group-focus-within:text-[#e81cff]'}`} />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
                 <input
-                  type="text"
+                  type="email"
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if(errors.email) setErrors(prev => ({...prev, email: undefined}));
-                  }}
-                  onBlur={handleEmailBlur}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="joueur@quantum.com"
-                  className={`w-full bg-transparent border rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 ${errors.email ? 'border-red-500' : 'border-[#414141] focus:border-[#e81cff]'}`}
+                  className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
+                  required
                 />
               </div>
-              {errors.email && <p className="text-red-400 text-[10px] mt-1 ml-1">{errors.email}</p>}
             </div>
 
             {/* Mot de passe */}
@@ -164,6 +136,7 @@ export function Register() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-12 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
+                  required
                 />
                 <button
                   type="button"
@@ -182,7 +155,7 @@ export function Register() {
               </div>
             </div>
 
-            {/* Confirmation mot de passe */}
+            {/* Confirmation */}
             <div>
               <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Confirmation</label>
               <div className="relative group">
@@ -193,6 +166,7 @@ export function Register() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   className={`w-full bg-transparent border rounded-lg pl-12 pr-12 py-3.5 text-white transition-all focus:outline-none focus:ring-1 ${confirmPassword ? (password === confirmPassword ? 'border-green-400' : 'border-red-500') : 'border-[#414141] focus:border-[#e81cff]'}`}
+                  required
                 />
                 <button
                   type="button"
@@ -207,13 +181,24 @@ export function Register() {
               )}
             </div>
 
+            {/* Message d'erreur */}
+            {error && (
+              <div className="text-red-400 text-sm text-center">
+                {'data' in error ? error.data?.error : "Erreur lors de l'inscription"}
+              </div>
+            )}
+
+            {/* Bouton */}
             <button
               type="submit"
               disabled={isLoading || !isFormValid}
-              className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${isFormValid ? 'bg-[#e81cff] text-white font-semibold shadow-[0_0_30px_5px_rgba(232,28,255,0.6)] border-[#e81cff] before:animate-[sh02_0.5s_linear_infinite] cursor-pointer' : 'bg-transparent text-white/50 font-normal shadow-[0_0_11px_2px_rgba(232,28,255,0.3)] border-[#e81cff] opacity-80 cursor-not-allowed'} active:scale-95 before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
+              className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${isFormValid ? 'bg-[#e81cff] text-white font-semibold shadow-[0_0_30px_5px_rgba(232,28,255,0.6)] border-[#e81cff] before:animate-[sh02_0.5s_linear_infinite]' : 'bg-transparent text-white/50 font-normal shadow-[0_0_11px_2px_rgba(232,28,255,0.3)] border-[#e81cff] opacity-80 cursor-not-allowed'} before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
             >
               {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Inscription...</span>
+                </>
               ) : (
                 <span>Créer mon compte</span>
               )}
@@ -233,7 +218,11 @@ export function Register() {
 
       <style>{`
         @keyframes sh02 { from { opacity: 0; left: 0%; } 50% { opacity: 1; } to { opacity: 0; left: 100%; } }
+        @keyframes float-card { 0%, 100% { transform: translateY(0px) rotate(12deg); } 50% { transform: translateY(-20px) rotate(12deg); } }
+        @keyframes float-card-delayed { 0%, 100% { transform: translateY(0px) rotate(-12deg); } 50% { transform: translateY(-20px) rotate(-12deg); } }
         @keyframes pulse-slow { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.05); } }
+        .animate-float-card { animation: float-card 4s ease-in-out infinite; }
+        .animate-float-card-delayed { animation: float-card-delayed 4s ease-in-out infinite; }
       `}</style>
     </div>
   );
