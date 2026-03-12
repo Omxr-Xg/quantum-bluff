@@ -461,7 +461,7 @@ export class GameTable {
         id: player.id,
         name: player.name,
         chips: player.chips,
-        currentBet: player.currentBet || 0,
+        bet: player.currentBet || 0,
         position: player.position || 0,
         role: player.role,
         isActive: player.isActive,

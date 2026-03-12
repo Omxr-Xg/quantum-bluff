@@ -30,16 +30,17 @@ export interface Deck {
 export type PlayerRole = 'DEALER' | 'SMALL_BLIND' | 'BIG_BLIND' | 'PLAYER'
 
 export interface Player {
-  id: string
-  name: string
-  cards: Card[]
-  chips: number
-  role: PlayerRole
-  currentBet?: number
-  isActive: boolean
-  position?: number
-  isDealer?: boolean
-  isConnected?: boolean
+  id: string;
+  name: string;
+  cards: Card[];
+  chips: number;
+  role: PlayerRole;
+  currentBet?: number;
+  bet?: number;
+  isActive: boolean;
+  position?: number;
+  isDealer?: boolean;
+  isConnected?: boolean;
 }
 
 export type GamePhase = 'WAITING' | 'PREFLOP' | 'FLOP' | 'TURN' | 'RIVER' | 'SHOWDOWN'
