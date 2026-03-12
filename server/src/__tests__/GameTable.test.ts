@@ -79,16 +79,20 @@ describe('GameTable - Moteur Principal', () => {
     expect(table.canPlayerAct('p2')).toBe(false)
   })
 
-  test('CALL est interdit s’il n’y a rien à suivre', () => {
+  test('CALL est autorisé quand le small blind doit compléter la big blind', () => {
     table.startHand()
-
-    expect(() => table.handlePlayerAction('p1', 'CALL')).toThrow('Rien à suivre')
+  
+    expect(table.calculateCallAmount('p1')).toBe(10)
+    expect(() => table.handlePlayerAction('p1', 'CALL')).not.toThrow()
   })
-
-  test('CHECK est autorisé quand il n’y a rien à suivre', () => {
+  
+  test('CHECK est interdit quand une mise est à suivre', () => {
     table.startHand()
-
-    expect(() => table.handlePlayerAction('p1', 'CHECK')).not.toThrow()
+  
+    expect(table.calculateCallAmount('p1')).toBe(10)
+    expect(() => table.handlePlayerAction('p1', 'CHECK')).toThrow(
+      'Impossible de check, une mise est à suivre'
+    )
   })
 
   test('pas ton tour déclenche une erreur', () => {
