@@ -29,6 +29,11 @@ model User {
   // Salle d'attente intégrée
   roomPlayers  RoomPlayer[]
 
+  // NOUVELLES RELATIONS
+  gameActions   GameAction[]    // Actions effectuées par le joueur
+  gameWins      GameResult[]    // Parties gagnées par le joueur
+  playerStats   PlayerStats?    // Statistiques du joueur (relation 1-1)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([username])
@@ -127,6 +132,71 @@ model RoomPlayer {
 
   @@unique([roomId, userId])
   @@map("room_players")
+}
+
+// ============================================
+// HISTORIQUE DES PARTIES
+// ============================================
+
+// Journal de toutes les actions pendant une partie
+model GameAction {
+  id        String   @id @default(uuid())
+  gameId    String   // ID de la partie (game_xxx)
+  playerId  String
+  action    String   // 'FOLD', 'CALL', 'RAISE', 'CHECK', 'BET'
+  amount    Int?     // Montant pour RAISE/BET
+  phase     String   // 'PREFLOP', 'FLOP', 'TURN', 'RIVER'
+  round     Int      @default(1) // Numéro du tour de mise
+  timestamp DateTime @default(now())
+
+  player User @relation(fields: [playerId], references: [id])
+
+  @@index([gameId])
+  @@index([playerId])
+  @@index([timestamp])
+}
+
+// Résultat final d'une partie
+model GameResult {
+  id        String   @id @default(uuid())
+  gameId    String   @unique // ID de la partie (game_xxx)
+  winnerId  String
+  winnerName String
+  pot       Int
+  hands     Json?    // Stocke les mains des joueurs (format JSON)
+  startedAt DateTime
+  endedAt   DateTime @default(now())
+
+  winner User @relation(fields: [winnerId], references: [id])
+
+  @@index([gameId])
+  @@index([winnerId])
+  @@index([endedAt])
+}
+
+// Statistiques cumulées des joueurs (à côté de UserStats)
+model PlayerStats {
+  id              String   @id @default(uuid())
+  playerId        String   @unique
+  totalGames      Int      @default(0)
+  totalWins       Int      @default(0)
+  totalLosses     Int      @default(0)
+  totalHands      Int      @default(0) // Nombre de mains jouées
+  totalRaises     Int      @default(0)
+  totalCalls      Int      @default(0)
+  totalFolds      Int      @default(0)
+  totalChecks     Int      @default(0)
+  biggestPot      Int      @default(0)
+  biggestWin      Int      @default(0)
+  totalChipsWon   Int      @default(0)
+  totalChipsLost  Int      @default(0)
+  updatedAt       DateTime @default(now())
+
+  player User @relation(fields: [playerId], references: [id])
+
+  @@index([playerId])
+  @@index([totalWins])
+  @@index([totalGames])
 }
 
 enum RoomStatus {
