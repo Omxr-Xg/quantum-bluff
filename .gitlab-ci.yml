@@ -298,7 +298,7 @@ infra:docker-compose:
   image: docker/compose:latest
   script:
     - echo "🔧 Validation du docker-compose..."
-    - docker-compose -f database/docker-compose.yml config
+    - docker compose -f database/docker-compose.yml config
   only:
     - develop
     - main
