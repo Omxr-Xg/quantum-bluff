@@ -49,9 +49,9 @@ model GameHistory {
   gameId    String
   board     String[]
   pot       Int
+  winnerId  String?
 
-  winner    User     @relation("WinnerHistory", fields: [winnerId], references: [id])
-  winnerId  String
+  winner    User?    @relation("WinnerHistory", fields: [winnerId], references: [id])
 
   createdAt DateTime @default(now())
 }
