@@ -1,46 +1,117 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
-import { UserPlus, ArrowLeft, Users, Check, Home } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router";
+import { UserPlus, ArrowLeft, Users, Check, Home, LogOut } from "lucide-react";
+import { useSocket } from "../contexts/SocketContext";
+import { useUser } from "../hooks/useUser";
+import { useGetFriendsQuery } from "../services/api";
 
-interface Friend {
-  id: number;
+interface Player {
+  id: string;
   name: string;
   avatar: string;
-  isOnline: boolean;
   level: number;
-  invited: boolean;
+  isReady: boolean;
 }
 
 export function WaitingRoom() {
   const navigate = useNavigate();
-  const [friends, setFriends] = useState<Friend[]>([
-    { id: 1, name: "Alice", avatar: "A", isOnline: true, level: 25, invited: false },
-    { id: 2, name: "Bob", avatar: "B", isOnline: true, level: 18, invited: false },
-    { id: 4, name: "Diana", avatar: "D", isOnline: true, level: 15, invited: false },
-  ]);
+  const location = useLocation();
+  const { userId, username } = useUser();
+  const { socket, isConnected, joinRoom, leaveRoom } = useSocket();
+  
+  // Récupérer l'ID de la salle depuis l'URL (ex: /waiting-room?roomId=xxx)
+  const queryParams = new URLSearchParams(location.search);
+  const roomId = queryParams.get('roomId') || `room_${Date.now()}`;
+  
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [invitedPlayers, setInvitedPlayers] = useState<Player[]>([]);
+  const [isCreator, setIsCreator] = useState(false);
+  
+  // Récupérer les amis depuis l'API
+  const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
 
-  const [invitedPlayers, setInvitedPlayers] = useState<Friend[]>([]);
+  // Connexion à la room via socket
+  useEffect(() => {
+    if (!userId) {
+      navigate('/login');
+      return;
+    }
 
-  const handleInvite = (friend: Friend) => {
-    setFriends(friends.map(f => 
-      f.id === friend.id ? { ...f, invited: true } : f
-    ));
-    setInvitedPlayers([...invitedPlayers, { ...friend, invited: true }]);
+    // Rejoindre la room
+    joinRoom(roomId);
+    setIsCreator(true); // À déterminer via la logique métier
+
+    // Écouter les événements
+    socket?.on('player-joined', (player: Player) => {
+      setPlayers(prev => [...prev, player]);
+    });
+
+    socket?.on('player-left', (playerId: string) => {
+      setPlayers(prev => prev.filter(p => p.id !== playerId));
+    });
+
+    socket?.on('player-ready', (playerId: string) => {
+      setPlayers(prev => prev.map(p => 
+        p.id === playerId ? { ...p, isReady: true } : p
+      ));
+    });
+
+    socket?.on('game-starting', () => {
+      navigate('/game');
+    });
+
+    socket?.on('invitation-sent', (invitedPlayer: Player) => {
+      setInvitedPlayers(prev => [...prev, invitedPlayer]);
+    });
+
+    return () => {
+      leaveRoom(roomId);
+      socket?.off('player-joined');
+      socket?.off('player-left');
+      socket?.off('player-ready');
+      socket?.off('game-starting');
+      socket?.off('invitation-sent');
+    };
+  }, [userId, roomId, socket]);
+
+  const handleInvite = (friend: any) => {
+    // Envoyer une invitation via socket
+    socket?.emit('invite-to-room', {
+      roomId,
+      invitedUserId: friend.id,
+      inviterId: userId
+    });
+
+    // Mise à jour locale en attendant la confirmation socket
+    setInvitedPlayers(prev => [...prev, {
+      id: friend.id,
+      name: friend.username,
+      avatar: friend.username.charAt(0),
+      level: friend.level,
+      isReady: false
+    }]);
   };
 
-  const handleRemoveInvite = (friendId: number) => {
-    setFriends(friends.map(f => 
-      f.id === friendId ? { ...f, invited: false } : f
-    ));
-    setInvitedPlayers(invitedPlayers.filter(p => p.id !== friendId));
+  const handleRemoveInvite = (playerId: string) => {
+    socket?.emit('cancel-invitation', {
+      roomId,
+      playerId
+    });
+    setInvitedPlayers(prev => prev.filter(p => p.id !== playerId));
+  };
+
+  const handleReady = () => {
+    socket?.emit('player-ready', { roomId, userId });
   };
 
   const handleStartGame = () => {
-    // Lancer le jeu avec les amis invités
-    navigate("/game?mode=friends");
+    socket?.emit('start-game', { roomId, creatorId: userId });
   };
 
-  const onlineFriends = friends.filter(f => f.isOnline);
+  const handleLeaveRoom = () => {
+    leaveRoom(roomId);
+    navigate('/lobby');
+  };
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
@@ -48,12 +119,20 @@ export function WaitingRoom() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <button
-            onClick={() => navigate("/lobby")}
+            onClick={handleLeaveRoom}
             className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl font-semibold transition-all"
           >
-            <Home className="w-5 h-5" />
-            <span>Accueil</span>
+            <LogOut className="w-5 h-5" />
+            <span>Quitter</span>
           </button>
+
+          {/* Statut connexion */}
+          <div className="flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+            <span className="text-gray-400 text-sm">
+              {isConnected ? 'Connecté' : 'Déconnecté'}
+            </span>
+          </div>
         </div>
 
         {/* Titre */}
@@ -64,142 +143,136 @@ export function WaitingRoom() {
           <div>
             <h1 className="text-4xl font-bold text-white mb-1">Salle d'attente</h1>
             <p className="text-gray-400">
-              Invitez vos amis pour commencer la partie
+              Code de la salle : <span className="text-purple-400 font-mono">{roomId}</span>
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Liste des amis en ligne */}
+          {/* Joueurs dans la salle */}
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+              <Users className="w-6 h-6" />
+              Joueurs dans la salle ({players.length + 1})
+            </h2>
+
+            {/* Toi-même */}
+            <div className="bg-blue-800/30 rounded-xl p-4 border border-blue-700/50 mb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white flex items-center justify-center shadow-lg">
+                      <span className="text-white text-lg font-bold">
+                        {username?.charAt(0) || '?'}
+                      </span>
+                    </div>
+                    <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-slate-800"></div>
+                  </div>
+                  <div>
+                    <div className="text-white font-bold">{username} (toi)</div>
+                    <div className="text-green-300 text-sm">Prêt ?</div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleReady}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold"
+                >
+                  Prêt
+                </button>
+              </div>
+            </div>
+
+            {/* Autres joueurs */}
+            {players.map((player) => (
+              <div key={player.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 mb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 border-2 border-white flex items-center justify-center shadow-lg">
+                        <span className="text-white text-lg font-bold">{player.avatar}</span>
+                      </div>
+                      <div className={`absolute bottom-0 right-0 w-5 h-5 ${player.isReady ? 'bg-green-500' : 'bg-yellow-500'} rounded-full border-2 border-slate-800`}></div>
+                    </div>
+                    <div>
+                      <div className="text-white font-bold">{player.name}</div>
+                      <div className="text-gray-400 text-sm">Niveau {player.level}</div>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {player.isReady ? '✅ Prêt' : '⏳ En attente'}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {players.length === 0 && (
+              <div className="text-center py-8 border-2 border-dashed border-slate-700 rounded-xl">
+                <div className="text-gray-400">
+                  En attente d'autres joueurs...
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Invitations aux amis */}
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6">
             <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
               <UserPlus className="w-6 h-6" />
-              Amis en ligne ({onlineFriends.length})
+              Inviter des amis
             </h2>
 
-            <div className="space-y-3 max-h-[500px] overflow-y-auto">
-              {onlineFriends.map((friend) => (
-                <div
-                  key={friend.id}
-                  className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white flex items-center justify-center shadow-lg">
-                        <span className="text-white text-lg font-bold">
-                          {friend.avatar}
-                        </span>
+            <div className="space-y-3 mb-6 max-h-[400px] overflow-y-auto">
+              {friends?.filter(f => !players.some(p => p.id === f.id) && f.id !== userId)
+                .map((friend) => (
+                  <div key={friend.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white flex items-center justify-center shadow-lg">
+                          <span className="text-white text-lg font-bold">
+                            {friend.username.charAt(0)}
+                          </span>
+                        </div>
+                        <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-slate-800"></div>
                       </div>
-                      {/* Indicateur en ligne */}
-                      <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-slate-800 shadow-lg shadow-green-500/50"></div>
+                      <div>
+                        <div className="text-white font-bold">{friend.username}</div>
+                        <div className="text-yellow-400 text-sm">Niveau {friend.level}</div>
+                      </div>
                     </div>
-
-                    {/* Info */}
-                    <div>
-                      <div className="text-white font-bold">{friend.name}</div>
-                      <div className="text-yellow-400 text-sm">Niveau {friend.level}</div>
-                    </div>
+                    <button
+                      onClick={() => handleInvite(friend)}
+                      disabled={invitedPlayers.some(p => p.id === friend.id)}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                        invitedPlayers.some(p => p.id === friend.id)
+                          ? "bg-green-600 text-white cursor-not-allowed"
+                          : "bg-blue-600 hover:bg-blue-500 text-white"
+                      }`}
+                    >
+                      {invitedPlayers.some(p => p.id === friend.id) ? 'Invité' : 'Inviter'}
+                    </button>
                   </div>
+                ))}
 
-                  {/* Bouton inviter */}
-                  <button
-                    onClick={() => handleInvite(friend)}
-                    disabled={friend.invited}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                      friend.invited
-                        ? "bg-green-600 text-white cursor-not-allowed"
-                        : "bg-blue-600 hover:bg-blue-500 text-white"
-                    }`}
-                  >
-                    {friend.invited ? (
-                      <span className="flex items-center gap-2">
-                        <Check className="w-4 h-4" />
-                        Invité
-                      </span>
-                    ) : (
-                      "Inviter"
-                    )}
-                  </button>
-                </div>
-              ))}
-
-              {onlineFriends.length === 0 && (
+              {(!friends || friends.length === 0) && (
                 <div className="text-center py-8">
                   <div className="text-gray-400">Aucun ami en ligne</div>
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Joueurs invités */}
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6">
-            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
-              <Users className="w-6 h-6" />
-              Joueurs invités ({invitedPlayers.length})
-            </h2>
-
-            <div className="space-y-3 mb-6 max-h-[400px] overflow-y-auto">
-              {invitedPlayers.map((player) => (
-                <div
-                  key={player.id}
-                  className="bg-green-800/30 rounded-xl p-4 border border-green-700/50 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-600 to-green-800 border-2 border-white flex items-center justify-center shadow-lg">
-                      <span className="text-white text-lg font-bold">
-                        {player.avatar}
-                      </span>
-                    </div>
-
-                    {/* Info */}
-                    <div>
-                      <div className="text-white font-bold">{player.name}</div>
-                      <div className="text-green-300 text-sm">En attente...</div>
-                    </div>
-                  </div>
-
-                  {/* Bouton retirer */}
-                  <button
-                    onClick={() => handleRemoveInvite(player.id)}
-                    className="text-red-400 hover:text-red-300 text-sm font-semibold transition-colors"
-                  >
-                    Retirer
-                  </button>
-                </div>
-              ))}
-
-              {invitedPlayers.length === 0 && (
-                <div className="text-center py-12 border-2 border-dashed border-slate-700 rounded-xl">
-                  <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                  <div className="text-gray-400">
-                    Invitez des amis pour commencer
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Bouton lancer la partie */}
-            <button
-              onClick={handleStartGame}
-              disabled={invitedPlayers.length === 0}
-              className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all ${
-                invitedPlayers.length > 0
-                  ? "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white transform hover:scale-105"
-                  : "bg-slate-700 text-gray-500 cursor-not-allowed"
-              }`}
-            >
-              {invitedPlayers.length > 0
-                ? `Lancer la partie (${invitedPlayers.length + 1} joueurs)`
-                : "Invitez au moins un ami"}
-            </button>
-
-            {/* Info supplémentaire */}
-            {invitedPlayers.length > 0 && (
-              <div className="mt-4 text-center text-sm text-gray-400">
-                La partie commencera quand tous les joueurs seront prêts
-              </div>
+            {isCreator && (
+              <button
+                onClick={handleStartGame}
+                disabled={players.length < 1}
+                className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all ${
+                  players.length >= 1
+                    ? "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white transform hover:scale-105"
+                    : "bg-slate-700 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                Lancer la partie ({players.length + 1} joueurs)
+              </button>
             )}
           </div>
         </div>
