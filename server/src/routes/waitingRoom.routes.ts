@@ -57,6 +57,8 @@ router.post('/create', async (req, res) => {
   try {
     const { hostId, roomName, maxPlayers = 9 } = req.body;
 
+    const cleanRoomName = roomName ? sanitizeHtml(roomName) : '';
+
     // Vérifier que l'utilisateur existe
     const user = await prisma.user.findUnique({
       where: { id: hostId }
