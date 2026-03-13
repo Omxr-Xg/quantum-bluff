@@ -15,7 +15,19 @@ function generateToken(userId: string) {
 
 // REGISTER
 router.post('/register', async (req, res) => {
-  const { email, password, username } = req.body
+  const parsed = loginSchema.safeParse(req.body)
+
+if (!parsed.success) {
+  return res.status(400).json({ error: parsed.error.errors })
+}
+
+const { email, password } = parsed.data
+
+if (!parsed.success) {
+  return res.status(400).json({ error: parsed.error.errors })
+}
+
+const { email, password, username } = parsed.data
 
   if (!email || !password || !username) {
     return res.status(400).json({ error: 'Champs manquants' })
