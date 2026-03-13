@@ -1,6 +1,7 @@
 import express from "express";
 import { jest } from "@jest/globals";
 import { Server } from 'http';
+import { Router } from 'express';
 
 // Mock complet de Prisma
 const mockedPrisma = {
@@ -18,7 +19,7 @@ jest.unstable_mockModule("../config/database.js", () => ({
 }));
 
 // Import dynamique du router après le mock
-let router: any;
+let router: Router;
 beforeAll(async () => {
   const module = await import("../routes/game.api.routes.js");
   router = module.default;
