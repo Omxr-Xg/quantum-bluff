@@ -1,6 +1,8 @@
 import { Server, Socket } from 'socket.io'
 import { activeGames } from '../shared/activeGames.js'
 import jwt from 'jsonwebtoken'
+import { logSuspiciousAction } from '../utils/securityLogger.js'
+import { AntiCheatMonitor } from '../utils/antiCheat.js'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -12,6 +14,7 @@ export class GameGateway {
   private timers: Map<string, NodeJS.Timeout> = new Map()
   private socketToUser: Map<string, string> = new Map()
   private userToSocket: Map<string, string> = new Map()
+  private antiCheat = new AntiCheatMonitor(8, 3000)
 
   constructor(io: Server) {
     this.io = io
@@ -28,6 +31,10 @@ export class GameGateway {
       const token = socket.handshake.auth?.token
 
       if (!token) {
+        logSuspiciousAction('MISSING_TOKEN', {
+          socketId: socket.id,
+          details: 'Connexion socket sans token'
+        })
         return next(new Error('Token manquant'))
       }
 
@@ -40,6 +47,10 @@ export class GameGateway {
         socket.userId = decoded.userId
         next()
       } catch {
+        logSuspiciousAction('INVALID_TOKEN', {
+          socketId: socket.id,
+          details: 'Token socket invalide'
+        })
         next(new Error('Token invalide'))
       }
     })
@@ -61,6 +72,14 @@ export class GameGateway {
           const { gameId, playerId } = data
 
           if (socket.userId !== playerId) {
+            logSuspiciousAction('UNAUTHORIZED_JOIN', {
+              userId: socket.userId,
+              socketId: socket.id,
+              gameId,
+              action: 'JOIN_GAME',
+              details: { requestedPlayerId: playerId }
+            })
+
             socket.emit('ERROR', {
               code: 'UNAUTHORIZED',
               message: 'Vous n\'êtes pas autorisé à rejoindre cette partie'
@@ -76,6 +95,13 @@ export class GameGateway {
             socket.emit('GAME_UPDATE', game.getSanitizedState(playerId))
             console.log(`✅ Joueur ${playerId} a rejoint la partie ${gameId}`)
           } else {
+            logSuspiciousAction('GAME_NOT_FOUND', {
+              userId: socket.userId,
+              socketId: socket.id,
+              gameId,
+              action: 'JOIN_GAME'
+            })
+
             socket.emit('ERROR', {
               code: 'GAME_NOT_FOUND',
               message: 'Partie introuvable'
@@ -99,7 +125,44 @@ export class GameGateway {
         try {
           const { gameId, playerId, action, amount } = data
 
+          if (!socket.userId) {
+            socket.emit('ERROR', {
+              code: 'UNAUTHORIZED',
+              message: 'Utilisateur non authentifié'
+            })
+            return
+          }
+
+          const antiCheatResult = this.antiCheat.registerAction(socket.userId)
+
+          if (antiCheatResult.suspicious) {
+            logSuspiciousAction('TOO_MANY_ACTIONS', {
+              userId: socket.userId,
+              socketId: socket.id,
+              gameId,
+              action,
+              details: {
+                countInWindow: antiCheatResult.count,
+                windowMs: 3000
+              }
+            })
+
+            socket.emit('ERROR', {
+              code: 'TOO_MANY_ACTIONS',
+              message: 'Trop d’actions en peu de temps'
+            })
+            return
+          }
+
           if (socket.userId !== playerId) {
+            logSuspiciousAction('PLAYER_ID_MISMATCH', {
+              userId: socket.userId,
+              socketId: socket.id,
+              gameId,
+              action,
+              details: { providedPlayerId: playerId, amount }
+            })
+
             socket.emit('ERROR', {
               code: 'UNAUTHORIZED',
               message: 'Action non autorisée'
@@ -109,6 +172,13 @@ export class GameGateway {
 
           const game = activeGames.get(gameId)
           if (!game) {
+            logSuspiciousAction('GAME_NOT_FOUND', {
+              userId: socket.userId,
+              socketId: socket.id,
+              gameId,
+              action
+            })
+
             socket.emit('ERROR', {
               code: 'GAME_NOT_FOUND',
               message: 'Partie introuvable'
@@ -117,6 +187,17 @@ export class GameGateway {
           }
 
           if (game.state.currentTurn !== playerId) {
+            logSuspiciousAction('NOT_YOUR_TURN', {
+              userId: socket.userId,
+              socketId: socket.id,
+              gameId,
+              action,
+              details: {
+                currentTurn: game.state.currentTurn,
+                providedPlayerId: playerId
+              }
+            })
+
             socket.emit('ERROR', {
               code: 'NOT_YOUR_TURN',
               message: 'Ce n\'est pas votre tour'
@@ -124,10 +205,18 @@ export class GameGateway {
             return
           }
 
-          if (action === 'RAISE' && (!amount || amount < game['bigBlindAmount'])) {
+          if (action === 'RAISE' && (!amount || amount < 20)) {
+            logSuspiciousAction('INVALID_RAISE', {
+              userId: socket.userId,
+              socketId: socket.id,
+              gameId,
+              action,
+              details: { amount }
+            })
+
             socket.emit('ERROR', {
               code: 'INVALID_RAISE',
-              message: `La relance minimum est de ${game['bigBlindAmount']}`
+              message: 'La relance minimum est de 20'
             })
             return
           }
@@ -138,6 +227,14 @@ export class GameGateway {
           this.io.to(gameId).emit('GAME_UPDATE', game.getSanitizedState())
           this.startTurnTimer(gameId)
         } catch (error) {
+          logSuspiciousAction('ACTION_ERROR', {
+            userId: socket.userId,
+            socketId: socket.id,
+            gameId: data.gameId,
+            action: data.action,
+            details: (error as Error).message
+          })
+
           console.error('Erreur PLAYER_ACTION:', error)
           socket.emit('ERROR', {
             code: 'ACTION_ERROR',
@@ -172,6 +269,13 @@ export class GameGateway {
 
             console.log(`🔄 Joueur ${socket.userId} reconnecté à la partie ${gameId}`)
           } else {
+            logSuspiciousAction('RECONNECT_ERROR', {
+              userId: socket.userId,
+              socketId: socket.id,
+              gameId,
+              action: 'RECONNECT_GAME'
+            })
+
             socket.emit('ERROR', {
               code: 'RECONNECT_ERROR',
               message: 'Impossible de se reconnecter à la partie'
@@ -193,6 +297,7 @@ export class GameGateway {
         if (userId) {
           this.socketToUser.delete(socket.id)
           this.userToSocket.delete(userId)
+          this.antiCheat.clearUser(userId)
         }
 
         if (socket.gameId && userId) {

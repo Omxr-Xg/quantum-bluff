@@ -14,6 +14,8 @@ import botRoutes from './routes/bot.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
 
+import { logSuspiciousAction } from './utils/securityLogger.js'
+
 const app = express()
 
 const FRONTEND_ORIGIN = 'http://localhost:5173'
