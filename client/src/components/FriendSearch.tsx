@@ -9,27 +9,28 @@ export const FriendSearch = () => {
   const [debouncedTerm, setDebouncedTerm] = useState('');
   const [sendRequest, { isLoading: isSending }] = useSendFriendRequestMutation();
 
-  // Debounce la recherche (attend 500ms après la dernière frappe)
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedTerm(searchTerm);
+      setDebouncedTerm(searchTerm.trim());
     }, 500);
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
   const { data: results, isLoading, error } = useSearchUsersQuery(debouncedTerm, {
-    skip: debouncedTerm.length < 2, // Ne cherche qu'à partir de 2 caractères
+    skip: debouncedTerm.length < 2,
   });
 
   const handleSendRequest = async (receiverUsername: string) => {
     if (!userId) return;
+
     try {
       await sendRequest({ senderId: userId, receiverUsername }).unwrap();
       alert(`Demande d'ami envoyée à ${receiverUsername}`);
-    } catch (err) {
+    } catch (err: any) {
+      const message = err?.data?.error || "Erreur lors de l'envoi de la demande";
       console.error('Erreur:', err);
-      alert('Erreur lors de l\'envoi de la demande');
+      alert(message);
     }
   };
 
@@ -73,7 +74,7 @@ export const FriendSearch = () => {
               <div>
                 <div className="text-white font-medium">{user.username}</div>
                 <div className="text-gray-400 text-xs">
-                  Niveau {user.level} • {user.stats.totalGames} parties
+                  Niveau {user.level} • {user.stats?.totalGames || 0} parties
                 </div>
               </div>
               <button
@@ -87,13 +88,11 @@ export const FriendSearch = () => {
             </div>
           ))}
         </div>
-      ) : debouncedTerm.length >= 2 && !isLoading && (
+      ) : debouncedTerm.length >= 2 && !isLoading ? (
         <div className="text-center py-4 text-gray-400">
           Aucun joueur trouvé
         </div>
-      )}
-
-      {debouncedTerm.length < 2 && (
+      ) : (
         <div className="text-center py-4 text-gray-500 text-sm">
           Tapez au moins 2 caractères pour rechercher
         </div>
