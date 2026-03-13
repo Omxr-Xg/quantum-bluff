@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.routes.js'
 import friendsRoutes from './routes/friends.routes.js'
 import waitingRoomRoutes from './routes/waitingRoom.routes.js'
 import gameApiRoutes from './routes/game.api.routes.js'
+import botRoutes from './routes/bot.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
 
@@ -42,6 +43,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/friends', friendsRoutes)
 app.use('/api/waiting-room', waitingRoomRoutes)
 app.use('/api/game', gameApiRoutes)
+app.use('/api/bot', botRoutes)
 
 app.get('/', (_req, res) => {
   res.send('🚀 Quantum Bluff API - Le serveur répond !')

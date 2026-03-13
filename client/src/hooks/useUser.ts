@@ -1,6 +1,16 @@
 export const useUser = () => {
-  const userId = localStorage.getItem('userId');
-  const username = localStorage.getItem('username');
-  
-  return { userId, username };
-};
+  const rawUserId = localStorage.getItem('userId') ?? localStorage.getItem('userid')
+  const rawUsername = localStorage.getItem('username')
+
+  const userId =
+    rawUserId && rawUserId !== 'undefined' && rawUserId !== 'null'
+      ? rawUserId
+      : null
+
+  const username =
+    rawUsername && rawUsername !== 'undefined' && rawUsername !== 'null'
+      ? rawUsername
+      : null
+
+  return { userId, username }
+}

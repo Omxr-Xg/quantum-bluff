@@ -28,27 +28,30 @@ export function Register() {
     password === confirmPassword;
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isFormValid) return;
+  e.preventDefault()
+  if (!isFormValid) return
 
-    try {
-      const response = await register({ 
-        username, 
-        email, 
-        password 
-      }).unwrap();
-      console.log("✅ Inscription réussie:", response);
-      
-      // 🔵 AJOUTER CES LIGNES
-      localStorage.setItem('userId', response.id);
-      localStorage.setItem('username', response.username);
-      localStorage.setItem('token', response.token);
-      
-      navigate("/lobby");
-    } catch (err) {
-      console.error("❌ Erreur d'inscription:", err);
-    }
-  };
+  try {
+    const response = await register({
+      username,
+      email,
+      password
+    }).unwrap()
+
+    console.log("✅ Inscription réussie:", response)
+
+    localStorage.removeItem('userid')
+    localStorage.setItem('token', response.token)
+    localStorage.setItem('userId', response.user.id)
+    localStorage.setItem('username', response.user.username)
+
+    window.dispatchEvent(new Event('auth-changed'))
+
+    navigate("/lobby")
+  } catch (err) {
+    console.error("❌ Erreur d'inscription:", err)
+  }
+};
 
   const Criterion = ({ met, label }: { met: boolean; label: string }) => (
     <div className={`flex items-center gap-2 text-xs transition-colors ${met ? 'text-green-400' : 'text-red-500'}`}>

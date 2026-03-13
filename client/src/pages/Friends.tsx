@@ -4,6 +4,7 @@ import { UserPlus, Search, ArrowLeft, MessageCircle, Users, X, Check, Loader2, G
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useUser } from "../hooks/useUser";
+import { useSocket } from "../contexts/SocketContext";
 import {
   useGetFriendsQuery,
   useGetFriendRequestsQuery,
@@ -11,11 +12,13 @@ import {
   useSendFriendRequestMutation,
   useRespondToFriendRequestMutation
 } from "../services/api";
-import { FriendSearch } from '../components/FriendSearch';
+import { FriendSearch } from "../components/FriendSearch";
 
 export function Friends() {
   const navigate = useNavigate();
   const { userId } = useUser();
+  const { socket, isConnected, connect } = useSocket();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [friendUsername, setFriendUsername] = useState("");
@@ -24,11 +27,19 @@ export function Friends() {
   const [searchSuccess, setSearchSuccess] = useState(false);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
 
-  const { data: friends, refetch: refetchFriends, isLoading: loadingFriends } = useGetFriendsQuery(userId!, {
+  const {
+    data: friends,
+    refetch: refetchFriends,
+    isLoading: loadingFriends
+  } = useGetFriendsQuery(userId!, {
     skip: !userId
   });
 
-  const { data: requests, refetch: refetchRequests } = useGetFriendRequestsQuery(userId!, {
+  const {
+    data: requests,
+    refetch: refetchRequests,
+    isLoading: loadingRequests
+  } = useGetFriendRequestsQuery(userId!, {
     skip: !userId
   });
 
@@ -41,9 +52,16 @@ export function Friends() {
 
   const isInGame = sessionStorage.getItem("currentGame");
 
-  const filteredFriends = friends?.filter((friend) => {
-    return friend.username.toLowerCase().includes(searchQuery.toLowerCase());
-  }) || [];
+  const filteredFriends =
+    friends?.filter((friend) =>
+      friend.username.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || [];
+
+  useEffect(() => {
+    if (!isConnected) {
+      connect();
+    }
+  }, [isConnected, connect]);
 
   useEffect(() => {
     if (!showAddFriend) return;
@@ -64,6 +82,40 @@ export function Friends() {
       setSearchError("Aucun utilisateur trouvé");
     }
   }, [friendUsername, searchData, searching, showAddFriend]);
+
+  useEffect(() => {
+    if (!socket || !userId) return;
+
+    const handleFriendRequestReceived = async (payload: any) => {
+      console.log("FRIENDS PAGE - FRIEND_REQUEST_RECEIVED:", payload);
+
+      await refetchRequests();
+    };
+
+    const handleFriendRequestAccepted = async (payload: any) => {
+      console.log("FRIENDS PAGE - FRIEND_REQUEST_ACCEPTED:", payload);
+
+      await refetchFriends();
+      await refetchRequests();
+    };
+
+    const handleFriendListUpdated = async (payload: any) => {
+      console.log("FRIENDS PAGE - FRIEND_LIST_UPDATED:", payload);
+
+      await refetchFriends();
+      await refetchRequests();
+    };
+
+    socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
+    socket.on("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
+    socket.on("FRIEND_LIST_UPDATED", handleFriendListUpdated);
+
+    return () => {
+      socket.off("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
+      socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
+      socket.off("FRIEND_LIST_UPDATED", handleFriendListUpdated);
+    };
+  }, [socket, userId, refetchFriends, refetchRequests]);
 
   const handleSearchUser = () => {
     if (!friendUsername.trim() || friendUsername.trim().length < 2) {
@@ -90,8 +142,6 @@ export function Friends() {
       setSearchResults([]);
       setFriendUsername("");
       setSearchError("");
-      refetchFriends();
-      refetchRequests();
 
       setTimeout(() => {
         setSearchSuccess(false);
@@ -103,13 +153,13 @@ export function Friends() {
     }
   };
 
-  const handleRespond = async (requestId: string, status: 'ACCEPTED' | 'REJECTED') => {
+  const handleRespond = async (requestId: string, status: "ACCEPTED" | "REJECTED") => {
     try {
       await respondRequest({ requestId, status }).unwrap();
-      refetchFriends();
-      refetchRequests();
+      await refetchFriends();
+      await refetchRequests();
     } catch (err) {
-      console.error('Erreur:', err);
+      console.error("Erreur:", err);
     }
   };
 
@@ -121,7 +171,7 @@ export function Friends() {
     setSelectedChat(null);
   };
 
-  const selectedFriend = friends?.find(f => f.id === selectedChat);
+  const selectedFriend = friends?.find((f) => f.id === selectedChat);
 
   return (
     <div className="size-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
@@ -166,46 +216,51 @@ export function Friends() {
           </div>
           <div>
             <h1 className="text-4xl font-bold text-white mb-1">Mes Amis</h1>
-            <p className="text-gray-400">
-              {friends?.length || 0} amis
-            </p>
+            <p className="text-gray-400">{friends?.length || 0} amis</p>
           </div>
         </div>
 
-        {requests && requests.length > 0 && (
+        {(loadingRequests || (requests && requests.length > 0)) && (
           <div className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/30 rounded-2xl shadow-xl border border-yellow-600 p-6 mb-6">
             <h2 className="text-xl text-yellow-400 font-bold mb-4 flex items-center gap-2">
               <UserPlus className="w-5 h-5" />
-              Demandes d'amis ({requests.length})
+              Demandes d'amis ({requests?.length || 0})
             </h2>
-            <div className="space-y-3">
-              {requests.map((req) => (
-                <div key={req.id} className="flex items-center justify-between bg-black/30 p-3 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold">
-                        {req.sender.username.charAt(0).toUpperCase()}
-                      </span>
+
+            {loadingRequests ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="w-6 h-6 text-yellow-300 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {requests?.map((req) => (
+                  <div key={req.id} className="flex items-center justify-between bg-black/30 p-3 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold">
+                          {req.sender.username.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <span className="text-white font-medium">{req.sender.username}</span>
                     </div>
-                    <span className="text-white font-medium">{req.sender.username}</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleRespond(req.id, "ACCEPTED")}
+                        className="bg-green-600 hover:bg-green-500 text-white p-2 rounded-lg"
+                      >
+                        <Check className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleRespond(req.id, "REJECTED")}
+                        className="bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleRespond(req.id, 'ACCEPTED')}
-                      className="bg-green-600 hover:bg-green-500 text-white p-2 rounded-lg"
-                    >
-                      <Check className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleRespond(req.id, 'REJECTED')}
-                      className="bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -254,9 +309,7 @@ export function Friends() {
 
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
-                      <h3 className="text-xl font-bold text-white">
-                        {friend.username}
-                      </h3>
+                      <h3 className="text-xl font-bold text-white">{friend.username}</h3>
                       <span className="text-yellow-400 text-sm font-semibold">
                         Niveau {friend.level}
                       </span>
@@ -339,7 +392,7 @@ export function Friends() {
                       setFriendUsername(e.target.value);
                       setSearchError("");
                     }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearchUser()}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearchUser()}
                     placeholder="Nom du joueur"
                     className="w-full bg-slate-900/50 border border-slate-600 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                   />
