@@ -1,34 +1,39 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 
-// Types
 interface User {
-  id: string;
-  username: string;
-  level: number;
+  id: string
+  username: string
+  level: number
   stats: {
-    wins: number;
-    totalGames: number;
-  };
+    wins: number
+    totalGames: number
+  }
 }
 
 interface FriendRequest {
-  id: string;
-  senderId: string;
-  receiverId: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  sender: User;
+  id: string
+  senderId: string
+  receiverId: string
+  status: string
+  createdAt: string
+  updatedAt: string
+  sender: User
 }
 
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
     baseUrl: 'http://localhost:3000/api',
+    prepareHeaders: (headers) => {
+      const token = localStorage.getItem('token')
+      if (token) {
+        headers.set('authorization', `Bearer ${token}`)
+      }
+      return headers
+    },
   }),
   tagTypes: ['User', 'Game', 'Friend', 'FriendRequest'],
   endpoints: (builder) => ({
-    // Auth endpoints
     login: builder.mutation({
       query: (credentials) => ({
         url: '/auth/login',
@@ -47,7 +52,6 @@ export const api = createApi({
       invalidatesTags: ['User'],
     }),
 
-    // Game endpoints
     getGames: builder.query({
       query: () => '/games',
       providesTags: ['Game'],
@@ -71,10 +75,9 @@ export const api = createApi({
       invalidatesTags: ['Game'],
     }),
 
-    // Friend endpoints
     searchUsers: builder.query<User[], string>({
-      query: (query) => `/friends/search?query=${query}`,
-      providesTags: (result) => 
+      query: (query) => `/friends/search?query=${encodeURIComponent(query)}`,
+      providesTags: (result) =>
         result ? result.map(({ id }) => ({ type: 'Friend', id } as const)) : ['Friend'],
     }),
 
