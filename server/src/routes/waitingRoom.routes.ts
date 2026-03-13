@@ -6,7 +6,6 @@ import { activeGames } from '../shared/activeGames.js';
 import sanitizeHtml from "sanitize-html";
 
 const router = express.Router();
-const cleanRoomName = sanitizeHtml(roomName);
 
 // GET /api/waiting-room - Liste toutes les salles disponibles
 router.get('/', async (req, res) => {
@@ -56,6 +55,8 @@ router.get('/', async (req, res) => {
 router.post('/create', async (req, res) => {
   try {
     const { hostId, roomName, maxPlayers = 9 } = req.body;
+
+    const cleanRoomName = roomName ? sanitizeHtml(roomName) : '';
 
     // Vérifier que l'utilisateur existe
     const user = await prisma.user.findUnique({
