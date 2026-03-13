@@ -1,5 +1,6 @@
 import express from "express";
 import { jest } from "@jest/globals";
+import { Server } from 'http';
 
 const mockedPrisma = {
   gameAction: {
