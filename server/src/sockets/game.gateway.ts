@@ -53,6 +53,7 @@ export class GameGateway {
         this.socketToUser.set(socket.id, socket.userId)
         this.userToSocket.set(socket.userId, socket.id)
         socket.join(`user:${socket.userId}`)
+        console.log(`🔐 ${socket.userId} joined room user:${socket.userId}`)
       }
 
       socket.on('JOIN_GAME', (data: { gameId: string; playerId: string }) => {

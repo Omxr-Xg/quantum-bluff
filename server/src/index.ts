@@ -8,14 +8,14 @@ import rateLimit from 'express-rate-limit'
 import gameRoutes from './routes/game.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import friendsRoutes from './routes/friends.routes.js'
+import waitingRoomRoutes from './routes/waitingRoom.routes.js'
+import gameApiRoutes from './routes/game.api.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
-import { socketAuth } from './middleware/socketAuth.middleware.js'
-
-import waitingRoomRoutes from './routes/waitingRoom.routes.js';
-import gameApiRoutes from './routes/game.api.routes.js';
 
 const app = express()
+
+const FRONTEND_ORIGIN = 'http://localhost:5173'
 
 // sécurité HTTP
 app.use(helmet())
@@ -28,16 +28,20 @@ const limiter = rateLimit({
 
 app.use(limiter)
 
-app.use(cors())
-app.use(express.json())
+// CORS HTTP
+app.use(cors({
+  origin: FRONTEND_ORIGIN,
+  credentials: true
+}))
+
+app.use(express.json({ limit: '10kb' }))
 
 // routes API
 app.use('/api', gameRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/friends', friendsRoutes)
-app.use('/api/waiting-room', waitingRoomRoutes);
-app.use('/api/game', gameApiRoutes);
-app.use(express.json({ limit: "10kb" })); // DOS attack 
+app.use('/api/waiting-room', waitingRoomRoutes)
+app.use('/api/game', gameApiRoutes)
 
 app.get('/', (_req, res) => {
   res.send('🚀 Quantum Bluff API - Le serveur répond !')
@@ -48,14 +52,15 @@ const httpServer = createServer(app)
 
 // serveur websocket
 const io = new Server(httpServer, {
-  cors: { origin: '*' }
+  cors: {
+    origin: FRONTEND_ORIGIN,
+    credentials: true
+  }
 })
 
-// sécurité websocket (JWT)
-io.use(socketAuth)
-app.set('io', io);
+app.set('io', io)
 
-// gateway poker
+// gateway poker + auth socket déjà gérée dedans
 new GameGateway(io)
 
 const PORT = 3000
