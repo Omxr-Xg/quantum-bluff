@@ -65,7 +65,7 @@ router.post('/request', async (req, res) => {
   const parsed = friendRequestSchema.safeParse(req.body)
 
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors })
+    return res.status(400).json({ error: parsed.error.issues })
   }
 
   let { receiverUsername } = parsed.data
