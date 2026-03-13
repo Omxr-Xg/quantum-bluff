@@ -3,10 +3,13 @@ import { prisma } from '../config/database.js';
 import { GameTable } from '../logic/GameTable.js';
 import type { Player } from '../types/poker.js';
 import { activeGames } from '../shared/activeGames.js';
-import sanitizeHtml from "sanitize-html";
+import sanitizeHtml from 'sanitize-html';
+
 
 const router = express.Router();
-const cleanRoomName = (roomName: string) => sanitizeHtml(roomName);
+
+// Fonction utilitaire pour nettoyer le nom de la salle
+//const sanitizeRoomName = (roomName: string) => sanitizeHtml(roomName);
 
 // GET /api/waiting-room - Liste toutes les salles disponibles
 router.get('/', async (req, res) => {
@@ -57,7 +60,7 @@ router.post('/create', async (req, res) => {
   try {
     const { hostId, roomName, maxPlayers = 9 } = req.body;
 
-    const cleanRoomName = roomName ? sanitizeHtml(roomName) : '';
+    //const sanitizedRoomName = roomName ? sanitizeHtml(roomName) : '';
 
     // Vérifier que l'utilisateur existe
     const user = await prisma.user.findUnique({
@@ -71,7 +74,7 @@ router.post('/create', async (req, res) => {
     // Créer la salle
     const room = await prisma.waitingRoom.create({
       data: {
-        name: roomName ? cleanRoomName(roomName) : `Salle de ${user.username}`,
+        name: roomName ? sanitizeHtml(roomName) : `Salle de ${user.username}`,
         hostId,
         maxPlayers,
         players: {
