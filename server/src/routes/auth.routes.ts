@@ -2,6 +2,7 @@ import express from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { prisma } from '../config/database.js'
+import { registerSchema, loginSchema } from '../validation/auth.validation.js'
 
 const router = express.Router()
 
