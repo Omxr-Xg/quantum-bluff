@@ -125,6 +125,16 @@ router.post('/request', async (req, res) => {
       }
     })
 
+    const io = req.app.get('io')
+    if (io && receiver.id) {
+      io.to(`user:${receiver.id}`).emit('FRIEND_REQUEST_RECEIVED', {
+        id: request.id,
+        sender: request.sender,
+        receiverId: receiver.id,
+        status: request.status
+      })
+    }
+
     res.json(request)
   } catch (error) {
     console.error(error)
@@ -213,6 +223,22 @@ router.put('/request/:requestId', async (req, res) => {
           user2Id
         }
       })
+
+      const io = req.app.get('io')
+      if (io) {
+        io.to(`user:${request.senderId}`).emit('FRIEND_REQUEST_ACCEPTED', {
+          requestId: request.id,
+          friendId: request.receiverId
+        })
+
+        io.to(`user:${request.receiverId}`).emit('FRIEND_LIST_UPDATED', {
+          friendId: request.senderId
+        })
+
+        io.to(`user:${request.senderId}`).emit('FRIEND_LIST_UPDATED', {
+          friendId: request.receiverId
+        })
+      }
     }
 
     res.json(updatedRequest)
