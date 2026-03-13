@@ -11,3 +11,7 @@
 [2026-03-12 23:41:18]    -rw-r--r--  1 omxxr  staff   2.2K Mar 12 23:41 config_2026-03-12_23-41-18.tar.gz
 [2026-03-12 23:41:18]    -rw-r--r--  1 omxxr  staff   4.9K Mar 12 23:41 db_2026-03-12_23-41-18.sql.gz
 [2026-03-12 23:41:18] 🎉 Backup terminé !
+[2026-03-13 02:00:00] 🚀 Démarrage du backup 2026-03-13_02-00-00
+[2026-03-13 02:00:00] ❌ Docker n'est pas en cours d'exécution
+[2026-03-13 02:00:04] 🚀 Démarrage du backup 2026-03-13_02-00-04
+[2026-03-13 02:00:04] ❌ Docker n'est pas en cours d'exécution
