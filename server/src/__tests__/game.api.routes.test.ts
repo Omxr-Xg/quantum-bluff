@@ -21,7 +21,6 @@ type MockGameResult = {
   endedAt: Date;
 };
 
-
 const mockedPrisma = {
   gameAction: {
     findMany: jest.fn(),
@@ -87,6 +86,8 @@ describe("Game history API", () => {
   });
 
   it("should return actions, winner and date for an existing game history", async () => {
+    const now = new Date();
+    
     mockedPrisma.gameAction.findMany.mockResolvedValue([
       {
         id: "a1",
@@ -94,7 +95,7 @@ describe("Game history API", () => {
         playerId: "p1",
         action: "CALL",
         amount: 10,
-        timestamp: "2026-03-13T10:00:00.000Z",
+        timestamp: now,
         player: { username: "alice" },
       },
       {
@@ -103,7 +104,7 @@ describe("Game history API", () => {
         playerId: "p2",
         action: "RAISE",
         amount: 30,
-        timestamp: "2026-03-13T10:01:00.000Z",
+        timestamp: now,
         player: { username: "bob" },
       },
     ]);
@@ -111,8 +112,8 @@ describe("Game history API", () => {
     mockedPrisma.gameResult.findUnique.mockResolvedValue({
       gameId: "game-1",
       winnerId: "p2",
-      createdAt: "2026-03-13T10:05:00.000Z",
-      endedAt: "2026-03-13T10:05:00.000Z",
+      createdAt: now,
+      endedAt: now,
     });
 
     const response = await fetch(`${baseUrl}/api/game/game-1/history`);
@@ -121,7 +122,7 @@ describe("Game history API", () => {
     expect(response.status).toBe(200);
     expect(body.gameId).toBe("game-1");
     expect(body.winner).toBe("p2");
-    expect(body.date).toBe("2026-03-13T10:05:00.000Z");
+    expect(new Date(body.date)).toEqual(now);
     expect(body.actions).toHaveLength(2);
 
     expect(body.actions[0]).toMatchObject({
