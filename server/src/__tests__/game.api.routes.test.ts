@@ -2,6 +2,26 @@ import express from "express";
 import { jest } from "@jest/globals";
 import { Server } from 'http';
 
+type MockGameAction = {
+  id: string;
+  gameId: string;
+  playerId: string;
+  action: string;
+  amount: number | null;
+  timestamp: Date;
+  player: {
+    username: string;
+  };
+};
+
+type MockGameResult = {
+  gameId: string;
+  winnerId: string;
+  createdAt: Date;
+  endedAt: Date;
+};
+
+
 const mockedPrisma = {
   gameAction: {
     findMany: jest.fn(),
@@ -19,7 +39,7 @@ jest.unstable_mockModule("../config/database.js", () => ({
 const { default: router } = await import("../routes/game.api.routes.js");
 
 describe("Game history API", () => {
-  let server: any;
+  let server: Server;
   let baseUrl: string;
 
   beforeAll(async () => {
