@@ -1,6 +1,7 @@
 import express from 'express';
 import { prisma } from '../config/database.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
+import sanitizeHtml from "sanitize-html";
 
 const router = express.Router();
 

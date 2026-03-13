@@ -37,6 +37,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/friends', friendsRoutes)
 app.use('/api/waiting-room', waitingRoomRoutes);
 app.use('/api/game', gameApiRoutes);
+app.use(express.json({ limit: "10kb" })); // DOS attack 
 
 app.get('/', (_req, res) => {
   res.send('🚀 Quantum Bluff API - Le serveur répond !')
