@@ -48,31 +48,102 @@ Feedback Multi-sensoriel : Alertes visuelles (flashs de bordure) pour les utilis
 
 Contraste Étendu : Palette de couleurs "Poker Club Privé" optimisée pour un ratio de contraste supérieur aux normes minimales, assurant une lisibilité maximale en toutes circonstances.
 
-# 5. STRUCTURE DU CODE SOURCE
+# 5a. STRUCTURE DU CODE SOURCE
 ```txt
 quantum-bluff/
-├── client/                         ← Frontend (Mohamed, Yigit)
+├── client/                         # Frontend React/TypeScript
+│   ├── public/                     # Fichiers statiques
 │   └── src/
-├── server/                         ← Backend (Azra, Soheil)
-│   └── src/
-│       ├── auth/                   ← Fichiers de Linda (déplacés ici)
-│       │   ├── hash.utils.ts
-│       │   └── jwt.service.ts
-│       ├── middleware/             ← Fichiers de Linda (déplacés ici)
-│       │   ├── auth.middleware.ts
-│       │   └── socketAuth.middleware.ts
-│       ├── config/
-│       ├── logic/
-│       ├── models/
-│       ├── sockets/
-│       ├── types/
-│       └── index.ts
-├── database/                        ← Infra BDD (Elhadj) ✅ OK
-│   ├── Dockerfile
+│       ├── assets/                  # Images, logos, fonts
+│       ├── components/               # Composants React réutilisables
+│       │   ├── figma/                # Composants Figma intégrés
+│       │   ├── ui/                   # Composants d'interface
+│       │   └── ...
+│       ├── contexts/                 # Contextes React (Socket, Auth)
+│       ├── hooks/                    # Hooks personnalisés
+│       ├── pages/                    # Pages de l'application
+│       │   ├── Login.tsx
+│       │   ├── Register.tsx
+│       │   ├── Lobby.tsx
+│       │   ├── WaitingRoom.tsx
+│       │   ├── Game.tsx
+│       │   ├── Friends.tsx
+│       │   └── ...
+│       ├── services/                  # Services API (RTK Query)
+│       ├── store/                      # Store Redux
+│       ├── styles/                     # Styles globaux
+│       ├── types/                       # Types TypeScript
+│       ├── utils/                       # Utilitaires
+│       ├── App.tsx                      # Composant principal
+│       ├── main.tsx                     # Point d'entrée
+│       └── vite-env.d.ts                 # Types Vite
+│
+├── server/                         # Backend Node.js/Express
+│   ├── prisma/                       # Configuration Prisma
+│   │   ├── migrations/                # Migrations BDD
+│   │   └── schema.prisma               # Schéma de base de données
+│   ├── src/
+│   │   ├── __tests__/                  # Tests unitaires
+│   │   ├── config/                      # Configuration
+│   │   │   └── database.ts              # Connexion Prisma
+│   │   ├── generated/                   # Client Prisma généré
+│   │   ├── logic/                        # Logique métier
+│   │   │   ├── Deck.ts
+│   │   │   ├── Evaluator.ts
+│   │   │   └── GameTable.ts
+│   │   ├── middleware/                   # Middlewares Express
+│   │   │   └── auth.middleware.ts
+│   │   ├── routes/                       # Routes API
+│   │   │   ├── auth.routes.ts
+│   │   │   ├── friends.routes.ts
+│   │   │   ├── game.api.routes.ts
+│   │   │   └── waitingRoom.routes.ts
+│   │   ├── services/                     # Services métier
+│   │   ├── shared/                        # Fichiers partagés
+│   │   │   └── activeGames.ts
+│   │   ├── sockets/                       # Socket.io
+│   │   │   └── game.gateway.ts
+│   │   ├── types/                         # Types TypeScript
+│   │   │   └── poker.ts
+│   │   ├── validation/                    # Schémas Zod
+│   │   │   ├── auth.validation.ts
+│   │   │   └── friends.validation.ts
+│   │   └── index.ts                        # Point d'entrée serveur
+│   ├── .env.example                        # Variables d'environnement
+│   ├── package.json
+│   └── tsconfig.json
+│
+├── database/                         # Base de données Docker
 │   ├── docker-compose.yml
-│   └── init.sql
-├── README.md                        
-└── .gitlab-ci.yml
+│   └── Dockerfile
+│
+├── docs/                              # Documentation
+│   ├── CR/                             # Comptes rendus
+│   └── architecture/                    # Documentation technique
+│
+├── scripts/                           # Scripts utilitaires
+│   └── backup/                         # Sauvegardes automatiques
+│       ├── backup.sh
+│       ├── restore.sh
+│       └── monitor.sh
+│
+├── .gitignore
+├── .gitlab-ci.yml                      # CI/CD GitLab
+└── README.md                           # Documentation principale
+```
+# 5b. Architecture globale
+```txt
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│   Frontend  │────▶│   Backend    │────▶│  Database   │
+│   (React)   │◀────│  (Node.js)   │     │ (PostgreSQL)│
+└─────────────┘     └──────────────┘     └─────────────┘
+       │                    │
+       │                    │
+       ▼                    ▼
+┌─────────────┐     ┌──────────────┐
+│ Socket.io   │     │   Game Logic │
+│ Temps réel  │     │  (GameTable) │
+└─────────────┘     └──────────────┘
 ```
 # 6. PROCÉDURE DE DÉPLOIEMENT ET RÉFÉRENTIEL
 Le projet suit un workflow d'intégration continue standard :
