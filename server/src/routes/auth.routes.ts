@@ -20,7 +20,9 @@ router.post('/register', async (req, res) => {
   const parsed = registerSchema.safeParse(req.body)
 
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors })
+    return res.status(400).json({ 
+      error: parsed.error.issues.map(issue => issue.message).join(', ') 
+    })
   }
 
   let { email, password, username } = parsed.data
@@ -86,7 +88,9 @@ router.post('/login', async (req, res) => {
   const parsed = loginSchema.safeParse(req.body)
 
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors })
+    return res.status(400).json({ 
+      error: parsed.error.issues.map(issue => issue.message).join(', ') 
+    })
   }
 
   const { email, password } = parsed.data
