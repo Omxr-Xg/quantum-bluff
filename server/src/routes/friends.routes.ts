@@ -10,7 +10,13 @@ router.use(authMiddleware);
 // Rechercher des utilisateurs par nom d'utilisateur
 router.get('/search', async (req, res) => {
   try {
-    const { query } = req.query;
+    const parsed = searchUserSchema.safeParse(req.query)
+
+if (!parsed.success) {
+  return res.status(400).json({ error: "Invalid search query" })
+}
+
+const { query } = parsed.data
 
     if (!query || typeof query !== 'string') {
       return res.status(400).json({ error: 'Query parameter required' });
@@ -50,7 +56,13 @@ router.post('/request', async (req, res) => {
   try {
 
     const senderId = req.userId!;
-    const { receiverUsername } = req.body;
+    const parsed = friendRequestSchema.safeParse(req.body)
+
+if (!parsed.success) {
+  return res.status(400).json({ error: parsed.error.errors })
+}
+
+const { receiverUsername } = parsed.data
 
     const receiver = await prisma.user.findUnique({
       where: { username: receiverUsername }
