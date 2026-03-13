@@ -24,6 +24,7 @@ export function Login() {
     // 🔵 AJOUTER CES LIGNES
     localStorage.setItem('userId', response.id);
     localStorage.setItem('username', response.username);
+    localStorage.setItem('token', response.token);
     
     navigate("/lobby");
   } catch (err) {

@@ -11,6 +11,7 @@ import {
   useSendFriendRequestMutation,
   useRespondToFriendRequestMutation 
 } from "../services/api";
+import { FriendSearch } from '../components/FriendSearch';
 
 export function Friends() {
   const navigate = useNavigate();
@@ -207,7 +208,9 @@ export function Friends() {
             />
           </div>
         </div>
-
+        <div className="mb-6">
+          <FriendSearch />
+        </div>
         {/* Liste d'amis */}
         {loadingFriends ? (
           <div className="flex justify-center py-12">

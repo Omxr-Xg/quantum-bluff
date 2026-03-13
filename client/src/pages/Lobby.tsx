@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { Bot, Server, User, UserPlus, LogOut } from "lucide-react";
+import { Bot, Server, User, UserPlus, LogOut , Users} from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { getUserBalance } from "../utils/userProfile";
 import { FriendsList } from '../components/FriendsList';
@@ -45,6 +45,13 @@ export function Lobby() {
               title="Profil"
             >
               <User className="w-6 h-6" />
+            </button>
+            <button
+              onClick={() => navigate("/friends")}
+              className="bg-blue-600 p-3 rounded-xl text-white hover:bg-blue-500 transition"
+              title="Gérer mes amis"
+            >
+              <Users className="w-6 h-6" />
             </button>
 
             <button

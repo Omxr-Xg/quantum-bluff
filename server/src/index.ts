@@ -52,6 +52,7 @@ const io = new Server(httpServer, {
 
 // sécurité websocket (JWT)
 io.use(socketAuth)
+app.set('io', io);
 
 // gateway poker
 new GameGateway(io)
