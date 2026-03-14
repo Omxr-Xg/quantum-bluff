@@ -20,6 +20,7 @@ interface PlayerDashboardProps {
   minRaise: number;
   maxRaise: number;
   isMyTurn: boolean;
+  isLoading?: boolean;
   hasFolded: boolean;
   hasActed?: boolean;
   waitingForPlayer?: string;
@@ -44,6 +45,7 @@ export function PlayerDashboard({
   minRaise: _minRaise,
   maxRaise: _maxRaise,
   isMyTurn,
+  isLoading = false,
   hasFolded,
   hasActed,
   waitingForPlayer,
@@ -133,7 +135,7 @@ export function PlayerDashboard({
           </div>
         )}
 
-        {isMyTurn && timeLeft !== undefined && timeLeft > 0 && (
+        {isMyTurn && timeLeft !== undefined && (
           <div className="text-center mb-2">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/20 border border-amber-500/50 rounded-full text-amber-400 font-bold text-sm">
               <span>Tour :</span>
@@ -179,7 +181,7 @@ export function PlayerDashboard({
           <div className="flex gap-2">
             <NeonButton
               onClick={onFold}
-              disabled={!isMyTurn || hasFolded || hasActed}
+              disabled={!isMyTurn || isLoading || hasFolded || hasActed}
               variant="red"
             >
               Coucher
@@ -188,7 +190,7 @@ export function PlayerDashboard({
             {callAmount === 0 && onCheck ? (
               <NeonButton
                 onClick={onCheck}
-                disabled={!isMyTurn || hasFolded || hasActed}
+                disabled={!isMyTurn || isLoading || hasFolded || hasActed}
                 variant="blue"
               >
                 Check
@@ -196,16 +198,16 @@ export function PlayerDashboard({
             ) : (
               <NeonButton
                 onClick={() => onCall(callAmount)}
-                disabled={!isMyTurn || hasFolded || hasActed}
+                disabled={!isMyTurn || isLoading || hasFolded || hasActed || callAmount <= 0}
                 variant="blue"
               >
-                Suivre
+                Suivre {callAmount > 0 ? callAmount : ""}
               </NeonButton>
             )}
 
             <NeonButton
               onClick={handleRaiseClick}
-              disabled={!isMyTurn || hasFolded || hasActed}
+              disabled={!isMyTurn || isLoading || hasFolded || hasActed}
               variant="green"
               icon={<TrendingUp className="w-5 h-5" />}
             >

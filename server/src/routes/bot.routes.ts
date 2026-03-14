@@ -1,6 +1,6 @@
 import express from 'express'
-import { getHandValue } from '../logic/Evaluator.js'
-import type { Card } from '../types/poker.js'
+import { getHandValue, findWinner } from '../logic/Evaluator.js'
+import type { Card, Player } from '../types/poker.js'
 
 const router = express.Router()
 
@@ -41,30 +41,37 @@ const calculateHandStrength = (
 const easyBotDecision = (req: BotActionRequest): BotActionResponse => {
   const rand = Math.random()
 
-  if (rand < 0.3) {
-    return { action: 'FOLD', reasoning: 'easy: random fold' }
-  } else if (rand < 0.7) {
-    if (req.callAmount === 0) {
-      return { action: 'CHECK', reasoning: 'easy: random check' }
-    } else {
-      return {
-        action: 'CALL',
-        amount: req.callAmount,
-        reasoning: 'easy: random call'
-      }
+  if (req.callAmount === 0) {
+    if (rand < 0.7) {
+      return { action: 'CHECK', reasoning: 'easy: check' }
     }
-  } else {
     const raiseAmount = Math.min(
       req.playerChips,
-      req.currentBet +
-        req.minRaise +
-        Math.floor(Math.random() * (req.potSize / 2))
+      req.currentBet + req.minRaise + Math.floor(Math.random() * req.potSize * 0.3)
     )
+    return { action: 'RAISE', amount: raiseAmount, reasoning: 'easy: raise' }
+  }
+
+  if (rand < 0.2) {
+    return { action: 'FOLD', reasoning: 'easy: fold' }
+  }
+  if (rand < 0.65) {
     return {
-      action: 'RAISE',
-      amount: raiseAmount,
-      reasoning: 'easy: random raise'
+      action: 'CALL',
+      amount: req.callAmount,
+      reasoning: 'easy: call'
     }
+  }
+  const raiseAmount = Math.min(
+    req.playerChips,
+    req.currentBet +
+      req.minRaise +
+      Math.floor(Math.random() * (req.potSize / 2))
+  )
+  return {
+    action: 'RAISE',
+    amount: raiseAmount,
+    reasoning: 'easy: raise'
   }
 }
 
@@ -76,22 +83,35 @@ const mediumBotDecision = (req: BotActionRequest): BotActionResponse => {
   const communityCount = req.communityCards.length
 
   if (communityCount === 0) {
+    if (req.callAmount === 0) {
+      return { action: 'CHECK', reasoning: 'medium: check preflop' }
+    }
     const hasPair =
       req.playerCards[0]?.value === req.playerCards[1]?.value
     const highCards = req.playerCards.filter((c) => c.value >= 10).length
-
-    if (hasPair || highCards === 2) {
-      if (req.callAmount === 0) {
-        return { action: 'CHECK', reasoning: 'medium: good hand preflop' }
+    const playable = hasPair || highCards >= 1
+    if (playable) {
+      if (Math.random() < 0.2) {
+        const raiseAmount = Math.min(
+          req.playerChips,
+          req.currentBet + req.minRaise + Math.floor(req.potSize * 0.3)
+        )
+        return { action: 'RAISE', amount: raiseAmount, reasoning: 'medium: raise preflop' }
       }
       return {
         action: 'CALL',
         amount: req.callAmount,
-        reasoning: 'medium: good hand preflop'
+        reasoning: 'medium: call preflop'
       }
-    } else {
-      return { action: 'FOLD', reasoning: 'medium: weak hand preflop' }
     }
+    if (Math.random() < 0.55) {
+      return {
+        action: 'CALL',
+        amount: req.callAmount,
+        reasoning: 'medium: call preflop (wide)'
+      }
+    }
+    return { action: 'FOLD', reasoning: 'medium: fold weak preflop' }
   }
 
   if (handStrength > 0.6) {
@@ -130,6 +150,29 @@ const hardBotDecision = (req: BotActionRequest): BotActionResponse => {
     req.playerCards,
     req.communityCards
   )
+  const communityCount = req.communityCards.length
+
+  if (communityCount === 0) {
+    if (req.callAmount === 0) {
+      return { action: 'CHECK', reasoning: 'hard: check preflop' }
+    }
+    const r = Math.random()
+    if (r < 0.6) {
+      return {
+        action: 'CALL',
+        amount: req.callAmount,
+        reasoning: 'hard: call preflop'
+      }
+    }
+    if (r < 0.85) {
+      const raiseAmount = Math.min(
+        req.playerChips,
+        req.currentBet + req.minRaise * 2
+      )
+      return { action: 'RAISE', amount: raiseAmount, reasoning: 'hard: raise preflop' }
+    }
+    return { action: 'FOLD', reasoning: 'hard: fold preflop' }
+  }
 
   const potOdds = req.callAmount / (req.potSize + req.callAmount)
 
@@ -249,6 +292,33 @@ router.post('/action', (req, res) => {
     res.json(decision)
   } catch (error) {
     console.error('Erreur bot API:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// POST /api/bot/evaluate-winner - Déterminer le gagnant au showdown (cartes normalisées)
+router.post('/evaluate-winner', (req, res) => {
+  try {
+    const raw = req.body as {
+      players?: Array<{ id: string; cards?: Array<{ suit?: string; rank?: string; value?: string | number }> }>
+      communityCards?: Array<{ suit?: string; rank?: string; value?: string | number }>
+    }
+    if (!raw.players?.length || !raw.communityCards) {
+      return res.status(400).json({ error: 'Body attendu: { players: [{ id, cards }], communityCards }' })
+    }
+    const players: Player[] = raw.players.map((p) => ({
+      id: p.id,
+      name: '',
+      cards: (p.cards ?? []).map(normalizeCard),
+      chips: 0,
+      role: 'PLAYER',
+      isActive: false,
+    }))
+    const board = (raw.communityCards ?? []).map(normalizeCard)
+    const winnerId = findWinner(players, board)
+    res.json({ winnerId })
+  } catch (error) {
+    console.error('Erreur evaluate-winner:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })

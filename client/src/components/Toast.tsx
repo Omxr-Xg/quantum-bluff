@@ -34,7 +34,7 @@ export function Toast({
       initial={{ opacity: 0, y: -50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -50 }}
-      className={`fixed top-20 right-5 z-50 ${bgColor} text-white px-6 py-3 rounded-lg shadow-xl border border-white/20`}
+      className={`fixed top-20 right-5 z-[100] ${bgColor} text-white px-6 py-3 rounded-lg shadow-xl border border-white/20`}
     >
       {message}
     </motion.div>
