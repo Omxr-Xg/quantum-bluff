@@ -55,10 +55,21 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/waiting-room/active/games - Liste des parties actives (doit être avant /:roomId)
+router.get('/active/games', async (req, res) => {
+  const allGames = await activeGames.getAll();
+  const games = Array.from(allGames.entries()).map(([id, game]) => ({
+    id,
+    players: game.state.players.length,
+    phase: game.state.phase
+  }));
+  res.json(games);
+});
+
 // POST /api/waiting-room/create - Créer une nouvelle salle
 router.post('/create', async (req, res) => {
   try {
-    const { hostId, roomName, maxPlayers = 9 } = req.body;
+    const { hostId, roomName, maxPlayers = 5 } = req.body;
 
     //const sanitizedRoomName = roomName ? sanitizeHtml(roomName) : '';
 
@@ -383,17 +394,6 @@ router.post('/:roomId/start', async (req, res) => {
     console.error('Erreur démarrage:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
-});
-
-// GET /api/waiting-room/active/games - Liste des parties actives
-router.get('/active/games', async (req, res) => {
-  const allGames = await activeGames.getAll();
-  const games = Array.from(allGames.entries()).map(([id, game]) => ({
-    id,
-    players: game.state.players.length,
-    phase: game.state.phase
-  }));
-  res.json(games);
 });
 
 export default router;
