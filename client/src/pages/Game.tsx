@@ -11,7 +11,8 @@ import { PlayerDashboard } from "../components/PlayerDashboard";
 import { AccessibilityMenu } from "../components/AccessibilityMenu";
 import { useAccessibility } from "../contexts/AccessibilityContext";
 import { useSocket } from "../contexts/SocketContext";
-import { User, Users, Menu, Loader2, Eye, Plus, MessageCircle, X, LogOut, Palette, Bell, HelpCircle, Sparkles } from "lucide-react";
+import { useToast } from "../contexts/ToastContext";
+import { User, Users, Menu, Loader2, Eye, Plus, MessageCircle, X, LogOut, Palette, Bell, HelpCircle, Sparkles, Trophy, Frown } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -86,11 +87,16 @@ export function Game() {
   const [, setDealingCard] = useState<number | null>(null);
   const [roundPlayersActed, setRoundPlayersActed] = useState<Set<number>>(new Set());
   const [gameInitialized, setGameInitialized] = useState(false);
+  const [handResult, setHandResult] = useState<"win" | "loss" | null>(null);
+  const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const clearBotActionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playersStateRef = useRef<(BasePlayer | BotPlayer)[]>([]);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
-  
+  const { addToast } = useToast();
+
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
@@ -172,22 +178,42 @@ export function Game() {
   const heroPlayer = activePlayers.find((p) => p.name === "Vous" || p.name === "Diana");
   const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
 
-  // Debug tour (uniquement quand c'est le tour du joueur, désactiver en prod si besoin)
-  if (
-    typeof window !== "undefined" &&
-    phase !== "init" &&
-    phase !== "shuffle" &&
-    phase !== "deal" &&
-    isMyTurn
-  ) {
-    console.log("=== DEBUG TOUR (c'est mon tour) ===");
-    console.log("Active player:", activePlayer?.name, "id:", activePlayer?.id);
-    console.log("hasFolded:", heroPlayer?.hasFolded, "hasPlayerActed:", hasPlayerActed, "isLoading:", isLoading);
-    console.log("callAmount:", callAmount, "phase:", phase);
-    console.log("===================================");
-  }
+  playersStateRef.current = activePlayers;
+
   const heroCards = tablePlayers.find((p) => p.name === "Diana" || p.name === "Vous")?.cards || [];
   const communityCards = communityCardsState;
+
+  // Log l'état complet à chaque rendu (debug)
+  useEffect(() => {
+    if (phase === "init" || phase === "shuffle" || phase === "deal") return;
+    console.log("=== ÉTAT COMPLET DU JEU ===");
+    console.log(
+      "playersState:",
+      playersState.map((p) => ({
+        name: p.name,
+        isActive: p.isActive,
+        hasFolded: p.hasFolded,
+        isConnected: p.isConnected,
+        id: p.id,
+      }))
+    );
+    console.log("isMyTurn:", isMyTurn);
+    console.log("hasPlayerActed:", hasPlayerActed);
+    console.log("isLoading:", isLoading);
+    console.log("timerActive:", timerActive);
+    console.log("timeLeft:", timeLeft);
+    console.log("phase:", phase);
+    console.log("============================");
+  });
+
+  // Log spécifique au changement de tour
+  useEffect(() => {
+    if (phase === "init" || phase === "shuffle" || phase === "deal") return;
+    console.log("🔄 CHANGEMENT DE TOUR");
+    console.log("Active player:", playersState.find((p) => p.isActive)?.name);
+    console.log("isMyTurn:", isMyTurn);
+    console.log("timerActive:", timerActive);
+  }, [playersState, isMyTurn, timerActive, phase]);
 
   // Générer un jeu de cartes complet
   const generateDeck = (): Card[] => {
@@ -337,8 +363,19 @@ export function Game() {
 
   const playPhase = phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river";
 
+  // Forcer l'activation du timer quand c'est le tour du joueur
   useEffect(() => {
-    if (typeof isMyTurn === "undefined") return;
+    console.log("🕐 TIMER EFFECT - isMyTurn:", isMyTurn, "gameInitialized:", gameInitialized, "phase:", phase);
+
+    if (!isMyTurn || !gameInitialized || phase === "init" || phase === "shuffle" || phase === "deal") {
+      setTimerActive(false);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      return;
+    }
+
     const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
     if (hero?.hasFolded) {
       setTimerActive(false);
@@ -348,37 +385,27 @@ export function Game() {
       }
       return;
     }
-    if (!gameInitialized || !playPhase) {
-      setTimerActive(false);
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-      return;
-    }
-    if (!isMyTurn) {
-      setTimerActive(false);
-      setTimeLeft(20);
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-      return;
-    }
 
+    console.log("✅ DÉMARRAGE DU TIMER");
     setTimerActive(true);
     setTimeLeft(20);
 
     timerIntervalRef.current = setInterval(() => {
       setTimeLeft((prev) => {
+        console.log("⏱️ Timer:", prev);
         if (prev <= 1) {
           if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
             timerIntervalRef.current = null;
           }
           setTimerActive(false);
-          if (callAmount === 0) handleCheck();
-          else handleFold();
+          if (callAmount === 0) {
+            console.log("⏱️ Timeout: CHECK auto");
+            handleCheck();
+          } else {
+            console.log("⏱️ Timeout: FOLD auto");
+            handleFold();
+          }
           return 0;
         }
         return prev - 1;
@@ -386,41 +413,76 @@ export function Game() {
     }, 1000);
 
     return () => {
+      console.log("🛑 Arrêt du timer");
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
     };
-  }, [isMyTurn, gameInitialized, playPhase, playersState]);
+  }, [isMyTurn, gameInitialized, phase, callAmount]);
 
-  // Quand c'est le tour du joueur humain, garantir que les boutons sont actifs
+  // Quand c'est le tour du joueur humain, garantir que les boutons sont actifs (sans écraser hasPlayerActed après une action)
   useEffect(() => {
-    if (isMyTurn && !hasFoldedFromState) {
+    if (isMyTurn && !hasFoldedFromState && !hasPlayerActed) {
+      setIsLoading(false);
+      setTimerActive(true);
+    }
+  }, [isMyTurn, hasFoldedFromState, hasPlayerActed]);
+
+  // Filet de sécurité : si le bot a agi (roundPlayersActed a l'index du bot) mais le joueur actif est encore le bot, forcer le passage au humain
+  useEffect(() => {
+    if (!isBotMode || playersState.length < 2) return;
+    if (phase !== "preflop" && phase !== "flop" && phase !== "turn" && phase !== "river") return;
+    const humanIndex = playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+    const botIndex = playersState.findIndex((p) => "isBot" in p && p.isBot);
+    if (humanIndex === -1 || botIndex === -1) return;
+    const activeIdx = playersState.findIndex((p) => p.isActive);
+    const botHasActed = roundPlayersActed.has(botIndex);
+    const humanHasActed = roundPlayersActed.has(humanIndex);
+    if (botHasActed && !humanHasActed && activeIdx === botIndex) {
+      setPlayersState((prev) =>
+        prev.map((p, i) => ({ ...p, isActive: i === humanIndex }))
+      );
       setHasPlayerActed(false);
       setIsLoading(false);
     }
-  }, [isMyTurn, hasFoldedFromState]);
+  }, [isBotMode, playersState, phase, roundPlayersActed]);
 
-  const nextTurn = () => {
-    const currentIndex = playersState.findIndex((p) => p.isActive);
-    if (currentIndex !== -1) {
-      setRoundPlayersActed((prev) => new Set(prev).add(currentIndex));
-    }
+  const nextTurn = (justActedIndex?: number) => {
+    const idx =
+      justActedIndex !== undefined
+        ? justActedIndex
+        : playersStateRef.current.findIndex((p) => p.isActive);
 
-    setPlayersState((prevPlayers) => {
-      const newPlayers = prevPlayers.map((p) => ({ ...p }));
-      const idx = newPlayers.findIndex((p) => p.isActive);
-      if (idx !== -1) newPlayers[idx].isActive = false;
+    if (idx === -1) return;
 
-      let nextIndex = idx !== -1 ? (idx + 1) % newPlayers.length : 0;
-      let loopCount = 0;
-      while (loopCount < newPlayers.length) {
-        const p = newPlayers[nextIndex];
-        if (p.isConnected !== false && !(p.hasFolded ?? false)) break;
-        nextIndex = (nextIndex + 1) % newPlayers.length;
-        loopCount++;
+    setRoundPlayersActed((prev) => new Set(prev).add(idx));
+
+
+    setPlayersState((prev) => {
+      const newPlayers = prev.map((p) => ({ ...p }));
+      newPlayers[idx] = { ...newPlayers[idx], isActive: false };
+
+      let nextIndex: number;
+      if (newPlayers.length === 2) {
+        nextIndex = idx === 0 ? 1 : 0;
+        if (!(newPlayers[nextIndex].hasFolded ?? false)) {
+          newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
+        }
+      } else {
+        nextIndex = (idx + 1) % newPlayers.length;
+        let loopCount = 0;
+        while (loopCount < newPlayers.length) {
+          const p = newPlayers[nextIndex];
+          if (p.isConnected !== false && !(p.hasFolded ?? false)) {
+            newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
+            break;
+          }
+          nextIndex = (nextIndex + 1) % newPlayers.length;
+          loopCount++;
+        }
       }
-      newPlayers[nextIndex].isActive = true;
+
       return newPlayers;
     });
 
@@ -436,9 +498,15 @@ export function Game() {
       const humanInHand = humanIndex >= 0 && !(playersState[humanIndex]?.hasFolded ?? false);
 
       if (humanInHand && !roundPlayersActed.has(humanIndex)) return;
-      if (activeInHand.length < 2) return;
 
-      if (roundPlayersActed.size >= activeInHand.length) {
+      if (activeInHand.length === 1) {
+        const t = setTimeout(() => setPhase("showdown"), 1500);
+        return () => clearTimeout(t);
+      }
+
+      const maxBet = Math.max(0, ...activeInHand.map((p) => p.bet ?? 0));
+      const bettingComplete = activeInHand.every((p) => (p.bet ?? 0) === maxBet);
+      if (roundPlayersActed.size >= activeInHand.length && bettingComplete) {
         setTimeout(() => {
           if (phase === "preflop") dealFlop();
           else if (phase === "flop") dealTurn();
@@ -449,9 +517,36 @@ export function Game() {
     }
   }, [roundPlayersActed, phase, playersState]);
 
+  // Showdown : déterminer le gagnant et afficher le résultat
+  useEffect(() => {
+    if (phase !== "showdown" || handResult !== null || !isBotMode || playersState.length < 2) return;
+    const activeInHand = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
+    if (activeInHand.length < 2) return;
+    const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+    const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        players: activeInHand.map((p) => ({ id: p.id, cards: p.cards })),
+        communityCards: communityCardsState.filter((c): c is Card => c !== null),
+      }),
+    })
+      .then((res) => res.json())
+      .then((data: { winnerId?: string }) => {
+        const humanId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
+        const won = data.winnerId === humanId || data.winnerId === "human";
+        if (won) setPlayerChips((prev) => prev + pot);
+        setPot(0);
+        setHandResult(won ? "win" : "loss");
+      })
+      .catch(() => setHandResult("loss"));
+  }, [phase, handResult, isBotMode, playersState, communityCardsState, pot]);
+
   useEffect(() => {
     if (!isBotMode || playersState.length === 0) return;
     if (phase === "init" || phase === "shuffle" || phase === "deal") return;
+    if (handResult !== null) return;
 
     const activePlayer = playersState.find((p) => p.isActive);
     if (!activePlayer) return;
@@ -460,11 +555,13 @@ export function Game() {
     if (!isBotTurn || isBotThinking) return;
 
     setIsBotThinking(true);
+    addToast(`${activePlayer.name} réfléchit...`, "info");
 
     const fetchBotDecision = async () => {
       try {
         const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-        const response = await fetch(`${apiUrl ? apiUrl + "/" : ""}api/bot/action`, {
+        const url = `${apiUrl ? apiUrl + "/" : ""}api/bot/action`;
+        const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -481,7 +578,32 @@ export function Game() {
           }),
         });
 
+        if (!response.ok) {
+          const errText = await response.text();
+          addToast(`Erreur bot (${response.status})`, "error");
+          setIsBotThinking(false);
+          return;
+        }
+
         const decision = await response.json();
+
+        const botActionLabel =
+          decision.action === "FOLD"
+            ? "s'est couché"
+            : decision.action === "CALL"
+              ? "a suivi"
+              : decision.action === "CHECK"
+                ? "a checké"
+                : decision.action === "RAISE"
+                  ? "a relancé"
+                  : decision.action;
+        addToast(`${activePlayer.name} ${botActionLabel}`, "info");
+        if (clearBotActionRef.current) clearTimeout(clearBotActionRef.current);
+        setLastBotAction({ name: activePlayer.name, action: botActionLabel });
+        clearBotActionRef.current = setTimeout(() => {
+          setLastBotAction(null);
+          clearBotActionRef.current = null;
+        }, 5000);
 
         setTimeout(() => {
           switch (decision.action) {
@@ -502,14 +624,36 @@ export function Game() {
         }, Math.random() * 1000 + 1000);
       } catch (error) {
         console.error("Erreur API bot:", error);
+        addToast("Erreur connexion bot", "error");
         setIsBotThinking(false);
       }
     };
 
     fetchBotDecision();
-  }, [isBotMode, playersState, isBotThinking, phase, communityCardsState, pot, callAmount]);
+  }, [isBotMode, playersState, isBotThinking, phase, communityCardsState, pot, callAmount, addToast, handResult]);
+
+  // Après gain/perte : animation puis retour au lobby et mise à jour des stats
+  useEffect(() => {
+    if (handResult === null) return;
+    const t = setTimeout(() => {
+      const token = localStorage.getItem("token");
+      const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+      const base = apiUrl || "";
+      const recordUrl = base ? `${base}/api/game/record-result` : "/api/game/record-result";
+      if (token) {
+        fetch(recordUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
+          body: JSON.stringify({ won: handResult === "win" }),
+        }).catch(() => {});
+      }
+      navigate(mode === "bot" ? "/bot-configuration" : "/lobby");
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [handResult, mode, navigate]);
 
   const handleFold = (playerId?: number | string) => {
+    if (handResult !== null) return;
     const heroId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
     const isHuman = playerId === undefined || playerId === heroId;
     const foldingIndex =
@@ -526,13 +670,18 @@ export function Game() {
       const activeInHand = newPlayers.filter(
         (p) => p.isConnected !== false && !(p.hasFolded ?? false)
       );
+
       if (activeInHand.length === 1) {
-        const winnerId = activeInHand[0].id;
+        const winner = activeInHand[0];
+        const winnerId = winner.id;
         const currentPot = pot;
         return newPlayers.map((p) =>
-          p.id === winnerId ? { ...p, chips: p.chips + currentPot } : p
+          p.id === winnerId
+            ? { ...p, chips: p.chips + currentPot, isActive: true }
+            : { ...p, isActive: false }
         );
       }
+
       let nextIndex = (foldingIndex + 1) % newPlayers.length;
       let loopCount = 0;
       while (loopCount < newPlayers.length) {
@@ -546,11 +695,7 @@ export function Game() {
       }
       return newPlayers;
     });
-    if (isHuman) {
-      setHasFolded(true);
-      setHasPlayerActed(true);
-      setIsLoading(true);
-    }
+
     const activeInHandCount = playersState.filter(
       (p, i) => i !== foldingIndex && p.isConnected !== false && !(p.hasFolded ?? false)
     ).length;
@@ -558,29 +703,33 @@ export function Game() {
       const winnerIndex = playersState.findIndex(
         (p, i) => i !== foldingIndex && p.isConnected !== false && !(p.hasFolded ?? false)
       );
-      if (
-        winnerIndex !== -1 &&
-        (playersState[winnerIndex].name === "Vous" || playersState[winnerIndex].name === "Diana")
-      ) {
-        setPlayerChips((prev) => prev + pot);
-      }
+      const humanIndex = playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+      const humanWon = winnerIndex !== -1 && winnerIndex === humanIndex;
+      if (humanWon) setPlayerChips((prev) => prev + pot);
       setPot(0);
-      setPhase("showdown");
+      // Délai pour laisser voir la notification "Bot s'est couché" avant l'overlay
+      setTimeout(() => setHandResult(humanWon ? "win" : "loss"), 2200);
     }
   };
 
   const handleCheck = (playerId?: number | string) => {
-    if (callAmount > 0) return;
+    if (handResult !== null) return;
     const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
+    if (callAmount > 0 && isHumanActing) return;
+    const justActedIndex =
+      playerId !== undefined
+        ? playersState.findIndex((p) => p.id === playerId)
+        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
     if (isHumanActing) {
       setHasPlayerActed(true);
       setIsLoading(true);
     }
-    setTimeout(() => nextTurn(), 500);
+    nextTurn(justActedIndex);
   };
 
   const handleCall = (amount: number, playerId?: number | string) => {
+    if (handResult !== null) return;
     const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (playerId !== undefined && playerId !== hero?.id) {
@@ -600,14 +749,19 @@ export function Game() {
       );
     }
     setPot((prev) => prev + amount);
+    const justActedIndex =
+      playerId !== undefined
+        ? playersState.findIndex((p) => p.id === playerId)
+        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
     if (isHumanActing) {
       setHasPlayerActed(true);
       setIsLoading(true);
     }
-    setTimeout(() => nextTurn(), 500);
+    nextTurn(justActedIndex);
   };
 
   const handleRaise = (raiseAmount: number, playerId?: number | string) => {
+    if (handResult !== null) return;
     const totalToPut = callAmount + raiseAmount;
     const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
@@ -636,7 +790,11 @@ export function Game() {
       setHasPlayerActed(true);
       setIsLoading(true);
     }
-    setTimeout(() => nextTurn(), 500);
+    const justActedIndex =
+      playerId !== undefined
+        ? playersState.findIndex((p) => p.id === playerId)
+        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+    nextTurn(justActedIndex);
   };
 
   const handleSendMessage = (content: string, type: "emoji" | "text") => {
@@ -714,6 +872,23 @@ export function Game() {
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-hidden relative">
+      {/* Bouton DEBUG dev uniquement */}
+      {import.meta.env.DEV && (
+        <button
+          type="button"
+          onClick={() => {
+            console.log("DEBUG - Forcer déblocage");
+            setTimerActive(true);
+            setTimeLeft(20);
+            setIsLoading(false);
+            setHasPlayerActed(false);
+          }}
+          className="fixed bottom-24 right-4 z-[70] bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm shadow-lg"
+        >
+          🐛 DEBUG: Forcer timer
+        </button>
+      )}
+
       {/* Particules dorées flottantes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
@@ -805,6 +980,55 @@ export function Game() {
           </div>
         </div>
       )}
+
+      {/* Notification action du bot (visible 5 s) */}
+      {lastBotAction && mode === "bot" && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className={`absolute z-[60] left-1/2 -translate-x-1/2 ${
+            isMobile ? 'bottom-28' : isTablet ? 'bottom-32' : 'bottom-36'
+          }`}
+        >
+          <div className="bg-emerald-600/95 backdrop-blur-sm rounded-xl px-6 py-3 border-2 border-emerald-400 shadow-xl text-white font-bold text-center whitespace-nowrap">
+            {lastBotAction.name} {lastBotAction.action}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Overlay gain / perte */}
+      <AnimatePresence>
+        {handResult !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", damping: 20, stiffness: 200 }}
+              className={`rounded-3xl shadow-2xl border-2 px-8 py-10 flex flex-col items-center gap-4 ${
+                handResult === "win"
+                  ? "bg-gradient-to-br from-amber-500/20 to-yellow-600/30 border-amber-400"
+                  : "bg-gradient-to-br from-slate-700/95 to-slate-800 border-slate-500"
+              }`}
+            >
+              {handResult === "win" ? (
+                <Trophy className="w-20 h-20 text-amber-400" />
+              ) : (
+                <Frown className="w-20 h-20 text-slate-400" />
+              )}
+              <h2 className="text-2xl md:text-3xl font-bold text-white">
+                {handResult === "win" ? "Vous avez gagné !" : "Vous avez perdu"}
+              </h2>
+              <p className="text-slate-300 text-sm">Retour au lobby...</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Barre de navigation - En haut */}
       <div className={`absolute ${isMobile ? 'top-2 left-2 right-2' : 'top-4 left-8 right-8'} z-50 flex items-center justify-between`}>
@@ -1049,7 +1273,7 @@ export function Game() {
 
       {/* Zone centrale - Table de poker avec cartes communes */}
       <div className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
-        <PokerTable players={tablePlayers} communitySafeZone={230}>
+        <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase}>
           <CommunityCards cards={communityCards} pot={pot} />
         </PokerTable>
       </div>
@@ -1086,7 +1310,7 @@ export function Game() {
         callAmount={callAmount}
         minRaise={50}
         maxRaise={playerChips}
-        isMyTurn={isMyTurn}
+        isMyTurn={handResult === null && isMyTurn}
         isLoading={isLoading}
         hasFolded={hasFoldedFromState}
         hasActed={hasPlayerActed}

@@ -27,13 +27,16 @@ interface PokerTableProps {
   players: Player[];
   children?: ReactNode;
   communitySafeZone?: number;
+  phase?: string;
 }
 
 export function PokerTable({
   players,
   children,
   communitySafeZone: _communitySafeZone = 180,
+  phase,
 }: PokerTableProps) {
+  const isShowdown = phase === "showdown";
 
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
@@ -193,7 +196,8 @@ export function PokerTable({
                     {player.cards.map((card, index) => {
                       const isSelf =
                         player.position === 0 || player.name === "Vous"
-                      if (isSelf) {
+                      const showFaceUp = isSelf || isShowdown
+                      if (showFaceUp) {
                         return (
                           <div
                             key={index}

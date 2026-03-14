@@ -3,6 +3,7 @@ import { prisma } from '../config/database.js';
 import { GameTable } from '../logic/GameTable.js';
 import type { Player } from '../types/poker.js';
 import { activeGames } from '../shared/activeGames.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -136,6 +137,36 @@ router.get('/active/list', async (req, res) => {
     phase: game.state.phase
   }));
   res.json(games);
+});
+
+// POST /api/game/record-result - Enregistrer résultat d'une main (mode bot) et incrémenter les stats
+router.post('/record-result', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId;
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+    const { won } = req.body as { won?: boolean };
+    if (typeof won !== 'boolean') return res.status(400).json({ error: 'Body attendu: { won: boolean }' });
+
+    await prisma.playerStats.upsert({
+      where: { playerId: userId },
+      create: {
+        playerId: userId,
+        totalGames: 1,
+        totalWins: won ? 1 : 0,
+        totalLosses: won ? 0 : 1,
+      },
+      update: {
+        totalGames: { increment: 1 },
+        ...(won ? { totalWins: { increment: 1 } } : { totalLosses: { increment: 1 } }),
+      },
+    });
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Erreur record-result:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
 });
 
 // GET /api/game/history/:gameId - Récupérer l'historique d'une partie
