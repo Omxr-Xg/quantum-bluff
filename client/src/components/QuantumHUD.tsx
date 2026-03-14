@@ -1,12 +1,6 @@
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { useState } from "react";
-
-interface QuantumProbability {
-  combination: string;
-  probability: number;
-  trend: "up" | "down" | "stable";
-  description: string;
-}
+import { X, TrendingUp, BarChart2, Target, Award } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useQuantumHUD } from "../contexts/QuantumHUDContext";
 
 interface QuantumHUDProps {
   isOpen: boolean;
@@ -14,95 +8,128 @@ interface QuantumHUDProps {
 }
 
 export function QuantumHUD({ isOpen, onToggle }: QuantumHUDProps) {
-  const [probabilities] = useState<QuantumProbability[]>([
-    { combination: "Paire", probability: 42, trend: "up", description: "Forte probabilite" },
-    { combination: "Double Paire", probability: 28, trend: "stable", description: "Probabilite moyenne" },
-    { combination: "Brelan", probability: 15, trend: "down", description: "Faible probabilite" },
-    { combination: "Suite", probability: 8, trend: "down", description: "Tres faible" },
-    { combination: "Couleur", probability: 5, trend: "down", description: "Rare" },
-  ]);
+  const { probabilities, currentHand, winProbability } = useQuantumHUD();
 
-  const getColorByProbability = (prob: number) => {
-    if (prob >= 40) return { bg: "bg-green-600", text: "text-green-400", border: "border-green-500" };
-    if (prob >= 25) return { bg: "bg-yellow-600", text: "text-yellow-400", border: "border-yellow-500" };
-    if (prob >= 15) return { bg: "bg-orange-600", text: "text-orange-400", border: "border-orange-500" };
-    return { bg: "bg-red-600", text: "text-red-400", border: "border-red-500" };
-  };
-
-  const getTrendIcon = (trend: "up" | "down" | "stable") => {
-    if (trend === "up") return <TrendingUp className="w-4 h-4 text-green-400" />;
-    if (trend === "down") return <TrendingDown className="w-4 h-4 text-red-400" />;
-    return <Minus className="w-4 h-4 text-gray-400" />;
+  const getProbabilityColor = (prob: number) => {
+    if (prob >= 0.7) return "text-green-400";
+    if (prob >= 0.4) return "text-yellow-400";
+    if (prob >= 0.2) return "text-orange-400";
+    return "text-red-400";
   };
 
   return (
-    <>
-      {/* Panneau HUD Quantum complet */}
+    <AnimatePresence>
       {isOpen && (
-        <div className="fixed left-4 bottom-32 z-40 bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-md rounded-2xl border-2 border-purple-500 p-4 shadow-2xl max-w-xs">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-lg">Q</span>
+        <motion.div
+          initial={{ opacity: 0, x: 300 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 300 }}
+          transition={{ type: "spring", damping: 25 }}
+          className="fixed top-24 right-5 z-40 w-80 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-purple-500 shadow-2xl"
+        >
+          {/* Header */}
+          <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-white" />
               </div>
-              <div>
-                <h3 className="text-white font-bold text-lg">HUD Quantum</h3>
-                <p className="text-purple-300 text-xs">Probabilites en temps reel</p>
-              </div>
+              <h3 className="text-white font-bold">Quantum HUD</h3>
             </div>
             <button
               onClick={onToggle}
               className="text-gray-400 hover:text-white transition-colors"
-              title="Fermer"
             >
-              <span className="text-xl">×</span>
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="space-y-3">
-            {probabilities.map((item) => {
-              const colors = getColorByProbability(item.probability);
-              return (
-                <div
-                  key={item.combination}
-                  className="bg-slate-800/50 rounded-xl p-3 border border-slate-700 hover:border-purple-500 transition-all group"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-semibold text-sm">{item.combination}</span>
-                      {getTrendIcon(item.trend)}
-                    </div>
-                    <span className={`${colors.text} font-bold text-lg`}>{item.probability}%</span>
-                  </div>
-
-                  <div className="relative h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className={`absolute top-0 left-0 h-full ${colors.bg} rounded-full transition-all duration-500 shadow-lg`}
-                      style={{ width: `${item.probability}%` }}
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
-                    </div>
-                  </div>
-
-                  <p className="text-gray-400 text-xs mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {item.description}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-slate-700">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-400">Mise a jour en temps reel</span>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 font-semibold">Actif</span>
+          {/* Probabilité de victoire */}
+          <div className="p-4 border-b border-slate-700">
+            <div className="text-gray-400 text-sm mb-2 flex items-center gap-2">
+              <Target className="w-4 h-4 text-purple-400" />
+              Chance de gagner
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-4 bg-slate-700 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${winProbability * 100}%` }}
+                  className="h-full"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, rgba(74,222,128,1) 0%, rgba(250,204,21,1) 50%, rgba(248,113,113,1) 100%)",
+                  }}
+                />
               </div>
+              <span className={`font-bold ${getProbabilityColor(winProbability)}`}>
+                {Math.round(winProbability * 100)}%
+              </span>
             </div>
           </div>
-        </div>
+
+          {/* Main actuelle */}
+          {currentHand && (
+            <div className="px-4 py-2 bg-purple-900/20 border-b border-purple-500/30">
+              <div className="text-xs text-purple-400 mb-1">Main actuelle</div>
+              <div className="text-white font-bold flex items-center gap-2">
+                <span className="text-2xl">🎴</span>
+                <span>{currentHand}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Liste des probabilités */}
+          <div className="p-4 max-h-96 overflow-y-auto">
+            <div className="text-gray-400 text-sm mb-3 flex items-center gap-2">
+              <BarChart2 className="w-4 h-4" />
+              Évolution des probabilités
+            </div>
+
+            <div className="space-y-2">
+              {probabilities.map((item, index) => (
+                <div
+                  key={`${item.hand}-${index}`}
+                  className="bg-slate-700/50 rounded-lg p-3 border border-slate-600"
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-white font-medium text-sm">{item.hand}</span>
+                    <span
+                      className={`text-xs font-bold ${getProbabilityColor(
+                        item.probability
+                      )}`}
+                    >
+                      {Math.round(item.probability * 100)}%
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${item.probability * 100}%` }}
+                      transition={{ duration: 0.5 }}
+                      className="h-full"
+                      style={{
+                        background:
+                          "linear-gradient(90deg, rgba(74,222,128,0.8) 0%, rgba(250,204,21,0.8) 50%, rgba(248,113,113,0.8) 100%)",
+                      }}
+                    />
+                  </div>
+                  <div className="mt-1 text-gray-500 text-xs">
+                    {item.description}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 bg-slate-800/50 rounded-b-2xl border-t border-slate-700">
+            <div className="flex items-center gap-2 text-yellow-400 text-xs">
+              <Award className="w-3 h-3" />
+              <span>Mise à jour en temps réel</span>
+            </div>
+          </div>
+        </motion.div>
       )}
-    </>
+    </AnimatePresence>
   );
 }
