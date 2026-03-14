@@ -67,6 +67,19 @@ export class GameGateway {
         console.log(`🔐 ${socket.userId} joined room user:${socket.userId}`)
       }
 
+      socket.on('JOIN_USER_ROOM', ({ userId }: { userId?: string }) => {
+        if (!userId) return
+
+        Array.from(socket.rooms).forEach((room) => {
+          if (room.startsWith('user:')) {
+            socket.leave(room)
+          }
+        })
+
+        socket.join(`user:${userId}`)
+        console.log(`✅ Utilisateur ${userId} a rejoint sa room personnelle`)
+      })
+
       socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string }) => {
         try {
           const { gameId, playerId } = data
@@ -170,7 +183,7 @@ export class GameGateway {
             return
           }
 
-          const game = activeGames.get(gameId)
+          const game = await activeGames.get(gameId)
           if (!game) {
             logSuspiciousAction('GAME_NOT_FOUND', {
               userId: socket.userId,
@@ -291,13 +304,18 @@ export class GameGateway {
       })
 
       socket.on('disconnect', async () => {
-        console.log('👋 Joueur déconnecté:', socket.id);
-        
-        const userId = socket.userId;
+        console.log('👋 Joueur déconnecté:', socket.id)
+
+        const userId = socket.userId
         if (userId) {
           this.socketToUser.delete(socket.id)
           this.userToSocket.delete(userId)
           this.antiCheat.clearUser(userId)
+
+          this.io.emit('FRIEND_STATUS_CHANGED', {
+            userId,
+            status: 'offline'
+          })
         }
 
         if (socket.gameId && userId) {
@@ -322,24 +340,40 @@ export class GameGateway {
       clearTimeout(this.timers.get(gameId)!)
     }
 
+    const TURN_TIMEOUT_MS = 20000
+
     const timer = setTimeout(async () => {
-      const game = await activeGames.get(gameId);
-      if (!game) return;
+      const game = await activeGames.get(gameId)
+      if (!game) return
 
       const currentPlayerId = game.state.currentTurn
       if (currentPlayerId) {
         try {
-          await game.handlePlayerAction(currentPlayerId, 'FOLD');
-          this.io.to(gameId).emit('GAME_UPDATE', game.getSanitizedState());
-          this.startTurnTimer(gameId);
+          const player = game.getPlayerState(currentPlayerId)
+          if (!player) return
+
+          const callAmount = game.calculateCallAmount(currentPlayerId)
+
+          if (callAmount === 0) {
+            console.log(`⏱️ Timeout - ${player.name} CHECK auto`)
+            game.handlePlayerAction(currentPlayerId, 'CHECK')
+          } else {
+            console.log(
+              `⏱️ Timeout - ${player.name} FOLD auto (callAmount: ${callAmount})`
+            )
+            game.handlePlayerAction(currentPlayerId, 'FOLD')
+          }
+
+          this.io.to(gameId).emit('GAME_UPDATE', game.getSanitizedState())
+          this.startTurnTimer(gameId)
         } catch (error) {
           console.error('Erreur timeout:', error)
         }
       }
-    }, 30000)
+    }, TURN_TIMEOUT_MS)
 
     this.timers.set(gameId, timer)
-    this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: 30 })
+    this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: 20 })
   }
 
   private resetTimer(gameId: string) {
