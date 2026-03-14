@@ -46,7 +46,7 @@ export class GameGateway {
         this.userToSocket.set(socket.userId, socket.id);
       }
 
-      socket.on('JOIN_GAME', (data: { gameId: string; playerId: string }) => {
+      socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string }) => {
         try {
           const { gameId, playerId } = data;
           
@@ -61,7 +61,7 @@ export class GameGateway {
           socket.join(gameId);
           socket.gameId = gameId;
           
-          const game = activeGames.get(gameId);
+          const game = await activeGames.get(gameId);
           if (game) {
             socket.emit('GAME_UPDATE', game.getSanitizedState(playerId));
             console.log(`✅ Joueur ${playerId} a rejoint la partie ${gameId}`);
@@ -80,7 +80,7 @@ export class GameGateway {
         }
       });
 
-      socket.on('PLAYER_ACTION', (data: { 
+      socket.on('PLAYER_ACTION', async (data: { 
         gameId: string; 
         playerId: string; 
         action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'; 
@@ -97,7 +97,7 @@ export class GameGateway {
             return;
           }
 
-          const game = activeGames.get(gameId);
+          const game = await activeGames.get(gameId);
           if (!game) {
             socket.emit('ERROR', { 
               code: 'GAME_NOT_FOUND',
@@ -137,7 +137,7 @@ export class GameGateway {
         }
       });
 
-      socket.on('RECONNECT_GAME', (data: { gameId: string }) => {
+      socket.on('RECONNECT_GAME', async (data: { gameId: string }) => {
         try {
           const { gameId } = data;
           
@@ -148,7 +148,7 @@ export class GameGateway {
           socket.join(gameId);
           socket.gameId = gameId;
 
-          const game = activeGames.get(gameId);
+          const game = await activeGames.get(gameId);
           if (game && socket.userId) {
             const player = game.getPlayerState(socket.userId);
             if (player) {
@@ -177,7 +177,7 @@ export class GameGateway {
         }
       });
 
-      socket.on('disconnect', () => {
+      socket.on('disconnect', async () => {
         console.log('👋 Joueur déconnecté:', socket.id);
         
         const userId = socket.userId;
@@ -187,7 +187,7 @@ export class GameGateway {
         }
 
         if (socket.gameId && userId) {
-          const game = activeGames.get(socket.gameId);
+          const game = await activeGames.get(socket.gameId);
           if (game) {
             const player = game.getPlayerState(userId);
             if (player) {
@@ -208,14 +208,14 @@ export class GameGateway {
       clearTimeout(this.timers.get(gameId)!);
     }
 
-    const timer = setTimeout(() => {
-      const game = activeGames.get(gameId);
+    const timer = setTimeout(async () => {
+      const game = await activeGames.get(gameId);
       if (!game) return;
 
       const currentPlayerId = game.state.currentTurn;
       if (currentPlayerId) {
         try {
-          game.handlePlayerAction(currentPlayerId, 'FOLD');
+          await game.handlePlayerAction(currentPlayerId, 'FOLD');
           this.io.to(gameId).emit('GAME_UPDATE', game.getSanitizedState());
           this.startTurnTimer(gameId);
         } catch (error) {
