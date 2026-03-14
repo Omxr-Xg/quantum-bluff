@@ -9,3 +9,4 @@
 {"timestamp":"2026-03-14T15:03:50.314Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::1","route":"/api/auth/login","timestamp":"2026-03-14T15:03:50.314Z"}}
 {"timestamp":"2026-03-14T15:04:04.171Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::1","route":"/api/auth/login","timestamp":"2026-03-14T15:04:04.171Z"}}
 {"timestamp":"2026-03-14T15:05:30.668Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::1","route":"/api/auth/login","timestamp":"2026-03-14T15:05:30.668Z"}}
+{"timestamp":"2026-03-14T17:55:13.927Z","type":"ACTION_ERROR","userId":"64e4ce2e-98c3-4982-a9ea-b625c41d2ca0","socketId":"-npOuBOOPeTuMmB7AAAI","gameId":"game_1773510864254","action":"RAISE","details":"La main n’a pas commencé"}

@@ -1,183 +1,238 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useRegisterMutation } from "../services/api";
 
 export function Register() {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [register, { isLoading, error }] = useRegisterMutation();
+  const navigate = useNavigate();
 
-  const [username, setUsername] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
+  const passwordCriteria = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  };
 
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
-  const [registerUser, { isLoading, error }] = useRegisterMutation()
-  const navigate = useNavigate()
-
-  const isFormValid =
-    username.length >= 3 &&
-    email.includes("@") &&
-    password.length >= 8 &&
-    password === confirmPassword
+  const isFormValid = 
+    username.length >= 3 && 
+    email.includes('@') && 
+    Object.values(passwordCriteria).every(Boolean) && 
+    password === confirmPassword;
 
   const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  if (!isFormValid) return
 
-    e.preventDefault()
+  try {
+    const response = await register({
+      username,
+      email,
+      password
+    }).unwrap()
 
-    console.log("🟢 FORM SUBMIT")
+    console.log("✅ Inscription réussie:", response)
 
-    if (!isFormValid) {
-      console.log("❌ Form invalid")
-      return
-    }
+    localStorage.removeItem('userid')
+    localStorage.setItem('token', response.token)
+    localStorage.setItem('userId', String(response.user.id))
+    localStorage.setItem('username', response.user.username)
 
-    try {
+    window.dispatchEvent(new Event('auth-changed'))
 
-      const response = await registerUser({
-        username,
-        email,
-        password
-      }).unwrap()
-
-      console.log("✅ Inscription réussie:", response)
-
-      localStorage.setItem("token", response.token)
-      localStorage.setItem("userId", String(response.user.id))
-      localStorage.setItem("username", response.user.username)
-
-      window.dispatchEvent(new Event("auth-changed"))
-
-      navigate("/lobby")
-
-    } catch (err) {
-
-      console.error("❌ Erreur d'inscription:", err)
-
-    }
+    navigate("/lobby")
+  } catch (err) {
+    console.error("❌ Erreur d'inscription:", err)
   }
+};
+
+  const Criterion = ({ met, label }: { met: boolean; label: string }) => (
+    <div className={`flex items-center gap-2 text-xs transition-colors ${met ? 'text-green-400' : 'text-red-500'}`}>
+      {met ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+      <span>{label}</span>
+    </div>
+  );
 
   return (
-    <div className="w-full min-h-screen bg-slate-900 flex items-center justify-center p-4">
+    <div className="w-full min-h-screen relative overflow-hidden bg-slate-900 flex items-center justify-center p-4 sm:p-6 font-sans">
+      
+      {/* FONDS IMMERSIF (identique au Login) */}
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"></div>
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 60px, rgba(139, 92, 246, 0.2) 60px, rgba(139, 92, 246, 0.2) 61px)` }} />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(15,23,42,0.8)_100%)]"></div>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[100px] animate-pulse-slow"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: "1s" }}></div>
+      </div>
 
-      <div className="w-full max-w-md">
+      {/* Cartes animées (optionnel, peut rester) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
+        <div className="absolute top-[15%] left-[8%] animate-float-card">
+          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-purple-500/30 rotate-12 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-6xl text-purple-400/40 font-bold">♠</div>
+          </div>
+        </div>
+        <div className="absolute top-[55%] right-[12%] animate-float-card-delayed" style={{ animationDelay: "1s" }}>
+          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-purple-500/30 -rotate-12 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-6xl text-purple-400/40 font-bold">♥</div>
+          </div>
+        </div>
+      </div>
 
+      <div className="relative z-10 w-full max-w-md my-10">
         <div className="text-center mb-6">
-          <QuantumBluffLogo className="w-20 h-20 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-white">Quantum Bluff</h1>
-          <p className="text-gray-400 text-sm">Créer votre compte joueur</p>
+          <div className="inline-flex items-center justify-center mb-3">
+            <QuantumBluffLogo className="w-20 h-20 sm:w-24 sm:h-24 drop-shadow-2xl" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">Quantum Bluff</h1>
+          <p className="text-sm text-gray-400">Créer votre compte joueur</p>
         </div>
 
-        <div className="bg-slate-800 border border-purple-500/30 rounded-2xl p-6">
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-
+        <div className="rounded-2xl p-6 sm:p-8 transition-all duration-300" style={{
+            background: 'linear-gradient(#151b2b, #151b2b) padding-box, linear-gradient(145deg, transparent 35%, #e81cff, #40c9ff) border-box',
+            border: '2px solid transparent'
+          }}>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            
+            {/* Nom d'utilisateur */}
             <div>
-              <label className="text-xs text-gray-400">Username</label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Nom d'utilisateur</label>
+              <div className="relative group">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full pl-10 py-3 bg-slate-900 border border-gray-700 rounded-lg text-white"
+                  placeholder="PokerMaster"
+                  className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
                   required
+                  minLength={3}
                 />
               </div>
             </div>
 
+            {/* Email */}
             <div>
-              <label className="text-xs text-gray-400">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Email</label>
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 py-3 bg-slate-900 border border-gray-700 rounded-lg text-white"
+                  placeholder="joueur@quantum.com"
+                  className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
                   required
                 />
               </div>
             </div>
 
+            {/* Mot de passe */}
             <div>
-              <label className="text-xs text-gray-400">Mot de passe</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Mot de passe</label>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 py-3 bg-slate-900 border border-gray-700 rounded-lg text-white"
+                  placeholder="••••••••"
+                  className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-12 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-400"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#717171] hover:text-white"
                 >
-                  {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mt-4 bg-black/30 p-3 rounded-lg border border-[#313131]">
+                <Criterion met={passwordCriteria.length} label="8+ caractères" />
+                <Criterion met={passwordCriteria.uppercase} label="1 Majuscule" />
+                <Criterion met={passwordCriteria.number} label="1 Chiffre" />
+                <Criterion met={passwordCriteria.special} label="1 Spécial" />
               </div>
             </div>
 
+            {/* Confirmation */}
             <div>
-              <label className="text-xs text-gray-400">Confirmation</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Confirmation</label>
+              <div className="relative group">
+                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${confirmPassword ? (password === confirmPassword ? 'text-green-400' : 'text-red-500') : 'text-[#717171]'}`} />
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full pl-10 py-3 bg-slate-900 border border-gray-700 rounded-lg text-white"
+                  placeholder="••••••••"
+                  className={`w-full bg-transparent border rounded-lg pl-12 pr-12 py-3.5 text-white transition-all focus:outline-none focus:ring-1 ${confirmPassword ? (password === confirmPassword ? 'border-green-400' : 'border-red-500') : 'border-[#414141] focus:border-[#e81cff]'}`}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-3 text-gray-400"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#717171] hover:text-white"
                 >
-                  {showConfirmPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-red-400 text-[10px] mt-1 ml-1">Les mots de passe ne correspondent pas</p>
+              )}
             </div>
 
+            {/* Message d'erreur */}
             {error && (
               <div className="text-red-400 text-sm text-center">
-                {"data" in error ? (error as any).data?.error : "Erreur inscription"}
+                {'data' in error ? (error as { data?: { error?: string } }).data?.error : "Erreur lors de l'inscription"}
               </div>
             )}
 
+            {/* Bouton */}
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full py-3 bg-purple-600 hover:bg-purple-500 rounded-lg text-white font-bold flex items-center justify-center gap-2"
+              disabled={isLoading || !isFormValid}
+              className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${isFormValid ? 'bg-[#e81cff] text-white font-semibold shadow-[0_0_30px_5px_rgba(232,28,255,0.6)] border-[#e81cff] before:animate-[sh02_0.5s_linear_infinite]' : 'bg-transparent text-white/50 font-normal shadow-[0_0_11px_2px_rgba(232,28,255,0.3)] border-[#e81cff] opacity-80 cursor-not-allowed'} before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="animate-spin" size={18}/>
-                  Inscription...
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Inscription...</span>
                 </>
               ) : (
-                "Créer mon compte"
+                <span>Créer mon compte</span>
               )}
             </button>
-
           </form>
 
-          <div className="text-center mt-4">
-            <button
-              onClick={() => navigate("/login")}
-              className="text-purple-400 hover:underline"
-            >
-              Déjà un compte ? Se connecter
-            </button>
+          <div className="text-center mt-6">
+            <p className="text-sm text-gray-400">
+              Déjà un compte ?{" "}
+              <button onClick={() => navigate("/login")} className="text-[#e81cff] font-semibold hover:underline">
+                Se connecter
+              </button>
+            </p>
           </div>
-
         </div>
       </div>
+
+      <style>{`
+        @keyframes sh02 { from { opacity: 0; left: 0%; } 50% { opacity: 1; } to { opacity: 0; left: 100%; } }
+        @keyframes float-card { 0%, 100% { transform: translateY(0px) rotate(12deg); } 50% { transform: translateY(-20px) rotate(12deg); } }
+        @keyframes float-card-delayed { 0%, 100% { transform: translateY(0px) rotate(-12deg); } 50% { transform: translateY(-20px) rotate(-12deg); } }
+        @keyframes pulse-slow { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.05); } }
+        .animate-float-card { animation: float-card 4s ease-in-out infinite; }
+        .animate-float-card-delayed { animation: float-card-delayed 4s ease-in-out infinite; }
+      `}</style>
     </div>
-  )
+  );
 }
