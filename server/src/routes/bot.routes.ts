@@ -38,11 +38,14 @@ const calculateHandStrength = (
   return Math.min(handValue / maxPossible, 1)
 }
 
+const isHeadsUp = (req: BotActionRequest) => req.playersCount === 2
+
 const easyBotDecision = (req: BotActionRequest): BotActionResponse => {
   const rand = Math.random()
+  const headsUp = isHeadsUp(req)
 
   if (req.callAmount === 0) {
-    if (rand < 0.7) {
+    if (rand < 0.6) {
       return { action: 'CHECK', reasoning: 'easy: check' }
     }
     const raiseAmount = Math.min(
@@ -52,10 +55,11 @@ const easyBotDecision = (req: BotActionRequest): BotActionResponse => {
     return { action: 'RAISE', amount: raiseAmount, reasoning: 'easy: raise' }
   }
 
-  if (rand < 0.2) {
+  const foldChance = headsUp ? 0.08 : 0.2
+  if (rand < foldChance) {
     return { action: 'FOLD', reasoning: 'easy: fold' }
   }
-  if (rand < 0.65) {
+  if (rand < foldChance + 0.6) {
     return {
       action: 'CALL',
       amount: req.callAmount,
@@ -81,17 +85,26 @@ const mediumBotDecision = (req: BotActionRequest): BotActionResponse => {
     req.communityCards
   )
   const communityCount = req.communityCards.length
+  const headsUp = isHeadsUp(req)
 
   if (communityCount === 0) {
     if (req.callAmount === 0) {
+      if (headsUp && Math.random() < 0.15) {
+        const raiseAmount = Math.min(
+          req.playerChips,
+          req.currentBet + req.minRaise * 2
+        )
+        return { action: 'RAISE', amount: raiseAmount, reasoning: 'medium: bluff preflop' }
+      }
       return { action: 'CHECK', reasoning: 'medium: check preflop' }
     }
     const hasPair =
       req.playerCards[0]?.value === req.playerCards[1]?.value
     const highCards = req.playerCards.filter((c) => c.value >= 10).length
-    const playable = hasPair || highCards >= 1
+    const anyEightPlus = req.playerCards.some((c) => c.value >= 8)
+    const playable = hasPair || highCards >= 1 || (headsUp && anyEightPlus)
     if (playable) {
-      if (Math.random() < 0.2) {
+      if (Math.random() < 0.25) {
         const raiseAmount = Math.min(
           req.playerChips,
           req.currentBet + req.minRaise + Math.floor(req.potSize * 0.3)
@@ -104,7 +117,8 @@ const mediumBotDecision = (req: BotActionRequest): BotActionResponse => {
         reasoning: 'medium: call preflop'
       }
     }
-    if (Math.random() < 0.55) {
+    const callChance = headsUp ? 0.8 : 0.55
+    if (Math.random() < callChance) {
       return {
         action: 'CALL',
         amount: req.callAmount,
@@ -137,10 +151,33 @@ const mediumBotDecision = (req: BotActionRequest): BotActionResponse => {
         amount: req.callAmount,
         reasoning: 'medium: medium hand call'
       }
-    } else {
-      return { action: 'FOLD', reasoning: 'medium: medium hand fold to big bet' }
     }
+    if (headsUp && Math.random() < 0.2) {
+      return {
+        action: 'CALL',
+        amount: req.callAmount,
+        reasoning: 'medium: call to bluff later'
+      }
+    }
+    return { action: 'FOLD', reasoning: 'medium: medium hand fold to big bet' }
   } else {
+    if (req.callAmount === 0) {
+      if (headsUp && Math.random() < 0.12) {
+        const bluffAmount = Math.min(
+          req.playerChips,
+          req.currentBet + req.minRaise
+        )
+        return { action: 'RAISE', amount: bluffAmount, reasoning: 'medium: bluff' }
+      }
+      return { action: 'CHECK', reasoning: 'medium: weak hand check' }
+    }
+    if (headsUp && Math.random() < 0.35) {
+      return {
+        action: 'CALL',
+        amount: req.callAmount,
+        reasoning: 'medium: call with weak (bluff potential)'
+      }
+    }
     return { action: 'FOLD', reasoning: 'medium: weak hand fold' }
   }
 }
@@ -151,20 +188,30 @@ const hardBotDecision = (req: BotActionRequest): BotActionResponse => {
     req.communityCards
   )
   const communityCount = req.communityCards.length
+  const headsUp = isHeadsUp(req)
 
   if (communityCount === 0) {
     if (req.callAmount === 0) {
+      if (headsUp && Math.random() < 0.2) {
+        const raiseAmount = Math.min(
+          req.playerChips,
+          req.currentBet + req.minRaise * 2
+        )
+        return { action: 'RAISE', amount: raiseAmount, reasoning: 'hard: steal preflop' }
+      }
       return { action: 'CHECK', reasoning: 'hard: check preflop' }
     }
     const r = Math.random()
-    if (r < 0.6) {
+    const callChance = headsUp ? 0.75 : 0.6
+    const foldChance = headsUp ? 0.05 : 0.15
+    if (r < callChance) {
       return {
         action: 'CALL',
         amount: req.callAmount,
         reasoning: 'hard: call preflop'
       }
     }
-    if (r < 0.85) {
+    if (r < callChance + (1 - callChance - foldChance)) {
       const raiseAmount = Math.min(
         req.playerChips,
         req.currentBet + req.minRaise * 2
@@ -174,7 +221,7 @@ const hardBotDecision = (req: BotActionRequest): BotActionResponse => {
     return { action: 'FOLD', reasoning: 'hard: fold preflop' }
   }
 
-  const potOdds = req.callAmount / (req.potSize + req.callAmount)
+  const potOdds = req.callAmount / Math.max(req.potSize + req.callAmount, 1)
 
   let winProbability = handStrength
   const cardsToCome = 5 - req.communityCards.length
@@ -204,9 +251,16 @@ const hardBotDecision = (req: BotActionRequest): BotActionResponse => {
     }
   } else if (winProbability > potOdds - 0.1) {
     if (req.callAmount === 0) {
+      if (Math.random() < 0.25) {
+        const bluffAmount = Math.min(
+          req.playerChips,
+          req.currentBet + req.minRaise * 2
+        )
+        return { action: 'RAISE', amount: bluffAmount, reasoning: 'hard: bluff' }
+      }
       return { action: 'CHECK', reasoning: 'hard: borderline check' }
     }
-    if (Math.random() < 0.3) {
+    if (Math.random() < 0.45) {
       const bluffAmount = Math.min(
         req.playerChips,
         req.currentBet + req.minRaise * 2
@@ -220,7 +274,21 @@ const hardBotDecision = (req: BotActionRequest): BotActionResponse => {
     }
   } else {
     if (req.callAmount === 0) {
+      if (headsUp && Math.random() < 0.18) {
+        const bluffAmount = Math.min(
+          req.playerChips,
+          req.currentBet + req.minRaise
+        )
+        return { action: 'RAISE', amount: bluffAmount, reasoning: 'hard: bluff weak' }
+      }
       return { action: 'CHECK', reasoning: 'hard: check with weak hand' }
+    }
+    if (headsUp && Math.random() < 0.2) {
+      return {
+        action: 'CALL',
+        amount: req.callAmount,
+        reasoning: 'hard: bluff call'
+      }
     }
     return { action: 'FOLD', reasoning: 'hard: -EV fold' }
   }

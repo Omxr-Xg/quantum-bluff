@@ -27,8 +27,6 @@ export function Layout({ children }: LayoutProps) {
     if (!socket) return;
 
     const handleFriendRequestReceived = (payload: any) => {
-      console.log("GLOBAL FRIEND_REQUEST_RECEIVED:", payload);
-
       setNotification({
         id: Date.now(),
         message: `Nouvelle demande d'ami de ${payload?.sender?.username || "un joueur"}`
@@ -36,8 +34,6 @@ export function Layout({ children }: LayoutProps) {
     };
 
     const handleFriendRequestAccepted = () => {
-      console.log("GLOBAL FRIEND_REQUEST_ACCEPTED");
-
       setNotification({
         id: Date.now(),
         message: "Votre demande d'ami a été acceptée"
@@ -63,7 +59,6 @@ export function Layout({ children }: LayoutProps) {
     return () => clearTimeout(timer);
   }, [notification]);
 
-  console.log("LAYOUT SOCKET STATUS:", { hasSocket: !!socket, isConnected });
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <AnimatePresence>
