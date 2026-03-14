@@ -1,3 +1,16 @@
+/**
+ * =============================================================================
+ * EVALUATOR.TEST.TS — Tests de l’évaluateur de mains Texas Hold’em
+ * =============================================================================
+ *
+ * Teste getHandValue() pour toutes les catégories (carte haute, paire, double
+ * paire, brelan, quinte, couleur, full, carré, quinte flush) et findWinner /
+ * findWinners pour les cas d’égalité et de split pot.
+ *
+ * Chaque describe/test est commenté de A à Z.
+ * =============================================================================
+ */
+
 import { getHandValue, findWinner, findWinners } from '../logic/Evaluator.js';
 import type { Card, Player, Rank, Suit } from '../types/poker.js';
 
