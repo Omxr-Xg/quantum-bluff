@@ -16,19 +16,27 @@ import { GameGateway } from './sockets/game.gateway.js'
 
 const app = express()
 
-const FRONTEND_ORIGIN = 'http://localhost:5173'
+// frontend originler
+const FRONTEND_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174'
+]
 
 // sécurité HTTP
 app.use(helmet())
 
-// CORS - avant le rate limiter pour les preflight
+// CORS
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+  origin: FRONTEND_ORIGINS,
   credentials: true,
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
   optionsSuccessStatus: 200
 }))
 
-// Rate limiter plus large pour le développement (éviter 429)
+// Rate limiter
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
@@ -37,6 +45,7 @@ const limiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: true
 })
+
 app.use(limiter)
 
 app.use(express.json({ limit: '10kb' }))
@@ -61,17 +70,17 @@ app.get('/', (_req, res) => {
 // serveur HTTP
 const httpServer = createServer(app)
 
-// serveur websocket
+// websocket
 const io = new Server(httpServer, {
   cors: {
-    origin: FRONTEND_ORIGIN,
+    origin: FRONTEND_ORIGINS,
     credentials: true
   }
 })
 
 app.set('io', io)
 
-// gateway poker + auth socket déjà gérée dedans
+// gateway poker
 new GameGateway(io)
 
 const PORT = 3000

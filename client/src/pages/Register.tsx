@@ -14,7 +14,7 @@ export function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const [register, { isLoading, error }] = useRegisterMutation()
+  const [registerUser, { isLoading, error }] = useRegisterMutation()
   const navigate = useNavigate()
 
   const isFormValid =
@@ -26,19 +26,23 @@ export function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
 
     e.preventDefault()
-    if (!isFormValid) return
+
+    console.log("🟢 FORM SUBMIT")
+
+    if (!isFormValid) {
+      console.log("❌ Form invalid")
+      return
+    }
 
     try {
 
-      const response = await register({
+      const response = await registerUser({
         username,
         email,
         password
       }).unwrap()
 
       console.log("✅ Inscription réussie:", response)
-
-      localStorage.removeItem("userid")
 
       localStorage.setItem("token", response.token)
       localStorage.setItem("userId", String(response.user.id))
@@ -114,7 +118,7 @@ export function Register() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-3 text-gray-400"
                 >
-                  {showPassword ? <EyeOff /> : <Eye />}
+                  {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
                 </button>
               </div>
             </div>
@@ -135,25 +139,25 @@ export function Register() {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-3 text-gray-400"
                 >
-                  {showConfirmPassword ? <EyeOff /> : <Eye />}
+                  {showConfirmPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
                 </button>
               </div>
             </div>
 
             {error && (
               <div className="text-red-400 text-sm text-center">
-                {'data' in error ? error.data?.error : "Erreur inscription"}
+                {"data" in error ? (error as any).data?.error : "Erreur inscription"}
               </div>
             )}
 
             <button
               type="submit"
-              disabled={!isFormValid || isLoading}
+              disabled={isLoading}
               className="w-full py-3 bg-purple-600 hover:bg-purple-500 rounded-lg text-white font-bold flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="animate-spin" />
+                  <Loader2 className="animate-spin" size={18}/>
                   Inscription...
                 </>
               ) : (
