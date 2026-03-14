@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useSocket } from "./SocketContext";
-import { HiddenBetsResultsModal } from "../components/HiddenBetsResultsModal";
 
 export interface HiddenBet {
   id: string;
@@ -25,6 +24,7 @@ interface HiddenBetsContextType {
   totalAmount: number;
   showResults: boolean;
   setShowResults: (show: boolean) => void;
+  setBetsResults: (results: HiddenBet[]) => void;
 }
 
 const HiddenBetsContext = createContext<HiddenBetsContextType | undefined>(
@@ -41,6 +41,11 @@ export const HiddenBetsProvider = ({
   const [showResults, setShowResults] = useState(false);
   const { socket } = useSocket();
 
+  const setBetsResults = (results: HiddenBet[]) => {
+    setBets(results);
+    setShowResults(true);
+  };
+
   useEffect(() => {
     if (!socket) return;
 
@@ -49,8 +54,7 @@ export const HiddenBetsProvider = ({
     };
 
     const handleResults = (results: HiddenBet[]) => {
-      setBets(results);
-      setShowResults(true);
+      setBetsResults(results);
     };
 
     socket.on("BET_PLACED", handlePlaced);
@@ -102,15 +106,10 @@ export const HiddenBetsProvider = ({
         totalAmount,
         showResults,
         setShowResults,
+        setBetsResults,
       }}
     >
       {children}
-      {showResults && (
-        <HiddenBetsResultsModal
-          bets={bets}
-          onClose={() => setShowResults(false)}
-        />
-      )}
     </HiddenBetsContext.Provider>
   );
 };

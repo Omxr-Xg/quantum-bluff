@@ -191,38 +191,6 @@ export function Game() {
   const heroCards = tablePlayers.find((p) => p.name === "Diana" || p.name === "Vous")?.cards || [];
   const communityCards = communityCardsState;
 
-  // Log l'état complet à chaque rendu (debug)
-  useEffect(() => {
-    if (phase === "init" || phase === "shuffle" || phase === "deal") return;
-    console.log("=== ÉTAT COMPLET DU JEU ===");
-    console.log(
-      "playersState:",
-      playersState.map((p) => ({
-        name: p.name,
-        isActive: p.isActive,
-        hasFolded: p.hasFolded,
-        isConnected: p.isConnected,
-        id: p.id,
-      }))
-    );
-    console.log("isMyTurn:", isMyTurn);
-    console.log("hasPlayerActed:", hasPlayerActed);
-    console.log("isLoading:", isLoading);
-    console.log("timerActive:", timerActive);
-    console.log("timeLeft:", timeLeft);
-    console.log("phase:", phase);
-    console.log("============================");
-  });
-
-  // Log spécifique au changement de tour
-  useEffect(() => {
-    if (phase === "init" || phase === "shuffle" || phase === "deal") return;
-    console.log("🔄 CHANGEMENT DE TOUR");
-    console.log("Active player:", playersState.find((p) => p.isActive)?.name);
-    console.log("isMyTurn:", isMyTurn);
-    console.log("timerActive:", timerActive);
-  }, [playersState, isMyTurn, timerActive, phase]);
-
   // Générer un jeu de cartes complet
   const generateDeck = (): Card[] => {
     const suits: Array<"hearts" | "diamonds" | "clubs" | "spades"> = ["hearts", "diamonds", "clubs", "spades"];
@@ -373,8 +341,6 @@ export function Game() {
 
   // Forcer l'activation du timer quand c'est le tour du joueur
   useEffect(() => {
-    console.log("🕐 TIMER EFFECT - isMyTurn:", isMyTurn, "gameInitialized:", gameInitialized, "phase:", phase);
-
     if (!isMyTurn || !gameInitialized || phase === "init" || phase === "shuffle" || phase === "deal") {
       setTimerActive(false);
       if (timerIntervalRef.current) {
@@ -394,13 +360,11 @@ export function Game() {
       return;
     }
 
-    console.log("✅ DÉMARRAGE DU TIMER");
     setTimerActive(true);
     setTimeLeft(20);
 
     timerIntervalRef.current = setInterval(() => {
       setTimeLeft((prev) => {
-        console.log("⏱️ Timer:", prev);
         if (prev <= 1) {
           if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
@@ -408,10 +372,8 @@ export function Game() {
           }
           setTimerActive(false);
           if (callAmount === 0) {
-            console.log("⏱️ Timeout: CHECK auto");
             handleCheck();
           } else {
-            console.log("⏱️ Timeout: FOLD auto");
             handleFold();
           }
           return 0;
@@ -421,7 +383,6 @@ export function Game() {
     }, 1000);
 
     return () => {
-      console.log("🛑 Arrêt du timer");
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
@@ -556,7 +517,18 @@ export function Game() {
           pot: currentPot,
         });
       })
-      .catch(() => setHandResult("loss"));
+      .catch(() => {
+        const fallbackWinner = activeInHand.find((p) => p.name !== "Vous" && p.name !== "Diana") ?? activeInHand[0];
+        setPot(0);
+        setShowdownResult({
+          winnerId: fallbackWinner?.id ?? "",
+          winnerName: fallbackWinner?.name ?? "Inconnu",
+          hand: "—",
+          handRank: 0,
+          pot: currentPot,
+        });
+        setHandResult("loss");
+      });
   }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot]);
 
   useEffect(() => {
@@ -648,7 +620,7 @@ export function Game() {
     fetchBotDecision();
   }, [isBotMode, playersState, isBotThinking, phase, communityCardsState, pot, callAmount, addToast, handResult]);
 
-  // Après gain/perte : animation puis retour au lobby et mise à jour des stats
+  // Après gain/perte : animation puis enregistrement des stats (sans navigation)
   useEffect(() => {
     if (handResult === null) return;
     const t = setTimeout(() => {
@@ -663,10 +635,9 @@ export function Game() {
           body: JSON.stringify({ won: handResult === "win" }),
         }).catch(() => {});
       }
-      navigate(mode === "bot" ? "/bot-configuration" : "/lobby");
     }, 2500);
     return () => clearTimeout(t);
-  }, [handResult, mode, navigate]);
+  }, [handResult]);
 
   const handleFold = (playerId?: number | string) => {
     if (handResult !== null) return;
@@ -901,7 +872,6 @@ export function Game() {
         <button
           type="button"
           onClick={() => {
-            console.log("DEBUG - Forcer déblocage");
             setTimerActive(true);
             setTimeLeft(20);
             setIsLoading(false);
@@ -1036,8 +1006,15 @@ export function Game() {
           if (!showdownResult) return;
           const humanId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
           const won = showdownResult.winnerId === humanId || showdownResult.winnerId === "human";
+          const winnerName = showdownResult.winnerName;
+          const handName = showdownResult.hand;
           setHandResult(won ? "win" : "loss");
           setShowdownResult(null);
+          setTimeout(() => {
+            navigate("/hidden-bets-result", {
+              state: { winnerName, handName },
+            });
+          }, 2500);
         }}
       />
 
@@ -1068,7 +1045,7 @@ export function Game() {
               <h2 className="text-2xl md:text-3xl font-bold text-white">
                 {handResult === "win" ? "Vous avez gagné !" : "Vous avez perdu"}
               </h2>
-              <p className="text-slate-300 text-sm">Retour au lobby...</p>
+              <p className="text-slate-300 text-sm">Résultats des paris cachés...</p>
             </motion.div>
           </motion.div>
         )}
@@ -1230,7 +1207,7 @@ export function Game() {
             </div>
 
             <button
-              onClick={() => console.log("Ajouter de l'argent")}
+              onClick={() => {}}
               className={`bg-gradient-to-b from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white ${isMobile ? 'w-7 h-7' : 'w-8 h-8'} rounded-full flex items-center justify-center shadow-md transition-all transform hover:scale-105 border border-green-400`}
               title="Ajouter des crédits"
             >
