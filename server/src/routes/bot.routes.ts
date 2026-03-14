@@ -183,12 +183,49 @@ const hardBotDecision = (req: BotActionRequest): BotActionResponse => {
   }
 }
 
+const SUIT_MAP: Record<string, Card['suit']> = {
+  hearts: 'HEARTS',
+  diamonds: 'DIAMONDS',
+  clubs: 'CLUBS',
+  spades: 'SPADES',
+  HEARTS: 'HEARTS',
+  DIAMONDS: 'DIAMONDS',
+  CLUBS: 'CLUBS',
+  SPADES: 'SPADES'
+}
+
+const RANK_MAP: Record<string, Card['rank']> = {
+  '2': '2', '3': '3', '4': '4', '5': '5', '6': '6',
+  '7': '7', '8': '8', '9': '9', '10': '10',
+  J: 'J', Q: 'Q', K: 'K', A: 'A',
+  j: 'J', q: 'Q', k: 'K', a: 'A'
+}
+
+const RANK_VALUE: Record<string, number> = {
+  '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
+  J: 11, Q: 12, K: 13, A: 14
+}
+
+function normalizeCard(c: { suit?: string; rank?: string; value?: string | number }): Card {
+  const suitStr = (c.suit ?? '').toLowerCase()
+  const suit = SUIT_MAP[suitStr] ?? 'HEARTS'
+  const rank = c.rank ? RANK_MAP[String(c.rank)] ?? '2' : (RANK_MAP[String(c.value)] ?? '2')
+  const value = typeof c.value === 'number' ? c.value : (RANK_VALUE[String(c.value ?? rank)] ?? 2)
+  return { suit, rank, value }
+}
+
 router.post('/action', (req, res) => {
   try {
-    const botRequest = req.body as BotActionRequest
+    const raw = req.body as BotActionRequest & { playerCards?: Array<{ suit?: string; rank?: string; value?: string | number }> }
 
-    if (!botRequest.playerCards || !botRequest.difficulty) {
+    if (!raw.playerCards || !raw.difficulty) {
       return res.status(400).json({ error: 'Missing required fields' })
+    }
+
+    const botRequest: BotActionRequest = {
+      ...raw,
+      playerCards: (raw.playerCards ?? []).map(normalizeCard),
+      communityCards: (raw.communityCards ?? []).map(normalizeCard)
     }
 
     let decision: BotActionResponse

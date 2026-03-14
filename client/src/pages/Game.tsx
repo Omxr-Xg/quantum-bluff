@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { PokerTable } from "../components/PokerTable";
@@ -83,6 +83,8 @@ export function Game() {
   const [shuffleCount, setShuffleCount] = useState(0);
   const [, setDealingCard] = useState<number | null>(null);
   const [roundPlayersActed, setRoundPlayersActed] = useState<Set<number>>(new Set());
+  const [gameInitialized, setGameInitialized] = useState(false);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
@@ -90,6 +92,71 @@ export function Game() {
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
+
+  const getPlayers = (): (BasePlayer | BotPlayer)[] => {
+    const count = parseInt(searchParams.get("bots") || "1", 10);
+    const diff = searchParams.get("difficulty") || "moyen";
+    const diffMap: "easy" | "medium" | "hard" =
+      diff === "facile" ? "easy" : diff === "difficile" || diff === "expert" ? "hard" : "medium";
+
+    if (mode === "bot") {
+      const botNames = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
+      const bots: BotPlayer[] = [];
+      for (let i = 0; i < count; i++) {
+        bots.push({
+          id: `bot-${i + 1}`,
+          name: `Bot ${botNames[i]}`,
+          chips: 5000,
+          bet: 0,
+          position: i,
+          isActive: i === 0,
+          isDealer: false,
+          cards: [],
+          isBot: true,
+          difficulty: diffMap,
+          isConnected: true,
+          hasFolded: false,
+        });
+      }
+      bots.push({
+        id: count + 1,
+        name: "Vous",
+        chips: playerChips,
+        bet: 0,
+        position: count,
+        isActive: false,
+        isDealer: false,
+        cards: [],
+        isConnected: true,
+        hasFolded: false,
+      });
+      return bots;
+    }
+    return [
+      { id: 1, name: "Alice", chips: 2500, bet: 100, position: 0, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
+      { id: 2, name: "Bob", chips: 3200, bet: 100, position: 1, isActive: true, isDealer: false, cards: [], isConnected: true, hasFolded: false },
+      { id: 3, name: "Charlie", chips: 1800, bet: 0, position: 2, isActive: false, isDealer: false, cards: [], isConnected: false, hasFolded: false },
+      { id: 4, name: "Diana", chips: 4100, bet: 100, position: 3, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
+      { id: 5, name: "Eve", chips: 2900, bet: 100, position: 4, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
+      { id: 6, name: "Vous", chips: playerChips, bet: 0, position: 5, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
+    ];
+  };
+
+  // Déclarations dérivées AVANT les useEffect qui les utilisent (évite "Cannot access before initialization")
+  const activePlayers = playersState.length > 0 ? playersState : getPlayers();
+  const callAmount = 100;
+  const tablePlayers = activePlayers.map((player) => {
+    const humanPlayer = player.name === "Diana" || player.name === "Vous";
+    if (humanPlayer) {
+      return { ...player, position: 0, cards: player.cards || [] };
+    }
+    const otherPlayerIndex = activePlayers.filter((p) => p.name !== "Diana" && p.name !== "Vous").indexOf(player);
+    return { ...player, position: otherPlayerIndex + 1 };
+  });
+  const activePlayer = activePlayers.find((p) => p.isActive);
+  const isMyTurn = activePlayer?.name === "Diana" || activePlayer?.name === "Vous";
+  const heroCards = tablePlayers.find((p) => p.name === "Diana" || p.name === "Vous")?.cards || [];
+  const communityCards = communityCardsState;
 
   // Générer un jeu de cartes complet
   const generateDeck = (): Card[] => {
@@ -106,71 +173,33 @@ export function Game() {
     return newDeck.sort(() => Math.random() - 0.5);
   };
 
-  // Animation de shuffle
-  const performShuffle = () => {
-    setPhase("shuffle");
-    setShuffleCount(0);
-    
-    const shuffleInterval = setInterval(() => {
-      setShuffleCount(prev => {
-        if (prev >= 8) {
-          clearInterval(shuffleInterval);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 150);
-
-    setTimeout(() => {
-      setPhase("deal");
-      dealCardsToPlayers();
-    }, 1500);
-  };
-
-  // Distribution des cartes aux joueurs
-  const dealCardsToPlayers = () => {
-    const newDeck = [...deck];
-    const updatedPlayers = [...playersState];
-    
+  // Distribution des cartes aux joueurs (utilise le deck et les joueurs passés en argument)
+  const dealCardsToPlayers = (currentDeck: Card[], currentPlayers: (BasePlayer | BotPlayer)[]) => {
+    const newDeck = [...currentDeck];
+    const updatedPlayers = currentPlayers.map((p) => ({ ...p, cards: [...(p.cards || [])] }));
     let cardIndex = 0;
+
     const dealInterval = setInterval(() => {
       const playerIndex = Math.floor(cardIndex / 2);
-      
+
       if (playerIndex >= updatedPlayers.length) {
         clearInterval(dealInterval);
         setPhase("preflop");
         setRoundPlayersActed(new Set());
+        setGameInitialized(true);
         return;
       }
-      
+
       const card = newDeck.shift();
       if (card && updatedPlayers[playerIndex]) {
-        if (!updatedPlayers[playerIndex].cards) {
-          updatedPlayers[playerIndex].cards = [];
-        }
+        if (!updatedPlayers[playerIndex].cards) updatedPlayers[playerIndex].cards = [];
         updatedPlayers[playerIndex].cards.push(card);
-        setPlayersState([...updatedPlayers]);
-        const finalPlayers = [...updatedPlayers];
-        finalPlayers.forEach((player) => {
-          if (player.name !== "Vous") {
-            // Distribue des cartes aléatoires aux bots
-            const suits = ["hearts", "diamonds", "clubs", "spades"];
-            const values = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
-            player.cards = [
-              { suit: suits[Math.floor(Math.random() * 4)], value: values[Math.floor(Math.random() * 13)] },
-              { suit: suits[Math.floor(Math.random() * 4)], value: values[Math.floor(Math.random() * 13)] }
-            ];
-          }
-        });
+        const finalPlayers = updatedPlayers.map((p) => ({ ...p, cards: [...(p.cards || [])] }));
         setPlayersState(finalPlayers);
         setDeck([...newDeck]);
-        setDealingCard(cardIndex);
-        
-        setTimeout(() => setDealingCard(null), 400);
       }
-      
       cardIndex++;
-    }, 200);
+    }, 250);
   };
 
   // Distribution du flop (3 cartes)
@@ -231,59 +260,6 @@ export function Game() {
     setRoundPlayersActed(new Set());
   };
 
-  const getPlayers = (): (BasePlayer | BotPlayer)[] => {
-    const count = parseInt(searchParams.get("bots") || "1", 10);
-    const diff = searchParams.get("difficulty") || "moyen";
-    const diffMap: "easy" | "medium" | "hard" =
-      diff === "facile" ? "easy" : diff === "difficile" || diff === "expert" ? "hard" : "medium";
-
-    if (mode === "bot") {
-      const botNames = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
-      const bots: BotPlayer[] = [];
-
-      for (let i = 0; i < count; i++) {
-        bots.push({
-          id: `bot-${i + 1}`,
-          name: `Bot ${botNames[i]}`,
-          chips: 5000,
-          bet: 0,
-          position: i,
-          isActive: i === 0,
-          isDealer: false,
-          cards: [],
-          isBot: true,
-          difficulty: diffMap,
-          isConnected: true,
-          hasFolded: false,
-        });
-      }
-
-      bots.push({
-        id: count + 1,
-        name: "Vous",
-        chips: playerChips,
-        bet: 0,
-        position: count,
-        isActive: false,
-        isDealer: false,
-        cards: [],
-        isConnected: true,
-        hasFolded: false,
-      });
-
-      return bots;
-    }
-
-    return [
-      { id: 1, name: "Alice", chips: 2500, bet: 100, position: 0, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 2, name: "Bob", chips: 3200, bet: 100, position: 1, isActive: true, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 3, name: "Charlie", chips: 1800, bet: 0, position: 2, isActive: false, isDealer: false, cards: [], isConnected: false, hasFolded: false },
-      { id: 4, name: "Diana", chips: 4100, bet: 100, position: 3, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 5, name: "Eve", chips: 2900, bet: 100, position: 4, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 6, name: "Vous", chips: playerChips, bet: 0, position: 5, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-    ];
-  };
-
   useEffect(() => {
     const initialPlayers = getPlayers();
     initialPlayers.forEach((p, idx) => {
@@ -291,14 +267,31 @@ export function Game() {
       p.cards = [];
     });
     setPlayersState(initialPlayers);
-
-    const newDeck = generateDeck();
-    setDeck(newDeck);
-
-    setTimeout(() => {
-      performShuffle();
-    }, 1000);
+    setDeck(generateDeck());
   }, []);
+
+  useEffect(() => {
+    if (phase !== "init" || deck.length === 0) return;
+    const t = setTimeout(() => setPhase("shuffle"), 800);
+    return () => clearTimeout(t);
+  }, [phase, deck.length]);
+
+  useEffect(() => {
+    if (phase !== "shuffle") return;
+    setShuffleCount(0);
+    const shuffleInterval = setInterval(() => {
+      setShuffleCount((prev) => (prev >= 8 ? prev : prev + 1));
+    }, 150);
+    const t = setTimeout(() => {
+      clearInterval(shuffleInterval);
+      setPhase("deal");
+      dealCardsToPlayers(deck, playersState);
+    }, 1500);
+    return () => {
+      clearInterval(shuffleInterval);
+      clearTimeout(t);
+    };
+  }, [phase]);
 
   useEffect(() => {
     if (!socket) return;
@@ -306,59 +299,57 @@ export function Game() {
       setTimeLeft(data.timeLeft);
       setTimerActive(true);
     });
-    return () => {
-      socket.off("TURN_TIMER");
-    };
+    return () => socket.off("TURN_TIMER");
   }, [socket]);
 
+  const playPhase = phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river";
+
   useEffect(() => {
-    if (timeLeft <= 0 && timerActive && isMyTurn) {
-      if (callAmount === 0) handleCheck();
-      else handleFold();
+    if (typeof isMyTurn === "undefined") return;
+    if (!gameInitialized || !playPhase) {
       setTimerActive(false);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      return;
     }
-  }, [timeLeft, timerActive, isMyTurn, callAmount]);
-
-  useEffect(() => {
-    if (!timerActive || !isMyTurn) return;
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [timerActive, isMyTurn]);
-
-  useEffect(() => {
-    if (isMyTurn) {
+    if (!isMyTurn) {
+      setTimerActive(false);
       setTimeLeft(20);
-      setTimerActive(true);
-    } else {
-      setTimerActive(false);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      return;
     }
-  }, [isMyTurn]);
 
-  const activePlayers = playersState.length > 0 ? playersState : getPlayers();
-  const callAmount = 100;
+    setTimerActive(true);
+    setTimeLeft(20);
 
-  const tablePlayers = activePlayers.map((player) => {
-    const humanPlayer = player.name === "Diana" || player.name === "Vous";
-    console.log("Player cards:", player.cards);
-    if (humanPlayer) {
-      return { 
-        ...player, 
-        position: 0,
-        cards: player.cards || []
-      };
-    } else {
-      const otherPlayerIndex = activePlayers.filter(p => p.name !== "Diana" && p.name !== "Vous").indexOf(player);
-      return { ...player, position: otherPlayerIndex + 1 };
-    }
-  });
+    timerIntervalRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+          }
+          setTimerActive(false);
+          if (callAmount === 0) handleCheck();
+          else handleFold();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-  const activePlayer = activePlayers.find(p => p.isActive);
-  const isMyTurn = activePlayer?.name === "Diana" || activePlayer?.name === "Vous";
-
-  const heroCards = tablePlayers.find(p => p.name === "Diana" || p.name === "Vous")?.cards || [];
-  const communityCards = communityCardsState;
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [isMyTurn, gameInitialized, playPhase]);
 
   const nextTurn = () => {
     setPlayersState((prevPlayers) => {
@@ -473,20 +464,25 @@ export function Game() {
   }, [isBotMode, playersState, isBotThinking, phase, communityCardsState, pot, callAmount]);
 
   const handleFold = (playerId?: number | string) => {
-    if (playerId !== undefined && playerId !== (playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id)) {
-      setPlayersState((prev) =>
-        prev.map((p) => (p.id === playerId ? { ...p, hasFolded: true } : p))
-      );
-    } else {
-      setHasFolded(true);
-    }
+    const heroId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
+    const isHuman = playerId === undefined || playerId === heroId;
+
+    setPlayersState((prev) =>
+      prev.map((p) => {
+        if (p.id === playerId || (isHuman && (p.name === "Vous" || p.name === "Diana"))) {
+          return { ...p, hasFolded: true };
+        }
+        return p;
+      })
+    );
+    if (isHuman) setHasFolded(true);
     setHasPlayerActed(true);
-    setTimeout(() => nextTurn(), 1000);
+    setTimeout(() => nextTurn(), 500);
   };
 
   const handleCheck = (_playerId?: number | string) => {
     setHasPlayerActed(true);
-    setTimeout(() => nextTurn(), 1000);
+    setTimeout(() => nextTurn(), 500);
   };
 
   const handleCall = (amount: number, playerId?: number | string) => {
@@ -502,7 +498,7 @@ export function Game() {
     }
     setPot((prev) => prev + amount);
     setHasPlayerActed(true);
-    setTimeout(() => nextTurn(), 1000);
+    setTimeout(() => nextTurn(), 500);
   };
 
   const handleRaise = (amount: number, playerId?: number | string) => {
@@ -518,7 +514,7 @@ export function Game() {
     }
     setPot((prev) => prev + amount);
     setHasPlayerActed(true);
-    setTimeout(() => nextTurn(), 1000);
+    setTimeout(() => nextTurn(), 500);
   };
 
   const handleSendMessage = (content: string, type: "emoji" | "text") => {
