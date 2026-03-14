@@ -108,6 +108,8 @@ export function Game() {
   const gameStateFromSocketRef = useRef(false);
   const clearBotActionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playersStateRef = useRef<(BasePlayer | BotPlayer)[]>([]);
+  const deckRef = useRef<Card[]>([]);
+  const communityCardsStateRef = useRef<(Card | null)[]>([]);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
@@ -711,12 +713,19 @@ export function Game() {
     }
   }, [roundPlayersActed, phase, playersState, gameIdParam, userId, runOutPhase]);
 
+  // Garder les refs à jour pour le run-out (éviter closures stales)
+  useEffect(() => {
+    deckRef.current = deck;
+    communityCardsStateRef.current = communityCardsState;
+  }, [deck, communityCardsState]);
+
   // Réinitialiser le run-out en début de main
   useEffect(() => {
     if (phase === "init" || phase === "shuffle" || phase === "deal") setRunOutPhase(null);
   }, [phase]);
 
-  // Run-out du board après all-in : distribuer Turn/River sans tour de mise, puis showdown
+  // Run-out du board après all-in : distribuer Flop puis Turn puis River sans tour de mise, puis showdown
+  // On lit deckRef/communityCardsStateRef dans le timeout pour avoir l'état à jour (sinon Turn/River écrasent le Flop)
   useEffect(() => {
     if (runOutPhase === null) return;
     const t = setTimeout(() => {
@@ -724,16 +733,30 @@ export function Game() {
         dealFlop(true);
         setRunOutPhase("flop");
       } else if (runOutPhase === "flop") {
-        dealTurn(true);
+        const currentDeck = [...deckRef.current];
+        const currentCommunity = [...communityCardsStateRef.current];
+        currentDeck.shift(); // burn
+        const turnCard = currentDeck.shift();
+        if (turnCard) currentCommunity[3] = turnCard;
+        setDeck(currentDeck);
+        setCommunityCardsState(currentCommunity);
+        setPhase("turn");
         setRunOutPhase("turn");
       } else if (runOutPhase === "turn") {
-        dealRiver(true);
+        const currentDeck = [...deckRef.current];
+        const currentCommunity = [...communityCardsStateRef.current];
+        currentDeck.shift(); // burn
+        const riverCard = currentDeck.shift();
+        if (riverCard) currentCommunity[4] = riverCard;
+        setDeck(currentDeck);
+        setCommunityCardsState(currentCommunity);
+        setPhase("river");
         setRunOutPhase("river");
       } else if (runOutPhase === "river") {
         setPhase("showdown");
         setRunOutPhase(null);
       }
-    }, 1200);
+    }, runOutPhase === "preflop" ? 1200 : 1400);
     return () => clearTimeout(t);
   }, [runOutPhase]);
 
