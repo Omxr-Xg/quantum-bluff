@@ -74,7 +74,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "autoprefixer": "^10.4.27",
     "concurrently": "^9.2.1",
-    "electron": "^40.8.0",
+    "electron": "^40.8.2",
     "electron-builder": "^26.8.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -89,5 +89,6 @@
     "vite": "^7.3.1",
     "vitest": "^4.0.18",
     "wait-on": "^9.0.4"
-  }
+  },
+  "build": "{\n  \"appId\": \"com.quantumbluff.app\",\n  \"productName\": \"Quantum Bluff\",\n  \"directories\": {\n    \"output\": \"dist-electron\"\n  },\n  \"files\": [\n    \"dist/**/*\",\n    \"electron.js\",\n    \"preload.js\",\n    \"src/assets/**/*\"\n  ],\n  \"mac\": {\n    \"category\": \"public.app-category.games\",\n    \"icon\": \"src/assets/logo-personnel.png\"\n  },\n  \"win\": {\n    \"icon\": \"src/assets/logo-personnel.png\",\n    \"target\": \"nsis\"\n  },\n  \"linux\": {\n    \"icon\": \"src/assets/logo-personnel.png\",\n    \"target\": \"AppImae\"\n  }\n}"
 }

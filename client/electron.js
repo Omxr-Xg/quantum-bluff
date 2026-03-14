@@ -1,23 +1,92 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, Menu, shell } = require('electron');
+const path = require('path');
+const isDev = process.env.NODE_ENV === 'development';
+
+let mainWindow = null;
 
 function createWindow() {
-  const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1000,
+    minHeight: 700,
+    backgroundColor: '#0f172a',
+    show: false,
+    icon: path.join(__dirname, 'src/assets/logo-personnel.png'),
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     }
   });
 
-  // En développement, charger depuis le serveur React
-  if (process.env.NODE_ENV === 'development') {
-    win.loadURL('http://localhost:5173');
-    win.webContents.openDevTools();
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.webContents.openDevTools();
   } else {
-    // En production, charger les fichiers compilés
-    win.loadFile('dist/index.html');
+    mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   }
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return  action: 'deny' };
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
-app.whenReady().then(createWindow);
+const menuTemplate = [
+  ...(process.platform === 'darwin' ? [{
+    label: app.name,
+    submenu: [
+      { role: 'about' },
+      { type: 'separator' },
+      { role: 'hide' },
+      { role: 'hideothers' },
+      { role: 'unhide' },
+      { type: 'separator' },
+      { role: 'quit' }
+    ]
+  }] : []),
+  {
+    label: 'Fichier',
+    submenu: [
+      { role: 'quit' }
+    ]
+  },
+  {
+    label: 'Affichage',
+    submenu: [
+      { role: 'reload' },
+      { role: 'forceReload' },
+      { role: 'toggleDevTools' },
+      { type: 'separator' },
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' }
+    ]
+  }
+];
+
+const menu = Menu.buildFromTemplate(menuTemplate);
+Menu.setApplicationMenu(menu);
+
+app.whenReady().then(() => {
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
