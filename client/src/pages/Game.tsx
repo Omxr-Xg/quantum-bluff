@@ -20,26 +20,10 @@ import { useDeviceType } from "../components/ui/use-mobile";
 import { ShowdownDisplay } from "../components/ShowdownDisplay";
 import { useUser } from "../hooks/useUser";
 
-interface Card {
-  suit: "hearts" | "diamonds" | "clubs" | "spades";
-  value: string;
-}
+import type { ClientCard } from "../utils/cards";
+import { normalizeServerCard } from "../utils/cards";
 
-/** Convertit une carte reçue du serveur (suit MAJ, value number, rank?) en format client. */
-function normalizeServerCard(c: { suit?: string; value?: number | string; rank?: string } | null): Card | null {
-  if (!c || typeof c !== "object") return null;
-  const suitRaw = (c.suit ?? "").toString().toLowerCase();
-  const suit = ["hearts", "diamonds", "clubs", "spades"].includes(suitRaw) ? suitRaw as Card["suit"] : "hearts";
-  const rank = c.rank;
-  const numVal = typeof c.value === "number" ? c.value : undefined;
-  const value =
-    typeof rank === "string" && rank.length > 0
-      ? rank
-      : numVal !== undefined
-        ? String({ 11: "J", 12: "Q", 13: "K", 14: "A" }[numVal] ?? numVal)
-        : String(c.value ?? "");
-  return { suit, value };
-}
+type Card = ClientCard;
 
 interface ChatMessage {
   id: number;
