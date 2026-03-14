@@ -28,9 +28,12 @@ export class GameGateway {
 
   private setupMiddleware() {
     this.io.use((socket: AuthenticatedSocket, next) => {
-      const token = socket.handshake.auth?.token
+      const authToken = socket.handshake.auth?.token
+      const headerAuth = socket.handshake.headers?.authorization
+      const token = authToken || (typeof headerAuth === 'string' ? headerAuth.split(' ')[1] : undefined)
 
       if (!token) {
+        console.log('❌ Socket: token manquant')
         logSuspiciousAction('MISSING_TOKEN', {
           socketId: socket.id,
           details: 'Connexion socket sans token'
@@ -45,8 +48,11 @@ export class GameGateway {
         ) as { userId: string }
 
         socket.userId = decoded.userId
+        console.log('✅ Socket authentifié:', socket.userId)
         next()
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Token invalide'
+        console.log('❌ Socket token invalide:', msg)
         logSuspiciousAction('INVALID_TOKEN', {
           socketId: socket.id,
           details: 'Token socket invalide'
@@ -58,7 +64,13 @@ export class GameGateway {
 
   private setupHandlers() {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
-      console.log('🎮 Joueur connecté:', socket.id, 'User:', socket.userId)
+      console.log('🎮 Nouvelle connexion socket:', socket.id, 'User:', socket.userId)
+
+      socket.on('disconnect', (reason) => {
+        console.log('👋 Socket déconnecté:', socket.id, 'Raison:', reason)
+        this.socketToUser.delete(socket.id)
+        if (socket.userId) this.userToSocket.delete(socket.userId)
+      })
 
       if (socket.userId) {
         this.socketToUser.set(socket.id, socket.userId)
@@ -78,6 +90,17 @@ export class GameGateway {
 
         socket.join(`user:${userId}`)
         console.log(`✅ Utilisateur ${userId} a rejoint sa room personnelle`)
+      })
+
+      socket.on('join-room', ({ roomId }: { roomId?: string; userId?: string }) => {
+        if (!roomId) return
+        socket.join(roomId)
+        console.log(`🚪 Socket ${socket.id} joined waiting room ${roomId}`)
+      })
+
+      socket.on('leave-room', ({ roomId }: { roomId?: string }) => {
+        if (!roomId) return
+        socket.leave(roomId)
       })
 
       socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string }) => {
@@ -237,7 +260,11 @@ export class GameGateway {
           game.handlePlayerAction(playerId, action, amount)
 
           this.resetTimer(gameId)
-          this.io.to(gameId).emit('GAME_UPDATE', game.getSanitizedState())
+          const socketsInRoom = await this.io.in(gameId).fetchSockets()
+          for (const s of socketsInRoom) {
+            const uid = (s as AuthenticatedSocket).userId
+            s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+          }
           this.startTurnTimer(gameId)
         } catch (error) {
           logSuspiciousAction('ACTION_ERROR', {
@@ -319,15 +346,28 @@ export class GameGateway {
         }
 
         if (socket.gameId && userId) {
-          const game = await activeGames.get(socket.gameId);
+          const gameId = socket.gameId
+          const game = await activeGames.get(gameId)
           if (game) {
             const player = game.getPlayerState(userId)
             if (player) {
               player.isConnected = false
-              this.io.to(socket.gameId).emit('PLAYER_DISCONNECTED', {
-                playerId: userId,
-                gameId: socket.gameId
-              })
+              const result = game.endGameDueToDisconnect()
+              if (result) {
+                this.resetTimer(gameId)
+                await activeGames.delete(gameId)
+                this.io.to(gameId).emit('GAME_ENDED', {
+                  gameId,
+                  winnerId: result.winnerId,
+                  reason: 'opponent_left',
+                  pot: result.pot
+                })
+              } else {
+                this.io.to(gameId).emit('PLAYER_DISCONNECTED', {
+                  playerId: userId,
+                  gameId
+                })
+              }
             }
           }
         }
@@ -343,6 +383,7 @@ export class GameGateway {
     const TURN_TIMEOUT_MS = 20000
 
     const timer = setTimeout(async () => {
+      this.resetTimer(gameId)
       const game = await activeGames.get(gameId)
       if (!game) return
 
@@ -364,8 +405,14 @@ export class GameGateway {
             game.handlePlayerAction(currentPlayerId, 'FOLD')
           }
 
-          this.io.to(gameId).emit('GAME_UPDATE', game.getSanitizedState())
-          this.startTurnTimer(gameId)
+          const socketsInRoom = await this.io.in(gameId).fetchSockets()
+          for (const s of socketsInRoom) {
+            const uid = (s as AuthenticatedSocket).userId
+            s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+          }
+          if (game.state.currentTurn) {
+            this.startTurnTimer(gameId)
+          }
         } catch (error) {
           console.error('Erreur timeout:', error)
         }

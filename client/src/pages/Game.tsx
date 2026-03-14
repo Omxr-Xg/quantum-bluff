@@ -18,10 +18,27 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { ShowdownDisplay } from "../components/ShowdownDisplay";
+import { useUser } from "../hooks/useUser";
 
 interface Card {
   suit: "hearts" | "diamonds" | "clubs" | "spades";
   value: string;
+}
+
+/** Convertit une carte reçue du serveur (suit MAJ, value number, rank?) en format client. */
+function normalizeServerCard(c: { suit?: string; value?: number | string; rank?: string } | null): Card | null {
+  if (!c || typeof c !== "object") return null;
+  const suitRaw = (c.suit ?? "").toString().toLowerCase();
+  const suit = ["hearts", "diamonds", "clubs", "spades"].includes(suitRaw) ? suitRaw as Card["suit"] : "hearts";
+  const rank = c.rank;
+  const numVal = typeof c.value === "number" ? c.value : undefined;
+  const value =
+    typeof rank === "string" && rank.length > 0
+      ? rank
+      : numVal !== undefined
+        ? String({ 11: "J", 12: "Q", 13: "K", 14: "A" }[numVal] ?? numVal)
+        : String(c.value ?? "");
+  return { suit, value };
 }
 
 interface ChatMessage {
@@ -58,7 +75,9 @@ export function Game() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode");
+  const gameIdParam = searchParams.get("gameId");
   const isBotMode = mode === "bot";
+  const { userId } = useUser();
 
   const { socket } = useSocket();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -98,6 +117,7 @@ export function Game() {
   } | null>(null);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const gameStateFromSocketRef = useRef(false);
   const clearBotActionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playersStateRef = useRef<(BasePlayer | BotPlayer)[]>([]);
 
@@ -153,14 +173,7 @@ export function Game() {
       });
       return bots;
     }
-    return [
-      { id: 1, name: "Alice", chips: 2500, bet: 100, position: 0, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 2, name: "Bob", chips: 3200, bet: 100, position: 1, isActive: true, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 3, name: "Charlie", chips: 1800, bet: 0, position: 2, isActive: false, isDealer: false, cards: [], isConnected: false, hasFolded: false },
-      { id: 4, name: "Diana", chips: 4100, bet: 100, position: 3, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 5, name: "Eve", chips: 2900, bet: 100, position: 4, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 6, name: "Vous", chips: playerChips, bet: 0, position: 5, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-    ];
+    return [];
   };
 
   // Déclarations dérivées AVANT les useEffect qui les utilisent (évite "Cannot access before initialization")
@@ -171,24 +184,27 @@ export function Game() {
     const highestBet = Math.max(...activePlayers.map((p) => p.bet ?? 0), 0);
     return Math.max(0, highestBet - (activePlayer.bet ?? 0));
   }, [activePlayers, activePlayer]);
+  const isHero = (p: BasePlayer | BotPlayer) => p.id === userId || p.id === "human";
   const tablePlayers = activePlayers.map((player) => {
-    const humanPlayer = player.name === "Diana" || player.name === "Vous";
-    if (humanPlayer) {
+    if (isHero(player)) {
       return { ...player, position: 0, cards: player.cards || [] };
     }
-    const otherPlayerIndex = activePlayers.filter((p) => p.name !== "Diana" && p.name !== "Vous").indexOf(player);
+    const otherPlayerIndex = activePlayers.filter((p) => !isHero(p)).indexOf(player);
     return { ...player, position: otherPlayerIndex + 1 };
   });
-  const isMyTurn =
-    activePlayer?.name === "Diana" ||
-    activePlayer?.name === "Vous" ||
-    activePlayer?.id === "human";
-  const heroPlayer = activePlayers.find((p) => p.name === "Vous" || p.name === "Diana");
+  const isMyTurn = Boolean(
+    activePlayer &&
+      (String(activePlayer.id) === String(userId) ||
+        activePlayer.name === "Vous" ||
+        activePlayer.id === "human")
+  );
+  const heroPlayer = activePlayers.find((p) => isHero(p));
+  const heroDisplayName = heroPlayer?.name ?? "Vous";
   const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
 
   playersStateRef.current = activePlayers;
 
-  const heroCards = tablePlayers.find((p) => p.name === "Diana" || p.name === "Vous")?.cards || [];
+  const heroCards = tablePlayers.find((p) => isHero(p))?.cards || [];
   const communityCards = communityCardsState;
 
   // Générer un jeu de cartes complet
@@ -292,18 +308,200 @@ export function Game() {
   };
 
   useEffect(() => {
-    const initialPlayers = getPlayers();
-    initialPlayers.forEach((p, idx) => {
-      p.isActive = idx === 0;
+    let initial: (BasePlayer | BotPlayer)[] = [];
+    if (gameIdParam && typeof window !== "undefined") {
+      const stored = localStorage.getItem("gamePlayers");
+      if (stored) {
+        try {
+          const parsed: { id: string; name: string }[] = JSON.parse(stored);
+          // Ne pas supprimer : l'autre onglet doit pouvoir lire aussi
+          initial = parsed.map((p, i) => ({
+            id: String(p.id),
+            name: p.name,
+            chips: 1000,
+            bet: 0,
+            position: i,
+            isActive: i === 0,
+            isDealer: false,
+            cards: [],
+            isConnected: true,
+            hasFolded: false,
+            isBot: false,
+          }));
+        } catch (_) {}
+      }
+    }
+    if (initial.length === 0) initial = getPlayers();
+    initial.forEach((p, idx) => {
+      (p as BasePlayer).isActive = idx === 0;
       p.cards = [];
     });
-    setPlayersState(initialPlayers);
-    setDeck(generateDeck());
+    setPlayersState(initial);
+    if (!gameIdParam) {
+      setDeck(generateDeck());
+    }
     if (mode === "bot") {
       setPot(SB + BB);
       setPlayerChips(5000 - BB);
     }
   }, []);
+
+  // Multijoueur : récupérer l'état du jeu depuis le backend (évite race localStorage + cartes / phase / pot)
+  useEffect(() => {
+    if (!gameIdParam || !userId) return;
+    const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+    const base = apiUrl || "";
+    const url = `${base}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
+    let cancelled = false;
+    fetch(url, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json();
+      })
+      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string }) => {
+        if (cancelled) return;
+        if (gameStateFromSocketRef.current) return;
+        const players = gameState.players ?? [];
+        const phaseMap: Record<string, GamePhase> = {
+          WAITING: "init",
+          PREFLOP: "preflop",
+          FLOP: "flop",
+          TURN: "turn",
+          RIVER: "river",
+          SHOWDOWN: "showdown",
+        };
+        const mapped = players.map((p, index) => ({
+          id: String(p.id),
+          name: p.name,
+          chips: p.chips ?? 1000,
+          bet: p.currentBet ?? 0,
+          position: p.position ?? index,
+          isActive: p.id === gameState.currentTurn,
+          isDealer: p.isDealer ?? false,
+          cards: Array.isArray(p.cards) ? p.cards.map((c) => normalizeServerCard(c)).filter((c): c is Card => c !== null) : [],
+          isConnected: p.isConnected !== false,
+          hasFolded: false,
+          isBot: false,
+        }));
+        setPlayersState(mapped);
+        setPot(gameState.pot ?? 0);
+        const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
+        setPhase(phase as GamePhase);
+        const cc = gameState.communityCards;
+        if (Array.isArray(cc)) {
+          const arr: (Card | null)[] = [null, null, null, null, null];
+          cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
+          setCommunityCardsState(arr);
+        }
+        const isPlayingPhase = phase !== "init";
+        setGameInitialized(isPlayingPhase);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error("Erreur récupération état partie:", err);
+      });
+    return () => { cancelled = true; };
+  }, [gameIdParam, userId]);
+
+  // Rejoindre la room socket pour recevoir GAME_UPDATE et TURN_TIMER
+  useEffect(() => {
+    if (!socket || !gameIdParam || !userId) return;
+    socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+    // Pas de socket.leave ici : le client socket.io peut ne pas exposer leave selon l'environnement ;
+    // à la déconnexion ou navigation, le serveur retire le socket de la room.
+    return () => {};
+  }, [socket, gameIdParam, userId]);
+
+  // Appliquer les mises à jour d'état envoyées par le serveur (après une action)
+  useEffect(() => {
+    if (!socket || !gameIdParam || !userId) return;
+    const phaseMap: Record<string, GamePhase> = {
+      WAITING: "init",
+      PREFLOP: "preflop",
+      FLOP: "flop",
+      TURN: "turn",
+      RIVER: "river",
+      SHOWDOWN: "showdown",
+      ENDED_OPPONENT_LEFT: "showdown",
+    };
+    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownHandName?: string; showdownPot?: number }) => {
+      gameStateFromSocketRef.current = true;
+      const players = gameState.players ?? [];
+      setPlayersState((prev) => {
+        const myCardsFromPrev = prev.find((p) => String(p.id) === String(userId))?.cards ?? [];
+        const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
+        const mapped = players.map((p, index) => {
+          const isMe = String(p.id) === String(userId);
+          const serverCardsRaw = Array.isArray(p.cards) ? p.cards : [];
+          const serverCards = serverCardsRaw.map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0])).filter((c): c is Card => c !== null);
+          const myCards = isMe && serverCards.length > 0 ? serverCards : (isMe ? myCardsFromPrev : serverCards);
+          return {
+            id: String(p.id),
+            name: p.name,
+            chips: p.chips ?? 1000,
+            bet: p.currentBet ?? 0,
+            position: p.position ?? index,
+            isActive: String(p.id) === currentTurnId,
+            isDealer: p.isDealer ?? false,
+            cards: myCards,
+            isConnected: p.isConnected !== false,
+            hasFolded: !(p.isActive),
+            isBot: false,
+          };
+        });
+        return mapped;
+      });
+      setPot(gameState.pot ?? 0);
+      const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? (gameState.phase as string).toLowerCase?.() ?? "preflop") : "preflop";
+      setPhase(phase as GamePhase);
+      const cc = gameState.communityCards;
+      if (Array.isArray(cc)) {
+        const arr: (Card | null)[] = [null, null, null, null, null];
+        cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
+        setCommunityCardsState(arr);
+      }
+      setGameInitialized(phase !== "init");
+      setHasPlayerActed(false);
+      setIsLoading(false);
+      setRoundPlayersActed(new Set());
+      const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
+      if (currentTurnId === String(userId)) {
+        setTimerActive(true);
+        setTimeLeft(20);
+      }
+      if (phase === "showdown" && gameState.showdownWinnerId) {
+        const winnerName = players.find((p) => String(p.id) === String(gameState.showdownWinnerId))?.name ?? String(gameState.showdownWinnerId);
+        setShowdownResult({
+          winnerId: gameState.showdownWinnerId,
+          winnerName,
+          hand: gameState.showdownHandName ?? "—",
+          handRank: 0,
+          pot: gameState.showdownPot ?? 0,
+        });
+      }
+    };
+    socket.on("GAME_UPDATE", onGameUpdate);
+    const onGameEnded = (data: { gameId: string; winnerId: string; reason: string; pot?: number }) => {
+      if (data.reason === "opponent_left" && String(data.winnerId) === String(userId)) {
+        setShowdownResult((prevResult) => {
+          if (prevResult) return prevResult;
+          return {
+            winnerId: data.winnerId,
+            winnerName: "Vous",
+            hand: "Adversaire parti",
+            handRank: 0,
+            pot: data.pot ?? 0,
+          };
+        });
+      }
+    };
+    socket.on("GAME_ENDED", onGameEnded);
+    return () => {
+      socket.off("GAME_UPDATE", onGameUpdate);
+      socket.off("GAME_ENDED", onGameEnded);
+    };
+  }, [socket, gameIdParam, userId]);
 
   useEffect(() => {
     if (phase !== "init" || deck.length === 0) return;
@@ -350,7 +548,7 @@ export function Game() {
       return;
     }
 
-    const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    const hero = playersState.find((p) => p.id === userId || p.id === "human");
     if (hero?.hasFolded) {
       setTimerActive(false);
       if (timerIntervalRef.current) {
@@ -402,7 +600,7 @@ export function Game() {
   useEffect(() => {
     if (!isBotMode || playersState.length < 2) return;
     if (phase !== "preflop" && phase !== "flop" && phase !== "turn" && phase !== "river") return;
-    const humanIndex = playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+    const humanIndex = playersState.findIndex((p) => p.id === userId || p.id === "human");
     const botIndex = playersState.findIndex((p) => "isBot" in p && p.isBot);
     if (humanIndex === -1 || botIndex === -1) return;
     const activeIdx = playersState.findIndex((p) => p.isActive);
@@ -462,11 +660,14 @@ export function Game() {
   // Vérifier si un tour de mises est terminé (ne pas avancer tant que le joueur humain n'a pas joué)
   useEffect(() => {
     if (phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river") {
-      const activeInHand = playersState.filter((p) => p.isConnected && !(p.hasFolded ?? false));
-      const humanIndex = playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+      const activeInHand = playersState.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
+      if (activeInHand.length === 0) return;
+      const activeIdx = playersState.findIndex((p) => p.isActive);
+      const humanIndex = playersState.findIndex((p) => String(p.id) === String(userId) || p.id === "human");
       const humanInHand = humanIndex >= 0 && !(playersState[humanIndex]?.hasFolded ?? false);
 
       if (humanInHand && !roundPlayersActed.has(humanIndex)) return;
+      if (gameIdParam && activeIdx >= 0 && !("isBot" in playersState[activeIdx] && playersState[activeIdx].isBot) && !roundPlayersActed.has(activeIdx)) return;
 
       if (activeInHand.length === 1) {
         const t = setTimeout(() => setPhase("showdown"), 1500);
@@ -484,7 +685,7 @@ export function Game() {
         }, 1000);
       }
     }
-  }, [roundPlayersActed, phase, playersState]);
+  }, [roundPlayersActed, phase, playersState.length, gameIdParam, userId]);
 
   // Showdown (2 joueurs) : évaluer les mains et afficher le résultat
   useEffect(() => {
@@ -504,7 +705,7 @@ export function Game() {
     })
       .then((res) => res.json())
       .then((data: { winnerId?: string; winnerName?: string; handName?: string; handRank?: number }) => {
-        const humanId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
+        const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
         const won = data.winnerId === humanId || data.winnerId === "human";
         if (won) setPlayerChips((prev) => prev + currentPot);
         else setPlayersState((prev) => prev.map((p) => (p.id === data.winnerId ? { ...p, chips: p.chips + currentPot } : p)));
@@ -518,7 +719,7 @@ export function Game() {
         });
       })
       .catch(() => {
-        const fallbackWinner = activeInHand.find((p) => p.name !== "Vous" && p.name !== "Diana") ?? activeInHand[0];
+        const fallbackWinner = activeInHand.find((p) => p.id !== userId && p.id !== "human") ?? activeInHand[0];
         setPot(0);
         setShowdownResult({
           winnerId: fallbackWinner?.id ?? "",
@@ -641,12 +842,16 @@ export function Game() {
 
   const handleFold = (playerId?: number | string) => {
     if (handResult !== null) return;
-    const heroId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
+    const heroId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
     const isHuman = playerId === undefined || playerId === heroId;
+    if (gameIdParam && isHuman && !socket) return;
+    if (gameIdParam && socket && isHuman) {
+      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "FOLD" });
+    }
     const foldingIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
-        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+        : playersState.findIndex((p) => p.id === userId || p.id === "human");
     if (foldingIndex === -1) return;
 
     setRoundPlayersActed((prev) => new Set(prev).add(foldingIndex));
@@ -690,7 +895,7 @@ export function Game() {
       const winnerIndex = playersState.findIndex(
         (p, i) => i !== foldingIndex && p.isConnected !== false && !(p.hasFolded ?? false)
       );
-      const humanIndex = playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+      const humanIndex = playersState.findIndex((p) => p.id === userId || p.id === "human");
       const humanWon = winnerIndex !== -1 && winnerIndex === humanIndex;
       const winner = winnerIndex !== -1 ? playersState[winnerIndex] : null;
       if (winner) {
@@ -709,13 +914,17 @@ export function Game() {
 
   const handleCheck = (playerId?: number | string) => {
     if (handResult !== null) return;
-    const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (callAmount > 0 && isHumanActing) return;
+    if (gameIdParam && isHumanActing && !socket) return;
+    if (gameIdParam && socket && isHumanActing) {
+      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CHECK" });
+    }
     const justActedIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
-        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+        : playersState.findIndex((p) => p.id === userId || p.id === "human");
     if (isHumanActing) {
       setHasPlayerActed(true);
       setIsLoading(true);
@@ -725,8 +934,12 @@ export function Game() {
 
   const handleCall = (amount: number, playerId?: number | string) => {
     if (handResult !== null) return;
-    const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
+    if (gameIdParam && isHumanActing && !socket) return;
+    if (gameIdParam && socket && isHumanActing) {
+      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CALL", amount });
+    }
     if (playerId !== undefined && playerId !== hero?.id) {
       setPlayersState((prev) =>
         prev.map((p) =>
@@ -737,7 +950,7 @@ export function Game() {
       setPlayerChips((prev) => prev - amount);
       setPlayersState((prev) =>
         prev.map((p) =>
-          p.name === "Vous" || p.name === "Diana"
+          p.id === userId || p.id === "human"
             ? { ...p, chips: p.chips - amount, bet: (p.bet ?? 0) + amount }
             : p
         )
@@ -747,7 +960,7 @@ export function Game() {
     const justActedIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
-        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+        : playersState.findIndex((p) => p.id === userId || p.id === "human");
     if (isHumanActing) {
       setHasPlayerActed(true);
       setIsLoading(true);
@@ -758,8 +971,12 @@ export function Game() {
   const handleRaise = (raiseAmount: number, playerId?: number | string) => {
     if (handResult !== null) return;
     const totalToPut = callAmount + raiseAmount;
-    const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
+    if (gameIdParam && isHumanActing && !socket) return;
+    if (gameIdParam && socket && isHumanActing) {
+      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "RAISE", amount: raiseAmount });
+    }
     const currentIndex = playersState.findIndex((p) => p.isActive);
     setRoundPlayersActed(new Set(currentIndex !== -1 ? [currentIndex] : []));
     if (playerId !== undefined && playerId !== hero?.id) {
@@ -774,7 +991,7 @@ export function Game() {
       setPlayerChips((prev) => prev - totalToPut);
       setPlayersState((prev) =>
         prev.map((p) =>
-          p.name === "Vous" || p.name === "Diana"
+          p.id === userId || p.id === "human"
             ? { ...p, chips: p.chips - totalToPut, bet: (p.bet ?? 0) + totalToPut }
             : p
         )
@@ -788,7 +1005,7 @@ export function Game() {
     const justActedIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
-        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+        : playersState.findIndex((p) => p.id === userId || p.id === "human");
     nextTurn(justActedIndex);
   };
 
@@ -1004,7 +1221,7 @@ export function Game() {
         }
         onClose={() => {
           if (!showdownResult) return;
-          const humanId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
+          const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
           const won = showdownResult.winnerId === humanId || showdownResult.winnerId === "human";
           const winnerName = showdownResult.winnerName;
           const handName = showdownResult.hand;
@@ -1172,14 +1389,14 @@ export function Game() {
           {/* Avatar du joueur */}
           {!isMobile && (
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-xl border-2 border-white">
-              {getPlayerAvatar("Diana") ? (
+              {getPlayerAvatar(heroDisplayName) ? (
                 <ImageWithFallback
-                  src={getPlayerAvatar("Diana")}
+                  src={getPlayerAvatar(heroDisplayName)}
                   alt="Avatar du joueur"
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
-                <span className="text-white font-bold text-xl">D</span>
+                <span className="text-white font-bold text-xl">{heroDisplayName.charAt(0)}</span>
               )}
             </div>
           )}
@@ -1188,10 +1405,10 @@ export function Game() {
           {!isMobile && (
             <div className="flex flex-col">
               <div className="text-white font-bold text-lg leading-tight">
-                Diana
+                {heroDisplayName}
               </div>
               <div className="text-gray-400 text-xs font-medium">
-                ID 4857
+                {userId ? `ID ${userId.slice(0, 8)}` : "—"}
               </div>
             </div>
           )}
@@ -1321,7 +1538,7 @@ export function Game() {
 
       {/* Tableau de bord du joueur - EN BAS */}
       <PlayerDashboard
-        name="Diana"
+        name={heroDisplayName}
         chips={playerChips}
         cards={heroCards}
         onFold={() => handleFold()}
@@ -1335,6 +1552,7 @@ export function Game() {
         isLoading={isLoading}
         hasFolded={hasFoldedFromState}
         hasActed={hasPlayerActed}
+        actionsDisabled={Boolean(gameIdParam && !socket)}
         waitingForPlayer={!isMyTurn && !hasFoldedFromState ? activePlayer?.name : undefined}
         timeLeft={timeLeft ?? 20}
         onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}

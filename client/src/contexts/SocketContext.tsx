@@ -14,10 +14,15 @@ interface SocketContextType {
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-const URL =
-  process.env.NODE_ENV === 'production'
+const URL = (() => {
+  const env = import.meta.env?.VITE_API_URL
+  if (env && typeof env === 'string') {
+    return env.replace(/\/$/, '')
+  }
+  return process.env.NODE_ENV === 'production'
     ? 'https://votre-domaine.com'
     : 'http://localhost:3000'
+})()
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)

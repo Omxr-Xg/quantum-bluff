@@ -23,6 +23,8 @@ interface PlayerDashboardProps {
   isLoading?: boolean;
   hasFolded: boolean;
   hasActed?: boolean;
+  /** En multijoueur, désactiver les boutons tant que la connexion socket n'est pas prête */
+  actionsDisabled?: boolean;
   waitingForPlayer?: string;
   onToggleQuantum?: () => void;
   onToggleHiddenBets?: () => void;
@@ -48,6 +50,7 @@ export function PlayerDashboard({
   isLoading = false,
   hasFolded,
   hasActed,
+  actionsDisabled = false,
   waitingForPlayer,
   onToggleQuantum,
   onToggleHiddenBets,
@@ -181,7 +184,7 @@ export function PlayerDashboard({
           <div className="flex gap-2">
             <NeonButton
               onClick={onFold}
-              disabled={!isMyTurn || isLoading || hasFolded || hasActed}
+              disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
               variant="red"
             >
               Coucher
@@ -190,7 +193,7 @@ export function PlayerDashboard({
             {callAmount === 0 && onCheck ? (
               <NeonButton
                 onClick={onCheck}
-                disabled={!isMyTurn || isLoading || hasFolded || hasActed}
+                disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
                 variant="blue"
               >
                 Check
@@ -198,7 +201,7 @@ export function PlayerDashboard({
             ) : (
               <NeonButton
                 onClick={() => onCall(callAmount)}
-                disabled={!isMyTurn || isLoading || hasFolded || hasActed || callAmount <= 0}
+                disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || callAmount <= 0}
                 variant="blue"
               >
                 Suivre {callAmount > 0 ? callAmount : ""}
@@ -207,7 +210,7 @@ export function PlayerDashboard({
 
             <NeonButton
               onClick={handleRaiseClick}
-              disabled={!isMyTurn || isLoading || hasFolded || hasActed}
+              disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
               variant="green"
               icon={<TrendingUp className="w-5 h-5" />}
             >

@@ -21,21 +21,30 @@ const FRONTEND_ORIGIN = 'http://localhost:5173'
 // sécurité HTTP
 app.use(helmet())
 
-// limiter les requêtes (anti spam / brute force)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
-})
-
-app.use(limiter)
-
-// CORS HTTP
+// CORS - avant le rate limiter pour les preflight
 app.use(cors({
-  origin: FRONTEND_ORIGIN,
-  credentials: true
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+  credentials: true,
+  optionsSuccessStatus: 200
 }))
 
+// Rate limiter plus large pour le développement (éviter 429)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  message: { error: 'Trop de requêtes, réessaie plus tard' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true
+})
+app.use(limiter)
+
 app.use(express.json({ limit: '10kb' }))
+
+app.use((req, _res, next) => {
+  console.log(`📡 ${req.method} ${req.url}`)
+  next()
+})
 
 // routes API
 app.use('/api', gameRoutes)
