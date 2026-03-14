@@ -12,6 +12,7 @@ export default tseslint.config(
   {
     ignores: [
       "dist/**",
+      "preload.js",
       "electron.js",
       "vite.config.ts",
       "vite.config.d.ts",
@@ -41,7 +42,7 @@ export default tseslint.config(
     },
     rules: {
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "@typescript-eslint/no-require-imports": "off",
     },
   },

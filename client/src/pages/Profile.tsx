@@ -1,4 +1,4 @@
-import { User, TrendingUp, Trophy, Target, DollarSign, ArrowLeft, Gamepad2, Home } from "lucide-react";
+import { User, TrendingUp, Trophy, Target, DollarSign, Gamepad2, Home } from "lucide-react";
 import { useNavigate } from "react-router";
 import { QuantumBluffLogo } from "../assets/logo";
 import { getUserProfile } from "../utils/userProfile";

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { GameState, ServerMessage, ClientMessage, PokerAction } from "../types";
+import { GameState, ClientMessage, PokerAction } from "../types";
 
 /**
  * Hook personnalisé pour gérer la connexion WebSocket avec le serveur de poker
@@ -37,11 +37,11 @@ interface PokerSocketReturn {
 export function usePokerSocket({
   gameId,
   playerId,
-  onGameStateUpdate,
-  onError,
+  onGameStateUpdate: _onGameStateUpdate,
+  onError: _onError,
 }: UsePokerSocketOptions = {}): PokerSocketReturn {
   const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, _setError] = useState<string | null>(null);
 
   // Simulation de connexion (à remplacer par une vraie connexion WebSocket)
   useEffect(() => {

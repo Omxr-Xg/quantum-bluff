@@ -2,7 +2,6 @@ import { useState } from "react";  // Removed useEffect
 import { useNavigate } from "react-router";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
-import { getUserProfile, saveUserProfile } from "../utils/userProfile";
 
 // ==========================================
 // 1. MOVE Criterion OUTSIDE the component
@@ -21,7 +20,7 @@ export function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, _setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ username?: string; email?: string; confirmPassword?: string }>({});
   
   // ==========================================

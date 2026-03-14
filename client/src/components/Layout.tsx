@@ -26,10 +26,10 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     if (!socket) return;
 
-    const handleFriendRequestReceived = (payload: any) => {
+    const handleFriendRequestReceived = (payload: unknown) => {
       setNotification({
         id: Date.now(),
-        message: `Nouvelle demande d'ami de ${payload?.sender?.username || "un joueur"}`
+        message: `Nouvelle demande d'ami de ${(payload as { sender?: { username?: string } })?.sender?.username || "un joueur"}`
       });
     };
 

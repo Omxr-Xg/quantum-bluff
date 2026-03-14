@@ -23,7 +23,7 @@ export function GameExample() {
   const {
     phase,
     pot,
-    communityCards,
+    communityCards: _communityCards,
     players,
     nextPhase,
     addToPot,
@@ -71,29 +71,27 @@ export function GameExample() {
   // Gérer les transitions entre les phases
   const handlePhaseTransition = () => {
     switch (phase) {
-      case "preflop":
-        // Brûler une carte puis distribuer le flop
+      case "preflop": {
         burnCard();
         const flopCards = drawCards(3);
         console.log("🎴 Flop:", flopCards);
         nextPhase();
         break;
-        
-      case "flop":
-        // Brûler une carte puis distribuer le turn
+      }
+      case "flop": {
         burnCard();
         const turnCard = drawCard();
         console.log("🎴 Turn:", turnCard);
         nextPhase();
         break;
-        
-      case "turn":
-        // Brûler une carte puis distribuer la river
+      }
+      case "turn": {
         burnCard();
         const riverCard = drawCard();
         console.log("🎴 River:", riverCard);
         nextPhase();
         break;
+      }
         
       case "river":
         // Passer au showdown

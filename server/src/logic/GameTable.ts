@@ -1,6 +1,6 @@
 import type { GamePhase, GameState, Player } from '../types/poker.js'
 import { Deck } from './Deck.js'
-import { findWinner, findWinnerWithHand } from './Evaluator.js'
+import { findWinnerWithHand } from './Evaluator.js'
 
 type PlayerAction = 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
 

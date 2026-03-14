@@ -50,12 +50,12 @@ export interface GameState {
 // Messages du serveur (pour future intégration WebSocket)
 export interface ServerMessage {
   type: "game_state" | "player_action" | "phase_change" | "winner" | "error";
-  payload: any;
+  payload: unknown;
   timestamp: number;
 }
 
 // Messages du client (pour future intégration WebSocket)
 export interface ClientMessage {
   type: "join_game" | "player_action" | "leave_game";
-  payload: any;
+  payload: unknown;
 }

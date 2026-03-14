@@ -38,20 +38,20 @@ export function FriendsList() {
   useEffect(() => {
     if (!socket || !userId) return;
 
-    const handleFriendRequestReceived = async (payload: any) => {
-      console.log("LOBBY FRIEND_REQUEST_RECEIVED:", payload);
+    const handleFriendRequestReceived = async (_payload: unknown) => {
+      console.log("LOBBY FRIEND_REQUEST_RECEIVED:", _payload);
       await refetchRequests();
       await refetchFriends();
     };
 
-    const handleFriendRequestAccepted = async (payload: any) => {
-      console.log("LOBBY FRIEND_REQUEST_ACCEPTED:", payload);
+    const handleFriendRequestAccepted = async (_payload: unknown) => {
+      console.log("LOBBY FRIEND_REQUEST_ACCEPTED:", _payload);
       await refetchRequests();
       await refetchFriends();
     };
 
-    const handleFriendListUpdated = async (payload: any) => {
-      console.log("LOBBY FRIEND_LIST_UPDATED:", payload);
+    const handleFriendListUpdated = async (_payload: unknown) => {
+      console.log("LOBBY FRIEND_LIST_UPDATED:", _payload);
       await refetchRequests();
       await refetchFriends();
     };

@@ -151,7 +151,7 @@ export function WaitingRoom() {
           leaveRoom(rawRoomId!);
           navigate(`/game?gameId=${data.gameId}`);
         }
-      } catch (_) {}
+      } catch { /* no-op */ }
     };
     socket.on("GAME_STARTED", onGameStarted);
     return () => socket.off("GAME_STARTED", onGameStarted);
@@ -178,7 +178,7 @@ export function WaitingRoom() {
     return () => clearInterval(interval);
   }, [rawRoomId, userId, fetchRoom]);
 
-  const handleInvite = (friend: any) => {
+  const handleInvite = (friend: { id: string; username: string; level?: number }) => {
     // Envoyer une invitation via socket
     socket?.emit('invite-to-room', {
       roomId,
@@ -196,7 +196,7 @@ export function WaitingRoom() {
     }]);
   };
 
-  const handleRemoveInvite = (playerId: string) => {
+  const _handleRemoveInvite = (playerId: string) => {
     socket?.emit('cancel-invitation', {
       roomId,
       playerId
@@ -254,7 +254,7 @@ export function WaitingRoom() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId }),
         });
-      } catch (_) {}
+      } catch { /* no-op */ }
     }
     leaveRoom(roomId);
     navigate("/lobby");
