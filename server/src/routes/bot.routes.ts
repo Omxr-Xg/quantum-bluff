@@ -1,65 +1,218 @@
 import express from 'express'
-import rateLimit from 'express-rate-limit'
-import { z } from 'zod'
-import { activeGames } from '../shared/activeGames.js'
+import { getHandValue } from '../logic/Evaluator.js'
+import type { Card } from '../types/poker.js'
 
 const router = express.Router()
 
-const botActionLimiter = rateLimit({
-  windowMs: 1000,
-  max: 10,
-  message: { error: 'Trop de requêtes bot, réessaie dans un instant' },
-  standardHeaders: true,
-  legacyHeaders: false
-})
+type BotDifficulty = 'easy' | 'medium' | 'hard'
+type BotAction = 'FOLD' | 'CALL' | 'CHECK' | 'RAISE'
 
-const botActionSchema = z.object({
-  gameId: z.string().min(1),
-  playerId: z.string().min(1),
-  action: z.enum(['FOLD', 'CALL', 'RAISE', 'CHECK']),
-  amount: z.number().int().positive().optional()
-})
+interface BotActionRequest {
+  playerCards: Card[]
+  communityCards: Card[]
+  difficulty: BotDifficulty
+  currentBet: number
+  playerChips: number
+  callAmount: number
+  minRaise: number
+  potSize: number
+  position: number
+  playersCount: number
+}
 
-router.post('/action', botActionLimiter, (req, res) => {
-  const parsed = botActionSchema.safeParse(req.body)
+interface BotActionResponse {
+  action: BotAction
+  amount?: number
+  reasoning?: string
+}
 
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors })
+const calculateHandStrength = (
+  playerCards: Card[],
+  communityCards: Card[]
+): number => {
+  const allCards = [...playerCards, ...communityCards]
+  if (allCards.length < 5) return 0.5
+
+  const handValue = getHandValue(allCards)
+  const maxPossible = 8 * Math.pow(15, 5) + 14 * Math.pow(15, 4)
+  return Math.min(handValue / maxPossible, 1)
+}
+
+const easyBotDecision = (req: BotActionRequest): BotActionResponse => {
+  const rand = Math.random()
+
+  if (rand < 0.3) {
+    return { action: 'FOLD', reasoning: 'easy: random fold' }
+  } else if (rand < 0.7) {
+    if (req.callAmount === 0) {
+      return { action: 'CHECK', reasoning: 'easy: random check' }
+    } else {
+      return {
+        action: 'CALL',
+        amount: req.callAmount,
+        reasoning: 'easy: random call'
+      }
+    }
+  } else {
+    const raiseAmount = Math.min(
+      req.playerChips,
+      req.currentBet +
+        req.minRaise +
+        Math.floor(Math.random() * (req.potSize / 2))
+    )
+    return {
+      action: 'RAISE',
+      amount: raiseAmount,
+      reasoning: 'easy: random raise'
+    }
+  }
+}
+
+const mediumBotDecision = (req: BotActionRequest): BotActionResponse => {
+  const handStrength = calculateHandStrength(
+    req.playerCards,
+    req.communityCards
+  )
+  const communityCount = req.communityCards.length
+
+  if (communityCount === 0) {
+    const hasPair =
+      req.playerCards[0]?.value === req.playerCards[1]?.value
+    const highCards = req.playerCards.filter((c) => c.value >= 10).length
+
+    if (hasPair || highCards === 2) {
+      if (req.callAmount === 0) {
+        return { action: 'CHECK', reasoning: 'medium: good hand preflop' }
+      }
+      return {
+        action: 'CALL',
+        amount: req.callAmount,
+        reasoning: 'medium: good hand preflop'
+      }
+    } else {
+      return { action: 'FOLD', reasoning: 'medium: weak hand preflop' }
+    }
   }
 
-  const { gameId, playerId, action, amount } = parsed.data
-
-  const game = activeGames.get(gameId)
-
-  if (!game) {
-    return res.status(404).json({ error: 'Partie introuvable' })
+  if (handStrength > 0.6) {
+    if (req.callAmount === 0) {
+      return { action: 'CHECK', reasoning: 'medium: strong hand' }
+    }
+    const raiseAmount = Math.min(
+      req.playerChips,
+      req.currentBet + req.minRaise * 3
+    )
+    return {
+      action: 'RAISE',
+      amount: raiseAmount,
+      reasoning: 'medium: strong hand raise'
+    }
+  } else if (handStrength > 0.3) {
+    if (req.callAmount === 0) {
+      return { action: 'CHECK', reasoning: 'medium: medium hand check' }
+    }
+    if (req.callAmount < req.potSize * 0.3) {
+      return {
+        action: 'CALL',
+        amount: req.callAmount,
+        reasoning: 'medium: medium hand call'
+      }
+    } else {
+      return { action: 'FOLD', reasoning: 'medium: medium hand fold to big bet' }
+    }
+  } else {
+    return { action: 'FOLD', reasoning: 'medium: weak hand fold' }
   }
+}
 
-  const player = game.getPlayerState(playerId)
+const hardBotDecision = (req: BotActionRequest): BotActionResponse => {
+  const handStrength = calculateHandStrength(
+    req.playerCards,
+    req.communityCards
+  )
 
-  if (!player) {
-    return res.status(404).json({ error: 'Bot introuvable' })
+  const potOdds = req.callAmount / (req.potSize + req.callAmount)
+
+  let winProbability = handStrength
+  const cardsToCome = 5 - req.communityCards.length
+  winProbability += (1 - handStrength) * (cardsToCome * 0.05)
+
+  if (winProbability > potOdds + 0.2) {
+    if (req.callAmount === 0) {
+      const raiseAmount = Math.min(
+        req.playerChips,
+        req.currentBet + req.minRaise * 4
+      )
+      return { action: 'RAISE', amount: raiseAmount, reasoning: 'hard: value raise' }
+    }
+    const raiseAmount = Math.min(
+      req.playerChips,
+      req.currentBet + req.minRaise * 3
+    )
+    return { action: 'RAISE', amount: raiseAmount, reasoning: 'hard: value raise' }
+  } else if (winProbability > potOdds) {
+    if (req.callAmount === 0) {
+      return { action: 'CHECK', reasoning: 'hard: check with advantage' }
+    }
+    return {
+      action: 'CALL',
+      amount: req.callAmount,
+      reasoning: 'hard: +EV call'
+    }
+  } else if (winProbability > potOdds - 0.1) {
+    if (req.callAmount === 0) {
+      return { action: 'CHECK', reasoning: 'hard: borderline check' }
+    }
+    if (Math.random() < 0.3) {
+      const bluffAmount = Math.min(
+        req.playerChips,
+        req.currentBet + req.minRaise * 2
+      )
+      return { action: 'RAISE', amount: bluffAmount, reasoning: 'hard: bluff' }
+    }
+    return {
+      action: 'CALL',
+      amount: req.callAmount,
+      reasoning: 'hard: borderline call'
+    }
+  } else {
+    if (req.callAmount === 0) {
+      return { action: 'CHECK', reasoning: 'hard: check with weak hand' }
+    }
+    return { action: 'FOLD', reasoning: 'hard: -EV fold' }
   }
+}
 
-  const isBot =
-    player.name?.toLowerCase().includes('bot') ||
-    player.id?.toLowerCase().includes('bot')
-
-  if (!isBot) {
-    return res.status(403).json({ error: 'Ce joueur n’est pas un bot' })
-  }
-
+router.post('/action', (req, res) => {
   try {
-    game.handlePlayerAction(playerId, action, amount)
+    const botRequest = req.body as BotActionRequest
 
-    return res.json({
-      success: true,
-      state: game.getSanitizedState()
-    })
+    if (!botRequest.playerCards || !botRequest.difficulty) {
+      return res.status(400).json({ error: 'Missing required fields' })
+    }
+
+    let decision: BotActionResponse
+
+    switch (botRequest.difficulty) {
+      case 'easy':
+        decision = easyBotDecision(botRequest)
+        break
+      case 'medium':
+        decision = mediumBotDecision(botRequest)
+        break
+      case 'hard':
+        decision = hardBotDecision(botRequest)
+        break
+      default:
+        return res.status(400).json({ error: 'Invalid difficulty' })
+    }
+
+    console.log(`🤖 Bot decision (${botRequest.difficulty}):`, decision)
+
+    res.json(decision)
   } catch (error) {
-    return res.status(400).json({
-      error: (error as Error).message
-    })
+    console.error('Erreur bot API:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
   }
 })
 

@@ -1,4 +1,5 @@
 import express from 'express'
+import type { Server } from 'socket.io'
 import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
@@ -55,7 +56,7 @@ router.post('/request', async (req, res) => {
   const parsed = friendRequestSchema.safeParse(req.body)
 
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors })
+    return res.status(400).json({ error: parsed.error.issues })
   }
 
   let { receiverUsername } = parsed.data
@@ -154,7 +155,7 @@ router.post('/request', async (req, res) => {
     }
 
     try {
-      const io = req.app.get('io')
+      const io = req.app.get('io') as Server | undefined
 
       if (io) {
         const roomName = `user:${receiver.id}`
@@ -162,10 +163,12 @@ router.post('/request', async (req, res) => {
         console.log('👥 sockets in room =', io.sockets.adapter.rooms.get(roomName)?.size || 0)
 
         io.to(roomName).emit('FRIEND_REQUEST_RECEIVED', {
-          id: request.id,
-          sender: request.sender,
-          receiverId: receiver.id,
-          status: request.status
+          requestId: request.id,
+          sender: {
+            id: request.sender.id,
+            username: request.sender.username,
+            level: request.sender.level
+          }
         })
       }
     } catch (socketError) {
@@ -230,7 +233,7 @@ router.put('/request/:requestId', async (req, res) => {
   const parsed = updateRequestSchema.safeParse(req.body)
 
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors })
+    return res.status(400).json({ error: parsed.error.issues })
   }
 
   const { status } = parsed.data
@@ -275,17 +278,22 @@ router.put('/request/:requestId', async (req, res) => {
         })
       }
 
-      const io = req.app.get('io')
+      const io = req.app.get('io') as Server | undefined
       if (io) {
         const senderRoom = `user:${request.senderId}`
         const receiverRoom = `user:${request.receiverId}`
+
+        const acceptedFriend = await prisma.user.findUnique({
+          where: { id: request.receiverId },
+          select: { username: true }
+        })
 
         console.log(`✅ Emission FRIEND_REQUEST_ACCEPTED vers ${senderRoom}`)
         console.log(`👥 sender room sockets =`, io.sockets.adapter.rooms.get(senderRoom)?.size || 0)
 
         io.to(senderRoom).emit('FRIEND_REQUEST_ACCEPTED', {
-          requestId: request.id,
-          friendId: request.receiverId
+          friendId: request.receiverId,
+          username: acceptedFriend?.username
         })
 
         io.to(receiverRoom).emit('FRIEND_LIST_UPDATED', {
