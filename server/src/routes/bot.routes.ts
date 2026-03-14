@@ -1,5 +1,5 @@
 import express from 'express'
-import { getHandValue, findWinner } from '../logic/Evaluator.js'
+import { getHandValue, findWinner, findWinnerWithHand } from '../logic/Evaluator.js'
 import type { Card, Player } from '../types/poker.js'
 
 const router = express.Router()
@@ -296,27 +296,37 @@ router.post('/action', (req, res) => {
   }
 })
 
-// POST /api/bot/evaluate-winner - Déterminer le gagnant au showdown (cartes normalisées)
+// POST /api/bot/evaluate-winner - Déterminer le gagnant au showdown (cartes normalisées) + combinaison
 router.post('/evaluate-winner', (req, res) => {
   try {
     const raw = req.body as {
-      players?: Array<{ id: string; cards?: Array<{ suit?: string; rank?: string; value?: string | number }> }>
+      players?: Array<{
+        id: string
+        name?: string
+        cards?: Array<{ suit?: string; rank?: string; value?: string | number }>
+      }>
       communityCards?: Array<{ suit?: string; rank?: string; value?: string | number }>
     }
     if (!raw.players?.length || !raw.communityCards) {
-      return res.status(400).json({ error: 'Body attendu: { players: [{ id, cards }], communityCards }' })
+      return res.status(400).json({ error: 'Body attendu: { players: [{ id, cards, name? }], communityCards }' })
     }
     const players: Player[] = raw.players.map((p) => ({
       id: p.id,
-      name: '',
+      name: p.name ?? '',
       cards: (p.cards ?? []).map(normalizeCard),
       chips: 0,
       role: 'PLAYER',
       isActive: false,
     }))
     const board = (raw.communityCards ?? []).map(normalizeCard)
-    const winnerId = findWinner(players, board)
-    res.json({ winnerId })
+    const { winnerId, category, handName } = findWinnerWithHand(players, board)
+    const winner = players.find((p) => p.id === winnerId)
+    res.json({
+      winnerId,
+      winnerName: winner?.name ?? winnerId,
+      handName,
+      handRank: category,
+    })
   } catch (error) {
     console.error('Erreur evaluate-winner:', error)
     res.status(500).json({ error: 'Erreur serveur' })
