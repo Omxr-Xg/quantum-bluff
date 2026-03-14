@@ -1,9 +1,17 @@
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { GameTable } from '../logic/GameTable.js';
-import type { Player } from '../types/poker.js';
+import type { Card, GamePhase, Player } from '../types/poker.js';
+
+interface SerializedGameState {
+  pot: number;
+  communityCards: unknown[];
+  players: Omit<Player, 'cards'>[];
+  currentTurn: string;
+  phase: string;
+}
 
 // Configuration Redis
-const redisClient = new (Redis as any)({
+const redisClient = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
   password: process.env.REDIS_PASSWORD || undefined,
@@ -52,29 +60,21 @@ export const serializeGame = (gameId: string, game: GameTable): string => {
 
 export const deserializeGame = (gameId: string, data: string): GameTable | null => {
   try {
-    const parsed = JSON.parse(data);
-    // Utilisation de 'unknown' pour éviter 'any'
-    const parsedState = parsed.state as {
-      pot: number;
-      communityCards: any[];
-      players: any[];
-      currentTurn: string;
-      phase: string;
-    };
-    
-    const players: Player[] = parsedState.players.map((p: any) => ({
+    const parsed = JSON.parse(data) as { state: SerializedGameState };
+    const parsedState = parsed.state;
+
+    const players: Player[] = parsedState.players.map((p) => ({
       ...p,
       cards: []
     }));
-    
+
     const game = new GameTable(gameId, players);
-    // Restaurer l'état
     game.state = {
       ...game.state,
       pot: parsedState.pot,
-      communityCards: parsedState.communityCards,
+      communityCards: parsedState.communityCards as Card[],
       currentTurn: parsedState.currentTurn,
-      phase: parsedState.phase as any
+      phase: parsedState.phase as GamePhase
     };
     return game;
   } catch (err) {

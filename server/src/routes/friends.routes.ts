@@ -176,11 +176,11 @@ router.post('/request', async (req, res) => {
     }
 
     res.json(request)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('POST /api/friends/request error:', error)
     res.status(500).json({
       error: 'Erreur serveur',
-      details: error?.message || String(error)
+      details: error instanceof Error ? error.message : String(error)
     })
   }
 })
