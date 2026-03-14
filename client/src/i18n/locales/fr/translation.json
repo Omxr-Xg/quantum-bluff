@@ -29,6 +29,7 @@
     "raiseAmountLabel": "Montant de la relance",
     "fold": "Se coucher",
     "foldedLabel": "COUCHÉ",
+    "allIn": "Tapis",
     "pot": "Pot: {{amount}}",
     "timer": "{{seconds}}s"
   },

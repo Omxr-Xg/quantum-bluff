@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bell, X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
@@ -6,13 +7,14 @@ import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
 import { useMusic } from "../contexts/MusicContext";
 import { Toast } from "./Toast";
-import { LanguageSwitcher } from "./LanguageSwitcher";
+import { MusicPlayer } from "./MusicPlayer";
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export function Layout({ children }: LayoutProps) {
+  const location = useLocation();
   const { t } = useTranslation();
   const { socket, isConnected, connect } = useSocket();
   const { toasts, removeToast } = useToast();
@@ -80,11 +82,10 @@ export function Layout({ children }: LayoutProps) {
     return () => clearTimeout(timer);
   }, [notification]);
 
+  const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="fixed bottom-4 left-4 z-[100]">
-        <LanguageSwitcher />
-      </div>
+      {!isGamePage && <MusicPlayer />}
       <AnimatePresence>
         {toasts.map((toast) => (
           <Toast

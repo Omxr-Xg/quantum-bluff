@@ -102,6 +102,8 @@ export function Game() {
     pot: number;
   } | null>(null);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
+  /** Après un all-in suivi : run-out du board sans nouveau tour de mise (preflop -> flop -> turn -> river -> showdown) */
+  const [runOutPhase, setRunOutPhase] = useState<GamePhase | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const gameStateFromSocketRef = useRef(false);
   const clearBotActionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -172,11 +174,13 @@ export function Game() {
   }, [activePlayers, activePlayer]);
   const isHero = (p: BasePlayer | BotPlayer) => p.id === userId || p.id === "human";
   const tablePlayers = activePlayers.map((player) => {
-    if (isHero(player)) {
-      return { ...player, position: 0, cards: player.cards || [] };
-    }
-    const otherPlayerIndex = activePlayers.filter((p) => !isHero(p)).indexOf(player);
-    return { ...player, position: otherPlayerIndex + 1 };
+    const base = isHero(player)
+      ? { ...player, position: 0, cards: player.cards || [] }
+      : { ...player, position: activePlayers.filter((p) => !isHero(p)).indexOf(player) + 1 };
+    return {
+      ...base,
+      lastAction: lastBotAction?.name === player.name ? lastBotAction.action : undefined,
+    };
   });
   const isMyTurn = Boolean(
     activePlayer &&
@@ -245,9 +249,10 @@ export function Game() {
   };
 
   // Distribution du flop (3 cartes) — post-flop : BB (position 1) parle en premier
-  const dealFlop = () => {
+  // runOutOnly = true : après un all-in, on distribue les cartes sans donner la main à personne
+  const dealFlop = (runOutOnly?: boolean) => {
     setPhase("flop");
-    resetBetsAndSetFirstToAct(1);
+    if (!runOutOnly) resetBetsAndSetFirstToAct(1);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -264,9 +269,9 @@ export function Game() {
   };
 
   // Distribution du turn — BB parle en premier
-  const dealTurn = () => {
+  const dealTurn = (runOutOnly?: boolean) => {
     setPhase("turn");
-    resetBetsAndSetFirstToAct(1);
+    if (!runOutOnly) resetBetsAndSetFirstToAct(1);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -279,9 +284,9 @@ export function Game() {
   };
 
   // Distribution de la river — SB (position 0) parle en premier, BB en dernier
-  const dealRiver = () => {
+  const dealRiver = (runOutOnly?: boolean) => {
     setPhase("river");
-    resetBetsAndSetFirstToAct(0);
+    if (!runOutOnly) resetBetsAndSetFirstToAct(0);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -623,28 +628,40 @@ export function Game() {
 
     setRoundPlayersActed((prev) => new Set(prev).add(idx));
 
-
     setPlayersState((prev) => {
       const newPlayers = prev.map((p) => ({ ...p }));
       newPlayers[idx] = { ...newPlayers[idx], isActive: false };
 
-      let nextIndex: number;
-      if (newPlayers.length === 2) {
-        nextIndex = idx === 0 ? 1 : 0;
-        if (!(newPlayers[nextIndex].hasFolded ?? false)) {
-          newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
-        }
-      } else {
-        nextIndex = (idx + 1) % newPlayers.length;
+      // Ne pas donner la main à un joueur all-in (0 jetons)
+      const nextPlayerWithChips = (startIndex: number): number => {
+        let nextIndex = startIndex;
         let loopCount = 0;
         while (loopCount < newPlayers.length) {
           const p = newPlayers[nextIndex];
-          if (p.isConnected !== false && !(p.hasFolded ?? false)) {
-            newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
-            break;
+          if (
+            p.isConnected !== false &&
+            !(p.hasFolded ?? false) &&
+            (p.chips ?? 0) > 0
+          ) {
+            return nextIndex;
           }
           nextIndex = (nextIndex + 1) % newPlayers.length;
           loopCount++;
+        }
+        return -1;
+      };
+
+      let nextIndex: number;
+      if (newPlayers.length === 2) {
+        nextIndex = idx === 0 ? 1 : 0;
+        const canAct = !(newPlayers[nextIndex].hasFolded ?? false) && (newPlayers[nextIndex].chips ?? 0) > 0;
+        if (canAct) {
+          newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
+        }
+      } else {
+        nextIndex = nextPlayerWithChips((idx + 1) % newPlayers.length);
+        if (nextIndex !== -1) {
+          newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
         }
       }
 
@@ -673,17 +690,52 @@ export function Game() {
       }
 
       const maxBet = Math.max(0, ...activeInHand.map((p) => p.bet ?? 0));
-      const bettingComplete = activeInHand.every((p) => (p.bet ?? 0) === maxBet);
+      // Enchères terminées si tout le monde a égalé OU est all-in (0 jetons)
+      const bettingComplete = activeInHand.every((p) => (p.bet ?? 0) === maxBet || (p.chips ?? 0) === 0);
+      const hasAllIn = activeInHand.some((p) => (p.chips ?? 0) === 0);
+
       if (roundPlayersActed.size >= activeInHand.length && bettingComplete) {
-        setTimeout(() => {
-          if (phase === "preflop") dealFlop();
-          else if (phase === "flop") dealTurn();
-          else if (phase === "turn") dealRiver();
-          else if (phase === "river") setPhase("showdown");
-        }, 1000);
+        if (hasAllIn && runOutPhase === null && !gameIdParam) {
+          // All-in suivi (mode bot) : plus de tour de mise, on run-out le board puis showdown
+          setPlayersState((prev) => prev.map((p) => ({ ...p, isActive: false })));
+          setRunOutPhase(phase);
+        } else if (!hasAllIn) {
+          setTimeout(() => {
+            if (phase === "preflop") dealFlop();
+            else if (phase === "flop") dealTurn();
+            else if (phase === "turn") dealRiver();
+            else if (phase === "river") setPhase("showdown");
+          }, 1000);
+        }
       }
     }
-  }, [roundPlayersActed, phase, playersState.length, gameIdParam, userId]);
+  }, [roundPlayersActed, phase, playersState, gameIdParam, userId, runOutPhase]);
+
+  // Réinitialiser le run-out en début de main
+  useEffect(() => {
+    if (phase === "init" || phase === "shuffle" || phase === "deal") setRunOutPhase(null);
+  }, [phase]);
+
+  // Run-out du board après all-in : distribuer Turn/River sans tour de mise, puis showdown
+  useEffect(() => {
+    if (runOutPhase === null) return;
+    const t = setTimeout(() => {
+      if (runOutPhase === "preflop") {
+        dealFlop(true);
+        setRunOutPhase("flop");
+      } else if (runOutPhase === "flop") {
+        dealTurn(true);
+        setRunOutPhase("turn");
+      } else if (runOutPhase === "turn") {
+        dealRiver(true);
+        setRunOutPhase("river");
+      } else if (runOutPhase === "river") {
+        setPhase("showdown");
+        setRunOutPhase(null);
+      }
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [runOutPhase]);
 
   // Showdown (2 joueurs) : évaluer les mains et afficher le résultat
   useEffect(() => {
@@ -742,7 +794,6 @@ export function Game() {
     if (!isBotTurn || isBotThinking) return;
 
     setIsBotThinking(true);
-    addToast(`${activePlayer.name} réfléchit...`, "info");
 
     const fetchBotDecision = async () => {
       try {
@@ -784,7 +835,6 @@ export function Game() {
                 : decision.action === "RAISE"
                   ? "a relancé"
                   : decision.action;
-        addToast(`${activePlayer.name} ${botActionLabel}`, "info");
         if (clearBotActionRef.current) clearTimeout(clearBotActionRef.current);
         setLastBotAction({ name: activePlayer.name, action: botActionLabel });
         clearBotActionRef.current = setTimeout(() => {
@@ -1082,22 +1132,6 @@ export function Game() {
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-hidden relative">
-      {/* Bouton DEBUG dev uniquement */}
-      {import.meta.env.DEV && (
-        <button
-          type="button"
-          onClick={() => {
-            setTimerActive(true);
-            setTimeLeft(20);
-            setIsLoading(false);
-            setHasPlayerActed(false);
-          }}
-          className="fixed bottom-24 right-4 z-[70] bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm shadow-lg"
-        >
-          🐛 DEBUG: Forcer timer
-        </button>
-      )}
-
       {/* Particules dorées flottantes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
@@ -1188,22 +1222,6 @@ export function Game() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Notification action du bot (visible 5 s) */}
-      {lastBotAction && mode === "bot" && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          className={`absolute z-[60] left-1/2 -translate-x-1/2 ${
-            isMobile ? 'bottom-28' : isTablet ? 'bottom-32' : 'bottom-36'
-          }`}
-        >
-          <div className="bg-emerald-600/95 backdrop-blur-sm rounded-xl px-6 py-3 border-2 border-emerald-400 shadow-xl text-white font-bold text-center whitespace-nowrap">
-            {lastBotAction.name} {lastBotAction.action}
-          </div>
-        </motion.div>
       )}
 
       {/* Showdown : gagnant + combinaison + pot */}
@@ -1545,7 +1563,7 @@ export function Game() {
         onCheck={() => handleCheck()}
         callAmount={callAmount}
         minRaise={50}
-        maxRaise={playerChips}
+        maxRaise={Math.max(0, playerChips - callAmount)}
         isMyTurn={handResult === null && isMyTurn}
         isLoading={isLoading}
         hasFolded={hasFoldedFromState}

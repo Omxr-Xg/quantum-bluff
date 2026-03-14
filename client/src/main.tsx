@@ -8,7 +8,6 @@ import { SocketProvider } from './contexts/SocketContext'
 import { QuantumHUDProvider } from './contexts/QuantumHUDContext'
 import { HiddenBetsProvider } from './contexts/HiddenBetsContext'
 import { MusicProvider } from './contexts/MusicContext'
-import { MusicPlayer } from './components/MusicPlayer'
 import App from './App'
 import './index.css'
 
@@ -21,7 +20,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <HiddenBetsProvider>
               <MusicProvider>
                 <App />
-                <MusicPlayer />
               </MusicProvider>
             </HiddenBetsProvider>
           </QuantumHUDProvider>

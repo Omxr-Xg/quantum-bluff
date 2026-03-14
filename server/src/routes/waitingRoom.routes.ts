@@ -352,7 +352,20 @@ router.post('/:roomId/start', async (req, res) => {
 
     const allReady = room.players.every(p => p.isReady);
     if (!allReady) {
-      return res.status(400).json({ error: 'Tous les joueurs ne sont pas prêts' });
+      const notReadyPlayers = room.players
+        .filter(p => !p.isReady)
+        .map(p => ({ id: p.user.id, name: p.user.username }));
+      const io = req.app.get('io') as import('socket.io').Server | undefined;
+      if (io) {
+        io.to(roomId).emit('HOST_REQUESTED_START', {
+          message: 'L\'hôte veut lancer la partie — mettez-vous prêt !',
+          notReadyPlayers: notReadyPlayers.map(p => ({ id: p.id, name: p.name }))
+        });
+      }
+      return res.status(400).json({
+        error: 'Tous les joueurs ne sont pas prêts',
+        notReadyPlayers: notReadyPlayers.map(p => p.name)
+      });
     }
 
     // 🔥 CRÉATION DE LA PARTIE

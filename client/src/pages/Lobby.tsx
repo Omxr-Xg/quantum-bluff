@@ -5,6 +5,7 @@ import { Bot, Server, User, Users, LogOut, Loader2 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { getUserBalance } from "../utils/userProfile";
 import { FriendsList } from '../components/FriendsList';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { useUser } from '../hooks/useUser';
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
@@ -114,6 +115,7 @@ export function Lobby() {
           </div>
 
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
             <div className="bg-yellow-500/20 border border-yellow-500 rounded-xl px-6 py-3 text-yellow-300 font-bold">
               {t('lobby.balance', { balance: userBalance.toLocaleString() })}
             </div>

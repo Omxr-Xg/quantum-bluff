@@ -37,6 +37,8 @@ export interface Player {
   role: PlayerRole;
   currentBet?: number;
   bet?: number;
+  /** Total amount put into the pot this hand (for side pot calculation). */
+  totalPutInThisHand?: number;
   isActive: boolean;
   position?: number;
   isDealer?: boolean;

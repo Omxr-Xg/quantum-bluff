@@ -12,7 +12,7 @@ interface Card {
 }
 
 interface Player {
-  id: number;
+  id: number | string;
   name: string;
   chips: number;
   bet: number;
@@ -21,6 +21,8 @@ interface Player {
   isDealer?: boolean;
   cards?: Card[];
   isConnected?: boolean;
+  /** Dernière action affichée à côté de l'avatar (ex: "a checké", "s'est couché") */
+  lastAction?: string | null;
 }
 
 interface PokerTableProps {
@@ -102,14 +104,15 @@ export function PokerTable({
             : isTablet
             ? "w-[650px] h-[300px]"
             : "w-[950px] h-[420px]"
-        } rounded-full`}
+        } rounded-full border-8 border-amber-900/80`}
         style={{
           background:
-            "radial-gradient(ellipse at center,#1b8c47 0%,#0b4522 100%)",
+            "radial-gradient(ellipse at center, #0d9660 0%, #0a7c4a 35%, #065a36 70%, #043d24 100%)",
           transform: `rotateX(${
             isMobile ? "20deg" : isTablet ? "22deg" : "25deg"
           })`,
-          boxShadow: "inset 0 6px 15px rgba(0,0,0,0.7)",
+          boxShadow:
+            "inset 0 8px 24px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06), 0 12px 32px rgba(0,0,0,0.4)",
         }}
       >
 
@@ -176,9 +179,16 @@ export function PokerTable({
                 </div>
 
                 {/* NAME */}
-                <div className="bg-black text-white text-xs px-2 py-1 rounded">
+                <div className="bg-black/90 text-white text-xs px-2 py-1 rounded font-medium">
                   {player.name}
                 </div>
+
+                {/* LAST ACTION - à côté de l'avatar */}
+                {player.lastAction && (
+                  <div className="bg-emerald-600/95 text-white text-xs px-2 py-1 rounded border border-emerald-400/50 shadow-lg whitespace-nowrap max-w-[120px] truncate" title={player.lastAction}>
+                    {player.lastAction}
+                  </div>
+                )}
 
                 {/* CHIPS */}
                 <div className="flex items-center gap-1 text-white text-sm font-bold transition hover:scale-105">
@@ -193,16 +203,11 @@ export function PokerTable({
 
                 </div>
 
-                {/* PLAYER CARDS */}
-                {player.cards && player.cards.length > 0 && (
+                {/* PLAYER CARDS - masquées pour le hero (position 0), affichées en bas à gauche dans PlayerDashboard) */}
+                {player.cards && player.cards.length > 0 && (player.position !== 0 && player.name !== "Vous") && (
                   <div className="flex gap-1">
                     {player.cards.map((card, index) => {
-
-                      const isSelf =
-                        player.position === 0 || player.name === "Vous"
-
-                      const showFaceUp = isSelf || isShowdown
-
+                      const showFaceUp = isShowdown;
                       if (showFaceUp) {
                         return (
                           <div
@@ -210,43 +215,21 @@ export function PokerTable({
                             className="w-10 h-14 bg-white rounded border flex flex-col justify-between p-1 shadow-md
                             transition transform hover:scale-110 hover:-translate-y-1 duration-200"
                           >
-                            <div
-                              className={`text-xs font-bold ${getSuitColor(card.suit)}`}
-                            >
-                              {card.value}
-                            </div>
-
-                            <div
-                              className={`text-lg text-center ${getSuitColor(card.suit)}`}
-                            >
-                              {getSuitSymbol(card.suit)}
-                            </div>
-
-                            <div
-                              className={`text-xs font-bold rotate-180 ${getSuitColor(card.suit)}`}
-                            >
-                              {card.value}
-                            </div>
-
+                            <div className={`text-xs font-bold ${getSuitColor(card.suit)}`}>{card.value}</div>
+                            <div className={`text-lg text-center ${getSuitColor(card.suit)}`}>{getSuitSymbol(card.suit)}</div>
+                            <div className={`text-xs font-bold rotate-180 ${getSuitColor(card.suit)}`}>{card.value}</div>
                           </div>
-                        )
-                      } else {
-                        return (
-                          <div
-                            key={index}
-                            className="w-10 h-14 bg-gradient-to-br from-red-800 to-red-950 rounded border-2 border-yellow-500/30 flex items-center justify-center shadow-md overflow-hidden
-                            transition transform hover:scale-105 duration-200"
-                          >
-
-                            <img
-                              src={logoSrc}
-                              alt="card back"
-                              className="w-8 h-8 object-contain opacity-80"
-                            />
-
-                          </div>
-                        )
+                        );
                       }
+                      return (
+                        <div
+                          key={index}
+                          className="w-10 h-14 bg-gradient-to-br from-red-800 to-red-950 rounded border-2 border-yellow-500/30 flex items-center justify-center shadow-md overflow-hidden
+                          transition transform hover:scale-105 duration-200"
+                        >
+                          <img src={logoSrc} alt="card back" className="w-8 h-8 object-contain opacity-80" />
+                        </div>
+                      );
                     })}
                   </div>
                 )}

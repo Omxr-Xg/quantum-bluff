@@ -131,6 +131,7 @@ export class GameTable {
     const blindAmount = Math.min(amount, player.chips)
     player.chips -= blindAmount
     player.currentBet = blindAmount
+    player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + blindAmount
     this.state.pot += blindAmount
     this.highestBet = Math.max(this.highestBet, blindAmount)
   }
@@ -174,6 +175,7 @@ export class GameTable {
 
     for (const player of this.state.players) {
       player.currentBet = 0
+      // totalPutInThisHand is kept for the whole hand (side pots)
     }
   }
 
@@ -184,11 +186,14 @@ export class GameTable {
       return true
     }
 
-    return activePlayers.every(
-      (player) =>
+    // All-in players (chips === 0) have no more actions; others must have acted and matched highestBet
+    return activePlayers.every((player) => {
+      if (player.chips === 0) return true // all-in: no action needed
+      return (
         this.actedPlayerIds.has(player.id) &&
         (player.currentBet || 0) === this.highestBet
-    )
+      )
+    })
   }
 
   private awardPotToSingleRemainingPlayer(): void {
@@ -234,6 +239,7 @@ export class GameTable {
       this.resetBetsForNewRound()
       this.state.communityCards.push(...this.deck.dealFlop())
       this.state.currentTurn = this.getPostflopFirstPlayerId()
+      this.runOutBoardIfAllIn()
       return
     }
 
@@ -241,6 +247,7 @@ export class GameTable {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealTurn())
       this.state.currentTurn = this.getPostflopFirstPlayerId()
+      this.runOutBoardIfAllIn()
       return
     }
 
@@ -248,11 +255,48 @@ export class GameTable {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealRiver())
       this.state.currentTurn = this.getPostflopFirstPlayerId()
+      this.runOutBoardIfAllIn()
       return
     }
 
     this.resolveShowdown()
     this.state.currentTurn = ''
+  }
+
+  /**
+   * When at least one active player is all-in (chips === 0), run out the board:
+   * deal all remaining community cards and go straight to showdown (no more betting).
+   */
+  private runOutBoardIfAllIn(): void {
+    const activePlayers = this.getActivePlayers()
+    const hasAllIn = activePlayers.some((p) => p.chips === 0)
+    if (!hasAllIn || this.state.phase === 'SHOWDOWN') return
+
+    const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
+    const currentIndex = phaseOrder.indexOf(this.state.phase)
+    if (currentIndex === -1 || currentIndex >= phaseOrder.length - 1) return
+
+    // Move phase by phase until SHOWDOWN, dealing cards
+    let phase = this.state.phase
+    while (phase !== 'SHOWDOWN') {
+      const idx = phaseOrder.indexOf(phase)
+      const nextPhase = phaseOrder[idx + 1]
+
+      if (nextPhase === 'FLOP') {
+        this.resetBetsForNewRound()
+        this.state.communityCards.push(...this.deck.dealFlop())
+      } else if (nextPhase === 'TURN') {
+        this.state.communityCards.push(this.deck.dealTurn())
+      } else if (nextPhase === 'RIVER') {
+        this.state.communityCards.push(this.deck.dealRiver())
+      }
+
+      this.state.phase = nextPhase
+      phase = nextPhase
+    }
+
+    this.state.currentTurn = ''
+    this.resolveShowdown()
   }
 
   private advanceTurn(): void {
@@ -274,7 +318,11 @@ export class GameTable {
     while (loopCount < this.state.players.length) {
       const nextPlayer = this.state.players[nextIndex]
 
-      if (nextPlayer.isActive && (nextPlayer.cards?.length ?? 0) > 0) {
+      if (
+        nextPlayer.isActive &&
+        (nextPlayer.cards?.length ?? 0) > 0 &&
+        nextPlayer.chips > 0
+      ) {
         this.state.currentTurn = nextPlayer.id
         return
       }
@@ -330,6 +378,7 @@ export class GameTable {
     for (const player of this.state.players) {
       player.cards = []
       player.currentBet = 0
+      player.totalPutInThisHand = 0
       player.isActive = player.isConnected !== false && player.chips > 0
       player.isDealer = false
       player.role = 'PLAYER'
@@ -510,6 +559,7 @@ export class GameTable {
     if (action === 'CALL') {
       player.chips -= callAmount
       player.currentBet = (player.currentBet || 0) + callAmount
+      player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + callAmount
       this.state.pot += callAmount
       this.actedPlayerIds.add(player.id)
 
@@ -527,6 +577,7 @@ export class GameTable {
 
     player.chips -= totalToPut
     player.currentBet = (player.currentBet || 0) + totalToPut
+    player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + totalToPut
     this.state.pot += totalToPut
     this.highestBet = player.currentBet || 0
     this.actedPlayerIds.clear()
@@ -552,21 +603,57 @@ export class GameTable {
     const playersToEvaluate =
       activePlayers.length > 0 ? activePlayers : this.state.players
 
-    const showdownPot = this.state.pot
-    const { winnerId, handName } = findWinnerWithHand(
-      playersToEvaluate,
-      this.state.communityCards
-    )
-    const winner = this.state.players.find((player) => player.id === winnerId)
+    if (playersToEvaluate.length === 0) {
+      this.state.pot = 0
+      return
+    }
 
-    if (winner) {
-      winner.chips += showdownPot
+    const totalPot = this.state.pot
+    const levels = [
+      ...new Set(
+        playersToEvaluate.map((p) => p.totalPutInThisHand ?? p.currentBet ?? 0)
+      ),
+    ].sort((a, b) => a - b)
+
+    let distributed = 0
+    let lastWinnerId = ''
+    let lastHandName = ''
+
+    for (let i = 0; i < levels.length; i++) {
+      const level = levels[i]
+      const prevLevel = i === 0 ? 0 : levels[i - 1]
+      const eligible = playersToEvaluate.filter(
+        (p) => (p.totalPutInThisHand ?? p.currentBet ?? 0) >= level
+      )
+      if (eligible.length === 0) continue
+
+      const potSize = (level - prevLevel) * eligible.length
+      if (potSize <= 0) continue
+
+      const { winnerId, handName } = findWinnerWithHand(
+        eligible,
+        this.state.communityCards
+      )
+      const winner = this.state.players.find((p) => p.id === winnerId)
+      if (winner) {
+        winner.chips += potSize
+        distributed += potSize
+      }
+      lastWinnerId = winnerId
+      lastHandName = handName
+    }
+
+    // If rounding left anything in the pot (e.g. odd chips), give to main winner
+    const remainder = totalPot - distributed
+    if (remainder > 0 && lastWinnerId) {
+      const winner = this.state.players.find((p) => p.id === lastWinnerId)
+      if (winner) winner.chips += remainder
     }
 
     this.state.pot = 0
-    this.state.showdownWinnerId = winnerId
-    this.state.showdownHandName = handName
-    this.state.showdownPot = showdownPot
+    this.state.showdownWinnerId = lastWinnerId
+    this.state.showdownHandName = lastHandName
+    this.state.showdownPot = totalPot
   }
 
     /**

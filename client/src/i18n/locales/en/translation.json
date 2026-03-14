@@ -29,6 +29,7 @@
     "raiseAmountLabel": "Raise amount",
     "fold": "Fold",
     "foldedLabel": "FOLDED",
+    "allIn": "All-in",
     "pot": "Pot: {{amount}}",
     "timer": "{{seconds}}s"
   },
