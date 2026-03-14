@@ -189,30 +189,45 @@ export function PokerTable({
                 {/* PLAYER CARDS */}
                 {player.cards && player.cards.length > 0 && (
                   <div className="flex gap-1">
-
-                    {player.cards.map((card, index) => (
-                      <div
-                        key={index}
-                        className="w-10 h-14 bg-white rounded border flex flex-col justify-between p-1"
-                      >
-
-                        <div className={`text-xs font-bold ${getSuitColor(card.suit)}`}>
-                          {card.value}
-                        </div>
-
-                        <div className={`text-lg text-center ${getSuitColor(card.suit)}`}>
-                          {getSuitSymbol(card.suit)}
-                        </div>
-
-                        <div
-                          className={`text-xs font-bold rotate-180 ${getSuitColor(card.suit)}`}
-                        >
-                          {card.value}
-                        </div>
-
-                      </div>
-                    ))}
-
+                    {player.cards.map((card, index) => {
+                      const isSelf =
+                        player.position === 0 || player.name === "Vous"
+                      if (isSelf) {
+                        return (
+                          <div
+                            key={index}
+                            className="w-10 h-14 bg-white rounded border flex flex-col justify-between p-1 shadow-md"
+                          >
+                            <div
+                              className={`text-xs font-bold ${getSuitColor(card.suit)}`}
+                            >
+                              {card.value}
+                            </div>
+                            <div
+                              className={`text-lg text-center ${getSuitColor(card.suit)}`}
+                            >
+                              {getSuitSymbol(card.suit)}
+                            </div>
+                            <div
+                              className={`text-xs font-bold rotate-180 ${getSuitColor(card.suit)}`}
+                            >
+                              {card.value}
+                            </div>
+                          </div>
+                        )
+                      } else {
+                        return (
+                          <div
+                            key={index}
+                            className="w-10 h-14 bg-gradient-to-br from-red-800 to-red-950 rounded border-2 border-yellow-500/30 flex items-center justify-center shadow-md"
+                          >
+                            <div className="text-yellow-400 text-xl font-bold">
+                              ?
+                            </div>
+                          </div>
+                        )
+                      }
+                    })}
                   </div>
                 )}
 

@@ -84,26 +84,38 @@ export function Friends() {
   }, [friendUsername, searchData, searching, showAddFriend]);
 
   useEffect(() => {
+    const handleRefetchRequests = () => {
+      refetchRequests();
+    };
+
+    const handleRefetchFriends = () => {
+      refetchFriends();
+    };
+
+    window.addEventListener("refetch-requests", handleRefetchRequests);
+    window.addEventListener("refetch-friends", handleRefetchFriends);
+
+    return () => {
+      window.removeEventListener("refetch-requests", handleRefetchRequests);
+      window.removeEventListener("refetch-friends", handleRefetchFriends);
+    };
+  }, [refetchRequests, refetchFriends]);
+
+  useEffect(() => {
     if (!socket || !userId) return;
 
-    const handleFriendRequestReceived = async (payload: any) => {
-      console.log("FRIENDS PAGE - FRIEND_REQUEST_RECEIVED:", payload);
-
-      await refetchRequests();
+    const handleFriendRequestReceived = () => {
+      refetchRequests();
     };
 
-    const handleFriendRequestAccepted = async (payload: any) => {
-      console.log("FRIENDS PAGE - FRIEND_REQUEST_ACCEPTED:", payload);
-
-      await refetchFriends();
-      await refetchRequests();
+    const handleFriendRequestAccepted = () => {
+      refetchFriends();
+      refetchRequests();
     };
 
-    const handleFriendListUpdated = async (payload: any) => {
-      console.log("FRIENDS PAGE - FRIEND_LIST_UPDATED:", payload);
-
-      await refetchFriends();
-      await refetchRequests();
+    const handleFriendListUpdated = () => {
+      refetchFriends();
+      refetchRequests();
     };
 
     socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
