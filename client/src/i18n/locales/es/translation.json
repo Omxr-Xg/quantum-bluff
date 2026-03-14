@@ -29,6 +29,7 @@
     "raiseAmountLabel": "Importe de la subida",
     "fold": "Retirarse",
     "foldedLabel": "RETIRADO",
+    "allIn": "All-in",
     "pot": "Bote: {{amount}}",
     "timer": "{{seconds}}s"
   },
