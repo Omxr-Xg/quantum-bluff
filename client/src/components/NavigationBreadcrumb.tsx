@@ -1,27 +1,30 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Home, ChevronRight } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
-import { useState } from "react";
 import { QuantumBluffLogo } from "../assets/logo";
 
+const PATH_KEYS: Record<string, string> = {
+  "/": "nav.login",
+  "/register": "nav.register",
+  "/lobby": "nav.lobby",
+  "/bot-configuration": "nav.botConfig",
+  "/waiting-room": "nav.waitingRoom",
+  "/game": "nav.game",
+  "/profile": "nav.profile",
+  "/friends": "nav.friends",
+  "/hidden-bets-results": "nav.hiddenBets"
+};
+
 export function NavigationBreadcrumb() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
 
-  const pathMap: Record<string, string> = {
-    "/": "Connexion",
-    "/register": "Inscription",
-    "/lobby": "Lobby",
-    "/bot-configuration": "Configuration Bot",
-    "/waiting-room": "Salle d'attente",
-    "/game": "Partie en cours",
-    "/profile": "Profil",
-    "/friends": "Amis",
-    "/hidden-bets-results": "Resultats"
-  };
-
   const getCurrentPath = () => {
-    return pathMap[location.pathname] || "Page";
+    const key = PATH_KEYS[location.pathname];
+    return key ? t(key) : t('nav.page');
   };
 
   const handleHomeClick = () => {
@@ -51,10 +54,10 @@ export function NavigationBreadcrumb() {
         <button
           onClick={handleHomeClick}
           className="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700/90 backdrop-blur-sm text-white px-3 py-2 rounded-lg border border-slate-700 transition-all shadow-lg group"
-          title="Retour au Lobby"
+          title={t('nav.backToLobby')}
         >
           <Home className="w-4 h-4 group-hover:scale-110 transition-transform" />
-          <span className="text-sm font-semibold hidden sm:inline">Accueil</span>
+          <span className="text-sm font-semibold hidden sm:inline">{t('nav.home')}</span>
         </button>
 
         {/* Page actuelle */}
@@ -76,11 +79,11 @@ export function NavigationBreadcrumb() {
               <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
                 <span className="text-white text-2xl font-bold">!</span>
               </div>
-              <h2 className="text-2xl font-bold text-white">Quitter la partie ?</h2>
+              <h2 className="text-2xl font-bold text-white">{t('nav.quitGameTitle')}</h2>
             </div>
 
             <p className="text-red-200 mb-6 leading-relaxed">
-              Vous êtes sur le point de quitter la partie en cours. Vos jetons seront perdus et vous ne pourrez pas revenir à cette table.
+              {t('nav.quitGameMessage')}
             </p>
 
             <div className="flex gap-3">
@@ -88,13 +91,13 @@ export function NavigationBreadcrumb() {
                 onClick={() => setShowQuitConfirm(false)}
                 className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl transition-all"
               >
-                Annuler
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleConfirmQuit}
                 className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-red-600/50"
               >
-                Continuer
+                {t('nav.continue')}
               </button>
             </div>
           </div>

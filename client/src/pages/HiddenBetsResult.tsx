@@ -1,10 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { X, Trophy, TrendingUp, Award, Coins, Home } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useHiddenBets, HiddenBet } from "../contexts/HiddenBetsContext";
 
 export function HiddenBetsResult() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation() as {
     state?: {
@@ -71,7 +73,7 @@ export function HiddenBetsResult() {
           <button
             onClick={() => navigate("/lobby")}
             className="absolute top-4 left-4 bg-white/20 hover:bg-white/30 p-2 rounded-full transition-all flex items-center justify-center"
-            title="Retour à l'accueil"
+            title={t('hiddenBets.backHome')}
           >
             <Home className="w-6 h-6 text-white" />
           </button>
@@ -250,7 +252,7 @@ export function HiddenBetsResult() {
               onClick={() => navigate("/lobby")}
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold px-8 py-3 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
             >
-              Retour au Lobby
+              {t('hiddenBets.backToLobby')}
             </button>
           </div>
         </div>

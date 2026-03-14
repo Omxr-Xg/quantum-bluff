@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Users, UserPlus, Loader2, ChevronRight } from "lucide-react";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../contexts/SocketContext";
@@ -9,6 +10,7 @@ import {
 } from "../services/api";
 
 export function FriendsList() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { userId } = useUser();
   const { socket, isConnected, connect } = useSocket();
@@ -75,13 +77,13 @@ export function FriendsList() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl text-white font-bold flex items-center gap-3">
           <Users className="w-8 h-8 text-blue-400" />
-          Amis
+          {t('lobby.friends')}
         </h2>
 
         <button
           onClick={() => navigate("/friends")}
           className="text-blue-400 hover:text-blue-300 transition"
-          title="Voir tout"
+          title={t('friends.seeAll')}
         >
           <ChevronRight className="w-6 h-6" />
         </button>
@@ -90,7 +92,7 @@ export function FriendsList() {
       <div className="space-y-4">
         <div className="bg-slate-700/50 rounded-xl p-4">
           <div className="flex items-center justify-between">
-            <span className="text-gray-300">Amis</span>
+            <span className="text-gray-300">{t('lobby.friends')}</span>
             <span className="text-white font-bold">{friendsCount}</span>
           </div>
         </div>
@@ -99,7 +101,7 @@ export function FriendsList() {
           <div className="flex items-center justify-between">
             <span className="text-gray-300 flex items-center gap-2">
               <UserPlus className="w-4 h-4 text-yellow-400" />
-              Demandes en attente
+              {t('friends.pendingRequests')}
             </span>
             <span className="text-yellow-300 font-bold">{pendingCount}</span>
           </div>
@@ -118,7 +120,7 @@ export function FriendsList() {
               >
                 <div>
                   <p className="text-white font-medium">{friend.username}</p>
-                  <p className="text-xs text-gray-400">Niveau {friend.level}</p>
+                  <p className="text-xs text-gray-400">{t('friends.level', { level: friend.level })}</p>
                 </div>
                 <div className="text-xs text-gray-400">
                   🏆 {friend.stats?.wins || 0}
@@ -130,17 +132,17 @@ export function FriendsList() {
               onClick={() => navigate("/friends")}
               className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition"
             >
-              Gérer mes amis
+              {t('lobby.manageFriends')}
             </button>
           </div>
         ) : (
           <div className="text-center py-8">
-            <p className="text-gray-400 mb-4">Aucun ami pour le moment</p>
+            <p className="text-gray-400 mb-4">{t('friends.noFriendsYet')}</p>
             <button
               onClick={() => navigate("/friends")}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition"
             >
-              Ajouter des amis
+              {t('friends.addFriends')}
             </button>
           </div>
         )}

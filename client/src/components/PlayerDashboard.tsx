@@ -1,5 +1,6 @@
-import { X, TrendingUp, Loader2, Activity, Eye } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { X, TrendingUp, Loader2, Activity, Eye } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
 import { NeonButton } from "./NeonButton";
 
@@ -58,7 +59,7 @@ export function PlayerDashboard({
   isHiddenBetsOpen: _isHiddenBetsOpen,
   timeLeft,
 }: PlayerDashboardProps) {
-
+  const { t } = useTranslation();
   const [raiseAmount] = useState(50);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -124,7 +125,7 @@ export function PlayerDashboard({
           <div className="text-center mb-2">
             <div className="inline-flex items-center gap-3 px-6 py-2 bg-red-500 text-white rounded-full font-bold shadow-xl">
               <X className="w-5 h-5" />
-              <span>COUCHÉ</span>
+              <span>{t('game.foldedLabel')}</span>
             </div>
           </div>
         )}
@@ -133,7 +134,7 @@ export function PlayerDashboard({
           <div className="text-center flex items-center justify-center gap-3 mb-2">
             <div className="inline-flex items-center gap-3 px-6 py-2 bg-blue-500 text-white rounded-full font-bold shadow-xl">
               <Loader2 className="w-5 h-5 animate-spin" />
-              <span>En attente de {waitingForPlayer}</span>
+              <span>{t('game.waitingFor', { name: waitingForPlayer })}</span>
             </div>
           </div>
         )}
@@ -187,7 +188,7 @@ export function PlayerDashboard({
               disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
               variant="red"
             >
-              Coucher
+              {t('game.fold')}
             </NeonButton>
 
             {callAmount === 0 && onCheck ? (
@@ -196,7 +197,7 @@ export function PlayerDashboard({
                 disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
                 variant="blue"
               >
-                Check
+                {t('game.check')}
               </NeonButton>
             ) : (
               <NeonButton
@@ -204,7 +205,7 @@ export function PlayerDashboard({
                 disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || callAmount <= 0}
                 variant="blue"
               >
-                Suivre {callAmount > 0 ? callAmount : ""}
+                {t('game.callLabel')} {callAmount > 0 ? callAmount : ""}
               </NeonButton>
             )}
 
@@ -214,7 +215,7 @@ export function PlayerDashboard({
               variant="green"
               icon={<TrendingUp className="w-5 h-5" />}
             >
-              Relancer
+              {t('game.raise')}
             </NeonButton>
           </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { PokerTable } from "../components/PokerTable";
 import { CommunityCards } from "../components/CommunityCards";
@@ -56,6 +57,7 @@ interface BotPlayer extends BasePlayer {
 }
 
 export function Game() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode");
@@ -341,11 +343,16 @@ export function Game() {
       headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
     })
       .then((res) => {
+        if (cancelled) return null;
+        if (res.status === 404) {
+          navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
+          return null;
+        }
         if (!res.ok) throw new Error(String(res.status));
         return res.json();
       })
-      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string }) => {
-        if (cancelled) return;
+      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string } | null) => {
+        if (cancelled || !gameState) return;
         if (gameStateFromSocketRef.current) return;
         const players = gameState.players ?? [];
         const phaseMap: Record<string, GamePhase> = {
@@ -386,16 +393,23 @@ export function Game() {
         if (!cancelled) console.error("Erreur récupération état partie:", err);
       });
     return () => { cancelled = true; };
-  }, [gameIdParam, userId]);
+  }, [gameIdParam, userId, navigate]);
 
   // Rejoindre la room socket pour recevoir GAME_UPDATE et TURN_TIMER
   useEffect(() => {
     if (!socket || !gameIdParam || !userId) return;
     socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
-    // Pas de socket.leave ici : le client socket.io peut ne pas exposer leave selon l'environnement ;
-    // à la déconnexion ou navigation, le serveur retire le socket de la room.
-    return () => {};
-  }, [socket, gameIdParam, userId]);
+
+    const onError = (payload: { code?: string; message?: string }) => {
+      if (payload?.code === "GAME_NOT_FOUND") {
+        navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
+      }
+    };
+    socket.on("ERROR", onError);
+    return () => {
+      socket.off("ERROR", onError);
+    };
+  }, [socket, gameIdParam, userId, navigate]);
 
   // Appliquer les mises à jour d'état envoyées par le serveur (après une action)
   useEffect(() => {
@@ -1295,7 +1309,7 @@ export function Game() {
                   className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-white hover:bg-slate-700 transition-all`}
                 >
                   <User className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Profil</span>
+                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('lobby.profile')}</span>
                 </button>
                 <button
                   onClick={() => {
@@ -1305,7 +1319,7 @@ export function Game() {
                   className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-white hover:bg-slate-700 transition-all`}
                 >
                   <Users className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Amis</span>
+                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('lobby.friends')}</span>
                 </button>
                 <button
                   onClick={() => {
@@ -1410,7 +1424,7 @@ export function Game() {
             <button
               onClick={() => {}}
               className={`bg-gradient-to-b from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white ${isMobile ? 'w-7 h-7' : 'w-8 h-8'} rounded-full flex items-center justify-center shadow-md transition-all transform hover:scale-105 border border-green-400`}
-              title="Ajouter des crédits"
+              title={t('gameHelp.addCredits')}
             >
               <Plus className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
             </button>
@@ -1471,7 +1485,7 @@ export function Game() {
                 onClick={() => setShowQuitConfirm(false)}
                 className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105"
               >
-                Annuler
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => {
@@ -1570,9 +1584,9 @@ export function Game() {
               <section>
                 <h3 className="text-xl font-bold text-indigo-400 mb-2">🃏 Actions Principales</h3>
                 <ul className="space-y-2 text-gray-300">
-                  <li><strong className="text-red-400">Coucher (Fold)</strong> : Abandonner le coup en cours</li>
-                  <li><strong className="text-blue-400">Suivre (Call)</strong> : Égaler la mise actuelle</li>
-                  <li><strong className="text-green-400">Relancer (Raise)</strong> : Augmenter la mise</li>
+                  <li><strong className="text-red-400">{t('game.fold')} (Fold)</strong> : {t('gameHelp.foldDesc')}</li>
+                  <li><strong className="text-blue-400">{t('game.callLabel')} (Call)</strong> : {t('gameHelp.callDesc')}</li>
+                  <li><strong className="text-green-400">{t('game.raise')}</strong> : {t('gameHelp.raiseDesc')}</li>
                 </ul>
               </section>
 

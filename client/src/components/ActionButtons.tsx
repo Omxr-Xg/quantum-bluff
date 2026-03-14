@@ -1,5 +1,6 @@
-import { X, Check, TrendingUp } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { X, Check, TrendingUp } from "lucide-react";
 import { useIsMobile } from "./ui/use-mobile";
 
 interface ActionButtonsProps {
@@ -19,6 +20,7 @@ export function ActionButtons({
   minRaise,
   maxRaise
 }: ActionButtonsProps) {
+  const { t } = useTranslation();
   const [raiseAmount, setRaiseAmount] = useState(minRaise);
   const [showRaiseSlider, setShowRaiseSlider] = useState(false);
   const isMobile = useIsMobile();
@@ -39,7 +41,7 @@ export function ActionButtons({
         <div className="bg-gray-900/95 backdrop-blur-sm rounded-xl sm:rounded-2xl px-4 py-3 sm:px-6 sm:py-4 shadow-2xl border-2 border-gray-700">
           <div className="flex flex-col gap-2 sm:gap-3">
             <div className="text-white text-xs sm:text-sm font-semibold text-center">
-              Montant de la relance
+              {t('game.raiseAmountLabel')}
             </div>
             <div className="text-yellow-400 text-xl sm:text-2xl font-bold text-center">
               ${raiseAmount.toLocaleString()}
@@ -70,7 +72,7 @@ export function ActionButtons({
           <div className="flex items-center gap-2 sm:gap-3">
             <X className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'}`} />
             <div className={isMobile ? 'text-left' : ''}>
-              <div className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'}`}>Se coucher</div>
+              <div className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'}`}>{t('game.fold')}</div>
               {!isMobile && <div className="text-xs opacity-90">Fold</div>}
             </div>
           </div>
@@ -84,8 +86,8 @@ export function ActionButtons({
           <div className="flex items-center gap-2 sm:gap-3">
             <Check className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'}`} />
             <div className={isMobile ? 'text-left' : ''}>
-              <div className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'}`}>Suivre</div>
-              {!isMobile && <div className="text-xs opacity-90">Call ${callAmount}</div>}
+              <div className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'}`}>{t('game.callLabel')}</div>
+              {!isMobile && <div className="text-xs opacity-90">{t('game.call', { amount: callAmount })}</div>}
             </div>
           </div>
         </button>
@@ -98,7 +100,7 @@ export function ActionButtons({
           <div className="flex items-center gap-2 sm:gap-3">
             <TrendingUp className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'}`} />
             <div className={isMobile ? 'text-left' : ''}>
-              <div className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'}`}>Relancer</div>
+              <div className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'}`}>{t('game.raise')}</div>
               {!isMobile && <div className="text-xs opacity-90">Raise</div>}
             </div>
           </div>
