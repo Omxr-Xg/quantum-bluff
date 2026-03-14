@@ -1,11 +1,9 @@
 import Redis from 'ioredis';
-const RedisClient = Redis.default || Redis; // Compatibilité CommonJS/ESM
-
 import { GameTable } from '../logic/GameTable.js';
-import type { GameState, Player } from '../types/poker.js';
+import type { Player } from '../types/poker.js';
 
 // Configuration Redis
-const redisClient = new (RedisClient as any)({
+const redisClient = new (Redis as any)({
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
   password: process.env.REDIS_PASSWORD || undefined,
@@ -25,7 +23,7 @@ redisClient.on('error', (err: Error) => {
 
 // Préfixe pour les clés Redis
 const GAME_PREFIX = 'game:';
-const PLAYER_PREFIX = 'player:';
+// PLAYER_PREFIX supprimé car non utilisé
 
 // Fonctions de sérialisation/désérialisation
 export const serializeGame = (gameId: string, game: GameTable): string => {
@@ -55,7 +53,16 @@ export const serializeGame = (gameId: string, game: GameTable): string => {
 export const deserializeGame = (gameId: string, data: string): GameTable | null => {
   try {
     const parsed = JSON.parse(data);
-    const players: Player[] = parsed.state.players.map((p: any) => ({
+    // Utilisation de 'unknown' pour éviter 'any'
+    const parsedState = parsed.state as {
+      pot: number;
+      communityCards: any[];
+      players: any[];
+      currentTurn: string;
+      phase: string;
+    };
+    
+    const players: Player[] = parsedState.players.map((p: any) => ({
       ...p,
       cards: []
     }));
@@ -64,12 +71,11 @@ export const deserializeGame = (gameId: string, data: string): GameTable | null 
     // Restaurer l'état
     game.state = {
       ...game.state,
-      pot: parsed.state.pot,
-      communityCards: parsed.state.communityCards,
-      currentTurn: parsed.state.currentTurn,
-      phase: parsed.state.phase
+      pot: parsedState.pot,
+      communityCards: parsedState.communityCards,
+      currentTurn: parsedState.currentTurn,
+      phase: parsedState.phase as any
     };
-    // Restaurer les mains des joueurs depuis l'historique si nécessaire
     return game;
   } catch (err) {
     console.error('Erreur désérialisation partie:', err);
