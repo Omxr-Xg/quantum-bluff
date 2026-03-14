@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useSocket } from "./SocketContext";
+import { HiddenBetsResultsModal } from "../components/HiddenBetsResultsModal";
 
-interface HiddenBet {
+export interface HiddenBet {
   id: string;
   playerName: string;
   playerId: string;
@@ -23,6 +23,8 @@ interface HiddenBetsContextType {
   togglePanel: () => void;
   totalBets: number;
   totalAmount: number;
+  showResults: boolean;
+  setShowResults: (show: boolean) => void;
 }
 
 const HiddenBetsContext = createContext<HiddenBetsContextType | undefined>(
@@ -36,8 +38,8 @@ export const HiddenBetsProvider = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [bets, setBets] = useState<HiddenBet[]>([]);
+  const [showResults, setShowResults] = useState(false);
   const { socket } = useSocket();
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!socket) return;
@@ -48,7 +50,7 @@ export const HiddenBetsProvider = ({
 
     const handleResults = (results: HiddenBet[]) => {
       setBets(results);
-      navigate("/hidden-bets-result");
+      setShowResults(true);
     };
 
     socket.on("BET_PLACED", handlePlaced);
@@ -58,7 +60,7 @@ export const HiddenBetsProvider = ({
       socket.off("BET_PLACED", handlePlaced);
       socket.off("BET_RESULTS", handleResults);
     };
-  }, [socket, navigate]);
+  }, [socket]);
 
   const placeBet = async (
     bet: Omit<HiddenBet, "id" | "odds" | "won" | "winAmount">
@@ -91,9 +93,24 @@ export const HiddenBetsProvider = ({
 
   return (
     <HiddenBetsContext.Provider
-      value={{ bets, placeBet, isOpen, togglePanel, totalBets, totalAmount }}
+      value={{
+        bets,
+        placeBet,
+        isOpen,
+        togglePanel,
+        totalBets,
+        totalAmount,
+        showResults,
+        setShowResults,
+      }}
     >
       {children}
+      {showResults && (
+        <HiddenBetsResultsModal
+          bets={bets}
+          onClose={() => setShowResults(false)}
+        />
+      )}
     </HiddenBetsContext.Provider>
   );
 };
