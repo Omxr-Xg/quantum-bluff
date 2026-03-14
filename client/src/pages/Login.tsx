@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useLoginMutation } from "../services/api";
 
 export function Login() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -67,8 +69,8 @@ export function Login() {
           <div className="inline-flex items-center justify-center mb-3">
             <QuantumBluffLogo className="w-20 h-20 sm:w-24 sm:h-24 drop-shadow-2xl" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Quantum Bluff</h1>
-          <p className="text-sm text-gray-400">Accès sécurisé à la table</p>
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">{t('auth.title')}</h1>
+          <p className="text-sm text-gray-400">{t('auth.secureAccess')}</p>
         </div>
 
         <div className="rounded-2xl p-6 sm:p-8 transition-all duration-300" style={{
@@ -79,7 +81,7 @@ export function Login() {
             
             {/* Email */}
             <div>
-              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Email</label>
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">{t('auth.email')}</label>
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
                 <input
@@ -95,7 +97,7 @@ export function Login() {
 
             {/* Mot de passe */}
             <div>
-              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Mot de passe</label>
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">{t('auth.password')}</label>
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
                 <input
@@ -119,7 +121,7 @@ export function Login() {
             {/* Message d'erreur */}
             {error && (
               <div className="text-red-400 text-sm text-center">
-                {'data' in error ? (error as { data?: { error?: string } }).data?.error : 'Email ou mot de passe incorrect'}
+                {'data' in error ? (error as { data?: { error?: string } }).data?.error : t('auth.loginError')}
               </div>
             )}
 
@@ -132,10 +134,10 @@ export function Login() {
               {isLoading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Connexion...</span>
+                  <span>{t('auth.loggingIn')}</span>
                 </>
               ) : (
-                <span>Se connecter</span>
+                <span>{t('auth.login')}</span>
               )}
             </button>
           </form>
@@ -143,9 +145,9 @@ export function Login() {
           {/* Lien inscription */}
           <div className="text-center mt-6">
             <p className="text-sm text-gray-400">
-              Nouveau joueur ?{" "}
+              {t('auth.newPlayer')}{" "}
               <button onClick={() => navigate("/register")} className="text-[#e81cff] font-semibold hover:underline">
-                Créer un compte
+                {t('auth.createAccount')}
               </button>
             </p>
           </div>

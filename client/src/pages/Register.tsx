@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useRegisterMutation } from "../services/api";
 
 export function Register() {
+  const { t } = useTranslation();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -91,8 +93,8 @@ export function Register() {
           <div className="inline-flex items-center justify-center mb-3">
             <QuantumBluffLogo className="w-20 h-20 sm:w-24 sm:h-24 drop-shadow-2xl" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">Quantum Bluff</h1>
-          <p className="text-sm text-gray-400">Créer votre compte joueur</p>
+          <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">{t('auth.title')}</h1>
+          <p className="text-sm text-gray-400">{t('auth.createYourAccount')}</p>
         </div>
 
         <div className="rounded-2xl p-6 sm:p-8 transition-all duration-300" style={{
@@ -103,7 +105,7 @@ export function Register() {
             
             {/* Nom d'utilisateur */}
             <div>
-              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Nom d'utilisateur</label>
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">{t('auth.username')}</label>
               <div className="relative group">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
                 <input
@@ -120,7 +122,7 @@ export function Register() {
 
             {/* Email */}
             <div>
-              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Email</label>
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">{t('auth.email')}</label>
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
                 <input
@@ -136,7 +138,7 @@ export function Register() {
 
             {/* Mot de passe */}
             <div>
-              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Mot de passe</label>
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">{t('auth.password')}</label>
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
                 <input
@@ -157,16 +159,16 @@ export function Register() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 mt-4 bg-black/30 p-3 rounded-lg border border-[#313131]">
-                <Criterion met={passwordCriteria.length} label="8+ caractères" />
-                <Criterion met={passwordCriteria.uppercase} label="1 Majuscule" />
-                <Criterion met={passwordCriteria.number} label="1 Chiffre" />
-                <Criterion met={passwordCriteria.special} label="1 Spécial" />
+                <Criterion met={passwordCriteria.length} label={t('auth.criteriaLength')} />
+                <Criterion met={passwordCriteria.uppercase} label={t('auth.criteriaUppercase')} />
+                <Criterion met={passwordCriteria.number} label={t('auth.criteriaNumber')} />
+                <Criterion met={passwordCriteria.special} label={t('auth.criteriaSpecial')} />
               </div>
             </div>
 
             {/* Confirmation */}
             <div>
-              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">Confirmation</label>
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">{t('auth.confirmPassword')}</label>
               <div className="relative group">
                 <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${confirmPassword ? (password === confirmPassword ? 'text-green-400' : 'text-red-500') : 'text-[#717171]'}`} />
                 <input
@@ -186,14 +188,14 @@ export function Register() {
                 </button>
               </div>
               {confirmPassword && password !== confirmPassword && (
-                <p className="text-red-400 text-[10px] mt-1 ml-1">Les mots de passe ne correspondent pas</p>
+                <p className="text-red-400 text-[10px] mt-1 ml-1">{t('auth.passwordMismatch')}</p>
               )}
             </div>
 
             {/* Message d'erreur */}
             {error && (
               <div className="text-red-400 text-sm text-center">
-                {'data' in error ? (error as { data?: { error?: string } }).data?.error : "Erreur lors de l'inscription"}
+                {'data' in error ? (error as { data?: { error?: string } }).data?.error : t('auth.registerError')}
               </div>
             )}
 
@@ -206,19 +208,19 @@ export function Register() {
               {isLoading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Inscription...</span>
+                  <span>{t('auth.registering')}</span>
                 </>
               ) : (
-                <span>Créer mon compte</span>
+                <span>{t('auth.createMyAccount')}</span>
               )}
             </button>
           </form>
 
           <div className="text-center mt-6">
             <p className="text-sm text-gray-400">
-              Déjà un compte ?{" "}
+              {t('auth.alreadyHaveAccount')}{" "}
               <button onClick={() => navigate("/login")} className="text-[#e81cff] font-semibold hover:underline">
-                Se connecter
+                {t('auth.login')}
               </button>
             </p>
           </div>

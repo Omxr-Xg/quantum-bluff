@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Bot, Server, User, Users, LogOut, Loader2 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { getUserBalance } from "../utils/userProfile";
@@ -27,6 +28,7 @@ interface WaitingRoomItem {
 }
 
 export function Lobby() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const userBalance = getUserBalance();
   const { userId, username } = useUser();
@@ -39,17 +41,17 @@ export function Lobby() {
     try {
       const url = API_BASE ? `${API_BASE}/api/waiting-room` : "/api/waiting-room";
       const res = await fetch(url);
-      if (!res.ok) throw new Error("Erreur chargement salles");
+      if (!res.ok) throw new Error(t('common.error'));
       const data = await res.json();
       setRooms(Array.isArray(data) ? data : []);
       setRoomsError(null);
     } catch (e) {
-      setRoomsError(e instanceof Error ? e.message : "Erreur serveur");
+      setRoomsError(e instanceof Error ? e.message : t('common.error'));
       setRooms([]);
     } finally {
       setRoomsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchRooms();
@@ -82,7 +84,7 @@ export function Lobby() {
       const room = await res.json();
       navigate(`/waiting-room?roomId=${room.id}`);
     } catch (e) {
-      setRoomsError(e instanceof Error ? e.message : "Impossible de créer la salle");
+      setRoomsError(e instanceof Error ? e.message : t('common.error'));
     } finally {
       setCreating(false);
     }
@@ -105,29 +107,28 @@ export function Lobby() {
 
             <div>
               <h1 className="text-4xl font-bold text-purple-400">
-                Quantum Bluff
+                {t('lobby.title')}
               </h1>
-              <p className="text-gray-400">Bienvenue, {username || 'Joueur'}</p>
+              <p className="text-gray-400">{t('lobby.welcome', { username: username || 'Joueur' })}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-
             <div className="bg-yellow-500/20 border border-yellow-500 rounded-xl px-6 py-3 text-yellow-300 font-bold">
-              🪙 {userBalance.toLocaleString()}
+              {t('lobby.balance', { balance: userBalance.toLocaleString() })}
             </div>
 
             <button
               onClick={() => navigate("/profile")}
               className="bg-green-600 p-3 rounded-xl text-white hover:bg-green-500 transition"
-              title="Profil"
+              title={t('lobby.profile')}
             >
               <User className="w-6 h-6" />
             </button>
             <button
               onClick={() => navigate("/friends")}
               className="bg-blue-600 p-3 rounded-xl text-white hover:bg-blue-500 transition"
-              title="Gérer mes amis"
+              title={t('lobby.manageFriends')}
             >
               <Users className="w-6 h-6" />
             </button>
@@ -135,7 +136,7 @@ export function Lobby() {
             <button
               onClick={() => navigate("/")}
               className="bg-red-600 p-3 rounded-xl text-white hover:bg-red-500 transition"
-              title="Déconnexion"
+              title={t('lobby.logout')}
             >
               <LogOut className="w-6 h-6" />
             </button>
@@ -153,14 +154,14 @@ export function Lobby() {
             <div className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
               <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
                 <Bot className="w-8 h-8 text-purple-400"/>
-                Jouer contre un Bot
+                {t('lobby.playBot')}
               </h2>
 
               <button
                 onClick={handlePlayBot}
                 className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl transition"
               >
-                Configurer & Jouer
+                {t('lobby.configureAndPlay')}
               </button>
             </div>
 
@@ -168,7 +169,7 @@ export function Lobby() {
             <div className="bg-slate-800 rounded-2xl p-6 border border-green-500">
               <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
                 <Server className="w-8 h-8 text-green-400"/>
-                Serveurs Multi-joueurs
+                {t('lobby.multiplayerServers')}
               </h2>
 
               <div className="space-y-3">
@@ -178,19 +179,19 @@ export function Lobby() {
                   className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2"
                 >
                   {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                  {creating ? "Création..." : "Créer un nouveau serveur"}
+                  {creating ? t('lobby.creating') : t('lobby.createNewServer')}
                 </button>
 
                 <div className="bg-slate-700/50 p-4 rounded-xl">
-                  <p className="text-gray-300 text-sm mb-2">Serveurs disponibles (max 5 joueurs) :</p>
+                  <p className="text-gray-300 text-sm mb-2">{t('lobby.serversAvailable')}</p>
                   {roomsLoading && rooms.length === 0 ? (
                     <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Chargement...
+                      <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
                     </p>
                   ) : roomsError ? (
                     <p className="text-red-400 text-center py-2 text-sm">{roomsError}</p>
                   ) : rooms.length === 0 ? (
-                    <p className="text-gray-500 text-center py-2">Aucun serveur disponible</p>
+                    <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
                   ) : (
                     <ul className="space-y-2">
                       {rooms.map((room) => (
@@ -201,7 +202,7 @@ export function Lobby() {
                           <div className="min-w-0 flex-1">
                             <p className="text-white font-medium truncate">{room.name}</p>
                             <p className="text-gray-400 text-xs">
-                              {room.playerCount}/{room.maxPlayers} joueurs
+                              {t('lobby.playersCount', { count: room.playerCount, max: room.maxPlayers })}
                             </p>
                           </div>
                           <button
@@ -209,7 +210,7 @@ export function Lobby() {
                             disabled={room.playerCount >= room.maxPlayers}
                             className="shrink-0 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
                           >
-                            Rejoindre
+                            {t('lobby.join')}
                           </button>
                         </li>
                       ))}

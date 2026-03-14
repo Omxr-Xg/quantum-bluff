@@ -1,15 +1,18 @@
 import { ReactNode, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Bell, X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
 import { Toast } from "./Toast";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export function Layout({ children }: LayoutProps) {
+  const { t } = useTranslation();
   const { socket, isConnected, connect } = useSocket();
   const { toasts, removeToast } = useToast();
   const [notification, setNotification] = useState<{
@@ -27,16 +30,18 @@ export function Layout({ children }: LayoutProps) {
     if (!socket) return;
 
     const handleFriendRequestReceived = (payload: unknown) => {
+      const username = (payload as { sender?: { username?: string } })?.sender?.username || "un joueur";
       setNotification({
         id: Date.now(),
-        message: `Nouvelle demande d'ami de ${(payload as { sender?: { username?: string } })?.sender?.username || "un joueur"}`
+        message: t('toast.friendRequestFrom', { username })
       });
     };
 
-    const handleFriendRequestAccepted = () => {
+    const handleFriendRequestAccepted = (payload: unknown) => {
+      const username = (payload as { username?: string })?.username || "Un ami";
       setNotification({
         id: Date.now(),
-        message: "Votre demande d'ami a été acceptée"
+        message: t('toast.friendRequestAccepted', { username })
       });
     };
 
@@ -47,7 +52,7 @@ export function Layout({ children }: LayoutProps) {
       socket.off("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
       socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
     };
-  }, [socket]);
+  }, [socket, t]);
 
   useEffect(() => {
     if (!notification) return;
@@ -61,6 +66,9 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="fixed bottom-4 left-4 z-[100]">
+        <LanguageSwitcher />
+      </div>
       <AnimatePresence>
         {toasts.map((toast) => (
           <Toast

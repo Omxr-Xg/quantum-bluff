@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { UserPlus, Users, LogOut, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { UserPlus, Users, LogOut, Loader2, AlertCircle } from "lucide-react";
 import { useSocket } from "../contexts/SocketContext";
 import { useUser } from "../hooks/useUser";
 import { useGetFriendsQuery } from "../services/api";
+import { useToast } from "../contexts/ToastContext";
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
@@ -16,6 +18,7 @@ interface Player {
 }
 
 export function WaitingRoom() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { userId, username } = useUser();
@@ -31,8 +34,10 @@ export function WaitingRoom() {
   const [roomLoading, setRoomLoading] = useState(true);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
+  const { addToast } = useToast();
 
   const fetchRoom = useCallback(
     async (id: string) => {
@@ -70,7 +75,7 @@ export function WaitingRoom() {
           if (cancelled) return;
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            setRoomError(err?.error || "Impossible de créer la salle");
+            setRoomError(err?.error || t('waitingRoom.cannotCreateRoom'));
             setRoomLoading(false);
             return;
           }
@@ -82,12 +87,12 @@ export function WaitingRoom() {
         const room = await fetchRoom(rawRoomId);
         if (cancelled) return;
         if (!room) {
-          setRoomError("Salle introuvable");
+          setRoomError(t('waitingRoom.roomNotFound'));
           setRoomLoading(false);
           return;
         }
         if (room.status !== "WAITING") {
-          setRoomError("La partie a déjà commencé");
+          setRoomError(t('waitingRoom.gameAlreadyStarted'));
           setRoomLoading(false);
           return;
         }
@@ -103,7 +108,7 @@ export function WaitingRoom() {
           if (cancelled) return;
           if (!joinRes.ok) {
             const err = await joinRes.json().catch(() => ({}));
-            setRoomError(err?.error || "Impossible de rejoindre");
+            setRoomError(err?.error || t('waitingRoom.cannotJoin'));
             setRoomLoading(false);
             return;
           }
@@ -123,7 +128,7 @@ export function WaitingRoom() {
             }))
         );
       } catch (e) {
-        if (!cancelled) setRoomError(e instanceof Error ? e.message : "Erreur");
+        if (!cancelled) setRoomError(e instanceof Error ? e.message : t('common.error'));
       } finally {
         if (!cancelled) setRoomLoading(false);
       }
@@ -156,6 +161,19 @@ export function WaitingRoom() {
     socket.on("GAME_STARTED", onGameStarted);
     return () => socket.off("GAME_STARTED", onGameStarted);
   }, [socket, navigate, rawRoomId, leaveRoom]);
+
+  useEffect(() => {
+    if (!socket || !userId || !addToast) return;
+    const onHostRequestedStart = (data: { message?: string; notReadyPlayers?: { id: string; name: string }[] }) => {
+      const notReady = data?.notReadyPlayers ?? [];
+      const amINotReady = notReady.some((p: { id: string }) => String(p.id) === String(userId));
+      if (amINotReady) {
+        addToast(data?.message ?? t('waitingRoom.hostWantsStart'), "info");
+      }
+    };
+    socket.on("HOST_REQUESTED_START", onHostRequestedStart);
+    return () => socket.off("HOST_REQUESTED_START", onHostRequestedStart);
+  }, [socket, userId, addToast]);
 
   useEffect(() => {
     if (!rawRoomId || rawRoomId.startsWith("room_")) return;
@@ -218,6 +236,7 @@ export function WaitingRoom() {
 
   const handleStartGame = async () => {
     if (!rawRoomId || rawRoomId.startsWith("room_") || !userId) return;
+    setStartError(null);
     setStarting(true);
     try {
       const url = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/start` : `/api/waiting-room/${rawRoomId}/start`;
@@ -228,7 +247,14 @@ export function WaitingRoom() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setRoomError(err?.error || "Impossible de démarrer");
+        const msg = err?.error || t('waitingRoom.cannotStart');
+        if (msg === "Tous les joueurs ne sont pas prêts" && Array.isArray(err?.notReadyPlayers) && err.notReadyPlayers.length > 0) {
+          setStartError(`${t('waitingRoom.notAllReady')} : ${err.notReadyPlayers.join(", ")} ${t('waitingRoom.mustBeReady')}`);
+        } else if (msg === "Tous les joueurs ne sont pas prêts") {
+          setStartError(t('waitingRoom.startErrorNotReady'));
+        } else {
+          setRoomError(msg);
+        }
         return;
       }
       const data = await res.json();
@@ -239,7 +265,7 @@ export function WaitingRoom() {
       leaveRoom(rawRoomId);
       navigate(data.gameId ? `/game?gameId=${data.gameId}` : "/game");
     } catch (e) {
-      setRoomError(e instanceof Error ? e.message : "Erreur démarrage");
+      setRoomError(e instanceof Error ? e.message : t('waitingRoom.cannotStart'));
     } finally {
       setStarting(false);
     }
@@ -265,7 +291,7 @@ export function WaitingRoom() {
       <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-white">
           <Loader2 className="w-10 h-10 animate-spin text-green-400" />
-          <p>Chargement de la salle...</p>
+          <p>{t('waitingRoom.loadingRoom')}</p>
         </div>
       </div>
     );
@@ -280,7 +306,7 @@ export function WaitingRoom() {
             onClick={() => navigate("/lobby")}
             className="bg-slate-600 hover:bg-slate-500 text-white font-semibold px-6 py-2 rounded-xl"
           >
-            Retour au lobby
+            {t('waitingRoom.backToLobby')}
           </button>
         </div>
       </div>
@@ -296,11 +322,11 @@ export function WaitingRoom() {
             className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl font-semibold transition-all"
           >
             <LogOut className="w-5 h-5" />
-            <span>Quitter</span>
+            <span>{t('waitingRoom.leave')}</span>
           </button>
           <div className="flex items-center gap-2">
             <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
-            <span className="text-gray-400 text-sm">{isConnected ? "Connecté" : "Déconnecté"}</span>
+            <span className="text-gray-400 text-sm">{isConnected ? t('waitingRoom.connected') : t('waitingRoom.disconnected')}</span>
           </div>
         </div>
 
@@ -309,9 +335,9 @@ export function WaitingRoom() {
             <Users className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-4xl font-bold text-white mb-1">{roomName || "Salle d'attente"}</h1>
+            <h1 className="text-4xl font-bold text-white mb-1">{roomName || t('waitingRoom.waitingRoomTitle')}</h1>
             <p className="text-gray-400">
-              Code : <span className="text-purple-400 font-mono">{roomId}</span>
+              {t('waitingRoom.code')} : <span className="text-purple-400 font-mono">{roomId}</span>
             </p>
           </div>
         </div>
@@ -321,7 +347,7 @@ export function WaitingRoom() {
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6">
             <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
               <Users className="w-6 h-6" />
-              Joueurs dans la salle ({players.length + 1})
+              {t('waitingRoom.playersInRoom', { count: players.length + 1 })}
             </h2>
 
             {/* Toi-même */}
@@ -337,15 +363,15 @@ export function WaitingRoom() {
                     <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-slate-800"></div>
                   </div>
                   <div>
-                    <div className="text-white font-bold">{username} (toi)</div>
-                    <div className="text-green-300 text-sm">Prêt ?</div>
+                    <div className="text-white font-bold">{username} ({t('waitingRoom.you')})</div>
+                    <div className="text-green-300 text-sm">{t('waitingRoom.readyQuestion')}</div>
                   </div>
                 </div>
                 <button
                   onClick={handleReady}
                   className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold"
                 >
-                  Prêt
+                  {t('waitingRoom.ready')}
                 </button>
               </div>
             </div>
@@ -363,11 +389,11 @@ export function WaitingRoom() {
                     </div>
                     <div>
                       <div className="text-white font-bold">{player.name}</div>
-                      <div className="text-gray-400 text-sm">Niveau {player.level}</div>
+                      <div className="text-gray-400 text-sm">{t('friends.level', { level: player.level })}</div>
                     </div>
                   </div>
                   <div className="text-sm text-gray-400">
-                    {player.isReady ? '✅ Prêt' : '⏳ En attente'}
+                    {player.isReady ? `✅ ${t('waitingRoom.ready')}` : `⏳ ${t('game.waiting')}`}
                   </div>
                 </div>
               </div>
@@ -376,7 +402,7 @@ export function WaitingRoom() {
             {players.length === 0 && (
               <div className="text-center py-8 border-2 border-dashed border-slate-700 rounded-xl">
                 <div className="text-gray-400">
-                  En attente d'autres joueurs...
+                  {t('waitingRoom.waitingForOthers')}
                 </div>
               </div>
             )}
@@ -386,7 +412,7 @@ export function WaitingRoom() {
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6">
             <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
               <UserPlus className="w-6 h-6" />
-              Inviter des amis
+              {t('waitingRoom.inviteFriends')}
             </h2>
 
             <div className="space-y-3 mb-6 max-h-[400px] overflow-y-auto">
@@ -404,7 +430,7 @@ export function WaitingRoom() {
                       </div>
                       <div>
                         <div className="text-white font-bold">{friend.username}</div>
-                        <div className="text-yellow-400 text-sm">Niveau {friend.level}</div>
+                        <div className="text-yellow-400 text-sm">{t('friends.level', { level: friend.level })}</div>
                       </div>
                     </div>
                     <button
@@ -416,31 +442,48 @@ export function WaitingRoom() {
                           : "bg-blue-600 hover:bg-blue-500 text-white"
                       }`}
                     >
-                      {invitedPlayers.some(p => p.id === friend.id) ? 'Invité' : 'Inviter'}
+                      {invitedPlayers.some(p => p.id === friend.id) ? t('waitingRoom.invited') : t('waitingRoom.invite')}
                     </button>
                   </div>
                 ))}
 
               {(!friends || friends.length === 0) && (
                 <div className="text-center py-8">
-                  <div className="text-gray-400">Aucun ami en ligne</div>
+                  <div className="text-gray-400">{t('waitingRoom.noFriendsOnline')}</div>
                 </div>
               )}
             </div>
 
             {isCreator && (
-              <button
-                onClick={handleStartGame}
-                disabled={players.length < 1 || starting}
-                className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${
-                  players.length >= 1 && !starting
-                    ? "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white transform hover:scale-105"
-                    : "bg-slate-700 text-gray-500 cursor-not-allowed"
-                }`}
-              >
-                {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                {starting ? "Démarrage..." : `Lancer la partie (${players.length + 1} joueurs)`}
-              </button>
+              <div className="space-y-3">
+                {startError && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{startError}</p>
+                      <button
+                        type="button"
+                        onClick={() => setStartError(null)}
+                        className="mt-2 text-xs text-amber-300 hover:text-amber-200 underline"
+                      >
+                        {t('waitingRoom.close')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <button
+                  onClick={handleStartGame}
+                  disabled={players.length < 1 || starting}
+                  className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${
+                    players.length >= 1 && !starting
+                      ? "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white transform hover:scale-105"
+                      : "bg-slate-700 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                  {starting ? t('waitingRoom.starting') : t('waitingRoom.startGameWithCount', { count: players.length + 1 })}
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import i18n from '../i18n/config'
 import { io, Socket } from 'socket.io-client'
 import { useUser } from '../hooks/useUser'
 import { useToast } from './ToastContext'
@@ -90,22 +91,23 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     if (!socket || !addToast) return
 
     socket.on('FRIEND_REQUEST_RECEIVED', (data: { sender?: { username?: string } }) => {
-      addToast(`Nouvelle demande d'ami de ${data.sender?.username ?? 'un joueur'}`, 'info')
+      addToast(i18n.t('toast.friendRequestFrom', { username: data.sender?.username ?? 'un joueur' }), 'info')
       if (window.location.pathname === '/friends') {
         window.dispatchEvent(new CustomEvent('refetch-requests'))
       }
     })
 
     socket.on('FRIEND_REQUEST_ACCEPTED', (data: { username?: string }) => {
-      addToast(`${data.username ?? 'Un ami'} a accepté votre demande d'ami !`, 'success')
+      addToast(i18n.t('toast.friendRequestAccepted', { username: data.username ?? 'Un ami' }), 'success')
       if (window.location.pathname === '/friends') {
         window.dispatchEvent(new CustomEvent('refetch-friends'))
       }
     })
 
     socket.on('FRIEND_STATUS_CHANGED', (data: { userId?: string; status?: string; username?: string }) => {
-      const statusText = data.status === 'online' ? 'en ligne' : 'hors ligne'
-      addToast(`${data.username ?? data.userId ?? 'Un ami'} est ${statusText}`, 'info')
+      const name = data.username ?? data.userId ?? 'Un ami'
+      const key = data.status === 'online' ? 'toast.friendIsOnline' : 'toast.friendIsOffline'
+      addToast(i18n.t(key, { name }), 'info')
     })
 
     return () => {
