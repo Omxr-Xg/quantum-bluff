@@ -10,8 +10,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "electron": "electron .",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron": "electron electron.js",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5175 && electron electron.cjs\"",
     "electron:build": "npm run build && electron-builder"
   },
   "dependencies": {
