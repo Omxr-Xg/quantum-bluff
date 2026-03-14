@@ -28,9 +28,12 @@ export class GameGateway {
 
   private setupMiddleware() {
     this.io.use((socket: AuthenticatedSocket, next) => {
-      const token = socket.handshake.auth?.token
+      const authToken = socket.handshake.auth?.token
+      const headerAuth = socket.handshake.headers?.authorization
+      const token = authToken || (typeof headerAuth === 'string' ? headerAuth.split(' ')[1] : undefined)
 
       if (!token) {
+        console.log('❌ Socket: token manquant')
         logSuspiciousAction('MISSING_TOKEN', {
           socketId: socket.id,
           details: 'Connexion socket sans token'
@@ -45,8 +48,11 @@ export class GameGateway {
         ) as { userId: string }
 
         socket.userId = decoded.userId
+        console.log('✅ Socket authentifié:', socket.userId)
         next()
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Token invalide'
+        console.log('❌ Socket token invalide:', msg)
         logSuspiciousAction('INVALID_TOKEN', {
           socketId: socket.id,
           details: 'Token socket invalide'
@@ -58,7 +64,13 @@ export class GameGateway {
 
   private setupHandlers() {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
-      console.log('🎮 Joueur connecté:', socket.id, 'User:', socket.userId)
+      console.log('🎮 Nouvelle connexion socket:', socket.id, 'User:', socket.userId)
+
+      socket.on('disconnect', (reason) => {
+        console.log('👋 Socket déconnecté:', socket.id, 'Raison:', reason)
+        this.socketToUser.delete(socket.id)
+        if (socket.userId) this.userToSocket.delete(socket.userId)
+      })
 
       if (socket.userId) {
         this.socketToUser.set(socket.id, socket.userId)

@@ -1,5 +1,21 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 
+const fetchWithRetry = async (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  retries = 3
+): Promise<Response> => {
+  for (let i = 0; i < retries; i++) {
+    const res = await fetch(input, init)
+    if (res.status === 429 && i < retries - 1) {
+      await new Promise((r) => setTimeout(r, 2000 * (i + 1)))
+      continue
+    }
+    return res
+  }
+  return fetch(input, init!)
+}
+
 interface User {
   id: string
   username: string
@@ -23,7 +39,8 @@ interface FriendRequest {
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:3000/api',
+    baseUrl: `${(import.meta.env.VITE_API_URL || 'http://localhost:3000').toString().replace(/\/$/, '')}/api`,
+    fetchFn: fetchWithRetry,
     prepareHeaders: (headers) => {
       const token = localStorage.getItem('token')
       if (token) {

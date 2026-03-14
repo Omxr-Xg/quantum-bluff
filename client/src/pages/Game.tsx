@@ -508,7 +508,7 @@ export function Game() {
         }, 1000);
       }
     }
-  }, [roundPlayersActed, phase, playersState]);
+  }, [roundPlayersActed, phase, playersState.length, gameIdParam, userId]);
 
   // Showdown (2 joueurs) : évaluer les mains et afficher le résultat
   useEffect(() => {
