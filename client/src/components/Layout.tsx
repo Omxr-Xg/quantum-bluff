@@ -1,6 +1,9 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Bell, X } from "lucide-react";
+import { AnimatePresence } from "motion/react";
 import { useSocket } from "../contexts/SocketContext";
+import { useToast } from "../contexts/ToastContext";
+import { Toast } from "./Toast";
 
 interface LayoutProps {
   children: ReactNode;
@@ -8,6 +11,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const { socket, isConnected, connect } = useSocket();
+  const { toasts, removeToast } = useToast();
   const [notification, setNotification] = useState<{
     id: number;
     message: string;
@@ -62,6 +66,16 @@ export function Layout({ children }: LayoutProps) {
   console.log("LAYOUT SOCKET STATUS:", { hasSocket: !!socket, isConnected });
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <AnimatePresence>
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </AnimatePresence>
       {notification && (
         <div className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100%-2rem)] sm:w-full">
           <div className="bg-slate-900/95 border border-blue-500 shadow-2xl rounded-2xl px-4 py-4 backdrop-blur-md animate-in slide-in-from-right-5 duration-300">
