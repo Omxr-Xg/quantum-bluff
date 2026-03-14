@@ -44,6 +44,7 @@ interface BasePlayer {
   cards: Card[];
   isConnected?: boolean;
   hasFolded?: boolean;
+  role?: "SB" | "BB" | "PLAYER";
 }
 
 interface BotPlayer extends BasePlayer {
@@ -63,8 +64,8 @@ export function Game() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [hasFolded, setHasFolded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [pot, setPot] = useState(500);
-  const [playerChips, setPlayerChips] = useState(7000);
+  const [pot, setPot] = useState(150);
+  const [playerChips, setPlayerChips] = useState(5000);
   const [isBotThinking, setIsBotThinking] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
@@ -93,6 +94,9 @@ export function Game() {
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
 
+  const SB = 50;
+  const BB = 100;
+
   const getPlayers = (): (BasePlayer | BotPlayer)[] => {
     const count = parseInt(searchParams.get("bots") || "1", 10);
     const diff = searchParams.get("difficulty") || "moyen";
@@ -106,29 +110,31 @@ export function Game() {
         bots.push({
           id: `bot-${i + 1}`,
           name: `Bot ${botNames[i]}`,
-          chips: 5000,
-          bet: 0,
-          position: i,
-          isActive: i === 0,
-          isDealer: false,
+          chips: 5000 - SB,
+          bet: SB,
+          position: 0,
+          isActive: true,
+          isDealer: true,
           cards: [],
           isBot: true,
           difficulty: diffMap,
           isConnected: true,
           hasFolded: false,
+          role: "SB",
         });
       }
       bots.push({
-        id: count + 1,
+        id: "human",
         name: "Vous",
-        chips: playerChips,
-        bet: 0,
-        position: count,
+        chips: playerChips - BB,
+        bet: BB,
+        position: 1,
         isActive: false,
         isDealer: false,
         cards: [],
         isConnected: true,
         hasFolded: false,
+        role: "BB",
       });
       return bots;
     }
@@ -208,14 +214,20 @@ export function Game() {
     }, 250);
   };
 
-  // Distribution du flop (3 cartes)
+  const resetBetsAndSetFirstToAct = (position: number) => {
+    setRoundPlayersActed(new Set());
+    setPlayersState((prev) =>
+      prev.map((p) => ({ ...p, bet: 0, isActive: p.position === position }))
+    );
+  };
+
+  // Distribution du flop (3 cartes) — post-flop : BB (position 1) parle en premier
   const dealFlop = () => {
     setPhase("flop");
+    resetBetsAndSetFirstToAct(1);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
-    
     newDeck.shift();
-    
     for (let i = 0; i < 3; i++) {
       const card = newDeck.shift();
       if (card) {
@@ -225,45 +237,37 @@ export function Game() {
         }, i * 300);
       }
     }
-    
     setDeck([...newDeck]);
-    setRoundPlayersActed(new Set());
   };
 
-  // Distribution du turn (1 carte)
+  // Distribution du turn — BB parle en premier
   const dealTurn = () => {
     setPhase("turn");
+    resetBetsAndSetFirstToAct(1);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
-    
     newDeck.shift();
-    
     const card = newDeck.shift();
     if (card) {
       newCommunityCards[3] = card;
       setCommunityCardsState([...newCommunityCards]);
     }
-    
     setDeck([...newDeck]);
-    setRoundPlayersActed(new Set());
   };
 
-  // Distribution de la river (1 carte)
+  // Distribution de la river — SB (position 0) parle en premier, BB en dernier
   const dealRiver = () => {
     setPhase("river");
+    resetBetsAndSetFirstToAct(0);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
-    
     newDeck.shift();
-    
     const card = newDeck.shift();
     if (card) {
       newCommunityCards[4] = card;
       setCommunityCardsState([...newCommunityCards]);
     }
-    
     setDeck([...newDeck]);
-    setRoundPlayersActed(new Set());
   };
 
   useEffect(() => {
@@ -274,6 +278,10 @@ export function Game() {
     });
     setPlayersState(initialPlayers);
     setDeck(generateDeck());
+    if (mode === "bot") {
+      setPot(SB + BB);
+      setPlayerChips(5000 - BB);
+    }
   }, []);
 
   useEffect(() => {
@@ -403,6 +411,7 @@ export function Game() {
       const humanInHand = humanIndex >= 0 && !(playersState[humanIndex]?.hasFolded ?? false);
 
       if (humanInHand && !roundPlayersActed.has(humanIndex)) return;
+      if (activeInHand.length < 2) return;
 
       if (roundPlayersActed.size >= activeInHand.length) {
         setTimeout(() => {
@@ -489,6 +498,16 @@ export function Game() {
       const newPlayers = prev.map((p, i) =>
         i === foldingIndex ? { ...p, hasFolded: true, isActive: false } : { ...p }
       );
+      const activeInHand = newPlayers.filter(
+        (p) => p.isConnected !== false && !(p.hasFolded ?? false)
+      );
+      if (activeInHand.length === 1) {
+        const winnerId = activeInHand[0].id;
+        const currentPot = pot;
+        return newPlayers.map((p) =>
+          p.id === winnerId ? { ...p, chips: p.chips + currentPot } : p
+        );
+      }
       let nextIndex = (foldingIndex + 1) % newPlayers.length;
       let loopCount = 0;
       while (loopCount < newPlayers.length) {
@@ -502,17 +521,39 @@ export function Game() {
       }
       return newPlayers;
     });
-    if (isHuman) setHasFolded(true);
-    setHasPlayerActed(true);
+    if (isHuman) {
+      setHasFolded(true);
+      setHasPlayerActed(true);
+    }
+    const activeInHandCount = playersState.filter(
+      (p, i) => i !== foldingIndex && p.isConnected !== false && !(p.hasFolded ?? false)
+    ).length;
+    if (activeInHandCount === 1) {
+      const winnerIndex = playersState.findIndex(
+        (p, i) => i !== foldingIndex && p.isConnected !== false && !(p.hasFolded ?? false)
+      );
+      if (
+        winnerIndex !== -1 &&
+        (playersState[winnerIndex].name === "Vous" || playersState[winnerIndex].name === "Diana")
+      ) {
+        setPlayerChips((prev) => prev + pot);
+      }
+      setPot(0);
+      setPhase("showdown");
+    }
   };
 
-  const handleCheck = (_playerId?: number | string) => {
-    setHasPlayerActed(true);
+  const handleCheck = (playerId?: number | string) => {
+    if (callAmount > 0) return;
+    const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    const isHumanActing = playerId === undefined || playerId === hero?.id;
+    if (isHumanActing) setHasPlayerActed(true);
     setTimeout(() => nextTurn(), 500);
   };
 
   const handleCall = (amount: number, playerId?: number | string) => {
     const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (playerId !== undefined && playerId !== hero?.id) {
       setPlayersState((prev) =>
         prev.map((p) =>
@@ -530,30 +571,36 @@ export function Game() {
       );
     }
     setPot((prev) => prev + amount);
-    setHasPlayerActed(true);
+    if (isHumanActing) setHasPlayerActed(true);
     setTimeout(() => nextTurn(), 500);
   };
 
-  const handleRaise = (amount: number, playerId?: number | string) => {
+  const handleRaise = (raiseAmount: number, playerId?: number | string) => {
+    const totalToPut = callAmount + raiseAmount;
     const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    const isHumanActing = playerId === undefined || playerId === hero?.id;
+    const currentIndex = playersState.findIndex((p) => p.isActive);
+    setRoundPlayersActed(new Set(currentIndex !== -1 ? [currentIndex] : []));
     if (playerId !== undefined && playerId !== hero?.id) {
       setPlayersState((prev) =>
         prev.map((p) =>
-          p.id === playerId ? { ...p, chips: p.chips - amount, bet: (p.bet ?? 0) + amount } : p
+          p.id === playerId
+            ? { ...p, chips: p.chips - totalToPut, bet: (p.bet ?? 0) + totalToPut }
+            : p
         )
       );
     } else {
-      setPlayerChips((prev) => prev - amount);
+      setPlayerChips((prev) => prev - totalToPut);
       setPlayersState((prev) =>
         prev.map((p) =>
           p.name === "Vous" || p.name === "Diana"
-            ? { ...p, chips: p.chips - amount, bet: (p.bet ?? 0) + amount }
+            ? { ...p, chips: p.chips - totalToPut, bet: (p.bet ?? 0) + totalToPut }
             : p
         )
       );
     }
-    setPot((prev) => prev + amount);
-    setHasPlayerActed(true);
+    setPot((prev) => prev + totalToPut);
+    if (isHumanActing) setHasPlayerActed(true);
     setTimeout(() => nextTurn(), 500);
   };
 
