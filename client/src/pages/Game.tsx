@@ -69,6 +69,7 @@ export function Game() {
   const [isBotThinking, setIsBotThinking] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [playersState, setPlayersState] = useState<(BasePlayer | BotPlayer)[]>([]);
   const [showAccessibilityMenu, setShowAccessibilityMenu] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
@@ -164,9 +165,27 @@ export function Game() {
     const otherPlayerIndex = activePlayers.filter((p) => p.name !== "Diana" && p.name !== "Vous").indexOf(player);
     return { ...player, position: otherPlayerIndex + 1 };
   });
-  const isMyTurn = activePlayer?.name === "Diana" || activePlayer?.name === "Vous";
+  const isMyTurn =
+    activePlayer?.name === "Diana" ||
+    activePlayer?.name === "Vous" ||
+    activePlayer?.id === "human";
   const heroPlayer = activePlayers.find((p) => p.name === "Vous" || p.name === "Diana");
   const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
+
+  // Debug tour (uniquement quand c'est le tour du joueur, désactiver en prod si besoin)
+  if (
+    typeof window !== "undefined" &&
+    phase !== "init" &&
+    phase !== "shuffle" &&
+    phase !== "deal" &&
+    isMyTurn
+  ) {
+    console.log("=== DEBUG TOUR (c'est mon tour) ===");
+    console.log("Active player:", activePlayer?.name, "id:", activePlayer?.id);
+    console.log("hasFolded:", heroPlayer?.hasFolded, "hasPlayerActed:", hasPlayerActed, "isLoading:", isLoading);
+    console.log("callAmount:", callAmount, "phase:", phase);
+    console.log("===================================");
+  }
   const heroCards = tablePlayers.find((p) => p.name === "Diana" || p.name === "Vous")?.cards || [];
   const communityCards = communityCardsState;
 
@@ -374,33 +393,39 @@ export function Game() {
     };
   }, [isMyTurn, gameInitialized, playPhase, playersState]);
 
+  // Quand c'est le tour du joueur humain, garantir que les boutons sont actifs
+  useEffect(() => {
+    if (isMyTurn && !hasFoldedFromState) {
+      setHasPlayerActed(false);
+      setIsLoading(false);
+    }
+  }, [isMyTurn, hasFoldedFromState]);
+
   const nextTurn = () => {
+    const currentIndex = playersState.findIndex((p) => p.isActive);
+    if (currentIndex !== -1) {
+      setRoundPlayersActed((prev) => new Set(prev).add(currentIndex));
+    }
+
     setPlayersState((prevPlayers) => {
       const newPlayers = prevPlayers.map((p) => ({ ...p }));
-      const currentIndex = newPlayers.findIndex((p) => p.isActive);
+      const idx = newPlayers.findIndex((p) => p.isActive);
+      if (idx !== -1) newPlayers[idx].isActive = false;
 
-      if (currentIndex !== -1) {
-        newPlayers[currentIndex].isActive = false;
-        setRoundPlayersActed((prev) => new Set(prev).add(currentIndex));
-      }
-
-      let nextIndex = (currentIndex + 1) % newPlayers.length;
+      let nextIndex = idx !== -1 ? (idx + 1) % newPlayers.length : 0;
       let loopCount = 0;
-
       while (loopCount < newPlayers.length) {
         const p = newPlayers[nextIndex];
-        const connected = p.isConnected !== false;
-        const notFolded = !(p.hasFolded ?? false);
-        if (connected && notFolded) break;
+        if (p.isConnected !== false && !(p.hasFolded ?? false)) break;
         nextIndex = (nextIndex + 1) % newPlayers.length;
         loopCount++;
       }
-
       newPlayers[nextIndex].isActive = true;
       return newPlayers;
     });
 
     setHasPlayerActed(false);
+    setIsLoading(false);
   };
 
   // Vérifier si un tour de mises est terminé (ne pas avancer tant que le joueur humain n'a pas joué)
@@ -524,6 +549,7 @@ export function Game() {
     if (isHuman) {
       setHasFolded(true);
       setHasPlayerActed(true);
+      setIsLoading(true);
     }
     const activeInHandCount = playersState.filter(
       (p, i) => i !== foldingIndex && p.isConnected !== false && !(p.hasFolded ?? false)
@@ -547,7 +573,10 @@ export function Game() {
     if (callAmount > 0) return;
     const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
-    if (isHumanActing) setHasPlayerActed(true);
+    if (isHumanActing) {
+      setHasPlayerActed(true);
+      setIsLoading(true);
+    }
     setTimeout(() => nextTurn(), 500);
   };
 
@@ -571,7 +600,10 @@ export function Game() {
       );
     }
     setPot((prev) => prev + amount);
-    if (isHumanActing) setHasPlayerActed(true);
+    if (isHumanActing) {
+      setHasPlayerActed(true);
+      setIsLoading(true);
+    }
     setTimeout(() => nextTurn(), 500);
   };
 
@@ -600,7 +632,10 @@ export function Game() {
       );
     }
     setPot((prev) => prev + totalToPut);
-    if (isHumanActing) setHasPlayerActed(true);
+    if (isHumanActing) {
+      setHasPlayerActed(true);
+      setIsLoading(true);
+    }
     setTimeout(() => nextTurn(), 500);
   };
 
@@ -1052,10 +1087,11 @@ export function Game() {
         minRaise={50}
         maxRaise={playerChips}
         isMyTurn={isMyTurn}
+        isLoading={isLoading}
         hasFolded={hasFoldedFromState}
         hasActed={hasPlayerActed}
         waitingForPlayer={!isMyTurn && !hasFoldedFromState ? activePlayer?.name : undefined}
-        timeLeft={timeLeft}
+        timeLeft={timeLeft ?? 20}
         onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
         onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
         onToggleChat={() => setIsChatOpen(!isChatOpen)}
