@@ -41,6 +41,7 @@ function App() {
             <Route path="/game-deal" element={<GameDeal />} />
             <Route path="/game-example" element={<GameExample />} />
             <Route path="/results" element={<HiddenBetsResult />} />
+            <Route path="/hidden-bets-result" element={<HiddenBetsResult />} />
 
             <Route path="/profile" element={<Profile />} />
             <Route path="/friends" element={<Friends />} />
