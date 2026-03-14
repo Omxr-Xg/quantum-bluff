@@ -25,6 +25,22 @@ interface Card {
   value: string;
 }
 
+/** Convertit une carte reçue du serveur (suit MAJ, value number, rank?) en format client. */
+function normalizeServerCard(c: { suit?: string; value?: number | string; rank?: string } | null): Card | null {
+  if (!c || typeof c !== "object") return null;
+  const suitRaw = (c.suit ?? "").toString().toLowerCase();
+  const suit = ["hearts", "diamonds", "clubs", "spades"].includes(suitRaw) ? suitRaw as Card["suit"] : "hearts";
+  const rank = c.rank;
+  const numVal = typeof c.value === "number" ? c.value : undefined;
+  const value =
+    typeof rank === "string" && rank.length > 0
+      ? rank
+      : numVal !== undefined
+        ? String({ 11: "J", 12: "Q", 13: "K", 14: "A" }[numVal] ?? numVal)
+        : String(c.value ?? "");
+  return { suit, value };
+}
+
 interface ChatMessage {
   id: number;
   player: string;
@@ -364,7 +380,7 @@ export function Game() {
           position: p.position ?? index,
           isActive: p.id === gameState.currentTurn,
           isDealer: p.isDealer ?? false,
-          cards: Array.isArray(p.cards) ? p.cards : [],
+          cards: Array.isArray(p.cards) ? p.cards.map((c) => normalizeServerCard(c)).filter((c): c is Card => c !== null) : [],
           isConnected: p.isConnected !== false,
           hasFolded: false,
           isBot: false,
@@ -376,7 +392,7 @@ export function Game() {
         const cc = gameState.communityCards;
         if (Array.isArray(cc)) {
           const arr: (Card | null)[] = [null, null, null, null, null];
-          cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object" && "suit" in c && "value" in c) arr[i] = c as Card; });
+          cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
           setCommunityCardsState(arr);
         }
         const isPlayingPhase = phase !== "init";
@@ -417,7 +433,8 @@ export function Game() {
         const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
         const mapped = players.map((p, index) => {
           const isMe = String(p.id) === String(userId);
-          const serverCards = Array.isArray(p.cards) ? p.cards : [];
+          const serverCardsRaw = Array.isArray(p.cards) ? p.cards : [];
+          const serverCards = serverCardsRaw.map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0])).filter((c): c is Card => c !== null);
           const myCards = isMe && serverCards.length > 0 ? serverCards : (isMe ? myCardsFromPrev : serverCards);
           return {
             id: String(p.id),
@@ -441,7 +458,7 @@ export function Game() {
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
-        cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object" && "suit" in c && "value" in c) arr[i] = c as Card; });
+        cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
         setCommunityCardsState(arr);
       }
       setGameInitialized(phase !== "init");
