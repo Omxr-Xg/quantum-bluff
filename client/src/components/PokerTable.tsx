@@ -36,12 +36,13 @@ export function PokerTable({
   communitySafeZone: _communitySafeZone = 180,
   phase,
 }: PokerTableProps) {
+
   const isShowdown = phase === "showdown";
 
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
-  
+
   const getPlayerPosition = (position: number, total: number) => {
 
     const tableWidth = isMobile ? 320 : isTablet ? 650 : 950;
@@ -120,6 +121,7 @@ export function PokerTable({
         >
           {children}
         </div>
+
       </div>
 
       {/* PLAYERS */}
@@ -143,7 +145,7 @@ export function PokerTable({
 
                 {/* TURN INDICATOR */}
                 {player.isActive && (
-                  <div className="inline-flex items-center gap-1 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold">
+                  <div className="inline-flex items-center gap-1 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold animate-pulse">
                     <Clock className="w-3 h-3 animate-pulse" />
                     SON TOUR
                   </div>
@@ -155,7 +157,8 @@ export function PokerTable({
                     player.position === 0
                       ? "w-20 h-20"
                       : "w-14 h-14"
-                  } rounded-full overflow-hidden bg-blue-500 border-2 border-white`}
+                  } rounded-full overflow-hidden bg-blue-500 border-2 border-white transition
+                  ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`}
                 >
 
                   {getPlayerAvatar(player.name) ? (
@@ -178,7 +181,7 @@ export function PokerTable({
                 </div>
 
                 {/* CHIPS */}
-                <div className="flex items-center gap-1 text-white text-sm font-bold">
+                <div className="flex items-center gap-1 text-white text-sm font-bold transition hover:scale-105">
 
                   <img
                     src={logoDataUrl}
@@ -194,43 +197,53 @@ export function PokerTable({
                 {player.cards && player.cards.length > 0 && (
                   <div className="flex gap-1">
                     {player.cards.map((card, index) => {
+
                       const isSelf =
                         player.position === 0 || player.name === "Vous"
+
                       const showFaceUp = isSelf || isShowdown
+
                       if (showFaceUp) {
                         return (
                           <div
                             key={index}
-                            className="w-10 h-14 bg-white rounded border flex flex-col justify-between p-1 shadow-md"
+                            className="w-10 h-14 bg-white rounded border flex flex-col justify-between p-1 shadow-md
+                            transition transform hover:scale-110 hover:-translate-y-1 duration-200"
                           >
                             <div
                               className={`text-xs font-bold ${getSuitColor(card.suit)}`}
                             >
                               {card.value}
                             </div>
+
                             <div
                               className={`text-lg text-center ${getSuitColor(card.suit)}`}
                             >
                               {getSuitSymbol(card.suit)}
                             </div>
+
                             <div
                               className={`text-xs font-bold rotate-180 ${getSuitColor(card.suit)}`}
                             >
                               {card.value}
                             </div>
+
                           </div>
                         )
                       } else {
                         return (
                           <div
                             key={index}
-                            className="w-10 h-14 bg-gradient-to-br from-red-800 to-red-950 rounded border-2 border-yellow-500/30 flex items-center justify-center shadow-md overflow-hidden"
+                            className="w-10 h-14 bg-gradient-to-br from-red-800 to-red-950 rounded border-2 border-yellow-500/30 flex items-center justify-center shadow-md overflow-hidden
+                            transition transform hover:scale-105 duration-200"
                           >
+
                             <img
                               src={logoSrc}
                               alt="card back"
                               className="w-8 h-8 object-contain opacity-80"
                             />
+
                           </div>
                         )
                       }
@@ -241,7 +254,9 @@ export function PokerTable({
               </div>
             </div>
           );
+
         })}
+
       </div>
     </div>
   );
