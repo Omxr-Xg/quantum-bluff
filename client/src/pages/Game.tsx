@@ -91,6 +91,71 @@ export function Game() {
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
 
+  const getPlayers = (): (BasePlayer | BotPlayer)[] => {
+    const count = parseInt(searchParams.get("bots") || "1", 10);
+    const diff = searchParams.get("difficulty") || "moyen";
+    const diffMap: "easy" | "medium" | "hard" =
+      diff === "facile" ? "easy" : diff === "difficile" || diff === "expert" ? "hard" : "medium";
+
+    if (mode === "bot") {
+      const botNames = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
+      const bots: BotPlayer[] = [];
+      for (let i = 0; i < count; i++) {
+        bots.push({
+          id: `bot-${i + 1}`,
+          name: `Bot ${botNames[i]}`,
+          chips: 5000,
+          bet: 0,
+          position: i,
+          isActive: i === 0,
+          isDealer: false,
+          cards: [],
+          isBot: true,
+          difficulty: diffMap,
+          isConnected: true,
+          hasFolded: false,
+        });
+      }
+      bots.push({
+        id: count + 1,
+        name: "Vous",
+        chips: playerChips,
+        bet: 0,
+        position: count,
+        isActive: false,
+        isDealer: false,
+        cards: [],
+        isConnected: true,
+        hasFolded: false,
+      });
+      return bots;
+    }
+    return [
+      { id: 1, name: "Alice", chips: 2500, bet: 100, position: 0, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
+      { id: 2, name: "Bob", chips: 3200, bet: 100, position: 1, isActive: true, isDealer: false, cards: [], isConnected: true, hasFolded: false },
+      { id: 3, name: "Charlie", chips: 1800, bet: 0, position: 2, isActive: false, isDealer: false, cards: [], isConnected: false, hasFolded: false },
+      { id: 4, name: "Diana", chips: 4100, bet: 100, position: 3, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
+      { id: 5, name: "Eve", chips: 2900, bet: 100, position: 4, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
+      { id: 6, name: "Vous", chips: playerChips, bet: 0, position: 5, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
+    ];
+  };
+
+  // Déclarations dérivées AVANT les useEffect qui les utilisent (évite "Cannot access before initialization")
+  const activePlayers = playersState.length > 0 ? playersState : getPlayers();
+  const callAmount = 100;
+  const tablePlayers = activePlayers.map((player) => {
+    const humanPlayer = player.name === "Diana" || player.name === "Vous";
+    if (humanPlayer) {
+      return { ...player, position: 0, cards: player.cards || [] };
+    }
+    const otherPlayerIndex = activePlayers.filter((p) => p.name !== "Diana" && p.name !== "Vous").indexOf(player);
+    return { ...player, position: otherPlayerIndex + 1 };
+  });
+  const activePlayer = activePlayers.find((p) => p.isActive);
+  const isMyTurn = activePlayer?.name === "Diana" || activePlayer?.name === "Vous";
+  const heroCards = tablePlayers.find((p) => p.name === "Diana" || p.name === "Vous")?.cards || [];
+  const communityCards = communityCardsState;
+
   // Générer un jeu de cartes complet
   const generateDeck = (): Card[] => {
     const suits: Array<"hearts" | "diamonds" | "clubs" | "spades"> = ["hearts", "diamonds", "clubs", "spades"];
@@ -231,59 +296,6 @@ export function Game() {
     setRoundPlayersActed(new Set());
   };
 
-  const getPlayers = (): (BasePlayer | BotPlayer)[] => {
-    const count = parseInt(searchParams.get("bots") || "1", 10);
-    const diff = searchParams.get("difficulty") || "moyen";
-    const diffMap: "easy" | "medium" | "hard" =
-      diff === "facile" ? "easy" : diff === "difficile" || diff === "expert" ? "hard" : "medium";
-
-    if (mode === "bot") {
-      const botNames = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
-      const bots: BotPlayer[] = [];
-
-      for (let i = 0; i < count; i++) {
-        bots.push({
-          id: `bot-${i + 1}`,
-          name: `Bot ${botNames[i]}`,
-          chips: 5000,
-          bet: 0,
-          position: i,
-          isActive: i === 0,
-          isDealer: false,
-          cards: [],
-          isBot: true,
-          difficulty: diffMap,
-          isConnected: true,
-          hasFolded: false,
-        });
-      }
-
-      bots.push({
-        id: count + 1,
-        name: "Vous",
-        chips: playerChips,
-        bet: 0,
-        position: count,
-        isActive: false,
-        isDealer: false,
-        cards: [],
-        isConnected: true,
-        hasFolded: false,
-      });
-
-      return bots;
-    }
-
-    return [
-      { id: 1, name: "Alice", chips: 2500, bet: 100, position: 0, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 2, name: "Bob", chips: 3200, bet: 100, position: 1, isActive: true, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 3, name: "Charlie", chips: 1800, bet: 0, position: 2, isActive: false, isDealer: false, cards: [], isConnected: false, hasFolded: false },
-      { id: 4, name: "Diana", chips: 4100, bet: 100, position: 3, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 5, name: "Eve", chips: 2900, bet: 100, position: 4, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 6, name: "Vous", chips: playerChips, bet: 0, position: 5, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-    ];
-  };
-
   useEffect(() => {
     const initialPlayers = getPlayers();
     initialPlayers.forEach((p, idx) => {
@@ -312,6 +324,7 @@ export function Game() {
   }, [socket]);
 
   useEffect(() => {
+    if (typeof isMyTurn === "undefined") return;
     if (timeLeft <= 0 && timerActive && isMyTurn) {
       if (callAmount === 0) handleCheck();
       else handleFold();
@@ -320,6 +333,7 @@ export function Game() {
   }, [timeLeft, timerActive, isMyTurn, callAmount]);
 
   useEffect(() => {
+    if (typeof isMyTurn === "undefined") return;
     if (!timerActive || !isMyTurn) return;
     const interval = setInterval(() => {
       setTimeLeft((prev) => Math.max(0, prev - 1));
@@ -328,6 +342,7 @@ export function Game() {
   }, [timerActive, isMyTurn]);
 
   useEffect(() => {
+    if (typeof isMyTurn === "undefined") return;
     if (isMyTurn) {
       setTimeLeft(20);
       setTimerActive(true);
@@ -335,30 +350,6 @@ export function Game() {
       setTimerActive(false);
     }
   }, [isMyTurn]);
-
-  const activePlayers = playersState.length > 0 ? playersState : getPlayers();
-  const callAmount = 100;
-
-  const tablePlayers = activePlayers.map((player) => {
-    const humanPlayer = player.name === "Diana" || player.name === "Vous";
-    console.log("Player cards:", player.cards);
-    if (humanPlayer) {
-      return { 
-        ...player, 
-        position: 0,
-        cards: player.cards || []
-      };
-    } else {
-      const otherPlayerIndex = activePlayers.filter(p => p.name !== "Diana" && p.name !== "Vous").indexOf(player);
-      return { ...player, position: otherPlayerIndex + 1 };
-    }
-  });
-
-  const activePlayer = activePlayers.find(p => p.isActive);
-  const isMyTurn = activePlayer?.name === "Diana" || activePlayer?.name === "Vous";
-
-  const heroCards = tablePlayers.find(p => p.name === "Diana" || p.name === "Vous")?.cards || [];
-  const communityCards = communityCardsState;
 
   const nextTurn = () => {
     setPlayersState((prevPlayers) => {
