@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { PokerTable } from "../components/PokerTable";
@@ -144,7 +144,12 @@ export function Game() {
 
   // Déclarations dérivées AVANT les useEffect qui les utilisent (évite "Cannot access before initialization")
   const activePlayers = playersState.length > 0 ? playersState : getPlayers();
-  const callAmount = 100;
+  const activePlayer = activePlayers.find((p) => p.isActive);
+  const callAmount = useMemo(() => {
+    if (!activePlayer) return 0;
+    const highestBet = Math.max(...activePlayers.map((p) => p.bet ?? 0), 0);
+    return Math.max(0, highestBet - (activePlayer.bet ?? 0));
+  }, [activePlayers, activePlayer]);
   const tablePlayers = activePlayers.map((player) => {
     const humanPlayer = player.name === "Diana" || player.name === "Vous";
     if (humanPlayer) {
@@ -153,8 +158,9 @@ export function Game() {
     const otherPlayerIndex = activePlayers.filter((p) => p.name !== "Diana" && p.name !== "Vous").indexOf(player);
     return { ...player, position: otherPlayerIndex + 1 };
   });
-  const activePlayer = activePlayers.find((p) => p.isActive);
   const isMyTurn = activePlayer?.name === "Diana" || activePlayer?.name === "Vous";
+  const heroPlayer = activePlayers.find((p) => p.name === "Vous" || p.name === "Diana");
+  const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
   const heroCards = tablePlayers.find((p) => p.name === "Diana" || p.name === "Vous")?.cards || [];
   const communityCards = communityCardsState;
 
@@ -306,6 +312,15 @@ export function Game() {
 
   useEffect(() => {
     if (typeof isMyTurn === "undefined") return;
+    const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    if (hero?.hasFolded) {
+      setTimerActive(false);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      return;
+    }
     if (!gameInitialized || !playPhase) {
       setTimerActive(false);
       if (timerIntervalRef.current) {
@@ -349,7 +364,7 @@ export function Game() {
         timerIntervalRef.current = null;
       }
     };
-  }, [isMyTurn, gameInitialized, playPhase]);
+  }, [isMyTurn, gameInitialized, playPhase, playersState]);
 
   const nextTurn = () => {
     setPlayersState((prevPlayers) => {
@@ -380,24 +395,21 @@ export function Game() {
     setHasPlayerActed(false);
   };
 
-  // Vérifier si un tour de mises est terminé
+  // Vérifier si un tour de mises est terminé (ne pas avancer tant que le joueur humain n'a pas joué)
   useEffect(() => {
     if (phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river") {
-      const activePlayers = playersState.filter(p => p.isConnected);
-      
-      // Vérifier si tous les joueurs ont joué
-      if (roundPlayersActed.size >= activePlayers.length) {
-        // Tour terminé, passer à la phase suivante
+      const activeInHand = playersState.filter((p) => p.isConnected && !(p.hasFolded ?? false));
+      const humanIndex = playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+      const humanInHand = humanIndex >= 0 && !(playersState[humanIndex]?.hasFolded ?? false);
+
+      if (humanInHand && !roundPlayersActed.has(humanIndex)) return;
+
+      if (roundPlayersActed.size >= activeInHand.length) {
         setTimeout(() => {
-          if (phase === "preflop") {
-            dealFlop();
-          } else if (phase === "flop") {
-            dealTurn();
-          } else if (phase === "turn") {
-            dealRiver();
-          } else if (phase === "river") {
-            setPhase("showdown");
-          }
+          if (phase === "preflop") dealFlop();
+          else if (phase === "flop") dealTurn();
+          else if (phase === "turn") dealRiver();
+          else if (phase === "river") setPhase("showdown");
         }, 1000);
       }
     }
@@ -466,18 +478,32 @@ export function Game() {
   const handleFold = (playerId?: number | string) => {
     const heroId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
     const isHuman = playerId === undefined || playerId === heroId;
+    const foldingIndex =
+      playerId !== undefined
+        ? playersState.findIndex((p) => p.id === playerId)
+        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+    if (foldingIndex === -1) return;
 
-    setPlayersState((prev) =>
-      prev.map((p) => {
-        if (p.id === playerId || (isHuman && (p.name === "Vous" || p.name === "Diana"))) {
-          return { ...p, hasFolded: true };
+    setRoundPlayersActed((prev) => new Set(prev).add(foldingIndex));
+    setPlayersState((prev) => {
+      const newPlayers = prev.map((p, i) =>
+        i === foldingIndex ? { ...p, hasFolded: true, isActive: false } : { ...p }
+      );
+      let nextIndex = (foldingIndex + 1) % newPlayers.length;
+      let loopCount = 0;
+      while (loopCount < newPlayers.length) {
+        const p = newPlayers[nextIndex];
+        if (p.isConnected !== false && !(p.hasFolded ?? false)) {
+          newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
+          break;
         }
-        return p;
-      })
-    );
+        nextIndex = (nextIndex + 1) % newPlayers.length;
+        loopCount++;
+      }
+      return newPlayers;
+    });
     if (isHuman) setHasFolded(true);
     setHasPlayerActed(true);
-    setTimeout(() => nextTurn(), 500);
   };
 
   const handleCheck = (_playerId?: number | string) => {
@@ -495,6 +521,13 @@ export function Game() {
       );
     } else {
       setPlayerChips((prev) => prev - amount);
+      setPlayersState((prev) =>
+        prev.map((p) =>
+          p.name === "Vous" || p.name === "Diana"
+            ? { ...p, chips: p.chips - amount, bet: (p.bet ?? 0) + amount }
+            : p
+        )
+      );
     }
     setPot((prev) => prev + amount);
     setHasPlayerActed(true);
@@ -511,6 +544,13 @@ export function Game() {
       );
     } else {
       setPlayerChips((prev) => prev - amount);
+      setPlayersState((prev) =>
+        prev.map((p) =>
+          p.name === "Vous" || p.name === "Diana"
+            ? { ...p, chips: p.chips - amount, bet: (p.bet ?? 0) + amount }
+            : p
+        )
+      );
     }
     setPot((prev) => prev + amount);
     setHasPlayerActed(true);
@@ -965,9 +1005,9 @@ export function Game() {
         minRaise={50}
         maxRaise={playerChips}
         isMyTurn={isMyTurn}
-        hasFolded={hasFolded}
+        hasFolded={hasFoldedFromState}
         hasActed={hasPlayerActed}
-        waitingForPlayer={!isMyTurn && !hasFolded ? activePlayer?.name : undefined}
+        waitingForPlayer={!isMyTurn && !hasFoldedFromState ? activePlayer?.name : undefined}
         timeLeft={timeLeft}
         onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
         onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
