@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="37" failures="0" errors="0" time="0.281">
-  <testsuite name="GameTable - Moteur Principal" errors="0" failures="0" skipped="0" timestamp="2026-03-13T16:21:32" time="0.211" tests="17">
-    <testcase classname="GameTable - Moteur Principal constructor initialise GameState PREFLOP" name="GameTable - Moteur Principal constructor initialise GameState PREFLOP" time="0">
+<testsuites name="jest tests" tests="37" failures="0" errors="0" time="0.368">
+  <testsuite name="GameTable - Moteur Principal" errors="0" failures="0" skipped="0" timestamp="2026-03-14T01:03:47" time="0.286" tests="17">
+    <testcase classname="GameTable - Moteur Principal constructor initialise GameState PREFLOP" name="GameTable - Moteur Principal constructor initialise GameState PREFLOP" time="0.001">
     </testcase>
-    <testcase classname="GameTable - Moteur Principal getSanitizedState structure + Fog of War" name="GameTable - Moteur Principal getSanitizedState structure + Fog of War" time="0">
+    <testcase classname="GameTable - Moteur Principal getSanitizedState structure + Fog of War" name="GameTable - Moteur Principal getSanitizedState structure + Fog of War" time="0.001">
     </testcase>
-    <testcase classname="GameTable - Moteur Principal impossible de jouer avant startHand" name="GameTable - Moteur Principal impossible de jouer avant startHand" time="0.007">
+    <testcase classname="GameTable - Moteur Principal impossible de jouer avant startHand" name="GameTable - Moteur Principal impossible de jouer avant startHand" time="0.005">
     </testcase>
-    <testcase classname="GameTable - Moteur Principal startHand distribue les cartes et poste les blinds" name="GameTable - Moteur Principal startHand distribue les cartes et poste les blinds" time="0">
+    <testcase classname="GameTable - Moteur Principal startHand distribue les cartes et poste les blinds" name="GameTable - Moteur Principal startHand distribue les cartes et poste les blinds" time="0.001">
     </testcase>
     <testcase classname="GameTable - Moteur Principal heads-up : le dealer/small blind parle en premier préflop" name="GameTable - Moteur Principal heads-up : le dealer/small blind parle en premier préflop" time="0">
     </testcase>
     <testcase classname="GameTable - Moteur Principal CALL est autorisé quand le small blind doit compléter la big blind" name="GameTable - Moteur Principal CALL est autorisé quand le small blind doit compléter la big blind" time="0">
     </testcase>
-    <testcase classname="GameTable - Moteur Principal CHECK est interdit quand une mise est à suivre" name="GameTable - Moteur Principal CHECK est interdit quand une mise est à suivre" time="0">
+    <testcase classname="GameTable - Moteur Principal CHECK est interdit quand une mise est à suivre" name="GameTable - Moteur Principal CHECK est interdit quand une mise est à suivre" time="0.001">
     </testcase>
     <testcase classname="GameTable - Moteur Principal pas ton tour déclenche une erreur" name="GameTable - Moteur Principal pas ton tour déclenche une erreur" time="0">
     </testcase>
@@ -36,10 +36,10 @@
     <testcase classname="GameTable - Nouvelles méthodes simplifiées handlePlayerAction() avec FOLD" name="GameTable - Nouvelles méthodes simplifiées handlePlayerAction() avec FOLD" time="0">
     </testcase>
   </testsuite>
-  <testsuite name="Evaluator - Mains de poker" errors="0" failures="0" skipped="0" timestamp="2026-03-13T16:21:32" time="0.015" tests="14">
+  <testsuite name="Evaluator - Mains de poker" errors="0" failures="0" skipped="0" timestamp="2026-03-14T01:03:47" time="0.016" tests="14">
     <testcase classname="Evaluator - Mains de poker getHandValue Carte haute" name="Evaluator - Mains de poker getHandValue Carte haute" time="0">
     </testcase>
-    <testcase classname="Evaluator - Mains de poker getHandValue Paire" name="Evaluator - Mains de poker getHandValue Paire" time="0.001">
+    <testcase classname="Evaluator - Mains de poker getHandValue Paire" name="Evaluator - Mains de poker getHandValue Paire" time="0">
     </testcase>
     <testcase classname="Evaluator - Mains de poker getHandValue Double paire" name="Evaluator - Mains de poker getHandValue Double paire" time="0">
     </testcase>
@@ -47,7 +47,7 @@
     </testcase>
     <testcase classname="Evaluator - Mains de poker getHandValue Quinte" name="Evaluator - Mains de poker getHandValue Quinte" time="0">
     </testcase>
-    <testcase classname="Evaluator - Mains de poker getHandValue Quinte blanche (A-2-3-4-5)" name="Evaluator - Mains de poker getHandValue Quinte blanche (A-2-3-4-5)" time="0">
+    <testcase classname="Evaluator - Mains de poker getHandValue Quinte blanche (A-2-3-4-5)" name="Evaluator - Mains de poker getHandValue Quinte blanche (A-2-3-4-5)" time="0.003">
     </testcase>
     <testcase classname="Evaluator - Mains de poker getHandValue Couleur" name="Evaluator - Mains de poker getHandValue Couleur" time="0">
     </testcase>
@@ -59,14 +59,18 @@
     </testcase>
     <testcase classname="Evaluator - Mains de poker getHandValue Quinte flush royale" name="Evaluator - Mains de poker getHandValue Quinte flush royale" time="0">
     </testcase>
-    <testcase classname="Evaluator - Mains de poker Cas d&apos;égalité (split pot) Deux joueurs avec la même quinte" name="Evaluator - Mains de poker Cas d&apos;égalité (split pot) Deux joueurs avec la même quinte" time="0.001">
+    <testcase classname="Evaluator - Mains de poker Cas d&apos;égalité (split pot) Deux joueurs avec la même quinte" name="Evaluator - Mains de poker Cas d&apos;égalité (split pot) Deux joueurs avec la même quinte" time="0">
     </testcase>
     <testcase classname="Evaluator - Mains de poker Cas d&apos;égalité (split pot) Deux joueurs avec la même paire, kicker différent" name="Evaluator - Mains de poker Cas d&apos;égalité (split pot) Deux joueurs avec la même paire, kicker différent" time="0">
     </testcase>
     <testcase classname="Evaluator - Mains de poker resolveShowdown findWinner retourne le bon gagnant" name="Evaluator - Mains de poker resolveShowdown findWinner retourne le bon gagnant" time="0">
     </testcase>
   </testsuite>
-  <testsuite name="undefined" errors="0" failures="0" skipped="0" timestamp="2026-03-13T16:21:32" time="0.009" tests="4">
+  <testsuite name="Backend health check" errors="0" failures="0" skipped="0" timestamp="2026-03-14T01:03:47" time="0.014" tests="1">
+    <testcase classname="Backend health check should pass basic test" name="Backend health check should pass basic test" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="undefined" errors="0" failures="0" skipped="0" timestamp="2026-03-14T01:03:47" time="0.01" tests="4">
     <testcase classname=" initializeDeck génère 52 cartes uniques" name=" initializeDeck génère 52 cartes uniques" time="0">
     </testcase>
     <testcase classname=" shuffle préserve 52 cartes" name=" shuffle préserve 52 cartes" time="0">
@@ -76,11 +80,7 @@
     <testcase classname=" dealFlop: burn + 3 cartes" name=" dealFlop: burn + 3 cartes" time="0">
     </testcase>
   </testsuite>
-  <testsuite name="Backend health check" errors="0" failures="0" skipped="0" timestamp="2026-03-13T16:21:32" time="0.008" tests="1">
-    <testcase classname="Backend health check should pass basic test" name="Backend health check should pass basic test" time="0">
-    </testcase>
-  </testsuite>
-  <testsuite name="Example test" errors="0" failures="0" skipped="0" timestamp="2026-03-13T16:21:32" time="0.008" tests="1">
+  <testsuite name="Example test" errors="0" failures="0" skipped="0" timestamp="2026-03-14T01:03:47" time="0.011" tests="1">
     <testcase classname="Example test should pass" name="Example test should pass" time="0">
     </testcase>
   </testsuite>

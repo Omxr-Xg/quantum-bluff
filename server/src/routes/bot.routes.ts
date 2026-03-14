@@ -20,16 +20,16 @@ const botActionSchema = z.object({
   amount: z.number().int().positive().optional()
 })
 
-router.post('/action', botActionLimiter, (req, res) => {
+router.post('/action', botActionLimiter, async (req, res) => {
   const parsed = botActionSchema.safeParse(req.body)
 
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors })
+    return res.status(400).json({ error: parsed.error.issues })
   }
 
   const { gameId, playerId, action, amount } = parsed.data
 
-  const game = activeGames.get(gameId)
+  const game = await activeGames.get(gameId)
 
   if (!game) {
     return res.status(404).json({ error: 'Partie introuvable' })

@@ -243,16 +243,57 @@ export class GameTable {
   }
 
   private advanceTurn(): void {
-    const currentIndex = this.getPlayerIndexById(this.state.currentTurn)
-    const nextIndex =
-      currentIndex === -1 ? -1 : this.getNextEligiblePlayerIndex(currentIndex)
+    this.nextTurnInternal()
+  }
 
-    if (nextIndex === -1) {
+  private nextTurnInternal(): void {
+    if (this.state.players.length === 0) {
       this.state.currentTurn = ''
       return
     }
 
-    this.state.currentTurn = this.state.players[nextIndex].id
+    const currentIndex = this.state.players.findIndex(
+      (p) => p.id === this.state.currentTurn
+    )
+    let nextIndex = (currentIndex + 1) % this.state.players.length
+    let loopCount = 0
+
+    while (loopCount < this.state.players.length) {
+      const nextPlayer = this.state.players[nextIndex]
+
+      if (nextPlayer.isActive && (nextPlayer.cards?.length ?? 0) > 0) {
+        this.state.currentTurn = nextPlayer.id
+        return
+      }
+
+      nextIndex = (nextIndex + 1) % this.state.players.length
+      loopCount++
+    }
+
+    this.state.currentTurn = ''
+  }
+
+  /**
+   * Démarre un nouveau round de mise (premier joueur actif après le dealer).
+   */
+  startNewRound(): void {
+    const dealerIndex = this.state.players.findIndex((p) => p.isDealer)
+    let firstPlayerIndex = (dealerIndex + 1) % this.state.players.length
+    let loopCount = 0
+
+    while (
+      loopCount < this.state.players.length &&
+      !this.state.players[firstPlayerIndex].isActive
+    ) {
+      firstPlayerIndex = (firstPlayerIndex + 1) % this.state.players.length
+      loopCount++
+    }
+
+    if (loopCount < this.state.players.length) {
+      this.state.currentTurn = this.state.players[firstPlayerIndex].id
+    } else {
+      this.state.currentTurn = ''
+    }
   }
 
   startHand(): void {
@@ -519,10 +560,10 @@ export class GameTable {
   }
 
   /**
-   * Passe au joueur suivant
+   * Passe au joueur suivant (actif et ayant encore des cartes).
    */
   nextTurn(): void {
-    this.advanceTurn()
+    this.nextTurnInternal()
   }
 
   /**
