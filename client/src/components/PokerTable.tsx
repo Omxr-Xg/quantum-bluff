@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { logoDataUrl } from "../assets/logo";
+import logoSrc from "../assets/logo-personnel.png";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Clock } from "lucide-react";
@@ -219,11 +220,13 @@ export function PokerTable({
                         return (
                           <div
                             key={index}
-                            className="w-10 h-14 bg-gradient-to-br from-red-800 to-red-950 rounded border-2 border-yellow-500/30 flex items-center justify-center shadow-md"
+                            className="w-10 h-14 bg-gradient-to-br from-red-800 to-red-950 rounded border-2 border-yellow-500/30 flex items-center justify-center shadow-md overflow-hidden"
                           >
-                            <div className="text-yellow-400 text-xl font-bold">
-                              ?
-                            </div>
+                            <img
+                              src={logoSrc}
+                              alt="card back"
+                              className="w-8 h-8 object-contain opacity-80"
+                            />
                           </div>
                         )
                       }
