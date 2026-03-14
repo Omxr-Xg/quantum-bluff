@@ -101,6 +101,7 @@ export function Game() {
   } | null>(null);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const gameStateFromSocketRef = useRef(false);
   const clearBotActionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playersStateRef = useRef<(BasePlayer | BotPlayer)[]>([]);
 
@@ -297,7 +298,7 @@ export function Game() {
       if (stored) {
         try {
           const parsed: { id: string; name: string }[] = JSON.parse(stored);
-          localStorage.removeItem("gamePlayers");
+          // Ne pas supprimer : l'autre onglet doit pouvoir lire aussi
           initial = parsed.map((p, i) => ({
             id: String(p.id),
             name: p.name,
@@ -320,12 +321,170 @@ export function Game() {
       p.cards = [];
     });
     setPlayersState(initial);
-    setDeck(generateDeck());
+    if (!gameIdParam) {
+      setDeck(generateDeck());
+    }
     if (mode === "bot") {
       setPot(SB + BB);
       setPlayerChips(5000 - BB);
     }
   }, []);
+
+  // Multijoueur : récupérer l'état du jeu depuis le backend (évite race localStorage + cartes / phase / pot)
+  useEffect(() => {
+    if (!gameIdParam || !userId) return;
+    const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+    const base = apiUrl || "";
+    const url = `${base}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
+    let cancelled = false;
+    fetch(url, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json();
+      })
+      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string }) => {
+        if (cancelled) return;
+        if (gameStateFromSocketRef.current) return;
+        const players = gameState.players ?? [];
+        const phaseMap: Record<string, GamePhase> = {
+          WAITING: "init",
+          PREFLOP: "preflop",
+          FLOP: "flop",
+          TURN: "turn",
+          RIVER: "river",
+          SHOWDOWN: "showdown",
+        };
+        const mapped = players.map((p, index) => ({
+          id: String(p.id),
+          name: p.name,
+          chips: p.chips ?? 1000,
+          bet: p.currentBet ?? 0,
+          position: p.position ?? index,
+          isActive: p.id === gameState.currentTurn,
+          isDealer: p.isDealer ?? false,
+          cards: Array.isArray(p.cards) ? p.cards : [],
+          isConnected: p.isConnected !== false,
+          hasFolded: false,
+          isBot: false,
+        }));
+        setPlayersState(mapped);
+        setPot(gameState.pot ?? 0);
+        const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
+        setPhase(phase as GamePhase);
+        const cc = gameState.communityCards;
+        if (Array.isArray(cc)) {
+          const arr: (Card | null)[] = [null, null, null, null, null];
+          cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object" && "suit" in c && "value" in c) arr[i] = c as Card; });
+          setCommunityCardsState(arr);
+        }
+        const isPlayingPhase = phase !== "init";
+        setGameInitialized(isPlayingPhase);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error("Erreur récupération état partie:", err);
+      });
+    return () => { cancelled = true; };
+  }, [gameIdParam, userId]);
+
+  // Rejoindre la room socket pour recevoir GAME_UPDATE et TURN_TIMER
+  useEffect(() => {
+    if (!socket || !gameIdParam || !userId) return;
+    socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+    // Pas de socket.leave ici : le client socket.io peut ne pas exposer leave selon l'environnement ;
+    // à la déconnexion ou navigation, le serveur retire le socket de la room.
+    return () => {};
+  }, [socket, gameIdParam, userId]);
+
+  // Appliquer les mises à jour d'état envoyées par le serveur (après une action)
+  useEffect(() => {
+    if (!socket || !gameIdParam || !userId) return;
+    const phaseMap: Record<string, GamePhase> = {
+      WAITING: "init",
+      PREFLOP: "preflop",
+      FLOP: "flop",
+      TURN: "turn",
+      RIVER: "river",
+      SHOWDOWN: "showdown",
+      ENDED_OPPONENT_LEFT: "showdown",
+    };
+    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownHandName?: string; showdownPot?: number }) => {
+      gameStateFromSocketRef.current = true;
+      const players = gameState.players ?? [];
+      setPlayersState((prev) => {
+        const myCardsFromPrev = prev.find((p) => String(p.id) === String(userId))?.cards ?? [];
+        const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
+        const mapped = players.map((p, index) => {
+          const isMe = String(p.id) === String(userId);
+          const serverCards = Array.isArray(p.cards) ? p.cards : [];
+          const myCards = isMe && serverCards.length > 0 ? serverCards : (isMe ? myCardsFromPrev : serverCards);
+          return {
+            id: String(p.id),
+            name: p.name,
+            chips: p.chips ?? 1000,
+            bet: p.currentBet ?? 0,
+            position: p.position ?? index,
+            isActive: String(p.id) === currentTurnId,
+            isDealer: p.isDealer ?? false,
+            cards: myCards,
+            isConnected: p.isConnected !== false,
+            hasFolded: !(p.isActive),
+            isBot: false,
+          };
+        });
+        return mapped;
+      });
+      setPot(gameState.pot ?? 0);
+      const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? (gameState.phase as string).toLowerCase?.() ?? "preflop") : "preflop";
+      setPhase(phase as GamePhase);
+      const cc = gameState.communityCards;
+      if (Array.isArray(cc)) {
+        const arr: (Card | null)[] = [null, null, null, null, null];
+        cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object" && "suit" in c && "value" in c) arr[i] = c as Card; });
+        setCommunityCardsState(arr);
+      }
+      setGameInitialized(phase !== "init");
+      setHasPlayerActed(false);
+      setIsLoading(false);
+      setRoundPlayersActed(new Set());
+      const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
+      if (currentTurnId === String(userId)) {
+        setTimerActive(true);
+        setTimeLeft(20);
+      }
+      if (phase === "showdown" && gameState.showdownWinnerId) {
+        const winnerName = players.find((p) => String(p.id) === String(gameState.showdownWinnerId))?.name ?? String(gameState.showdownWinnerId);
+        setShowdownResult({
+          winnerId: gameState.showdownWinnerId,
+          winnerName,
+          hand: gameState.showdownHandName ?? "—",
+          handRank: 0,
+          pot: gameState.showdownPot ?? 0,
+        });
+      }
+    };
+    socket.on("GAME_UPDATE", onGameUpdate);
+    const onGameEnded = (data: { gameId: string; winnerId: string; reason: string; pot?: number }) => {
+      if (data.reason === "opponent_left" && String(data.winnerId) === String(userId)) {
+        setShowdownResult((prevResult) => {
+          if (prevResult) return prevResult;
+          return {
+            winnerId: data.winnerId,
+            winnerName: "Vous",
+            hand: "Adversaire parti",
+            handRank: 0,
+            pot: data.pot ?? 0,
+          };
+        });
+      }
+    };
+    socket.on("GAME_ENDED", onGameEnded);
+    return () => {
+      socket.off("GAME_UPDATE", onGameUpdate);
+      socket.off("GAME_ENDED", onGameEnded);
+    };
+  }, [socket, gameIdParam, userId]);
 
   useEffect(() => {
     if (phase !== "init" || deck.length === 0) return;
@@ -485,6 +644,7 @@ export function Game() {
   useEffect(() => {
     if (phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river") {
       const activeInHand = playersState.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
+      if (activeInHand.length === 0) return;
       const activeIdx = playersState.findIndex((p) => p.isActive);
       const humanIndex = playersState.findIndex((p) => String(p.id) === String(userId) || p.id === "human");
       const humanInHand = humanIndex >= 0 && !(playersState[humanIndex]?.hasFolded ?? false);
@@ -667,6 +827,10 @@ export function Game() {
     if (handResult !== null) return;
     const heroId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
     const isHuman = playerId === undefined || playerId === heroId;
+    if (gameIdParam && isHuman && !socket) return;
+    if (gameIdParam && socket && isHuman) {
+      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "FOLD" });
+    }
     const foldingIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
@@ -736,6 +900,10 @@ export function Game() {
     const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (callAmount > 0 && isHumanActing) return;
+    if (gameIdParam && isHumanActing && !socket) return;
+    if (gameIdParam && socket && isHumanActing) {
+      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CHECK" });
+    }
     const justActedIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
@@ -751,6 +919,10 @@ export function Game() {
     if (handResult !== null) return;
     const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
+    if (gameIdParam && isHumanActing && !socket) return;
+    if (gameIdParam && socket && isHumanActing) {
+      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CALL", amount });
+    }
     if (playerId !== undefined && playerId !== hero?.id) {
       setPlayersState((prev) =>
         prev.map((p) =>
@@ -784,6 +956,10 @@ export function Game() {
     const totalToPut = callAmount + raiseAmount;
     const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
+    if (gameIdParam && isHumanActing && !socket) return;
+    if (gameIdParam && socket && isHumanActing) {
+      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "RAISE", amount: raiseAmount });
+    }
     const currentIndex = playersState.findIndex((p) => p.isActive);
     setRoundPlayersActed(new Set(currentIndex !== -1 ? [currentIndex] : []));
     if (playerId !== undefined && playerId !== hero?.id) {
@@ -1359,6 +1535,7 @@ export function Game() {
         isLoading={isLoading}
         hasFolded={hasFoldedFromState}
         hasActed={hasPlayerActed}
+        actionsDisabled={Boolean(gameIdParam && !socket)}
         waitingForPlayer={!isMyTurn && !hasFoldedFromState ? activePlayer?.name : undefined}
         timeLeft={timeLeft ?? 20}
         onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}

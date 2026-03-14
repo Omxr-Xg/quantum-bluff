@@ -1,6 +1,6 @@
 import type { GamePhase, GameState, Player } from '../types/poker.js'
 import { Deck } from './Deck.js'
-import { findWinner } from './Evaluator.js'
+import { findWinner, findWinnerWithHand } from './Evaluator.js'
 
 type PlayerAction = 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
 
@@ -161,12 +161,8 @@ export class GameTable {
   }
 
   private getPostflopFirstPlayerId(): string {
-    if (this.state.players.length === 2) {
-      return this.state.players[this.dealerIndex]?.id || ''
-    }
-
+    // Premier à parler = joueur après le dealer (en heads-up : le non-bouton, donc le raiseur parle en premier après un call)
     const firstIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
-
     return firstIndex === -1
       ? this.state.players[0]?.id || ''
       : this.state.players[firstIndex].id
@@ -204,6 +200,23 @@ export class GameTable {
     this.state.pot = 0
     this.state.phase = 'SHOWDOWN'
     this.state.currentTurn = ''
+  }
+
+  /**
+   * En 2 joueurs, si un seul est encore connecté : attribue le pot au joueur restant et termine la partie.
+   * À appeler après avoir mis à jour isConnected sur le joueur qui part.
+   * @returns { winnerId, pot } si la partie a été terminée, null sinon
+   */
+  endGameDueToDisconnect(): { winnerId: string; pot: number } | null {
+    const connected = this.state.players.filter((p) => p.isConnected !== false)
+    if (this.state.players.length !== 2 || connected.length !== 1) return null
+    const winner = connected[0]
+    const awardedPot = this.state.pot
+    winner.chips += awardedPot
+    this.state.pot = 0
+    this.state.phase = 'ENDED_OPPONENT_LEFT'
+    this.state.currentTurn = ''
+    return { winnerId: winner.id, pot: awardedPot }
   }
 
   private moveToNextPhase(): void {
@@ -539,14 +552,21 @@ export class GameTable {
     const playersToEvaluate =
       activePlayers.length > 0 ? activePlayers : this.state.players
 
-    const winnerId = findWinner(playersToEvaluate, this.state.communityCards)
+    const showdownPot = this.state.pot
+    const { winnerId, handName } = findWinnerWithHand(
+      playersToEvaluate,
+      this.state.communityCards
+    )
     const winner = this.state.players.find((player) => player.id === winnerId)
 
     if (winner) {
-      winner.chips += this.state.pot
+      winner.chips += showdownPot
     }
 
     this.state.pot = 0
+    this.state.showdownWinnerId = winnerId
+    this.state.showdownHandName = handName
+    this.state.showdownPot = showdownPot
   }
 
     /**
@@ -589,7 +609,10 @@ export class GameTable {
       communityCards: this.state.communityCards,
       players: this.state.players,
       currentTurn: this.state.currentTurn,
-      phase: this.state.phase
+      phase: this.state.phase,
+      showdownWinnerId: this.state.showdownWinnerId,
+      showdownHandName: this.state.showdownHandName,
+      showdownPot: this.state.showdownPot
     }
   }
 
@@ -600,6 +623,9 @@ export class GameTable {
       communityCards: this.state.communityCards,
       currentTurn: this.state.currentTurn,
       phase: this.state.phase,
+      showdownWinnerId: this.state.showdownWinnerId,
+      showdownHandName: this.state.showdownHandName,
+      showdownPot: this.state.showdownPot,
       players: this.state.players.map((player) => ({
         id: player.id,
         name: player.name,

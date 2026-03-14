@@ -94,9 +94,10 @@ router.post('/start', async (req, res) => {
   }
 });
 
-// GET /api/game/:gameId - Récupérer l'état d'une partie
+// GET /api/game/:gameId - Récupérer l'état d'une partie (?playerId= pour recevoir ses cartes)
 router.get('/:gameId', async (req, res) => {
   const { gameId } = req.params;
+  const playerId = typeof req.query.playerId === 'string' ? req.query.playerId : undefined;
   const game = await activeGames.get(gameId);
   console.log(`🔍 Recherche de la partie: ${gameId}. Trouvée:`, !!game);
 
@@ -104,7 +105,7 @@ router.get('/:gameId', async (req, res) => {
     return res.status(404).json({ error: 'Partie introuvable' });
   }
 
-  res.json(game.getSanitizedState());
+  res.json(game.getSanitizedState(playerId));
 });
 
 // POST /api/game/:gameId/action - Effectuer une action
