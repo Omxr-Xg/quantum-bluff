@@ -364,9 +364,10 @@ router.post('/:roomId/start', async (req, res) => {
     const gameTable = new GameTable(gameId, players);
     gameTable.startHand();
 
-    // Stocker dans le Map
-    activeGames.set(gameId, gameTable);
-    console.log(`✅ Partie ${gameId} créée et stockée. Taille du Map: ${activeGames.size}`);
+    // Stocker dans le cache (Redis + local)
+    await activeGames.set(gameId, gameTable);
+    const size = activeGames.size();
+    console.log(`✅ Partie ${gameId} créée et stockée. Taille du cache: ${size}`);
 
     // Mettre à jour la salle
     await prisma.waitingRoom.update({
@@ -385,8 +386,9 @@ router.post('/:roomId/start', async (req, res) => {
 });
 
 // GET /api/waiting-room/active/games - Liste des parties actives
-router.get('/active/games', (req, res) => {
-  const games = Array.from(activeGames.entries()).map(([id, game]) => ({
+router.get('/active/games', async (req, res) => {
+  const allGames = await activeGames.getAll();
+  const games = Array.from(allGames.entries()).map(([id, game]) => ({
     id,
     players: game.state.players.length,
     phase: game.state.phase

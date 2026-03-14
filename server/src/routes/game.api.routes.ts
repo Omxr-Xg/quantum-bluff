@@ -56,7 +56,7 @@ router.post('/start', async (req, res) => {
     gameTable.startHand();
 
     // Sauvegarder la partie active
-    activeGames.set(gameId, gameTable);
+    await activeGames.set(gameId, gameTable);
 
     // Notifier via Socket.io
     const io = req.app.get('io');
@@ -94,11 +94,10 @@ router.post('/start', async (req, res) => {
 });
 
 // GET /api/game/:gameId - Récupérer l'état d'une partie
-router.get('/:gameId', (req, res) => {
+router.get('/:gameId', async (req, res) => {
   const { gameId } = req.params;
-  console.log(`🔍 Recherche de la partie: ${gameId}. Clés dans le Map:`, Array.from(activeGames.keys()));
-  
-  const game = activeGames.get(gameId);
+  const game = await activeGames.get(gameId);
+  console.log(`🔍 Recherche de la partie: ${gameId}. Trouvée:`, !!game);
 
   if (!game) {
     return res.status(404).json({ error: 'Partie introuvable' });
@@ -108,12 +107,12 @@ router.get('/:gameId', (req, res) => {
 });
 
 // POST /api/game/:gameId/action - Effectuer une action
-router.post('/:gameId/action', (req, res) => {
+router.post('/:gameId/action', async (req, res) => {
   try {
     const { gameId } = req.params;
     const { playerId, action, amount } = req.body;
 
-    const game = activeGames.get(gameId);
+    const game = await activeGames.get(gameId);
     if (!game) {
       return res.status(404).json({ error: 'Partie introuvable' });
     }
@@ -129,8 +128,9 @@ router.post('/:gameId/action', (req, res) => {
 });
 
 // GET /api/game/active - Liste des parties actives
-router.get('/active/list', (req, res) => {
-  const games = Array.from(activeGames.entries()).map(([id, game]) => ({
+router.get('/active/list', async (req, res) => {
+  const allGames = await activeGames.getAll();
+  const games = Array.from(allGames.entries()).map(([id, game]) => ({
     id,
     players: game.state.players.length,
     phase: game.state.phase
