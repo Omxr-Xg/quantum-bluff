@@ -4,6 +4,7 @@ import { Bell, X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
+import { useMusic } from "../contexts/MusicContext";
 import { Toast } from "./Toast";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 
@@ -15,6 +16,7 @@ export function Layout({ children }: LayoutProps) {
   const { t } = useTranslation();
   const { socket, isConnected, connect } = useSocket();
   const { toasts, removeToast } = useToast();
+  const { playMusic } = useMusic();
   const [notification, setNotification] = useState<{
     id: number;
     message: string;
@@ -53,6 +55,20 @@ export function Layout({ children }: LayoutProps) {
       socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
     };
   }, [socket, t]);
+
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      playMusic();
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('keydown', handleFirstInteraction);
+    };
+    document.addEventListener('click', handleFirstInteraction);
+    document.addEventListener('keydown', handleFirstInteraction);
+    return () => {
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('keydown', handleFirstInteraction);
+    };
+  }, [playMusic]);
 
   useEffect(() => {
     if (!notification) return;
