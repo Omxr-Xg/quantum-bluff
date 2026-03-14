@@ -22,7 +22,7 @@ export function Friends() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [friendUsername, setFriendUsername] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<{ id?: string; username?: string }[]>([]);
   const [searchError, setSearchError] = useState("");
   const [searchSuccess, setSearchSuccess] = useState(false);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
@@ -159,8 +159,8 @@ export function Friends() {
         setSearchSuccess(false);
         setShowAddFriend(false);
       }, 2000);
-    } catch (err: any) {
-      const message = err?.data?.error || "Erreur lors de l'envoi de la demande";
+    } catch (err: unknown) {
+      const message = (err as { data?: { error?: string } })?.data?.error || "Erreur lors de l'envoi de la demande";
       setSearchError(message);
     }
   };

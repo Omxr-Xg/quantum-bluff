@@ -11,3 +11,5 @@ build/
 server/tsconfig.tsbuildinfo
 server/junit.xml
 server/junit.xml
+.cursor/
+.cursor/**

@@ -2,13 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
-import { getUserProfile, saveUserProfile } from "../utils/userProfile";
 
 export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, _setIsLoading] = useState(false);
 
   const navigate = useNavigate();
 

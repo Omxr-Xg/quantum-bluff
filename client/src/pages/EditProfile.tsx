@@ -22,7 +22,7 @@ export function EditProfile() {
 
   // État de la photo de profil - Utiliser defaultAvatarUrl si pas d'avatar
   const [profileImage, setProfileImage] = useState<string>(currentProfile.avatar || defaultAvatarUrl);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [_imageFile, setImageFile] = useState<File | null>(null);
 
   // États pour afficher/masquer les mots de passe
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);

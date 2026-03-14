@@ -262,7 +262,7 @@ export class GameGateway {
           this.resetTimer(gameId)
           const socketsInRoom = await this.io.in(gameId).fetchSockets()
           for (const s of socketsInRoom) {
-            const uid = (s as AuthenticatedSocket).userId
+            const uid = (s as unknown as AuthenticatedSocket).userId
             s.emit('GAME_UPDATE', game.getSanitizedState(uid))
           }
           this.startTurnTimer(gameId)
@@ -407,7 +407,7 @@ export class GameGateway {
 
           const socketsInRoom = await this.io.in(gameId).fetchSockets()
           for (const s of socketsInRoom) {
-            const uid = (s as AuthenticatedSocket).userId
+            const uid = (s as unknown as AuthenticatedSocket).userId
             s.emit('GAME_UPDATE', game.getSanitizedState(uid))
           }
           if (game.state.currentTurn) {

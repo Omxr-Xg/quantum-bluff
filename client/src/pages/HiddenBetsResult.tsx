@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { X, Trophy, TrendingUp, Award, Coins, ArrowLeft, Home } from "lucide-react";
+import { X, Trophy, TrendingUp, Award, Coins, Home } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useHiddenBets, HiddenBet } from "../contexts/HiddenBetsContext";

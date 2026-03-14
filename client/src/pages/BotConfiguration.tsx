@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Bot, ArrowLeft, Users, Zap, Brain, Trophy, Target, Home } from "lucide-react";
+import { Bot, Users, Zap, Brain, Trophy, Target, Home } from "lucide-react";
 
 export function BotConfiguration() {
   const navigate = useNavigate();
@@ -139,7 +139,7 @@ export function BotConfiguration() {
                 return (
                   <button
                     key={diff.id}
-                    onClick={() => setDifficulty(diff.id as any)}
+                    onClick={() => setDifficulty(diff.id as "facile" | "moyen" | "difficile" | "expert")}
                     className={`relative p-10 rounded-xl border-2 transition-all transform hover:scale-105 text-left ${
                       isSelected
                         ? `bg-gradient-to-br ${diff.color} ${diff.borderColor} shadow-lg`

@@ -27,8 +27,8 @@ export const FriendSearch = () => {
     try {
       await sendRequest({ senderId: userId, receiverUsername }).unwrap();
       alert(`Demande d'ami envoyée à ${receiverUsername}`);
-    } catch (err: any) {
-      const message = err?.data?.error || "Erreur lors de l'envoi de la demande";
+    } catch (err: unknown) {
+      const message = (err as { data?: { error?: string } })?.data?.error || "Erreur lors de l'envoi de la demande";
       console.error('Erreur:', err);
       alert(message);
     }

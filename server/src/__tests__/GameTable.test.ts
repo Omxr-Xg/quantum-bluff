@@ -1,3 +1,16 @@
+/**
+ * =============================================================================
+ * GAMETABLE.TEST.TS — Tests du moteur de table (GameTable)
+ * =============================================================================
+ *
+ * Couvre le cycle de vie d’une main : construction, startHand, actions (CALL,
+ * CHECK, RAISE, FOLD), avancement de phase (FLOP, TURN, RIVER, SHOWDOWN),
+ * fog of war (getSanitizedState), et règles heads-up (blinds, ordre de parole).
+ *
+ * Chaque test est commenté pour expliquer le scénario et les assertions.
+ * =============================================================================
+ */
+
 import { GameTable } from '../logic/GameTable.js'
 import type { Player } from '../types/poker.js'
 

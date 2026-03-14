@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Bot, Users, Plus, Settings, User, LogOut, Lock, Globe, Server, UserPlus, Search, Eye, ArrowUpDown, ChevronUp, ChevronDown, Star, MessageSquare, ArrowRight, X } from "lucide-react";
+import { Bot, Plus, Settings, User, LogOut, Globe, Server, UserPlus, ArrowRight } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 
 export function TutorialLobby() {

@@ -20,26 +20,10 @@ import { useDeviceType } from "../components/ui/use-mobile";
 import { ShowdownDisplay } from "../components/ShowdownDisplay";
 import { useUser } from "../hooks/useUser";
 
-interface Card {
-  suit: "hearts" | "diamonds" | "clubs" | "spades";
-  value: string;
-}
+import type { ClientCard } from "../utils/cards";
+import { normalizeServerCard } from "../utils/cards";
 
-/** Convertit une carte reçue du serveur (suit MAJ, value number, rank?) en format client. */
-function normalizeServerCard(c: { suit?: string; value?: number | string; rank?: string } | null): Card | null {
-  if (!c || typeof c !== "object") return null;
-  const suitRaw = (c.suit ?? "").toString().toLowerCase();
-  const suit = ["hearts", "diamonds", "clubs", "spades"].includes(suitRaw) ? suitRaw as Card["suit"] : "hearts";
-  const rank = c.rank;
-  const numVal = typeof c.value === "number" ? c.value : undefined;
-  const value =
-    typeof rank === "string" && rank.length > 0
-      ? rank
-      : numVal !== undefined
-        ? String({ 11: "J", 12: "Q", 13: "K", 14: "A" }[numVal] ?? numVal)
-        : String(c.value ?? "");
-  return { suit, value };
-}
+type Card = ClientCard;
 
 interface ChatMessage {
   id: number;
@@ -83,7 +67,7 @@ export function Game() {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isQuantumOpen, setIsQuantumOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [hasFolded, setHasFolded] = useState(false);
+  const [_hasFolded, _setHasFolded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [pot, setPot] = useState(150);
   const [playerChips, setPlayerChips] = useState(5000);
@@ -96,7 +80,7 @@ export function Game() {
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [showGameHelp, setShowGameHelp] = useState(false);
   const [timeLeft, setTimeLeft] = useState(20);
-  const [timerActive, setTimerActive] = useState(false);
+  const [_timerActive, setTimerActive] = useState(false);
   const [currentBet] = useState(0);
   
   // Nouveaux états pour les animations de cartes
@@ -104,7 +88,7 @@ export function Game() {
   const [communityCardsState, setCommunityCardsState] = useState<(Card | null)[]>([null, null, null, null, null]);
   const [deck, setDeck] = useState<Card[]>([]);
   const [shuffleCount, setShuffleCount] = useState(0);
-  const [, setDealingCard] = useState<number | null>(null);
+  const [, _setDealingCard] = useState<number | null>(null);
   const [roundPlayersActed, setRoundPlayersActed] = useState<Set<number>>(new Set());
   const [gameInitialized, setGameInitialized] = useState(false);
   const [handResult, setHandResult] = useState<"win" | "loss" | null>(null);
@@ -328,7 +312,7 @@ export function Game() {
             hasFolded: false,
             isBot: false,
           }));
-        } catch (_) {}
+        } catch { /* no-op */ }
       }
     }
     if (initial.length === 0) initial = getPlayers();
@@ -535,7 +519,7 @@ export function Game() {
     return () => socket.off("TURN_TIMER");
   }, [socket]);
 
-  const playPhase = phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river";
+  const _playPhase = phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river";
 
   // Forcer l'activation du timer quand c'est le tour du joueur
   useEffect(() => {
@@ -768,7 +752,7 @@ export function Game() {
         });
 
         if (!response.ok) {
-          const errText = await response.text();
+          await response.text();
           addToast(`Erreur bot (${response.status})`, "error");
           setIsBotThinking(false);
           return;
