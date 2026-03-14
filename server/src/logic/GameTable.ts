@@ -270,17 +270,18 @@ export class GameTable {
   private runOutBoardIfAllIn(): void {
     const activePlayers = this.getActivePlayers()
     const hasAllIn = activePlayers.some((p) => p.chips === 0)
-    if (!hasAllIn || this.state.phase === 'SHOWDOWN') return
-
     const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
-    const currentIndex = phaseOrder.indexOf(this.state.phase)
+    const currentPhase: GamePhase = this.state.phase
+    if (!hasAllIn || currentPhase === 'SHOWDOWN') return
+
+    const currentIndex = phaseOrder.indexOf(currentPhase)
     if (currentIndex === -1 || currentIndex >= phaseOrder.length - 1) return
 
     // Move phase by phase until SHOWDOWN, dealing cards
-    let phase = this.state.phase
+    let phase: GamePhase = currentPhase
     while (phase !== 'SHOWDOWN') {
       const idx = phaseOrder.indexOf(phase)
-      const nextPhase = phaseOrder[idx + 1]
+      const nextPhase: GamePhase = phaseOrder[idx + 1]
 
       if (nextPhase === 'FLOP') {
         this.resetBetsForNewRound()
