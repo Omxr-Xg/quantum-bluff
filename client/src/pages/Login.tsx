@@ -14,21 +14,23 @@ export function Login() {
   const isFormValid = email.length > 0 && password.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!isFormValid) return;
+  e.preventDefault()
+  if (!isFormValid) return
 
   try {
-    const response = await login({ email, password }).unwrap();
-    console.log("✅ Connexion réussie:", response);
-    
-    // 🔵 AJOUTER CES LIGNES
-    localStorage.setItem('userId', response.id);
-    localStorage.setItem('username', response.username);
-    localStorage.setItem('token', response.token);
-    
-    navigate("/lobby");
+    const response = await login({ email, password }).unwrap()
+    console.log("✅ Connexion réussie:", response)
+
+    localStorage.removeItem('userid')
+    localStorage.setItem('token', response.token)
+    localStorage.setItem('userId', response.user.id)
+    localStorage.setItem('username', response.user.username)
+
+    window.dispatchEvent(new Event('auth-changed'))
+
+    navigate("/lobby")
   } catch (err) {
-    console.error("❌ Erreur de connexion:", err);
+    console.error("❌ Erreur de connexion:", err)
   }
 };
 
