@@ -1,4 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
+import victorySound from "../assets/sounds/victory.mp3";
+import { useEffect } from "react";
 
 interface ShowdownDisplayProps {
   winner: {
@@ -23,6 +25,15 @@ function getHandColor(hand: string): string {
 }
 
 export function ShowdownDisplay({ winner, onClose }: ShowdownDisplayProps) {
+
+  useEffect(() => {
+    if (winner) {
+      const audio = new Audio(victorySound);
+      audio.volume = 0.6;
+      audio.play().catch(() => {});
+    }
+  }, [winner]);
+
   if (!winner) return null;
 
   return (
