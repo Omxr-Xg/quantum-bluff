@@ -18,6 +18,7 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { ShowdownDisplay } from "../components/ShowdownDisplay";
+import { useUser } from "../hooks/useUser";
 
 interface Card {
   suit: "hearts" | "diamonds" | "clubs" | "spades";
@@ -58,7 +59,9 @@ export function Game() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode");
+  const gameIdParam = searchParams.get("gameId");
   const isBotMode = mode === "bot";
+  const { userId } = useUser();
 
   const { socket } = useSocket();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -153,14 +156,7 @@ export function Game() {
       });
       return bots;
     }
-    return [
-      { id: 1, name: "Alice", chips: 2500, bet: 100, position: 0, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 2, name: "Bob", chips: 3200, bet: 100, position: 1, isActive: true, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 3, name: "Charlie", chips: 1800, bet: 0, position: 2, isActive: false, isDealer: false, cards: [], isConnected: false, hasFolded: false },
-      { id: 4, name: "Diana", chips: 4100, bet: 100, position: 3, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 5, name: "Eve", chips: 2900, bet: 100, position: 4, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-      { id: 6, name: "Vous", chips: playerChips, bet: 0, position: 5, isActive: false, isDealer: false, cards: [], isConnected: true, hasFolded: false },
-    ];
+    return [];
   };
 
   // Déclarations dérivées AVANT les useEffect qui les utilisent (évite "Cannot access before initialization")
@@ -171,24 +167,27 @@ export function Game() {
     const highestBet = Math.max(...activePlayers.map((p) => p.bet ?? 0), 0);
     return Math.max(0, highestBet - (activePlayer.bet ?? 0));
   }, [activePlayers, activePlayer]);
+  const isHero = (p: BasePlayer | BotPlayer) => p.id === userId || p.id === "human";
   const tablePlayers = activePlayers.map((player) => {
-    const humanPlayer = player.name === "Diana" || player.name === "Vous";
-    if (humanPlayer) {
+    if (isHero(player)) {
       return { ...player, position: 0, cards: player.cards || [] };
     }
-    const otherPlayerIndex = activePlayers.filter((p) => p.name !== "Diana" && p.name !== "Vous").indexOf(player);
+    const otherPlayerIndex = activePlayers.filter((p) => !isHero(p)).indexOf(player);
     return { ...player, position: otherPlayerIndex + 1 };
   });
-  const isMyTurn =
-    activePlayer?.name === "Diana" ||
-    activePlayer?.name === "Vous" ||
-    activePlayer?.id === "human";
-  const heroPlayer = activePlayers.find((p) => p.name === "Vous" || p.name === "Diana");
+  const isMyTurn = Boolean(
+    activePlayer &&
+      (String(activePlayer.id) === String(userId) ||
+        activePlayer.name === "Vous" ||
+        activePlayer.id === "human")
+  );
+  const heroPlayer = activePlayers.find((p) => isHero(p));
+  const heroDisplayName = heroPlayer?.name ?? "Vous";
   const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
 
   playersStateRef.current = activePlayers;
 
-  const heroCards = tablePlayers.find((p) => p.name === "Diana" || p.name === "Vous")?.cards || [];
+  const heroCards = tablePlayers.find((p) => isHero(p))?.cards || [];
   const communityCards = communityCardsState;
 
   // Générer un jeu de cartes complet
@@ -292,12 +291,35 @@ export function Game() {
   };
 
   useEffect(() => {
-    const initialPlayers = getPlayers();
-    initialPlayers.forEach((p, idx) => {
-      p.isActive = idx === 0;
+    let initial: (BasePlayer | BotPlayer)[] = [];
+    if (gameIdParam && typeof window !== "undefined") {
+      const stored = localStorage.getItem("gamePlayers");
+      if (stored) {
+        try {
+          const parsed: { id: string; name: string }[] = JSON.parse(stored);
+          localStorage.removeItem("gamePlayers");
+          initial = parsed.map((p, i) => ({
+            id: String(p.id),
+            name: p.name,
+            chips: 1000,
+            bet: 0,
+            position: i,
+            isActive: i === 0,
+            isDealer: false,
+            cards: [],
+            isConnected: true,
+            hasFolded: false,
+            isBot: false,
+          }));
+        } catch (_) {}
+      }
+    }
+    if (initial.length === 0) initial = getPlayers();
+    initial.forEach((p, idx) => {
+      (p as BasePlayer).isActive = idx === 0;
       p.cards = [];
     });
-    setPlayersState(initialPlayers);
+    setPlayersState(initial);
     setDeck(generateDeck());
     if (mode === "bot") {
       setPot(SB + BB);
@@ -350,7 +372,7 @@ export function Game() {
       return;
     }
 
-    const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    const hero = playersState.find((p) => p.id === userId || p.id === "human");
     if (hero?.hasFolded) {
       setTimerActive(false);
       if (timerIntervalRef.current) {
@@ -402,7 +424,7 @@ export function Game() {
   useEffect(() => {
     if (!isBotMode || playersState.length < 2) return;
     if (phase !== "preflop" && phase !== "flop" && phase !== "turn" && phase !== "river") return;
-    const humanIndex = playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+    const humanIndex = playersState.findIndex((p) => p.id === userId || p.id === "human");
     const botIndex = playersState.findIndex((p) => "isBot" in p && p.isBot);
     if (humanIndex === -1 || botIndex === -1) return;
     const activeIdx = playersState.findIndex((p) => p.isActive);
@@ -462,11 +484,13 @@ export function Game() {
   // Vérifier si un tour de mises est terminé (ne pas avancer tant que le joueur humain n'a pas joué)
   useEffect(() => {
     if (phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river") {
-      const activeInHand = playersState.filter((p) => p.isConnected && !(p.hasFolded ?? false));
-      const humanIndex = playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+      const activeInHand = playersState.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
+      const activeIdx = playersState.findIndex((p) => p.isActive);
+      const humanIndex = playersState.findIndex((p) => String(p.id) === String(userId) || p.id === "human");
       const humanInHand = humanIndex >= 0 && !(playersState[humanIndex]?.hasFolded ?? false);
 
       if (humanInHand && !roundPlayersActed.has(humanIndex)) return;
+      if (gameIdParam && activeIdx >= 0 && !("isBot" in playersState[activeIdx] && playersState[activeIdx].isBot) && !roundPlayersActed.has(activeIdx)) return;
 
       if (activeInHand.length === 1) {
         const t = setTimeout(() => setPhase("showdown"), 1500);
@@ -504,7 +528,7 @@ export function Game() {
     })
       .then((res) => res.json())
       .then((data: { winnerId?: string; winnerName?: string; handName?: string; handRank?: number }) => {
-        const humanId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
+        const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
         const won = data.winnerId === humanId || data.winnerId === "human";
         if (won) setPlayerChips((prev) => prev + currentPot);
         else setPlayersState((prev) => prev.map((p) => (p.id === data.winnerId ? { ...p, chips: p.chips + currentPot } : p)));
@@ -518,7 +542,7 @@ export function Game() {
         });
       })
       .catch(() => {
-        const fallbackWinner = activeInHand.find((p) => p.name !== "Vous" && p.name !== "Diana") ?? activeInHand[0];
+        const fallbackWinner = activeInHand.find((p) => p.id !== userId && p.id !== "human") ?? activeInHand[0];
         setPot(0);
         setShowdownResult({
           winnerId: fallbackWinner?.id ?? "",
@@ -641,12 +665,12 @@ export function Game() {
 
   const handleFold = (playerId?: number | string) => {
     if (handResult !== null) return;
-    const heroId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
+    const heroId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
     const isHuman = playerId === undefined || playerId === heroId;
     const foldingIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
-        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+        : playersState.findIndex((p) => p.id === userId || p.id === "human");
     if (foldingIndex === -1) return;
 
     setRoundPlayersActed((prev) => new Set(prev).add(foldingIndex));
@@ -690,7 +714,7 @@ export function Game() {
       const winnerIndex = playersState.findIndex(
         (p, i) => i !== foldingIndex && p.isConnected !== false && !(p.hasFolded ?? false)
       );
-      const humanIndex = playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+      const humanIndex = playersState.findIndex((p) => p.id === userId || p.id === "human");
       const humanWon = winnerIndex !== -1 && winnerIndex === humanIndex;
       const winner = winnerIndex !== -1 ? playersState[winnerIndex] : null;
       if (winner) {
@@ -709,13 +733,13 @@ export function Game() {
 
   const handleCheck = (playerId?: number | string) => {
     if (handResult !== null) return;
-    const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (callAmount > 0 && isHumanActing) return;
     const justActedIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
-        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+        : playersState.findIndex((p) => p.id === userId || p.id === "human");
     if (isHumanActing) {
       setHasPlayerActed(true);
       setIsLoading(true);
@@ -725,7 +749,7 @@ export function Game() {
 
   const handleCall = (amount: number, playerId?: number | string) => {
     if (handResult !== null) return;
-    const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (playerId !== undefined && playerId !== hero?.id) {
       setPlayersState((prev) =>
@@ -737,7 +761,7 @@ export function Game() {
       setPlayerChips((prev) => prev - amount);
       setPlayersState((prev) =>
         prev.map((p) =>
-          p.name === "Vous" || p.name === "Diana"
+          p.id === userId || p.id === "human"
             ? { ...p, chips: p.chips - amount, bet: (p.bet ?? 0) + amount }
             : p
         )
@@ -747,7 +771,7 @@ export function Game() {
     const justActedIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
-        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+        : playersState.findIndex((p) => p.id === userId || p.id === "human");
     if (isHumanActing) {
       setHasPlayerActed(true);
       setIsLoading(true);
@@ -758,7 +782,7 @@ export function Game() {
   const handleRaise = (raiseAmount: number, playerId?: number | string) => {
     if (handResult !== null) return;
     const totalToPut = callAmount + raiseAmount;
-    const hero = playersState.find((p) => p.name === "Vous" || p.name === "Diana");
+    const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     const currentIndex = playersState.findIndex((p) => p.isActive);
     setRoundPlayersActed(new Set(currentIndex !== -1 ? [currentIndex] : []));
@@ -774,7 +798,7 @@ export function Game() {
       setPlayerChips((prev) => prev - totalToPut);
       setPlayersState((prev) =>
         prev.map((p) =>
-          p.name === "Vous" || p.name === "Diana"
+          p.id === userId || p.id === "human"
             ? { ...p, chips: p.chips - totalToPut, bet: (p.bet ?? 0) + totalToPut }
             : p
         )
@@ -788,7 +812,7 @@ export function Game() {
     const justActedIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
-        : playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
+        : playersState.findIndex((p) => p.id === userId || p.id === "human");
     nextTurn(justActedIndex);
   };
 
@@ -1004,7 +1028,7 @@ export function Game() {
         }
         onClose={() => {
           if (!showdownResult) return;
-          const humanId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
+          const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
           const won = showdownResult.winnerId === humanId || showdownResult.winnerId === "human";
           const winnerName = showdownResult.winnerName;
           const handName = showdownResult.hand;
@@ -1172,14 +1196,14 @@ export function Game() {
           {/* Avatar du joueur */}
           {!isMobile && (
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-xl border-2 border-white">
-              {getPlayerAvatar("Diana") ? (
+              {getPlayerAvatar(heroDisplayName) ? (
                 <ImageWithFallback
-                  src={getPlayerAvatar("Diana")}
+                  src={getPlayerAvatar(heroDisplayName)}
                   alt="Avatar du joueur"
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
-                <span className="text-white font-bold text-xl">D</span>
+                <span className="text-white font-bold text-xl">{heroDisplayName.charAt(0)}</span>
               )}
             </div>
           )}
@@ -1188,10 +1212,10 @@ export function Game() {
           {!isMobile && (
             <div className="flex flex-col">
               <div className="text-white font-bold text-lg leading-tight">
-                Diana
+                {heroDisplayName}
               </div>
               <div className="text-gray-400 text-xs font-medium">
-                ID 4857
+                {userId ? `ID ${userId.slice(0, 8)}` : "—"}
               </div>
             </div>
           )}
@@ -1321,7 +1345,7 @@ export function Game() {
 
       {/* Tableau de bord du joueur - EN BAS */}
       <PlayerDashboard
-        name="Diana"
+        name={heroDisplayName}
         chips={playerChips}
         cards={heroCards}
         onFold={() => handleFold()}

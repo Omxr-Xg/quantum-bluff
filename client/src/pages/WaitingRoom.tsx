@@ -142,6 +142,22 @@ export function WaitingRoom() {
   }, [userId, rawRoomId, roomLoading, joinRoom, leaveRoom]);
 
   useEffect(() => {
+    if (!socket || !navigate) return;
+    const onGameStarted = (data: { gameId: string; players: { id: string; name: string }[] }) => {
+      try {
+        if (data.gameId && data.players?.length) {
+          localStorage.setItem("gamePlayers", JSON.stringify(data.players));
+          localStorage.setItem("gameId", data.gameId);
+          leaveRoom(rawRoomId!);
+          navigate(`/game?gameId=${data.gameId}`);
+        }
+      } catch (_) {}
+    };
+    socket.on("GAME_STARTED", onGameStarted);
+    return () => socket.off("GAME_STARTED", onGameStarted);
+  }, [socket, navigate, rawRoomId, leaveRoom]);
+
+  useEffect(() => {
     if (!rawRoomId || rawRoomId.startsWith("room_")) return;
     const interval = setInterval(async () => {
       const room = await fetchRoom(rawRoomId);
@@ -216,6 +232,10 @@ export function WaitingRoom() {
         return;
       }
       const data = await res.json();
+      if (data.players?.length) {
+        localStorage.setItem("gamePlayers", JSON.stringify(data.players));
+        localStorage.setItem("gameId", data.gameId || "");
+      }
       leaveRoom(rawRoomId);
       navigate(data.gameId ? `/game?gameId=${data.gameId}` : "/game");
     } catch (e) {

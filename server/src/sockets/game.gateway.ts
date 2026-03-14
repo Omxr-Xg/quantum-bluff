@@ -80,6 +80,17 @@ export class GameGateway {
         console.log(`✅ Utilisateur ${userId} a rejoint sa room personnelle`)
       })
 
+      socket.on('join-room', ({ roomId }: { roomId?: string; userId?: string }) => {
+        if (!roomId) return
+        socket.join(roomId)
+        console.log(`🚪 Socket ${socket.id} joined waiting room ${roomId}`)
+      })
+
+      socket.on('leave-room', ({ roomId }: { roomId?: string }) => {
+        if (!roomId) return
+        socket.leave(roomId)
+      })
+
       socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string }) => {
         try {
           const { gameId, playerId } = data

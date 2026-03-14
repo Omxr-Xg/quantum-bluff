@@ -389,7 +389,17 @@ router.post('/:roomId/start', async (req, res) => {
       }
     });
 
-    res.json({ gameId, message: 'Partie démarrée' });
+    const playersForClient = room.players.map((rp) => ({
+      id: rp.user.id,
+      name: rp.user.username
+    }));
+
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    if (io) {
+      io.to(roomId).emit('GAME_STARTED', { gameId, players: playersForClient });
+    }
+
+    res.json({ gameId, message: 'Partie démarrée', players: playersForClient });
   } catch (error) {
     console.error('Erreur démarrage:', error);
     res.status(500).json({ error: 'Erreur serveur' });
