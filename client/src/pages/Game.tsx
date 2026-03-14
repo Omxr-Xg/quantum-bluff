@@ -17,6 +17,7 @@ import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "../components/ui/use-mobile";
+import { ShowdownDisplay } from "../components/ShowdownDisplay";
 
 interface Card {
   suit: "hearts" | "diamonds" | "clubs" | "spades";
@@ -88,6 +89,13 @@ export function Game() {
   const [roundPlayersActed, setRoundPlayersActed] = useState<Set<number>>(new Set());
   const [gameInitialized, setGameInitialized] = useState(false);
   const [handResult, setHandResult] = useState<"win" | "loss" | null>(null);
+  const [showdownResult, setShowdownResult] = useState<{
+    winnerId: string;
+    winnerName: string;
+    hand: string;
+    handRank: number;
+    pot: number;
+  } | null>(null);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const clearBotActionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -517,31 +525,39 @@ export function Game() {
     }
   }, [roundPlayersActed, phase, playersState]);
 
-  // Showdown : déterminer le gagnant et afficher le résultat
+  // Showdown (2 joueurs) : évaluer les mains et afficher le résultat
   useEffect(() => {
-    if (phase !== "showdown" || handResult !== null || !isBotMode || playersState.length < 2) return;
+    if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
     const activeInHand = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
     if (activeInHand.length < 2) return;
     const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
     const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
+    const currentPot = pot;
     fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        players: activeInHand.map((p) => ({ id: p.id, cards: p.cards })),
+        players: activeInHand.map((p) => ({ id: p.id, name: p.name, cards: p.cards })),
         communityCards: communityCardsState.filter((c): c is Card => c !== null),
       }),
     })
       .then((res) => res.json())
-      .then((data: { winnerId?: string }) => {
+      .then((data: { winnerId?: string; winnerName?: string; handName?: string; handRank?: number }) => {
         const humanId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
         const won = data.winnerId === humanId || data.winnerId === "human";
-        if (won) setPlayerChips((prev) => prev + pot);
+        if (won) setPlayerChips((prev) => prev + currentPot);
+        else setPlayersState((prev) => prev.map((p) => (p.id === data.winnerId ? { ...p, chips: p.chips + currentPot } : p)));
         setPot(0);
-        setHandResult(won ? "win" : "loss");
+        setShowdownResult({
+          winnerId: data.winnerId ?? "",
+          winnerName: data.winnerName ?? String(data.winnerId),
+          hand: data.handName ?? "Haute carte",
+          handRank: data.handRank ?? 0,
+          pot: currentPot,
+        });
       })
       .catch(() => setHandResult("loss"));
-  }, [phase, handResult, isBotMode, playersState, communityCardsState, pot]);
+  }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot]);
 
   useEffect(() => {
     if (!isBotMode || playersState.length === 0) return;
@@ -705,10 +721,18 @@ export function Game() {
       );
       const humanIndex = playersState.findIndex((p) => p.name === "Vous" || p.name === "Diana");
       const humanWon = winnerIndex !== -1 && winnerIndex === humanIndex;
+      const winner = winnerIndex !== -1 ? playersState[winnerIndex] : null;
+      if (winner) {
+        setShowdownResult({
+          winnerId: String(winner.id),
+          winnerName: winner.name,
+          hand: "Abandon adverse",
+          handRank: 0,
+          pot,
+        });
+      }
       if (humanWon) setPlayerChips((prev) => prev + pot);
       setPot(0);
-      // Délai pour laisser voir la notification "Bot s'est couché" avant l'overlay
-      setTimeout(() => setHandResult(humanWon ? "win" : "loss"), 2200);
     }
   };
 
@@ -996,6 +1020,26 @@ export function Game() {
           </div>
         </motion.div>
       )}
+
+      {/* Showdown : gagnant + combinaison + pot */}
+      <ShowdownDisplay
+        winner={
+          showdownResult
+            ? {
+                name: showdownResult.winnerName,
+                hand: showdownResult.hand,
+                pot: showdownResult.pot,
+              }
+            : null
+        }
+        onClose={() => {
+          if (!showdownResult) return;
+          const humanId = playersState.find((p) => p.name === "Vous" || p.name === "Diana")?.id;
+          const won = showdownResult.winnerId === humanId || showdownResult.winnerId === "human";
+          setHandResult(won ? "win" : "loss");
+          setShowdownResult(null);
+        }}
+      />
 
       {/* Overlay gain / perte */}
       <AnimatePresence>
