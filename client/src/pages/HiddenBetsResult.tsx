@@ -1,80 +1,43 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { X, Trophy, TrendingUp, Award, Coins, ArrowLeft, Home } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-
-interface HiddenBet {
-  playerName: string;
-  betType: "winner" | "combination";
-  betChoice: string; // Nom du joueur gagnant OU nom de la combinaison
-  amount: number;
-  odds: number; // Cote (ex: 2.5 = x2.5)
-  won: boolean;
-  winAmount?: number;
-}
+import { useHiddenBets, HiddenBet } from "../contexts/HiddenBetsContext";
 
 export function HiddenBetsResult() {
   const navigate = useNavigate();
+  const location = useLocation() as {
+    state?: {
+      winnerName?: string;
+      handName?: string;
+    };
+  };
+  const { bets } = useHiddenBets();
 
-  // Données de démonstration
-  const bets: HiddenBet[] = [
-    {
-      playerName: "Bob",
-      betType: "winner",
-      betChoice: "Diana",
-      amount: 200,
-      odds: 2.5,
-      won: true,
-      winAmount: 500,
-    },
-    {
-      playerName: "Alice",
-      betType: "combination",
-      betChoice: "Quinte Flush",
-      amount: 100,
-      odds: 8.0,
-      won: false,
-    },
-    {
-      playerName: "Charlie",
-      betType: "winner",
-      betChoice: "Eve",
-      amount: 150,
-      odds: 3.0,
-      won: false,
-    },
-    {
-      playerName: "Diana",
-      betType: "combination",
-      betChoice: "Full",
-      amount: 250,
-      odds: 4.5,
-      won: true,
-      winAmount: 1125,
-    },
-    {
-      playerName: "Eve",
-      betType: "winner",
-      betChoice: "Diana",
-      amount: 300,
-      odds: 2.5,
-      won: true,
-      winAmount: 750,
-    },
-    {
-      playerName: "Vous",
-      betType: "combination",
-      betChoice: "Couleur",
-      amount: 200,
-      odds: 5.0,
-      won: false,
-    },
-  ];
+  const actualWinner = location.state?.winnerName ?? "Gagnant inconnu";
+  const actualCombination = location.state?.handName ?? "Combinaison inconnue";
 
-  const actualWinner = "Diana";
-  const actualCombination = "Full";
+  const computedBets: HiddenBet[] = bets.map((bet) => {
+    const isWinnerBet =
+      bet.betType === "winner" &&
+      actualWinner !== "Gagnant inconnu" &&
+      bet.betChoice === actualWinner;
+    const isCombinationBet =
+      bet.betType === "combination" &&
+      actualCombination !== "Combinaison inconnue" &&
+      bet.betChoice === actualCombination;
 
-  const totalWinnings = bets
+    const won = isWinnerBet || isCombinationBet;
+    const winAmount = won ? bet.amount * bet.odds : 0;
+
+    return {
+      ...bet,
+      won,
+      winAmount,
+    };
+  });
+
+  const totalWinnings = computedBets
     .filter((bet) => bet.won)
     .reduce((sum, bet) => sum + (bet.winAmount || 0), 0);
 
@@ -159,7 +122,7 @@ export function HiddenBetsResult() {
         {/* Liste des paris */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-400px)]">
           <div className="space-y-3">
-            {bets.map((bet, index) => (
+            {computedBets.map((bet, index) => (
               <div
                 key={index}
                 className={`relative overflow-hidden rounded-2xl p-4 border-2 transition-all ${

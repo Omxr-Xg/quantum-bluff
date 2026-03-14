@@ -3,10 +3,13 @@ import { prisma } from '../config/database.js';
 import { GameTable } from '../logic/GameTable.js';
 import type { Player } from '../types/poker.js';
 import { activeGames } from '../shared/activeGames.js';
-import sanitizeHtml from "sanitize-html";
+import sanitizeHtml from 'sanitize-html';
+
 
 const router = express.Router();
-const cleanRoomName = sanitizeHtml(roomName);
+
+// Fonction utilitaire pour nettoyer le nom de la salle
+//const sanitizeRoomName = (roomName: string) => sanitizeHtml(roomName);
 
 // GET /api/waiting-room - Liste toutes les salles disponibles
 router.get('/', async (req, res) => {
@@ -52,10 +55,23 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/waiting-room/active/games - Liste des parties actives (doit être avant /:roomId)
+router.get('/active/games', async (req, res) => {
+  const allGames = await activeGames.getAll();
+  const games = Array.from(allGames.entries()).map(([id, game]) => ({
+    id,
+    players: game.state.players.length,
+    phase: game.state.phase
+  }));
+  res.json(games);
+});
+
 // POST /api/waiting-room/create - Créer une nouvelle salle
 router.post('/create', async (req, res) => {
   try {
-    const { hostId, roomName, maxPlayers = 9 } = req.body;
+    const { hostId, roomName, maxPlayers = 5 } = req.body;
+
+    //const sanitizedRoomName = roomName ? sanitizeHtml(roomName) : '';
 
     // Vérifier que l'utilisateur existe
     const user = await prisma.user.findUnique({
@@ -69,7 +85,7 @@ router.post('/create', async (req, res) => {
     // Créer la salle
     const room = await prisma.waitingRoom.create({
       data: {
-        name: cleanRoomName || `Salle de ${user.username}`,
+        name: roomName ? sanitizeHtml(roomName) : `Salle de ${user.username}`,
         hostId,
         maxPlayers,
         players: {
@@ -359,9 +375,10 @@ router.post('/:roomId/start', async (req, res) => {
     const gameTable = new GameTable(gameId, players);
     gameTable.startHand();
 
-    // Stocker dans le Map
-    activeGames.set(gameId, gameTable);
-    console.log(`✅ Partie ${gameId} créée et stockée. Taille du Map: ${activeGames.size}`);
+    // Stocker dans le cache (Redis + local)
+    await activeGames.set(gameId, gameTable);
+    const size = activeGames.size();
+    console.log(`✅ Partie ${gameId} créée et stockée. Taille du cache: ${size}`);
 
     // Mettre à jour la salle
     await prisma.waitingRoom.update({
@@ -372,21 +389,21 @@ router.post('/:roomId/start', async (req, res) => {
       }
     });
 
-    res.json({ gameId, message: 'Partie démarrée' });
+    const playersForClient = room.players.map((rp) => ({
+      id: rp.user.id,
+      name: rp.user.username
+    }));
+
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    if (io) {
+      io.to(roomId).emit('GAME_STARTED', { gameId, players: playersForClient });
+    }
+
+    res.json({ gameId, message: 'Partie démarrée', players: playersForClient });
   } catch (error) {
     console.error('Erreur démarrage:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
-});
-
-// GET /api/waiting-room/active/games - Liste des parties actives
-router.get('/active/games', (req, res) => {
-  const games = Array.from(activeGames.entries()).map(([id, game]) => ({
-    id,
-    players: game.state.players.length,
-    phase: game.state.phase
-  }));
-  res.json(games);
 });
 
 export default router;

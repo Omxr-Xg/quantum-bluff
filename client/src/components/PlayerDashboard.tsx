@@ -15,12 +15,16 @@ interface PlayerDashboardProps {
   onFold: () => void;
   onCall: (amount: number) => void;
   onRaise: (amount: number) => void;
+  onCheck?: () => void;
   callAmount: number;
   minRaise: number;
   maxRaise: number;
   isMyTurn: boolean;
+  isLoading?: boolean;
   hasFolded: boolean;
   hasActed?: boolean;
+  /** En multijoueur, désactiver les boutons tant que la connexion socket n'est pas prête */
+  actionsDisabled?: boolean;
   waitingForPlayer?: string;
   onToggleQuantum?: () => void;
   onToggleHiddenBets?: () => void;
@@ -28,6 +32,7 @@ interface PlayerDashboardProps {
   isQuantumOpen?: boolean;
   isHiddenBetsOpen?: boolean;
   isChatOpen?: boolean;
+  timeLeft?: number;
 }
 
 export function PlayerDashboard({
@@ -37,17 +42,21 @@ export function PlayerDashboard({
   onFold,
   onCall,
   onRaise,
+  onCheck,
   callAmount,
   minRaise: _minRaise,
   maxRaise: _maxRaise,
   isMyTurn,
+  isLoading = false,
   hasFolded,
   hasActed,
+  actionsDisabled = false,
   waitingForPlayer,
   onToggleQuantum,
   onToggleHiddenBets,
   isQuantumOpen,
   isHiddenBetsOpen: _isHiddenBetsOpen,
+  timeLeft,
 }: PlayerDashboardProps) {
 
   const [raiseAmount] = useState(50);
@@ -129,6 +138,15 @@ export function PlayerDashboard({
           </div>
         )}
 
+        {isMyTurn && timeLeft !== undefined && (
+          <div className="text-center mb-2">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/20 border border-amber-500/50 rounded-full text-amber-400 font-bold text-sm">
+              <span>Tour :</span>
+              <span>{timeLeft}s</span>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-end justify-between gap-4">
 
           {/* Player cards */}
@@ -164,32 +182,40 @@ export function PlayerDashboard({
 
           {/* ACTION BUTTONS */}
           <div className="flex gap-2">
-
             <NeonButton
               onClick={onFold}
-              disabled={!isMyTurn || hasFolded || hasActed}
+              disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
               variant="red"
             >
               Coucher
             </NeonButton>
 
-            <NeonButton
-              onClick={() => onCall(callAmount)}
-              disabled={!isMyTurn || hasFolded || hasActed}
-              variant="blue"
-            >
-              Suivre
-            </NeonButton>
+            {callAmount === 0 && onCheck ? (
+              <NeonButton
+                onClick={onCheck}
+                disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
+                variant="blue"
+              >
+                Check
+              </NeonButton>
+            ) : (
+              <NeonButton
+                onClick={() => onCall(callAmount)}
+                disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || callAmount <= 0}
+                variant="blue"
+              >
+                Suivre {callAmount > 0 ? callAmount : ""}
+              </NeonButton>
+            )}
 
             <NeonButton
               onClick={handleRaiseClick}
-              disabled={!isMyTurn || hasFolded || hasActed}
+              disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
               variant="green"
               icon={<TrendingUp className="w-5 h-5" />}
             >
               Relancer
             </NeonButton>
-
           </div>
 
           {/* UTIL BUTTONS */}

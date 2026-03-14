@@ -1,0 +1,11 @@
+{"timestamp":"2026-03-13T23:42:12.764Z","type":"ACTION_ERROR","details":"Test manuel au démarrage du serveur"}
+{"timestamp":"2026-03-13T23:42:29.691Z","type":"ACTION_ERROR","details":"Test manuel au démarrage du serveur"}
+{"timestamp":"2026-03-13T23:56:50.581Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::ffff:127.0.0.1","route":"/api/auth/login","timestamp":"2026-03-13T23:56:50.580Z"}}
+{"timestamp":"2026-03-13T23:56:50.742Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::ffff:127.0.0.1","route":"/api/auth/login","timestamp":"2026-03-13T23:56:50.742Z"}}
+{"timestamp":"2026-03-13T23:56:50.936Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::ffff:127.0.0.1","route":"/api/auth/login","timestamp":"2026-03-13T23:56:50.936Z"}}
+{"timestamp":"2026-03-13T23:56:51.101Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::ffff:127.0.0.1","route":"/api/auth/login","timestamp":"2026-03-13T23:56:51.101Z"}}
+{"timestamp":"2026-03-13T23:56:51.333Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::ffff:127.0.0.1","route":"/api/auth/login","timestamp":"2026-03-13T23:56:51.333Z"}}
+{"timestamp":"2026-03-13T23:57:11.367Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::1","route":"/api/auth/login","timestamp":"2026-03-13T23:57:11.366Z"}}
+{"timestamp":"2026-03-14T15:03:50.314Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::1","route":"/api/auth/login","timestamp":"2026-03-14T15:03:50.314Z"}}
+{"timestamp":"2026-03-14T15:04:04.171Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::1","route":"/api/auth/login","timestamp":"2026-03-14T15:04:04.171Z"}}
+{"timestamp":"2026-03-14T15:05:30.668Z","type":"BRUTE_FORCE_LOGIN","details":{"ip":"::1","route":"/api/auth/login","timestamp":"2026-03-14T15:05:30.668Z"}}

@@ -1,17 +1,95 @@
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { Bot, Server, User, UserPlus, LogOut , Users} from "lucide-react";
+import { Bot, Server, User, Users, LogOut, Loader2 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { getUserBalance } from "../utils/userProfile";
 import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
 
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+
+interface RoomPlayer {
+  id: string;
+  username: string;
+  level: number;
+  isReady: boolean;
+  position: number;
+}
+
+interface WaitingRoomItem {
+  id: string;
+  name: string;
+  hostId: string;
+  maxPlayers: number;
+  status: string;
+  players: RoomPlayer[];
+  playerCount: number;
+}
+
 export function Lobby() {
   const navigate = useNavigate();
   const userBalance = getUserBalance();
-  const { username } = useUser();
+  const { userId, username } = useUser();
+  const [rooms, setRooms] = useState<WaitingRoomItem[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [roomsError, setRoomsError] = useState<string | null>(null);
+
+  const fetchRooms = useCallback(async () => {
+    try {
+      const url = API_BASE ? `${API_BASE}/api/waiting-room` : "/api/waiting-room";
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Erreur chargement salles");
+      const data = await res.json();
+      setRooms(Array.isArray(data) ? data : []);
+      setRoomsError(null);
+    } catch (e) {
+      setRoomsError(e instanceof Error ? e.message : "Erreur serveur");
+      setRooms([]);
+    } finally {
+      setRoomsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRooms();
+    const interval = setInterval(fetchRooms, 5000);
+    return () => clearInterval(interval);
+  }, [fetchRooms]);
 
   const handlePlayBot = () => {
     navigate("/bot-configuration");
+  };
+
+  const handleCreateServer = async () => {
+    if (!userId) return;
+    setCreating(true);
+    try {
+      const url = API_BASE ? `${API_BASE}/api/waiting-room/create` : "/api/waiting-room/create";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hostId: userId,
+          roomName: `Salle de ${username || "Joueur"}`,
+          maxPlayers: 5,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || `Erreur ${res.status}`);
+      }
+      const room = await res.json();
+      navigate(`/waiting-room?roomId=${room.id}`);
+    } catch (e) {
+      setRoomsError(e instanceof Error ? e.message : "Impossible de créer la salle");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleJoinRoom = (roomId: string) => {
+    navigate(`/waiting-room?roomId=${roomId}`);
   };
 
   return (
@@ -95,16 +173,48 @@ export function Lobby() {
 
               <div className="space-y-3">
                 <button
-                  onClick={() => navigate("/waiting-room")}
-                  className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl transition"
+                  onClick={handleCreateServer}
+                  disabled={!userId || creating}
+                  className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2"
                 >
-                  Créer un nouveau serveur
+                  {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                  {creating ? "Création..." : "Créer un nouveau serveur"}
                 </button>
 
-                {/* Liste des serveurs existants (optionnel) */}
                 <div className="bg-slate-700/50 p-4 rounded-xl">
-                  <p className="text-gray-300 text-sm mb-2">Serveurs disponibles :</p>
-                  <p className="text-gray-500 text-center py-2">Aucun serveur disponible</p>
+                  <p className="text-gray-300 text-sm mb-2">Serveurs disponibles (max 5 joueurs) :</p>
+                  {roomsLoading && rooms.length === 0 ? (
+                    <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" /> Chargement...
+                    </p>
+                  ) : roomsError ? (
+                    <p className="text-red-400 text-center py-2 text-sm">{roomsError}</p>
+                  ) : rooms.length === 0 ? (
+                    <p className="text-gray-500 text-center py-2">Aucun serveur disponible</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {rooms.map((room) => (
+                        <li
+                          key={room.id}
+                          className="flex items-center justify-between gap-3 bg-slate-800/70 rounded-lg px-3 py-2 border border-slate-600"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white font-medium truncate">{room.name}</p>
+                            <p className="text-gray-400 text-xs">
+                              {room.playerCount}/{room.maxPlayers} joueurs
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleJoinRoom(room.id)}
+                            disabled={room.playerCount >= room.maxPlayers}
+                            className="shrink-0 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                          >
+                            Rejoindre
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             </div>

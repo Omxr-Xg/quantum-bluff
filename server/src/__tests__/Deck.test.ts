@@ -18,7 +18,10 @@ test('shuffle préserve 52 cartes', () => {
 });
 
 test('dealInitialCards donne 2 cartes par joueur', () => {
-  const players: Player[] = [{ id: 'p1', stack: 1000 }, { id: 'p2', stack: 1000 }];
+  const players: Player[] = [
+    { id: 'p1', name: 'J1', chips: 1000, cards: [], role: 'PLAYER', isActive: true },
+    { id: 'p2', name: 'J2', chips: 1000, cards: [], role: 'PLAYER', isActive: true }
+  ];
   const deck = new Deck();
   deck.dealInitialCards(players);
   expect(players[0].cards!.length).toBe(2);

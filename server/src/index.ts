@@ -8,36 +8,51 @@ import rateLimit from 'express-rate-limit'
 import gameRoutes from './routes/game.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import friendsRoutes from './routes/friends.routes.js'
+import waitingRoomRoutes from './routes/waitingRoom.routes.js'
+import gameApiRoutes from './routes/game.api.routes.js'
+import botRoutes from './routes/bot.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
-import { socketAuth } from './middleware/socketAuth.middleware.js'
-
-import waitingRoomRoutes from './routes/waitingRoom.routes.js';
-import gameApiRoutes from './routes/game.api.routes.js';
 
 const app = express()
+
+const FRONTEND_ORIGIN = 'http://localhost:5173'
 
 // sécurité HTTP
 app.use(helmet())
 
-// limiter les requêtes (anti spam / brute force)
+// CORS - avant le rate limiter pour les preflight
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+  credentials: true,
+  optionsSuccessStatus: 200
+}))
+
+// Rate limiter plus large pour le développement (éviter 429)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100
+  max: 1000,
+  message: { error: 'Trop de requêtes, réessaie plus tard' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true
 })
-
 app.use(limiter)
 
-app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '10kb' }))
+
+app.use((req, _res, next) => {
+  console.log(`📡 ${req.method} ${req.url}`)
+  next()
+})
 
 // routes API
 app.use('/api', gameRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/friends', friendsRoutes)
-app.use('/api/waiting-room', waitingRoomRoutes);
-app.use('/api/game', gameApiRoutes);
-app.use(express.json({ limit: "10kb" })); // DOS attack 
+app.use('/api/waiting-room', waitingRoomRoutes)
+app.use('/api/game', gameApiRoutes)
+app.use('/api/bot', botRoutes)
 
 app.get('/', (_req, res) => {
   res.send('🚀 Quantum Bluff API - Le serveur répond !')
@@ -48,14 +63,15 @@ const httpServer = createServer(app)
 
 // serveur websocket
 const io = new Server(httpServer, {
-  cors: { origin: '*' }
+  cors: {
+    origin: FRONTEND_ORIGIN,
+    credentials: true
+  }
 })
 
-// sécurité websocket (JWT)
-io.use(socketAuth)
-app.set('io', io);
+app.set('io', io)
 
-// gateway poker
+// gateway poker + auth socket déjà gérée dedans
 new GameGateway(io)
 
 const PORT = 3000

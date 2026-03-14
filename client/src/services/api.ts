@@ -1,34 +1,56 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 
-// Types
+const fetchWithRetry = async (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  retries = 3
+): Promise<Response> => {
+  for (let i = 0; i < retries; i++) {
+    const res = await fetch(input, init)
+    if (res.status === 429 && i < retries - 1) {
+      await new Promise((r) => setTimeout(r, 2000 * (i + 1)))
+      continue
+    }
+    return res
+  }
+  return fetch(input, init!)
+}
+
 interface User {
-  id: string;
-  username: string;
-  level: number;
+  id: string
+  username: string
+  level: number
   stats: {
-    wins: number;
-    totalGames: number;
-  };
+    wins: number
+    totalGames: number
+  }
 }
 
 interface FriendRequest {
-  id: string;
-  senderId: string;
-  receiverId: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  sender: User;
+  id: string
+  senderId: string
+  receiverId: string
+  status: string
+  createdAt: string
+  updatedAt: string
+  sender: User
 }
 
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:3000/api',
+    baseUrl: `${(import.meta.env.VITE_API_URL || 'http://localhost:3000').toString().replace(/\/$/, '')}/api`,
+    fetchFn: fetchWithRetry,
+    prepareHeaders: (headers) => {
+      const token = localStorage.getItem('token')
+      if (token) {
+        headers.set('authorization', `Bearer ${token}`)
+      }
+      return headers
+    },
   }),
   tagTypes: ['User', 'Game', 'Friend', 'FriendRequest'],
   endpoints: (builder) => ({
-    // Auth endpoints
     login: builder.mutation({
       query: (credentials) => ({
         url: '/auth/login',
@@ -47,7 +69,6 @@ export const api = createApi({
       invalidatesTags: ['User'],
     }),
 
-    // Game endpoints
     getGames: builder.query({
       query: () => '/games',
       providesTags: ['Game'],
@@ -71,10 +92,9 @@ export const api = createApi({
       invalidatesTags: ['Game'],
     }),
 
-    // Friend endpoints
     searchUsers: builder.query<User[], string>({
-      query: (query) => `/friends/search?query=${query}`,
-      providesTags: (result) => 
+      query: (query) => `/friends/search?query=${encodeURIComponent(query)}`,
+      providesTags: (result) =>
         result ? result.map(({ id }) => ({ type: 'Friend', id } as const)) : ['Friend'],
     }),
 

@@ -1,105 +1,164 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
-import { useUser } from '../hooks/useUser';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { io, Socket } from 'socket.io-client'
+import { useUser } from '../hooks/useUser'
+import { useToast } from './ToastContext'
 
 interface SocketContextType {
-  socket: Socket | null;        // ← AJOUTER CETTE LIGNE
-  isConnected: boolean;
-  connect: () => void;
-  disconnect: () => void;
-  joinRoom: (roomId: string) => void;
-  leaveRoom: (roomId: string) => void;
+  socket: Socket | null
+  isConnected: boolean
+  connect: () => void
+  disconnect: () => void
+  joinRoom: (roomId: string) => void
+  leaveRoom: (roomId: string) => void
 }
 
-const SocketContext = createContext<SocketContextType | undefined>(undefined);
+const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-const URL = process.env.NODE_ENV === 'production' 
-  ? 'https://votre-domaine.com' 
-  : 'http://localhost:3000';
+const URL = (() => {
+  const env = import.meta.env?.VITE_API_URL
+  if (env && typeof env === 'string') {
+    return env.replace(/\/$/, '')
+  }
+  return process.env.NODE_ENV === 'production'
+    ? 'https://votre-domaine.com'
+    : 'http://localhost:3000'
+})()
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const { userId } = useUser();
+  const [socket, setSocket] = useState<Socket | null>(null)
+  const [isConnected, setIsConnected] = useState(false)
+  const [authVersion, setAuthVersion] = useState(0)
+  const { userId } = useUser()
+  const { addToast } = useToast()
 
   useEffect(() => {
-    // Créer une nouvelle instance de socket
+    const handleAuthChanged = () => {
+      setAuthVersion((v) => v + 1)
+    }
+
+    window.addEventListener('auth-changed', handleAuthChanged)
+    return () => window.removeEventListener('auth-changed', handleAuthChanged)
+  }, [])
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    console.log('SOCKET CONTEXT TOKEN:', token)
+
+    if (!token) {
+      setSocket(null)
+      setIsConnected(false)
+      return
+    }
+
     const socketInstance = io(URL, {
-      autoConnect: false,
-      withCredentials: true
-    });
-
-    setSocket(socketInstance);
-
-    // Écouter les événements de connexion
-    socketInstance.on('connect', () => {
-      console.log('Socket connecté');
-      setIsConnected(true);
-      if (userId) {
-        socketInstance.emit('authenticate', { userId });
+      autoConnect: true,
+      auth: {
+        token
       }
-    });
+    })
+
+    setSocket(socketInstance)
+
+    socketInstance.on('connect', () => {
+      console.log('Socket connecté')
+      setIsConnected(true)
+    })
+
+    const uid = localStorage.getItem('userId')
+    if (uid) {
+      socketInstance.emit('JOIN_USER_ROOM', { userId: uid })
+    }
 
     socketInstance.on('disconnect', () => {
-      console.log('Socket déconnecté');
-      setIsConnected(false);
-    });
+      console.log('Socket déconnecté')
+      setIsConnected(false)
+    })
 
     socketInstance.on('connect_error', (error) => {
-      console.error('Erreur de connexion socket:', error);
-    });
+      console.error('Erreur de connexion socket:', error)
+    })
 
-    // Nettoyage
     return () => {
-      socketInstance.off('connect');
-      socketInstance.off('disconnect');
-      socketInstance.off('connect_error');
-      socketInstance.disconnect();
-    };
-  }, [userId]);
+      socketInstance.off('connect')
+      socketInstance.off('disconnect')
+      socketInstance.off('connect_error')
+      socketInstance.disconnect()
+    }
+  }, [userId, authVersion])
 
-  const connect = () => {
+  useEffect(() => {
+    if (!socket || !addToast) return
+
+    socket.on('FRIEND_REQUEST_RECEIVED', (data: { sender?: { username?: string } }) => {
+      addToast(`Nouvelle demande d'ami de ${data.sender?.username ?? 'un joueur'}`, 'info')
+      if (window.location.pathname === '/friends') {
+        window.dispatchEvent(new CustomEvent('refetch-requests'))
+      }
+    })
+
+    socket.on('FRIEND_REQUEST_ACCEPTED', (data: { username?: string }) => {
+      addToast(`${data.username ?? 'Un ami'} a accepté votre demande d'ami !`, 'success')
+      if (window.location.pathname === '/friends') {
+        window.dispatchEvent(new CustomEvent('refetch-friends'))
+      }
+    })
+
+    socket.on('FRIEND_STATUS_CHANGED', (data: { userId?: string; status?: string; username?: string }) => {
+      const statusText = data.status === 'online' ? 'en ligne' : 'hors ligne'
+      addToast(`${data.username ?? data.userId ?? 'Un ami'} est ${statusText}`, 'info')
+    })
+
+    return () => {
+      socket.off('FRIEND_REQUEST_RECEIVED')
+      socket.off('FRIEND_REQUEST_ACCEPTED')
+      socket.off('FRIEND_STATUS_CHANGED')
+    }
+  }, [socket, addToast])
+
+  const connect = useCallback(() => {
     if (socket && !socket.connected) {
-      socket.connect();
+      socket.connect()
     }
-  };
+  }, [socket])
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     if (socket && socket.connected) {
-      socket.disconnect();
+      socket.disconnect()
     }
-  };
+  }, [socket])
 
-  const joinRoom = (roomId: string) => {
-    if (socket && socket.connected) {
-      socket.emit('join-room', { roomId, userId });
+  const joinRoom = useCallback((roomId: string) => {
+    if (socket && socket.connected && userId) {
+      socket.emit('join-room', { roomId, userId })
     }
-  };
+  }, [socket, userId])
 
-  const leaveRoom = (roomId: string) => {
-    if (socket && socket.connected) {
-      socket.emit('leave-room', { roomId, userId });
+  const leaveRoom = useCallback((roomId: string) => {
+    if (socket && socket.connected && userId) {
+      socket.emit('leave-room', { roomId, userId })
     }
-  };
+  }, [socket, userId])
 
   return (
-    <SocketContext.Provider value={{ 
-      socket,              // ← MAINTENANT DISPONIBLE
-      isConnected, 
-      connect, 
-      disconnect, 
-      joinRoom, 
-      leaveRoom 
-    }}>
+    <SocketContext.Provider
+      value={{
+        socket,
+        isConnected,
+        connect,
+        disconnect,
+        joinRoom,
+        leaveRoom
+      }}
+    >
       {children}
     </SocketContext.Provider>
-  );
-};
+  )
+}
 
 export const useSocket = () => {
-  const context = useContext(SocketContext);
+  const context = useContext(SocketContext)
   if (!context) {
-    throw new Error('useSocket must be used within SocketProvider');
+    throw new Error('useSocket must be used within SocketProvider')
   }
-  return context;
-};
+  return context
+}

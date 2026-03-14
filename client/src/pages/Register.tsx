@@ -6,47 +6,54 @@ import { useRegisterMutation } from "../services/api";
 
 export function Register() {
 
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const [register, { isLoading, error }] = useRegisterMutation();
-  const navigate = useNavigate();
+  const [register, { isLoading, error }] = useRegisterMutation()
+  const navigate = useNavigate()
 
   const isFormValid =
     username.length >= 3 &&
     email.includes("@") &&
     password.length >= 8 &&
-    password === confirmPassword;
+    password === confirmPassword
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isFormValid) return;
+
+    e.preventDefault()
+    if (!isFormValid) return
 
     try {
+
       const response = await register({
         username,
         email,
         password
-      }).unwrap();
+      }).unwrap()
 
-      console.log("✅ Inscription réussie:", response);
+      console.log("✅ Inscription réussie:", response)
 
-      // 🔵 Stockage local
-      localStorage.setItem("userId", String(response.id));
-      localStorage.setItem("username", response.username);
-      localStorage.setItem("token", response.token);
+      localStorage.removeItem("userid")
 
-      navigate("/lobby");
+      localStorage.setItem("token", response.token)
+      localStorage.setItem("userId", String(response.user.id))
+      localStorage.setItem("username", response.user.username)
+
+      window.dispatchEvent(new Event("auth-changed"))
+
+      navigate("/lobby")
 
     } catch (err) {
-      console.error("❌ Erreur inscription:", err);
+
+      console.error("❌ Erreur d'inscription:", err)
+
     }
-  };
+  }
 
   return (
     <div className="w-full min-h-screen bg-slate-900 flex items-center justify-center p-4">
@@ -55,19 +62,14 @@ export function Register() {
 
         <div className="text-center mb-6">
           <QuantumBluffLogo className="w-20 h-20 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-white">
-            Quantum Bluff
-          </h1>
-          <p className="text-gray-400 text-sm">
-            Créer votre compte joueur
-          </p>
+          <h1 className="text-3xl font-bold text-white">Quantum Bluff</h1>
+          <p className="text-gray-400 text-sm">Créer votre compte joueur</p>
         </div>
 
         <div className="bg-slate-800 border border-purple-500/30 rounded-2xl p-6">
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* USERNAME */}
             <div>
               <label className="text-xs text-gray-400">Username</label>
               <div className="relative">
@@ -82,7 +84,6 @@ export function Register() {
               </div>
             </div>
 
-            {/* EMAIL */}
             <div>
               <label className="text-xs text-gray-400">Email</label>
               <div className="relative">
@@ -97,7 +98,6 @@ export function Register() {
               </div>
             </div>
 
-            {/* PASSWORD */}
             <div>
               <label className="text-xs text-gray-400">Mot de passe</label>
               <div className="relative">
@@ -119,7 +119,6 @@ export function Register() {
               </div>
             </div>
 
-            {/* CONFIRM PASSWORD */}
             <div>
               <label className="text-xs text-gray-400">Confirmation</label>
               <div className="relative">
@@ -176,5 +175,5 @@ export function Register() {
         </div>
       </div>
     </div>
-  );
+  )
 }

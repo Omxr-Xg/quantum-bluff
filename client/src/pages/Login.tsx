@@ -5,42 +5,52 @@ import { QuantumBluffLogo } from "../assets/logo";
 import { useLoginMutation } from "../services/api";
 
 export function Login() {
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
   const [login, { isLoading, error }] = useLoginMutation();
   const navigate = useNavigate();
 
   const isFormValid = email.length > 0 && password.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isFormValid) return;
+
+    e.preventDefault()
+    if (!isFormValid) return
 
     try {
-      const response = await login({ email, password }).unwrap();
-      console.log("✅ Connexion réussie:", response);
 
-      // 🔵 Stockage du token + user dans localStorage
-      localStorage.setItem("userId", String(response.id));
-      localStorage.setItem("username", response.username);
-      localStorage.setItem("token", response.token);
+      const response = await login({ email, password }).unwrap()
+      console.log("✅ Connexion réussie:", response)
 
-      navigate("/lobby");
+      localStorage.removeItem("userid")
+
+      localStorage.setItem("token", response.token)
+      localStorage.setItem("userId", String(response.user.id))
+      localStorage.setItem("username", response.user.username)
+
+      window.dispatchEvent(new Event("auth-changed"))
+
+      navigate("/lobby")
+
     } catch (err) {
-      console.error("❌ Erreur de connexion:", err);
+
+      console.error("❌ Erreur de connexion:", err)
+
     }
-  };
+  }
 
   return (
     <div className="w-full min-h-screen relative overflow-hidden bg-slate-900 flex items-center justify-center p-4 sm:p-6 font-sans">
-      
-      {/* BACKGROUND */}
+
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-md">
+
         <div className="text-center mb-6">
           <QuantumBluffLogo className="w-20 h-20 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-white">Quantum Bluff</h1>
@@ -48,9 +58,9 @@ export function Login() {
         </div>
 
         <div className="rounded-2xl p-6 sm:p-8 border border-purple-500/30 bg-slate-800/60 backdrop-blur">
+
           <form onSubmit={handleSubmit} className="space-y-5">
 
-            {/* EMAIL */}
             <div>
               <label className="text-xs text-gray-400">Email</label>
               <div className="relative">
@@ -65,7 +75,6 @@ export function Login() {
               </div>
             </div>
 
-            {/* PASSWORD */}
             <div>
               <label className="text-xs text-gray-400">Mot de passe</label>
               <div className="relative">
@@ -107,6 +116,7 @@ export function Login() {
                 "Se connecter"
               )}
             </button>
+
           </form>
 
           <div className="text-center mt-4">
@@ -117,8 +127,9 @@ export function Login() {
               Créer un compte
             </button>
           </div>
+
         </div>
       </div>
     </div>
-  );
+  )
 }

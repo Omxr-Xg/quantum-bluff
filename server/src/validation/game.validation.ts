@@ -5,3 +5,10 @@ export const gameActionSchema = z.object({
   action: z.enum(["FOLD", "CALL", "RAISE", "CHECK"]),
   amount: z.number().optional()
 });
+
+export const botActionSchema = z.object({
+  gameId: z.string().min(1),
+  playerId: z.string().min(1),
+  action: z.enum(["FOLD", "CALL", "RAISE", "CHECK"]),
+  amount: z.number().int().positive().optional()
+})

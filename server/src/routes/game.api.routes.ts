@@ -3,7 +3,7 @@ import { prisma } from '../config/database.js';
 import { GameTable } from '../logic/GameTable.js';
 import type { Player } from '../types/poker.js';
 import { activeGames } from '../shared/activeGames.js';
-//import { Server } from 'socket.io';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -39,14 +39,14 @@ router.post('/start', async (req, res) => {
     }
 
     // Convertir les utilisateurs en joueurs pour GameTable
-    const players: Player[] = waitingRoom.players.map((rp, _index) => ({
+    const players: Player[] = waitingRoom.players.map((rp, index) => ({
       id: rp.user.id,
       name: rp.user.username,
       cards: [],
-      chips: 1000, // Jetons de départ
+      chips: 1000,
       role: 'PLAYER',
       isActive: true,
-      position: _index,
+      position: index,
       isDealer: false,
       isConnected: true
     }));
@@ -57,15 +57,12 @@ router.post('/start', async (req, res) => {
     gameTable.startHand();
 
     // Sauvegarder la partie active
-    activeGames.set(gameId, gameTable);
-    const io = req.app.get('io'); // Récupérer l'instance Socket.io
+    await activeGames.set(gameId, gameTable);
+
+    // Notifier via Socket.io
+    const io = req.app.get('io');
     if (io) {
       io.to(roomId).emit('GAME_STARTED', { gameId });
-      // Faire rejoindre tous les joueurs à la nouvelle room de jeu
-      waitingRoom.players.forEach(_p => {
-        // Ici il faudrait avoir une correspondance socketId ↔ userId
-        // Pour l'instant, on notifie juste
-      });
     }
 
     // Mettre à jour le statut de la salle d'attente
@@ -74,7 +71,7 @@ router.post('/start', async (req, res) => {
       data: { status: 'IN_GAME' }
     });
 
-    // Optionnel : sauvegarder l'historique
+    // Sauvegarder l'historique
     await prisma.gameHistory.create({
       data: {
         id: gameId,
@@ -82,7 +79,7 @@ router.post('/start', async (req, res) => {
         gameId: gameId,
         board: [],
         pot: 0,
-        winnerId: '', // Sera mis à jour à la fin
+        winnerId: '',
       }
     });
 
@@ -97,27 +94,27 @@ router.post('/start', async (req, res) => {
   }
 });
 
-// GET /api/game/:gameId - Récupérer l'état d'une partie
-router.get('/:gameId', (req, res) => {
+// GET /api/game/:gameId - Récupérer l'état d'une partie (?playerId= pour recevoir ses cartes)
+router.get('/:gameId', async (req, res) => {
   const { gameId } = req.params;
-  console.log(`🔍 Recherche de la partie: ${gameId}. Clés dans le Map:`, Array.from(activeGames.keys()));
-  
-  const game = activeGames.get(gameId);
+  const playerId = typeof req.query.playerId === 'string' ? req.query.playerId : undefined;
+  const game = await activeGames.get(gameId);
+  console.log(`🔍 Recherche de la partie: ${gameId}. Trouvée:`, !!game);
 
   if (!game) {
     return res.status(404).json({ error: 'Partie introuvable' });
   }
 
-  res.json(game.getSanitizedState());
+  res.json(game.getSanitizedState(playerId));
 });
 
 // POST /api/game/:gameId/action - Effectuer une action
-router.post('/:gameId/action', (req, res) => {
+router.post('/:gameId/action', async (req, res) => {
   try {
     const { gameId } = req.params;
     const { playerId, action, amount } = req.body;
 
-    const game = activeGames.get(gameId);
+    const game = await activeGames.get(gameId);
     if (!game) {
       return res.status(404).json({ error: 'Partie introuvable' });
     }
@@ -133,13 +130,85 @@ router.post('/:gameId/action', (req, res) => {
 });
 
 // GET /api/game/active - Liste des parties actives
-router.get('/active/list', (req, res) => {
-  const games = Array.from(activeGames.entries()).map(([id, game]) => ({
+router.get('/active/list', async (req, res) => {
+  const allGames = await activeGames.getAll();
+  const games = Array.from(allGames.entries()).map(([id, game]) => ({
     id,
     players: game.state.players.length,
     phase: game.state.phase
   }));
   res.json(games);
+});
+
+// POST /api/game/record-result - Enregistrer résultat d'une main (mode bot) et incrémenter les stats
+router.post('/record-result', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId;
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+    const { won } = req.body as { won?: boolean };
+    if (typeof won !== 'boolean') return res.status(400).json({ error: 'Body attendu: { won: boolean }' });
+
+    await prisma.playerStats.upsert({
+      where: { playerId: userId },
+      create: {
+        playerId: userId,
+        totalGames: 1,
+        totalWins: won ? 1 : 0,
+        totalLosses: won ? 0 : 1,
+      },
+      update: {
+        totalGames: { increment: 1 },
+        ...(won ? { totalWins: { increment: 1 } } : { totalLosses: { increment: 1 } }),
+      },
+    });
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Erreur record-result:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/game/history/:gameId - Récupérer l'historique d'une partie
+router.get('/history/:gameId', async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    const actions = await prisma.gameAction.findMany({
+      where: { gameId },
+      orderBy: { timestamp: 'asc' },
+      include: {
+        player: {
+          select: { username: true }
+        }
+      }
+    });
+
+    const result = await prisma.gameResult.findUnique({
+      where: { gameId }
+    });
+
+    if (!actions.length && !result) {
+      return res.status(404).json({ error: 'Historique introuvable' });
+    }
+
+    res.json({
+      gameId,
+      winner: result?.winnerId || null,
+      date: result?.endedAt || null,
+      actions: actions.map(a => ({
+        action: a.action,
+        amount: a.amount,
+        timestamp: a.timestamp,
+        player: a.player
+      }))
+    });
+
+  } catch (error) {
+    console.error('Erreur historique:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
 });
 
 // GET /api/game/stats/:playerId - Statistiques d'un joueur
@@ -167,33 +236,6 @@ router.get('/stats/:playerId', async (req, res) => {
 
   } catch (error) {
     console.error('Erreur stats:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// GET /api/game/history/:gameId - Historique d'une partie
-router.get('/history/:gameId', async (req, res) => {
-  try {
-    const { gameId } = req.params;
-
-    const actions = await prisma.gameAction.findMany({
-      where: { gameId },
-      orderBy: { timestamp: 'asc' },
-      include: {
-        player: {
-          select: { username: true }
-        }
-      }
-    });
-
-    const result = await prisma.gameResult.findUnique({
-      where: { gameId }
-    });
-
-    res.json({ actions, result });
-
-  } catch (error) {
-    console.error('Erreur historique:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

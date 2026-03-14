@@ -4,6 +4,50 @@ import jwt from 'jsonwebtoken'
 import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
 import { registerSchema, loginSchema } from '../validation/auth.validation.js'
+import rateLimit from 'express-rate-limit'
+import { logSuspiciousAction } from '../utils/securityLogger.js'
+
+const loginLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.log('LOGIN LIMITER TRIGGERED')
+    logSuspiciousAction('BRUTE_FORCE_LOGIN', {
+      details: {
+        ip: req.ip,
+        route: '/api/auth/login',
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.status(429).json({
+      error: 'Trop de tentatives de connexion. Réessaie dans 10 minutes.'
+    })
+  }
+})
+
+const registerLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.log('REGISTER LIMITER TRIGGERED')
+    logSuspiciousAction('BRUTE_FORCE_REGISTER', {
+      details: {
+        ip: req.ip,
+        route: '/api/auth/register',
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.status(429).json({
+      error: 'Trop de créations de compte. Réessaie dans 10 minutes.'
+    })
+  }
+})
 
 const router = express.Router()
 
@@ -15,12 +59,14 @@ function generateToken(userId: string) {
 }
 
 // REGISTER
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
 
   const parsed = registerSchema.safeParse(req.body)
 
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors })
+    return res.status(400).json({ 
+      error: parsed.error.issues.map(issue => issue.message).join(', ') 
+    })
   }
 
   let { email, password, username } = parsed.data
@@ -81,12 +127,14 @@ router.post('/register', async (req, res) => {
 
 
 // LOGIN
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
 
   const parsed = loginSchema.safeParse(req.body)
 
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors })
+    return res.status(400).json({ 
+      error: parsed.error.issues.map(issue => issue.message).join(', ') 
+    })
   }
 
   const { email, password } = parsed.data

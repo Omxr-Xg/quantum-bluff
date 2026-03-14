@@ -9,3 +9,5 @@ dist/
 build/
 .DS_Storetsconfig.tsbuildinfo
 server/tsconfig.tsbuildinfo
+server/junit.xml
+server/junit.xml
