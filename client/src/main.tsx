@@ -4,6 +4,8 @@ import { Provider } from 'react-redux'
 import { store } from './store'
 import { ToastProvider } from './contexts/ToastContext'
 import { SocketProvider } from './contexts/SocketContext'
+import { QuantumHUDProvider } from './contexts/QuantumHUDContext'
+import { HiddenBetsProvider } from './contexts/HiddenBetsContext'
 import App from './App'
 import './index.css'
 
@@ -12,7 +14,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <Provider store={store}>
       <ToastProvider>
         <SocketProvider>
-          <App />
+          <QuantumHUDProvider>
+            <HiddenBetsProvider>
+              <App />
+            </HiddenBetsProvider>
+          </QuantumHUDProvider>
         </SocketProvider>
       </ToastProvider>
     </Provider>
