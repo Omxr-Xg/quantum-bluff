@@ -22,7 +22,7 @@ import { Layout } from "./components/Layout";
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/vmProjetIntegrateurgrp10-0">
       {/* 2️⃣ AJOUTE LE PROVIDER ICI (Il enveloppe toute ton application) */}
       <AccessibilityProvider>
         <Layout>
