@@ -58,7 +58,9 @@ interface FriendRequest {
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: `${(import.meta.env.VITE_API_URL || 'http://localhost:3000').toString().replace(/\/$/, '')}/api`,
+    baseUrl: import.meta.env.PROD 
+      ? `${import.meta.env.BASE_URL}api` 
+      : 'http://localhost:3000/api',
     fetchFn: fetchWithRetry,
     prepareHeaders: (headers) => {
       const token = localStorage.getItem('token')

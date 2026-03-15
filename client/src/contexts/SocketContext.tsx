@@ -27,7 +27,8 @@ const SocketContext = createContext<SocketContextType | undefined>(undefined)
 const URL = (() => {
   const env = import.meta.env?.VITE_API_URL
   if (env && typeof env === 'string') {
-    return env.replace(/\/$/, '')
+    // En production, on utilise le domaine actuel
+    return window.location.origin
   }
   return process.env.NODE_ENV === 'production'
     ? 'https://votre-domaine.com'
@@ -67,6 +68,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     const socketInstance = io(URL, {
       autoConnect: true,
+      // On force Socket.io à passer par le sous-dossier de l'école
+      path: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/socket.io/` : '',
       auth: {
         token
       }
