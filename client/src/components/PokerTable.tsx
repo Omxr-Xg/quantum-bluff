@@ -116,6 +116,29 @@ export function PokerTable({
         }}
       >
 
+        {/* Logo central en reflet sur le tapis */}
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          aria-hidden="true"
+        >
+          <div
+            className="rounded-full overflow-hidden"
+            style={{
+              width: isMobile ? 120 : isTablet ? 180 : 220,
+              height: isMobile ? 120 : isTablet ? 180 : 220,
+              opacity: 0.12,
+              filter: "blur(1px) grayscale(100%)",
+              transform: "translateY(10px)",
+            }}
+          >
+            <img
+              src={logoSrc}
+              alt="Quantum Bluff"
+              className="w-full h-full object-contain"
+            />
+          </div>
+        </div>
+
         {/* Community cards */}
         <div
           className={`absolute ${
