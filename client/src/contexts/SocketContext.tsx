@@ -24,15 +24,7 @@ interface SocketContextType {
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-const URL = (() => {
-  const env = import.meta.env?.VITE_API_URL
-  if (env && typeof env === 'string') {
-    return env.replace(/\/$/, '')
-  }
-  return process.env.NODE_ENV === 'production'
-    ? 'https://votre-domaine.com'
-    : 'http://localhost:3000'
-})()
+const URL = import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin;
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
@@ -67,6 +59,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     const socketInstance = io(URL, {
       autoConnect: true,
+      // On force Socket.io à passer par le sous-dossier de l'école
+      path: import.meta.env.DEV ? '' : '/vmProjetIntegrateurgrp10-0/socket.io/',
       auth: {
         token
       }

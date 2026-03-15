@@ -10,12 +10,15 @@ autoUpdater.logger.transports.file.level = 'info';
 // Configuration du serveur de mises à jour
 const serverUrl = process.env.NODE_ENV === 'development'
   ? 'http://localhost:3000'
-  : 'https://TON_SERVEUR_URL';
+  : 'https://mai-projet-integrateur.u-strasbg.fr/vmProjetIntegrateurgrp10-0';
 
 autoUpdater.setFeedURL({
   provider: 'generic',
   url: `${serverUrl}/updates/`
 });
+
+// Ignorer les erreurs de certificat SSL (car le certificat du serveur de l'école est expiré)
+app.commandLine.appendSwitch('ignore-certificate-errors');
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -28,7 +31,8 @@ function createWindow() {
     }
   });
 
-  win.loadURL('http://localhost:5175');
+  // On charge le jeu hébergé sur la VM
+  win.loadURL('https://mai-projet-integrateur.u-strasbg.fr/vmProjetIntegrateurgrp10-0/');
 
   if (process.env.NODE_ENV === 'development') {
     win.webContents.openDevTools();

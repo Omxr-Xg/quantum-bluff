@@ -168,7 +168,7 @@ export function Game() {
           name: `Bot ${botNames[i]}`,
           chips: i === 0 ? BOT_START_CHIPS - SB : BOT_START_CHIPS,
           bet: i === 0 ? SB : 0,
-          position: 0,
+          position: i,
           isActive: true,
           isDealer: true,
           cards: [],
@@ -184,7 +184,7 @@ export function Game() {
         name: "Vous",
         chips: playerChips - BB,
         bet: BB,
-        position: 1,
+        position: count,
         isActive: false,
         isDealer: false,
         cards: [],
@@ -274,18 +274,33 @@ export function Game() {
     }, 250);
   };
 
-  const resetBetsAndSetFirstToAct = (position: number) => {
+    const resetBetsAndSetFirstToAct = (startIndex: number) => {
     setRoundPlayersActed(new Set());
-    setPlayersState((prev) =>
-      prev.map((p) => ({ ...p, bet: 0, isActive: p.position === position }))
-    );
+      setPlayersState((prev) => {
+        let nextIndex = startIndex % prev.length;
+        let loopCount = 0;
+        let foundActive = false;
+        while (loopCount < prev.length) {
+          if (prev[nextIndex].isConnected !== false && !(prev[nextIndex].hasFolded ?? false) && (prev[nextIndex].chips ?? 0) > 0) {
+            foundActive = true;
+            break;
+          }
+          nextIndex = (nextIndex + 1) % prev.length;
+          loopCount++;
+        }
+        return prev.map((p, i) => ({
+          ...p,
+          bet: 0,
+          isActive: foundActive ? i === nextIndex : false
+        }));
+      });
   };
 
   // Distribution du flop (3 cartes) — post-flop : BB (position 1) parle en premier
   // runOutOnly = true : après un all-in, on distribue les cartes sans donner la main à personne
   const dealFlop = (runOutOnly?: boolean) => {
     setPhase("flop");
-    if (!runOutOnly) resetBetsAndSetFirstToAct(1);
+      if (!runOutOnly) resetBetsAndSetFirstToAct(0);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -304,7 +319,7 @@ export function Game() {
   // Distribution du turn — BB parle en premier
   const dealTurn = (runOutOnly?: boolean) => {
     setPhase("turn");
-    if (!runOutOnly) resetBetsAndSetFirstToAct(1);
+      if (!runOutOnly) resetBetsAndSetFirstToAct(0);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -407,9 +422,8 @@ export function Game() {
   // Multijoueur : récupérer l'état du jeu depuis le backend (évite race localStorage + cartes / phase / pot)
   useEffect(() => {
     if (!gameIdParam || !userId) return;
-    const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-    const base = apiUrl || "";
-    const url = `${base}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
+    const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+    const url = `${baseUrl}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
     let cancelled = false;
     fetch(url, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
@@ -715,10 +729,12 @@ export function Game() {
 
     if (idx === -1) return;
 
+      const activeInHandCount = playersStateRef.current.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false)).length;
+
     setRoundPlayersActed((prev) => {
       const next = new Set(prev).add(idx);
-      if (!gameIdParam && next.size >= 2) bothActedNoTurnRef.current = true;
-      if (!gameIdParam && next.size >= 2) {
+        if (!gameIdParam && next.size >= activeInHandCount) bothActedNoTurnRef.current = true;
+        if (!gameIdParam && next.size >= activeInHandCount) {
         const currentPhase = phase;
         setTimeout(() => {
           const players = playersStateRef.current;
@@ -768,19 +784,10 @@ export function Game() {
         return -1;
       };
 
-      let nextIndex: number;
-      if (newPlayers.length === 2) {
-        nextIndex = idx === 0 ? 1 : 0;
-        const canAct = !(newPlayers[nextIndex].hasFolded ?? false) && (newPlayers[nextIndex].chips ?? 0) > 0;
-        if (canAct) {
-          newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
-        }
-      } else {
-        nextIndex = nextPlayerWithChips((idx + 1) % newPlayers.length);
+        let nextIndex = nextPlayerWithChips((idx + 1) % newPlayers.length);
         if (nextIndex !== -1) {
           newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
         }
-      }
 
       return newPlayers;
     });
@@ -912,8 +919,8 @@ export function Game() {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
     const activeInHand = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
     if (activeInHand.length < 2) return;
-    const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-    const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
+    const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+    const url = `${baseUrl}/api/bot/evaluate-winner`;
     const currentPot = pot;
     fetch(url, {
       method: "POST",
@@ -1015,8 +1022,8 @@ export function Game() {
 
     const fetchBotDecision = async () => {
       try {
-        const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-        const url = `${apiUrl ? apiUrl + "/" : ""}api/bot/action`;
+        const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+        const url = `${baseUrl}/api/bot/action`;
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1117,9 +1124,8 @@ export function Game() {
     if (handResult === null || !isBotMode) return;
     const t = setTimeout(() => {
       const token = localStorage.getItem("token");
-      const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-      const base = apiUrl || "";
-      const recordUrl = base ? `${base}/api/game/record-result` : "/api/game/record-result";
+      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+      const recordUrl = `${baseUrl}/api/game/record-result`;
       if (token) {
         fetch(recordUrl, {
           method: "POST",
@@ -1291,7 +1297,8 @@ export function Game() {
       setPot((prev) => Math.max(0, prev + amount - totalRefund));
       setRoundPlayersActed((prev) => {
         const next = new Set(prev).add(botIndex);
-        if (next.size >= 2 && !isBotAllInCall) {
+          const activeInHandCount = playersStateRef.current.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false)).length;
+          if (next.size >= activeInHandCount && !isBotAllInCall) {
           bothActedNoTurnRef.current = true;
           const currentPhase = phase;
           if (streetTransitionScheduledRef.current !== currentPhase) {
@@ -1309,14 +1316,23 @@ export function Game() {
               transitionFn();
             }, 1000);
           }
-        } else if (next.size < 2 && !isBotAllInCall) {
-          // Bot a agi en premier sur cette street : donner la main au joueur humain
-          const humanIdx = (botIndex + 1) % playersState.length;
+          } else if (next.size < activeInHandCount && !isBotAllInCall) {
+            // Bot a agi : donner la main au joueur suivant
           setTimeout(() => {
             setPlayersState((prev) => {
-              const canAct = !(prev[humanIdx]?.hasFolded ?? false) && (prev[humanIdx]?.chips ?? 0) > 0;
-              if (!canAct) return prev;
-              return prev.map((p, i) => ({ ...p, isActive: i === humanIdx }));
+                const newPlayers = prev.map(p => ({ ...p, isActive: false }));
+                let nextIdx = (botIndex + 1) % newPlayers.length;
+                let loopCount = 0;
+                while (loopCount < newPlayers.length) {
+                  const p = newPlayers[nextIdx];
+                  if (p.isConnected !== false && !(p.hasFolded ?? false) && (p.chips ?? 0) > 0) {
+                    newPlayers[nextIdx].isActive = true;
+                    break;
+                  }
+                  nextIdx = (nextIdx + 1) % newPlayers.length;
+                  loopCount++;
+                }
+                return newPlayers;
             });
           }, 50);
         }
