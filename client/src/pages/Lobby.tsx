@@ -158,8 +158,8 @@ export function Lobby() {
       <div className="max-w-7xl mx-auto">
 
         {/* HEADER */}
-        {/* 📱 FIX MOBILE : flex-col sur mobile (empilé), flex-row sur PC (aligné) */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 w-full overflow-hidden">
+        {/* 📱 FIX MOBILE : flex-col sur mobile (empilé), flex-row sur PC (aligné). overflow-visible pour que le dropdown langue ne soit pas coupé */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 w-full overflow-visible">
 
           {/* Côté Gauche (Logo + Titre) */}
           <div className="flex items-center gap-4 w-full md:w-auto">
