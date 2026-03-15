@@ -1,5 +1,5 @@
 import express from 'express'
-import { getHandValue, findWinnerWithHand, findWinners, getHandInfo } from '../logic/Evaluator.js'
+import { getHandValue, findWinners, getHandInfo } from '../logic/Evaluator.js'
 import type { Card, Player } from '../types/poker.js'
 
 const router = express.Router()

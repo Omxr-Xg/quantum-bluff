@@ -4,7 +4,7 @@ import { Server } from 'socket.io'
 import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
-import { initCleanupJobs } from './utils/cleanup.job';
+import { initCleanupJobs } from './utils/cleanup.job.js';
 
 import gameRoutes from './routes/game.routes.js'
 import authRoutes from './routes/auth.routes.js'
@@ -14,6 +14,7 @@ import gameApiRoutes from './routes/game.api.routes.js'
 import botRoutes from './routes/bot.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
+import { socketAuth } from './middleware/socketAuth.middleware.js'
 
 const app = express()
 
@@ -79,18 +80,9 @@ const io = new Server(httpServer, {
   }
 })
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
 // sécurité websocket (JWT)
 io.use(socketAuth)
-app.set('io', io);
-=======
-=======
 app.set('io', io)
->>>>>>> develop
-
-app.set('io', io)
->>>>>>> Stashed changes
 
 initCleanupJobs();
 // gateway poker

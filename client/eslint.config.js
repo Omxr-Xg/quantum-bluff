@@ -14,6 +14,7 @@ export default tseslint.config(
       "dist/**",
       "preload.js",
       "electron.js",
+      "electron.cjs",
       "vite.config.ts",
       "vite.config.d.ts",
       "**/*.test.ts",
@@ -47,7 +48,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["electron.js"],
+    files: ["electron.js", "electron.cjs"],
     languageOptions: {
       globals: {
         ...globals.node,
