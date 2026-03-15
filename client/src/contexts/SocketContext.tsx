@@ -131,11 +131,29 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       })
     })
 
+    socket.on('JOIN_REQUEST_RECEIVED', (data: { user?: { username?: string } }) => {
+      addToast(i18n.t('toast.joinRequestFrom', { username: data.user?.username ?? 'un joueur' }), 'info')
+    })
+
+    socket.on('JOIN_REQUEST_ACCEPTED', (data: { roomId?: string; roomName?: string }) => {
+      addToast(i18n.t('toast.joinRequestAccepted', { room: data.roomName ?? '' }), 'success')
+      if (data.roomId) {
+        window.dispatchEvent(new CustomEvent('join-request-accepted', { detail: { roomId: data.roomId } }))
+      }
+    })
+
+    socket.on('JOIN_REQUEST_REJECTED', (data: { roomName?: string }) => {
+      addToast(i18n.t('toast.joinRequestRejected', { room: data.roomName ?? '' }), 'error')
+    })
+
     return () => {
       socket.off('FRIEND_REQUEST_RECEIVED')
       socket.off('FRIEND_REQUEST_ACCEPTED')
       socket.off('FRIEND_STATUS_CHANGED')
       socket.off('GAME_INVITATION_RECEIVED')
+      socket.off('JOIN_REQUEST_RECEIVED')
+      socket.off('JOIN_REQUEST_ACCEPTED')
+      socket.off('JOIN_REQUEST_REJECTED')
     }
   }, [socket, addToast])
 

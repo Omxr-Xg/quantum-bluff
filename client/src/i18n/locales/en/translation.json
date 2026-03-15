@@ -25,7 +25,18 @@
     "captchaSuccess": "Chips added!",
     "chooseAmount": "Choose an amount:",
     "validate": "Validate",
-    "deleteServer": "Delete"
+    "deleteServer": "Delete",
+    "createServerTitle": "Create a server",
+    "visibility": "Room type",
+    "public": "Public",
+    "private": "Private",
+    "publicDesc": "Anyone can join freely.",
+    "privateDesc": "Players must request to join.",
+    "maxPlayersLabel": "Max players",
+    "validateCreate": "Create room",
+    "requestJoin": "Request to join",
+    "requestSent": "Request sent!",
+    "roomFull": "Room is full"
   },
   "game": {
     "yourTurn": "YOUR TURN",
@@ -199,7 +210,9 @@
     "startErrorNotReady": "Not all players are ready. Ask them to click « Ready ».",
     "noFriendsOnline": "No friends online",
     "close": "Close",
-    "startGameWithCount": "Start game ({{count}} players)"
+    "startGameWithCount": "Start game ({{count}} players)",
+    "joinRequests": "Join requests",
+    "noJoinRequests": "No pending requests"
   },
   "botConfig": {
     "home": "Home",
@@ -266,7 +279,10 @@
     "friendRequestAccepted": "{{username}} accepted your friend request!",
     "hostWantsStart": "Host wants to start — get ready!",
     "friendIsOnline": "{{name}} is online",
-    "friendIsOffline": "{{name}} is offline"
+    "friendIsOffline": "{{name}} is offline",
+    "joinRequestFrom": "{{username}} wants to join your room",
+    "joinRequestAccepted": "Your request for {{room}} was accepted!",
+    "joinRequestRejected": "Your request for {{room}} was rejected"
   },
   "gameHelp": {
     "foldDesc": "Fold the current hand",

@@ -25,7 +25,18 @@
     "captchaSuccess": "Jetons ajoutés !",
     "chooseAmount": "Choisissez un montant :",
     "validate": "Valider",
-    "deleteServer": "Supprimer"
+    "deleteServer": "Supprimer",
+    "createServerTitle": "Créer un serveur",
+    "visibility": "Type de salle",
+    "public": "Publique",
+    "private": "Privée",
+    "publicDesc": "Tout le monde peut rejoindre librement.",
+    "privateDesc": "Les joueurs doivent demander pour rejoindre.",
+    "maxPlayersLabel": "Nombre max de joueurs",
+    "validateCreate": "Créer la salle",
+    "requestJoin": "Demander à rejoindre",
+    "requestSent": "Demande envoyée !",
+    "roomFull": "Room is full"
   },
   "game": {
     "yourTurn": "À VOTRE TOUR",
@@ -199,7 +210,9 @@
     "startErrorNotReady": "Tous les joueurs ne sont pas prêts. Demandez-leur de cliquer sur « Prêt ».",
     "noFriendsOnline": "Aucun ami en ligne",
     "close": "Fermer",
-    "startGameWithCount": "Lancer la partie ({{count}} joueurs)"
+    "startGameWithCount": "Lancer la partie ({{count}} joueurs)",
+    "joinRequests": "Demandes de rejoindre",
+    "noJoinRequests": "Aucune demande en attente"
   },
   "botConfig": {
     "home": "Accueil",
@@ -266,7 +279,10 @@
     "friendRequestAccepted": "{{username}} a accepté votre demande d'ami !",
     "hostWantsStart": "L'hôte veut lancer la partie — mettez-vous prêt !",
     "friendIsOnline": "{{name}} est en ligne",
-    "friendIsOffline": "{{name}} est hors ligne"
+    "friendIsOffline": "{{name}} est hors ligne",
+    "joinRequestFrom": "{{username}} veut rejoindre votre salle",
+    "joinRequestAccepted": "Votre demande pour {{room}} a été acceptée !",
+    "joinRequestRejected": "Votre demande pour {{room}} a été refusée"
   },
   "gameHelp": {
     "foldDesc": "Abandonner le coup en cours",
