@@ -39,7 +39,10 @@
     "foldedLabel": "FOLDED",
     "allIn": "All-in",
     "pot": "Pot: {{amount}}",
-    "timer": "{{seconds}}s"
+    "timer": "{{seconds}}s",
+    "goToHiddenBets": "Go to hidden bets",
+    "backToLobby": "Back to lobby",
+    "replaySameConfig": "Replay with same configuration"
   },
   "friends": {
     "title": "My Friends",
@@ -229,7 +232,8 @@
     "configSummary": "Configuration summary",
     "opponents": "Opponents:",
     "difficultyLabel": "Difficulty:",
-    "startGameButton": "Start game"
+    "startGameButton": "Start game",
+    "balanceRequired": "Add funds to your balance to play."
   },
   "gameDeal": {
     "readyToStart": "Ready to start",
