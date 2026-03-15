@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Users, LogOut, Loader2, AlertCircle } from "lucide-react";
+import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck } from "lucide-react";
 import { useSocket } from "../contexts/SocketContext";
 import { useUser } from "../hooks/useUser";
 import { useGetFriendsQuery } from "../services/api";
@@ -31,10 +31,20 @@ export function WaitingRoom() {
   const [invitedPlayers, setInvitedPlayers] = useState<Player[]>([]);
   const [isCreator, setIsCreator] = useState(false);
   const [roomName, setRoomName] = useState("");
+  const [roomVisibility, setRoomVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [roomLoading, setRoomLoading] = useState(true);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+
+  interface JoinRequestItem {
+    id: string;
+    userId: string;
+    username: string;
+    level: number;
+  }
+  const [joinRequests, setJoinRequests] = useState<JoinRequestItem[]>([]);
+  const [processingRequest, setProcessingRequest] = useState<string | null>(null);
 
   const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
   const { addToast } = useToast();
@@ -115,6 +125,7 @@ export function WaitingRoom() {
         }
 
         setRoomName(room.name || "");
+        setRoomVisibility(room.visibility || 'PUBLIC');
         setIsCreator(room.hostId === userId);
         setPlayers(
           (room.players || [])
@@ -183,6 +194,7 @@ export function WaitingRoom() {
       const room = await fetchRoom(rawRoomId);
       if (!room || room.status !== "WAITING") return;
       setIsCreator(room.hostId === userId);
+      setRoomVisibility(room.visibility || 'PUBLIC');
       setPlayers(
         (room.players || [])
           .filter((p: { id: string }) => p.id !== userId)
@@ -197,6 +209,69 @@ export function WaitingRoom() {
     }, 3000);
     return () => clearInterval(interval);
   }, [rawRoomId, userId, fetchRoom]);
+
+  // Polling join requests for private rooms (host only)
+  const fetchJoinRequests = useCallback(async () => {
+    if (!rawRoomId || !userId || !isCreator || roomVisibility !== 'PRIVATE') return;
+    try {
+      const url = API_BASE
+        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests?hostId=${userId}`
+        : `/api/waiting-room/${rawRoomId}/join-requests?hostId=${userId}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setJoinRequests(data);
+      }
+    } catch { /* ignore */ }
+  }, [rawRoomId, userId, isCreator, roomVisibility]);
+
+  useEffect(() => {
+    fetchJoinRequests();
+    const interval = setInterval(fetchJoinRequests, 3000);
+    return () => clearInterval(interval);
+  }, [fetchJoinRequests]);
+
+  // Listen for new join requests via socket (instant refresh)
+  useEffect(() => {
+    if (!socket || !isCreator) return;
+    const onJoinRequest = () => { fetchJoinRequests(); };
+    socket.on('JOIN_REQUEST_RECEIVED', onJoinRequest);
+    return () => { socket.off('JOIN_REQUEST_RECEIVED', onJoinRequest); };
+  }, [socket, isCreator, fetchJoinRequests]);
+
+  const handleAcceptRequest = async (requestId: string) => {
+    if (!rawRoomId || !userId) return;
+    setProcessingRequest(requestId);
+    try {
+      const url = API_BASE
+        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`
+        : `/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`;
+      await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hostId: userId }),
+      });
+      setJoinRequests(prev => prev.filter(r => r.id !== requestId));
+    } catch { /* ignore */ }
+    setProcessingRequest(null);
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    if (!rawRoomId || !userId) return;
+    setProcessingRequest(requestId);
+    try {
+      const url = API_BASE
+        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`
+        : `/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`;
+      await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hostId: userId }),
+      });
+      setJoinRequests(prev => prev.filter(r => r.id !== requestId));
+    } catch { /* ignore */ }
+    setProcessingRequest(null);
+  };
 
   const handleInvite = (friend: { id: string; username: string; level?: number }) => {
     // Envoyer une invitation via socket
@@ -337,7 +412,20 @@ export function WaitingRoom() {
             <Users className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-4xl font-bold text-white mb-1">{roomName || t('waitingRoom.waitingRoomTitle')}</h1>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-4xl font-bold text-white">{roomName || t('waitingRoom.waitingRoomTitle')}</h1>
+              {roomVisibility === 'PRIVATE' ? (
+                <span className="flex items-center gap-1 bg-purple-600/30 text-purple-300 text-xs font-semibold px-2 py-1 rounded-full border border-purple-500/40">
+                  <Lock className="w-3 h-3" />
+                  {t('lobby.private')}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 bg-green-600/30 text-green-300 text-xs font-semibold px-2 py-1 rounded-full border border-green-500/40">
+                  <Globe className="w-3 h-3" />
+                  {t('lobby.public')}
+                </span>
+              )}
+            </div>
             <p className="text-gray-400">
               {t('waitingRoom.code')} : <span className="text-purple-400 font-mono">{roomId}</span>
             </p>
@@ -455,6 +543,58 @@ export function WaitingRoom() {
                 </div>
               )}
             </div>
+
+            {/* Join requests panel (private rooms, host only) */}
+            {isCreator && roomVisibility === 'PRIVATE' && (
+              <div className="bg-purple-900/30 rounded-xl p-4 border border-purple-500/40 mb-4">
+                <h3 className="text-lg font-bold text-purple-300 flex items-center gap-2 mb-3">
+                  <UserCheck className="w-5 h-5" />
+                  {t('waitingRoom.joinRequests')}
+                  {joinRequests.length > 0 && (
+                    <span className="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      {joinRequests.length}
+                    </span>
+                  )}
+                </h3>
+                {joinRequests.length === 0 ? (
+                  <p className="text-gray-500 text-sm text-center py-2">{t('waitingRoom.noJoinRequests')}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {joinRequests.map((req) => (
+                      <div key={req.id} className="flex items-center justify-between bg-slate-800/70 rounded-lg px-3 py-2 border border-slate-600">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
+                            <span className="text-white text-sm font-bold">{req.username.charAt(0)}</span>
+                          </div>
+                          <div>
+                            <p className="text-white font-medium text-sm">{req.username}</p>
+                            <p className="text-gray-400 text-xs">{t('friends.level', { level: req.level })}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleAcceptRequest(req.id)}
+                            disabled={processingRequest === req.id}
+                            className="bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white p-1.5 rounded-lg transition"
+                            title={t('friends.accept')}
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleRejectRequest(req.id)}
+                            disabled={processingRequest === req.id}
+                            className="bg-red-600 hover:bg-red-500 disabled:bg-slate-600 text-white p-1.5 rounded-lg transition"
+                            title={t('friends.reject')}
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {isCreator && (
               <div className="space-y-3">

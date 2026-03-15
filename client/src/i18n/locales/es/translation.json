@@ -24,7 +24,19 @@
     "captchaError": "Incorrecto. Inténtalo de nuevo.",
     "captchaSuccess": "¡Fichas añadidas!",
     "chooseAmount": "Elige una cantidad:",
-    "validate": "Validar"
+    "validate": "Validar",
+    "deleteServer": "Eliminar",
+    "createServerTitle": "Crear un servidor",
+    "visibility": "Tipo de sala",
+    "public": "Pública",
+    "private": "Privada",
+    "publicDesc": "Cualquiera puede unirse libremente.",
+    "privateDesc": "Los jugadores deben solicitar unirse.",
+    "maxPlayersLabel": "Máx. jugadores",
+    "validateCreate": "Crear sala",
+    "requestJoin": "Solicitar unirse",
+    "requestSent": "¡Solicitud enviada!",
+    "roomFull": "Sala llena"
   },
   "game": {
     "yourTurn": "TU TURNO",
@@ -198,7 +210,9 @@
     "startErrorNotReady": "No todos están listos. Pídeles que hagan clic en « Listo ».",
     "noFriendsOnline": "Ningún amigo en línea",
     "close": "Cerrar",
-    "startGameWithCount": "Iniciar partida ({{count}} jugadores)"
+    "startGameWithCount": "Iniciar partida ({{count}} jugadores)",
+    "joinRequests": "Solicitudes de unirse",
+    "noJoinRequests": "Sin solicitudes pendientes"
   },
   "botConfig": {
     "home": "Inicio",
@@ -265,7 +279,10 @@
     "friendRequestAccepted": "¡{{username}} ha aceptado tu solicitud de amistad!",
     "hostWantsStart": "El anfitrión quiere iniciar — ¡prepárate!",
     "friendIsOnline": "{{name}} está en línea",
-    "friendIsOffline": "{{name}} está desconectado"
+    "friendIsOffline": "{{name}} está desconectado",
+    "joinRequestFrom": "{{username}} quiere unirse a tu sala",
+    "joinRequestAccepted": "¡Tu solicitud para {{room}} fue aceptada!",
+    "joinRequestRejected": "Tu solicitud para {{room}} fue rechazada"
   },
   "gameHelp": {
     "foldDesc": "Abandonar la mano actual",
