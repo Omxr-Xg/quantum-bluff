@@ -38,7 +38,7 @@ interface PlayerDashboardProps {
 
 export function PlayerDashboard({
   name: _name,
-  chips: _chips,
+  chips,
   cards,
   onFold,
   onCall,
@@ -255,14 +255,20 @@ export function PlayerDashboard({
                 {t('game.check')}
               </NeonButton>
             ) : (
-              <NeonButton
-                onClick={() => onCall(callAmount)}
-                disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || callAmount <= 0}
-                variant="blue"
-                className="px-8 py-4 text-lg min-w-[125px]"
-              >
-                {t('game.callLabel')} {callAmount > 0 ? callAmount : ""}
-              </NeonButton>
+              (() => {
+                const effectiveCall = Math.min(callAmount, chips);
+                const isCallAllIn = callAmount > 0 && chips > 0 && callAmount > chips;
+                return (
+                  <NeonButton
+                    onClick={() => onCall(effectiveCall)}
+                    disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || chips <= 0 || callAmount <= 0}
+                    variant="blue"
+                    className="px-8 py-4 text-lg min-w-[125px]"
+                  >
+                    {isCallAllIn ? t('game.allIn') : `${t('game.callLabel')} ${callAmount > 0 ? callAmount : ""}`}
+                  </NeonButton>
+                );
+              })()
             )}
 
             <div
@@ -276,6 +282,19 @@ export function PlayerDashboard({
                   onMouseEnter={() => setRaisePopoverOpen(true)}
                   onMouseLeave={() => setRaisePopoverOpen(false)}
                 >
+                  {maxRaise > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { setRaiseAmount(maxRaise); }}
+                      className={`w-full mb-1.5 py-1.5 rounded border-2 text-xs font-bold uppercase tracking-wide transition-all ${
+                        raiseAmount >= maxRaise
+                          ? "bg-amber-500 border-amber-400 text-slate-900 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
+                          : "bg-slate-700/80 border-amber-500/60 text-amber-300 hover:bg-amber-500/20"
+                      }`}
+                    >
+                      {t('game.allIn')} ({maxRaise})
+                    </button>
+                  )}
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {raisePresets.map((preset) => (
                       <button

@@ -16,7 +16,15 @@
     "manageFriends": "Manage friends",
     "profile": "Profile",
     "logout": "Logout",
-    "balance": "🪙 {{balance}}"
+    "balance": "🪙 {{balance}}",
+    "addMoney": "Add chips",
+    "addMoneyTitle": "Add to balance",
+    "captchaQuestion": "What is {{a}} + {{b}}?",
+    "captchaPlaceholder": "Your answer",
+    "captchaError": "Incorrect. Try again.",
+    "captchaSuccess": "Chips added!",
+    "chooseAmount": "Choose an amount:",
+    "validate": "Validate"
   },
   "game": {
     "yourTurn": "YOUR TURN",
