@@ -24,7 +24,8 @@
     "captchaError": "Incorrect. Try again.",
     "captchaSuccess": "Chips added!",
     "chooseAmount": "Choose an amount:",
-    "validate": "Validate"
+    "validate": "Validate",
+    "deleteServer": "Delete"
   },
   "game": {
     "yourTurn": "YOUR TURN",
@@ -272,5 +273,10 @@
     "callDesc": "Match the current bet",
     "raiseDesc": "Increase the bet",
     "addCredits": "Add credits"
+  },
+  "invitation": {
+    "title": "{{username}} invited you to play!",
+    "accept": "Join",
+    "reject": "Decline"
   }
 }

@@ -419,4 +419,37 @@ router.post('/:roomId/start', async (req, res) => {
   }
 });
 
+// DELETE /api/waiting-room/:roomId - Suppression manuelle par l'hôte (nettoyage de salles inactives)
+router.delete('/:roomId', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { userId } = req.body as { userId?: string };
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId requis' });
+    }
+
+    const room = await prisma.waitingRoom.findUnique({
+      where: { id: roomId },
+    });
+
+    if (!room) {
+      return res.status(404).json({ error: 'Salle non trouvée' });
+    }
+
+    if (room.hostId !== userId) {
+      return res.status(403).json({ error: 'Seul l\'hôte peut supprimer la salle' });
+    }
+
+    // Nettoyer les joueurs de la salle puis supprimer la salle
+    await prisma.roomPlayer.deleteMany({ where: { roomId } });
+    await prisma.waitingRoom.delete({ where: { id: roomId } });
+
+    return res.json({ message: 'Salle supprimée par l\'hôte' });
+  } catch (error) {
+    console.error('Erreur suppression salle par hôte:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 export default router;

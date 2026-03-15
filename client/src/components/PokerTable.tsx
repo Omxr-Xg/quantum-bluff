@@ -46,23 +46,40 @@ export function PokerTable({
   const isTablet = deviceType === "tablet";
 
   const getPlayerPosition = (position: number, total: number) => {
-
     const tableWidth = isMobile ? 320 : isTablet ? 650 : 950;
     const tableHeight = isMobile ? 180 : isTablet ? 300 : 420;
 
     const radiusX = tableWidth / 2;
     const radiusY = tableHeight / 2;
 
-    const startAngle = Math.PI / 2;
+    const startAngle = Math.PI / 2; // Position 0 en bas
     const angleStep = (2 * Math.PI) / total;
 
     const angle = startAngle + (position * angleStep);
 
-    const x = radiusX * Math.cos(angle);
+    // On utilise "let" car on va ajuster ces valeurs
+    let x = radiusX * Math.cos(angle);
     let y = radiusY * Math.sin(angle);
 
+    // 📱 FIX MOBILE : L'éclatement des joueurs pour éviter qu'ils ne se montent dessus
     if (position === 0) {
-      y = y + (isMobile ? 20 : isTablet ? 30 : 40);
+      // Toi (tout en bas) : On te garde bien bas pour dégager le Flop
+      y = y + (isMobile ? 75 : isTablet ? 85 : 95);
+    } else {
+      // 1. Écartement Horizontal (Gauche / Droite)
+      // Si le joueur n'est pas pile au centre (haut/bas), on l'écarte vers les bords de l'écran
+      if (Math.abs(x) > 10) {
+        x = x * (isMobile ? 1.15 : 1.1); // Pousse de 15% vers l'extérieur sur mobile
+      }
+
+      // 2. Écartement Vertical (Haut / Bas)
+      if (y < -10) {
+        // Zone Haute (Bot Beta, Gamma, Delta) -> On les tire fortement vers le HAUT
+        y = y - (isMobile ? 55 : isTablet ? 65 : 75);
+      } else if (y > 10) {
+        // Zone Basse (Bot Alpha, Epsilon) -> On les tire fortement vers le BAS
+        y = y + (isMobile ? 40 : 30);
+      }
     }
 
     return { x, y };
@@ -115,6 +132,29 @@ export function PokerTable({
             "inset 0 8px 24px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06), 0 12px 32px rgba(0,0,0,0.4)",
         }}
       >
+
+        {/* Logo central en reflet sur le tapis */}
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          aria-hidden="true"
+        >
+          <div
+            className="rounded-full overflow-hidden"
+            style={{
+              width: isMobile ? 120 : isTablet ? 180 : 220,
+              height: isMobile ? 120 : isTablet ? 180 : 220,
+              opacity: 0.12,
+              filter: "blur(1px) grayscale(100%)",
+              transform: "translateY(10px)",
+            }}
+          >
+            <img
+              src={logoSrc}
+              alt="Quantum Bluff"
+              className="w-full h-full object-contain"
+            />
+          </div>
+        </div>
 
         {/* Community cards */}
         <div

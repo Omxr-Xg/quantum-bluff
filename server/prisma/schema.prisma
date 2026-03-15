@@ -39,6 +39,10 @@ model User {
   // Salle d'attente intégrée
   roomPlayers  RoomPlayer[]
 
+  // Invitations à des parties
+  sentInvitations     GameInvitation[] @relation("InvitationSender")
+  receivedInvitations GameInvitation[] @relation("InvitationReceiver")
+
   // NOUVELLES RELATIONS
   gameActions   GameAction[]    // Actions effectuées par le joueur
   gameWins      GameResult[]    // Parties gagnées par le joueur
@@ -129,7 +133,8 @@ model WaitingRoom {
   updatedAt    DateTime @updatedAt
 
   players      RoomPlayer[]
-  gameId       String? // Lien vers la partie quand elle démarre
+  invitations  GameInvitation[]
+  gameId       String?
 
   @@map("waiting_rooms")
 }
@@ -212,6 +217,30 @@ model PlayerStats {
   @@index([playerId])
   @@index([totalWins])
   @@index([totalGames])
+}
+
+model GameInvitation {
+  id         String           @id @default(uuid())
+  roomId     String
+  senderId   String
+  receiverId String
+  status     InvitationStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  room     WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender   User        @relation("InvitationSender", fields: [senderId], references: [id])
+  receiver User        @relation("InvitationReceiver", fields: [receiverId], references: [id])
+
+  @@unique([roomId, receiverId])
+  @@index([receiverId, status])
+  @@index([roomId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 enum RoomStatus {

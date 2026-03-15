@@ -8,6 +8,7 @@ import { useToast } from "../contexts/ToastContext";
 import { useMusic } from "../contexts/MusicContext";
 import { Toast } from "./Toast";
 import { MusicPlayer } from "./MusicPlayer";
+import { InvitationBanner } from "./InvitationBanner";
 
 interface LayoutProps {
   children: ReactNode;
@@ -123,6 +124,8 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </div>
       )}
+
+      <InvitationBanner />
 
       <div className="min-h-screen w-full">
         {children}

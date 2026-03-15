@@ -201,7 +201,14 @@ export class GameTable {
 
     if (activePlayers.length !== 1) return
 
-    activePlayers[0].chips += this.state.pot
+    const winner = activePlayers[0]
+    const awardedPot = this.state.pot
+
+    winner.chips += awardedPot
+    this.state.showdownWinnerId = winner.id
+    this.state.showdownHandName = 'Gagne par abandon'
+    this.state.showdownPot = awardedPot
+
     this.state.pot = 0
     this.state.phase = 'SHOWDOWN'
     this.state.currentTurn = ''

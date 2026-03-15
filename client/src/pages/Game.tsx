@@ -138,6 +138,7 @@ export function Game() {
   const doStreetTransitionRef = useRef<(() => void) | null>(null);
   /** Mode bot : les deux ont agi (preflop égalisé), ne pas redonner la main au joueur */
   const bothActedNoTurnRef = useRef(false);
+  const toAddLastRef = useRef(0);
   const botIsFetchingRef = useRef(false);
 
   // Hook d'accessibilité
@@ -449,6 +450,10 @@ export function Game() {
         }));
         setPlayersState(mapped);
         setPot(gameState.pot ?? 0);
+        const humanChips = players.find((p) => String(p.id) === String(userId))?.chips;
+        if (humanChips != null) {
+          setPlayerChips(humanChips);
+        }
         const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
         setPhase(phase as GamePhase);
         const cc = gameState.communityCards;
@@ -540,6 +545,12 @@ export function Game() {
       setHasPlayerActed(false);
       setIsLoading(false);
       setRoundPlayersActed(new Set());
+
+      const humanServerChips = players.find((p) => String(p.id) === String(userId))?.chips;
+      if (humanServerChips != null) {
+        setPlayerChips(humanServerChips);
+      }
+
       const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
       if (currentTurnId === String(userId)) {
         setTimerActive(true);
@@ -548,8 +559,7 @@ export function Game() {
       if (phase === "showdown" && gameState.showdownWinnerId) {
         const winnerName = players.find((p) => String(p.id) === String(gameState.showdownWinnerId))?.name ?? String(gameState.showdownWinnerId);
         const potWon = gameState.showdownPot ?? 0;
-        const humanPlayer = players.find((p) => String(p.id) === String(userId));
-        const humanChipsAfter = humanPlayer?.chips ?? 0;
+        const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
         addToUserBalance(balanceChange);
         setShowdownResult({
@@ -951,6 +961,7 @@ export function Game() {
         const balanceChange = endChips - startChips;
         const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
         addToUserBalance(toAdd);
+        toAddLastRef.current = toAdd;
         setPot(0);
         const winnerName = isSplit ? "Égalité" : (data.winnerName ?? String(winnerIds[0]));
         setShowdownResult({
@@ -1103,7 +1114,7 @@ export function Game() {
 
   // Après gain/perte : animation puis enregistrement des stats (sans navigation)
   useEffect(() => {
-    if (handResult === null) return;
+    if (handResult === null || !isBotMode) return;
     const t = setTimeout(() => {
       const token = localStorage.getItem("token");
       const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
@@ -1113,12 +1124,12 @@ export function Game() {
         fetch(recordUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ won: handResult === "win" }),
+          body: JSON.stringify({ won: handResult === "win", delta: toAddLastRef.current }),
         }).catch(() => {});
       }
     }, 2500);
     return () => clearTimeout(t);
-  }, [handResult]);
+  }, [handResult, isBotMode]);
 
   const handleFold = (playerId?: number | string) => {
     if (handResult !== null) return;
@@ -1142,6 +1153,11 @@ export function Game() {
       const activeInHand = newPlayers.filter(
         (p) => p.isConnected !== false && !(p.hasFolded ?? false)
       );
+
+      // En multijoueur, on laisse le serveur gérer le pot, le SHOWDOWN et le vainqueur
+      if (gameIdParam) {
+        return newPlayers;
+      }
 
       if (activeInHand.length === 1) {
         const winner = activeInHand[0];

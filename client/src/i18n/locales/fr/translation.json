@@ -24,7 +24,8 @@
     "captchaError": "Réponse incorrecte. Réessayez.",
     "captchaSuccess": "Jetons ajoutés !",
     "chooseAmount": "Choisissez un montant :",
-    "validate": "Valider"
+    "validate": "Valider",
+    "deleteServer": "Supprimer"
   },
   "game": {
     "yourTurn": "À VOTRE TOUR",
@@ -272,5 +273,10 @@
     "callDesc": "Égaler la mise actuelle",
     "raiseDesc": "Augmenter la mise",
     "addCredits": "Ajouter des crédits"
+  },
+  "invitation": {
+    "title": "{{username}} vous invite à jouer !",
+    "accept": "Rejoindre",
+    "reject": "Refuser"
   }
 }
