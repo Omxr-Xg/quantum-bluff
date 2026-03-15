@@ -9,6 +9,7 @@ RUN npm install
 COPY . .
 RUN npx prisma generate
 RUN npm run build
+RUN cp -r src/generated dist/
 
 EXPOSE 3000
 CMD ["npm", "run", "start"]
