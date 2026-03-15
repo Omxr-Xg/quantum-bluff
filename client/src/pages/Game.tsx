@@ -1287,11 +1287,29 @@ export function Game() {
           const currentPhase = phase;
           if (streetTransitionScheduledRef.current !== currentPhase) {
             streetTransitionScheduledRef.current = currentPhase;
+            const transitionFn =
+              currentPhase === "preflop"
+                ? dealFlop
+                : currentPhase === "flop"
+                  ? dealTurn
+                  : currentPhase === "turn"
+                    ? dealRiver
+                    : () => setPhase("showdown");
             streetTransitionTimeoutRef.current = setTimeout(() => {
               streetTransitionTimeoutRef.current = null;
-              doStreetTransitionRef.current?.();
+              transitionFn();
             }, 1000);
           }
+        } else if (next.size < 2 && !isBotAllInCall) {
+          // Bot a agi en premier sur cette street : donner la main au joueur humain
+          const humanIdx = (botIndex + 1) % playersState.length;
+          setTimeout(() => {
+            setPlayersState((prev) => {
+              const canAct = !(prev[humanIdx]?.hasFolded ?? false) && (prev[humanIdx]?.chips ?? 0) > 0;
+              if (!canAct) return prev;
+              return prev.map((p, i) => ({ ...p, isActive: i === humanIdx }));
+            });
+          }, 50);
         }
         return next;
       });
