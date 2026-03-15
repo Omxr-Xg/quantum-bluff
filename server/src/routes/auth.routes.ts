@@ -1,8 +1,53 @@
 import express from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
 import { registerSchema, loginSchema } from '../validation/auth.validation.js'
+import rateLimit from 'express-rate-limit'
+import { logSuspiciousAction } from '../utils/securityLogger.js'
+
+const loginLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.log('LOGIN LIMITER TRIGGERED')
+    logSuspiciousAction('BRUTE_FORCE_LOGIN', {
+      details: {
+        ip: req.ip,
+        route: '/api/auth/login',
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.status(429).json({
+      error: 'Trop de tentatives de connexion. Réessaie dans 10 minutes.'
+    })
+  }
+})
+
+const registerLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.log('REGISTER LIMITER TRIGGERED')
+    logSuspiciousAction('BRUTE_FORCE_REGISTER', {
+      details: {
+        ip: req.ip,
+        route: '/api/auth/register',
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.status(429).json({
+      error: 'Trop de créations de compte. Réessaie dans 10 minutes.'
+    })
+  }
+})
 
 const router = express.Router()
 
@@ -14,30 +59,23 @@ function generateToken(userId: string) {
 }
 
 // REGISTER
-router.post('/register', async (req, res) => {
-  const parsed = loginSchema.safeParse(req.body)
+router.post('/register', registerLimiter, async (req, res) => {
 
-if (!parsed.success) {
-  return res.status(400).json({ error: parsed.error.errors })
-}
+  const parsed = registerSchema.safeParse(req.body)
 
-const { email, password } = parsed.data
-
-if (!parsed.success) {
-  return res.status(400).json({ error: parsed.error.errors })
-}
-
-const { email, password, username } = parsed.data
-
-  if (!email || !password || !username) {
-    return res.status(400).json({ error: 'Champs manquants' })
+  if (!parsed.success) {
+    return res.status(400).json({ 
+      error: parsed.error.issues.map(issue => issue.message).join(', ') 
+    })
   }
 
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Mot de passe trop court (min 6 caractères)' })
-  }
+  let { email, password, username } = parsed.data
+
+  email = sanitizeHtml(email)
+  username = sanitizeHtml(username)
 
   try {
+
     const existingEmail = await prisma.user.findUnique({
       where: { email }
     })
@@ -63,9 +101,7 @@ const { email, password, username } = parsed.data
         password: hashedPassword,
         stats: { create: {} }
       },
-      include: {
-        stats: true
-      }
+      include: { stats: true }
     })
 
     const token = generateToken(user.id)
@@ -81,21 +117,30 @@ const { email, password, username } = parsed.data
         stats: user.stats
       }
     })
+
   } catch (error) {
-    console.error('Erreur register:', error)
+    console.error(error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
+
 })
 
-// LOGIN
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email et mot de passe requis' })
+// LOGIN
+router.post('/login', loginLimiter, async (req, res) => {
+
+  const parsed = loginSchema.safeParse(req.body)
+
+  if (!parsed.success) {
+    return res.status(400).json({ 
+      error: parsed.error.issues.map(issue => issue.message).join(', ') 
+    })
   }
 
+  const { email, password } = parsed.data
+
   try {
+
     const user = await prisma.user.findUnique({
       where: { email },
       include: { stats: true }
@@ -124,10 +169,12 @@ router.post('/login', async (req, res) => {
         stats: user.stats
       }
     })
+
   } catch (error) {
-    console.error('Erreur login:', error)
+    console.error(error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
+
 })
 
 export default router

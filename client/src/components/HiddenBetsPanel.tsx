@@ -1,191 +1,238 @@
-import { Eye, Trash2, ChevronRight, User, Trophy } from "lucide-react";
+import {
+  X,
+  Trophy,
+  Target,
+  TrendingUp,
+  DollarSign,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
-
-interface HiddenBet {
-  id: number;
-  type: "player" | "hand";
-  choice: string;
-  amount: number;
-}
-
-interface Player {
-  id: number;
-  name: string;
-}
+import { useHiddenBets } from "../contexts/HiddenBetsContext";
 
 interface HiddenBetsPanelProps {
   isOpen: boolean;
   onToggle: () => void;
-  players: Player[];
+  players: { id: string | number; name: string }[];
+  combinations?: string[];
 }
 
-export function HiddenBetsPanel({ isOpen, onToggle, players: _players }: HiddenBetsPanelProps) {
-  const [hiddenBets, setHiddenBets] = useState<HiddenBet[]>([]);
-  const [betType, setBetType] = useState<"player" | "hand" | null>(null);
+export function HiddenBetsPanel({
+  isOpen,
+  onToggle,
+  players,
+  combinations = [
+    "Paire",
+    "Double Paire",
+    "Brelan",
+    "Quinte",
+    "Couleur",
+    "Full",
+    "Carré",
+    "Quinte Flush",
+    "Quinte Flush Royale",
+  ],
+}: HiddenBetsPanelProps) {
+  const [selectedType, setSelectedType] = useState<"winner" | "combination">(
+    "winner"
+  );
+  const [selectedChoice, setSelectedChoice] = useState("");
+  const [amount, setAmount] = useState(50);
+  const [isPlacing, setIsPlacing] = useState(false);
 
-  const pokerHands = [
-    { id: "straight", name: "Suite (Straight)", icon: "📊" },
-    { id: "flush", name: "Couleur (Flush)", icon: "♠️" },
-    { id: "straight-flush", name: "Quinte Flush (Straight Flush)", icon: "🔥" },
-    { id: "full", name: "Full House", icon: "🏠" },
-    { id: "four-kind", name: "Carré (Four of a Kind)", icon: "💎" },
-    { id: "royal-flush", name: "Quinte Flush Royale", icon: "👑" },
-  ];
+  const { placeBet, totalBets, totalAmount } = useHiddenBets();
 
-  const removeHiddenBet = (id: number) => {
-    setHiddenBets(hiddenBets.filter((bet) => bet.id !== id));
-  };
-
-  const getChoiceLabel = (bet: HiddenBet) => {
-    if (bet.type === "player") {
-      return bet.choice;
-    } else {
-      const hand = pokerHands.find((h) => h.id === bet.choice);
-      return hand ? hand.name : bet.choice;
+  const getOdds = (type: "winner" | "combination", choice: string) => {
+    if (type === "winner") {
+      return (players.length * 1.5).toFixed(1);
     }
+    const rare = ["Quinte Flush Royale", "Quinte Flush", "Carré"];
+    return rare.includes(choice) ? "8.0" : "4.5";
   };
+
+  const handlePlaceBet = async () => {
+    if (!selectedChoice || amount < 10) return;
+
+    setIsPlacing(true);
+    await placeBet({
+      playerName: "Vous",
+      playerId: "current-player",
+      betType: selectedType,
+      betChoice: selectedChoice,
+      amount,
+    });
+    setIsPlacing(false);
+    setSelectedChoice("");
+    setAmount(50);
+  };
+
+  const winnerChoices = players.map((p) => p.name);
+  const displayedChoices =
+    selectedType === "winner" ? winnerChoices : combinations;
 
   return (
-    <>
-      <div
-        className={`fixed right-0 top-0 h-full w-96 bg-gradient-to-br from-gray-900 to-gray-950 shadow-2xl border-l-4 border-purple-500 transform transition-transform duration-300 z-50 overflow-y-auto ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <div className="flex flex-col min-h-full p-6">
-
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0, x: -300 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -300 }}
+          transition={{ type: "spring", damping: 25 }}
+          className="fixed top-24 left-5 z-40 w-96 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl"
+        >
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Eye className="w-8 h-8 text-purple-400" />
-              <h2 className="text-2xl font-bold text-white">Paris Cachés</h2>
+          <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
+                <Trophy className="w-4 h-4 text-white" />
+              </div>
+              <h3 className="text-white font-bold">Paris Cachés</h3>
             </div>
-
             <button
               onClick={onToggle}
               className="text-gray-400 hover:text-white transition-colors"
             >
-              <ChevronRight className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Description */}
-          <div className="bg-purple-900/30 rounded-lg p-4 mb-6 border border-purple-500/30">
-            <p className="text-purple-200 text-sm">
-              Pariez sur qui va gagner ou quelle main va l'emporter !
-            </p>
+          {/* Stats */}
+          <div className="px-4 py-3 bg-slate-700/30 border-b border-slate-700">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Paris en cours</span>
+              <span className="text-white font-bold">{totalBets}</span>
+            </div>
+            <div className="flex justify-between text-sm mt-1">
+              <span className="text-gray-400">Total misé</span>
+              <span className="text-yellow-400 font-bold">
+                {totalAmount} 🪙
+              </span>
+            </div>
           </div>
 
-          {/* Active bets */}
-          {hiddenBets.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-white font-semibold mb-3">Vos paris actifs</h3>
+          {/* Type de pari */}
+          <div className="p-4 border-b border-slate-700">
+            <div className="text-gray-400 text-sm mb-3">Type de pari</div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedType("winner")}
+                className={`flex-1 py-2 px-3 rounded-lg font-semibold transition-all ${
+                  selectedType === "winner"
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-700 text-gray-400 hover:bg-slate-600"
+                }`}
+              >
+                <Target className="w-4 h-4 inline mr-2" />
+                Gagnant
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedType("combination")}
+                className={`flex-1 py-2 px-3 rounded-lg font-semibold transition-all ${
+                  selectedType === "combination"
+                    ? "bg-purple-600 text-white"
+                    : "bg-slate-700 text-gray-400 hover:bg-slate-600"
+                }`}
+              >
+                <TrendingUp className="w-4 h-4 inline mr-2" />
+                Combinaison
+              </button>
+            </div>
+          </div>
 
-              <div className="space-y-3">
-                {hiddenBets.map((bet) => (
-                  <div
-                    key={bet.id}
-                    className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-purple-500 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
+          {/* Choix */}
+          <div className="p-4 border-b border-slate-700">
+            <div className="text-gray-400 text-sm mb-3">
+              {selectedType === "winner"
+                ? "Choisir le gagnant"
+                : "Choisir la combinaison"}
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              {displayedChoices.map((item) => (
+                <button
+                  type="button"
+                  key={item}
+                  onClick={() => setSelectedChoice(item)}
+                  className={`p-2 rounded-lg text-sm font-medium transition-all ${
+                    selectedChoice === item
+                      ? selectedType === "winner"
+                        ? "bg-blue-600 text-white"
+                        : "bg-purple-600 text-white"
+                      : "bg-slate-700 text-gray-300 hover:bg-slate-600"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
 
-                      <div className="flex-1">
-                        <div className="text-xs text-gray-400 mb-1">
-                          {bet.type === "player"
-                            ? "Qui va gagner"
-                            : "Qu'est-ce qui va gagner"}
-                        </div>
-
-                        <div className="text-white font-semibold mb-1">
-                          {getChoiceLabel(bet)}
-                        </div>
-
-                        <div className="text-yellow-400 font-bold text-lg">
-                          ${bet.amount.toLocaleString()}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => removeHiddenBet(bet.id)}
-                        className="text-red-400 hover:text-red-300 transition-colors"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-
-                    </div>
-                  </div>
-                ))}
+          {/* Montant + cote */}
+          <div className="p-4 border-b border-slate-700">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <div className="text-gray-400 text-xs mb-2">Montant</div>
+                <div className="flex items-center bg-slate-700 rounded-lg overflow-hidden">
+                  <DollarSign className="w-5 h-5 text-gray-400 ml-3" />
+                  <input
+                    type="number"
+                    min={10}
+                    max={1000}
+                    value={amount}
+                    onChange={(e) =>
+                      setAmount(
+                        Math.min(
+                          1000,
+                          Math.max(10, parseInt(e.target.value, 10) || 0)
+                        )
+                      )
+                    }
+                    className="w-full bg-transparent text-white p-2 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="text-gray-400 text-xs mb-2">Cote</div>
+                <div className="bg-slate-700 rounded-lg p-2 text-center">
+                  <span className="text-yellow-400 font-bold">
+                    x
+                    {selectedChoice
+                      ? getOdds(selectedType, selectedChoice)
+                      : "-"}
+                  </span>
+                </div>
               </div>
             </div>
-          )}
-
-          {/* New bet type */}
-          {!betType && (
-            <div className="mb-6">
-
-              <h3 className="text-white font-semibold mb-4">
-                Placer un nouveau pari
-              </h3>
-
-              <div className="space-y-3">
-
-                <button
-                  onClick={() => setBetType("player")}
-                  className="w-full bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white p-6 rounded-xl font-semibold transition-all shadow-xl border-2 border-blue-500 text-left"
-                >
-                  <div className="flex items-center gap-4">
-
-                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
-                      <User className="w-6 h-6" />
-                    </div>
-
-                    <div>
-                      <div className="text-lg font-bold">
-                        Qui va gagner ?
-                      </div>
-                      <div className="text-blue-200 text-sm">
-                        Parier sur un joueur
-                      </div>
-                    </div>
-
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setBetType("hand")}
-                  className="w-full bg-gradient-to-br from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white p-6 rounded-xl font-semibold transition-all shadow-xl border-2 border-green-500 text-left"
-                >
-                  <div className="flex items-center gap-4">
-
-                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-                      <Trophy className="w-6 h-6" />
-                    </div>
-
-                    <div>
-                      <div className="text-lg font-bold">
-                        Qu'est-ce qui va gagner ?
-                      </div>
-                      <div className="text-green-200 text-sm">
-                        Parier sur une combinaison
-                      </div>
-                    </div>
-
-                  </div>
-                </button>
-
+            {selectedChoice && (
+              <div className="mt-3 text-sm">
+                <span className="text-gray-400">Gain potentiel :</span>
+                <span className="text-green-400 font-bold ml-2">
+                  {Math.round(
+                    amount * parseFloat(getOdds(selectedType, selectedChoice))
+                  )}{" "}
+                  🪙
+                </span>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-        </div>
-      </div>
-
-      {isOpen && (
-        <div
-          onClick={onToggle}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-        />
+          {/* Bouton placer le pari */}
+          <div className="p-4">
+            <button
+              type="button"
+              onClick={handlePlaceBet}
+              disabled={!selectedChoice || amount < 10 || isPlacing}
+              className={`w-full py-3 rounded-xl font-bold transition-all ${
+                selectedChoice && !isPlacing
+                  ? "bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 text-white shadow-lg"
+                  : "bg-slate-700 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              {isPlacing ? "Mise en cours..." : "Placer le pari secret"}
+            </button>
+          </div>
+        </motion.div>
       )}
-    </>
+    </AnimatePresence>
   );
 }

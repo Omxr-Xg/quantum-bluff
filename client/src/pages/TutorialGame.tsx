@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, Play, X, Check, TrendingUp } from "lucide-react";
 import { PokerTable } from "../components/PokerTable";

@@ -1,21 +1,26 @@
-import express from 'express';
-import { prisma } from '../config/database.js';
-import { authMiddleware } from '../middleware/auth.middleware.js';
+import express from 'express'
+import type { Server } from 'socket.io'
+import sanitizeHtml from 'sanitize-html'
+import { prisma } from '../config/database.js'
+import { authMiddleware } from '../middleware/auth.middleware.js'
+import { searchUserSchema, friendRequestSchema, updateRequestSchema } from '../validation/friends.validation.js'
 
-const router = express.Router();
+const router = express.Router()
 
-// toutes les routes nécessitent un token
-router.use(authMiddleware);
+router.use(authMiddleware)
 
-// Rechercher des utilisateurs par nom d'utilisateur
+// SEARCH USERS
 router.get('/search', async (req, res) => {
+  const parsed = searchUserSchema.safeParse(req.query)
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Invalid search query' })
+  }
+
+  let { query } = parsed.data
+  query = sanitizeHtml(query)
+
   try {
-    const { query } = req.query;
-
-    if (!query || typeof query !== 'string') {
-      return res.status(400).json({ error: 'Query parameter required' });
-    }
-
     const users = await prisma.user.findMany({
       where: {
         username: {
@@ -35,50 +40,41 @@ router.get('/search', async (req, res) => {
         }
       },
       take: 10
-    });
+    })
 
-    res.json(users);
-
+    res.json(users)
   } catch (error) {
-    console.error('Erreur recherche:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('GET /api/friends/search error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
-// Envoyer une demande d'ami
+// SEND FRIEND REQUEST
 router.post('/request', async (req, res) => {
+  const senderId = req.userId!
+
+  const parsed = friendRequestSchema.safeParse(req.body)
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues })
+  }
+
+  let { receiverUsername } = parsed.data
+  receiverUsername = sanitizeHtml(receiverUsername)
+
   try {
-
-    const senderId = req.userId!;
-    const { receiverUsername } = req.body;
-
     const receiver = await prisma.user.findUnique({
       where: { username: receiverUsername }
-    });
+    })
 
     if (!receiver) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+      return res.status(404).json({ error: 'Utilisateur non trouvé' })
     }
 
     if (receiver.id === senderId) {
-      return res.status(400).json({ error: 'Impossible de s’ajouter soi-même' });
+      return res.status(400).json({ error: 'Impossible de s’ajouter soi-même' })
     }
 
-    // Vérifier si une demande existe déjà
-    const existingRequest = await prisma.friendRequest.findUnique({
-      where: {
-        senderId_receiverId: {
-          senderId,
-          receiverId: receiver.id
-        }
-      }
-    });
-
-    if (existingRequest) {
-      return res.status(400).json({ error: 'Demande déjà envoyée' });
-    }
-
-    // Vérifier s'ils sont déjà amis
     const existingFriendship = await prisma.friendship.findFirst({
       where: {
         OR: [
@@ -86,38 +82,29 @@ router.post('/request', async (req, res) => {
           { user1Id: receiver.id, user2Id: senderId }
         ]
       }
-    });
+    })
 
     if (existingFriendship) {
-      return res.status(400).json({ error: 'Déjà amis' });
+      return res.status(400).json({ error: 'Déjà amis' })
     }
 
-    const request = await prisma.friendRequest.create({
-      data: {
-        senderId,
-        receiverId: receiver.id,
-        status: 'PENDING'
-      }
-    });
-
-    res.json(request);
-
-  } catch (error) {
-    console.error('Erreur envoi demande:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// Liste des demandes reçues
-router.get('/requests', async (req, res) => {
-  try {
-
-    const userId = req.userId;
-
-    const requests = await prisma.friendRequest.findMany({
+    const existingPendingEitherWay = await prisma.friendRequest.findFirst({
       where: {
-        receiverId: userId,
-        status: 'PENDING'
+        OR: [
+          { senderId, receiverId: receiver.id, status: 'PENDING' },
+          { senderId: receiver.id, receiverId: senderId, status: 'PENDING' }
+        ]
+      }
+    })
+
+    if (existingPendingEitherWay) {
+      return res.status(400).json({ error: 'Une demande existe déjà' })
+    }
+
+    const existingSameDirection = await prisma.friendRequest.findFirst({
+      where: {
+        senderId,
+        receiverId: receiver.id
       },
       include: {
         sender: {
@@ -128,57 +115,213 @@ router.get('/requests', async (req, res) => {
           }
         }
       }
-    });
+    })
 
-    res.json(requests);
+    let request
 
-  } catch (error) {
-    console.error('Erreur récupération demandes:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// Accepter ou refuser une demande
-router.put('/request/:requestId', async (req, res) => {
-  try {
-
-    const { requestId } = req.params;
-    const { status } = req.body;
-
-    if (!['ACCEPTED', 'REJECTED'].includes(status)) {
-      return res.status(400).json({ error: 'Status invalide' });
+    if (existingSameDirection) {
+      request = await prisma.friendRequest.update({
+        where: { id: existingSameDirection.id },
+        data: {
+          status: 'PENDING'
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              username: true,
+              level: true
+            }
+          }
+        }
+      })
+    } else {
+      request = await prisma.friendRequest.create({
+        data: {
+          senderId,
+          receiverId: receiver.id,
+          status: 'PENDING'
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              username: true,
+              level: true
+            }
+          }
+        }
+      })
     }
 
-    const request = await prisma.friendRequest.update({
+    try {
+      const io = req.app.get('io') as Server | undefined
+
+      if (io) {
+        const roomName = `user:${receiver.id}`
+        console.log(`📨 Emission FRIEND_REQUEST_RECEIVED vers ${roomName}`)
+        console.log('👥 sockets in room =', io.sockets.adapter.rooms.get(roomName)?.size || 0)
+
+        io.to(roomName).emit('FRIEND_REQUEST_RECEIVED', {
+          requestId: request.id,
+          sender: {
+            id: request.sender.id,
+            username: request.sender.username,
+            level: request.sender.level
+          }
+        })
+      }
+    } catch (socketError) {
+      console.error('Socket emit error in /friends/request:', socketError)
+    }
+
+    res.json(request)
+  } catch (error: unknown) {
+    console.error('POST /api/friends/request error:', error)
+    res.status(500).json({
+      error: 'Erreur serveur',
+      details: error instanceof Error ? error.message : String(error)
+    })
+  }
+})
+
+// GET RECEIVED FRIEND REQUESTS
+router.get('/requests/:userId', async (req, res) => {
+  const { userId } = req.params
+
+  if (req.userId !== userId) {
+    return res.status(403).json({ error: 'Accès interdit' })
+  }
+
+  try {
+    const requests = await prisma.friendRequest.findMany({
+      where: {
+        receiverId: userId,
+        status: 'PENDING'
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            level: true,
+            stats: {
+              select: {
+                wins: true,
+                totalGames: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    res.json(requests)
+  } catch (error) {
+    console.error('GET /api/friends/requests/:userId error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// RESPOND TO FRIEND REQUEST
+router.put('/request/:requestId', async (req, res) => {
+  const { requestId } = req.params
+
+  const parsed = updateRequestSchema.safeParse(req.body)
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues })
+  }
+
+  const { status } = parsed.data
+
+  try {
+    const request = await prisma.friendRequest.findUnique({
+      where: { id: requestId }
+    })
+
+    if (!request) {
+      return res.status(404).json({ error: 'Demande introuvable' })
+    }
+
+    if (request.receiverId !== req.userId) {
+      return res.status(403).json({ error: 'Accès interdit' })
+    }
+
+    const updatedRequest = await prisma.friendRequest.update({
       where: { id: requestId },
       data: { status }
-    });
+    })
 
     if (status === 'ACCEPTED') {
+      const user1Id =
+        request.senderId < request.receiverId ? request.senderId : request.receiverId
+      const user2Id =
+        request.senderId < request.receiverId ? request.receiverId : request.senderId
 
-      await prisma.friendship.create({
-        data: {
-          user1Id: request.senderId,
-          user2Id: request.receiverId
+      const existingFriendship = await prisma.friendship.findFirst({
+        where: {
+          user1Id,
+          user2Id
         }
-      });
+      })
 
+      if (!existingFriendship) {
+        await prisma.friendship.create({
+          data: {
+            user1Id,
+            user2Id
+          }
+        })
+      }
+
+      const io = req.app.get('io') as Server | undefined
+      if (io) {
+        const senderRoom = `user:${request.senderId}`
+        const receiverRoom = `user:${request.receiverId}`
+
+        const acceptedFriend = await prisma.user.findUnique({
+          where: { id: request.receiverId },
+          select: { username: true }
+        })
+
+        console.log(`✅ Emission FRIEND_REQUEST_ACCEPTED vers ${senderRoom}`)
+        console.log(`👥 sender room sockets =`, io.sockets.adapter.rooms.get(senderRoom)?.size || 0)
+
+        io.to(senderRoom).emit('FRIEND_REQUEST_ACCEPTED', {
+          friendId: request.receiverId,
+          username: acceptedFriend?.username
+        })
+
+        io.to(receiverRoom).emit('FRIEND_LIST_UPDATED', {
+          friendId: request.senderId
+        })
+
+        io.to(senderRoom).emit('FRIEND_LIST_UPDATED', {
+          friendId: request.receiverId
+        })
+      }
     }
 
-    res.json({ success: true });
-
+    res.json(updatedRequest)
   } catch (error) {
-    console.error('Erreur mise à jour demande:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('PUT /api/friends/request/:requestId error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
-// Liste des amis
-router.get('/', async (req, res) => {
+// GET FRIENDS LIST
+router.get('/:userId', async (req, res) => {
+  const { userId } = req.params
+
+  if (req.userId !== userId) {
+    return res.status(403).json({ error: 'Accès interdit' })
+  }
+
   try {
-
-    const userId = req.userId!;
-
     const friendships = await prisma.friendship.findMany({
       where: {
         OR: [
@@ -214,18 +357,17 @@ router.get('/', async (req, res) => {
           }
         }
       }
-    });
+    })
 
-    const friends = friendships.map(f =>
-      f.user1Id === userId ? f.user2 : f.user1
-    );
+    const friends = friendships.map((friendship) =>
+      friendship.user1Id === userId ? friendship.user2 : friendship.user1
+    )
 
-    res.json(friends);
-
+    res.json(friends)
   } catch (error) {
-    console.error('Erreur récupération amis:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('GET /api/friends/:userId error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
-export default router;
+export default router

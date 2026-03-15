@@ -1,3 +1,16 @@
+/**
+ * =============================================================================
+ * GAMETABLE.TEST.TS — Tests du moteur de table (GameTable)
+ * =============================================================================
+ *
+ * Couvre le cycle de vie d’une main : construction, startHand, actions (CALL,
+ * CHECK, RAISE, FOLD), avancement de phase (FLOP, TURN, RIVER, SHOWDOWN),
+ * fog of war (getSanitizedState), et règles heads-up (blinds, ordre de parole).
+ *
+ * Chaque test est commenté pour expliquer le scénario et les assertions.
+ * =============================================================================
+ */
+
 import { GameTable } from '../logic/GameTable.js'
 import type { Player } from '../types/poker.js'
 
@@ -177,6 +190,25 @@ describe('GameTable - Nouvelles méthodes simplifiées', () => {
     // Donc on s'attend à ce que ça lance une erreur
     expect(() => table.handlePlayerAction(currentPlayerId, 'CHECK')).toThrow('Impossible de check, une mise est à suivre')
   })
+  test('handlePlayerAction() avec RAISE', () => {
+  const currentPlayerId = table.state.currentTurn
+
+  // Préflop heads-up: le small blind doit compléter 10 pour suivre la big blind.
+  // On teste ici un raise simple.
+  expect(() => table.handlePlayerAction(currentPlayerId, 'RAISE', 30)).not.toThrow()
+
+  const player = table.getPlayerState(currentPlayerId)
+  expect(player).toBeDefined()
+
+  // Le joueur a investi plus qu’un simple CALL
+  expect(player!.currentBet).toBeGreaterThan(10)
+
+  // Le pot a augmenté
+  expect(table.state.pot).toBeGreaterThan(30)
+
+  // Le tour passe au joueur suivant
+  expect(table.state.currentTurn).not.toBe(currentPlayerId)
+})
 
   // Ajoute un test pour CALL (valide)
   test('handlePlayerAction() avec CALL', () => {

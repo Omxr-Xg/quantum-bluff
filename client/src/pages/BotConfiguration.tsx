@@ -1,49 +1,21 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Bot, ArrowLeft, Users, Zap, Brain, Trophy, Target, Home } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Bot, Users, Zap, Brain, Trophy, Target, Home } from "lucide-react";
+
+const DIFF_LABEL_KEYS: Record<string, string> = { facile: "easy", moyen: "medium", difficile: "hard", expert: "expert" };
 
 export function BotConfiguration() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [numberOfBots, setNumberOfBots] = useState(1);
   const [difficulty, setDifficulty] = useState<"facile" | "moyen" | "difficile" | "expert">("moyen");
 
   const difficulties = [
-    {
-      id: "facile",
-      label: "Facile",
-      icon: Target,
-      color: "from-green-600 to-green-800",
-      borderColor: "border-green-500",
-      description: "Parfait pour débuter",
-      traits: ["Jeu prévisible", "Erreurs fréquentes", "Peu agressif"]
-    },
-    {
-      id: "moyen",
-      label: "Moyen",
-      icon: Brain,
-      color: "from-blue-600 to-blue-800",
-      borderColor: "border-blue-500",
-      description: "Un défi équilibré",
-      traits: ["Jeu équilibré", "Quelques bluffs", "Stratégie basique"]
-    },
-    {
-      id: "difficile",
-      label: "Difficile",
-      icon: Zap,
-      color: "from-orange-600 to-orange-800",
-      borderColor: "border-orange-500",
-      description: "Pour joueurs expérimentés",
-      traits: ["Jeu calculé", "Bluffs fréquents", "Adaptabilité"]
-    },
-    {
-      id: "expert",
-      label: "Expert",
-      icon: Trophy,
-      color: "from-red-600 to-red-800",
-      borderColor: "border-red-500",
-      description: "Le défi ultime",
-      traits: ["Jeu imprévisible", "Stratégie avancée", "Très agressif"]
-    }
+    { id: "facile" as const, icon: Target, color: "from-green-600 to-green-800", borderColor: "border-green-500", descKey: "easyDesc", traitKeys: ["traitPredictable", "traitErrors", "traitPassive"] },
+    { id: "moyen" as const, icon: Brain, color: "from-blue-600 to-blue-800", borderColor: "border-blue-500", descKey: "mediumDesc", traitKeys: ["traitBalanced", "traitSomeBluffs", "traitBasic"] },
+    { id: "difficile" as const, icon: Zap, color: "from-orange-600 to-orange-800", borderColor: "border-orange-500", descKey: "hardDesc", traitKeys: ["traitCalculated", "traitBluffs", "traitAdapt"] },
+    { id: "expert" as const, icon: Trophy, color: "from-red-600 to-red-800", borderColor: "border-red-500", descKey: "expertDesc", traitKeys: ["traitUnpredictable", "traitAdvanced", "traitAggressive"] }
   ];
 
   const handleStartGame = () => {
@@ -60,7 +32,7 @@ export function BotConfiguration() {
             className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl font-semibold transition-all"
           >
             <Home className="w-5 h-5" />
-            <span>Accueil</span>
+            <span>{t('botConfig.home')}</span>
           </button>
         </div>
 
@@ -70,9 +42,9 @@ export function BotConfiguration() {
             <Bot className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-4xl font-bold text-white mb-1">Configuration des Bots</h1>
+            <h1 className="text-4xl font-bold text-white mb-1">{t('botConfig.title')}</h1>
             <p className="text-gray-400">
-              Personnalisez votre partie contre l'IA
+              {t('botConfig.subtitle')}
             </p>
           </div>
         </div>
@@ -82,7 +54,7 @@ export function BotConfiguration() {
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-10">
             <div className="flex items-center gap-3 mb-10">
               <Users className="w-6 h-6 text-purple-400" />
-              <h2 className="text-2xl font-bold text-white">Nombre de Bots</h2>
+              <h2 className="text-2xl font-bold text-white">{t('botConfig.numberOfBots')}</h2>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
@@ -105,7 +77,7 @@ export function BotConfiguration() {
                     <div className={`text-sm font-semibold ${
                       numberOfBots === num ? "text-purple-200" : "text-gray-500"
                     }`}>
-                      Bot{num > 1 ? "s" : ""}
+                      {num} {num > 1 ? "Bots" : "Bot"}
                     </div>
                   </div>
                   {numberOfBots === num && (
@@ -119,7 +91,7 @@ export function BotConfiguration() {
 
             <div className="mt-8 p-6 bg-slate-900/50 rounded-xl border border-slate-700">
               <p className="text-gray-400 text-sm">
-                <span className="font-semibold text-white">Joueurs à la table :</span> Vous + {numberOfBots} bot{numberOfBots > 1 ? "s" : ""} = {numberOfBots + 1} joueurs
+                <span className="font-semibold text-white">{t('botConfig.playersAtTable')}</span> {t('botConfig.youAndBots', { count: numberOfBots, total: numberOfBots + 1 })}
               </p>
             </div>
           </div>
@@ -128,18 +100,18 @@ export function BotConfiguration() {
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-10">
             <div className="flex items-center gap-3 mb-10">
               <Brain className="w-6 h-6 text-purple-400" />
-              <h2 className="text-2xl font-bold text-white">Niveau de difficulté</h2>
+              <h2 className="text-2xl font-bold text-white">{t('botConfig.difficulty')}</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {difficulties.map((diff) => {
                 const Icon = diff.icon;
                 const isSelected = difficulty === diff.id;
-                
+                const labelKey = DIFF_LABEL_KEYS[diff.id] ?? diff.id;
                 return (
                   <button
                     key={diff.id}
-                    onClick={() => setDifficulty(diff.id as any)}
+                    onClick={() => setDifficulty(diff.id)}
                     className={`relative p-10 rounded-xl border-2 transition-all transform hover:scale-105 text-left ${
                       isSelected
                         ? `bg-gradient-to-br ${diff.color} ${diff.borderColor} shadow-lg`
@@ -157,16 +129,16 @@ export function BotConfiguration() {
                         <h3 className={`text-xl font-bold mb-1 ${
                           isSelected ? "text-white" : "text-gray-300"
                         }`}>
-                          {diff.label}
+                          {t(`botConfig.${labelKey}`)}
                         </h3>
                         <p className={`text-sm mb-3 ${
                           isSelected ? "text-white/80" : "text-gray-500"
                         }`}>
-                          {diff.description}
+                          {t(`botConfig.${diff.descKey}`)}
                         </p>
 
                         <div className="space-y-1">
-                          {diff.traits.map((trait, index) => (
+                          {diff.traitKeys.map((traitKey, index) => (
                             <div key={index} className="flex items-center gap-2">
                               <div className={`w-1.5 h-1.5 rounded-full ${
                                 isSelected ? "bg-white" : "bg-gray-600"
@@ -174,7 +146,7 @@ export function BotConfiguration() {
                               <span className={`text-xs ${
                                 isSelected ? "text-white/70" : "text-gray-600"
                               }`}>
-                                {trait}
+                                {t(`botConfig.${traitKey}`)}
                               </span>
                             </div>
                           ))}
@@ -200,21 +172,21 @@ export function BotConfiguration() {
           >
             <div className="flex items-center justify-center gap-3">
               <Bot className="w-8 h-8" />
-              <span>Commencer la partie</span>
+              <span>{t('botConfig.startGameButton')}</span>
             </div>
           </button>
 
           {/* Résumé */}
           <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-xl border border-slate-700 p-10 mb-16">
-            <h3 className="text-white font-bold text-lg mb-6">Résumé de la configuration</h3>
+            <h3 className="text-white font-bold text-lg mb-6">{t('botConfig.configSummary')}</h3>
             <div className="grid grid-cols-2 gap-8 text-sm">
               <div>
-                <span className="text-gray-400">Adversaires :</span>
-                <span className="text-white font-bold ml-2">{numberOfBots} bot{numberOfBots > 1 ? "s" : ""}</span>
+                <span className="text-gray-400">{t('botConfig.opponents')}</span>
+                <span className="text-white font-bold ml-2">{numberOfBots} {numberOfBots > 1 ? "bots" : "bot"}</span>
               </div>
               <div>
-                <span className="text-gray-400">Difficulté :</span>
-                <span className="text-white font-bold ml-2 capitalize">{difficulty}</span>
+                <span className="text-gray-400">{t('botConfig.difficultyLabel')}</span>
+                <span className="text-white font-bold ml-2">{t(`botConfig.${DIFF_LABEL_KEYS[difficulty] ?? difficulty}`)}</span>
               </div>
             </div>
           </div>

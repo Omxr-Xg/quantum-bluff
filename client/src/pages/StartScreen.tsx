@@ -1,25 +1,25 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles, Crown, Gem, Zap } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 
 export function StartScreen() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [loadingText, setLoadingText] = useState("Initialisation...");
+  const [loadingText, setLoadingText] = useState(t('startScreen.init'));
 
   useEffect(() => {
-    // Séquence de chargement avec messages
     const messages = [
-      { time: 0, text: "Initialisation...", progress: 0 },
-      { time: 500, text: "Mélange des cartes...", progress: 20 },
-      { time: 1200, text: "Préparation de la table...", progress: 40 },
-      { time: 2000, text: "Chargement des jetons...", progress: 60 },
-      { time: 3000, text: "Calcul des probabilités quantiques...", progress: 80 },
-      { time: 4000, text: "Prêt à jouer !", progress: 100 },
+      { time: 0, text: t('startScreen.init'), progress: 0 },
+      { time: 500, text: t('startScreen.shuffling'), progress: 20 },
+      { time: 1200, text: t('startScreen.preparingTable'), progress: 40 },
+      { time: 2000, text: t('startScreen.loadingChips'), progress: 60 },
+      { time: 3000, text: t('startScreen.quantumCalc'), progress: 80 },
+      { time: 4000, text: t('startScreen.readyToPlay'), progress: 100 },
     ];
-
     messages.forEach(({ time, text, progress }) => {
       setTimeout(() => {
         setLoadingText(text);
@@ -33,7 +33,7 @@ export function StartScreen() {
     }, 5000);
 
     return () => clearTimeout(loadingTimer);
-  }, []);
+  }, [t]);
 
   const handleStart = () => {
     navigate("/login");
@@ -216,7 +216,7 @@ export function StartScreen() {
           </h1>
           <div className="flex items-center justify-center gap-2 text-slate-300"> {/* Texte plus clair */}
             <Zap className="w-5 h-5 text-purple-400 animate-pulse" />
-            <p className="text-xl tracking-wider font-light">Le poker réinventé</p>
+            <p className="text-xl tracking-wider font-light">{t('startScreen.tagline')}</p>
             <Zap className="w-5 h-5 text-purple-400 animate-pulse" style={{ animationDelay: "0.5s" }} />
           </div>
         </div>
@@ -281,7 +281,7 @@ export function StartScreen() {
             {/* Texte - MODIFIÉ : BLANC ET VIOLET CLAIR */}
             <span className="relative z-10 flex items-center gap-4 tracking-wider text-white group-hover:text-purple-50 transition-colors">
               <Crown className="w-7 h-7 text-purple-100 animate-pulse" />
-              COMMENCER
+              {t('startScreen.startButton')}
               <Sparkles className="w-7 h-7 text-purple-100 animate-pulse" style={{ animationDelay: "0.5s" }} />
             </span>
           </button>
@@ -291,7 +291,7 @@ export function StartScreen() {
         {!isLoading && (
           <div className="mt-8 flex items-center gap-2 text-slate-300 text-sm animate-fade-in"> {/* Texte clair */}
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.7)]"></div>
-            <span className="tracking-wide">Serveur en ligne</span>
+            <span className="tracking-wide">{t('startScreen.serverOnline')}</span>
           </div>
         )}
       </div>

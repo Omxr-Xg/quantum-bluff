@@ -3,8 +3,13 @@ import { prisma } from '../config/database.js';
 import { GameTable } from '../logic/GameTable.js';
 import type { Player } from '../types/poker.js';
 import { activeGames } from '../shared/activeGames.js';
+import sanitizeHtml from 'sanitize-html';
+
 
 const router = express.Router();
+
+// Fonction utilitaire pour nettoyer le nom de la salle
+//const sanitizeRoomName = (roomName: string) => sanitizeHtml(roomName);
 
 // GET /api/waiting-room - Liste toutes les salles disponibles
 router.get('/', async (req, res) => {
@@ -50,10 +55,23 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/waiting-room/active/games - Liste des parties actives (doit être avant /:roomId)
+router.get('/active/games', async (req, res) => {
+  const allGames = await activeGames.getAll();
+  const games = Array.from(allGames.entries()).map(([id, game]) => ({
+    id,
+    players: game.state.players.length,
+    phase: game.state.phase
+  }));
+  res.json(games);
+});
+
 // POST /api/waiting-room/create - Créer une nouvelle salle
 router.post('/create', async (req, res) => {
   try {
-    const { hostId, roomName, maxPlayers = 9 } = req.body;
+    const { hostId, roomName, maxPlayers = 5 } = req.body;
+
+    //const sanitizedRoomName = roomName ? sanitizeHtml(roomName) : '';
 
     // Vérifier que l'utilisateur existe
     const user = await prisma.user.findUnique({
@@ -67,7 +85,7 @@ router.post('/create', async (req, res) => {
     // Créer la salle
     const room = await prisma.waitingRoom.create({
       data: {
-        name: roomName || `Salle de ${user.username}`,
+        name: roomName ? sanitizeHtml(roomName) : `Salle de ${user.username}`,
         hostId,
         maxPlayers,
         players: {
@@ -334,7 +352,20 @@ router.post('/:roomId/start', async (req, res) => {
 
     const allReady = room.players.every(p => p.isReady);
     if (!allReady) {
-      return res.status(400).json({ error: 'Tous les joueurs ne sont pas prêts' });
+      const notReadyPlayers = room.players
+        .filter(p => !p.isReady)
+        .map(p => ({ id: p.user.id, name: p.user.username }));
+      const io = req.app.get('io') as import('socket.io').Server | undefined;
+      if (io) {
+        io.to(roomId).emit('HOST_REQUESTED_START', {
+          message: 'L\'hôte veut lancer la partie — mettez-vous prêt !',
+          notReadyPlayers: notReadyPlayers.map(p => ({ id: p.id, name: p.name }))
+        });
+      }
+      return res.status(400).json({
+        error: 'Tous les joueurs ne sont pas prêts',
+        notReadyPlayers: notReadyPlayers.map(p => p.name)
+      });
     }
 
     // 🔥 CRÉATION DE LA PARTIE
@@ -357,9 +388,10 @@ router.post('/:roomId/start', async (req, res) => {
     const gameTable = new GameTable(gameId, players);
     gameTable.startHand();
 
-    // Stocker dans le Map
-    activeGames.set(gameId, gameTable);
-    console.log(`✅ Partie ${gameId} créée et stockée. Taille du Map: ${activeGames.size}`);
+    // Stocker dans le cache (Redis + local)
+    await activeGames.set(gameId, gameTable);
+    const size = activeGames.size();
+    console.log(`✅ Partie ${gameId} créée et stockée. Taille du cache: ${size}`);
 
     // Mettre à jour la salle
     await prisma.waitingRoom.update({
@@ -370,21 +402,21 @@ router.post('/:roomId/start', async (req, res) => {
       }
     });
 
-    res.json({ gameId, message: 'Partie démarrée' });
+    const playersForClient = room.players.map((rp) => ({
+      id: rp.user.id,
+      name: rp.user.username
+    }));
+
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    if (io) {
+      io.to(roomId).emit('GAME_STARTED', { gameId, players: playersForClient });
+    }
+
+    res.json({ gameId, message: 'Partie démarrée', players: playersForClient });
   } catch (error) {
     console.error('Erreur démarrage:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
-});
-
-// GET /api/waiting-room/active/games - Liste des parties actives
-router.get('/active/games', (req, res) => {
-  const games = Array.from(activeGames.entries()).map(([id, game]) => ({
-    id,
-    players: game.state.players.length,
-    phase: game.state.phase
-  }));
-  res.json(games);
 });
 
 export default router;

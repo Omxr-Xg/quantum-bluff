@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { PokerTable } from "../components/PokerTable";
 import { Sparkles, ArrowRight } from "lucide-react";
@@ -25,10 +26,11 @@ interface Player {
 type GamePhase = "init" | "shuffle" | "deal" | "flop" | "turn" | "river" | "complete";
 
 export function GameDeal() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<GamePhase>("init");
   const [communityCards, setCommunityCards] = useState<(Card | null)[]>([null, null, null, null, null]);
-  const [dealingCard, setDealingCard] = useState<number | null>(null);
+  const [_dealingCard, setDealingCard] = useState<number | null>(null);
   const [shuffleCount, setShuffleCount] = useState(0);
 
   // Générer un jeu de cartes complet
@@ -88,7 +90,7 @@ export function GameDeal() {
     let cardIndex = 0;
     const dealInterval = setInterval(() => {
       const playerIndex = Math.floor(cardIndex / 2);
-      const cardRound = cardIndex % 2;
+      const _cardRound = cardIndex % 2;
       
       if (playerIndex >= updatedPlayers.length) {
         clearInterval(dealInterval);
@@ -215,7 +217,7 @@ export function GameDeal() {
   const getPhaseText = () => {
     switch (phase) {
       case "init":
-        return "Prêt à commencer";
+        return t('gameDeal.readyToStart');
       case "shuffle":
         return "Mélange des cartes...";
       case "deal":
@@ -244,7 +246,7 @@ export function GameDeal() {
       case "river":
         return "River";
       case "complete":
-        return "Retour au Lobby";
+        return t('gameDeal.backToLobby');
       default:
         return "Next";
     }

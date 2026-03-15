@@ -247,6 +247,31 @@ export function getHandValue(cards: Card[]): number {
   return evaluateSeven(safe).score;
 }
 
+const HAND_NAMES: Record<number, string> = {
+  0: "Haute carte",
+  1: "Paire",
+  2: "Double paire",
+  3: "Brelan",
+  4: "Quinte",
+  5: "Couleur",
+  6: "Full",
+  7: "Carré",
+  8: "Quinte flush",
+};
+
+/**
+ * Returns the category (0-8) and French hand name for the best hand from the given cards.
+ */
+export function getHandInfo(cards: Card[]): { category: number; handName: string } {
+  const safe = cards.slice();
+  for (const c of safe) {
+    if (typeof c.value !== "number") c.value = RANK_VALUE[c.rank];
+  }
+  const { category } = evaluateSeven(safe);
+  const handName = HAND_NAMES[category] ?? "Haute carte";
+  return { category, handName };
+}
+
 /**
  * Finds the winner among players given the community board.
  * Returns the winner player id.
@@ -272,6 +297,37 @@ export function findWinner(players: Player[], board: Card[]): string {
   }
 
   return bestId;
+}
+
+/**
+ * Finds the winner and returns their id plus the winning hand's category and name.
+ */
+export function findWinnerWithHand(
+  players: Player[],
+  board: Card[]
+): { winnerId: string; category: number; handName: string } {
+  if (players.length === 0) {
+    throw new Error("findWinnerWithHand: players list is empty.");
+  }
+
+  let bestId = players[0].id;
+  let bestScore = -Infinity;
+  let bestCategory = 0;
+  let bestHandName = HAND_NAMES[0];
+
+  for (const p of players) {
+    const allCards = [...p.cards, ...board];
+    const score = getHandValue(allCards);
+    if (score > bestScore) {
+      bestScore = score;
+      bestId = p.id;
+      const info = getHandInfo(allCards);
+      bestCategory = info.category;
+      bestHandName = info.handName;
+    }
+  }
+
+  return { winnerId: bestId, category: bestCategory, handName: bestHandName };
 }
 
 // ------------------------------

@@ -122,7 +122,7 @@ model WaitingRoom {
   id           String   @id @default(uuid())
   name         String
   hostId       String
-  maxPlayers   Int      @default(9)
+  maxPlayers   Int      @default(5)
   status       RoomStatus @default(WAITING) // WAITING, STARTING, IN_GAME
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

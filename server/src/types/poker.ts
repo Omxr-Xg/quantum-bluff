@@ -37,13 +37,15 @@ export interface Player {
   role: PlayerRole;
   currentBet?: number;
   bet?: number;
+  /** Total amount put into the pot this hand (for side pot calculation). */
+  totalPutInThisHand?: number;
   isActive: boolean;
   position?: number;
   isDealer?: boolean;
   isConnected?: boolean;
 }
 
-export type GamePhase = 'WAITING' | 'PREFLOP' | 'FLOP' | 'TURN' | 'RIVER' | 'SHOWDOWN'
+export type GamePhase = 'WAITING' | 'PREFLOP' | 'FLOP' | 'TURN' | 'RIVER' | 'SHOWDOWN' | 'ENDED_OPPONENT_LEFT'
 
 export interface GameState {
   id?: string
@@ -52,4 +54,9 @@ export interface GameState {
   players: Player[]
   currentTurn: string
   phase: GamePhase
+  /** Gagnant au showdown (pour affichage côté client) */
+  showdownWinnerId?: string
+  showdownHandName?: string
+  /** Pot attribué au showdown (pour affichage) */
+  showdownPot?: number
 }

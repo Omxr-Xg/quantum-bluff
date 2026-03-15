@@ -1,129 +1,152 @@
-import { useState } from 'react';
-import { useUser } from '../hooks/useUser';
-import { 
-  useGetFriendsQuery, 
-  useGetFriendRequestsQuery,
-  useSearchUsersQuery,
-  useSendFriendRequestMutation,
-  useRespondToFriendRequestMutation 
-} from '../services/api';
+import { useEffect } from "react";
+import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
+import { Users, UserPlus, Loader2, ChevronRight } from "lucide-react";
+import { useUser } from "../hooks/useUser";
+import { useSocket } from "../contexts/SocketContext";
+import {
+  useGetFriendsQuery,
+  useGetFriendRequestsQuery
+} from "../services/api";
 
-export const FriendsList = () => {
+export function FriendsList() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const { userId } = useUser();
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  const { data: friends, refetch: refetchFriends } = useGetFriendsQuery(userId!, {
+  const { socket, isConnected, connect } = useSocket();
+
+  const {
+    data: friends,
+    isLoading: loadingFriends,
+    refetch: refetchFriends
+  } = useGetFriendsQuery(userId!, {
     skip: !userId
   });
-  
-  const { data: requests } = useGetFriendRequestsQuery(userId!, {
+
+  const {
+    data: requests,
+    isLoading: loadingRequests,
+    refetch: refetchRequests
+  } = useGetFriendRequestsQuery(userId!, {
     skip: !userId
   });
-  
-  const { data: searchResults } = useSearchUsersQuery(searchQuery, { 
-    skip: !searchQuery || !userId 
-  });
-  
-  const [sendRequest] = useSendFriendRequestMutation();
-  const [respondRequest] = useRespondToFriendRequestMutation();
 
-  const handleSendRequest = async (receiverUsername: string) => {
-    if (!userId) return;
-    await sendRequest({ senderId: userId, receiverUsername });
-    setSearchQuery('');
-  };
+  useEffect(() => {
+    if (!isConnected) {
+      connect();
+    }
+  }, [isConnected, connect]);
 
-  const handleRespond = async (requestId: string, status: 'ACCEPTED' | 'REJECTED') => {
-    await respondRequest({ requestId, status });
-    refetchFriends();
-  };
+  useEffect(() => {
+    if (!socket || !userId) return;
 
-  if (!userId) {
-    return <div className="p-4 bg-gray-800 rounded-lg text-white">Connectez-vous pour voir vos amis</div>;
-  }
+    const handleFriendRequestReceived = async (_payload: unknown) => {
+      console.log("LOBBY FRIEND_REQUEST_RECEIVED:", _payload);
+      await refetchRequests();
+      await refetchFriends();
+    };
+
+    const handleFriendRequestAccepted = async (_payload: unknown) => {
+      console.log("LOBBY FRIEND_REQUEST_ACCEPTED:", _payload);
+      await refetchRequests();
+      await refetchFriends();
+    };
+
+    const handleFriendListUpdated = async (_payload: unknown) => {
+      console.log("LOBBY FRIEND_LIST_UPDATED:", _payload);
+      await refetchRequests();
+      await refetchFriends();
+    };
+
+    socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
+    socket.on("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
+    socket.on("FRIEND_LIST_UPDATED", handleFriendListUpdated);
+
+    return () => {
+      socket.off("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
+      socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
+      socket.off("FRIEND_LIST_UPDATED", handleFriendListUpdated);
+    };
+  }, [socket, userId, refetchFriends, refetchRequests]);
+
+  const pendingCount = requests?.length || 0;
+  const friendsCount = friends?.length || 0;
 
   return (
-    <div className="p-4 bg-gray-800 rounded-lg">
-      <h2 className="text-xl text-white mb-4">Amis</h2>
-      
-      {/* Recherche */}
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Rechercher un joueur..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-purple-500 outline-none"
-        />
+    <div className="bg-slate-800 rounded-2xl p-6 border border-blue-500 h-full">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl text-white font-bold flex items-center gap-3">
+          <Users className="w-8 h-8 text-blue-400" />
+          {t('lobby.friends')}
+        </h2>
+
+        <button
+          onClick={() => navigate("/friends")}
+          className="text-blue-400 hover:text-blue-300 transition"
+          title={t('friends.seeAll')}
+        >
+          <ChevronRight className="w-6 h-6" />
+        </button>
       </div>
-      
-      {/* Résultats de recherche */}
-      {searchResults && searchResults.length > 0 && (
-        <div className="mb-4">
-          <h3 className="text-gray-300 mb-2">Résultats</h3>
-          {searchResults.map((user) => (
-            <div key={user.id} className="flex justify-between items-center p-2 bg-gray-700 mb-2 rounded">
-              <div>
-                <span className="text-white">{user.username}</span>
-                <span className="text-gray-400 ml-2">Niv.{user.level}</span>
-              </div>
-              <button
-                onClick={() => handleSendRequest(user.username)}
-                className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition"
+
+      <div className="space-y-4">
+        <div className="bg-slate-700/50 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-300">{t('lobby.friends')}</span>
+            <span className="text-white font-bold">{friendsCount}</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-700/50 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-300 flex items-center gap-2">
+              <UserPlus className="w-4 h-4 text-yellow-400" />
+              {t('friends.pendingRequests')}
+            </span>
+            <span className="text-yellow-300 font-bold">{pendingCount}</span>
+          </div>
+        </div>
+
+        {loadingFriends || loadingRequests ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-7 h-7 text-blue-400 animate-spin" />
+          </div>
+        ) : friendsCount > 0 ? (
+          <div className="space-y-3">
+            {friends!.slice(0, 5).map((friend) => (
+              <div
+                key={friend.id}
+                className="bg-slate-700/40 rounded-xl p-3 flex items-center justify-between"
               >
-                Ajouter
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+                <div>
+                  <p className="text-white font-medium">{friend.username}</p>
+                  <p className="text-xs text-gray-400">{t('friends.level', { level: friend.level })}</p>
+                </div>
+                <div className="text-xs text-gray-400">
+                  🏆 {friend.stats?.wins || 0}
+                </div>
+              </div>
+            ))}
 
-      {/* Demandes reçues */}
-      {requests && requests.length > 0 && (
-        <div className="mb-4">
-          <h3 className="text-gray-300 mb-2">Demandes d'ami</h3>
-          {requests.map((req) => (
-            <div key={req.id} className="flex justify-between items-center p-2 bg-yellow-900/30 mb-2 rounded border border-yellow-700">
-              <span className="text-white">{req.sender.username} veut être votre ami</span>
-              <div>
-                <button
-                  onClick={() => handleRespond(req.id, 'ACCEPTED')}
-                  className="px-3 py-1 bg-green-600 text-white rounded mr-2 hover:bg-green-700 transition"
-                >
-                  Accepter
-                </button>
-                <button
-                  onClick={() => handleRespond(req.id, 'REJECTED')}
-                  className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition"
-                >
-                  Refuser
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Liste d'amis */}
-      <div>
-        <h3 className="text-gray-300 mb-2">Ma liste ({friends?.length || 0})</h3>
-        {friends && friends.length > 0 ? (
-          friends.map((friend) => (
-            <div key={friend.id} className="flex items-center p-2 bg-gray-700 mb-2 rounded">
-              <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center mr-3">
-                <span className="text-white font-bold">{friend.username.charAt(0).toUpperCase()}</span>
-              </div>
-              <div className="flex-1">
-                <span className="text-white">{friend.username}</span>
-                <span className="text-gray-400 ml-2">Niv.{friend.level}</span>
-              </div>
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-            </div>
-          ))
+            <button
+              onClick={() => navigate("/friends")}
+              className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition"
+            >
+              {t('lobby.manageFriends')}
+            </button>
+          </div>
         ) : (
-          <p className="text-gray-400 text-center py-4">Aucun ami pour le moment</p>
+          <div className="text-center py-8">
+            <p className="text-gray-400 mb-4">{t('friends.noFriendsYet')}</p>
+            <button
+              onClick={() => navigate("/friends")}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition"
+            >
+              {t('friends.addFriends')}
+            </button>
+          </div>
         )}
       </div>
     </div>
   );
-};
+}

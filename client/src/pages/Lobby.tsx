@@ -1,17 +1,147 @@
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { Bot, Server, User, UserPlus, LogOut , Users} from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Bot, Server, User, Users, LogOut, Loader2, Plus, X } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
-import { getUserBalance } from "../utils/userProfile";
+import { getUserBalance, addToUserBalance } from "../utils/userProfile";
 import { FriendsList } from '../components/FriendsList';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { useUser } from '../hooks/useUser';
 
+const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
+
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+
+interface RoomPlayer {
+  id: string;
+  username: string;
+  level: number;
+  isReady: boolean;
+  position: number;
+}
+
+interface WaitingRoomItem {
+  id: string;
+  name: string;
+  hostId: string;
+  maxPlayers: number;
+  status: string;
+  players: RoomPlayer[];
+  playerCount: number;
+}
+
 export function Lobby() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const userBalance = getUserBalance();
-  const { username } = useUser();
+  const [balance, setBalance] = useState(getUserBalance());
+  const { userId, username } = useUser();
+  const [rooms, setRooms] = useState<WaitingRoomItem[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [roomsError, setRoomsError] = useState<string | null>(null);
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
+  const [captchaA, setCaptchaA] = useState(() => Math.floor(Math.random() * 15) + 1);
+  const [captchaB, setCaptchaB] = useState(() => Math.floor(Math.random() * 15) + 1);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [captchaError, setCaptchaError] = useState(false);
+  const [addSuccess, setAddSuccess] = useState(false);
+
+  const fetchRooms = useCallback(async () => {
+    try {
+      const url = API_BASE ? `${API_BASE}/api/waiting-room` : "/api/waiting-room";
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(t('common.error'));
+      const data = await res.json();
+      setRooms(Array.isArray(data) ? data : []);
+      setRoomsError(null);
+    } catch (e) {
+      setRoomsError(e instanceof Error ? e.message : t('common.error'));
+      setRooms([]);
+    } finally {
+      setRoomsLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    fetchRooms();
+    const interval = setInterval(fetchRooms, 5000);
+    return () => clearInterval(interval);
+  }, [fetchRooms]);
+
+  // Rafraîchir le solde à l’affichage du Lobby (retour de partie) et au focus de la fenêtre
+  useEffect(() => {
+    setBalance(getUserBalance());
+    const onFocus = () => setBalance(getUserBalance());
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   const handlePlayBot = () => {
     navigate("/bot-configuration");
+  };
+
+  const handleCreateServer = async () => {
+    if (!userId) return;
+    setCreating(true);
+    try {
+      const url = API_BASE ? `${API_BASE}/api/waiting-room/create` : "/api/waiting-room/create";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hostId: userId,
+          roomName: `Salle de ${username || "Joueur"}`,
+          maxPlayers: 5,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || `Erreur ${res.status}`);
+      }
+      const room = await res.json();
+      navigate(`/waiting-room?roomId=${room.id}`);
+    } catch (e) {
+      setRoomsError(e instanceof Error ? e.message : t('common.error'));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleJoinRoom = (roomId: string) => {
+    navigate(`/waiting-room?roomId=${roomId}`);
+  };
+
+  const openAddMoney = () => {
+    setShowAddMoney(true);
+    setAddMoneyAmount(null);
+    setCaptchaA(Math.floor(Math.random() * 15) + 1);
+    setCaptchaB(Math.floor(Math.random() * 15) + 1);
+    setCaptchaAnswer("");
+    setCaptchaError(false);
+    setAddSuccess(false);
+  };
+
+  const closeAddMoney = () => {
+    setShowAddMoney(false);
+    setBalance(getUserBalance());
+  };
+
+  const submitAddMoney = () => {
+    if (addMoneyAmount == null) return;
+    const expected = captchaA + captchaB;
+    const answer = parseInt(captchaAnswer.trim(), 10);
+    if (answer !== expected) {
+      setCaptchaError(true);
+      setCaptchaA(Math.floor(Math.random() * 15) + 1);
+      setCaptchaB(Math.floor(Math.random() * 15) + 1);
+      setCaptchaAnswer("");
+      return;
+    }
+    const newBalance = addToUserBalance(addMoneyAmount);
+    setBalance(newBalance);
+    setAddSuccess(true);
+    setTimeout(() => closeAddMoney(), 800);
   };
 
   return (
@@ -27,29 +157,39 @@ export function Lobby() {
 
             <div>
               <h1 className="text-4xl font-bold text-purple-400">
-                Quantum Bluff
+                {t('lobby.title')}
               </h1>
-              <p className="text-gray-400">Bienvenue, {username || 'Joueur'}</p>
+              <p className="text-gray-400">{t('lobby.welcome', { username: username || 'Joueur' })}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-
-            <div className="bg-yellow-500/20 border border-yellow-500 rounded-xl px-6 py-3 text-yellow-300 font-bold">
-              🪙 {userBalance.toLocaleString()}
+            <LanguageSwitcher />
+            <div className="flex items-center gap-0 bg-slate-800 rounded-2xl border border-slate-600 overflow-hidden">
+              <span className="px-5 py-3 text-white font-bold">
+                {t('lobby.balance', { balance: balance.toLocaleString() })}
+              </span>
+              <button
+                type="button"
+                onClick={openAddMoney}
+                className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-3 font-bold transition border-l border-slate-600"
+                title={t('lobby.addMoney')}
+              >
+                <Plus className="w-5 h-5" />
+              </button>
             </div>
 
             <button
               onClick={() => navigate("/profile")}
               className="bg-green-600 p-3 rounded-xl text-white hover:bg-green-500 transition"
-              title="Profil"
+              title={t('lobby.profile')}
             >
               <User className="w-6 h-6" />
             </button>
             <button
               onClick={() => navigate("/friends")}
               className="bg-blue-600 p-3 rounded-xl text-white hover:bg-blue-500 transition"
-              title="Gérer mes amis"
+              title={t('lobby.manageFriends')}
             >
               <Users className="w-6 h-6" />
             </button>
@@ -57,13 +197,71 @@ export function Lobby() {
             <button
               onClick={() => navigate("/")}
               className="bg-red-600 p-3 rounded-xl text-white hover:bg-red-500 transition"
-              title="Déconnexion"
+              title={t('lobby.logout')}
             >
               <LogOut className="w-6 h-6" />
             </button>
 
           </div>
         </div>
+
+        {/* Modal Ajouter des jetons + captcha */}
+        {showAddMoney && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
+            <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">{t('lobby.addMoneyTitle')}</h3>
+                <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              {addSuccess ? (
+                <p className="text-green-400 font-medium text-center py-4">{t('lobby.captchaSuccess')}</p>
+              ) : (
+                <>
+                  <p className="text-slate-300 text-sm mb-3">{t('lobby.chooseAmount')}</p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {ADD_MONEY_PRESETS.map((amount) => (
+                      <button
+                        key={amount}
+                        type="button"
+                        onClick={() => { setAddMoneyAmount(amount); setCaptchaError(false); }}
+                        className={`px-4 py-2 rounded-lg font-bold transition ${
+                          addMoneyAmount === amount
+                            ? "bg-yellow-500 text-slate-900"
+                            : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                        }`}
+                      >
+                        {amount.toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
+                  {addMoneyAmount != null && (
+                    <div className="space-y-2">
+                      <p className="text-slate-300 text-sm">{t('lobby.captchaQuestion', { a: captchaA, b: captchaB })}</p>
+                      <input
+                        type="number"
+                        value={captchaAnswer}
+                        onChange={(e) => setCaptchaAnswer(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
+                        placeholder={t('lobby.captchaPlaceholder')}
+                        className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                      />
+                      {captchaError && <p className="text-red-400 text-sm">{t('lobby.captchaError')}</p>}
+                      <button
+                        type="button"
+                        onClick={submitAddMoney}
+                        className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold transition"
+                      >
+                        {t('lobby.validate')}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* MAIN GRID - 2 colonnes */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -75,14 +273,14 @@ export function Lobby() {
             <div className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
               <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
                 <Bot className="w-8 h-8 text-purple-400"/>
-                Jouer contre un Bot
+                {t('lobby.playBot')}
               </h2>
 
               <button
                 onClick={handlePlayBot}
                 className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl transition"
               >
-                Configurer & Jouer
+                {t('lobby.configureAndPlay')}
               </button>
             </div>
 
@@ -90,21 +288,53 @@ export function Lobby() {
             <div className="bg-slate-800 rounded-2xl p-6 border border-green-500">
               <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
                 <Server className="w-8 h-8 text-green-400"/>
-                Serveurs Multi-joueurs
+                {t('lobby.multiplayerServers')}
               </h2>
 
               <div className="space-y-3">
                 <button
-                  onClick={() => navigate("/waiting-room")}
-                  className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl transition"
+                  onClick={handleCreateServer}
+                  disabled={!userId || creating}
+                  className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2"
                 >
-                  Créer un nouveau serveur
+                  {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                  {creating ? t('lobby.creating') : t('lobby.createNewServer')}
                 </button>
 
-                {/* Liste des serveurs existants (optionnel) */}
                 <div className="bg-slate-700/50 p-4 rounded-xl">
-                  <p className="text-gray-300 text-sm mb-2">Serveurs disponibles :</p>
-                  <p className="text-gray-500 text-center py-2">Aucun serveur disponible</p>
+                  <p className="text-gray-300 text-sm mb-2">{t('lobby.serversAvailable')}</p>
+                  {roomsLoading && rooms.length === 0 ? (
+                    <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
+                    </p>
+                  ) : roomsError ? (
+                    <p className="text-red-400 text-center py-2 text-sm">{roomsError}</p>
+                  ) : rooms.length === 0 ? (
+                    <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {rooms.map((room) => (
+                        <li
+                          key={room.id}
+                          className="flex items-center justify-between gap-3 bg-slate-800/70 rounded-lg px-3 py-2 border border-slate-600"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white font-medium truncate">{room.name}</p>
+                            <p className="text-gray-400 text-xs">
+                              {t('lobby.playersCount', { count: room.playerCount, max: room.maxPlayers })}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleJoinRoom(room.id)}
+                            disabled={room.playerCount >= room.maxPlayers}
+                            className="shrink-0 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                          >
+                            {t('lobby.join')}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             </div>

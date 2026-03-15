@@ -2,7 +2,6 @@ import { useState } from "react";  // Removed useEffect
 import { useNavigate } from "react-router";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
-import { getUserProfile, saveUserProfile } from "../utils/userProfile";
 
 // ==========================================
 // 1. MOVE Criterion OUTSIDE the component
@@ -21,7 +20,7 @@ export function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, _setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ username?: string; email?: string; confirmPassword?: string }>({});
   
   // ==========================================
@@ -74,21 +73,28 @@ export function Register() {
     confirmPassword.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isFormValid) return;
+  e.preventDefault()
+  if (!isFormValid) return
 
-    setIsLoading(true);
-    setTimeout(() => {
-      const userProfile = getUserProfile();
-      saveUserProfile({ 
-        ...userProfile, 
-        username: username,
-        email: email 
-      });
-      navigate("/lobby");
-      setIsLoading(false);
-    }, 1500);
-  };
+  try {
+    const response = await register({
+      username,
+      email,
+      password
+    }).unwrap()
+
+    console.log("✅ Inscription réussie:", response)
+
+    localStorage.removeItem('userid')
+    localStorage.setItem('token', response.token)
+    localStorage.setItem('userId', response.user.id)
+    localStorage.setItem('username', response.user.username)
+
+    navigate("/lobby")
+  } catch (err) {
+    console.error("❌ Erreur d'inscription:", err)
+  }
+};
 
   // ==========================================
   // 5. REMOVED Criterion from inside component
