@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: quantum_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-My027}
+      POSTGRES_DB: ${DB_NAME:-quantum_bluff}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - quantum_net
+
+  redis:
+    image: redis:alpine
+    container_name: quantum_redis
+    restart: unless-stopped
+    networks:
+      - quantum_net
+
+  backend:
+    build: 
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: quantum_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD:-My027}@postgres:5432/${DB_NAME:-quantum_bluff}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-super_secret_for_production_change_me}
+      PORT: 3000
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - quantum_net
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: quantum_frontend
+    restart: unless-stopped
+    networks:
+      - quantum_net
+
+  nginx:
+    image: nginx:alpine
+    container_name: quantum_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - quantum_net
+
+networks:
+  quantum_net:
+
+volumes:
+  pgdata:
