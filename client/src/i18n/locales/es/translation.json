@@ -39,7 +39,10 @@
     "foldedLabel": "RETIRADO",
     "allIn": "All-in",
     "pot": "Bote: {{amount}}",
-    "timer": "{{seconds}}s"
+    "timer": "{{seconds}}s",
+    "goToHiddenBets": "Ir a hidden bets",
+    "backToLobby": "Volver al lobby",
+    "replaySameConfig": "Rejugar con la misma configuración"
   },
   "friends": {
     "title": "Mis Amigos",
@@ -229,7 +232,8 @@
     "configSummary": "Resumen de la configuración",
     "opponents": "Adversarios:",
     "difficultyLabel": "Dificultad:",
-    "startGameButton": "Iniciar partida"
+    "startGameButton": "Iniciar partida",
+    "balanceRequired": "Añade fondos a tu saldo para jugar."
   },
   "gameDeal": {
     "readyToStart": "Listo para empezar",

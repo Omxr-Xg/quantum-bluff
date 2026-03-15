@@ -1,5 +1,5 @@
 import express from 'express'
-import { getHandValue, findWinnerWithHand } from '../logic/Evaluator.js'
+import { getHandValue, findWinnerWithHand, findWinners, getHandInfo } from '../logic/Evaluator.js'
 import type { Card, Player } from '../types/poker.js'
 
 const router = express.Router()
@@ -387,13 +387,20 @@ router.post('/evaluate-winner', (req, res) => {
       isActive: false,
     }))
     const board = (raw.communityCards ?? []).map(normalizeCard)
-    const { winnerId, category, handName } = findWinnerWithHand(players, board)
-    const winner = players.find((p) => p.id === winnerId)
+    const winnerIds = findWinners(players, board)
+    const isSplit = winnerIds.length > 1
+    const winnerId = winnerIds[0]
+    const firstWinner = players.find((p) => p.id === winnerId)
+    const handInfo = firstWinner
+      ? getHandInfo([...firstWinner.cards, ...board])
+      : { category: 0, handName: 'Haute carte' }
     res.json({
       winnerId,
-      winnerName: winner?.name ?? winnerId,
-      handName,
-      handRank: category,
+      winnerName: firstWinner?.name ?? winnerId,
+      winnerIds,
+      isSplit,
+      handName: handInfo.handName,
+      handRank: handInfo.category,
     })
   } catch (error) {
     console.error('Erreur evaluate-winner:', error)

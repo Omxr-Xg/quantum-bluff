@@ -7,6 +7,7 @@ interface ShowdownDisplayProps {
     name: string;
     hand: string;
     pot: number;
+    isSplit?: boolean;
   } | null;
   onClose?: () => void;
 }
@@ -56,8 +57,8 @@ export function ShowdownDisplay({ winner, onClose }: ShowdownDisplayProps) {
 
           <div className="bg-slate-700/50 rounded-xl p-6 mb-6">
             <div className="text-center mb-4">
-              <div className="text-gray-400 text-sm mb-1">Gagnant</div>
-              <div className="text-2xl font-bold text-white">{winner.name}</div>
+              <div className="text-gray-400 text-sm mb-1">{winner.isSplit ? "Résultat" : "Gagnant"}</div>
+              <div className="text-2xl font-bold text-white">{winner.isSplit ? "Égalité — Split pot" : winner.name}</div>
             </div>
 
             <div className="flex justify-between items-center border-t border-b border-slate-600 py-4 my-4">

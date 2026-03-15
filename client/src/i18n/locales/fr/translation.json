@@ -39,7 +39,10 @@
     "foldedLabel": "COUCHÉ",
     "allIn": "Tapis",
     "pot": "Pot: {{amount}}",
-    "timer": "{{seconds}}s"
+    "timer": "{{seconds}}s",
+    "goToHiddenBets": "Passer au hidden bets",
+    "backToLobby": "Retourner au lobby",
+    "replaySameConfig": "Rejouer avec la même configuration"
   },
   "friends": {
     "title": "Mes Amis",
@@ -229,7 +232,8 @@
     "configSummary": "Résumé de la configuration",
     "opponents": "Adversaires :",
     "difficultyLabel": "Difficulté :",
-    "startGameButton": "Commencer la partie"
+    "startGameButton": "Commencer la partie",
+    "balanceRequired": "Alimentez votre balance pour jouer."
   },
   "gameDeal": {
     "readyToStart": "Prêt à commencer",

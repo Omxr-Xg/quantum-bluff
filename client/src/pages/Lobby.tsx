@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bot, Server, User, Users, LogOut, Loader2, Plus, X } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
@@ -33,6 +33,7 @@ interface WaitingRoomItem {
 export function Lobby() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [balance, setBalance] = useState(getUserBalance());
   const { userId, username } = useUser();
   const [rooms, setRooms] = useState<WaitingRoomItem[]>([]);
@@ -41,10 +42,7 @@ export function Lobby() {
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
-  const [captchaA, setCaptchaA] = useState(() => Math.floor(Math.random() * 15) + 1);
-  const [captchaB, setCaptchaB] = useState(() => Math.floor(Math.random() * 15) + 1);
-  const [captchaAnswer, setCaptchaAnswer] = useState("");
-  const [captchaError, setCaptchaError] = useState(false);
+  const [devValidation, setDevValidation] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
 
   const fetchRooms = useCallback(async () => {
@@ -75,7 +73,7 @@ export function Lobby() {
     const onFocus = () => setBalance(getUserBalance());
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, []);
+  }, [location.pathname]);
 
   const handlePlayBot = () => {
     navigate("/bot-configuration");
@@ -115,10 +113,7 @@ export function Lobby() {
   const openAddMoney = () => {
     setShowAddMoney(true);
     setAddMoneyAmount(null);
-    setCaptchaA(Math.floor(Math.random() * 15) + 1);
-    setCaptchaB(Math.floor(Math.random() * 15) + 1);
-    setCaptchaAnswer("");
-    setCaptchaError(false);
+    setDevValidation("");
     setAddSuccess(false);
   };
 
@@ -129,15 +124,7 @@ export function Lobby() {
 
   const submitAddMoney = () => {
     if (addMoneyAmount == null) return;
-    const expected = captchaA + captchaB;
-    const answer = parseInt(captchaAnswer.trim(), 10);
-    if (answer !== expected) {
-      setCaptchaError(true);
-      setCaptchaA(Math.floor(Math.random() * 15) + 1);
-      setCaptchaB(Math.floor(Math.random() * 15) + 1);
-      setCaptchaAnswer("");
-      return;
-    }
+    if (devValidation.trim().toLowerCase() !== "dev") return;
     const newBalance = addToUserBalance(addMoneyAmount);
     setBalance(newBalance);
     setAddSuccess(true);
@@ -225,7 +212,7 @@ export function Lobby() {
                       <button
                         key={amount}
                         type="button"
-                        onClick={() => { setAddMoneyAmount(amount); setCaptchaError(false); }}
+                        onClick={() => setAddMoneyAmount(amount)}
                         className={`px-4 py-2 rounded-lg font-bold transition ${
                           addMoneyAmount === amount
                             ? "bg-yellow-500 text-slate-900"
@@ -238,20 +225,21 @@ export function Lobby() {
                   </div>
                   {addMoneyAmount != null && (
                     <div className="space-y-2">
-                      <p className="text-slate-300 text-sm">{t('lobby.captchaQuestion', { a: captchaA, b: captchaB })}</p>
+                      <label className="text-slate-300 text-sm block">Tapez &quot;dev&quot; pour valider</label>
                       <input
-                        type="number"
-                        value={captchaAnswer}
-                        onChange={(e) => setCaptchaAnswer(e.target.value)}
+                        type="text"
+                        value={devValidation}
+                        onChange={(e) => setDevValidation(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
-                        placeholder={t('lobby.captchaPlaceholder')}
+                        placeholder='dev'
                         className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                        autoComplete="off"
                       />
-                      {captchaError && <p className="text-red-400 text-sm">{t('lobby.captchaError')}</p>}
                       <button
                         type="button"
                         onClick={submitAddMoney}
-                        className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold transition"
+                        disabled={devValidation.trim().toLowerCase() !== "dev"}
+                        className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
                       >
                         {t('lobby.validate')}
                       </button>

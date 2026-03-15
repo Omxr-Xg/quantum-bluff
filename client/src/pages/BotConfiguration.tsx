@@ -2,12 +2,15 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bot, Users, Zap, Brain, Trophy, Target, Home } from "lucide-react";
+import { useToast } from "../contexts/ToastContext";
+import { getUserBalance } from "../utils/userProfile";
 
 const DIFF_LABEL_KEYS: Record<string, string> = { facile: "easy", moyen: "medium", difficile: "hard", expert: "expert" };
 
 export function BotConfiguration() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [numberOfBots, setNumberOfBots] = useState(1);
   const [difficulty, setDifficulty] = useState<"facile" | "moyen" | "difficile" | "expert">("moyen");
 
@@ -19,6 +22,10 @@ export function BotConfiguration() {
   ];
 
   const handleStartGame = () => {
+    if (getUserBalance() <= 0) {
+      addToast(t("botConfig.balanceRequired") || "Alimentez votre balance pour jouer.", "error");
+      return;
+    }
     navigate(`/game?mode=bot&bots=${numberOfBots}&difficulty=${difficulty}`);
   };
 
