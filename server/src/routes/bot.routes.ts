@@ -355,7 +355,7 @@ router.post('/action', (req, res) => {
         return res.status(400).json({ error: 'Invalid difficulty' })
     }
 
-    console.log(`🤖 Bot decision (${botRequest.difficulty}):`, decision)
+    console.log('🤖 Bot decision:', botRequest.difficulty, decision)
 
     res.json(decision)
   } catch (error) {

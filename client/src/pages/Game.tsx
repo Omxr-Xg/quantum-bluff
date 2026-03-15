@@ -1061,20 +1061,6 @@ export function Game() {
                 callAmount,
                 activePlayer.chips ?? 0
               );
-              // #region agent log
-              const botCallLog = {
-                location: "Game.tsx:botCALL",
-                callAmount,
-                decisionAmount: decision.amount,
-                effectiveCall,
-                botChips: activePlayer.chips,
-                botBet: activePlayer.bet,
-                pot,
-                playersBets: playersState.map((p) => ({ id: p.id, bet: p.bet, chips: p.chips })),
-              };
-              console.log("[QB-BOT CALL avant handleCall]", botCallLog);
-              fetch("http://127.0.0.1:7455/ingest/a5f146bd-eb1c-4b6d-8988-e596e0518ead", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "29f48c" }, body: JSON.stringify({ sessionId: "29f48c", location: "Game.tsx:botCALL", message: "bot CALL avant handleCall", data: botCallLog, timestamp: Date.now() }) }).catch(() => {});
-              // #endregion
               handleCall(effectiveCall, activePlayer.id);
               break;
             }
@@ -1236,11 +1222,6 @@ export function Game() {
       const neededToCall = Math.max(0, highestBet - actorBet);
       const actorChips = playersState.find((p) => p.id === playerId)?.chips ?? 0;
       amount = Math.min(amount, neededToCall, actorChips);
-      // #region agent log
-      const handleCallLog = { location: "Game.tsx:handleCall(bot)", amountBeforeCap, amountAfterCap: amount, highestBet, actorBet, neededToCall, actorChips, pot };
-      console.log("[QB-BOT handleCall bot branch]", handleCallLog);
-      fetch("http://127.0.0.1:7455/ingest/a5f146bd-eb1c-4b6d-8988-e596e0518ead", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "29f48c" }, body: JSON.stringify({ sessionId: "29f48c", location: "Game.tsx:handleCall(bot)", message: "handleCall bot cap", data: handleCallLog, timestamp: Date.now() }) }).catch(() => {});
-      // #endregion
     }
     // Remboursement à tous ceux qui ont misé plus que amount (y compris le joueur humain si c’est le bot qui call)
     const totalRefund =

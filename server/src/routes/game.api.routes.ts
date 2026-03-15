@@ -99,7 +99,7 @@ router.get('/:gameId', async (req, res) => {
   const { gameId } = req.params;
   const playerId = typeof req.query.playerId === 'string' ? req.query.playerId : undefined;
   const game = await activeGames.get(gameId);
-  console.log(`🔍 Recherche de la partie: ${gameId}. Trouvée:`, !!game);
+  console.log('🔍 Recherche de la partie:', gameId, 'Trouvée:', !!game);
 
   if (!game) {
     return res.status(404).json({ error: 'Partie introuvable' });
