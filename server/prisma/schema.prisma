@@ -71,6 +71,11 @@ model GameHistory {
   winner    User?    @relation("WinnerHistory", fields: [winnerId], references: [id])
 
   createdAt DateTime @default(now())
+
+  //Index pour accélérer les recherches par gagnant et par date (DA4/DA5)
+  @@index([winnerId])
+  @@index([createdAt])
+  @@index([gameId])
 }
 
 // AJOUTER CES NOUVEAUX MODELES
