@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bot, Server, User, Users, LogOut, Loader2, Plus, X } from "lucide-react";
+import { Bot, Server, User, Users, LogOut, Loader2, Plus, X, Trash2 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { getUserBalance, addToUserBalance } from "../utils/userProfile";
 import { FriendsList } from '../components/FriendsList';
@@ -108,6 +108,27 @@ export function Lobby() {
 
   const handleJoinRoom = (roomId: string) => {
     navigate(`/waiting-room?roomId=${roomId}`);
+  };
+
+  const handleDeleteRoom = async (roomId: string) => {
+    if (!userId) return;
+    try {
+      const url = API_BASE ? `${API_BASE}/api/waiting-room/${roomId}` : `/api/waiting-room/${roomId}`;
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) {
+        // On ne bloque pas l'UI, mais on peut afficher un message d'erreur minimal
+        console.error("Erreur suppression salle:", await res.text().catch(() => ""));
+      }
+    } catch (e) {
+      console.error("Erreur suppression salle:", e);
+    } finally {
+      // Rafraîchir la liste localement sans attendre le prochain polling
+      setRooms((prev) => prev.filter((r) => r.id !== roomId));
+    }
   };
 
   const openAddMoney = () => {
@@ -301,7 +322,9 @@ export function Lobby() {
                     <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
                   ) : (
                     <ul className="space-y-2">
-                      {rooms.map((room) => (
+                      {rooms.map((room) => {
+                        const isHost = userId && room.hostId === userId;
+                        return (
                         <li
                           key={room.id}
                           className="flex items-center justify-between gap-3 bg-slate-800/70 rounded-lg px-3 py-2 border border-slate-600"
@@ -312,15 +335,27 @@ export function Lobby() {
                               {t('lobby.playersCount', { count: room.playerCount, max: room.maxPlayers })}
                             </p>
                           </div>
-                          <button
-                            onClick={() => handleJoinRoom(room.id)}
-                            disabled={room.playerCount >= room.maxPlayers}
-                            className="shrink-0 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
-                          >
-                            {t('lobby.join')}
-                          </button>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isHost && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRoom(room.id)}
+                                className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-lg transition flex items-center gap-1"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                {t('lobby.deleteServer')}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleJoinRoom(room.id)}
+                              disabled={room.playerCount >= room.maxPlayers}
+                              className="shrink-0 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                            >
+                              {t('lobby.join')}
+                            </button>
+                          </div>
                         </li>
-                      ))}
+                      )})}
                     </ul>
                   )}
                 </div>

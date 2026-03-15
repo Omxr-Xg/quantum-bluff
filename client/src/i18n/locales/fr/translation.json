@@ -24,7 +24,8 @@
     "captchaError": "Réponse incorrecte. Réessayez.",
     "captchaSuccess": "Jetons ajoutés !",
     "chooseAmount": "Choisissez un montant :",
-    "validate": "Valider"
+    "validate": "Valider",
+    "deleteServer": "Supprimer"
   },
   "game": {
     "yourTurn": "À VOTRE TOUR",
