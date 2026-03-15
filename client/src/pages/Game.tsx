@@ -407,9 +407,8 @@ export function Game() {
   // Multijoueur : récupérer l'état du jeu depuis le backend (évite race localStorage + cartes / phase / pot)
   useEffect(() => {
     if (!gameIdParam || !userId) return;
-    const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-    const base = apiUrl || "";
-    const url = `${base}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
+    const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+    const url = `${baseUrl}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
     let cancelled = false;
     fetch(url, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
@@ -912,8 +911,8 @@ export function Game() {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
     const activeInHand = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
     if (activeInHand.length < 2) return;
-    const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-    const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
+    const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+    const url = `${baseUrl}/api/bot/evaluate-winner`;
     const currentPot = pot;
     fetch(url, {
       method: "POST",
@@ -1015,8 +1014,8 @@ export function Game() {
 
     const fetchBotDecision = async () => {
       try {
-        const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-        const url = `${apiUrl ? apiUrl + "/" : ""}api/bot/action`;
+        const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+        const url = `${baseUrl}/api/bot/action`;
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1117,9 +1116,8 @@ export function Game() {
     if (handResult === null || !isBotMode) return;
     const t = setTimeout(() => {
       const token = localStorage.getItem("token");
-      const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-      const base = apiUrl || "";
-      const recordUrl = base ? `${base}/api/game/record-result` : "/api/game/record-result";
+      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+      const recordUrl = `${baseUrl}/api/game/record-result`;
       if (token) {
         fetch(recordUrl, {
           method: "POST",
