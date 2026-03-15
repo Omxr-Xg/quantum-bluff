@@ -11,15 +11,33 @@ if (!connectionString) {
   throw new Error('DATABASE_URL is not defined in the environment.');
 }
 
-// Solution : créer le pool normalement
 const pool = new pg.Pool({ connectionString });
 
-// Contournement du conflit de types avec 'as any'
-// Cela n'affecte pas le comportement à l'exécution
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const adapter = new PrismaPg(pool as any);
 
-export const prisma = new PrismaClient({ adapter });
+// Configuration DA5 : activation des logs d'événements
+export const prisma = new PrismaClient({ 
+  adapter,
+  log: [
+    { emit: 'event', level: 'query' },
+    { emit: 'stdout', level: 'error' },
+    { emit: 'stdout', level: 'warn' },
+  ],
+});
+
+/**
+ * 🟡 DA5 : Monitoring des requêtes lentes
+ * On écoute l'événement 'query' pour mesurer le temps d'exécution
+ */
+// @ts-ignore - Nécessaire car l'adaptateur change parfois la signature des événements
+prisma.$on('query' as any, (e: any) => {
+  if (e.duration >= 100) { // Seuil de performance : 100ms
+    console.warn(`🐢 [DA5-PERF] Requête lente détectée !`);
+    console.warn(`⏱️ Durée : ${e.duration}ms`);
+    console.warn(`📝 SQL : ${e.query}`);
+  }
+});
 
 export const connectDB = async () => {
   try {
@@ -28,6 +46,30 @@ export const connectDB = async () => {
   } catch (error) {
     console.error('❌ Database connection failed:', error);
     process.exit(1);
+  }
+};
+
+/**
+ * 🟡 DA5 : Vérification des locks et conflits
+ * Utile pour surveiller la santé de PostgreSQL en temps réel
+ */
+export const getDbPerformanceMetrics = async () => {
+  try {
+    // Détecter les verrous qui bloquent des transactions
+    const locks: any[] = await prisma.$queryRaw`
+      SELECT count(*) as count FROM pg_locks WHERE granted = false;
+    `;
+    
+    // Compter les connexions actives au pool
+    const activeConns = pool.totalCount;
+
+    return {
+      waitingLocks: Number(locks[0].count),
+      poolConnections: activeConns
+    };
+  } catch (error) {
+    console.error("❌ [DA5] Échec du monitoring performance:", error);
+    return null;
   }
 };
 
