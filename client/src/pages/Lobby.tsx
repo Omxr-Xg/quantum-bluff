@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bot, Server, User, Users, LogOut, Loader2 } from "lucide-react";
+import { Bot, Server, User, Users, LogOut, Loader2, Plus, X } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
-import { getUserBalance } from "../utils/userProfile";
+import { getUserBalance, addToUserBalance } from "../utils/userProfile";
 import { FriendsList } from '../components/FriendsList';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { useUser } from '../hooks/useUser';
+
+const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
@@ -31,12 +33,19 @@ interface WaitingRoomItem {
 export function Lobby() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const userBalance = getUserBalance();
+  const [balance, setBalance] = useState(getUserBalance());
   const { userId, username } = useUser();
   const [rooms, setRooms] = useState<WaitingRoomItem[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
+  const [captchaA, setCaptchaA] = useState(() => Math.floor(Math.random() * 15) + 1);
+  const [captchaB, setCaptchaB] = useState(() => Math.floor(Math.random() * 15) + 1);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [captchaError, setCaptchaError] = useState(false);
+  const [addSuccess, setAddSuccess] = useState(false);
 
   const fetchRooms = useCallback(async () => {
     try {
@@ -95,6 +104,38 @@ export function Lobby() {
     navigate(`/waiting-room?roomId=${roomId}`);
   };
 
+  const openAddMoney = () => {
+    setShowAddMoney(true);
+    setAddMoneyAmount(null);
+    setCaptchaA(Math.floor(Math.random() * 15) + 1);
+    setCaptchaB(Math.floor(Math.random() * 15) + 1);
+    setCaptchaAnswer("");
+    setCaptchaError(false);
+    setAddSuccess(false);
+  };
+
+  const closeAddMoney = () => {
+    setShowAddMoney(false);
+    setBalance(getUserBalance());
+  };
+
+  const submitAddMoney = () => {
+    if (addMoneyAmount == null) return;
+    const expected = captchaA + captchaB;
+    const answer = parseInt(captchaAnswer.trim(), 10);
+    if (answer !== expected) {
+      setCaptchaError(true);
+      setCaptchaA(Math.floor(Math.random() * 15) + 1);
+      setCaptchaB(Math.floor(Math.random() * 15) + 1);
+      setCaptchaAnswer("");
+      return;
+    }
+    const newBalance = addToUserBalance(addMoneyAmount);
+    setBalance(newBalance);
+    setAddSuccess(true);
+    setTimeout(() => closeAddMoney(), 800);
+  };
+
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
 
@@ -116,8 +157,18 @@ export function Lobby() {
 
           <div className="flex items-center gap-4">
             <LanguageSwitcher />
-            <div className="bg-yellow-500/20 border border-yellow-500 rounded-xl px-6 py-3 text-yellow-300 font-bold">
-              {t('lobby.balance', { balance: userBalance.toLocaleString() })}
+            <div className="flex items-center gap-0 bg-slate-800 rounded-2xl border border-slate-600 overflow-hidden">
+              <span className="px-5 py-3 text-white font-bold">
+                {t('lobby.balance', { balance: balance.toLocaleString() })}
+              </span>
+              <button
+                type="button"
+                onClick={openAddMoney}
+                className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-3 font-bold transition border-l border-slate-600"
+                title={t('lobby.addMoney')}
+              >
+                <Plus className="w-5 h-5" />
+              </button>
             </div>
 
             <button
@@ -145,6 +196,64 @@ export function Lobby() {
 
           </div>
         </div>
+
+        {/* Modal Ajouter des jetons + captcha */}
+        {showAddMoney && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
+            <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">{t('lobby.addMoneyTitle')}</h3>
+                <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              {addSuccess ? (
+                <p className="text-green-400 font-medium text-center py-4">{t('lobby.captchaSuccess')}</p>
+              ) : (
+                <>
+                  <p className="text-slate-300 text-sm mb-3">{t('lobby.chooseAmount')}</p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {ADD_MONEY_PRESETS.map((amount) => (
+                      <button
+                        key={amount}
+                        type="button"
+                        onClick={() => { setAddMoneyAmount(amount); setCaptchaError(false); }}
+                        className={`px-4 py-2 rounded-lg font-bold transition ${
+                          addMoneyAmount === amount
+                            ? "bg-yellow-500 text-slate-900"
+                            : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                        }`}
+                      >
+                        {amount.toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
+                  {addMoneyAmount != null && (
+                    <div className="space-y-2">
+                      <p className="text-slate-300 text-sm">{t('lobby.captchaQuestion', { a: captchaA, b: captchaB })}</p>
+                      <input
+                        type="number"
+                        value={captchaAnswer}
+                        onChange={(e) => setCaptchaAnswer(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
+                        placeholder={t('lobby.captchaPlaceholder')}
+                        className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                      />
+                      {captchaError && <p className="text-red-400 text-sm">{t('lobby.captchaError')}</p>}
+                      <button
+                        type="button"
+                        onClick={submitAddMoney}
+                        className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold transition"
+                      >
+                        {t('lobby.validate')}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* MAIN GRID - 2 colonnes */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -1044,18 +1044,23 @@ export function Game() {
         : 0;
 
     if (playerId !== undefined && playerId !== hero?.id) {
+      const isBotAllInCall = !gameIdParam && amount < callAmount;
       setPlayersState((prev) =>
         prev.map((p) => {
+          let next = p;
           if (p.id !== playerId) {
             if ((p.bet ?? 0) > amount) {
               const refund = (p.bet ?? 0) - amount;
-              return { ...p, chips: p.chips + refund, bet: amount };
+              next = { ...p, chips: p.chips + refund, bet: amount };
             }
-            return p;
+          } else {
+            next = { ...p, chips: Math.max(0, p.chips - amount), bet: (p.bet ?? 0) + amount };
           }
-          return { ...p, chips: Math.max(0, p.chips - amount), bet: (p.bet ?? 0) + amount };
+          if (isBotAllInCall) next = { ...next, isActive: false };
+          return next;
         })
       );
+      if (isBotAllInCall) setRunOutPhase(phase);
     } else {
       setPlayerChips((prev) => Math.max(0, prev - amount));
       setPlayersState((prev) =>
@@ -1080,7 +1085,8 @@ export function Game() {
       setHasPlayerActed(true);
       setIsLoading(true);
     }
-    nextTurn(justActedIndex);
+    const botAllInCall = playerId !== undefined && amount < callAmount && !gameIdParam;
+    if (!botAllInCall) nextTurn(justActedIndex);
   };
 
   const handleRaise = (raiseAmount: number, playerId?: number | string) => {

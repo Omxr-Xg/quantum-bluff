@@ -16,7 +16,15 @@
     "manageFriends": "Gérer mes amis",
     "profile": "Profil",
     "logout": "Déconnexion",
-    "balance": "🪙 {{balance}}"
+    "balance": "🪙 {{balance}}",
+    "addMoney": "Ajouter des jetons",
+    "addMoneyTitle": "Ajouter au solde",
+    "captchaQuestion": "Combien font {{a}} + {{b}} ?",
+    "captchaPlaceholder": "Votre réponse",
+    "captchaError": "Réponse incorrecte. Réessayez.",
+    "captchaSuccess": "Jetons ajoutés !",
+    "chooseAmount": "Choisissez un montant :",
+    "validate": "Valider"
   },
   "game": {
     "yourTurn": "À VOTRE TOUR",

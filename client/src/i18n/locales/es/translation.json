@@ -16,7 +16,15 @@
     "manageFriends": "Gestionar amigos",
     "profile": "Perfil",
     "logout": "Salir",
-    "balance": "🪙 {{balance}}"
+    "balance": "🪙 {{balance}}",
+    "addMoney": "Añadir fichas",
+    "addMoneyTitle": "Añadir al saldo",
+    "captchaQuestion": "¿Cuánto es {{a}} + {{b}}?",
+    "captchaPlaceholder": "Tu respuesta",
+    "captchaError": "Incorrecto. Inténtalo de nuevo.",
+    "captchaSuccess": "¡Fichas añadidas!",
+    "chooseAmount": "Elige una cantidad:",
+    "validate": "Validar"
   },
   "game": {
     "yourTurn": "TU TURNO",
