@@ -4,14 +4,15 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
-// Générateur pour la documentation (ERD) - C'EST UN BLOC SÉPARÉ
-generator erd {
-  provider = "prisma-erd-generator"
-  output   = "../src/generated/docs/ERD.svg"
-  puppeteerConfig = "./puppeteer-config.json"
-  theme    = "dark"
-  includeRelationFromFields = true
-}
+// ERD désactivé ici pour éviter l'échec en CI (Puppeteer/Chrome nécessite libnss3 etc.).
+// Pour régénérer l'ERD en local : décommenter le bloc ci-dessous puis `npx prisma generate`.
+// generator erd {
+//   provider = "prisma-erd-generator"
+//   output   = "../src/generated/docs/ERD.svg"
+//   puppeteerConfig = "./puppeteer-config.json"
+//   theme    = "dark"
+//   includeRelationFromFields = true
+// }
 
 datasource db {
   provider = "postgresql"
