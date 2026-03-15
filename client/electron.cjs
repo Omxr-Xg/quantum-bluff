@@ -17,6 +17,9 @@ autoUpdater.setFeedURL({
   url: `${serverUrl}/updates/`
 });
 
+// Ignorer les erreurs de certificat SSL (car le certificat du serveur de l'école est expiré)
+app.commandLine.appendSwitch('ignore-certificate-errors');
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
