@@ -144,7 +144,8 @@ export function WaitingRoom() {
     if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;
     joinRoom(rawRoomId);
     return () => leaveRoom(rawRoomId);
-  }, [userId, rawRoomId, roomLoading, joinRoom, leaveRoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, rawRoomId, roomLoading]);
 
   useEffect(() => {
     if (!socket || !navigate) return;
@@ -160,7 +161,8 @@ export function WaitingRoom() {
     };
     socket.on("GAME_STARTED", onGameStarted);
     return () => socket.off("GAME_STARTED", onGameStarted);
-  }, [socket, navigate, rawRoomId, leaveRoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, navigate, rawRoomId]);
 
   useEffect(() => {
     if (!socket || !userId || !addToast) return;
@@ -209,7 +211,7 @@ export function WaitingRoom() {
       id: friend.id,
       name: friend.username,
       avatar: friend.username.charAt(0),
-      level: friend.level,
+      level: friend.level ?? 0,
       isReady: false
     }]);
   };
