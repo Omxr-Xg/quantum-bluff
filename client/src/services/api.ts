@@ -26,6 +26,25 @@ interface User {
   }
 }
 
+export interface PlayerStats {
+  id: string
+  playerId: string
+  totalGames: number
+  totalWins: number
+  totalLosses: number
+  totalHands: number
+  totalRaises: number
+  totalCalls: number
+  totalFolds: number
+  totalChecks: number
+  biggestPot: number
+  biggestWin: number
+  totalChipsWon: number
+  totalChipsLost: number
+  updatedAt: string
+  winRate: number
+}
+
 interface FriendRequest {
   id: string
   senderId: string
@@ -126,6 +145,10 @@ export const api = createApi({
       providesTags: (result) =>
         result ? result.map(({ id }) => ({ type: 'Friend', id } as const)) : ['Friend'],
     }),
+
+    getPlayerStats: builder.query<PlayerStats, string>({
+      query: (playerId) => `/game/stats/${playerId}`,
+    }),
   }),
 })
 
@@ -140,4 +163,5 @@ export const {
   useGetFriendRequestsQuery,
   useRespondToFriendRequestMutation,
   useGetFriendsQuery,
+  useGetPlayerStatsQuery,
 } = api

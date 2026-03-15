@@ -146,8 +146,12 @@ router.post('/record-result', authMiddleware, async (req, res) => {
     const userId = (req as express.Request & { userId?: string }).userId;
     if (!userId) return res.status(401).json({ error: 'Non authentifié' });
 
-    const { won } = req.body as { won?: boolean };
-    if (typeof won !== 'boolean') return res.status(400).json({ error: 'Body attendu: { won: boolean }' });
+    const { won, delta } = req.body as { won?: boolean; delta?: number };
+    if (typeof won !== 'boolean') return res.status(400).json({ error: 'Body attendu: { won: boolean, delta?: number }' });
+
+    const chipsDelta = typeof delta === 'number' && !Number.isNaN(delta) ? Math.trunc(delta) : 0;
+    const chipsWon = chipsDelta > 0 ? chipsDelta : 0;
+    const chipsLost = chipsDelta < 0 ? -chipsDelta : 0;
 
     await prisma.playerStats.upsert({
       where: { playerId: userId },
@@ -156,10 +160,14 @@ router.post('/record-result', authMiddleware, async (req, res) => {
         totalGames: 1,
         totalWins: won ? 1 : 0,
         totalLosses: won ? 0 : 1,
+        totalChipsWon: chipsWon,
+        totalChipsLost: chipsLost,
       },
       update: {
         totalGames: { increment: 1 },
         ...(won ? { totalWins: { increment: 1 } } : { totalLosses: { increment: 1 } }),
+        ...(chipsWon > 0 ? { totalChipsWon: { increment: chipsWon } } : {}),
+        ...(chipsLost > 0 ? { totalChipsLost: { increment: chipsLost } } : {}),
       },
     });
 

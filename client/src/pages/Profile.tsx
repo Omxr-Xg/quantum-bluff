@@ -4,10 +4,13 @@ import { useNavigate } from "react-router";
 import { QuantumBluffLogo } from "../assets/logo";
 import { getUserProfile } from "../utils/userProfile";
 import { HelpButton } from "../components/HelpButton";
+import { useUser } from "../hooks/useUser";
+import { useGetPlayerStatsQuery } from "../services/api";
 
 export function Profile() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { userId } = useUser();
 
   // Vérifier si on vient d'une partie en cours
   const isInGame = sessionStorage.getItem("currentGame");
@@ -15,19 +18,34 @@ export function Profile() {
   // Charger les données du profil depuis localStorage
   const userProfile = getUserProfile();
 
-  // Données exemple pour le profil
+  const { data: stats } = useGetPlayerStatsQuery(userId ?? "", {
+    skip: !userId,
+    refetchOnMountOrArgChange: true,
+  });
+
+  const totalGames = stats?.totalGames ?? 0;
+  const totalWins = stats?.totalWins ?? 0;
+  const totalLosses = stats?.totalLosses ?? Math.max(0, totalGames - totalWins);
+  const winRate = stats?.winRate ?? 0;
+  const biggestWin = stats?.biggestWin ?? 0;
+  const totalChipsWon = stats?.totalChipsWon ?? 0;
+  const totalChipsLost = stats?.totalChipsLost ?? 0;
+  // Total winnings = somme des gains bruts (sans soustraire les pertes)
+  const totalGains = totalChipsWon;
+  const currentStreak = stats?.totalWins ?? 0; // approximation faute de champ dédié
+
   const profileData = {
     name: userProfile.username,
     email: userProfile.email,
     avatar: userProfile.avatar,
     balance: userProfile.balance,
-    totalGains: 12500,
-    matchesPlayed: 87,
-    matchesWon: 52,
-    matchesLost: 35,
-    winRate: 59.8,
-    biggestWin: 2500,
-    currentStreak: 3,
+    totalGains,
+    matchesPlayed: totalGames,
+    matchesWon: totalWins,
+    matchesLost: totalLosses,
+    winRate: Number.isFinite(winRate) ? Number(winRate) : 0,
+    biggestWin,
+    currentStreak,
   };
 
   return (
@@ -196,9 +214,6 @@ export function Profile() {
                     ${profileData.biggestWin.toLocaleString()}
                   </span>
                 </div>
-                <div className="text-right text-xs text-gray-500">
-                  vs Frank • il y a 2 semaines
-                </div>
               </div>
 
               {/* Statistiques supplémentaires */}
@@ -223,38 +238,33 @@ export function Profile() {
             </div>
           </div>
 
-          {/* Historique récent */}
+          {/* Historique récent (résumé global basé sur les stats) */}
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-xl border border-slate-700 p-6">
             <h2 className="text-xl font-bold text-white mb-4">{t('profile.recentMatches')}</h2>
             <div className="space-y-3">
-              {[
-                { result: "win", opponent: "Alice", amount: 450 },
-                { result: "win", opponent: "Bob", amount: 320 },
-                { result: "win", opponent: "Charlie", amount: 180 },
-                { result: "loss", opponent: "Diana", amount: -250 },
-                { result: "loss", opponent: "Eve", amount: -400 },
-              ].map((match, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-2 h-2 rounded-full ${
-                        match.result === "win" ? "bg-green-500" : "bg-red-500"
-                      }`}
-                    ></div>
-                    <span className="text-white">vs {match.opponent}</span>
-                  </div>
-                  <span
-                    className={`font-bold ${
-                      match.result === "win" ? "text-green-400" : "text-red-400"
-                    }`}
-                  >
-                    {match.amount > 0 ? "+" : ""}${match.amount}
-                  </span>
+              <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                <div className="flex flex-col">
+                  <span className="text-white font-semibold">{t('profile.matchesPlayed')}</span>
+                  <span className="text-gray-400 text-xs">{t('profile.matchesWon')}/{t('profile.matchesLost')}</span>
                 </div>
-              ))}
+                <div className="text-right">
+                  <div className="text-sm text-green-400 font-bold">
+                    {profileData.matchesWon} {t('profile.wins')}
+                  </div>
+                  <div className="text-sm text-red-400 font-bold">
+                    {profileData.matchesLost} {t('profile.matchesLost')}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                <div className="flex flex-col">
+                  <span className="text-white font-semibold">{t('profile.totalGains')}</span>
+                  <span className="text-gray-400 text-xs">({t('profile.matchesPlayed')})</span>
+                </div>
+                <span className={`font-bold ${profileData.totalGains >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  {profileData.totalGains >= 0 ? "+" : ""}${profileData.totalGains.toLocaleString()}
+                </span>
+              </div>
             </div>
           </div>
         </div>
