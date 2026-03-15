@@ -507,8 +507,8 @@ export class GameTable {
       throw new Error('Rien à suivre')
     }
 
-    if (action === 'CALL' && callAmount > player.chips) {
-      throw new Error('Pas assez de jetons pour suivre')
+    if (action === 'CALL' && player.chips <= 0) {
+      throw new Error('Pas de jetons pour suivre')
     }
 
     if (action === 'RAISE') {
@@ -558,10 +558,27 @@ export class GameTable {
     }
 
     if (action === 'CALL') {
-      player.chips -= callAmount
-      player.currentBet = (player.currentBet || 0) + callAmount
-      player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + callAmount
-      this.state.pot += callAmount
+      const actualCallAmount = Math.min(callAmount, player.chips)
+      player.chips -= actualCallAmount
+      player.currentBet = (player.currentBet || 0) + actualCallAmount
+      player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + actualCallAmount
+      this.state.pot += actualCallAmount
+
+      if (actualCallAmount < callAmount) {
+        for (const p of this.state.players) {
+          const bet = p.currentBet ?? 0
+          if (bet > actualCallAmount) {
+            const refund = bet - actualCallAmount
+            p.chips += refund
+            p.currentBet = actualCallAmount
+            this.state.pot -= refund
+          }
+        }
+        this.highestBet = Math.max(
+          ...this.state.players.map((p) => p.currentBet ?? 0)
+        )
+      }
+
       this.actedPlayerIds.add(player.id)
 
       if (this.isBettingRoundComplete()) {

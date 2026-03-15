@@ -20,6 +20,7 @@ import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { ShowdownDisplay } from "../components/ShowdownDisplay";
 import { useUser } from "../hooks/useUser";
+import { addToUserBalance, getUserBalance } from "../utils/userProfile";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
@@ -64,6 +65,17 @@ export function Game() {
   const gameIdParam = searchParams.get("gameId");
   const isBotMode = mode === "bot";
   const { userId } = useUser();
+  /** Multiplicateur de gain sur le solde : bot facile 0.3, moyen 0.6, difficile 0.9, expert 1 ; vs humain 1 */
+  const difficultyParam = searchParams.get("difficulty") || "moyen";
+  const winMultiplier = gameIdParam
+    ? 1
+    : difficultyParam === "facile"
+      ? 0.3
+      : difficultyParam === "moyen"
+        ? 0.6
+        : difficultyParam === "difficile"
+          ? 0.9
+          : 1;
 
   const { socket } = useSocket();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -72,7 +84,9 @@ export function Game() {
   const [_hasFolded, _setHasFolded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [pot, setPot] = useState(150);
-  const [playerChips, setPlayerChips] = useState(5000);
+  const [playerChips, setPlayerChips] = useState(() =>
+    searchParams.get("mode") === "bot" ? getUserBalance() : 5000
+  );
   const [isBotThinking, setIsBotThinking] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
@@ -131,12 +145,13 @@ export function Game() {
     if (mode === "bot") {
       const botNames = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
       const bots: BotPlayer[] = [];
+      const BOT_START_CHIPS = 1000;
       for (let i = 0; i < count; i++) {
         bots.push({
           id: `bot-${i + 1}`,
           name: `Bot ${botNames[i]}`,
-          chips: 5000 - SB,
-          bet: SB,
+          chips: i === 0 ? BOT_START_CHIPS - SB : BOT_START_CHIPS,
+          bet: i === 0 ? SB : 0,
           position: 0,
           isActive: true,
           isDealer: true,
@@ -145,7 +160,7 @@ export function Game() {
           difficulty: diffMap,
           isConnected: true,
           hasFolded: false,
-          role: "SB",
+          role: i === 0 ? "SB" : "PLAYER",
         });
       }
       bots.push({
@@ -335,9 +350,9 @@ export function Game() {
     }
     if (mode === "bot") {
       setPot(SB + BB);
-      setPlayerChips(5000 - BB);
+      setPlayerChips(getUserBalance());
     }
-  }, []);
+  }, [mode]);
 
   // Multijoueur : récupérer l'état du jeu depuis le backend (évite race localStorage + cartes / phase / pot)
   useEffect(() => {
@@ -477,18 +492,21 @@ export function Game() {
       }
       if (phase === "showdown" && gameState.showdownWinnerId) {
         const winnerName = players.find((p) => String(p.id) === String(gameState.showdownWinnerId))?.name ?? String(gameState.showdownWinnerId);
+        const potWon = gameState.showdownPot ?? 0;
+        if (String(gameState.showdownWinnerId) === String(userId)) addToUserBalance(Math.round(potWon));
         setShowdownResult({
           winnerId: gameState.showdownWinnerId,
           winnerName,
           hand: gameState.showdownHandName ?? "—",
           handRank: 0,
-          pot: gameState.showdownPot ?? 0,
+          pot: potWon,
         });
       }
     };
     socket.on("GAME_UPDATE", onGameUpdate);
     const onGameEnded = (data: { gameId: string; winnerId: string; reason: string; pot?: number }) => {
       if (data.reason === "opponent_left" && String(data.winnerId) === String(userId)) {
+        addToUserBalance(Math.round(data.pot ?? 0));
         setShowdownResult((prevResult) => {
           if (prevResult) return prevResult;
           return {
@@ -780,8 +798,12 @@ export function Game() {
       .then((data: { winnerId?: string; winnerName?: string; handName?: string; handRank?: number }) => {
         const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
         const won = data.winnerId === humanId || data.winnerId === "human";
-        if (won) setPlayerChips((prev) => prev + currentPot);
-        else setPlayersState((prev) => prev.map((p) => (p.id === data.winnerId ? { ...p, chips: p.chips + currentPot } : p)));
+        if (won) {
+          setPlayerChips((prev) => prev + currentPot);
+          addToUserBalance(Math.round(currentPot * winMultiplier));
+        } else {
+          setPlayersState((prev) => prev.map((p) => (p.id === data.winnerId ? { ...p, chips: p.chips + currentPot } : p)));
+        }
         setPot(0);
         setShowdownResult({
           winnerId: data.winnerId ?? "",
@@ -803,7 +825,7 @@ export function Game() {
         });
         setHandResult("loss");
       });
-  }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot]);
+  }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId]);
 
   useEffect(() => {
     if (!isBotMode || playersState.length === 0) return;
@@ -978,7 +1000,10 @@ export function Game() {
           pot,
         });
       }
-      if (humanWon) setPlayerChips((prev) => prev + pot);
+      if (humanWon) {
+        setPlayerChips((prev) => prev + pot);
+        addToUserBalance(Math.round(pot * winMultiplier));
+      }
       setPot(0);
     }
   };
@@ -1011,23 +1036,42 @@ export function Game() {
     if (gameIdParam && socket && isHumanActing) {
       socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CALL", amount });
     }
+    const refundOtherBetOvercall =
+      amount < callAmount
+        ? playersState
+            .filter((p) => p.id !== userId && p.id !== "human" && (p.bet ?? 0) > amount)
+            .reduce((s, p) => s + ((p.bet ?? 0) - amount), 0)
+        : 0;
+
     if (playerId !== undefined && playerId !== hero?.id) {
       setPlayersState((prev) =>
-        prev.map((p) =>
-          p.id === playerId ? { ...p, chips: p.chips - amount, bet: (p.bet ?? 0) + amount } : p
-        )
+        prev.map((p) => {
+          if (p.id !== playerId) {
+            if ((p.bet ?? 0) > amount) {
+              const refund = (p.bet ?? 0) - amount;
+              return { ...p, chips: p.chips + refund, bet: amount };
+            }
+            return p;
+          }
+          return { ...p, chips: Math.max(0, p.chips - amount), bet: (p.bet ?? 0) + amount };
+        })
       );
     } else {
-      setPlayerChips((prev) => prev - amount);
+      setPlayerChips((prev) => Math.max(0, prev - amount));
       setPlayersState((prev) =>
-        prev.map((p) =>
-          p.id === userId || p.id === "human"
-            ? { ...p, chips: p.chips - amount, bet: (p.bet ?? 0) + amount }
-            : p
-        )
+        prev.map((p) => {
+          if (p.id === userId || p.id === "human") {
+            return { ...p, chips: Math.max(0, (p.chips ?? 0) - amount), bet: (p.bet ?? 0) + amount };
+          }
+          if ((p.bet ?? 0) > amount) {
+            const refund = (p.bet ?? 0) - amount;
+            return { ...p, chips: (p.chips ?? 0) + refund, bet: amount };
+          }
+          return p;
+        })
       );
     }
-    setPot((prev) => prev + amount);
+    setPot((prev) => Math.max(0, prev + amount - refundOtherBetOvercall));
     const justActedIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
@@ -1059,7 +1103,7 @@ export function Game() {
         )
       );
     } else {
-      setPlayerChips((prev) => prev - totalToPut);
+      setPlayerChips((prev) => Math.max(0, prev - totalToPut));
       setPlayersState((prev) =>
         prev.map((p) =>
           p.id === userId || p.id === "human"
