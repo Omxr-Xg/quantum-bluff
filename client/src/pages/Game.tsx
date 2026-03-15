@@ -124,6 +124,8 @@ export function Game() {
   const playersStateRef = useRef<(BasePlayer | BotPlayer)[]>([]);
   const deckRef = useRef<Card[]>([]);
   const communityCardsStateRef = useRef<(Card | null)[]>([]);
+  const startOfHandChipsRef = useRef(0);
+  const hasSetStartOfHandThisHandRef = useRef(false);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
@@ -493,7 +495,10 @@ export function Game() {
       if (phase === "showdown" && gameState.showdownWinnerId) {
         const winnerName = players.find((p) => String(p.id) === String(gameState.showdownWinnerId))?.name ?? String(gameState.showdownWinnerId);
         const potWon = gameState.showdownPot ?? 0;
-        if (String(gameState.showdownWinnerId) === String(userId)) addToUserBalance(Math.round(potWon));
+        const humanPlayer = players.find((p) => String(p.id) === String(userId));
+        const humanChipsAfter = humanPlayer?.chips ?? 0;
+        const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
+        addToUserBalance(balanceChange);
         setShowdownResult({
           winnerId: gameState.showdownWinnerId,
           winnerName,
@@ -506,7 +511,8 @@ export function Game() {
     socket.on("GAME_UPDATE", onGameUpdate);
     const onGameEnded = (data: { gameId: string; winnerId: string; reason: string; pot?: number }) => {
       if (data.reason === "opponent_left" && String(data.winnerId) === String(userId)) {
-        addToUserBalance(Math.round(data.pot ?? 0));
+        const balanceChange = Math.round(data.pot ?? 0);
+        addToUserBalance(balanceChange);
         setShowdownResult((prevResult) => {
           if (prevResult) return prevResult;
           return {
@@ -731,15 +737,26 @@ export function Game() {
     }
   }, [roundPlayersActed, phase, playersState, gameIdParam, userId, runOutPhase]);
 
+  // Capturer le stack du joueur une seule fois au tout début de la main (preflop), avant toute mise
+  useEffect(() => {
+    if (phase !== "preflop" || !gameInitialized || hasSetStartOfHandThisHandRef.current) return;
+    const humanChips = isBotMode ? playerChips : playersState.find((p) => String(p.id) === String(userId))?.chips ?? playerChips;
+    startOfHandChipsRef.current = humanChips;
+    hasSetStartOfHandThisHandRef.current = true;
+  }, [phase, gameInitialized, isBotMode, playerChips, playersState, userId]);
+
   // Garder les refs à jour pour le run-out (éviter closures stales)
   useEffect(() => {
     deckRef.current = deck;
     communityCardsStateRef.current = communityCardsState;
   }, [deck, communityCardsState]);
 
-  // Réinitialiser le run-out en début de main
+  // Réinitialiser le run-out et le flag "début de main" en début de main
   useEffect(() => {
-    if (phase === "init" || phase === "shuffle" || phase === "deal") setRunOutPhase(null);
+    if (phase === "init" || phase === "shuffle" || phase === "deal") {
+      setRunOutPhase(null);
+      hasSetStartOfHandThisHandRef.current = false;
+    }
   }, [phase]);
 
   // Run-out du board après all-in : distribuer Flop puis Turn puis River sans tour de mise, puis showdown
@@ -800,10 +817,14 @@ export function Game() {
         const won = data.winnerId === humanId || data.winnerId === "human";
         if (won) {
           setPlayerChips((prev) => prev + currentPot);
-          addToUserBalance(Math.round(currentPot * winMultiplier));
         } else {
           setPlayersState((prev) => prev.map((p) => (p.id === data.winnerId ? { ...p, chips: p.chips + currentPot } : p)));
         }
+        const startChips = startOfHandChipsRef.current;
+        const endChips = won ? playerChips + currentPot : playerChips;
+        const balanceChange = endChips - startChips;
+        const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
+        addToUserBalance(toAdd);
         setPot(0);
         setShowdownResult({
           winnerId: data.winnerId ?? "",
@@ -816,6 +837,9 @@ export function Game() {
       .catch(() => {
         const fallbackWinner = activeInHand.find((p) => p.id !== userId && p.id !== "human") ?? activeInHand[0];
         setPot(0);
+        const startChips = startOfHandChipsRef.current;
+        const balanceChange = playerChips - startChips;
+        addToUserBalance(balanceChange);
         setShowdownResult({
           winnerId: fallbackWinner?.id ?? "",
           winnerName: fallbackWinner?.name ?? "Inconnu",
@@ -892,9 +916,12 @@ export function Game() {
             case "FOLD":
               handleFold(activePlayer.id);
               break;
-            case "CALL":
-              handleCall(decision.amount ?? callAmount, activePlayer.id);
+            case "CALL": {
+              const callAmt = decision.amount ?? callAmount;
+              const effectiveCall = Math.min(callAmt, activePlayer.chips ?? 0);
+              handleCall(effectiveCall, activePlayer.id);
               break;
+            }
             case "CHECK":
               handleCheck(activePlayer.id);
               break;
@@ -1000,10 +1027,12 @@ export function Game() {
           pot,
         });
       }
-      if (humanWon) {
-        setPlayerChips((prev) => prev + pot);
-        addToUserBalance(Math.round(pot * winMultiplier));
-      }
+      if (humanWon) setPlayerChips((prev) => prev + pot);
+      const startChips = startOfHandChipsRef.current;
+      const endChips = humanWon ? playerChips + pot : playerChips;
+      const balanceChange = endChips - startChips;
+      const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
+      addToUserBalance(toAdd);
       setPot(0);
     }
   };
@@ -1060,7 +1089,7 @@ export function Game() {
           return next;
         })
       );
-      if (isBotAllInCall) setRunOutPhase(phase);
+      if (isBotAllInCall) setTimeout(() => setRunOutPhase(phase), 50);
     } else {
       setPlayerChips((prev) => Math.max(0, prev - amount));
       setPlayersState((prev) =>

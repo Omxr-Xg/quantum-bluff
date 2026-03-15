@@ -69,6 +69,14 @@ export function Lobby() {
     return () => clearInterval(interval);
   }, [fetchRooms]);
 
+  // Rafraîchir le solde à l’affichage du Lobby (retour de partie) et au focus de la fenêtre
+  useEffect(() => {
+    setBalance(getUserBalance());
+    const onFocus = () => setBalance(getUserBalance());
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
   const handlePlayBot = () => {
     navigate("/bot-configuration");
   };
