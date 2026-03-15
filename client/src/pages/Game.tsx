@@ -1145,6 +1145,11 @@ export function Game() {
         (p) => p.isConnected !== false && !(p.hasFolded ?? false)
       );
 
+      // En multijoueur, on laisse le serveur gérer le pot, le SHOWDOWN et le vainqueur
+      if (gameIdParam) {
+        return newPlayers;
+      }
+
       if (activeInHand.length === 1) {
         const winner = activeInHand[0];
         const winnerId = winner.id;
