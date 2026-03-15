@@ -138,6 +138,7 @@ export function Game() {
   const doStreetTransitionRef = useRef<(() => void) | null>(null);
   /** Mode bot : les deux ont agi (preflop égalisé), ne pas redonner la main au joueur */
   const bothActedNoTurnRef = useRef(false);
+  const toAddLastRef = useRef(0);
   const botIsFetchingRef = useRef(false);
 
   // Hook d'accessibilité
@@ -951,6 +952,7 @@ export function Game() {
         const balanceChange = endChips - startChips;
         const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
         addToUserBalance(toAdd);
+        toAddLastRef.current = toAdd;
         setPot(0);
         const winnerName = isSplit ? "Égalité" : (data.winnerName ?? String(winnerIds[0]));
         setShowdownResult({
@@ -1103,7 +1105,7 @@ export function Game() {
 
   // Après gain/perte : animation puis enregistrement des stats (sans navigation)
   useEffect(() => {
-    if (handResult === null) return;
+    if (handResult === null || !isBotMode) return;
     const t = setTimeout(() => {
       const token = localStorage.getItem("token");
       const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
@@ -1113,12 +1115,12 @@ export function Game() {
         fetch(recordUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ won: handResult === "win" }),
+          body: JSON.stringify({ won: handResult === "win", delta: toAddLastRef.current }),
         }).catch(() => {});
       }
     }, 2500);
     return () => clearTimeout(t);
-  }, [handResult]);
+  }, [handResult, isBotMode]);
 
   const handleFold = (playerId?: number | string) => {
     if (handResult !== null) return;
