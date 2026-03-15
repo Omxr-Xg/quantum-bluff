@@ -162,7 +162,12 @@ export class GameTable {
   }
 
   private getPostflopFirstPlayerId(): string {
-    // Premier à parler = joueur après le dealer (en heads-up : le non-bouton, donc le raiseur parle en premier après un call)
+    if (this.state.players.length === 2) {
+      const dealer = this.state.players[this.dealerIndex]
+      if (dealer?.isActive && dealer?.isConnected !== false) {
+        return dealer.id
+      }
+    }
     const firstIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
     return firstIndex === -1
       ? this.state.players[0]?.id || ''

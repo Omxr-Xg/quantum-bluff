@@ -498,7 +498,7 @@ export class GameGateway {
       clearTimeout(this.timers.get(gameId)!)
     }
 
-    const TURN_TIMEOUT_MS = 20000
+    const TURN_TIMEOUT_MS = 30000
 
     const timer = setTimeout(async () => {
       this.resetTimer(gameId)
@@ -538,7 +538,7 @@ export class GameGateway {
     }, TURN_TIMEOUT_MS)
 
     this.timers.set(gameId, timer)
-    this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: 20 })
+    this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: 30 })
   }
 
   private resetTimer(gameId: string) {

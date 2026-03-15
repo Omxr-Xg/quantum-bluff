@@ -4,9 +4,10 @@ import {
   Target,
   TrendingUp,
   DollarSign,
+  GripVertical,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useHiddenBets } from "../contexts/HiddenBetsContext";
 
 interface HiddenBetsPanelProps {
@@ -40,6 +41,35 @@ export function HiddenBetsPanel({
   const [isPlacing, setIsPlacing] = useState(false);
 
   const { placeBet, totalBets, totalAmount } = useHiddenBets();
+  const [position, setPosition] = useState({ x: 20, y: 96 });
+  const dragging = useRef(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+
+  const onDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    dragging.current = true;
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    dragOffset.current = { x: clientX - position.x, y: clientY - position.y };
+    e.preventDefault();
+
+    const onMove = (ev: MouseEvent | TouchEvent) => {
+      if (!dragging.current) return;
+      const cx = "touches" in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX;
+      const cy = "touches" in ev ? ev.touches[0].clientY : (ev as MouseEvent).clientY;
+      setPosition({ x: cx - dragOffset.current.x, y: cy - dragOffset.current.y });
+    };
+    const onUp = () => {
+      dragging.current = false;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove);
+    window.addEventListener("touchend", onUp);
+  }, [position]);
 
   const getOdds = (type: "winner" | "combination", choice: string) => {
     if (type === "winner") {
@@ -73,15 +103,23 @@ export function HiddenBetsPanel({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0, x: -300 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -300 }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
           transition={{ type: "spring", damping: 25 }}
-          className="fixed top-24 left-5 z-40 w-96 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl"
+          className="fixed z-[60] w-80 md:w-96 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl"
+          style={{ left: position.x, top: position.y }}
         >
-          {/* Header */}
+          {/* Header with drag handle */}
           <div className="p-4 border-b border-slate-700 flex items-center justify-between">
             <div className="flex items-center gap-2">
+              <div
+                className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300 touch-none"
+                onMouseDown={onDragStart}
+                onTouchStart={onDragStart}
+              >
+                <GripVertical className="w-5 h-5" />
+              </div>
               <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
                 <Trophy className="w-4 h-4 text-white" />
               </div>
