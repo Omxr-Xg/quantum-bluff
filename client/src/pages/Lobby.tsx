@@ -137,60 +137,74 @@ export function Lobby() {
       <div className="max-w-7xl mx-auto">
 
         {/* HEADER */}
-        <div className="flex items-center justify-between mb-10">
+        {/* 📱 FIX MOBILE : flex-col sur mobile (empilé), flex-row sur PC (aligné) */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 w-full overflow-hidden">
 
-          <div className="flex items-center gap-4">
-            <QuantumBluffLogo className="w-16 h-16" />
-
-            <div>
-              <h1 className="text-4xl font-bold text-purple-400">
+          {/* Côté Gauche (Logo + Titre) */}
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <QuantumBluffLogo className="w-12 h-12 md:w-16 md:h-16 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl md:text-4xl font-bold text-purple-400 truncate">
                 {t('lobby.title')}
               </h1>
-              <p className="text-gray-400">{t('lobby.welcome', { username: username || 'Joueur' })}</p>
+              <p className="text-sm md:text-base text-gray-400 truncate">
+                {t('lobby.welcome', { username: username || 'Joueur' })}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Côté Droit (Tous les boutons) */}
+          {/* 📱 FIX MOBILE : flex-wrap pour que les boutons s'ajustent sur plusieurs lignes sur mobile */}
+          <div className="flex flex-wrap items-center justify-start md:justify-end gap-3 w-full md:w-auto">
+            
+            {/* Langue */}
             <LanguageSwitcher />
-            <div className="flex items-center gap-0 bg-slate-800 rounded-2xl border border-slate-600 overflow-hidden">
-              <span className="px-5 py-3 text-white font-bold">
-                {t('lobby.balance', { balance: balance.toLocaleString() })}
+            
+            {/* Solde + Bouton Ajouter (Un seul bloc) */}
+            <div className="flex items-center bg-slate-800 rounded-xl border border-slate-600 overflow-hidden shrink-0">
+              <span className="px-3 py-2 md:px-5 md:py-3 text-white font-bold text-sm md:text-base whitespace-nowrap">
+                {balance.toLocaleString()} 💰
               </span>
               <button
                 type="button"
                 onClick={openAddMoney}
-                className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-3 font-bold transition border-l border-slate-600"
+                className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 md:px-3 md:py-3 font-bold transition border-l border-slate-600 h-full"
                 title={t('lobby.addMoney')}
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </div>
 
-            <button
-              onClick={() => navigate("/profile")}
-              className="bg-green-600 p-3 rounded-xl text-white hover:bg-green-500 transition"
-              title={t('lobby.profile')}
-            >
-              <User className="w-6 h-6" />
-            </button>
-            <button
-              onClick={() => navigate("/friends")}
-              className="bg-blue-600 p-3 rounded-xl text-white hover:bg-blue-500 transition"
-              title={t('lobby.manageFriends')}
-            >
-              <Users className="w-6 h-6" />
-            </button>
+            {/* Boutons d'action (Profil, Amis, Déconnexion) */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate("/profile")}
+                className="bg-green-600 p-2 md:p-3 rounded-xl text-white hover:bg-green-500 transition shrink-0"
+                title={t('lobby.profile')}
+              >
+                <User className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
+              
+              <button
+                onClick={() => navigate("/friends")}
+                className="bg-blue-600 p-2 md:p-3 rounded-xl text-white hover:bg-blue-500 transition shrink-0"
+                title={t('lobby.manageFriends')}
+              >
+                <Users className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
 
-            <button
-              onClick={() => navigate("/")}
-              className="bg-red-600 p-3 rounded-xl text-white hover:bg-red-500 transition"
-              title={t('lobby.logout')}
-            >
-              <LogOut className="w-6 h-6" />
-            </button>
+              <button
+                onClick={() => navigate("/")}
+                className="bg-red-600 p-2 md:p-3 rounded-xl text-white hover:bg-red-500 transition shrink-0"
+                title={t('lobby.logout')}
+              >
+                <LogOut className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
+            </div>
 
           </div>
         </div>
+        {/* FIN DU HEADER */}
 
         {/* Modal Ajouter des jetons + captcha */}
         {showAddMoney && (
