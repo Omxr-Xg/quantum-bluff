@@ -272,5 +272,10 @@
     "callDesc": "Igualar la apuesta actual",
     "raiseDesc": "Subir la apuesta",
     "addCredits": "Añadir créditos"
+  },
+  "invitation": {
+    "title": "{{username}} te ha invitado a jugar!",
+    "accept": "Unirse",
+    "reject": "Rechazar"
   }
 }

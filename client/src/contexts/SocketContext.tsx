@@ -4,6 +4,13 @@ import { io, Socket } from 'socket.io-client'
 import { useUser } from '../hooks/useUser'
 import { useToast } from './ToastContext'
 
+export interface GameInvitationNotification {
+  invitationId: string
+  roomId: string
+  roomName: string
+  sender: { id: string; username: string }
+}
+
 interface SocketContextType {
   socket: Socket | null
   isConnected: boolean
@@ -11,6 +18,8 @@ interface SocketContextType {
   disconnect: () => void
   joinRoom: (roomId: string) => void
   leaveRoom: (roomId: string) => void
+  pendingInvitations: GameInvitationNotification[]
+  dismissInvitation: (invitationId: string) => void
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined)
@@ -29,8 +38,13 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [authVersion, setAuthVersion] = useState(0)
+  const [pendingInvitations, setPendingInvitations] = useState<GameInvitationNotification[]>([])
   const { userId } = useUser()
   const { addToast } = useToast()
+
+  const dismissInvitation = useCallback((invitationId: string) => {
+    setPendingInvitations((prev) => prev.filter((inv) => inv.invitationId !== invitationId))
+  }, [])
 
   useEffect(() => {
     const handleAuthChanged = () => {
@@ -110,10 +124,18 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       addToast(i18n.t(key, { name }), 'info')
     })
 
+    socket.on('GAME_INVITATION_RECEIVED', (data: GameInvitationNotification) => {
+      setPendingInvitations((prev) => {
+        if (prev.some((inv) => inv.invitationId === data.invitationId)) return prev
+        return [...prev, data]
+      })
+    })
+
     return () => {
       socket.off('FRIEND_REQUEST_RECEIVED')
       socket.off('FRIEND_REQUEST_ACCEPTED')
       socket.off('FRIEND_STATUS_CHANGED')
+      socket.off('GAME_INVITATION_RECEIVED')
     }
   }, [socket, addToast])
 
@@ -149,7 +171,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         connect,
         disconnect,
         joinRoom,
-        leaveRoom
+        leaveRoom,
+        pendingInvitations,
+        dismissInvitation,
       }}
     >
       {children}

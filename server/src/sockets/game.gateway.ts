@@ -3,6 +3,8 @@ import { activeGames } from '../shared/activeGames.js'
 import jwt from 'jsonwebtoken'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
 import { AntiCheatMonitor } from '../utils/antiCheat.js'
+import { prisma } from '../config/database.js'
+import type { GameTable } from '../logic/GameTable.js'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -97,6 +99,38 @@ export class GameGateway {
       socket.on('leave-room', ({ roomId }: { roomId?: string }) => {
         if (!roomId) return
         socket.leave(roomId)
+      })
+
+      socket.on('invite-to-room', async (data: { roomId: string; invitedUserId: string; inviterId: string }) => {
+        const { roomId, invitedUserId, inviterId } = data
+        if (!roomId || !invitedUserId || !inviterId) return
+        if (socket.userId !== inviterId) return
+
+        try {
+          const room = await prisma.waitingRoom.findUnique({ where: { id: roomId } })
+          if (!room || room.status !== 'WAITING' || room.hostId !== inviterId) return
+
+          const invitation = await prisma.gameInvitation.upsert({
+            where: { roomId_receiverId: { roomId, receiverId: invitedUserId } },
+            create: { roomId, senderId: inviterId, receiverId: invitedUserId, status: 'PENDING' },
+            update: { status: 'PENDING', senderId: inviterId },
+          })
+
+          const sender = await prisma.user.findUnique({
+            where: { id: inviterId },
+            select: { username: true },
+          })
+
+          this.io.to(`user:${invitedUserId}`).emit('GAME_INVITATION_RECEIVED', {
+            invitationId: invitation.id,
+            roomId,
+            roomName: room.name,
+            sender: { id: inviterId, username: sender?.username ?? 'Joueur' },
+          })
+          console.log(`📨 Invitation envoyée: ${inviterId} → ${invitedUserId} (salle ${roomId})`)
+        } catch (err) {
+          console.error('Erreur invite-to-room:', err)
+        }
       })
 
       socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string }) => {
@@ -269,7 +303,14 @@ export class GameGateway {
             const uid = (s as unknown as AuthenticatedSocket).userId
             s.emit('GAME_UPDATE', game.getSanitizedState(uid))
           }
-          this.startTurnTimer(gameId)
+
+          if (game.state.phase === 'SHOWDOWN' && game.state.showdownWinnerId) {
+            this.recordMultiPlayerStats(game).catch((err) =>
+              console.error('[Stats] Erreur enregistrement stats multi:', err)
+            )
+          } else {
+            this.startTurnTimer(gameId)
+          }
           
           const duration = Date.now() - startActionTime
           console.log(`[Réseau] ⚡ Action ${action} traitée et diffusée en ${duration}ms pour ${playerId}`)
@@ -413,6 +454,43 @@ export class GameGateway {
         }
       })
     })
+  }
+
+  private async recordMultiPlayerStats(game: GameTable): Promise<void> {
+    const winnerId = game.state.showdownWinnerId
+    const pot = game.state.showdownPot ?? 0
+    if (!winnerId) return
+
+    for (const player of game.state.players) {
+      const isWinner = player.id === winnerId
+      const chipsWon = isWinner ? pot : 0
+      const chipsLost = !isWinner ? (player.totalPutInThisHand ?? player.currentBet ?? 0) : 0
+
+      try {
+        await prisma.playerStats.upsert({
+          where: { playerId: player.id },
+          create: {
+            playerId: player.id,
+            totalGames: 1,
+            totalWins: isWinner ? 1 : 0,
+            totalLosses: isWinner ? 0 : 1,
+            totalChipsWon: chipsWon,
+            totalChipsLost: chipsLost,
+            biggestWin: chipsWon,
+            biggestPot: pot,
+          },
+          update: {
+            totalGames: { increment: 1 },
+            ...(isWinner
+              ? { totalWins: { increment: 1 }, totalChipsWon: { increment: chipsWon } }
+              : { totalLosses: { increment: 1 }, totalChipsLost: { increment: chipsLost } }),
+          },
+        })
+      } catch (err) {
+        console.error(`[Stats] Erreur upsert pour ${player.id}:`, err)
+      }
+    }
+    console.log(`[Stats] Stats multi enregistrées pour la partie ${game.id} (gagnant: ${winnerId})`)
   }
 
   private startTurnTimer(gameId: string) {

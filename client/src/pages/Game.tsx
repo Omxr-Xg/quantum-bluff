@@ -450,6 +450,10 @@ export function Game() {
         }));
         setPlayersState(mapped);
         setPot(gameState.pot ?? 0);
+        const humanChips = players.find((p) => String(p.id) === String(userId))?.chips;
+        if (humanChips != null) {
+          setPlayerChips(humanChips);
+        }
         const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
         setPhase(phase as GamePhase);
         const cc = gameState.communityCards;
@@ -541,6 +545,12 @@ export function Game() {
       setHasPlayerActed(false);
       setIsLoading(false);
       setRoundPlayersActed(new Set());
+
+      const humanServerChips = players.find((p) => String(p.id) === String(userId))?.chips;
+      if (humanServerChips != null) {
+        setPlayerChips(humanServerChips);
+      }
+
       const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
       if (currentTurnId === String(userId)) {
         setTimerActive(true);
@@ -549,8 +559,7 @@ export function Game() {
       if (phase === "showdown" && gameState.showdownWinnerId) {
         const winnerName = players.find((p) => String(p.id) === String(gameState.showdownWinnerId))?.name ?? String(gameState.showdownWinnerId);
         const potWon = gameState.showdownPot ?? 0;
-        const humanPlayer = players.find((p) => String(p.id) === String(userId));
-        const humanChipsAfter = humanPlayer?.chips ?? 0;
+        const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
         addToUserBalance(balanceChange);
         setShowdownResult({
