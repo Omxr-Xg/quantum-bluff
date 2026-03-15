@@ -138,6 +138,7 @@ export function Game() {
   const doStreetTransitionRef = useRef<(() => void) | null>(null);
   /** Mode bot : les deux ont agi (preflop égalisé), ne pas redonner la main au joueur */
   const bothActedNoTurnRef = useRef(false);
+  const botIsFetchingRef = useRef(false);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
@@ -158,7 +159,7 @@ export function Game() {
 
     if (mode === "bot") {
       const botNames = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
-      const bots: BotPlayer[] = [];
+      const bots: (BasePlayer | BotPlayer)[] = [];
       const BOT_START_CHIPS = 1000;
       for (let i = 0; i < count; i++) {
         bots.push({
@@ -474,12 +475,18 @@ export function Game() {
       if (payload?.code === "GAME_NOT_FOUND") {
         navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
       }
+        // Si le serveur refuse l'action (ex: pas assez de jetons, pas votre tour)
+        else if (payload?.code === "ACTION_ERROR" || payload?.code === "INVALID_RAISE" || payload?.code === "TOO_MANY_ACTIONS") {
+          addToast(payload?.message || t('common.error'), "error");
+          setIsLoading(false);
+          setHasPlayerActed(false);
+        }
     };
     socket.on("ERROR", onError);
     return () => {
       socket.off("ERROR", onError);
     };
-  }, [socket, gameIdParam, userId, navigate]);
+    }, [socket, gameIdParam, userId, navigate, addToast, t]);
 
   // Appliquer les mises à jour d'état envoyées par le serveur (après une action)
   useEffect(() => {
@@ -990,9 +997,10 @@ export function Game() {
     if (!activePlayer) return;
 
     const isBotTurn = "isBot" in activePlayer && activePlayer.isBot;
-    if (!isBotTurn || isBotThinking) return;
+    if (!isBotTurn || isBotThinking || botIsFetchingRef.current) return;
 
     setIsBotThinking(true);
+    botIsFetchingRef.current = true;
 
     const fetchBotDecision = async () => {
       try {
@@ -1019,6 +1027,7 @@ export function Game() {
           await response.text();
           addToast(`Erreur bot (${response.status})`, "error");
           setIsBotThinking(false);
+          botIsFetchingRef.current = false;
           return;
         }
 
@@ -1079,11 +1088,13 @@ export function Game() {
             }
           }
           setIsBotThinking(false);
+          botIsFetchingRef.current = false;
         }, Math.random() * 1000 + 1000);
       } catch (error) {
         console.error("Erreur API bot:", error);
         addToast("Erreur connexion bot", "error");
         setIsBotThinking(false);
+        botIsFetchingRef.current = false;
       }
     };
 
@@ -1246,10 +1257,11 @@ export function Game() {
               next = { ...p, chips: p.chips + refund, bet: amount };
             }
           } else {
-            next = { ...p, chips: Math.max(0, actorChipsBefore - amount), bet: actorBetBefore + amount };
+            next = { ...p, chips: Math.max(0, actorChipsBefore - amount), bet: actorBetBefore + amount, isActive: false };
           }
-          if (isBotAllInCall) next = { ...next, isActive: false };
-          next = { ...next, isActive: false };
+          if (isBotAllInCall) {
+            next = { ...next, isActive: false };
+          }
           return next;
         });
         const botNext = nextList.find((p) => p.id === playerId);

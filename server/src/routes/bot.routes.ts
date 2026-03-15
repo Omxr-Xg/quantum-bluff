@@ -326,6 +326,7 @@ function normalizeCard(c: { suit?: string; rank?: string; value?: string | numbe
 }
 
 router.post('/action', (req, res) => {
+  const startBotTime = Date.now()
   try {
     const raw = req.body as BotActionRequest & { playerCards?: Array<{ suit?: string; rank?: string; value?: string | number }> }
 
@@ -355,7 +356,12 @@ router.post('/action', (req, res) => {
         return res.status(400).json({ error: 'Invalid difficulty' })
     }
 
-    console.log('🤖 Bot decision:', botRequest.difficulty, decision)
+    const duration = Date.now() - startBotTime
+    console.log(`[Monitoring QoS] 🤖 Décision bot (${botRequest.difficulty}) calculée en ${duration}ms (Obj: <500ms)`)
+    
+    if (duration > 500) {
+      console.warn(`[Alerte Réseau] ⚠️ Le bot a dépassé la limite de latence (${duration}ms)`)
+    }
 
     res.json(decision)
   } catch (error) {

@@ -15,6 +15,7 @@ export class GameGateway {
   private socketToUser: Map<string, string> = new Map()
   private userToSocket: Map<string, string> = new Map()
   private antiCheat = new AntiCheatMonitor(8, 3000)
+  private disconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map()
 
   constructor(io: Server) {
     this.io = io
@@ -64,13 +65,8 @@ export class GameGateway {
 
   private setupHandlers() {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
-      console.log('🎮 Nouvelle connexion socket:', socket.id, 'User:', socket.userId)
-
-      socket.on('disconnect', (reason) => {
-        console.log('👋 Socket déconnecté:', socket.id, 'Raison:', reason)
-        this.socketToUser.delete(socket.id)
-        if (socket.userId) this.userToSocket.delete(socket.userId)
-      })
+      const clientsCount = (this.io as any).engine.clientsCount
+      console.log(`[Monitoring Réseau] 🌐 Nouvelle connexion socket: ${socket.id} (User: ${socket.userId}). Total simultanées: ${clientsCount}`)
 
       if (socket.userId) {
         this.socketToUser.set(socket.id, socket.userId)
@@ -106,6 +102,13 @@ export class GameGateway {
       socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string }) => {
         try {
           const { gameId, playerId } = data
+
+          // Désamorcer le timeout de déconnexion si le joueur revient via JOIN_GAME (ex: F5)
+          if (socket.userId && this.disconnectionTimeouts.has(socket.userId)) {
+            clearTimeout(this.disconnectionTimeouts.get(socket.userId)!)
+            this.disconnectionTimeouts.delete(socket.userId)
+            console.log(`[Réseau] Joueur ${socket.userId} de retour avant la fin du timeout !`)
+          }
 
           if (socket.userId !== playerId) {
             logSuspiciousAction('UNAUTHORIZED_JOIN', {
@@ -158,6 +161,7 @@ export class GameGateway {
         action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'; 
         amount?: number;
       }) => {
+        const startActionTime = Date.now()
         try {
           const { gameId, playerId, action, amount } = data
 
@@ -266,6 +270,9 @@ export class GameGateway {
             s.emit('GAME_UPDATE', game.getSanitizedState(uid))
           }
           this.startTurnTimer(gameId)
+          
+          const duration = Date.now() - startActionTime
+          console.log(`[Réseau] ⚡ Action ${action} traitée et diffusée en ${duration}ms pour ${playerId}`)
         } catch (error) {
           logSuspiciousAction('ACTION_ERROR', {
             userId: socket.userId,
@@ -286,6 +293,12 @@ export class GameGateway {
       socket.on('RECONNECT_GAME', async (data: { gameId: string }) => {
         try {
           const { gameId } = data
+
+          if (socket.userId && this.disconnectionTimeouts.has(socket.userId)) {
+            clearTimeout(this.disconnectionTimeouts.get(socket.userId)!)
+            this.disconnectionTimeouts.delete(socket.userId)
+            console.log(`[Réseau] Joueur ${socket.userId} de retour avant la fin du timeout !`)
+          }
 
           if (socket.gameId && socket.gameId !== gameId) {
             socket.leave(socket.gameId)
@@ -330,8 +343,9 @@ export class GameGateway {
         }
       })
 
-      socket.on('disconnect', async () => {
-        console.log('👋 Joueur déconnecté:', socket.id)
+      socket.on('disconnect', async (reason) => {
+        const currentCount = (this.io as any).engine.clientsCount
+        console.log(`[Monitoring Réseau] 🔌 Déconnexion socket: ${socket.id}, Raison: ${reason}. Total: ${currentCount}`)
 
         const userId = socket.userId
         if (userId) {
@@ -343,33 +357,59 @@ export class GameGateway {
             userId,
             status: 'offline'
           })
+        } else {
+          this.socketToUser.delete(socket.id)
         }
 
         if (socket.gameId && userId) {
           const gameId = socket.gameId
-          const game = await activeGames.get(gameId)
-          if (game) {
-            const player = game.getPlayerState(userId)
-            if (player) {
-              player.isConnected = false
-              const result = game.endGameDueToDisconnect()
-              if (result) {
-                this.resetTimer(gameId)
-                await activeGames.delete(gameId)
-                this.io.to(gameId).emit('GAME_ENDED', {
-                  gameId,
-                  winnerId: result.winnerId,
-                  reason: 'opponent_left',
-                  pot: result.pot
-                })
-              } else {
-                this.io.to(gameId).emit('PLAYER_DISCONNECTED', {
-                  playerId: userId,
-                  gameId
-                })
+          console.log(`[Réseau] Joueur ${userId} déconnecté. Lancement du délai de 10s...`)
+
+          const timeout = setTimeout(async () => {
+            console.log(`[Réseau] Timeout expiré pour ${userId}. Le joueur est officiellement hors ligne.`)
+            const game = await activeGames.get(gameId)
+            if (game) {
+              const player = game.getPlayerState(userId)
+              if (player) {
+                player.isConnected = false
+                
+                if (game.state.currentTurn === userId) {
+                  try {
+                    console.log(`[Réseau] Auto-FOLD pour le joueur déconnecté ${userId}`)
+                    game.handlePlayerAction(userId, 'FOLD')
+                    const socketsInRoom = await this.io.in(gameId).fetchSockets()
+                    for (const s of socketsInRoom) {
+                      const uid = (s as unknown as AuthenticatedSocket).userId
+                      s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+                    }
+                    this.startTurnTimer(gameId)
+                  } catch (error) {
+                    console.error('[Réseau] Erreur auto-fold timeout:', error)
+                  }
+                }
+
+                const result = game.endGameDueToDisconnect()
+                if (result) {
+                  this.resetTimer(gameId)
+                  await activeGames.delete(gameId)
+                  this.io.to(gameId).emit('GAME_ENDED', {
+                    gameId,
+                    winnerId: result.winnerId,
+                    reason: 'opponent_left',
+                    pot: result.pot
+                  })
+                } else {
+                  this.io.to(gameId).emit('PLAYER_DISCONNECTED', {
+                    playerId: userId,
+                    gameId
+                  })
+                }
               }
             }
-          }
+            this.disconnectionTimeouts.delete(userId)
+          }, 10000)
+          
+          this.disconnectionTimeouts.set(userId, timeout)
         }
       })
     })
