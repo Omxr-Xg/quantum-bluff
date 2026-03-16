@@ -103,7 +103,7 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-gray-400">Gain</span>
+              <span className="text-gray-400">{winner.isSplit ? "Chacun reçoit" : "Gain"}</span>
               <span className="text-2xl font-bold text-yellow-400">
                 {winner.pot.toLocaleString()} 🪙
               </span>

@@ -1,6 +1,6 @@
 import type { GamePhase, GameState, Player } from '../types/poker.js'
 import { Deck } from './Deck.js'
-import { findWinnerWithHand } from './Evaluator.js'
+import { findWinnersWithHand } from './Evaluator.js'
 
 type PlayerAction = 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
 
@@ -643,6 +643,7 @@ export class GameTable {
 
     let distributed = 0
     let lastWinnerId = ''
+    let lastWinnerIds: string[] = []
     let lastHandName = ''
 
     for (let i = 0; i < levels.length; i++) {
@@ -666,16 +667,25 @@ export class GameTable {
       }
       if (potSize <= 0) continue
 
-      const { winnerId, handName } = findWinnerWithHand(
+      const { winnerIds, handName } = findWinnersWithHand(
         eligible,
         this.state.communityCards
       )
-      const winner = this.state.players.find((p) => p.id === winnerId)
-      if (winner) {
-        winner.chips += potSize
-        distributed += potSize
+      const n = winnerIds.length
+      const share = n > 0 ? Math.floor(potSize / n) : 0
+      const remainderThisLevel = potSize - share * n
+      for (let j = 0; j < winnerIds.length; j++) {
+        const wid = winnerIds[j]
+        const winner = this.state.players.find((p) => p.id === wid)
+        if (winner) {
+          let amount = share
+          if (j === 0) amount += remainderThisLevel
+          winner.chips += amount
+          distributed += amount
+        }
       }
-      lastWinnerId = winnerId
+      lastWinnerId = winnerIds[0] ?? lastWinnerId
+      lastWinnerIds = winnerIds
       lastHandName = handName
     }
 
@@ -687,6 +697,8 @@ export class GameTable {
 
     this.state.pot = 0
     this.state.showdownWinnerId = lastWinnerId
+    this.state.showdownWinnerIds = lastWinnerIds
+    this.state.showdownIsSplit = lastWinnerIds.length > 1
     this.state.showdownHandName = lastHandName
     this.state.showdownPot = totalPot
   }
@@ -733,6 +745,8 @@ export class GameTable {
       currentTurn: this.state.currentTurn,
       phase: this.state.phase,
       showdownWinnerId: this.state.showdownWinnerId,
+      showdownWinnerIds: this.state.showdownWinnerIds,
+      showdownIsSplit: this.state.showdownIsSplit,
       showdownHandName: this.state.showdownHandName,
       showdownPot: this.state.showdownPot
     }
@@ -746,6 +760,8 @@ export class GameTable {
       currentTurn: this.state.currentTurn,
       phase: this.state.phase,
       showdownWinnerId: this.state.showdownWinnerId,
+      showdownWinnerIds: this.state.showdownWinnerIds,
+      showdownIsSplit: this.state.showdownIsSplit,
       showdownHandName: this.state.showdownHandName,
       showdownPot: this.state.showdownPot,
       players: this.state.players.map((player) => ({

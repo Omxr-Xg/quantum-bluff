@@ -118,6 +118,7 @@ export function Game() {
   const [gameOverReason, setGameOverReason] = useState<"human_eliminated" | "bot_eliminated" | null>(null);
   const [showdownResult, setShowdownResult] = useState<{
     winnerId: string;
+    winnerIds?: string[];
     winnerName: string;
     hand: string;
     handRank: number;
@@ -157,10 +158,12 @@ export function Game() {
   /** Multiplayer: données du showdown en attente (révélation 3s avant d'afficher le modal) */
   const [pendingShowdownData, setPendingShowdownData] = useState<{
     winnerId: string;
+    winnerIds?: string[];
     winnerName: string;
     hand: string;
     pot: number;
     winnerCards: Card[];
+    isSplit?: boolean;
   } | null>(null);
   /** Track total chips contributed per player across all streets (for side pot calculation) */
   const handContributionsRef = useRef<Record<string, number>>({});
@@ -170,6 +173,8 @@ export function Game() {
   const [rematchLoading, setRematchLoading] = useState(false);
   /** Skip la révélation du showdown : appelle cette ref pour passer au résultat */
   const showdownSkipRef = useRef<(() => void) | null>(null);
+  /** Multi: timeouts pour l'animation du flop carte par carte */
+  const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
@@ -552,12 +557,25 @@ export function Game() {
         }
         const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
         setPhase(phase as GamePhase);
-        const cc = gameState.communityCards;
-        if (Array.isArray(cc)) {
-          const arr: (Card | null)[] = [null, null, null, null, null];
-          cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
+      const cc = gameState.communityCards;
+      if (Array.isArray(cc)) {
+        const arr: (Card | null)[] = [null, null, null, null, null];
+        cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
+        // Flop carte par carte en multijoueur (comme en mode bot)
+        if (phase === "flop" && arr[0] && arr[1] && arr[2] && !arr[3] && !arr[4]) {
+          flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
+          flopAnimateTimeoutsRef.current = [];
+          setCommunityCardsState([arr[0], null, null, null, null]);
+          flopAnimateTimeoutsRef.current.push(
+            setTimeout(() => setCommunityCardsState((prev) => [prev[0], arr[1], null, null, null]), 800)
+          );
+          flopAnimateTimeoutsRef.current.push(
+            setTimeout(() => setCommunityCardsState([arr[0]!, arr[1]!, arr[2]!, null, null]), 1600)
+          );
+        } else {
           setCommunityCardsState(arr);
         }
+      }
         const isPlayingPhase = phase !== "init";
         setGameInitialized(isPlayingPhase);
       })
@@ -621,7 +639,7 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownHandName?: string; showdownPot?: number }) => {
+    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number }) => {
       gameStateFromSocketRef.current = true;
       const players = gameState.players ?? [];
       setPlayersState((prev) => {
@@ -655,7 +673,17 @@ export function Game() {
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
         cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
-        setCommunityCardsState(arr);
+        // Multi: flop carte par carte (comme en mode bot)
+        if (phase === "flop" && arr[0] && arr[1] && arr[2]) {
+          flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
+          flopAnimateTimeoutsRef.current = [];
+          setCommunityCardsState([arr[0], null, null, null, null]);
+          const t1 = setTimeout(() => setCommunityCardsState((prev) => [arr[0]!, arr[1]!, null, null, null]), 800);
+          const t2 = setTimeout(() => setCommunityCardsState(arr), 1600);
+          flopAnimateTimeoutsRef.current = [t1, t2];
+        } else {
+          setCommunityCardsState(arr);
+        }
       }
       setGameInitialized(phase !== "init");
       setHasPlayerActed(false);
@@ -674,10 +702,18 @@ export function Game() {
         setTimerActive(true);
         setTimeLeft(30);
       }
-      if (phase === "showdown" && gameState.showdownWinnerId) {
-        const winnerName = players.find((p) => String(p.id) === String(gameState.showdownWinnerId))?.name ?? String(gameState.showdownWinnerId);
-        const winnerPlayer = players.find((p) => String(p.id) === String(gameState.showdownWinnerId));
-        const potWon = gameState.showdownPot ?? 0;
+      const hasShowdownWinner = gameState.showdownWinnerId || (gameState.showdownWinnerIds && gameState.showdownWinnerIds.length > 0);
+      if (phase === "showdown" && hasShowdownWinner) {
+        const winnerIds = gameState.showdownIsSplit && gameState.showdownWinnerIds?.length
+          ? gameState.showdownWinnerIds
+          : [gameState.showdownWinnerId!];
+        const firstWinnerId = winnerIds[0]!;
+        const winnerName = gameState.showdownIsSplit && winnerIds.length > 1
+          ? "Égalité"
+          : (players.find((p) => String(p.id) === String(firstWinnerId))?.name ?? firstWinnerId);
+        const winnerPlayer = players.find((p) => String(p.id) === String(firstWinnerId));
+        const totalPot = gameState.showdownPot ?? 0;
+        const potWon = winnerIds.length > 1 ? Math.floor(totalPot / winnerIds.length) : totalPot;
         const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
         addToUserBalance(balanceChange);
@@ -688,11 +724,13 @@ export function Game() {
           : [];
         setShowdownReveal(true);
         setPendingShowdownData({
-          winnerId: gameState.showdownWinnerId,
+          winnerId: firstWinnerId,
+          winnerIds: winnerIds.length > 1 ? winnerIds : undefined,
           winnerName,
           hand: gameState.showdownHandName ?? "—",
           pot: potWon,
           winnerCards: normalized,
+          isSplit: gameState.showdownIsSplit ?? false,
         });
       }
     };
@@ -748,10 +786,12 @@ export function Game() {
     const applyResult = () => {
       setShowdownResult({
         winnerId: pendingShowdownData.winnerId,
+        winnerIds: pendingShowdownData.winnerIds,
         winnerName: pendingShowdownData.winnerName,
         hand: pendingShowdownData.hand,
         handRank: 0,
         pot: pendingShowdownData.pot,
+        isSplit: pendingShowdownData.isSplit,
       });
       setShowdownWinnerCards(pendingShowdownData.winnerCards);
       setShowdownReveal(false);
@@ -2085,7 +2125,10 @@ export function Game() {
             return;
           }
           const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
-          const won = showdownResult.winnerId === humanId || showdownResult.winnerId === "human";
+          const won =
+            showdownResult.winnerId === humanId ||
+            showdownResult.winnerId === "human" ||
+            (showdownResult.isSplit && showdownResult.winnerIds?.some((id) => String(id) === String(humanId)));
           const winnerName = showdownResult.winnerName;
           const handName = showdownResult.hand;
           setHandResult(won ? "win" : "loss");
