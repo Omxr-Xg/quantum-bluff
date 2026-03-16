@@ -36,6 +36,24 @@
 - Mises à jour : `curl http://IP_VM:3000/updates/latest`
 - Logs PM2 : `pm2 logs quantum-bluff`
 
+## Déploiement Docker (alternative)
+
+Si vous utilisez `docker-compose.prod.yml` :
+
+```bash
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+Le backend exécute automatiquement `prisma migrate deploy` au démarrage (via `docker-entrypoint.sh`).
+
+## Dépannage VM
+
+| Problème | Solution |
+|----------|----------|
+| **Erreur 500 à l'inscription** / « The table public.User does not exist » | Les migrations n'ont pas été exécutées. Lancer : `cd server && npx prisma migrate deploy` puis redémarrer le serveur (PM2 ou Docker). |
+| **PostgreSQL inaccessible** | Vérifier que PostgreSQL tourne et que `DATABASE_URL` dans `.env` pointe vers le bon hôte (ex. `localhost` si PostgreSQL est sur la VM, ou le nom du service si Docker). |
+| **Première mise en place** | S'assurer que PostgreSQL + Redis sont lancés **avant** le backend, puis exécuter `prisma migrate deploy` une fois. |
+
 ## Architecture
 
 ```
