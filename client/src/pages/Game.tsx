@@ -161,6 +161,9 @@ export function Game() {
   /** Track total chips contributed per player across all streets (for side pot calculation) */
   const handContributionsRef = useRef<Record<string, number>>({});
   const [sidePots, setSidePots] = useState<{ amount: number; eligibleIds: string[] }[]>([]);
+  /** Multi: host peut relancer avec les mêmes membres */
+  const [isRematchHost, setIsRematchHost] = useState(false);
+  const [rematchLoading, setRematchLoading] = useState(false);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
@@ -701,6 +704,28 @@ export function Game() {
       socket.off("GAME_ENDED", onGameEnded);
     };
   }, [socket, gameIdParam, userId]);
+
+  // Multi: fetch room-info quand handResult pour afficher bouton rematch au host
+  useEffect(() => {
+    if (!handResult || !gameIdParam || isBotMode || !userId) return;
+    const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+    fetch(`${apiBase}/api/game/${gameIdParam}/room-info`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.hostId && String(data.hostId) === String(userId)) setIsRematchHost(true);
+      })
+      .catch(() => {});
+  }, [handResult, gameIdParam, isBotMode, userId]);
+
+  // Multi: écouter REMATCH_CREATED pour rediriger vers la nouvelle salle
+  useEffect(() => {
+    if (!socket) return;
+    const onRematch = (data: { newRoomId: string }) => {
+      if (data?.newRoomId) navigate(`/waiting-room?roomId=${data.newRoomId}`);
+    };
+    socket.on("REMATCH_CREATED", onRematch);
+    return () => socket.off("REMATCH_CREATED", onRematch);
+  }, [socket, navigate]);
 
   // Multiplayer: après 3s de révélation des cartes, afficher le modal du gagnant
   useEffect(() => {
@@ -2021,6 +2046,33 @@ export function Game() {
                 >
                   {t("game.backToLobby")}
                 </button>
+                {gameIdParam && !isBotMode && isRematchHost && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setRematchLoading(true);
+                      try {
+                        const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+                        const res = await fetch(`${apiBase}/api/waiting-room/rematch`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
+                          body: JSON.stringify({ gameId: gameIdParam }),
+                        });
+                        if (!res.ok) {
+                          const err = await res.json().catch(() => ({}));
+                          addToast(err?.error ?? "Erreur rematch", "error");
+                        }
+                      } finally {
+                        setRematchLoading(false);
+                      }
+                    }}
+                    disabled={rematchLoading}
+                    className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {rematchLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                    {t("game.rematchSameMembers")}
+                  </button>
+                )}
                 {isBotMode && (
                   <button
                     type="button"

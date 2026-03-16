@@ -54,7 +54,8 @@
     "timer": "{{seconds}}s",
     "goToHiddenBets": "Ir a hidden bets",
     "backToLobby": "Volver al lobby",
-    "replaySameConfig": "Rejugar con la misma configuración"
+    "replaySameConfig": "Rejugar con la misma configuración",
+    "rematchSameMembers": "Rejugar con los mismos miembros"
   },
   "friends": {
     "title": "Mis Amigos",

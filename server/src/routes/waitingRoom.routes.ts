@@ -3,8 +3,8 @@ import { prisma } from '../config/database.js';
 import { GameTable } from '../logic/GameTable.js';
 import type { Player } from '../types/poker.js';
 import { activeGames } from '../shared/activeGames.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 import sanitizeHtml from 'sanitize-html';
-
 
 const router = express.Router();
 
@@ -129,6 +129,62 @@ router.post('/create', async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur création salle:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/waiting-room/rematch - Host: créer une nouvelle salle avec les mêmes membres
+router.post('/rematch', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId;
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+    const { gameId } = req.body as { gameId?: string };
+    if (!gameId) return res.status(400).json({ error: 'gameId requis' });
+
+    const oldRoom = await prisma.waitingRoom.findFirst({
+      where: { gameId },
+      include: {
+        players: {
+          include: {
+            user: {
+              select: { id: true, username: true, chips: true }
+            }
+          }
+        }
+      },
+    });
+
+    if (!oldRoom) return res.status(404).json({ error: 'Partie introuvable' });
+    if (oldRoom.hostId !== userId) return res.status(403).json({ error: 'Seul l\'hôte peut relancer avec les mêmes membres' });
+
+    const hostUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!hostUser) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+
+    const newRoom = await prisma.waitingRoom.create({
+      data: {
+        name: `Revanche - ${oldRoom.name}`,
+        hostId: userId,
+        maxPlayers: oldRoom.maxPlayers,
+        visibility: oldRoom.visibility,
+        players: {
+          create: oldRoom.players.map((rp, idx) => ({
+            userId: rp.userId,
+            isReady: false,
+            position: idx,
+          })),
+        },
+      },
+    });
+
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    if (io) {
+      io.to(gameId).emit('REMATCH_CREATED', { newRoomId: newRoom.id });
+    }
+
+    res.json({ newRoomId: newRoom.id });
+  } catch (error) {
+    console.error('Erreur rematch:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

@@ -94,6 +94,22 @@ router.post('/start', async (req, res) => {
   }
 });
 
+// GET /api/game/:gameId/room-info - Infos salle/host pour rematch (partie multi)
+router.get('/:gameId/room-info', async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const room = await prisma.waitingRoom.findFirst({
+      where: { gameId },
+      select: { id: true, hostId: true },
+    });
+    if (!room) return res.status(404).json({ error: 'Salle introuvable pour cette partie' });
+    res.json({ roomId: room.id, hostId: room.hostId });
+  } catch (error) {
+    console.error('Erreur room-info:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // GET /api/game/:gameId - Récupérer l'état d'une partie (?playerId= pour recevoir ses cartes)
 router.get('/:gameId', async (req, res) => {
   const { gameId } = req.params;
