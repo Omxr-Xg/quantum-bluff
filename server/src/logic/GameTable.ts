@@ -1,8 +1,10 @@
-import type { GamePhase, GameState, Player } from '../types/poker.js'
+import type { Card, GamePhase, GameState, Player } from '../types/poker.js'
 import { Deck } from './Deck.js'
 import { findWinnersWithHand } from './Evaluator.js'
 
 type PlayerAction = 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
+
+const RANK_VALUE: Record<string, number> = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, J: 11, Q: 12, K: 13, A: 14 }
 
 export class GameTable {
   public readonly id: string
@@ -373,7 +375,7 @@ export class GameTable {
     }
   }
 
-  startHand(): void {
+  startHand(forcedHoleCards?: Record<string, Card[]>): void {
     if (this.getConnectedPlayers().length < 2) {
       throw new Error('Il faut au moins 2 joueurs pour démarrer')
     }
@@ -400,7 +402,34 @@ export class GameTable {
       player.role = 'PLAYER'
     }
 
-    this.deck.dealInitialCards(this.state.players)
+    if (forcedHoleCards && Object.keys(forcedHoleCards).length > 0) {
+      const allForced: Card[] = []
+      for (const pid of Object.keys(forcedHoleCards)) {
+        const cards = forcedHoleCards[pid]
+        if (Array.isArray(cards) && cards.length === 2) {
+          const player = this.state.players.find((p) => p.id === pid)
+          if (player) {
+            player.cards = cards.map((c) => ({
+              suit: c.suit,
+              rank: c.rank,
+              value: (c.value ?? RANK_VALUE[c.rank] ?? 2)
+            }));
+            allForced.push(...player.cards)
+          }
+        }
+      }
+      this.deck.removeCards(allForced)
+      for (const player of this.state.players) {
+        if (player.cards.length === 0) {
+          const c1 = this.deck.draw(1)[0]
+          const c2 = this.deck.draw(1)[0]
+          player.cards = [c1, c2]
+        }
+      }
+    } else {
+      this.deck.dealInitialCards(this.state.players)
+    }
+
     this.setBlinds()
     this.state.currentTurn = this.getPreflopFirstPlayerId()
   }

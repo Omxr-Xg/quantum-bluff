@@ -458,9 +458,25 @@ router.post('/:roomId/start', async (req, res) => {
       isConnected: true
     }));
 
-    // Créer et initialiser la partie
+    // Créer et initialiser la partie (cartes forcées optionnelles pour les tests)
+    const forceCards = req.body.forceCards as Record<string, Array<{ suit: string; rank: string; value?: number }>> | undefined;
+    const forcedHoleCards: Record<string, import('../types/poker.js').Card[]> | undefined = forceCards && Object.keys(forceCards).length > 0
+      ? Object.fromEntries(
+          Object.entries(forceCards)
+            .filter(([, cards]) => Array.isArray(cards) && cards.length === 2)
+            .map(([pid, cards]) => [
+              pid,
+              cards.map((c) => ({
+                suit: c.suit as import('../types/poker.js').Suit,
+                rank: c.rank as import('../types/poker.js').Rank,
+                value: c.value ?? (c.rank === 'A' ? 14 : c.rank === 'K' ? 13 : c.rank === 'Q' ? 12 : c.rank === 'J' ? 11 : c.rank === '10' ? 10 : (parseInt(c.rank, 10) || 2)),
+              })),
+            ])
+        )
+      : undefined;
+
     const gameTable = new GameTable(gameId, players);
-    gameTable.startHand();
+    gameTable.startHand(forcedHoleCards);
 
     // Stocker dans le cache (Redis + local)
     await activeGames.set(gameId, gameTable);
