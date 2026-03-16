@@ -67,7 +67,7 @@ export class GameGateway {
 
   private setupHandlers() {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
-      const clientsCount = (this.io as any).engine.clientsCount
+      const clientsCount = (this.io as unknown as { engine: { clientsCount: number } }).engine.clientsCount
       console.log(`[Monitoring Réseau] 🌐 Nouvelle connexion socket: ${socket.id} (User: ${socket.userId}). Total simultanées: ${clientsCount}`)
 
       if (socket.userId) {
@@ -392,7 +392,7 @@ export class GameGateway {
       })
 
       socket.on('disconnect', async (reason) => {
-        const currentCount = (this.io as any).engine.clientsCount
+        const currentCount = (this.io as unknown as { engine: { clientsCount: number } }).engine.clientsCount
         console.log(`[Monitoring Réseau] 🔌 Déconnexion socket: ${socket.id}, Raison: ${reason}. Total: ${currentCount}`)
 
         const userId = socket.userId

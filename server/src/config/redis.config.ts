@@ -11,7 +11,7 @@ interface SerializedGameState {
 }
 
 // Configuration Redis
-const redisClient = new Redis({
+const redisOptions = {
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
   password: process.env.REDIS_PASSWORD || undefined,
@@ -19,7 +19,11 @@ const redisClient = new Redis({
     const delay = Math.min(times * 50, 2000);
     return delay;
   }
-});
+};
+
+const redisClient = process.env.REDIS_URL 
+  ? new Redis(process.env.REDIS_URL, { retryStrategy: redisOptions.retryStrategy })
+  : new Redis(redisOptions);
 
 redisClient.on('connect', () => {
   console.log('✅ Redis connecté');

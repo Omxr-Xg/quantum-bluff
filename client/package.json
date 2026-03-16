@@ -117,7 +117,7 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "https://TON_SERVEUR_URL/updates/"
+        "url": "https://mai-projet-integrateur.u-strasbg.fr/vmProjetIntegrateurgrp10-0/updates/"
       }
     ],
     "mac": {

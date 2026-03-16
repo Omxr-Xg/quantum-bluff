@@ -40,7 +40,7 @@ router.get('/updates/latest', (_req, res) => {
 
     const latest = versions[0]
     res.json({ version: latest, file: `Quantum Bluff Setup ${latest}.exe` })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erreur lecture des versions' })
   }
 })

@@ -181,11 +181,11 @@ export function Game() {
         allPlayers.push({
           id: `bot-${i + 1}`,
           name: `Bot ${botNames[i]}`,
-          chips: startChips,
-          bet: 0,
+          chips: i === 0 ? BOT_START_CHIPS - SB : BOT_START_CHIPS,
+          bet: i === 0 ? SB : 0,
           position: i,
-          isActive: false,
-          isDealer: i === 0,
+          isActive: true,
+          isDealer: true,
           cards: [],
           isBot: true,
           difficulty: diffMap,
@@ -198,8 +198,8 @@ export function Game() {
       allPlayers.push({
         id: "human",
         name: "Vous",
-        chips: playerChips,
-        bet: 0,
+        chips: playerChips - BB,
+        bet: BB,
         position: count,
         isActive: false,
         isDealer: false,
@@ -315,36 +315,26 @@ export function Game() {
     }, 250);
   };
 
-  /** Calculate side pots from contributions at showdown */
-  const calculateSidePots = (
-    players: (BasePlayer | BotPlayer)[],
-    contributions: Record<string, number>
-  ): { amount: number; eligibleIds: string[] }[] => {
-    const active = players
-      .filter((p) => !(p.hasFolded ?? false))
-      .map((p) => ({ id: String(p.id), contribution: contributions[String(p.id)] ?? 0 }))
-      .sort((a, b) => a.contribution - b.contribution);
-    const folded = players
-      .filter((p) => p.hasFolded)
-      .map((p) => ({ id: String(p.id), contribution: contributions[String(p.id)] ?? 0 }));
-
-    const pots: { amount: number; eligibleIds: string[] }[] = [];
-    let prevLevel = 0;
-
-    for (let i = 0; i < active.length; i++) {
-      const level = active[i].contribution;
-      if (level <= prevLevel) continue;
-      const diff = level - prevLevel;
-      const eligible = active.slice(i).map((p) => p.id);
-      let potAmount = diff * eligible.length;
-      for (const fp of folded) {
-        const fpContrib = Math.min(Math.max(0, fp.contribution - prevLevel), diff);
-        if (fpContrib > 0) potAmount += fpContrib;
-      }
-      pots.push({ amount: potAmount, eligibleIds: eligible });
-      prevLevel = level;
-    }
-    return pots;
+    const resetBetsAndSetFirstToAct = (startIndex: number) => {
+    setRoundPlayersActed(new Set());
+      setPlayersState((prev) => {
+        let nextIndex = startIndex % prev.length;
+        let loopCount = 0;
+        let foundActive = false;
+        while (loopCount < prev.length) {
+          if (prev[nextIndex].isConnected !== false && !(prev[nextIndex].hasFolded ?? false) && (prev[nextIndex].chips ?? 0) > 0) {
+            foundActive = true;
+            break;
+          }
+          nextIndex = (nextIndex + 1) % prev.length;
+          loopCount++;
+        }
+        return prev.map((p, i) => ({
+          ...p,
+          bet: 0,
+          isActive: foundActive ? i === nextIndex : false
+        }));
+      });
   };
 
   /** Track contribution: add amount to a player's hand total */
@@ -375,7 +365,7 @@ export function Game() {
   // runOutOnly = true : après un all-in, on distribue les cartes sans donner la main à personne
   const dealFlop = (runOutOnly?: boolean) => {
     setPhase("flop");
-    if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstAct());
+      if (!runOutOnly) resetBetsAndSetFirstToAct(0);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -393,7 +383,7 @@ export function Game() {
 
   const dealTurn = (runOutOnly?: boolean) => {
     setPhase("turn");
-    if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstAct());
+      if (!runOutOnly) resetBetsAndSetFirstToAct(0);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -506,9 +496,8 @@ export function Game() {
   // Multijoueur : récupérer l'état du jeu depuis le backend (évite race localStorage + cartes / phase / pot)
   useEffect(() => {
     if (!gameIdParam || !userId) return;
-    const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-    const base = apiUrl || "";
-    const url = `${base}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
+    const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+    const url = `${baseUrl}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
     let cancelled = false;
     fetch(url, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
@@ -865,13 +854,12 @@ export function Game() {
 
     if (idx === -1) return;
 
+      const activeInHandCount = playersStateRef.current.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false)).length;
+
     setRoundPlayersActed((prev) => {
       const next = new Set(prev).add(idx);
-      const players = playersStateRef.current;
-      const activeInHand = players.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
-      const allActed = !gameIdParam && next.size >= activeInHand.length;
-      if (allActed) bothActedNoTurnRef.current = true;
-      if (allActed) {
+        if (!gameIdParam && next.size >= activeInHandCount) bothActedNoTurnRef.current = true;
+        if (!gameIdParam && next.size >= activeInHandCount) {
         const currentPhase = phase;
         setTimeout(() => {
           const latestPlayers = playersStateRef.current;
@@ -919,10 +907,10 @@ export function Game() {
         return -1;
       };
 
-      const nextIndex = nextPlayerWithChips((idx + 1) % newPlayers.length);
-      if (nextIndex !== -1) {
-        newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
-      }
+        let nextIndex = nextPlayerWithChips((idx + 1) % newPlayers.length);
+        if (nextIndex !== -1) {
+          newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
+        }
 
       return newPlayers;
     });
@@ -1063,64 +1051,57 @@ export function Game() {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
     if (showdownStartedRef.current) return;
     const activeInHand = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
-    // 1 player: award pot and skip API
-    if (activeInHand.length === 1) {
-      const soleWinner = activeInHand[0];
-      const currentPot = pot;
-      const humanId = String(playersState.find((p) => p.id === userId || p.id === "human")?.id ?? "human");
-      const isHuman = String(soleWinner.id) === humanId;
-      showdownStartedRef.current = true;
-      setPot(0);
-      setPlayersState((prev) =>
-        prev.map((p) => (p.id === soleWinner.id ? { ...p, chips: p.chips + currentPot } : p))
-      );
-      if (isHuman) setPlayerChips((prev) => prev + currentPot);
-      const balanceChange = isHuman ? currentPot : 0;
-      const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-      addToUserBalance(toAdd);
-      toAddLastRef.current = toAdd;
-      setShowdownWinnerCards(soleWinner.cards ?? []);
-      setShowdownReveal(false);
-      setShowdownResult({
-        winnerId: String(soleWinner.id),
-        winnerName: soleWinner.name,
-        hand: "Gagne par abandon",
-        handRank: 0,
-        pot: currentPot,
-      });
-      return;
-    }
-    // Need 5 community cards (try ref as fallback in case state is stale)
-    let validCommunity = communityCardsState.filter((c): c is Card => c !== null);
-    if (validCommunity.length < 5) {
-      validCommunity = communityCardsStateRef.current.filter((c): c is Card => c !== null);
-    }
-    if (validCommunity.length < 5) return;
-
-    showdownStartedRef.current = true;
-    setShowdownReveal(true);
-
-    let pots: { amount: number; eligibleIds: string[] }[] = [];
-    try {
-      pots = calculateSidePots(playersState, handContributionsRef.current);
-      if (pots.length > 1) setSidePots(pots);
-    } catch {
-      pots = [{ amount: pot, eligibleIds: activeInHand.map((p) => String(p.id)) }];
-    }
-
-    const revealTimer = setTimeout(async () => {
-      const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-      const currentPot = pot;
-      const humanId = String(playersState.find((p) => p.id === userId || p.id === "human")?.id ?? "human");
-      let humanShare = 0;
-      let mainWinnerName = "";
-      let mainHandName = "Haute carte";
-      let mainWinnerId = "";
-      let mainIsSplit = false;
-      const FETCH_TIMEOUT_MS = 8000;
-
-      const applyFallback = () => {
-        const fallbackWinner = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
+    if (activeInHand.length < 2) return;
+    const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+    const url = `${baseUrl}/api/bot/evaluate-winner`;
+    const currentPot = pot;
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        players: activeInHand.map((p) => ({ id: p.id, name: p.name, cards: p.cards })),
+        communityCards: communityCardsState.filter((c): c is Card => c !== null),
+      }),
+    })
+      .then((res) => res.json())
+      .then((data: { winnerId?: string; winnerIds?: string[]; winnerName?: string; isSplit?: boolean; handName?: string; handRank?: number }) => {
+        const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
+        const winnerIds = data.winnerIds ?? (data.winnerId ? [data.winnerId] : []);
+        const isSplit = data.isSplit === true && winnerIds.length > 1;
+        const dealerPosition = 0;
+        let humanShare = 0;
+        if (isSplit && winnerIds.length > 0) {
+          const share = Math.floor(currentPot / winnerIds.length);
+          const remainder = currentPot - share * winnerIds.length;
+          const dealerWinnerId = playersState.find((p) => p.position === dealerPosition && winnerIds.includes(p.id))?.id ?? winnerIds[0];
+          setPlayersState((prev) =>
+            prev.map((p) => {
+              if (!winnerIds.includes(p.id)) return p;
+              let amount = share;
+              if (p.id === dealerWinnerId && remainder > 0) amount += remainder;
+              return { ...p, chips: p.chips + amount };
+            })
+          );
+          if (winnerIds.includes(humanId ?? "")) {
+            const humanIsDealer = playersState.find((p) => p.id === humanId)?.position === dealerPosition;
+            humanShare = share + (humanIsDealer && remainder > 0 ? remainder : 0);
+            setPlayerChips((prev) => prev + humanShare);
+          }
+        } else {
+          const won = winnerIds.length > 0 && (winnerIds[0] === humanId || winnerIds[0] === "human");
+          if (won) {
+            setPlayerChips((prev) => prev + currentPot);
+            humanShare = currentPot;
+          } else {
+            setPlayersState((prev) => prev.map((p) => (p.id === winnerIds[0] ? { ...p, chips: p.chips + currentPot } : p)));
+          }
+        }
+        const startChips = startOfHandChipsRef.current;
+        const endChips = (winnerIds.includes(humanId ?? "") ? playerChips + humanShare : playerChips);
+        const balanceChange = endChips - startChips;
+        const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
+        addToUserBalance(toAdd);
+        toAddLastRef.current = toAdd;
         setPot(0);
         const balanceChange = playerChips - startOfHandChipsRef.current;
         addToUserBalance(balanceChange);
@@ -1274,8 +1255,8 @@ export function Game() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
-        const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-        const url = `${apiUrl ? apiUrl + "/" : ""}api/bot/action`;
+        const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+        const url = `${baseUrl}/api/bot/action`;
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1382,9 +1363,8 @@ export function Game() {
     if (handResult === null || !isBotMode) return;
     const t = setTimeout(() => {
       const token = localStorage.getItem("token");
-      const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-      const base = apiUrl || "";
-      const recordUrl = base ? `${base}/api/game/record-result` : "/api/game/record-result";
+      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+      const recordUrl = `${baseUrl}/api/game/record-result`;
       if (token) {
         fetch(recordUrl, {
           method: "POST",
@@ -1518,16 +1498,78 @@ export function Game() {
       const botIndex = playersState.findIndex((p) => p.id === playerId);
       const actorChipsBefore = playersState.find((p) => p.id === playerId)?.chips ?? 0;
       const actorBetBefore = playersState.find((p) => p.id === playerId)?.bet ?? 0;
-      setPlayersState((prev) =>
-        prev.map((p) =>
-          p.id === playerId
-            ? { ...p, chips: Math.max(0, actorChipsBefore - amount), bet: actorBetBefore + amount, isActive: false }
-            : p
-        )
-      );
-      setPot((prev) => prev + amount);
-      addContribution(playerId, amount);
-      nextTurn(botIndex);
+      setPlayersState((prev) => {
+        const nextList = prev.map((p) => {
+          let next = p;
+          if (p.id !== playerId) {
+            if ((p.bet ?? 0) > amount) {
+              const refund = (p.bet ?? 0) - amount;
+              next = { ...p, chips: p.chips + refund, bet: amount };
+            }
+          } else {
+            next = { ...p, chips: Math.max(0, actorChipsBefore - amount), bet: actorBetBefore + amount, isActive: false };
+          }
+          if (isBotAllInCall) {
+            next = { ...next, isActive: false };
+          }
+          return next;
+        });
+        const botNext = nextList.find((p) => p.id === playerId);
+        if (botNext) {
+          console.log("[QB-BOT setPlayersState bot update]", { amount, botChipsBefore: actorChipsBefore, botChipsAfter: botNext.chips, botBetAfter: botNext.bet });
+        }
+        return nextList;
+      });
+      const newPot = Math.max(0, pot + amount - totalRefund);
+      console.log("[QB-BOT pot update]", { potBefore: pot, amount, totalRefund, potAfter: newPot });
+      setPot((prev) => Math.max(0, prev + amount - totalRefund));
+      setRoundPlayersActed((prev) => {
+        const next = new Set(prev).add(botIndex);
+          const activeInHandCount = playersStateRef.current.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false)).length;
+          if (next.size >= activeInHandCount && !isBotAllInCall) {
+          bothActedNoTurnRef.current = true;
+          const currentPhase = phase;
+          if (streetTransitionScheduledRef.current !== currentPhase) {
+            streetTransitionScheduledRef.current = currentPhase;
+            const transitionFn =
+              currentPhase === "preflop"
+                ? dealFlop
+                : currentPhase === "flop"
+                  ? dealTurn
+                  : currentPhase === "turn"
+                    ? dealRiver
+                    : () => setPhase("showdown");
+            streetTransitionTimeoutRef.current = setTimeout(() => {
+              streetTransitionTimeoutRef.current = null;
+              transitionFn();
+            }, 1000);
+          }
+          } else if (next.size < activeInHandCount && !isBotAllInCall) {
+            // Bot a agi : donner la main au joueur suivant
+          setTimeout(() => {
+            setPlayersState((prev) => {
+                const newPlayers = prev.map(p => ({ ...p, isActive: false }));
+                let nextIdx = (botIndex + 1) % newPlayers.length;
+                let loopCount = 0;
+                while (loopCount < newPlayers.length) {
+                  const p = newPlayers[nextIdx];
+                  if (p.isConnected !== false && !(p.hasFolded ?? false) && (p.chips ?? 0) > 0) {
+                    newPlayers[nextIdx].isActive = true;
+                    break;
+                  }
+                  nextIdx = (nextIdx + 1) % newPlayers.length;
+                  loopCount++;
+                }
+                return newPlayers;
+            });
+          }, 50);
+        }
+        return next;
+      });
+      if (humanRefund > 0) {
+        setPlayerChips((prev) => prev + humanRefund);
+      }
+      if (isBotAllInCall) setTimeout(() => setRunOutPhase(phase), 50);
       setHasPlayerActed(false);
       setIsLoading(false);
       return;
