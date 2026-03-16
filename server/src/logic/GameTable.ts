@@ -750,7 +750,8 @@ export class GameTable {
         isActive: player.isActive,
         isDealer: player.isDealer || false,
         isConnected: player.isConnected !== false,
-        cards: player.id === requestingPlayerId ? player.cards : []
+        // Au showdown, révéler toutes les cartes pour l'affichage
+        cards: this.state.phase === 'SHOWDOWN' ? player.cards : (player.id === requestingPlayerId ? player.cards : [])
       }))
     }
   }

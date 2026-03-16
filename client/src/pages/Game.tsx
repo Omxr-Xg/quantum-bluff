@@ -128,6 +128,8 @@ export function Game() {
   /** Après un all-in suivi : run-out du board sans nouveau tour de mise (preflop -> flop -> turn -> river -> showdown) */
   const [runOutPhase, setRunOutPhase] = useState<GamePhase | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
   const gameStateFromSocketRef = useRef(false);
   const clearBotActionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playersStateRef = useRef<(BasePlayer | BotPlayer)[]>([]);
@@ -640,12 +642,15 @@ export function Game() {
       }
 
       const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
-      if (currentTurnId === String(userId)) {
+      if (phase === "showdown") {
+        setTimerActive(false);
+      } else if (currentTurnId === String(userId)) {
         setTimerActive(true);
         setTimeLeft(30);
       }
       if (phase === "showdown" && gameState.showdownWinnerId) {
         const winnerName = players.find((p) => String(p.id) === String(gameState.showdownWinnerId))?.name ?? String(gameState.showdownWinnerId);
+        const winnerPlayer = players.find((p) => String(p.id) === String(gameState.showdownWinnerId));
         const potWon = gameState.showdownPot ?? 0;
         const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
@@ -657,6 +662,12 @@ export function Game() {
           handRank: 0,
           pot: potWon,
         });
+        if (winnerPlayer?.cards?.length) {
+          const normalized = winnerPlayer.cards
+            .map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]))
+            .filter((c): c is Card => c !== null);
+          setShowdownWinnerCards(normalized);
+        }
       }
     };
     socket.on("GAME_UPDATE", onGameUpdate);
@@ -709,6 +720,7 @@ export function Game() {
   useEffect(() => {
     if (!socket) return;
     socket.on("TURN_TIMER", (data: { gameId: string; timeLeft: number }) => {
+      if (phaseRef.current === "showdown") return; // Ne pas réactiver le timer au showdown
       setTimeLeft(data.timeLeft);
       setTimerActive(true);
     });
@@ -717,9 +729,9 @@ export function Game() {
 
   const _playPhase = phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river";
 
-  // Forcer l'activation du timer quand c'est le tour du joueur
+  // Forcer l'activation du timer quand c'est le tour du joueur (arrêter dès le showdown)
   useEffect(() => {
-    if (!isMyTurn || !gameInitialized || phase === "init" || phase === "shuffle" || phase === "deal") {
+    if (!isMyTurn || !gameInitialized || phase === "init" || phase === "shuffle" || phase === "deal" || phase === "showdown") {
       setTimerActive(false);
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
