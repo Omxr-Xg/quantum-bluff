@@ -429,9 +429,6 @@ export function WaitingRoom() {
                 </span>
               )}
             </div>
-            <p className="text-gray-400">
-              {t('waitingRoom.code')} : <span className="text-purple-400 font-mono">{roomId}</span>
-            </p>
           </div>
         </div>
 
@@ -453,19 +450,23 @@ export function WaitingRoom() {
                         {username?.charAt(0) || '?'}
                       </span>
                     </div>
-                    <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-slate-800"></div>
+                    <div className={`absolute bottom-0 right-0 w-5 h-5 ${isCreator ? 'bg-amber-500' : 'bg-green-500'} rounded-full border-2 border-slate-800`}></div>
                   </div>
                   <div>
-                    <div className="text-white font-bold">{username} ({t('waitingRoom.you')})</div>
-                    <div className="text-green-300 text-sm">{t('waitingRoom.readyQuestion')}</div>
+                    <div className="text-white font-bold">{username}</div>
+                    {!isCreator && (
+                      <div className="text-gray-400 text-sm">{t('waitingRoom.readyQuestion')}</div>
+                    )}
                   </div>
                 </div>
-                <button
-                  onClick={handleReady}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold"
-                >
-                  {t('waitingRoom.ready')}
-                </button>
+                {!isCreator && (
+                  <button
+                    onClick={handleReady}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold"
+                  >
+                    {t('waitingRoom.ready')}
+                  </button>
+                )}
               </div>
             </div>
 
