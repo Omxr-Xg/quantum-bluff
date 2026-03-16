@@ -37,6 +37,7 @@ export function WaitingRoom() {
   const [roomError, setRoomError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [myIsReady, setMyIsReady] = useState(false);
 
   interface JoinRequestItem {
     id: string;
@@ -128,6 +129,8 @@ export function WaitingRoom() {
         setRoomName(room.name || "");
         setRoomVisibility(room.visibility || 'PUBLIC');
         setIsCreator(room.hostId === userId);
+        const me = room.players?.find((p: { id: string }) => p.id === userId);
+        setMyIsReady(me?.isReady ?? false);
         setPlayers(
           (room.players || [])
             .filter((p: { id: string }) => p.id !== userId)
@@ -198,6 +201,8 @@ export function WaitingRoom() {
       if (!room || room.status !== "WAITING") return;
       setIsCreator(room.hostId === userId);
       setRoomVisibility(room.visibility || 'PUBLIC');
+      const me = room.players?.find((p: { id: string }) => p.id === userId);
+      setMyIsReady(me?.isReady ?? false);
       setPlayers(
         (room.players || [])
           .filter((p: { id: string }) => p.id !== userId)
@@ -304,6 +309,7 @@ export function WaitingRoom() {
 
   const handleReady = () => {
     socket?.emit("player-ready", { roomId, userId });
+    setMyIsReady(true); // Optimistic update
     if (rawRoomId && !rawRoomId.startsWith("room_")) {
       const url = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/ready` : `/api/waiting-room/${rawRoomId}/ready`;
       fetch(url, {
@@ -450,22 +456,23 @@ export function WaitingRoom() {
                         {username?.charAt(0) || '?'}
                       </span>
                     </div>
-                    <div className={`absolute bottom-0 right-0 w-5 h-5 ${isCreator ? 'bg-amber-500' : 'bg-green-500'} rounded-full border-2 border-slate-800`}></div>
+                    <div className={`absolute bottom-0 right-0 w-5 h-5 ${myIsReady ? 'bg-green-500' : isCreator ? 'bg-amber-500' : 'bg-yellow-500'} rounded-full border-2 border-slate-800`} title={myIsReady ? t('waitingRoom.ready') : t('game.waiting')}></div>
                   </div>
                   <div>
                     <div className="text-white font-bold">{username}</div>
-                    {!isCreator && (
-                      <div className="text-gray-400 text-sm">{t('waitingRoom.readyQuestion')}</div>
-                    )}
+                    <div className="text-gray-400 text-sm">{myIsReady ? `✅ ${t('waitingRoom.ready')}` : t('waitingRoom.readyQuestion')}</div>
                   </div>
                 </div>
-                {!isCreator && (
+                {!myIsReady && (
                   <button
                     onClick={handleReady}
                     className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold"
                   >
                     {t('waitingRoom.ready')}
                   </button>
+                )}
+                {myIsReady && (
+                  <span className="text-green-400 font-medium">✅ {t('waitingRoom.ready')}</span>
                 )}
               </div>
             </div>
@@ -619,9 +626,9 @@ export function WaitingRoom() {
                 )}
                 <button
                   onClick={handleStartGame}
-                  disabled={players.length < 1 || starting}
+                  disabled={!myIsReady || players.length < 1 || starting}
                   className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${
-                    players.length >= 1 && !starting
+                    myIsReady && players.length >= 1 && !starting
                       ? "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white transform hover:scale-105"
                       : "bg-slate-700 text-gray-500 cursor-not-allowed"
                   }`}
