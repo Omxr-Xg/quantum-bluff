@@ -20,6 +20,7 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { ShowdownDisplay } from "../components/ShowdownDisplay";
+import { PokerCard } from "../components/PokerCard";
 import { useUser } from "../hooks/useUser";
 import { addToUserBalance, getUserBalance } from "../utils/userProfile";
 
@@ -144,6 +145,7 @@ export function Game() {
   const botIsFetchingRef = useRef(false);
   const [showdownReveal, setShowdownReveal] = useState(false);
   const showdownStartedRef = useRef(false);
+  const showdownResultRef = useRef<typeof showdownResult>(null);
   const [showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
   /** Track total chips contributed per player across all streets (for side pot calculation) */
   const handContributionsRef = useRef<Record<string, number>>({});
@@ -1040,16 +1042,50 @@ export function Game() {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
     if (showdownStartedRef.current) return;
     const activeInHand = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
-    if (activeInHand.length < 2) return;
-    const validCommunity = communityCardsState.filter((c): c is Card => c !== null);
+    // 1 player: award pot and skip API
+    if (activeInHand.length === 1) {
+      const soleWinner = activeInHand[0];
+      const currentPot = pot;
+      const humanId = String(playersState.find((p) => p.id === userId || p.id === "human")?.id ?? "human");
+      const isHuman = String(soleWinner.id) === humanId;
+      showdownStartedRef.current = true;
+      setPot(0);
+      setPlayersState((prev) =>
+        prev.map((p) => (p.id === soleWinner.id ? { ...p, chips: p.chips + currentPot } : p))
+      );
+      if (isHuman) setPlayerChips((prev) => prev + currentPot);
+      const balanceChange = isHuman ? currentPot : 0;
+      const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
+      addToUserBalance(toAdd);
+      toAddLastRef.current = toAdd;
+      setShowdownWinnerCards(soleWinner.cards ?? []);
+      setShowdownReveal(false);
+      setShowdownResult({
+        winnerId: String(soleWinner.id),
+        winnerName: soleWinner.name,
+        hand: "Gagne par abandon",
+        handRank: 0,
+        pot: currentPot,
+      });
+      return;
+    }
+    // Need 5 community cards (try ref as fallback in case state is stale)
+    let validCommunity = communityCardsState.filter((c): c is Card => c !== null);
+    if (validCommunity.length < 5) {
+      validCommunity = communityCardsStateRef.current.filter((c): c is Card => c !== null);
+    }
     if (validCommunity.length < 5) return;
 
     showdownStartedRef.current = true;
     setShowdownReveal(true);
 
-    // Calculate side pots from tracked contributions
-    const pots = calculateSidePots(playersState, handContributionsRef.current);
-    if (pots.length > 1) setSidePots(pots);
+    let pots: { amount: number; eligibleIds: string[] }[] = [];
+    try {
+      pots = calculateSidePots(playersState, handContributionsRef.current);
+      if (pots.length > 1) setSidePots(pots);
+    } catch {
+      pots = [{ amount: pot, eligibleIds: activeInHand.map((p) => String(p.id)) }];
+    }
 
     const revealTimer = setTimeout(async () => {
       const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
@@ -1060,9 +1096,24 @@ export function Game() {
       let mainHandName = "Haute carte";
       let mainWinnerId = "";
       let mainIsSplit = false;
+      const FETCH_TIMEOUT_MS = 8000;
+
+      const applyFallback = () => {
+        const fallbackWinner = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
+        setPot(0);
+        const balanceChange = playerChips - startOfHandChipsRef.current;
+        addToUserBalance(balanceChange);
+        setShowdownReveal(false);
+        setShowdownResult({
+          winnerId: String(fallbackWinner?.id ?? ""),
+          winnerName: fallbackWinner?.name ?? "Inconnu",
+          hand: "—",
+          handRank: 0,
+          pot: currentPot,
+        });
+      };
 
       try {
-        // Evaluate each side pot separately
         const effectivePots = pots.length > 0 ? pots : [{ amount: currentPot, eligibleIds: activeInHand.map((p) => String(p.id)) }];
         const awards: Record<string, number> = {};
 
@@ -1076,6 +1127,8 @@ export function Game() {
             continue;
           }
           const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
+          const controller = new AbortController();
+          const to = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
           const res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1083,7 +1136,10 @@ export function Game() {
               players: eligible.map((p) => ({ id: String(p.id), name: p.name, cards: p.cards })),
               communityCards: validCommunity,
             }),
+            signal: controller.signal,
           });
+          clearTimeout(to);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data: { winnerId?: string; winnerIds?: string[]; winnerName?: string; isSplit?: boolean; handName?: string; handRank?: number } = await res.json();
           const winnerIds = data.winnerIds ?? (data.winnerId ? [data.winnerId] : []);
           if (winnerIds.length === 0) continue;
@@ -1104,7 +1160,6 @@ export function Game() {
           });
         }
 
-        // Distribute awards
         setPlayersState((prev) =>
           prev.map((p) => {
             const award = awards[String(p.id)] ?? 0;
@@ -1131,24 +1186,42 @@ export function Game() {
           isSplit: mainIsSplit,
         });
       } catch {
-        const fallbackWinner = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
-        setPot(0);
-        const startChips = startOfHandChipsRef.current;
-        const balanceChange = playerChips - startChips;
-        addToUserBalance(balanceChange);
-        setShowdownReveal(false);
-        setShowdownResult({
-          winnerId: String(fallbackWinner?.id ?? ""),
-          winnerName: fallbackWinner?.name ?? "Inconnu",
-          hand: "—",
-          handRank: 0,
-          pot: currentPot,
-        });
-        setHandResult("loss");
+        applyFallback();
       }
     }, 2500);
     return () => clearTimeout(revealTimer);
   }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId]);
+
+  // Safety net: force showdown completion if stuck for 12s (API timeout, race, validCommunity delay)
+  const showdownResultRef = useRef(showdownResult);
+  showdownResultRef.current = showdownResult;
+  useEffect(() => {
+    if (!isBotMode || phase !== "showdown" || showdownResult !== null || handResult !== null) return;
+    const safety = setTimeout(() => {
+      if (showdownResultRef.current !== null) return;
+      console.warn("[QB] Showdown safety: forcing completion after 12s");
+      const active = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
+      const winner = active[0] ?? playersState.find((p) => !(p.hasFolded ?? false)) ?? playersState[0];
+      const currentPot = pot;
+      setPot(0);
+      setShowdownReveal(false);
+      showdownStartedRef.current = true;
+      if (winner) {
+        setPlayersState((prev) => prev.map((p) => (p.id === winner.id ? { ...p, chips: (p.chips ?? 0) + currentPot } : p)));
+        if (winner.id === userId || winner.id === "human") setPlayerChips((prev) => prev + currentPot);
+        setShowdownWinnerCards((winner as BasePlayer | BotPlayer).cards ?? []);
+      }
+      setShowdownResult({
+        winnerId: String(winner?.id ?? ""),
+        winnerName: (winner?.name as string) ?? "—",
+        hand: "—",
+        handRank: 0,
+        pot: currentPot,
+      });
+      addToUserBalance(0);
+    }, 12000);
+    return () => clearTimeout(safety);
+  }, [phase, showdownResult, handResult, isBotMode, playersState, pot, userId]);
 
   // Game over: human eliminated or all bots eliminated
   useEffect(() => {
@@ -1704,45 +1777,35 @@ export function Game() {
               <div className="flex flex-wrap justify-center gap-6">
                 {playersState
                   .filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2)
-                  .map((player) => {
-                    const suitMap: Record<string, string> = { hearts: "♥", diamonds: "♦", clubs: "♣", spades: "♠" };
-                    return (
-                      <motion.div
-                        key={String(player.id)}
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.15 }}
-                        className="flex flex-col items-center gap-2 bg-slate-800/80 rounded-xl px-4 py-3 border border-slate-600"
-                      >
-                        <span className="text-white font-semibold text-sm md:text-base">{player.name}</span>
-                        <div className="flex gap-1.5">
-                          {player.cards.map((card, i) => {
-                            const isRed = card.suit === "hearts" || card.suit === "diamonds";
-                            return (
-                              <div
-                                key={i}
-                                className="w-14 h-20 md:w-16 md:h-24 bg-white rounded-lg border-2 border-gray-200 shadow-lg flex flex-col items-center justify-center"
-                              >
-                                <span className={`text-lg md:text-xl font-bold ${isRed ? "text-red-500" : "text-gray-900"}`}>
-                                  {card.value}
-                                </span>
-                                <span className={`text-lg md:text-xl ${isRed ? "text-red-500" : "text-gray-900"}`}>
-                                  {suitMap[card.suit] ?? card.suit}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                  .map((player) => (
+                    <motion.div
+                      key={String(player.id)}
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.15 }}
+                      className="flex flex-col items-center gap-2 bg-slate-800/80 rounded-xl px-4 py-3 border border-slate-600"
+                    >
+                      <span className="text-white font-semibold text-sm md:text-base">{player.name}</span>
+                      <div className="flex gap-2">
+                        {player.cards.map((card, i) => (
+                          <PokerCard
+                            key={i}
+                            suit={card.suit}
+                            value={card.value}
+                            size="md"
+                            animated
+                            animationDelay={i * 0.1}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  ))}
               </div>
 
               {/* Community cards */}
               {(() => {
                 const validCommunity = communityCardsState.filter((c): c is Card => c !== null);
                 if (validCommunity.length === 0) return null;
-                const suitMap: Record<string, string> = { hearts: "♥", diamonds: "♦", clubs: "♣", spades: "♠" };
                 return (
                   <motion.div
                     initial={{ y: 15, opacity: 0 }}
@@ -1752,22 +1815,16 @@ export function Game() {
                   >
                     <span className="text-gray-400 text-xs font-semibold tracking-wider uppercase">Board</span>
                     <div className="flex gap-2">
-                      {validCommunity.map((card, i) => {
-                        const isRed = card.suit === "hearts" || card.suit === "diamonds";
-                        return (
-                          <div
-                            key={i}
-                            className="w-12 h-[68px] md:w-14 md:h-20 bg-white rounded-lg border-2 border-amber-400/60 shadow-md flex flex-col items-center justify-center"
-                          >
-                            <span className={`text-sm md:text-base font-bold ${isRed ? "text-red-500" : "text-gray-900"}`}>
-                              {card.value}
-                            </span>
-                            <span className={`text-sm md:text-base ${isRed ? "text-red-500" : "text-gray-900"}`}>
-                              {suitMap[card.suit] ?? card.suit}
-                            </span>
-                          </div>
-                        );
-                      })}
+                      {validCommunity.map((card, i) => (
+                        <PokerCard
+                          key={i}
+                          suit={card.suit}
+                          value={card.value}
+                          size="sm"
+                          animated
+                          animationDelay={0.3 + i * 0.08}
+                        />
+                      ))}
                     </div>
                   </motion.div>
                 );

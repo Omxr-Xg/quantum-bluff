@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { X, TrendingUp, Loader2, Activity, Eye } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
 import { NeonButton } from "./NeonButton";
+import { PokerCard } from "./PokerCard";
 
 interface Card {
   suit: string;
@@ -152,23 +153,6 @@ export function PlayerDashboard({
     }
   };
 
-  const getSuitSymbol = (suit: string) => {
-    const suits: { [key: string]: string } = {
-      hearts: "♥",
-      diamonds: "♦",
-      clubs: "♣",
-      spades: "♠",
-    };
-
-    return suits[suit] || "";
-  };
-
-  const getSuitColor = (suit: string) => {
-    return suit === "hearts" || suit === "diamonds"
-      ? "text-red-600"
-      : "text-gray-900";
-  };
-
   const handleRaiseClick = () => {
     const amount = clampRaise(raiseAmount);
     setRaisePopoverOpen(false);
@@ -265,17 +249,7 @@ export function PlayerDashboard({
                   transform: `rotate(${index === 0 ? -6 : 8}deg)`
                 }}
               >
-                <div className="w-16 h-24 md:w-32 md:h-48 rounded-md md:rounded-lg p-1.5 md:p-2.5 bg-white flex flex-col justify-between shadow-xl border md:border-2 border-gray-200">
-                  <div className={`text-base md:text-2xl font-bold leading-none ${getSuitColor(card.suit)}`}>
-                    {card.value}
-                  </div>
-                  <div className={`text-3xl md:text-6xl text-center leading-none ${getSuitColor(card.suit)}`}>
-                    {getSuitSymbol(card.suit)}
-                  </div>
-                  <div className={`text-base md:text-2xl font-bold rotate-180 leading-none ${getSuitColor(card.suit)}`}>
-                    {card.value}
-                  </div>
-                </div>
+                <PokerCard suit={card.suit} value={card.value} size="lg" />
               </div>
             ))}
           </div>

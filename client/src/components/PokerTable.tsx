@@ -3,6 +3,7 @@ import { logoDataUrl } from "../assets/logo";
 import logoSrc from "../assets/logo-personnel.png";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { PokerCard } from "./PokerCard";
 import { Clock } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
 
@@ -84,22 +85,6 @@ export function PokerTable({
     }
 
     return { x, y };
-  };
-
-  const getSuitSymbol = (suit: string) => {
-    const suits: { [key: string]: string } = {
-      hearts: "♥",
-      diamonds: "♦",
-      clubs: "♣",
-      spades: "♠",
-    };
-    return suits[suit] || "";
-  };
-
-  const getSuitColor = (suit: string) => {
-    return suit === "hearts" || suit === "diamonds"
-      ? "text-red-600"
-      : "text-gray-900";
   };
 
   return (
@@ -252,31 +237,15 @@ export function PokerTable({
                 {/* PLAYER CARDS - hidden for hero (shown in PlayerDashboard), hidden when folded */}
                 {player.cards && player.cards.length > 0 && !player.hasFolded && (player.position !== 0 && player.name !== "Vous") && (
                   <div className="flex gap-1">
-                    {player.cards.map((card, index) => {
-                      const showFaceUp = isShowdown;
-                      if (showFaceUp) {
-                        return (
-                          <div
-                            key={index}
-                            className="w-10 h-14 bg-white rounded border flex flex-col justify-between p-1 shadow-md
-                            transition transform hover:scale-110 hover:-translate-y-1 duration-200"
-                          >
-                            <div className={`text-xs font-bold ${getSuitColor(card.suit)}`}>{card.value}</div>
-                            <div className={`text-lg text-center ${getSuitColor(card.suit)}`}>{getSuitSymbol(card.suit)}</div>
-                            <div className={`text-xs font-bold rotate-180 ${getSuitColor(card.suit)}`}>{card.value}</div>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div
-                          key={index}
-                          className="w-10 h-14 bg-gradient-to-br from-red-800 to-red-950 rounded border-2 border-yellow-500/30 flex items-center justify-center shadow-md overflow-hidden
-                          transition transform hover:scale-105 duration-200"
-                        >
-                          <img src={logoSrc} alt="card back" className="w-8 h-8 object-contain opacity-80" />
-                        </div>
-                      );
-                    })}
+                    {player.cards.map((card, index) => (
+                      <PokerCard
+                        key={index}
+                        suit={card.suit}
+                        value={card.value}
+                        size="sm"
+                        faceDown={!isShowdown}
+                      />
+                    ))}
                   </div>
                 )}
 

@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import victorySound from "../assets/sounds/victory.mp3";
 import { useEffect } from "react";
+import { PokerCard } from "./PokerCard";
 
 interface CardData {
   suit: string;
@@ -17,8 +18,6 @@ interface ShowdownDisplayProps {
   winnerCards?: CardData[];
   onClose?: () => void;
 }
-
-const SUIT_MAP: Record<string, string> = { hearts: "♥", diamonds: "♦", clubs: "♣", spades: "♠" };
 
 function getHandColor(hand: string): string {
   if (hand.includes("Quinte flush")) return "text-purple-400";
@@ -76,26 +75,18 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
             </div>
 
             {winnerCards && winnerCards.length > 0 && (
-              <div className="flex justify-center gap-2 my-4">
-                {winnerCards.map((card, i) => {
-                  const isRed = card.suit === "hearts" || card.suit === "diamonds";
-                  return (
-                    <motion.div
-                      key={i}
-                      initial={{ rotateY: 180, opacity: 0 }}
-                      animate={{ rotateY: 0, opacity: 1 }}
-                      transition={{ delay: i * 0.15, duration: 0.4 }}
-                      className="w-14 h-20 bg-white rounded-lg border-2 border-yellow-400 shadow-lg shadow-yellow-500/30 flex flex-col items-center justify-center"
-                    >
-                      <span className={`text-lg font-bold ${isRed ? "text-red-500" : "text-gray-900"}`}>
-                        {card.value}
-                      </span>
-                      <span className={`text-lg ${isRed ? "text-red-500" : "text-gray-900"}`}>
-                        {SUIT_MAP[card.suit] ?? card.suit}
-                      </span>
-                    </motion.div>
-                  );
-                })}
+              <div className="flex justify-center gap-3 my-4">
+                {winnerCards.map((card, i) => (
+                  <PokerCard
+                    key={i}
+                    suit={card.suit}
+                    value={card.value}
+                    size="md"
+                    highlight
+                    animated
+                    animationDelay={i * 0.15}
+                  />
+                ))}
               </div>
             )}
 
