@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bot, Server, User, Users, LogOut, Loader2, Plus, X, Trash2, Lock, Globe, Minus } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
-import { getUserBalance, addToUserBalance } from "../utils/userProfile";
+import { getUserBalance, addToUserBalance, syncBalanceToServer } from "../utils/userProfile";
 import { FriendsList } from '../components/FriendsList';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { useUser } from '../hooks/useUser';
@@ -198,6 +198,7 @@ export function Lobby() {
     if (devValidation.trim().toLowerCase() !== "dev") return;
     const newBalance = addToUserBalance(addMoneyAmount);
     setBalance(newBalance);
+    syncBalanceToServer().catch(() => {});
     setAddSuccess(true);
     setTimeout(() => closeAddMoney(), 800);
   };

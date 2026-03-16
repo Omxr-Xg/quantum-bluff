@@ -382,12 +382,12 @@ router.post('/:roomId/start', async (req, res) => {
     // 🔥 CRÉATION DE LA PARTIE
     const gameId = `game_${Date.now()}`;
 
-    // Convertir les joueurs pour GameTable
+    // Convertir les joueurs pour GameTable (chips = balance de chaque utilisateur)
     const players: Player[] = room.players.map((rp, index) => ({
       id: rp.user.id,
       name: rp.user.username,
       cards: [],
-      chips: 1000,
+      chips: Math.max(100, rp.user.chips ?? 1000),
       role: 'PLAYER',
       isActive: true,
       position: index,

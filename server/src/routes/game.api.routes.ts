@@ -38,12 +38,12 @@ router.post('/start', async (req, res) => {
       return res.status(400).json({ error: 'Minimum 2 joueurs requis' });
     }
 
-    // Convertir les utilisateurs en joueurs pour GameTable
+    // Convertir les utilisateurs en joueurs pour GameTable (chips = balance de chaque utilisateur)
     const players: Player[] = waitingRoom.players.map((rp, index) => ({
       id: rp.user.id,
       name: rp.user.username,
       cards: [],
-      chips: 1000,
+      chips: Math.max(100, rp.user.chips ?? 1000),
       role: 'PLAYER',
       isActive: true,
       position: index,

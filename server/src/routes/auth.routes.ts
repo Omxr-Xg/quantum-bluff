@@ -6,6 +6,7 @@ import { prisma } from '../config/database.js'
 import { registerSchema, loginSchema } from '../validation/auth.validation.js'
 import rateLimit from 'express-rate-limit'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
+import { authMiddleware } from '../middleware/auth.middleware.js'
 
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -175,6 +176,27 @@ router.post('/login', loginLimiter, async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' })
   }
 
+})
+
+// Synchroniser la balance (chips) du client vers le serveur (utilisé avant une partie multijoueur)
+router.post('/sync-balance', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const balance = typeof req.body?.balance === 'number' ? Math.max(0, Math.floor(req.body.balance)) : null
+    if (balance === null) return res.status(400).json({ error: 'balance (nombre) requis' })
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { chips: balance },
+    })
+
+    res.json({ ok: true, chips: balance })
+  } catch (error) {
+    console.error('sync-balance error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
 })
 
 export default router

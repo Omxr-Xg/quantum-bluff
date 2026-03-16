@@ -60,3 +60,22 @@ export function addToUserBalance(amount: number): number {
   updateUserBalance(next);
   return next;
 }
+
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+
+/** Synchronise la balance locale vers le serveur (pour multijoueur). Appelé après addToUserBalance et avant démarrage de partie. */
+export async function syncBalanceToServer(): Promise<void> {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+  const balance = getUserBalance();
+  const url = API_BASE ? `${API_BASE}/api/auth/sync-balance` : "/api/auth/sync-balance";
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ balance }),
+    });
+  } catch {
+    // Silently ignore - multijoueur utilisera la dernière valeur serveur connue
+  }
+}

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck } from "lucide-react";
 import { useSocket } from "../contexts/SocketContext";
 import { useUser } from "../hooks/useUser";
+import { syncBalanceToServer } from "../utils/userProfile";
 import { useGetFriendsQuery } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
 
@@ -138,6 +139,8 @@ export function WaitingRoom() {
               isReady: p.isReady ?? false,
             }))
         );
+        // Synchroniser la balance côté serveur pour que le démarrage utilise la bonne valeur
+        syncBalanceToServer().catch(() => {});
       } catch (e) {
         if (!cancelled) setRoomError(e instanceof Error ? e.message : t('common.error'));
       } finally {
