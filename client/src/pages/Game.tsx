@@ -1303,8 +1303,17 @@ export function Game() {
         } catch { /* ignore */ }
         applyFallback(fallbackHand);
       }
-    }, 3000);
-    return () => clearTimeout(revealTimer);
+    };
+    const revealTimer = setTimeout(runComplete, 3000);
+    showdownSkipRef.current = () => {
+      clearTimeout(revealTimer);
+      showdownSkipRef.current = null;
+      runComplete();
+    };
+    return () => {
+      clearTimeout(revealTimer);
+      showdownSkipRef.current = null;
+    };
   }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId]);
 
   // Safety net: force showdown completion if stuck for 12s (API timeout, race, validCommunity delay)
