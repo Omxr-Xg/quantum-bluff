@@ -133,6 +133,8 @@ export function Game() {
   const gameStateFromSocketRef = useRef(false);
   const clearBotActionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playersStateRef = useRef<(BasePlayer | BotPlayer)[]>([]);
+  const roundPlayersActedRef = useRef<Set<number>>(new Set());
+  roundPlayersActedRef.current = roundPlayersActed;
   const deckRef = useRef<Card[]>([]);
   const communityCardsStateRef = useRef<(Card | null)[]>([]);
   const startOfHandChipsRef = useRef(0);
@@ -141,6 +143,8 @@ export function Game() {
   const streetTransitionScheduledRef = useRef<string | null>(null);
   const streetTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const doStreetTransitionRef = useRef<(() => void) | null>(null);
+  /** Timestamp d'entrée dans la street actuelle (flop/turn/river) pour détecter les blocages en mode bot */
+  const streetPhaseEnteredRef = useRef<number>(0);
   /** Mode bot : les deux ont agi (preflop égalisé), ne pas redonner la main au joueur */
   const bothActedNoTurnRef = useRef(false);
   const toAddLastRef = useRef(0);
@@ -445,7 +449,7 @@ export function Game() {
       initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
       handContributionsRef.current = contribs;
     }
-  }, [mode]);
+  }, [mode, searchParams.toString()]);
 
   // Rejouer avec la même configuration (bouton overlay, mode bot uniquement)
   useEffect(() => {
@@ -1032,6 +1036,8 @@ export function Game() {
       hasSetStartOfHandThisHandRef.current = false;
       setGameOverReason(null);
       streetTransitionScheduledRef.current = null;
+    } else if (phase === "flop" || phase === "turn" || phase === "river") {
+      streetPhaseEnteredRef.current = Date.now();
     }
   }, [phase]);
 
@@ -1043,6 +1049,27 @@ export function Game() {
     }
     streetTransitionScheduledRef.current = null;
   }, [phase]);
+
+  // Mode bot : filet de sécurité si bloqué en flop/turn/river (>20s sans transition malgré mises égalisées)
+  useEffect(() => {
+    if (!isBotMode || gameIdParam) return; // En bot : pas de gameId
+    if (phase !== "flop" && phase !== "turn" && phase !== "river") return;
+    const interval = setInterval(() => {
+      const players = playersStateRef.current;
+      const activeInHand = players.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
+      if (activeInHand.length < 2) return;
+      const maxBet = Math.max(0, ...activeInHand.map((p) => p.bet ?? 0));
+      const bettingComplete = activeInHand.every((p) => (p.bet ?? 0) === maxBet || (p.chips ?? 0) === 0);
+      const hasAllIn = activeInHand.some((p) => (p.chips ?? 0) === 0);
+      if (!bettingComplete || hasAllIn) return;
+      const acted = roundPlayersActedRef.current;
+      if (acted.size < activeInHand.length) return;
+      if (Date.now() - streetPhaseEnteredRef.current < 20000) return;
+      console.warn("[QB] Street stuck >20s, forcing transition");
+      doStreetTransitionRef.current?.();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isBotMode, gameIdParam, phase]);
 
   // Run-out du board après all-in : distribuer Flop puis Turn puis River sans tour de mise, puis showdown
   // On lit deckRef/communityCardsStateRef dans le timeout pour avoir l'état à jour (sinon Turn/River écrasent le Flop)

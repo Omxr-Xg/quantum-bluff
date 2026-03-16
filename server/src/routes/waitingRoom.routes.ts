@@ -12,10 +12,15 @@ const router = express.Router();
 //const sanitizeRoomName = (roomName: string) => sanitizeHtml(roomName);
 
 // GET /api/waiting-room - Liste toutes les salles disponibles
+// Filtre : au moins 1 joueur actif, créées dans la dernière heure
 router.get('/', async (req, res) => {
   try {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const rooms = await prisma.waitingRoom.findMany({
-      where: { status: 'WAITING' },
+      where: {
+        status: 'WAITING',
+        createdAt: { gte: oneHourAgo }
+      },
       include: {
         players: {
           include: {
@@ -32,7 +37,9 @@ router.get('/', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const formattedRooms = rooms.map(room => ({
+    const formattedRooms = rooms
+      .filter(room => room.players.length >= 1)
+      .map(room => ({
       id: room.id,
       name: room.name,
       hostId: room.hostId,
