@@ -11,6 +11,7 @@ export class GameTable {
   private dealerIndex: number
   private highestBet: number
   private actedPlayerIds: Set<string>
+  private lastRaiserId: string | null
   private handStarted: boolean
   private readonly smallBlindAmount: number
   private readonly bigBlindAmount: number
@@ -21,6 +22,7 @@ export class GameTable {
     this.dealerIndex = 0
     this.highestBet = 0
     this.actedPlayerIds = new Set()
+    this.lastRaiserId = null
     this.handStarted = false
     this.smallBlindAmount = 10
     this.bigBlindAmount = 20
@@ -176,6 +178,7 @@ export class GameTable {
 
   private resetBetsForNewRound(): void {
     this.highestBet = 0
+    this.lastRaiserId = null
     this.actedPlayerIds.clear()
 
     for (const player of this.state.players) {
@@ -576,6 +579,10 @@ export class GameTable {
       player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + actualCallAmount
       this.state.pot += actualCallAmount
 
+      // Quand on suit une relance, le relanceur doit revoir l'action : on le retire de acted
+      if (this.lastRaiserId && this.lastRaiserId !== player.id) {
+        this.actedPlayerIds.delete(this.lastRaiserId)
+      }
       this.actedPlayerIds.add(player.id)
 
       if (this.isBettingRoundComplete()) {
@@ -595,6 +602,7 @@ export class GameTable {
     player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + totalToPut
     this.state.pot += totalToPut
     this.highestBet = player.currentBet || 0
+    this.lastRaiserId = player.id
     this.actedPlayerIds.clear()
     this.actedPlayerIds.add(player.id)
 
