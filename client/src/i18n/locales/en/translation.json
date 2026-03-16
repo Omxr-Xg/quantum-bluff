@@ -291,9 +291,27 @@
     "raiseDesc": "Increase the bet",
     "addCredits": "Add credits"
   },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "gameInvitations": "Game invitations",
+    "friendRequests": "Friend requests"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "gameInvitations": "Game invitations",
+    "friendRequests": "Friend requests"
+  },
   "invitation": {
     "title": "{{username}} invited you to play!",
     "accept": "Join",
     "reject": "Decline"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "gameInvitations": "Game invitations",
+    "friendRequests": "Friend requests"
   }
 }

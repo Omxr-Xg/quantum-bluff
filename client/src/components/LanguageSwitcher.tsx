@@ -23,7 +23,7 @@ export const LanguageSwitcher = () => {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg transition"
+        className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-xl transition h-10 md:h-12 shrink-0"
       >
         <Globe className="w-5 h-5" />
         <span>{currentLang.flag} {currentLang.name}</span>

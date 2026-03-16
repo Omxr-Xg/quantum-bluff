@@ -1,15 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bot, Server, User, Users, LogOut, Loader2, Plus, X, Trash2, Lock, Globe, Minus } from "lucide-react";
+import { Bot, Server, Loader2, X, Trash2, Lock, Globe, Minus } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
-import { getUserBalance, addToUserBalance, syncBalanceToServer } from "../utils/userProfile";
 import { FriendsList } from '../components/FriendsList';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
-
-const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
@@ -35,18 +31,11 @@ interface WaitingRoomItem {
 export function Lobby() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [balance, setBalance] = useState(getUserBalance());
   const { userId, username } = useUser();
   const [rooms, setRooms] = useState<WaitingRoomItem[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
-  const [showAddMoney, setShowAddMoney] = useState(false);
-  const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
-  const [devValidation, setDevValidation] = useState("");
-  const [addSuccess, setAddSuccess] = useState(false);
-
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createVisibility, setCreateVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [createMaxPlayers, setCreateMaxPlayers] = useState(5);
@@ -86,14 +75,6 @@ export function Lobby() {
     const interval = setInterval(fetchRooms, 5000);
     return () => clearInterval(interval);
   }, [fetchRooms]);
-
-  // Rafraîchir le solde à l’affichage du Lobby (retour de partie) et au focus de la fenêtre
-  useEffect(() => {
-    setBalance(getUserBalance());
-    const onFocus = () => setBalance(getUserBalance());
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [location.pathname]);
 
   const handlePlayBot = () => {
     navigate("/bot-configuration");
@@ -181,28 +162,6 @@ export function Lobby() {
     }
   };
 
-  const openAddMoney = () => {
-    setShowAddMoney(true);
-    setAddMoneyAmount(null);
-    setDevValidation("");
-    setAddSuccess(false);
-  };
-
-  const closeAddMoney = () => {
-    setShowAddMoney(false);
-    setBalance(getUserBalance());
-  };
-
-  const submitAddMoney = () => {
-    if (addMoneyAmount == null) return;
-    if (devValidation.trim().toLowerCase() !== "dev") return;
-    const newBalance = addToUserBalance(addMoneyAmount);
-    setBalance(newBalance);
-    syncBalanceToServer().catch(() => {});
-    setAddSuccess(true);
-    setTimeout(() => closeAddMoney(), 800);
-  };
-
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
 
@@ -225,117 +184,10 @@ export function Lobby() {
             </div>
           </div>
 
-          {/* Côté Droit (Tous les boutons) */}
-          {/* 📱 FIX MOBILE : flex-wrap pour que les boutons s'ajustent sur plusieurs lignes sur mobile */}
-          <div className="flex flex-wrap items-center justify-start md:justify-end gap-3 w-full md:w-auto">
-            
-            {/* Langue */}
-            <LanguageSwitcher />
-            
-            {/* Solde + Bouton Ajouter (Un seul bloc) */}
-            <div className="flex items-center bg-slate-800 rounded-xl border border-slate-600 overflow-hidden shrink-0">
-              <span className="px-3 py-2 md:px-5 md:py-3 text-white font-bold text-sm md:text-base whitespace-nowrap">
-                {balance.toLocaleString()} 💰
-              </span>
-              <button
-                type="button"
-                onClick={openAddMoney}
-                className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 md:px-3 md:py-3 font-bold transition border-l border-slate-600 h-full"
-                title={t('lobby.addMoney')}
-              >
-                <Plus className="w-4 h-4 md:w-5 md:h-5" />
-              </button>
-            </div>
-
-            {/* Boutons d'action (Profil, Amis, Déconnexion) */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate("/profile")}
-                className="bg-green-600 p-2 md:p-3 rounded-xl text-white hover:bg-green-500 transition shrink-0"
-                title={t('lobby.profile')}
-              >
-                <User className="w-5 h-5 md:w-6 md:h-6" />
-              </button>
-              
-              <button
-                onClick={() => navigate("/friends")}
-                className="bg-blue-600 p-2 md:p-3 rounded-xl text-white hover:bg-blue-500 transition shrink-0"
-                title={t('lobby.manageFriends')}
-              >
-                <Users className="w-5 h-5 md:w-6 md:h-6" />
-              </button>
-
-              <button
-                onClick={() => navigate("/")}
-                className="bg-red-600 p-2 md:p-3 rounded-xl text-white hover:bg-red-500 transition shrink-0"
-                title={t('lobby.logout')}
-              >
-                <LogOut className="w-5 h-5 md:w-6 md:h-6" />
-              </button>
-            </div>
-
-          </div>
+          {/* Côté Droit : vide (langue, argent, profil, amis, quitter sont dans la barre Layout) */}
+          <div />
         </div>
         {/* FIN DU HEADER */}
-
-        {/* Modal Ajouter des jetons + captcha */}
-        {showAddMoney && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
-            <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-white">{t('lobby.addMoneyTitle')}</h3>
-                <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              {addSuccess ? (
-                <p className="text-green-400 font-medium text-center py-4">{t('lobby.captchaSuccess')}</p>
-              ) : (
-                <>
-                  <p className="text-slate-300 text-sm mb-3">{t('lobby.chooseAmount')}</p>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {ADD_MONEY_PRESETS.map((amount) => (
-                      <button
-                        key={amount}
-                        type="button"
-                        onClick={() => setAddMoneyAmount(amount)}
-                        className={`px-4 py-2 rounded-lg font-bold transition ${
-                          addMoneyAmount === amount
-                            ? "bg-yellow-500 text-slate-900"
-                            : "bg-slate-700 text-slate-200 hover:bg-slate-600"
-                        }`}
-                      >
-                        {amount.toLocaleString()}
-                      </button>
-                    ))}
-                  </div>
-                  {addMoneyAmount != null && (
-                    <div className="space-y-2">
-                      <label className="text-slate-300 text-sm block">Tapez &quot;dev&quot; pour valider</label>
-                      <input
-                        type="text"
-                        value={devValidation}
-                        onChange={(e) => setDevValidation(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
-                        placeholder='dev'
-                        className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
-                        autoComplete="off"
-                      />
-                      <button
-                        type="button"
-                        onClick={submitAddMoney}
-                        disabled={devValidation.trim().toLowerCase() !== "dev"}
-                        className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
-                      >
-                        {t('lobby.validate')}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Modal Créer un serveur */}
         {showCreateModal && (

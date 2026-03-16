@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import musicSrc from '@/assets/music/background-music.mp3';
 
 interface MusicContextType {
   isPlaying: boolean;
@@ -10,9 +11,6 @@ interface MusicContextType {
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
-
-// Chemin public/ : fiable en local. Évite l'import MP3 qui peut provoquer des 500.
-const MUSIC_URL = '/music/background-music.mp3';
 
 export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -27,7 +25,7 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
     setVolumeState(initialVolume);
 
     try {
-      const audio = new Audio(MUSIC_URL);
+      const audio = new Audio(musicSrc);
       audio.loop = true;
       audio.volume = initialVolume;
       audio.addEventListener('error', () => {

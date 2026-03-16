@@ -100,9 +100,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     socket.on('FRIEND_REQUEST_RECEIVED', (data: { sender?: { username?: string } }) => {
       addToast(i18n.t('toast.friendRequestFrom', { username: data.sender?.username ?? 'un joueur' }), 'info')
-      if (window.location.pathname === '/friends') {
-        window.dispatchEvent(new CustomEvent('refetch-requests'))
-      }
+      window.dispatchEvent(new CustomEvent('refetch-requests'))
     })
 
     socket.on('FRIEND_REQUEST_ACCEPTED', (data: { username?: string }) => {
@@ -119,6 +117,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     })
 
     socket.on('GAME_INVITATION_RECEIVED', (data: GameInvitationNotification) => {
+      addToast(i18n.t('invitation.title', { username: data.sender?.username ?? 'un joueur' }), 'info')
       setPendingInvitations((prev) => {
         if (prev.some((inv) => inv.invitationId === data.invitationId)) return prev
         return [...prev, data]
