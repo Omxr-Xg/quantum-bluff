@@ -21,6 +21,7 @@ interface Player {
   isDealer?: boolean;
   cards?: Card[];
   isConnected?: boolean;
+  hasFolded?: boolean;
   /** Dernière action affichée à côté de l'avatar (ex: "a checké", "s'est couché") */
   lastAction?: string | null;
 }
@@ -200,7 +201,8 @@ export function PokerTable({
                     player.position === 0
                       ? "w-20 h-20"
                       : "w-14 h-14"
-                  } rounded-full overflow-hidden bg-blue-500 border-2 border-white transition
+                  } rounded-full overflow-hidden border-2 transition relative
+                  ${player.hasFolded ? "bg-red-900/60 border-red-500 grayscale" : "bg-blue-500 border-white"}
                   ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`}
                 >
 
@@ -208,18 +210,22 @@ export function PokerTable({
                     <ImageWithFallback
                       src={getPlayerAvatar(player.name)}
                       alt={player.name}
-                      className="w-full h-full object-cover"
+                      className={`w-full h-full object-cover ${player.hasFolded ? "blur-[2px] opacity-40 brightness-50" : ""}`}
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-white font-bold">
+                    <div className={`flex items-center justify-center h-full font-bold ${player.hasFolded ? "text-red-300 blur-[1px] opacity-50" : "text-white"}`}>
                       {player.name.charAt(0)}
                     </div>
+                  )}
+
+                  {player.hasFolded && (
+                    <div className="absolute inset-0 bg-red-600/30 rounded-full" />
                   )}
 
                 </div>
 
                 {/* NAME */}
-                <div className="bg-black/90 text-white text-xs px-2 py-1 rounded font-medium">
+                <div className={`text-xs px-2 py-1 rounded font-medium ${player.hasFolded ? "bg-red-900/80 text-red-300 line-through" : "bg-black/90 text-white"}`}>
                   {player.name}
                 </div>
 
@@ -243,8 +249,8 @@ export function PokerTable({
 
                 </div>
 
-                {/* PLAYER CARDS - masquées pour le hero (position 0), affichées en bas à gauche dans PlayerDashboard) */}
-                {player.cards && player.cards.length > 0 && (player.position !== 0 && player.name !== "Vous") && (
+                {/* PLAYER CARDS - hidden for hero (shown in PlayerDashboard), hidden when folded */}
+                {player.cards && player.cards.length > 0 && !player.hasFolded && (player.position !== 0 && player.name !== "Vous") && (
                   <div className="flex gap-1">
                     {player.cards.map((card, index) => {
                       const showFaceUp = isShowdown;

@@ -43,6 +43,12 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
     }
   }, [winner]);
 
+  useEffect(() => {
+    if (!winner || !onClose) return;
+    const timer = setTimeout(onClose, 10000);
+    return () => clearTimeout(timer);
+  }, [winner, onClose]);
+
   if (!winner) return null;
 
   return (

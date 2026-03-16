@@ -145,6 +145,9 @@ export function Game() {
   const [showdownReveal, setShowdownReveal] = useState(false);
   const showdownStartedRef = useRef(false);
   const [showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
+  /** Track total chips contributed per player across all streets (for side pot calculation) */
+  const handContributionsRef = useRef<Record<string, number>>({});
+  const [sidePots, setSidePots] = useState<{ amount: number; eligibleIds: string[] }[]>([]);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
@@ -162,18 +165,20 @@ export function Game() {
     const diff = searchParams.get("difficulty") || "moyen";
     const diffMap: "easy" | "medium" | "hard" =
       diff === "facile" ? "easy" : diff === "difficile" || diff === "expert" ? "hard" : "medium";
+    const botChipsParam = searchParams.get("botChips");
+    const botChipsList = botChipsParam ? botChipsParam.split(",").map((v) => Math.max(100, parseInt(v, 10) || 1000)) : [];
 
     if (mode === "bot") {
       const botNames = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
       const allPlayers: (BasePlayer | BotPlayer)[] = [];
-      const BOT_START_CHIPS = 1000;
       const totalPlayers = count + 1;
 
       for (let i = 0; i < count; i++) {
+        const startChips = botChipsList[i] ?? 1000;
         allPlayers.push({
           id: `bot-${i + 1}`,
           name: `Bot ${botNames[i]}`,
-          chips: BOT_START_CHIPS,
+          chips: startChips,
           bet: 0,
           position: i,
           isActive: false,
@@ -244,6 +249,7 @@ export function Game() {
       : { ...player, position: activePlayers.filter((p) => !isHero(p)).indexOf(player) + 1 };
     return {
       ...base,
+      hasFolded: player.hasFolded ?? false,
       lastAction: lastBotAction?.name === player.name ? lastBotAction.action : undefined,
     };
   });
@@ -304,6 +310,44 @@ export function Game() {
       }
       cardIndex++;
     }, 250);
+  };
+
+  /** Calculate side pots from contributions at showdown */
+  const calculateSidePots = (
+    players: (BasePlayer | BotPlayer)[],
+    contributions: Record<string, number>
+  ): { amount: number; eligibleIds: string[] }[] => {
+    const active = players
+      .filter((p) => !(p.hasFolded ?? false))
+      .map((p) => ({ id: String(p.id), contribution: contributions[String(p.id)] ?? 0 }))
+      .sort((a, b) => a.contribution - b.contribution);
+    const folded = players
+      .filter((p) => p.hasFolded)
+      .map((p) => ({ id: String(p.id), contribution: contributions[String(p.id)] ?? 0 }));
+
+    const pots: { amount: number; eligibleIds: string[] }[] = [];
+    let prevLevel = 0;
+
+    for (let i = 0; i < active.length; i++) {
+      const level = active[i].contribution;
+      if (level <= prevLevel) continue;
+      const diff = level - prevLevel;
+      const eligible = active.slice(i).map((p) => p.id);
+      let potAmount = diff * eligible.length;
+      for (const fp of folded) {
+        const fpContrib = Math.min(Math.max(0, fp.contribution - prevLevel), diff);
+        if (fpContrib > 0) potAmount += fpContrib;
+      }
+      pots.push({ amount: potAmount, eligibleIds: eligible });
+      prevLevel = level;
+    }
+    return pots;
+  };
+
+  /** Track contribution: add amount to a player's hand total */
+  const addContribution = (playerId: string | number, amount: number) => {
+    const key = String(playerId);
+    handContributionsRef.current[key] = (handContributionsRef.current[key] ?? 0) + amount;
   };
 
   const resetBetsAndSetFirstToAct = (startIndex: number) => {
@@ -410,6 +454,10 @@ export function Game() {
       setPhase("init");
       setGameInitialized(false);
       setRoundPlayersActed(new Set());
+      setSidePots([]);
+      const contribs: Record<string, number> = {};
+      initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
+      handContributionsRef.current = contribs;
     }
   }, [mode]);
 
@@ -438,6 +486,10 @@ export function Game() {
     showdownStartedRef.current = false;
     setIsBotThinking(false);
     botIsFetchingRef.current = false;
+    setSidePots([]);
+    const contribs: Record<string, number> = {};
+    initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
+    handContributionsRef.current = contribs;
     setCommunityCardsState([null, null, null, null, null]);
     hasSetStartOfHandThisHandRef.current = false;
     streetTransitionScheduledRef.current = null;
@@ -983,7 +1035,7 @@ export function Game() {
     }
   }, [phase]);
 
-  // Showdown: reveal all cards for 2s, then evaluate winner
+  // Showdown: reveal all cards for 2.5s, then evaluate winner with side pot support
   useEffect(() => {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
     if (showdownStartedRef.current) return;
@@ -995,90 +1047,105 @@ export function Game() {
     showdownStartedRef.current = true;
     setShowdownReveal(true);
 
-    const revealTimer = setTimeout(() => {
+    // Calculate side pots from tracked contributions
+    const pots = calculateSidePots(playersState, handContributionsRef.current);
+    if (pots.length > 1) setSidePots(pots);
+
+    const revealTimer = setTimeout(async () => {
       const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-      const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
       const currentPot = pot;
-      fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          players: activeInHand.map((p) => ({ id: p.id, name: p.name, cards: p.cards })),
-          communityCards: validCommunity,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data: { winnerId?: string; winnerIds?: string[]; winnerName?: string; isSplit?: boolean; handName?: string; handRank?: number }) => {
-          const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
-          const winnerIds = data.winnerIds ?? (data.winnerId ? [data.winnerId] : []);
-          const isSplit = data.isSplit === true && winnerIds.length > 1;
-          const dealerPosition = 0;
-          let humanShare = 0;
+      const humanId = String(playersState.find((p) => p.id === userId || p.id === "human")?.id ?? "human");
+      let humanShare = 0;
+      let mainWinnerName = "";
+      let mainHandName = "Haute carte";
+      let mainWinnerId = "";
+      let mainIsSplit = false;
 
-          // Store winner's cards for display
-          const winnerPlayer = activeInHand.find((p) => winnerIds.includes(p.id));
-          if (winnerPlayer?.cards) setShowdownWinnerCards(winnerPlayer.cards);
+      try {
+        // Evaluate each side pot separately
+        const effectivePots = pots.length > 0 ? pots : [{ amount: currentPot, eligibleIds: activeInHand.map((p) => String(p.id)) }];
+        const awards: Record<string, number> = {};
 
-          if (isSplit && winnerIds.length > 0) {
-            const share = Math.floor(currentPot / winnerIds.length);
-            const remainder = currentPot - share * winnerIds.length;
-            const dealerWinnerId = playersState.find((p) => p.position === dealerPosition && winnerIds.includes(p.id))?.id ?? winnerIds[0];
-            setPlayersState((prev) =>
-              prev.map((p) => {
-                if (!winnerIds.includes(p.id)) return p;
-                let amount = share;
-                if (p.id === dealerWinnerId && remainder > 0) amount += remainder;
-                return { ...p, chips: p.chips + amount };
-              })
-            );
-            if (winnerIds.includes(humanId ?? "")) {
-              const humanIsDealer = playersState.find((p) => p.id === humanId)?.position === dealerPosition;
-              humanShare = share + (humanIsDealer && remainder > 0 ? remainder : 0);
-              setPlayerChips((prev) => prev + humanShare);
-            }
-          } else {
-            const won = winnerIds.length > 0 && (winnerIds[0] === humanId || winnerIds[0] === "human");
-            if (won) {
-              setPlayerChips((prev) => prev + currentPot);
-              humanShare = currentPot;
-            } else {
-              setPlayersState((prev) => prev.map((p) => (p.id === winnerIds[0] ? { ...p, chips: p.chips + currentPot } : p)));
-            }
+        for (let pi = 0; pi < effectivePots.length; pi++) {
+          const sp = effectivePots[pi];
+          const eligible = activeInHand.filter((p) => sp.eligibleIds.includes(String(p.id)));
+          if (eligible.length === 0) continue;
+          if (eligible.length === 1) {
+            awards[String(eligible[0].id)] = (awards[String(eligible[0].id)] ?? 0) + sp.amount;
+            if (pi === 0) { mainWinnerId = String(eligible[0].id); mainWinnerName = eligible[0].name; }
+            continue;
           }
-          const startChips = startOfHandChipsRef.current;
-          const endChips = (winnerIds.includes(humanId ?? "") ? playerChips + humanShare : playerChips);
-          const balanceChange = endChips - startChips;
-          const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-          addToUserBalance(toAdd);
-          toAddLastRef.current = toAdd;
-          setPot(0);
-          const winnerName = isSplit ? "Égalité" : (data.winnerName ?? String(winnerIds[0]));
-          setShowdownReveal(false);
-          setShowdownResult({
-            winnerId: isSplit ? "" : (winnerIds[0] ?? ""),
-            winnerName,
-            hand: data.handName ?? "Haute carte",
-            handRank: data.handRank ?? 0,
-            pot: currentPot,
-            isSplit: !!isSplit,
+          const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              players: eligible.map((p) => ({ id: String(p.id), name: p.name, cards: p.cards })),
+              communityCards: validCommunity,
+            }),
           });
-        })
-        .catch(() => {
-          const fallbackWinner = activeInHand.find((p) => p.id !== userId && p.id !== "human") ?? activeInHand[0];
-          setPot(0);
-          const startChips = startOfHandChipsRef.current;
-          const balanceChange = playerChips - startChips;
-          addToUserBalance(balanceChange);
-          setShowdownReveal(false);
-          setShowdownResult({
-            winnerId: fallbackWinner?.id ?? "",
-            winnerName: fallbackWinner?.name ?? "Inconnu",
-            hand: "—",
-            handRank: 0,
-            pot: currentPot,
+          const data: { winnerId?: string; winnerIds?: string[]; winnerName?: string; isSplit?: boolean; handName?: string; handRank?: number } = await res.json();
+          const winnerIds = data.winnerIds ?? (data.winnerId ? [data.winnerId] : []);
+          if (winnerIds.length === 0) continue;
+
+          if (pi === 0) {
+            mainWinnerId = winnerIds[0];
+            mainWinnerName = data.isSplit ? "Égalité" : (data.winnerName ?? winnerIds[0]);
+            mainHandName = data.handName ?? "Haute carte";
+            mainIsSplit = data.isSplit === true && winnerIds.length > 1;
+            const winner = activeInHand.find((p) => String(p.id) === winnerIds[0]);
+            if (winner?.cards) setShowdownWinnerCards(winner.cards);
+          }
+
+          const share = Math.floor(sp.amount / winnerIds.length);
+          const remainder = sp.amount - share * winnerIds.length;
+          winnerIds.forEach((wid, wi) => {
+            awards[wid] = (awards[wid] ?? 0) + share + (wi === 0 ? remainder : 0);
           });
-          setHandResult("loss");
+        }
+
+        // Distribute awards
+        setPlayersState((prev) =>
+          prev.map((p) => {
+            const award = awards[String(p.id)] ?? 0;
+            return award > 0 ? { ...p, chips: p.chips + award } : p;
+          })
+        );
+        humanShare = awards[humanId] ?? 0;
+        if (humanShare > 0) setPlayerChips((prev) => prev + humanShare);
+
+        const startChips = startOfHandChipsRef.current;
+        const endChips = humanShare > 0 ? playerChips + humanShare : playerChips;
+        const balanceChange = endChips - startChips;
+        const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
+        addToUserBalance(toAdd);
+        toAddLastRef.current = toAdd;
+        setPot(0);
+        setShowdownReveal(false);
+        setShowdownResult({
+          winnerId: mainIsSplit ? "" : mainWinnerId,
+          winnerName: mainWinnerName,
+          hand: mainHandName,
+          handRank: 0,
+          pot: currentPot,
+          isSplit: mainIsSplit,
         });
+      } catch {
+        const fallbackWinner = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
+        setPot(0);
+        const startChips = startOfHandChipsRef.current;
+        const balanceChange = playerChips - startChips;
+        addToUserBalance(balanceChange);
+        setShowdownReveal(false);
+        setShowdownResult({
+          winnerId: String(fallbackWinner?.id ?? ""),
+          winnerName: fallbackWinner?.name ?? "Inconnu",
+          hand: "—",
+          handRank: 0,
+          pot: currentPot,
+        });
+        setHandResult("loss");
+      }
     }, 2500);
     return () => clearTimeout(revealTimer);
   }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId]);
@@ -1346,77 +1413,46 @@ export function Game() {
     if (gameIdParam && socket && isHumanActing) {
       socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CALL", amount });
     }
-    // Bot : ne jamais mettre plus que la mise pour égaliser (évite call 780 au lieu de 50)
+    // Cap call amount at player's chips (all-in if not enough)
     if (playerId !== undefined && !isHumanActing) {
-      const amountBeforeCap = amount;
       const highestBet = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
       const actorBet = playersState.find((p) => p.id === playerId)?.bet ?? 0;
       const neededToCall = Math.max(0, highestBet - actorBet);
       const actorChips = playersState.find((p) => p.id === playerId)?.chips ?? 0;
       amount = Math.min(amount, neededToCall, actorChips);
     }
-    // Remboursement à tous ceux qui ont misé plus que amount (y compris le joueur humain si c’est le bot qui call)
-    const totalRefund =
-      amount < callAmount
-        ? playersState
-            .filter((p) => (p.bet ?? 0) > amount)
-            .reduce((s, p) => s + ((p.bet ?? 0) - amount), 0)
-        : 0;
-
     if (playerId !== undefined && !isHumanActing) {
-      const isBotAllInCall = !gameIdParam && amount < callAmount;
-      const humanRefund = hero && (hero.bet ?? 0) > amount ? (hero.bet ?? 0) - amount : 0;
       const botIndex = playersState.findIndex((p) => p.id === playerId);
       const actorChipsBefore = playersState.find((p) => p.id === playerId)?.chips ?? 0;
       const actorBetBefore = playersState.find((p) => p.id === playerId)?.bet ?? 0;
-      setPlayersState((prev) => {
-        const nextList = prev.map((p) => {
-          let next = p;
-          if (p.id !== playerId) {
-            if ((p.bet ?? 0) > amount) {
-              const refund = (p.bet ?? 0) - amount;
-              next = { ...p, chips: p.chips + refund, bet: amount };
-            }
-          } else {
-            next = { ...p, chips: Math.max(0, actorChipsBefore - amount), bet: actorBetBefore + amount, isActive: false };
-          }
-          if (isBotAllInCall) {
-            next = { ...next, isActive: false };
-          }
-          return next;
-        });
-        return nextList;
-      });
-      setPot((prev) => Math.max(0, prev + amount - totalRefund));
-      if (humanRefund > 0) {
-        setPlayerChips((prev) => prev + humanRefund);
-      }
-      if (isBotAllInCall) {
-        setTimeout(() => setRunOutPhase(phase), 50);
-      } else {
-        nextTurn(botIndex);
-      }
+      setPlayersState((prev) =>
+        prev.map((p) =>
+          p.id === playerId
+            ? { ...p, chips: Math.max(0, actorChipsBefore - amount), bet: actorBetBefore + amount, isActive: false }
+            : p
+        )
+      );
+      setPot((prev) => prev + amount);
+      addContribution(playerId, amount);
+      nextTurn(botIndex);
       setHasPlayerActed(false);
       setIsLoading(false);
       return;
     } else {
-      setPlayerChips((prev) => Math.max(0, prev - amount));
+      const heroChips = hero?.chips ?? playerChips;
+      const effectiveAmount = Math.min(amount, heroChips);
+      setPlayerChips((prev) => Math.max(0, prev - effectiveAmount));
       setPlayersState((prev) =>
-        prev.map((p) => {
-          if (p.id === userId || p.id === "human") {
-            return { ...p, chips: Math.max(0, (p.chips ?? 0) - amount), bet: (p.bet ?? 0) + amount };
-          }
-          if ((p.bet ?? 0) > amount) {
-            const refund = (p.bet ?? 0) - amount;
-            return { ...p, chips: (p.chips ?? 0) + refund, bet: amount };
-          }
-          return p;
-        })
+        prev.map((p) =>
+          p.id === userId || p.id === "human"
+            ? { ...p, chips: Math.max(0, (p.chips ?? 0) - effectiveAmount), bet: (p.bet ?? 0) + effectiveAmount }
+            : p
+        )
       );
+      amount = effectiveAmount;
     }
-    const newPot = Math.max(0, pot + amount - totalRefund);
-    console.log("[QB-BOT pot update]", { potBefore: pot, amount, totalRefund, potAfter: newPot });
-    setPot((prev) => Math.max(0, prev + amount - totalRefund));
+    setPot((prev) => prev + amount);
+    addContribution(playerId ?? userId ?? "human", amount);
     const justActedIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
@@ -1425,10 +1461,7 @@ export function Game() {
       setHasPlayerActed(true);
       setIsLoading(true);
     }
-    if (!gameIdParam) {
-      const botAllInCall = playerId !== undefined && amount < callAmount;
-      if (!botAllInCall) nextTurn(justActedIndex);
-    }
+    if (!gameIdParam) nextTurn(justActedIndex);
   };
 
   const handleRaise = (raiseAmount: number, playerId?: number | string) => {
@@ -1459,6 +1492,7 @@ export function Game() {
         ? Math.min(totalToPut, Math.max(0, actingPlayer.chips ?? 0))
         : totalToPut;
       setPot((prev) => prev + effectiveTotalToPut);
+      addContribution(playerId, effectiveTotalToPut);
     } else {
       setPlayerChips((prev) => Math.max(0, prev - totalToPut));
       setPlayersState((prev) =>
@@ -1469,6 +1503,7 @@ export function Game() {
         )
       );
       setPot((prev) => prev + totalToPut);
+      addContribution(userId ?? "human", totalToPut);
     }
     if (isHumanActing) {
       setHasPlayerActed(true);
@@ -1664,40 +1699,79 @@ export function Game() {
               className="flex flex-col items-center gap-4"
             >
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Showdown</h2>
+
+              {/* Player hands (non-folded only) */}
               <div className="flex flex-wrap justify-center gap-6">
                 {playersState
                   .filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2)
-                  .map((player) => (
-                    <motion.div
-                      key={String(player.id)}
-                      initial={{ y: 20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.15 }}
-                      className="flex flex-col items-center gap-2 bg-slate-800/80 rounded-xl px-4 py-3 border border-slate-600"
-                    >
-                      <span className="text-white font-semibold text-sm md:text-base">{player.name}</span>
-                      <div className="flex gap-1.5">
-                        {player.cards.map((card, i) => {
-                          const isRed = card.suit === "hearts" || card.suit === "diamonds";
-                          const suitMap: Record<string, string> = { hearts: "♥", diamonds: "♦", clubs: "♣", spades: "♠" };
-                          return (
-                            <div
-                              key={i}
-                              className="w-14 h-20 md:w-16 md:h-24 bg-white rounded-lg border-2 border-gray-200 shadow-lg flex flex-col items-center justify-center"
-                            >
-                              <span className={`text-lg md:text-xl font-bold ${isRed ? "text-red-500" : "text-gray-900"}`}>
-                                {card.value}
-                              </span>
-                              <span className={`text-lg md:text-xl ${isRed ? "text-red-500" : "text-gray-900"}`}>
-                                {suitMap[card.suit] ?? card.suit}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  ))}
+                  .map((player) => {
+                    const suitMap: Record<string, string> = { hearts: "♥", diamonds: "♦", clubs: "♣", spades: "♠" };
+                    return (
+                      <motion.div
+                        key={String(player.id)}
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.15 }}
+                        className="flex flex-col items-center gap-2 bg-slate-800/80 rounded-xl px-4 py-3 border border-slate-600"
+                      >
+                        <span className="text-white font-semibold text-sm md:text-base">{player.name}</span>
+                        <div className="flex gap-1.5">
+                          {player.cards.map((card, i) => {
+                            const isRed = card.suit === "hearts" || card.suit === "diamonds";
+                            return (
+                              <div
+                                key={i}
+                                className="w-14 h-20 md:w-16 md:h-24 bg-white rounded-lg border-2 border-gray-200 shadow-lg flex flex-col items-center justify-center"
+                              >
+                                <span className={`text-lg md:text-xl font-bold ${isRed ? "text-red-500" : "text-gray-900"}`}>
+                                  {card.value}
+                                </span>
+                                <span className={`text-lg md:text-xl ${isRed ? "text-red-500" : "text-gray-900"}`}>
+                                  {suitMap[card.suit] ?? card.suit}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
               </div>
+
+              {/* Community cards */}
+              {(() => {
+                const validCommunity = communityCardsState.filter((c): c is Card => c !== null);
+                if (validCommunity.length === 0) return null;
+                const suitMap: Record<string, string> = { hearts: "♥", diamonds: "♦", clubs: "♣", spades: "♠" };
+                return (
+                  <motion.div
+                    initial={{ y: 15, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex flex-col items-center gap-2 mt-2"
+                  >
+                    <span className="text-gray-400 text-xs font-semibold tracking-wider uppercase">Board</span>
+                    <div className="flex gap-2">
+                      {validCommunity.map((card, i) => {
+                        const isRed = card.suit === "hearts" || card.suit === "diamonds";
+                        return (
+                          <div
+                            key={i}
+                            className="w-12 h-[68px] md:w-14 md:h-20 bg-white rounded-lg border-2 border-amber-400/60 shadow-md flex flex-col items-center justify-center"
+                          >
+                            <span className={`text-sm md:text-base font-bold ${isRed ? "text-red-500" : "text-gray-900"}`}>
+                              {card.value}
+                            </span>
+                            <span className={`text-sm md:text-base ${isRed ? "text-red-500" : "text-gray-900"}`}>
+                              {suitMap[card.suit] ?? card.suit}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                );
+              })()}
             </motion.div>
           </motion.div>
         )}
@@ -2061,7 +2135,7 @@ export function Game() {
       {/* Zone centrale - Table de poker avec cartes communes */}
       <div className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
         <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase}>
-          <CommunityCards cards={communityCards} pot={pot} />
+          <CommunityCards cards={communityCards} pot={pot} sidePots={sidePots.length > 1 ? sidePots : undefined} />
         </PokerTable>
       </div>
 

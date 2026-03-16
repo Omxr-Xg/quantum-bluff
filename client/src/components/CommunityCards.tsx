@@ -10,10 +10,11 @@ interface Card {
 interface CommunityCardsProps {
   cards: (Card | null)[];
   pot: number;
+  sidePots?: { amount: number; eligibleIds: string[] }[];
   colorblindMode?: boolean;
 }
 
-export function CommunityCards({ cards, pot, colorblindMode = false }: CommunityCardsProps) {
+export function CommunityCards({ cards, pot, sidePots, colorblindMode = false }: CommunityCardsProps) {
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
@@ -93,6 +94,27 @@ export function CommunityCards({ cards, pot, colorblindMode = false }: Community
             </div>
           </div>
         </div>
+
+        {/* Side pots indicator */}
+        {sidePots && sidePots.length > 1 && (
+          <div className={`flex ${isMobile ? 'gap-1' : 'gap-2'} flex-wrap justify-center`}>
+            {sidePots.map((sp, i) => (
+              <div
+                key={i}
+                className={`bg-black/30 backdrop-blur-sm rounded-full ${
+                  isMobile ? 'px-1.5 py-0.5' : 'px-2 py-0.5'
+                } border border-white/10 flex items-center gap-1`}
+              >
+                <span className={`${isMobile ? 'text-[7px]' : 'text-[9px]'} text-amber-300 font-bold`}>
+                  {i === 0 ? "Main" : `Side ${i}`}
+                </span>
+                <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-white font-bold`}>
+                  {sp.amount.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* COMMUNITY CARDS */}
         <div className={`flex ${isMobile ? "gap-1" : isTablet ? "gap-1.5" : "gap-2"}`}>

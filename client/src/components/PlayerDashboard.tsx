@@ -256,16 +256,15 @@ export function PlayerDashboard({
                 </svg>
               </div>
             )}
-            {cards.map((card, index) => (
+            {!hasFolded && cards.map((card, index) => (
               <div
                 key={index}
                 className="relative transition-all duration-300 origin-bottom-left"
                 style={{
-                  marginLeft: index > 0 ? "-20px" : "0", // Plus serrées sur mobile
+                  marginLeft: index > 0 ? "-20px" : "0",
                   transform: `rotate(${index === 0 ? -6 : 8}deg)`
                 }}
               >
-                {/* 📱 FIX MOBILE : w-16 h-24 sur mobile, w-32 h-48 sur desktop */}
                 <div className="w-16 h-24 md:w-32 md:h-48 rounded-md md:rounded-lg p-1.5 md:p-2.5 bg-white flex flex-col justify-between shadow-xl border md:border-2 border-gray-200">
                   <div className={`text-base md:text-2xl font-bold leading-none ${getSuitColor(card.suit)}`}>
                     {card.value}
