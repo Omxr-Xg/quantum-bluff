@@ -100,9 +100,9 @@ router.post('/register', registerLimiter, async (req, res) => {
         email,
         username,
         password: hashedPassword,
-        stats: { create: {} }
+        playerStats: { create: {} } // ✅ Corrigé ici
       },
-      include: { stats: true }
+      include: { playerStats: true } // ✅ Corrigé ici
     })
 
     const token = generateToken(user.id)
@@ -115,7 +115,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         username: user.username,
         chips: user.chips,
         level: user.level,
-        stats: user.stats
+        playerStats: user.playerStats // ✅ Corrigé ici
       }
     })
 
@@ -144,7 +144,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { stats: true }
+      include: { playerStats: true } // ✅ Corrigé ici
     })
 
     if (!user) {
@@ -167,7 +167,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         username: user.username,
         chips: user.chips,
         level: user.level,
-        stats: user.stats
+        playerStats: user.playerStats // ✅ Corrigé ici
       }
     })
 
