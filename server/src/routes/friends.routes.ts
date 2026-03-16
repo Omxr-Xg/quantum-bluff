@@ -32,9 +32,9 @@ router.get('/search', async (req, res) => {
         id: true,
         username: true,
         level: true,
-        stats: {
+        playerStats: {
           select: {
-            wins: true,
+            totalWins: true,
             totalGames: true
           }
         }
@@ -205,9 +205,9 @@ router.get('/requests/:userId', async (req, res) => {
             id: true,
             username: true,
             level: true,
-            stats: {
+            playerStats: {
               select: {
-                wins: true,
+                totalWins: true,
                 totalGames: true
               }
             }
@@ -335,9 +335,9 @@ router.get('/:userId', async (req, res) => {
             id: true,
             username: true,
             level: true,
-            stats: {
+            playerStats: {
               select: {
-                wins: true,
+                totalWins: true,
                 totalGames: true
               }
             }
@@ -348,9 +348,9 @@ router.get('/:userId', async (req, res) => {
             id: true,
             username: true,
             level: true,
-            stats: {
+            playerStats: {
               select: {
-                wins: true,
+                totalWins: true,
                 totalGames: true
               }
             }
