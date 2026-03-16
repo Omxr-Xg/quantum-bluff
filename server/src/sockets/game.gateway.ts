@@ -331,6 +331,13 @@ export class GameGateway {
         }
       })
 
+      socket.on('GAME_CHAT', (data: { gameId: string; playerId: string; playerName: string; content: string; type: 'emoji' | 'text' }) => {
+        const { gameId, playerId, playerName, content, type } = data
+        if (!gameId || !playerId || !content || !socket.gameId || socket.gameId !== gameId) return
+        if (socket.userId !== playerId) return
+        socket.broadcast.to(gameId).emit('GAME_CHAT', { playerId, playerName, content, type })
+      })
+
       socket.on('RECONNECT_GAME', async (data: { gameId: string }) => {
         try {
           const { gameId } = data

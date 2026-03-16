@@ -146,6 +146,7 @@ export function Game() {
   const [showdownReveal, setShowdownReveal] = useState(false);
   const showdownStartedRef = useRef(false);
   const showdownResultRef = useRef<typeof showdownResult>(null);
+  showdownResultRef.current = showdownResult;
   const [showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
   /** Track total chips contributed per player across all streets (for side pot calculation) */
   const handContributionsRef = useRef<Record<string, number>>({});
@@ -569,10 +570,29 @@ export function Game() {
     return () => { cancelled = true; };
   }, [gameIdParam, userId, navigate]);
 
-  // Rejoindre la room socket pour recevoir GAME_UPDATE et TURN_TIMER
+  // Rejoindre la room socket pour recevoir GAME_UPDATE, TURN_TIMER, GAME_CHAT
   useEffect(() => {
     if (!socket || !gameIdParam || !userId) return;
     socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+
+    const onChatMessage = (data: { playerId: string; playerName: string; content: string; type: "emoji" | "text" }) => {
+      const id = Date.now();
+      const isMe = String(data.playerId) === String(userId);
+      const newMessage: ChatMessage = {
+        id: id,
+        player: isMe ? "Vous" : data.playerName,
+        content: data.content,
+        type: data.type,
+        timestamp: id,
+        isLeaving: false,
+      };
+      setChatMessages((prev) => [...prev, newMessage]);
+      setTimeout(() => {
+        setChatMessages((prev) => prev.map((msg) => (msg.id === id ? { ...msg, isLeaving: true } : msg)));
+        setTimeout(() => setChatMessages((prev) => prev.filter((msg) => msg.id !== id)), 500);
+      }, 4000);
+    };
+    socket.on("GAME_CHAT", onChatMessage);
 
     const onError = (payload: { code?: string; message?: string }) => {
       if (payload?.code === "GAME_NOT_FOUND") {
@@ -587,9 +607,10 @@ export function Game() {
     };
     socket.on("ERROR", onError);
     return () => {
+      socket.off("GAME_CHAT", onChatMessage);
       socket.off("ERROR", onError);
     };
-    }, [socket, gameIdParam, userId, navigate, addToast, t]);
+  }, [socket, gameIdParam, userId, navigate, addToast, t]);
 
   // Appliquer les mises à jour d'état envoyées par le serveur (après une action)
   useEffect(() => {
@@ -1193,7 +1214,6 @@ export function Game() {
   }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId]);
 
   // Safety net: force showdown completion if stuck for 12s (API timeout, race, validCommunity delay)
-  const showdownResultRef = useRef(showdownResult);
   showdownResultRef.current = showdownResult;
   useEffect(() => {
     if (!isBotMode || phase !== "showdown" || showdownResult !== null || handResult !== null) return;
@@ -1591,6 +1611,7 @@ export function Game() {
 
   const handleSendMessage = (content: string, type: "emoji" | "text") => {
     const id = Date.now();
+    const myName = playersState.find((p) => p.id === userId || p.id === "human")?.name ?? "Vous";
     const newMessage: ChatMessage = {
       id: id,
       player: "Vous",
@@ -1602,6 +1623,16 @@ export function Game() {
 
     setChatMessages((prev) => [...prev, newMessage]);
 
+    if (gameIdParam && socket) {
+      socket.emit("GAME_CHAT", {
+        gameId: gameIdParam,
+        playerId: String(userId),
+        playerName: myName,
+        content,
+        type,
+      });
+    }
+
     setTimeout(() => {
       setChatMessages((prev) =>
         prev.map((msg) =>
@@ -1611,7 +1642,7 @@ export function Game() {
 
       setTimeout(() => {
         setChatMessages((prev) => prev.filter((msg) => msg.id !== id));
-      }, 500); 
+      }, 500);
     }, 4000);
 
     if (mode === "bot" && Math.random() > 0.5) {
