@@ -25,6 +25,8 @@ Plateforme de poker Texas Hold'em en temps réel — multi-joueur, mode bot, et 
 - [Contribution](#contribution)
 - [Licence](#licence)
 
+> **Pour les testeurs** : un [guide de démarrage rapide](./SETUP_TESTEUR.md) décrit les étapes pour lancer l'app localement (base de données, migrations, etc.).
+
 ---
 
 ## Vue d'ensemble
