@@ -208,6 +208,15 @@ export function PokerTable({
                     <div className="absolute inset-0 bg-red-600/30 rounded-full" />
                   )}
 
+                  {/* Indicateur connexion (vert = actif, rouge = déconnecté) - multijoueur */}
+                  <div
+                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-800 ${
+                      player.isConnected !== false ? "bg-green-500 animate-pulse" : "bg-red-500"
+                    }`}
+                    title={player.isConnected !== false ? "En ligne" : "Hors ligne"}
+                    aria-hidden="true"
+                  />
+
                 </div>
 
                 {/* NAME */}
