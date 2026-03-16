@@ -175,6 +175,8 @@ export function Game() {
   const showdownSkipRef = useRef<(() => void) | null>(null);
   /** Multi: timeouts pour l'animation du flop carte par carte */
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  /** Multi: évite de rejouer l'animation flop à chaque GAME_UPDATE (changement de tour) */
+  const flopAnimatedRef = useRef(false);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
@@ -673,15 +675,21 @@ export function Game() {
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
         cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
-        // Multi: flop carte par carte (comme en mode bot)
+        // Multi: flop carte par carte (comme en mode bot) — une seule fois, pas à chaque changement de tour
         if (phase === "flop" && arr[0] && arr[1] && arr[2]) {
-          flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
-          flopAnimateTimeoutsRef.current = [];
-          setCommunityCardsState([arr[0], null, null, null, null]);
-          const t1 = setTimeout(() => setCommunityCardsState((prev) => [arr[0]!, arr[1]!, null, null, null]), 800);
-          const t2 = setTimeout(() => setCommunityCardsState(arr), 1600);
-          flopAnimateTimeoutsRef.current = [t1, t2];
+          if (!flopAnimatedRef.current) {
+            flopAnimatedRef.current = true;
+            flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
+            flopAnimateTimeoutsRef.current = [];
+            setCommunityCardsState([arr[0], null, null, null, null]);
+            const t1 = setTimeout(() => setCommunityCardsState((prev) => [arr[0]!, arr[1]!, null, null, null]), 800);
+            const t2 = setTimeout(() => setCommunityCardsState(arr), 1600);
+            flopAnimateTimeoutsRef.current = [t1, t2];
+          } else {
+            setCommunityCardsState(arr);
+          }
         } else {
+          if (phase !== "flop") flopAnimatedRef.current = false;
           setCommunityCardsState(arr);
         }
       }
