@@ -150,6 +150,14 @@ export function Game() {
   const showdownResultRef = useRef<typeof showdownResult>(null);
   showdownResultRef.current = showdownResult;
   const [showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
+  /** Multiplayer: données du showdown en attente (révélation 3s avant d'afficher le modal) */
+  const [pendingShowdownData, setPendingShowdownData] = useState<{
+    winnerId: string;
+    winnerName: string;
+    hand: string;
+    pot: number;
+    winnerCards: Card[];
+  } | null>(null);
   /** Track total chips contributed per player across all streets (for side pot calculation) */
   const handContributionsRef = useRef<Record<string, number>>({});
   const [sidePots, setSidePots] = useState<{ amount: number; eligibleIds: string[] }[]>([]);
@@ -357,7 +365,7 @@ export function Game() {
         setTimeout(() => {
           newCommunityCards[i] = card;
           setCommunityCardsState([...newCommunityCards]);
-        }, i * 700);
+        }, i * 800);
       }
     }
     setDeck([...newDeck]);
@@ -655,19 +663,19 @@ export function Game() {
         const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
         addToUserBalance(balanceChange);
-        setShowdownResult({
+        const normalized = winnerPlayer?.cards?.length
+          ? winnerPlayer.cards
+              .map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]))
+              .filter((c): c is Card => c !== null)
+          : [];
+        setShowdownReveal(true);
+        setPendingShowdownData({
           winnerId: gameState.showdownWinnerId,
           winnerName,
           hand: gameState.showdownHandName ?? "—",
-          handRank: 0,
           pot: potWon,
+          winnerCards: normalized,
         });
-        if (winnerPlayer?.cards?.length) {
-          const normalized = winnerPlayer.cards
-            .map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]))
-            .filter((c): c is Card => c !== null);
-          setShowdownWinnerCards(normalized);
-        }
       }
     };
     socket.on("GAME_UPDATE", onGameUpdate);
@@ -693,6 +701,24 @@ export function Game() {
       socket.off("GAME_ENDED", onGameEnded);
     };
   }, [socket, gameIdParam, userId]);
+
+  // Multiplayer: après 3s de révélation des cartes, afficher le modal du gagnant
+  useEffect(() => {
+    if (!pendingShowdownData || !gameIdParam) return;
+    const t = setTimeout(() => {
+      setShowdownResult({
+        winnerId: pendingShowdownData.winnerId,
+        winnerName: pendingShowdownData.winnerName,
+        hand: pendingShowdownData.hand,
+        handRank: 0,
+        pot: pendingShowdownData.pot,
+      });
+      setShowdownWinnerCards(pendingShowdownData.winnerCards);
+      setShowdownReveal(false);
+      setPendingShowdownData(null);
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [pendingShowdownData, gameIdParam]);
 
   useEffect(() => {
     if (phase !== "init" || deck.length === 0) return;
@@ -1035,10 +1061,11 @@ export function Game() {
       showdownStartedRef.current = false;
       setShowdownReveal(false);
       setShowdownWinnerCards([]);
+      setPendingShowdownData(null);
     }
   }, [phase]);
 
-  // Showdown: reveal all cards for 2.5s, then evaluate winner with side pot support
+  // Showdown: reveal all cards for 3s, then evaluate winner with side pot support
   useEffect(() => {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
     if (showdownStartedRef.current) return;
@@ -1058,7 +1085,7 @@ export function Game() {
         setPot(0);
         setShowdownReveal(false);
         setShowdownResult({ winnerId: String(sole.id), winnerName: sole.name, hand: "—", handRank: 0, pot });
-      }, 500);
+      }, 3000);
       return;
     }
 
@@ -1175,7 +1202,7 @@ export function Game() {
       } catch {
         applyFallback();
       }
-    }, 2500);
+    }, 3000);
     return () => clearTimeout(revealTimer);
   }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId]);
 
@@ -1821,7 +1848,7 @@ export function Game() {
         </div>
       )}
 
-      {/* Showdown card reveal: show all hands for 2.5s */}
+      {/* Showdown card reveal: show all hands for 3s before modal */}
       <AnimatePresence>
         {showdownReveal && (
           <motion.div
@@ -1838,10 +1865,10 @@ export function Game() {
             >
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Showdown</h2>
 
-              {/* Player hands (non-folded only) */}
+              {/* Player hands (toutes les cartes de tout le monde) */}
               <div className="flex flex-wrap justify-center gap-6">
                 {playersState
-                  .filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2)
+                  .filter((p) => p.cards?.length === 2)
                   .map((player) => (
                     <motion.div
                       key={String(player.id)}
