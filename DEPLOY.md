@@ -1,5 +1,25 @@
 # Déploiement sur VM
 
+## Connexion SSH à la VM
+
+Pour que `ssh vmProjetIntegrateurgrp10-0` fonctionne, ajoutez la config SSH de l’équipe :
+
+```bash
+# Depuis la racine du projet quantum-bluff
+cat ssh.config.example >> ~/.ssh/config
+
+# Éditer ~/.ssh/config et remplacer VOTRE_IDENTIFIANT_ERNEST par votre identifiant
+```
+
+Adaptez si besoin `HostName` et `User` dans `ssh.config.example` (IP/hostname et identifiant fournis par l’équipe).
+
+Ensuite :
+```bash
+ssh vmProjetIntegrateurgrp10-0
+```
+
+---
+
 ## Prérequis VM
 - Node.js >= 18
 - PostgreSQL

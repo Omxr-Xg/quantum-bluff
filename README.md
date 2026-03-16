@@ -188,10 +188,12 @@ cd client && npm test
 
 ## Déploiement
 
-Le projet est conçu pour un déploiement sur machine virtuelle avec PM2. Voir [DEPLOY.md](./DEPLOY.md) pour :
+Le projet est conçu pour un déploiement sur machine virtuelle avec PM2 ou Docker. Voir [DEPLOY.md](./DEPLOY.md) pour :
 
+- **Connexion SSH** : config dans `ssh.config.example` pour `ssh vmProjetIntegrateurgrp10-0`
 - Configuration `.env` production
 - Script `server/deploy.sh`
+- Déploiement Docker (`docker-compose.prod.yml`)
 - Gestion des mises à jour du client Electron
 - Vérification des services
 

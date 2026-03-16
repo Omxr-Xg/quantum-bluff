@@ -1,0 +1,11 @@
+# Configuration SSH pour se connecter à la VM Quantum Bluff
+# Copier ce bloc dans ~/.ssh/config pour utiliser : ssh vmProjetIntegrateurgrp10-0
+#
+# Installation :
+#   cat ssh.config.example >> ~/.ssh/config
+#   # Puis éditer User et HostName si nécessaire
+
+Host vmProjetIntegrateurgrp10-0
+    HostName mai-projet-integrateur.u-strasbg.fr
+    User VOTRE_IDENTIFIANT_ERNEST
+    # Port 22  # Décommenter si différent
