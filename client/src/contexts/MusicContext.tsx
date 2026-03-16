@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import musicUrl from '@/assets/music/background-music.mp3';
 
 interface MusicContextType {
   isPlaying: boolean;
@@ -12,8 +11,8 @@ interface MusicContextType {
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
-// Import pour que le chemin soit correct en dev, build et déploiement (y compris sous base path)
-import musicUrl from '@/assets/music/background-music.mp3';
+// Chemin public/ : fiable en local. Évite l'import MP3 qui peut provoquer des 500.
+const MUSIC_URL = '/music/background-music.mp3';
 
 export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -28,7 +27,7 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
     setVolumeState(initialVolume);
 
     try {
-      const audio = new Audio(musicUrl);
+      const audio = new Audio(MUSIC_URL);
       audio.loop = true;
       audio.volume = initialVolume;
       audio.addEventListener('error', () => {
