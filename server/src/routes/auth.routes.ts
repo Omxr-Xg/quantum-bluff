@@ -99,11 +99,22 @@ router.post('/register', registerLimiter, async (req, res) => {
       data: {
         email,
         username,
-        password: hashedPassword,
-        playerStats: { create: {} } // ✅ Corrigé ici
+        password: hashedPassword
       },
-      include: { playerStats: true } // ✅ Corrigé ici
+      include: { playerStats: true }
     })
+
+    // Créer PlayerStats si pas encore fait (relation optionnelle)
+    let playerStats = user.playerStats
+    if (!playerStats) {
+      try {
+        playerStats = await prisma.playerStats.create({
+          data: { playerId: user.id }
+        })
+      } catch (statsErr) {
+        console.warn('[AUTH] PlayerStats non créé à l\'inscription:', statsErr)
+      }
+    }
 
     const token = generateToken(user.id)
 
@@ -115,13 +126,17 @@ router.post('/register', registerLimiter, async (req, res) => {
         username: user.username,
         chips: user.chips,
         level: user.level,
-        playerStats: user.playerStats // ✅ Corrigé ici
+        playerStats: playerStats ?? null
       }
     })
 
   } catch (error) {
-    console.error(error)
-    res.status(500).json({ error: 'Erreur serveur' })
+    console.error('[AUTH] Erreur inscription:', error)
+    const message =
+      process.env.NODE_ENV === 'development'
+        ? String((error as Error)?.message ?? error)
+        : 'Erreur serveur'
+    res.status(500).json({ error: message })
   }
 
 })
@@ -172,8 +187,11 @@ router.post('/login', loginLimiter, async (req, res) => {
     })
 
   } catch (error) {
-    console.error(error)
-    res.status(500).json({ error: 'Erreur serveur' })
+    console.error('[AUTH] Erreur login:', error)
+    const message = process.env.NODE_ENV === 'development'
+      ? String((error as Error).message)
+      : 'Erreur serveur'
+    res.status(500).json({ error: message })
   }
 
 })

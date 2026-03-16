@@ -17,6 +17,7 @@ import updatesRouter from './routes/updates.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
+import { connectDB } from './config/database.js'
 
 const app = express()
 
@@ -25,8 +26,10 @@ const FRONTEND_ORIGINS: string[] = process.env.CORS_ORIGIN
   : [
     'http://localhost:5173',
     'http://localhost:5174',
+    'http://localhost:5175',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:5174',
+    'http://127.0.0.1:5175',
     'https://mai-projet-integrateur.u-strasbg.fr'
   ]
 
@@ -98,6 +101,9 @@ new GameGateway(io)
 
 const PORT = parseInt(process.env.PORT || '3000', 10)
 
-httpServer.listen(PORT, () => {
-  console.log(`[SERVER] Quantum Bluff tourne sur http://localhost:${PORT}`)
-})
+;(async () => {
+  await connectDB()
+  httpServer.listen(PORT, () => {
+    console.log(`[SERVER] Quantum Bluff tourne sur http://localhost:${PORT}`)
+  })
+})()
