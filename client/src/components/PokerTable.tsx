@@ -48,6 +48,7 @@ export function PokerTable({
   const isTablet = deviceType === "tablet";
 
   const getPlayerPosition = (position: number, total: number) => {
+    if (total <= 0) return { x: 0, y: 0 };
     const tableWidth = isMobile ? 320 : isTablet ? 650 : 950;
     const tableHeight = isMobile ? 180 : isTablet ? 300 : 420;
 

@@ -162,6 +162,7 @@ export function Game() {
 
   const SB = 50;
   const BB = 100;
+  const BOT_START_CHIPS = 1000;
 
   const getPlayers = (): (BasePlayer | BotPlayer)[] => {
     const count = parseInt(searchParams.get("bots") || "1", 10);
@@ -181,8 +182,8 @@ export function Game() {
         allPlayers.push({
           id: `bot-${i + 1}`,
           name: `Bot ${botNames[i]}`,
-          chips: i === 0 ? BOT_START_CHIPS - SB : BOT_START_CHIPS,
-          bet: i === 0 ? SB : 0,
+          chips: startChips,
+          bet: 0,
           position: i,
           isActive: true,
           isDealer: true,
@@ -324,6 +325,7 @@ export function Game() {
   const resetBetsAndSetFirstToAct = (startIndex: number) => {
     setRoundPlayersActed(new Set());
     setPlayersState((prev) => {
+      if (prev.length === 0) return prev;
       let firstIdx = startIndex % prev.length;
       for (let i = 0; i < prev.length; i++) {
         const idx = (firstIdx + i) % prev.length;
@@ -1469,6 +1471,13 @@ export function Game() {
       const botIndex = playersState.findIndex((p) => p.id === playerId);
       const actorChipsBefore = playersState.find((p) => p.id === playerId)?.chips ?? 0;
       const actorBetBefore = playersState.find((p) => p.id === playerId)?.bet ?? 0;
+      const highestBet = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
+      const neededToCall = Math.max(0, highestBet - actorBetBefore);
+      const isBotAllInCall = amount < neededToCall;
+      const totalRefund = playersState
+        .filter((p) => p.id !== playerId && (p.bet ?? 0) > amount)
+        .reduce((sum, p) => sum + ((p.bet ?? 0) - amount), 0);
+      const humanRefund = hero && hero.id !== playerId && (hero.bet ?? 0) > amount ? (hero.bet ?? 0) - amount : 0;
       setPlayersState((prev) => {
         const nextList = prev.map((p) => {
           let next = p;

@@ -19,6 +19,7 @@ import { TutorialGame } from "./pages/TutorialGame";
 import { GameDeal } from "./pages/GameDeal";
 import { GameExample } from "./pages/GameExample";
 import { Layout } from "./components/Layout";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 function App() {
   return (
