@@ -94,7 +94,7 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
             )}
 
             <div className="flex justify-between items-center border-t border-b border-slate-600 py-4 my-4">
-              <span className="text-gray-400">Combinaison</span>
+              <span className="text-gray-400">Combinaison gagnante</span>
               <span className={`text-xl font-bold ${getHandColor(winner.hand)}`}>
                 {winner.hand}
               </span>
