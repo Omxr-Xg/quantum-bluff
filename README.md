@@ -1,155 +1,252 @@
-# DOCUMENTATION TECHNIQUE ET ERGONOMIQUE - QUANTUM BLUFF
-VERSION 1.0.0 - ÉTAT : PRODUCTION RÉEL
+# Quantum Bluff
 
-# INTRODUCTION DU SYSTÈME
-Quantum Bluff est une plateforme logicielle de Poker Texas Hold'em haute fidélité, conçue pour offrir une expérience analytique augmentée. Le système se distingue par l'intégration d'un moteur de calcul de probabilités en temps réel et d'une interface utilisateur optimisée pour la prise de décision sous pression temporelle. Le projet respecte les standards industriels en termes de développement front-end et d'ingénierie des interfaces homme-machine (IHM).
+Plateforme de poker Texas Hold'em en temps réel — multi-joueur, mode bot, et interface analytique augmentée.
 
-# 1. ARCHITECTURE TECHNIQUE ET STACK LOGICIELLE
-Le développement repose sur une pile technologique moderne garantissant performance, maintenabilité et typage rigoureux :
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933.svg)](https://nodejs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Environnement d'exécution : React 18.3.1 avec TypeScript pour une gestion stricte des interfaces de données.
+---
 
-Pilotage du routage : React Router v7 utilisant le Data Mode Pattern pour une gestion fluide des états de navigation.
+## Table des matières
 
-Moteur de rendu CSS : Tailwind CSS v4 assurant une cohérence visuelle via un système de design atomique.
+- [Vue d'ensemble](#vue-densemble)
+- [Fonctionnalités](#fonctionnalités)
+- [Stack technique](#stack-technique)
+- [Architecture](#architecture)
+- [Prérequis](#prérequis)
+- [Installation](#installation)
+- [Développement](#développement)
+- [Tests](#tests)
+- [Déploiement](#déploiement)
+- [Structure du projet](#structure-du-projet)
+- [Contribution](#contribution)
+- [Licence](#licence)
 
-Bibliothèque d'animations : Motion (Framer Motion) pour des transitions d'états fluides et un feedback utilisateur organique.
+---
 
-Gestion d'état global : API Context de React pour la persistance des configurations d'accessibilité et des sessions utilisateurs.
+## Vue d'ensemble
 
-# 2. CADRE ERGONOMIQUE ET LOIS DE CONCEPTION
-L'interface a été auditée selon les critères d'ergonomie cognitive pour maximiser l'efficience de l'interaction :
+**Quantum Bluff** est une application de poker Texas Hold'em haute fidélité, développée en monorepo, avec :
 
-Optimisation de la Loi de Fitts : Les zones d'interaction critiques, notamment le panneau de contrôle de jeu (Fold, Call, Raise), sont dimensionnées à 145px de largeur et positionnées en bas de l'écran pour minimiser la distance de déplacement du pointeur.
+- **Parties multi-joueur** : salles publiques/privées, invitations amis, WebSocket temps réel
+- **Mode bot** : entraînement en solo avec IA configurable
+- **Quantum HUD** : probabilités et statistiques en temps réel pour la prise de décision
+- **Accessibilité** : mode daltonien, contraste étendu, alertes visuelles
+- **Client desktop** : application Electron (Windows, macOS, Linux) avec mises à jour automatiques
 
-Application de la Loi de Hick : La structure décisionnelle du Lobby réduit le nombre d'options simultanées, minimisant ainsi le temps de réaction de l'utilisateur face à des choix multiples.
+---
 
-Divulgation Progressive (Progressive Disclosure) : Les informations complexes, telles que les probabilités détaillées du Quantum HUD ou les paramètres avancés de serveur, sont masquées par défaut et accessibles uniquement à la demande pour éviter la surcharge cognitive.
+## Fonctionnalités
 
-Visibilité de l'état du système : Utilisation systématique de feedbacks visuels (états de survol, barres de progression, indicateurs de tour) pour informer l'utilisateur de l'évolution de la partie en temps réel.
+| Module | Description |
+|--------|-------------|
+| **Authentification** | Inscription, connexion, JWT, gestion de profil |
+| **Lobby** | Création/rejoindre des salles, mode bot ou serveur |
+| **Salles d'attente** | Rôles (hôte, joueur), salles publiques/privées, demandes de rejoindre |
+| **Partie** | Texas Hold'em complet (preflop → river → showdown), split pot, timer de tour |
+| **Quantum HUD** | Probabilités, odds, feedback visuel pour l’aide à la décision |
+| **Amis** | Demandes, listes d’amis, statut en ligne |
+| **Historique** | Actions de jeu, résultats, statistiques par joueur |
+| **Hidden Bets** | Mode de mises cachées avec révélation à la fin |
+| **Tutoriels** | Parcours Lobby + partie pour les nouveaux joueurs |
+| **i18n** | Interface en français (extensible) |
+| **Client desktop** | Electron avec auto-update (Windows, macOS, Linux) |
 
-# 3. PARCOURS UTILISATEUR ET FONCTIONNALITÉS PAGES
-L'application est décomposée en modules fonctionnels distincts :
+---
 
-Module d'authentification : Formulaires d'inscription et de connexion incluant une validation sémantique temps réel, des indicateurs de force de mot de passe et des mécanismes de prévention d'erreurs (toggles de visibilité).
+## Stack technique
 
-Module Lobby : Centre de décision permettant la redirection vers les modes Bot ou Serveur, conçu pour une navigation sans friction.
+### Frontend
 
-Module de Configuration : Interface de gestion de serveurs incluant des contrôles hybrides (sliders et inputs numériques) pour une précision de paramétrage optimale.
+- **React 19** + **TypeScript**
+- **Vite 7**
+- **React Router v7**
+- **Tailwind CSS 4**
+- **Motion** (Framer Motion)
+- **Socket.io-client**
+- **Radix UI**, **Lucide React**
+- **i18next**
+- **Electron** (client bureau)
 
-Interface de Jeu (Game Dashboard) : Table elliptique immersive intégrant le Quantum HUD, un système de chat avec émojis, et une gestion dynamique des tours de parole.
+### Backend
 
-# 4. ACCESSIBILITÉ ET INCLUSIVITÉ (NORMES WCAG)
-Quantum Bluff intègre une couche d'accessibilité native pour garantir une utilisation universelle :
+- **Node.js** + **Express**
+- **TypeScript** (ESM)
+- **Socket.io**
+- **Prisma** + **PostgreSQL**
+- **Redis** (ioredis)
+- **JWT**, **bcryptjs**
+- **Zod** (validation)
 
-Mode Daltonien : Substitution de l'information chromatique par une information de forme (Cercle, Losange, Carré, Triangle) sur les enseignes de cartes.
+### Infrastructure
 
-Feedback Multi-sensoriel : Alertes visuelles (flashs de bordure) pour les utilisateurs malentendants en remplacement des signaux sonores.
+- **Docker** / Docker Compose (PostgreSQL, Redis, backend, frontend, nginx)
+- **PM2** pour le déploiement
 
-Contraste Étendu : Palette de couleurs "Poker Club Privé" optimisée pour un ratio de contraste supérieur aux normes minimales, assurant une lisibilité maximale en toutes circonstances.
+---
 
-# 5a. STRUCTURE DU CODE SOURCE
-```txt
+## Architecture
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│    Client       │────▶│     Backend       │────▶│   PostgreSQL    │
+│ React / Vite    │◀────│ Node.js / Express │     │   Prisma ORM    │
+└────────┬────────┘     └────────┬──────────┘     └─────────────────┘
+         │                      │
+         │ Socket.io             │ Redis
+         │                      │
+         ▼                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Logique métier (GameTable)                     │
+│  Deck • Evaluator • Texas Hold'em (preflop→river→showdown)       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Prérequis
+
+- **Node.js** ≥ 18
+- **Docker** et **Docker Compose** (base de données)
+- **PostgreSQL** 16 (ou via Docker)
+- **Redis** (pour les sessions / cache)
+- **npm** ou **pnpm**
+
+---
+
+## Installation
+
+1. **Cloner le dépôt**
+   ```bash
+   git clone <url-du-repo>
+   cd quantum-bluff
+   ```
+
+2. **Variables d'environnement**
+   ```bash
+   cp server/.env.example server/.env
+   # Éditer server/.env : DATABASE_URL, REDIS_URL, JWT_SECRET
+   ```
+
+3. **Base de données**
+   ```bash
+   npm run dev:db
+   cd server && npx prisma migrate deploy
+   ```
+
+4. **Dépendances**
+   ```bash
+   npm run install:all
+   ```
+
+---
+
+## Développement
+
+Lancer l’environnement complet :
+
+```bash
+npm run dev
+```
+
+Cela démarre :
+
+- **PostgreSQL** et **Redis** (Docker)
+- **Serveur** (port 3000)
+- **Client** (port 5173 par défaut)
+
+Scripts utiles :
+
+| Commande | Description |
+|----------|-------------|
+| `npm run dev` | Lancer DB, serveur et client |
+| `npm run dev:db` | Démarrer PostgreSQL + Redis (Docker) |
+| `npm run dev:server` | Backend seul |
+| `npm run dev:client` | Frontend seul |
+
+---
+
+## Tests
+
+```bash
+# Tous les tests (depuis la racine)
+npm run test:coverage
+
+# Tests serveur uniquement
+cd server && npm test
+
+# Tests client uniquement
+cd client && npm test
+```
+
+---
+
+## Déploiement
+
+Le projet est conçu pour un déploiement sur machine virtuelle avec PM2. Voir [DEPLOY.md](./DEPLOY.md) pour :
+
+- Configuration `.env` production
+- Script `server/deploy.sh`
+- Gestion des mises à jour du client Electron
+- Vérification des services
+
+---
+
+## Structure du projet
+
+```
 quantum-bluff/
-├── client/                         # Frontend React/TypeScript
-│   ├── public/                     # Fichiers statiques
-│   └── src/
-│       ├── assets/                  # Images, logos, fonts
-│       ├── components/               # Composants React réutilisables
-│       │   ├── figma/                # Composants Figma intégrés
-│       │   ├── ui/                   # Composants d'interface
-│       │   └── ...
-│       ├── contexts/                 # Contextes React (Socket, Auth)
-│       ├── hooks/                    # Hooks personnalisés
-│       ├── pages/                    # Pages de l'application
-│       │   ├── Login.tsx
-│       │   ├── Register.tsx
-│       │   ├── Lobby.tsx
-│       │   ├── WaitingRoom.tsx
-│       │   ├── Game.tsx
-│       │   ├── Friends.tsx
-│       │   └── ...
-│       ├── services/                  # Services API (RTK Query)
-│       ├── store/                      # Store Redux
-│       ├── styles/                     # Styles globaux
-│       ├── types/                       # Types TypeScript
-│       ├── utils/                       # Utilitaires
-│       ├── App.tsx                      # Composant principal
-│       ├── main.tsx                     # Point d'entrée
-│       └── vite-env.d.ts                 # Types Vite
-│
-├── server/                         # Backend Node.js/Express
-│   ├── prisma/                       # Configuration Prisma
-│   │   ├── migrations/                # Migrations BDD
-│   │   └── schema.prisma               # Schéma de base de données
+├── client/                 # Frontend React
 │   ├── src/
-│   │   ├── __tests__/                  # Tests unitaires
-│   │   ├── config/                      # Configuration
-│   │   │   └── database.ts              # Connexion Prisma
-│   │   ├── generated/                   # Client Prisma généré
-│   │   ├── logic/                        # Logique métier
-│   │   │   ├── Deck.ts
-│   │   │   ├── Evaluator.ts
-│   │   │   └── GameTable.ts
-│   │   ├── middleware/                   # Middlewares Express
-│   │   │   └── auth.middleware.ts
-│   │   ├── routes/                       # Routes API
-│   │   │   ├── auth.routes.ts
-│   │   │   ├── friends.routes.ts
-│   │   │   ├── game.api.routes.ts
-│   │   │   └── waitingRoom.routes.ts
-│   │   ├── services/                     # Services métier
-│   │   ├── shared/                        # Fichiers partagés
-│   │   │   └── activeGames.ts
-│   │   ├── sockets/                       # Socket.io
-│   │   │   └── game.gateway.ts
-│   │   ├── types/                         # Types TypeScript
-│   │   │   └── poker.ts
-│   │   ├── validation/                    # Schémas Zod
-│   │   │   ├── auth.validation.ts
-│   │   │   └── friends.validation.ts
-│   │   └── index.ts                        # Point d'entrée serveur
-│   ├── .env.example                        # Variables d'environnement
-│   ├── package.json
-│   └── tsconfig.json
+│   │   ├── components/      # Composants réutilisables, UI
+│   │   ├── contexts/        # Accessibilité, Socket, Auth, Toast
+│   │   ├── hooks/
+│   │   ├── i18n/
+│   │   ├── pages/           # Lobby, Game, Friends, Profile, etc.
+│   │   ├── services/
+│   │   ├── utils/
+│   │   └── App.tsx
+│   ├── electron.cjs
+│   └── package.json
 │
-├── database/                         # Base de données Docker
-│   ├── docker-compose.yml
-│   └── Dockerfile
+├── server/                  # Backend Node.js
+│   ├── prisma/
+│   │   ├── migrations/
+│   │   └── schema.prisma
+│   ├── src/
+│   │   ├── config/
+│   │   ├── logic/           # Deck, Evaluator, GameTable
+│   │   ├── middleware/
+│   │   ├── routes/          # auth, friends, game, waitingRoom, bot
+│   │   ├── sockets/         # game.gateway.ts
+│   │   ├── services/
+│   │   └── validation/
+│   └── package.json
 │
-├── docs/                              # Documentation
-│   ├── CR/                             # Comptes rendus
-│   └── architecture/                    # Documentation technique
-│
-├── scripts/                           # Scripts utilitaires
-│   └── backup/                         # Sauvegardes automatiques
-│       ├── backup.sh
-│       ├── restore.sh
-│       └── monitor.sh
-│
-├── .gitignore
-├── .gitlab-ci.yml                      # CI/CD GitLab
-└── README.md                           # Documentation principale
+├── database/                # Docker Compose PostgreSQL + Redis
+├── nginx/                   # Configuration reverse proxy
+├── scripts/
+├── Docs/
+├── CONTRIBUTING.md
+├── DEPLOY.md
+└── README.md
 ```
-# 5b. Architecture globale
-```txt
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Frontend  │────▶│   Backend    │────▶│  Database   │
-│   (React)   │◀────│  (Node.js)   │     │ (PostgreSQL)│
-└─────────────┘     └──────────────┘     └─────────────┘
-       │                    │
-       │                    │
-       ▼                    ▼
-┌─────────────┐     ┌──────────────┐
-│ Socket.io   │     │   Game Logic │
-│ Temps réel  │     │  (GameTable) │
-└─────────────┘     └──────────────┘
-```
-# 6. PROCÉDURE DE DÉPLOIEMENT ET RÉFÉRENTIEL
-Le projet suit un workflow d'intégration continue standard :
-1. Installation des dépendances via `npm install`.
-2. Lancement du serveur de développement via `npm run dev` pour le test des composants.
-3. Build de production via `npm run build` générant un bundle optimisé et minifié.
 
-# CONCLUSION TECHNIQUE
-Quantum Bluff représente une solution logicielle robuste où l'ingénierie logicielle rencontre la psychologie cognitive. Chaque décision de design est étayée par une justification ergonomique, garantissant une plateforme non seulement esthétique, mais surtout performante et inclusive.
+---
+
+## Contribution
+
+Les contributions sont bienvenues. Voir [CONTRIBUTING.md](./CONTRIBUTING.md) pour :
+
+- Workflow Git (branches `main`, `develop`, `feature/*`)
+- Standards de code (TypeScript, structure des dossiers)
+- Processus de Merge Request
+
+---
+
+## Licence
+
+MIT — voir le fichier [LICENSE](./LICENSE) pour les détails.
