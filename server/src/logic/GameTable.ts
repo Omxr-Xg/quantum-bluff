@@ -241,7 +241,21 @@ export class GameTable {
     return { winnerId: winner.id, pot: awardedPot }
   }
 
-  private moveToNextPhase(): void {
+  /**
+   * Quand un joueur se déconnecte alors que ce n'est pas son tour (isActive déjà mis à false par le gateway).
+   * Attribue le pot au joueur restant s'il n'en reste qu'un.
+   */
+  forceFoldForDisconnect(_playerId: string): void {
+    if (this.getActivePlayers().length === 1) {
+      this.awardPotToSingleRemainingPlayer()
+    }
+  }
+
+  /**
+   * Passe à la phase suivante.
+   * @param lastActorId - Si fourni, le premier à jouer sur la nouvelle rue est le joueur APRÈS lastActorId (évite qu'un joueur joue deux fois de suite)
+   */
+  private moveToNextPhase(lastActorId?: string): void {
     const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
     const currentIndex = phaseOrder.indexOf(this.state.phase)
 
@@ -252,10 +266,12 @@ export class GameTable {
     const nextPhase = phaseOrder[currentIndex + 1]
     this.state.phase = nextPhase
 
+    const firstToActId = this.getFirstToActOnNewStreet(lastActorId)
+
     if (nextPhase === 'FLOP') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(...this.deck.dealFlop())
-      this.state.currentTurn = this.getPostflopFirstPlayerId()
+      this.state.currentTurn = firstToActId
       this.runOutBoardIfAllIn()
       return
     }
@@ -263,7 +279,7 @@ export class GameTable {
     if (nextPhase === 'TURN') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealTurn())
-      this.state.currentTurn = this.getPostflopFirstPlayerId()
+      this.state.currentTurn = firstToActId
       this.runOutBoardIfAllIn()
       return
     }
@@ -271,13 +287,27 @@ export class GameTable {
     if (nextPhase === 'RIVER') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealRiver())
-      this.state.currentTurn = this.getPostflopFirstPlayerId()
+      this.state.currentTurn = firstToActId
       this.runOutBoardIfAllIn()
       return
     }
 
     this.resolveShowdown()
     this.state.currentTurn = ''
+  }
+
+  /** Premier à jouer sur une nouvelle rue : après lastActorId si fourni, sinon dealer/postflop standard */
+  private getFirstToActOnNewStreet(lastActorId?: string): string {
+    if (lastActorId) {
+      const lastIndex = this.getPlayerIndexById(lastActorId)
+      if (lastIndex !== -1) {
+        const nextIndex = this.getNextEligiblePlayerIndex(lastIndex)
+        if (nextIndex !== -1) {
+          return this.state.players[nextIndex].id
+        }
+      }
+    }
+    return this.getPostflopFirstPlayerId()
   }
 
   /**
@@ -581,7 +611,7 @@ export class GameTable {
       }
 
       if (this.isBettingRoundComplete()) {
-        this.moveToNextPhase()
+        this.moveToNextPhase(player.id) // premier à jouer = suivant du folder
         return
       }
 
@@ -593,7 +623,7 @@ export class GameTable {
       this.actedPlayerIds.add(player.id)
 
       if (this.isBettingRoundComplete()) {
-        this.moveToNextPhase()
+        this.moveToNextPhase(player.id) // évite que le même joueur joue deux fois de suite
         return
       }
 
@@ -608,14 +638,15 @@ export class GameTable {
       player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + actualCallAmount
       this.state.pot += actualCallAmount
 
-      // Quand on suit une relance, le relanceur doit revoir l'action : on le retire de acted
-      if (this.lastRaiserId && this.lastRaiserId !== player.id) {
-        this.actedPlayerIds.delete(this.lastRaiserId)
-      }
       this.actedPlayerIds.add(player.id)
+      // S'assurer que le relanceur et tous ceux qui ont matché sont dans acted (évite de redemander au raiser)
+      if (this.lastRaiserId) this.actedPlayerIds.add(this.lastRaiserId)
+      for (const p of this.getActivePlayers()) {
+        if ((p.currentBet || 0) === this.highestBet) this.actedPlayerIds.add(p.id)
+      }
 
       if (this.isBettingRoundComplete()) {
-        this.moveToNextPhase()
+        this.moveToNextPhase(player.id) // A raise B call → premier sur nouvelle rue = B (qui vient de call)
         return
       }
 
