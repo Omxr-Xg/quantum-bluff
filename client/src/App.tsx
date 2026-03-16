@@ -1,7 +1,7 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 // 1️⃣ AJOUTE CET IMPORT (⚠️ Vérifie bien que le chemin correspond à ton dossier !)
-import { AccessibilityProvider } from "./contexts/AccessibilityContext"; 
+import { AccessibilityProvider } from "./contexts/AccessibilityContext";
 
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
@@ -21,6 +21,12 @@ import { GameExample } from "./pages/GameExample";
 import { Layout } from "./components/Layout";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
+/** Force un remount propre lors de la navigation (ex: config bot → jeu) pour éviter les blocages */
+function GameWithKey() {
+  const location = useLocation();
+  return <Game key={location.pathname + location.search} />;
+}
+
 function App() {
   return (
     <BrowserRouter basename="/vmProjetIntegrateurgrp10-0">
@@ -38,7 +44,7 @@ function App() {
             <Route path="/bot-configuration" element={<BotConfiguration />} />
             <Route path="/waiting-room" element={<WaitingRoom />} />
 
-            <Route path="/game" element={<Game />} />
+            <Route path="/game" element={<GameWithKey />} />
             <Route path="/game-deal" element={<GameDeal />} />
             <Route path="/game-example" element={<GameExample />} />
             <Route path="/results" element={<HiddenBetsResult />} />

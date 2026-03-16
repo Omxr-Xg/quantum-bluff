@@ -53,6 +53,8 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
 
   if (!winner) return null;
 
+  const displayHand = (winner.hand && winner.hand !== "—") ? winner.hand : "Haute carte";
+
   return (
     <AnimatePresence>
       <motion.div
@@ -95,13 +97,13 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
 
             <div className="flex justify-between items-center border-t border-b border-slate-600 py-4 my-4">
               <span className="text-gray-400">Combinaison gagnante</span>
-              <span className={`text-xl font-bold ${getHandColor(winner.hand)}`}>
-                {winner.hand}
+              <span className={`text-xl font-bold ${getHandColor(displayHand)}`}>
+                {displayHand}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-gray-400">Gain</span>
+              <span className="text-gray-400">{winner.isSplit ? "Chacun reçoit" : "Gain"}</span>
               <span className="text-2xl font-bold text-yellow-400">
                 {winner.pot.toLocaleString()} 🪙
               </span>

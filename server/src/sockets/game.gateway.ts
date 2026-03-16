@@ -420,11 +420,12 @@ export class GameGateway {
               const player = game.getPlayerState(userId)
               if (player) {
                 player.isConnected = false
-                
+                player.isActive = false // déconnexion = fold
+
                 if (game.state.currentTurn === userId) {
                   try {
                     console.log(`[Réseau] Auto-FOLD pour le joueur déconnecté ${userId}`)
-                    game.handlePlayerAction(userId, 'FOLD')
+                    game.handlePlayerAction(userId, 'FOLD') // gère avancement turn + award si 1 seul reste
                     const socketsInRoom = await this.io.in(gameId).fetchSockets()
                     for (const s of socketsInRoom) {
                       const uid = (s as unknown as AuthenticatedSocket).userId
@@ -433,6 +434,17 @@ export class GameGateway {
                     this.startTurnTimer(gameId)
                   } catch (error) {
                     console.error('[Réseau] Erreur auto-fold timeout:', error)
+                  }
+                } else {
+                  // Pas son tour : on applique le fold et on vérifie s'il ne reste qu'un joueur
+                  game.forceFoldForDisconnect(userId)
+                  const socketsInRoom = await this.io.in(gameId).fetchSockets()
+                  for (const s of socketsInRoom) {
+                    const uid = (s as unknown as AuthenticatedSocket).userId
+                    s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+                  }
+                  if (game.state.phase === 'SHOWDOWN') {
+                    this.startTurnTimer(gameId)
                   }
                 }
 

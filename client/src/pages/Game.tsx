@@ -118,6 +118,7 @@ export function Game() {
   const [gameOverReason, setGameOverReason] = useState<"human_eliminated" | "bot_eliminated" | null>(null);
   const [showdownResult, setShowdownResult] = useState<{
     winnerId: string;
+    winnerIds?: string[];
     winnerName: string;
     hand: string;
     handRank: number;
@@ -157,10 +158,12 @@ export function Game() {
   /** Multiplayer: données du showdown en attente (révélation 3s avant d'afficher le modal) */
   const [pendingShowdownData, setPendingShowdownData] = useState<{
     winnerId: string;
+    winnerIds?: string[];
     winnerName: string;
     hand: string;
     pot: number;
     winnerCards: Card[];
+    isSplit?: boolean;
   } | null>(null);
   /** Track total chips contributed per player across all streets (for side pot calculation) */
   const handContributionsRef = useRef<Record<string, number>>({});
@@ -168,6 +171,12 @@ export function Game() {
   /** Multi: host peut relancer avec les mêmes membres */
   const [isRematchHost, setIsRematchHost] = useState(false);
   const [rematchLoading, setRematchLoading] = useState(false);
+  /** Skip la révélation du showdown : appelle cette ref pour passer au résultat */
+  const showdownSkipRef = useRef<(() => void) | null>(null);
+  /** Multi: timeouts pour l'animation du flop carte par carte */
+  const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  /** Multi: évite de rejouer l'animation flop à chaque GAME_UPDATE (changement de tour) */
+  const flopAnimatedRef = useRef(false);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
@@ -407,49 +416,58 @@ export function Game() {
   };
 
   useEffect(() => {
-    let initial: (BasePlayer | BotPlayer)[] = [];
-    if (gameIdParam && typeof window !== "undefined") {
-      const stored = localStorage.getItem("gamePlayers");
-      if (stored) {
-        try {
-          const parsed: { id: string; name: string }[] = JSON.parse(stored);
-          // Ne pas supprimer : l'autre onglet doit pouvoir lire aussi
-          initial = parsed.map((p, i) => ({
-            id: String(p.id),
-            name: p.name,
-            chips: 1000,
-            bet: 0,
-            position: i,
-            isActive: i === 0,
-            isDealer: false,
-            cards: [],
-            isConnected: true,
-            hasFolded: false,
-            isBot: false,
-          }));
-        } catch { /* no-op */ }
+    const runInit = () => {
+      let initial: (BasePlayer | BotPlayer)[] = [];
+      if (gameIdParam && typeof window !== "undefined") {
+        const stored = localStorage.getItem("gamePlayers");
+        if (stored) {
+          try {
+            const parsed: { id: string; name: string }[] = JSON.parse(stored);
+            initial = parsed.map((p, i) => ({
+              id: String(p.id),
+              name: p.name,
+              chips: 1000,
+              bet: 0,
+              position: i,
+              isActive: i === 0,
+              isDealer: false,
+              cards: [],
+              isConnected: true,
+              hasFolded: false,
+              isBot: false,
+            }));
+          } catch { /* no-op */ }
+        }
       }
+      if (initial.length === 0) initial = getPlayers();
+      initial.forEach((p) => {
+        p.cards = [];
+      });
+      setPlayersState(initial);
+      if (!gameIdParam) {
+        setDeck(generateDeck());
+      }
+      if (mode === "bot") {
+        setPot(SB + BB);
+        setPlayerChips(getUserBalance());
+        setPhase("init");
+        setGameInitialized(false);
+        setRoundPlayersActed(new Set());
+        setSidePots([]);
+        const contribs: Record<string, number> = {};
+        initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
+        handContributionsRef.current = contribs;
+      }
+    };
+    // Mode bot : différer d'un frame pour éviter blocage config → jeu (React doit finir le mount)
+    if (mode === "bot" && !gameIdParam) {
+      const id = requestAnimationFrame(() => {
+        runInit();
+      });
+      return () => cancelAnimationFrame(id);
     }
-    if (initial.length === 0) initial = getPlayers();
-    initial.forEach((p) => {
-      p.cards = [];
-    });
-    setPlayersState(initial);
-    if (!gameIdParam) {
-      setDeck(generateDeck());
-    }
-    if (mode === "bot") {
-      setPot(SB + BB);
-      setPlayerChips(getUserBalance());
-      setPhase("init");
-      setGameInitialized(false);
-      setRoundPlayersActed(new Set());
-      setSidePots([]);
-      const contribs: Record<string, number> = {};
-      initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
-      handContributionsRef.current = contribs;
-    }
-  }, [mode, searchParams.toString()]);
+    runInit();
+  }, [mode, gameIdParam]);
 
   // Rejouer avec la même configuration (bouton overlay, mode bot uniquement)
   useEffect(() => {
@@ -541,12 +559,25 @@ export function Game() {
         }
         const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
         setPhase(phase as GamePhase);
-        const cc = gameState.communityCards;
-        if (Array.isArray(cc)) {
-          const arr: (Card | null)[] = [null, null, null, null, null];
-          cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
+      const cc = gameState.communityCards;
+      if (Array.isArray(cc)) {
+        const arr: (Card | null)[] = [null, null, null, null, null];
+        cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
+        // Flop carte par carte en multijoueur (comme en mode bot)
+        if (phase === "flop" && arr[0] && arr[1] && arr[2] && !arr[3] && !arr[4]) {
+          flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
+          flopAnimateTimeoutsRef.current = [];
+          setCommunityCardsState([arr[0], null, null, null, null]);
+          flopAnimateTimeoutsRef.current.push(
+            setTimeout(() => setCommunityCardsState((prev) => [prev[0], arr[1], null, null, null]), 800)
+          );
+          flopAnimateTimeoutsRef.current.push(
+            setTimeout(() => setCommunityCardsState([arr[0]!, arr[1]!, arr[2]!, null, null]), 1600)
+          );
+        } else {
           setCommunityCardsState(arr);
         }
+      }
         const isPlayingPhase = phase !== "init";
         setGameInitialized(isPlayingPhase);
       })
@@ -610,7 +641,7 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownHandName?: string; showdownPot?: number }) => {
+    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number }) => {
       gameStateFromSocketRef.current = true;
       const players = gameState.players ?? [];
       setPlayersState((prev) => {
@@ -644,7 +675,23 @@ export function Game() {
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
         cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
-        setCommunityCardsState(arr);
+        // Multi: flop carte par carte (comme en mode bot) — une seule fois, pas à chaque changement de tour
+        if (phase === "flop" && arr[0] && arr[1] && arr[2]) {
+          if (!flopAnimatedRef.current) {
+            flopAnimatedRef.current = true;
+            flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
+            flopAnimateTimeoutsRef.current = [];
+            setCommunityCardsState([arr[0], null, null, null, null]);
+            const t1 = setTimeout(() => setCommunityCardsState((prev) => [arr[0]!, arr[1]!, null, null, null]), 800);
+            const t2 = setTimeout(() => setCommunityCardsState(arr), 1600);
+            flopAnimateTimeoutsRef.current = [t1, t2];
+          } else {
+            setCommunityCardsState(arr);
+          }
+        } else {
+          if (phase !== "flop") flopAnimatedRef.current = false;
+          setCommunityCardsState(arr);
+        }
       }
       setGameInitialized(phase !== "init");
       setHasPlayerActed(false);
@@ -663,10 +710,18 @@ export function Game() {
         setTimerActive(true);
         setTimeLeft(30);
       }
-      if (phase === "showdown" && gameState.showdownWinnerId) {
-        const winnerName = players.find((p) => String(p.id) === String(gameState.showdownWinnerId))?.name ?? String(gameState.showdownWinnerId);
-        const winnerPlayer = players.find((p) => String(p.id) === String(gameState.showdownWinnerId));
-        const potWon = gameState.showdownPot ?? 0;
+      const hasShowdownWinner = gameState.showdownWinnerId || (gameState.showdownWinnerIds && gameState.showdownWinnerIds.length > 0);
+      if (phase === "showdown" && hasShowdownWinner) {
+        const winnerIds = gameState.showdownIsSplit && gameState.showdownWinnerIds?.length
+          ? gameState.showdownWinnerIds
+          : [gameState.showdownWinnerId!];
+        const firstWinnerId = winnerIds[0]!;
+        const winnerName = gameState.showdownIsSplit && winnerIds.length > 1
+          ? "Égalité"
+          : (players.find((p) => String(p.id) === String(firstWinnerId))?.name ?? firstWinnerId);
+        const winnerPlayer = players.find((p) => String(p.id) === String(firstWinnerId));
+        const totalPot = gameState.showdownPot ?? 0;
+        const potWon = winnerIds.length > 1 ? Math.floor(totalPot / winnerIds.length) : totalPot;
         const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
         addToUserBalance(balanceChange);
@@ -677,11 +732,13 @@ export function Game() {
           : [];
         setShowdownReveal(true);
         setPendingShowdownData({
-          winnerId: gameState.showdownWinnerId,
+          winnerId: firstWinnerId,
+          winnerIds: winnerIds.length > 1 ? winnerIds : undefined,
           winnerName,
           hand: gameState.showdownHandName ?? "—",
           pot: potWon,
           winnerCards: normalized,
+          isSplit: gameState.showdownIsSplit ?? false,
         });
       }
     };
@@ -731,22 +788,33 @@ export function Game() {
     return () => socket.off("REMATCH_CREATED", onRematch);
   }, [socket, navigate]);
 
-  // Multiplayer: après 3s de révélation des cartes, afficher le modal du gagnant
+  // Multiplayer: après 3s de révélation des cartes, afficher le modal du gagnant (ou Skip)
   useEffect(() => {
     if (!pendingShowdownData || !gameIdParam) return;
-    const t = setTimeout(() => {
+    const applyResult = () => {
       setShowdownResult({
         winnerId: pendingShowdownData.winnerId,
+        winnerIds: pendingShowdownData.winnerIds,
         winnerName: pendingShowdownData.winnerName,
         hand: pendingShowdownData.hand,
         handRank: 0,
         pot: pendingShowdownData.pot,
+        isSplit: pendingShowdownData.isSplit,
       });
       setShowdownWinnerCards(pendingShowdownData.winnerCards);
       setShowdownReveal(false);
       setPendingShowdownData(null);
-    }, 3000);
-    return () => clearTimeout(t);
+      showdownSkipRef.current = null;
+    };
+    const t = setTimeout(applyResult, 3000);
+    showdownSkipRef.current = () => {
+      clearTimeout(t);
+      applyResult();
+    };
+    return () => {
+      clearTimeout(t);
+      showdownSkipRef.current = null;
+    };
   }, [pendingShowdownData, gameIdParam]);
 
   useEffect(() => {
@@ -1131,12 +1199,30 @@ export function Game() {
     if (activeInHand.length === 1) {
       const sole = activeInHand[0];
       setShowdownReveal(true);
-      setTimeout(() => {
+      const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+      setTimeout(async () => {
+        let handName = "Haute carte";
+        try {
+          const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              players: [{ id: String(sole.id), name: sole.name, cards: sole.cards }],
+              communityCards: validCommunity,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            handName = data.handName ?? "Haute carte";
+          }
+        } catch { /* ignore */ }
         setPlayersState((prev) => prev.map((p) => (p.id === sole.id ? { ...p, chips: (p.chips ?? 0) + pot } : p)));
         if (sole.id === userId || sole.id === "human") setPlayerChips((prev) => prev + pot);
         setPot(0);
         setShowdownReveal(false);
-        setShowdownResult({ winnerId: String(sole.id), winnerName: sole.name, hand: "—", handRank: 0, pot });
+        setShowdownWinnerCards(sole.cards ?? []);
+        setShowdownResult({ winnerId: String(sole.id), winnerName: sole.name, hand: handName, handRank: 0, pot });
       }, 3000);
       return;
     }
@@ -1160,14 +1246,14 @@ export function Game() {
     let mainIsSplit = false;
     const FETCH_TIMEOUT_MS = 8000;
 
-    const applyFallback = () => {
+    const applyFallback = (handNameOverride?: string) => {
       const fallbackWinner = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
       setPot(0);
       setShowdownReveal(false);
       setShowdownResult({
         winnerId: String(fallbackWinner?.id ?? ""),
         winnerName: fallbackWinner?.name ?? "Inconnu",
-        hand: "—",
+        hand: handNameOverride ?? "Haute carte",
         handRank: 0,
         pot: currentPot,
       });
@@ -1178,7 +1264,7 @@ export function Game() {
       addToUserBalance(0);
     };
 
-    const revealTimer = setTimeout(async () => {
+    const runComplete = async () => {
       try {
         const effectivePots = pots.length > 0 ? pots : [{ amount: currentPot, eligibleIds: activeInHand.map((p) => String(p.id)) }];
         const awards: Record<string, number> = {};
@@ -1252,22 +1338,54 @@ export function Game() {
           isSplit: mainIsSplit,
         });
       } catch {
-        applyFallback();
+        let fallbackHand = "Haute carte";
+        try {
+          const fw = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
+          if (fw?.cards?.length === 2) {
+            const r = await fetch(apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ players: [{ id: String(fw.id), name: fw.name, cards: fw.cards }], communityCards: validCommunity }),
+            });
+            if (r.ok) { const d = await r.json(); fallbackHand = d.handName ?? fallbackHand; }
+          }
+        } catch { /* ignore */ }
+        applyFallback(fallbackHand);
       }
-    }, 3000);
-    return () => clearTimeout(revealTimer);
+    };
+    const revealTimer = setTimeout(runComplete, 3000);
+    showdownSkipRef.current = () => {
+      clearTimeout(revealTimer);
+      showdownSkipRef.current = null;
+      runComplete();
+    };
+    return () => {
+      clearTimeout(revealTimer);
+      showdownSkipRef.current = null;
+    };
   }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId]);
 
   // Safety net: force showdown completion if stuck for 12s (API timeout, race, validCommunity delay)
   showdownResultRef.current = showdownResult;
   useEffect(() => {
     if (!isBotMode || phase !== "showdown" || showdownResult !== null || handResult !== null) return;
-    const safety = setTimeout(() => {
+    const safety = setTimeout(async () => {
       if (showdownResultRef.current !== null) return;
       console.warn("[QB] Showdown safety: forcing completion after 12s");
       const active = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
       const winner = active[0] ?? playersState.find((p) => !(p.hasFolded ?? false)) ?? playersState[0];
       const currentPot = pot;
+      let safetyHand = "Haute carte";
+      const validComm = communityCardsState.filter((c): c is Card => c !== null);
+      if (winner && (winner as BasePlayer | BotPlayer).cards?.length === 2 && validComm.length >= 5) {
+        try {
+          const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+          const r = await fetch(apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ players: [{ id: String(winner.id), name: winner.name, cards: (winner as BasePlayer | BotPlayer).cards }], communityCards: validComm }),
+          });
+          if (r.ok) { const d = await r.json(); safetyHand = d.handName ?? safetyHand; }
+        } catch { /* ignore */ }
+      }
       setPot(0);
       setShowdownReveal(false);
       showdownStartedRef.current = true;
@@ -1279,7 +1397,7 @@ export function Game() {
       setShowdownResult({
         winnerId: String(winner?.id ?? ""),
         winnerName: (winner?.name as string) ?? "—",
-        hand: "—",
+        hand: safetyHand,
         handRank: 0,
         pot: currentPot,
       });
@@ -1973,6 +2091,15 @@ export function Game() {
                   </motion.div>
                 );
               })()}
+
+              {/* Bouton Skip pour passer directement au résultat */}
+              <button
+                type="button"
+                onClick={() => showdownSkipRef.current?.()}
+                className="mt-4 px-6 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 border border-white/40 text-white font-semibold text-sm transition-colors"
+              >
+                Skip
+              </button>
             </motion.div>
           </motion.div>
         )}
@@ -2006,7 +2133,10 @@ export function Game() {
             return;
           }
           const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
-          const won = showdownResult.winnerId === humanId || showdownResult.winnerId === "human";
+          const won =
+            showdownResult.winnerId === humanId ||
+            showdownResult.winnerId === "human" ||
+            (showdownResult.isSplit && showdownResult.winnerIds?.some((id) => String(id) === String(humanId)));
           const winnerName = showdownResult.winnerName;
           const handName = showdownResult.hand;
           setHandResult(won ? "win" : "loss");

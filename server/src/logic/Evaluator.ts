@@ -352,6 +352,24 @@ export function findWinners(players: Player[], board: Card[]): string[] {
   return winners;
 }
 
+/**
+ * Returns all winners plus the hand name (for ties, hand is same for all).
+ */
+export function findWinnersWithHand(
+  players: Player[],
+  board: Card[]
+): { winnerIds: string[]; handName: string } {
+  const winnerIds = findWinners(players, board);
+  if (winnerIds.length === 0) {
+    return { winnerIds: [], handName: HAND_NAMES[0] ?? "Haute carte" };
+  }
+  const firstWinner = players.find((p) => p.id === winnerIds[0]);
+  const handName = firstWinner
+    ? getHandInfo([...firstWinner.cards, ...board]).handName
+    : HAND_NAMES[0] ?? "Haute carte";
+  return { winnerIds, handName };
+}
+
 // ------------------------------
 // Class wrapper for backward compatibility
 // ------------------------------
