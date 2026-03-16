@@ -315,28 +315,6 @@ export function Game() {
     }, 250);
   };
 
-    const resetBetsAndSetFirstToAct = (startIndex: number) => {
-    setRoundPlayersActed(new Set());
-      setPlayersState((prev) => {
-        let nextIndex = startIndex % prev.length;
-        let loopCount = 0;
-        let foundActive = false;
-        while (loopCount < prev.length) {
-          if (prev[nextIndex].isConnected !== false && !(prev[nextIndex].hasFolded ?? false) && (prev[nextIndex].chips ?? 0) > 0) {
-            foundActive = true;
-            break;
-          }
-          nextIndex = (nextIndex + 1) % prev.length;
-          loopCount++;
-        }
-        return prev.map((p, i) => ({
-          ...p,
-          bet: 0,
-          isActive: foundActive ? i === nextIndex : false
-        }));
-      });
-  };
-
   /** Track contribution: add amount to a player's hand total */
   const addContribution = (playerId: string | number, amount: number) => {
     const key = String(playerId);
@@ -1052,69 +1030,62 @@ export function Game() {
     if (showdownStartedRef.current) return;
     const activeInHand = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
     if (activeInHand.length < 2) return;
-    const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
-    const url = `${baseUrl}/api/bot/evaluate-winner`;
-    const currentPot = pot;
-    fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        players: activeInHand.map((p) => ({ id: p.id, name: p.name, cards: p.cards })),
-        communityCards: communityCardsState.filter((c): c is Card => c !== null),
-      }),
-    })
-      .then((res) => res.json())
-      .then((data: { winnerId?: string; winnerIds?: string[]; winnerName?: string; isSplit?: boolean; handName?: string; handRank?: number }) => {
-        const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
-        const winnerIds = data.winnerIds ?? (data.winnerId ? [data.winnerId] : []);
-        const isSplit = data.isSplit === true && winnerIds.length > 1;
-        const dealerPosition = 0;
-        let humanShare = 0;
-        if (isSplit && winnerIds.length > 0) {
-          const share = Math.floor(currentPot / winnerIds.length);
-          const remainder = currentPot - share * winnerIds.length;
-          const dealerWinnerId = playersState.find((p) => p.position === dealerPosition && winnerIds.includes(p.id))?.id ?? winnerIds[0];
-          setPlayersState((prev) =>
-            prev.map((p) => {
-              if (!winnerIds.includes(p.id)) return p;
-              let amount = share;
-              if (p.id === dealerWinnerId && remainder > 0) amount += remainder;
-              return { ...p, chips: p.chips + amount };
-            })
-          );
-          if (winnerIds.includes(humanId ?? "")) {
-            const humanIsDealer = playersState.find((p) => p.id === humanId)?.position === dealerPosition;
-            humanShare = share + (humanIsDealer && remainder > 0 ? remainder : 0);
-            setPlayerChips((prev) => prev + humanShare);
-          }
-        } else {
-          const won = winnerIds.length > 0 && (winnerIds[0] === humanId || winnerIds[0] === "human");
-          if (won) {
-            setPlayerChips((prev) => prev + currentPot);
-            humanShare = currentPot;
-          } else {
-            setPlayersState((prev) => prev.map((p) => (p.id === winnerIds[0] ? { ...p, chips: p.chips + currentPot } : p)));
-          }
-        }
-        const startChips = startOfHandChipsRef.current;
-        const endChips = (winnerIds.includes(humanId ?? "") ? playerChips + humanShare : playerChips);
-        const balanceChange = endChips - startChips;
-        const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-        addToUserBalance(toAdd);
-        toAddLastRef.current = toAdd;
-        setPot(0);
-        const balanceChange = playerChips - startOfHandChipsRef.current;
-        addToUserBalance(balanceChange);
-        setShowdownReveal(false);
-        setShowdownResult({
-          winnerId: String(fallbackWinner?.id ?? ""),
-          winnerName: fallbackWinner?.name ?? "Inconnu",
-          hand: "—",
-          handRank: 0,
-          pot: currentPot,
-        });
-      };
+    const validCommunity = communityCardsState.filter((c): c is Card => c !== null);
+    const fromRef = communityCardsStateRef.current.filter((c): c is Card => c !== null);
+    const community = validCommunity.length >= 5 ? validCommunity : fromRef.length >= 5 ? fromRef : validCommunity;
+    if (community.length < 5) return;
 
+    if (activeInHand.length === 1) {
+      const sole = activeInHand[0];
+      setShowdownReveal(true);
+      setTimeout(() => {
+        setPlayersState((prev) => prev.map((p) => (p.id === sole.id ? { ...p, chips: (p.chips ?? 0) + pot } : p)));
+        if (sole.id === userId || sole.id === "human") setPlayerChips((prev) => prev + pot);
+        setPot(0);
+        setShowdownReveal(false);
+        setShowdownResult({ winnerId: String(sole.id), winnerName: sole.name, hand: "—", handRank: 0, pot });
+      }, 500);
+      return;
+    }
+
+    showdownStartedRef.current = true;
+    setShowdownReveal(true);
+    let pots: { amount: number; eligibleIds: string[] }[];
+    try {
+      pots = calculateSidePots(playersState, handContributionsRef.current);
+    } catch {
+      pots = [{ amount: pot, eligibleIds: activeInHand.map((p) => String(p.id)) }];
+    }
+    if (pots.length > 1) setSidePots(pots);
+
+    const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+    const currentPot = pot;
+    const humanId = String(playersState.find((p) => p.id === userId || p.id === "human")?.id ?? "human");
+    let mainWinnerName = "";
+    let mainHandName = "Haute carte";
+    let mainWinnerId = "";
+    let mainIsSplit = false;
+    const FETCH_TIMEOUT_MS = 8000;
+
+    const applyFallback = () => {
+      const fallbackWinner = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
+      setPot(0);
+      setShowdownReveal(false);
+      setShowdownResult({
+        winnerId: String(fallbackWinner?.id ?? ""),
+        winnerName: fallbackWinner?.name ?? "Inconnu",
+        hand: "—",
+        handRank: 0,
+        pot: currentPot,
+      });
+      if (fallbackWinner) {
+        setPlayersState((prev) => prev.map((p) => (p.id === fallbackWinner.id ? { ...p, chips: (p.chips ?? 0) + currentPot } : p)));
+        if (fallbackWinner.id === userId || fallbackWinner.id === "human") setPlayerChips((prev) => prev + currentPot);
+      }
+      addToUserBalance(0);
+    };
+
+    const revealTimer = setTimeout(async () => {
       try {
         const effectivePots = pots.length > 0 ? pots : [{ amount: currentPot, eligibleIds: activeInHand.map((p) => String(p.id)) }];
         const awards: Record<string, number> = {};
