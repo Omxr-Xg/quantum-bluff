@@ -162,7 +162,12 @@ export class GameTable {
   }
 
   private getPostflopFirstPlayerId(): string {
-    // Premier à parler = joueur après le dealer (en heads-up : le non-bouton, donc le raiseur parle en premier après un call)
+    if (this.state.players.length === 2) {
+      const dealer = this.state.players[this.dealerIndex]
+      if (dealer?.isActive && dealer?.isConnected !== false) {
+        return dealer.id
+      }
+    }
     const firstIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
     return firstIndex === -1
       ? this.state.players[0]?.id || ''
@@ -571,21 +576,6 @@ export class GameTable {
       player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + actualCallAmount
       this.state.pot += actualCallAmount
 
-      if (actualCallAmount < callAmount) {
-        for (const p of this.state.players) {
-          const bet = p.currentBet ?? 0
-          if (bet > actualCallAmount) {
-            const refund = bet - actualCallAmount
-            p.chips += refund
-            p.currentBet = actualCallAmount
-            this.state.pot -= refund
-          }
-        }
-        this.highestBet = Math.max(
-          ...this.state.players.map((p) => p.currentBet ?? 0)
-        )
-      }
-
       this.actedPlayerIds.add(player.id)
 
       if (this.isBettingRoundComplete()) {
@@ -627,6 +617,7 @@ export class GameTable {
     const activePlayers = this.getActivePlayers()
     const playersToEvaluate =
       activePlayers.length > 0 ? activePlayers : this.state.players
+    const allPlayers = this.state.players
 
     if (playersToEvaluate.length === 0) {
       this.state.pot = 0
@@ -634,6 +625,8 @@ export class GameTable {
     }
 
     const totalPot = this.state.pot
+
+    // Get unique contribution levels from active (non-folded) players
     const levels = [
       ...new Set(
         playersToEvaluate.map((p) => p.totalPutInThisHand ?? p.currentBet ?? 0)
@@ -647,12 +640,22 @@ export class GameTable {
     for (let i = 0; i < levels.length; i++) {
       const level = levels[i]
       const prevLevel = i === 0 ? 0 : levels[i - 1]
+      const diff = level - prevLevel
+      if (diff <= 0) continue
+
+      // Eligible to WIN: only active (non-folded) players who contributed at least this level
       const eligible = playersToEvaluate.filter(
         (p) => (p.totalPutInThisHand ?? p.currentBet ?? 0) >= level
       )
       if (eligible.length === 0) continue
 
-      const potSize = (level - prevLevel) * eligible.length
+      // Pot size: count contributions from ALL players (including folded) at this level
+      let potSize = 0
+      for (const p of allPlayers) {
+        const contrib = p.totalPutInThisHand ?? p.currentBet ?? 0
+        const contributionAtThisLevel = Math.min(Math.max(0, contrib - prevLevel), diff)
+        potSize += contributionAtThisLevel
+      }
       if (potSize <= 0) continue
 
       const { winnerId, handName } = findWinnerWithHand(
@@ -668,7 +671,6 @@ export class GameTable {
       lastHandName = handName
     }
 
-    // If rounding left anything in the pot (e.g. odd chips), give to main winner
     const remainder = totalPot - distributed
     if (remainder > 0 && lastWinnerId) {
       const winner = this.state.players.find((p) => p.id === lastWinnerId)

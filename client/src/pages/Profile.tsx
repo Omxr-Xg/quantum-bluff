@@ -197,12 +197,12 @@ export function Profile() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-gray-400">{t('profile.victories')}</span>
-                  <span className="text-white font-semibold">{profileData.winRate}%</span>
+                  <span className="text-white font-semibold">{Number(profileData.winRate).toFixed(1)}%</span>
                 </div>
                 <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
                   <div
                     className="bg-gradient-to-r from-green-600 to-green-500 h-full rounded-full transition-all"
-                    style={{ width: `${profileData.winRate}%` }}
+                    style={{ width: `${Number(profileData.winRate).toFixed(1)}%` }}
                   ></div>
                 </div>
               </div>
@@ -229,10 +229,6 @@ export function Profile() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400">{t('profile.avgGains')}</span>
                   <span className="text-blue-400 font-semibold">$144</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">{t('profile.totalPlayTime')}</span>
-                  <span className="text-purple-400 font-semibold">42h 15m</span>
                 </div>
               </div>
             </div>

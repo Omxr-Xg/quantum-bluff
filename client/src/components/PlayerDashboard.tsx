@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { X, TrendingUp, Loader2, Activity, Eye } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
 import { NeonButton } from "./NeonButton";
+import { PokerCard } from "./PokerCard";
 
 interface Card {
   suit: string;
@@ -78,6 +79,65 @@ export function PlayerDashboard({
   }, [canRaise]);
 
   const [isQuantumPinned, setIsQuantumPinned] = useState(false);
+  const raiseLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTickSoundRef = useRef<number>(-1);
+
+  const handleRaiseMouseEnter = useCallback(() => {
+    if (!canRaise) return;
+    if (raiseLeaveTimerRef.current) {
+      clearTimeout(raiseLeaveTimerRef.current);
+      raiseLeaveTimerRef.current = null;
+    }
+    setRaisePopoverOpen(true);
+  }, [canRaise]);
+
+  const handleRaiseMouseLeave = useCallback(() => {
+    raiseLeaveTimerRef.current = setTimeout(() => {
+      setRaisePopoverOpen(false);
+      raiseLeaveTimerRef.current = null;
+    }, 1000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (raiseLeaveTimerRef.current) clearTimeout(raiseLeaveTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (timeLeft === undefined || !isMyTurn) {
+      lastTickSoundRef.current = -1;
+      return;
+    }
+    if (timeLeft > 5) {
+      lastTickSoundRef.current = -1;
+      return;
+    }
+    if (timeLeft >= 0 && timeLeft <= 5 && lastTickSoundRef.current !== timeLeft) {
+      lastTickSoundRef.current = timeLeft;
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        if (timeLeft === 0) {
+          osc.type = "square";
+          osc.frequency.value = 440;
+          gain.gain.value = 0.2;
+          osc.connect(gain).connect(ctx.destination);
+          osc.start();
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+          osc.stop(ctx.currentTime + 0.4);
+        } else {
+          osc.type = "sine";
+          osc.frequency.value = 660 + (5 - timeLeft) * 80;
+          gain.gain.value = 0.12 + (5 - timeLeft) * 0.03;
+          osc.connect(gain).connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.1);
+        }
+      } catch { /* audio blocked */ }
+    }
+  }, [timeLeft, isMyTurn]);
 
   useDeviceType();
 
@@ -91,23 +151,6 @@ export function PlayerDashboard({
         setTimeout(() => onToggleQuantum?.(), 0);
       }
     }
-  };
-
-  const getSuitSymbol = (suit: string) => {
-    const suits: { [key: string]: string } = {
-      hearts: "♥",
-      diamonds: "♦",
-      clubs: "♣",
-      spades: "♠",
-    };
-
-    return suits[suit] || "";
-  };
-
-  const getSuitColor = (suit: string) => {
-    return suit === "hearts" || suit === "diamonds"
-      ? "text-red-600"
-      : "text-gray-900";
   };
 
   const handleRaiseClick = () => {
@@ -157,64 +200,56 @@ export function PlayerDashboard({
           </div>
         )}
 
-        {/* 📱 FIX MOBILE : Le Timer et la notif d'attente remontent un peu au-dessus des boutons */}
-        <div className="absolute -top-12 md:static right-2 md:right-auto flex items-center justify-between gap-4 mb-2 min-h-[40px] pointer-events-none">
-          <div className="flex-1 flex justify-start min-w-0 pointer-events-auto">
-            {!isMyTurn && !hasFolded && waitingForPlayer && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-blue-500/90 text-white rounded-full font-bold shadow-lg text-xs md:text-sm">
-                <Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin shrink-0" />
-                <span className="truncate max-w-[120px] md:max-w-none">{t('game.waitingFor', { name: waitingForPlayer })}</span>
-              </div>
-            )}
+        {/* Waiting notification */}
+        {!isMyTurn && !hasFolded && waitingForPlayer && (
+          <div className="absolute -top-12 md:static left-2 md:left-auto flex items-center mb-2 min-h-[40px]">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-blue-500/90 text-white rounded-full font-bold shadow-lg text-xs md:text-sm">
+              <Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin shrink-0" />
+              <span className="truncate max-w-[120px] md:max-w-none">{t('game.waitingFor', { name: waitingForPlayer })}</span>
+            </div>
           </div>
-          <div className="shrink-0 pointer-events-auto">
+        )}
+
+        {/* 📱 FIX MOBILE : flex-col sur mobile, flex-row sur desktop */}
+        <div className="flex flex-col md:flex-row items-center md:items-end justify-between gap-2 md:gap-4 relative">
+
+          {/* Player cards + Timer next to avatar */}
+          <div className="absolute bottom-full left-2 -mb-2 md:static md:mb-0 flex items-end gap-2 drop-shadow-2xl">
+            {/* Timer - next to cards */}
             {isMyTurn && timeLeft !== undefined && (
               <div
-                className="relative flex items-center justify-center rounded-full bg-slate-800/90 border-[2px] md:border-[3px] border-amber-500/70 shadow-lg ring-2 ring-amber-400/20 w-10 h-10 md:w-[3.25rem] md:h-[3.25rem]"
+                className={`relative flex items-center justify-center rounded-full bg-slate-800/90 border-[2px] md:border-[3px] shadow-lg ring-2 w-9 h-9 md:w-[3.25rem] md:h-[3.25rem] shrink-0 mb-1 ${
+                  timeLeft <= 5
+                    ? "border-red-500/90 ring-red-400/30 animate-pulse"
+                    : "border-amber-500/70 ring-amber-400/20"
+                }`}
                 title={`Tour : ${timeLeft}s`}
               >
-                <span className="tabular-nums text-amber-300 font-bold text-sm md:text-base leading-none">
+                <span className={`tabular-nums font-bold text-xs md:text-base leading-none ${
+                  timeLeft <= 5 ? "text-red-400" : "text-amber-300"
+                }`}>
                   {timeLeft}
                 </span>
                 <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="15.9" fill="none" className="stroke-amber-500/30" strokeWidth="2" />
+                  <circle cx="18" cy="18" r="15.9" fill="none" className={timeLeft <= 5 ? "stroke-red-500/30" : "stroke-amber-500/30"} strokeWidth="2" />
                   <circle
-                    cx="18" cy="18" r="15.9" fill="none" className="stroke-amber-400" strokeWidth="2"
-                    strokeDasharray={`${(timeLeft / 20) * 100} 100`} strokeLinecap="round"
+                    cx="18" cy="18" r="15.9" fill="none" className={timeLeft <= 5 ? "stroke-red-500" : "stroke-amber-400"} strokeWidth="2"
+                    strokeDasharray={`${(timeLeft / 30) * 100} 100`} strokeLinecap="round"
                     style={{ transition: 'stroke-dasharray 0.5s linear' }}
                   />
                 </svg>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* 📱 FIX MOBILE : flex-col sur mobile, flex-row sur desktop */}
-        <div className="flex flex-col md:flex-row items-center md:items-end justify-between gap-2 md:gap-4 relative">
-
-          {/* Player cards - Plus petites sur mobile */}
-          <div className="absolute bottom-full left-2 -mb-2 md:static md:mb-0 flex items-end drop-shadow-2xl">
-            {cards.map((card, index) => (
+            {!hasFolded && cards.map((card, index) => (
               <div
                 key={index}
                 className="relative transition-all duration-300 origin-bottom-left"
                 style={{
-                  marginLeft: index > 0 ? "-20px" : "0", // Plus serrées sur mobile
+                  marginLeft: index > 0 ? "-20px" : "0",
                   transform: `rotate(${index === 0 ? -6 : 8}deg)`
                 }}
               >
-                {/* 📱 FIX MOBILE : w-16 h-24 sur mobile, w-32 h-48 sur desktop */}
-                <div className="w-16 h-24 md:w-32 md:h-48 rounded-md md:rounded-lg p-1.5 md:p-2.5 bg-white flex flex-col justify-between shadow-xl border md:border-2 border-gray-200">
-                  <div className={`text-base md:text-2xl font-bold leading-none ${getSuitColor(card.suit)}`}>
-                    {card.value}
-                  </div>
-                  <div className={`text-3xl md:text-6xl text-center leading-none ${getSuitColor(card.suit)}`}>
-                    {getSuitSymbol(card.suit)}
-                  </div>
-                  <div className={`text-base md:text-2xl font-bold rotate-180 leading-none ${getSuitColor(card.suit)}`}>
-                    {card.value}
-                  </div>
-                </div>
+                <PokerCard suit={card.suit} value={card.value} size="lg" />
               </div>
             ))}
           </div>
@@ -259,15 +294,14 @@ export function PlayerDashboard({
 
             <div
               className="relative flex-1 md:flex-none"
-              onMouseEnter={() => canRaise && setRaisePopoverOpen(true)}
-              onMouseLeave={() => setRaisePopoverOpen(false)}
+              onMouseEnter={handleRaiseMouseEnter}
+              onMouseLeave={handleRaiseMouseLeave}
             >
-              {/* Le Popover de Relance reste géré au-dessus */}
               {canRaise && raisePopoverOpen && (
                 <div
                   className="absolute bottom-full right-0 mb-2 z-50 w-[220px] md:w-[240px] p-2.5 rounded-lg bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-[rgb(7,221,0)] shadow-[0_0_12px_2px_rgba(7,221,0,0.5)] origin-bottom-right"
-                  onMouseEnter={() => setRaisePopoverOpen(true)}
-                  onMouseLeave={() => setRaisePopoverOpen(false)}
+                  onMouseEnter={handleRaiseMouseEnter}
+                  onMouseLeave={handleRaiseMouseLeave}
                 >
                   {/* ... Ton code du popover (presets, slider, etc.) ne change pas ... */}
                   {maxRaise > 0 && (

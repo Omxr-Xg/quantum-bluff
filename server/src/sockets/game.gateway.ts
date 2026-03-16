@@ -331,6 +331,13 @@ export class GameGateway {
         }
       })
 
+      socket.on('GAME_CHAT', (data: { gameId: string; playerId: string; playerName: string; content: string; type: 'emoji' | 'text' }) => {
+        const { gameId, playerId, playerName, content, type } = data
+        if (!gameId || !playerId || !content || !socket.gameId || socket.gameId !== gameId) return
+        if (socket.userId !== playerId) return
+        socket.broadcast.to(gameId).emit('GAME_CHAT', { playerId, playerName, content, type })
+      })
+
       socket.on('RECONNECT_GAME', async (data: { gameId: string }) => {
         try {
           const { gameId } = data
@@ -498,7 +505,7 @@ export class GameGateway {
       clearTimeout(this.timers.get(gameId)!)
     }
 
-    const TURN_TIMEOUT_MS = 20000
+    const TURN_TIMEOUT_MS = 30000
 
     const timer = setTimeout(async () => {
       this.resetTimer(gameId)
@@ -538,7 +545,7 @@ export class GameGateway {
     }, TURN_TIMEOUT_MS)
 
     this.timers.set(gameId, timer)
-    this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: 20 })
+    this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: 30 })
   }
 
   private resetTimer(gameId: string) {

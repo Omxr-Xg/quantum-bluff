@@ -317,11 +317,26 @@ const RANK_VALUE: Record<string, number> = {
   J: 11, Q: 12, K: 13, A: 14
 }
 
+const NUM_TO_RANK: Record<number, string> = {
+  2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: '10',
+  11: 'J', 12: 'Q', 13: 'K', 14: 'A'
+}
+
 function normalizeCard(c: { suit?: string; rank?: string; value?: string | number }): Card {
   const suitStr = (c.suit ?? '').toLowerCase()
   const suit = SUIT_MAP[suitStr] ?? 'HEARTS'
-  const rank = c.rank ? RANK_MAP[String(c.rank)] ?? '2' : (RANK_MAP[String(c.value)] ?? '2')
-  const value = typeof c.value === 'number' ? c.value : (RANK_VALUE[String(c.value ?? rank)] ?? 2)
+  let rank: Card['rank']
+  let value: number
+  if (c.rank && RANK_MAP[String(c.rank)]) {
+    rank = RANK_MAP[String(c.rank)]
+    value = typeof c.value === 'number' ? c.value : (RANK_VALUE[rank] ?? 2)
+  } else if (typeof c.value === 'number') {
+    rank = (RANK_MAP[NUM_TO_RANK[c.value] ?? ''] ?? '2') as Card['rank']
+    value = c.value
+  } else {
+    rank = (RANK_MAP[String(c.value)] ?? '2') as Card['rank']
+    value = RANK_VALUE[rank] ?? 2
+  }
   return { suit, rank, value }
 }
 

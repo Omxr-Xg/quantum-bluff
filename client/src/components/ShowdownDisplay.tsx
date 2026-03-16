@@ -1,6 +1,12 @@
 import { motion, AnimatePresence } from "motion/react";
 import victorySound from "../assets/sounds/victory.mp3";
 import { useEffect } from "react";
+import { PokerCard } from "./PokerCard";
+
+interface CardData {
+  suit: string;
+  value: string;
+}
 
 interface ShowdownDisplayProps {
   winner: {
@@ -9,6 +15,7 @@ interface ShowdownDisplayProps {
     pot: number;
     isSplit?: boolean;
   } | null;
+  winnerCards?: CardData[];
   onClose?: () => void;
 }
 
@@ -25,7 +32,7 @@ function getHandColor(hand: string): string {
   return "text-gray-400";
 }
 
-export function ShowdownDisplay({ winner, onClose }: ShowdownDisplayProps) {
+export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDisplayProps) {
 
   useEffect(() => {
     if (winner) {
@@ -34,6 +41,12 @@ export function ShowdownDisplay({ winner, onClose }: ShowdownDisplayProps) {
       audio.play().catch(() => {});
     }
   }, [winner]);
+
+  useEffect(() => {
+    if (!winner || !onClose) return;
+    const timer = setTimeout(onClose, 10000);
+    return () => clearTimeout(timer);
+  }, [winner, onClose]);
 
   if (!winner) return null;
 
@@ -60,6 +73,22 @@ export function ShowdownDisplay({ winner, onClose }: ShowdownDisplayProps) {
               <div className="text-gray-400 text-sm mb-1">{winner.isSplit ? "Résultat" : "Gagnant"}</div>
               <div className="text-2xl font-bold text-white">{winner.isSplit ? "Égalité — Split pot" : winner.name}</div>
             </div>
+
+            {winnerCards && winnerCards.length > 0 && (
+              <div className="flex justify-center gap-3 my-4">
+                {winnerCards.map((card, i) => (
+                  <PokerCard
+                    key={i}
+                    suit={card.suit}
+                    value={card.value}
+                    size="md"
+                    highlight
+                    animated
+                    animationDelay={i * 0.15}
+                  />
+                ))}
+              </div>
+            )}
 
             <div className="flex justify-between items-center border-t border-b border-slate-600 py-4 my-4">
               <span className="text-gray-400">Combinaison</span>
