@@ -14,7 +14,7 @@ import { AccessibilityMenu } from "../components/AccessibilityMenu";
 import { useAccessibility } from "../contexts/AccessibilityContext";
 import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, Eye, Plus, MessageCircle, X, LogOut, Palette, Bell, HelpCircle, Sparkles, Trophy, Frown } from "lucide-react";
+import { User, Users, Menu, Loader2, Eye, Plus, MessageCircle, X, LogOut, Palette, Bell, HelpCircle, Sparkles, Trophy, Frown, Activity } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -2104,6 +2104,27 @@ export function Game() {
                 >
                   <HelpCircle className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                   <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Tutoriel</span>
+                </button>
+                <div className="border-t border-slate-700"></div>
+                <button
+                  onClick={() => {
+                    setIsQuantumOpen((o) => !o);
+                    setShowMenu(false);
+                  }}
+                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} ${isQuantumOpen ? 'text-amber-400 bg-amber-500/20' : 'text-white hover:bg-slate-700'} transition-all`}
+                >
+                  <Activity className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Probabilités</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsPanelOpen((o) => !o);
+                    setShowMenu(false);
+                  }}
+                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} ${isPanelOpen ? 'text-yellow-400 bg-yellow-500/20' : 'text-white hover:bg-slate-700'} transition-all`}
+                >
+                  <Trophy className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Paris Cachés</span>
                 </button>
                 <div className="border-t border-slate-700"></div>
                 <button

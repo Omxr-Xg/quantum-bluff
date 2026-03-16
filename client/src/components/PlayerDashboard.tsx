@@ -374,8 +374,8 @@ export function PlayerDashboard({
             </div>
           </div>
 
-          {/* UTIL BUTTONS - Cachés sur mobile (ou placés différemment plus tard) */}
-          <div className="hidden md:flex gap-2">
+          {/* UTIL BUTTONS - Visibles sur tous les écrans */}
+          <div className="flex gap-1.5 md:gap-2 shrink-0">
             {onToggleHiddenBets && (
               <NeonButton onClick={onToggleHiddenBets} variant="gold" icon={<Eye className="w-4 h-4" />}>
                 Paris

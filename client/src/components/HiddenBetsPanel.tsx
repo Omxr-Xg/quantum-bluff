@@ -9,6 +9,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState, useRef, useCallback } from "react";
 import { useHiddenBets } from "../contexts/HiddenBetsContext";
+import { useDeviceType } from "./ui/use-mobile";
 
 interface HiddenBetsPanelProps {
   isOpen: boolean;
@@ -41,6 +42,8 @@ export function HiddenBetsPanel({
   const [isPlacing, setIsPlacing] = useState(false);
 
   const { placeBet, totalBets, totalAmount } = useHiddenBets();
+  const deviceType = useDeviceType();
+  const isMobile = deviceType === "mobile";
   const [position, setPosition] = useState({ x: 20, y: 96 });
   const dragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -99,6 +102,12 @@ export function HiddenBetsPanel({
   const displayedChoices =
     selectedType === "winner" ? winnerChoices : combinations;
 
+  const panelClassName = isMobile
+    ? "fixed z-[60] left-2 right-2 top-20 md:top-24 max-h-[85vh] overflow-y-auto bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl"
+    : "fixed z-[60] w-80 md:w-96 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl";
+
+  const panelStyle = isMobile ? undefined : { left: position.x, top: position.y };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -107,8 +116,8 @@ export function HiddenBetsPanel({
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ type: "spring", damping: 25 }}
-          className="fixed z-[60] w-80 md:w-96 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl"
-          style={{ left: position.x, top: position.y }}
+          className={panelClassName}
+          style={panelStyle}
         >
           {/* Header with drag handle */}
           <div className="p-4 border-b border-slate-700 flex items-center justify-between">
