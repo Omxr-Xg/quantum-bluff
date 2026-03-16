@@ -168,6 +168,8 @@ export function Game() {
   /** Multi: host peut relancer avec les mêmes membres */
   const [isRematchHost, setIsRematchHost] = useState(false);
   const [rematchLoading, setRematchLoading] = useState(false);
+  /** Skip la révélation du showdown : appelle cette ref pour passer au résultat */
+  const showdownSkipRef = useRef<(() => void) | null>(null);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
@@ -740,10 +742,10 @@ export function Game() {
     return () => socket.off("REMATCH_CREATED", onRematch);
   }, [socket, navigate]);
 
-  // Multiplayer: après 3s de révélation des cartes, afficher le modal du gagnant
+  // Multiplayer: après 3s de révélation des cartes, afficher le modal du gagnant (ou Skip)
   useEffect(() => {
     if (!pendingShowdownData || !gameIdParam) return;
-    const t = setTimeout(() => {
+    const applyResult = () => {
       setShowdownResult({
         winnerId: pendingShowdownData.winnerId,
         winnerName: pendingShowdownData.winnerName,
@@ -754,8 +756,17 @@ export function Game() {
       setShowdownWinnerCards(pendingShowdownData.winnerCards);
       setShowdownReveal(false);
       setPendingShowdownData(null);
-    }, 3000);
-    return () => clearTimeout(t);
+      showdownSkipRef.current = null;
+    };
+    const t = setTimeout(applyResult, 3000);
+    showdownSkipRef.current = () => {
+      clearTimeout(t);
+      applyResult();
+    };
+    return () => {
+      clearTimeout(t);
+      showdownSkipRef.current = null;
+    };
   }, [pendingShowdownData, gameIdParam]);
 
   useEffect(() => {
@@ -1205,7 +1216,7 @@ export function Game() {
       addToUserBalance(0);
     };
 
-    const revealTimer = setTimeout(async () => {
+    const runComplete = async () => {
       try {
         const effectivePots = pots.length > 0 ? pots : [{ amount: currentPot, eligibleIds: activeInHand.map((p) => String(p.id)) }];
         const awards: Record<string, number> = {};
@@ -2023,6 +2034,15 @@ export function Game() {
                   </motion.div>
                 );
               })()}
+
+              {/* Bouton Skip pour passer directement au résultat */}
+              <button
+                type="button"
+                onClick={() => showdownSkipRef.current?.()}
+                className="mt-4 px-6 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 border border-white/40 text-white font-semibold text-sm transition-colors"
+              >
+                Skip
+              </button>
             </motion.div>
           </motion.div>
         )}
