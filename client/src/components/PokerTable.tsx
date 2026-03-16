@@ -34,6 +34,10 @@ interface PokerTableProps {
   phase?: string;
 }
 
+// Dimensions de base (référence pour le calcul des positions)
+const BASE_TABLE_WIDTH = 950;
+const BASE_TABLE_HEIGHT = 420;
+
 export function PokerTable({
   players,
   children,
@@ -49,8 +53,8 @@ export function PokerTable({
 
   const getPlayerPosition = (position: number, total: number) => {
     if (total <= 0) return { x: 0, y: 0 };
-    const tableWidth = isMobile ? 320 : isTablet ? 650 : 950;
-    const tableHeight = isMobile ? 180 : isTablet ? 300 : 420;
+    const tableWidth = BASE_TABLE_WIDTH;
+    const tableHeight = BASE_TABLE_HEIGHT;
 
     const radiusX = tableWidth / 2;
     const radiusY = tableHeight / 2;
@@ -60,27 +64,19 @@ export function PokerTable({
 
     const angle = startAngle + (position * angleStep);
 
-    // On utilise "let" car on va ajuster ces valeurs
     let x = radiusX * Math.cos(angle);
     let y = radiusY * Math.sin(angle);
 
-    // 📱 FIX MOBILE : L'éclatement des joueurs pour éviter qu'ils ne se montent dessus
+    // Ajustements pour éviter que les joueurs se chevauchent
     if (position === 0) {
-      // Toi (tout en bas) : On te garde bien bas pour dégager le Flop
       y = y + (isMobile ? 75 : isTablet ? 85 : 95);
     } else {
-      // 1. Écartement Horizontal (Gauche / Droite)
-      // Si le joueur n'est pas pile au centre (haut/bas), on l'écarte vers les bords de l'écran
       if (Math.abs(x) > 10) {
-        x = x * (isMobile ? 1.15 : 1.1); // Pousse de 15% vers l'extérieur sur mobile
+        x = x * (isMobile ? 1.15 : 1.1);
       }
-
-      // 2. Écartement Vertical (Haut / Bas)
       if (y < -10) {
-        // Zone Haute (Bot Beta, Gamma, Delta) -> On les tire fortement vers le HAUT
         y = y - (isMobile ? 55 : isTablet ? 65 : 75);
       } else if (y > 10) {
-        // Zone Basse (Bot Alpha, Epsilon) -> On les tire fortement vers le BAS
         y = y + (isMobile ? 40 : 30);
       }
     }
@@ -90,86 +86,75 @@ export function PokerTable({
 
   return (
     <div
-      className="relative w-full h-full flex items-center justify-center"
+      className="relative w-full h-full flex items-center justify-center min-h-0"
       style={{
-        perspective: isMobile
-          ? "800px"
-          : isTablet
-          ? "1000px"
-          : "1200px",
+        perspective: isMobile ? "800px" : isTablet ? "1000px" : "1200px",
       }}
     >
-
-      {/* TABLE */}
+      {/* Wrapper proportionnel : clamp(min, préféré, max) pour PC, tablette, téléphone */}
       <div
-        className={`relative ${
-          isMobile
-            ? "w-[320px] h-[180px]"
-            : isTablet
-            ? "w-[650px] h-[300px]"
-            : "w-[950px] h-[420px]"
-        } rounded-full border-8 border-amber-900/80`}
+        className="relative flex items-center justify-center"
         style={{
-          background:
-            "radial-gradient(ellipse at center, #0d9660 0%, #0a7c4a 35%, #065a36 70%, #043d24 100%)",
-          transform: `rotateX(${
-            isMobile ? "20deg" : isTablet ? "22deg" : "25deg"
-          })`,
-          boxShadow:
-            "inset 0 8px 24px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06), 0 12px 32px rgba(0,0,0,0.4)",
+          width: "clamp(280px, 85vw, 950px)",
+          aspectRatio: `${BASE_TABLE_WIDTH} / ${BASE_TABLE_HEIGHT}`,
         }}
       >
-
-        {/* Logo central en reflet sur le tapis */}
+        {/* TABLE - remplit le wrapper */}
         <div
-          className="pointer-events-none absolute inset-0 flex items-center justify-center"
-          aria-hidden="true"
+          className="relative w-full h-full rounded-full border-[clamp(3px,1vw,8px)] border-amber-900/80"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, #0d9660 0%, #0a7c4a 35%, #065a36 70%, #043d24 100%)",
+            transform: `rotateX(${isMobile ? "20deg" : isTablet ? "22deg" : "25deg"})`,
+            boxShadow:
+              "inset 0 8px 24px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06), 0 12px 32px rgba(0,0,0,0.4)",
+          }}
         >
+          {/* Logo central - proportionnel */}
           <div
-            className="rounded-full overflow-hidden"
-            style={{
-              width: isMobile ? 120 : isTablet ? 180 : 220,
-              height: isMobile ? 120 : isTablet ? 180 : 220,
-              opacity: 0.12,
-              filter: "blur(1px) grayscale(100%)",
-              transform: "translateY(10px)",
-            }}
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            aria-hidden="true"
           >
-            <img
-              src={logoSrc}
-              alt="Quantum Bluff"
-              className="w-full h-full object-contain"
-            />
+            <div
+              className="rounded-full overflow-hidden w-[25%] aspect-square max-w-[220px] max-h-[220px]"
+              style={{
+                opacity: 0.12,
+                filter: "blur(1px) grayscale(100%)",
+                transform: "translateY(10px)",
+              }}
+            >
+              <img
+                src={logoSrc}
+                alt="Quantum Bluff"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+
+          {/* Community cards */}
+          <div className="absolute top-[18%] left-1/2 -translate-x-1/2 flex justify-center">
+            {children}
           </div>
         </div>
 
-        {/* Community cards */}
-        <div
-          className={`absolute ${
-            isMobile ? "top-8" : isTablet ? "top-12" : "top-16"
-          } left-1/2 -translate-x-1/2 flex justify-center`}
-        >
-          {children}
-        </div>
+        {/* PLAYERS - positions en % pour scaling proportionnel (offset = rayon * factor) */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {players.map((player) => {
+            const pos = getPlayerPosition(player.position, players.length);
+            const radiusX = BASE_TABLE_WIDTH / 2;
+            const radiusY = BASE_TABLE_HEIGHT / 2;
+            const xPercent = (pos.x / radiusX) * 50;
+            const yPercent = (pos.y / radiusY) * 50;
 
-      </div>
-
-      {/* PLAYERS */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-
-        {players.map((player) => {
-
-          const pos = getPlayerPosition(player.position, players.length);
-
-          return (
-            <div
-              key={player.id}
-              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
-              style={{
-                left: `calc(50% + ${pos.x}px)`,
-                top: `calc(50% + ${pos.y}px)`,
-              }}
-            >
+            return (
+              <div
+                key={player.id}
+                className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
+                style={{
+                  left: `calc(50% + ${xPercent}%)`,
+                  top: `calc(50% + ${yPercent}%)`,
+                }}
+              >
 
               <div className="flex flex-col items-center gap-2">
 
@@ -181,13 +166,10 @@ export function PokerTable({
                   </div>
                 )}
 
-                {/* AVATAR */}
+                {/* AVATAR - taille proportionnelle (clamp pour mobile/tablette/PC) */}
                 <div
-                  className={`${
-                    player.position === 0
-                      ? "w-20 h-20"
-                      : "w-14 h-14"
-                  } rounded-full overflow-hidden border-2 transition relative
+                  className={`rounded-full overflow-hidden border-2 transition relative
+                  ${player.position === 0 ? "w-[clamp(3rem,10vw,5rem)] h-[clamp(3rem,10vw,5rem)]" : "w-[clamp(2.5rem,8vw,3.5rem)] h-[clamp(2.5rem,8vw,3.5rem)]"}
                   ${player.hasFolded ? "bg-red-900/60 border-red-500 grayscale" : "bg-blue-500 border-white"}
                   ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`}
                 >
