@@ -247,6 +247,7 @@ export function PokerTable({
 
         })}
 
+        </div>
       </div>
     </div>
   );

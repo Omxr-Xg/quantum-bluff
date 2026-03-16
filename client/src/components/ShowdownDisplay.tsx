@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import victorySound from "../assets/sounds/victory.mp3";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { PokerCard } from "./PokerCard";
 
 interface CardData {
@@ -33,13 +33,16 @@ function getHandColor(hand: string): string {
 }
 
 export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDisplayProps) {
+  const hasPlayedSoundRef = useRef(false);
 
   useEffect(() => {
-    if (winner) {
+    if (winner && !hasPlayedSoundRef.current) {
+      hasPlayedSoundRef.current = true;
       const audio = new Audio(victorySound);
       audio.volume = 0.6;
       audio.play().catch(() => {});
     }
+    if (!winner) hasPlayedSoundRef.current = false; // Reset pour le prochain showdown
   }, [winner]);
 
   useEffect(() => {

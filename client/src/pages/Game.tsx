@@ -355,7 +355,7 @@ export function Game() {
         setTimeout(() => {
           newCommunityCards[i] = card;
           setCommunityCardsState([...newCommunityCards]);
-        }, i * 300);
+        }, i * 700);
       }
     }
     setDeck([...newDeck]);
