@@ -5,7 +5,8 @@ module.exports = {
   testPathIgnorePatterns: [
     '/node_modules/',
     '/tests.old/',
-    '/services.old/'
+    '/services.old/',
+    'test_cleanup\\.ts$'  // script manuel DA4 (nécessite DB), pas un test unitaire
   ],
   collectCoverageFrom: [
     'src/**/*.ts',

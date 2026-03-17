@@ -38,12 +38,12 @@ router.post('/start', async (req, res) => {
       return res.status(400).json({ error: 'Minimum 2 joueurs requis' });
     }
 
-    // Convertir les utilisateurs en joueurs pour GameTable
+    // Convertir les utilisateurs en joueurs pour GameTable (chips = balance de chaque utilisateur)
     const players: Player[] = waitingRoom.players.map((rp, index) => ({
       id: rp.user.id,
       name: rp.user.username,
       cards: [],
-      chips: 1000,
+      chips: Math.max(100, rp.user.chips ?? 1000),
       role: 'PLAYER',
       isActive: true,
       position: index,
@@ -94,12 +94,28 @@ router.post('/start', async (req, res) => {
   }
 });
 
+// GET /api/game/:gameId/room-info - Infos salle/host pour rematch (partie multi)
+router.get('/:gameId/room-info', async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const room = await prisma.waitingRoom.findFirst({
+      where: { gameId },
+      select: { id: true, hostId: true },
+    });
+    if (!room) return res.status(404).json({ error: 'Salle introuvable pour cette partie' });
+    res.json({ roomId: room.id, hostId: room.hostId });
+  } catch (error) {
+    console.error('Erreur room-info:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // GET /api/game/:gameId - Récupérer l'état d'une partie (?playerId= pour recevoir ses cartes)
 router.get('/:gameId', async (req, res) => {
   const { gameId } = req.params;
   const playerId = typeof req.query.playerId === 'string' ? req.query.playerId : undefined;
   const game = await activeGames.get(gameId);
-  console.log(`🔍 Recherche de la partie: ${gameId}. Trouvée:`, !!game);
+  console.log('🔍 Recherche de la partie:', gameId, 'Trouvée:', !!game);
 
   if (!game) {
     return res.status(404).json({ error: 'Partie introuvable' });
@@ -146,8 +162,12 @@ router.post('/record-result', authMiddleware, async (req, res) => {
     const userId = (req as express.Request & { userId?: string }).userId;
     if (!userId) return res.status(401).json({ error: 'Non authentifié' });
 
-    const { won } = req.body as { won?: boolean };
-    if (typeof won !== 'boolean') return res.status(400).json({ error: 'Body attendu: { won: boolean }' });
+    const { won, delta } = req.body as { won?: boolean; delta?: number };
+    if (typeof won !== 'boolean') return res.status(400).json({ error: 'Body attendu: { won: boolean, delta?: number }' });
+
+    const chipsDelta = typeof delta === 'number' && !Number.isNaN(delta) ? Math.trunc(delta) : 0;
+    const chipsWon = chipsDelta > 0 ? chipsDelta : 0;
+    const chipsLost = chipsDelta < 0 ? -chipsDelta : 0;
 
     await prisma.playerStats.upsert({
       where: { playerId: userId },
@@ -156,10 +176,14 @@ router.post('/record-result', authMiddleware, async (req, res) => {
         totalGames: 1,
         totalWins: won ? 1 : 0,
         totalLosses: won ? 0 : 1,
+        totalChipsWon: chipsWon,
+        totalChipsLost: chipsLost,
       },
       update: {
         totalGames: { increment: 1 },
         ...(won ? { totalWins: { increment: 1 } } : { totalLosses: { increment: 1 } }),
+        ...(chipsWon > 0 ? { totalChipsWon: { increment: chipsWon } } : {}),
+        ...(chipsLost > 0 ? { totalChipsLost: { increment: chipsLost } } : {}),
       },
     });
 

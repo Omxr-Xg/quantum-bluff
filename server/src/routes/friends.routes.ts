@@ -1,4 +1,6 @@
 import express from 'express'
+import path from 'path'
+import fs from 'fs'
 import type { Server } from 'socket.io'
 import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
@@ -7,7 +9,150 @@ import { searchUserSchema, friendRequestSchema, updateRequestSchema } from '../v
 
 const router = express.Router()
 
+// #region agent log
+const _log500 = (method: string, ctx: Record<string, unknown>, err: unknown) => {
+  const msg = err instanceof Error ? err.message : String(err)
+  const name = err instanceof Error ? err.name : 'Unknown'
+  const payload = { sessionId: 'bc6f20', method, ...ctx, errorMessage: msg, errorName: name, timestamp: Date.now() }
+  fetch('http://127.0.0.1:7455/ingest/a5f146bd-eb1c-4b6d-8988-e596e0518ead', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bc6f20' },
+    body: JSON.stringify(payload)
+  }).catch(() => {})
+  const logPath = path.join(process.cwd(), '..', '.cursor', 'debug-messages-500.ndjson')
+  try { fs.appendFileSync(logPath, JSON.stringify(payload) + '\n') } catch { /* ignore */ }
+}
+// #endregion
+
 router.use(authMiddleware)
+
+// Messages: défini et monté EN PREMIER pour éviter que "messages" soit capté par /:userId
+const messagesRouter = express.Router({ mergeParams: true })
+messagesRouter.get('/', async (req, res) => {
+  const userId = String(req.userId ?? '').trim()
+  const { friendId } = req.query
+  if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+  if (typeof friendId !== 'string') return res.status(400).json({ error: 'friendId requis' })
+  const friendIdStr = String(friendId).trim()
+  try {
+    type FriendshipMin = { user1Id: string; user2Id: string }
+    let friendship: FriendshipMin | null = await prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { user1Id: userId, user2Id: friendIdStr },
+          { user1Id: friendIdStr, user2Id: userId }
+        ]
+      }
+    })
+    if (!friendship) {
+      const userFriendships = await prisma.friendship.findMany({
+        where: { OR: [{ user1Id: userId }, { user2Id: userId }] },
+        select: { user1Id: true, user2Id: true }
+      })
+      friendship = userFriendships.find(
+        (f) =>
+          (String(f.user1Id) === String(userId) && String(f.user2Id) === String(friendIdStr)) ||
+          (String(f.user2Id) === String(userId) && String(f.user1Id) === String(friendIdStr))
+      ) ?? null
+    }
+    if (!friendship) {
+      // Temporaire: retourner [] au lieu de 403 pour déboguer
+      console.warn('[GET /messages] Amitié non trouvée, retour []', { userId, friendId: friendIdStr })
+      return res.json([])
+    }
+    const messages = await prisma.friendMessage.findMany({
+      where: {
+        OR: [
+          { senderId: userId, receiverId: friendIdStr },
+          { senderId: friendIdStr, receiverId: userId }
+        ]
+      },
+      include: {
+        sender: { select: { id: true, username: true } },
+        receiver: { select: { id: true, username: true } }
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 200
+    })
+    res.json(messages)
+  } catch (error) {
+    // #region agent log
+    _log500('GET', { userId, friendId: friendIdStr }, error)
+    // #endregion
+    console.error('GET /api/friends/messages error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+messagesRouter.post('/', async (req, res) => {
+  const senderId = String(req.userId!)
+  const { receiverId, content } = req.body
+  if (typeof receiverId !== 'string' || typeof content !== 'string') {
+    return res.status(400).json({ error: 'receiverId et content requis' })
+  }
+  const receiverIdStr = String(receiverId)
+  const trimmed = content.trim()
+  if (!trimmed || trimmed.length > 2000) {
+    return res.status(400).json({ error: 'Message vide ou trop long (max 2000 caractères)' })
+  }
+  try {
+    const friendship = await prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { user1Id: senderId, user2Id: receiverIdStr },
+          { user1Id: receiverIdStr, user2Id: senderId }
+        ]
+      }
+    })
+    if (!friendship) return res.status(403).json({ error: 'Vous ne pouvez discuter qu\'avec vos amis' })
+    const safeContent = sanitizeHtml(trimmed, { allowedTags: [], allowedAttributes: {} })
+    const message = await prisma.friendMessage.create({
+      data: { senderId, receiverId: receiverIdStr, content: safeContent },
+      include: {
+        sender: { select: { id: true, username: true } },
+        receiver: { select: { id: true, username: true } }
+      }
+    })
+    const io = req.app.get('io') as Server | undefined
+    if (io) {
+      io.to(`user:${receiverIdStr}`).emit('FRIEND_MESSAGE', {
+        id: message.id,
+        senderId: message.senderId,
+        receiverId: message.receiverId,
+        content: message.content,
+        createdAt: message.createdAt.toISOString(),
+        sender: message.sender,
+        receiver: message.receiver
+      })
+    }
+    res.json(message)
+  } catch (error) {
+    // #region agent log
+    _log500('POST', { senderId, receiverId: receiverIdStr }, error)
+    // #endregion
+    console.error('POST /api/friends/messages error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+router.use('/messages', messagesRouter)
+
+// Debug: GET /api/friends/debug/my-friendships - retourne les amitiés du user connecté
+router.get('/debug/my-friendships', async (req, res) => {
+  const userId = String(req.userId ?? '').trim()
+  if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+  try {
+    const friendships = await prisma.friendship.findMany({
+      where: { OR: [{ user1Id: userId }, { user2Id: userId }] },
+      select: { user1Id: true, user2Id: true }
+    })
+    const friendIds = friendships.map((f) =>
+      String(f.user1Id) === String(userId) ? f.user2Id : f.user1Id
+    )
+    return res.json({ userId, friendships, friendIds })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: String(e) })
+  }
+})
 
 // SEARCH USERS
 router.get('/search', async (req, res) => {
@@ -32,9 +177,9 @@ router.get('/search', async (req, res) => {
         id: true,
         username: true,
         level: true,
-        stats: {
+        playerStats: {
           select: {
-            wins: true,
+            totalWins: true,
             totalGames: true
           }
         }
@@ -189,7 +334,7 @@ router.post('/request', async (req, res) => {
 router.get('/requests/:userId', async (req, res) => {
   const { userId } = req.params
 
-  if (req.userId !== userId) {
+  if (String(req.userId) !== String(userId)) {
     return res.status(403).json({ error: 'Accès interdit' })
   }
 
@@ -205,9 +350,9 @@ router.get('/requests/:userId', async (req, res) => {
             id: true,
             username: true,
             level: true,
-            stats: {
+            playerStats: {
               select: {
-                wins: true,
+                totalWins: true,
                 totalGames: true
               }
             }
@@ -247,7 +392,7 @@ router.put('/request/:requestId', async (req, res) => {
       return res.status(404).json({ error: 'Demande introuvable' })
     }
 
-    if (request.receiverId !== req.userId) {
+    if (String(request.receiverId) !== String(req.userId)) {
       return res.status(403).json({ error: 'Accès interdit' })
     }
 
@@ -317,7 +462,7 @@ router.put('/request/:requestId', async (req, res) => {
 router.get('/:userId', async (req, res) => {
   const { userId } = req.params
 
-  if (req.userId !== userId) {
+  if (String(req.userId) !== String(userId)) {
     return res.status(403).json({ error: 'Accès interdit' })
   }
 
@@ -335,9 +480,9 @@ router.get('/:userId', async (req, res) => {
             id: true,
             username: true,
             level: true,
-            stats: {
+            playerStats: {
               select: {
-                wins: true,
+                totalWins: true,
                 totalGames: true
               }
             }
@@ -348,9 +493,9 @@ router.get('/:userId', async (req, res) => {
             id: true,
             username: true,
             level: true,
-            stats: {
+            playerStats: {
               select: {
-                wins: true,
+                totalWins: true,
                 totalGames: true
               }
             }
@@ -359,9 +504,12 @@ router.get('/:userId', async (req, res) => {
       }
     })
 
-    const friends = friendships.map((friendship) =>
-      friendship.user1Id === userId ? friendship.user2 : friendship.user1
-    )
+    const userIdStr = String(userId)
+    const friends = friendships
+      .map((friendship) =>
+        String(friendship.user1Id) === userIdStr ? friendship.user2 : friendship.user1
+      )
+      .filter((f) => String(f.id) !== userIdStr) // exclure soi-même (bug mapping)
 
     res.json(friends)
   } catch (error) {

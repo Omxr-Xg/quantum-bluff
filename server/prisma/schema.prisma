@@ -3,6 +3,7 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 // Générateur pour la documentation (ERD) - C'EST UN BLOC SÉPARÉ
 generator erd {
@@ -12,6 +13,17 @@ generator erd {
   theme    = "dark"
   includeRelationFromFields = true
 }
+=======
+// ERD désactivé ici pour éviter l'échec en CI (Puppeteer/Chrome nécessite libnss3 etc.).
+// Pour régénérer l'ERD en local : décommenter le bloc ci-dessous puis `npx prisma generate`.
+// generator erd {
+//   provider = "prisma-erd-generator"
+//   output   = "../src/generated/docs/ERD.svg"
+//   puppeteerConfig = "./puppeteer-config.json"
+//   theme    = "dark"
+//   includeRelationFromFields = true
+// }
+>>>>>>> 81a8e21caa7b117a5bd483b2932b91126f6b5b43
 
 =======
 >>>>>>> Stashed changes
@@ -49,9 +61,18 @@ model User {
   receivedRequests FriendRequest[] @relation("Receiver")
   friendshipsAsUser1 Friendship[] @relation("User1")
   friendshipsAsUser2 Friendship[] @relation("User2")
+  sentFriendMessages     FriendMessage[] @relation("MessageSender")
+  receivedFriendMessages FriendMessage[] @relation("MessageReceiver")
 
   // Salle d'attente intégrée
   roomPlayers  RoomPlayer[]
+
+  // Invitations à des parties
+  sentInvitations     GameInvitation[] @relation("InvitationSender")
+  receivedInvitations GameInvitation[] @relation("InvitationReceiver")
+
+  // Demandes de rejoindre des salles privées
+  joinRequests JoinRequest[]
 
   // NOUVELLES RELATIONS
   gameActions   GameAction[]    // Actions effectuées par le joueur
@@ -124,6 +145,7 @@ model Friendship {
   @@index([user2Id])
 }
 
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
 model WaitingRoom {
@@ -215,6 +237,23 @@ model PlayerStats {
 }
 
 >>>>>>> Stashed changes
+=======
+model FriendMessage {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  content    String
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+}
+
+>>>>>>> 81a8e21caa7b117a5bd483b2932b91126f6b5b43
 enum RequestStatus {
   PENDING
   ACCEPTED
@@ -223,18 +262,37 @@ enum RequestStatus {
 
 <<<<<<< Updated upstream
 model WaitingRoom {
-  id           String   @id @default(uuid())
+  id           String         @id @default(uuid())
   name         String
   hostId       String
-  maxPlayers   Int      @default(5)
-  status       RoomStatus @default(WAITING) // WAITING, STARTING, IN_GAME
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  maxPlayers   Int            @default(5)
+  visibility   RoomVisibility @default(PUBLIC)
+  status       RoomStatus     @default(WAITING)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   players      RoomPlayer[]
-  gameId       String? // Lien vers la partie quand elle démarre
+  invitations  GameInvitation[]
+  joinRequests JoinRequest[]
+  gameId       String?
 
   @@map("waiting_rooms")
+}
+
+model JoinRequest {
+  id         String        @id @default(uuid())
+  roomId     String
+  userId     String
+  status     RequestStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  room WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, userId])
+  @@index([roomId, status])
+  @@map("join_requests")
 }
 
 model RoomPlayer {
@@ -317,8 +375,40 @@ model PlayerStats {
   @@index([totalGames])
 }
 
+<<<<<<< HEAD
 =======
 >>>>>>> Stashed changes
+=======
+model GameInvitation {
+  id         String           @id @default(uuid())
+  roomId     String
+  senderId   String
+  receiverId String
+  status     InvitationStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  room     WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender   User        @relation("InvitationSender", fields: [senderId], references: [id])
+  receiver User        @relation("InvitationReceiver", fields: [receiverId], references: [id])
+
+  @@unique([roomId, receiverId])
+  @@index([receiverId, status])
+  @@index([roomId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum RoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+>>>>>>> 81a8e21caa7b117a5bd483b2932b91126f6b5b43
 enum RoomStatus {
   WAITING
   STARTING

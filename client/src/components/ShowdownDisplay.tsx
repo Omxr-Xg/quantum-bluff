@@ -1,13 +1,21 @@
 import { motion, AnimatePresence } from "motion/react";
 import victorySound from "../assets/sounds/victory.mp3";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { PokerCard } from "./PokerCard";
+
+interface CardData {
+  suit: string;
+  value: string;
+}
 
 interface ShowdownDisplayProps {
   winner: {
     name: string;
     hand: string;
     pot: number;
+    isSplit?: boolean;
   } | null;
+  winnerCards?: CardData[];
   onClose?: () => void;
 }
 
@@ -24,17 +32,28 @@ function getHandColor(hand: string): string {
   return "text-gray-400";
 }
 
-export function ShowdownDisplay({ winner, onClose }: ShowdownDisplayProps) {
+export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDisplayProps) {
+  const hasPlayedSoundRef = useRef(false);
 
   useEffect(() => {
-    if (winner) {
+    if (winner && !hasPlayedSoundRef.current) {
+      hasPlayedSoundRef.current = true;
       const audio = new Audio(victorySound);
       audio.volume = 0.6;
       audio.play().catch(() => {});
     }
+    if (!winner) hasPlayedSoundRef.current = false; // Reset pour le prochain showdown
   }, [winner]);
 
+  useEffect(() => {
+    if (!winner || !onClose) return;
+    const timer = setTimeout(onClose, 10000);
+    return () => clearTimeout(timer);
+  }, [winner, onClose]);
+
   if (!winner) return null;
+
+  const displayHand = (winner.hand && winner.hand !== "—") ? winner.hand : "Haute carte";
 
   return (
     <AnimatePresence>
@@ -56,19 +75,35 @@ export function ShowdownDisplay({ winner, onClose }: ShowdownDisplayProps) {
 
           <div className="bg-slate-700/50 rounded-xl p-6 mb-6">
             <div className="text-center mb-4">
-              <div className="text-gray-400 text-sm mb-1">Gagnant</div>
-              <div className="text-2xl font-bold text-white">{winner.name}</div>
+              <div className="text-gray-400 text-sm mb-1">{winner.isSplit ? "Résultat" : "Gagnant"}</div>
+              <div className="text-2xl font-bold text-white">{winner.isSplit ? "Égalité — Split pot" : winner.name}</div>
             </div>
 
+            {winnerCards && winnerCards.length > 0 && (
+              <div className="flex justify-center gap-3 my-4">
+                {winnerCards.map((card, i) => (
+                  <PokerCard
+                    key={i}
+                    suit={card.suit}
+                    value={card.value}
+                    size="md"
+                    highlight
+                    animated
+                    animationDelay={i * 0.15}
+                  />
+                ))}
+              </div>
+            )}
+
             <div className="flex justify-between items-center border-t border-b border-slate-600 py-4 my-4">
-              <span className="text-gray-400">Combinaison</span>
-              <span className={`text-xl font-bold ${getHandColor(winner.hand)}`}>
-                {winner.hand}
+              <span className="text-gray-400">Combinaison gagnante</span>
+              <span className={`text-xl font-bold ${getHandColor(displayHand)}`}>
+                {displayHand}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-gray-400">Gain</span>
+              <span className="text-gray-400">{winner.isSplit ? "Chacun reçoit" : "Gain"}</span>
               <span className="text-2xl font-bold text-yellow-400">
                 {winner.pot.toLocaleString()} 🪙
               </span>

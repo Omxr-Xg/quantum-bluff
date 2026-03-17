@@ -3,6 +3,7 @@ import { logoDataUrl } from "../assets/logo";
 import logoSrc from "../assets/logo-personnel.png";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { PokerCard } from "./PokerCard";
 import { Clock } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
 
@@ -21,6 +22,7 @@ interface Player {
   isDealer?: boolean;
   cards?: Card[];
   isConnected?: boolean;
+  hasFolded?: boolean;
   /** Dernière action affichée à côté de l'avatar (ex: "a checké", "s'est couché") */
   lastAction?: string | null;
 }
@@ -31,6 +33,10 @@ interface PokerTableProps {
   communitySafeZone?: number;
   phase?: string;
 }
+
+// Dimensions de base (référence pour le calcul des positions)
+const BASE_TABLE_WIDTH = 950;
+const BASE_TABLE_HEIGHT = 420;
 
 export function PokerTable({
   players,
@@ -46,103 +52,109 @@ export function PokerTable({
   const isTablet = deviceType === "tablet";
 
   const getPlayerPosition = (position: number, total: number) => {
-
-    const tableWidth = isMobile ? 320 : isTablet ? 650 : 950;
-    const tableHeight = isMobile ? 180 : isTablet ? 300 : 420;
+    if (total <= 0) return { x: 0, y: 0 };
+    const tableWidth = BASE_TABLE_WIDTH;
+    const tableHeight = BASE_TABLE_HEIGHT;
 
     const radiusX = tableWidth / 2;
     const radiusY = tableHeight / 2;
 
-    const startAngle = Math.PI / 2;
+    const startAngle = Math.PI / 2; // Position 0 en bas
     const angleStep = (2 * Math.PI) / total;
 
     const angle = startAngle + (position * angleStep);
 
-    const x = radiusX * Math.cos(angle);
+    let x = radiusX * Math.cos(angle);
     let y = radiusY * Math.sin(angle);
 
+    // Ajustements pour éviter que les joueurs se chevauchent
     if (position === 0) {
-      y = y + (isMobile ? 20 : isTablet ? 30 : 40);
+      y = y + (isMobile ? 75 : isTablet ? 85 : 95);
+    } else {
+      if (Math.abs(x) > 10) {
+        x = x * (isMobile ? 1.15 : 1.1);
+      }
+      if (y < -10) {
+        y = y - (isMobile ? 55 : isTablet ? 65 : 75);
+      } else if (y > 10) {
+        y = y + (isMobile ? 40 : 30);
+      }
     }
 
     return { x, y };
   };
 
-  const getSuitSymbol = (suit: string) => {
-    const suits: { [key: string]: string } = {
-      hearts: "♥",
-      diamonds: "♦",
-      clubs: "♣",
-      spades: "♠",
-    };
-    return suits[suit] || "";
-  };
-
-  const getSuitColor = (suit: string) => {
-    return suit === "hearts" || suit === "diamonds"
-      ? "text-red-600"
-      : "text-gray-900";
-  };
-
   return (
     <div
-      className="relative w-full h-full flex items-center justify-center"
+      className="relative w-full h-full flex items-center justify-center min-h-0"
       style={{
-        perspective: isMobile
-          ? "800px"
-          : isTablet
-          ? "1000px"
-          : "1200px",
+        perspective: isMobile ? "800px" : isTablet ? "1000px" : "1200px",
       }}
     >
-
-      {/* TABLE */}
+      {/* Wrapper proportionnel : clamp(min, préféré, max) pour PC, tablette, téléphone */}
       <div
-        className={`relative ${
-          isMobile
-            ? "w-[320px] h-[180px]"
-            : isTablet
-            ? "w-[650px] h-[300px]"
-            : "w-[950px] h-[420px]"
-        } rounded-full border-8 border-amber-900/80`}
+        className="relative flex items-center justify-center"
         style={{
-          background:
-            "radial-gradient(ellipse at center, #0d9660 0%, #0a7c4a 35%, #065a36 70%, #043d24 100%)",
-          transform: `rotateX(${
-            isMobile ? "20deg" : isTablet ? "22deg" : "25deg"
-          })`,
-          boxShadow:
-            "inset 0 8px 24px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06), 0 12px 32px rgba(0,0,0,0.4)",
+          width: "clamp(280px, 85vw, 950px)",
+          aspectRatio: `${BASE_TABLE_WIDTH} / ${BASE_TABLE_HEIGHT}`,
         }}
       >
-
-        {/* Community cards */}
+        {/* TABLE - remplit le wrapper */}
         <div
-          className={`absolute ${
-            isMobile ? "top-8" : isTablet ? "top-12" : "top-16"
-          } left-1/2 -translate-x-1/2 flex justify-center`}
+          className="relative w-full h-full rounded-full border-[clamp(3px,1vw,8px)] border-amber-900/80"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, #0d9660 0%, #0a7c4a 35%, #065a36 70%, #043d24 100%)",
+            transform: `rotateX(${isMobile ? "20deg" : isTablet ? "22deg" : "25deg"})`,
+            boxShadow:
+              "inset 0 8px 24px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06), 0 12px 32px rgba(0,0,0,0.4)",
+          }}
         >
-          {children}
-        </div>
-
-      </div>
-
-      {/* PLAYERS */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-
-        {players.map((player) => {
-
-          const pos = getPlayerPosition(player.position, players.length);
-
-          return (
+          {/* Logo central - proportionnel */}
+          <div
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            aria-hidden="true"
+          >
             <div
-              key={player.id}
-              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
+              className="rounded-full overflow-hidden w-[25%] aspect-square max-w-[220px] max-h-[220px]"
               style={{
-                left: `calc(50% + ${pos.x}px)`,
-                top: `calc(50% + ${pos.y}px)`,
+                opacity: 0.12,
+                filter: "blur(1px) grayscale(100%)",
+                transform: "translateY(10px)",
               }}
             >
+              <img
+                src={logoSrc}
+                alt="Quantum Bluff"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+
+          {/* Community cards */}
+          <div className="absolute top-[18%] left-1/2 -translate-x-1/2 flex justify-center">
+            {children}
+          </div>
+        </div>
+
+        {/* PLAYERS - positions en % pour scaling proportionnel (offset = rayon * factor) */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {players.map((player) => {
+            const pos = getPlayerPosition(player.position, players.length);
+            const radiusX = BASE_TABLE_WIDTH / 2;
+            const radiusY = BASE_TABLE_HEIGHT / 2;
+            const xPercent = (pos.x / radiusX) * 50;
+            const yPercent = (pos.y / radiusY) * 50;
+
+            return (
+              <div
+                key={player.id}
+                className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
+                style={{
+                  left: `calc(50% + ${xPercent}%)`,
+                  top: `calc(50% + ${yPercent}%)`,
+                }}
+              >
 
               <div className="flex flex-col items-center gap-2">
 
@@ -154,13 +166,11 @@ export function PokerTable({
                   </div>
                 )}
 
-                {/* AVATAR */}
+                {/* AVATAR - taille proportionnelle (clamp pour mobile/tablette/PC) */}
                 <div
-                  className={`${
-                    player.position === 0
-                      ? "w-20 h-20"
-                      : "w-14 h-14"
-                  } rounded-full overflow-hidden bg-blue-500 border-2 border-white transition
+                  className={`rounded-full overflow-hidden border-2 transition relative
+                  ${player.position === 0 ? "w-[clamp(3rem,10vw,5rem)] h-[clamp(3rem,10vw,5rem)]" : "w-[clamp(2.5rem,8vw,3.5rem)] h-[clamp(2.5rem,8vw,3.5rem)]"}
+                  ${player.hasFolded ? "bg-red-900/60 border-red-500 grayscale" : "bg-blue-500 border-white"}
                   ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`}
                 >
 
@@ -168,18 +178,31 @@ export function PokerTable({
                     <ImageWithFallback
                       src={getPlayerAvatar(player.name)}
                       alt={player.name}
-                      className="w-full h-full object-cover"
+                      className={`w-full h-full object-cover ${player.hasFolded ? "blur-[2px] opacity-40 brightness-50" : ""}`}
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-white font-bold">
+                    <div className={`flex items-center justify-center h-full font-bold ${player.hasFolded ? "text-red-300 blur-[1px] opacity-50" : "text-white"}`}>
                       {player.name.charAt(0)}
                     </div>
                   )}
 
+                  {player.hasFolded && (
+                    <div className="absolute inset-0 bg-red-600/30 rounded-full" />
+                  )}
+
+                  {/* Indicateur connexion (vert = actif, rouge = déconnecté) - multijoueur */}
+                  <div
+                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-800 ${
+                      player.isConnected !== false ? "bg-green-500 animate-pulse" : "bg-red-500"
+                    }`}
+                    title={player.isConnected !== false ? "En ligne" : "Hors ligne"}
+                    aria-hidden="true"
+                  />
+
                 </div>
 
                 {/* NAME */}
-                <div className="bg-black/90 text-white text-xs px-2 py-1 rounded font-medium">
+                <div className={`text-xs px-2 py-1 rounded font-medium ${player.hasFolded ? "bg-red-900/80 text-red-300 line-through" : "bg-black/90 text-white"}`}>
                   {player.name}
                 </div>
 
@@ -203,34 +226,18 @@ export function PokerTable({
 
                 </div>
 
-                {/* PLAYER CARDS - masquées pour le hero (position 0), affichées en bas à gauche dans PlayerDashboard) */}
-                {player.cards && player.cards.length > 0 && (player.position !== 0 && player.name !== "Vous") && (
+                {/* PLAYER CARDS - hidden for hero (shown in PlayerDashboard), hidden when folded */}
+                {player.cards && player.cards.length > 0 && !player.hasFolded && (player.position !== 0 && player.name !== "Vous") && (
                   <div className="flex gap-1">
-                    {player.cards.map((card, index) => {
-                      const showFaceUp = isShowdown;
-                      if (showFaceUp) {
-                        return (
-                          <div
-                            key={index}
-                            className="w-10 h-14 bg-white rounded border flex flex-col justify-between p-1 shadow-md
-                            transition transform hover:scale-110 hover:-translate-y-1 duration-200"
-                          >
-                            <div className={`text-xs font-bold ${getSuitColor(card.suit)}`}>{card.value}</div>
-                            <div className={`text-lg text-center ${getSuitColor(card.suit)}`}>{getSuitSymbol(card.suit)}</div>
-                            <div className={`text-xs font-bold rotate-180 ${getSuitColor(card.suit)}`}>{card.value}</div>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div
-                          key={index}
-                          className="w-10 h-14 bg-gradient-to-br from-red-800 to-red-950 rounded border-2 border-yellow-500/30 flex items-center justify-center shadow-md overflow-hidden
-                          transition transform hover:scale-105 duration-200"
-                        >
-                          <img src={logoSrc} alt="card back" className="w-8 h-8 object-contain opacity-80" />
-                        </div>
-                      );
-                    })}
+                    {player.cards.map((card, index) => (
+                      <PokerCard
+                        key={index}
+                        suit={card.suit}
+                        value={card.value}
+                        size="sm"
+                        faceDown={!isShowdown}
+                      />
+                    ))}
                   </div>
                 )}
 
@@ -240,6 +247,7 @@ export function PokerTable({
 
         })}
 
+        </div>
       </div>
     </div>
   );

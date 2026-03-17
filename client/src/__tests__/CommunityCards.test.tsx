@@ -44,7 +44,7 @@ describe('CommunityCards - Cartes affichées', () => {
     ];
     render(<CommunityCards cards={cards} pot={100} />);
     expect(screen.getAllByText('A').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('♥')).toBeDefined();
+    expect(screen.getAllByText('♥').length).toBeGreaterThanOrEqual(1);
   });
 
   it('accepte des cartes avec value string (J, Q, K, 10)', () => {
@@ -58,7 +58,7 @@ describe('CommunityCards - Cartes affichées', () => {
     render(<CommunityCards cards={cards} pot={0} />);
     expect(screen.getAllByText('J').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('♦')).toBeDefined();
+    expect(screen.getAllByText('♦').length).toBeGreaterThanOrEqual(1);
   });
 });
 

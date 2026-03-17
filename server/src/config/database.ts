@@ -30,12 +30,11 @@ export const prisma = new PrismaClient({
  * 🟡 DA5 : Monitoring des requêtes lentes
  * On écoute l'événement 'query' pour mesurer le temps d'exécution
  */
-// @ts-ignore - Nécessaire car l'adaptateur change parfois la signature des événements
-prisma.$on('query' as any, (e: any) => {
-  if (e.duration >= 100) { // Seuil de performance : 100ms
+prisma.$on('query' as never, (e: { duration?: number; query?: string }) => {
+  if ((e?.duration ?? 0) >= 100) { // Seuil de performance : 100ms
     console.warn(`🐢 [DA5-PERF] Requête lente détectée !`);
-    console.warn(`⏱️ Durée : ${e.duration}ms`);
-    console.warn(`📝 SQL : ${e.query}`);
+    console.warn(`⏱️ Durée : ${e?.duration}ms`);
+    console.warn(`📝 SQL : ${e?.query}`);
   }
 });
 
@@ -56,7 +55,7 @@ export const connectDB = async () => {
 export const getDbPerformanceMetrics = async () => {
   try {
     // Détecter les verrous qui bloquent des transactions
-    const locks: any[] = await prisma.$queryRaw`
+    const locks: { count: number }[] = await prisma.$queryRaw`
       SELECT count(*) as count FROM pg_locks WHERE granted = false;
     `;
     

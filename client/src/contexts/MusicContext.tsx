@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import musicSrc from '@/assets/music/background-music.mp3';
 
 interface MusicContextType {
   isPlaying: boolean;
@@ -11,8 +12,6 @@ interface MusicContextType {
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
-const MUSIC_URL = '/music/background-music.mp3';
-
 export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolumeState] = useState(0.3);
@@ -24,15 +23,24 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
     const initialVolume = savedVolume ? parseFloat(savedVolume) : 0.3;
 
     setVolumeState(initialVolume);
-    audioRef.current = new Audio(MUSIC_URL);
-    audioRef.current.loop = true;
-    audioRef.current.volume = initialVolume;
 
-    if (savedPlaying) {
-      audioRef.current.play().catch(() => {
-        console.log('Autoplay bloqué, attendre interaction utilisateur');
+    try {
+      const audio = new Audio(musicSrc);
+      audio.loop = true;
+      audio.volume = initialVolume;
+      audio.addEventListener('error', () => {
+        // Évite les 404 bruyants si le fichier est absent
       });
-      setIsPlaying(true);
+      audioRef.current = audio;
+
+      if (savedPlaying) {
+        audio.play().catch(() => {
+          // Autoplay bloqué par le navigateur
+        });
+        setIsPlaying(true);
+      }
+    } catch {
+      // Ignorer silencieusement si la création de l'Audio échoue
     }
 
     return () => {

@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Users, LogOut, Loader2, AlertCircle } from "lucide-react";
+import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, ChevronDown, ChevronUp, TestTube } from "lucide-react";
 import { useSocket } from "../contexts/SocketContext";
 import { useUser } from "../hooks/useUser";
+import { syncBalanceToServer } from "../utils/userProfile";
 import { useGetFriendsQuery } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
 
@@ -31,10 +32,32 @@ export function WaitingRoom() {
   const [invitedPlayers, setInvitedPlayers] = useState<Player[]>([]);
   const [isCreator, setIsCreator] = useState(false);
   const [roomName, setRoomName] = useState("");
+  const [roomVisibility, setRoomVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [roomLoading, setRoomLoading] = useState(true);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [myIsReady, setMyIsReady] = useState(false);
+
+  interface JoinRequestItem {
+    id: string;
+    userId: string;
+    username: string;
+    level: number;
+  }
+  const [joinRequests, setJoinRequests] = useState<JoinRequestItem[]>([]);
+  const [processingRequest, setProcessingRequest] = useState<string | null>(null);
+  /** Host: section "Voir plus" pour forcer des cartes (tests) */
+  const [showTestCards, setShowTestCards] = useState(false);
+  const [forceCards, setForceCards] = useState<Record<string, [{ suit: string; rank: string } | null, { suit: string; rank: string } | null]>>({});
+
+  const SUITS = ["HEARTS", "DIAMONDS", "CLUBS", "SPADES"] as const;
+  const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"] as const;
+
+  /** Tous les joueurs (host + autres) pour l'association des cartes forcées */
+  const allPlayersForCards = userId
+    ? [{ id: userId, name: username || "Vous", avatar: (username || "?")[0] }, ...players]
+    : [...players];
 
   const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
   const { addToast } = useToast();
@@ -115,7 +138,10 @@ export function WaitingRoom() {
         }
 
         setRoomName(room.name || "");
+        setRoomVisibility(room.visibility || 'PUBLIC');
         setIsCreator(room.hostId === userId);
+        const me = room.players?.find((p: { id: string }) => p.id === userId);
+        setMyIsReady(me?.isReady ?? false);
         setPlayers(
           (room.players || [])
             .filter((p: { id: string }) => p.id !== userId)
@@ -127,6 +153,8 @@ export function WaitingRoom() {
               isReady: p.isReady ?? false,
             }))
         );
+        // Synchroniser la balance côté serveur pour que le démarrage utilise la bonne valeur
+        syncBalanceToServer().catch(() => {});
       } catch (e) {
         if (!cancelled) setRoomError(e instanceof Error ? e.message : t('common.error'));
       } finally {
@@ -144,7 +172,8 @@ export function WaitingRoom() {
     if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;
     joinRoom(rawRoomId);
     return () => leaveRoom(rawRoomId);
-  }, [userId, rawRoomId, roomLoading, joinRoom, leaveRoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, rawRoomId, roomLoading]);
 
   useEffect(() => {
     if (!socket || !navigate) return;
@@ -160,7 +189,8 @@ export function WaitingRoom() {
     };
     socket.on("GAME_STARTED", onGameStarted);
     return () => socket.off("GAME_STARTED", onGameStarted);
-  }, [socket, navigate, rawRoomId, leaveRoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, navigate, rawRoomId]);
 
   useEffect(() => {
     if (!socket || !userId || !addToast) return;
@@ -181,6 +211,9 @@ export function WaitingRoom() {
       const room = await fetchRoom(rawRoomId);
       if (!room || room.status !== "WAITING") return;
       setIsCreator(room.hostId === userId);
+      setRoomVisibility(room.visibility || 'PUBLIC');
+      const me = room.players?.find((p: { id: string }) => p.id === userId);
+      setMyIsReady(me?.isReady ?? false);
       setPlayers(
         (room.players || [])
           .filter((p: { id: string }) => p.id !== userId)
@@ -196,6 +229,69 @@ export function WaitingRoom() {
     return () => clearInterval(interval);
   }, [rawRoomId, userId, fetchRoom]);
 
+  // Polling join requests for private rooms (host only)
+  const fetchJoinRequests = useCallback(async () => {
+    if (!rawRoomId || !userId || !isCreator || roomVisibility !== 'PRIVATE') return;
+    try {
+      const url = API_BASE
+        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests?hostId=${userId}`
+        : `/api/waiting-room/${rawRoomId}/join-requests?hostId=${userId}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setJoinRequests(data);
+      }
+    } catch { /* ignore */ }
+  }, [rawRoomId, userId, isCreator, roomVisibility]);
+
+  useEffect(() => {
+    fetchJoinRequests();
+    const interval = setInterval(fetchJoinRequests, 3000);
+    return () => clearInterval(interval);
+  }, [fetchJoinRequests]);
+
+  // Listen for new join requests via socket (instant refresh)
+  useEffect(() => {
+    if (!socket || !isCreator) return;
+    const onJoinRequest = () => { fetchJoinRequests(); };
+    socket.on('JOIN_REQUEST_RECEIVED', onJoinRequest);
+    return () => { socket.off('JOIN_REQUEST_RECEIVED', onJoinRequest); };
+  }, [socket, isCreator, fetchJoinRequests]);
+
+  const handleAcceptRequest = async (requestId: string) => {
+    if (!rawRoomId || !userId) return;
+    setProcessingRequest(requestId);
+    try {
+      const url = API_BASE
+        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`
+        : `/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`;
+      await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hostId: userId }),
+      });
+      setJoinRequests(prev => prev.filter(r => r.id !== requestId));
+    } catch { /* ignore */ }
+    setProcessingRequest(null);
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    if (!rawRoomId || !userId) return;
+    setProcessingRequest(requestId);
+    try {
+      const url = API_BASE
+        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`
+        : `/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`;
+      await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hostId: userId }),
+      });
+      setJoinRequests(prev => prev.filter(r => r.id !== requestId));
+    } catch { /* ignore */ }
+    setProcessingRequest(null);
+  };
+
   const handleInvite = (friend: { id: string; username: string; level?: number }) => {
     // Envoyer une invitation via socket
     socket?.emit('invite-to-room', {
@@ -209,7 +305,7 @@ export function WaitingRoom() {
       id: friend.id,
       name: friend.username,
       avatar: friend.username.charAt(0),
-      level: friend.level,
+      level: friend.level ?? 0,
       isReady: false
     }]);
   };
@@ -224,6 +320,7 @@ export function WaitingRoom() {
 
   const handleReady = () => {
     socket?.emit("player-ready", { roomId, userId });
+    setMyIsReady(true); // Optimistic update
     if (rawRoomId && !rawRoomId.startsWith("room_")) {
       const url = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/ready` : `/api/waiting-room/${rawRoomId}/ready`;
       fetch(url, {
@@ -240,10 +337,18 @@ export function WaitingRoom() {
     setStarting(true);
     try {
       const url = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/start` : `/api/waiting-room/${rawRoomId}/start`;
+      const forceCardsPayload: Record<string, Array<{ suit: string; rank: string }>> = {};
+      for (const [pid, cards] of Object.entries(forceCards)) {
+        if (cards?.[0]?.suit && cards?.[0]?.rank && cards?.[1]?.suit && cards?.[1]?.rank) {
+          forceCardsPayload[pid] = [{ suit: cards[0].suit, rank: cards[0].rank }, { suit: cards[1].suit, rank: cards[1].rank }];
+        }
+      }
+      const body: { userId: string; forceCards?: Record<string, Array<{ suit: string; rank: string }>> } = { userId };
+      if (Object.keys(forceCardsPayload).length > 0) body.forceCards = forceCardsPayload;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -335,10 +440,20 @@ export function WaitingRoom() {
             <Users className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-4xl font-bold text-white mb-1">{roomName || t('waitingRoom.waitingRoomTitle')}</h1>
-            <p className="text-gray-400">
-              {t('waitingRoom.code')} : <span className="text-purple-400 font-mono">{roomId}</span>
-            </p>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-4xl font-bold text-white">{roomName || t('waitingRoom.waitingRoomTitle')}</h1>
+              {roomVisibility === 'PRIVATE' ? (
+                <span className="flex items-center gap-1 bg-purple-600/30 text-purple-300 text-xs font-semibold px-2 py-1 rounded-full border border-purple-500/40">
+                  <Lock className="w-3 h-3" />
+                  {t('lobby.private')}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 bg-green-600/30 text-green-300 text-xs font-semibold px-2 py-1 rounded-full border border-green-500/40">
+                  <Globe className="w-3 h-3" />
+                  {t('lobby.public')}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -360,19 +475,24 @@ export function WaitingRoom() {
                         {username?.charAt(0) || '?'}
                       </span>
                     </div>
-                    <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-slate-800"></div>
+                    <div className={`absolute bottom-0 right-0 w-5 h-5 ${myIsReady ? 'bg-green-500' : isCreator ? 'bg-amber-500' : 'bg-yellow-500'} rounded-full border-2 border-slate-800`} title={myIsReady ? t('waitingRoom.ready') : t('game.waiting')}></div>
                   </div>
                   <div>
-                    <div className="text-white font-bold">{username} ({t('waitingRoom.you')})</div>
-                    <div className="text-green-300 text-sm">{t('waitingRoom.readyQuestion')}</div>
+                    <div className="text-white font-bold">{username}</div>
+                    <div className="text-gray-400 text-sm">{myIsReady ? `✅ ${t('waitingRoom.ready')}` : t('waitingRoom.readyQuestion')}</div>
                   </div>
                 </div>
-                <button
-                  onClick={handleReady}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold"
-                >
-                  {t('waitingRoom.ready')}
-                </button>
+                {!myIsReady && (
+                  <button
+                    onClick={handleReady}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold"
+                  >
+                    {t('waitingRoom.ready')}
+                  </button>
+                )}
+                {myIsReady && (
+                  <span className="text-green-400 font-medium">✅ {t('waitingRoom.ready')}</span>
+                )}
               </div>
             </div>
 
@@ -454,6 +574,132 @@ export function WaitingRoom() {
               )}
             </div>
 
+            {/* Join requests panel (private rooms, host only) */}
+            {isCreator && roomVisibility === 'PRIVATE' && (
+              <div className="bg-purple-900/30 rounded-xl p-4 border border-purple-500/40 mb-4">
+                <h3 className="text-lg font-bold text-purple-300 flex items-center gap-2 mb-3">
+                  <UserCheck className="w-5 h-5" />
+                  {t('waitingRoom.joinRequests')}
+                  {joinRequests.length > 0 && (
+                    <span className="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      {joinRequests.length}
+                    </span>
+                  )}
+                </h3>
+                {joinRequests.length === 0 ? (
+                  <p className="text-gray-500 text-sm text-center py-2">{t('waitingRoom.noJoinRequests')}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {joinRequests.map((req) => (
+                      <div key={req.id} className="flex items-center justify-between bg-slate-800/70 rounded-lg px-3 py-2 border border-slate-600">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
+                            <span className="text-white text-sm font-bold">{req.username.charAt(0)}</span>
+                          </div>
+                          <div>
+                            <p className="text-white font-medium text-sm">{req.username}</p>
+                            <p className="text-gray-400 text-xs">{t('friends.level', { level: req.level })}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleAcceptRequest(req.id)}
+                            disabled={processingRequest === req.id}
+                            className="bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white p-1.5 rounded-lg transition"
+                            title={t('friends.accept')}
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleRejectRequest(req.id)}
+                            disabled={processingRequest === req.id}
+                            className="bg-red-600 hover:bg-red-500 disabled:bg-slate-600 text-white p-1.5 rounded-lg transition"
+                            title={t('friends.reject')}
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Voir plus : cartes forcées pour les tests (host only) */}
+            {isCreator && allPlayersForCards.length >= 2 && (
+              <div className="mt-4 border border-amber-500/40 rounded-xl bg-amber-950/30 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowTestCards((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-amber-200 hover:bg-amber-900/30 transition"
+                >
+                  <span className="flex items-center gap-2 font-medium">
+                    <TestTube className="w-4 h-4" />
+                    Voir plus — Cartes de test
+                  </span>
+                  {showTestCards ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {showTestCards && (
+                  <div className="p-4 border-t border-amber-500/30 space-y-4">
+                    <p className="text-amber-200/80 text-sm">
+                      Choisir les cartes privées de chaque joueur pour tester (flop, split pot, etc.).
+                    </p>
+                    {allPlayersForCards.map((p) => {
+                      const cards = forceCards[p.id] ?? [null, null];
+                      return (
+                        <div key={p.id} className="bg-slate-800/60 rounded-lg p-3">
+                          <div className="text-white font-medium text-sm mb-2">{p.name}</div>
+                          <div className="flex gap-3 flex-wrap">
+                            {[0, 1].map((i) => (
+                              <div key={i} className="flex gap-1 items-center">
+                                <select
+                                  value={cards[i]?.suit ?? ""}
+                                  onChange={(e) => {
+                                    const s = e.target.value;
+                                    setForceCards((prev) => {
+                                      const c = prev[p.id] ?? [null, null];
+                                      const copy = [...c];
+                                      copy[i] = s ? { suit: s, rank: copy[i]?.rank ?? RANKS[0] } : null;
+                                      return { ...prev, [p.id]: copy };
+                                    });
+                                  }}
+                                  className="bg-slate-700 text-white rounded px-2 py-1 text-sm border border-slate-600"
+                                >
+                                  <option value="">—</option>
+                                  {SUITS.map((s) => (
+                                    <option key={s} value={s}>{s}</option>
+                                  ))}
+                                </select>
+                                <select
+                                  value={cards[i]?.rank ?? ""}
+                                  onChange={(e) => {
+                                    const r = e.target.value;
+                                    setForceCards((prev) => {
+                                      const c = prev[p.id] ?? [null, null];
+                                      const copy = [...c];
+                                      copy[i] = r ? { suit: copy[i]?.suit ?? SUITS[0], rank: r } : null;
+                                      return { ...prev, [p.id]: copy };
+                                    });
+                                  }}
+                                  className="bg-slate-700 text-white rounded px-2 py-1 text-sm border border-slate-600"
+                                >
+                                  <option value="">—</option>
+                                  {RANKS.map((r) => (
+                                    <option key={r} value={r}>{r}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {isCreator && (
               <div className="space-y-3">
                 {startError && (
@@ -473,9 +719,9 @@ export function WaitingRoom() {
                 )}
                 <button
                   onClick={handleStartGame}
-                  disabled={players.length < 1 || starting}
+                  disabled={!myIsReady || players.length < 1 || starting}
                   className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${
-                    players.length >= 1 && !starting
+                    myIsReady && players.length >= 1 && !starting
                       ? "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white transform hover:scale-105"
                       : "bg-slate-700 text-gray-500 cursor-not-allowed"
                   }`}

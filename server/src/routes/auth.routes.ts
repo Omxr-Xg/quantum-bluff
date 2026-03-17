@@ -6,6 +6,7 @@ import { prisma } from '../config/database.js'
 import { registerSchema, loginSchema } from '../validation/auth.validation.js'
 import rateLimit from 'express-rate-limit'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
+import { authMiddleware } from '../middleware/auth.middleware.js'
 
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -98,11 +99,22 @@ router.post('/register', registerLimiter, async (req, res) => {
       data: {
         email,
         username,
-        password: hashedPassword,
-        stats: { create: {} }
+        password: hashedPassword
       },
-      include: { stats: true }
+      include: { playerStats: true }
     })
+
+    // Créer PlayerStats si pas encore fait (relation optionnelle)
+    let playerStats = user.playerStats
+    if (!playerStats) {
+      try {
+        playerStats = await prisma.playerStats.create({
+          data: { playerId: user.id }
+        })
+      } catch (statsErr) {
+        console.warn('[AUTH] PlayerStats non créé à l\'inscription:', statsErr)
+      }
+    }
 
     const token = generateToken(user.id)
 
@@ -114,13 +126,17 @@ router.post('/register', registerLimiter, async (req, res) => {
         username: user.username,
         chips: user.chips,
         level: user.level,
-        stats: user.stats
+        playerStats: playerStats ?? null
       }
     })
 
   } catch (error) {
-    console.error(error)
-    res.status(500).json({ error: 'Erreur serveur' })
+    console.error('[AUTH] Erreur inscription:', error)
+    const message =
+      process.env.NODE_ENV === 'development'
+        ? String((error as Error)?.message ?? error)
+        : 'Erreur serveur'
+    res.status(500).json({ error: message })
   }
 
 })
@@ -143,7 +159,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { stats: true }
+      include: { playerStats: true } // ✅ Corrigé ici
     })
 
     if (!user) {
@@ -166,15 +182,39 @@ router.post('/login', loginLimiter, async (req, res) => {
         username: user.username,
         chips: user.chips,
         level: user.level,
-        stats: user.stats
+        playerStats: user.playerStats // ✅ Corrigé ici
       }
     })
 
   } catch (error) {
-    console.error(error)
-    res.status(500).json({ error: 'Erreur serveur' })
+    console.error('[AUTH] Erreur login:', error)
+    const message = process.env.NODE_ENV === 'development'
+      ? String((error as Error).message)
+      : 'Erreur serveur'
+    res.status(500).json({ error: message })
   }
 
+})
+
+// Synchroniser la balance (chips) du client vers le serveur (utilisé avant une partie multijoueur)
+router.post('/sync-balance', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const balance = typeof req.body?.balance === 'number' ? Math.max(0, Math.floor(req.body.balance)) : null
+    if (balance === null) return res.status(400).json({ error: 'balance (nombre) requis' })
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { chips: balance },
+    })
+
+    res.json({ ok: true, chips: balance })
+  } catch (error) {
+    console.error('sync-balance error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
 })
 
 export default router

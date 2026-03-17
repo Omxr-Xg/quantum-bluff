@@ -4,7 +4,7 @@ import { Server } from 'socket.io'
 import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
-import { initCleanupJobs } from './utils/cleanup.job';
+import { initCleanupJobs } from './utils/cleanup.job.js';
 
 import gameRoutes from './routes/game.routes.js'
 import authRoutes from './routes/auth.routes.js'
@@ -12,18 +12,26 @@ import friendsRoutes from './routes/friends.routes.js'
 import waitingRoomRoutes from './routes/waitingRoom.routes.js'
 import gameApiRoutes from './routes/game.api.routes.js'
 import botRoutes from './routes/bot.routes.js'
+import invitationRoutes from './routes/invitation.routes.js'
+import updatesRouter from './routes/updates.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
+import { socketAuth } from './middleware/socketAuth.middleware.js'
+import { connectDB } from './config/database.js'
 
 const app = express()
 
-// frontend originler
-const FRONTEND_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5174'
-]
+const FRONTEND_ORIGINS: string[] = process.env.CORS_ORIGIN
+  ? JSON.parse(process.env.CORS_ORIGIN)
+  : [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:5175',
+    'https://mai-projet-integrateur.u-strasbg.fr'
+  ]
 
 // sécurité HTTP
 app.use(helmet())
@@ -63,6 +71,10 @@ app.use('/api/friends', friendsRoutes)
 app.use('/api/waiting-room', waitingRoomRoutes)
 app.use('/api/game', gameApiRoutes)
 app.use('/api/bot', botRoutes)
+app.use('/api/invitations', invitationRoutes)
+
+// Serveur de mises à jour client
+app.use('/', updatesRouter)
 
 app.get('/', (_req, res) => {
   res.send('🚀 Quantum Bluff API - Le serveur répond !')
@@ -79,25 +91,19 @@ const io = new Server(httpServer, {
   }
 })
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
 // sécurité websocket (JWT)
 io.use(socketAuth)
-app.set('io', io);
-=======
-=======
 app.set('io', io)
->>>>>>> develop
-
-app.set('io', io)
->>>>>>> Stashed changes
 
 initCleanupJobs();
 // gateway poker
 new GameGateway(io)
 
-const PORT = 3000
+const PORT = parseInt(process.env.PORT || '3000', 10)
 
-httpServer.listen(PORT, () => {
-  console.log(`[SERVER] Quantum Bluff tourne sur http://localhost:${PORT}`)
-})
+;(async () => {
+  await connectDB()
+  httpServer.listen(PORT, () => {
+    console.log(`[SERVER] Quantum Bluff tourne sur http://localhost:${PORT}`)
+  })
+})()

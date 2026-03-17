@@ -4,6 +4,13 @@ import { io, Socket } from 'socket.io-client'
 import { useUser } from '../hooks/useUser'
 import { useToast } from './ToastContext'
 
+export interface GameInvitationNotification {
+  invitationId: string
+  roomId: string
+  roomName: string
+  sender: { id: string; username: string }
+}
+
 interface SocketContextType {
   socket: Socket | null
   isConnected: boolean
@@ -11,26 +18,25 @@ interface SocketContextType {
   disconnect: () => void
   joinRoom: (roomId: string) => void
   leaveRoom: (roomId: string) => void
+  pendingInvitations: GameInvitationNotification[]
+  dismissInvitation: (invitationId: string) => void
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-const URL = (() => {
-  const env = import.meta.env?.VITE_API_URL
-  if (env && typeof env === 'string') {
-    return env.replace(/\/$/, '')
-  }
-  return process.env.NODE_ENV === 'production'
-    ? 'https://votre-domaine.com'
-    : 'http://localhost:3000'
-})()
+const URL = import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin;
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [authVersion, setAuthVersion] = useState(0)
+  const [pendingInvitations, setPendingInvitations] = useState<GameInvitationNotification[]>([])
   const { userId } = useUser()
   const { addToast } = useToast()
+
+  const dismissInvitation = useCallback((invitationId: string) => {
+    setPendingInvitations((prev) => prev.filter((inv) => inv.invitationId !== invitationId))
+  }, [])
 
   useEffect(() => {
     const handleAuthChanged = () => {
@@ -53,6 +59,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     const socketInstance = io(URL, {
       autoConnect: true,
+      // On force Socket.io à passer par le sous-dossier de l'école
+      path: import.meta.env.DEV ? '' : '/vmProjetIntegrateurgrp10-0/socket.io/',
       auth: {
         token
       }
@@ -92,9 +100,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     socket.on('FRIEND_REQUEST_RECEIVED', (data: { sender?: { username?: string } }) => {
       addToast(i18n.t('toast.friendRequestFrom', { username: data.sender?.username ?? 'un joueur' }), 'info')
-      if (window.location.pathname === '/friends') {
-        window.dispatchEvent(new CustomEvent('refetch-requests'))
-      }
+      window.dispatchEvent(new CustomEvent('refetch-requests'))
     })
 
     socket.on('FRIEND_REQUEST_ACCEPTED', (data: { username?: string }) => {
@@ -110,10 +116,37 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       addToast(i18n.t(key, { name }), 'info')
     })
 
+    socket.on('GAME_INVITATION_RECEIVED', (data: GameInvitationNotification) => {
+      addToast(i18n.t('invitation.title', { username: data.sender?.username ?? 'un joueur' }), 'info')
+      setPendingInvitations((prev) => {
+        if (prev.some((inv) => inv.invitationId === data.invitationId)) return prev
+        return [...prev, data]
+      })
+    })
+
+    socket.on('JOIN_REQUEST_RECEIVED', (data: { user?: { username?: string } }) => {
+      addToast(i18n.t('toast.joinRequestFrom', { username: data.user?.username ?? 'un joueur' }), 'info')
+    })
+
+    socket.on('JOIN_REQUEST_ACCEPTED', (data: { roomId?: string; roomName?: string }) => {
+      addToast(i18n.t('toast.joinRequestAccepted', { room: data.roomName ?? '' }), 'success')
+      if (data.roomId) {
+        window.dispatchEvent(new CustomEvent('join-request-accepted', { detail: { roomId: data.roomId } }))
+      }
+    })
+
+    socket.on('JOIN_REQUEST_REJECTED', (data: { roomName?: string }) => {
+      addToast(i18n.t('toast.joinRequestRejected', { room: data.roomName ?? '' }), 'error')
+    })
+
     return () => {
       socket.off('FRIEND_REQUEST_RECEIVED')
       socket.off('FRIEND_REQUEST_ACCEPTED')
       socket.off('FRIEND_STATUS_CHANGED')
+      socket.off('GAME_INVITATION_RECEIVED')
+      socket.off('JOIN_REQUEST_RECEIVED')
+      socket.off('JOIN_REQUEST_ACCEPTED')
+      socket.off('JOIN_REQUEST_REJECTED')
     }
   }, [socket, addToast])
 
@@ -149,7 +182,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         connect,
         disconnect,
         joinRoom,
-        leaveRoom
+        leaveRoom,
+        pendingInvitations,
+        dismissInvitation,
       }}
     >
       {children}

@@ -24,7 +24,19 @@
     "captchaError": "Réponse incorrecte. Réessayez.",
     "captchaSuccess": "Jetons ajoutés !",
     "chooseAmount": "Choisissez un montant :",
-    "validate": "Valider"
+    "validate": "Valider",
+    "deleteServer": "Supprimer",
+    "createServerTitle": "Créer un serveur",
+    "visibility": "Type de salle",
+    "public": "Publique",
+    "private": "Privée",
+    "publicDesc": "Tout le monde peut rejoindre librement.",
+    "privateDesc": "Les joueurs doivent demander pour rejoindre.",
+    "maxPlayersLabel": "Nombre max de joueurs",
+    "validateCreate": "Créer la salle",
+    "requestJoin": "Demander à rejoindre",
+    "requestSent": "Demande envoyée !",
+    "roomFull": "Room is full"
   },
   "game": {
     "yourTurn": "À VOTRE TOUR",
@@ -39,7 +51,11 @@
     "foldedLabel": "COUCHÉ",
     "allIn": "Tapis",
     "pot": "Pot: {{amount}}",
-    "timer": "{{seconds}}s"
+    "timer": "{{seconds}}s",
+    "goToHiddenBets": "Passer au hidden bets",
+    "backToLobby": "Retourner au lobby",
+    "replaySameConfig": "Rejouer avec la même configuration",
+    "rematchSameMembers": "Rejouer avec les mêmes membres"
   },
   "friends": {
     "title": "Mes Amis",
@@ -81,11 +97,20 @@
     "requestSentTo": "Demande d'ami envoyée à {{username}}",
     "writeMessage": "Écrivez votre message...",
     "gamesCount": "{{count}} parties",
-    "send": "Envoyer"
+    "send": "Envoyer",
+    "noMessagesYet": "Aucun message pour le moment. Envoyez le premier !",
+    "justNow": "À l'instant",
+    "minutesAgo": "Il y a {{count}} min",
+    "hoursAgo": "Il y a {{count}} h",
+    "daysAgo": "Il y a {{count}} j",
+    "chatOnlyWithFriends": "Vous ne pouvez discuter qu'avec vos amis",
+    "sendMessageError": "Impossible d'envoyer le message",
+    "retry": "Réessayer"
   },
   "common": {
     "loading": "Chargement...",
     "error": "Une erreur est survenue",
+    "retry": "Réessayer",
     "save": "Enregistrer",
     "cancel": "Annuler",
     "creating": "Création..."
@@ -195,7 +220,9 @@
     "startErrorNotReady": "Tous les joueurs ne sont pas prêts. Demandez-leur de cliquer sur « Prêt ».",
     "noFriendsOnline": "Aucun ami en ligne",
     "close": "Fermer",
-    "startGameWithCount": "Lancer la partie ({{count}} joueurs)"
+    "startGameWithCount": "Lancer la partie ({{count}} joueurs)",
+    "joinRequests": "Demandes de rejoindre",
+    "noJoinRequests": "Aucune demande en attente"
   },
   "botConfig": {
     "home": "Accueil",
@@ -229,7 +256,8 @@
     "configSummary": "Résumé de la configuration",
     "opponents": "Adversaires :",
     "difficultyLabel": "Difficulté :",
-    "startGameButton": "Commencer la partie"
+    "startGameButton": "Commencer la partie",
+    "balanceRequired": "Alimentez votre balance pour jouer."
   },
   "gameDeal": {
     "readyToStart": "Prêt à commencer",
@@ -261,12 +289,26 @@
     "friendRequestAccepted": "{{username}} a accepté votre demande d'ami !",
     "hostWantsStart": "L'hôte veut lancer la partie — mettez-vous prêt !",
     "friendIsOnline": "{{name}} est en ligne",
-    "friendIsOffline": "{{name}} est hors ligne"
+    "friendIsOffline": "{{name}} est hors ligne",
+    "joinRequestFrom": "{{username}} veut rejoindre votre salle",
+    "joinRequestAccepted": "Votre demande pour {{room}} a été acceptée !",
+    "joinRequestRejected": "Votre demande pour {{room}} a été refusée"
   },
   "gameHelp": {
     "foldDesc": "Abandonner le coup en cours",
     "callDesc": "Égaler la mise actuelle",
     "raiseDesc": "Augmenter la mise",
     "addCredits": "Ajouter des crédits"
+  },
+  "invitation": {
+    "title": "{{username}} vous invite à jouer !",
+    "accept": "Rejoindre",
+    "reject": "Refuser"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "Aucune notification",
+    "gameInvitations": "Invitations à jouer",
+    "friendRequests": "Demandes d'amis"
   }
 }

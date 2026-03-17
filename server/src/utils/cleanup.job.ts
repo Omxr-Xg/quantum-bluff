@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { prisma } from '../config/database';
+import { prisma } from '../config/database.js';
 
 /**
  * DA4: Maintenance de la base de données
@@ -10,7 +10,7 @@ import { prisma } from '../config/database';
 // 1. Fonction pour vérifier la taille de la base
 async function checkDatabaseSize() {
   try {
-    const stats: any[] = await prisma.$queryRaw`
+    const stats: { size?: string }[] = await prisma.$queryRaw`
       SELECT pg_size_pretty(pg_database_size(current_database())) as size;
     `;
     console.log(`📊 [DA4-MONITOR] Taille totale de la base : ${stats[0].size}`);

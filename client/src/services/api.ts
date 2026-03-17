@@ -26,6 +26,25 @@ interface User {
   }
 }
 
+export interface PlayerStats {
+  id: string
+  playerId: string
+  totalGames: number
+  totalWins: number
+  totalLosses: number
+  totalHands: number
+  totalRaises: number
+  totalCalls: number
+  totalFolds: number
+  totalChecks: number
+  biggestPot: number
+  biggestWin: number
+  totalChipsWon: number
+  totalChipsLost: number
+  updatedAt: string
+  winRate: number
+}
+
 interface FriendRequest {
   id: string
   senderId: string
@@ -39,7 +58,13 @@ interface FriendRequest {
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: `${(import.meta.env.VITE_API_URL || 'http://localhost:3000').toString().replace(/\/$/, '')}/api`,
+    baseUrl: (() => {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const base = (import.meta.env.VITE_API_URL ?? '').toString().replace(/\/$/, '');
+      // En dev: proxy Vite sur /api. En prod: origin + base path si défini
+      if (import.meta.env.DEV) return `${origin}/api`;
+      return base ? `${origin}${base}/api` : `${origin}/api`;
+    })(),
     fetchFn: fetchWithRetry,
     prepareHeaders: (headers) => {
       const token = localStorage.getItem('token')
@@ -49,7 +74,7 @@ export const api = createApi({
       return headers
     },
   }),
-  tagTypes: ['User', 'Game', 'Friend', 'FriendRequest'],
+  tagTypes: ['User', 'Game', 'Friend', 'FriendRequest', 'FriendMessage'],
   endpoints: (builder) => ({
     login: builder.mutation({
       query: (credentials) => ({
@@ -126,6 +151,31 @@ export const api = createApi({
       providesTags: (result) =>
         result ? result.map(({ id }) => ({ type: 'Friend', id } as const)) : ['Friend'],
     }),
+
+    getFriendMessages: builder.query<
+      { id: string; senderId: string; receiverId: string; content: string; createdAt: string; sender: { id: string; username: string }; receiver: { id: string; username: string } }[],
+      { userId: string; friendId: string }
+    >({
+      query: ({ userId, friendId }) =>
+        `/friends/messages?userId=${encodeURIComponent(userId)}&friendId=${encodeURIComponent(friendId)}`,
+      providesTags: (_, __, { friendId }) => [{ type: 'FriendMessage', id: friendId }],
+    }),
+
+    sendFriendMessage: builder.mutation<
+      { id: string; senderId: string; receiverId: string; content: string; createdAt: string },
+      { receiverId: string; content: string }
+    >({
+      query: (body) => ({
+        url: '/friends/messages',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_, __, { receiverId }) => [{ type: 'FriendMessage', id: receiverId }],
+    }),
+
+    getPlayerStats: builder.query<PlayerStats, string>({
+      query: (playerId) => `/game/stats/${playerId}`,
+    }),
   }),
 })
 
@@ -140,4 +190,7 @@ export const {
   useGetFriendRequestsQuery,
   useRespondToFriendRequestMutation,
   useGetFriendsQuery,
+  useGetFriendMessagesQuery,
+  useSendFriendMessageMutation,
+  useGetPlayerStatsQuery,
 } = api

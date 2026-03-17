@@ -1,15 +1,21 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bot, Users, Zap, Brain, Trophy, Target, Home } from "lucide-react";
+import { Bot, Users, Zap, Brain, Trophy, Target, Home, ChevronDown, ChevronUp, Settings2 } from "lucide-react";
+import { useToast } from "../contexts/ToastContext";
+import { getUserBalance } from "../utils/userProfile";
 
 const DIFF_LABEL_KEYS: Record<string, string> = { facile: "easy", moyen: "medium", difficile: "hard", expert: "expert" };
+const BOT_NAMES = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
 
 export function BotConfiguration() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [numberOfBots, setNumberOfBots] = useState(1);
   const [difficulty, setDifficulty] = useState<"facile" | "moyen" | "difficile" | "expert">("moyen");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [botChips, setBotChips] = useState<number[]>([1000, 1000, 1000, 1000, 1000]);
 
   const difficulties = [
     { id: "facile" as const, icon: Target, color: "from-green-600 to-green-800", borderColor: "border-green-500", descKey: "easyDesc", traitKeys: ["traitPredictable", "traitErrors", "traitPassive"] },
@@ -19,7 +25,12 @@ export function BotConfiguration() {
   ];
 
   const handleStartGame = () => {
-    navigate(`/game?mode=bot&bots=${numberOfBots}&difficulty=${difficulty}`);
+    if (getUserBalance() <= 0) {
+      addToast(t("botConfig.balanceRequired") || "Alimentez votre balance pour jouer.", "error");
+      return;
+    }
+    const chipsParam = botChips.slice(0, numberOfBots).join(",");
+    navigate(`/game?mode=bot&bots=${numberOfBots}&difficulty=${difficulty}&botChips=${chipsParam}`);
   };
 
   return (
@@ -175,6 +186,53 @@ export function BotConfiguration() {
               <span>{t('botConfig.startGameButton')}</span>
             </div>
           </button>
+
+          {/* Voir plus — advanced bot config */}
+          <button
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-gray-300 text-sm font-medium py-2 transition-colors"
+          >
+            <Settings2 className="w-4 h-4" />
+            <span>{showAdvanced ? "Masquer les options" : "Voir plus"}</span>
+            {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
+          {showAdvanced && (
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-8 space-y-4">
+              <div className="flex items-center gap-3 mb-4">
+                <Settings2 className="w-5 h-5 text-gray-400" />
+                <h3 className="text-lg font-bold text-white">Jetons par bot</h3>
+                <span className="text-xs text-gray-500 ml-auto">Par défaut : 1 000</span>
+              </div>
+              {Array.from({ length: numberOfBots }, (_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 min-w-[120px]">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center text-white text-xs font-bold">
+                      {BOT_NAMES[i]?.[0]}
+                    </div>
+                    <span className="text-gray-300 text-sm font-medium">Bot {BOT_NAMES[i]}</span>
+                  </div>
+                  <input
+                    type="number"
+                    min={100}
+                    max={100000}
+                    step={100}
+                    value={botChips[i]}
+                    onChange={(e) => {
+                      const val = Math.max(100, Math.min(100000, Number(e.target.value) || 1000));
+                      setBotChips((prev) => {
+                        const next = [...prev];
+                        next[i] = val;
+                        return next;
+                      });
+                    }}
+                    className="flex-1 bg-slate-700/50 border border-slate-600 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-purple-500 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="text-gray-500 text-xs min-w-[20px]">chips</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Résumé */}
           <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-xl border border-slate-700 p-10 mb-16">

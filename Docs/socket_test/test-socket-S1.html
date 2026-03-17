@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Socket.io Auth</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js" integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4" crossorigin="anonymous"></script>
+</head>
+<body>
+    <h2>Test Authentification Socket</h2>
+    <div id="logs"></div>
+    <script>
+        const logs = document.getElementById('logs');
+        
+        function log(msg) {
+            logs.innerHTML += `<div>${msg}</div>`;
+        }
+
+        // Test 1 : Sans token (doit échouer)
+        const socket1 = io('http://localhost:3000');
+        socket1.on('connect_error', (err) => {
+            log('❌ Sans token: ' + err.message);
+        });
+
+        // Test 2 : Avec token invalide
+        const socket2 = io('http://localhost:3000', {
+            auth: { token: 'token_invalide' }
+        });
+        socket2.on('connect_error', (err) => {
+            log('❌ Token invalide: ' + err.message);
+        });
+
+        // Test 3 : Avec token valide (à récupérer d'un login)
+        // Pour obtenir un token, connecte-toi d'abord via l'API
+        fetch('http://localhost:3000/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: 'host@test.com', password: '123456' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const token = data.token;
+            log('✅ Token obtenu: ' + token.substring(0, 20) + '...');
+            
+            const socket3 = io('http://localhost:3000', {
+                auth: { token }
+            });
+            socket3.on('connect', () => {
+                log('✅ Connexion réussie avec token valide');
+            });
+            socket3.on('connect_error', (err) => {
+                log('❌ Erreur avec token valide: ' + err.message);
+            });
+        });
+    </script>
+</body>
+</html>

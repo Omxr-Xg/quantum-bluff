@@ -3,8 +3,8 @@ import { prisma } from '../config/database.js';
 import { GameTable } from '../logic/GameTable.js';
 import type { Player } from '../types/poker.js';
 import { activeGames } from '../shared/activeGames.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 import sanitizeHtml from 'sanitize-html';
-
 
 const router = express.Router();
 
@@ -12,10 +12,15 @@ const router = express.Router();
 //const sanitizeRoomName = (roomName: string) => sanitizeHtml(roomName);
 
 // GET /api/waiting-room - Liste toutes les salles disponibles
+// Filtre : au moins 1 joueur actif, créées dans la dernière heure
 router.get('/', async (req, res) => {
   try {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const rooms = await prisma.waitingRoom.findMany({
-      where: { status: 'WAITING' },
+      where: {
+        status: 'WAITING',
+        createdAt: { gte: oneHourAgo }
+      },
       include: {
         players: {
           include: {
@@ -32,11 +37,14 @@ router.get('/', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const formattedRooms = rooms.map(room => ({
+    const formattedRooms = rooms
+      .filter(room => room.players.length >= 1)
+      .map(room => ({
       id: room.id,
       name: room.name,
       hostId: room.hostId,
       maxPlayers: room.maxPlayers,
+      visibility: room.visibility,
       status: room.status,
       players: room.players.map(p => ({
         id: p.user.id,
@@ -69,11 +77,11 @@ router.get('/active/games', async (req, res) => {
 // POST /api/waiting-room/create - Créer une nouvelle salle
 router.post('/create', async (req, res) => {
   try {
-    const { hostId, roomName, maxPlayers = 5 } = req.body;
+    const { hostId, roomName, maxPlayers = 5, visibility = 'PUBLIC' } = req.body;
 
-    //const sanitizedRoomName = roomName ? sanitizeHtml(roomName) : '';
+    const clampedMaxPlayers = Math.min(5, Math.max(2, Number(maxPlayers) || 5));
+    const roomVisibility = visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC';
 
-    // Vérifier que l'utilisateur existe
     const user = await prisma.user.findUnique({
       where: { id: hostId }
     });
@@ -82,12 +90,12 @@ router.post('/create', async (req, res) => {
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
 
-    // Créer la salle
     const room = await prisma.waitingRoom.create({
       data: {
         name: roomName ? sanitizeHtml(roomName) : `Salle de ${user.username}`,
         hostId,
-        maxPlayers,
+        maxPlayers: clampedMaxPlayers,
+        visibility: roomVisibility,
         players: {
           create: {
             userId: hostId,
@@ -116,6 +124,7 @@ router.post('/create', async (req, res) => {
       name: room.name,
       hostId: room.hostId,
       maxPlayers: room.maxPlayers,
+      visibility: room.visibility,
       status: room.status,
       players: room.players.map(p => ({
         id: p.user.id,
@@ -127,6 +136,62 @@ router.post('/create', async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur création salle:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/waiting-room/rematch - Host: créer une nouvelle salle avec les mêmes membres
+router.post('/rematch', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId;
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+    const { gameId } = req.body as { gameId?: string };
+    if (!gameId) return res.status(400).json({ error: 'gameId requis' });
+
+    const oldRoom = await prisma.waitingRoom.findFirst({
+      where: { gameId },
+      include: {
+        players: {
+          include: {
+            user: {
+              select: { id: true, username: true, chips: true }
+            }
+          }
+        }
+      },
+    });
+
+    if (!oldRoom) return res.status(404).json({ error: 'Partie introuvable' });
+    if (oldRoom.hostId !== userId) return res.status(403).json({ error: 'Seul l\'hôte peut relancer avec les mêmes membres' });
+
+    const hostUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!hostUser) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+
+    const newRoom = await prisma.waitingRoom.create({
+      data: {
+        name: `Revanche - ${oldRoom.name}`,
+        hostId: userId,
+        maxPlayers: oldRoom.maxPlayers,
+        visibility: oldRoom.visibility,
+        players: {
+          create: oldRoom.players.map((rp, idx) => ({
+            userId: rp.userId,
+            isReady: false,
+            position: idx,
+          })),
+        },
+      },
+    });
+
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    if (io) {
+      io.to(gameId).emit('REMATCH_CREATED', { newRoomId: newRoom.id });
+    }
+
+    res.json({ newRoomId: newRoom.id });
+  } catch (error) {
+    console.error('Erreur rematch:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -162,6 +227,7 @@ router.get('/:roomId', async (req, res) => {
       name: room.name,
       hostId: room.hostId,
       maxPlayers: room.maxPlayers,
+      visibility: room.visibility,
       status: room.status,
       players: room.players.map(p => ({
         id: p.user.id,
@@ -201,13 +267,20 @@ router.post('/:roomId/join', async (req, res) => {
       return res.status(400).json({ error: 'Salle pleine' });
     }
 
-    // Vérifier que l'utilisateur n'est pas déjà dans la salle
     const alreadyInRoom = room.players.some(p => p.userId === userId);
     if (alreadyInRoom) {
       return res.status(400).json({ error: 'Déjà dans la salle' });
     }
 
-    // Ajouter le joueur
+    if (room.visibility === 'PRIVATE' && room.hostId !== userId) {
+      const approved = await prisma.joinRequest.findFirst({
+        where: { roomId, userId, status: 'ACCEPTED' }
+      });
+      if (!approved) {
+        return res.status(403).json({ error: 'Cette salle est privée. Envoyez une demande.' });
+      }
+    }
+
     const updatedRoom = await prisma.waitingRoom.update({
       where: { id: roomId },
       data: {
@@ -239,6 +312,7 @@ router.post('/:roomId/join', async (req, res) => {
       name: updatedRoom.name,
       hostId: updatedRoom.hostId,
       maxPlayers: updatedRoom.maxPlayers,
+      visibility: updatedRoom.visibility,
       status: updatedRoom.status,
       players: updatedRoom.players.map(p => ({
         id: p.user.id,
@@ -371,12 +445,12 @@ router.post('/:roomId/start', async (req, res) => {
     // 🔥 CRÉATION DE LA PARTIE
     const gameId = `game_${Date.now()}`;
 
-    // Convertir les joueurs pour GameTable
+    // Convertir les joueurs pour GameTable (chips = balance de chaque utilisateur)
     const players: Player[] = room.players.map((rp, index) => ({
       id: rp.user.id,
       name: rp.user.username,
       cards: [],
-      chips: 1000,
+      chips: Math.max(100, rp.user.chips ?? 1000),
       role: 'PLAYER',
       isActive: true,
       position: index,
@@ -384,9 +458,25 @@ router.post('/:roomId/start', async (req, res) => {
       isConnected: true
     }));
 
-    // Créer et initialiser la partie
+    // Créer et initialiser la partie (cartes forcées optionnelles pour les tests)
+    const forceCards = req.body.forceCards as Record<string, Array<{ suit: string; rank: string; value?: number }>> | undefined;
+    const forcedHoleCards: Record<string, import('../types/poker.js').Card[]> | undefined = forceCards && Object.keys(forceCards).length > 0
+      ? Object.fromEntries(
+          Object.entries(forceCards)
+            .filter(([, cards]) => Array.isArray(cards) && cards.length === 2)
+            .map(([pid, cards]) => [
+              pid,
+              cards.map((c) => ({
+                suit: c.suit as import('../types/poker.js').Suit,
+                rank: c.rank as import('../types/poker.js').Rank,
+                value: c.value ?? (c.rank === 'A' ? 14 : c.rank === 'K' ? 13 : c.rank === 'Q' ? 12 : c.rank === 'J' ? 11 : c.rank === '10' ? 10 : (parseInt(c.rank, 10) || 2)),
+              })),
+            ])
+        )
+      : undefined;
+
     const gameTable = new GameTable(gameId, players);
-    gameTable.startHand();
+    gameTable.startHand(forcedHoleCards);
 
     // Stocker dans le cache (Redis + local)
     await activeGames.set(gameId, gameTable);
@@ -415,6 +505,217 @@ router.post('/:roomId/start', async (req, res) => {
     res.json({ gameId, message: 'Partie démarrée', players: playersForClient });
   } catch (error) {
     console.error('Erreur démarrage:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/waiting-room/:roomId/request-join - Demander à rejoindre une salle privée
+router.post('/:roomId/request-join', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { userId } = req.body;
+
+    const room = await prisma.waitingRoom.findUnique({
+      where: { id: roomId },
+      include: { players: true }
+    });
+
+    if (!room) {
+      return res.status(404).json({ error: 'Salle non trouvée' });
+    }
+
+    if (room.status !== 'WAITING') {
+      return res.status(400).json({ error: 'La partie a déjà commencé' });
+    }
+
+    if (room.players.length >= room.maxPlayers) {
+      return res.status(400).json({ error: 'Salle pleine' });
+    }
+
+    if (room.players.some(p => p.userId === userId)) {
+      return res.status(400).json({ error: 'Déjà dans la salle' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, level: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    const joinRequest = await prisma.joinRequest.upsert({
+      where: { roomId_userId: { roomId, userId } },
+      create: { roomId, userId, status: 'PENDING' },
+      update: { status: 'PENDING' }
+    });
+
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    if (io) {
+      io.to(`user:${room.hostId}`).emit('JOIN_REQUEST_RECEIVED', {
+        requestId: joinRequest.id,
+        roomId,
+        user: { id: user.id, username: user.username, level: user.level }
+      });
+    }
+
+    res.json({ message: 'Demande envoyée', requestId: joinRequest.id });
+  } catch (error) {
+    console.error('Erreur demande rejoindre:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/waiting-room/:roomId/join-requests - Liste des demandes (host only)
+router.get('/:roomId/join-requests', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const hostId = req.query.hostId as string;
+
+    const room = await prisma.waitingRoom.findUnique({ where: { id: roomId } });
+    if (!room) {
+      return res.status(404).json({ error: 'Salle non trouvée' });
+    }
+
+    if (room.hostId !== hostId) {
+      return res.status(403).json({ error: 'Seul l\'hôte peut voir les demandes' });
+    }
+
+    const requests = await prisma.joinRequest.findMany({
+      where: { roomId, status: 'PENDING' },
+      include: {
+        user: { select: { id: true, username: true, level: true } }
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    res.json(requests.map(r => ({
+      id: r.id,
+      userId: r.user.id,
+      username: r.user.username,
+      level: r.user.level,
+      createdAt: r.createdAt
+    })));
+  } catch (error) {
+    console.error('Erreur liste demandes:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/waiting-room/:roomId/join-requests/:requestId/accept
+router.post('/:roomId/join-requests/:requestId/accept', async (req, res) => {
+  try {
+    const { roomId, requestId } = req.params;
+    const { hostId } = req.body;
+
+    const room = await prisma.waitingRoom.findUnique({
+      where: { id: roomId },
+      include: { players: true }
+    });
+
+    if (!room) return res.status(404).json({ error: 'Salle non trouvée' });
+    if (room.hostId !== hostId) return res.status(403).json({ error: 'Non autorisé' });
+    if (room.players.length >= room.maxPlayers) return res.status(400).json({ error: 'Salle pleine' });
+
+    const joinRequest = await prisma.joinRequest.update({
+      where: { id: requestId },
+      data: { status: 'ACCEPTED' },
+      include: { user: { select: { id: true, username: true } } }
+    });
+
+    // Auto-join the player
+    await prisma.waitingRoom.update({
+      where: { id: roomId },
+      data: {
+        players: {
+          create: {
+            userId: joinRequest.userId,
+            isReady: false,
+            position: room.players.length
+          }
+        }
+      }
+    });
+
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    if (io) {
+      io.to(`user:${joinRequest.userId}`).emit('JOIN_REQUEST_ACCEPTED', {
+        roomId,
+        roomName: room.name
+      });
+    }
+
+    res.json({ message: 'Demande acceptée', userId: joinRequest.userId });
+  } catch (error) {
+    console.error('Erreur acceptation demande:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/waiting-room/:roomId/join-requests/:requestId/reject
+router.post('/:roomId/join-requests/:requestId/reject', async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { hostId } = req.body;
+
+    const joinRequest = await prisma.joinRequest.findUnique({
+      where: { id: requestId },
+      include: { room: true }
+    });
+
+    if (!joinRequest) return res.status(404).json({ error: 'Demande non trouvée' });
+    if (joinRequest.room.hostId !== hostId) return res.status(403).json({ error: 'Non autorisé' });
+
+    await prisma.joinRequest.update({
+      where: { id: requestId },
+      data: { status: 'REJECTED' }
+    });
+
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    if (io) {
+      io.to(`user:${joinRequest.userId}`).emit('JOIN_REQUEST_REJECTED', {
+        roomId: joinRequest.roomId,
+        roomName: joinRequest.room.name
+      });
+    }
+
+    res.json({ message: 'Demande refusée' });
+  } catch (error) {
+    console.error('Erreur refus demande:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /api/waiting-room/:roomId - Suppression manuelle par l'hôte (nettoyage de salles inactives)
+router.delete('/:roomId', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { userId } = req.body as { userId?: string };
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId requis' });
+    }
+
+    const room = await prisma.waitingRoom.findUnique({
+      where: { id: roomId },
+    });
+
+    if (!room) {
+      return res.status(404).json({ error: 'Salle non trouvée' });
+    }
+
+    if (room.hostId !== userId) {
+      return res.status(403).json({ error: 'Seul l\'hôte peut supprimer la salle' });
+    }
+
+    // Nettoyer les joueurs de la salle puis supprimer la salle
+    await prisma.roomPlayer.deleteMany({ where: { roomId } });
+    await prisma.waitingRoom.delete({ where: { id: roomId } });
+
+    return res.json({ message: 'Salle supprimée par l\'hôte' });
+  } catch (error) {
+    console.error('Erreur suppression salle par hôte:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

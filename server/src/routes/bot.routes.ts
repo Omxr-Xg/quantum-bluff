@@ -1,5 +1,5 @@
 import express from 'express'
-import { getHandValue, findWinnerWithHand } from '../logic/Evaluator.js'
+import { getHandValue, findWinners, getHandInfo } from '../logic/Evaluator.js'
 import type { Card, Player } from '../types/poker.js'
 
 const router = express.Router()
@@ -317,15 +317,31 @@ const RANK_VALUE: Record<string, number> = {
   J: 11, Q: 12, K: 13, A: 14
 }
 
+const NUM_TO_RANK: Record<number, string> = {
+  2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: '10',
+  11: 'J', 12: 'Q', 13: 'K', 14: 'A'
+}
+
 function normalizeCard(c: { suit?: string; rank?: string; value?: string | number }): Card {
   const suitStr = (c.suit ?? '').toLowerCase()
   const suit = SUIT_MAP[suitStr] ?? 'HEARTS'
-  const rank = c.rank ? RANK_MAP[String(c.rank)] ?? '2' : (RANK_MAP[String(c.value)] ?? '2')
-  const value = typeof c.value === 'number' ? c.value : (RANK_VALUE[String(c.value ?? rank)] ?? 2)
+  let rank: Card['rank']
+  let value: number
+  if (c.rank && RANK_MAP[String(c.rank)]) {
+    rank = RANK_MAP[String(c.rank)]
+    value = typeof c.value === 'number' ? c.value : (RANK_VALUE[rank] ?? 2)
+  } else if (typeof c.value === 'number') {
+    rank = (RANK_MAP[NUM_TO_RANK[c.value] ?? ''] ?? '2') as Card['rank']
+    value = c.value
+  } else {
+    rank = (RANK_MAP[String(c.value)] ?? '2') as Card['rank']
+    value = RANK_VALUE[rank] ?? 2
+  }
   return { suit, rank, value }
 }
 
 router.post('/action', (req, res) => {
+  const startBotTime = Date.now()
   try {
     const raw = req.body as BotActionRequest & { playerCards?: Array<{ suit?: string; rank?: string; value?: string | number }> }
 
@@ -355,7 +371,12 @@ router.post('/action', (req, res) => {
         return res.status(400).json({ error: 'Invalid difficulty' })
     }
 
-    console.log(`🤖 Bot decision (${botRequest.difficulty}):`, decision)
+    const duration = Date.now() - startBotTime
+    console.log(`[Monitoring QoS] 🤖 Décision bot (${botRequest.difficulty}) calculée en ${duration}ms (Obj: <500ms)`)
+    
+    if (duration > 500) {
+      console.warn(`[Alerte Réseau] ⚠️ Le bot a dépassé la limite de latence (${duration}ms)`)
+    }
 
     res.json(decision)
   } catch (error) {
@@ -387,13 +408,20 @@ router.post('/evaluate-winner', (req, res) => {
       isActive: false,
     }))
     const board = (raw.communityCards ?? []).map(normalizeCard)
-    const { winnerId, category, handName } = findWinnerWithHand(players, board)
-    const winner = players.find((p) => p.id === winnerId)
+    const winnerIds = findWinners(players, board)
+    const isSplit = winnerIds.length > 1
+    const winnerId = winnerIds[0]
+    const firstWinner = players.find((p) => p.id === winnerId)
+    const handInfo = firstWinner
+      ? getHandInfo([...firstWinner.cards, ...board])
+      : { category: 0, handName: 'Haute carte' }
     res.json({
       winnerId,
-      winnerName: winner?.name ?? winnerId,
-      handName,
-      handRank: category,
+      winnerName: firstWinner?.name ?? winnerId,
+      winnerIds,
+      isSplit,
+      handName: handInfo.handName,
+      handRank: handInfo.category,
     })
   } catch (error) {
     console.error('Erreur evaluate-winner:', error)

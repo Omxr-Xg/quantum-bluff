@@ -76,6 +76,25 @@ describe('Evaluator - getHandInfo', () => {
     expect(info).toHaveProperty('handName');
     expect(info.category).toBe(0);
   });
+
+  // Régression: une paire ne doit JAMAIS être classée comme double paire
+  test('7 cartes avec une seule paire (hole K + board K) → Paire, pas Double paire', () => {
+    const holeK = [card('K', 'HEARTS'), card('7', 'DIAMONDS')];
+    const board = [card('K', 'CLUBS'), card('2', 'SPADES'), card('3', 'HEARTS'), card('4', 'DIAMONDS'), card('5', 'CLUBS')];
+    const allCards = [...holeK, ...board]; // K K 7 5 4 3 2 → une seule paire (rois)
+    const info = getHandInfo(allCards);
+    expect(info.handName).toBe('Paire');
+    expect(info.category).toBe(1);
+  });
+
+  test('7 cartes avec deux paires (hole K,2 + board K,2) → Double paire', () => {
+    const hole = [card('K', 'HEARTS'), card('2', 'DIAMONDS')];
+    const board = [card('K', 'CLUBS'), card('2', 'SPADES'), card('3', 'HEARTS'), card('4', 'DIAMONDS'), card('5', 'CLUBS')];
+    const allCards = [...hole, ...board]; // K K 2 2 5 4 3 → deux paires
+    const info = getHandInfo(allCards);
+    expect(info.handName).toBe('Double paire');
+    expect(info.category).toBe(2);
+  });
 });
 
 // -----------------------------------------------------------------------------

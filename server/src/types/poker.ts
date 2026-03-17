@@ -56,6 +56,10 @@ export interface GameState {
   phase: GamePhase
   /** Gagnant au showdown (pour affichage côté client) */
   showdownWinnerId?: string
+  /** Gagnants en cas d'égalité (split pot) */
+  showdownWinnerIds?: string[]
+  /** Vrai si le pot a été partagé entre plusieurs gagnants */
+  showdownIsSplit?: boolean
   showdownHandName?: string
   /** Pot attribué au showdown (pour affichage) */
   showdownPot?: number

@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "./ui/use-mobile";
+import { PokerCard, PokerCardSlot } from "./PokerCard";
 
 interface Card {
   suit: string;
@@ -10,42 +11,15 @@ interface Card {
 interface CommunityCardsProps {
   cards: (Card | null)[];
   pot: number;
+  sidePots?: { amount: number; eligibleIds: string[] }[];
   colorblindMode?: boolean;
 }
 
-export function CommunityCards({ cards, pot, colorblindMode = false }: CommunityCardsProps) {
+export function CommunityCards({ cards, pot, sidePots, colorblindMode = false }: CommunityCardsProps) {
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
   
-  const getSuitSymbol = (suit: string) => {
-    const suits: { [key: string]: string } = {
-      hearts: "♥",
-      diamonds: "♦",
-      clubs: "♣",
-      spades: "♠",
-    };
-    return suits[suit] || "";
-  };
-
-  const getSuitColor = (suit: string) => {
-    return suit === "hearts" || suit === "diamonds"
-      ? "text-red-600"
-      : "text-gray-900";
-  };
-
-  const getSuitShape = (suit: string) => {
-    if (!colorblindMode) return null;
-
-    const shapes: { [key: string]: string } = {
-      hearts: "●",
-      diamonds: "◆",
-      clubs: "■",
-      spades: "▲",
-    };
-    return shapes[suit] || "";
-  };
-
   return (
     <div
       className={`absolute ${
@@ -94,6 +68,27 @@ export function CommunityCards({ cards, pot, colorblindMode = false }: Community
           </div>
         </div>
 
+        {/* Side pots indicator */}
+        {sidePots && sidePots.length > 1 && (
+          <div className={`flex ${isMobile ? 'gap-1' : 'gap-2'} flex-wrap justify-center`}>
+            {sidePots.map((sp, i) => (
+              <div
+                key={i}
+                className={`bg-black/30 backdrop-blur-sm rounded-full ${
+                  isMobile ? 'px-1.5 py-0.5' : 'px-2 py-0.5'
+                } border border-white/10 flex items-center gap-1`}
+              >
+                <span className={`${isMobile ? 'text-[7px]' : 'text-[9px]'} text-amber-300 font-bold`}>
+                  {i === 0 ? "Main" : `Side ${i}`}
+                </span>
+                <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-white font-bold`}>
+                  {sp.amount.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* COMMUNITY CARDS */}
         <div className={`flex ${isMobile ? "gap-1" : isTablet ? "gap-1.5" : "gap-2"}`}>
           {cards.map((card, index) => (
@@ -112,68 +107,15 @@ export function CommunityCards({ cards, pot, colorblindMode = false }: Community
                 stiffness: 200,
                 delay: card ? index * 0.1 : 0,
               }}
-              className={`relative ${
-                isMobile
-                  ? "w-9 h-13"
-                  : isTablet
-                  ? "w-10 h-15"
-                  : "w-12 h-18"
-              } rounded flex flex-col items-center justify-center ${
-                isMobile ? "p-0.5" : "p-1"
-              } ${
-                card
-                  ? "bg-white border-2 border-gray-300 shadow-md"
-                  : "bg-black/10 border-white/20 border-dashed border-2"
-              }`}
             >
-              {card && (
-                <>
-                  <div
-                    className={`${
-                      isMobile ? "text-sm" : isTablet ? "text-sm" : "text-base"
-                    } font-bold ${getSuitColor(card.suit)} absolute ${
-                      isMobile ? "top-0.5 left-1" : "top-1 left-1.5"
-                    }`}
-                  >
-                    {card.value}
-                    {colorblindMode && (
-                      <span
-                        className={`ml-0.5 ${
-                          isMobile ? "text-[8px]" : "text-[10px]"
-                        }`}
-                      >
-                        {getSuitShape(card.suit)}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className={`${
-                      isMobile ? "text-xl" : isTablet ? "text-xl" : "text-2xl"
-                    } ${getSuitColor(card.suit)}`}
-                  >
-                    {getSuitSymbol(card.suit)}
-                  </div>
-
-                  <div
-                    className={`${
-                      isMobile ? "text-sm" : isTablet ? "text-sm" : "text-base"
-                    } font-bold ${getSuitColor(card.suit)} rotate-180 absolute ${
-                      isMobile ? "bottom-0.5 right-1" : "bottom-1 right-1.5"
-                    }`}
-                  >
-                    {card.value}
-                    {colorblindMode && (
-                      <span
-                        className={`ml-0.5 ${
-                          isMobile ? "text-[8px]" : "text-[10px]"
-                        } rotate-180 inline-block`}
-                      >
-                        {getSuitShape(card.suit)}
-                      </span>
-                    )}
-                  </div>
-                </>
+              {card ? (
+                <PokerCard
+                  suit={card.suit}
+                  value={card.value}
+                  size={isMobile ? "xs" : isTablet ? "sm" : "md"}
+                />
+              ) : (
+                <PokerCardSlot size={isMobile ? "xs" : isTablet ? "sm" : "md"} />
               )}
             </motion.div>
           ))}

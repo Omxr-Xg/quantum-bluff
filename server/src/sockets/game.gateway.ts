@@ -3,6 +3,8 @@ import { activeGames } from '../shared/activeGames.js'
 import jwt from 'jsonwebtoken'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
 import { AntiCheatMonitor } from '../utils/antiCheat.js'
+import { prisma } from '../config/database.js'
+import type { GameTable } from '../logic/GameTable.js'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -15,6 +17,7 @@ export class GameGateway {
   private socketToUser: Map<string, string> = new Map()
   private userToSocket: Map<string, string> = new Map()
   private antiCheat = new AntiCheatMonitor(8, 3000)
+  private disconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map()
 
   constructor(io: Server) {
     this.io = io
@@ -64,13 +67,8 @@ export class GameGateway {
 
   private setupHandlers() {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
-      console.log('🎮 Nouvelle connexion socket:', socket.id, 'User:', socket.userId)
-
-      socket.on('disconnect', (reason) => {
-        console.log('👋 Socket déconnecté:', socket.id, 'Raison:', reason)
-        this.socketToUser.delete(socket.id)
-        if (socket.userId) this.userToSocket.delete(socket.userId)
-      })
+      const clientsCount = (this.io as unknown as { engine: { clientsCount: number } }).engine.clientsCount
+      console.log(`[Monitoring Réseau] 🌐 Nouvelle connexion socket: ${socket.id} (User: ${socket.userId}). Total simultanées: ${clientsCount}`)
 
       if (socket.userId) {
         this.socketToUser.set(socket.id, socket.userId)
@@ -103,9 +101,48 @@ export class GameGateway {
         socket.leave(roomId)
       })
 
+      socket.on('invite-to-room', async (data: { roomId: string; invitedUserId: string; inviterId: string }) => {
+        const { roomId, invitedUserId, inviterId } = data
+        if (!roomId || !invitedUserId || !inviterId) return
+        if (socket.userId !== inviterId) return
+
+        try {
+          const room = await prisma.waitingRoom.findUnique({ where: { id: roomId } })
+          if (!room || room.status !== 'WAITING' || room.hostId !== inviterId) return
+
+          const invitation = await prisma.gameInvitation.upsert({
+            where: { roomId_receiverId: { roomId, receiverId: invitedUserId } },
+            create: { roomId, senderId: inviterId, receiverId: invitedUserId, status: 'PENDING' },
+            update: { status: 'PENDING', senderId: inviterId },
+          })
+
+          const sender = await prisma.user.findUnique({
+            where: { id: inviterId },
+            select: { username: true },
+          })
+
+          this.io.to(`user:${invitedUserId}`).emit('GAME_INVITATION_RECEIVED', {
+            invitationId: invitation.id,
+            roomId,
+            roomName: room.name,
+            sender: { id: inviterId, username: sender?.username ?? 'Joueur' },
+          })
+          console.log(`📨 Invitation envoyée: ${inviterId} → ${invitedUserId} (salle ${roomId})`)
+        } catch (err) {
+          console.error('Erreur invite-to-room:', err)
+        }
+      })
+
       socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string }) => {
         try {
           const { gameId, playerId } = data
+
+          // Désamorcer le timeout de déconnexion si le joueur revient via JOIN_GAME (ex: F5)
+          if (socket.userId && this.disconnectionTimeouts.has(socket.userId)) {
+            clearTimeout(this.disconnectionTimeouts.get(socket.userId)!)
+            this.disconnectionTimeouts.delete(socket.userId)
+            console.log(`[Réseau] Joueur ${socket.userId} de retour avant la fin du timeout !`)
+          }
 
           if (socket.userId !== playerId) {
             logSuspiciousAction('UNAUTHORIZED_JOIN', {
@@ -158,6 +195,7 @@ export class GameGateway {
         action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'; 
         amount?: number;
       }) => {
+        const startActionTime = Date.now()
         try {
           const { gameId, playerId, action, amount } = data
 
@@ -265,7 +303,17 @@ export class GameGateway {
             const uid = (s as unknown as AuthenticatedSocket).userId
             s.emit('GAME_UPDATE', game.getSanitizedState(uid))
           }
-          this.startTurnTimer(gameId)
+
+          if (game.state.phase === 'SHOWDOWN' && game.state.showdownWinnerId) {
+            this.recordMultiPlayerStats(game).catch((err) =>
+              console.error('[Stats] Erreur enregistrement stats multi:', err)
+            )
+          } else {
+            this.startTurnTimer(gameId)
+          }
+          
+          const duration = Date.now() - startActionTime
+          console.log(`[Réseau] ⚡ Action ${action} traitée et diffusée en ${duration}ms pour ${playerId}`)
         } catch (error) {
           logSuspiciousAction('ACTION_ERROR', {
             userId: socket.userId,
@@ -283,9 +331,22 @@ export class GameGateway {
         }
       })
 
+      socket.on('GAME_CHAT', (data: { gameId: string; playerId: string; playerName: string; content: string; type: 'emoji' | 'text' }) => {
+        const { gameId, playerId, playerName, content, type } = data
+        if (!gameId || !playerId || !content || !socket.gameId || socket.gameId !== gameId) return
+        if (socket.userId !== playerId) return
+        socket.broadcast.to(gameId).emit('GAME_CHAT', { playerId, playerName, content, type })
+      })
+
       socket.on('RECONNECT_GAME', async (data: { gameId: string }) => {
         try {
           const { gameId } = data
+
+          if (socket.userId && this.disconnectionTimeouts.has(socket.userId)) {
+            clearTimeout(this.disconnectionTimeouts.get(socket.userId)!)
+            this.disconnectionTimeouts.delete(socket.userId)
+            console.log(`[Réseau] Joueur ${socket.userId} de retour avant la fin du timeout !`)
+          }
 
           if (socket.gameId && socket.gameId !== gameId) {
             socket.leave(socket.gameId)
@@ -330,8 +391,9 @@ export class GameGateway {
         }
       })
 
-      socket.on('disconnect', async () => {
-        console.log('👋 Joueur déconnecté:', socket.id)
+      socket.on('disconnect', async (reason) => {
+        const currentCount = (this.io as unknown as { engine: { clientsCount: number } }).engine.clientsCount
+        console.log(`[Monitoring Réseau] 🔌 Déconnexion socket: ${socket.id}, Raison: ${reason}. Total: ${currentCount}`)
 
         const userId = socket.userId
         if (userId) {
@@ -343,36 +405,111 @@ export class GameGateway {
             userId,
             status: 'offline'
           })
+        } else {
+          this.socketToUser.delete(socket.id)
         }
 
         if (socket.gameId && userId) {
           const gameId = socket.gameId
-          const game = await activeGames.get(gameId)
-          if (game) {
-            const player = game.getPlayerState(userId)
-            if (player) {
-              player.isConnected = false
-              const result = game.endGameDueToDisconnect()
-              if (result) {
-                this.resetTimer(gameId)
-                await activeGames.delete(gameId)
-                this.io.to(gameId).emit('GAME_ENDED', {
-                  gameId,
-                  winnerId: result.winnerId,
-                  reason: 'opponent_left',
-                  pot: result.pot
-                })
-              } else {
-                this.io.to(gameId).emit('PLAYER_DISCONNECTED', {
-                  playerId: userId,
-                  gameId
-                })
+          console.log(`[Réseau] Joueur ${userId} déconnecté. Lancement du délai de 10s...`)
+
+          const timeout = setTimeout(async () => {
+            console.log(`[Réseau] Timeout expiré pour ${userId}. Le joueur est officiellement hors ligne.`)
+            const game = await activeGames.get(gameId)
+            if (game) {
+              const player = game.getPlayerState(userId)
+              if (player) {
+                player.isConnected = false
+                player.isActive = false // déconnexion = fold
+
+                if (game.state.currentTurn === userId) {
+                  try {
+                    console.log(`[Réseau] Auto-FOLD pour le joueur déconnecté ${userId}`)
+                    game.handlePlayerAction(userId, 'FOLD') // gère avancement turn + award si 1 seul reste
+                    const socketsInRoom = await this.io.in(gameId).fetchSockets()
+                    for (const s of socketsInRoom) {
+                      const uid = (s as unknown as AuthenticatedSocket).userId
+                      s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+                    }
+                    this.startTurnTimer(gameId)
+                  } catch (error) {
+                    console.error('[Réseau] Erreur auto-fold timeout:', error)
+                  }
+                } else {
+                  // Pas son tour : on applique le fold et on vérifie s'il ne reste qu'un joueur
+                  game.forceFoldForDisconnect(userId)
+                  const socketsInRoom = await this.io.in(gameId).fetchSockets()
+                  for (const s of socketsInRoom) {
+                    const uid = (s as unknown as AuthenticatedSocket).userId
+                    s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+                  }
+                  if (game.state.phase === 'SHOWDOWN') {
+                    this.startTurnTimer(gameId)
+                  }
+                }
+
+                const result = game.endGameDueToDisconnect()
+                if (result) {
+                  this.resetTimer(gameId)
+                  await activeGames.delete(gameId)
+                  this.io.to(gameId).emit('GAME_ENDED', {
+                    gameId,
+                    winnerId: result.winnerId,
+                    reason: 'opponent_left',
+                    pot: result.pot
+                  })
+                } else {
+                  this.io.to(gameId).emit('PLAYER_DISCONNECTED', {
+                    playerId: userId,
+                    gameId
+                  })
+                }
               }
             }
-          }
+            this.disconnectionTimeouts.delete(userId)
+          }, 10000)
+          
+          this.disconnectionTimeouts.set(userId, timeout)
         }
       })
     })
+  }
+
+  private async recordMultiPlayerStats(game: GameTable): Promise<void> {
+    const winnerId = game.state.showdownWinnerId
+    const pot = game.state.showdownPot ?? 0
+    if (!winnerId) return
+
+    for (const player of game.state.players) {
+      const isWinner = player.id === winnerId
+      const chipsWon = isWinner ? pot : 0
+      const chipsLost = !isWinner ? (player.totalPutInThisHand ?? player.currentBet ?? 0) : 0
+
+      try {
+        await prisma.playerStats.upsert({
+          where: { playerId: player.id },
+          create: {
+            playerId: player.id,
+            totalGames: 1,
+            totalWins: isWinner ? 1 : 0,
+            totalLosses: isWinner ? 0 : 1,
+            totalChipsWon: chipsWon,
+            totalChipsLost: chipsLost,
+            biggestWin: chipsWon,
+            biggestPot: pot,
+          },
+          update: {
+            totalGames: { increment: 1 },
+            ...(isWinner
+              ? { totalWins: { increment: 1 }, totalChipsWon: { increment: chipsWon } }
+              : { totalLosses: { increment: 1 }, totalChipsLost: { increment: chipsLost } }),
+          },
+        })
+      } catch (err) {
+        console.error(`[Stats] Erreur upsert pour ${player.id}:`, err)
+      }
+    }
+    console.log(`[Stats] Stats multi enregistrées pour la partie ${game.id} (gagnant: ${winnerId})`)
   }
 
   private startTurnTimer(gameId: string) {
@@ -380,7 +517,7 @@ export class GameGateway {
       clearTimeout(this.timers.get(gameId)!)
     }
 
-    const TURN_TIMEOUT_MS = 20000
+    const TURN_TIMEOUT_MS = 30000
 
     const timer = setTimeout(async () => {
       this.resetTimer(gameId)
@@ -420,7 +557,7 @@ export class GameGateway {
     }, TURN_TIMEOUT_MS)
 
     this.timers.set(gameId, timer)
-    this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: 20 })
+    this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: 30 })
   }
 
   private resetTimer(gameId: string) {

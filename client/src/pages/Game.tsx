@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { PokerTable } from "../components/PokerTable";
 import { CommunityCards } from "../components/CommunityCards";
 import { HiddenBetsPanel } from "../components/HiddenBetsPanel";
 import { QuantumHUD } from "../components/QuantumHUD";
+import { useQuantumHUD } from "../contexts/QuantumHUDContext";
 import { PokerChat } from "../components/PokerChat";
 import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
@@ -13,12 +14,13 @@ import { AccessibilityMenu } from "../components/AccessibilityMenu";
 import { useAccessibility } from "../contexts/AccessibilityContext";
 import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, Eye, Plus, MessageCircle, X, LogOut, Palette, Bell, HelpCircle, Sparkles, Trophy, Frown } from "lucide-react";
+import { User, Users, Menu, Loader2, Eye, Plus, MessageCircle, X, LogOut, Palette, Bell, HelpCircle, Sparkles, Trophy, Frown, Activity } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { ShowdownDisplay } from "../components/ShowdownDisplay";
+import { PokerCard } from "../components/PokerCard";
 import { useUser } from "../hooks/useUser";
 import { addToUserBalance, getUserBalance } from "../utils/userProfile";
 
@@ -60,11 +62,13 @@ interface BotPlayer extends BasePlayer {
 export function Game() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode");
   const gameIdParam = searchParams.get("gameId");
   const isBotMode = mode === "bot";
   const { userId } = useUser();
+  const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
   /** Multiplicateur de gain sur le solde : bot facile 0.3, moyen 0.6, difficile 0.9, expert 1 ; vs humain 1 */
   const difficultyParam = searchParams.get("difficulty") || "moyen";
   const winMultiplier = gameIdParam
@@ -95,9 +99,10 @@ export function Game() {
   const [showAccessibilityMenu, setShowAccessibilityMenu] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [showGameHelp, setShowGameHelp] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(20);
+  const [timeLeft, setTimeLeft] = useState(30);
   const [_timerActive, setTimerActive] = useState(false);
-  const [currentBet] = useState(0);
+  /** Mise maximale actuelle (pour l'API bot) = max des bets des joueurs */
+  const currentBet = useMemo(() => Math.max(0, ...playersState.map((p) => p.bet ?? 0)), [playersState]);
   
   // Nouveaux états pour les animations de cartes
   const [phase, setPhase] = useState<GamePhase>("init");
@@ -108,24 +113,70 @@ export function Game() {
   const [roundPlayersActed, setRoundPlayersActed] = useState<Set<number>>(new Set());
   const [gameInitialized, setGameInitialized] = useState(false);
   const [handResult, setHandResult] = useState<"win" | "loss" | null>(null);
+  const [handResultData, setHandResultData] = useState<{ winnerName: string; handName: string } | null>(null);
+  /** Un joueur éliminé (0 jetons) : partie terminée (scénario 2.1) */
+  const [gameOverReason, setGameOverReason] = useState<"human_eliminated" | "bot_eliminated" | null>(null);
   const [showdownResult, setShowdownResult] = useState<{
     winnerId: string;
+    winnerIds?: string[];
     winnerName: string;
     hand: string;
     handRank: number;
     pot: number;
+    isSplit?: boolean;
   } | null>(null);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
   /** Après un all-in suivi : run-out du board sans nouveau tour de mise (preflop -> flop -> turn -> river -> showdown) */
   const [runOutPhase, setRunOutPhase] = useState<GamePhase | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
   const gameStateFromSocketRef = useRef(false);
   const clearBotActionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playersStateRef = useRef<(BasePlayer | BotPlayer)[]>([]);
+  const roundPlayersActedRef = useRef<Set<number>>(new Set());
+  roundPlayersActedRef.current = roundPlayersActed;
   const deckRef = useRef<Card[]>([]);
   const communityCardsStateRef = useRef<(Card | null)[]>([]);
   const startOfHandChipsRef = useRef(0);
   const hasSetStartOfHandThisHandRef = useRef(false);
+  /** Évite d'annuler le setTimeout(dealFlop/dealTurn/…) quand l'effet re-run après que le bot agit */
+  const streetTransitionScheduledRef = useRef<string | null>(null);
+  const streetTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const doStreetTransitionRef = useRef<(() => void) | null>(null);
+  /** Timestamp d'entrée dans la street actuelle (flop/turn/river) pour détecter les blocages en mode bot */
+  const streetPhaseEnteredRef = useRef<number>(0);
+  /** Mode bot : les deux ont agi (preflop égalisé), ne pas redonner la main au joueur */
+  const bothActedNoTurnRef = useRef(false);
+  const toAddLastRef = useRef(0);
+  const botIsFetchingRef = useRef(false);
+  const [showdownReveal, setShowdownReveal] = useState(false);
+  const showdownStartedRef = useRef(false);
+  const showdownResultRef = useRef<typeof showdownResult>(null);
+  showdownResultRef.current = showdownResult;
+  const [showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
+  /** Multiplayer: données du showdown en attente (révélation 3s avant d'afficher le modal) */
+  const [pendingShowdownData, setPendingShowdownData] = useState<{
+    winnerId: string;
+    winnerIds?: string[];
+    winnerName: string;
+    hand: string;
+    pot: number;
+    winnerCards: Card[];
+    isSplit?: boolean;
+  } | null>(null);
+  /** Track total chips contributed per player across all streets (for side pot calculation) */
+  const handContributionsRef = useRef<Record<string, number>>({});
+  const [sidePots, setSidePots] = useState<{ amount: number; eligibleIds: string[] }[]>([]);
+  /** Multi: host peut relancer avec les mêmes membres */
+  const [isRematchHost, setIsRematchHost] = useState(false);
+  const [rematchLoading, setRematchLoading] = useState(false);
+  /** Skip la révélation du showdown : appelle cette ref pour passer au résultat */
+  const showdownSkipRef = useRef<(() => void) | null>(null);
+  /** Multi: timeouts pour l'animation du flop carte par carte */
+  const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  /** Multi: évite de rejouer l'animation flop à chaque GAME_UPDATE (changement de tour) */
+  const flopAnimatedRef = useRef(false);
 
   // Hook d'accessibilité
   const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
@@ -137,24 +188,29 @@ export function Game() {
 
   const SB = 50;
   const BB = 100;
+  const BOT_START_CHIPS = 1000;
 
   const getPlayers = (): (BasePlayer | BotPlayer)[] => {
     const count = parseInt(searchParams.get("bots") || "1", 10);
     const diff = searchParams.get("difficulty") || "moyen";
     const diffMap: "easy" | "medium" | "hard" =
       diff === "facile" ? "easy" : diff === "difficile" || diff === "expert" ? "hard" : "medium";
+    const botChipsParam = searchParams.get("botChips");
+    const botChipsList = botChipsParam ? botChipsParam.split(",").map((v) => Math.max(100, parseInt(v, 10) || 1000)) : [];
 
     if (mode === "bot") {
       const botNames = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
-      const bots: BotPlayer[] = [];
-      const BOT_START_CHIPS = 1000;
+      const allPlayers: (BasePlayer | BotPlayer)[] = [];
+      const totalPlayers = count + 1;
+
       for (let i = 0; i < count; i++) {
-        bots.push({
+        const startChips = botChipsList[i] ?? 1000;
+        allPlayers.push({
           id: `bot-${i + 1}`,
           name: `Bot ${botNames[i]}`,
-          chips: i === 0 ? BOT_START_CHIPS - SB : BOT_START_CHIPS,
-          bet: i === 0 ? SB : 0,
-          position: 0,
+          chips: startChips,
+          bet: 0,
+          position: i,
           isActive: true,
           isDealer: true,
           cards: [],
@@ -162,23 +218,48 @@ export function Game() {
           difficulty: diffMap,
           isConnected: true,
           hasFolded: false,
-          role: i === 0 ? "SB" : "PLAYER",
+          role: "PLAYER",
         });
       }
-      bots.push({
+
+      allPlayers.push({
         id: "human",
         name: "Vous",
         chips: playerChips - BB,
         bet: BB,
-        position: 1,
+        position: count,
         isActive: false,
         isDealer: false,
         cards: [],
         isConnected: true,
         hasFolded: false,
-        role: "BB",
+        role: "PLAYER",
       });
-      return bots;
+
+      // Heads-up: index 0 = Dealer/SB, index 1 = BB
+      if (totalPlayers === 2) {
+        allPlayers[0].role = "SB";
+        allPlayers[0].bet = SB;
+        allPlayers[0].chips -= SB;
+        allPlayers[1].role = "BB";
+        allPlayers[1].bet = BB;
+        allPlayers[1].chips -= BB;
+      } else {
+        // 3+: index 0 = Dealer, index 1 = SB, index 2 = BB
+        allPlayers[1].role = "SB";
+        allPlayers[1].bet = SB;
+        allPlayers[1].chips -= SB;
+        allPlayers[2].role = "BB";
+        allPlayers[2].bet = BB;
+        allPlayers[2].chips -= BB;
+      }
+
+      // Preflop first-to-act: player after BB
+      const bbIdx = allPlayers.findIndex((p) => p.role === "BB");
+      const firstToAct = (bbIdx + 1) % totalPlayers;
+      allPlayers[firstToAct].isActive = true;
+
+      return allPlayers;
     }
     return [];
   };
@@ -198,6 +279,7 @@ export function Game() {
       : { ...player, position: activePlayers.filter((p) => !isHero(p)).indexOf(player) + 1 };
     return {
       ...base,
+      hasFolded: player.hasFolded ?? false,
       lastAction: lastBotAction?.name === player.name ? lastBotAction.action : undefined,
     };
   });
@@ -260,18 +342,36 @@ export function Game() {
     }, 250);
   };
 
-  const resetBetsAndSetFirstToAct = (position: number) => {
-    setRoundPlayersActed(new Set());
-    setPlayersState((prev) =>
-      prev.map((p) => ({ ...p, bet: 0, isActive: p.position === position }))
-    );
+  /** Track contribution: add amount to a player's hand total */
+  const addContribution = (playerId: string | number, amount: number) => {
+    const key = String(playerId);
+    handContributionsRef.current[key] = (handContributionsRef.current[key] ?? 0) + amount;
   };
 
-  // Distribution du flop (3 cartes) — post-flop : BB (position 1) parle en premier
+  const resetBetsAndSetFirstToAct = (startIndex: number) => {
+    setRoundPlayersActed(new Set());
+    setPlayersState((prev) => {
+      if (prev.length === 0) return prev;
+      let firstIdx = startIndex % prev.length;
+      for (let i = 0; i < prev.length; i++) {
+        const idx = (firstIdx + i) % prev.length;
+        const p = prev[idx];
+        if (p.isConnected !== false && !(p.hasFolded ?? false) && (p.chips ?? 0) > 0) {
+          return prev.map((pl, j) => ({ ...pl, bet: 0, isActive: j === idx }));
+        }
+      }
+      return prev.map((p) => ({ ...p, bet: 0, isActive: false }));
+    });
+  };
+
+  // Postflop: heads-up → dealer (index 0) first; multi-player → SB (index 1) first
+  const getPostflopFirstAct = () => (playersState.length === 2 ? 0 : 1);
+
+  // Distribution du flop (3 cartes)
   // runOutOnly = true : après un all-in, on distribue les cartes sans donner la main à personne
   const dealFlop = (runOutOnly?: boolean) => {
     setPhase("flop");
-    if (!runOutOnly) resetBetsAndSetFirstToAct(1);
+      if (!runOutOnly) resetBetsAndSetFirstToAct(0);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -281,16 +381,15 @@ export function Game() {
         setTimeout(() => {
           newCommunityCards[i] = card;
           setCommunityCardsState([...newCommunityCards]);
-        }, i * 300);
+        }, i * 800);
       }
     }
     setDeck([...newDeck]);
   };
 
-  // Distribution du turn — BB parle en premier
   const dealTurn = (runOutOnly?: boolean) => {
     setPhase("turn");
-    if (!runOutOnly) resetBetsAndSetFirstToAct(1);
+      if (!runOutOnly) resetBetsAndSetFirstToAct(0);
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -302,10 +401,9 @@ export function Game() {
     setDeck([...newDeck]);
   };
 
-  // Distribution de la river — SB (position 0) parle en premier, BB en dernier
   const dealRiver = (runOutOnly?: boolean) => {
     setPhase("river");
-    if (!runOutOnly) resetBetsAndSetFirstToAct(0);
+    if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstAct());
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -318,50 +416,103 @@ export function Game() {
   };
 
   useEffect(() => {
-    let initial: (BasePlayer | BotPlayer)[] = [];
-    if (gameIdParam && typeof window !== "undefined") {
-      const stored = localStorage.getItem("gamePlayers");
-      if (stored) {
-        try {
-          const parsed: { id: string; name: string }[] = JSON.parse(stored);
-          // Ne pas supprimer : l'autre onglet doit pouvoir lire aussi
-          initial = parsed.map((p, i) => ({
-            id: String(p.id),
-            name: p.name,
-            chips: 1000,
-            bet: 0,
-            position: i,
-            isActive: i === 0,
-            isDealer: false,
-            cards: [],
-            isConnected: true,
-            hasFolded: false,
-            isBot: false,
-          }));
-        } catch { /* no-op */ }
+    const runInit = () => {
+      let initial: (BasePlayer | BotPlayer)[] = [];
+      if (gameIdParam && typeof window !== "undefined") {
+        const stored = localStorage.getItem("gamePlayers");
+        if (stored) {
+          try {
+            const parsed: { id: string; name: string }[] = JSON.parse(stored);
+            initial = parsed.map((p, i) => ({
+              id: String(p.id),
+              name: p.name,
+              chips: 1000,
+              bet: 0,
+              position: i,
+              isActive: i === 0,
+              isDealer: false,
+              cards: [],
+              isConnected: true,
+              hasFolded: false,
+              isBot: false,
+            }));
+          } catch { /* no-op */ }
+        }
       }
+      if (initial.length === 0) initial = getPlayers();
+      initial.forEach((p) => {
+        p.cards = [];
+      });
+      setPlayersState(initial);
+      if (!gameIdParam) {
+        setDeck(generateDeck());
+      }
+      if (mode === "bot") {
+        setPot(SB + BB);
+        setPlayerChips(getUserBalance());
+        setPhase("init");
+        setGameInitialized(false);
+        setRoundPlayersActed(new Set());
+        setSidePots([]);
+        const contribs: Record<string, number> = {};
+        initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
+        handContributionsRef.current = contribs;
+      }
+    };
+    // Mode bot : différer d'un frame pour éviter blocage config → jeu (React doit finir le mount)
+    if (mode === "bot" && !gameIdParam) {
+      const id = requestAnimationFrame(() => {
+        runInit();
+      });
+      return () => cancelAnimationFrame(id);
     }
-    if (initial.length === 0) initial = getPlayers();
-    initial.forEach((p, idx) => {
-      (p as BasePlayer).isActive = idx === 0;
+    runInit();
+  }, [mode, gameIdParam]);
+
+  // Rejouer avec la même configuration (bouton overlay, mode bot uniquement)
+  useEffect(() => {
+    const replay = (location.state as { replay?: boolean })?.replay;
+    if (!replay || !isBotMode) return;
+    const initial = getPlayers();
+    initial.forEach((p) => {
       p.cards = [];
     });
     setPlayersState(initial);
-    if (!gameIdParam) {
-      setDeck(generateDeck());
+    setDeck(generateDeck());
+    setPhase("init");
+    setGameInitialized(false);
+    setRoundPlayersActed(new Set());
+    setPot(SB + BB);
+    setPlayerChips(getUserBalance());
+    setHandResult(null);
+    setHandResultData(null);
+    setShowdownResult(null);
+    setGameOverReason(null);
+    setRunOutPhase(null);
+    setShowdownReveal(false);
+    setShowdownWinnerCards([]);
+    showdownStartedRef.current = false;
+    setIsBotThinking(false);
+    botIsFetchingRef.current = false;
+    setSidePots([]);
+    const contribs: Record<string, number> = {};
+    initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
+    handContributionsRef.current = contribs;
+    setCommunityCardsState([null, null, null, null, null]);
+    hasSetStartOfHandThisHandRef.current = false;
+    streetTransitionScheduledRef.current = null;
+    if (streetTransitionTimeoutRef.current) {
+      clearTimeout(streetTransitionTimeoutRef.current);
+      streetTransitionTimeoutRef.current = null;
     }
-    if (mode === "bot") {
-      setPot(SB + BB);
-      setPlayerChips(getUserBalance());
-    }
-  }, [mode]);
+    navigate(location.pathname + location.search, { replace: true, state: {} });
+  }, [location.state, isBotMode]);
 
   // Multijoueur : récupérer l'état du jeu depuis le backend (évite race localStorage + cartes / phase / pot)
   useEffect(() => {
     if (!gameIdParam || !userId) return;
-    const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-    const base = apiUrl || "";
-    const url = `${base}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
+    const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+    const url = `${baseUrl}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
     let cancelled = false;
     fetch(url, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
@@ -402,14 +553,31 @@ export function Game() {
         }));
         setPlayersState(mapped);
         setPot(gameState.pot ?? 0);
+        const humanChips = players.find((p) => String(p.id) === String(userId))?.chips;
+        if (humanChips != null) {
+          setPlayerChips(humanChips);
+        }
         const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
         setPhase(phase as GamePhase);
-        const cc = gameState.communityCards;
-        if (Array.isArray(cc)) {
-          const arr: (Card | null)[] = [null, null, null, null, null];
-          cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
+      const cc = gameState.communityCards;
+      if (Array.isArray(cc)) {
+        const arr: (Card | null)[] = [null, null, null, null, null];
+        cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
+        // Flop carte par carte en multijoueur (comme en mode bot)
+        if (phase === "flop" && arr[0] && arr[1] && arr[2] && !arr[3] && !arr[4]) {
+          flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
+          flopAnimateTimeoutsRef.current = [];
+          setCommunityCardsState([arr[0], null, null, null, null]);
+          flopAnimateTimeoutsRef.current.push(
+            setTimeout(() => setCommunityCardsState((prev) => [prev[0], arr[1], null, null, null]), 800)
+          );
+          flopAnimateTimeoutsRef.current.push(
+            setTimeout(() => setCommunityCardsState([arr[0]!, arr[1]!, arr[2]!, null, null]), 1600)
+          );
+        } else {
           setCommunityCardsState(arr);
         }
+      }
         const isPlayingPhase = phase !== "init";
         setGameInitialized(isPlayingPhase);
       })
@@ -419,21 +587,47 @@ export function Game() {
     return () => { cancelled = true; };
   }, [gameIdParam, userId, navigate]);
 
-  // Rejoindre la room socket pour recevoir GAME_UPDATE et TURN_TIMER
+  // Rejoindre la room socket pour recevoir GAME_UPDATE, TURN_TIMER, GAME_CHAT
   useEffect(() => {
     if (!socket || !gameIdParam || !userId) return;
     socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+
+    const onChatMessage = (data: { playerId: string; playerName: string; content: string; type: "emoji" | "text" }) => {
+      const id = Date.now();
+      const isMe = String(data.playerId) === String(userId);
+      const newMessage: ChatMessage = {
+        id: id,
+        player: isMe ? "Vous" : data.playerName,
+        content: data.content,
+        type: data.type,
+        timestamp: id,
+        isLeaving: false,
+      };
+      setChatMessages((prev) => [...prev, newMessage]);
+      setTimeout(() => {
+        setChatMessages((prev) => prev.map((msg) => (msg.id === id ? { ...msg, isLeaving: true } : msg)));
+        setTimeout(() => setChatMessages((prev) => prev.filter((msg) => msg.id !== id)), 500);
+      }, 4000);
+    };
+    socket.on("GAME_CHAT", onChatMessage);
 
     const onError = (payload: { code?: string; message?: string }) => {
       if (payload?.code === "GAME_NOT_FOUND") {
         navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
       }
+        // Si le serveur refuse l'action (ex: pas assez de jetons, pas votre tour)
+        else if (payload?.code === "ACTION_ERROR" || payload?.code === "INVALID_RAISE" || payload?.code === "TOO_MANY_ACTIONS") {
+          addToast(payload?.message || t('common.error'), "error");
+          setIsLoading(false);
+          setHasPlayerActed(false);
+        }
     };
     socket.on("ERROR", onError);
     return () => {
+      socket.off("GAME_CHAT", onChatMessage);
       socket.off("ERROR", onError);
     };
-  }, [socket, gameIdParam, userId, navigate]);
+  }, [socket, gameIdParam, userId, navigate, addToast, t]);
 
   // Appliquer les mises à jour d'état envoyées par le serveur (après une action)
   useEffect(() => {
@@ -447,7 +641,7 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownHandName?: string; showdownPot?: number }) => {
+    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number }) => {
       gameStateFromSocketRef.current = true;
       const players = gameState.players ?? [];
       setPlayersState((prev) => {
@@ -481,30 +675,70 @@ export function Game() {
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
         cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
-        setCommunityCardsState(arr);
+        // Multi: flop carte par carte (comme en mode bot) — une seule fois, pas à chaque changement de tour
+        if (phase === "flop" && arr[0] && arr[1] && arr[2]) {
+          if (!flopAnimatedRef.current) {
+            flopAnimatedRef.current = true;
+            flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
+            flopAnimateTimeoutsRef.current = [];
+            setCommunityCardsState([arr[0], null, null, null, null]);
+            const t1 = setTimeout(() => setCommunityCardsState((prev) => [arr[0]!, arr[1]!, null, null, null]), 800);
+            const t2 = setTimeout(() => setCommunityCardsState(arr), 1600);
+            flopAnimateTimeoutsRef.current = [t1, t2];
+          } else {
+            setCommunityCardsState(arr);
+          }
+        } else {
+          if (phase !== "flop") flopAnimatedRef.current = false;
+          setCommunityCardsState(arr);
+        }
       }
       setGameInitialized(phase !== "init");
       setHasPlayerActed(false);
       setIsLoading(false);
       setRoundPlayersActed(new Set());
-      const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
-      if (currentTurnId === String(userId)) {
-        setTimerActive(true);
-        setTimeLeft(20);
+
+      const humanServerChips = players.find((p) => String(p.id) === String(userId))?.chips;
+      if (humanServerChips != null) {
+        setPlayerChips(humanServerChips);
       }
-      if (phase === "showdown" && gameState.showdownWinnerId) {
-        const winnerName = players.find((p) => String(p.id) === String(gameState.showdownWinnerId))?.name ?? String(gameState.showdownWinnerId);
-        const potWon = gameState.showdownPot ?? 0;
-        const humanPlayer = players.find((p) => String(p.id) === String(userId));
-        const humanChipsAfter = humanPlayer?.chips ?? 0;
+
+      const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
+      if (phase === "showdown") {
+        setTimerActive(false);
+      } else if (currentTurnId === String(userId)) {
+        setTimerActive(true);
+        setTimeLeft(30);
+      }
+      const hasShowdownWinner = gameState.showdownWinnerId || (gameState.showdownWinnerIds && gameState.showdownWinnerIds.length > 0);
+      if (phase === "showdown" && hasShowdownWinner) {
+        const winnerIds = gameState.showdownIsSplit && gameState.showdownWinnerIds?.length
+          ? gameState.showdownWinnerIds
+          : [gameState.showdownWinnerId!];
+        const firstWinnerId = winnerIds[0]!;
+        const winnerName = gameState.showdownIsSplit && winnerIds.length > 1
+          ? "Égalité"
+          : (players.find((p) => String(p.id) === String(firstWinnerId))?.name ?? firstWinnerId);
+        const winnerPlayer = players.find((p) => String(p.id) === String(firstWinnerId));
+        const totalPot = gameState.showdownPot ?? 0;
+        const potWon = winnerIds.length > 1 ? Math.floor(totalPot / winnerIds.length) : totalPot;
+        const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
         addToUserBalance(balanceChange);
-        setShowdownResult({
-          winnerId: gameState.showdownWinnerId,
+        const normalized = winnerPlayer?.cards?.length
+          ? winnerPlayer.cards
+              .map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]))
+              .filter((c): c is Card => c !== null)
+          : [];
+        setShowdownReveal(true);
+        setPendingShowdownData({
+          winnerId: firstWinnerId,
+          winnerIds: winnerIds.length > 1 ? winnerIds : undefined,
           winnerName,
           hand: gameState.showdownHandName ?? "—",
-          handRank: 0,
           pot: potWon,
+          winnerCards: normalized,
+          isSplit: gameState.showdownIsSplit ?? false,
         });
       }
     };
@@ -532,6 +766,57 @@ export function Game() {
     };
   }, [socket, gameIdParam, userId]);
 
+  // Multi: fetch room-info quand handResult pour afficher bouton rematch au host
+  useEffect(() => {
+    if (!handResult || !gameIdParam || isBotMode || !userId) return;
+    const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+    fetch(`${apiBase}/api/game/${gameIdParam}/room-info`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.hostId && String(data.hostId) === String(userId)) setIsRematchHost(true);
+      })
+      .catch(() => {});
+  }, [handResult, gameIdParam, isBotMode, userId]);
+
+  // Multi: écouter REMATCH_CREATED pour rediriger vers la nouvelle salle
+  useEffect(() => {
+    if (!socket) return;
+    const onRematch = (data: { newRoomId: string }) => {
+      if (data?.newRoomId) navigate(`/waiting-room?roomId=${data.newRoomId}`);
+    };
+    socket.on("REMATCH_CREATED", onRematch);
+    return () => socket.off("REMATCH_CREATED", onRematch);
+  }, [socket, navigate]);
+
+  // Multiplayer: après 3s de révélation des cartes, afficher le modal du gagnant (ou Skip)
+  useEffect(() => {
+    if (!pendingShowdownData || !gameIdParam) return;
+    const applyResult = () => {
+      setShowdownResult({
+        winnerId: pendingShowdownData.winnerId,
+        winnerIds: pendingShowdownData.winnerIds,
+        winnerName: pendingShowdownData.winnerName,
+        hand: pendingShowdownData.hand,
+        handRank: 0,
+        pot: pendingShowdownData.pot,
+        isSplit: pendingShowdownData.isSplit,
+      });
+      setShowdownWinnerCards(pendingShowdownData.winnerCards);
+      setShowdownReveal(false);
+      setPendingShowdownData(null);
+      showdownSkipRef.current = null;
+    };
+    const t = setTimeout(applyResult, 3000);
+    showdownSkipRef.current = () => {
+      clearTimeout(t);
+      applyResult();
+    };
+    return () => {
+      clearTimeout(t);
+      showdownSkipRef.current = null;
+    };
+  }, [pendingShowdownData, gameIdParam]);
+
   useEffect(() => {
     if (phase !== "init" || deck.length === 0) return;
     const t = setTimeout(() => setPhase("shuffle"), 800);
@@ -558,6 +843,7 @@ export function Game() {
   useEffect(() => {
     if (!socket) return;
     socket.on("TURN_TIMER", (data: { gameId: string; timeLeft: number }) => {
+      if (phaseRef.current === "showdown") return; // Ne pas réactiver le timer au showdown
       setTimeLeft(data.timeLeft);
       setTimerActive(true);
     });
@@ -566,9 +852,9 @@ export function Game() {
 
   const _playPhase = phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river";
 
-  // Forcer l'activation du timer quand c'est le tour du joueur
+  // Forcer l'activation du timer quand c'est le tour du joueur (arrêter dès le showdown)
   useEffect(() => {
-    if (!isMyTurn || !gameInitialized || phase === "init" || phase === "shuffle" || phase === "deal") {
+    if (!isMyTurn || !gameInitialized || phase === "init" || phase === "shuffle" || phase === "deal" || phase === "showdown") {
       setTimerActive(false);
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
@@ -588,7 +874,7 @@ export function Game() {
     }
 
     setTimerActive(true);
-    setTimeLeft(20);
+    setTimeLeft(30);
 
     timerIntervalRef.current = setInterval(() => {
       setTimeLeft((prev) => {
@@ -617,6 +903,15 @@ export function Game() {
     };
   }, [isMyTurn, gameInitialized, phase, callAmount]);
 
+  useEffect(() => {
+    const hero = playersState.find((p) => p.id === userId || p.id === "human");
+    const heroCards = hero?.cards ?? [];
+    if (heroCards.length === 2 && phase !== "init" && phase !== "shuffle" && phase !== "deal") {
+      const oppCount = playersState.filter((p) => !(p.hasFolded ?? false) && p.id !== hero?.id).length;
+      updateQuantumHUD(heroCards as { suit: string; value: string }[], communityCardsState, Math.max(1, oppCount));
+    }
+  }, [playersState, communityCardsState, phase, userId, updateQuantumHUD]);
+
   // Quand c'est le tour du joueur humain, garantir que les boutons sont actifs (sans écraser hasPlayerActed après une action)
   useEffect(() => {
     if (isMyTurn && !hasFoldedFromState && !hasPlayerActed) {
@@ -625,24 +920,46 @@ export function Game() {
     }
   }, [isMyTurn, hasFoldedFromState, hasPlayerActed]);
 
-  // Filet de sécurité : si le bot a agi (roundPlayersActed a l'index du bot) mais le joueur actif est encore le bot, forcer le passage au humain
+  // Safety net: if active player has already acted this round but is still marked active, pass turn
   useEffect(() => {
     if (!isBotMode || playersState.length < 2) return;
     if (phase !== "preflop" && phase !== "flop" && phase !== "turn" && phase !== "river") return;
-    const humanIndex = playersState.findIndex((p) => p.id === userId || p.id === "human");
-    const botIndex = playersState.findIndex((p) => "isBot" in p && p.isBot);
-    if (humanIndex === -1 || botIndex === -1) return;
     const activeIdx = playersState.findIndex((p) => p.isActive);
-    const botHasActed = roundPlayersActed.has(botIndex);
-    const humanHasActed = roundPlayersActed.has(humanIndex);
-    if (botHasActed && !humanHasActed && activeIdx === botIndex) {
-      setPlayersState((prev) =>
-        prev.map((p, i) => ({ ...p, isActive: i === humanIndex }))
-      );
-      setHasPlayerActed(false);
-      setIsLoading(false);
+    if (activeIdx === -1) return;
+    if (!roundPlayersActed.has(activeIdx)) return;
+    const activeInHand = playersState.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
+    if (roundPlayersActed.size >= activeInHand.length) return;
+    let nextIdx = (activeIdx + 1) % playersState.length;
+    for (let i = 0; i < playersState.length; i++) {
+      const p = playersState[nextIdx];
+      if (p.isConnected !== false && !(p.hasFolded ?? false) && (p.chips ?? 0) > 0 && !roundPlayersActed.has(nextIdx)) {
+        setPlayersState((prev) =>
+          prev.map((pl, j) => ({ ...pl, isActive: j === nextIdx }))
+        );
+        setHasPlayerActed(false);
+        setIsLoading(false);
+        return;
+      }
+      nextIdx = (nextIdx + 1) % playersState.length;
     }
   }, [isBotMode, playersState, phase, roundPlayersActed]);
+
+  useEffect(() => {
+    if (!isBotMode || !isBotThinking) return;
+    const stuck = setTimeout(() => {
+      if (botIsFetchingRef.current || isBotThinking) {
+        console.warn("[QB] Bot stuck detected, forcing action");
+        const activePlayer = playersState.find((p) => p.isActive && "isBot" in p && p.isBot);
+        if (activePlayer) {
+          if (callAmount === 0) handleCheck(activePlayer.id);
+          else handleFold(activePlayer.id);
+        }
+        setIsBotThinking(false);
+        botIsFetchingRef.current = false;
+      }
+    }, 15000);
+    return () => clearTimeout(stuck);
+  }, [isBotThinking, isBotMode]);
 
   const nextTurn = (justActedIndex?: number) => {
     const idx =
@@ -652,13 +969,41 @@ export function Game() {
 
     if (idx === -1) return;
 
-    setRoundPlayersActed((prev) => new Set(prev).add(idx));
+      const activeInHandCount = playersStateRef.current.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false)).length;
+
+    setRoundPlayersActed((prev) => {
+      const next = new Set(prev).add(idx);
+        if (!gameIdParam && next.size >= activeInHandCount) bothActedNoTurnRef.current = true;
+        if (!gameIdParam && next.size >= activeInHandCount) {
+        const currentPhase = phase;
+        setTimeout(() => {
+          const latestPlayers = playersStateRef.current;
+          const latestActive = latestPlayers.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
+          if (latestActive.length < 2) return;
+          const maxBet = Math.max(0, ...latestActive.map((p) => p.bet ?? 0));
+          const bettingComplete = latestActive.every((p) => (p.bet ?? 0) === maxBet || (p.chips ?? 0) === 0);
+          const hasAllIn = latestActive.some((p) => (p.chips ?? 0) === 0);
+          if (bettingComplete && !hasAllIn && streetTransitionScheduledRef.current !== currentPhase) {
+            streetTransitionScheduledRef.current = currentPhase;
+            streetTransitionTimeoutRef.current = setTimeout(() => {
+              streetTransitionTimeoutRef.current = null;
+              doStreetTransitionRef.current?.();
+            }, 1000);
+          }
+        }, 200);
+      }
+      return next;
+    });
 
     setPlayersState((prev) => {
       const newPlayers = prev.map((p) => ({ ...p }));
       newPlayers[idx] = { ...newPlayers[idx], isActive: false };
 
-      // Ne pas donner la main à un joueur all-in (0 jetons)
+      if (bothActedNoTurnRef.current) {
+        bothActedNoTurnRef.current = false;
+        return newPlayers;
+      }
+
       const nextPlayerWithChips = (startIndex: number): number => {
         let nextIndex = startIndex;
         let loopCount = 0;
@@ -677,19 +1022,10 @@ export function Game() {
         return -1;
       };
 
-      let nextIndex: number;
-      if (newPlayers.length === 2) {
-        nextIndex = idx === 0 ? 1 : 0;
-        const canAct = !(newPlayers[nextIndex].hasFolded ?? false) && (newPlayers[nextIndex].chips ?? 0) > 0;
-        if (canAct) {
-          newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
-        }
-      } else {
-        nextIndex = nextPlayerWithChips((idx + 1) % newPlayers.length);
+        let nextIndex = nextPlayerWithChips((idx + 1) % newPlayers.length);
         if (nextIndex !== -1) {
           newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
         }
-      }
 
       return newPlayers;
     });
@@ -698,17 +1034,18 @@ export function Game() {
     setIsLoading(false);
   };
 
-  // Vérifier si un tour de mises est terminé (ne pas avancer tant que le joueur humain n'a pas joué)
+  // Tour de mises terminé → passer à la street suivante. Utilise playersState (pas la ref) pour avoir l'état à jour quand roundPlayersActed change.
   useEffect(() => {
     if (phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river") {
-      const activeInHand = playersState.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
+      const players = playersState;
+      const activeInHand = players.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
       if (activeInHand.length === 0) return;
-      const activeIdx = playersState.findIndex((p) => p.isActive);
-      const humanIndex = playersState.findIndex((p) => String(p.id) === String(userId) || p.id === "human");
-      const humanInHand = humanIndex >= 0 && !(playersState[humanIndex]?.hasFolded ?? false);
+      const activeIdx = players.findIndex((p) => p.isActive);
+      const humanIndex = players.findIndex((p) => String(p.id) === String(userId) || p.id === "human");
+      const humanInHand = humanIndex >= 0 && !(players[humanIndex]?.hasFolded ?? false);
 
       if (humanInHand && !roundPlayersActed.has(humanIndex)) return;
-      if (gameIdParam && activeIdx >= 0 && !("isBot" in playersState[activeIdx] && playersState[activeIdx].isBot) && !roundPlayersActed.has(activeIdx)) return;
+      if (gameIdParam && activeIdx >= 0 && !("isBot" in players[activeIdx] && players[activeIdx].isBot) && !roundPlayersActed.has(activeIdx)) return;
 
       if (activeInHand.length === 1) {
         const t = setTimeout(() => setPhase("showdown"), 1500);
@@ -716,26 +1053,25 @@ export function Game() {
       }
 
       const maxBet = Math.max(0, ...activeInHand.map((p) => p.bet ?? 0));
-      // Enchères terminées si tout le monde a égalé OU est all-in (0 jetons)
       const bettingComplete = activeInHand.every((p) => (p.bet ?? 0) === maxBet || (p.chips ?? 0) === 0);
       const hasAllIn = activeInHand.some((p) => (p.chips ?? 0) === 0);
 
       if (roundPlayersActed.size >= activeInHand.length && bettingComplete) {
         if (hasAllIn && runOutPhase === null && !gameIdParam) {
-          // All-in suivi (mode bot) : plus de tour de mise, on run-out le board puis showdown
           setPlayersState((prev) => prev.map((p) => ({ ...p, isActive: false })));
           setRunOutPhase(phase);
         } else if (!hasAllIn) {
-          setTimeout(() => {
-            if (phase === "preflop") dealFlop();
-            else if (phase === "flop") dealTurn();
-            else if (phase === "turn") dealRiver();
-            else if (phase === "river") setPhase("showdown");
+          // Transition dès que tout le monde a agi et les mises sont égalisées (bot et multi)
+          if (streetTransitionScheduledRef.current === phase) return;
+          streetTransitionScheduledRef.current = phase;
+          streetTransitionTimeoutRef.current = setTimeout(() => {
+            streetTransitionTimeoutRef.current = null;
+            doStreetTransitionRef.current?.();
           }, 1000);
         }
       }
     }
-  }, [roundPlayersActed, phase, playersState, gameIdParam, userId, runOutPhase]);
+  }, [roundPlayersActed, phase, gameIdParam, userId, runOutPhase, playersState]);
 
   // Capturer le stack du joueur une seule fois au tout début de la main (preflop), avant toute mise
   useEffect(() => {
@@ -751,13 +1087,57 @@ export function Game() {
     communityCardsStateRef.current = communityCardsState;
   }, [deck, communityCardsState]);
 
-  // Réinitialiser le run-out et le flag "début de main" en début de main
+  // Ref pour la transition de rue : toujours appeler la dernière version (évite closures stales dans nextTurn)
+  useEffect(() => {
+    doStreetTransitionRef.current = () => {
+      if (phase === "preflop") dealFlop();
+      else if (phase === "flop") dealTurn();
+      else if (phase === "turn") dealRiver();
+      else if (phase === "river") setPhase("showdown");
+    };
+  }, [phase, dealFlop, dealTurn, dealRiver]);
+
+  // Réinitialiser le run-out, le flag "début de main", la raison de fin de partie et le flag de transition en début de main
   useEffect(() => {
     if (phase === "init" || phase === "shuffle" || phase === "deal") {
       setRunOutPhase(null);
       hasSetStartOfHandThisHandRef.current = false;
+      setGameOverReason(null);
+      streetTransitionScheduledRef.current = null;
+    } else if (phase === "flop" || phase === "turn" || phase === "river") {
+      streetPhaseEnteredRef.current = Date.now();
     }
   }, [phase]);
+
+  // Réinitialiser le flag de transition et annuler le timeout précédent quand on change de phase
+  useEffect(() => {
+    if (streetTransitionTimeoutRef.current) {
+      clearTimeout(streetTransitionTimeoutRef.current);
+      streetTransitionTimeoutRef.current = null;
+    }
+    streetTransitionScheduledRef.current = null;
+  }, [phase]);
+
+  // Mode bot : filet de sécurité si bloqué en flop/turn/river (>20s sans transition malgré mises égalisées)
+  useEffect(() => {
+    if (!isBotMode || gameIdParam) return; // En bot : pas de gameId
+    if (phase !== "flop" && phase !== "turn" && phase !== "river") return;
+    const interval = setInterval(() => {
+      const players = playersStateRef.current;
+      const activeInHand = players.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
+      if (activeInHand.length < 2) return;
+      const maxBet = Math.max(0, ...activeInHand.map((p) => p.bet ?? 0));
+      const bettingComplete = activeInHand.every((p) => (p.bet ?? 0) === maxBet || (p.chips ?? 0) === 0);
+      const hasAllIn = activeInHand.some((p) => (p.chips ?? 0) === 0);
+      if (!bettingComplete || hasAllIn) return;
+      const acted = roundPlayersActedRef.current;
+      if (acted.size < activeInHand.length) return;
+      if (Date.now() - streetPhaseEnteredRef.current < 20000) return;
+      console.warn("[QB] Street stuck >20s, forcing transition");
+      doStreetTransitionRef.current?.();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isBotMode, gameIdParam, phase]);
 
   // Run-out du board après all-in : distribuer Flop puis Turn puis River sans tour de mise, puis showdown
   // On lit deckRef/communityCardsStateRef dans le timeout pour avoir l'état à jour (sinon Turn/River écrasent le Flop)
@@ -795,61 +1175,249 @@ export function Game() {
     return () => clearTimeout(t);
   }, [runOutPhase]);
 
-  // Showdown (2 joueurs) : évaluer les mains et afficher le résultat
+  // Reset showdown state on new hand
+  useEffect(() => {
+    if (phase === "init" || phase === "shuffle") {
+      showdownStartedRef.current = false;
+      setShowdownReveal(false);
+      setShowdownWinnerCards([]);
+      setPendingShowdownData(null);
+    }
+  }, [phase]);
+
+  // Showdown: reveal all cards for 3s, then evaluate winner with side pot support
   useEffect(() => {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
+    if (showdownStartedRef.current) return;
     const activeInHand = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
     if (activeInHand.length < 2) return;
+    const validCommunity = communityCardsState.filter((c): c is Card => c !== null);
+    const fromRef = communityCardsStateRef.current.filter((c): c is Card => c !== null);
+    const community = validCommunity.length >= 5 ? validCommunity : fromRef.length >= 5 ? fromRef : validCommunity;
+    if (community.length < 5) return;
+
+    if (activeInHand.length === 1) {
+      const sole = activeInHand[0];
+      setShowdownReveal(true);
+      const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+      setTimeout(async () => {
+        let handName = "Haute carte";
+        try {
+          const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              players: [{ id: String(sole.id), name: sole.name, cards: sole.cards }],
+              communityCards: validCommunity,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            handName = data.handName ?? "Haute carte";
+          }
+        } catch { /* ignore */ }
+        setPlayersState((prev) => prev.map((p) => (p.id === sole.id ? { ...p, chips: (p.chips ?? 0) + pot } : p)));
+        if (sole.id === userId || sole.id === "human") setPlayerChips((prev) => prev + pot);
+        setPot(0);
+        setShowdownReveal(false);
+        setShowdownWinnerCards(sole.cards ?? []);
+        setShowdownResult({ winnerId: String(sole.id), winnerName: sole.name, hand: handName, handRank: 0, pot });
+      }, 3000);
+      return;
+    }
+
+    showdownStartedRef.current = true;
+    setShowdownReveal(true);
+    let pots: { amount: number; eligibleIds: string[] }[];
+    try {
+      pots = calculateSidePots(playersState, handContributionsRef.current);
+    } catch {
+      pots = [{ amount: pot, eligibleIds: activeInHand.map((p) => String(p.id)) }];
+    }
+    if (pots.length > 1) setSidePots(pots);
+
     const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-    const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
     const currentPot = pot;
-    fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        players: activeInHand.map((p) => ({ id: p.id, name: p.name, cards: p.cards })),
-        communityCards: communityCardsState.filter((c): c is Card => c !== null),
-      }),
-    })
-      .then((res) => res.json())
-      .then((data: { winnerId?: string; winnerName?: string; handName?: string; handRank?: number }) => {
-        const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
-        const won = data.winnerId === humanId || data.winnerId === "human";
-        if (won) {
-          setPlayerChips((prev) => prev + currentPot);
-        } else {
-          setPlayersState((prev) => prev.map((p) => (p.id === data.winnerId ? { ...p, chips: p.chips + currentPot } : p)));
+    const humanId = String(playersState.find((p) => p.id === userId || p.id === "human")?.id ?? "human");
+    let mainWinnerName = "";
+    let mainHandName = "Haute carte";
+    let mainWinnerId = "";
+    let mainIsSplit = false;
+    const FETCH_TIMEOUT_MS = 8000;
+
+    const applyFallback = (handNameOverride?: string) => {
+      const fallbackWinner = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
+      setPot(0);
+      setShowdownReveal(false);
+      setShowdownResult({
+        winnerId: String(fallbackWinner?.id ?? ""),
+        winnerName: fallbackWinner?.name ?? "Inconnu",
+        hand: handNameOverride ?? "Haute carte",
+        handRank: 0,
+        pot: currentPot,
+      });
+      if (fallbackWinner) {
+        setPlayersState((prev) => prev.map((p) => (p.id === fallbackWinner.id ? { ...p, chips: (p.chips ?? 0) + currentPot } : p)));
+        if (fallbackWinner.id === userId || fallbackWinner.id === "human") setPlayerChips((prev) => prev + currentPot);
+      }
+      addToUserBalance(0);
+    };
+
+    const runComplete = async () => {
+      try {
+        const effectivePots = pots.length > 0 ? pots : [{ amount: currentPot, eligibleIds: activeInHand.map((p) => String(p.id)) }];
+        const awards: Record<string, number> = {};
+
+        for (let pi = 0; pi < effectivePots.length; pi++) {
+          const sp = effectivePots[pi];
+          const eligible = activeInHand.filter((p) => sp.eligibleIds.includes(String(p.id)));
+          if (eligible.length === 0) continue;
+          if (eligible.length === 1) {
+            awards[String(eligible[0].id)] = (awards[String(eligible[0].id)] ?? 0) + sp.amount;
+            if (pi === 0) { mainWinnerId = String(eligible[0].id); mainWinnerName = eligible[0].name; }
+            continue;
+          }
+          const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
+          const controller = new AbortController();
+          const to = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              players: eligible.map((p) => ({ id: String(p.id), name: p.name, cards: p.cards })),
+              communityCards: validCommunity,
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(to);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data: { winnerId?: string; winnerIds?: string[]; winnerName?: string; isSplit?: boolean; handName?: string; handRank?: number } = await res.json();
+          const winnerIds = data.winnerIds ?? (data.winnerId ? [data.winnerId] : []);
+          if (winnerIds.length === 0) continue;
+
+          if (pi === 0) {
+            mainWinnerId = winnerIds[0];
+            mainWinnerName = data.isSplit ? "Égalité" : (data.winnerName ?? winnerIds[0]);
+            mainHandName = data.handName ?? "Haute carte";
+            mainIsSplit = data.isSplit === true && winnerIds.length > 1;
+            const winner = activeInHand.find((p) => String(p.id) === winnerIds[0]);
+            if (winner?.cards) setShowdownWinnerCards(winner.cards);
+          }
+
+          const share = Math.floor(sp.amount / winnerIds.length);
+          const remainder = sp.amount - share * winnerIds.length;
+          winnerIds.forEach((wid, wi) => {
+            awards[wid] = (awards[wid] ?? 0) + share + (wi === 0 ? remainder : 0);
+          });
         }
+
+        setPlayersState((prev) =>
+          prev.map((p) => {
+            const award = awards[String(p.id)] ?? 0;
+            return award > 0 ? { ...p, chips: p.chips + award } : p;
+          })
+        );
+        humanShare = awards[humanId] ?? 0;
+        if (humanShare > 0) setPlayerChips((prev) => prev + humanShare);
+
         const startChips = startOfHandChipsRef.current;
-        const endChips = won ? playerChips + currentPot : playerChips;
+        const endChips = humanShare > 0 ? playerChips + humanShare : playerChips;
         const balanceChange = endChips - startChips;
         const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
         addToUserBalance(toAdd);
+        toAddLastRef.current = toAdd;
         setPot(0);
+        setShowdownReveal(false);
         setShowdownResult({
-          winnerId: data.winnerId ?? "",
-          winnerName: data.winnerName ?? String(data.winnerId),
-          hand: data.handName ?? "Haute carte",
-          handRank: data.handRank ?? 0,
-          pot: currentPot,
-        });
-      })
-      .catch(() => {
-        const fallbackWinner = activeInHand.find((p) => p.id !== userId && p.id !== "human") ?? activeInHand[0];
-        setPot(0);
-        const startChips = startOfHandChipsRef.current;
-        const balanceChange = playerChips - startChips;
-        addToUserBalance(balanceChange);
-        setShowdownResult({
-          winnerId: fallbackWinner?.id ?? "",
-          winnerName: fallbackWinner?.name ?? "Inconnu",
-          hand: "—",
+          winnerId: mainIsSplit ? "" : mainWinnerId,
+          winnerName: mainWinnerName,
+          hand: mainHandName,
           handRank: 0,
           pot: currentPot,
+          isSplit: mainIsSplit,
         });
-        setHandResult("loss");
-      });
+      } catch {
+        let fallbackHand = "Haute carte";
+        try {
+          const fw = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
+          if (fw?.cards?.length === 2) {
+            const r = await fetch(apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ players: [{ id: String(fw.id), name: fw.name, cards: fw.cards }], communityCards: validCommunity }),
+            });
+            if (r.ok) { const d = await r.json(); fallbackHand = d.handName ?? fallbackHand; }
+          }
+        } catch { /* ignore */ }
+        applyFallback(fallbackHand);
+      }
+    };
+    const revealTimer = setTimeout(runComplete, 3000);
+    showdownSkipRef.current = () => {
+      clearTimeout(revealTimer);
+      showdownSkipRef.current = null;
+      runComplete();
+    };
+    return () => {
+      clearTimeout(revealTimer);
+      showdownSkipRef.current = null;
+    };
   }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId]);
+
+  // Safety net: force showdown completion if stuck for 12s (API timeout, race, validCommunity delay)
+  showdownResultRef.current = showdownResult;
+  useEffect(() => {
+    if (!isBotMode || phase !== "showdown" || showdownResult !== null || handResult !== null) return;
+    const safety = setTimeout(async () => {
+      if (showdownResultRef.current !== null) return;
+      console.warn("[QB] Showdown safety: forcing completion after 12s");
+      const active = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
+      const winner = active[0] ?? playersState.find((p) => !(p.hasFolded ?? false)) ?? playersState[0];
+      const currentPot = pot;
+      let safetyHand = "Haute carte";
+      const validComm = communityCardsState.filter((c): c is Card => c !== null);
+      if (winner && (winner as BasePlayer | BotPlayer).cards?.length === 2 && validComm.length >= 5) {
+        try {
+          const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+          const r = await fetch(apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ players: [{ id: String(winner.id), name: winner.name, cards: (winner as BasePlayer | BotPlayer).cards }], communityCards: validComm }),
+          });
+          if (r.ok) { const d = await r.json(); safetyHand = d.handName ?? safetyHand; }
+        } catch { /* ignore */ }
+      }
+      setPot(0);
+      setShowdownReveal(false);
+      showdownStartedRef.current = true;
+      if (winner) {
+        setPlayersState((prev) => prev.map((p) => (p.id === winner.id ? { ...p, chips: (p.chips ?? 0) + currentPot } : p)));
+        if (winner.id === userId || winner.id === "human") setPlayerChips((prev) => prev + currentPot);
+        setShowdownWinnerCards((winner as BasePlayer | BotPlayer).cards ?? []);
+      }
+      setShowdownResult({
+        winnerId: String(winner?.id ?? ""),
+        winnerName: (winner?.name as string) ?? "—",
+        hand: safetyHand,
+        handRank: 0,
+        pot: currentPot,
+      });
+      addToUserBalance(0);
+    }, 12000);
+    return () => clearTimeout(safety);
+  }, [phase, showdownResult, handResult, isBotMode, playersState, pot, userId]);
+
+  // Game over: human eliminated or all bots eliminated
+  useEffect(() => {
+    if (!isBotMode || !showdownResult || gameOverReason) return;
+    if (playerChips <= 0) {
+      setGameOverReason("human_eliminated");
+      return;
+    }
+    const allBotsEliminated = playersState
+      .filter((p) => "isBot" in p && p.isBot)
+      .every((p) => (p.chips ?? 0) <= 0);
+    if (allBotsEliminated) setGameOverReason("bot_eliminated");
+  }, [isBotMode, showdownResult, playerChips, playersState, userId, gameOverReason]);
 
   useEffect(() => {
     if (!isBotMode || playersState.length === 0) return;
@@ -860,17 +1428,21 @@ export function Game() {
     if (!activePlayer) return;
 
     const isBotTurn = "isBot" in activePlayer && activePlayer.isBot;
-    if (!isBotTurn || isBotThinking) return;
+    if (!isBotTurn || isBotThinking || botIsFetchingRef.current) return;
 
     setIsBotThinking(true);
+    botIsFetchingRef.current = true;
 
     const fetchBotDecision = async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
-        const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-        const url = `${apiUrl ? apiUrl + "/" : ""}api/bot/action`;
+        const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+        const url = `${baseUrl}/api/bot/action`;
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             playerCards: activePlayer.cards,
             communityCards: communityCardsState.filter((c): c is Card => c !== null),
@@ -884,26 +1456,36 @@ export function Game() {
             playersCount: playersState.filter((p) => p.isConnected !== false).length,
           }),
         });
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           await response.text();
           addToast(`Erreur bot (${response.status})`, "error");
           setIsBotThinking(false);
+          botIsFetchingRef.current = false;
           return;
         }
 
         const decision = await response.json();
 
+        // Montant que le bot doit mettre (total bet côté serveur pour RAISE = mise totale visée)
+        const botCurrentBet = activePlayer.bet ?? 0;
+        const amountFromServer = decision.amount ?? 0;
+        const amountToPut =
+          decision.action === "RAISE"
+            ? Math.max(0, amountFromServer - botCurrentBet)
+            : decision.action === "CALL"
+              ? Math.min(decision.amount ?? callAmount, activePlayer.chips ?? 0)
+              : 0;
+
         const botActionLabel =
           decision.action === "FOLD"
             ? "s'est couché"
-            : decision.action === "CALL"
-              ? "a suivi"
-              : decision.action === "CHECK"
-                ? "a checké"
-                : decision.action === "RAISE"
-                  ? "a relancé"
-                  : decision.action;
+            : decision.action === "CHECK" || (decision.action === "RAISE" && amountToPut <= 0)
+              ? "a checké"
+              : decision.action === "CALL" || (decision.action === "RAISE" && amountToPut <= callAmount)
+                ? "a suivi"
+                : "a relancé";
         if (clearBotActionRef.current) clearTimeout(clearBotActionRef.current);
         setLastBotAction({ name: activePlayer.name, action: botActionLabel });
         clearBotActionRef.current = setTimeout(() => {
@@ -917,24 +1499,41 @@ export function Game() {
               handleFold(activePlayer.id);
               break;
             case "CALL": {
-              const callAmt = decision.amount ?? callAmount;
-              const effectiveCall = Math.min(callAmt, activePlayer.chips ?? 0);
+              // Ne jamais mettre plus que le callAmount (montant pour égaliser) ni plus que les jetons du bot
+              const effectiveCall = Math.min(
+                decision.amount ?? callAmount,
+                callAmount,
+                activePlayer.chips ?? 0
+              );
               handleCall(effectiveCall, activePlayer.id);
               break;
             }
             case "CHECK":
               handleCheck(activePlayer.id);
               break;
-            case "RAISE":
-              handleRaise(decision.amount ?? callAmount + 20, activePlayer.id);
+            case "RAISE": {
+              if (amountToPut <= 0) {
+                handleCheck(activePlayer.id);
+              } else if (amountToPut <= callAmount) {
+                handleCall(amountToPut, activePlayer.id);
+              } else {
+                handleRaise(amountToPut - callAmount, activePlayer.id);
+              }
               break;
+            }
           }
           setIsBotThinking(false);
+          botIsFetchingRef.current = false;
         }, Math.random() * 1000 + 1000);
       } catch (error) {
         console.error("Erreur API bot:", error);
-        addToast("Erreur connexion bot", "error");
-        setIsBotThinking(false);
+        clearTimeout(timeoutId);
+        setTimeout(() => {
+          if (callAmount === 0) handleCheck(activePlayer.id);
+          else handleFold(activePlayer.id);
+          setIsBotThinking(false);
+          botIsFetchingRef.current = false;
+        }, 500);
       }
     };
 
@@ -943,22 +1542,21 @@ export function Game() {
 
   // Après gain/perte : animation puis enregistrement des stats (sans navigation)
   useEffect(() => {
-    if (handResult === null) return;
+    if (handResult === null || !isBotMode) return;
     const t = setTimeout(() => {
       const token = localStorage.getItem("token");
-      const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-      const base = apiUrl || "";
-      const recordUrl = base ? `${base}/api/game/record-result` : "/api/game/record-result";
+      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
+      const recordUrl = `${baseUrl}/api/game/record-result`;
       if (token) {
         fetch(recordUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ won: handResult === "win" }),
+          body: JSON.stringify({ won: handResult === "win", delta: toAddLastRef.current }),
         }).catch(() => {});
       }
     }, 2500);
     return () => clearTimeout(t);
-  }, [handResult]);
+  }, [handResult, isBotMode]);
 
   const handleFold = (playerId?: number | string) => {
     if (handResult !== null) return;
@@ -982,6 +1580,11 @@ export function Game() {
       const activeInHand = newPlayers.filter(
         (p) => p.isConnected !== false && !(p.hasFolded ?? false)
       );
+
+      // En multijoueur, on laisse le serveur gérer le pot, le SHOWDOWN et le vainqueur
+      if (gameIdParam) {
+        return newPlayers;
+      }
 
       if (activeInHand.length === 1) {
         const winner = activeInHand[0];
@@ -1054,7 +1657,7 @@ export function Game() {
       setHasPlayerActed(true);
       setIsLoading(true);
     }
-    nextTurn(justActedIndex);
+    if (!gameIdParam) nextTurn(justActedIndex);
   };
 
   const handleCall = (amount: number, playerId?: number | string) => {
@@ -1065,17 +1668,27 @@ export function Game() {
     if (gameIdParam && socket && isHumanActing) {
       socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CALL", amount });
     }
-    const refundOtherBetOvercall =
-      amount < callAmount
-        ? playersState
-            .filter((p) => p.id !== userId && p.id !== "human" && (p.bet ?? 0) > amount)
-            .reduce((s, p) => s + ((p.bet ?? 0) - amount), 0)
-        : 0;
-
-    if (playerId !== undefined && playerId !== hero?.id) {
-      const isBotAllInCall = !gameIdParam && amount < callAmount;
-      setPlayersState((prev) =>
-        prev.map((p) => {
+    // Cap call amount at player's chips (all-in if not enough)
+    if (playerId !== undefined && !isHumanActing) {
+      const highestBet = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
+      const actorBet = playersState.find((p) => p.id === playerId)?.bet ?? 0;
+      const neededToCall = Math.max(0, highestBet - actorBet);
+      const actorChips = playersState.find((p) => p.id === playerId)?.chips ?? 0;
+      amount = Math.min(amount, neededToCall, actorChips);
+    }
+    if (playerId !== undefined && !isHumanActing) {
+      const botIndex = playersState.findIndex((p) => p.id === playerId);
+      const actorChipsBefore = playersState.find((p) => p.id === playerId)?.chips ?? 0;
+      const actorBetBefore = playersState.find((p) => p.id === playerId)?.bet ?? 0;
+      const highestBet = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
+      const neededToCall = Math.max(0, highestBet - actorBetBefore);
+      const isBotAllInCall = amount < neededToCall;
+      const totalRefund = playersState
+        .filter((p) => p.id !== playerId && (p.bet ?? 0) > amount)
+        .reduce((sum, p) => sum + ((p.bet ?? 0) - amount), 0);
+      const humanRefund = hero && hero.id !== playerId && (hero.bet ?? 0) > amount ? (hero.bet ?? 0) - amount : 0;
+      setPlayersState((prev) => {
+        const nextList = prev.map((p) => {
           let next = p;
           if (p.id !== playerId) {
             if ((p.bet ?? 0) > amount) {
@@ -1083,29 +1696,87 @@ export function Game() {
               next = { ...p, chips: p.chips + refund, bet: amount };
             }
           } else {
-            next = { ...p, chips: Math.max(0, p.chips - amount), bet: (p.bet ?? 0) + amount };
+            next = { ...p, chips: Math.max(0, actorChipsBefore - amount), bet: actorBetBefore + amount, isActive: false };
           }
-          if (isBotAllInCall) next = { ...next, isActive: false };
+          if (isBotAllInCall) {
+            next = { ...next, isActive: false };
+          }
           return next;
-        })
-      );
+        });
+        const botNext = nextList.find((p) => p.id === playerId);
+        if (botNext) {
+          console.log("[QB-BOT setPlayersState bot update]", { amount, botChipsBefore: actorChipsBefore, botChipsAfter: botNext.chips, botBetAfter: botNext.bet });
+        }
+        return nextList;
+      });
+      const newPot = Math.max(0, pot + amount - totalRefund);
+      console.log("[QB-BOT pot update]", { potBefore: pot, amount, totalRefund, potAfter: newPot });
+      setPot((prev) => Math.max(0, prev + amount - totalRefund));
+      setRoundPlayersActed((prev) => {
+        const next = new Set(prev).add(botIndex);
+          const activeInHandCount = playersStateRef.current.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false)).length;
+          if (next.size >= activeInHandCount && !isBotAllInCall) {
+          bothActedNoTurnRef.current = true;
+          const currentPhase = phase;
+          if (streetTransitionScheduledRef.current !== currentPhase) {
+            streetTransitionScheduledRef.current = currentPhase;
+            const transitionFn =
+              currentPhase === "preflop"
+                ? dealFlop
+                : currentPhase === "flop"
+                  ? dealTurn
+                  : currentPhase === "turn"
+                    ? dealRiver
+                    : () => setPhase("showdown");
+            streetTransitionTimeoutRef.current = setTimeout(() => {
+              streetTransitionTimeoutRef.current = null;
+              transitionFn();
+            }, 1000);
+          }
+          } else if (next.size < activeInHandCount && !isBotAllInCall) {
+            // Bot a agi : donner la main au joueur suivant
+          setTimeout(() => {
+            setPlayersState((prev) => {
+                const newPlayers = prev.map(p => ({ ...p, isActive: false }));
+                let nextIdx = (botIndex + 1) % newPlayers.length;
+                let loopCount = 0;
+                while (loopCount < newPlayers.length) {
+                  const p = newPlayers[nextIdx];
+                  if (p.isConnected !== false && !(p.hasFolded ?? false) && (p.chips ?? 0) > 0) {
+                    newPlayers[nextIdx].isActive = true;
+                    break;
+                  }
+                  nextIdx = (nextIdx + 1) % newPlayers.length;
+                  loopCount++;
+                }
+                return newPlayers;
+            });
+          }, 50);
+        }
+        return next;
+      });
+      if (humanRefund > 0) {
+        setPlayerChips((prev) => prev + humanRefund);
+      }
       if (isBotAllInCall) setTimeout(() => setRunOutPhase(phase), 50);
+      setHasPlayerActed(false);
+      setIsLoading(false);
+      return;
     } else {
-      setPlayerChips((prev) => Math.max(0, prev - amount));
+      const heroChips = hero?.chips ?? playerChips;
+      const effectiveAmount = Math.min(amount, heroChips);
+      setPlayerChips((prev) => Math.max(0, prev - effectiveAmount));
       setPlayersState((prev) =>
-        prev.map((p) => {
-          if (p.id === userId || p.id === "human") {
-            return { ...p, chips: Math.max(0, (p.chips ?? 0) - amount), bet: (p.bet ?? 0) + amount };
-          }
-          if ((p.bet ?? 0) > amount) {
-            const refund = (p.bet ?? 0) - amount;
-            return { ...p, chips: (p.chips ?? 0) + refund, bet: amount };
-          }
-          return p;
-        })
+        prev.map((p) =>
+          p.id === userId || p.id === "human"
+            ? { ...p, chips: Math.max(0, (p.chips ?? 0) - effectiveAmount), bet: (p.bet ?? 0) + effectiveAmount }
+            : p
+        )
       );
+      amount = effectiveAmount;
     }
-    setPot((prev) => Math.max(0, prev + amount - refundOtherBetOvercall));
+    setPot((prev) => prev + amount);
+    addContribution(playerId ?? userId ?? "human", amount);
     const justActedIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
@@ -1114,8 +1785,7 @@ export function Game() {
       setHasPlayerActed(true);
       setIsLoading(true);
     }
-    const botAllInCall = playerId !== undefined && amount < callAmount && !gameIdParam;
-    if (!botAllInCall) nextTurn(justActedIndex);
+    if (!gameIdParam) nextTurn(justActedIndex);
   };
 
   const handleRaise = (raiseAmount: number, playerId?: number | string) => {
@@ -1130,24 +1800,35 @@ export function Game() {
     const currentIndex = playersState.findIndex((p) => p.isActive);
     setRoundPlayersActed(new Set(currentIndex !== -1 ? [currentIndex] : []));
     if (playerId !== undefined && playerId !== hero?.id) {
-      setPlayersState((prev) =>
-        prev.map((p) =>
+      setPlayersState((prev) => {
+        const acting = prev.find((p) => p.id === playerId);
+        const effectiveTotalToPut = acting
+          ? Math.min(totalToPut, Math.max(0, acting.chips ?? 0))
+          : totalToPut;
+        return prev.map((p) =>
           p.id === playerId
-            ? { ...p, chips: p.chips - totalToPut, bet: (p.bet ?? 0) + totalToPut }
+            ? { ...p, chips: Math.max(0, (p.chips ?? 0) - effectiveTotalToPut), bet: (p.bet ?? 0) + effectiveTotalToPut }
             : p
-        )
-      );
+        );
+      });
+      const actingPlayer = playersState.find((p) => p.id === playerId);
+      const effectiveTotalToPut = actingPlayer
+        ? Math.min(totalToPut, Math.max(0, actingPlayer.chips ?? 0))
+        : totalToPut;
+      setPot((prev) => prev + effectiveTotalToPut);
+      addContribution(playerId, effectiveTotalToPut);
     } else {
       setPlayerChips((prev) => Math.max(0, prev - totalToPut));
       setPlayersState((prev) =>
         prev.map((p) =>
           p.id === userId || p.id === "human"
-            ? { ...p, chips: p.chips - totalToPut, bet: (p.bet ?? 0) + totalToPut }
+            ? { ...p, chips: Math.max(0, (p.chips ?? 0) - totalToPut), bet: (p.bet ?? 0) + totalToPut }
             : p
         )
       );
+      setPot((prev) => prev + totalToPut);
+      addContribution(userId ?? "human", totalToPut);
     }
-    setPot((prev) => prev + totalToPut);
     if (isHumanActing) {
       setHasPlayerActed(true);
       setIsLoading(true);
@@ -1156,11 +1837,12 @@ export function Game() {
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
         : playersState.findIndex((p) => p.id === userId || p.id === "human");
-    nextTurn(justActedIndex);
+    if (!gameIdParam) nextTurn(justActedIndex);
   };
 
   const handleSendMessage = (content: string, type: "emoji" | "text") => {
     const id = Date.now();
+    const myName = playersState.find((p) => p.id === userId || p.id === "human")?.name ?? "Vous";
     const newMessage: ChatMessage = {
       id: id,
       player: "Vous",
@@ -1172,6 +1854,16 @@ export function Game() {
 
     setChatMessages((prev) => [...prev, newMessage]);
 
+    if (gameIdParam && socket) {
+      socket.emit("GAME_CHAT", {
+        gameId: gameIdParam,
+        playerId: String(userId),
+        playerName: myName,
+        content,
+        type,
+      });
+    }
+
     setTimeout(() => {
       setChatMessages((prev) =>
         prev.map((msg) =>
@@ -1181,7 +1873,7 @@ export function Game() {
 
       setTimeout(() => {
         setChatMessages((prev) => prev.filter((msg) => msg.id !== id));
-      }, 500); 
+      }, 500);
     }, 4000);
 
     if (mode === "bot" && Math.random() > 0.5) {
@@ -1326,6 +2018,93 @@ export function Game() {
         </div>
       )}
 
+      {/* Showdown card reveal: show all hands for 3s before modal */}
+      <AnimatePresence>
+        {showdownReveal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[105] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", damping: 20, stiffness: 200 }}
+              className="flex flex-col items-center gap-4"
+            >
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Showdown</h2>
+
+              {/* Player hands (toutes les cartes de tout le monde) */}
+              <div className="flex flex-wrap justify-center gap-6">
+                {playersState
+                  .filter((p) => p.cards?.length === 2)
+                  .map((player) => (
+                    <motion.div
+                      key={String(player.id)}
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.15 }}
+                      className="flex flex-col items-center gap-2 bg-slate-800/80 rounded-xl px-4 py-3 border border-slate-600"
+                    >
+                      <span className="text-white font-semibold text-sm md:text-base">{player.name}</span>
+                      <div className="flex gap-2">
+                        {player.cards.map((card, i) => (
+                          <PokerCard
+                            key={i}
+                            suit={card.suit}
+                            value={card.value}
+                            size="md"
+                            animated
+                            animationDelay={i * 0.1}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  ))}
+              </div>
+
+              {/* Community cards */}
+              {(() => {
+                const validCommunity = communityCardsState.filter((c): c is Card => c !== null);
+                if (validCommunity.length === 0) return null;
+                return (
+                  <motion.div
+                    initial={{ y: 15, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex flex-col items-center gap-2 mt-2"
+                  >
+                    <span className="text-gray-400 text-xs font-semibold tracking-wider uppercase">Board</span>
+                    <div className="flex gap-2">
+                      {validCommunity.map((card, i) => (
+                        <PokerCard
+                          key={i}
+                          suit={card.suit}
+                          value={card.value}
+                          size="sm"
+                          animated
+                          animationDelay={0.3 + i * 0.08}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                );
+              })()}
+
+              {/* Bouton Skip pour passer directement au résultat */}
+              <button
+                type="button"
+                onClick={() => showdownSkipRef.current?.()}
+                className="mt-4 px-6 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 border border-white/40 text-white font-semibold text-sm transition-colors"
+              >
+                Skip
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Showdown : gagnant + combinaison + pot */}
       <ShowdownDisplay
         winner={
@@ -1334,22 +2113,35 @@ export function Game() {
                 name: showdownResult.winnerName,
                 hand: showdownResult.hand,
                 pot: showdownResult.pot,
+                isSplit: showdownResult.isSplit,
               }
             : null
         }
+        winnerCards={showdownWinnerCards}
         onClose={() => {
           if (!showdownResult) return;
+          if (gameOverReason) {
+            navigate("/lobby", {
+              state: {
+                message: gameOverReason === "bot_eliminated"
+                  ? "Vous avez gagné la partie ! (bot éliminé)"
+                  : "Plus de jetons. Partie terminée.",
+              },
+            });
+            setShowdownResult(null);
+            setGameOverReason(null);
+            return;
+          }
           const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
-          const won = showdownResult.winnerId === humanId || showdownResult.winnerId === "human";
+          const won =
+            showdownResult.winnerId === humanId ||
+            showdownResult.winnerId === "human" ||
+            (showdownResult.isSplit && showdownResult.winnerIds?.some((id) => String(id) === String(humanId)));
           const winnerName = showdownResult.winnerName;
           const handName = showdownResult.hand;
           setHandResult(won ? "win" : "loss");
+          setHandResultData({ winnerName, handName });
           setShowdownResult(null);
-          setTimeout(() => {
-            navigate("/hidden-bets-result", {
-              state: { winnerName, handName },
-            });
-          }, 2500);
         }}
       />
 
@@ -1381,6 +2173,77 @@ export function Game() {
                 {handResult === "win" ? "Vous avez gagné !" : "Vous avez perdu"}
               </h2>
               <p className="text-slate-300 text-sm">Résultats des paris cachés...</p>
+              <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full max-w-xs mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (handResultData) {
+                      navigate("/hidden-bets-result", {
+                        state: {
+                          winnerName: handResultData.winnerName,
+                          handName: handResultData.handName,
+                        },
+                      });
+                    }
+                    setHandResult(null);
+                    setHandResultData(null);
+                  }}
+                  className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-amber-500/30 hover:bg-amber-500/50 border border-amber-400/60 text-white transition-colors"
+                >
+                  {t("game.goToHiddenBets")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate("/lobby");
+                    setHandResult(null);
+                    setHandResultData(null);
+                  }}
+                  className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-slate-600/80 hover:bg-slate-500/80 border border-slate-500 text-white transition-colors"
+                >
+                  {t("game.backToLobby")}
+                </button>
+                {gameIdParam && !isBotMode && isRematchHost && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setRematchLoading(true);
+                      try {
+                        const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+                        const res = await fetch(`${apiBase}/api/waiting-room/rematch`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
+                          body: JSON.stringify({ gameId: gameIdParam }),
+                        });
+                        if (!res.ok) {
+                          const err = await res.json().catch(() => ({}));
+                          addToast(err?.error ?? "Erreur rematch", "error");
+                        }
+                      } finally {
+                        setRematchLoading(false);
+                      }
+                    }}
+                    disabled={rematchLoading}
+                    className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {rematchLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                    {t("game.rematchSameMembers")}
+                  </button>
+                )}
+                {isBotMode && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHandResult(null);
+                      setHandResultData(null);
+                      navigate(location.pathname + location.search, { state: { replay: true } });
+                    }}
+                    className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500 text-white transition-colors"
+                  >
+                    {t("game.replaySameConfig")}
+                  </button>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -1450,6 +2313,27 @@ export function Game() {
                 >
                   <HelpCircle className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                   <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Tutoriel</span>
+                </button>
+                <div className="border-t border-slate-700"></div>
+                <button
+                  onClick={() => {
+                    setIsQuantumOpen((o) => !o);
+                    setShowMenu(false);
+                  }}
+                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} ${isQuantumOpen ? 'text-amber-400 bg-amber-500/20' : 'text-white hover:bg-slate-700'} transition-all`}
+                >
+                  <Activity className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Probabilités</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsPanelOpen((o) => !o);
+                    setShowMenu(false);
+                  }}
+                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} ${isPanelOpen ? 'text-yellow-400 bg-yellow-500/20' : 'text-white hover:bg-slate-700'} transition-all`}
+                >
+                  <Trophy className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Paris Cachés</span>
                 </button>
                 <div className="border-t border-slate-700"></div>
                 <button
@@ -1610,7 +2494,7 @@ export function Game() {
               <button
                 onClick={() => {
                   setShowQuitConfirm(false);
-                  navigate("/");
+                  navigate("/lobby");
                 }}
                 className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-red-600/50"
               >
@@ -1630,7 +2514,7 @@ export function Game() {
       {/* Zone centrale - Table de poker avec cartes communes */}
       <div className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
         <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase}>
-          <CommunityCards cards={communityCards} pot={pot} />
+          <CommunityCards cards={communityCards} pot={pot} sidePots={sidePots.length > 1 ? sidePots : undefined} />
         </PokerTable>
       </div>
 
@@ -1672,7 +2556,7 @@ export function Game() {
         hasActed={hasPlayerActed}
         actionsDisabled={Boolean(gameIdParam && !socket)}
         waitingForPlayer={!isMyTurn && !hasFoldedFromState ? activePlayer?.name : undefined}
-        timeLeft={timeLeft ?? 20}
+        timeLeft={timeLeft ?? 30}
         onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
         onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
         onToggleChat={() => setIsChatOpen(!isChatOpen)}

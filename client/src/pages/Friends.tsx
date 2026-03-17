@@ -6,12 +6,15 @@ import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../contexts/SocketContext";
+import { useToast } from "../contexts/ToastContext";
 import {
   useGetFriendsQuery,
   useGetFriendRequestsQuery,
   useSearchUsersQuery,
   useSendFriendRequestMutation,
-  useRespondToFriendRequestMutation
+  useRespondToFriendRequestMutation,
+  useGetFriendMessagesQuery,
+  useSendFriendMessageMutation
 } from "../services/api";
 import { FriendSearch } from "../components/FriendSearch";
 
@@ -20,6 +23,7 @@ export function Friends() {
   const navigate = useNavigate();
   const { userId } = useUser();
   const { socket, isConnected, connect } = useSocket();
+  const { addToast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddFriend, setShowAddFriend] = useState(false);
@@ -28,6 +32,7 @@ export function Friends() {
   const [searchError, setSearchError] = useState("");
   const [searchSuccess, setSearchSuccess] = useState(false);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
+  const [messageInput, setMessageInput] = useState("");
 
   const {
     data: friends,
@@ -183,9 +188,79 @@ export function Friends() {
 
   const closeChat = () => {
     setSelectedChat(null);
+    setMessageInput("");
   };
 
   const selectedFriend = friends?.find((f) => f.id === selectedChat);
+
+  const {
+    data: messages = [],
+    error: messagesError,
+    refetch: refetchMessages
+  } = useGetFriendMessagesQuery(
+    { userId: userId!, friendId: selectedChat! },
+    { skip: !userId || !selectedChat }
+  );
+
+  const [sendMessage, { isLoading: sendingMessage }] = useSendFriendMessageMutation();
+
+  useEffect(() => {
+    if (!messagesError || !addToast) return;
+    const e = messagesError as { data?: { error?: string } | string; status?: number };
+    const serverMsg = typeof e?.data === 'object' && e?.data?.error ? e.data.error : null;
+    const msg = serverMsg ?? (e?.status === 403 ? t('friends.chatOnlyWithFriends') : t('friends.sendMessageError'));
+    addToast(msg, 'error');
+  }, [messagesError, addToast, t]);
+
+  useEffect(() => {
+    if (!socket || !userId || !selectedChat) return;
+
+    const handleFriendMessage = (data: { senderId: string; receiverId: string }) => {
+      if (
+        (data.senderId === selectedChat && data.receiverId === userId) ||
+        (data.receiverId === selectedChat && data.senderId === userId)
+      ) {
+        refetchMessages();
+      }
+    };
+
+    socket.on("FRIEND_MESSAGE", handleFriendMessage);
+    return () => {
+      socket.off("FRIEND_MESSAGE", handleFriendMessage);
+    };
+  }, [socket, userId, selectedChat, refetchMessages]);
+
+  const handleSendMessage = async () => {
+    if (!selectedChat || !userId || !messageInput.trim()) return;
+
+    try {
+      await sendMessage({
+        receiverId: selectedChat,
+        content: messageInput.trim()
+      }).unwrap();
+      setMessageInput("");
+    } catch (err: unknown) {
+      const e = err as { data?: { error?: string } | string; status?: number };
+      const serverMsg = typeof e?.data === 'object' && e?.data?.error ? e.data.error : null;
+      const msg = serverMsg ?? (e?.status === 403 ? t('friends.chatOnlyWithFriends') : t('friends.sendMessageError'));
+      addToast(msg, 'error');
+    }
+  };
+
+  const formatMessageTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return t("friends.justNow");
+    if (diffMins < 60) return t("friends.minutesAgo", { count: diffMins });
+    if (diffHours < 24) return t("friends.hoursAgo", { count: diffHours });
+    if (diffDays < 7) return t("friends.daysAgo", { count: diffDays });
+    return date.toLocaleDateString();
+  };
 
   return (
     <div className="size-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
@@ -478,26 +553,18 @@ export function Friends() {
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 max-w-2xl w-full h-[600px] flex flex-col">
             <div className="p-6 border-b border-slate-700 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white overflow-hidden flex items-center justify-center">
-                    {getPlayerAvatar(selectedFriend.username) ? (
-                      <ImageWithFallback
-                        src={getPlayerAvatar(selectedFriend.username)}
-                        alt={`${selectedFriend.username}'s avatar`}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-white text-xl font-bold">
-                        {selectedFriend.username.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">{selectedFriend.username}</h2>
-                    <p className="text-sm text-gray-400">
-                      {t('friends.level', { level: selectedFriend.level })}
-                    </p>
-                  </div>
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white overflow-hidden flex items-center justify-center shrink-0">
+                  {getPlayerAvatar(selectedFriend.username) ? (
+                    <ImageWithFallback
+                      src={getPlayerAvatar(selectedFriend.username)}
+                      alt={`${selectedFriend.username}'s avatar`}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-white text-xl font-bold">
+                      {selectedFriend.username.charAt(0).toUpperCase()}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-white">{selectedFriend.username}</h2>
@@ -515,36 +582,61 @@ export function Friends() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="flex justify-start">
-                <div className="bg-slate-700/50 rounded-2xl rounded-tl-none px-4 py-3 max-w-[70%]">
-                  <p className="text-white">Salut ! Tu veux jouer une partie ?</p>
-                  <span className="text-xs text-gray-400 mt-1 block">Il y a 5 min</span>
+              {messagesError ? (
+                <div className="text-center py-8">
+                  <p className="text-red-400 mb-4">
+                    {(messagesError as { data?: { error?: string } })?.data?.error ?? t('friends.chatOnlyWithFriends')}
+                  </p>
+                  <button
+                    onClick={() => refetchMessages()}
+                    className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg text-white"
+                  >
+                    {t('common.retry')}
+                  </button>
                 </div>
-              </div>
-
-              <div className="flex justify-end">
-                <div className="bg-green-600 rounded-2xl rounded-tr-none px-4 py-3 max-w-[70%]">
-                  <p className="text-white">Oui bien sûr ! Je lance un serveur ?</p>
-                  <span className="text-xs text-green-200 mt-1 block">Il y a 3 min</span>
-                </div>
-              </div>
-
-              <div className="flex justify-start">
-                <div className="bg-slate-700/50 rounded-2xl rounded-tl-none px-4 py-3 max-w-[70%]">
-                  <p className="text-white">Parfait ! J'arrive 🎰</p>
-                  <span className="text-xs text-gray-400 mt-1 block">Il y a 1 min</span>
-                </div>
-              </div>
+              ) : messages.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">{t('friends.noMessagesYet')}</p>
+              ) : (
+                messages.map((msg) => {
+                  const isMe = msg.senderId === userId;
+                  return (
+                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`rounded-2xl px-4 py-3 max-w-[70%] ${
+                          isMe
+                            ? 'bg-green-600 rounded-tr-none'
+                            : 'bg-slate-700/50 rounded-tl-none'
+                        }`}
+                      >
+                        <p className="text-white whitespace-pre-wrap break-words">{msg.content}</p>
+                        <span
+                          className={`text-xs mt-1 block ${isMe ? 'text-green-200' : 'text-gray-400'}`}
+                        >
+                          {formatMessageTime(msg.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             <div className="p-6 border-t border-slate-700">
               <div className="flex gap-3">
                 <input
                   type="text"
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                   placeholder={t('friends.writeMessage')}
                   className="flex-1 bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
-                <button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg transform hover:scale-105 transition-all">
+                <button
+                  onClick={handleSendMessage}
+                  disabled={sendingMessage || !messageInput.trim()}
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-semibold shadow-lg transform hover:scale-105 transition-all flex items-center gap-2"
+                >
+                  {sendingMessage ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
                   {t('friends.send')}
                 </button>
               </div>

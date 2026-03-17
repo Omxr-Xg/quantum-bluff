@@ -24,7 +24,19 @@
     "captchaError": "Incorrecto. Inténtalo de nuevo.",
     "captchaSuccess": "¡Fichas añadidas!",
     "chooseAmount": "Elige una cantidad:",
-    "validate": "Validar"
+    "validate": "Validar",
+    "deleteServer": "Eliminar",
+    "createServerTitle": "Crear un servidor",
+    "visibility": "Tipo de sala",
+    "public": "Pública",
+    "private": "Privada",
+    "publicDesc": "Cualquiera puede unirse libremente.",
+    "privateDesc": "Los jugadores deben solicitar unirse.",
+    "maxPlayersLabel": "Máx. jugadores",
+    "validateCreate": "Crear sala",
+    "requestJoin": "Solicitar unirse",
+    "requestSent": "¡Solicitud enviada!",
+    "roomFull": "Sala llena"
   },
   "game": {
     "yourTurn": "TU TURNO",
@@ -39,7 +51,11 @@
     "foldedLabel": "RETIRADO",
     "allIn": "All-in",
     "pot": "Bote: {{amount}}",
-    "timer": "{{seconds}}s"
+    "timer": "{{seconds}}s",
+    "goToHiddenBets": "Ir a hidden bets",
+    "backToLobby": "Volver al lobby",
+    "replaySameConfig": "Rejugar con la misma configuración",
+    "rematchSameMembers": "Rejugar con los mismos miembros"
   },
   "friends": {
     "title": "Mis Amigos",
@@ -80,15 +96,27 @@
     "addAsFriend": "Añadir como amigo",
     "requestSentTo": "Solicitud enviada a {{username}}",
     "writeMessage": "Escribe tu mensaje...",
+    "justNow": "Ahora mismo",
+    "minutesAgo": "Hace {{count}} min",
+    "hoursAgo": "Hace {{count}} h",
+    "daysAgo": "Hace {{count}} días",
+    "noMessagesYet": "Sin mensajes. ¡Comienza la conversación!",
+    "noMessagesYet": "Sin mensajes. ¡Comienza la conversación!",
+    "noMessagesYet": "Sin mensajes. ¡Inicia la conversación!",
+    "noMessages": "Sin mensajes. ¡Inicia la conversación!",
     "gamesCount": "{{count}} partidas",
-    "send": "Enviar"
+    "send": "Enviar",
+    "chatOnlyWithFriends": "Solo puedes chatear con tus amigos",
+    "sendMessageError": "Error al enviar el mensaje"
   },
   "common": {
     "loading": "Cargando...",
     "error": "Ha ocurrido un error",
+    "retry": "Reintentar",
     "save": "Guardar",
     "cancel": "Cancelar",
-    "creating": "Guardando..."
+    "creating": "Guardando...",
+    "retry": "Reintentar"
   },
   "auth": {
     "title": "Quantum Bluff",
@@ -195,7 +223,9 @@
     "startErrorNotReady": "No todos están listos. Pídeles que hagan clic en « Listo ».",
     "noFriendsOnline": "Ningún amigo en línea",
     "close": "Cerrar",
-    "startGameWithCount": "Iniciar partida ({{count}} jugadores)"
+    "startGameWithCount": "Iniciar partida ({{count}} jugadores)",
+    "joinRequests": "Solicitudes de unirse",
+    "noJoinRequests": "Sin solicitudes pendientes"
   },
   "botConfig": {
     "home": "Inicio",
@@ -229,7 +259,8 @@
     "configSummary": "Resumen de la configuración",
     "opponents": "Adversarios:",
     "difficultyLabel": "Dificultad:",
-    "startGameButton": "Iniciar partida"
+    "startGameButton": "Iniciar partida",
+    "balanceRequired": "Añade fondos a tu saldo para jugar."
   },
   "gameDeal": {
     "readyToStart": "Listo para empezar",
@@ -261,12 +292,38 @@
     "friendRequestAccepted": "¡{{username}} ha aceptado tu solicitud de amistad!",
     "hostWantsStart": "El anfitrión quiere iniciar — ¡prepárate!",
     "friendIsOnline": "{{name}} está en línea",
-    "friendIsOffline": "{{name}} está desconectado"
+    "friendIsOffline": "{{name}} está desconectado",
+    "joinRequestFrom": "{{username}} quiere unirse a tu sala",
+    "joinRequestAccepted": "¡Tu solicitud para {{room}} fue aceptada!",
+    "joinRequestRejected": "Tu solicitud para {{room}} fue rechazada"
   },
   "gameHelp": {
     "foldDesc": "Abandonar la mano actual",
     "callDesc": "Igualar la apuesta actual",
     "raiseDesc": "Subir la apuesta",
     "addCredits": "Añadir créditos"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "Sin notificaciones",
+    "gameInvitations": "Invitaciones de partida",
+    "friendRequests": "Solicitudes de amistad"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "Sin notificaciones",
+    "gameInvitations": "Invitaciones a jugar",
+    "friendRequests": "Solicitudes de amistad"
+  },
+  "invitation": {
+    "title": "{{username}} te ha invitado a jugar!",
+    "accept": "Unirse",
+    "reject": "Rechazar"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "Sin notificaciones",
+    "gameInvitations": "Invitaciones de partida",
+    "friendRequests": "Solicitudes de amistad"
   }
 }

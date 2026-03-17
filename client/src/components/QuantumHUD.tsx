@@ -25,7 +25,7 @@ export function QuantumHUD({ isOpen, onToggle }: QuantumHUDProps) {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 300 }}
           transition={{ type: "spring", damping: 25 }}
-          className="fixed top-24 right-5 z-40 w-80 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-purple-500 shadow-2xl"
+          className="fixed top-20 md:top-24 left-2 right-2 md:left-auto md:right-5 z-[55] w-auto max-w-[calc(100vw-1rem)] md:w-80 md:max-w-none bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-purple-500 shadow-2xl"
         >
           {/* Header */}
           <div className="p-4 border-b border-slate-700 flex items-center justify-between">

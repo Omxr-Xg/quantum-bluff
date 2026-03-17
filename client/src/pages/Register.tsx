@@ -46,6 +46,12 @@ export function Register() {
     localStorage.setItem('token', response.token)
     localStorage.setItem('userId', String(response.user.id))
     localStorage.setItem('username', response.user.username)
+    // Mettre à jour le profil local pour l'écran Profile
+    localStorage.setItem('quantum_bluff_username', response.user.username)
+    localStorage.setItem('quantum_bluff_email', response.user.email)
+    if (typeof response.user.chips === 'number') {
+      localStorage.setItem('quantum_bluff_balance', String(response.user.chips))
+    }
 
     window.dispatchEvent(new Event('auth-changed'))
 

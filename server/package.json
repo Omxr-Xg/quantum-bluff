@@ -8,7 +8,7 @@
     "start": "node dist/index.js",
     "dev": "nodemon --exec tsx src/index.ts",
     "postinstall": "prisma generate",
-    "build": "tsc",
+    "build": "prisma generate && tsc && cp -r src/generated dist/",
     "lint": "eslint . --ext .ts",
     "test": "jest",
     "test:coverage": "jest --coverage"
@@ -46,11 +46,9 @@
     "jest-junit": "^16.0.0",
     "nodemon": "^3.1.0",
     "prisma": "^6.19.2",
-<<<<<<< HEAD
     "prisma-erd-generator": "^2.4.2",
-=======
+    "socket.io-client": "^4.8.3",
     "supertest": "^7.2.2",
->>>>>>> develop
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
