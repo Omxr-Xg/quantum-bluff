@@ -15,6 +15,23 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const auth = (req.headers as Record<string, string>).authorization;
+            if (auth) proxyReq.setHeader('Authorization', auth);
+          });
+        },
+      },
+      '/vmProjetIntegrateurgrp10-0/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/vmProjetIntegrateurgrp10-0/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const auth = (req.headers as Record<string, string>).authorization;
+            if (auth) proxyReq.setHeader('Authorization', auth);
+          });
+        },
       },
     },
   },

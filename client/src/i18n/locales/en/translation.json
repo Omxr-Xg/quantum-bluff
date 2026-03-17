@@ -96,15 +96,27 @@
     "addAsFriend": "Add as friend",
     "requestSentTo": "Friend request sent to {{username}}",
     "writeMessage": "Write your message...",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}} min ago",
+    "hoursAgo": "{{count}} h ago",
+    "daysAgo": "{{count}} days ago",
+    "noMessagesYet": "No messages yet. Start the conversation!",
+    "noMessagesYet": "No messages yet. Start the conversation!",
+    "noMessagesYet": "No messages yet. Start the conversation!",
+    "noMessages": "No messages yet. Start the conversation!",
     "gamesCount": "{{count}} games",
-    "send": "Send"
+    "send": "Send",
+    "chatOnlyWithFriends": "You can only chat with your friends",
+    "sendMessageError": "Failed to send message"
   },
   "common": {
     "loading": "Loading...",
     "error": "An error occurred",
+    "retry": "Retry",
     "save": "Save",
     "cancel": "Cancel",
-    "creating": "Creating..."
+    "creating": "Creating...",
+    "retry": "Retry"
   },
   "auth": {
     "title": "Quantum Bluff",

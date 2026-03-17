@@ -97,11 +97,20 @@
     "requestSentTo": "Demande d'ami envoyée à {{username}}",
     "writeMessage": "Écrivez votre message...",
     "gamesCount": "{{count}} parties",
-    "send": "Envoyer"
+    "send": "Envoyer",
+    "noMessagesYet": "Aucun message pour le moment. Envoyez le premier !",
+    "justNow": "À l'instant",
+    "minutesAgo": "Il y a {{count}} min",
+    "hoursAgo": "Il y a {{count}} h",
+    "daysAgo": "Il y a {{count}} j",
+    "chatOnlyWithFriends": "Vous ne pouvez discuter qu'avec vos amis",
+    "sendMessageError": "Impossible d'envoyer le message",
+    "retry": "Réessayer"
   },
   "common": {
     "loading": "Chargement...",
     "error": "Une erreur est survenue",
+    "retry": "Réessayer",
     "save": "Enregistrer",
     "cancel": "Annuler",
     "creating": "Création..."
