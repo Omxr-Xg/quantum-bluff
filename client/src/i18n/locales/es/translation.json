@@ -96,15 +96,27 @@
     "addAsFriend": "Añadir como amigo",
     "requestSentTo": "Solicitud enviada a {{username}}",
     "writeMessage": "Escribe tu mensaje...",
+    "justNow": "Ahora mismo",
+    "minutesAgo": "Hace {{count}} min",
+    "hoursAgo": "Hace {{count}} h",
+    "daysAgo": "Hace {{count}} días",
+    "noMessagesYet": "Sin mensajes. ¡Comienza la conversación!",
+    "noMessagesYet": "Sin mensajes. ¡Comienza la conversación!",
+    "noMessagesYet": "Sin mensajes. ¡Inicia la conversación!",
+    "noMessages": "Sin mensajes. ¡Inicia la conversación!",
     "gamesCount": "{{count}} partidas",
-    "send": "Enviar"
+    "send": "Enviar",
+    "chatOnlyWithFriends": "Solo puedes chatear con tus amigos",
+    "sendMessageError": "Error al enviar el mensaje"
   },
   "common": {
     "loading": "Cargando...",
     "error": "Ha ocurrido un error",
+    "retry": "Reintentar",
     "save": "Guardar",
     "cancel": "Cancelar",
-    "creating": "Guardando..."
+    "creating": "Guardando...",
+    "retry": "Reintentar"
   },
   "auth": {
     "title": "Quantum Bluff",
@@ -291,9 +303,27 @@
     "raiseDesc": "Subir la apuesta",
     "addCredits": "Añadir créditos"
   },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "Sin notificaciones",
+    "gameInvitations": "Invitaciones de partida",
+    "friendRequests": "Solicitudes de amistad"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "Sin notificaciones",
+    "gameInvitations": "Invitaciones a jugar",
+    "friendRequests": "Solicitudes de amistad"
+  },
   "invitation": {
     "title": "{{username}} te ha invitado a jugar!",
     "accept": "Unirse",
     "reject": "Rechazar"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "Sin notificaciones",
+    "gameInvitations": "Invitaciones de partida",
+    "friendRequests": "Solicitudes de amistad"
   }
 }

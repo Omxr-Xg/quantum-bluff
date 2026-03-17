@@ -1,14 +1,19 @@
 import { ReactNode, useEffect, useState } from "react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X } from "lucide-react";
+import { Bell, X, User, Users, LogOut, Plus } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
 import { useMusic } from "../contexts/MusicContext";
+import { getUserBalance, addToUserBalance, syncBalanceToServer } from "../utils/userProfile";
 import { Toast } from "./Toast";
 import { MusicPlayer } from "./MusicPlayer";
 import { InvitationBanner } from "./InvitationBanner";
+import { NotificationCenter } from "./NotificationCenter";
+import { LanguageSwitcher } from "./LanguageSwitcher";
+
+const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
 interface LayoutProps {
   children: ReactNode;
@@ -16,6 +21,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { socket, isConnected, connect } = useSocket();
   const { toasts, removeToast } = useToast();
@@ -24,6 +30,20 @@ export function Layout({ children }: LayoutProps) {
     id: number;
     message: string;
   } | null>(null);
+  const [balance, setBalance] = useState(getUserBalance());
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
+  const [devValidation, setDevValidation] = useState("");
+  const [addSuccess, setAddSuccess] = useState(false);
+
+  useEffect(() => {
+    setBalance(getUserBalance());
+  }, [location.pathname]);
+  useEffect(() => {
+    const onFocus = () => setBalance(getUserBalance());
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   useEffect(() => {
     if (!isConnected) {
@@ -83,9 +103,135 @@ export function Layout({ children }: LayoutProps) {
     return () => clearTimeout(timer);
   }, [notification]);
 
+  const openAddMoney = () => {
+    setShowAddMoney(true);
+    setAddMoneyAmount(null);
+    setDevValidation("");
+    setAddSuccess(false);
+  };
+  const closeAddMoney = () => {
+    setShowAddMoney(false);
+    setBalance(getUserBalance());
+  };
+  const submitAddMoney = () => {
+    if (addMoneyAmount == null) return;
+    if (devValidation.trim().toLowerCase() !== "dev") return;
+    const newBalance = addToUserBalance(addMoneyAmount);
+    setBalance(newBalance);
+    syncBalanceToServer().catch(() => {});
+    setAddSuccess(true);
+    setTimeout(closeAddMoney, 800);
+  };
+
   const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
+  const isAuthPage = location.pathname === "/" || location.pathname === "/login" || location.pathname === "/register";
+  const showTopBar = !isAuthPage && localStorage.getItem("token");
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {showTopBar && (
+        <div className="fixed top-0 left-0 right-0 z-[150] flex items-center justify-between gap-2 px-4 py-3 bg-slate-900/95 border-b border-slate-700">
+          <div className="flex items-center gap-2" />
+          <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
+            <LanguageSwitcher />
+            <div className="flex items-center bg-slate-800 rounded-xl border border-slate-600 overflow-hidden shrink-0 h-10 md:h-12">
+              <span className="px-3 py-2 text-white font-bold text-sm whitespace-nowrap">
+                {balance.toLocaleString()} 💰
+              </span>
+              <button
+                type="button"
+                onClick={openAddMoney}
+                className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 h-full border-l border-slate-600 transition"
+                title={t("lobby.addMoney")}
+              >
+                <Plus className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
+            </div>
+            <NotificationCenter />
+            <button
+              onClick={() => navigate("/profile")}
+              className="bg-green-600 hover:bg-green-500 p-2 md:p-3 rounded-xl text-white transition shrink-0 h-10 md:h-12 flex items-center justify-center"
+              title={t("lobby.profile")}
+            >
+              <User className="w-5 h-5 md:w-6 md:h-6" />
+            </button>
+            <button
+              onClick={() => navigate("/friends")}
+              className="bg-blue-600 hover:bg-blue-500 p-2 md:p-3 rounded-xl text-white transition shrink-0 h-10 md:h-12 flex items-center justify-center"
+              title={t("lobby.manageFriends")}
+            >
+              <Users className="w-5 h-5 md:w-6 md:h-6" />
+            </button>
+            <button
+              onClick={() => navigate("/")}
+              className="bg-red-600 hover:bg-red-500 p-2 md:p-3 rounded-xl text-white transition shrink-0 h-10 md:h-12 flex items-center justify-center"
+              title={t("lobby.logout")}
+            >
+              <LogOut className="w-5 h-5 md:w-6 md:h-6" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ajouter des jetons */}
+      {showTopBar && showAddMoney && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
+          <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">{t("lobby.addMoneyTitle")}</h3>
+              <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {addSuccess ? (
+              <p className="text-green-400 font-medium text-center py-4">{t("lobby.captchaSuccess")}</p>
+            ) : (
+              <>
+                <p className="text-slate-300 text-sm mb-3">{t("lobby.chooseAmount")}</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {ADD_MONEY_PRESETS.map((amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      onClick={() => setAddMoneyAmount(amount)}
+                      className={`px-4 py-2 rounded-lg font-bold transition ${
+                        addMoneyAmount === amount
+                          ? "bg-yellow-500 text-slate-900"
+                          : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                      }`}
+                    >
+                      {amount.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+                {addMoneyAmount != null && (
+                  <div className="space-y-2">
+                    <label className="text-slate-300 text-sm block">{t("lobby.devValidation") || 'Tapez "dev" pour valider'}</label>
+                    <input
+                      type="text"
+                      value={devValidation}
+                      onChange={(e) => setDevValidation(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
+                      placeholder="dev"
+                      className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={submitAddMoney}
+                      disabled={devValidation.trim().toLowerCase() !== "dev"}
+                      className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
+                    >
+                      {t("lobby.validate")}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {!isGamePage && <MusicPlayer />}
       <AnimatePresence>
         {toasts.map((toast) => (
@@ -127,7 +273,7 @@ export function Layout({ children }: LayoutProps) {
 
       <InvitationBanner />
 
-      <div className="min-h-screen w-full">
+      <div className={`min-h-screen w-full ${showTopBar ? "pt-14 md:pt-16" : ""}`}>
         {children}
       </div>
     </div>

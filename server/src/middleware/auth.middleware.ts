@@ -15,7 +15,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
 
     const decoded = verifyToken(token) as { userId: string }
 
-    req.userId = decoded.userId
+    req.userId = String(decoded.userId)
 
     next()
 
