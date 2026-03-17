@@ -21,6 +21,8 @@ import { connectDB } from './config/database.js'
 
 const app = express()
 
+app.set('trust proxy', 1) 
+
 const FRONTEND_ORIGINS: string[] = process.env.CORS_ORIGIN
   ? JSON.parse(process.env.CORS_ORIGIN)
   : [
