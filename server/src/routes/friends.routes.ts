@@ -1,4 +1,6 @@
 import express from 'express'
+import path from 'path'
+import fs from 'fs'
 import type { Server } from 'socket.io'
 import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
@@ -6,6 +8,21 @@ import { authMiddleware } from '../middleware/auth.middleware.js'
 import { searchUserSchema, friendRequestSchema, updateRequestSchema } from '../validation/friends.validation.js'
 
 const router = express.Router()
+
+// #region agent log
+const _log500 = (method: string, ctx: Record<string, unknown>, err: unknown) => {
+  const msg = err instanceof Error ? err.message : String(err)
+  const name = err instanceof Error ? err.name : 'Unknown'
+  const payload = { sessionId: 'bc6f20', method, ...ctx, errorMessage: msg, errorName: name, timestamp: Date.now() }
+  fetch('http://127.0.0.1:7455/ingest/a5f146bd-eb1c-4b6d-8988-e596e0518ead', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bc6f20' },
+    body: JSON.stringify(payload)
+  }).catch(() => {})
+  const logPath = path.join(process.cwd(), '..', '.cursor', 'debug-messages-500.ndjson')
+  try { fs.appendFileSync(logPath, JSON.stringify(payload) + '\n') } catch { /* ignore */ }
+}
+// #endregion
 
 router.use(authMiddleware)
 
@@ -59,6 +76,9 @@ messagesRouter.get('/', async (req, res) => {
     })
     res.json(messages)
   } catch (error) {
+    // #region agent log
+    _log500('GET', { userId, friendId: friendIdStr }, error)
+    // #endregion
     console.error('GET /api/friends/messages error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
@@ -106,6 +126,9 @@ messagesRouter.post('/', async (req, res) => {
     }
     res.json(message)
   } catch (error) {
+    // #region agent log
+    _log500('POST', { senderId, receiverId: receiverIdStr }, error)
+    // #endregion
     console.error('POST /api/friends/messages error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
