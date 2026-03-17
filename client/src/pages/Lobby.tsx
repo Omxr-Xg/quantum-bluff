@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bot, Server, Loader2, X, Trash2, Lock, Globe, Minus } from "lucide-react";
+import { Bot, Server, Loader2, X, Trash2, Lock, Globe, Minus, Plus } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
