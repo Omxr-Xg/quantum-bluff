@@ -59,11 +59,17 @@ export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
     baseUrl: (() => {
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const base = (import.meta.env.VITE_API_URL ?? '').toString().replace(/\/$/, '');
-      // En dev: proxy Vite sur /api. En prod: origin + base path si défini
-      if (import.meta.env.DEV) return `${origin}/api`;
-      return base ? `${origin}${base}/api` : `${origin}/api`;
+      // 1. En Dev local (npm run dev) : on utilise le proxy Vite (qui pointe vers ton docker local)
+      if (import.meta.env.DEV) {
+        return '/api'; 
+      }
+      
+      // 2. En Prod (npm run build/preview, Electron, Capacitor) :
+      // On prend l'IP de la VM depuis .env.production
+      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+      
+      // On retourne l'URL absolue complète
+      return `${apiUrl}/api`;
     })(),
     fetchFn: fetchWithRetry,
     prepareHeaders: (headers) => {
