@@ -66,6 +66,7 @@ export function Game() {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode");
   const gameIdParam = searchParams.get("gameId");
+  const isSpectating = searchParams.get("spectate") === "1";
   const isBotMode = mode === "bot";
   const { userId } = useUser();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
@@ -171,6 +172,14 @@ export function Game() {
   /** Multi: host peut relancer avec les mêmes membres */
   const [isRematchHost, setIsRematchHost] = useState(false);
   const [rematchLoading, setRematchLoading] = useState(false);
+  /** Cash game: countdown entre les mains (timestamp de fin) */
+  const [cashCountdownEndsAt, setCashCountdownEndsAt] = useState<number | null>(null);
+  /** Cash game: sièges de la table */
+  const [cashSeats, setCashSeats] = useState<{ seatIndex: number; userId: string | null; username: string | null; chips: number }[]>([]);
+  /** Cash game: en attente de joueurs (< 2) */
+  const [cashWaitingPlayers, setCashWaitingPlayers] = useState(false);
+  /** Spectateur : inscrit pour rejoindre à la prochaine manche */
+  const [spectatorWantsToRejoin, setSpectatorWantsToRejoin] = useState(false);
   /** Skip la révélation du showdown : appelle cette ref pour passer au résultat */
   const showdownSkipRef = useRef<(() => void) | null>(null);
   /** Multi: timeouts pour l'animation du flop carte par carte */
@@ -509,8 +518,9 @@ export function Game() {
   }, [location.state, isBotMode]);
 
   // Multijoueur : récupérer l'état du jeu depuis le backend (évite race localStorage + cartes / phase / pot)
+  // Spectateurs : pas de fetch HTTP, l'état vient du socket JOIN_SPECTATE
   useEffect(() => {
-    if (!gameIdParam || !userId) return;
+    if (!gameIdParam || isSpectating || !userId) return;
     const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
     const url = `${baseUrl}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
     let cancelled = false;
@@ -585,12 +595,17 @@ export function Game() {
         if (!cancelled) console.error("Erreur récupération état partie:", err);
       });
     return () => { cancelled = true; };
-  }, [gameIdParam, userId, navigate]);
+  }, [gameIdParam, userId, navigate, isSpectating]);
 
   // Rejoindre la room socket pour recevoir GAME_UPDATE, TURN_TIMER, GAME_CHAT
   useEffect(() => {
-    if (!socket || !gameIdParam || !userId) return;
-    socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+    if (!socket || !gameIdParam) return;
+    if (isSpectating) {
+      socket.emit("JOIN_SPECTATE", { gameId: gameIdParam });
+    } else {
+      if (!userId) return;
+      socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+    }
 
     const onChatMessage = (data: { playerId: string; playerName: string; content: string; type: "emoji" | "text" }) => {
       const id = Date.now();
@@ -627,11 +642,12 @@ export function Game() {
       socket.off("GAME_CHAT", onChatMessage);
       socket.off("ERROR", onError);
     };
-  }, [socket, gameIdParam, userId, navigate, addToast, t]);
+  }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating]);
 
   // Appliquer les mises à jour d'état envoyées par le serveur (après une action)
   useEffect(() => {
-    if (!socket || !gameIdParam || !userId) return;
+    if (!socket || !gameIdParam) return;
+    if (!isSpectating && !userId) return;
     const phaseMap: Record<string, GamePhase> = {
       WAITING: "init",
       PREFLOP: "preflop",
@@ -641,14 +657,27 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number }) => {
+    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[] }) => {
       gameStateFromSocketRef.current = true;
+      if (gameState.cashCountdownEndsAt != null) setCashCountdownEndsAt(gameState.cashCountdownEndsAt);
+      if (gameState.cashSeats && Array.isArray(gameState.cashSeats)) {
+        setCashSeats(gameState.cashSeats);
+        // Spectateur assis via processRejoinQueue → passer en mode joueur (rediriger sans spectate=1)
+        if (isSpectating && userId && gameState.cashSeats.some((s) => s.userId && String(s.userId) === String(userId))) {
+          navigate(`/game?gameId=${gameIdParam}`, { replace: true });
+          return;
+        }
+      }
+      if (!gameState.cashCountdownEndsAt && gameState.phase !== "WAITING") setCashCountdownEndsAt(null);
+      if (gameState.spectatorRejoinQueue && Array.isArray(gameState.spectatorRejoinQueue)) {
+        setSpectatorWantsToRejoin(gameState.spectatorRejoinQueue.includes(String(userId)));
+      }
       const players = gameState.players ?? [];
       setPlayersState((prev) => {
-        const myCardsFromPrev = prev.find((p) => String(p.id) === String(userId))?.cards ?? [];
+        const myCardsFromPrev = isSpectating ? [] : (prev.find((p) => String(p.id) === String(userId))?.cards ?? []);
         const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
         const mapped = players.map((p, index) => {
-          const isMe = String(p.id) === String(userId);
+          const isMe = !isSpectating && String(p.id) === String(userId);
           const serverCardsRaw = Array.isArray(p.cards) ? p.cards : [];
           const serverCards = serverCardsRaw.map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0])).filter((c): c is Card => c !== null);
           const myCards = isMe && serverCards.length > 0 ? serverCards : (isMe ? myCardsFromPrev : serverCards);
@@ -698,13 +727,13 @@ export function Game() {
       setIsLoading(false);
       setRoundPlayersActed(new Set());
 
-      const humanServerChips = players.find((p) => String(p.id) === String(userId))?.chips;
+      const humanServerChips = !isSpectating ? players.find((p) => String(p.id) === String(userId))?.chips : undefined;
       if (humanServerChips != null) {
         setPlayerChips(humanServerChips);
       }
 
       const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
-      if (phase === "showdown") {
+      if (phase === "showdown" && !isSpectating) {
         setTimerActive(false);
       } else if (currentTurnId === String(userId)) {
         setTimerActive(true);
@@ -760,11 +789,20 @@ export function Game() {
       }
     };
     socket.on("GAME_ENDED", onGameEnded);
+    const onCashWaiting = (state: { cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[] }) => {
+      setCashWaitingPlayers(true);
+      if (state.cashSeats) setCashSeats(state.cashSeats);
+    };
+    socket.on("CASH_WAITING_PLAYERS", onCashWaiting);
+    const onQueueStatus = (data: { queued: boolean }) => setSpectatorWantsToRejoin(data.queued);
+    socket.on("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     return () => {
       socket.off("GAME_UPDATE", onGameUpdate);
       socket.off("GAME_ENDED", onGameEnded);
+      socket.off("CASH_WAITING_PLAYERS", onCashWaiting);
+      socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     };
-  }, [socket, gameIdParam, userId]);
+  }, [socket, gameIdParam, userId, isSpectating]);
 
   // Multi: fetch room-info quand handResult pour afficher bouton rematch au host
   useEffect(() => {
@@ -777,6 +815,15 @@ export function Game() {
       })
       .catch(() => {});
   }, [handResult, gameIdParam, isBotMode, userId]);
+
+  // Cash game: tick countdown pour afficher les secondes restantes
+  const [cashCountdownTick, setCashCountdownTick] = useState(0);
+  useEffect(() => {
+    if (!cashCountdownEndsAt) return;
+    const iv = setInterval(() => setCashCountdownTick((t) => t + 1), 1000);
+    return () => clearInterval(iv);
+  }, [cashCountdownEndsAt]);
+  const cashCountdownSecs = cashCountdownEndsAt ? Math.max(0, Math.ceil((cashCountdownEndsAt - Date.now()) / 1000)) : 0;
 
   // Multi: écouter REMATCH_CREATED pour rediriger vers la nouvelle salle
   useEffect(() => {
@@ -2511,6 +2558,51 @@ export function Game() {
         onClose={() => setShowAccessibilityMenu(false)} 
       />
 
+      {/* Bannière Cash Game : countdown ou attente joueurs */}
+      {gameIdParam && !isBotMode && (cashCountdownEndsAt || cashWaitingPlayers) && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2">
+          <div className="bg-slate-800/95 border border-emerald-500/50 rounded-xl px-6 py-3 shadow-lg">
+            {cashWaitingPlayers ? (
+              <p className="text-emerald-300 font-semibold">En attente de joueurs...</p>
+            ) : cashCountdownSecs > 0 ? (
+              <p className="text-white font-semibold">Nouvelle main dans {cashCountdownSecs} secondes...</p>
+            ) : null}
+          </div>
+          {cashCountdownEndsAt && !cashWaitingPlayers && (
+            <div className="flex gap-2 flex-wrap justify-center">
+              {!cashSeats.some((s) => s.userId === userId) ? (
+                cashSeats.some((s) => !s.userId) && (
+                  <button
+                    onClick={() => {
+                      const free = cashSeats.findIndex((s) => !s.userId);
+                      if (free >= 0 && socket) socket.emit("CASH_SIT", { gameId: gameIdParam, seatIndex: free, buyIn: 100 });
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                  >
+                    S&apos;asseoir (100)
+                  </button>
+                )
+              ) : (
+                <>
+                  <button
+                    onClick={() => socket?.emit("CASH_LEAVE", { gameId: gameIdParam })}
+                    className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                  >
+                    Se lever
+                  </button>
+                  <button
+                    onClick={() => socket?.emit("CASH_REBUY", { gameId: gameIdParam, amount: 100 })}
+                    className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                  >
+                    Racheter (100)
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Zone centrale - Table de poker avec cartes communes */}
       <div className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
         <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase}>
@@ -2538,32 +2630,56 @@ export function Game() {
       {/* Feed de messages - En haut à gauche */}
       <MessageFeed messages={chatMessages} />
 
-      {/* Tableau de bord du joueur - EN BAS */}
-      <PlayerDashboard
-        name={heroDisplayName}
-        chips={playerChips}
-        cards={heroCards}
-        onFold={() => handleFold()}
-        onCall={(amount) => handleCall(amount)}
-        onRaise={(amount) => handleRaise(amount)}
-        onCheck={() => handleCheck()}
-        callAmount={callAmount}
-        minRaise={50}
-        maxRaise={Math.max(0, playerChips - callAmount)}
-        isMyTurn={handResult === null && isMyTurn}
-        isLoading={isLoading}
-        hasFolded={hasFoldedFromState}
-        hasActed={hasPlayerActed}
-        actionsDisabled={Boolean(gameIdParam && !socket)}
-        waitingForPlayer={!isMyTurn && !hasFoldedFromState ? activePlayer?.name : undefined}
-        timeLeft={timeLeft ?? 30}
-        onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
-        onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
-        onToggleChat={() => setIsChatOpen(!isChatOpen)}
-        isQuantumOpen={isQuantumOpen}
-        isHiddenBetsOpen={isPanelOpen}
-        isChatOpen={isChatOpen}
-      />
+      {/* Bouton spectateur : rejoindre à la prochaine manche (toggle) - affiché dès qu'on specte un cash game */}
+      {isSpectating && gameIdParam && !isBotMode && cashSeats.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30">
+          <button
+            onClick={() => {
+              if (spectatorWantsToRejoin) {
+                socket?.emit("SPECTATOR_QUEUE_LEAVE", { gameId: gameIdParam });
+              } else {
+                socket?.emit("SPECTATOR_QUEUE_JOIN", { gameId: gameIdParam });
+              }
+            }}
+            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+              spectatorWantsToRejoin
+                ? "bg-amber-600 hover:bg-amber-500 text-white"
+                : "bg-emerald-600 hover:bg-emerald-500 text-white"
+            }`}
+          >
+            {spectatorWantsToRejoin ? t("game.cancelRejoinNextHand") : t("game.rejoinNextHand")}
+          </button>
+        </div>
+      )}
+
+      {/* Tableau de bord du joueur - EN BAS (masqué en mode spectateur) */}
+      {!isSpectating && (
+        <PlayerDashboard
+          name={heroDisplayName}
+          chips={playerChips}
+          cards={heroCards}
+          onFold={() => handleFold()}
+          onCall={(amount) => handleCall(amount)}
+          onRaise={(amount) => handleRaise(amount)}
+          onCheck={() => handleCheck()}
+          callAmount={callAmount}
+          minRaise={50}
+          maxRaise={Math.max(0, playerChips - callAmount)}
+          isMyTurn={handResult === null && isMyTurn}
+          isLoading={isLoading}
+          hasFolded={hasFoldedFromState}
+          hasActed={hasPlayerActed}
+          actionsDisabled={Boolean(gameIdParam && !socket)}
+          waitingForPlayer={!isMyTurn && !hasFoldedFromState ? activePlayer?.name : undefined}
+          timeLeft={timeLeft ?? 30}
+          onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
+          onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
+          onToggleChat={() => setIsChatOpen(!isChatOpen)}
+          isQuantumOpen={isQuantumOpen}
+          isHiddenBetsOpen={isPanelOpen}
+          isChatOpen={isChatOpen}
+        />
+      )}
 
       {/* Modal d'aide du jeu (affiché quand on clique sur le "?") */}
       {showGameHelp && (

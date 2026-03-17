@@ -52,13 +52,15 @@ cd ..
 
 ### 4. Migrations Prisma (obligatoire)
 
-Sans ces migrations, inscription et connexion renverront une erreur 500 :
+Sans ces migrations, inscription, connexion et messages entre amis renverront une erreur 500 :
 
 ```bash
 cd server
 npx prisma migrate deploy
 cd ..
 ```
+
+> **Après un `git pull`** : ré-exécuter `npx prisma migrate deploy` pour appliquer les nouvelles tables (ex. FriendMessage).
 
 ### 5. Dépendances
 
@@ -89,6 +91,7 @@ Ouvrir **http://localhost:5173** (ou l’URL indiquée dans le terminal).
 | Problème | Solution |
 |----------|----------|
 | Erreur 500 à l’inscription | Exécuter `cd server && npx prisma migrate deploy` et vérifier que PostgreSQL tourne. |
+| Erreur 500 sur les messages entre amis | La table `FriendMessage` manque : exécuter `cd server && npx prisma migrate deploy`. |
 | La base ne démarre pas | Vérifier que Docker est lancé, puis `cd database && docker-compose up -d`. |
 | `DATABASE_URL` manquant | Copier `server/.env.example` vers `server/.env` et le configurer. |
 | Port déjà utilisé | Arrêter le processus qui utilise le port 3000 ou 5173. |

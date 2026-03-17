@@ -8,6 +8,9 @@
     "creating": "Création...",
     "configureAndPlay": "Configurer & Jouer",
     "multiplayerServers": "Serveurs Multi-joueurs",
+    "waitingRooms": "Salles d'attente",
+    "gamesInProgress": "Parties en cours",
+    "spectate": "Spectateur",
     "serversAvailable": "Serveurs disponibles (max 5 joueurs) :",
     "noServersAvailable": "Aucun serveur disponible",
     "playersCount": "{{count}}/{{max}} joueurs",
@@ -36,7 +39,7 @@
     "validateCreate": "Créer la salle",
     "requestJoin": "Demander à rejoindre",
     "requestSent": "Demande envoyée !",
-    "roomFull": "Room is full"
+    "roomFull": "Complet"
   },
   "game": {
     "yourTurn": "À VOTRE TOUR",
@@ -55,7 +58,9 @@
     "goToHiddenBets": "Passer au hidden bets",
     "backToLobby": "Retourner au lobby",
     "replaySameConfig": "Rejouer avec la même configuration",
-    "rematchSameMembers": "Rejouer avec les mêmes membres"
+    "rematchSameMembers": "Rejouer avec les mêmes membres",
+    "rejoinNextHand": "Rejoindre à la prochaine manche",
+    "cancelRejoinNextHand": "Annuler"
   },
   "friends": {
     "title": "Mes Amis",

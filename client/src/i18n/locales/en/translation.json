@@ -8,6 +8,9 @@
     "creating": "Creating...",
     "configureAndPlay": "Configure & Play",
     "multiplayerServers": "Multi-player Servers",
+    "waitingRooms": "Waiting rooms",
+    "gamesInProgress": "Games in progress",
+    "spectate": "Spectate",
     "serversAvailable": "Available servers (max 5 players):",
     "noServersAvailable": "No servers available",
     "playersCount": "{{count}}/{{max}} players",
@@ -55,7 +58,9 @@
     "goToHiddenBets": "Go to hidden bets",
     "backToLobby": "Back to lobby",
     "replaySameConfig": "Replay with same configuration",
-    "rematchSameMembers": "Replay with same members"
+    "rematchSameMembers": "Replay with same members",
+    "rejoinNextHand": "Join next hand",
+    "cancelRejoinNextHand": "Cancel"
   },
   "friends": {
     "title": "My Friends",

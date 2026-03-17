@@ -8,6 +8,9 @@
     "creating": "Creando...",
     "configureAndPlay": "Configurar y Jugar",
     "multiplayerServers": "Servidores Multijugador",
+    "waitingRooms": "Salas de espera",
+    "gamesInProgress": "Partidas en curso",
+    "spectate": "Espectador",
     "serversAvailable": "Servidores disponibles (máx. 5 jugadores):",
     "noServersAvailable": "Ningún servidor disponible",
     "playersCount": "{{count}}/{{max}} jugadores",
@@ -55,7 +58,9 @@
     "goToHiddenBets": "Ir a hidden bets",
     "backToLobby": "Volver al lobby",
     "replaySameConfig": "Rejugar con la misma configuración",
-    "rematchSameMembers": "Rejugar con los mismos miembros"
+    "rematchSameMembers": "Rejugar con los mismos miembros",
+    "rejoinNextHand": "Unirse a la próxima mano",
+    "cancelRejoinNextHand": "Cancelar"
   },
   "friends": {
     "title": "Mis Amigos",

@@ -18,7 +18,7 @@ export class GameTable {
   private readonly smallBlindAmount: number
   private readonly bigBlindAmount: number
 
-  constructor(id: string, players: Player[]) {
+  constructor(id: string, players: Player[], options?: { smallBlind?: number; bigBlind?: number }) {
     this.id = id
     this.deck = new Deck()
     this.dealerIndex = 0
@@ -26,8 +26,8 @@ export class GameTable {
     this.actedPlayerIds = new Set()
     this.lastRaiserId = null
     this.handStarted = false
-    this.smallBlindAmount = 10
-    this.bigBlindAmount = 20
+    this.smallBlindAmount = options?.smallBlind ?? 10
+    this.bigBlindAmount = options?.bigBlind ?? 20
 
     this.state = {
       id,

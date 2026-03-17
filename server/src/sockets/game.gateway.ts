@@ -5,6 +5,7 @@ import { logSuspiciousAction } from '../utils/securityLogger.js'
 import { AntiCheatMonitor } from '../utils/antiCheat.js'
 import { prisma } from '../config/database.js'
 import type { GameTable } from '../logic/GameTable.js'
+import { CashGameController } from '../logic/CashGameController.js'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -189,6 +190,57 @@ export class GameGateway {
         }
       })
 
+      socket.on('JOIN_SPECTATE', async (data: { gameId: string }) => {
+        try {
+          const { gameId } = data
+          socket.join(gameId)
+          socket.gameId = gameId
+
+          const game = await activeGames.get(gameId)
+          if (game) {
+            socket.emit('GAME_UPDATE', game.getSanitizedState())
+            console.log(`👁️ Spectateur a rejoint la partie ${gameId}`)
+          } else {
+            socket.emit('ERROR', {
+              code: 'GAME_NOT_FOUND',
+              message: 'Partie introuvable'
+            })
+          }
+        } catch (error) {
+          console.error('Erreur JOIN_SPECTATE:', error)
+          socket.emit('ERROR', {
+            code: 'SPECTATE_ERROR',
+            message: 'Erreur lors de la connexion en spectateur'
+          })
+        }
+      })
+
+      socket.on('SPECTATOR_QUEUE_JOIN', async (data: { gameId: string }) => {
+        try {
+          const { gameId } = data
+          if (!socket.userId || !gameId || socket.gameId !== gameId) return
+          const game = await activeGames.get(gameId)
+          if (!(game instanceof CashGameController)) return
+          game.addSpectatorToRejoinQueue(socket.userId)
+          socket.emit('SPECTATOR_QUEUE_STATUS', { queued: true })
+        } catch (err) {
+          console.error('Erreur SPECTATOR_QUEUE_JOIN:', err)
+        }
+      })
+
+      socket.on('SPECTATOR_QUEUE_LEAVE', async (data: { gameId: string }) => {
+        try {
+          const { gameId } = data
+          if (!socket.userId || !gameId || socket.gameId !== gameId) return
+          const game = await activeGames.get(gameId)
+          if (!(game instanceof CashGameController)) return
+          game.removeSpectatorFromRejoinQueue(socket.userId)
+          socket.emit('SPECTATOR_QUEUE_STATUS', { queued: false })
+        } catch (err) {
+          console.error('Erreur SPECTATOR_QUEUE_LEAVE:', err)
+        }
+      })
+
       socket.on('PLAYER_ACTION', async (data: { 
         gameId: string; 
         playerId: string; 
@@ -279,7 +331,8 @@ export class GameGateway {
             return
           }
 
-          if (action === 'RAISE' && (!amount || amount < 20)) {
+          const minRaise = game instanceof CashGameController ? 2 : 20
+          if (action === 'RAISE' && (!amount || amount < minRaise)) {
             logSuspiciousAction('INVALID_RAISE', {
               userId: socket.userId,
               socketId: socket.id,
@@ -290,7 +343,7 @@ export class GameGateway {
 
             socket.emit('ERROR', {
               code: 'INVALID_RAISE',
-              message: 'La relance minimum est de 20'
+              message: `La relance minimum est de ${minRaise}`
             })
             return
           }
@@ -301,13 +354,34 @@ export class GameGateway {
           const socketsInRoom = await this.io.in(gameId).fetchSockets()
           for (const s of socketsInRoom) {
             const uid = (s as unknown as AuthenticatedSocket).userId
-            s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+            const isSpectator = !game.getPlayerState(uid ?? '')
+            s.emit('GAME_UPDATE', game.getSanitizedState(isSpectator ? undefined : uid))
           }
 
-          if (game.state.phase === 'SHOWDOWN' && game.state.showdownWinnerId) {
-            this.recordMultiPlayerStats(game).catch((err) =>
-              console.error('[Stats] Erreur enregistrement stats multi:', err)
-            )
+          if (game.state.phase === 'SHOWDOWN') {
+            const innerGame = game instanceof CashGameController ? game.getGameTable() : game
+            if (innerGame && game.state.showdownWinnerId) {
+              this.recordMultiPlayerStats(innerGame as GameTable).catch((err) =>
+                console.error('[Stats] Erreur enregistrement stats multi:', err)
+              )
+            }
+            if (game instanceof CashGameController) {
+              const cashGame = game as CashGameController
+              cashGame.onHandComplete()
+              await cashGame.processRejoinQueue(async (uid) => {
+                const u = await prisma.user.findUnique({
+                  where: { id: uid },
+                  select: { username: true, chips: true }
+                })
+                return u ? { username: u.username, chips: Math.max(100, u.chips ?? 1000) } : null
+              })
+              const socketsInRoom2 = await this.io.in(gameId).fetchSockets()
+              for (const s of socketsInRoom2) {
+                const uid = (s as unknown as AuthenticatedSocket).userId
+                s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+              }
+            }
+            // Pas de startTurnTimer en SHOWDOWN (partie terminée pour one-shot, ou countdown pour cash game)
           } else {
             this.startTurnTimer(gameId)
           }
@@ -336,6 +410,73 @@ export class GameGateway {
         if (!gameId || !playerId || !content || !socket.gameId || socket.gameId !== gameId) return
         if (socket.userId !== playerId) return
         socket.broadcast.to(gameId).emit('GAME_CHAT', { playerId, playerName, content, type })
+      })
+
+      socket.on('CASH_SIT', async (data: { gameId: string; seatIndex: number; buyIn: number }) => {
+        try {
+          const { gameId, seatIndex, buyIn } = data
+          if (!socket.userId || !gameId || socket.gameId !== gameId) return
+          const game = await activeGames.get(gameId)
+          if (!(game instanceof CashGameController)) return
+          const user = await prisma.user.findUnique({
+            where: { id: socket.userId },
+            select: { username: true }
+          })
+          const result = game.sit(socket.userId, user?.username ?? 'Joueur', seatIndex, buyIn ?? 100)
+          if (!result.ok) {
+            socket.emit('ERROR', { code: 'CASH_SIT_FAILED', message: result.error })
+            return
+          }
+          const socketsInRoom = await this.io.in(gameId).fetchSockets()
+          for (const s of socketsInRoom) {
+            const uid = (s as unknown as AuthenticatedSocket).userId
+            s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+          }
+        } catch (err) {
+          console.error('Erreur CASH_SIT:', err)
+        }
+      })
+
+      socket.on('CASH_LEAVE', async (data: { gameId: string }) => {
+        try {
+          const { gameId } = data
+          if (!socket.userId || !gameId || socket.gameId !== gameId) return
+          const game = await activeGames.get(gameId)
+          if (!(game instanceof CashGameController)) return
+          const result = game.leave(socket.userId)
+          if (!result.ok) {
+            socket.emit('ERROR', { code: 'CASH_LEAVE_FAILED', message: result.error })
+            return
+          }
+          const socketsInRoom = await this.io.in(gameId).fetchSockets()
+          for (const s of socketsInRoom) {
+            const uid = (s as unknown as AuthenticatedSocket).userId
+            s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+          }
+        } catch (err) {
+          console.error('Erreur CASH_LEAVE:', err)
+        }
+      })
+
+      socket.on('CASH_REBUY', async (data: { gameId: string; amount: number }) => {
+        try {
+          const { gameId, amount } = data
+          if (!socket.userId || !gameId || socket.gameId !== gameId) return
+          const game = await activeGames.get(gameId)
+          if (!(game instanceof CashGameController)) return
+          const result = game.rebuy(socket.userId, amount ?? 100)
+          if (!result.ok) {
+            socket.emit('ERROR', { code: 'CASH_REBUY_FAILED', message: result.error })
+            return
+          }
+          const socketsInRoom = await this.io.in(gameId).fetchSockets()
+          for (const s of socketsInRoom) {
+            const uid = (s as unknown as AuthenticatedSocket).userId
+            s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+          }
+        } catch (err) {
+          console.error('Erreur CASH_REBUY:', err)
+        }
       })
 
       socket.on('RECONNECT_GAME', async (data: { gameId: string }) => {
