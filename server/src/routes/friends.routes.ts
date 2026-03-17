@@ -7,36 +7,11 @@ import { searchUserSchema, friendRequestSchema, updateRequestSchema } from '../v
 
 const router = express.Router()
 
-// #region agent log
-const _dbg = (loc: string, msg: string, data: Record<string, unknown>, h: string) => {
-  fetch('http://127.0.0.1:7455/ingest/a5f146bd-eb1c-4b6d-8988-e596e0518ead', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bc6f20' },
-    body: JSON.stringify({
-      sessionId: 'bc6f20',
-      location: `friends.routes.ts:${loc}`,
-      message: msg,
-      data,
-      timestamp: Date.now(),
-      hypothesisId: h
-    })
-  }).catch(() => {})
-}
-// #endregion
-
 router.use(authMiddleware)
-
-router.use((req, _res, next) => {
-  // #region agent log
-  _dbg('mw', 'Friends route hit', { path: req.path, baseUrl: req.baseUrl, url: req.url }, 'C')
-  // #endregion
-  next()
-})
 
 // Messages: défini et monté EN PREMIER pour éviter que "messages" soit capté par /:userId
 const messagesRouter = express.Router({ mergeParams: true })
 messagesRouter.get('/', async (req, res) => {
-  _dbg('friends.routes.ts:GET/messages', 'messagesRouter.get hit', { path: req.path, friendId: req.query?.friendId }, 'B');
   const userId = String(req.userId ?? '').trim()
   const { friendId } = req.query
   if (!userId) return res.status(401).json({ error: 'Non authentifié' })
@@ -465,9 +440,6 @@ router.get('/:userId', async (req, res) => {
   const { userId } = req.params
 
   if (String(req.userId) !== String(userId)) {
-    // #region agent log
-    _dbg('getUserId', 'GET /:userId returned 403', { paramUserId: userId, reqUserId: req.userId, path: req.path }, 'A')
-    // #endregion
     return res.status(403).json({ error: 'Accès interdit' })
   }
 
