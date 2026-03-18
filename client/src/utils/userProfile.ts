@@ -63,19 +63,56 @@ export function addToUserBalance(amount: number): number {
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
-/** Synchronise la balance locale vers le serveur (pour multijoueur). Appelé après addToUserBalance et avant démarrage de partie. */
-export async function syncBalanceToServer(): Promise<void> {
+/** Vide toutes les données d'authentification du localStorage (déconnexion) */
+export function clearAuthStorage(): void {
+  localStorage.removeItem("token");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("userid");
+  localStorage.removeItem("username");
+  localStorage.removeItem(STORAGE_KEYS.USERNAME);
+  localStorage.removeItem(STORAGE_KEYS.EMAIL);
+  localStorage.removeItem(STORAGE_KEYS.AVATAR);
+  localStorage.removeItem(STORAGE_KEYS.BALANCE);
+  localStorage.removeItem("gamePlayers");
+  localStorage.removeItem("gameId");
+  window.dispatchEvent(new Event("auth-changed"));
+}
+
+/** Récupère la balance depuis le serveur (source de vérité) et met à jour le localStorage. Retourne les chips. */
+export async function fetchBalanceFromServer(): Promise<number> {
   const token = localStorage.getItem("token");
-  if (!token) return;
-  const balance = getUserBalance();
-  const url = API_BASE ? `${API_BASE}/api/auth/sync-balance` : "/api/auth/sync-balance";
+  if (!token) return getUserBalance();
+  const url = API_BASE ? `${API_BASE}/api/auth/balance` : "/api/auth/balance";
   try {
-    await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ balance }),
-    });
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return getUserBalance();
+    const data = await res.json();
+    const chips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : getUserBalance();
+    updateUserBalance(chips);
+    return chips;
   } catch {
-    // Silently ignore - multijoueur utilisera la dernière valeur serveur connue
+    return getUserBalance();
   }
+}
+
+/** Ajoute des jetons via l'API serveur (validation "dev" côté serveur). Retourne la nouvelle balance. */
+export async function addDevMoney(amount: number): Promise<number> {
+  const token = localStorage.getItem("token");
+  if (!token) return getUserBalance();
+  const url = API_BASE ? `${API_BASE}/api/auth/add-dev-money` : "/api/auth/add-dev-money";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ amount: Math.max(0, Math.floor(amount)), secret: "dev" }),
+  });
+  if (!res.ok) return getUserBalance();
+  const data = await res.json();
+  const chips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : getUserBalance();
+  updateUserBalance(chips);
+  return chips;
+}
+
+/** @deprecated Utiliser fetchBalanceFromServer. Ne plus pousser de balance client vers le serveur (sécurité). */
+export async function syncBalanceToServer(): Promise<void> {
+  await fetchBalanceFromServer();
 }

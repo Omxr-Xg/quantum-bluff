@@ -1,8 +1,11 @@
 import { GameTable } from '../logic/GameTable.js';
+import type { CashGameController } from '../logic/CashGameController.js';
 import { saveGame, getGame, deleteGame, restoreAllGames } from '../config/redis.config.js';
 
+export type ActiveGame = GameTable | CashGameController;
+
 class ActiveGamesManager {
-  private localCache: Map<string, GameTable> = new Map();
+  private localCache: Map<string, ActiveGame> = new Map();
   private useRedis: boolean = true;
 
   constructor() {
@@ -21,7 +24,7 @@ class ActiveGamesManager {
     }
   }
 
-  async get(gameId: string): Promise<GameTable | undefined> {
+  async get(gameId: string): Promise<ActiveGame | undefined> {
     // D'abord vérifier le cache local
     if (this.localCache.has(gameId)) {
       return this.localCache.get(gameId);
@@ -39,9 +42,9 @@ class ActiveGamesManager {
     return undefined;
   }
 
-  async set(gameId: string, game: GameTable): Promise<void> {
+  async set(gameId: string, game: ActiveGame): Promise<void> {
     this.localCache.set(gameId, game);
-    if (this.useRedis) {
+    if (this.useRedis && game instanceof GameTable) {
       await saveGame(gameId, game);
     }
   }
@@ -53,7 +56,7 @@ class ActiveGamesManager {
     }
   }
 
-  async getAll(): Promise<Map<string, GameTable>> {
+  async getAll(): Promise<Map<string, ActiveGame>> {
     if (this.useRedis) {
       const redisGames = await restoreAllGames();
       // Fusionner avec le cache local (priorité au cache local)
@@ -67,14 +70,13 @@ class ActiveGamesManager {
   }
 
   // Pour la compatibilité avec l'ancien code
-  getSync(gameId: string): GameTable | undefined {
+  getSync(gameId: string): ActiveGame | undefined {
     return this.localCache.get(gameId);
   }
 
-  setSync(gameId: string, game: GameTable): void {
+  setSync(gameId: string, game: ActiveGame): void {
     this.localCache.set(gameId, game);
-    // Sauvegarde asynchrone en arrière-plan
-    if (this.useRedis) {
+    if (this.useRedis && game instanceof GameTable) {
       saveGame(gameId, game).catch(err => 
         console.error('Erreur sauvegarde Redis:', err)
       );

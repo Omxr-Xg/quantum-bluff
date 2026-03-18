@@ -63,4 +63,6 @@ export interface GameState {
   showdownHandName?: string
   /** Pot attribué au showdown (pour affichage) */
   showdownPot?: number
+  /** Nombre de cartes brûlées (affichage face cachée à côté de la table) */
+  burnedCardsCount?: number
 }

@@ -80,6 +80,17 @@ app.get('/', (_req, res) => {
   res.send('🚀 Quantum Bluff API - Le serveur répond !')
 })
 
+// Middleware de gestion des erreurs non capturées (pour déboguer les 500)
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const msg = err instanceof Error ? err.message : String(err)
+  const stack = err instanceof Error ? err.stack : undefined
+  console.error('❌ Erreur non capturée:', msg, stack)
+  res.status(500).json({
+    error: 'Erreur serveur',
+    ...(process.env.NODE_ENV === 'development' && { details: msg, stack })
+  })
+})
+
 // serveur HTTP
 const httpServer = createServer(app)
 

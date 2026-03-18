@@ -33,6 +33,16 @@ export default defineConfig({
           });
         },
       },
+      // WebSocket proxy pour Socket.IO (évite ws://localhost:5173 quand le socket se connecte à l'origine)
+      '/socket.io': {
+        target: 'http://localhost:3000',
+        ws: true,
+      },
+      '/vmProjetIntegrateurgrp10-0/socket.io': {
+        target: 'http://localhost:3000',
+        ws: true,
+        rewrite: (path) => path.replace(/^\/vmProjetIntegrateurgrp10-0/, ''),
+      },
     },
   },
 })

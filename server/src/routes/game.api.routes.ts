@@ -1,18 +1,16 @@
 import express from 'express';
 import { prisma } from '../config/database.js';
-import { GameTable } from '../logic/GameTable.js';
-import type { Player } from '../types/poker.js';
+import { CashGameController } from '../logic/CashGameController.js';
 import { activeGames } from '../shared/activeGames.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// POST /api/game/start - Démarrer une partie depuis une salle d'attente
+// POST /api/game/start - Démarrer une partie continue (cash game) depuis une salle d'attente
 router.post('/start', async (req, res) => {
   try {
     const { roomId, hostId } = req.body;
 
-    // Récupérer la salle d'attente
     const waitingRoom = await prisma.waitingRoom.findUnique({
       where: { id: roomId },
       include: {
@@ -28,40 +26,48 @@ router.post('/start', async (req, res) => {
       return res.status(404).json({ error: 'Salle introuvable' });
     }
 
-    // Vérifier que c'est bien le host qui démarre
     if (waitingRoom.hostId !== hostId) {
       return res.status(403).json({ error: 'Seul le host peut démarrer la partie' });
     }
 
-    // Vérifier qu'il y a assez de joueurs
     if (waitingRoom.players.length < 2) {
       return res.status(400).json({ error: 'Minimum 2 joueurs requis' });
     }
 
-    // Convertir les utilisateurs en joueurs pour GameTable (chips = balance de chaque utilisateur)
-    const players: Player[] = waitingRoom.players.map((rp, index) => ({
-      id: rp.user.id,
-      name: rp.user.username,
-      cards: [],
-      chips: Math.max(100, rp.user.chips ?? 1000),
-      role: 'PLAYER',
-      isActive: true,
-      position: index,
-      isDealer: false,
-      isConnected: true
-    }));
-
-    // Créer une nouvelle partie
     const gameId = `game_${Date.now()}`;
-    const gameTable = new GameTable(gameId, players);
-    gameTable.startHand();
+    const cashGame = new CashGameController({
+      id: gameId,
+      roomId,
+      maxSeats: 9,
+      smallBlind: 1,
+      bigBlind: 2,
+      defaultBuyIn: 100
+    });
+    cashGame.initFromRoomPlayers(
+      waitingRoom.players.map((rp) => ({
+        userId: rp.user.id,
+        username: rp.user.username,
+        chips: Math.max(100, rp.user.chips ?? 1000)
+      }))
+    );
+    cashGame.startHand();
 
-    // Sauvegarder la partie active
-    await activeGames.set(gameId, gameTable);
+    await activeGames.set(gameId, cashGame);
 
-    // Notifier via Socket.io
-    const io = req.app.get('io');
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
     if (io) {
+      cashGame.setOnCountdownDone(async () => {
+        cashGame.startHand();
+        if (cashGame.isInHand()) {
+          const socketsInRoom = await io.in(gameId).fetchSockets();
+          for (const s of socketsInRoom) {
+            const uid = (s as { userId?: string }).userId;
+            s.emit('GAME_UPDATE', cashGame.getSanitizedState(uid));
+          }
+        } else {
+          io.to(gameId).emit('CASH_WAITING_PLAYERS', cashGame.getSanitizedState());
+        }
+      });
       io.to(roomId).emit('GAME_STARTED', { gameId });
     }
 
@@ -85,7 +91,7 @@ router.post('/start', async (req, res) => {
 
     res.json({
       gameId,
-      state: gameTable.getSanitizedState()
+      state: cashGame.getSanitizedState()
     });
 
   } catch (error) {

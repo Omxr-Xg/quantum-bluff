@@ -50,6 +50,13 @@ const registerLimiter = rateLimit({
   }
 })
 
+const checkEmailLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 const router = express.Router()
 
 const JWT_SECRET = process.env.JWT_SECRET || 'quantum_bluff_secret'
@@ -58,6 +65,24 @@ const TOKEN_EXPIRATION = '7d'
 function generateToken(userId: string) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRATION })
 }
+
+// Regex format email: xxx@yyy.zzz
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// CHECK EMAIL - Vérifie si l'email existe (pour flux login/register unifié)
+router.post('/check-email', checkEmailLimiter, async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+  if (!email || !EMAIL_FORMAT.test(email)) {
+    return res.status(400).json({ error: 'Email invalide' })
+  }
+  try {
+    const user = await prisma.user.findUnique({ where: { email } })
+    res.json({ exists: !!user })
+  } catch (error) {
+    console.error('[AUTH] check-email error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
 
 // REGISTER
 router.post('/register', registerLimiter, async (req, res) => {
@@ -196,25 +221,48 @@ router.post('/login', loginLimiter, async (req, res) => {
 
 })
 
-// Synchroniser la balance (chips) du client vers le serveur (utilisé avant une partie multijoueur)
-router.post('/sync-balance', authMiddleware, async (req, res) => {
+// GET /api/auth/balance - Récupère la balance serveur (source de vérité, jamais le client)
+router.get('/balance', authMiddleware, async (req, res) => {
   try {
     const userId = (req as express.Request & { userId?: string }).userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
-
-    const balance = typeof req.body?.balance === 'number' ? Math.max(0, Math.floor(req.body.balance)) : null
-    if (balance === null) return res.status(400).json({ error: 'balance (nombre) requis' })
-
-    await prisma.user.update({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
-      data: { chips: balance },
+      select: { chips: true }
     })
-
-    res.json({ ok: true, chips: balance })
+    if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' })
+    res.json({ chips: user.chips })
   } catch (error) {
-    console.error('sync-balance error:', error)
+    console.error('balance GET error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
+})
+
+// POST /api/auth/add-dev-money - Ajoute des jetons (validation "dev" côté serveur, pas de confiance client)
+router.post('/add-dev-money', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const secret = typeof req.body?.secret === 'string' ? req.body.secret.trim().toLowerCase() : ''
+    if (secret !== 'dev') return res.status(403).json({ error: 'Validation requise' })
+    const rawAmount = typeof req.body?.amount === 'number' ? req.body.amount : Number(req.body?.amount)
+    const amount = Math.min(999999, Math.max(1, Math.floor(Number(rawAmount))))
+    if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Montant invalide' })
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { chips: { increment: amount } },
+      select: { chips: true }
+    })
+    res.json({ ok: true, chips: user.chips })
+  } catch (error) {
+    console.error('add-dev-money error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// DÉPRÉCIÉ : Ne plus accepter de balance envoyée par le client (risque de triche)
+router.post('/sync-balance', authMiddleware, async (_req, res) => {
+  res.status(410).json({ error: 'Endpoint désactivé pour sécurité. Utilisez GET /api/auth/balance.' })
 })
 
 export default router

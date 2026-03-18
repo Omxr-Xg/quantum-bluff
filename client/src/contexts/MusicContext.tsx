@@ -4,7 +4,9 @@ import musicSrc from '@/assets/music/background-music.mp3';
 interface MusicContextType {
   isPlaying: boolean;
   volume: number;
+  isMuted: boolean;
   toggleMusic: () => void;
+  toggleMute: () => void;
   setVolume: (volume: number) => void;
   playMusic: () => void;
   pauseMusic: () => void;
@@ -15,6 +17,8 @@ const MusicContext = createContext<MusicContextType | undefined>(undefined);
 export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolumeState] = useState(0.3);
+  const [isMuted, setIsMuted] = useState(false);
+  const volumeBeforeMute = useRef(0.3);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -23,6 +27,7 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
     const initialVolume = savedVolume ? parseFloat(savedVolume) : 0.3;
 
     setVolumeState(initialVolume);
+    volumeBeforeMute.current = initialVolume;
 
     try {
       const audio = new Audio(musicSrc);
@@ -53,10 +58,10 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (audioRef.current) {
-      audioRef.current.volume = volume;
-      localStorage.setItem('musicVolume', volume.toString());
+      audioRef.current.volume = isMuted ? 0 : volume;
+      if (!isMuted) localStorage.setItem('musicVolume', volume.toString());
     }
-  }, [volume]);
+  }, [volume, isMuted]);
 
   const toggleMusic = () => {
     if (!audioRef.current) return;
@@ -72,7 +77,31 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const toggleMute = () => {
+    if (isMuted) {
+      setIsMuted(false);
+      setVolumeState(volumeBeforeMute.current);
+      // Démarrer la musique au démutage si elle n'était pas en cours
+      if (!isPlaying && audioRef.current) {
+        audioRef.current.play().catch(() => {});
+        setIsPlaying(true);
+        localStorage.setItem('musicPlaying', 'true');
+      }
+      if (audioRef.current) {
+        audioRef.current.volume = volumeBeforeMute.current;
+      }
+    } else {
+      volumeBeforeMute.current = volume;
+      setIsMuted(true);
+      setVolumeState(0);
+    }
+  };
+
   const setVolume = (v: number) => {
+    if (isMuted) {
+      setIsMuted(false);
+    }
+    volumeBeforeMute.current = v;
     setVolumeState(v);
   };
 
@@ -96,8 +125,10 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
     <MusicContext.Provider
       value={{
         isPlaying,
-        volume,
+        volume: isMuted ? 0 : volume,
+        isMuted,
         toggleMusic,
+        toggleMute,
         setVolume,
         playMusic,
         pauseMusic,

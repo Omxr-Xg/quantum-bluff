@@ -1,17 +1,18 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useSocket } from "./SocketContext";
 
-interface HandProbability {
-  hand: string;
+export interface HandProbability {
+  handKey: string;
   probability: number;
-  description: string;
+  descriptionType: 'acquired' | 'chance';
+  probPercent?: number;
 }
 
 interface QuantumHUDContextType {
   probabilities: HandProbability[];
   isOpen: boolean;
   toggleHUD: () => void;
-  currentHand: string | null;
+  currentHand: string | null; // handKey
   winProbability: number;
   updateFromCards: (
     playerCards: { suit: string; value: string }[],
@@ -54,9 +55,9 @@ function evalCategory(allValues: number[]): number {
   return 0;
 }
 
-const HAND_NAMES = [
-  "Haute carte", "Paire", "Double paire", "Brelan",
-  "Quinte", "Couleur", "Full", "Carré", "Quinte flush"
+const HAND_KEYS = [
+  "highCard", "pair", "twoPair", "threeKind", "straight",
+  "flush", "fullHouse", "fourKind", "straightFlush"
 ];
 
 function estimateWinProbability(
@@ -65,7 +66,7 @@ function estimateWinProbability(
   opponentCount: number
 ): { winProb: number; currentHand: string; probabilities: HandProbability[] } {
   if (playerCards.length < 2) {
-    return { winProb: 0, currentHand: "—", probabilities: [] };
+    return { winProb: 0, currentHand: "", probabilities: [] };
   }
 
   const pCards = playerCards.map(c => ({ s: c.suit, v: rankIndex(c.value) + 2 }));
@@ -83,7 +84,7 @@ function estimateWinProbability(
   let cat = evalCategory(allValues);
   if (hasFlush && cat < 5) cat = 5;
 
-  const currentHand = HAND_NAMES[cat] ?? "Haute carte";
+  const currentHand = HAND_KEYS[cat] ?? "highCard";
 
   const communityCount = cCards.length;
   const cardsTocome = 5 - communityCount;
@@ -104,14 +105,19 @@ function estimateWinProbability(
     else winProb = Math.min(winProb, 0.5);
   }
 
-  const probabilities: HandProbability[] = HAND_NAMES.map((name, i) => {
+  const probabilities: HandProbability[] = HAND_KEYS.map((handKey, i) => {
     let prob = 0;
     if (i <= cat) prob = i === cat ? 1 : 0;
     else {
       const diff = i - cat;
       prob = Math.max(0, (cardsTocome * 0.08) / (diff * diff));
     }
-    return { hand: name, probability: Math.min(1, prob), description: i <= cat ? "Acquis" : `${Math.round(prob * 100)}% de chance` };
+    return {
+      handKey,
+      probability: Math.min(1, prob),
+      descriptionType: i <= cat ? 'acquired' : 'chance',
+      probPercent: i <= cat ? undefined : Math.round(prob * 100)
+    };
   });
 
   return { winProb, currentHand, probabilities };
@@ -127,9 +133,9 @@ export const QuantumHUDProvider = ({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!socket) return;
     const handler = (data: {
-      probabilities: HandProbability[];
-      currentHand: string;
-      winProbability: number;
+      probabilities?: HandProbability[];
+      currentHand?: string;
+      winProbability?: number;
     }) => {
       setProbabilities(data.probabilities ?? []);
       setCurrentHand(data.currentHand ?? null);

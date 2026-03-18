@@ -24,7 +24,11 @@ interface SocketContextType {
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-const URL = import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin;
+// En dev : backend sur 3000. Sur localhost (Vite/preview) : idem, pour éviter ws://localhost:5173.
+const isLocalhost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const URL = import.meta.env.DEV || isLocalhost ? 'http://localhost:3000' : window.location.origin;
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
@@ -59,8 +63,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     const socketInstance = io(URL, {
       autoConnect: true,
-      // On force Socket.io à passer par le sous-dossier de l'école
-      path: import.meta.env.DEV ? '' : '/vmProjetIntegrateurgrp10-0/socket.io/',
+      // Connexion directe au backend (localhost:3000) : path par défaut. Sinon sous-dossier prod.
+      path: (URL.includes('localhost') || URL.includes('127.0.0.1')) ? '' : '/vmProjetIntegrateurgrp10-0/socket.io/',
       auth: {
         token
       }
