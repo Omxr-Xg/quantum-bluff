@@ -6,7 +6,7 @@ import { AnimatePresence } from "motion/react";
 import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
 import { useMusic } from "../contexts/MusicContext";
-import { getUserBalance, addToUserBalance, syncBalanceToServer, clearAuthStorage } from "../utils/userProfile";
+import { getUserBalance, addDevMoney, fetchBalanceFromServer, clearAuthStorage } from "../utils/userProfile";
 import { Toast } from "./Toast";
 import { MusicPlayer } from "./MusicPlayer";
 import { InvitationBanner } from "./InvitationBanner";
@@ -55,10 +55,20 @@ export function Layout({ children }: LayoutProps) {
   };
 
   useEffect(() => {
-    setBalance(getUserBalance());
+    if (localStorage.getItem("token")) {
+      fetchBalanceFromServer().then(setBalance);
+    } else {
+      setBalance(getUserBalance());
+    }
   }, [location.pathname]);
   useEffect(() => {
-    const onFocus = () => setBalance(getUserBalance());
+    const onFocus = () => {
+      if (localStorage.getItem("token")) {
+        fetchBalanceFromServer().then(setBalance);
+      } else {
+        setBalance(getUserBalance());
+      }
+    };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
@@ -129,14 +139,17 @@ export function Layout({ children }: LayoutProps) {
   };
   const closeAddMoney = () => {
     setShowAddMoney(false);
-    setBalance(getUserBalance());
+    if (localStorage.getItem("token")) {
+      fetchBalanceFromServer().then(setBalance);
+    } else {
+      setBalance(getUserBalance());
+    }
   };
-  const submitAddMoney = () => {
+  const submitAddMoney = async () => {
     if (addMoneyAmount == null) return;
     if (devValidation.trim().toLowerCase() !== "dev") return;
-    const newBalance = addToUserBalance(addMoneyAmount);
+    const newBalance = await addDevMoney(addMoneyAmount);
     setBalance(newBalance);
-    syncBalanceToServer().catch(() => {});
     setAddSuccess(true);
     setTimeout(closeAddMoney, 800);
   };

@@ -24,7 +24,7 @@ import { ChipIcon } from "../components/ChipIcon";
 import { PokerCard } from "../components/PokerCard";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
-import { addToUserBalance, getUserBalance, syncBalanceToServer } from "../utils/userProfile";
+import { addToUserBalance, addDevMoney, getUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
@@ -227,12 +227,13 @@ export function Game() {
     setAddSuccess(false);
   };
 
-  const submitAddMoney = () => {
+  const submitAddMoney = async () => {
     if (addMoneyAmount == null || addMoneyAmount <= 0) return;
     if (devValidation.trim().toLowerCase() !== "dev") return;
-    const newBalance = addToUserBalance(addMoneyAmount);
+    const newBalance = mode === "bot"
+      ? addToUserBalance(addMoneyAmount)
+      : await addDevMoney(addMoneyAmount);
     if (mode === "bot") setPlayerChips(newBalance);
-    syncBalanceToServer().catch(() => {});
     setAddSuccess(true);
     setTimeout(() => closeAddMoney(), 800);
   };
