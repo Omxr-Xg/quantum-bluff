@@ -636,14 +636,14 @@ export function WaitingRoom() {
                 >
                   <span className="flex items-center gap-2 font-medium">
                     <TestTube className="w-4 h-4" />
-                    Voir plus — Cartes de test
+                    {t('waitingRoom.seeMoreTestCards')}
                   </span>
                   {showTestCards ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
                 {showTestCards && (
                   <div className="p-4 border-t border-amber-500/30 space-y-4">
                     <p className="text-amber-200/80 text-sm">
-                      Choisir les cartes privées de chaque joueur pour tester (flop, split pot, etc.).
+                      {t('waitingRoom.testCardsDesc')}
                     </p>
                     {allPlayersForCards.map((p) => {
                       const cards = forceCards[p.id] ?? [null, null];

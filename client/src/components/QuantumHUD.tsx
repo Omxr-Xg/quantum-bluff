@@ -1,5 +1,6 @@
 import { X, TrendingUp, BarChart2, Target, Award } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { useQuantumHUD } from "../contexts/QuantumHUDContext";
 
 interface QuantumHUDProps {
@@ -8,6 +9,7 @@ interface QuantumHUDProps {
 }
 
 export function QuantumHUD({ isOpen, onToggle }: QuantumHUDProps) {
+  const { t } = useTranslation();
   const { probabilities, currentHand, winProbability } = useQuantumHUD();
 
   const getProbabilityColor = (prob: number) => {
@@ -33,7 +35,7 @@ export function QuantumHUD({ isOpen, onToggle }: QuantumHUDProps) {
               <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 text-white" />
               </div>
-              <h3 className="text-white font-bold">Quantum HUD</h3>
+              <h3 className="text-white font-bold">{t('quantumHUD.title')}</h3>
             </div>
             <button
               onClick={onToggle}
@@ -47,7 +49,7 @@ export function QuantumHUD({ isOpen, onToggle }: QuantumHUDProps) {
           <div className="p-4 border-b border-slate-700">
             <div className="text-gray-400 text-sm mb-2 flex items-center gap-2">
               <Target className="w-4 h-4 text-purple-400" />
-              Chance de gagner
+              {t('quantumHUD.winChance')}
             </div>
             <div className="flex items-center gap-3">
               <div className="flex-1 h-4 bg-slate-700 rounded-full overflow-hidden">
@@ -70,10 +72,10 @@ export function QuantumHUD({ isOpen, onToggle }: QuantumHUDProps) {
           {/* Main actuelle */}
           {currentHand && (
             <div className="px-4 py-2 bg-purple-900/20 border-b border-purple-500/30">
-              <div className="text-xs text-purple-400 mb-1">Main actuelle</div>
+              <div className="text-xs text-purple-400 mb-1">{t('quantumHUD.currentHand')}</div>
               <div className="text-white font-bold flex items-center gap-2">
                 <span className="text-2xl">🎴</span>
-                <span>{currentHand}</span>
+                <span>{currentHand ? t(`quantumHUD.hand.${currentHand}`) : "—"}</span>
               </div>
             </div>
           )}
@@ -82,7 +84,7 @@ export function QuantumHUD({ isOpen, onToggle }: QuantumHUDProps) {
           <div className="p-4 max-h-96 overflow-y-auto">
             <div className="text-gray-400 text-sm mb-3 flex items-center gap-2">
               <BarChart2 className="w-4 h-4" />
-              Évolution des probabilités
+              {t('quantumHUD.probabilityEvolution')}
             </div>
 
             <div className="space-y-2">
@@ -92,7 +94,7 @@ export function QuantumHUD({ isOpen, onToggle }: QuantumHUDProps) {
                   className="bg-slate-700/50 rounded-lg p-3 border border-slate-600"
                 >
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-white font-medium text-sm">{item.hand}</span>
+                    <span className="text-white font-medium text-sm">{t(`quantumHUD.hand.${item.handKey}`)}</span>
                     <span
                       className={`text-xs font-bold ${getProbabilityColor(
                         item.probability
@@ -114,7 +116,9 @@ export function QuantumHUD({ isOpen, onToggle }: QuantumHUDProps) {
                     />
                   </div>
                   <div className="mt-1 text-gray-500 text-xs">
-                    {item.description}
+                    {item.descriptionType === 'acquired'
+                      ? t('quantumHUD.acquired')
+                      : t('quantumHUD.chancePercent', { percent: item.probPercent ?? 0 })}
                   </div>
                 </div>
               ))}
@@ -125,7 +129,7 @@ export function QuantumHUD({ isOpen, onToggle }: QuantumHUDProps) {
           <div className="p-4 bg-slate-800/50 rounded-b-2xl border-t border-slate-700">
             <div className="flex items-center gap-2 text-yellow-400 text-xs">
               <Award className="w-3 h-3" />
-              <span>Mise à jour en temps réel</span>
+              <span>{t('quantumHUD.realtimeUpdate')}</span>
             </div>
           </div>
         </motion.div>

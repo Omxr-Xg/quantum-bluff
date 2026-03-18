@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
-import victorySound from "../assets/sounds/victory.mp3";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import victorySound from "../assets/sounds/victory.mp3";
 import { PokerCard } from "./PokerCard";
 import { ChipIcon } from "./ChipIcon";
 import { useAccessibility } from "../contexts/AccessibilityContext";
@@ -35,6 +36,7 @@ function getHandColor(hand: string): string {
 }
 
 export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDisplayProps) {
+  const { t } = useTranslation();
   const hasPlayedSoundRef = useRef(false);
   const { visualAlerts, colorblindMode } = useAccessibility();
 
@@ -63,7 +65,7 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
 
   if (!winner) return null;
 
-  const displayHand = (winner.hand && winner.hand !== "—") ? winner.hand : "Haute carte";
+  const displayHand = (winner.hand && winner.hand !== "—") ? winner.hand : t('showdown.highCard');
 
   return (
     <AnimatePresence>
@@ -80,13 +82,13 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
         >
           <div className="text-center mb-6">
             <div className="text-6xl mb-4">🏆</div>
-            <h2 className="text-3xl font-bold text-white mb-2">Showdown !</h2>
+            <h2 className="text-3xl font-bold text-white mb-2">{t('showdown.title')}</h2>
           </div>
 
           <div className="bg-slate-700/50 rounded-xl p-6 mb-6">
             <div className="text-center mb-4">
-              <div className="text-gray-400 text-sm mb-1">{winner.isSplit ? "Résultat" : "Gagnant"}</div>
-              <div className="text-2xl font-bold text-white">{winner.isSplit ? "Égalité — Split pot" : winner.name}</div>
+              <div className="text-gray-400 text-sm mb-1">{winner.isSplit ? t('showdown.result') : t('showdown.winner')}</div>
+              <div className="text-2xl font-bold text-white">{winner.isSplit ? t('showdown.tieSplitPot') : (winner.name === "Vous" || winner.name === "you" ? t('game.you') : winner.name)}</div>
             </div>
 
             {winnerCards && winnerCards.length > 0 && (
@@ -107,14 +109,14 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
             )}
 
             <div className="flex justify-between items-center border-t border-b border-slate-600 py-4 my-4">
-              <span className="text-gray-400">Combinaison gagnante</span>
+              <span className="text-gray-400">{t('showdown.winningCombination')}</span>
               <span className={`text-xl font-bold ${getHandColor(displayHand)}`}>
                 {displayHand}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-gray-400">{winner.isSplit ? "Chacun reçoit" : "Gain"}</span>
+              <span className="text-gray-400">{winner.isSplit ? t('showdown.eachReceives') : t('showdown.gain')}</span>
               <span className="text-2xl font-bold text-yellow-400">
                 {winner.pot.toLocaleString()} <ChipIcon size="sm" className="inline-block align-middle ml-0.5" />
               </span>
@@ -126,7 +128,7 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
             onClick={onClose}
             className="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105"
           >
-            Continuer
+            {t('showdown.continue')}
           </button>
         </motion.div>
       </motion.div>

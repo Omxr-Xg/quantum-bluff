@@ -8,9 +8,12 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useHiddenBets } from "../contexts/HiddenBetsContext";
 import { useDeviceType } from "./ui/use-mobile";
 import { ChipIcon } from "./ChipIcon";
+
+const COMBO_KEYS = ["pair", "twoPair", "threeKind", "straight", "flush", "fullHouse", "fourKind", "straightFlush", "royalFlush"];
 
 interface HiddenBetsPanelProps {
   isOpen: boolean;
@@ -23,18 +26,10 @@ export function HiddenBetsPanel({
   isOpen,
   onToggle,
   players,
-  combinations = [
-    "Paire",
-    "Double Paire",
-    "Brelan",
-    "Quinte",
-    "Couleur",
-    "Full",
-    "Carré",
-    "Quinte Flush",
-    "Quinte Flush Royale",
-  ],
+  combinations,
 }: HiddenBetsPanelProps) {
+  const { t } = useTranslation();
+  const comboChoices = combinations ?? COMBO_KEYS.map(k => t(`hiddenBets.combinations.${k}`));
   const [selectedType, setSelectedType] = useState<"winner" | "combination">(
     "winner"
   );
@@ -79,8 +74,9 @@ export function HiddenBetsPanel({
     if (type === "winner") {
       return (players.length * 1.5).toFixed(1);
     }
-    const rare = ["Quinte Flush Royale", "Quinte Flush", "Carré"];
-    return rare.includes(choice) ? "8.0" : "4.5";
+    const rareKeys = ["royalFlush", "straightFlush", "fourKind"];
+    const isRare = rareKeys.some(k => t(`hiddenBets.combinations.${k}`) === choice);
+    return isRare ? "8.0" : "4.5";
   };
 
   const handlePlaceBet = async () => {
@@ -101,7 +97,7 @@ export function HiddenBetsPanel({
 
   const winnerChoices = players.map((p) => p.name);
   const displayedChoices =
-    selectedType === "winner" ? winnerChoices : combinations;
+    selectedType === "winner" ? winnerChoices : comboChoices;
 
   const panelClassName = isMobile
     ? "fixed z-[60] left-2 right-2 top-20 md:top-24 max-h-[85vh] overflow-y-auto bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl"
@@ -133,7 +129,7 @@ export function HiddenBetsPanel({
               <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
                 <Trophy className="w-4 h-4 text-white" />
               </div>
-              <h3 className="text-white font-bold">Paris Cachés</h3>
+              <h3 className="text-white font-bold">{t('hiddenBets.title')}</h3>
             </div>
             <button
               onClick={onToggle}
@@ -146,11 +142,11 @@ export function HiddenBetsPanel({
           {/* Stats */}
           <div className="px-4 py-3 bg-slate-700/30 border-b border-slate-700">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Paris en cours</span>
+              <span className="text-gray-400">{t('hiddenBets.inProgress')}</span>
               <span className="text-white font-bold">{totalBets}</span>
             </div>
             <div className="flex justify-between text-sm mt-1">
-              <span className="text-gray-400">Total misé</span>
+              <span className="text-gray-400">{t('hiddenBets.totalWagered')}</span>
               <span className="text-yellow-400 font-bold">
                 {totalAmount} <ChipIcon size="sm" className="inline-block align-middle ml-0.5" />
               </span>
@@ -159,7 +155,7 @@ export function HiddenBetsPanel({
 
           {/* Type de pari */}
           <div className="p-4 border-b border-slate-700">
-            <div className="text-gray-400 text-sm mb-3">Type de pari</div>
+            <div className="text-gray-400 text-sm mb-3">{t('hiddenBets.betType')}</div>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -171,7 +167,7 @@ export function HiddenBetsPanel({
                 }`}
               >
                 <Target className="w-4 h-4 inline mr-2" />
-                Gagnant
+                {t('hiddenBets.winner')}
               </button>
               <button
                 type="button"
@@ -183,7 +179,7 @@ export function HiddenBetsPanel({
                 }`}
               >
                 <TrendingUp className="w-4 h-4 inline mr-2" />
-                Combinaison
+                {t('hiddenBets.combination')}
               </button>
             </div>
           </div>
@@ -192,8 +188,8 @@ export function HiddenBetsPanel({
           <div className="p-4 border-b border-slate-700">
             <div className="text-gray-400 text-sm mb-3">
               {selectedType === "winner"
-                ? "Choisir le gagnant"
-                : "Choisir la combinaison"}
+                ? t('hiddenBets.chooseWinner')
+                : t('hiddenBets.chooseCombination')}
             </div>
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
               {displayedChoices.map((item) => (
@@ -209,7 +205,7 @@ export function HiddenBetsPanel({
                       : "bg-slate-700 text-gray-300 hover:bg-slate-600"
                   }`}
                 >
-                  {item}
+                  {(selectedType === "winner" && (item === "Vous" || item === "you")) ? t('game.you') : item}
                 </button>
               ))}
             </div>
@@ -219,7 +215,7 @@ export function HiddenBetsPanel({
           <div className="p-4 border-b border-slate-700">
             <div className="flex gap-4">
               <div className="flex-1">
-                <div className="text-gray-400 text-xs mb-2">Montant</div>
+                <div className="text-gray-400 text-xs mb-2">{t('hiddenBets.amount')}</div>
                 <div className="flex items-center bg-slate-700 rounded-lg overflow-hidden">
                   <DollarSign className="w-5 h-5 text-gray-400 ml-3" />
                   <input
@@ -240,7 +236,7 @@ export function HiddenBetsPanel({
                 </div>
               </div>
               <div className="flex-1">
-                <div className="text-gray-400 text-xs mb-2">Cote</div>
+                <div className="text-gray-400 text-xs mb-2">{t('hiddenBets.odds')}</div>
                 <div className="bg-slate-700 rounded-lg p-2 text-center">
                   <span className="text-yellow-400 font-bold">
                     x
@@ -253,7 +249,7 @@ export function HiddenBetsPanel({
             </div>
             {selectedChoice && (
               <div className="mt-3 text-sm">
-                <span className="text-gray-400">Gain potentiel :</span>
+                <span className="text-gray-400">{t('hiddenBets.potentialGain')}</span>
                 <span className="text-green-400 font-bold ml-2">
                   {Math.round(
                     amount * parseFloat(getOdds(selectedType, selectedChoice))
@@ -276,7 +272,7 @@ export function HiddenBetsPanel({
                   : "bg-slate-700 text-gray-500 cursor-not-allowed"
               }`}
             >
-              {isPlacing ? "Mise en cours..." : "Placer le pari secret"}
+              {isPlacing ? t('hiddenBets.placing') : t('hiddenBets.placeBet')}
             </button>
           </div>
         </motion.div>

@@ -15,6 +15,7 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ChipIcon } from "./ChipIcon";
 import { TopBarProvider } from "../contexts/TopBarContext";
 import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
+import { AccessibilityMenu } from "./AccessibilityMenu";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
@@ -39,8 +40,15 @@ export function Layout({ children }: LayoutProps) {
   const [devValidation, setDevValidation] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showAccessibilityMenu, setShowAccessibilityMenu] = useState(false);
   const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MENU_CLOSE_DELAY = 500;
+  const { registerOpener, openAccessibilityMenu } = useAccessibilityMenuOpen() ?? { registerOpener: () => {}, openAccessibilityMenu: () => {} };
+
+  useEffect(() => {
+    registerOpener(() => setShowAccessibilityMenu(true));
+    return () => registerOpener(null);
+  }, [registerOpener]);
 
   const handleMenuMouseEnter = () => {
     if (closeMenuTimerRef.current) {
@@ -167,8 +175,6 @@ export function Layout({ children }: LayoutProps) {
     path.includes("tutorial-lobby");
   const showHamburgerMenu = showTopBar && isGameConfigOrRoom && !isLobby;
   const showLobbyIntegratedBar = showTopBar && isLobby;
-  const menuOpenContext = useAccessibilityMenuOpen();
-  const openAccessibilityMenu = menuOpenContext?.openAccessibilityMenu;
 
   const menuContent = (
     <>
@@ -187,6 +193,10 @@ export function Layout({ children }: LayoutProps) {
       <button onClick={() => navigate("/friends")} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600/80 hover:bg-blue-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.manageFriends")}>
         <Users className="w-4 h-4 shrink-0" />
         <span>{t("lobby.manageFriends")}</span>
+      </button>
+      <button onClick={() => openAccessibilityMenu()} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-600/80 hover:bg-purple-500 text-white transition shrink-0 whitespace-nowrap" title={t("accessibility.title", "Accessibilité")}>
+        <Settings className="w-4 h-4 shrink-0" />
+        <span>{t("accessibility.title", "Accessibilité")}</span>
       </button>
       <button onClick={() => { clearAuthStorage(); navigate("/"); }} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
         <LogOut className="w-4 h-4 shrink-0" />
@@ -266,6 +276,10 @@ export function Layout({ children }: LayoutProps) {
                   <Users className="w-4 h-4 shrink-0" />
                   <span>{t("lobby.manageFriends")}</span>
                 </button>
+                <button onClick={() => { setMenuOpen(false); openAccessibilityMenu(); }} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-600/80 hover:bg-purple-500 text-white transition shrink-0 whitespace-nowrap" title={t("accessibility.title", "Accessibilité")}>
+                  <Settings className="w-4 h-4 shrink-0" />
+                  <span>{t("accessibility.title", "Accessibilité")}</span>
+                </button>
                 <button onClick={() => { clearAuthStorage(); navigate("/"); }} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
                   <LogOut className="w-4 h-4 shrink-0" />
                   <span>{t("lobby.logout")}</span>
@@ -275,6 +289,12 @@ export function Layout({ children }: LayoutProps) {
           )}
         </>
       )}
+
+      {/* Menu Accessibilité (rendu globalement pour Lobby et Game) */}
+      <AccessibilityMenu
+        isOpen={showAccessibilityMenu}
+        onClose={() => setShowAccessibilityMenu(false)}
+      />
 
       {/* Modal Ajouter des jetons */}
       {showTopBar && showAddMoney && (
@@ -356,7 +376,7 @@ export function Layout({ children }: LayoutProps) {
 
               <div className="flex-1">
                 <p className="text-white font-semibold text-sm mb-1">
-                  Notification
+                  {t('notifications.toastTitle')}
                 </p>
                 <p className="text-slate-200 text-sm">
                   {notification.message}

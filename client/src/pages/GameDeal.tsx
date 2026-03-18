@@ -220,9 +220,9 @@ export function GameDeal() {
       case "init":
         return t('gameDeal.readyToStart');
       case "shuffle":
-        return "Mélange des cartes...";
+        return t('gameDeal.shuffling');
       case "deal":
-        return "Distribution en cours...";
+        return t('gameDeal.dealing');
       case "flop":
         return "Flop";
       case "turn":
@@ -230,7 +230,7 @@ export function GameDeal() {
       case "river":
         return "River";
       case "complete":
-        return "Distribution terminée";
+        return t('gameDeal.complete');
       default:
         return "";
     }
@@ -239,7 +239,7 @@ export function GameDeal() {
   const getButtonText = () => {
     switch (phase) {
       case "init":
-        return "Commencer";
+        return t('gameDeal.startButton');
       case "flop":
         return "Flop";
       case "turn":

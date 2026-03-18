@@ -233,7 +233,7 @@ export function PlayerDashboard({
                     ? "border-red-500/90 ring-red-400/30 animate-pulse"
                     : "border-amber-500/70 ring-amber-400/20"
                 }`}
-                title={`Tour : ${timeLeft}s`}
+                title={t('game.turnSeconds', { seconds: timeLeft })}
               >
                 <span className={`tabular-nums font-bold text-xs md:text-base leading-none ${
                   timeLeft <= 5 ? "text-red-400" : "text-amber-300"

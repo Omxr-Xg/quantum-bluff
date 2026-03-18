@@ -1,4 +1,7 @@
 {
+  "language": {
+    "seeMore": "Voir plus"
+  },
   "lobby": {
     "title": "Quantum Bluff",
     "welcome": "Bienvenue, {{username}}",
@@ -64,7 +67,20 @@
     "replaySameConfig": "Rejouer avec la même configuration",
     "rematchSameMembers": "Rejouer avec les mêmes membres",
     "rejoinNextHand": "Rejoindre à la prochaine manche",
-    "cancelRejoinNextHand": "Annuler"
+    "cancelRejoinNextHand": "Annuler",
+    "actionFolded": "s'est couché",
+    "actionChecked": "a checké",
+    "actionCalled": "a suivi",
+    "actionRaised": "a relancé",
+    "you": "Vous",
+    "dealer": "Donneur",
+    "turnSeconds": "Tour : {{seconds}}s",
+    "waitingForPlayers": "En attente de joueurs...",
+    "newHandIn": "Nouvelle main dans {{count}} secondes...",
+    "tie": "Égalité",
+    "opponentLeft": "Adversaire parti",
+    "openChat": "Ouvrir le chat",
+    "helpRules": "Aide et règles du jeu"
   },
   "friends": {
     "title": "Mes Amis",
@@ -231,7 +247,9 @@
     "close": "Fermer",
     "startGameWithCount": "Lancer la partie ({{count}} joueurs)",
     "joinRequests": "Demandes de rejoindre",
-    "noJoinRequests": "Aucune demande en attente"
+    "noJoinRequests": "Aucune demande en attente",
+    "seeMoreTestCards": "Voir plus — Cartes de test",
+    "testCardsDesc": "Choisir les cartes privées de chaque joueur pour tester (flop, split pot, etc.)."
   },
   "botConfig": {
     "home": "Accueil",
@@ -266,15 +284,79 @@
     "opponents": "Adversaires :",
     "difficultyLabel": "Difficulté :",
     "startGameButton": "Commencer la partie",
-    "balanceRequired": "Alimentez votre balance pour jouer."
+    "balanceRequired": "Alimentez votre balance pour jouer.",
+    "seeMore": "Voir plus",
+    "hideOptions": "Masquer les options",
+    "botThinking": "Le bot réfléchit...",
+    "analyzingProbabilities": "Analyse des probabilités",
+    "chipsPerBot": "Jetons par bot",
+    "defaultChips": "Par défaut : 1 000"
   },
   "gameDeal": {
     "readyToStart": "Prêt à commencer",
-    "backToLobby": "Retour au Lobby"
+    "backToLobby": "Retour au Lobby",
+    "shuffling": "Mélange des cartes...",
+    "dealing": "Distribution en cours...",
+    "complete": "Distribution terminée",
+    "startButton": "Commencer"
   },
   "hiddenBets": {
+    "title": "Paris Cachés",
+    "results": "Résultats des Paris Cachés",
+    "resultsLoading": "Résultats des paris cachés...",
+    "helpDesc": "Pariez discrètement sur le résultat du coup",
+    "inProgress": "Paris en cours",
+    "totalWagered": "Total misé",
+    "betType": "Type de pari",
+    "winner": "Gagnant",
+    "combination": "Combinaison",
+    "chooseWinner": "Choisir le gagnant",
+    "chooseCombination": "Choisir la combinaison",
+    "amount": "Montant",
+    "odds": "Cote",
+    "potentialGain": "Gain potentiel :",
+    "placeBet": "Placer le pari secret",
+    "placing": "Mise en cours...",
+    "combinations": {
+      "pair": "Paire",
+      "twoPair": "Double Paire",
+      "threeKind": "Brelan",
+      "straight": "Quinte",
+      "flush": "Couleur",
+      "fullHouse": "Full",
+      "fourKind": "Carré",
+      "straightFlush": "Quinte Flush",
+      "royalFlush": "Quinte Flush Royale"
+    },
     "backHome": "Retour à l'accueil",
-    "backToLobby": "Retour au Lobby"
+    "backToLobby": "Retour au Lobby",
+    "revealed": "Tous les paris secrets sont maintenant révélés !",
+    "noBets": "Aucun pari à afficher.",
+    "winnerOfHand": "GAGNANT DU COUP",
+    "winningCombination": "COMBINAISON GAGNANTE",
+    "betOn": "a parié sur",
+    "whoWins": "Qui va gagner",
+    "combinationLabel": "Combinaison",
+    "stake": "Mise",
+    "oddsLabel": "Cote x{{odds}}",
+    "wonLabel": "GAGNÉ",
+    "gainLabel": "GAIN",
+    "lostLabel": "PERDU",
+    "totalWinnings": "Total des gains",
+    "close": "Fermer",
+    "unknownWinner": "Gagnant inconnu",
+    "unknownCombination": "Combinaison inconnue"
+  },
+  "showdown": {
+    "title": "Showdown !",
+    "result": "Résultat",
+    "winner": "Gagnant",
+    "tieSplitPot": "Égalité — Split pot",
+    "winningCombination": "Combinaison gagnante",
+    "eachReceives": "Chacun reçoit",
+    "gain": "Gain",
+    "continue": "Continuer",
+    "highCard": "Haute carte"
   },
   "nav": {
     "login": "Connexion",
@@ -291,6 +373,8 @@
     "page": "Page",
     "quitGameTitle": "Quitter la partie ?",
     "quitGameMessage": "Vous êtes sur le point de quitter la partie en cours. Vos jetons seront perdus et vous ne pourrez pas revenir à cette table.",
+    "quitGame": "Quitter la partie",
+    "confirmQuit": "Quitter",
     "continue": "Continuer"
   },
   "toast": {
@@ -309,13 +393,40 @@
     "raiseDesc": "Augmenter la mise",
     "addCredits": "Ajouter des crédits"
   },
+  "quantumHUD": {
+    "title": "Quantum HUD",
+    "winChance": "Chance de gagner",
+    "currentHand": "Main actuelle",
+    "probabilityEvolution": "Évolution des probabilités",
+    "realtimeUpdate": "Mise à jour en temps réel",
+    "hand": {
+      "highCard": "Haute carte",
+      "pair": "Paire",
+      "twoPair": "Double paire",
+      "threeKind": "Brelan",
+      "straight": "Quinte",
+      "flush": "Couleur",
+      "fullHouse": "Full",
+      "fourKind": "Carré",
+      "straightFlush": "Quinte flush"
+    },
+    "acquired": "Acquis",
+    "chancePercent": "{{percent}}% de chance"
+  },
   "invitation": {
     "title": "{{username}} vous invite à jouer !",
     "accept": "Rejoindre",
     "reject": "Refuser"
   },
+  "filters": {
+    "maxBet50": "Mises < 50$",
+    "maxBet100": "Mises < 100$",
+    "players4Plus": "4+ Joueurs",
+    "noBots": "Sans Bots"
+  },
   "notifications": {
     "title": "Notifications",
+    "toastTitle": "Notification",
     "empty": "Aucune notification",
     "gameInvitations": "Invitations à jouer",
     "friendRequests": "Demandes d'amis"

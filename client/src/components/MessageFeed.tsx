@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ChatMessage {
   id: number;
@@ -14,7 +15,10 @@ interface MessageFeedProps {
 
 // 1. NOUVEAU SOUS-COMPOSANT : Gère la vie d'un seul message (entrée, attente, sortie animée)
 function ToastMessage({ message, onRemove }: { message: ChatMessage; onRemove: (id: number) => void }) {
+  const { t } = useTranslation();
   const [isLeaving, setIsLeaving] = useState(false);
+  const displayName = message.player === "Vous" || message.player === "you" ? t('game.you') : message.player;
+  const isMe = message.player === "Vous" || message.player === "you";
 
   useEffect(() => {
     // Déclenche l'animation de sortie après 3.5 secondes
@@ -47,14 +51,14 @@ function ToastMessage({ message, onRemove }: { message: ChatMessage; onRemove: (
           {/* Avatar */}
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
             <span className="text-white text-xs font-bold">
-              {message.player.charAt(0)}
+              {displayName.charAt(0)}
             </span>
           </div>
 
           {/* Contenu */}
           <div className="flex-1 min-w-0">
-            <div className={`text-xs font-semibold mb-1 ${message.player === "Vous" ? "text-green-400" : "text-blue-400"}`}>
-              {message.player}
+            <div className={`text-xs font-semibold mb-1 ${isMe ? "text-green-400" : "text-blue-400"}`}>
+              {displayName}
             </div>
             <div
               className={`${

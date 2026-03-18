@@ -194,7 +194,7 @@ export function PokerTable({
                 {player.isDealer && (
                   <div
                     className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-full bg-white border-2 border-slate-300 text-slate-700 font-bold text-xs md:text-sm shadow-md"
-                    title="Dealer"
+                    title={t('game.dealer')}
                   >
                     D
                   </div>
@@ -237,7 +237,7 @@ export function PokerTable({
                     className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-800 ${
                       player.isConnected !== false ? "bg-green-500 animate-pulse" : "bg-red-500"
                     }`}
-                    title={player.isConnected !== false ? "En ligne" : "Hors ligne"}
+                    title={player.isConnected !== false ? t('friends.online') : t('friends.offline')}
                     aria-hidden="true"
                   />
 
@@ -265,7 +265,7 @@ export function PokerTable({
                 </div>
 
                 {/* PLAYER CARDS - hidden for hero (shown in PlayerDashboard), hidden when folded */}
-                {player.cards && player.cards.length > 0 && !player.hasFolded && (player.position !== 0 && player.name !== "Vous") && (
+                {player.cards && player.cards.length > 0 && !player.hasFolded && (player.position !== 0 && player.name !== "Vous" && player.name !== "you") && (
                   <div className="flex gap-1">
                     {player.cards.map((card, index) => (
                       <PokerCard

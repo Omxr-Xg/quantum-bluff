@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Filter, DollarSign, Users, Bot, Zap } from "lucide-react";
 
 interface ServerFiltersProps {
@@ -15,7 +16,7 @@ interface FilterState {
 type FilterValue = number | boolean | null;
 
 export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
-
+  const { t } = useTranslation();
   const [activeFilters, setActiveFilters] = useState<FilterState>({
     maxBet: null,
     minPlayers: null,
@@ -38,7 +39,7 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
     {
       key: "maxBet" as keyof FilterState,
       value: 50,
-      label: "Mises < 50$",
+      label: t('filters.maxBet50'),
       icon: DollarSign,
       active: activeFilters.maxBet === 50,
       color: "green"
@@ -46,7 +47,7 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
     {
       key: "maxBet" as keyof FilterState,
       value: 100,
-      label: "Mises < 100$",
+      label: t('filters.maxBet100'),
       icon: DollarSign,
       active: activeFilters.maxBet === 100,
       color: "blue"
@@ -54,7 +55,7 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
     {
       key: "minPlayers" as keyof FilterState,
       value: 4,
-      label: "4+ Joueurs",
+      label: t('filters.players4Plus'),
       icon: Users,
       active: activeFilters.minPlayers === 4,
       color: "purple"
@@ -62,7 +63,7 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
     {
       key: "noBots" as keyof FilterState,
       value: true,
-      label: "Sans Bots",
+      label: t('filters.noBots'),
       icon: Bot,
       active: activeFilters.noBots,
       color: "red"
@@ -70,7 +71,7 @@ export function ServerFilters({ onFilterChange }: ServerFiltersProps) {
     {
       key: "hiddenBets" as keyof FilterState,
       value: true,
-      label: "Paris Caches",
+      label: t('hiddenBets.title'),
       icon: Zap,
       active: activeFilters.hiddenBets,
       color: "yellow"

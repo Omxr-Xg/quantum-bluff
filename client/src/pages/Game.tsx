@@ -10,7 +10,6 @@ import { useQuantumHUD } from "../contexts/QuantumHUDContext";
 import { PokerChat } from "../components/PokerChat";
 import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
-import { AccessibilityMenu } from "../components/AccessibilityMenu";
 import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
 import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
@@ -101,7 +100,6 @@ export function Game() {
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [playersState, setPlayersState] = useState<(BasePlayer | BotPlayer)[]>([]);
-  const [showAccessibilityMenu, setShowAccessibilityMenu] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [showGameHelp, setShowGameHelp] = useState(false);
   const [showAddMoney, setShowAddMoney] = useState(false);
@@ -198,12 +196,7 @@ export function Game() {
 
   const { colorblindMode } = useAccessibility();
   const { addToast } = useToast();
-  const { registerOpener } = useAccessibilityMenuOpen();
-
-  useEffect(() => {
-    registerOpener(() => setShowAccessibilityMenu(true));
-    return () => registerOpener(null);
-  }, [registerOpener]);
+  const { openAccessibilityMenu } = useAccessibilityMenuOpen() ?? { openAccessibilityMenu: () => {} };
 
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
@@ -338,7 +331,7 @@ export function Game() {
         activePlayer.id === "human")
   );
   const heroPlayer = activePlayers.find((p) => isHero(p));
-  const heroDisplayName = heroPlayer?.name ?? "Vous";
+  const heroDisplayName = heroPlayer?.name === "Vous" || heroPlayer?.name === "you" ? t('game.you') : (heroPlayer?.name ?? t('game.you'));
   const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
 
   playersStateRef.current = activePlayers;
@@ -793,7 +786,7 @@ export function Game() {
           : [gameState.showdownWinnerId!];
         const firstWinnerId = winnerIds[0]!;
         const winnerName = gameState.showdownIsSplit && winnerIds.length > 1
-          ? "Égalité"
+          ? t('game.tie')
           : (players.find((p) => String(p.id) === String(firstWinnerId))?.name ?? firstWinnerId);
         const winnerPlayer = players.find((p) => String(p.id) === String(firstWinnerId));
         const totalPot = gameState.showdownPot ?? 0;
@@ -828,7 +821,7 @@ export function Game() {
           return {
             winnerId: data.winnerId,
             winnerName: "Vous",
-            hand: "Adversaire parti",
+            hand: t('game.opponentLeft'),
             handRank: 0,
             pot: data.pot ?? 0,
           };
@@ -1392,7 +1385,7 @@ export function Game() {
 
           if (pi === 0) {
             mainWinnerId = winnerIds[0];
-            mainWinnerName = data.isSplit ? "Égalité" : (data.winnerName ?? winnerIds[0]);
+            mainWinnerName = data.isSplit ? t('game.tie') : (data.winnerName ?? winnerIds[0]);
             mainHandName = data.handName ?? "Haute carte";
             mainIsSplit = data.isSplit === true && winnerIds.length > 1;
             const winner = activeInHand.find((p) => String(p.id) === winnerIds[0]);
@@ -1574,12 +1567,12 @@ export function Game() {
 
         const botActionLabel =
           decision.action === "FOLD"
-            ? "s'est couché"
+            ? t('game.actionFolded')
             : decision.action === "CHECK" || (decision.action === "RAISE" && amountToPut <= 0)
-              ? "a checké"
+              ? t('game.actionChecked')
               : decision.action === "CALL" || (decision.action === "RAISE" && amountToPut <= callAmount)
-                ? "a suivi"
-                : "a relancé";
+                ? t('game.actionCalled')
+                : t('game.actionRaised');
         if (clearBotActionRef.current) clearTimeout(clearBotActionRef.current);
         setLastBotAction({ name: activePlayer.name, action: botActionLabel });
         clearBotActionRef.current = setTimeout(() => {
@@ -2092,7 +2085,7 @@ export function Game() {
                 transition={{ duration: 0.8, repeat: Infinity }}
               >
                 <p className="text-yellow-400 font-bold text-xl tracking-wider drop-shadow-lg">
-                  Mélange des cartes...
+                  {t('startScreen.shuffling')}
                 </p>
               </motion.div>
             </div>
@@ -2109,8 +2102,8 @@ export function Game() {
             <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'}`}>
               <Loader2 className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} text-blue-400 animate-spin`} />
               <div>
-                <div className={`text-white font-bold ${isMobile ? 'text-base' : 'text-lg'}`}>Bot réfléchit...</div>
-                <div className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>Analyse des probabilités</div>
+                <div className={`text-white font-bold ${isMobile ? 'text-base' : 'text-lg'}`}>{t('botConfig.botThinking')}</div>
+                <div className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>{t('botConfig.analyzingProbabilities')}</div>
               </div>
             </div>
           </div>
@@ -2132,7 +2125,7 @@ export function Game() {
               transition={{ type: "spring", damping: 20, stiffness: 200 }}
               className="flex flex-col items-center gap-4"
             >
-              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Showdown</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">{t('showdown.title')}</h2>
 
               {/* Player hands (toutes les cartes de tout le monde) */}
               <div className="flex flex-wrap justify-center gap-6">
@@ -2146,7 +2139,7 @@ export function Game() {
                       transition={{ delay: 0.15 }}
                       className="flex flex-col items-center gap-2 bg-slate-800/80 rounded-xl px-4 py-3 border border-slate-600"
                     >
-                      <span className="text-white font-semibold text-sm md:text-base">{player.name}</span>
+                      <span className="text-white font-semibold text-sm md:text-base">{player.name === "Vous" || player.name === "you" ? t('game.you') : player.name}</span>
                       <div className="flex gap-2">
                         {player.cards.map((card, i) => (
                           <PokerCard
@@ -2271,7 +2264,7 @@ export function Game() {
               <h2 className="text-2xl md:text-3xl font-bold text-white">
                 {handResult === "win" ? "Vous avez gagné !" : "Vous avez perdu"}
               </h2>
-              <p className="text-slate-300 text-sm">Résultats des paris cachés...</p>
+              <p className="text-slate-300 text-sm">{t('hiddenBets.resultsLoading')}</p>
               <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full max-w-xs mt-2">
                 <button
                   type="button"
@@ -2432,7 +2425,7 @@ export function Game() {
                   className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} ${isPanelOpen ? 'text-yellow-400 bg-yellow-500/20' : 'text-white hover:bg-slate-700'} transition-all`}
                 >
                   <Trophy className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Paris Cachés</span>
+                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('hiddenBets.title')}</span>
                 </button>
                 <div className="border-t border-slate-700"></div>
                 <button
@@ -2443,7 +2436,7 @@ export function Game() {
                   className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-red-400 hover:bg-slate-700 transition-all`}
                 >
                   <LogOut className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Quitter la partie</span>
+                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('nav.quitGame')}</span>
                 </button>
               </div>
             )}
@@ -2508,7 +2501,7 @@ export function Game() {
             <button
               onClick={() => setIsChatOpen(!isChatOpen)}
               className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
-              title="Ouvrir le chat"
+              title={t('game.openChat')}
             >
               <MessageCircle 
                 className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${
@@ -2523,7 +2516,7 @@ export function Game() {
             <button
               onClick={() => setShowGameHelp(!showGameHelp)}
               className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
-              title="Aide et règles du jeu"
+              title={t('game.helpRules')}
             >
               <HelpCircle 
                 className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${
@@ -2602,11 +2595,11 @@ export function Game() {
               <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
                 <span className="text-white text-2xl font-bold">!</span>
               </div>
-              <h2 className="text-2xl font-bold text-white">Quitter la partie ?</h2>
+              <h2 className="text-2xl font-bold text-white">{t('nav.quitGameTitle')}</h2>
             </div>
 
             <p className="text-red-200 mb-6 leading-relaxed">
-              Vous êtes sur le point de quitter la partie en cours. Vos jetons seront perdus et vous ne pourrez pas revenir à cette table.
+              {t('nav.quitGameMessage')}
             </p>
 
             <div className="flex gap-3">
@@ -2623,27 +2616,21 @@ export function Game() {
                 }}
                 className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-red-600/50"
               >
-                Continuer
+                {t('nav.confirmQuit')}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Menu Accessibilité */}
-      <AccessibilityMenu 
-        isOpen={showAccessibilityMenu} 
-        onClose={() => setShowAccessibilityMenu(false)} 
-      />
-
       {/* Bannière Cash Game : countdown ou attente joueurs */}
       {gameIdParam && !isBotMode && (cashCountdownEndsAt || cashWaitingPlayers) && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2">
           <div className="bg-slate-800/95 border border-emerald-500/50 rounded-xl px-6 py-3 shadow-lg">
             {cashWaitingPlayers ? (
-              <p className="text-emerald-300 font-semibold">En attente de joueurs...</p>
+              <p className="text-emerald-300 font-semibold">{t('game.waitingForPlayers')}</p>
             ) : cashCountdownSecs > 0 ? (
-              <p className="text-white font-semibold">Nouvelle main dans {cashCountdownSecs} secondes...</p>
+              <p className="text-white font-semibold">{t('game.newHandIn', { count: cashCountdownSecs })}</p>
             ) : null}
           </div>
           {cashCountdownEndsAt && !cashWaitingPlayers && (
@@ -2749,7 +2736,7 @@ export function Game() {
           hasFolded={hasFoldedFromState}
           hasActed={hasPlayerActed}
           actionsDisabled={Boolean(gameIdParam && !socket)}
-          waitingForPlayer={!isMyTurn && !hasFoldedFromState ? activePlayer?.name : undefined}
+          waitingForPlayer={!isMyTurn && !hasFoldedFromState ? (activePlayer?.name === "Vous" || activePlayer?.name === "you" ? t('game.you') : activePlayer?.name) : undefined}
           timeLeft={timeLeft ?? 30}
           onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
           onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
@@ -2793,7 +2780,7 @@ export function Game() {
                 <h3 className="text-xl font-bold text-indigo-400 mb-2">✨ Fonctionnalités Spéciales</h3>
                 <ul className="space-y-2 text-gray-300">
                   <li><strong className="text-purple-400">Probabilités Quantiques</strong> : Survolez pour voir vos chances de gagner, cliquez pour épingler</li>
-                  <li><strong className="text-yellow-400">Paris Cachés</strong> : Pariez discrètement sur le résultat du coup</li>
+                  <li><strong className="text-yellow-400">{t('hiddenBets.title')}</strong> : {t('hiddenBets.helpDesc')}</li>
                 </ul>
               </section>
 

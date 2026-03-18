@@ -97,7 +97,7 @@ export function NavigationBreadcrumb() {
                 onClick={handleConfirmQuit}
                 className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-red-600/50"
               >
-                {t('nav.continue')}
+                {t('nav.confirmQuit')}
               </button>
             </div>
           </div>
