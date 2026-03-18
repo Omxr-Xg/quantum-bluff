@@ -9,8 +9,10 @@ import { playwright } from '@vitest/browser-playwright';
 const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
+const basePath = process.env.VITE_BASE_PATH ?? '/vmProjetIntegrateurgrp10-0/';
+
 export default defineConfig({
-  base: '/vmProjetIntegrateurgrp10-0/',
+  base: basePath,
   plugins: [
     react(),
     VitePWA({
@@ -23,11 +25,11 @@ export default defineConfig({
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
-        scope: '/vmProjetIntegrateurgrp10-0/',
-        start_url: '/vmProjetIntegrateurgrp10-0/',
+        scope: basePath,
+        start_url: basePath,
         icons: [
           {
-            src: '/vmProjetIntegrateurgrp10-0/logo-personnel.png',
+            src: `${basePath}logo-personnel.png`,
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable',
@@ -36,16 +38,20 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        navigateFallback: '/vmProjetIntegrateurgrp10-0/index.html',
+        navigateFallback: `${basePath}index.html`,
       },
     }),
   ],
+  build: {
+    sourcemap: true,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')
     }
   },
   server: {
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',

@@ -24,11 +24,11 @@ interface SocketContextType {
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-// En dev : backend sur 3000. Sur localhost (Vite/preview) : idem, pour éviter ws://localhost:5173.
+const socketUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || undefined;
 const isLocalhost =
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const URL = import.meta.env.DEV || isLocalhost ? 'http://localhost:3000' : window.location.origin;
+const URL = socketUrl || (import.meta.env.DEV || isLocalhost ? 'http://localhost:3000' : window.location.origin);
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
@@ -61,10 +61,12 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       return
     }
 
+    const isExternalServer = !!socketUrl || URL.includes('185.155.93.105');
     const socketInstance = io(URL, {
       autoConnect: true,
-      // Connexion directe au backend (localhost:3000) : path par défaut. Sinon sous-dossier prod.
-      path: (URL.includes('localhost') || URL.includes('127.0.0.1')) ? '' : '/vmProjetIntegrateurgrp10-0/socket.io/',
+      path: isExternalServer || URL.includes('localhost') || URL.includes('127.0.0.1')
+        ? '/socket.io'
+        : '/vmProjetIntegrateurgrp10-0/socket.io',
       auth: {
         token
       }
