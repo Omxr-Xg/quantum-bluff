@@ -372,7 +372,7 @@ router.post('/action', (req, res) => {
     }
 
     const duration = Date.now() - startBotTime
-    console.log(`[Monitoring QoS] 🤖 Décision bot (${botRequest.difficulty}) calculée en ${duration}ms (Obj: <500ms)`)
+    console.log('[Monitoring QoS] 🤖 Décision bot calculée', { difficulty: botRequest.difficulty, durationMs: duration, target: '<500ms' })
     
     if (duration > 500) {
       console.warn(`[Alerte Réseau] ⚠️ Le bot a dépassé la limite de latence (${duration}ms)`)
