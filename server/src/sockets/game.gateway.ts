@@ -675,7 +675,7 @@ export class GameGateway {
           },
         })
       } catch (err) {
-        console.error(`[Stats] Erreur upsert pour ${player.id}:`, err)
+        console.error('[Stats] Erreur upsert pour', player.id, err)
       }
     }
     console.log(`[Stats] Stats multi enregistrées pour la partie ${game.id} (gagnant: ${winnerId})`)
