@@ -378,7 +378,7 @@ export function PlayerDashboard({
           <div className="flex gap-1.5 md:gap-2 shrink-0">
             {onToggleHiddenBets && (
               <NeonButton onClick={onToggleHiddenBets} variant="gold" icon={<Eye className="w-4 h-4" />}>
-                Paris
+                {t('game.bets')}
               </NeonButton>
             )}
             {onToggleQuantum && (

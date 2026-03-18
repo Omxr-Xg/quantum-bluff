@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { logoDataUrl } from "../assets/logo";
 import logoSrc from "../assets/logo-personnel.png";
 import { getPlayerAvatar } from "../utils/avatars";
@@ -47,7 +48,7 @@ export function PokerTable({
   phase,
   burnedCardsCount = 0,
 }: PokerTableProps) {
-
+  const { t } = useTranslation();
   const isShowdown = phase === "showdown";
 
   const deviceType = useDeviceType();
@@ -106,10 +107,10 @@ export function PokerTable({
         {burnedCardsCount > 0 && (
           <div
             className="absolute right-full mr-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 pointer-events-none"
-            title="Cartes brûlées"
-            aria-label={`${burnedCardsCount} carte(s) brûlée(s)`}
+            title={t('game.burned')}
+            aria-label={t('game.burnedCount', { count: burnedCardsCount })}
           >
-            <span className="text-[10px] md:text-xs text-amber-200/90 font-medium uppercase tracking-wide">Brûlées</span>
+            <span className="text-[10px] md:text-xs text-amber-200/90 font-medium uppercase tracking-wide">{t('game.burned')}</span>
             <div className="flex -space-x-2 md:-space-x-3">
               {Array.from({ length: Math.min(burnedCardsCount, 5) }).map((_, i) => (
                 <PokerCard
@@ -201,7 +202,7 @@ export function PokerTable({
                 {player.isActive && (
                   <div className="inline-flex items-center gap-1 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold animate-pulse">
                     <Clock className="w-3 h-3 animate-pulse" />
-                    SON TOUR
+                    {t('game.theirTurn')}
                   </div>
                 )}
 

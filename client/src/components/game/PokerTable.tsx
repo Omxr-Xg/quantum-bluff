@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { logoDataUrl } from "@/assets/logo-data";
 import { getPlayerAvatar } from "@/utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
@@ -46,6 +47,7 @@ interface PokerTableProps {
 }
 
 export function PokerTable({ players, children }: PokerTableProps) {
+  const { t } = useTranslation();
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
@@ -174,7 +176,7 @@ export function PokerTable({ players, children }: PokerTableProps) {
                     <div className="whitespace-nowrap mb-0.5">
                       <div className={`inline-flex items-center ${isMobile ? 'gap-1' : 'gap-1.5'} bg-yellow-400 text-gray-900 ${isMobile ? 'px-1.5 py-0.5' : isTablet ? 'px-1.5 py-0.5' : 'px-2 py-0.5'} rounded-full font-bold ${isMobile ? 'text-[9px]' : isTablet ? 'text-[10px]' : 'text-xs'} shadow-xl`}>
                         <Clock className={`${isMobile ? 'w-2.5 h-2.5' : isTablet ? 'w-2.5 h-2.5' : 'w-3 h-3'} animate-pulse`} />
-                        <span>SON TOUR</span>
+                        <span>{t('game.theirTurn')}</span>
                       </div>
                     </div>
                   )}

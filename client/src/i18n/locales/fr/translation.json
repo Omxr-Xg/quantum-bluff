@@ -43,6 +43,10 @@
   },
   "game": {
     "yourTurn": "À VOTRE TOUR",
+    "theirTurn": "SON TOUR",
+    "burned": "Brûlées",
+    "burnedCount": "{{count}} carte(s) brûlée(s)",
+    "bets": "Paris",
     "waiting": "En attente...",
     "waitingFor": "En attente de {{name}}",
     "check": "Check",

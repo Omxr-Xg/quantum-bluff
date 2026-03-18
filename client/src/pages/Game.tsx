@@ -1667,6 +1667,9 @@ export function Game() {
       return newPlayers;
     });
 
+    // En multijoueur, le serveur envoie GAME_UPDATE avec le vainqueur — ne pas traiter en local
+    if (gameIdParam) return;
+
     const activeInHandCount = playersState.filter(
       (p, i) => i !== foldingIndex && p.isConnected !== false && !(p.hasFolded ?? false)
     ).length;
@@ -1678,6 +1681,8 @@ export function Game() {
       const humanWon = winnerIndex !== -1 && winnerIndex === humanIndex;
       const winner = winnerIndex !== -1 ? playersState[winnerIndex] : null;
       if (winner) {
+        setPhase("showdown");
+        setShowdownWinnerCards([]); // Abandon : le gagnant ne montre pas ses cartes
         setShowdownResult({
           winnerId: String(winner.id),
           winnerName: winner.name,

@@ -43,6 +43,10 @@
   },
   "game": {
     "yourTurn": "TU TURNO",
+    "theirTurn": "SU TURNO",
+    "burned": "Quemadas",
+    "burnedCount": "{{count}} carta(s) quemada(s)",
+    "bets": "Apuestas",
     "waiting": "Esperando...",
     "waitingFor": "Esperando a {{name}}",
     "check": "Pasar",

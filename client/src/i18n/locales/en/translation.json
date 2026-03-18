@@ -43,6 +43,10 @@
   },
   "game": {
     "yourTurn": "YOUR TURN",
+    "theirTurn": "THEIR TURN",
+    "burned": "Burned",
+    "burnedCount": "{{count}} burned card(s)",
+    "bets": "Bets",
     "waiting": "Waiting...",
     "waitingFor": "Waiting for {{name}}",
     "check": "Check",
