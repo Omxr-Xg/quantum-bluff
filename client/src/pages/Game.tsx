@@ -1283,9 +1283,10 @@ export function Game() {
 
     if (activeInHand.length === 1) {
       const sole = activeInHand[0];
+      showdownStartedRef.current = true;
       setShowdownReveal(true);
       const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-      setTimeout(async () => {
+      const applySoleWinner = async () => {
         let handName = "Haute carte";
         try {
           const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
@@ -1308,8 +1309,17 @@ export function Game() {
         setShowdownReveal(false);
         setShowdownWinnerCards(sole.cards ?? []);
         setShowdownResult({ winnerId: String(sole.id), winnerName: sole.name, hand: handName, handRank: 0, pot });
-      }, 3000);
-      return;
+      };
+      const revealTimer = setTimeout(applySoleWinner, 3000);
+      showdownSkipRef.current = () => {
+        clearTimeout(revealTimer);
+        showdownSkipRef.current = null;
+        applySoleWinner();
+      };
+      return () => {
+        clearTimeout(revealTimer);
+        showdownSkipRef.current = null;
+      };
     }
 
     showdownStartedRef.current = true;
