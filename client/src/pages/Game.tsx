@@ -11,10 +11,10 @@ import { PokerChat } from "../components/PokerChat";
 import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
 import { AccessibilityMenu } from "../components/AccessibilityMenu";
-import { useAccessibility } from "../contexts/AccessibilityContext";
+import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
 import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, Eye, Plus, MessageCircle, X, LogOut, Palette, Bell, HelpCircle, Sparkles, Trophy, Frown, Activity } from "lucide-react";
+import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, HelpCircle, Sparkles, Trophy, Frown, Activity } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -196,8 +196,13 @@ export function Game() {
   const flopAnimatedRef = useRef(false);
 
   // Hook d'accessibilité
-  const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
   const { addToast } = useToast();
+  const { registerOpener } = useAccessibilityMenuOpen();
+
+  useEffect(() => {
+    registerOpener(() => setShowAccessibilityMenu(true));
+    return () => registerOpener(null);
+  }, [registerOpener]);
 
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
@@ -2442,40 +2447,7 @@ export function Game() {
             )}
           </div>
 
-          {/* Bouton Affichage (Accessibilité) */}
-          {!isMobile && (
-            <div className="bg-slate-800/90 backdrop-blur-sm border border-slate-700 rounded-full shadow-lg px-2 py-2 flex items-center gap-1">
-              <button
-                onClick={toggleHighContrast}
-                className={`relative rounded-full px-3 py-2 transition-all group ${
-                  highContrast ? "bg-yellow-600" : "bg-slate-700 hover:bg-slate-600"
-                }`}
-                title="Contraste élevé"
-              >
-                <Eye className={`w-4 h-4 ${highContrast ? "text-white" : "text-gray-400"}`} />
-              </button>
-
-              <button
-                onClick={toggleVisualAlerts}
-                className={`relative rounded-full px-3 py-2 transition-all group ${
-                  visualAlerts ? "bg-blue-600" : "bg-slate-700 hover:bg-slate-600"
-                }`}
-                title="Alertes visuelles"
-              >
-                <Bell className={`w-4 h-4 ${visualAlerts ? "text-white" : "text-gray-400"}`} />
-              </button>
-
-              <button
-                onClick={toggleColorblindMode}
-                className={`relative rounded-full px-3 py-2 transition-all group ${
-                  colorblindMode ? "bg-purple-600" : "bg-slate-700 hover:bg-slate-600"
-                }`}
-                title="Mode daltonien"
-              >
-                <Palette className={`w-4 h-4 ${colorblindMode ? "text-white" : "text-gray-400"}`} />
-              </button>
-            </div>
-          )}
+          {/* Paramètres accessibilité : ouverts via le bouton à droite (Layout) */}
         </div>
 
         {/* Partie DROITE - Avatar, Nom/ID, Solde + Ajout, Bouton Chat, Bouton Aide */}

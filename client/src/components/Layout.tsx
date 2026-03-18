@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X, User, Users, LogOut, Plus, Menu } from "lucide-react";
+import { Bell, X, User, Users, LogOut, Plus, Menu, Settings } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
@@ -14,6 +14,7 @@ import { NotificationCenter } from "./NotificationCenter";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ChipIcon } from "./ChipIcon";
 import { TopBarProvider } from "../contexts/TopBarContext";
+import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
@@ -153,6 +154,8 @@ export function Layout({ children }: LayoutProps) {
     path.includes("tutorial-lobby");
   const showHamburgerMenu = showTopBar && isGameConfigOrRoom && !isLobby;
   const showLobbyIntegratedBar = showTopBar && isLobby;
+  const menuOpenContext = useAccessibilityMenuOpen();
+  const openAccessibilityMenu = menuOpenContext?.openAccessibilityMenu;
 
   const menuContent = (
     <>
@@ -184,33 +187,45 @@ export function Layout({ children }: LayoutProps) {
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
       {showHamburgerMenu && (
         <>
-          {/* Bouton hamburger aligné avec MessageCircle et HelpCircle (top-4 right-8) */}
-          <div
-            className="fixed top-4 right-8 z-[250]"
-            onMouseEnter={() => {
-              if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
-              closeMenuTimerRef.current = null;
-              setMenuOpen(true);
-            }}
-            onMouseLeave={() => {
-              closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
-                closeMenuTimerRef.current = null;
-                setMenuOpen((o) => !o);
-              }}
-              className="w-12 h-12 rounded-xl bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 text-white flex items-center justify-center transition shadow-lg"
-              title="Menu"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
+          {/* Sur la page Game : bouton Paramètres (ouvre Accessibilité). Sinon : menu hamburger classique */}
+          <div className="fixed top-4 right-8 z-[250]">
+            {isGamePage ? (
+              <button
+                type="button"
+                onClick={() => openAccessibilityMenu?.()}
+                className="w-12 h-12 rounded-xl bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 text-white flex items-center justify-center transition shadow-lg"
+                title={t("accessibility.title", "Paramètres")}
+              >
+                <Settings className="w-6 h-6" />
+              </button>
+            ) : (
+              <div
+                onMouseEnter={() => {
+                  if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
+                  closeMenuTimerRef.current = null;
+                  setMenuOpen(true);
+                }}
+                onMouseLeave={() => {
+                  closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
+                    closeMenuTimerRef.current = null;
+                    setMenuOpen((o) => !o);
+                  }}
+                  className="w-12 h-12 rounded-xl bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 text-white flex items-center justify-center transition shadow-lg"
+                  title="Menu"
+                >
+                  <Menu className="w-6 h-6" />
+                </button>
+              </div>
+            )}
           </div>
-          {/* Menu déroulant à gauche du bouton */}
-          {menuOpen && (
+          {/* Menu déroulant à gauche du bouton (uniquement hors Game) */}
+          {!isGamePage && menuOpen && (
             <div
               className="fixed top-3 right-24 z-[249] flex items-center flex-wrap gap-6 px-4 py-2 bg-slate-800/98 border border-slate-600 rounded-xl shadow-2xl"
               onMouseEnter={() => {

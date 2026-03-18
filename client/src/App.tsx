@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 // 1️⃣ AJOUTE CET IMPORT (⚠️ Vérifie bien que le chemin correspond à ton dossier !)
 import { AccessibilityProvider } from "./contexts/AccessibilityContext";
+import { AccessibilityMenuOpenProvider } from "./contexts/AccessibilityMenuOpenContext";
 
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
@@ -33,6 +34,7 @@ function App() {
     <BrowserRouter basename="/vmProjetIntegrateurgrp10-0">
       {/* 2️⃣ AJOUTE LE PROVIDER ICI (Il enveloppe toute ton application) */}
       <AccessibilityProvider>
+        <AccessibilityMenuOpenProvider>
         <Layout>
           <Routes>
 
@@ -60,6 +62,7 @@ function App() {
 
           </Routes>
         </Layout>
+        </AccessibilityMenuOpenProvider>
       </AccessibilityProvider>
     </BrowserRouter>
   );
