@@ -20,14 +20,17 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { ShowdownDisplay } from "../components/ShowdownDisplay";
+import { ChipIcon } from "../components/ChipIcon";
 import { PokerCard } from "../components/PokerCard";
 import { useUser } from "../hooks/useUser";
-import { addToUserBalance, getUserBalance } from "../utils/userProfile";
+import { addToUserBalance, getUserBalance, syncBalanceToServer } from "../utils/userProfile";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
 
 type Card = ClientCard;
+
+const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
 interface ChatMessage {
   id: number;
@@ -100,6 +103,10 @@ export function Game() {
   const [showAccessibilityMenu, setShowAccessibilityMenu] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [showGameHelp, setShowGameHelp] = useState(false);
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
+  const [devValidation, setDevValidation] = useState("");
+  const [addSuccess, setAddSuccess] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const [_timerActive, setTimerActive] = useState(false);
   /** Mise maximale actuelle (pour l'API bot) = max des bets des joueurs */
@@ -199,6 +206,30 @@ export function Game() {
   const SB = 50;
   const BB = 100;
   const BOT_START_CHIPS = 1000;
+
+  const openAddMoney = () => {
+    setShowAddMoney(true);
+    setAddMoneyAmount(null);
+    setDevValidation("");
+    setAddSuccess(false);
+  };
+
+  const closeAddMoney = () => {
+    setShowAddMoney(false);
+    setAddMoneyAmount(null);
+    setDevValidation("");
+    setAddSuccess(false);
+  };
+
+  const submitAddMoney = () => {
+    if (addMoneyAmount == null || addMoneyAmount <= 0) return;
+    if (devValidation.trim().toLowerCase() !== "dev") return;
+    const newBalance = addToUserBalance(addMoneyAmount);
+    if (mode === "bot") setPlayerChips(newBalance);
+    syncBalanceToServer().catch(() => {});
+    setAddSuccess(true);
+    setTimeout(() => closeAddMoney(), 800);
+  };
 
   const getPlayers = (): (BasePlayer | BotPlayer)[] => {
     const count = parseInt(searchParams.get("bots") || "1", 10);
@@ -2482,14 +2513,14 @@ export function Game() {
           {/* Capsule Solde + Bouton Ajouter */}
           <div className="flex items-center bg-slate-800/80 backdrop-blur-md border border-slate-700 rounded-full pl-3 pr-1 py-1 shadow-lg gap-3">
             <div className={`text-white font-bold flex items-center gap-1.5 ${isMobile ? 'text-sm' : 'text-base'}`}>
-              <span className="text-yellow-400 drop-shadow-sm">🪙</span>
+              <ChipIcon size="sm" />
               <span>{playerChips.toLocaleString()}</span>
             </div>
 
             <button
-              onClick={() => {}}
+              onClick={openAddMoney}
               className={`bg-gradient-to-b from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white ${isMobile ? 'w-7 h-7' : 'w-8 h-8'} rounded-full flex items-center justify-center shadow-md transition-all transform hover:scale-105 border border-green-400`}
-              title={t('gameHelp.addCredits')}
+              title={t("lobby.addMoney")}
             >
               <Plus className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
             </button>
@@ -2529,6 +2560,65 @@ export function Game() {
           )}
         </div>
       </div>
+
+      {/* Modal Ajouter des jetons */}
+      {showAddMoney && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
+          <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">{t("lobby.addMoneyTitle")}</h3>
+              <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {addSuccess ? (
+              <p className="text-green-400 font-medium text-center py-4">{t("lobby.captchaSuccess")}</p>
+            ) : (
+              <>
+                <p className="text-slate-300 text-sm mb-3">{t("lobby.chooseAmount")}</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {ADD_MONEY_PRESETS.map((amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      onClick={() => setAddMoneyAmount(amount)}
+                      className={`px-4 py-2 rounded-lg font-bold transition ${
+                        addMoneyAmount === amount
+                          ? "bg-yellow-500 text-slate-900"
+                          : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                      }`}
+                    >
+                      {amount.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+                {addMoneyAmount != null && (
+                  <div className="space-y-2">
+                    <label className="text-slate-300 text-sm block">{t("lobby.devValidation") || 'Tapez "dev" pour valider'}</label>
+                    <input
+                      type="text"
+                      value={devValidation}
+                      onChange={(e) => setDevValidation(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
+                      placeholder="dev"
+                      className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={submitAddMoney}
+                      disabled={devValidation.trim().toLowerCase() !== "dev"}
+                      className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
+                    >
+                      {t("lobby.validate")}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modal Confirmation Quitter */}
       {showQuitConfirm && (

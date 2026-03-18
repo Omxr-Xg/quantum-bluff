@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { logoDataUrl } from "../assets/logo";
+import { ChipIcon } from "./ChipIcon";
 import logoSrc from "../assets/logo-personnel.png";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
@@ -256,11 +256,7 @@ export function PokerTable({
                 {/* CHIPS */}
                 <div className="flex items-center gap-1 text-white text-sm font-bold transition hover:scale-105">
 
-                  <img
-                    src={logoDataUrl}
-                    alt="token"
-                    className="w-4 h-4"
-                  />
+                  <ChipIcon size="sm" />
 
                   {player.chips.toLocaleString()}
 

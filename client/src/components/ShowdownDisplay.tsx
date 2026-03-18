@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "motion/react";
 import victorySound from "../assets/sounds/victory.mp3";
 import { useEffect, useRef } from "react";
 import { PokerCard } from "./PokerCard";
+import { ChipIcon } from "./ChipIcon";
 
 interface CardData {
   suit: string;
@@ -105,7 +106,7 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
             <div className="flex justify-between items-center">
               <span className="text-gray-400">{winner.isSplit ? "Chacun reçoit" : "Gain"}</span>
               <span className="text-2xl font-bold text-yellow-400">
-                {winner.pot.toLocaleString()} 🪙
+                {winner.pot.toLocaleString()} <ChipIcon size="sm" className="inline-block align-middle ml-0.5" />
               </span>
             </div>
           </div>

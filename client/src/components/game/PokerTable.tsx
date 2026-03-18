@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { logoDataUrl } from "@/assets/logo-data";
+import { ChipIcon } from "../ChipIcon";
 import { getPlayerAvatar } from "@/utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Clock } from "lucide-react";
@@ -145,7 +145,7 @@ export function PokerTable({ players, children }: PokerTableProps) {
                 <div className={`relative ${isMobile ? 'w-5 h-5' : isTablet ? 'w-6 h-6' : 'w-7 h-7'} drop-shadow-md`}>
                   <div className="absolute inset-0 bg-[#5c1616] rounded-full translate-y-[3px]" />
                   <div className="absolute inset-0 z-10">
-                    <img src={logoDataUrl} alt="Jeton" className="w-full h-full object-contain" />
+                    <ChipIcon size="md" className="w-full h-full" />
                   </div>
                 </div>
                 <div className={`text-white font-bold ${isMobile ? 'text-[10px]' : isTablet ? 'text-[11px]' : 'text-xs'} whitespace-nowrap drop-shadow-md`}>

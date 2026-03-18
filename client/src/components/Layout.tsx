@@ -12,6 +12,7 @@ import { MusicPlayer } from "./MusicPlayer";
 import { InvitationBanner } from "./InvitationBanner";
 import { NotificationCenter } from "./NotificationCenter";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { ChipIcon } from "./ChipIcon";
 import { TopBarProvider } from "../contexts/TopBarContext";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
@@ -157,7 +158,7 @@ export function Layout({ children }: LayoutProps) {
     <>
       <LanguageSwitcher />
       <div className="flex items-center bg-slate-700/80 rounded-lg border border-slate-600 overflow-hidden shrink-0">
-        <span className="px-3 py-2 text-white font-bold text-sm whitespace-nowrap">{balance.toLocaleString()} 💰</span>
+        <span className="px-3 py-2 text-white font-bold text-sm whitespace-nowrap flex items-center gap-1.5">{balance.toLocaleString()} <ChipIcon size="sm" /></span>
         <button type="button" onClick={openAddMoney} className="bg-slate-600 hover:bg-slate-500 text-slate-200 px-2 py-2 transition" title={t("lobby.addMoney")}>
           <Plus className="w-4 h-4" />
         </button>
@@ -223,7 +224,7 @@ export function Layout({ children }: LayoutProps) {
               <div className="flex items-center flex-wrap gap-6">
                 <LanguageSwitcher />
                 <div className="flex items-center bg-slate-700/80 rounded-lg border border-slate-600 overflow-hidden shrink-0">
-                  <span className="px-3 py-2 text-white font-bold text-sm whitespace-nowrap">{balance.toLocaleString()} 💰</span>
+                  <span className="px-3 py-2 text-white font-bold text-sm whitespace-nowrap flex items-center gap-1.5">{balance.toLocaleString()} <ChipIcon size="sm" /></span>
                   <button type="button" onClick={openAddMoney} className="bg-slate-600 hover:bg-slate-500 text-slate-200 px-2 py-2 transition" title={t("lobby.addMoney")}>
                     <Plus className="w-4 h-4" />
                   </button>

@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState, useRef, useCallback } from "react";
 import { useHiddenBets } from "../contexts/HiddenBetsContext";
 import { useDeviceType } from "./ui/use-mobile";
+import { ChipIcon } from "./ChipIcon";
 
 interface HiddenBetsPanelProps {
   isOpen: boolean;
@@ -151,7 +152,7 @@ export function HiddenBetsPanel({
             <div className="flex justify-between text-sm mt-1">
               <span className="text-gray-400">Total misé</span>
               <span className="text-yellow-400 font-bold">
-                {totalAmount} 🪙
+                {totalAmount} <ChipIcon size="sm" className="inline-block align-middle ml-0.5" />
               </span>
             </div>
           </div>
@@ -257,7 +258,7 @@ export function HiddenBetsPanel({
                   {Math.round(
                     amount * parseFloat(getOdds(selectedType, selectedChoice))
                   )}{" "}
-                  🪙
+                  <ChipIcon size="sm" className="inline-block align-middle" />
                 </span>
               </div>
             )}

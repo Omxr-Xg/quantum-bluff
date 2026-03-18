@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { clearAuthStorage } from "../utils/userProfile";
 import { Bot, Plus, Settings, User, LogOut, Globe, Server, UserPlus, ArrowRight } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
+import { ChipIcon } from "../components/ChipIcon";
 
 export function TutorialLobby() {
   const navigate = useNavigate();
@@ -158,7 +159,7 @@ export function TutorialLobby() {
             >
               <div className="hidden sm:block bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border-2 border-yellow-500 rounded-xl px-6 py-3">
                 <div className="text-yellow-400 text-sm font-semibold">Solde</div>
-                <div className="text-yellow-300 text-2xl font-bold">🪙 {userBalance.toLocaleString()}</div>
+                <div className="text-yellow-300 text-2xl font-bold flex items-center gap-2"><ChipIcon size="lg" /> {userBalance.toLocaleString()}</div>
               </div>
 
               <button className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white p-3 sm:p-4 rounded-xl shadow-lg transition-all transform hover:scale-105" title="Amis">
@@ -183,7 +184,7 @@ export function TutorialLobby() {
           <div className="sm:hidden bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border-2 border-yellow-500 rounded-xl px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="text-yellow-400 text-sm font-semibold">Solde</div>
-              <div className="text-yellow-300 text-xl font-bold">🪙 {userBalance.toLocaleString()}</div>
+              <div className="text-yellow-300 text-xl font-bold flex items-center gap-1.5"><ChipIcon size="md" /> {userBalance.toLocaleString()}</div>
             </div>
           </div>
         </div>

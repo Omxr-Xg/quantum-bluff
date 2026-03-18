@@ -4,6 +4,7 @@ import { ArrowLeft, Play, X, Check, TrendingUp } from "lucide-react";
 import { PokerTable } from "../components/PokerTable";
 import { CommunityCards } from "../components/CommunityCards";
 import { QuantumBluffLogo } from "../assets/logo";
+import { ChipIcon } from "../components/ChipIcon";
 
 export function TutorialGame() {
   const navigate = useNavigate();
@@ -213,7 +214,7 @@ export function TutorialGame() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="text-white font-bold text-lg">🪙 7,000</div>
+          <div className="text-white font-bold text-lg flex items-center gap-1.5"><ChipIcon size="sm" /> 7,000</div>
         </div>
       </div>
 
@@ -272,7 +273,7 @@ export function TutorialGame() {
 
               <div className="text-center">
                 <div className="text-white font-bold text-xl">Vous</div>
-                <div className="text-gray-400 text-sm">Vos jetons: 🪙 7,000</div>
+                <div className="text-gray-400 text-sm flex items-center gap-1">Vos jetons: <ChipIcon size="sm" /> 7,000</div>
               </div>
             </div>
 

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { PokerTable } from "../components/PokerTable";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
+import { ChipIcon } from "../components/ChipIcon";
 
 interface Card {
   suit: "hearts" | "diamonds" | "clubs" | "spades";
@@ -464,7 +465,7 @@ export function GameDeal() {
           <div className="text-center">
             <p className="text-gray-400 text-sm font-semibold mb-1">POT</p>
             <p className="text-yellow-400 text-3xl font-bold drop-shadow-lg">
-              {players.reduce((sum, p) => sum + p.bet, 0).toLocaleString()} 🪙
+              {players.reduce((sum, p) => sum + p.bet, 0).toLocaleString()} <ChipIcon size="sm" className="inline-block align-middle ml-1" />
             </p>
           </div>
         </div>
