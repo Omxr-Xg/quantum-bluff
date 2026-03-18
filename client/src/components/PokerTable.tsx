@@ -32,6 +32,8 @@ interface PokerTableProps {
   children?: ReactNode;
   communitySafeZone?: number;
   phase?: string;
+  /** Nombre de cartes brûlées à afficher face cachée dans le conteneur dédié */
+  burnedCardsCount?: number;
 }
 
 // Dimensions de base (référence pour le calcul des positions)
@@ -43,6 +45,7 @@ export function PokerTable({
   children,
   communitySafeZone: _communitySafeZone = 180,
   phase,
+  burnedCardsCount = 0,
 }: PokerTableProps) {
 
   const isShowdown = phase === "showdown";
@@ -99,6 +102,32 @@ export function PokerTable({
           aspectRatio: `${BASE_TABLE_WIDTH} / ${BASE_TABLE_HEIGHT}`,
         }}
       >
+        {/* Conteneur cartes brûlées - à gauche de la table, face cachée */}
+        {burnedCardsCount > 0 && (
+          <div
+            className="absolute right-full mr-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 pointer-events-none"
+            title="Cartes brûlées"
+            aria-label={`${burnedCardsCount} carte(s) brûlée(s)`}
+          >
+            <span className="text-[10px] md:text-xs text-amber-200/90 font-medium uppercase tracking-wide">Brûlées</span>
+            <div className="flex -space-x-2 md:-space-x-3">
+              {Array.from({ length: Math.min(burnedCardsCount, 5) }).map((_, i) => (
+                <PokerCard
+                  key={i}
+                  suit="hearts"
+                  value="A"
+                  size="xs"
+                  faceDown
+                  className="shadow-md"
+                />
+              ))}
+              {burnedCardsCount > 5 && (
+                <span className="text-amber-200/80 text-[10px] self-center pl-1">+{burnedCardsCount - 5}</span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* TABLE - remplit le wrapper */}
         <div
           className="relative w-full h-full rounded-full border-[clamp(3px,1vw,8px)] border-amber-900/80"

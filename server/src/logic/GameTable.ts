@@ -872,7 +872,8 @@ export class GameTable {
       showdownWinnerIds: this.state.showdownWinnerIds,
       showdownIsSplit: this.state.showdownIsSplit,
       showdownHandName: this.state.showdownHandName,
-      showdownPot: this.state.showdownPot
+      showdownPot: this.state.showdownPot,
+      burnedCardsCount: this.deck.burnedCards.length
     }
   }
 
@@ -888,6 +889,7 @@ export class GameTable {
       showdownIsSplit: this.state.showdownIsSplit,
       showdownHandName: this.state.showdownHandName,
       showdownPot: this.state.showdownPot,
+      burnedCardsCount: this.deck.burnedCards.length,
       players: this.state.players.map((player) => ({
         id: player.id,
         name: player.name,

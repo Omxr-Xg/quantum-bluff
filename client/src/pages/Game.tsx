@@ -108,6 +108,7 @@ export function Game() {
   // Nouveaux états pour les animations de cartes
   const [phase, setPhase] = useState<GamePhase>("init");
   const [communityCardsState, setCommunityCardsState] = useState<(Card | null)[]>([null, null, null, null, null]);
+  const [burnedCardsCount, setBurnedCardsCount] = useState(0);
   const [deck, setDeck] = useState<Card[]>([]);
   const [shuffleCount, setShuffleCount] = useState(0);
   const [, _setDealingCard] = useState<number | null>(null);
@@ -306,6 +307,11 @@ export function Game() {
 
   const heroCards = tablePlayers.find((p) => isHero(p))?.cards || [];
   const communityCards = communityCardsState;
+
+  /** En multijoueur : vient du serveur. En mode bot : dérivé de la phase (1 avant flop, 2 avant turn, 3 avant river). */
+  const displayBurnedCardsCount = gameIdParam
+    ? burnedCardsCount
+    : (phase === "flop" ? 1 : phase === "turn" ? 2 : phase === "river" || phase === "showdown" ? 3 : 0);
 
   // Générer un jeu de cartes complet
   const generateDeck = (): Card[] => {
@@ -508,6 +514,7 @@ export function Game() {
     initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
     handContributionsRef.current = contribs;
     setCommunityCardsState([null, null, null, null, null]);
+    setBurnedCardsCount(0);
     hasSetStartOfHandThisHandRef.current = false;
     streetTransitionScheduledRef.current = null;
     if (streetTransitionTimeoutRef.current) {
@@ -569,6 +576,7 @@ export function Game() {
         }
         const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
         setPhase(phase as GamePhase);
+        setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
@@ -700,6 +708,7 @@ export function Game() {
       setPot(gameState.pot ?? 0);
       const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? (gameState.phase as string).toLowerCase?.() ?? "preflop") : "preflop";
       setPhase(phase as GamePhase);
+      setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
@@ -2605,7 +2614,7 @@ export function Game() {
 
       {/* Zone centrale - Table de poker avec cartes communes */}
       <div className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
-        <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase}>
+        <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase} burnedCardsCount={displayBurnedCardsCount}>
           <CommunityCards cards={communityCards} pot={pot} sidePots={sidePots.length > 1 ? sidePots : undefined} />
         </PokerTable>
       </div>
