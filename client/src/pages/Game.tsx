@@ -11,7 +11,7 @@ import { PokerChat } from "../components/PokerChat";
 import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
 import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
-import { useSocket } from "../contexts/SocketContext";
+import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, HelpCircle, Sparkles, Trophy, Frown, Activity } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";

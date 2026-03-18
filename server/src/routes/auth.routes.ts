@@ -7,6 +7,8 @@ import { registerSchema, loginSchema } from '../validation/auth.validation.js'
 import rateLimit from 'express-rate-limit'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
+import { addToBlacklist } from '../auth/tokenBlacklist.js'
+import { verifyTotpToken } from '../auth/totp.service.js'
 
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -197,6 +199,16 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
     }
 
+    if (user.totpSecret) {
+      const code = typeof req.body?.totpCode === 'string' ? req.body.totpCode.replace(/\s/g, '') : ''
+      if (!code || code.length !== 6) {
+        return res.status(401).json({ error: 'Code 2FA requis', requires2FA: true })
+      }
+      if (!verifyTotpToken(user.totpSecret, code)) {
+        return res.status(401).json({ error: 'Code 2FA incorrect' })
+      }
+    }
+
     const token = generateToken(user.id)
 
     res.json({
@@ -263,6 +275,20 @@ router.post('/add-dev-money', authMiddleware, async (req, res) => {
 // DÉPRÉCIÉ : Ne plus accepter de balance envoyée par le client (risque de triche)
 router.post('/sync-balance', authMiddleware, async (_req, res) => {
   res.status(410).json({ error: 'Endpoint désactivé pour sécurité. Utilisez GET /api/auth/balance.' })
+})
+
+// POST /api/auth/logout - Invalide le token côté serveur (blacklist)
+router.post('/logout', authMiddleware, async (req, res) => {
+  const authHeader = req.headers.authorization
+  if (!authHeader) return res.status(401).json({ error: 'Token manquant' })
+  const token = authHeader.split(' ')[1]
+  if (!token) return res.status(401).json({ error: 'Token manquant' })
+  try {
+    await addToBlacklist(token)
+    res.json({ ok: true })
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
 })
 
 export default router

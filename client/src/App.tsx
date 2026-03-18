@@ -28,9 +28,13 @@ function GameWithKey() {
   return <Game key={location.pathname + location.search} />;
 }
 
+const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
+const isCapacitor = typeof window !== 'undefined' && !!(window as Window & { Capacitor?: unknown }).Capacitor;
+const basename = base && !isCapacitor ? base : undefined;
+
 function App() {
   return (
-    <BrowserRouter basename="/vmProjetIntegrateurgrp10-0">
+    <BrowserRouter basename={basename}>
       {/* 2️⃣ AJOUTE LE PROVIDER ICI (Il enveloppe toute ton application) */}
       <AccessibilityProvider>
         <AccessibilityMenuOpenProvider>

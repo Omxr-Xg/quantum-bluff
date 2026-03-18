@@ -33,6 +33,16 @@ redisClient.on('error', (err: Error) => {
   console.error('❌ Erreur Redis:', err);
 });
 
+/** Vérifie si Redis est opérationnel (pour fallback activeGames) */
+export const isRedisHealthy = async (): Promise<boolean> => {
+  try {
+    const pong = await redisClient.ping();
+    return pong === 'PONG';
+  } catch {
+    return false;
+  }
+};
+
 // Préfixe pour les clés Redis
 const GAME_PREFIX = 'game:';
 // PLAYER_PREFIX supprimé car non utilisé

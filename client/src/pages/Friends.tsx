@@ -5,7 +5,7 @@ import { UserPlus, Search, ArrowLeft, MessageCircle, Users, X, Check, Loader2, G
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useUser } from "../hooks/useUser";
-import { useSocket } from "../contexts/SocketContext";
+import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import {
   useGetFriendsQuery,

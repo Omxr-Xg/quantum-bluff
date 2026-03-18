@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { useSocket } from "./SocketContext";
+import { useSocket } from "../hooks/useSocket";
 
 export interface HandProbability {
   handKey: string;

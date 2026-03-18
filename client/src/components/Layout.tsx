@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bell, X, User, Users, LogOut, Plus, Menu, Settings } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { useSocket } from "../contexts/SocketContext";
+import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { useMusic } from "../contexts/MusicContext";
 import { getUserBalance, addDevMoney, fetchBalanceFromServer, clearAuthStorage } from "../utils/userProfile";
