@@ -4,8 +4,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AccessibilityProvider } from "./contexts/AccessibilityContext";
 import { AccessibilityMenuOpenProvider } from "./contexts/AccessibilityMenuOpenContext";
 
-import { Login } from "./pages/Login";
-import { Register } from "./pages/Register";
+import { Auth } from "./pages/Auth";
 import { Lobby } from "./pages/Lobby";
 import { BotConfiguration } from "./pages/BotConfiguration";
 import { Game } from "./pages/Game";
@@ -40,8 +39,7 @@ function App() {
 
             <Route path="/" element={<StartScreen />} />
 
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/auth" element={<Auth />} />
 
             <Route path="/lobby" element={<ProtectedRoute><Lobby /></ProtectedRoute>} />
             <Route path="/bot-configuration" element={<ProtectedRoute><BotConfiguration /></ProtectedRoute>} />

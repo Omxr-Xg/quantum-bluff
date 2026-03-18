@@ -50,6 +50,13 @@ const registerLimiter = rateLimit({
   }
 })
 
+const checkEmailLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 const router = express.Router()
 
 const JWT_SECRET = process.env.JWT_SECRET || 'quantum_bluff_secret'
@@ -58,6 +65,24 @@ const TOKEN_EXPIRATION = '7d'
 function generateToken(userId: string) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRATION })
 }
+
+// Regex format email: xxx@yyy.zzz
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// CHECK EMAIL - Vérifie si l'email existe (pour flux login/register unifié)
+router.post('/check-email', checkEmailLimiter, async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+  if (!email || !EMAIL_FORMAT.test(email)) {
+    return res.status(400).json({ error: 'Email invalide' })
+  }
+  try {
+    const user = await prisma.user.findUnique({ where: { email } })
+    res.json({ exists: !!user })
+  } catch (error) {
+    console.error('[AUTH] check-email error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
 
 // REGISTER
 router.post('/register', registerLimiter, async (req, res) => {

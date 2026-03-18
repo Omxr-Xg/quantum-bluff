@@ -5,13 +5,13 @@ interface ProtectedRouteProps {
   children: ReactNode;
 }
 
-/** Redirige vers /login si non authentifié */
+/** Redirige vers /auth si non authentifié */
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
   const token = localStorage.getItem("token");
 
   if (!token) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
   }
 
   return <>{children}</>;

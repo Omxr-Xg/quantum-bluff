@@ -142,6 +142,9 @@
   },
   "auth": {
     "title": "Quantum Bluff",
+    "continue": "Continuer",
+    "changeEmail": "Utiliser un autre email",
+    "invalidEmailFormat": "Veuillez entrer une adresse email valide",
     "secureAccess": "Accès sécurisé à la table",
     "email": "Email",
     "password": "Mot de passe",

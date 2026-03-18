@@ -145,6 +145,9 @@
   },
   "auth": {
     "title": "Quantum Bluff",
+    "continue": "Continue",
+    "changeEmail": "Use a different email",
+    "invalidEmailFormat": "Please enter a valid email address",
     "secureAccess": "Secure access to the table",
     "email": "Email",
     "password": "Password",

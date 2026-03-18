@@ -94,6 +94,14 @@ export const api = createApi({
       invalidatesTags: ['User'],
     }),
 
+    checkEmail: builder.mutation<{ exists: boolean }, { email: string }>({
+      query: ({ email }) => ({
+        url: '/auth/check-email',
+        method: 'POST',
+        body: { email },
+      }),
+    }),
+
     getGames: builder.query({
       query: () => '/games',
       providesTags: ['Game'],
@@ -182,6 +190,7 @@ export const api = createApi({
 export const {
   useLoginMutation,
   useRegisterMutation,
+  useCheckEmailMutation,
   useGetGamesQuery,
   useCreateGameMutation,
   useJoinGameMutation,

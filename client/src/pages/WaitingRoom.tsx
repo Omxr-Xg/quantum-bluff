@@ -74,7 +74,7 @@ export function WaitingRoom() {
 
   useEffect(() => {
     if (!userId) {
-      navigate("/login");
+      navigate("/auth");
       return;
     }
 

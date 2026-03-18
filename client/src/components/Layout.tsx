@@ -163,7 +163,7 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
-  const isAuthPage = location.pathname === "/" || location.pathname === "/login" || location.pathname === "/register";
+  const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
   const showTopBar = !isAuthPage && localStorage.getItem("token");
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");

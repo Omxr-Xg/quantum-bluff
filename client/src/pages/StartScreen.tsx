@@ -36,7 +36,7 @@ export function StartScreen() {
   }, [t]);
 
   const handleStart = () => {
-    navigate("/login");
+    navigate("/auth");
   };
 
   return (

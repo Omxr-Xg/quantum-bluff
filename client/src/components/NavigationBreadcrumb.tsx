@@ -6,7 +6,7 @@ import { QuantumBluffLogo } from "../assets/logo";
 
 const PATH_KEYS: Record<string, string> = {
   "/": "nav.login",
-  "/register": "nav.register",
+  "/auth": "nav.login",
   "/lobby": "nav.lobby",
   "/bot-configuration": "nav.botConfig",
   "/waiting-room": "nav.waitingRoom",
