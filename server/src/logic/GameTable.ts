@@ -252,6 +252,36 @@ export class GameTable {
   }
 
   /**
+   * Rembourse immédiatement les mises non appelées (ex: J1 mise 500, J2 call 300, J3 call 400 → J1 récupère 100 tout de suite).
+   * À appeler à la fin du tour d'enchères, avant de passer à la rue suivante ou au showdown.
+   */
+  private processUncalledBetsRefund(): void {
+    const activePlayers = this.getActivePlayers()
+    if (activePlayers.length < 2) return
+
+    const allWithContrib = this.state.players.filter(
+      (p) => (p.totalPutInThisHand ?? p.currentBet ?? 0) > 0
+    )
+    if (allWithContrib.length < 2) return
+
+    for (const player of activePlayers) {
+      const contrib = player.totalPutInThisHand ?? player.currentBet ?? 0
+      const maxOther = Math.max(
+        0,
+        ...allWithContrib
+          .filter((p) => p.id !== player.id)
+          .map((p) => p.totalPutInThisHand ?? p.currentBet ?? 0)
+      )
+      const refund = Math.max(0, contrib - maxOther)
+      if (refund > 0) {
+        player.chips += refund
+        player.totalPutInThisHand = (player.totalPutInThisHand ?? contrib) - refund
+        this.state.pot -= refund
+      }
+    }
+  }
+
+  /**
    * Passe à la phase suivante.
    * @param lastActorId - Si fourni, le premier à jouer sur la nouvelle rue est le joueur APRÈS lastActorId (évite qu'un joueur joue deux fois de suite)
    */
@@ -262,6 +292,9 @@ export class GameTable {
     if (currentIndex === -1 || currentIndex === phaseOrder.length - 1) {
       return
     }
+
+    // Remboursement immédiat des mises non appelées avant de passer à la rue suivante
+    this.processUncalledBetsRefund()
 
     const nextPhase = phaseOrder[currentIndex + 1]
     this.state.phase = nextPhase
@@ -513,6 +546,11 @@ export class GameTable {
 
   getPlayerState(playerId: string): Player | undefined {
     return this.state.players.find((player) => player.id === playerId)
+  }
+
+  /** Relance minimum = big blind (pour validation gateway) */
+  getMinRaise(): number {
+    return this.bigBlindAmount
   }
 
   canPlayerAct(playerId: string): boolean {

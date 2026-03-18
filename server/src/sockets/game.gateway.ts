@@ -331,7 +331,7 @@ export class GameGateway {
             return
           }
 
-          const minRaise = game instanceof CashGameController ? 2 : 20
+          const minRaise = 'getMinRaise' in game && typeof game.getMinRaise === 'function' ? game.getMinRaise() : (game instanceof CashGameController ? 2 : 20)
           if (action === 'RAISE' && (!amount || amount < minRaise)) {
             logSuspiciousAction('INVALID_RAISE', {
               userId: socket.userId,
@@ -570,7 +570,7 @@ export class GameGateway {
               const player = game.getPlayerState(userId)
               if (player) {
                 player.isConnected = false
-                player.isActive = false // déconnexion = fold
+                // Ne pas set isActive ici quand c'est son tour: handlePlayerAction('FOLD') le fera
 
                 if (game.state.currentTurn === userId) {
                   try {
@@ -586,7 +586,8 @@ export class GameGateway {
                     console.error('[Réseau] Erreur auto-fold timeout:', error)
                   }
                 } else {
-                  // Pas son tour : on applique le fold et on vérifie s'il ne reste qu'un joueur
+                  // Pas son tour : fold manuel (handlePlayerAction exigerait que ce soit son tour)
+                  player.isActive = false
                   game.forceFoldForDisconnect(userId)
                   const socketsInRoom = await this.io.in(gameId).fetchSockets()
                   for (const s of socketsInRoom) {

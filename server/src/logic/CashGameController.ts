@@ -299,6 +299,10 @@ export class CashGameController implements IGameSession {
     return this.gameTable?.getPlayerState(playerId)
   }
 
+  getMinRaise(): number {
+    return this.gameTable?.getMinRaise() ?? this.bigBlind
+  }
+
   getGameTable(): GameTable | null {
     return this.gameTable
   }
