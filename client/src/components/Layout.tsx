@@ -6,7 +6,7 @@ import { AnimatePresence } from "motion/react";
 import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
 import { useMusic } from "../contexts/MusicContext";
-import { getUserBalance, addToUserBalance, syncBalanceToServer } from "../utils/userProfile";
+import { getUserBalance, addToUserBalance, syncBalanceToServer, clearAuthStorage } from "../utils/userProfile";
 import { Toast } from "./Toast";
 import { MusicPlayer } from "./MusicPlayer";
 import { InvitationBanner } from "./InvitationBanner";
@@ -171,7 +171,7 @@ export function Layout({ children }: LayoutProps) {
         <Users className="w-4 h-4 shrink-0" />
         <span>{t("lobby.manageFriends")}</span>
       </button>
-      <button onClick={() => navigate("/")} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
+      <button onClick={() => { clearAuthStorage(); navigate("/"); }} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
         <LogOut className="w-4 h-4 shrink-0" />
         <span>{t("lobby.logout")}</span>
       </button>
@@ -237,7 +237,7 @@ export function Layout({ children }: LayoutProps) {
                   <Users className="w-4 h-4 shrink-0" />
                   <span>{t("lobby.manageFriends")}</span>
                 </button>
-                <button onClick={() => navigate("/")} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
+                <button onClick={() => { clearAuthStorage(); navigate("/"); }} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
                   <LogOut className="w-4 h-4 shrink-0" />
                   <span>{t("lobby.logout")}</span>
                 </button>

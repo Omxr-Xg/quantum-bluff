@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { clearAuthStorage } from "../utils/userProfile";
 import { Bot, Plus, Settings, User, LogOut, Globe, Server, UserPlus, ArrowRight } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 
@@ -172,7 +173,7 @@ export function TutorialLobby() {
                 <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
 
-              <button className="bg-gradient-to-br from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white p-3 sm:p-4 rounded-xl shadow-lg transition-all transform hover:scale-105" title="Déconnexion">
+              <button onClick={() => { clearAuthStorage(); navigate("/"); }} className="bg-gradient-to-br from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white p-3 sm:p-4 rounded-xl shadow-lg transition-all transform hover:scale-105" title="Déconnexion">
                 <LogOut className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>

@@ -63,6 +63,21 @@ export function addToUserBalance(amount: number): number {
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
+/** Vide toutes les données d'authentification du localStorage (déconnexion) */
+export function clearAuthStorage(): void {
+  localStorage.removeItem("token");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("userid");
+  localStorage.removeItem("username");
+  localStorage.removeItem(STORAGE_KEYS.USERNAME);
+  localStorage.removeItem(STORAGE_KEYS.EMAIL);
+  localStorage.removeItem(STORAGE_KEYS.AVATAR);
+  localStorage.removeItem(STORAGE_KEYS.BALANCE);
+  localStorage.removeItem("gamePlayers");
+  localStorage.removeItem("gameId");
+  window.dispatchEvent(new Event("auth-changed"));
+}
+
 /** Synchronise la balance locale vers le serveur (pour multijoueur). Appelé après addToUserBalance et avant démarrage de partie. */
 export async function syncBalanceToServer(): Promise<void> {
   const token = localStorage.getItem("token");
