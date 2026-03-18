@@ -63,8 +63,13 @@ export function addToUserBalance(amount: number): number {
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
-/** Vide toutes les données d'authentification du localStorage (déconnexion) */
+/** Vide toutes les données d'authentification du localStorage (déconnexion). Appelle l'API logout pour invalider le token côté serveur. */
 export function clearAuthStorage(): void {
+  const token = localStorage.getItem("token");
+  const url = API_BASE ? `${API_BASE}/api/auth/logout` : "/api/auth/logout";
+  if (token) {
+    fetch(url, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+  }
   localStorage.removeItem("token");
   localStorage.removeItem("userId");
   localStorage.removeItem("userid");
