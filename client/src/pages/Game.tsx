@@ -505,15 +505,13 @@ export function Game() {
         handContributionsRef.current = contribs;
       }
     };
-    // Mode bot : différer d'un frame pour éviter blocage config → jeu (React doit finir le mount)
+    // Mode bot : micro-delai pour laisser la nav finir (évite race config → jeu)
     if (mode === "bot" && !gameIdParam) {
-      const id = requestAnimationFrame(() => {
-        runInit();
-      });
-      return () => cancelAnimationFrame(id);
+      const t = setTimeout(runInit, 0);
+      return () => clearTimeout(t);
     }
     runInit();
-  }, [mode, gameIdParam]);
+  }, [mode, gameIdParam, searchParams.get("bots") ?? "", searchParams.get("difficulty") ?? "", searchParams.get("botChips") ?? ""]);
 
   // Rejouer avec la même configuration (bouton overlay, mode bot uniquement)
   useEffect(() => {
@@ -559,8 +557,8 @@ export function Game() {
   // Spectateurs : pas de fetch HTTP, l'état vient du socket JOIN_SPECTATE
   useEffect(() => {
     if (!gameIdParam || isSpectating || !userId) return;
-    const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
-    const url = `${baseUrl}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
+    const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+    const url = `${apiBase}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
     let cancelled = false;
     fetch(url, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
@@ -1524,8 +1522,8 @@ export function Game() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
-        const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
-        const url = `${baseUrl}/api/bot/action`;
+        const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+        const url = `${apiBase}/api/bot/action`;
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1632,8 +1630,8 @@ export function Game() {
     if (handResult === null || !isBotMode) return;
     const t = setTimeout(() => {
       const token = localStorage.getItem("token");
-      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
-      const recordUrl = `${baseUrl}/api/game/record-result`;
+      const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+      const recordUrl = `${apiBase}/api/game/record-result`;
       if (token) {
         fetch(recordUrl, {
           method: "POST",
