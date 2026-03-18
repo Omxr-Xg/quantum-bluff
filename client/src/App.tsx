@@ -28,10 +28,9 @@ function GameWithKey() {
   return <Game key={location.pathname + location.search} />;
 }
 
-const basename =
-  import.meta.env.PROD && typeof window !== 'undefined' && !(window as Window & { Capacitor?: unknown }).Capacitor
-    ? '/vmProjetIntegrateurgrp10-0'
-    : undefined;
+const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
+const isCapacitor = typeof window !== 'undefined' && !!(window as Window & { Capacitor?: unknown }).Capacitor;
+const basename = base && !isCapacitor ? base : undefined;
 
 function App() {
   return (

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Users, UserPlus, Loader2, ChevronRight } from "lucide-react";
 import { useUser } from "../hooks/useUser";
-import { useSocket } from "../contexts/SocketContext";
+import { useSocket } from "../hooks/useSocket";
 import {
   useGetFriendsQuery,
   useGetFriendRequestsQuery
