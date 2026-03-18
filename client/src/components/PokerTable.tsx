@@ -158,6 +158,16 @@ export function PokerTable({
 
               <div className="flex flex-col items-center gap-2">
 
+                {/* DEALER BUTTON - simple marqueur de position (disque blanc avec D) */}
+                {player.isDealer && (
+                  <div
+                    className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-full bg-white border-2 border-slate-300 text-slate-700 font-bold text-xs md:text-sm shadow-md"
+                    title="Dealer"
+                  >
+                    D
+                  </div>
+                )}
+
                 {/* TURN INDICATOR */}
                 {player.isActive && (
                   <div className="inline-flex items-center gap-1 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold animate-pulse">

@@ -84,6 +84,17 @@ export class GameTable {
     return -1
   }
 
+  /** Trouve le prochain joueur vivant (chips > 0, connecté) dans le sens horaire. Pour la rotation du bouton Dealer. */
+  private getNextLivingPlayerIndex(startIndex: number): number {
+    if (this.state.players.length === 0) return 0
+    for (let i = 1; i <= this.state.players.length; i++) {
+      const idx = (startIndex + i) % this.state.players.length
+      const p = this.state.players[idx]
+      if (p.isConnected !== false && p.chips > 0) return idx
+    }
+    return startIndex
+  }
+
   private assignPositionsAndRoles(): void {
     this.state.players.forEach((player, index) => {
       player.position = index
@@ -444,7 +455,7 @@ export class GameTable {
     }
 
     if (this.handStarted) {
-      this.dealerIndex = (this.dealerIndex + 1) % this.state.players.length
+      this.dealerIndex = this.getNextLivingPlayerIndex(this.dealerIndex)
     }
 
     this.handStarted = true
