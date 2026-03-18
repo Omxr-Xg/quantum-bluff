@@ -1,7 +1,7 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X, User, Users, LogOut, Plus } from "lucide-react";
+import { Bell, X, User, Users, LogOut, Plus, Menu } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../contexts/SocketContext";
 import { useToast } from "../contexts/ToastContext";
@@ -12,6 +12,7 @@ import { MusicPlayer } from "./MusicPlayer";
 import { InvitationBanner } from "./InvitationBanner";
 import { NotificationCenter } from "./NotificationCenter";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { TopBarProvider } from "../contexts/TopBarContext";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
@@ -35,6 +36,21 @@ export function Layout({ children }: LayoutProps) {
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [devValidation, setDevValidation] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const MENU_CLOSE_DELAY = 500;
+
+  const handleMenuMouseEnter = () => {
+    if (closeMenuTimerRef.current) {
+      clearTimeout(closeMenuTimerRef.current);
+      closeMenuTimerRef.current = null;
+    }
+    setMenuOpen(true);
+  };
+
+  const handleMenuMouseLeave = () => {
+    closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
+  };
 
   useEffect(() => {
     setBalance(getUserBalance());
@@ -126,51 +142,109 @@ export function Layout({ children }: LayoutProps) {
   const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
   const isAuthPage = location.pathname === "/" || location.pathname === "/login" || location.pathname === "/register";
   const showTopBar = !isAuthPage && localStorage.getItem("token");
+  const path = location.pathname;
+  const isLobby = path.includes("lobby") && !path.includes("waiting-room");
+  const isGameConfigOrRoom =
+    isGamePage ||
+    path.includes("bot-configuration") ||
+    path.includes("waiting-room") ||
+    path.includes("tutorial-game") ||
+    path.includes("tutorial-lobby");
+  const showHamburgerMenu = showTopBar && isGameConfigOrRoom && !isLobby;
+  const showLobbyIntegratedBar = showTopBar && isLobby;
+
+  const menuContent = (
+    <>
+      <LanguageSwitcher />
+      <div className="flex items-center bg-slate-700/80 rounded-lg border border-slate-600 overflow-hidden shrink-0">
+        <span className="px-3 py-2 text-white font-bold text-sm whitespace-nowrap">{balance.toLocaleString()} 💰</span>
+        <button type="button" onClick={openAddMoney} className="bg-slate-600 hover:bg-slate-500 text-slate-200 px-2 py-2 transition" title={t("lobby.addMoney")}>
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+      <NotificationCenter />
+      <button onClick={() => navigate("/profile")} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600/80 hover:bg-green-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.profile")}>
+        <User className="w-4 h-4 shrink-0" />
+        <span>{t("lobby.profile")}</span>
+      </button>
+      <button onClick={() => navigate("/friends")} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600/80 hover:bg-blue-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.manageFriends")}>
+        <Users className="w-4 h-4 shrink-0" />
+        <span>{t("lobby.manageFriends")}</span>
+      </button>
+      <button onClick={() => navigate("/")} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
+        <LogOut className="w-4 h-4 shrink-0" />
+        <span>{t("lobby.logout")}</span>
+      </button>
+    </>
+  );
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {showTopBar && (
-        <div className="fixed top-0 left-0 right-0 z-[150] flex items-center justify-between gap-2 px-4 py-3 bg-slate-900/95 border-b border-slate-700">
-          <div className="flex items-center gap-2" />
-          <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
-            <LanguageSwitcher />
-            <div className="flex items-center bg-slate-800 rounded-xl border border-slate-600 overflow-hidden shrink-0 h-10 md:h-12">
-              <span className="px-3 py-2 text-white font-bold text-sm whitespace-nowrap">
-                {balance.toLocaleString()} 💰
-              </span>
-              <button
-                type="button"
-                onClick={openAddMoney}
-                className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 h-full border-l border-slate-600 transition"
-                title={t("lobby.addMoney")}
-              >
-                <Plus className="w-4 h-4 md:w-5 md:h-5" />
-              </button>
-            </div>
-            <NotificationCenter />
+      <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
+      {showHamburgerMenu && (
+        <>
+          {/* Bouton hamburger aligné avec MessageCircle et HelpCircle (top-4 right-8) */}
+          <div
+            className="fixed top-4 right-8 z-[250]"
+            onMouseEnter={() => {
+              if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
+              closeMenuTimerRef.current = null;
+              setMenuOpen(true);
+            }}
+            onMouseLeave={() => {
+              closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
+            }}
+          >
             <button
-              onClick={() => navigate("/profile")}
-              className="bg-green-600 hover:bg-green-500 p-2 md:p-3 rounded-xl text-white transition shrink-0 h-10 md:h-12 flex items-center justify-center"
-              title={t("lobby.profile")}
+              type="button"
+              onClick={() => {
+                if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
+                closeMenuTimerRef.current = null;
+                setMenuOpen((o) => !o);
+              }}
+              className="w-12 h-12 rounded-xl bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 text-white flex items-center justify-center transition shadow-lg"
+              title="Menu"
             >
-              <User className="w-5 h-5 md:w-6 md:h-6" />
-            </button>
-            <button
-              onClick={() => navigate("/friends")}
-              className="bg-blue-600 hover:bg-blue-500 p-2 md:p-3 rounded-xl text-white transition shrink-0 h-10 md:h-12 flex items-center justify-center"
-              title={t("lobby.manageFriends")}
-            >
-              <Users className="w-5 h-5 md:w-6 md:h-6" />
-            </button>
-            <button
-              onClick={() => navigate("/")}
-              className="bg-red-600 hover:bg-red-500 p-2 md:p-3 rounded-xl text-white transition shrink-0 h-10 md:h-12 flex items-center justify-center"
-              title={t("lobby.logout")}
-            >
-              <LogOut className="w-5 h-5 md:w-6 md:h-6" />
+              <Menu className="w-6 h-6" />
             </button>
           </div>
-        </div>
+          {/* Menu déroulant à gauche du bouton */}
+          {menuOpen && (
+            <div
+              className="fixed top-3 right-24 z-[249] flex items-center flex-wrap gap-6 px-4 py-2 bg-slate-800/98 border border-slate-600 rounded-xl shadow-2xl"
+              onMouseEnter={() => {
+                if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
+                closeMenuTimerRef.current = null;
+              }}
+              onMouseLeave={() => {
+                closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
+              }}
+            >
+              <div className="flex items-center flex-wrap gap-6">
+                <LanguageSwitcher />
+                <div className="flex items-center bg-slate-700/80 rounded-lg border border-slate-600 overflow-hidden shrink-0">
+                  <span className="px-3 py-2 text-white font-bold text-sm whitespace-nowrap">{balance.toLocaleString()} 💰</span>
+                  <button type="button" onClick={openAddMoney} className="bg-slate-600 hover:bg-slate-500 text-slate-200 px-2 py-2 transition" title={t("lobby.addMoney")}>
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <NotificationCenter />
+                <button onClick={() => navigate("/profile")} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600/80 hover:bg-green-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.profile")}>
+                  <User className="w-4 h-4 shrink-0" />
+                  <span>{t("lobby.profile")}</span>
+                </button>
+                <button onClick={() => navigate("/friends")} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600/80 hover:bg-blue-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.manageFriends")}>
+                  <Users className="w-4 h-4 shrink-0" />
+                  <span>{t("lobby.manageFriends")}</span>
+                </button>
+                <button onClick={() => navigate("/")} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
+                  <LogOut className="w-4 h-4 shrink-0" />
+                  <span>{t("lobby.logout")}</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Modal Ajouter des jetons */}
@@ -273,9 +347,10 @@ export function Layout({ children }: LayoutProps) {
 
       <InvitationBanner />
 
-      <div className={`min-h-screen w-full ${showTopBar ? "pt-14 md:pt-16" : ""}`}>
+      <div className={`min-h-screen w-full ${showTopBar && !showLobbyIntegratedBar ? "pt-14 md:pt-16" : ""}`}>
         {children}
       </div>
+      </TopBarProvider>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
+import { useTopBar } from '../contexts/TopBarContext';
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
@@ -42,6 +43,7 @@ export function Lobby() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { userId, username } = useUser();
+  const { menuContent } = useTopBar();
   const [rooms, setRooms] = useState<WaitingRoomItem[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -224,8 +226,10 @@ export function Lobby() {
             </div>
           </div>
 
-          {/* Côté Droit : vide (langue, argent, profil, amis, quitter sont dans la barre Layout) */}
-          <div />
+          {/* Côté Droit : menu intégré (langue, argent, profil, amis, quitter) */}
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            {menuContent}
+          </div>
         </div>
         {/* FIN DU HEADER */}
 

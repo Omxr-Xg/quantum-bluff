@@ -453,6 +453,15 @@ export class GameGateway {
             const uid = (s as unknown as AuthenticatedSocket).userId
             s.emit('GAME_UPDATE', game.getSanitizedState(uid))
           }
+          // Si plus aucun joueur : supprimer la partie et remettre la salle en WAITING
+          if (game.getOccupiedCount() === 0) {
+            await activeGames.delete(gameId)
+            await prisma.waitingRoom.update({
+              where: { id: game.roomId },
+              data: { status: 'WAITING', gameId: null }
+            })
+            this.io.to(gameId).emit('GAME_ENDED', { gameId, reason: 'all_players_left' })
+          }
         } catch (err) {
           console.error('Erreur CASH_LEAVE:', err)
         }
@@ -604,6 +613,24 @@ export class GameGateway {
                     playerId: userId,
                     gameId
                   })
+                }
+              } else if (game instanceof CashGameController) {
+                // Entre les mains : retirer le joueur déconnecté du siège
+                const removed = game.removeDisconnectedPlayer(userId)
+                if (removed) {
+                  const socketsInRoom = await this.io.in(gameId).fetchSockets()
+                  for (const s of socketsInRoom) {
+                    const uid = (s as unknown as AuthenticatedSocket).userId
+                    s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+                  }
+                  if (game.getOccupiedCount() === 0) {
+                    await activeGames.delete(gameId)
+                    await prisma.waitingRoom.update({
+                      where: { id: game.roomId },
+                      data: { status: 'WAITING', gameId: null }
+                    })
+                    this.io.to(gameId).emit('GAME_ENDED', { gameId, reason: 'all_players_left' })
+                  }
                 }
               }
             }

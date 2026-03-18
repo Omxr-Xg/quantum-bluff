@@ -97,6 +97,7 @@ router.get('/games-in-progress', async (req, res) => {
         if (!game?.state) continue;
         const isCashGame = game instanceof CashGameController;
         const occupiedCount = isCashGame ? (game as CashGameController).getOccupiedCount() : (game.state.players?.length ?? 0);
+        if (occupiedCount === 0) continue; // Partie vide = ne pas afficher
         const maxSeats = isCashGame ? 9 : room.maxPlayers;
         const canJoin = isCashGame && occupiedCount < maxSeats;
       result.push({

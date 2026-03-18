@@ -173,12 +173,22 @@ export class CashGameController implements IGameSession {
       if (seat) seat.chips = p.chips
     }
 
-    // Éliminés (chips=0) libèrent leur siège
+    // Éliminés (chips=0) ou déconnectés libèrent leur siège
     for (const s of this.seats) {
       if (s.userId != null && s.chips === 0) {
         s.userId = null
         s.username = null
         s.chips = 0
+      }
+    }
+    for (const p of state.players) {
+      if (!p.isConnected) {
+        const seat = this.seats.find((s) => s.userId === p.id)
+        if (seat) {
+          seat.userId = null
+          seat.username = null
+          seat.chips = 0
+        }
       }
     }
 
@@ -204,6 +214,17 @@ export class CashGameController implements IGameSession {
     const amount = Math.max(this.defaultBuyIn, Math.min(buyIn, 10000))
     this.seats[seatIndex] = { seatIndex, userId, username, chips: amount }
     return { ok: true }
+  }
+
+  /** Retirer un joueur déconnecté de son siège (entre les mains uniquement) */
+  removeDisconnectedPlayer(userId: string): boolean {
+    if (this.gameTable != null) return false
+    const seat = this.seats.find((s) => s.userId === userId)
+    if (!seat) return false
+    seat.userId = null
+    seat.username = null
+    seat.chips = 0
+    return true
   }
 
   /** Se lever (entre les mains uniquement) */
