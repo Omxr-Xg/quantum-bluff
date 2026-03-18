@@ -81,17 +81,24 @@ router.get('/active/games', async (req, res) => {
   }
 });
 
+const GAME_MAX_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
 // GET /api/waiting-room/games-in-progress - Parties en cours (Rejoindre si place, Spectateur)
 router.get('/games-in-progress', async (req, res) => {
   try {
     const rooms = await prisma.waitingRoom.findMany({
       where: { status: 'IN_GAME', gameId: { not: null } },
-      select: { id: true, name: true, gameId: true, maxPlayers: true },
+      select: { id: true, name: true, gameId: true, maxPlayers: true, updatedAt: true },
       orderBy: { createdAt: 'desc' }
     });
     const result = [];
+    const now = Date.now();
     for (const room of rooms) {
       if (!room.gameId) continue;
+      // Exclure les parties de plus de 15 min (gameId = game_<timestamp> ou updatedAt)
+      const match = room.gameId.match(/^game_(\d+)$/);
+      const startedAt = match ? parseInt(match[1], 10) : room.updatedAt.getTime();
+      if (now - startedAt > GAME_MAX_DURATION_MS) continue;
       try {
         const game = await activeGames.get(room.gameId);
         if (!game?.state) continue;
