@@ -1609,7 +1609,7 @@ export function Game() {
           }
           setIsBotThinking(false);
           botIsFetchingRef.current = false;
-        }, Math.random() * 1000 + 1000);
+        }, 3000);
       } catch (error) {
         console.error("Erreur API bot:", error);
         clearTimeout(timeoutId);
