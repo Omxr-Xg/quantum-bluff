@@ -192,7 +192,9 @@ export class CashGameController implements IGameSession {
       }
     }
 
-    // Rotation du bouton vers le prochain siège occupé
+    // Rotation du bouton vers le prochain siège occupé (entre les mains uniquement).
+    // Vigilance : joueurs éliminés/déconnectés ont déjà libéré leur siège ci-dessus.
+    // Les joueurs qui reviennent (SIT ou reconnexion) seront dans la rotation future.
     this.buttonSeatIndex = this.getNextOccupiedSeatIndex(this.buttonSeatIndex)
 
     this.gameTable = null

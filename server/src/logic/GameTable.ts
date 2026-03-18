@@ -84,7 +84,12 @@ export class GameTable {
     return -1
   }
 
-  /** Trouve le prochain joueur vivant (chips > 0, connecté) dans le sens horaire. Pour la rotation du bouton Dealer. */
+  /**
+   * Trouve le prochain joueur vivant (chips > 0, connecté) dans le sens horaire.
+   * Utilisé pour la rotation du bouton Dealer.
+   * Vigilance : les joueurs qui reviennent (reconnexion, rachat) sont réintégrés
+   * car on évalue l'état actuel (chips, isConnected) à chaque appel.
+   */
   private getNextLivingPlayerIndex(startIndex: number): number {
     if (this.state.players.length === 0) return 0
     for (let i = 1; i <= this.state.players.length; i++) {
@@ -95,6 +100,11 @@ export class GameTable {
     return startIndex
   }
 
+  /**
+   * Attribue les rôles (Dealer, SB, BB) à partir de dealerIndex.
+   * Heads-up : le dealer est aussi small blind (règle spécifique au tête-à-tête).
+   * Cohérence : isDealer provient uniquement de dealerIndex → affichage du jeton "D".
+   */
   private assignPositionsAndRoles(): void {
     this.state.players.forEach((player, index) => {
       player.position = index
@@ -449,6 +459,11 @@ export class GameTable {
     }
   }
 
+  /**
+   * Démarre une nouvelle main.
+   * Vigilance : le bouton ne tourne qu'à la fin complète d'une main, au tout début de la suivante.
+   * L'affichage du jeton "D" (isDealer) est dérivé de dealerIndex via assignPositionsAndRoles.
+   */
   startHand(forcedHoleCards?: Record<string, Card[]>): void {
     if (this.getConnectedPlayers().length < 2) {
       throw new Error('Il faut au moins 2 joueurs pour démarrer')
