@@ -872,8 +872,22 @@ export class GameTable {
         isActive: player.isActive,
         isDealer: player.isDealer || false,
         isConnected: player.isConnected !== false,
-        // Au showdown, révéler toutes les cartes pour l'affichage
-        cards: this.state.phase === 'SHOWDOWN' ? player.cards : (player.id === requestingPlayerId ? player.cards : [])
+        // Règles de révélation des cartes :
+        // - Avant showdown : chaque joueur voit uniquement ses propres cartes
+        // - Au showdown réel (plusieurs joueurs) : tous voient les cartes des joueurs encore en lice (isActive)
+        // - "Gagne par abandon" (1 seul restant) : le gagnant ne montre pas, les folders ne voient pas sa main
+        cards:
+          this.state.phase === 'SHOWDOWN'
+            ? this.state.showdownHandName === 'Gagne par abandon'
+              ? player.id === requestingPlayerId && player.id === this.state.showdownWinnerId
+                ? player.cards
+                : []
+              : player.isActive
+                ? player.cards
+                : []
+            : player.id === requestingPlayerId
+              ? player.cards
+              : []
       }))
     }
   }
