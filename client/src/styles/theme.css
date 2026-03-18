@@ -226,27 +226,34 @@
 
 .high-contrast * {
   border-width: 2px !important;
-  outline-width: 3px !important;
 }
 
 .high-contrast button,
-.high-contrast a {
-  border: 3px solid currentColor !important;
+.high-contrast a,
+.high-contrast input,
+.high-contrast [role="button"] {
+  border: 3px solid white !important;
+  outline: 2px solid white !important;
 }
 
 .high-contrast .bg-slate-800,
-.high-contrast .bg-slate-900 {
+.high-contrast .bg-slate-900,
+.high-contrast .bg-slate-700,
+.high-contrast .bg-slate-600 {
   background-color: #000000 !important;
   border: 2px solid #ffffff !important;
 }
 
 .high-contrast .text-gray-400,
-.high-contrast .text-gray-300 {
+.high-contrast .text-gray-300,
+.high-contrast .text-slate-400,
+.high-contrast .text-slate-300 {
   color: #ffffff !important;
 }
 
 .high-contrast .border-slate-700,
-.high-contrast .border-slate-600 {
+.high-contrast .border-slate-600,
+.high-contrast .border-slate-500 {
   border-color: #ffffff !important;
 }
 

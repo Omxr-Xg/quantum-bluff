@@ -3,6 +3,7 @@ import victorySound from "../assets/sounds/victory.mp3";
 import { useEffect, useRef } from "react";
 import { PokerCard } from "./PokerCard";
 import { ChipIcon } from "./ChipIcon";
+import { useAccessibility } from "../contexts/AccessibilityContext";
 
 interface CardData {
   suit: string;
@@ -35,16 +36,24 @@ function getHandColor(hand: string): string {
 
 export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDisplayProps) {
   const hasPlayedSoundRef = useRef(false);
+  const { visualAlerts, colorblindMode } = useAccessibility();
 
   useEffect(() => {
     if (winner && !hasPlayedSoundRef.current) {
       hasPlayedSoundRef.current = true;
-      const audio = new Audio(victorySound);
-      audio.volume = 0.6;
-      audio.play().catch(() => {});
+      if (visualAlerts) {
+        // Alertes visuelles : flash + vibration au lieu du son
+        try {
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        } catch {}
+      } else {
+        const audio = new Audio(victorySound);
+        audio.volume = 0.6;
+        audio.play().catch(() => {});
+      }
     }
     if (!winner) hasPlayedSoundRef.current = false; // Reset pour le prochain showdown
-  }, [winner]);
+  }, [winner, visualAlerts]);
 
   useEffect(() => {
     if (!winner || !onClose) return;
@@ -62,7 +71,7 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
         initial={{ opacity: 0, scale: 0.5 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.5 }}
-        className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+        className={`fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm ${visualAlerts ? "visual-alert" : ""}`}
         onClick={onClose}
       >
         <motion.div
@@ -91,6 +100,7 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
                     highlight
                     animated
                     animationDelay={i * 0.15}
+                    colorblindMode={colorblindMode}
                   />
                 ))}
               </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { X, TrendingUp, Loader2, Activity, Eye } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
+import { useAccessibility } from "../contexts/AccessibilityContext";
 import { NeonButton } from "./NeonButton";
 import { PokerCard } from "./PokerCard";
 
@@ -35,6 +36,7 @@ interface PlayerDashboardProps {
   isHiddenBetsOpen?: boolean;
   isChatOpen?: boolean;
   timeLeft?: number;
+  colorblindMode?: boolean;
 }
 
 export function PlayerDashboard({
@@ -59,8 +61,10 @@ export function PlayerDashboard({
   isQuantumOpen,
   isHiddenBetsOpen: _isHiddenBetsOpen,
   timeLeft,
+  colorblindMode = false,
 }: PlayerDashboardProps) {
   const { t } = useTranslation();
+  const { visualAlerts } = useAccessibility();
   const effectiveMinRaise = Math.min(minRaise, maxRaise);
   const clampRaise = (v: number) => Math.max(effectiveMinRaise, Math.min(maxRaise, Math.round(v)));
   const [raiseAmount, setRaiseAmount] = useState(() => clampRaise(Math.min(minRaise, maxRaise)));
@@ -115,29 +119,35 @@ export function PlayerDashboard({
     }
     if (timeLeft >= 0 && timeLeft <= 5 && lastTickSoundRef.current !== timeLeft) {
       lastTickSoundRef.current = timeLeft;
-      try {
-        const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        if (timeLeft === 0) {
-          osc.type = "square";
-          osc.frequency.value = 440;
-          gain.gain.value = 0.2;
-          osc.connect(gain).connect(ctx.destination);
-          osc.start();
-          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-          osc.stop(ctx.currentTime + 0.4);
-        } else {
-          osc.type = "sine";
-          osc.frequency.value = 660 + (5 - timeLeft) * 80;
-          gain.gain.value = 0.12 + (5 - timeLeft) * 0.03;
-          osc.connect(gain).connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.1);
-        }
-      } catch { /* audio blocked */ }
+      if (visualAlerts) {
+        try {
+          if (navigator.vibrate) navigator.vibrate(timeLeft === 0 ? [300, 100, 300] : [50]);
+        } catch {}
+      } else {
+        try {
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          if (timeLeft === 0) {
+            osc.type = "square";
+            osc.frequency.value = 440;
+            gain.gain.value = 0.2;
+            osc.connect(gain).connect(ctx.destination);
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+            osc.stop(ctx.currentTime + 0.4);
+          } else {
+            osc.type = "sine";
+            osc.frequency.value = 660 + (5 - timeLeft) * 80;
+            gain.gain.value = 0.12 + (5 - timeLeft) * 0.03;
+            osc.connect(gain).connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.1);
+          }
+        } catch { /* audio blocked */ }
+      }
     }
-  }, [timeLeft, isMyTurn]);
+  }, [timeLeft, isMyTurn, visualAlerts]);
 
   useDeviceType();
 
@@ -249,7 +259,7 @@ export function PlayerDashboard({
                   transform: `rotate(${index === 0 ? -6 : 8}deg)`
                 }}
               >
-                <PokerCard suit={card.suit} value={card.value} size="lg" />
+                <PokerCard suit={card.suit} value={card.value} size="lg" colorblindMode={colorblindMode} />
               </div>
             ))}
           </div>

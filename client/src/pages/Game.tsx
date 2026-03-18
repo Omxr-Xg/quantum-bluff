@@ -23,6 +23,7 @@ import { ShowdownDisplay } from "../components/ShowdownDisplay";
 import { ChipIcon } from "../components/ChipIcon";
 import { PokerCard } from "../components/PokerCard";
 import { useUser } from "../hooks/useUser";
+import { useAccessibility } from "../contexts/AccessibilityContext";
 import { addToUserBalance, getUserBalance, syncBalanceToServer } from "../utils/userProfile";
 
 import type { ClientCard } from "../utils/cards";
@@ -195,7 +196,7 @@ export function Game() {
   /** Multi: évite de rejouer l'animation flop à chaque GAME_UPDATE (changement de tour) */
   const flopAnimatedRef = useRef(false);
 
-  // Hook d'accessibilité
+  const { colorblindMode } = useAccessibility();
   const { addToast } = useToast();
   const { registerOpener } = useAccessibilityMenuOpen();
 
@@ -2681,8 +2682,8 @@ export function Game() {
 
       {/* Zone centrale - Table de poker avec cartes communes */}
       <div className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
-        <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase} burnedCardsCount={displayBurnedCardsCount}>
-          <CommunityCards cards={communityCards} pot={pot} sidePots={sidePots.length > 1 ? sidePots : undefined} />
+        <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase} burnedCardsCount={displayBurnedCardsCount} colorblindMode={colorblindMode}>
+          <CommunityCards cards={communityCards} pot={pot} sidePots={sidePots.length > 1 ? sidePots : undefined} colorblindMode={colorblindMode} />
         </PokerTable>
       </div>
 
@@ -2734,6 +2735,7 @@ export function Game() {
           name={heroDisplayName}
           chips={playerChips}
           cards={heroCards}
+          colorblindMode={colorblindMode}
           onFold={() => handleFold()}
           onCall={(amount) => handleCall(amount)}
           onRaise={(amount) => handleRaise(amount)}

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useLayoutEffect, ReactNode } from "react";
 
 interface AccessibilityContextType {
   highContrast: boolean;
@@ -27,7 +27,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     return saved === "true";
   });
 
-  useEffect(() => {
+  // useLayoutEffect pour appliquer les classes avant le premier paint (évite le flash)
+  useLayoutEffect(() => {
     localStorage.setItem("highContrast", highContrast.toString());
     if (highContrast) {
       document.documentElement.classList.add("high-contrast");
@@ -40,7 +41,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("visualAlerts", visualAlerts.toString());
   }, [visualAlerts]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     localStorage.setItem("colorblindMode", colorblindMode.toString());
     if (colorblindMode) {
       document.documentElement.classList.add("colorblind-mode");

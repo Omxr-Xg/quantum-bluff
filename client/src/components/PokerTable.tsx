@@ -35,6 +35,7 @@ interface PokerTableProps {
   phase?: string;
   /** Nombre de cartes brûlées à afficher face cachée dans le conteneur dédié */
   burnedCardsCount?: number;
+  colorblindMode?: boolean;
 }
 
 // Dimensions de base (référence pour le calcul des positions)
@@ -47,6 +48,7 @@ export function PokerTable({
   communitySafeZone: _communitySafeZone = 180,
   phase,
   burnedCardsCount = 0,
+  colorblindMode = false,
 }: PokerTableProps) {
   const { t } = useTranslation();
   const isShowdown = phase === "showdown";
@@ -272,6 +274,7 @@ export function PokerTable({
                         value={card.value}
                         size="sm"
                         faceDown={!isShowdown}
+                        colorblindMode={colorblindMode}
                       />
                     ))}
                   </div>
