@@ -53,7 +53,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const token = localStorage.getItem('token')
-    console.log('SOCKET CONTEXT TOKEN:', token)
 
     if (!token) {
       setSocket(null)
@@ -78,20 +77,14 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     setSocket(socketInstance)
 
     socketInstance.on('connect', () => {
-      console.log('Socket connecté')
       setIsConnected(true)
       const uid = localStorage.getItem('userId')
       if (uid) socketInstance.emit('JOIN_USER_ROOM', { userId: uid })
     })
 
-    socketInstance.on('disconnect', () => {
-      console.log('Socket déconnecté')
-      setIsConnected(false)
-    })
+    socketInstance.on('disconnect', () => setIsConnected(false))
 
-    socketInstance.on('connect_error', (error) => {
-      console.error('Erreur de connexion socket:', error)
-    })
+    socketInstance.on('connect_error', () => {})
 
     // Safari/iOS : reconnecter quand l'onglet revient au premier plan (WebSocket "suspended")
     const tryReconnect = () => {
