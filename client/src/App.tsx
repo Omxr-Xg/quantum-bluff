@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
-// 1️⃣ AJOUTE CET IMPORT (⚠️ Vérifie bien que le chemin correspond à ton dossier !)
 import { AccessibilityProvider } from "./contexts/AccessibilityContext";
 import { AccessibilityMenuOpenProvider } from "./contexts/AccessibilityMenuOpenContext";
 
@@ -35,7 +34,6 @@ const basename = base && !isCapacitor ? base : undefined;
 function App() {
   return (
     <BrowserRouter basename={basename}>
-      {/* 2️⃣ AJOUTE LE PROVIDER ICI (Il enveloppe toute ton application) */}
       <AccessibilityProvider>
         <AccessibilityMenuOpenProvider>
         <Layout>

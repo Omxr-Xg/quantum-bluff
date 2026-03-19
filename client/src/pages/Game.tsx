@@ -253,7 +253,7 @@ export function Game() {
           bet: 0,
           position: i,
           isActive: true,
-          isDealer: true,
+          isDealer: false,
           cards: [],
           isBot: true,
           difficulty: diffMap,
@@ -266,8 +266,8 @@ export function Game() {
       allPlayers.push({
         id: "human",
         name: "Vous",
-        chips: playerChips - BB,
-        bet: BB,
+        chips: playerChips,
+        bet: 0,
         position: count,
         isActive: false,
         isDealer: false,
@@ -277,23 +277,19 @@ export function Game() {
         role: "PLAYER",
       });
 
-      // Heads-up: index 0 = Dealer/SB, index 1 = BB
-      if (totalPlayers === 2) {
-        allPlayers[0].role = "SB";
-        allPlayers[0].bet = SB;
-        allPlayers[0].chips -= SB;
-        allPlayers[1].role = "BB";
-        allPlayers[1].bet = BB;
-        allPlayers[1].chips -= BB;
-      } else {
-        // 3+: index 0 = Dealer, index 1 = SB, index 2 = BB
-        allPlayers[1].role = "SB";
-        allPlayers[1].bet = SB;
-        allPlayers[1].chips -= SB;
-        allPlayers[2].role = "BB";
-        allPlayers[2].bet = BB;
-        allPlayers[2].chips -= BB;
-      }
+      // Dealer aléatoire parmi tous les joueurs (bots + humain)
+      const dealerIndex = Math.floor(Math.random() * totalPlayers);
+      allPlayers[dealerIndex].isDealer = true;
+
+      const sbIdx = totalPlayers === 2 ? dealerIndex : (dealerIndex + 1) % totalPlayers;
+      const bbIdx = totalPlayers === 2 ? (dealerIndex + 1) % totalPlayers : (dealerIndex + 2) % totalPlayers;
+
+      allPlayers[sbIdx].role = "SB";
+      allPlayers[sbIdx].bet = SB;
+      allPlayers[sbIdx].chips = (allPlayers[sbIdx].chips ?? 0) - SB;
+      allPlayers[bbIdx].role = "BB";
+      allPlayers[bbIdx].bet = BB;
+      allPlayers[bbIdx].chips = (allPlayers[bbIdx].chips ?? 0) - BB;
 
       // Preflop first-to-act: player after BB
       const bbIdx = allPlayers.findIndex((p) => p.role === "BB");
