@@ -1,7 +1,6 @@
 import express from 'express';
 import { prisma } from '../config/database.js';
-import { GameTable } from '../logic/GameTable.js';
-import type { Player } from '../types/poker.js';
+import { CashGameController } from '../logic/CashGameController.js';
 import { activeGames } from '../shared/activeGames.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import sanitizeHtml from 'sanitize-html';
@@ -46,7 +45,9 @@ router.get('/', async (req, res) => {
       maxPlayers: room.maxPlayers,
       visibility: room.visibility,
       status: room.status,
-      players: room.players.map(p => ({
+      players: room.players
+        .filter((p): p is typeof p & { user: NonNullable<typeof p.user> } => p.user != null)
+        .map(p => ({
         id: p.user.id,
         username: p.user.username,
         level: p.user.level,
@@ -59,19 +60,72 @@ router.get('/', async (req, res) => {
     res.json(formattedRooms);
   } catch (error) {
     console.error('Erreur liste salles:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: 'Erreur serveur', details: process.env.NODE_ENV === 'development' ? msg : undefined });
   }
 });
 
 // GET /api/waiting-room/active/games - Liste des parties actives (doit être avant /:roomId)
 router.get('/active/games', async (req, res) => {
-  const allGames = await activeGames.getAll();
-  const games = Array.from(allGames.entries()).map(([id, game]) => ({
-    id,
-    players: game.state.players.length,
-    phase: game.state.phase
-  }));
-  res.json(games);
+  try {
+    const allGames = await activeGames.getAll();
+    const games = Array.from(allGames.entries()).map(([id, game]) => ({
+      id,
+      players: game?.state?.players?.length ?? 0,
+      phase: game?.state?.phase ?? 'UNKNOWN'
+    }));
+    res.json(games);
+  } catch (error) {
+    console.error('Erreur active/games:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+const GAME_MAX_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
+// GET /api/waiting-room/games-in-progress - Parties en cours (Rejoindre si place, Spectateur)
+router.get('/games-in-progress', async (req, res) => {
+  try {
+    const rooms = await prisma.waitingRoom.findMany({
+      where: { status: 'IN_GAME', gameId: { not: null } },
+      select: { id: true, name: true, gameId: true, maxPlayers: true, updatedAt: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    const result = [];
+    const now = Date.now();
+    for (const room of rooms) {
+      if (!room.gameId) continue;
+      // Exclure les parties de plus de 15 min (gameId = game_<timestamp> ou updatedAt)
+      const match = room.gameId.match(/^game_(\d+)$/);
+      const startedAt = match ? parseInt(match[1], 10) : room.updatedAt.getTime();
+      if (now - startedAt > GAME_MAX_DURATION_MS) continue;
+      try {
+        const game = await activeGames.get(room.gameId);
+        if (!game?.state) continue;
+        const isCashGame = game instanceof CashGameController;
+        const occupiedCount = isCashGame ? (game as CashGameController).getOccupiedCount() : (game.state.players?.length ?? 0);
+        if (occupiedCount === 0) continue; // Partie vide = ne pas afficher
+        const maxSeats = isCashGame ? 9 : room.maxPlayers;
+        const canJoin = isCashGame && occupiedCount < maxSeats;
+      result.push({
+        roomId: room.id,
+        roomName: room.name,
+        gameId: room.gameId,
+        playerCount: occupiedCount,
+        maxPlayers: maxSeats,
+        phase: game.state.phase ?? 'WAITING',
+        canJoin
+      });
+      } catch (roomErr) {
+        console.warn('Erreur salle', room.id, room.gameId, roomErr);
+      }
+    }
+    res.json(result);
+  } catch (error) {
+    console.error('Erreur games-in-progress:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: 'Erreur serveur', details: process.env.NODE_ENV === 'development' ? msg : undefined });
+  }
 });
 
 // POST /api/waiting-room/create - Créer une nouvelle salle
@@ -442,46 +496,46 @@ router.post('/:roomId/start', async (req, res) => {
       });
     }
 
-    // 🔥 CRÉATION DE LA PARTIE
+    // 🔥 CRÉATION DE LA PARTIE (cash game pour permettre spectateurs + rejoindre à la prochaine manche)
     const gameId = `game_${Date.now()}`;
-
-    // Convertir les joueurs pour GameTable (chips = balance de chaque utilisateur)
-    const players: Player[] = room.players.map((rp, index) => ({
-      id: rp.user.id,
-      name: rp.user.username,
-      cards: [],
-      chips: Math.max(100, rp.user.chips ?? 1000),
-      role: 'PLAYER',
-      isActive: true,
-      position: index,
-      isDealer: false,
-      isConnected: true
-    }));
-
-    // Créer et initialiser la partie (cartes forcées optionnelles pour les tests)
-    const forceCards = req.body.forceCards as Record<string, Array<{ suit: string; rank: string; value?: number }>> | undefined;
-    const forcedHoleCards: Record<string, import('../types/poker.js').Card[]> | undefined = forceCards && Object.keys(forceCards).length > 0
-      ? Object.fromEntries(
-          Object.entries(forceCards)
-            .filter(([, cards]) => Array.isArray(cards) && cards.length === 2)
-            .map(([pid, cards]) => [
-              pid,
-              cards.map((c) => ({
-                suit: c.suit as import('../types/poker.js').Suit,
-                rank: c.rank as import('../types/poker.js').Rank,
-                value: c.value ?? (c.rank === 'A' ? 14 : c.rank === 'K' ? 13 : c.rank === 'Q' ? 12 : c.rank === 'J' ? 11 : c.rank === '10' ? 10 : (parseInt(c.rank, 10) || 2)),
-              })),
-            ])
-        )
-      : undefined;
-
-    const gameTable = new GameTable(gameId, players);
-    gameTable.startHand(forcedHoleCards);
+    const cashGame = new CashGameController({
+      id: gameId,
+      roomId,
+      maxSeats: 9,
+      smallBlind: 1,
+      bigBlind: 2,
+      defaultBuyIn: 100
+    });
+    cashGame.initFromRoomPlayers(
+      room.players.map((rp) => ({
+        userId: rp.user.id,
+        username: rp.user.username,
+        chips: Math.max(100, rp.user.chips ?? 1000)
+      }))
+    );
+    cashGame.startHand();
 
     // Stocker dans le cache (Redis + local)
-    await activeGames.set(gameId, gameTable);
+    await activeGames.set(gameId, cashGame);
     const size = activeGames.size();
-    console.log(`✅ Partie ${gameId} créée et stockée. Taille du cache: ${size}`);
+    console.log(`✅ Partie cash ${gameId} créée et stockée. Taille du cache: ${size}`);
+
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    if (io) {
+      cashGame.setOnCountdownDone(async () => {
+        cashGame.startHand();
+        if (cashGame.isInHand()) {
+          const socketsInRoom = await io.in(gameId).fetchSockets();
+          for (const s of socketsInRoom) {
+            const uid = (s as { userId?: string }).userId;
+            s.emit('GAME_UPDATE', cashGame.getSanitizedState(uid));
+          }
+        } else {
+          io.to(gameId).emit('CASH_WAITING_PLAYERS', cashGame.getSanitizedState());
+        }
+      });
+      io.to(roomId).emit('GAME_STARTED', { gameId, players: room.players.map((rp) => ({ id: rp.user.id, name: rp.user.username })) });
+    }
 
     // Mettre à jour la salle
     await prisma.waitingRoom.update({
@@ -496,11 +550,6 @@ router.post('/:roomId/start', async (req, res) => {
       id: rp.user.id,
       name: rp.user.username
     }));
-
-    const io = req.app.get('io') as import('socket.io').Server | undefined;
-    if (io) {
-      io.to(roomId).emit('GAME_STARTED', { gameId, players: playersForClient });
-    }
 
     res.json({ gameId, message: 'Partie démarrée', players: playersForClient });
   } catch (error) {

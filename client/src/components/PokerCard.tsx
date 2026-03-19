@@ -8,6 +8,14 @@ const SUIT_SYMBOL: Record<string, string> = {
   spades: "♠",
 };
 
+/** Formes pour mode daltonien : ● Cœur, ◆ Carreau, ■ Trèfle, ▲ Pique */
+const SUIT_SHAPE: Record<string, string> = {
+  hearts: "●",
+  diamonds: "◆",
+  clubs: "■",
+  spades: "▲",
+};
+
 /** Rouge (cœur, carreau) vs noir (trèfle, pique) — standard poker */
 const isRedSuit = (suit: string) => suit === "hearts" || suit === "diamonds";
 const SUIT_COLOR = (suit: string) =>
@@ -24,6 +32,7 @@ interface PokerCardProps {
   animated?: boolean;
   animationDelay?: number;
   className?: string;
+  colorblindMode?: boolean;
 }
 
 const SIZE_MAP: Record<
@@ -69,10 +78,12 @@ export function PokerCard({
   animated = false,
   animationDelay = 0,
   className = "",
+  colorblindMode = false,
 }: PokerCardProps) {
   const s = SIZE_MAP[size];
   const colorClass = SUIT_COLOR(suit);
   const symbol = SUIT_SYMBOL[suit] ?? suit;
+  const shape = SUIT_SHAPE[suit] ?? "";
 
   if (faceDown) {
     const Wrapper = animated ? motion.div : "div";
@@ -150,12 +161,12 @@ export function PokerCard({
       {/* Index coin haut-gauche */}
       <div className={`absolute ${s.cornerPos} flex flex-col items-center leading-[0.9]`}>
         <span className={`${s.corner} font-bold ${colorClass}`}>{value}</span>
-        <span className={`${s.corner} ${colorClass} -mt-px`}>{symbol}</span>
+        <span className={`${s.corner} ${colorClass} -mt-px`}>{symbol}{colorblindMode && shape ? <span className="ml-0.5 opacity-90">{shape}</span> : ""}</span>
       </div>
 
       {/* Centre : symbole principal (style Bicycle) */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className={`${s.suit} ${colorClass} font-medium drop-shadow-sm`}>{symbol}</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={`${s.suit} ${colorClass} font-medium drop-shadow-sm`}>{symbol}{colorblindMode && shape ? <span className="ml-0.5 text-[0.6em] opacity-90 align-middle">{shape}</span> : ""}</span>
       </div>
 
       {/* Index coin bas-droit (inversé) */}
@@ -163,7 +174,7 @@ export function PokerCard({
         className={`absolute ${s.cornerPos.replace("top", "bottom").replace("left", "right")} flex flex-col items-center leading-[0.9] rotate-180`}
       >
         <span className={`${s.corner} font-bold ${colorClass}`}>{value}</span>
-        <span className={`${s.corner} ${colorClass} -mt-px`}>{symbol}</span>
+        <span className={`${s.corner} ${colorClass} -mt-px`}>{symbol}{colorblindMode && shape ? <span className="ml-0.5 opacity-90 rotate-180 inline-block">{shape}</span> : ""}</span>
       </div>
     </Wrapper>
   );

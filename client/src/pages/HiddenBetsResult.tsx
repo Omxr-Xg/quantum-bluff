@@ -16,17 +16,18 @@ export function HiddenBetsResult() {
   };
   const { bets } = useHiddenBets();
 
-  const actualWinner = location.state?.winnerName ?? "Gagnant inconnu";
-  const actualCombination = location.state?.handName ?? "Combinaison inconnue";
+  const UNKNOWN = '__UNKNOWN__';
+  const actualWinner = location.state?.winnerName ?? UNKNOWN;
+  const actualCombination = location.state?.handName ?? UNKNOWN;
 
   const computedBets: HiddenBet[] = bets.map((bet) => {
     const isWinnerBet =
       bet.betType === "winner" &&
-      actualWinner !== "Gagnant inconnu" &&
+      actualWinner !== UNKNOWN &&
       bet.betChoice === actualWinner;
     const isCombinationBet =
       bet.betType === "combination" &&
-      actualCombination !== "Combinaison inconnue" &&
+      actualCombination !== UNKNOWN &&
       bet.betChoice === actualCombination;
 
     const won = isWinnerBet || isCombinationBet;
@@ -91,10 +92,10 @@ export function HiddenBetsResult() {
             </div>
             <div>
               <h2 className="text-3xl font-bold text-white mb-1">
-                Résultats des Paris Cachés
+                {t('hiddenBets.results')}
               </h2>
               <p className="text-yellow-100 text-sm">
-                Tous les paris secrets sont maintenant révélés !
+                {t('hiddenBets.revealed')}
               </p>
             </div>
           </div>
@@ -105,17 +106,17 @@ export function HiddenBetsResult() {
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gradient-to-br from-green-600 to-green-700 p-4 rounded-xl border-2 border-green-400">
               <div className="text-green-200 text-sm font-semibold mb-1">
-                🏆 GAGNANT DU COUP
+                🏆 {t('hiddenBets.winnerOfHand')}
               </div>
-              <div className="text-white text-2xl font-bold">{actualWinner}</div>
+              <div className="text-white text-2xl font-bold">{actualWinner === UNKNOWN ? t('hiddenBets.unknownWinner') : (actualWinner === "Vous" || actualWinner === "you" ? t('game.you') : actualWinner)}</div>
             </div>
 
             <div className="bg-gradient-to-br from-purple-600 to-purple-700 p-4 rounded-xl border-2 border-purple-400">
               <div className="text-purple-200 text-sm font-semibold mb-1">
-                {getCombinationEmoji(actualCombination)} COMBINAISON GAGNANTE
+                {getCombinationEmoji(actualCombination)} {t('hiddenBets.winningCombination')}
               </div>
               <div className="text-white text-2xl font-bold">
-                {actualCombination}
+                {actualCombination === UNKNOWN ? t('hiddenBets.unknownCombination') : actualCombination}
               </div>
             </div>
           </div>
@@ -152,7 +153,7 @@ export function HiddenBetsResult() {
                       />
                     ) : (
                       <span className="text-white text-lg font-bold">
-                        {bet.playerName.charAt(0)}
+                        {(bet.playerName === "Vous" || bet.playerName === "you" ? t('game.you') : bet.playerName).charAt(0)}
                       </span>
                     )}
                   </div>
@@ -161,9 +162,9 @@ export function HiddenBetsResult() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-white font-bold text-lg">
-                        {bet.playerName}
+                        {bet.playerName === "Vous" || bet.playerName === "you" ? t('game.you') : bet.playerName}
                       </span>
-                      <span className="text-gray-400 text-sm">a parié sur</span>
+                      <span className="text-gray-400 text-sm">{t('hiddenBets.betOn')}</span>
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -176,8 +177,8 @@ export function HiddenBetsResult() {
                         }`}
                       >
                         {bet.betType === "winner"
-                          ? "👤 Qui va gagner"
-                          : "🎴 Combinaison"}
+                          ? `👤 ${t('hiddenBets.whoWins')}`
+                          : `🎴 ${t('hiddenBets.combinationLabel')}`}
                       </div>
 
                       {/* Choix du pari */}
@@ -193,7 +194,7 @@ export function HiddenBetsResult() {
 
                   {/* Montants */}
                   <div className="text-right flex-shrink-0">
-                    <div className="text-gray-400 text-xs mb-1">Mise</div>
+                    <div className="text-gray-400 text-xs mb-1">{t('hiddenBets.stake')}</div>
                     <div className="text-white font-bold text-lg mb-2">
                       ${bet.amount.toLocaleString()}
                     </div>
@@ -205,7 +206,7 @@ export function HiddenBetsResult() {
                       )} text-sm font-bold flex items-center justify-end gap-1`}
                     >
                       <TrendingUp className="w-4 h-4" />
-                      Cote x{bet.odds}
+                      {t('hiddenBets.oddsLabel', { odds: bet.odds })}
                     </div>
                   </div>
 
@@ -214,7 +215,7 @@ export function HiddenBetsResult() {
                     {bet.won ? (
                       <div className="bg-green-600 rounded-xl p-3 border-2 border-green-400">
                         <div className="text-green-200 text-xs mb-1">
-                          💰 GAIN
+                          💰 {t('hiddenBets.gainLabel')}
                         </div>
                         <div className="text-white font-bold text-xl">
                           +${bet.winAmount?.toLocaleString()}
@@ -222,7 +223,7 @@ export function HiddenBetsResult() {
                       </div>
                     ) : (
                       <div className="bg-slate-700 rounded-xl p-3 border-2 border-slate-600">
-                        <div className="text-gray-400 text-xs mb-1">PERDU</div>
+                        <div className="text-gray-400 text-xs mb-1">{t('hiddenBets.lostLabel')}</div>
                         <div className="text-red-400 font-bold text-xl">
                           -${bet.amount.toLocaleString()}
                         </div>
@@ -241,7 +242,7 @@ export function HiddenBetsResult() {
             <div className="flex items-center gap-3">
               <Coins className="w-8 h-8 text-yellow-400" />
               <div>
-                <div className="text-gray-400 text-sm">Total des gains</div>
+                <div className="text-gray-400 text-sm">{t('hiddenBets.totalWinnings')}</div>
                 <div className="text-yellow-400 text-2xl font-bold">
                   ${totalWinnings.toLocaleString()}
                 </div>

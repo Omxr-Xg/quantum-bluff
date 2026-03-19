@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -12,6 +12,8 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [login, { isLoading, error }] = useLoginMutation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: string } | null)?.from ?? "/lobby";
 
   const isFormValid = email.length > 0 && password.length > 0;
 
@@ -36,7 +38,7 @@ export function Login() {
 
     window.dispatchEvent(new Event('auth-changed'))
 
-    navigate("/lobby")
+    navigate(from, { replace: true })
   } catch (err) {
     console.error("❌ Erreur de connexion:", err)
   }

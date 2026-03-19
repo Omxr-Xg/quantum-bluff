@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, ChevronDown, ChevronUp, TestTube } from "lucide-react";
-import { useSocket } from "../contexts/SocketContext";
+import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
-import { syncBalanceToServer } from "../utils/userProfile";
+import { fetchBalanceFromServer } from "../utils/userProfile";
 import { useGetFriendsQuery } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
 
@@ -74,7 +74,7 @@ export function WaitingRoom() {
 
   useEffect(() => {
     if (!userId) {
-      navigate("/login");
+      navigate("/auth");
       return;
     }
 
@@ -153,8 +153,8 @@ export function WaitingRoom() {
               isReady: p.isReady ?? false,
             }))
         );
-        // Synchroniser la balance côté serveur pour que le démarrage utilise la bonne valeur
-        syncBalanceToServer().catch(() => {});
+        // Récupérer la balance serveur avant démarrage (le serveur utilise user.chips en DB)
+        fetchBalanceFromServer().catch(() => {});
       } catch (e) {
         if (!cancelled) setRoomError(e instanceof Error ? e.message : t('common.error'));
       } finally {
@@ -246,6 +246,7 @@ export function WaitingRoom() {
 
   useEffect(() => {
     fetchJoinRequests();
+    // nosemgrep: javascript.lang.security.detect-eval-with-expression.detect-eval-with-expression
     const interval = setInterval(fetchJoinRequests, 3000);
     return () => clearInterval(interval);
   }, [fetchJoinRequests]);
@@ -636,14 +637,14 @@ export function WaitingRoom() {
                 >
                   <span className="flex items-center gap-2 font-medium">
                     <TestTube className="w-4 h-4" />
-                    Voir plus — Cartes de test
+                    {t('waitingRoom.seeMoreTestCards')}
                   </span>
                   {showTestCards ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
                 {showTestCards && (
                   <div className="p-4 border-t border-amber-500/30 space-y-4">
                     <p className="text-amber-200/80 text-sm">
-                      Choisir les cartes privées de chaque joueur pour tester (flop, split pot, etc.).
+                      {t('waitingRoom.testCardsDesc')}
                     </p>
                     {allPlayersForCards.map((p) => {
                       const cards = forceCards[p.id] ?? [null, null];

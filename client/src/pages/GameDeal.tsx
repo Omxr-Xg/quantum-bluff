@@ -3,8 +3,9 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { PokerTable } from "../components/PokerTable";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
+import { ChipIcon } from "../components/ChipIcon";
 
 interface Card {
   suit: "hearts" | "diamonds" | "clubs" | "spades";
@@ -219,9 +220,9 @@ export function GameDeal() {
       case "init":
         return t('gameDeal.readyToStart');
       case "shuffle":
-        return "Mélange des cartes...";
+        return t('gameDeal.shuffling');
       case "deal":
-        return "Distribution en cours...";
+        return t('gameDeal.dealing');
       case "flop":
         return "Flop";
       case "turn":
@@ -229,7 +230,7 @@ export function GameDeal() {
       case "river":
         return "River";
       case "complete":
-        return "Distribution terminée";
+        return t('gameDeal.complete');
       default:
         return "";
     }
@@ -238,7 +239,7 @@ export function GameDeal() {
   const getButtonText = () => {
     switch (phase) {
       case "init":
-        return "Commencer";
+        return t('gameDeal.startButton');
       case "flop":
         return "Flop";
       case "turn":
@@ -294,50 +295,79 @@ export function GameDeal() {
       <AnimatePresence>
         {phase === "shuffle" && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
           >
-            <div className="relative">
-              {/* Pile de cartes qui se mélangent */}
-              <div className="relative w-32 h-44">
-                {[...Array(8)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="absolute w-full h-full bg-gradient-to-br from-red-900 to-red-950 rounded-xl border-4 border-yellow-500/50 shadow-2xl"
-                    style={{
-                      backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.03) 10px, rgba(255,255,255,.03) 20px)",
-                    }}
-                    animate={{
-                      rotate: [0, shuffleCount % 2 === 0 ? 15 : -15, 0],
-                      x: [0, shuffleCount % 2 === 0 ? 30 : -30, 0],
-                      y: [0, shuffleCount % 2 === 0 ? -20 : 20, 0],
-                    }}
-                    transition={{
-                      duration: 0.3,
-                      delay: i * 0.05,
-                      ease: "easeInOut",
-                    }}
-                  >
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Sparkles className="w-8 h-8 text-yellow-400" />
-                    </div>
-                  </motion.div>
-                ))}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+              className="relative flex flex-col items-center gap-8"
+            >
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-80 bg-amber-500/15 rounded-full blur-[60px] -z-10 pointer-events-none" />
+              <div className="relative w-36 h-52" style={{ perspective: "1000px" }}>
+                {[...Array(12)].map((_, i) => {
+                  const isLeft = i % 2 === 0;
+                  const spread = shuffleCount % 2 === 0 ? 1 : -1;
+                  const angle = spread * (isLeft ? 12 : -12);
+                  const offsetX = spread * (isLeft ? -18 : 18);
+                  const offsetY = spread * (isLeft ? -8 : 8);
+                  const z = i * 2;
+                  return (
+                    <motion.div
+                      key={i}
+                      className="absolute inset-0 rounded-xl border-2 border-amber-400/60 shadow-2xl"
+                      style={{
+                        background: "linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1e3a5f 100%)",
+                        backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(234,179,8,0.08) 8px, rgba(234,179,8,0.08) 16px), repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(234,179,8,0.06) 8px, rgba(234,179,8,0.06) 16px)",
+                        boxShadow: "0 0 0 1px rgba(234,179,8,0.2), 0 10px 40px -10px rgba(0,0,0,0.5)",
+                        left: `${i * 2}px`,
+                        top: `${i * 1.5}px`,
+                        zIndex: z,
+                      }}
+                      animate={{
+                        rotate: angle,
+                        x: offsetX,
+                        y: offsetY,
+                        rotateY: shuffleCount % 2 === 0 ? 0 : (i % 2) * 10,
+                      }}
+                      transition={{
+                        type: "spring",
+                        damping: 18,
+                        stiffness: 200,
+                        delay: i * 0.02,
+                      }}
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center rounded-xl overflow-hidden">
+                        <div className="w-12 h-16 rounded border border-amber-400/30 flex items-center justify-center">
+                          <span className="text-amber-400/40 text-2xl font-bold">♠</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
-              
-              {/* Texte "Shuffling..." */}
               <motion.div
-                className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 whitespace-nowrap"
-                animate={{ opacity: [1, 0.5, 1] }}
-                transition={{ duration: 0.8, repeat: Infinity }}
+                className="flex flex-col items-center gap-1"
+                animate={{ opacity: [1, 0.7, 1] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
               >
-                <p className="text-yellow-400 font-bold text-xl tracking-wider drop-shadow-lg">
-                  Shuffling...
+                <p className="text-amber-300 font-bold text-2xl tracking-[0.3em] uppercase drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]">
+                  {t('gameDeal.shuffling')}
                 </p>
+                <div className="h-1 w-28 rounded-full bg-slate-700/80 overflow-hidden mt-2">
+                  <motion.div
+                    className="h-full bg-amber-400 rounded-full"
+                    initial={{ width: "0%" }}
+                    animate={{ width: ["0%", "100%"] }}
+                    transition={{ duration: 1.4, ease: "easeInOut", repeat: Infinity, repeatDelay: 0.2 }}
+                  />
+                </div>
               </motion.div>
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -464,7 +494,7 @@ export function GameDeal() {
           <div className="text-center">
             <p className="text-gray-400 text-sm font-semibold mb-1">POT</p>
             <p className="text-yellow-400 text-3xl font-bold drop-shadow-lg">
-              {players.reduce((sum, p) => sum + p.bet, 0).toLocaleString()} 🪙
+              {players.reduce((sum, p) => sum + p.bet, 0).toLocaleString()} <ChipIcon size="sm" className="inline-block align-middle ml-1" />
             </p>
           </div>
         </div>

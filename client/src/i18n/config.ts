@@ -5,17 +5,15 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import translationEN from './locales/en/translation.json';
 import translationFR from './locales/fr/translation.json';
 import translationES from './locales/es/translation.json';
+import translationAR from './locales/ar/translation.json';
+import translationUK from './locales/uk/translation.json';
 
 const resources = {
-  en: {
-    translation: translationEN
-  },
-  fr: {
-    translation: translationFR
-  },
-  es: {
-    translation: translationES
-  }
+  en: { translation: translationEN },
+  fr: { translation: translationFR },
+  es: { translation: translationES },
+  ar: { translation: translationAR },
+  uk: { translation: translationUK }
 };
 
 i18n
@@ -32,5 +30,13 @@ i18n
       caches: ['localStorage']
     }
   });
+
+// RTL support for Arabic
+function applyDir(lng: string) {
+  document.documentElement.dir = lng?.startsWith('ar') ? 'rtl' : 'ltr';
+  document.documentElement.lang = lng || 'en';
+}
+i18n.on('languageChanged', applyDir);
+applyDir(i18n.language || i18n.resolvedLanguage || 'en');
 
 export default i18n;

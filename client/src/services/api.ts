@@ -60,10 +60,12 @@ export const api = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: (() => {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const base = (import.meta.env.VITE_API_URL ?? '').toString().replace(/\/$/, '');
-      // En dev: proxy Vite sur /api. En prod: origin + base path si défini
+      const apiUrl = (import.meta.env.VITE_API_URL ?? '').toString().replace(/\/$/, '');
+      // En dev: proxy Vite sur /api
       if (import.meta.env.DEV) return `${origin}/api`;
-      return base ? `${origin}${base}/api` : `${origin}/api`;
+      // Capacitor/mobile: VITE_API_URL est l'URL complète du backend (ex: http://185.155.93.105:3000)
+      if (apiUrl.startsWith('http')) return `${apiUrl}/api`;
+      return apiUrl ? `${origin}${apiUrl}/api` : `${origin}/api`;
     })(),
     fetchFn: fetchWithRetry,
     prepareHeaders: (headers) => {
@@ -92,6 +94,14 @@ export const api = createApi({
         body: userData,
       }),
       invalidatesTags: ['User'],
+    }),
+
+    checkEmail: builder.mutation<{ exists: boolean }, { email: string }>({
+      query: ({ email }) => ({
+        url: '/auth/check-email',
+        method: 'POST',
+        body: { email },
+      }),
     }),
 
     getGames: builder.query({
@@ -182,6 +192,7 @@ export const api = createApi({
 export const {
   useLoginMutation,
   useRegisterMutation,
+  useCheckEmailMutation,
   useGetGamesQuery,
   useCreateGameMutation,
   useJoinGameMutation,

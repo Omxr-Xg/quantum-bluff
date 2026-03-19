@@ -26,6 +26,7 @@ model User {
   password  String
   chips     Int      @default(1000)
   level     Int      @default(1)
+  totpSecret String? // 2FA TOTP secret (optionnel)
 
   stats     UserStats?
   histories GameHistory[] @relation("WinnerHistory")

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bot, Server, Loader2, X, Trash2, Lock, Globe, Minus, Plus } from "lucide-react";
+import { Bot, Server, Loader2, X, Trash2, Lock, Globe, Minus, Plus, Eye } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
+import { useTopBar } from '../contexts/TopBarContext';
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
@@ -28,10 +29,21 @@ interface WaitingRoomItem {
   playerCount: number;
 }
 
+interface GameInProgressItem {
+  roomId: string;
+  roomName: string;
+  gameId: string;
+  playerCount: number;
+  maxPlayers: number;
+  phase: string;
+  canJoin: boolean;
+}
+
 export function Lobby() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { userId, username } = useUser();
+  const { menuContent } = useTopBar();
   const [rooms, setRooms] = useState<WaitingRoomItem[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -40,7 +52,29 @@ export function Lobby() {
   const [createVisibility, setCreateVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [createMaxPlayers, setCreateMaxPlayers] = useState(5);
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
+  const [gamesInProgress, setGamesInProgress] = useState<GameInProgressItem[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(true);
   const { addToast } = useToast();
+
+  const fetchGamesInProgress = useCallback(async () => {
+    try {
+      const url = API_BASE ? `${API_BASE}/api/waiting-room/games-in-progress` : "/api/waiting-room/games-in-progress";
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      setGamesInProgress(Array.isArray(data) ? data : []);
+    } catch {
+      setGamesInProgress([]);
+    } finally {
+      setGamesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchGamesInProgress();
+    const iv = setInterval(fetchGamesInProgress, 5000);
+    return () => clearInterval(iv);
+  }, [fetchGamesInProgress]);
 
   // Auto-navigate when a join request is accepted
   useEffect(() => {
@@ -141,6 +175,14 @@ export function Lobby() {
     navigate(`/waiting-room?roomId=${roomId}`);
   };
 
+  const handleJoinGame = (gameId: string) => {
+    navigate(`/game?gameId=${gameId}`);
+  };
+
+  const handleSpectateGame = (gameId: string) => {
+    navigate(`/game?gameId=${gameId}&spectate=1`);
+  };
+
   const handleDeleteRoom = async (roomId: string) => {
     if (!userId) return;
     try {
@@ -184,8 +226,10 @@ export function Lobby() {
             </div>
           </div>
 
-          {/* Côté Droit : vide (langue, argent, profil, amis, quitter sont dans la barre Layout) */}
-          <div />
+          {/* Côté Droit : menu intégré (langue, argent, profil, amis, quitter) */}
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            {menuContent}
+          </div>
         </div>
         {/* FIN DU HEADER */}
 
@@ -327,8 +371,9 @@ export function Lobby() {
                   {creating ? t('lobby.creating') : t('lobby.createNewServer')}
                 </button>
 
-                <div className="bg-slate-700/50 p-4 rounded-xl">
-                  <p className="text-gray-300 text-sm mb-2">{t('lobby.serversAvailable')}</p>
+                {/* Salles d'attente */}
+                <div className="bg-slate-700/50 p-4 rounded-xl mb-4">
+                  <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.waitingRooms')}</p>
                   {roomsLoading && rooms.length === 0 ? (
                     <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
@@ -402,6 +447,51 @@ export function Lobby() {
                           </div>
                         </li>
                       )})}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Parties en cours */}
+                <div className="bg-slate-700/50 p-4 rounded-xl">
+                  <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.gamesInProgress')}</p>
+                  {gamesLoading && gamesInProgress.length === 0 ? (
+                    <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
+                    </p>
+                  ) : gamesInProgress.length === 0 ? (
+                    <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {gamesInProgress.map((g) => (
+                        <li
+                          key={g.gameId}
+                          className="flex items-center justify-between gap-3 bg-slate-800/70 rounded-lg px-3 py-2 border border-slate-600"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white font-medium truncate">{g.roomName}</p>
+                            <p className="text-gray-400 text-xs">
+                              {t('lobby.playersCount', { count: g.playerCount, max: g.maxPlayers })} · {g.phase}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {g.canJoin && (
+                              <button
+                                onClick={() => handleJoinGame(g.gameId)}
+                                className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                              >
+                                {t('lobby.join')}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleSpectateGame(g.gameId)}
+                              className="shrink-0 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              {t('lobby.spectate')}
+                            </button>
+                          </div>
+                        </li>
+                      ))}
                     </ul>
                   )}
                 </div>
