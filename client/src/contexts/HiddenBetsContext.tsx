@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useSocket } from "./SocketContext";
+import { useSocket } from "../hooks/useSocket";
 
 export interface HiddenBet {
   id: string;

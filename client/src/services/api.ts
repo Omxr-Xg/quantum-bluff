@@ -59,17 +59,16 @@ export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
     baseUrl: (() => {
-      // 1. En Dev local (npm run dev) : on utilise le proxy Vite (qui pointe vers ton docker local)
-      if (import.meta.env.DEV) {
-        return '/api'; 
-      }
+const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const apiUrl = (import.meta.env.VITE_API_URL ?? '').toString().replace(/\/$/, '');
       
-      // 2. En Prod (npm run build/preview, Electron, Capacitor) :
-      // On prend l'IP de la VM depuis .env.production
-      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+      // En dev: proxy Vite sur /api
+      if (import.meta.env.DEV) return `${origin}/api`;
       
-      // On retourne l'URL absolue complète
-      return `${apiUrl}/api`;
+      // Capacitor/mobile: VITE_API_URL est l'URL complète du backend (ex: http://185.155.93.105:3000)
+      if (apiUrl.startsWith('http')) return `${apiUrl}/api`;
+      
+      return apiUrl ? `${origin}${apiUrl}/api` : `${origin}/api`;
     })(),
     fetchFn: fetchWithRetry,
     prepareHeaders: (headers) => {
@@ -98,6 +97,14 @@ export const api = createApi({
         body: userData,
       }),
       invalidatesTags: ['User'],
+    }),
+
+    checkEmail: builder.mutation<{ exists: boolean }, { email: string }>({
+      query: ({ email }) => ({
+        url: '/auth/check-email',
+        method: 'POST',
+        body: { email },
+      }),
     }),
 
     getGames: builder.query({
@@ -188,6 +195,7 @@ export const api = createApi({
 export const {
   useLoginMutation,
   useRegisterMutation,
+  useCheckEmailMutation,
   useGetGamesQuery,
   useCreateGameMutation,
   useJoinGameMutation,

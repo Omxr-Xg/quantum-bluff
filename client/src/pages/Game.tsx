@@ -10,24 +10,27 @@ import { useQuantumHUD } from "../contexts/QuantumHUDContext";
 import { PokerChat } from "../components/PokerChat";
 import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
-import { AccessibilityMenu } from "../components/AccessibilityMenu";
-import { useAccessibility } from "../contexts/AccessibilityContext";
-import { useSocket } from "../contexts/SocketContext";
+import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
+import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, Eye, Plus, MessageCircle, X, LogOut, Palette, Bell, HelpCircle, Sparkles, Trophy, Frown, Activity } from "lucide-react";
+import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, HelpCircle, Sparkles, Trophy, Frown, Activity } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { ShowdownDisplay } from "../components/ShowdownDisplay";
+import { ChipIcon } from "../components/ChipIcon";
 import { PokerCard } from "../components/PokerCard";
 import { useUser } from "../hooks/useUser";
-import { addToUserBalance, getUserBalance } from "../utils/userProfile";
+import { useAccessibility } from "../contexts/AccessibilityContext";
+import { addToUserBalance, addDevMoney, getUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
 
 type Card = ClientCard;
+
+const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
 interface ChatMessage {
   id: number;
@@ -66,6 +69,7 @@ export function Game() {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode");
   const gameIdParam = searchParams.get("gameId");
+  const isSpectating = searchParams.get("spectate") === "1";
   const isBotMode = mode === "bot";
   const { userId } = useUser();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
@@ -96,9 +100,12 @@ export function Game() {
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [playersState, setPlayersState] = useState<(BasePlayer | BotPlayer)[]>([]);
-  const [showAccessibilityMenu, setShowAccessibilityMenu] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [showGameHelp, setShowGameHelp] = useState(false);
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
+  const [devValidation, setDevValidation] = useState("");
+  const [addSuccess, setAddSuccess] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const [_timerActive, setTimerActive] = useState(false);
   /** Mise maximale actuelle (pour l'API bot) = max des bets des joueurs */
@@ -107,6 +114,7 @@ export function Game() {
   // Nouveaux états pour les animations de cartes
   const [phase, setPhase] = useState<GamePhase>("init");
   const [communityCardsState, setCommunityCardsState] = useState<(Card | null)[]>([null, null, null, null, null]);
+  const [burnedCardsCount, setBurnedCardsCount] = useState(0);
   const [deck, setDeck] = useState<Card[]>([]);
   const [shuffleCount, setShuffleCount] = useState(0);
   const [, _setDealingCard] = useState<number | null>(null);
@@ -171,6 +179,14 @@ export function Game() {
   /** Multi: host peut relancer avec les mêmes membres */
   const [isRematchHost, setIsRematchHost] = useState(false);
   const [rematchLoading, setRematchLoading] = useState(false);
+  /** Cash game: countdown entre les mains (timestamp de fin) */
+  const [cashCountdownEndsAt, setCashCountdownEndsAt] = useState<number | null>(null);
+  /** Cash game: sièges de la table */
+  const [cashSeats, setCashSeats] = useState<{ seatIndex: number; userId: string | null; username: string | null; chips: number }[]>([]);
+  /** Cash game: en attente de joueurs (< 2) */
+  const [cashWaitingPlayers, setCashWaitingPlayers] = useState(false);
+  /** Spectateur : inscrit pour rejoindre à la prochaine manche */
+  const [spectatorWantsToRejoin, setSpectatorWantsToRejoin] = useState(false);
   /** Skip la révélation du showdown : appelle cette ref pour passer au résultat */
   const showdownSkipRef = useRef<(() => void) | null>(null);
   /** Multi: timeouts pour l'animation du flop carte par carte */
@@ -178,9 +194,9 @@ export function Game() {
   /** Multi: évite de rejouer l'animation flop à chaque GAME_UPDATE (changement de tour) */
   const flopAnimatedRef = useRef(false);
 
-  // Hook d'accessibilité
-  const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
+  const { colorblindMode } = useAccessibility();
   const { addToast } = useToast();
+  const { openAccessibilityMenu } = useAccessibilityMenuOpen() ?? { openAccessibilityMenu: () => {} };
 
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
@@ -189,6 +205,31 @@ export function Game() {
   const SB = 50;
   const BB = 100;
   const BOT_START_CHIPS = 1000;
+
+  const openAddMoney = () => {
+    setShowAddMoney(true);
+    setAddMoneyAmount(null);
+    setDevValidation("");
+    setAddSuccess(false);
+  };
+
+  const closeAddMoney = () => {
+    setShowAddMoney(false);
+    setAddMoneyAmount(null);
+    setDevValidation("");
+    setAddSuccess(false);
+  };
+
+  const submitAddMoney = async () => {
+    if (addMoneyAmount == null || addMoneyAmount <= 0) return;
+    if (devValidation.trim().toLowerCase() !== "dev") return;
+    const newBalance = mode === "bot"
+      ? addToUserBalance(addMoneyAmount)
+      : await addDevMoney(addMoneyAmount);
+    if (mode === "bot") setPlayerChips(newBalance);
+    setAddSuccess(true);
+    setTimeout(() => closeAddMoney(), 800);
+  };
 
   const getPlayers = (): (BasePlayer | BotPlayer)[] => {
     const count = parseInt(searchParams.get("bots") || "1", 10);
@@ -290,13 +331,18 @@ export function Game() {
         activePlayer.id === "human")
   );
   const heroPlayer = activePlayers.find((p) => isHero(p));
-  const heroDisplayName = heroPlayer?.name ?? "Vous";
+  const heroDisplayName = heroPlayer?.name === "Vous" || heroPlayer?.name === "you" ? t('game.you') : (heroPlayer?.name ?? t('game.you'));
   const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
 
   playersStateRef.current = activePlayers;
 
   const heroCards = tablePlayers.find((p) => isHero(p))?.cards || [];
   const communityCards = communityCardsState;
+
+  /** En multijoueur : vient du serveur. En mode bot : dérivé de la phase (1 avant flop, 2 avant turn, 3 avant river). */
+  const displayBurnedCardsCount = gameIdParam
+    ? burnedCardsCount
+    : (phase === "flop" ? 1 : phase === "turn" ? 2 : phase === "river" || phase === "showdown" ? 3 : 0);
 
   // Générer un jeu de cartes complet
   const generateDeck = (): Card[] => {
@@ -459,15 +505,13 @@ export function Game() {
         handContributionsRef.current = contribs;
       }
     };
-    // Mode bot : différer d'un frame pour éviter blocage config → jeu (React doit finir le mount)
+    // Mode bot : micro-delai pour laisser la nav finir (évite race config → jeu)
     if (mode === "bot" && !gameIdParam) {
-      const id = requestAnimationFrame(() => {
-        runInit();
-      });
-      return () => cancelAnimationFrame(id);
+      const t = setTimeout(runInit, 0);
+      return () => clearTimeout(t);
     }
     runInit();
-  }, [mode, gameIdParam]);
+  }, [mode, gameIdParam, searchParams.get("bots") ?? "", searchParams.get("difficulty") ?? "", searchParams.get("botChips") ?? ""]);
 
   // Rejouer avec la même configuration (bouton overlay, mode bot uniquement)
   useEffect(() => {
@@ -499,6 +543,7 @@ export function Game() {
     initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
     handContributionsRef.current = contribs;
     setCommunityCardsState([null, null, null, null, null]);
+    setBurnedCardsCount(0);
     hasSetStartOfHandThisHandRef.current = false;
     streetTransitionScheduledRef.current = null;
     if (streetTransitionTimeoutRef.current) {
@@ -509,10 +554,11 @@ export function Game() {
   }, [location.state, isBotMode]);
 
   // Multijoueur : récupérer l'état du jeu depuis le backend (évite race localStorage + cartes / phase / pot)
+  // Spectateurs : pas de fetch HTTP, l'état vient du socket JOIN_SPECTATE
   useEffect(() => {
-    if (!gameIdParam || !userId) return;
-    const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
-    const url = `${baseUrl}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
+    if (!gameIdParam || isSpectating || !userId) return;
+    const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+    const url = `${apiBase}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
     let cancelled = false;
     fetch(url, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
@@ -559,6 +605,7 @@ export function Game() {
         }
         const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
         setPhase(phase as GamePhase);
+        setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
@@ -585,12 +632,17 @@ export function Game() {
         if (!cancelled) console.error("Erreur récupération état partie:", err);
       });
     return () => { cancelled = true; };
-  }, [gameIdParam, userId, navigate]);
+  }, [gameIdParam, userId, navigate, isSpectating]);
 
   // Rejoindre la room socket pour recevoir GAME_UPDATE, TURN_TIMER, GAME_CHAT
   useEffect(() => {
-    if (!socket || !gameIdParam || !userId) return;
-    socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+    if (!socket || !gameIdParam) return;
+    if (isSpectating) {
+      socket.emit("JOIN_SPECTATE", { gameId: gameIdParam });
+    } else {
+      if (!userId) return;
+      socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+    }
 
     const onChatMessage = (data: { playerId: string; playerName: string; content: string; type: "emoji" | "text" }) => {
       const id = Date.now();
@@ -627,11 +679,12 @@ export function Game() {
       socket.off("GAME_CHAT", onChatMessage);
       socket.off("ERROR", onError);
     };
-  }, [socket, gameIdParam, userId, navigate, addToast, t]);
+  }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating]);
 
   // Appliquer les mises à jour d'état envoyées par le serveur (après une action)
   useEffect(() => {
-    if (!socket || !gameIdParam || !userId) return;
+    if (!socket || !gameIdParam) return;
+    if (!isSpectating && !userId) return;
     const phaseMap: Record<string, GamePhase> = {
       WAITING: "init",
       PREFLOP: "preflop",
@@ -641,14 +694,27 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number }) => {
+    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[] }) => {
       gameStateFromSocketRef.current = true;
+      if (gameState.cashCountdownEndsAt != null) setCashCountdownEndsAt(gameState.cashCountdownEndsAt);
+      if (gameState.cashSeats && Array.isArray(gameState.cashSeats)) {
+        setCashSeats(gameState.cashSeats);
+        // Spectateur assis via processRejoinQueue → passer en mode joueur (rediriger sans spectate=1)
+        if (isSpectating && userId && gameState.cashSeats.some((s) => s.userId && String(s.userId) === String(userId))) {
+          navigate(`/game?gameId=${gameIdParam}`, { replace: true });
+          return;
+        }
+      }
+      if (!gameState.cashCountdownEndsAt && gameState.phase !== "WAITING") setCashCountdownEndsAt(null);
+      if (gameState.spectatorRejoinQueue && Array.isArray(gameState.spectatorRejoinQueue)) {
+        setSpectatorWantsToRejoin(gameState.spectatorRejoinQueue.includes(String(userId)));
+      }
       const players = gameState.players ?? [];
       setPlayersState((prev) => {
-        const myCardsFromPrev = prev.find((p) => String(p.id) === String(userId))?.cards ?? [];
+        const myCardsFromPrev = isSpectating ? [] : (prev.find((p) => String(p.id) === String(userId))?.cards ?? []);
         const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
         const mapped = players.map((p, index) => {
-          const isMe = String(p.id) === String(userId);
+          const isMe = !isSpectating && String(p.id) === String(userId);
           const serverCardsRaw = Array.isArray(p.cards) ? p.cards : [];
           const serverCards = serverCardsRaw.map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0])).filter((c): c is Card => c !== null);
           const myCards = isMe && serverCards.length > 0 ? serverCards : (isMe ? myCardsFromPrev : serverCards);
@@ -671,6 +737,7 @@ export function Game() {
       setPot(gameState.pot ?? 0);
       const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? (gameState.phase as string).toLowerCase?.() ?? "preflop") : "preflop";
       setPhase(phase as GamePhase);
+      setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
@@ -698,13 +765,13 @@ export function Game() {
       setIsLoading(false);
       setRoundPlayersActed(new Set());
 
-      const humanServerChips = players.find((p) => String(p.id) === String(userId))?.chips;
+      const humanServerChips = !isSpectating ? players.find((p) => String(p.id) === String(userId))?.chips : undefined;
       if (humanServerChips != null) {
         setPlayerChips(humanServerChips);
       }
 
       const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
-      if (phase === "showdown") {
+      if (phase === "showdown" && !isSpectating) {
         setTimerActive(false);
       } else if (currentTurnId === String(userId)) {
         setTimerActive(true);
@@ -717,7 +784,7 @@ export function Game() {
           : [gameState.showdownWinnerId!];
         const firstWinnerId = winnerIds[0]!;
         const winnerName = gameState.showdownIsSplit && winnerIds.length > 1
-          ? "Égalité"
+          ? t('game.tie')
           : (players.find((p) => String(p.id) === String(firstWinnerId))?.name ?? firstWinnerId);
         const winnerPlayer = players.find((p) => String(p.id) === String(firstWinnerId));
         const totalPot = gameState.showdownPot ?? 0;
@@ -752,7 +819,7 @@ export function Game() {
           return {
             winnerId: data.winnerId,
             winnerName: "Vous",
-            hand: "Adversaire parti",
+            hand: t('game.opponentLeft'),
             handRank: 0,
             pot: data.pot ?? 0,
           };
@@ -760,11 +827,20 @@ export function Game() {
       }
     };
     socket.on("GAME_ENDED", onGameEnded);
+    const onCashWaiting = (state: { cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[] }) => {
+      setCashWaitingPlayers(true);
+      if (state.cashSeats) setCashSeats(state.cashSeats);
+    };
+    socket.on("CASH_WAITING_PLAYERS", onCashWaiting);
+    const onQueueStatus = (data: { queued: boolean }) => setSpectatorWantsToRejoin(data.queued);
+    socket.on("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     return () => {
       socket.off("GAME_UPDATE", onGameUpdate);
       socket.off("GAME_ENDED", onGameEnded);
+      socket.off("CASH_WAITING_PLAYERS", onCashWaiting);
+      socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     };
-  }, [socket, gameIdParam, userId]);
+  }, [socket, gameIdParam, userId, isSpectating]);
 
   // Multi: fetch room-info quand handResult pour afficher bouton rematch au host
   useEffect(() => {
@@ -777,6 +853,15 @@ export function Game() {
       })
       .catch(() => {});
   }, [handResult, gameIdParam, isBotMode, userId]);
+
+  // Cash game: tick countdown pour afficher les secondes restantes
+  const [cashCountdownTick, setCashCountdownTick] = useState(0);
+  useEffect(() => {
+    if (!cashCountdownEndsAt) return;
+    const iv = setInterval(() => setCashCountdownTick((t) => t + 1), 1000);
+    return () => clearInterval(iv);
+  }, [cashCountdownEndsAt]);
+  const cashCountdownSecs = cashCountdownEndsAt ? Math.max(0, Math.ceil((cashCountdownEndsAt - Date.now()) / 1000)) : 0;
 
   // Multi: écouter REMATCH_CREATED pour rediriger vers la nouvelle salle
   useEffect(() => {
@@ -1140,38 +1225,46 @@ export function Game() {
   }, [isBotMode, gameIdParam, phase]);
 
   // Run-out du board après all-in : distribuer Flop puis Turn puis River sans tour de mise, puis showdown
-  // On lit deckRef/communityCardsStateRef dans le timeout pour avoir l'état à jour (sinon Turn/River écrasent le Flop)
+  // Tout le dealing est fait de façon synchrone dans l'effet pour éviter les races avec dealFlop (qui utilise des setTimeouts)
   useEffect(() => {
     if (runOutPhase === null) return;
     const t = setTimeout(() => {
+      const currentDeck = [...deckRef.current];
+      const currentCommunity = [...communityCardsStateRef.current].slice(0, 5) as (Card | null)[];
+      while (currentCommunity.length < 5) currentCommunity.push(null);
+
       if (runOutPhase === "preflop") {
-        dealFlop(true);
+        setPhase("flop");
+        resetBetsAndSetFirstToAct(0);
+        currentDeck.shift(); // burn
+        for (let i = 0; i < 3; i++) {
+          const card = currentDeck.shift();
+          if (card) currentCommunity[i] = card;
+        }
+        setDeck(currentDeck);
+        setCommunityCardsState([...currentCommunity]);
         setRunOutPhase("flop");
       } else if (runOutPhase === "flop") {
-        const currentDeck = [...deckRef.current];
-        const currentCommunity = [...communityCardsStateRef.current];
         currentDeck.shift(); // burn
         const turnCard = currentDeck.shift();
         if (turnCard) currentCommunity[3] = turnCard;
         setDeck(currentDeck);
-        setCommunityCardsState(currentCommunity);
+        setCommunityCardsState([...currentCommunity]);
         setPhase("turn");
         setRunOutPhase("turn");
       } else if (runOutPhase === "turn") {
-        const currentDeck = [...deckRef.current];
-        const currentCommunity = [...communityCardsStateRef.current];
         currentDeck.shift(); // burn
         const riverCard = currentDeck.shift();
         if (riverCard) currentCommunity[4] = riverCard;
         setDeck(currentDeck);
-        setCommunityCardsState(currentCommunity);
+        setCommunityCardsState([...currentCommunity]);
         setPhase("river");
         setRunOutPhase("river");
       } else if (runOutPhase === "river") {
         setPhase("showdown");
         setRunOutPhase(null);
       }
-    }, runOutPhase === "preflop" ? 1200 : 1400);
+    }, runOutPhase === "preflop" ? 800 : 1400);
     return () => clearTimeout(t);
   }, [runOutPhase]);
 
@@ -1198,9 +1291,10 @@ export function Game() {
 
     if (activeInHand.length === 1) {
       const sole = activeInHand[0];
+      showdownStartedRef.current = true;
       setShowdownReveal(true);
       const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-      setTimeout(async () => {
+      const applySoleWinner = async () => {
         let handName = "Haute carte";
         try {
           const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
@@ -1223,8 +1317,17 @@ export function Game() {
         setShowdownReveal(false);
         setShowdownWinnerCards(sole.cards ?? []);
         setShowdownResult({ winnerId: String(sole.id), winnerName: sole.name, hand: handName, handRank: 0, pot });
-      }, 3000);
-      return;
+      };
+      const revealTimer = setTimeout(applySoleWinner, 3000);
+      showdownSkipRef.current = () => {
+        clearTimeout(revealTimer);
+        showdownSkipRef.current = null;
+        applySoleWinner();
+      };
+      return () => {
+        clearTimeout(revealTimer);
+        showdownSkipRef.current = null;
+      };
     }
 
     showdownStartedRef.current = true;
@@ -1298,7 +1401,7 @@ export function Game() {
 
           if (pi === 0) {
             mainWinnerId = winnerIds[0];
-            mainWinnerName = data.isSplit ? "Égalité" : (data.winnerName ?? winnerIds[0]);
+            mainWinnerName = data.isSplit ? t('game.tie') : (data.winnerName ?? winnerIds[0]);
             mainHandName = data.handName ?? "Haute carte";
             mainIsSplit = data.isSplit === true && winnerIds.length > 1;
             const winner = activeInHand.find((p) => String(p.id) === winnerIds[0]);
@@ -1437,8 +1540,8 @@ export function Game() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
-        const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
-        const url = `${baseUrl}/api/bot/action`;
+        const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+        const url = `${apiBase}/api/bot/action`;
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1480,12 +1583,12 @@ export function Game() {
 
         const botActionLabel =
           decision.action === "FOLD"
-            ? "s'est couché"
+            ? t('game.actionFolded')
             : decision.action === "CHECK" || (decision.action === "RAISE" && amountToPut <= 0)
-              ? "a checké"
+              ? t('game.actionChecked')
               : decision.action === "CALL" || (decision.action === "RAISE" && amountToPut <= callAmount)
-                ? "a suivi"
-                : "a relancé";
+                ? t('game.actionCalled')
+                : t('game.actionRaised');
         if (clearBotActionRef.current) clearTimeout(clearBotActionRef.current);
         setLastBotAction({ name: activePlayer.name, action: botActionLabel });
         clearBotActionRef.current = setTimeout(() => {
@@ -1524,7 +1627,7 @@ export function Game() {
           }
           setIsBotThinking(false);
           botIsFetchingRef.current = false;
-        }, Math.random() * 1000 + 1000);
+        }, 3000);
       } catch (error) {
         console.error("Erreur API bot:", error);
         clearTimeout(timeoutId);
@@ -1545,8 +1648,8 @@ export function Game() {
     if (handResult === null || !isBotMode) return;
     const t = setTimeout(() => {
       const token = localStorage.getItem("token");
-      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
-      const recordUrl = `${baseUrl}/api/game/record-result`;
+      const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+      const recordUrl = `${apiBase}/api/game/record-result`;
       if (token) {
         fetch(recordUrl, {
           method: "POST",
@@ -1611,6 +1714,9 @@ export function Game() {
       return newPlayers;
     });
 
+    // En multijoueur, le serveur envoie GAME_UPDATE avec le vainqueur — ne pas traiter en local
+    if (gameIdParam) return;
+
     const activeInHandCount = playersState.filter(
       (p, i) => i !== foldingIndex && p.isConnected !== false && !(p.hasFolded ?? false)
     ).length;
@@ -1622,6 +1728,8 @@ export function Game() {
       const humanWon = winnerIndex !== -1 && winnerIndex === humanIndex;
       const winner = winnerIndex !== -1 ? playersState[winnerIndex] : null;
       if (winner) {
+        setPhase("showdown");
+        setShowdownWinnerCards([]); // Abandon : le gagnant ne montre pas ses cartes
         setShowdownResult({
           winnerId: String(winner.id),
           winnerName: winner.name,
@@ -1953,50 +2061,83 @@ export function Game() {
       <AnimatePresence>
         {phase === "shuffle" && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[60]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
           >
-            <div className="relative">
-              {/* Pile de cartes qui se mélangent */}
-              <div className="relative w-32 h-44">
-                {[...Array(8)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="absolute w-full h-full bg-gradient-to-br from-red-900 to-red-950 rounded-xl border-4 border-yellow-500/50 shadow-2xl"
-                    style={{
-                      backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.03) 10px, rgba(255,255,255,.03) 20px)",
-                    }}
-                    animate={{
-                      rotate: [0, shuffleCount % 2 === 0 ? 15 : -15, 0],
-                      x: [0, shuffleCount % 2 === 0 ? 30 : -30, 0],
-                      y: [0, shuffleCount % 2 === 0 ? -20 : 20, 0],
-                    }}
-                    transition={{
-                      duration: 0.3,
-                      delay: i * 0.05,
-                      ease: "easeInOut",
-                    }}
-                  >
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Sparkles className="w-8 h-8 text-yellow-400" />
-                    </div>
-                  </motion.div>
-                ))}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+              className="relative flex flex-col items-center gap-8"
+            >
+              {/* Glow derrière les cartes */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-80 bg-amber-500/15 rounded-full blur-[60px] -z-10 pointer-events-none" />
+              {/* Pile de cartes - riffle shuffle effect */}
+              <div className="relative w-36 h-52" style={{ perspective: "1000px" }}>
+                {[...Array(12)].map((_, i) => {
+                  const isLeft = i % 2 === 0;
+                  const spread = shuffleCount % 2 === 0 ? 1 : -1;
+                  const angle = spread * (isLeft ? 12 : -12);
+                  const offsetX = spread * (isLeft ? -18 : 18);
+                  const offsetY = spread * (isLeft ? -8 : 8);
+                  const z = i * 2;
+                  return (
+                    <motion.div
+                      key={i}
+                      className="absolute inset-0 rounded-xl border-2 border-amber-400/60 shadow-2xl"
+                      style={{
+                        background: "linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1e3a5f 100%)",
+                        backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(234,179,8,0.08) 8px, rgba(234,179,8,0.08) 16px), repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(234,179,8,0.06) 8px, rgba(234,179,8,0.06) 16px)",
+                        boxShadow: "0 0 0 1px rgba(234,179,8,0.2), 0 10px 40px -10px rgba(0,0,0,0.5)",
+                        left: `${i * 2}px`,
+                        top: `${i * 1.5}px`,
+                        zIndex: z,
+                      }}
+                      animate={{
+                        rotate: angle,
+                        x: offsetX,
+                        y: offsetY,
+                        rotateY: shuffleCount % 2 === 0 ? 0 : (i % 2) * 10,
+                      }}
+                      transition={{
+                        type: "spring",
+                        damping: 18,
+                        stiffness: 200,
+                        delay: i * 0.02,
+                      }}
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center rounded-xl overflow-hidden">
+                        <div className="w-12 h-16 rounded border border-amber-400/30 flex items-center justify-center">
+                          <span className="text-amber-400/40 text-2xl font-bold">♠</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
-              
-              {/* Texte "Shuffling..." */}
+
+              {/* Texte */}
               <motion.div
-                className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 whitespace-nowrap"
-                animate={{ opacity: [1, 0.5, 1] }}
-                transition={{ duration: 0.8, repeat: Infinity }}
+                className="flex flex-col items-center gap-1"
+                animate={{ opacity: [1, 0.7, 1] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
               >
-                <p className="text-yellow-400 font-bold text-xl tracking-wider drop-shadow-lg">
-                  Mélange des cartes...
+                <p className="text-amber-300 font-bold text-2xl tracking-[0.3em] uppercase drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]">
+                  {t('startScreen.shuffling')}
                 </p>
+                <div className="h-1 w-28 rounded-full bg-slate-700/80 overflow-hidden mt-2">
+                  <motion.div
+                    className="h-full bg-amber-400 rounded-full"
+                    initial={{ width: "0%" }}
+                    animate={{ width: ["0%", "100%"] }}
+                    transition={{ duration: 1.4, ease: "easeInOut", repeat: Infinity, repeatDelay: 0.2 }}
+                  />
+                </div>
               </motion.div>
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -2010,8 +2151,8 @@ export function Game() {
             <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'}`}>
               <Loader2 className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} text-blue-400 animate-spin`} />
               <div>
-                <div className={`text-white font-bold ${isMobile ? 'text-base' : 'text-lg'}`}>Bot réfléchit...</div>
-                <div className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>Analyse des probabilités</div>
+                <div className={`text-white font-bold ${isMobile ? 'text-base' : 'text-lg'}`}>{t('botConfig.botThinking')}</div>
+                <div className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>{t('botConfig.analyzingProbabilities')}</div>
               </div>
             </div>
           </div>
@@ -2033,7 +2174,7 @@ export function Game() {
               transition={{ type: "spring", damping: 20, stiffness: 200 }}
               className="flex flex-col items-center gap-4"
             >
-              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Showdown</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">{t('showdown.title')}</h2>
 
               {/* Player hands (toutes les cartes de tout le monde) */}
               <div className="flex flex-wrap justify-center gap-6">
@@ -2047,7 +2188,7 @@ export function Game() {
                       transition={{ delay: 0.15 }}
                       className="flex flex-col items-center gap-2 bg-slate-800/80 rounded-xl px-4 py-3 border border-slate-600"
                     >
-                      <span className="text-white font-semibold text-sm md:text-base">{player.name}</span>
+                      <span className="text-white font-semibold text-sm md:text-base">{player.name === "Vous" || player.name === "you" ? t('game.you') : player.name}</span>
                       <div className="flex gap-2">
                         {player.cards.map((card, i) => (
                           <PokerCard
@@ -2172,7 +2313,7 @@ export function Game() {
               <h2 className="text-2xl md:text-3xl font-bold text-white">
                 {handResult === "win" ? "Vous avez gagné !" : "Vous avez perdu"}
               </h2>
-              <p className="text-slate-300 text-sm">Résultats des paris cachés...</p>
+              <p className="text-slate-300 text-sm">{t('hiddenBets.resultsLoading')}</p>
               <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full max-w-xs mt-2">
                 <button
                   type="button"
@@ -2333,7 +2474,7 @@ export function Game() {
                   className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} ${isPanelOpen ? 'text-yellow-400 bg-yellow-500/20' : 'text-white hover:bg-slate-700'} transition-all`}
                 >
                   <Trophy className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Paris Cachés</span>
+                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('hiddenBets.title')}</span>
                 </button>
                 <div className="border-t border-slate-700"></div>
                 <button
@@ -2344,46 +2485,13 @@ export function Game() {
                   className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-red-400 hover:bg-slate-700 transition-all`}
                 >
                   <LogOut className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Quitter la partie</span>
+                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('nav.quitGame')}</span>
                 </button>
               </div>
             )}
           </div>
 
-          {/* Bouton Affichage (Accessibilité) */}
-          {!isMobile && (
-            <div className="bg-slate-800/90 backdrop-blur-sm border border-slate-700 rounded-full shadow-lg px-2 py-2 flex items-center gap-1">
-              <button
-                onClick={toggleHighContrast}
-                className={`relative rounded-full px-3 py-2 transition-all group ${
-                  highContrast ? "bg-yellow-600" : "bg-slate-700 hover:bg-slate-600"
-                }`}
-                title="Contraste élevé"
-              >
-                <Eye className={`w-4 h-4 ${highContrast ? "text-white" : "text-gray-400"}`} />
-              </button>
-
-              <button
-                onClick={toggleVisualAlerts}
-                className={`relative rounded-full px-3 py-2 transition-all group ${
-                  visualAlerts ? "bg-blue-600" : "bg-slate-700 hover:bg-slate-600"
-                }`}
-                title="Alertes visuelles"
-              >
-                <Bell className={`w-4 h-4 ${visualAlerts ? "text-white" : "text-gray-400"}`} />
-              </button>
-
-              <button
-                onClick={toggleColorblindMode}
-                className={`relative rounded-full px-3 py-2 transition-all group ${
-                  colorblindMode ? "bg-purple-600" : "bg-slate-700 hover:bg-slate-600"
-                }`}
-                title="Mode daltonien"
-              >
-                <Palette className={`w-4 h-4 ${colorblindMode ? "text-white" : "text-gray-400"}`} />
-              </button>
-            </div>
-          )}
+          {/* Paramètres accessibilité : ouverts via le bouton à droite (Layout) */}
         </div>
 
         {/* Partie DROITE - Avatar, Nom/ID, Solde + Ajout, Bouton Chat, Bouton Aide */}
@@ -2421,14 +2529,14 @@ export function Game() {
           {/* Capsule Solde + Bouton Ajouter */}
           <div className="flex items-center bg-slate-800/80 backdrop-blur-md border border-slate-700 rounded-full pl-3 pr-1 py-1 shadow-lg gap-3">
             <div className={`text-white font-bold flex items-center gap-1.5 ${isMobile ? 'text-sm' : 'text-base'}`}>
-              <span className="text-yellow-400 drop-shadow-sm">🪙</span>
+              <ChipIcon size="sm" />
               <span>{playerChips.toLocaleString()}</span>
             </div>
 
             <button
-              onClick={() => {}}
+              onClick={openAddMoney}
               className={`bg-gradient-to-b from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white ${isMobile ? 'w-7 h-7' : 'w-8 h-8'} rounded-full flex items-center justify-center shadow-md transition-all transform hover:scale-105 border border-green-400`}
-              title={t('gameHelp.addCredits')}
+              title={t("lobby.addMoney")}
             >
               <Plus className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
             </button>
@@ -2442,7 +2550,7 @@ export function Game() {
             <button
               onClick={() => setIsChatOpen(!isChatOpen)}
               className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
-              title="Ouvrir le chat"
+              title={t('game.openChat')}
             >
               <MessageCircle 
                 className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${
@@ -2457,7 +2565,7 @@ export function Game() {
             <button
               onClick={() => setShowGameHelp(!showGameHelp)}
               className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
-              title="Aide et règles du jeu"
+              title={t('game.helpRules')}
             >
               <HelpCircle 
                 className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${
@@ -2469,6 +2577,65 @@ export function Game() {
         </div>
       </div>
 
+      {/* Modal Ajouter des jetons */}
+      {showAddMoney && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
+          <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">{t("lobby.addMoneyTitle")}</h3>
+              <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {addSuccess ? (
+              <p className="text-green-400 font-medium text-center py-4">{t("lobby.captchaSuccess")}</p>
+            ) : (
+              <>
+                <p className="text-slate-300 text-sm mb-3">{t("lobby.chooseAmount")}</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {ADD_MONEY_PRESETS.map((amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      onClick={() => setAddMoneyAmount(amount)}
+                      className={`px-4 py-2 rounded-lg font-bold transition ${
+                        addMoneyAmount === amount
+                          ? "bg-yellow-500 text-slate-900"
+                          : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                      }`}
+                    >
+                      {amount.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+                {addMoneyAmount != null && (
+                  <div className="space-y-2">
+                    <label className="text-slate-300 text-sm block">{t("lobby.devValidation") || 'Tapez "dev" pour valider'}</label>
+                    <input
+                      type="text"
+                      value={devValidation}
+                      onChange={(e) => setDevValidation(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
+                      placeholder="dev"
+                      className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={submitAddMoney}
+                      disabled={devValidation.trim().toLowerCase() !== "dev"}
+                      className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
+                    >
+                      {t("lobby.validate")}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Modal Confirmation Quitter */}
       {showQuitConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -2477,11 +2644,11 @@ export function Game() {
               <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
                 <span className="text-white text-2xl font-bold">!</span>
               </div>
-              <h2 className="text-2xl font-bold text-white">Quitter la partie ?</h2>
+              <h2 className="text-2xl font-bold text-white">{t('nav.quitGameTitle')}</h2>
             </div>
 
             <p className="text-red-200 mb-6 leading-relaxed">
-              Vous êtes sur le point de quitter la partie en cours. Vos jetons seront perdus et vous ne pourrez pas revenir à cette table.
+              {t('nav.quitGameMessage')}
             </p>
 
             <div className="flex gap-3">
@@ -2498,23 +2665,62 @@ export function Game() {
                 }}
                 className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-red-600/50"
               >
-                Continuer
+                {t('nav.confirmQuit')}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Menu Accessibilité */}
-      <AccessibilityMenu 
-        isOpen={showAccessibilityMenu} 
-        onClose={() => setShowAccessibilityMenu(false)} 
-      />
+      {/* Bannière Cash Game : countdown ou attente joueurs */}
+      {gameIdParam && !isBotMode && (cashCountdownEndsAt || cashWaitingPlayers) && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2">
+          <div className="bg-slate-800/95 border border-emerald-500/50 rounded-xl px-6 py-3 shadow-lg">
+            {cashWaitingPlayers ? (
+              <p className="text-emerald-300 font-semibold">{t('game.waitingForPlayers')}</p>
+            ) : cashCountdownSecs > 0 ? (
+              <p className="text-white font-semibold">{t('game.newHandIn', { count: cashCountdownSecs })}</p>
+            ) : null}
+          </div>
+          {cashCountdownEndsAt && !cashWaitingPlayers && (
+            <div className="flex gap-2 flex-wrap justify-center">
+              {!cashSeats.some((s) => s.userId === userId) ? (
+                cashSeats.some((s) => !s.userId) && (
+                  <button
+                    onClick={() => {
+                      const free = cashSeats.findIndex((s) => !s.userId);
+                      if (free >= 0 && socket) socket.emit("CASH_SIT", { gameId: gameIdParam, seatIndex: free, buyIn: 100 });
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                  >
+                    S&apos;asseoir (100)
+                  </button>
+                )
+              ) : (
+                <>
+                  <button
+                    onClick={() => socket?.emit("CASH_LEAVE", { gameId: gameIdParam })}
+                    className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                  >
+                    Se lever
+                  </button>
+                  <button
+                    onClick={() => socket?.emit("CASH_REBUY", { gameId: gameIdParam, amount: 100 })}
+                    className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                  >
+                    Racheter (100)
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Zone centrale - Table de poker avec cartes communes */}
       <div className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
-        <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase}>
-          <CommunityCards cards={communityCards} pot={pot} sidePots={sidePots.length > 1 ? sidePots : undefined} />
+        <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase} burnedCardsCount={displayBurnedCardsCount} colorblindMode={colorblindMode}>
+          <CommunityCards cards={communityCards} pot={pot} sidePots={sidePots.length > 1 ? sidePots : undefined} colorblindMode={colorblindMode} />
         </PokerTable>
       </div>
 
@@ -2538,32 +2744,57 @@ export function Game() {
       {/* Feed de messages - En haut à gauche */}
       <MessageFeed messages={chatMessages} />
 
-      {/* Tableau de bord du joueur - EN BAS */}
-      <PlayerDashboard
-        name={heroDisplayName}
-        chips={playerChips}
-        cards={heroCards}
-        onFold={() => handleFold()}
-        onCall={(amount) => handleCall(amount)}
-        onRaise={(amount) => handleRaise(amount)}
-        onCheck={() => handleCheck()}
-        callAmount={callAmount}
-        minRaise={50}
-        maxRaise={Math.max(0, playerChips - callAmount)}
-        isMyTurn={handResult === null && isMyTurn}
-        isLoading={isLoading}
-        hasFolded={hasFoldedFromState}
-        hasActed={hasPlayerActed}
-        actionsDisabled={Boolean(gameIdParam && !socket)}
-        waitingForPlayer={!isMyTurn && !hasFoldedFromState ? activePlayer?.name : undefined}
-        timeLeft={timeLeft ?? 30}
-        onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
-        onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
-        onToggleChat={() => setIsChatOpen(!isChatOpen)}
-        isQuantumOpen={isQuantumOpen}
-        isHiddenBetsOpen={isPanelOpen}
-        isChatOpen={isChatOpen}
-      />
+      {/* Bouton spectateur : rejoindre à la prochaine manche (toggle) - affiché dès qu'on specte un cash game */}
+      {isSpectating && gameIdParam && !isBotMode && cashSeats.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30">
+          <button
+            onClick={() => {
+              if (spectatorWantsToRejoin) {
+                socket?.emit("SPECTATOR_QUEUE_LEAVE", { gameId: gameIdParam });
+              } else {
+                socket?.emit("SPECTATOR_QUEUE_JOIN", { gameId: gameIdParam });
+              }
+            }}
+            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+              spectatorWantsToRejoin
+                ? "bg-amber-600 hover:bg-amber-500 text-white"
+                : "bg-emerald-600 hover:bg-emerald-500 text-white"
+            }`}
+          >
+            {spectatorWantsToRejoin ? t("game.cancelRejoinNextHand") : t("game.rejoinNextHand")}
+          </button>
+        </div>
+      )}
+
+      {/* Tableau de bord du joueur - EN BAS (masqué en mode spectateur) */}
+      {!isSpectating && (
+        <PlayerDashboard
+          name={heroDisplayName}
+          chips={playerChips}
+          cards={heroCards}
+          colorblindMode={colorblindMode}
+          onFold={() => handleFold()}
+          onCall={(amount) => handleCall(amount)}
+          onRaise={(amount) => handleRaise(amount)}
+          onCheck={() => handleCheck()}
+          callAmount={callAmount}
+          minRaise={50}
+          maxRaise={Math.max(0, playerChips - callAmount)}
+          isMyTurn={handResult === null && isMyTurn}
+          isLoading={isLoading}
+          hasFolded={hasFoldedFromState}
+          hasActed={hasPlayerActed}
+          actionsDisabled={Boolean(gameIdParam && !socket)}
+          waitingForPlayer={!isMyTurn && !hasFoldedFromState ? (activePlayer?.name === "Vous" || activePlayer?.name === "you" ? t('game.you') : activePlayer?.name) : undefined}
+          timeLeft={timeLeft ?? 30}
+          onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
+          onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
+          onToggleChat={() => setIsChatOpen(!isChatOpen)}
+          isQuantumOpen={isQuantumOpen}
+          isHiddenBetsOpen={isPanelOpen}
+          isChatOpen={isChatOpen}
+        />
+      )}
 
       {/* Modal d'aide du jeu (affiché quand on clique sur le "?") */}
       {showGameHelp && (
@@ -2598,7 +2829,7 @@ export function Game() {
                 <h3 className="text-xl font-bold text-indigo-400 mb-2">✨ Fonctionnalités Spéciales</h3>
                 <ul className="space-y-2 text-gray-300">
                   <li><strong className="text-purple-400">Probabilités Quantiques</strong> : Survolez pour voir vos chances de gagner, cliquez pour épingler</li>
-                  <li><strong className="text-yellow-400">Paris Cachés</strong> : Pariez discrètement sur le résultat du coup</li>
+                  <li><strong className="text-yellow-400">{t('hiddenBets.title')}</strong> : {t('hiddenBets.helpDesc')}</li>
                 </ul>
               </section>
 

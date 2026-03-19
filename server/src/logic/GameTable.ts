@@ -18,7 +18,7 @@ export class GameTable {
   private readonly smallBlindAmount: number
   private readonly bigBlindAmount: number
 
-  constructor(id: string, players: Player[]) {
+  constructor(id: string, players: Player[], options?: { smallBlind?: number; bigBlind?: number }) {
     this.id = id
     this.deck = new Deck()
     this.dealerIndex = 0
@@ -26,8 +26,8 @@ export class GameTable {
     this.actedPlayerIds = new Set()
     this.lastRaiserId = null
     this.handStarted = false
-    this.smallBlindAmount = 10
-    this.bigBlindAmount = 20
+    this.smallBlindAmount = options?.smallBlind ?? 10
+    this.bigBlindAmount = options?.bigBlind ?? 20
 
     this.state = {
       id,
@@ -84,6 +84,27 @@ export class GameTable {
     return -1
   }
 
+  /**
+   * Trouve le prochain joueur vivant (chips > 0, connecté) dans le sens horaire.
+   * Utilisé pour la rotation du bouton Dealer.
+   * Vigilance : les joueurs qui reviennent (reconnexion, rachat) sont réintégrés
+   * car on évalue l'état actuel (chips, isConnected) à chaque appel.
+   */
+  private getNextLivingPlayerIndex(startIndex: number): number {
+    if (this.state.players.length === 0) return 0
+    for (let i = 1; i <= this.state.players.length; i++) {
+      const idx = (startIndex + i) % this.state.players.length
+      const p = this.state.players[idx]
+      if (p.isConnected !== false && p.chips > 0) return idx
+    }
+    return startIndex
+  }
+
+  /**
+   * Attribue les rôles (Dealer, SB, BB) à partir de dealerIndex.
+   * Heads-up : le dealer est aussi small blind (règle spécifique au tête-à-tête).
+   * Cohérence : isDealer provient uniquement de dealerIndex → affichage du jeton "D".
+   */
   private assignPositionsAndRoles(): void {
     this.state.players.forEach((player, index) => {
       player.position = index
@@ -252,6 +273,36 @@ export class GameTable {
   }
 
   /**
+   * Rembourse immédiatement les mises non appelées (ex: J1 mise 500, J2 call 300, J3 call 400 → J1 récupère 100 tout de suite).
+   * À appeler à la fin du tour d'enchères, avant de passer à la rue suivante ou au showdown.
+   */
+  private processUncalledBetsRefund(): void {
+    const activePlayers = this.getActivePlayers()
+    if (activePlayers.length < 2) return
+
+    const allWithContrib = this.state.players.filter(
+      (p) => (p.totalPutInThisHand ?? p.currentBet ?? 0) > 0
+    )
+    if (allWithContrib.length < 2) return
+
+    for (const player of activePlayers) {
+      const contrib = player.totalPutInThisHand ?? player.currentBet ?? 0
+      const maxOther = Math.max(
+        0,
+        ...allWithContrib
+          .filter((p) => p.id !== player.id)
+          .map((p) => p.totalPutInThisHand ?? p.currentBet ?? 0)
+      )
+      const refund = Math.max(0, contrib - maxOther)
+      if (refund > 0) {
+        player.chips += refund
+        player.totalPutInThisHand = (player.totalPutInThisHand ?? contrib) - refund
+        this.state.pot -= refund
+      }
+    }
+  }
+
+  /**
    * Passe à la phase suivante.
    * @param lastActorId - Si fourni, le premier à jouer sur la nouvelle rue est le joueur APRÈS lastActorId (évite qu'un joueur joue deux fois de suite)
    */
@@ -262,6 +313,9 @@ export class GameTable {
     if (currentIndex === -1 || currentIndex === phaseOrder.length - 1) {
       return
     }
+
+    // Remboursement immédiat des mises non appelées avant de passer à la rue suivante
+    this.processUncalledBetsRefund()
 
     const nextPhase = phaseOrder[currentIndex + 1]
     this.state.phase = nextPhase
@@ -405,13 +459,18 @@ export class GameTable {
     }
   }
 
+  /**
+   * Démarre une nouvelle main.
+   * Vigilance : le bouton ne tourne qu'à la fin complète d'une main, au tout début de la suivante.
+   * L'affichage du jeton "D" (isDealer) est dérivé de dealerIndex via assignPositionsAndRoles.
+   */
   startHand(forcedHoleCards?: Record<string, Card[]>): void {
     if (this.getConnectedPlayers().length < 2) {
       throw new Error('Il faut au moins 2 joueurs pour démarrer')
     }
 
     if (this.handStarted) {
-      this.dealerIndex = (this.dealerIndex + 1) % this.state.players.length
+      this.dealerIndex = this.getNextLivingPlayerIndex(this.dealerIndex)
     }
 
     this.handStarted = true
@@ -513,6 +572,11 @@ export class GameTable {
 
   getPlayerState(playerId: string): Player | undefined {
     return this.state.players.find((player) => player.id === playerId)
+  }
+
+  /** Relance minimum = big blind (pour validation gateway) */
+  getMinRaise(): number {
+    return this.bigBlindAmount
   }
 
   canPlayerAct(playerId: string): boolean {
@@ -808,7 +872,8 @@ export class GameTable {
       showdownWinnerIds: this.state.showdownWinnerIds,
       showdownIsSplit: this.state.showdownIsSplit,
       showdownHandName: this.state.showdownHandName,
-      showdownPot: this.state.showdownPot
+      showdownPot: this.state.showdownPot,
+      burnedCardsCount: this.deck.burnedCards.length
     }
   }
 
@@ -824,6 +889,7 @@ export class GameTable {
       showdownIsSplit: this.state.showdownIsSplit,
       showdownHandName: this.state.showdownHandName,
       showdownPot: this.state.showdownPot,
+      burnedCardsCount: this.deck.burnedCards.length,
       players: this.state.players.map((player) => ({
         id: player.id,
         name: player.name,
@@ -834,8 +900,22 @@ export class GameTable {
         isActive: player.isActive,
         isDealer: player.isDealer || false,
         isConnected: player.isConnected !== false,
-        // Au showdown, révéler toutes les cartes pour l'affichage
-        cards: this.state.phase === 'SHOWDOWN' ? player.cards : (player.id === requestingPlayerId ? player.cards : [])
+        // Règles de révélation des cartes :
+        // - Avant showdown : chaque joueur voit uniquement ses propres cartes
+        // - Au showdown réel (plusieurs joueurs) : tous voient les cartes des joueurs encore en lice (isActive)
+        // - "Gagne par abandon" (1 seul restant) : le gagnant ne montre pas, les folders ne voient pas sa main
+        cards:
+          this.state.phase === 'SHOWDOWN'
+            ? this.state.showdownHandName === 'Gagne par abandon'
+              ? player.id === requestingPlayerId && player.id === this.state.showdownWinnerId
+                ? player.cards
+                : []
+              : player.isActive
+                ? player.cards
+                : []
+            : player.id === requestingPlayerId
+              ? player.cards
+              : []
       }))
     }
   }

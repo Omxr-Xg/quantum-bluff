@@ -193,7 +193,7 @@ export function BotConfiguration() {
             className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-gray-300 text-sm font-medium py-2 transition-colors"
           >
             <Settings2 className="w-4 h-4" />
-            <span>{showAdvanced ? "Masquer les options" : "Voir plus"}</span>
+            <span>{showAdvanced ? t('botConfig.hideOptions') : t('botConfig.seeMore')}</span>
             {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
 
@@ -201,8 +201,8 @@ export function BotConfiguration() {
             <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-8 space-y-4">
               <div className="flex items-center gap-3 mb-4">
                 <Settings2 className="w-5 h-5 text-gray-400" />
-                <h3 className="text-lg font-bold text-white">Jetons par bot</h3>
-                <span className="text-xs text-gray-500 ml-auto">Par défaut : 1 000</span>
+                <h3 className="text-lg font-bold text-white">{t('botConfig.chipsPerBot')}</h3>
+                <span className="text-xs text-gray-500 ml-auto">{t('botConfig.defaultChips')}</span>
               </div>
               {Array.from({ length: numberOfBots }, (_, i) => (
                 <div key={i} className="flex items-center gap-4">

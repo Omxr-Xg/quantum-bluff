@@ -113,6 +113,7 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false }:
                   suit={card.suit}
                   value={card.value}
                   size={isMobile ? "xs" : isTablet ? "sm" : "md"}
+                  colorblindMode={colorblindMode}
                 />
               ) : (
                 <PokerCardSlot size={isMobile ? "xs" : isTablet ? "sm" : "md"} />

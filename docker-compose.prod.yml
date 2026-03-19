@@ -4,6 +4,9 @@ services:
   postgres:
     image: postgres:16
     container_name: quantum_postgres
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs: [/tmp]
     environment:
       POSTGRES_USER: ${DB_USER:-admin}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-My027}
@@ -17,6 +20,9 @@ services:
   redis:
     image: redis:alpine
     container_name: quantum_redis
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs: [/data, /tmp]
     restart: unless-stopped
     networks:
       - quantum_net
@@ -52,6 +58,9 @@ services:
   nginx:
     image: nginx:alpine
     container_name: quantum_nginx
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs: [/var/cache/nginx, /var/run]
     ports:
       - "80:80"
       - "443:443"

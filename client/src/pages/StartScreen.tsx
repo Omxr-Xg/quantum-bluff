@@ -36,7 +36,7 @@ export function StartScreen() {
   }, [t]);
 
   const handleStart = () => {
-    navigate("/login");
+    navigate("/auth");
   };
 
   return (
@@ -153,7 +153,7 @@ export function StartScreen() {
       </div>
 
       {/* Sparkles scintillants - VIOLET NÉON */}
-      <div className="absolute inset-0 pointer-events-noneOpacity-70">
+      <div className="absolute inset-0 pointer-events-none opacity-70">
         {[...Array(15)].map((_, i) => (
           <div
             key={`sparkle-${i}`}
@@ -169,8 +169,8 @@ export function StartScreen() {
         ))}
       </div>
 
-      {/* Contenu principal */}
-      <div className="relative z-10 size-full flex flex-col items-center justify-center p-8">
+      {/* Contenu principal - centré verticalement et horizontalement */}
+      <div className="relative z-10 min-h-screen w-full flex flex-col items-center justify-center p-8">
         {/* Logo avec effets sophistiqués - VIOLET NÉON */}
         <div className="mb-12 relative">
           {/* Glow pulsant */}
@@ -193,7 +193,7 @@ export function StartScreen() {
           <div className="relative">
             <QuantumBluffLogo
               alt="Quantum Bluff"
-              className="relative w-44 h-44Brightness-110" // Légèrement plus lumineux
+              className="relative w-44 h-44 brightness-110" // Légèrement plus lumineux
               style={{
                 filter: 'drop-shadow(0 0 30px rgba(168, 85, 247, 0.6))'
               }}

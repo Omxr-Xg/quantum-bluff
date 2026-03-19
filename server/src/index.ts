@@ -4,10 +4,13 @@ import { Server } from 'socket.io'
 import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
+import swaggerUi from 'swagger-ui-express'
+import { swaggerSpec } from './config/swagger.config.js'
 import { initCleanupJobs } from './utils/cleanup.job.js';
 
 import gameRoutes from './routes/game.routes.js'
 import authRoutes from './routes/auth.routes.js'
+import twofaRoutes from './routes/twofa.routes.js'
 import friendsRoutes from './routes/friends.routes.js'
 import waitingRoomRoutes from './routes/waitingRoom.routes.js'
 import gameApiRoutes from './routes/game.api.routes.js'
@@ -30,11 +33,28 @@ const FRONTEND_ORIGINS: string[] = process.env.CORS_ORIGIN
     'http://127.0.0.1:5173',
     'http://127.0.0.1:5174',
     'http://127.0.0.1:5175',
-    'https://mai-projet-integrateur.u-strasbg.fr'
+    'https://mai-projet-integrateur.u-strasbg.fr',
+    'capacitor://localhost',
+    'http://localhost',
+    'http://185.155.93.105',
+    'http://185.155.93.105:5173',
+    'http://185.155.93.105:3000',
   ]
 
-// sécurité HTTP
-app.use(helmet())
+// sécurité HTTP (CSP adapté pour API + Swagger UI)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],  // Swagger UI inline scripts
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'"],
+      frameAncestors: ["'self'"],
+    },
+  },
+}))
 
 // CORS
 app.use(cors({
@@ -67,6 +87,7 @@ app.use((req, _res, next) => {
 // routes API
 app.use('/api', gameRoutes)
 app.use('/api/auth', authRoutes)
+app.use('/api/auth/2fa', twofaRoutes)
 app.use('/api/friends', friendsRoutes)
 app.use('/api/waiting-room', waitingRoomRoutes)
 app.use('/api/game', gameApiRoutes)
@@ -78,6 +99,20 @@ app.use('/', updatesRouter)
 
 app.get('/', (_req, res) => {
   res.send('🚀 Quantum Bluff API - Le serveur répond !')
+})
+
+// Swagger / OpenAPI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customCss: '.swagger-ui .topbar { display: none }' }))
+
+// Middleware de gestion des erreurs non capturées (pour déboguer les 500)
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const msg = err instanceof Error ? err.message : String(err)
+  const stack = err instanceof Error ? err.stack : undefined
+  console.error('❌ Erreur non capturée:', msg, stack)
+  res.status(500).json({
+    error: 'Erreur serveur',
+    ...(process.env.NODE_ENV === 'development' && { details: msg, stack })
+  })
 })
 
 // serveur HTTP
