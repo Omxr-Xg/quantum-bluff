@@ -1225,38 +1225,46 @@ export function Game() {
   }, [isBotMode, gameIdParam, phase]);
 
   // Run-out du board après all-in : distribuer Flop puis Turn puis River sans tour de mise, puis showdown
-  // On lit deckRef/communityCardsStateRef dans le timeout pour avoir l'état à jour (sinon Turn/River écrasent le Flop)
+  // Tout le dealing est fait de façon synchrone dans l'effet pour éviter les races avec dealFlop (qui utilise des setTimeouts)
   useEffect(() => {
     if (runOutPhase === null) return;
     const t = setTimeout(() => {
+      const currentDeck = [...deckRef.current];
+      const currentCommunity = [...communityCardsStateRef.current].slice(0, 5) as (Card | null)[];
+      while (currentCommunity.length < 5) currentCommunity.push(null);
+
       if (runOutPhase === "preflop") {
-        dealFlop(true);
+        setPhase("flop");
+        resetBetsAndSetFirstToAct(0);
+        currentDeck.shift(); // burn
+        for (let i = 0; i < 3; i++) {
+          const card = currentDeck.shift();
+          if (card) currentCommunity[i] = card;
+        }
+        setDeck(currentDeck);
+        setCommunityCardsState([...currentCommunity]);
         setRunOutPhase("flop");
       } else if (runOutPhase === "flop") {
-        const currentDeck = [...deckRef.current];
-        const currentCommunity = [...communityCardsStateRef.current];
         currentDeck.shift(); // burn
         const turnCard = currentDeck.shift();
         if (turnCard) currentCommunity[3] = turnCard;
         setDeck(currentDeck);
-        setCommunityCardsState(currentCommunity);
+        setCommunityCardsState([...currentCommunity]);
         setPhase("turn");
         setRunOutPhase("turn");
       } else if (runOutPhase === "turn") {
-        const currentDeck = [...deckRef.current];
-        const currentCommunity = [...communityCardsStateRef.current];
         currentDeck.shift(); // burn
         const riverCard = currentDeck.shift();
         if (riverCard) currentCommunity[4] = riverCard;
         setDeck(currentDeck);
-        setCommunityCardsState(currentCommunity);
+        setCommunityCardsState([...currentCommunity]);
         setPhase("river");
         setRunOutPhase("river");
       } else if (runOutPhase === "river") {
         setPhase("showdown");
         setRunOutPhase(null);
       }
-    }, runOutPhase === "preflop" ? 1200 : 1400);
+    }, runOutPhase === "preflop" ? 800 : 1400);
     return () => clearTimeout(t);
   }, [runOutPhase]);
 
