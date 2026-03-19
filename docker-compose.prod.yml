@@ -6,7 +6,7 @@ services:
     container_name: quantum_postgres
     security_opt: [no-new-privileges:true]
     read_only: true
-    tmpfs: [/tmp]
+    tmpfs: [/tmp, /var/run/postgresql]
     environment:
       POSTGRES_USER: ${DB_USER:-admin}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-My027}
@@ -14,6 +14,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-admin} -d $${POSTGRES_DB:-quantum_bluff}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - quantum_net
 
@@ -41,8 +46,10 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - quantum_net
 
