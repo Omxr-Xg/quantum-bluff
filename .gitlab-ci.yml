@@ -93,7 +93,7 @@ frontend:lint:
   stage: lint
   script:
     - cd client
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm run lint
   only:
     - develop
@@ -104,7 +104,7 @@ frontend:test:
   stage: test
   script:
     - cd client
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm test
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
   artifacts:
@@ -125,7 +125,7 @@ frontend:build:
   stage: build
   script:
     - cd client
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm run build
   artifacts:
     paths:
