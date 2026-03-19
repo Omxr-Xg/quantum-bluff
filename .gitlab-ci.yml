@@ -73,7 +73,7 @@ backend:build:
   stage: build
   script:
     - cd server
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npx prisma generate
     - npm run build
   artifacts:
