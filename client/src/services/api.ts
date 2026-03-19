@@ -59,12 +59,15 @@ export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
     baseUrl: (() => {
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const apiUrl = (import.meta.env.VITE_API_URL ?? '').toString().replace(/\/$/, '');
+      
       // En dev: proxy Vite sur /api
       if (import.meta.env.DEV) return `${origin}/api`;
+      
       // Capacitor/mobile: VITE_API_URL est l'URL complète du backend (ex: http://185.155.93.105:3000)
       if (apiUrl.startsWith('http')) return `${apiUrl}/api`;
+      
       return apiUrl ? `${origin}${apiUrl}/api` : `${origin}/api`;
     })(),
     fetchFn: fetchWithRetry,
