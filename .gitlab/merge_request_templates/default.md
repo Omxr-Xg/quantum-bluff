@@ -1,7 +1,7 @@
-## 📌 Description
+## 📌 Description [Important !]
 <!-- Explique clairement ce que fait cette MR -->
 
-## 🔗 Lien vers l'issue
+## 🔗 Numéro de tâche [Important !]
 <!-- Closes #123 -->
 
 ## ✅ Type de changement
@@ -20,6 +20,7 @@
 - [ ] Documentation mise à jour
 - [ ] Pipeline CI vert
 - [ ] Relu par un reviewer
+- [ ] Validé par Omar
 
 ## 👥 Reviewers requis
 <!-- Sélectionne selon les sections modifiées -->
@@ -27,6 +28,7 @@
 - [ ] Frontend (@mohamed, @yigit)
 - [ ] Sécurité (@linda, @massi)
 - [ ] BDD (@elhadj)
+- [ ] Généralité et organisations (@aguech)
 
 ## 🚨 Impact potentiel
 - [ ] Breaking change
