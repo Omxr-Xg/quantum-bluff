@@ -292,7 +292,6 @@ export function Game() {
       allPlayers[bbIdx].chips = (allPlayers[bbIdx].chips ?? 0) - BB;
 
       // Preflop first-to-act: player after BB
-      const bbIdx = allPlayers.findIndex((p) => p.role === "BB");
       const firstToAct = (bbIdx + 1) % totalPlayers;
       allPlayers[firstToAct].isActive = true;
 
