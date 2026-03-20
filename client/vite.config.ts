@@ -88,15 +88,16 @@ export default defineConfig({
     include: ['**/*.test.{ts,tsx}', '**/__tests__/**/*.{ts,tsx}'],
     exclude: ['**/node_modules/**', '**/dist/**'],
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'lcov', 'html'],
+      provider: 'istanbul',
+      reporter: ['text', 'lcov', 'html', 'cobertura'],
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         '**/*.test.{ts,tsx}',
         '**/__tests__/**',
         '**/*.d.ts',
-        '**/index.html',
-        '**/*.config.*'
+        '**/*.html',
+        '**/*.config.*',
+        '**/node_modules/**'
       ]
     }
   }
