@@ -4,7 +4,6 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-// More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 const basePath = process.env.VITE_BASE_PATH ?? '/vmProjetIntegrateurgrp10-0/';
 
 export default defineConfig({
@@ -39,7 +38,7 @@ export default defineConfig({
     }),
   ],
   build: {
-    sourcemap: true,
+    sourcemap: false,
   },
   resolve: {
     alias: {
@@ -87,6 +86,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['**/*.test.{ts,tsx}', '**/__tests__/**/*.{ts,tsx}'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/.storybook/**', '**/*.stories.*']
+    exclude: ['**/node_modules/**', '**/dist/**']
   }
 });
