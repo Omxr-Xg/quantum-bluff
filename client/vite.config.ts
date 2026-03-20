@@ -86,6 +86,18 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['**/*.test.{ts,tsx}', '**/__tests__/**/*.{ts,tsx}'],
-    exclude: ['**/node_modules/**', '**/dist/**']
+    exclude: ['**/node_modules/**', '**/dist/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'html'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        '**/*.test.{ts,tsx}',
+        '**/__tests__/**',
+        '**/*.d.ts',
+        '**/index.html',
+        '**/*.config.*'
+      ]
+    }
   }
 });
