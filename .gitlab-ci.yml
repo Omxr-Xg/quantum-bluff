@@ -73,7 +73,7 @@ backend:build:
   stage: build
   script:
     - cd server
-    - npm ci --legacy-peer-deps
+    - npm ci
     - npx prisma generate
     - npm run build
   artifacts:
@@ -197,7 +197,7 @@ security:scan-deps-frontend:
   stage: test-security
   script:
     - cd client
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm audit --production
   allow_failure: true
   only:
