@@ -163,6 +163,7 @@ router.get('/active/list', async (req, res) => {
 });
 
 // POST /api/game/record-result - Enregistrer résultat d'une main (mode bot) et incrémenter les stats
+// POST /api/game/record-result - Enregistrer résultat d'une main (mode bot) et incrémenter les stats
 router.post('/record-result', authMiddleware, async (req, res) => {
   try {
     const userId = (req as express.Request & { userId?: string }).userId;
@@ -175,6 +176,7 @@ router.post('/record-result', authMiddleware, async (req, res) => {
     const chipsWon = chipsDelta > 0 ? chipsDelta : 0;
     const chipsLost = chipsDelta < 0 ? -chipsDelta : 0;
 
+    // 1. Mise à jour des statistiques (Ton code d'origine)
     await prisma.playerStats.upsert({
       where: { playerId: userId },
       create: {
@@ -192,6 +194,16 @@ router.post('/record-result', authMiddleware, async (req, res) => {
         ...(chipsLost > 0 ? { totalChipsLost: { increment: chipsLost } } : {}),
       },
     });
+
+    // 2. CORRECTION : Mise à jour du VRAI portefeuille du joueur ! 💰
+    if (chipsDelta !== 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          chips: { increment: chipsDelta }
+        }
+      });
+    }
 
     res.json({ ok: true });
   } catch (error) {

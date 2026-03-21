@@ -24,6 +24,7 @@ import { PokerCard } from "../components/PokerCard";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
 import { addToUserBalance, addDevMoney, getUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
+import { RoundTransition } from "../components/RoundTransition";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
@@ -73,7 +74,6 @@ export function Game() {
   const isBotMode = mode === "bot";
   const { userId } = useUser();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
-  /** Multiplicateur de gain sur le solde : bot facile 0.3, moyen 0.6, difficile 0.9, expert 1 ; vs humain 1 */
   const difficultyParam = searchParams.get("difficulty") || "moyen";
   const winMultiplier = gameIdParam
     ? 1
@@ -108,10 +108,8 @@ export function Game() {
   const [addSuccess, setAddSuccess] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const [_timerActive, setTimerActive] = useState(false);
-  /** Mise maximale actuelle (pour l'API bot) = max des bets des joueurs */
   const currentBet = useMemo(() => Math.max(0, ...playersState.map((p) => p.bet ?? 0)), [playersState]);
   
-  // Nouveaux états pour les animations de cartes
   const [phase, setPhase] = useState<GamePhase>("init");
   const [communityCardsState, setCommunityCardsState] = useState<(Card | null)[]>([null, null, null, null, null]);
   const [burnedCardsCount, setBurnedCardsCount] = useState(0);
@@ -122,7 +120,11 @@ export function Game() {
   const [gameInitialized, setGameInitialized] = useState(false);
   const [handResult, setHandResult] = useState<"win" | "loss" | null>(null);
   const [handResultData, setHandResultData] = useState<{ winnerName: string; handName: string } | null>(null);
-  /** Un joueur éliminé (0 jetons) : partie terminée (scénario 2.1) */
+
+  const [showTransition, setShowTransition] = useState(false);
+  const [roundCount, setRoundCount] = useState(1);
+  const [lastWinnerData, setLastWinnerData] = useState<{name: string, amount: number} | undefined>(undefined);
+
   const [gameOverReason, setGameOverReason] = useState<"human_eliminated" | "bot_eliminated" | null>(null);
   const [showdownResult, setShowdownResult] = useState<{
     winnerId: string;
@@ -134,7 +136,6 @@ export function Game() {
     isSplit?: boolean;
   } | null>(null);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
-  /** Après un all-in suivi : run-out du board sans nouveau tour de mise (preflop -> flop -> turn -> river -> showdown) */
   const [runOutPhase, setRunOutPhase] = useState<GamePhase | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseRef = useRef(phase);
@@ -148,13 +149,10 @@ export function Game() {
   const communityCardsStateRef = useRef<(Card | null)[]>([]);
   const startOfHandChipsRef = useRef(0);
   const hasSetStartOfHandThisHandRef = useRef(false);
-  /** Évite d'annuler le setTimeout(dealFlop/dealTurn/…) quand l'effet re-run après que le bot agit */
   const streetTransitionScheduledRef = useRef<string | null>(null);
   const streetTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const doStreetTransitionRef = useRef<(() => void) | null>(null);
-  /** Timestamp d'entrée dans la street actuelle (flop/turn/river) pour détecter les blocages en mode bot */
   const streetPhaseEnteredRef = useRef<number>(0);
-  /** Mode bot : les deux ont agi (preflop égalisé), ne pas redonner la main au joueur */
   const bothActedNoTurnRef = useRef(false);
   const toAddLastRef = useRef(0);
   const botIsFetchingRef = useRef(false);
@@ -163,7 +161,6 @@ export function Game() {
   const showdownResultRef = useRef<typeof showdownResult>(null);
   showdownResultRef.current = showdownResult;
   const [showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
-  /** Multiplayer: données du showdown en attente (révélation 3s avant d'afficher le modal) */
   const [pendingShowdownData, setPendingShowdownData] = useState<{
     winnerId: string;
     winnerIds?: string[];
@@ -173,25 +170,16 @@ export function Game() {
     winnerCards: Card[];
     isSplit?: boolean;
   } | null>(null);
-  /** Track total chips contributed per player across all streets (for side pot calculation) */
   const handContributionsRef = useRef<Record<string, number>>({});
   const [sidePots, setSidePots] = useState<{ amount: number; eligibleIds: string[] }[]>([]);
-  /** Multi: host peut relancer avec les mêmes membres */
   const [isRematchHost, setIsRematchHost] = useState(false);
   const [rematchLoading, setRematchLoading] = useState(false);
-  /** Cash game: countdown entre les mains (timestamp de fin) */
   const [cashCountdownEndsAt, setCashCountdownEndsAt] = useState<number | null>(null);
-  /** Cash game: sièges de la table */
   const [cashSeats, setCashSeats] = useState<{ seatIndex: number; userId: string | null; username: string | null; chips: number }[]>([]);
-  /** Cash game: en attente de joueurs (< 2) */
   const [cashWaitingPlayers, setCashWaitingPlayers] = useState(false);
-  /** Spectateur : inscrit pour rejoindre à la prochaine manche */
   const [spectatorWantsToRejoin, setSpectatorWantsToRejoin] = useState(false);
-  /** Skip la révélation du showdown : appelle cette ref pour passer au résultat */
   const showdownSkipRef = useRef<(() => void) | null>(null);
-  /** Multi: timeouts pour l'animation du flop carte par carte */
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  /** Multi: évite de rejouer l'animation flop à chaque GAME_UPDATE (changement de tour) */
   const flopAnimatedRef = useRef(false);
 
   const { colorblindMode } = useAccessibility();
@@ -204,7 +192,19 @@ export function Game() {
 
   const SB = 50;
   const BB = 100;
-  const BOT_START_CHIPS = 1000;
+
+  // ⚡ NOUVEAU : INTERCEPTEUR DE FIN DE MANCHE (CORRIGÉ SANS LE "y")
+  useEffect(() => {
+    if (showdownResult && !showTransition) {
+      setLastWinnerData({
+        name: showdownResult.winnerName,
+        amount: showdownResult.pot
+      });
+      setShowTransition(true);
+      setShowdownResult(null);
+      setHandResult(null); 
+    }
+  }, [showdownResult, showTransition]);
 
   const openAddMoney = () => {
     setShowAddMoney(true);
@@ -277,7 +277,6 @@ export function Game() {
         role: "PLAYER",
       });
 
-      // Dealer aléatoire parmi tous les joueurs (bots + humain)
       const dealerIndex = Math.floor(Math.random() * totalPlayers);
       allPlayers[dealerIndex].isDealer = true;
 
@@ -291,7 +290,6 @@ export function Game() {
       allPlayers[bbIdx].bet = BB;
       allPlayers[bbIdx].chips = (allPlayers[bbIdx].chips ?? 0) - BB;
 
-      // Preflop first-to-act: player after BB
       const firstToAct = (bbIdx + 1) % totalPlayers;
       allPlayers[firstToAct].isActive = true;
 
@@ -300,7 +298,6 @@ export function Game() {
     return [];
   };
 
-  // Déclarations dérivées AVANT les useEffect qui les utilisent (évite "Cannot access before initialization")
   const activePlayers = playersState.length > 0 ? playersState : getPlayers();
   const activePlayer = activePlayers.find((p) => p.isActive);
   const callAmount = useMemo(() => {
@@ -334,27 +331,22 @@ export function Game() {
   const heroCards = tablePlayers.find((p) => isHero(p))?.cards || [];
   const communityCards = communityCardsState;
 
-  /** En multijoueur : vient du serveur. En mode bot : dérivé de la phase (1 avant flop, 2 avant turn, 3 avant river). */
   const displayBurnedCardsCount = gameIdParam
     ? burnedCardsCount
     : (phase === "flop" ? 1 : phase === "turn" ? 2 : phase === "river" || phase === "showdown" ? 3 : 0);
 
-  // Générer un jeu de cartes complet
   const generateDeck = (): Card[] => {
     const suits: Array<"hearts" | "diamonds" | "clubs" | "spades"> = ["hearts", "diamonds", "clubs", "spades"];
     const values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
     const newDeck: Card[] = [];
-    
     for (const suit of suits) {
       for (const value of values) {
         newDeck.push({ suit, value });
       }
     }
-    
     return newDeck.sort(() => Math.random() - 0.5);
   };
 
-  // Distribution des cartes aux joueurs (utilise le deck et les joueurs passés en argument)
   const dealCardsToPlayers = (currentDeck: Card[], currentPlayers: (BasePlayer | BotPlayer)[]) => {
     const newDeck = [...currentDeck];
     const updatedPlayers = currentPlayers.map((p) => ({ ...p, cards: [...(p.cards || [])] }));
@@ -383,7 +375,6 @@ export function Game() {
     }, 250);
   };
 
-  /** Track contribution: add amount to a player's hand total */
   const addContribution = (playerId: string | number, amount: number) => {
     const key = String(playerId);
     handContributionsRef.current[key] = (handContributionsRef.current[key] ?? 0) + amount;
@@ -405,11 +396,8 @@ export function Game() {
     });
   };
 
-  // Postflop: heads-up → dealer (index 0) first; multi-player → SB (index 1) first
   const getPostflopFirstAct = () => (playersState.length === 2 ? 0 : 1);
 
-  // Distribution du flop (3 cartes)
-  // runOutOnly = true : après un all-in, on distribue les cartes sans donner la main à personne
   const dealFlop = (runOutOnly?: boolean) => {
     setPhase("flop");
       if (!runOutOnly) resetBetsAndSetFirstToAct(0);
@@ -500,7 +488,6 @@ export function Game() {
         handContributionsRef.current = contribs;
       }
     };
-    // Mode bot : micro-delai pour laisser la nav finir (évite race config → jeu)
     if (mode === "bot" && !gameIdParam) {
       const t = setTimeout(runInit, 0);
       return () => clearTimeout(t);
@@ -508,7 +495,6 @@ export function Game() {
     runInit();
   }, [mode, gameIdParam, searchParams.get("bots") ?? "", searchParams.get("difficulty") ?? "", searchParams.get("botChips") ?? ""]);
 
-  // Rejouer avec la même configuration (bouton overlay, mode bot uniquement)
   useEffect(() => {
     const replay = (location.state as { replay?: boolean })?.replay;
     if (!replay || !isBotMode) return;
@@ -548,8 +534,6 @@ export function Game() {
     navigate(location.pathname + location.search, { replace: true, state: {} });
   }, [location.state, isBotMode]);
 
-  // Multijoueur : récupérer l'état du jeu depuis le backend (évite race localStorage + cartes / phase / pot)
-  // Spectateurs : pas de fetch HTTP, l'état vient du socket JOIN_SPECTATE
   useEffect(() => {
     if (!gameIdParam || isSpectating || !userId) return;
     const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
@@ -605,7 +589,6 @@ export function Game() {
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
         cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
-        // Flop carte par carte en multijoueur (comme en mode bot)
         if (phase === "flop" && arr[0] && arr[1] && arr[2] && !arr[3] && !arr[4]) {
           flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
           flopAnimateTimeoutsRef.current = [];
@@ -629,7 +612,6 @@ export function Game() {
     return () => { cancelled = true; };
   }, [gameIdParam, userId, navigate, isSpectating]);
 
-  // Rejoindre la room socket pour recevoir GAME_UPDATE, TURN_TIMER, GAME_CHAT
   useEffect(() => {
     if (!socket || !gameIdParam) return;
     if (isSpectating) {
@@ -662,7 +644,6 @@ export function Game() {
       if (payload?.code === "GAME_NOT_FOUND") {
         navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
       }
-        // Si le serveur refuse l'action (ex: pas assez de jetons, pas votre tour)
         else if (payload?.code === "ACTION_ERROR" || payload?.code === "INVALID_RAISE" || payload?.code === "TOO_MANY_ACTIONS") {
           addToast(payload?.message || t('common.error'), "error");
           setIsLoading(false);
@@ -676,7 +657,6 @@ export function Game() {
     };
   }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating]);
 
-  // Appliquer les mises à jour d'état envoyées par le serveur (après une action)
   useEffect(() => {
     if (!socket || !gameIdParam) return;
     if (!isSpectating && !userId) return;
@@ -694,7 +674,6 @@ export function Game() {
       if (gameState.cashCountdownEndsAt != null) setCashCountdownEndsAt(gameState.cashCountdownEndsAt);
       if (gameState.cashSeats && Array.isArray(gameState.cashSeats)) {
         setCashSeats(gameState.cashSeats);
-        // Spectateur assis via processRejoinQueue → passer en mode joueur (rediriger sans spectate=1)
         if (isSpectating && userId && gameState.cashSeats.some((s) => s.userId && String(s.userId) === String(userId))) {
           navigate(`/game?gameId=${gameIdParam}`, { replace: true });
           return;
@@ -737,7 +716,6 @@ export function Game() {
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
         cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
-        // Multi: flop carte par carte (comme en mode bot) — une seule fois, pas à chaque changement de tour
         if (phase === "flop" && arr[0] && arr[1] && arr[2]) {
           if (!flopAnimatedRef.current) {
             flopAnimatedRef.current = true;
@@ -750,7 +728,27 @@ export function Game() {
           } else {
             setCommunityCardsState(arr);
           }
-        } else {
+        } 
+        else if (phase === "turn" && arr[3] && !arr[4]) {
+          flopAnimatedRef.current = false;
+          const currentComm = communityCardsStateRef.current;
+          if (!currentComm[3]) {
+            setCommunityCardsState([arr[0]!, arr[1]!, arr[2]!, null, null]);
+            setTimeout(() => setCommunityCardsState(arr), 800);
+          } else {
+            setCommunityCardsState(arr);
+          }
+        }
+        else if (phase === "river" && arr[4]) {
+          const currentComm = communityCardsStateRef.current;
+          if (!currentComm[4]) {
+            setCommunityCardsState([arr[0]!, arr[1]!, arr[2]!, arr[3]!, null]);
+            setTimeout(() => setCommunityCardsState(arr), 800);
+          } else {
+            setCommunityCardsState(arr);
+          }
+        } 
+        else {
           if (phase !== "flop") flopAnimatedRef.current = false;
           setCommunityCardsState(arr);
         }
@@ -792,15 +790,16 @@ export function Game() {
               .map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]))
               .filter((c): c is Card => c !== null)
           : [];
-        setShowdownReveal(true);
-        setPendingShowdownData({
+        
+        // Multi : on déclenche la transition directe à la place du vieux ShowdownDisplay !
+        setShowdownResult({
           winnerId: firstWinnerId,
           winnerIds: winnerIds.length > 1 ? winnerIds : undefined,
           winnerName,
           hand: gameState.showdownHandName ?? "—",
           pot: potWon,
-          winnerCards: normalized,
           isSplit: gameState.showdownIsSplit ?? false,
+          handRank: 0
         });
       }
     };
@@ -837,7 +836,6 @@ export function Game() {
     };
   }, [socket, gameIdParam, userId, isSpectating]);
 
-  // Multi: fetch room-info quand handResult pour afficher bouton rematch au host
   useEffect(() => {
     if (!handResult || !gameIdParam || isBotMode || !userId) return;
     const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
@@ -849,7 +847,6 @@ export function Game() {
       .catch(() => {});
   }, [handResult, gameIdParam, isBotMode, userId]);
 
-  // Cash game: tick countdown pour afficher les secondes restantes
   const [cashCountdownTick, setCashCountdownTick] = useState(0);
   useEffect(() => {
     if (!cashCountdownEndsAt) return;
@@ -858,7 +855,6 @@ export function Game() {
   }, [cashCountdownEndsAt]);
   const cashCountdownSecs = cashCountdownEndsAt ? Math.max(0, Math.ceil((cashCountdownEndsAt - Date.now()) / 1000)) : 0;
 
-  // Multi: écouter REMATCH_CREATED pour rediriger vers la nouvelle salle
   useEffect(() => {
     if (!socket) return;
     const onRematch = (data: { newRoomId: string }) => {
@@ -867,35 +863,6 @@ export function Game() {
     socket.on("REMATCH_CREATED", onRematch);
     return () => socket.off("REMATCH_CREATED", onRematch);
   }, [socket, navigate]);
-
-  // Multiplayer: après 3s de révélation des cartes, afficher le modal du gagnant (ou Skip)
-  useEffect(() => {
-    if (!pendingShowdownData || !gameIdParam) return;
-    const applyResult = () => {
-      setShowdownResult({
-        winnerId: pendingShowdownData.winnerId,
-        winnerIds: pendingShowdownData.winnerIds,
-        winnerName: pendingShowdownData.winnerName,
-        hand: pendingShowdownData.hand,
-        handRank: 0,
-        pot: pendingShowdownData.pot,
-        isSplit: pendingShowdownData.isSplit,
-      });
-      setShowdownWinnerCards(pendingShowdownData.winnerCards);
-      setShowdownReveal(false);
-      setPendingShowdownData(null);
-      showdownSkipRef.current = null;
-    };
-    const t = setTimeout(applyResult, 3000);
-    showdownSkipRef.current = () => {
-      clearTimeout(t);
-      applyResult();
-    };
-    return () => {
-      clearTimeout(t);
-      showdownSkipRef.current = null;
-    };
-  }, [pendingShowdownData, gameIdParam]);
 
   useEffect(() => {
     if (phase !== "init" || deck.length === 0) return;
@@ -923,16 +890,13 @@ export function Game() {
   useEffect(() => {
     if (!socket) return;
     socket.on("TURN_TIMER", (data: { gameId: string; timeLeft: number }) => {
-      if (phaseRef.current === "showdown") return; // Ne pas réactiver le timer au showdown
+      if (phaseRef.current === "showdown") return;
       setTimeLeft(data.timeLeft);
       setTimerActive(true);
     });
     return () => socket.off("TURN_TIMER");
   }, [socket]);
 
-  const _playPhase = phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river";
-
-  // Forcer l'activation du timer quand c'est le tour du joueur (arrêter dès le showdown)
   useEffect(() => {
     if (!isMyTurn || !gameInitialized || phase === "init" || phase === "shuffle" || phase === "deal" || phase === "showdown") {
       setTimerActive(false);
@@ -992,7 +956,6 @@ export function Game() {
     }
   }, [playersState, communityCardsState, phase, userId, updateQuantumHUD]);
 
-  // Quand c'est le tour du joueur humain, garantir que les boutons sont actifs (sans écraser hasPlayerActed après une action)
   useEffect(() => {
     if (isMyTurn && !hasFoldedFromState && !hasPlayerActed) {
       setIsLoading(false);
@@ -1000,7 +963,6 @@ export function Game() {
     }
   }, [isMyTurn, hasFoldedFromState, hasPlayerActed]);
 
-  // Safety net: if active player has already acted this round but is still marked active, pass turn
   useEffect(() => {
     if (!isBotMode || playersState.length < 2) return;
     if (phase !== "preflop" && phase !== "flop" && phase !== "turn" && phase !== "river") return;
@@ -1114,7 +1076,6 @@ export function Game() {
     setIsLoading(false);
   };
 
-  // Tour de mises terminé → passer à la street suivante. Utilise playersState (pas la ref) pour avoir l'état à jour quand roundPlayersActed change.
   useEffect(() => {
     if (phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river") {
       const players = playersState;
@@ -1141,7 +1102,6 @@ export function Game() {
           setPlayersState((prev) => prev.map((p) => ({ ...p, isActive: false })));
           setRunOutPhase(phase);
         } else if (!hasAllIn) {
-          // Transition dès que tout le monde a agi et les mises sont égalisées (bot et multi)
           if (streetTransitionScheduledRef.current === phase) return;
           streetTransitionScheduledRef.current = phase;
           streetTransitionTimeoutRef.current = setTimeout(() => {
@@ -1153,7 +1113,6 @@ export function Game() {
     }
   }, [roundPlayersActed, phase, gameIdParam, userId, runOutPhase, playersState]);
 
-  // Capturer le stack du joueur une seule fois au tout début de la main (preflop), avant toute mise
   useEffect(() => {
     if (phase !== "preflop" || !gameInitialized || hasSetStartOfHandThisHandRef.current) return;
     const humanChips = isBotMode ? playerChips : playersState.find((p) => String(p.id) === String(userId))?.chips ?? playerChips;
@@ -1161,13 +1120,11 @@ export function Game() {
     hasSetStartOfHandThisHandRef.current = true;
   }, [phase, gameInitialized, isBotMode, playerChips, playersState, userId]);
 
-  // Garder les refs à jour pour le run-out (éviter closures stales)
   useEffect(() => {
     deckRef.current = deck;
     communityCardsStateRef.current = communityCardsState;
   }, [deck, communityCardsState]);
 
-  // Ref pour la transition de rue : toujours appeler la dernière version (évite closures stales dans nextTurn)
   useEffect(() => {
     doStreetTransitionRef.current = () => {
       if (phase === "preflop") dealFlop();
@@ -1177,7 +1134,6 @@ export function Game() {
     };
   }, [phase, dealFlop, dealTurn, dealRiver]);
 
-  // Réinitialiser le run-out, le flag "début de main", la raison de fin de partie et le flag de transition en début de main
   useEffect(() => {
     if (phase === "init" || phase === "shuffle" || phase === "deal") {
       setRunOutPhase(null);
@@ -1189,7 +1145,6 @@ export function Game() {
     }
   }, [phase]);
 
-  // Réinitialiser le flag de transition et annuler le timeout précédent quand on change de phase
   useEffect(() => {
     if (streetTransitionTimeoutRef.current) {
       clearTimeout(streetTransitionTimeoutRef.current);
@@ -1198,9 +1153,8 @@ export function Game() {
     streetTransitionScheduledRef.current = null;
   }, [phase]);
 
-  // Mode bot : filet de sécurité si bloqué en flop/turn/river (>20s sans transition malgré mises égalisées)
   useEffect(() => {
-    if (!isBotMode || gameIdParam) return; // En bot : pas de gameId
+    if (!isBotMode || gameIdParam) return; 
     if (phase !== "flop" && phase !== "turn" && phase !== "river") return;
     const interval = setInterval(() => {
       const players = playersStateRef.current;
@@ -1219,8 +1173,6 @@ export function Game() {
     return () => clearInterval(interval);
   }, [isBotMode, gameIdParam, phase]);
 
-  // Run-out du board après all-in : distribuer Flop puis Turn puis River sans tour de mise, puis showdown
-  // Tout le dealing est fait de façon synchrone dans l'effet pour éviter les races avec dealFlop (qui utilise des setTimeouts)
   useEffect(() => {
     if (runOutPhase === null) return;
     const t = setTimeout(() => {
@@ -1231,7 +1183,7 @@ export function Game() {
       if (runOutPhase === "preflop") {
         setPhase("flop");
         resetBetsAndSetFirstToAct(0);
-        currentDeck.shift(); // burn
+        currentDeck.shift(); 
         for (let i = 0; i < 3; i++) {
           const card = currentDeck.shift();
           if (card) currentCommunity[i] = card;
@@ -1240,7 +1192,7 @@ export function Game() {
         setCommunityCardsState([...currentCommunity]);
         setRunOutPhase("flop");
       } else if (runOutPhase === "flop") {
-        currentDeck.shift(); // burn
+        currentDeck.shift(); 
         const turnCard = currentDeck.shift();
         if (turnCard) currentCommunity[3] = turnCard;
         setDeck(currentDeck);
@@ -1248,7 +1200,7 @@ export function Game() {
         setPhase("turn");
         setRunOutPhase("turn");
       } else if (runOutPhase === "turn") {
-        currentDeck.shift(); // burn
+        currentDeck.shift(); 
         const riverCard = currentDeck.shift();
         if (riverCard) currentCommunity[4] = riverCard;
         setDeck(currentDeck);
@@ -1263,17 +1215,19 @@ export function Game() {
     return () => clearTimeout(t);
   }, [runOutPhase]);
 
-  // Reset showdown state on new hand
   useEffect(() => {
     if (phase === "init" || phase === "shuffle") {
       showdownStartedRef.current = false;
       setShowdownReveal(false);
       setShowdownWinnerCards([]);
       setPendingShowdownData(null);
+      setHandResult(null);
+      setHandResultData(null);
+      setCashWaitingPlayers(false); 
+      setCashCountdownEndsAt(null);
     }
   }, [phase]);
 
-  // Showdown: reveal all cards for 3s, then evaluate winner with side pot support
   useEffect(() => {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
     if (showdownStartedRef.current) return;
@@ -1287,7 +1241,6 @@ export function Game() {
     if (activeInHand.length === 1) {
       const sole = activeInHand[0];
       showdownStartedRef.current = true;
-      setShowdownReveal(true);
       const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
       const applySoleWinner = async () => {
         let handName = "Haute carte";
@@ -1309,24 +1262,13 @@ export function Game() {
         setPlayersState((prev) => prev.map((p) => (p.id === sole.id ? { ...p, chips: (p.chips ?? 0) + pot } : p)));
         if (sole.id === userId || sole.id === "human") setPlayerChips((prev) => prev + pot);
         setPot(0);
-        setShowdownReveal(false);
-        setShowdownWinnerCards(sole.cards ?? []);
         setShowdownResult({ winnerId: String(sole.id), winnerName: sole.name, hand: handName, handRank: 0, pot });
       };
-      const revealTimer = setTimeout(applySoleWinner, 3000);
-      showdownSkipRef.current = () => {
-        clearTimeout(revealTimer);
-        showdownSkipRef.current = null;
-        applySoleWinner();
-      };
-      return () => {
-        clearTimeout(revealTimer);
-        showdownSkipRef.current = null;
-      };
+      applySoleWinner();
+      return;
     }
 
     showdownStartedRef.current = true;
-    setShowdownReveal(true);
     let pots: { amount: number; eligibleIds: string[] }[];
     try {
       pots = calculateSidePots(playersState, handContributionsRef.current);
@@ -1347,7 +1289,6 @@ export function Game() {
     const applyFallback = (handNameOverride?: string) => {
       const fallbackWinner = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
       setPot(0);
-      setShowdownReveal(false);
       setShowdownResult({
         winnerId: String(fallbackWinner?.id ?? ""),
         winnerName: fallbackWinner?.name ?? "Inconnu",
@@ -1416,7 +1357,7 @@ export function Game() {
             return award > 0 ? { ...p, chips: p.chips + award } : p;
           })
         );
-        humanShare = awards[humanId] ?? 0;
+        const humanShare = awards[humanId] ?? 0;
         if (humanShare > 0) setPlayerChips((prev) => prev + humanShare);
 
         const startChips = startOfHandChipsRef.current;
@@ -1426,7 +1367,6 @@ export function Game() {
         addToUserBalance(toAdd);
         toAddLastRef.current = toAdd;
         setPot(0);
-        setShowdownReveal(false);
         setShowdownResult({
           winnerId: mainIsSplit ? "" : mainWinnerId,
           winnerName: mainWinnerName,
@@ -1450,19 +1390,9 @@ export function Game() {
         applyFallback(fallbackHand);
       }
     };
-    const revealTimer = setTimeout(runComplete, 3000);
-    showdownSkipRef.current = () => {
-      clearTimeout(revealTimer);
-      showdownSkipRef.current = null;
-      runComplete();
-    };
-    return () => {
-      clearTimeout(revealTimer);
-      showdownSkipRef.current = null;
-    };
+    runComplete();
   }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId]);
 
-  // Safety net: force showdown completion if stuck for 12s (API timeout, race, validCommunity delay)
   showdownResultRef.current = showdownResult;
   useEffect(() => {
     if (!isBotMode || phase !== "showdown" || showdownResult !== null || handResult !== null) return;
@@ -1485,7 +1415,6 @@ export function Game() {
         } catch { /* ignore */ }
       }
       setPot(0);
-      setShowdownReveal(false);
       showdownStartedRef.current = true;
       if (winner) {
         setPlayersState((prev) => prev.map((p) => (p.id === winner.id ? { ...p, chips: (p.chips ?? 0) + currentPot } : p)));
@@ -1504,7 +1433,6 @@ export function Game() {
     return () => clearTimeout(safety);
   }, [phase, showdownResult, handResult, isBotMode, playersState, pot, userId]);
 
-  // Game over: human eliminated or all bots eliminated
   useEffect(() => {
     if (!isBotMode || !showdownResult || gameOverReason) return;
     if (playerChips <= 0) {
@@ -1565,8 +1493,6 @@ export function Game() {
         }
 
         const decision = await response.json();
-
-        // Montant que le bot doit mettre (total bet côté serveur pour RAISE = mise totale visée)
         const botCurrentBet = activePlayer.bet ?? 0;
         const amountFromServer = decision.amount ?? 0;
         const amountToPut =
@@ -1597,7 +1523,6 @@ export function Game() {
               handleFold(activePlayer.id);
               break;
             case "CALL": {
-              // Ne jamais mettre plus que le callAmount (montant pour égaliser) ni plus que les jetons du bot
               const effectiveCall = Math.min(
                 decision.amount ?? callAmount,
                 callAmount,
@@ -1638,22 +1563,19 @@ export function Game() {
     fetchBotDecision();
   }, [isBotMode, playersState, isBotThinking, phase, communityCardsState, pot, callAmount, addToast, handResult]);
 
-  // Après gain/perte : animation puis enregistrement des stats (sans navigation)
   useEffect(() => {
     if (handResult === null || !isBotMode) return;
-    const t = setTimeout(() => {
-      const token = localStorage.getItem("token");
-      const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-      const recordUrl = `${apiBase}/api/game/record-result`;
-      if (token) {
-        fetch(recordUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ won: handResult === "win", delta: toAddLastRef.current }),
-        }).catch(() => {});
-      }
-    }, 2500);
-    return () => clearTimeout(t);
+    const token = localStorage.getItem("token");
+    const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+    const recordUrl = `${apiBase}/api/game/record-result`;
+    
+    if (token) {
+      fetch(recordUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ won: handResult === "win", delta: toAddLastRef.current }),
+      }).catch((err) => console.error("Erreur de sauvegarde d'argent :", err));
+    }
   }, [handResult, isBotMode]);
 
   const handleFold = (playerId?: number | string) => {
@@ -1679,7 +1601,6 @@ export function Game() {
         (p) => p.isConnected !== false && !(p.hasFolded ?? false)
       );
 
-      // En multijoueur, on laisse le serveur gérer le pot, le SHOWDOWN et le vainqueur
       if (gameIdParam) {
         return newPlayers;
       }
@@ -1709,7 +1630,6 @@ export function Game() {
       return newPlayers;
     });
 
-    // En multijoueur, le serveur envoie GAME_UPDATE avec le vainqueur — ne pas traiter en local
     if (gameIdParam) return;
 
     const activeInHandCount = playersState.filter(
@@ -1724,7 +1644,6 @@ export function Game() {
       const winner = winnerIndex !== -1 ? playersState[winnerIndex] : null;
       if (winner) {
         setPhase("showdown");
-        setShowdownWinnerCards([]); // Abandon : le gagnant ne montre pas ses cartes
         setShowdownResult({
           winnerId: String(winner.id),
           winnerName: winner.name,
@@ -1771,7 +1690,6 @@ export function Game() {
     if (gameIdParam && socket && isHumanActing) {
       socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CALL", amount });
     }
-    // Cap call amount at player's chips (all-in if not enough)
     if (playerId !== undefined && !isHumanActing) {
       const highestBet = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
       const actorBet = playersState.find((p) => p.id === playerId)?.bet ?? 0;
@@ -1786,34 +1704,33 @@ export function Game() {
       const highestBet = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
       const neededToCall = Math.max(0, highestBet - actorBetBefore);
       const isBotAllInCall = amount < neededToCall;
+      const botTotalBetAfter = actorBetBefore + amount;
+      
       const totalRefund = playersState
-        .filter((p) => p.id !== playerId && (p.bet ?? 0) > amount)
-        .reduce((sum, p) => sum + ((p.bet ?? 0) - amount), 0);
-      const humanRefund = hero && hero.id !== playerId && (hero.bet ?? 0) > amount ? (hero.bet ?? 0) - amount : 0;
+        .filter((p) => p.id !== playerId && (p.bet ?? 0) > botTotalBetAfter)
+        .reduce((sum, p) => sum + ((p.bet ?? 0) - botTotalBetAfter), 0);
+        
+      const humanRefund = hero && hero.id !== playerId && (hero.bet ?? 0) > botTotalBetAfter ? (hero.bet ?? 0) - botTotalBetAfter : 0;
+      
       setPlayersState((prev) => {
         const nextList = prev.map((p) => {
           let next = p;
           if (p.id !== playerId) {
-            if ((p.bet ?? 0) > amount) {
-              const refund = (p.bet ?? 0) - amount;
-              next = { ...p, chips: p.chips + refund, bet: amount };
+            if ((p.bet ?? 0) > botTotalBetAfter) {
+              const refund = (p.bet ?? 0) - botTotalBetAfter;
+              next = { ...p, chips: p.chips + refund, bet: botTotalBetAfter };
             }
           } else {
-            next = { ...p, chips: Math.max(0, actorChipsBefore - amount), bet: actorBetBefore + amount, isActive: false };
+            next = { ...p, chips: Math.max(0, actorChipsBefore - amount), bet: botTotalBetAfter, isActive: false };
           }
           if (isBotAllInCall) {
             next = { ...next, isActive: false };
           }
           return next;
         });
-        const botNext = nextList.find((p) => p.id === playerId);
-        if (botNext) {
-          console.log("[QB-BOT setPlayersState bot update]", { amount, botChipsBefore: actorChipsBefore, botChipsAfter: botNext.chips, botBetAfter: botNext.bet });
-        }
         return nextList;
       });
       const newPot = Math.max(0, pot + amount - totalRefund);
-      console.log("[QB-BOT pot update]", { potBefore: pot, amount, totalRefund, potAfter: newPot });
       setPot((prev) => Math.max(0, prev + amount - totalRefund));
       setRoundPlayersActed((prev) => {
         const next = new Set(prev).add(botIndex);
@@ -1837,7 +1754,6 @@ export function Game() {
             }, 1000);
           }
           } else if (next.size < activeInHandCount && !isBotAllInCall) {
-            // Bot a agi : donner la main au joueur suivant
           setTimeout(() => {
             setPlayersState((prev) => {
                 const newPlayers = prev.map(p => ({ ...p, isActive: false }));
@@ -2029,7 +1945,6 @@ export function Game() {
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-hidden relative">
-      {/* Particules dorées flottantes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
@@ -2052,7 +1967,6 @@ export function Game() {
         ))}
       </div>
 
-      {/* Animation de shuffle du dealer */}
       <AnimatePresence>
         {phase === "shuffle" && (
           <motion.div
@@ -2068,9 +1982,7 @@ export function Game() {
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
               className="relative flex flex-col items-center gap-8"
             >
-              {/* Glow derrière les cartes */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-80 bg-amber-500/15 rounded-full blur-[60px] -z-10 pointer-events-none" />
-              {/* Pile de cartes - riffle shuffle effect */}
               <div className="relative w-36 h-52" style={{ perspective: "1000px" }}>
                 {[...Array(12)].map((_, i) => {
                   const isLeft = i % 2 === 0;
@@ -2114,7 +2026,6 @@ export function Game() {
                 })}
               </div>
 
-              {/* Texte */}
               <motion.div
                 className="flex flex-col items-center gap-1"
                 animate={{ opacity: [1, 0.7, 1] }}
@@ -2137,7 +2048,6 @@ export function Game() {
         )}
       </AnimatePresence>
 
-      {/* Animation "Bot réfléchit" */}
       {isBotThinking && mode === "bot" && (
         <div className={`absolute z-50 left-1/2 transform -translate-x-1/2 ${
           isMobile ? 'bottom-32' : isTablet ? 'bottom-36' : 'bottom-40'
@@ -2154,247 +2064,33 @@ export function Game() {
         </div>
       )}
 
-      {/* Showdown card reveal: show all hands for 3s before modal */}
+      {/* TA NOUVELLE TRANSITION FIGMA UNIQUE */}
       <AnimatePresence>
-        {showdownReveal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[105] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", damping: 20, stiffness: 200 }}
-              className="flex flex-col items-center gap-4"
-            >
-              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">{t('showdown.title')}</h2>
-
-              {/* Player hands (toutes les cartes de tout le monde) */}
-              <div className="flex flex-wrap justify-center gap-6">
-                {playersState
-                  .filter((p) => p.cards?.length === 2)
-                  .map((player) => (
-                    <motion.div
-                      key={String(player.id)}
-                      initial={{ y: 20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.15 }}
-                      className="flex flex-col items-center gap-2 bg-slate-800/80 rounded-xl px-4 py-3 border border-slate-600"
-                    >
-                      <span className="text-white font-semibold text-sm md:text-base">{player.name === "Vous" || player.name === "you" ? t('game.you') : player.name}</span>
-                      <div className="flex gap-2">
-                        {player.cards.map((card, i) => (
-                          <PokerCard
-                            key={i}
-                            suit={card.suit}
-                            value={card.value}
-                            size="md"
-                            animated
-                            animationDelay={i * 0.1}
-                          />
-                        ))}
-                      </div>
-                    </motion.div>
-                  ))}
-              </div>
-
-              {/* Community cards */}
-              {(() => {
-                const validCommunity = communityCardsState.filter((c): c is Card => c !== null);
-                if (validCommunity.length === 0) return null;
-                return (
-                  <motion.div
-                    initial={{ y: 15, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.3 }}
-                    className="flex flex-col items-center gap-2 mt-2"
-                  >
-                    <span className="text-gray-400 text-xs font-semibold tracking-wider uppercase">Board</span>
-                    <div className="flex gap-2">
-                      {validCommunity.map((card, i) => (
-                        <PokerCard
-                          key={i}
-                          suit={card.suit}
-                          value={card.value}
-                          size="sm"
-                          animated
-                          animationDelay={0.3 + i * 0.08}
-                        />
-                      ))}
-                    </div>
-                  </motion.div>
-                );
-              })()}
-
-              {/* Bouton Skip pour passer directement au résultat */}
-              <button
-                type="button"
-                onClick={() => showdownSkipRef.current?.()}
-                className="mt-4 px-6 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 border border-white/40 text-white font-semibold text-sm transition-colors"
-              >
-                Skip
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Showdown : gagnant + combinaison + pot */}
-      <ShowdownDisplay
-        winner={
-          showdownResult
-            ? {
-                name: showdownResult.winnerName,
-                hand: showdownResult.hand,
-                pot: showdownResult.pot,
-                isSplit: showdownResult.isSplit,
+        {showTransition && (
+          <RoundTransition 
+            roundNumber={roundCount} 
+            winner={lastWinnerData} 
+            onComplete={() => {
+              setShowTransition(false);
+              setRoundCount(prev => prev + 1);
+              
+              setShowdownResult(null);
+              setHandResult(null);
+              setHandResultData(null);
+              setPhase("init");
+              
+              if (isBotMode) {
+                navigate(location.pathname + location.search, { state: { replay: true } });
               }
-            : null
-        }
-        winnerCards={showdownWinnerCards}
-        onClose={() => {
-          if (!showdownResult) return;
-          if (gameOverReason) {
-            navigate("/lobby", {
-              state: {
-                message: gameOverReason === "bot_eliminated"
-                  ? "Vous avez gagné la partie ! (bot éliminé)"
-                  : "Plus de jetons. Partie terminée.",
-              },
-            });
-            setShowdownResult(null);
-            setGameOverReason(null);
-            return;
-          }
-          const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
-          const won =
-            showdownResult.winnerId === humanId ||
-            showdownResult.winnerId === "human" ||
-            (showdownResult.isSplit && showdownResult.winnerIds?.some((id) => String(id) === String(humanId)));
-          const winnerName = showdownResult.winnerName;
-          const handName = showdownResult.hand;
-          setHandResult(won ? "win" : "loss");
-          setHandResultData({ winnerName, handName });
-          setShowdownResult(null);
-        }}
-      />
-
-      {/* Overlay gain / perte */}
-      <AnimatePresence>
-        {handResult !== null && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", damping: 20, stiffness: 200 }}
-              className={`rounded-3xl shadow-2xl border-2 px-8 py-10 flex flex-col items-center gap-4 ${
-                handResult === "win"
-                  ? "bg-gradient-to-br from-amber-500/20 to-yellow-600/30 border-amber-400"
-                  : "bg-gradient-to-br from-slate-700/95 to-slate-800 border-slate-500"
-              }`}
-            >
-              {handResult === "win" ? (
-                <Trophy className="w-20 h-20 text-amber-400" />
-              ) : (
-                <Frown className="w-20 h-20 text-slate-400" />
-              )}
-              <h2 className="text-2xl md:text-3xl font-bold text-white">
-                {handResult === "win" ? "Vous avez gagné !" : "Vous avez perdu"}
-              </h2>
-              <p className="text-slate-300 text-sm">{t('hiddenBets.resultsLoading')}</p>
-              <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full max-w-xs mt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (handResultData) {
-                      navigate("/hidden-bets-result", {
-                        state: {
-                          winnerName: handResultData.winnerName,
-                          handName: handResultData.handName,
-                        },
-                      });
-                    }
-                    setHandResult(null);
-                    setHandResultData(null);
-                  }}
-                  className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-amber-500/30 hover:bg-amber-500/50 border border-amber-400/60 text-white transition-colors"
-                >
-                  {t("game.goToHiddenBets")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigate("/lobby");
-                    setHandResult(null);
-                    setHandResultData(null);
-                  }}
-                  className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-slate-600/80 hover:bg-slate-500/80 border border-slate-500 text-white transition-colors"
-                >
-                  {t("game.backToLobby")}
-                </button>
-                {gameIdParam && !isBotMode && isRematchHost && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setRematchLoading(true);
-                      try {
-                        const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-                        const res = await fetch(`${apiBase}/api/waiting-room/rematch`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
-                          body: JSON.stringify({ gameId: gameIdParam }),
-                        });
-                        if (!res.ok) {
-                          const err = await res.json().catch(() => ({}));
-                          addToast(err?.error ?? "Erreur rematch", "error");
-                        }
-                      } finally {
-                        setRematchLoading(false);
-                      }
-                    }}
-                    disabled={rematchLoading}
-                    className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {rematchLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                    {t("game.rematchSameMembers")}
-                  </button>
-                )}
-                {isBotMode && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setHandResult(null);
-                      setHandResultData(null);
-                      navigate(location.pathname + location.search, { state: { replay: true } });
-                    }}
-                    className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500 text-white transition-colors"
-                  >
-                    {t("game.replaySameConfig")}
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
+            }} 
+          />
         )}
       </AnimatePresence>
 
-      {/* Barre de navigation - En haut */}
       <div className={`absolute ${isMobile ? 'top-2 left-2 right-2' : 'top-4 left-8 right-8'} z-50 flex items-center justify-between`}>
-        {/* Partie GAUCHE - Logo, Menu Hamburger, Affichage */}
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
-          {/* Logo Quantum Bluff */}
-          <QuantumBluffLogo 
-            className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} drop-shadow-2xl`}
-          />
+          <QuantumBluffLogo className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} drop-shadow-2xl`} />
 
-          {/* Indicateur de phase */}
           {!isMobile && phase !== "init" && phase !== "shuffle" && phase !== "deal" && (
             <div className="bg-yellow-500/20 backdrop-blur-sm border border-yellow-500/40 rounded-lg px-3 py-1.5 shadow-lg">
               <p className="text-yellow-400 font-bold text-sm tracking-wide uppercase">
@@ -2407,7 +2103,6 @@ export function Game() {
             </div>
           )}
 
-          {/* Bouton Menu Hamburger */}
           <div className="relative">
             <button
               onClick={() => setShowMenu(!showMenu)}
@@ -2417,7 +2112,6 @@ export function Game() {
               <Menu className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
             </button>
 
-            {/* Menu déroulant */}
             {showMenu && (
               <div className={`absolute ${isMobile ? 'top-12' : 'top-14'} left-0 bg-slate-800/95 backdrop-blur-sm rounded-xl shadow-2xl border border-slate-700 overflow-hidden ${isMobile ? 'min-w-[180px]' : 'min-w-[220px]'} z-50`}>
                 <button
@@ -2485,43 +2179,28 @@ export function Game() {
               </div>
             )}
           </div>
-
-          {/* Paramètres accessibilité : ouverts via le bouton à droite (Layout) */}
         </div>
 
-        {/* Partie DROITE - Avatar, Nom/ID, Solde + Ajout, Bouton Chat, Bouton Aide */}
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-4'}`}>
-          {/* Avatar du joueur */}
           {!isMobile && (
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-xl border-2 border-white">
               {getPlayerAvatar(heroDisplayName) ? (
-                <ImageWithFallback
-                  src={getPlayerAvatar(heroDisplayName)}
-                  alt="Avatar du joueur"
-                  className="w-full h-full rounded-full object-cover"
-                />
+                <ImageWithFallback src={getPlayerAvatar(heroDisplayName)} alt="Avatar du joueur" className="w-full h-full rounded-full object-cover" />
               ) : (
                 <span className="text-white font-bold text-xl">{heroDisplayName.charAt(0)}</span>
               )}
             </div>
           )}
 
-          {/* Nom du joueur et ID */}
           {!isMobile && (
             <div className="flex flex-col">
-              <div className="text-white font-bold text-lg leading-tight">
-                {heroDisplayName}
-              </div>
-              <div className="text-gray-400 text-xs font-medium">
-                {userId ? `ID ${userId.slice(0, 8)}` : "—"}
-              </div>
+              <div className="text-white font-bold text-lg leading-tight">{heroDisplayName}</div>
+              <div className="text-gray-400 text-xs font-medium">{userId ? `ID ${userId.slice(0, 8)}` : "—"}</div>
             </div>
           )}
 
-          {/* Séparateur */}
           {!isMobile && <div className="w-px h-10 bg-slate-700"></div>}
 
-          {/* Capsule Solde + Bouton Ajouter */}
           <div className="flex items-center bg-slate-800/80 backdrop-blur-md border border-slate-700 rounded-full pl-3 pr-1 py-1 shadow-lg gap-3">
             <div className={`text-white font-bold flex items-center gap-1.5 ${isMobile ? 'text-sm' : 'text-base'}`}>
               <ChipIcon size="sm" />
@@ -2537,42 +2216,30 @@ export function Game() {
             </button>
           </div>
 
-          {/* Séparateur */}
           {!isMobile && <div className="w-px h-10 bg-slate-700"></div>}
 
-          {/* Bouton Chat - Minimaliste */}
           {!isMobile && (
             <button
               onClick={() => setIsChatOpen(!isChatOpen)}
               className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
               title={t('game.openChat')}
             >
-              <MessageCircle 
-                className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${
-                  isChatOpen ? "text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]" : "text-gray-200 hover:text-white"
-                }`} 
-              />
+              <MessageCircle className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${isChatOpen ? "text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]" : "text-gray-200 hover:text-white"}`} />
             </button>
           )}
 
-          {/* NOUVEAU : Bouton Aide (?) - Minimaliste */}
           {!isMobile && (
             <button
               onClick={() => setShowGameHelp(!showGameHelp)}
               className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
               title={t('game.helpRules')}
             >
-              <HelpCircle 
-                className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${
-                  showGameHelp ? "text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.8)]" : "text-gray-200 hover:text-white"
-                }`} 
-              />
+              <HelpCircle className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${showGameHelp ? "text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.8)]" : "text-gray-200 hover:text-white"}`} />
             </button>
           )}
         </div>
       </div>
 
-      {/* Modal Ajouter des jetons */}
       {showAddMoney && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
           <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
@@ -2593,11 +2260,7 @@ export function Game() {
                       key={amount}
                       type="button"
                       onClick={() => setAddMoneyAmount(amount)}
-                      className={`px-4 py-2 rounded-lg font-bold transition ${
-                        addMoneyAmount === amount
-                          ? "bg-yellow-500 text-slate-900"
-                          : "bg-slate-700 text-slate-200 hover:bg-slate-600"
-                      }`}
+                      className={`px-4 py-2 rounded-lg font-bold transition ${addMoneyAmount === amount ? "bg-yellow-500 text-slate-900" : "bg-slate-700 text-slate-200 hover:bg-slate-600"}`}
                     >
                       {amount.toLocaleString()}
                     </button>
@@ -2631,7 +2294,6 @@ export function Game() {
         </div>
       )}
 
-      {/* Modal Confirmation Quitter */}
       {showQuitConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-gradient-to-br from-red-900 to-red-950 rounded-2xl border-2 border-red-600 shadow-2xl max-w-md w-full p-6 animate-bounce">
@@ -2641,11 +2303,7 @@ export function Game() {
               </div>
               <h2 className="text-2xl font-bold text-white">{t('nav.quitGameTitle')}</h2>
             </div>
-
-            <p className="text-red-200 mb-6 leading-relaxed">
-              {t('nav.quitGameMessage')}
-            </p>
-
+            <p className="text-red-200 mb-6 leading-relaxed">{t('nav.quitGameMessage')}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowQuitConfirm(false)}
@@ -2667,7 +2325,6 @@ export function Game() {
         </div>
       )}
 
-      {/* Bannière Cash Game : countdown ou attente joueurs */}
       {gameIdParam && !isBotMode && (cashCountdownEndsAt || cashWaitingPlayers) && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2">
           <div className="bg-slate-800/95 border border-emerald-500/50 rounded-xl px-6 py-3 shadow-lg">
@@ -2712,34 +2369,17 @@ export function Game() {
         </div>
       )}
 
-      {/* Zone centrale - Table de poker avec cartes communes */}
       <div className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
         <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase} burnedCardsCount={displayBurnedCardsCount} colorblindMode={colorblindMode}>
           <CommunityCards cards={communityCards} pot={pot} sidePots={sidePots.length > 1 ? sidePots : undefined} colorblindMode={colorblindMode} />
         </PokerTable>
       </div>
 
-      {/* HUD Quantique - s'ouvre en overlay */}
       <QuantumHUD isOpen={isQuantumOpen} onToggle={() => setIsQuantumOpen(!isQuantumOpen)} />
-
-      {/* Panneau Paris Cachés - s'ouvre en overlay */}
-      <HiddenBetsPanel 
-        isOpen={isPanelOpen}
-        onToggle={() => setIsPanelOpen(!isPanelOpen)}
-        players={activePlayers}
-      />
-
-      {/* Chat Poker - s'ouvre en overlay */}
-      <PokerChat 
-        isOpen={isChatOpen} 
-        onToggle={() => setIsChatOpen(!isChatOpen)}
-        onSendMessage={handleSendMessage}
-      />
-
-      {/* Feed de messages - En haut à gauche */}
+      <HiddenBetsPanel isOpen={isPanelOpen} onToggle={() => setIsPanelOpen(!isPanelOpen)} players={activePlayers} />
+      <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />
 
-      {/* Bouton spectateur : rejoindre à la prochaine manche (toggle) - affiché dès qu'on specte un cash game */}
       {isSpectating && gameIdParam && !isBotMode && cashSeats.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30">
           <button
@@ -2750,18 +2390,13 @@ export function Game() {
                 socket?.emit("SPECTATOR_QUEUE_JOIN", { gameId: gameIdParam });
               }
             }}
-            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-              spectatorWantsToRejoin
-                ? "bg-amber-600 hover:bg-amber-500 text-white"
-                : "bg-emerald-600 hover:bg-emerald-500 text-white"
-            }`}
+            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${spectatorWantsToRejoin ? "bg-amber-600 hover:bg-amber-500 text-white" : "bg-emerald-600 hover:bg-emerald-500 text-white"}`}
           >
             {spectatorWantsToRejoin ? t("game.cancelRejoinNextHand") : t("game.rejoinNextHand")}
           </button>
         </div>
       )}
 
-      {/* Tableau de bord du joueur - EN BAS (masqué en mode spectateur) */}
       {!isSpectating && (
         <PlayerDashboard
           name={heroDisplayName}
@@ -2791,7 +2426,6 @@ export function Game() {
         />
       )}
 
-      {/* Modal d'aide du jeu (affiché quand on clique sur le "?") */}
       {showGameHelp && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setShowGameHelp(false)}>
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-indigo-500 shadow-2xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2829,7 +2463,7 @@ export function Game() {
               </section>
 
               <section>
-                <h3 className="text-xl font-bold text-indigo-400 mb-2">🏆 Combinaisons de Poker (du plus fort au plus faible)</h3>
+                <h3 className="text-xl font-bold text-indigo-400 mb-2">🏆 Combinaisons (du plus fort au plus faible)</h3>
                 <ol className="space-y-1 text-gray-300 list-decimal list-inside">
                   <li>Quinte Flush Royale</li>
                   <li>Quinte Flush</li>
