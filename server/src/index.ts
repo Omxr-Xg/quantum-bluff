@@ -103,6 +103,11 @@ app.get('/', (_req, res) => {
   res.send('🚀 Quantum Bluff API - Le serveur répond !')
 })
 
+// B5 : Route de santé pour le monitoring Docker/Serveur
+app.get('/api/health', (_req, res) => {
+  res.status(200).send('OK')
+})
+
 // Swagger / OpenAPI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customCss: '.swagger-ui .topbar { display: none }' }))
 
