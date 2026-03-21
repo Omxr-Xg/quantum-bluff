@@ -19,7 +19,7 @@
     "playersCount": "{{count}}/{{max}} لاعبين",
     "join": "انضم",
     "friends": "الأصدقاء",
-    "manageFriends": "إدارة الأصدقاء",
+    "manageFriends": "أصدقائي",
     "profile": "الملف الشخصي",
     "logout": "تسجيل الخروج",
     "balance": "🪙 {{balance}}",
@@ -40,6 +40,14 @@
     "privateDesc": "يجب على اللاعبين طلب الانضمام.",
     "maxPlayersLabel": "الحد الأقصى للاعبين",
     "validateCreate": "إنشاء الغرفة",
+    "seeMore": "عرض المزيد",
+    "hideOptions": "إخفاء الخيارات",
+    "smallBlind": "العمى الصغير",
+    "minRaise": "الحد الأدنى للزيادة",
+    "minRaiseHint": "الحد الأدنى للمبلغ للزيادة",
+    "minBalance": "الحد الأدنى لرصيد اللاعبين",
+    "minBalanceHint": "الحد الأدنى للرقائق للانضمام للطاولة",
+    "minAmount100": "الحد الأدنى 100",
     "requestJoin": "طلب الانضمام",
     "requestSent": "تم إرسال الطلب!",
     "roomFull": "الغرفة ممتلئة",
@@ -291,7 +299,8 @@
     "botThinking": "البوت يفكر...",
     "analyzingProbabilities": "تحليل الاحتمالات",
     "chipsPerBot": "الرقائق لكل بوت",
-    "defaultChips": "افتراضي: 1,000"
+    "defaultChips": "افتراضي: 1,000",
+    "minAmount100": "الحد الأدنى 100"
   },
   "gameDeal": {
     "readyToStart": "جاهز للبدء",

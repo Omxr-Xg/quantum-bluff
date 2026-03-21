@@ -12,8 +12,10 @@ const router = express.Router();
 
 // GET /api/waiting-room - Liste toutes les salles disponibles
 // Filtre : au moins 1 joueur actif, créées dans la dernière heure
+// Salles PRIVATE : visibles uniquement par l'hôte et ses amis
 router.get('/', async (req, res) => {
   try {
+    const userId = req.query.userId as string | undefined;
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const rooms = await prisma.waitingRoom.findMany({
       where: {
@@ -36,8 +38,30 @@ router.get('/', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const formattedRooms = rooms
-      .filter(room => room.players.length >= 1)
+    let filteredRooms = rooms.filter(room => room.players.length >= 1);
+    if (userId) {
+      const myFriends = new Set<string>();
+      const friendships = await prisma.friendship.findMany({
+        where: {
+          OR: [{ user1Id: userId }, { user2Id: userId }]
+        }
+      });
+      for (const f of friendships) {
+        myFriends.add(String(f.user1Id) === userId ? f.user2Id : f.user1Id);
+      }
+      filteredRooms = filteredRooms.filter(room => {
+        if (room.visibility === 'PUBLIC') return true;
+        if (room.hostId === userId) return true;
+        if (myFriends.has(room.hostId)) return true;
+        const playerIds = room.players.map(p => p.userId).filter(Boolean);
+        const hasFriendInRoom = playerIds.some(pid => myFriends.has(pid));
+        return hasFriendInRoom;
+      });
+    } else {
+      filteredRooms = filteredRooms.filter(room => room.visibility === 'PUBLIC');
+    }
+
+    const formattedRooms = filteredRooms
       .map(room => ({
       id: room.id,
       name: room.name,
@@ -84,17 +108,46 @@ router.get('/active/games', async (req, res) => {
 const GAME_MAX_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 // GET /api/waiting-room/games-in-progress - Parties en cours (Rejoindre si place, Spectateur)
+// Salles PRIVATE : visibles par l'hôte, ses amis, ou toute personne ayant un ami dans la partie
 router.get('/games-in-progress', async (req, res) => {
   try {
+    const userId = req.query.userId as string | undefined;
     const rooms = await prisma.waitingRoom.findMany({
       where: { status: 'IN_GAME', gameId: { not: null } },
-      select: { id: true, name: true, gameId: true, maxPlayers: true, updatedAt: true },
+      select: { id: true, name: true, gameId: true, maxPlayers: true, updatedAt: true, visibility: true, hostId: true },
       orderBy: { createdAt: 'desc' }
     });
     const result = [];
     const now = Date.now();
+    let myFriends: Set<string> = new Set();
+    if (userId) {
+      const friendships = await prisma.friendship.findMany({
+        where: { OR: [{ user1Id: userId }, { user2Id: userId }] }
+      });
+      for (const f of friendships) {
+        myFriends.add(String(f.user1Id) === userId ? f.user2Id : f.user1Id);
+      }
+    }
     for (const room of rooms) {
       if (!room.gameId) continue;
+      if (room.visibility === 'PRIVATE') {
+        if (!userId) continue;
+        if (room.hostId === userId || myFriends.has(room.hostId)) {
+          // OK - host or friend of host
+        } else {
+          let hasFriendInGame = false;
+          try {
+            const game = await activeGames.get(room.gameId);
+            if (game instanceof CashGameController) {
+              const seats = (game as CashGameController).getOccupiedSeats();
+              hasFriendInGame = seats.some(s => s.userId != null && myFriends.has(s.userId));
+            } else if (game?.state?.players) {
+              hasFriendInGame = game.state.players.some((p: { id?: string }) => p.id && myFriends.has(p.id));
+            }
+          } catch {}
+          if (!hasFriendInGame) continue;
+        }
+      }
       // Exclure les parties de plus de 15 min (gameId = game_<timestamp> ou updatedAt)
       const match = room.gameId.match(/^game_(\d+)$/);
       const startedAt = match ? parseInt(match[1], 10) : room.updatedAt.getTime();
@@ -131,10 +184,14 @@ router.get('/games-in-progress', async (req, res) => {
 // POST /api/waiting-room/create - Créer une nouvelle salle
 router.post('/create', async (req, res) => {
   try {
-    const { hostId, roomName, maxPlayers = 5, visibility = 'PUBLIC' } = req.body;
+    const { hostId, roomName, maxPlayers = 5, visibility = 'PUBLIC', smallBlind, bigBlind, minBalance } = req.body;
 
     const clampedMaxPlayers = Math.min(5, Math.max(2, Number(maxPlayers) || 5));
     const roomVisibility = visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC';
+
+    const sb = smallBlind != null ? Math.max(1, Math.min(10000, Number(smallBlind) || 1)) : null;
+    const bb = bigBlind != null ? Math.max(1, Math.min(10000, Number(bigBlind) || 2)) : null;
+    const minB = minBalance != null ? Math.max(100, Math.min(1000000, Number(minBalance) || 100)) : null;
 
     const user = await prisma.user.findUnique({
       where: { id: hostId }
@@ -150,6 +207,9 @@ router.post('/create', async (req, res) => {
         hostId,
         maxPlayers: clampedMaxPlayers,
         visibility: roomVisibility,
+        smallBlind: sb,
+        bigBlind: bb,
+        minBalance: minB,
         players: {
           create: {
             userId: hostId,
@@ -497,20 +557,23 @@ router.post('/:roomId/start', async (req, res) => {
     }
 
     // 🔥 CRÉATION DE LA PARTIE (cash game pour permettre spectateurs + rejoindre à la prochaine manche)
+    const sb = room.smallBlind ?? 1;
+    const bb = room.bigBlind ?? sb * 2;
+    const minBal = room.minBalance ?? 100;
     const gameId = `game_${Date.now()}`;
     const cashGame = new CashGameController({
       id: gameId,
       roomId,
       maxSeats: 9,
-      smallBlind: 1,
-      bigBlind: 2,
-      defaultBuyIn: 100
+      smallBlind: sb,
+      bigBlind: bb,
+      defaultBuyIn: minBal
     });
     cashGame.initFromRoomPlayers(
       room.players.map((rp) => ({
         userId: rp.user.id,
         username: rp.user.username,
-        chips: Math.max(100, rp.user.chips ?? 1000)
+        chips: Math.max(minBal, rp.user.chips ?? Math.max(1000, minBal))
       }))
     );
     cashGame.startHand();
@@ -559,6 +622,7 @@ router.post('/:roomId/start', async (req, res) => {
 });
 
 // POST /api/waiting-room/:roomId/request-join - Demander à rejoindre une salle privée
+// Salle PRIVATE : ami de l'hôte ou ami d'un joueur déjà dans la salle
 router.post('/:roomId/request-join', async (req, res) => {
   try {
     const { roomId } = req.params;
@@ -571,6 +635,36 @@ router.post('/:roomId/request-join', async (req, res) => {
 
     if (!room) {
       return res.status(404).json({ error: 'Salle non trouvée' });
+    }
+
+    if (room.visibility === 'PRIVATE') {
+      if (room.hostId === userId) {
+        return res.status(400).json({ error: 'Vous êtes déjà l\'hôte de cette salle' });
+      }
+      const isFriendOfHost = await prisma.friendship.findFirst({
+        where: {
+          OR: [
+            { user1Id: userId, user2Id: room.hostId },
+            { user2Id: userId, user1Id: room.hostId }
+          ]
+        }
+      });
+      let hasFriendInRoom = false;
+      if (!isFriendOfHost) {
+        const playerIds = room.players.map(p => p.userId);
+        const friendshipsWithPlayers = await prisma.friendship.findMany({
+          where: {
+            OR: [
+              { user1Id: userId, user2Id: { in: playerIds } },
+              { user2Id: userId, user1Id: { in: playerIds } }
+            ]
+          }
+        });
+        hasFriendInRoom = friendshipsWithPlayers.length > 0;
+      }
+      if (!isFriendOfHost && !hasFriendInRoom) {
+        return res.status(403).json({ error: 'Vous devez être ami avec l\'hôte ou avoir un ami dans la salle pour rejoindre' });
+      }
     }
 
     if (room.status !== 'WAITING') {

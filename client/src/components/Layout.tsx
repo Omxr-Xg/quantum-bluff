@@ -179,10 +179,18 @@ export function Layout({ children }: LayoutProps) {
   const menuContent = (
     <>
       <LanguageSwitcher />
-      <div className="flex items-center bg-slate-700/80 rounded-lg border border-slate-600 overflow-hidden shrink-0">
-        <span className="px-3 py-2 text-white font-bold text-sm whitespace-nowrap flex items-center gap-1.5">{balance.toLocaleString()} <ChipIcon size="sm" /></span>
-        <button type="button" onClick={openAddMoney} className="bg-slate-600 hover:bg-slate-500 text-slate-200 px-2 py-2 transition" title={t("lobby.addMoney")}>
-          <Plus className="w-4 h-4" />
+      <div className="flex items-center rounded-xl overflow-hidden shrink-0 shadow-lg ring-1 ring-slate-500/50">
+        <div className="px-4 py-2.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 flex items-center gap-2">
+          <ChipIcon size="sm" className="brightness-110" />
+          <span className="text-amber-50 font-bold text-sm whitespace-nowrap">{balance.toLocaleString()}</span>
+        </div>
+        <button
+          type="button"
+          onClick={openAddMoney}
+          className="px-3 py-2.5 bg-amber-500/80 hover:bg-amber-400 text-slate-900 font-bold transition-colors hover:shadow-inner"
+          title={t("lobby.addMoney")}
+        >
+          <Plus className="w-5 h-5" strokeWidth={2.5} />
         </button>
       </div>
       <NotificationCenter />
@@ -261,10 +269,18 @@ export function Layout({ children }: LayoutProps) {
             >
               <div className="flex items-center flex-wrap gap-6">
                 <LanguageSwitcher />
-                <div className="flex items-center bg-slate-700/80 rounded-lg border border-slate-600 overflow-hidden shrink-0">
-                  <span className="px-3 py-2 text-white font-bold text-sm whitespace-nowrap flex items-center gap-1.5">{balance.toLocaleString()} <ChipIcon size="sm" /></span>
-                  <button type="button" onClick={openAddMoney} className="bg-slate-600 hover:bg-slate-500 text-slate-200 px-2 py-2 transition" title={t("lobby.addMoney")}>
-                    <Plus className="w-4 h-4" />
+                <div className="flex items-center rounded-xl overflow-hidden shrink-0 shadow-lg ring-1 ring-slate-500/50">
+                  <div className="px-4 py-2.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 flex items-center gap-2">
+                    <ChipIcon size="sm" className="brightness-110" />
+                    <span className="text-amber-50 font-bold text-sm whitespace-nowrap">{balance.toLocaleString()}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openAddMoney}
+                    className="px-3 py-2.5 bg-amber-500/80 hover:bg-amber-400 text-slate-900 font-bold transition-colors hover:shadow-inner"
+                    title={t("lobby.addMoney")}
+                  >
+                    <Plus className="w-5 h-5" strokeWidth={2.5} />
                   </button>
                 </div>
                 <NotificationCenter />

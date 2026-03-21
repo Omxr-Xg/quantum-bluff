@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bot, Server, Loader2, X, Trash2, Lock, Globe, Minus, Plus, Eye } from "lucide-react";
+import { Bot, Server, Loader2, X, Trash2, Lock, Globe, Minus, Plus, Eye, ChevronDown, ChevronUp, Settings2, XCircle } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
@@ -51,6 +51,10 @@ export function Lobby() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createVisibility, setCreateVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [createMaxPlayers, setCreateMaxPlayers] = useState(5);
+  const [showCreateAdvanced, setShowCreateAdvanced] = useState(false);
+  const [createSmallBlind, setCreateSmallBlind] = useState(5);
+  const [createBigBlind, setCreateBigBlind] = useState(10);
+  const [createMinBalance, setCreateMinBalance] = useState(100);
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
   const [gamesInProgress, setGamesInProgress] = useState<GameInProgressItem[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
@@ -58,7 +62,8 @@ export function Lobby() {
 
   const fetchGamesInProgress = useCallback(async () => {
     try {
-      const url = API_BASE ? `${API_BASE}/api/waiting-room/games-in-progress` : "/api/waiting-room/games-in-progress";
+      const base = API_BASE ? `${API_BASE}/api/waiting-room/games-in-progress` : "/api/waiting-room/games-in-progress";
+      const url = userId ? `${base}?userId=${encodeURIComponent(userId)}` : base;
       const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
@@ -68,7 +73,7 @@ export function Lobby() {
     } finally {
       setGamesLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     fetchGamesInProgress();
@@ -90,7 +95,8 @@ export function Lobby() {
 
   const fetchRooms = useCallback(async () => {
     try {
-      const url = API_BASE ? `${API_BASE}/api/waiting-room` : "/api/waiting-room";
+      const base = API_BASE ? `${API_BASE}/api/waiting-room` : "/api/waiting-room";
+      const url = userId ? `${base}?userId=${encodeURIComponent(userId)}` : base;
       const res = await fetch(url);
       if (!res.ok) throw new Error(t('common.error'));
       const data = await res.json();
@@ -102,7 +108,7 @@ export function Lobby() {
     } finally {
       setRoomsLoading(false);
     }
-  }, [t]);
+  }, [t, userId]);
 
   useEffect(() => {
     fetchRooms();
@@ -118,10 +124,21 @@ export function Lobby() {
     setShowCreateModal(true);
     setCreateVisibility('PUBLIC');
     setCreateMaxPlayers(5);
+    setShowCreateAdvanced(false);
+    setCreateSmallBlind(5);
+    setCreateBigBlind(10);
+    setCreateMinBalance(100);
   };
+
+  const MIN_BALANCE = 100;
+  const isMinBalanceInvalid = createMinBalance < MIN_BALANCE;
 
   const handleCreateServer = async () => {
     if (!userId) return;
+    if (isMinBalanceInvalid) {
+      addToast(t('lobby.minAmount100'), 'error');
+      return;
+    }
     setCreating(true);
     setShowCreateModal(false);
     try {
@@ -134,6 +151,9 @@ export function Lobby() {
           roomName: `Salle de ${username || "Joueur"}`,
           maxPlayers: createMaxPlayers,
           visibility: createVisibility,
+          smallBlind: createSmallBlind,
+          bigBlind: createBigBlind,
+          minBalance: createMinBalance,
         }),
       });
       if (!res.ok) {
@@ -319,12 +339,79 @@ export function Lobby() {
                 </div>
               </div>
 
+              {/* Voir plus — options avancées */}
+              <button
+                type="button"
+                onClick={() => setShowCreateAdvanced(v => !v)}
+                className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-slate-300 text-sm font-medium py-2 mb-2 transition-colors"
+              >
+                <Settings2 className="w-4 h-4" />
+                <span>{showCreateAdvanced ? t('lobby.hideOptions') : t('lobby.seeMore')}</span>
+                {showCreateAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {showCreateAdvanced && (
+                <div className="mb-6 p-4 bg-slate-900/50 rounded-xl border border-slate-600 space-y-4">
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.smallBlind')}</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={createSmallBlind}
+                      onChange={(e) => setCreateSmallBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
+                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minRaise')}</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={createBigBlind}
+                      onChange={(e) => setCreateBigBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 2)))}
+                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <p className="text-slate-500 text-xs mt-1">{t('lobby.minRaiseHint')}</p>
+                  </div>
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minBalance')}</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={1000000}
+                        step={100}
+                        value={createMinBalance}
+                        onChange={(e) => {
+                          const raw = e.target.value === "" ? 0 : Number(e.target.value);
+                          const val = Number.isNaN(raw) ? 0 : Math.min(1000000, Math.max(0, raw));
+                          setCreateMinBalance(val);
+                        }}
+                        className={`flex-1 bg-slate-700 border rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                          isMinBalanceInvalid ? "border-red-500" : "border-slate-600"
+                        }`}
+                      />
+                      {isMinBalanceInvalid && (
+                        <div className="relative flex items-center gap-1">
+                          <XCircle className="w-6 h-6 text-red-500 shrink-0" aria-hidden />
+                          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-1 z-10 px-3 py-2 bg-slate-800 border border-red-500 rounded-lg shadow-xl text-red-400 text-sm font-medium whitespace-nowrap">
+                            {t('lobby.minAmount100')}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-slate-500 text-xs mt-1">{t('lobby.minBalanceHint')}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Validate */}
               <button
                 type="button"
                 onClick={handleCreateServer}
-                disabled={creating}
-                className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white font-bold text-lg transition flex items-center justify-center gap-2"
+                disabled={creating || isMinBalanceInvalid}
+                className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold text-lg transition flex items-center justify-center gap-2"
               >
                 {creating && <Loader2 className="w-5 h-5 animate-spin" />}
                 {t('lobby.validateCreate')}

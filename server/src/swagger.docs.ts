@@ -145,27 +145,8 @@ void 0;
 void 0;
 
 /**
- * @swagger
- * /api/game/start:
- *   post:
- *     tags: [Game]
- *     summary: Démarrer une partie cash depuis une salle d'attente
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [roomId, hostId]
- *             properties:
- *               roomId: { type: string }
- *               hostId: { type: string }
- *     responses:
- *       200: { description: Partie démarrée, retourne gameId et state }
- *       400: { description: Salle introuvable ou moins de 2 joueurs }
- *       403: { description: Seul le host peut démarrer }
+ * Démarrage partie cash : POST /api/waiting-room/{roomId}/start (body userId hôte)
  */
-void 0;
 
 /**
  * @swagger

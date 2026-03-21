@@ -151,6 +151,9 @@ model WaitingRoom {
   maxPlayers   Int            @default(5)
   visibility   RoomVisibility @default(PUBLIC)
   status       RoomStatus     @default(WAITING)
+  smallBlind   Int?           // Small blind (optionnel, défaut serveur)
+  bigBlind     Int?           // Big blind / relance minimale
+  minBalance   Int?           // Solde minimal pour rejoindre
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 

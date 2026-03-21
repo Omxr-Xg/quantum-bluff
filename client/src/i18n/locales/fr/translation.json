@@ -19,7 +19,7 @@
     "playersCount": "{{count}}/{{max}} joueurs",
     "join": "Rejoindre",
     "friends": "Amis",
-    "manageFriends": "Gérer mes amis",
+    "manageFriends": "Mes amis",
     "profile": "Profil",
     "logout": "Déconnexion",
     "balance": "🪙 {{balance}}",
@@ -40,6 +40,14 @@
     "privateDesc": "Les joueurs doivent demander pour rejoindre.",
     "maxPlayersLabel": "Nombre max de joueurs",
     "validateCreate": "Créer la salle",
+    "seeMore": "Voir plus",
+    "hideOptions": "Masquer les options",
+    "smallBlind": "Small blind",
+    "minRaise": "Relance minimale (Big blind)",
+    "minRaiseHint": "Montant minimum pour relancer",
+    "minBalance": "Solde minimal des joueurs",
+    "minBalanceHint": "Jetons minimum requis pour rejoindre la table",
+    "minAmount100": "Montant minimal 100",
     "requestJoin": "Demander à rejoindre",
     "requestSent": "Demande envoyée !",
     "roomFull": "Complet"
@@ -293,7 +301,8 @@
     "botThinking": "Le bot réfléchit...",
     "analyzingProbabilities": "Analyse des probabilités",
     "chipsPerBot": "Jetons par bot",
-    "defaultChips": "Par défaut : 1 000"
+    "defaultChips": "Par défaut : 1 000",
+    "minAmount100": "Montant minimal 100"
   },
   "gameDeal": {
     "readyToStart": "Prêt à commencer",

@@ -19,7 +19,7 @@
     "playersCount": "{{count}}/{{max}} гравців",
     "join": "Приєднатися",
     "friends": "Друзі",
-    "manageFriends": "Керувати друзями",
+    "manageFriends": "Друзі",
     "profile": "Профіль",
     "logout": "Вийти",
     "balance": "🪙 {{balance}}",
@@ -40,6 +40,14 @@
     "privateDesc": "Гравці мають надіслати запит на приєднання.",
     "maxPlayersLabel": "Макс. гравців",
     "validateCreate": "Створити кімнату",
+    "seeMore": "Показати більше",
+    "hideOptions": "Сховати опції",
+    "smallBlind": "Малий блайнд",
+    "minRaise": "Мін. рейз (великий блайнд)",
+    "minRaiseHint": "Мінімальна сума для рейзу",
+    "minBalance": "Мін. баланс гравців",
+    "minBalanceHint": "Мінімум фішок для приєднання до столу",
+    "minAmount100": "Мінімум 100",
     "requestJoin": "Запит на приєднання",
     "requestSent": "Запит надіслано!",
     "roomFull": "Кімната заповнена",
@@ -291,7 +299,8 @@
     "botThinking": "Бот думає...",
     "analyzingProbabilities": "Аналіз ймовірностей",
     "chipsPerBot": "Фішки на бота",
-    "defaultChips": "За замовч.: 1 000"
+    "defaultChips": "За замовч.: 1 000",
+    "minAmount100": "Мінімум 100"
   },
   "gameDeal": {
     "readyToStart": "Готові почати",

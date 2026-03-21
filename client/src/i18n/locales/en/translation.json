@@ -19,7 +19,7 @@
     "playersCount": "{{count}}/{{max}} players",
     "join": "Join",
     "friends": "Friends",
-    "manageFriends": "Manage friends",
+    "manageFriends": "Friends",
     "profile": "Profile",
     "logout": "Logout",
     "balance": "🪙 {{balance}}",
@@ -40,6 +40,14 @@
     "privateDesc": "Players must request to join.",
     "maxPlayersLabel": "Max players",
     "validateCreate": "Create room",
+    "seeMore": "See more",
+    "hideOptions": "Hide options",
+    "smallBlind": "Small blind",
+    "minRaise": "Min raise (Big blind)",
+    "minRaiseHint": "Minimum amount to raise",
+    "minBalance": "Min. player balance",
+    "minBalanceHint": "Minimum chips required to join the table",
+    "minAmount100": "Minimum amount 100",
     "requestJoin": "Request to join",
     "requestSent": "Request sent!",
     "roomFull": "Room is full"
@@ -296,7 +304,8 @@
     "botThinking": "Bot thinking...",
     "analyzingProbabilities": "Analyzing probabilities",
     "chipsPerBot": "Chips per bot",
-    "defaultChips": "Default: 1,000"
+    "defaultChips": "Default: 1,000",
+    "minAmount100": "Minimum amount 100"
   },
   "gameDeal": {
     "readyToStart": "Ready to start",
