@@ -144,7 +144,9 @@ router.get('/games-in-progress', async (req, res) => {
             } else if (game?.state?.players) {
               hasFriendInGame = game.state.players.some((p: { id?: string }) => p.id && myFriends.has(p.id));
             }
-          } catch {}
+          } catch {
+            void 0; // jeu absent du cache ou erreur lecture — on exclut si pas d’ami détecté
+          }
           if (!hasFriendInGame) continue;
         }
       }
