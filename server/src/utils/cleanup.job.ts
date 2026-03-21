@@ -54,5 +54,7 @@ export const initCleanupJobs = () => {
   });
 
   // Optionnel : Lancer une vérification immédiate au démarrage pour le debug
-  checkDatabaseSize();
+  // On commente l'appel immédiat pour empêcher 
+  // le serveur de crasher au démarrage si la DB n'est pas prête.
+  //checkDatabaseSize();
 };
