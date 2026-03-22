@@ -98,6 +98,15 @@ Ouvrir **http://localhost:5173** (ou l’URL indiquée dans le terminal).
 
 ---
 
+## Tests E2E (Playwright) — optionnel
+
+1. Dans `client/` : `npm install --legacy-peer-deps` (si besoin), puis `npx playwright install chromium`.
+2. Lancer le client : `npm run dev` (port **5175** par défaut du projet, ou adapter `PLAYWRIGHT_BASE_URL`).
+3. Dans un autre terminal, depuis `client/` : `npm run test:e2e`  
+   Smoke : `client/e2e/smoke.spec.ts` vérifie que `#root` est visible sur `/`.
+
+---
+
 ## Résumé rapide
 
 ```bash

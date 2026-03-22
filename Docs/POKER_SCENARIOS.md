@@ -78,8 +78,8 @@ Document unique listant **tous les scénarios** couverts ou attendus : règles p
 
 | Scénario | Statut | Notes |
 |----------|--------|--------|
-| **String bet** | ⏸ | Non appliqué (montant saisi d’un coup côté UI) |
-| **Action hors tour (out of turn)** | Partiel | Le **moteur** rejette si ce n’est pas le bon joueur (tests) ; pas de file d’actions annulées type live |
+| **String bet** | N/A en ligne | Chaque `RAISE` est **une** requête avec montant final (pas de relance en deux temps comme au live) |
+| **Action hors tour (out of turn)** | ✅ réseau | `game.gateway` : si `currentTurn !== playerId` → erreur `NOT_YOUR_TURN`. Moteur : `canPlayerAct` + tests |
 | **Relance minimale** | ✅ | `getMinRaise`, plafonnement stack ; matrices SB/BB |
 | **Heads-up** | ✅ | SB = dealer préflop ; ordre des mises cohérent avec tests |
 | **Blinds** | ✅ | Matrice large en tests ; **en jeu** souvent **50/100** selon configuration |
@@ -117,7 +117,7 @@ Document unique listant **tous les scénarios** couverts ou attendus : règles p
 | **`POST /api/bot/action`** | Corps : cartes, board, `difficulty`, mises, pot, position, etc. — voir [`bot-integration-frontend.md`](bot-integration-frontend.md) |
 | **Quatre difficultés** | `easy`, `medium`, `hard`, `expert` — logique [`botAI.ts`](../server/src/logic/botAI.ts) |
 | **`POST /api/bot/evaluate-winner`** | Showdown : pas de triche aux cartes ; toutes les difficultés utilisent l’évaluateur |
-| **Multiplicateur de gains** | `winMultiplier` (ex. facile 0,3 … expert 1,0) — **uniquement** gains humain mode bot |
+| **Multiplicateur de gains** | `winMultiplier` (`client/src/utils/botModeReward.ts`) : facile 0,3 · moyen 0,6 · difficile 1,0 · **expert 1,05** — **uniquement** gains humain mode bot |
 | **Délai « réflexion » bot** | Court délai aléatoire avant d’appliquer l’action (UX) |
 
 ---
@@ -149,11 +149,9 @@ Document unique listant **tous les scénarios** couverts ou attendus : règles p
 
 | Couche | Contenu |
 |--------|---------|
-| **Backend (Jest)** | **12** fichiers, **257** tests : `GameTable` (cœur, matrices, couverture), `CashGameController`, `Evaluator`, `Deck`, `poker.types`, smokes — **liste détaillée** : [`RAPPORT_TESTS.md`](RAPPORT_TESTS.md) section A |
-| **Frontend (Vitest)** | **6** fichiers, **20** tests : `normalizeServerCard`, `CommunityCards`, `PokerTable` smoke, avatars, smokes — section B de [`RAPPORT_TESTS.md`](RAPPORT_TESTS.md) |
-| **Total** | **277** tests unitaires |
-
-**Non inclus dans le dépôt :** tests **E2E** (Playwright/Cypress) — à traiter au backlog si besoin.
+| **Backend (Jest)** | Dont `GameTable`, `CashGameController`, **`botAI`** (`normalizedHandStrength`, `decideBotAction`), `Evaluator`, etc. — détail [`RAPPORT_TESTS.md`](RAPPORT_TESTS.md) |
+| **Frontend (Vitest)** | Dont `botModeReward`, `normalizeServerCard`, composants — section B de [`RAPPORT_TESTS.md`](RAPPORT_TESTS.md) |
+| **E2E (Playwright)** | `client/e2e/smoke.spec.ts` — smoke **page d’accueil** (`npm run test:e2e` dans `client/`, serveur Vite requis sur le port configuré) |
 
 ---
 

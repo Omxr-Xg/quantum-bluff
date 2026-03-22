@@ -66,8 +66,8 @@ Toutes les difficultés qui s’appuient sur la force utilisent **`getHandValue`
 |------------------|----------------|
 | `facile` | **0,3** |
 | `moyen` | **0,6** |
-| `difficile` | **0,9** |
-| `expert` | **1,0** |
+| `difficile` | **1,0** |
+| `expert` | **1,05** |
 
 Cela modifie uniquement les **jetons gagnés par le joueur humain** en mode bot local, pas la légitimité des cartes au showdown.
 

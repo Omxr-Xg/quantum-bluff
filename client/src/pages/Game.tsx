@@ -31,20 +31,12 @@ import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
 import { intChips } from "../utils/chips";
+import { getWinMultiplierFromDifficultyParam } from "../utils/botModeReward";
+import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
 
 type Card = ClientCard;
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
-
-/** Gains nets en mode bot : facile 0,3 · moyen 0,6 · difficile 0,9 · expert 1 (pertes inchangées). */
-function getWinMultiplierFromDifficultyParam(param: string): number {
-  const p = (param || "moyen").toLowerCase();
-  if (p === "facile") return 0.3;
-  if (p === "moyen") return 0.6;
-  if (p === "difficile") return 0.9;
-  if (p === "expert") return 1;
-  return 0.6;
-}
 
 interface ChatMessage {
   id: number;
@@ -232,8 +224,8 @@ export function Game() {
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
 
-  const SB = 50;
-  const BB = 100;
+  const SB = BOT_TABLE_DEFAULTS.SMALL_BLIND;
+  const BB = BOT_TABLE_DEFAULTS.BIG_BLIND;
 
   /** Après l’abattage, attendre avant d’afficher l’écran « gagnant » / transition (cartes visibles au tapis). */
   const SHOWDOWN_REVEAL_MS = 3000;
@@ -1577,7 +1569,7 @@ export function Game() {
             currentBet: currentBet,
             playerChips: activePlayer.chips,
             callAmount,
-            minRaise: 20,
+            minRaise: BOT_TABLE_DEFAULTS.MIN_RAISE_FOR_BOT_API,
             potSize: pot,
             position: activePlayer.position,
             playersCount: playersState.filter((p) => p.isConnected !== false).length,

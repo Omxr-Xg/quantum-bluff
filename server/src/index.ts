@@ -79,6 +79,15 @@ const limiter = rateLimit({
 
 app.use(limiter)
 
+/** Limite dédiée API bot (decisions / seconde) — ajuster sous charge réelle. */
+const botApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 240 : 2000,
+  message: { error: 'Trop de requêtes vers l’API bot, réessaie dans une minute' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 app.use(express.json({ limit: '10kb' }))
 
 app.use((req, _res, next) => {
@@ -93,7 +102,7 @@ app.use('/api/auth/2fa', twofaRoutes)
 app.use('/api/friends', friendsRoutes)
 app.use('/api/waiting-room', waitingRoomRoutes)
 app.use('/api/game', gameApiRoutes)
-app.use('/api/bot', botRoutes)
+app.use('/api/bot', botApiLimiter, botRoutes)
 app.use('/api/invitations', invitationRoutes)
 
 // Serveur de mises à jour client

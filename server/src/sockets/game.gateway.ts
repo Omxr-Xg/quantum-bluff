@@ -314,6 +314,8 @@ export class GameGateway {
             return
           }
 
+          // Action « hors tour » : rejet explicite (équivalent live « out of turn »).
+          // String bet : en ligne chaque RAISE est une action atomique ; pas de relance en deux temps.
           if (game.state.currentTurn !== playerId) {
             logSuspiciousAction('NOT_YOUR_TURN', {
               userId: socket.userId,

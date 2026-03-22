@@ -1,6 +1,9 @@
 import './i18n/config';
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { installGlobalErrorHandlers } from './utils/errorReporting'
+
+installGlobalErrorHandlers()
 import { Provider } from 'react-redux'
 import { store } from './store'
 import { ToastProvider } from './contexts/ToastContext'

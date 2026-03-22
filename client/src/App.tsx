@@ -35,6 +35,7 @@ function App() {
     <BrowserRouter basename={basename}>
       <AccessibilityProvider>
         <AccessibilityMenuOpenProvider>
+        <ErrorBoundary>
         <Layout>
           <Routes>
 
@@ -60,6 +61,7 @@ function App() {
 
           </Routes>
         </Layout>
+        </ErrorBoundary>
         </AccessibilityMenuOpenProvider>
       </AccessibilityProvider>
     </BrowserRouter>
