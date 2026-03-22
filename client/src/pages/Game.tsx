@@ -36,12 +36,12 @@ type Card = ClientCard;
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
-/** Gains nets en mode bot : facile 0,3 · moyen 0,6 · difficile 0,9 · expert 1 (pertes inchangées). */
+/** Gains nets en mode bot : facile 0,3 · moyen 0,6 · difficile 1 · expert 1 (pertes inchangées). */
 function getWinMultiplierFromDifficultyParam(param: string): number {
   const p = (param || "moyen").toLowerCase();
   if (p === "facile") return 0.3;
   if (p === "moyen") return 0.6;
-  if (p === "difficile") return 0.9;
+  if (p === "difficile") return 1;
   if (p === "expert") return 1;
   return 0.6;
 }

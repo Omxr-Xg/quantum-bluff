@@ -117,7 +117,7 @@ Document unique listant **tous les scénarios** couverts ou attendus : règles p
 | **`POST /api/bot/action`** | Corps : cartes, board, `difficulty`, mises, pot, position, etc. — voir [`bot-integration-frontend.md`](bot-integration-frontend.md) |
 | **Quatre difficultés** | `easy`, `medium`, `hard`, `expert` — logique [`botAI.ts`](../server/src/logic/botAI.ts) |
 | **`POST /api/bot/evaluate-winner`** | Showdown : pas de triche aux cartes ; toutes les difficultés utilisent l’évaluateur |
-| **Multiplicateur de gains** | `winMultiplier` (ex. facile 0,3 … expert 1,0) — **uniquement** gains humain mode bot |
+| **Multiplicateur de gains** | `winMultiplier` (facile 0,3 · moyen 0,6 · difficile 1,0 · expert 1,0) — **uniquement** gains humain mode bot |
 | **Délai « réflexion » bot** | Court délai aléatoire avant d’appliquer l’action (UX) |
 
 ---

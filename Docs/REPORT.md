@@ -498,7 +498,7 @@
 - Pas d’appel /api/game/:id
 - État local (deck, players, phase)
 - Appels: POST /api/bot/action, POST /api/bot/evaluate-winner
-- winMultiplier selon difficulté (facile 0.3, moyen 0.6, difficile 0.9, expert 1)
+- winMultiplier selon difficulté (facile 0.3, moyen 0.6, difficile 1, expert 1)
 - Enregistrement: POST /api/game/record-result avec token
 
 ### 18.2 localStorage
