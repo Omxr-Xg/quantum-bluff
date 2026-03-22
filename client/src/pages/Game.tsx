@@ -2118,7 +2118,11 @@ export function Game() {
               if (isBotMode) {
                 navigate(location.pathname + location.search, { state: { replay: true } });
               }
-            }} 
+            }}
+            onLeaveToLobby={() => {
+              setShowTransition(false);
+              navigate("/lobby");
+            }}
           />
         )}
       </AnimatePresence>
@@ -2410,36 +2414,46 @@ export function Game() {
               <p className="text-white font-semibold">{t('game.newHandIn', { count: cashCountdownSecs })}</p>
             ) : null}
           </div>
-          {cashCountdownEndsAt && !cashWaitingPlayers && (
-            <div className="flex gap-2 flex-wrap justify-center">
+          {(cashCountdownEndsAt || cashWaitingPlayers) && (
+            <div className="flex gap-2 flex-wrap justify-center max-w-[min(100vw-1rem,420px)]">
               {!cashSeats.some((s) => s.userId === userId) ? (
                 cashSeats.some((s) => !s.userId) && (
                   <button
+                    type="button"
                     onClick={() => {
                       const free = cashSeats.findIndex((s) => !s.userId);
                       if (free >= 0 && socket) socket.emit("CASH_SIT", { gameId: gameIdParam, seatIndex: free, buyIn: 100 });
                     }}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
                   >
-                    S&apos;asseoir (100)
+                    {t("game.cashSitBuyIn", { amount: 100 })}
                   </button>
                 )
               ) : (
                 <>
                   <button
+                    type="button"
                     onClick={() => socket?.emit("CASH_LEAVE", { gameId: gameIdParam })}
                     className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
                   >
-                    Se lever
+                    {t("game.cashStandUp")}
                   </button>
                   <button
+                    type="button"
                     onClick={() => socket?.emit("CASH_REBUY", { gameId: gameIdParam, amount: 100 })}
                     className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
                   >
-                    Racheter (100)
+                    {t("game.cashRebuy", { amount: 100 })}
                   </button>
                 </>
               )}
+              <button
+                type="button"
+                onClick={() => setShowQuitConfirm(true)}
+                className="border border-slate-500 bg-slate-800/90 hover:bg-red-950/60 hover:border-red-500/50 text-slate-200 hover:text-red-200 text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+              >
+                {t("nav.quitGame")}
+              </button>
             </div>
           )}
         </div>

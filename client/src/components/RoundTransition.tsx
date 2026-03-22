@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react"; // Plus besoin d'AnimatePresence ici
-import { Trophy, Crown, Sparkles, Clock } from "lucide-react";
+import { Trophy, Crown, Sparkles, Clock, LogOut } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface RoundTransitionProps {
   roundNumber: number;
@@ -10,14 +11,18 @@ interface RoundTransitionProps {
   };
   duration?: number;
   onComplete: () => void;
+  /** Retour au lobby sans attendre la fin du compte à rebours */
+  onLeaveToLobby?: () => void;
 }
 
 export function RoundTransition({ 
   roundNumber, 
   winner, 
   duration = 6,
-  onComplete 
+  onComplete,
+  onLeaveToLobby,
 }: RoundTransitionProps) {
+  const { t } = useTranslation();
   const [countdown, setCountdown] = useState(duration);
   
   // FIX 2 : On garde onComplete dans une ref pour éviter les re-renders du timer
@@ -92,7 +97,7 @@ export function RoundTransition({
             >
               <Crown className="w-8 h-8 text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]" />
               <div className="text-left">
-                <p className="text-sm text-yellow-200/80 font-serif">Gagnant de la manche</p>
+                <p className="text-sm text-yellow-200/80 font-serif">{t("game.roundWinnerLabel")}</p>
                 <p className="text-2xl font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]">
                   {winner.name}
                 </p>
@@ -183,7 +188,7 @@ export function RoundTransition({
                     {countdown}
                   </p>
                   <p className="text-sm text-yellow-200/80 mt-2 tracking-widest uppercase font-semibold">
-                    {countdown === 1 ? "seconde" : "secondes"}
+                    {countdown === 1 ? t("game.secondOne") : t("game.secondsMany")}
                   </p>
                 </motion.div>
               </div>
@@ -230,7 +235,7 @@ export function RoundTransition({
             <div className="inline-flex items-center gap-3 bg-slate-900/80 border-2 border-yellow-500/30 rounded-xl px-6 py-3 backdrop-blur-md">
               <Clock className="w-5 h-5 text-yellow-400" />
               <p className="text-xl font-serif text-yellow-100">
-                Prochaine manche dans...
+                {t("game.nextRoundIn")}
               </p>
             </div>
             
@@ -240,9 +245,27 @@ export function RoundTransition({
               transition={{ delay: 0.6 }}
               className="mt-4 text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-amber-500"
             >
-              Manche #{roundNumber}
+              {t("game.roundTransitionRound", { n: roundNumber })}
             </motion.p>
           </motion.div>
+
+          {onLeaveToLobby && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mt-8 flex justify-center px-4"
+            >
+              <button
+                type="button"
+                onClick={onLeaveToLobby}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-500/80 bg-slate-900/90 px-5 py-3 text-sm font-semibold text-slate-200 shadow-lg transition hover:border-red-500/60 hover:bg-red-950/50 hover:text-red-200"
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                {t("game.leaveBetweenHands")}
+              </button>
+            </motion.div>
+          )}
 
           {/* Barre de progression en bas */}
           <motion.div
