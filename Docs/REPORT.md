@@ -480,7 +480,6 @@
 - SETUP_TESTEUR.md
 - DEPLOY.md
 - NETWORK_QOS.md
-- socket_test/ (test-socket-S1.html, socket-test.html)
 
 ### 17.2 Racine
 - README.md, DEPLOY.md, SETUP_TESTEUR.md, CHANGELOG, CODEOWNERS
