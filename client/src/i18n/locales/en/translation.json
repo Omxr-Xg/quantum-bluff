@@ -246,7 +246,30 @@
     "criteriaLength": "8+ characters",
     "criteriaUppercase": "1 Uppercase",
     "criteriaNumber": "1 Number",
-    "criteriaSpecial": "1 Special"
+    "criteriaSpecial": "1 Special",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordSubtitle": "Answer your secret question and set a new password.",
+    "secretQuestionLabel": "Secret question",
+    "secretQuestionHint": "Used to recover your account if you forget your password.",
+    "secretAnswer": "Your answer",
+    "secretAnswerPlaceholder": "e.g. Smith, Rex, Lincoln Elementary…",
+    "newPassword": "New password",
+    "resetPasswordSubmit": "Reset password",
+    "resetPasswordSuccess": "Password updated. Sign in with your new password.",
+    "backToLogin": "Back to sign in",
+    "noSecretQuestionLegacy": "This account was created before secret questions. Contact support to reset your password.",
+    "secretQuestions": {
+      "q1": "What was your first math teacher’s name?",
+      "q2": "What was your first pet’s name?",
+      "q3": "What was your childhood best friend’s first name?",
+      "q4": "What street did you grow up on?",
+      "q5": "What was the make of your first car?",
+      "q6": "What was your favorite movie as a child?",
+      "q7": "What is your mother’s first name?",
+      "q8": "What was your elementary school’s name?",
+      "q9": "What was your first big vacation destination?",
+      "q10": "What nickname did your family call you as a kid?"
+    }
   },
   "startScreen": {
     "tagline": "Poker reinvented",

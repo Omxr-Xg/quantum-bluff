@@ -243,7 +243,30 @@
     "criteriaLength": "8+ caractères",
     "criteriaUppercase": "1 Majuscule",
     "criteriaNumber": "1 Chiffre",
-    "criteriaSpecial": "1 Spécial"
+    "criteriaSpecial": "1 Spécial",
+    "forgotPassword": "Mot de passe oublié ?",
+    "forgotPasswordSubtitle": "Répondez à votre question secrète et choisissez un nouveau mot de passe.",
+    "secretQuestionLabel": "Question secrète",
+    "secretQuestionHint": "Servira à récupérer votre compte si vous oubliez le mot de passe.",
+    "secretAnswer": "Votre réponse",
+    "secretAnswerPlaceholder": "Ex. : Dupont, Rex, le collège Jules-Ferry…",
+    "newPassword": "Nouveau mot de passe",
+    "resetPasswordSubmit": "Réinitialiser le mot de passe",
+    "resetPasswordSuccess": "Mot de passe modifié. Connectez-vous avec le nouveau mot de passe.",
+    "backToLogin": "Retour à la connexion",
+    "noSecretQuestionLegacy": "Ce compte a été créé avant la question secrète. Contactez le support pour réinitialiser le mot de passe.",
+    "secretQuestions": {
+      "q1": "Quel était le nom de ton premier professeur de maths ?",
+      "q2": "Quel était le nom de ton premier animal de compagnie ?",
+      "q3": "Quel était le prénom de ton meilleur ami d’enfance ?",
+      "q4": "Quel était le nom de la rue où tu as grandi ?",
+      "q5": "Quelle était la marque de ta première voiture ?",
+      "q6": "Quel était ton film préféré quand tu étais enfant ?",
+      "q7": "Quel est le prénom de ta mère ?",
+      "q8": "Quel était le nom de ton école primaire ?",
+      "q9": "Quelle était ta première grande destination de vacances ?",
+      "q10": "Quel surnom te donnait ta famille quand tu étais petit ?"
+    }
   },
   "startScreen": {
     "tagline": "Le poker réinventé",

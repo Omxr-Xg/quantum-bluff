@@ -243,7 +243,30 @@
     "criteriaLength": "8+ caracteres",
     "criteriaUppercase": "1 Mayúscula",
     "criteriaNumber": "1 Número",
-    "criteriaSpecial": "1 Especial"
+    "criteriaSpecial": "1 Especial",
+    "forgotPassword": "¿Olvidaste la contraseña?",
+    "forgotPasswordSubtitle": "Responde tu pregunta secreta y elige una nueva contraseña.",
+    "secretQuestionLabel": "Pregunta secreta",
+    "secretQuestionHint": "Servirá para recuperar tu cuenta si olvidas la contraseña.",
+    "secretAnswer": "Tu respuesta",
+    "secretAnswerPlaceholder": "Ej.: García, Rex, colegio San José…",
+    "newPassword": "Nueva contraseña",
+    "resetPasswordSubmit": "Restablecer contraseña",
+    "resetPasswordSuccess": "Contraseña actualizada. Inicia sesión con la nueva contraseña.",
+    "backToLogin": "Volver al inicio de sesión",
+    "noSecretQuestionLegacy": "Esta cuenta se creó antes de las preguntas secretas. Contacta con soporte para restablecer la contraseña.",
+    "secretQuestions": {
+      "q1": "¿Cómo se llamaba tu primer profesor de matemáticas?",
+      "q2": "¿Cómo se llamaba tu primera mascota?",
+      "q3": "¿Cuál era el nombre de tu mejor amigo de la infancia?",
+      "q4": "¿Cómo se llamaba la calle donde creciste?",
+      "q5": "¿Cuál era la marca de tu primer coche?",
+      "q6": "¿Cuál era tu película favorita de niño/a?",
+      "q7": "¿Cuál es el nombre de tu madre?",
+      "q8": "¿Cómo se llamaba tu escuela primaria?",
+      "q9": "¿Cuál fue tu primer gran destino de vacaciones?",
+      "q10": "¿Qué apodo te ponían en familia de pequeño/a?"
+    }
   },
   "startScreen": {
     "tagline": "El póker reinventado",

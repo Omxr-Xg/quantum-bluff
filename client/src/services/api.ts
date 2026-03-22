@@ -107,6 +107,25 @@ const origin = typeof window !== 'undefined' ? window.location.origin : '';
       }),
     }),
 
+    recoveryQuestion: builder.mutation<{ questionId: number }, { email: string }>({
+      query: ({ email }) => ({
+        url: '/auth/recovery-question',
+        method: 'POST',
+        body: { email },
+      }),
+    }),
+
+    resetPassword: builder.mutation<
+      { ok: boolean },
+      { email: string; secretAnswer: string; newPassword: string }
+    >({
+      query: (body) => ({
+        url: '/auth/reset-password',
+        method: 'POST',
+        body,
+      }),
+    }),
+
     getGames: builder.query({
       query: () => '/games',
       providesTags: ['Game'],
@@ -196,6 +215,8 @@ export const {
   useLoginMutation,
   useRegisterMutation,
   useCheckEmailMutation,
+  useRecoveryQuestionMutation,
+  useResetPasswordMutation,
   useGetGamesQuery,
   useCreateGameMutation,
   useJoinGameMutation,

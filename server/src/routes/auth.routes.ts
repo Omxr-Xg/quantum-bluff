@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
-import { registerSchema, loginSchema } from '../validation/auth.validation.js'
+import { registerSchema, loginSchema, resetPasswordSchema } from '../validation/auth.validation.js'
+import { normalizeSecretAnswer } from '../utils/secretAnswer.js'
 import rateLimit from 'express-rate-limit'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
@@ -59,6 +60,16 @@ const checkEmailLimiter = rateLimit({
   legacyHeaders: false,
 })
 
+const recoveryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({ error: 'Trop de tentatives. Réessayez plus tard.' })
+  },
+})
+
 const router = express.Router()
 
 const JWT_SECRET = process.env.JWT_SECRET || 'quantum_bluff_secret'
@@ -97,7 +108,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     })
   }
 
-  let { email, password, username } = parsed.data
+  let { email, password, username, secretQuestionId, secretAnswer } = parsed.data
 
   email = sanitizeHtml(email)
   username = sanitizeHtml(username)
@@ -121,12 +132,15 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10)
+    const secretAnswerHash = await bcrypt.hash(normalizeSecretAnswer(secretAnswer), 10)
 
     const user = await prisma.user.create({
       data: {
         email,
         username,
-        password: hashedPassword
+        password: hashedPassword,
+        secretQuestionId,
+        secretAnswerHash,
       },
       include: { playerStats: true }
     })
@@ -168,6 +182,66 @@ router.post('/register', registerLimiter, async (req, res) => {
 
 })
 
+// Question secrète pour réinitialisation (l’id ; le libellé est côté client i18n)
+router.post('/recovery-question', recoveryLimiter, async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+  if (!email || !EMAIL_FORMAT.test(email)) {
+    return res.status(400).json({ error: 'Email invalide' })
+  }
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { secretQuestionId: true },
+    })
+    if (!user) {
+      return res.status(404).json({ error: 'Aucun compte associé à cet email.' })
+    }
+    if (user.secretQuestionId == null) {
+      return res.status(400).json({
+        code: 'NO_SECRET_QUESTION',
+        error: 'Ce compte ne permet pas la récupération en ligne. Contactez le support.',
+      })
+    }
+    res.json({ questionId: user.secretQuestionId })
+  } catch (error) {
+    console.error('[AUTH] recovery-question error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// Réinitialiser le mot de passe avec la réponse secrète
+router.post('/reset-password', recoveryLimiter, async (req, res) => {
+  const parsed = resetPasswordSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: parsed.error.issues.map((issue) => issue.message).join(', '),
+    })
+  }
+  let { email, secretAnswer, newPassword } = parsed.data
+  email = email.trim().toLowerCase()
+  try {
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user) {
+      return res.status(404).json({ error: 'Aucun compte associé à cet email.' })
+    }
+    if (user.secretQuestionId == null || !user.secretAnswerHash) {
+      return res.status(400).json({ error: 'Récupération impossible pour ce compte.' })
+    }
+    const ok = await bcrypt.compare(normalizeSecretAnswer(secretAnswer), user.secretAnswerHash)
+    if (!ok) {
+      return res.status(401).json({ error: 'Réponse secrète incorrecte.' })
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    })
+    res.json({ ok: true })
+  } catch (error) {
+    console.error('[AUTH] reset-password error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
 
 // LOGIN
 router.post('/login', loginLimiter, async (req, res) => {

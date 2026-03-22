@@ -5,6 +5,8 @@ import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useRegisterMutation } from "../services/api";
 
+const SECRET_QUESTION_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+
 export function Register() {
   const { t } = useTranslation();
   const [username, setUsername] = useState("");
@@ -13,6 +15,8 @@ export function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [secretQuestionId, setSecretQuestionId] = useState(1);
+  const [secretAnswer, setSecretAnswer] = useState("");
   const [register, { isLoading, error }] = useRegisterMutation();
   const navigate = useNavigate();
 
@@ -23,11 +27,12 @@ export function Register() {
     special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
   };
 
-  const isFormValid = 
-    username.length >= 3 && 
-    email.includes('@') && 
-    Object.values(passwordCriteria).every(Boolean) && 
-    password === confirmPassword;
+  const isFormValid =
+    username.length >= 3 &&
+    email.includes("@") &&
+    Object.values(passwordCriteria).every(Boolean) &&
+    password === confirmPassword &&
+    secretAnswer.trim().length >= 2;
 
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
@@ -37,7 +42,9 @@ export function Register() {
     const response = await register({
       username,
       email,
-      password
+      password,
+      secretQuestionId,
+      secretAnswer: secretAnswer.trim(),
     }).unwrap()
 
     console.log("✅ Inscription réussie:", response)
@@ -196,6 +203,37 @@ export function Register() {
               {confirmPassword && password !== confirmPassword && (
                 <p className="text-red-400 text-[10px] mt-1 ml-1">{t('auth.passwordMismatch')}</p>
               )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">
+                {t("auth.secretQuestionLabel")}
+              </label>
+              <select
+                value={secretQuestionId}
+                onChange={(e) => setSecretQuestionId(Number(e.target.value))}
+                className="w-full bg-slate-800/80 border border-[#414141] rounded-lg px-4 py-3.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
+              >
+                {SECRET_QUESTION_IDS.map((id) => (
+                  <option key={id} value={id} className="bg-slate-900">
+                    {t(`auth.secretQuestions.q${id}`)}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500 mt-2 ml-1">{t("auth.secretQuestionHint")}</p>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">
+                {t("auth.secretAnswer")}
+              </label>
+              <input
+                type="text"
+                autoComplete="off"
+                value={secretAnswer}
+                onChange={(e) => setSecretAnswer(e.target.value)}
+                placeholder={t("auth.secretAnswerPlaceholder")}
+                className="w-full bg-transparent border border-[#414141] rounded-lg px-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
+              />
             </div>
 
             {/* Message d'erreur */}
