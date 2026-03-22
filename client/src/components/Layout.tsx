@@ -6,7 +6,7 @@ import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { useMusic } from "../contexts/MusicContext";
-import { getUserBalance, addDevMoney, fetchBalanceFromServer, clearAuthStorage } from "../utils/userProfile";
+import { getUserBalance, addDevMoney, fetchBalanceFromServer, clearAuthStorage, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
 import { Toast } from "./Toast";
 import { MusicPlayer } from "./MusicPlayer";
 import { InvitationBanner } from "./InvitationBanner";
@@ -63,12 +63,19 @@ export function Layout({ children }: LayoutProps) {
   };
 
   useEffect(() => {
+    // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
+    setBalance(getUserBalance());
     if (localStorage.getItem("token")) {
       fetchBalanceFromServer().then(setBalance);
-    } else {
-      setBalance(getUserBalance());
     }
   }, [location.pathname]);
+
+  /** Mise à jour immédiate du solde affiché (ex. mode bot : `addToUserBalance` ne touche que le localStorage). */
+  useEffect(() => {
+    const sync = () => setBalance(getUserBalance());
+    window.addEventListener(BALANCE_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(BALANCE_CHANGED_EVENT, sync);
+  }, []);
   useEffect(() => {
     const onFocus = () => {
       if (localStorage.getItem("token")) {

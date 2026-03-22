@@ -36,6 +36,16 @@ type Card = ClientCard;
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
+/** Gains nets en mode bot : facile 0,3 · moyen 0,6 · difficile 0,9 · expert 1 (pertes inchangées). */
+function getWinMultiplierFromDifficultyParam(param: string): number {
+  const p = (param || "moyen").toLowerCase();
+  if (p === "facile") return 0.3;
+  if (p === "moyen") return 0.6;
+  if (p === "difficile") return 0.9;
+  if (p === "expert") return 1;
+  return 0.6;
+}
+
 interface ChatMessage {
   id: number;
   player: string;
@@ -78,15 +88,7 @@ export function Game() {
   const { userId } = useUser();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
   const difficultyParam = searchParams.get("difficulty") || "moyen";
-  const winMultiplier = gameIdParam
-    ? 1
-    : difficultyParam === "facile"
-      ? 0.3
-      : difficultyParam === "moyen"
-        ? 0.6
-        : difficultyParam === "difficile"
-          ? 0.9
-          : 1;
+  const winMultiplier = gameIdParam ? 1 : getWinMultiplierFromDifficultyParam(difficultyParam);
 
   const { socket } = useSocket();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -271,7 +273,14 @@ export function Game() {
     const newBalance = mode === "bot"
       ? addToUserBalance(addMoneyAmount)
       : await addDevMoney(addMoneyAmount);
-    if (mode === "bot") setPlayerChips(newBalance);
+    if (mode === "bot") {
+      setPlayerChips(newBalance);
+      setPlayersState((prev) =>
+        prev.map((p) =>
+          p.id === "human" || String(p.id) === String(userId) ? { ...p, chips: newBalance } : p
+        )
+      );
+    }
     setAddSuccess(true);
     setTimeout(() => closeAddMoney(), 800);
   };
@@ -378,6 +387,9 @@ export function Game() {
   const heroPlayer = activePlayers.find((p) => isHero(p));
   const heroDisplayName = heroPlayer?.name === "Vous" || heroPlayer?.name === "you" ? t('game.you') : (heroPlayer?.name ?? t('game.you'));
   const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
+  /** Même montant en-tête (haut) et dans PlayerDashboard (bas) : pile du héros sur la table. */
+  const displayedHeroChips =
+    heroPlayer != null && typeof heroPlayer.chips === "number" ? heroPlayer.chips : playerChips;
 
   playersStateRef.current = activePlayers;
 
@@ -1169,10 +1181,11 @@ export function Game() {
 
   useEffect(() => {
     if (phase !== "preflop" || !gameInitialized || hasSetStartOfHandThisHandRef.current) return;
-    const humanChips = isBotMode ? playerChips : playersState.find((p) => String(p.id) === String(userId))?.chips ?? playerChips;
+    const humanRow = playersState.find((p) => String(p.id) === String(userId) || p.id === "human");
+    const humanChips = humanRow?.chips ?? playerChips;
     startOfHandChipsRef.current = humanChips;
     hasSetStartOfHandThisHandRef.current = true;
-  }, [phase, gameInitialized, isBotMode, playerChips, playersState, userId]);
+  }, [phase, gameInitialized, playerChips, playersState, userId]);
 
   useEffect(() => {
     deckRef.current = deck;
@@ -1353,8 +1366,16 @@ export function Game() {
       if (fallbackWinner) {
         setPlayersState((prev) => prev.map((p) => (p.id === fallbackWinner.id ? { ...p, chips: (p.chips ?? 0) + currentPot } : p)));
         if (fallbackWinner.id === userId || fallbackWinner.id === "human") setPlayerChips((prev) => prev + currentPot);
+        const hero = playersState.find((p) => p.id === userId || p.id === "human");
+        const startChips = startOfHandChipsRef.current;
+        const stackBefore = hero?.chips ?? playerChips;
+        const humanWonFb = fallbackWinner.id === userId || fallbackWinner.id === "human";
+        const endChips = humanWonFb ? stackBefore + currentPot : stackBefore;
+        const balanceChange = endChips - startChips;
+        const toAddFb = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
+        addToUserBalance(toAddFb);
+        toAddLastRef.current = toAddFb;
       }
-      addToUserBalance(0);
     };
 
     const runComplete = async () => {
@@ -1415,7 +1436,9 @@ export function Game() {
         if (humanShare > 0) setPlayerChips((prev) => prev + humanShare);
 
         const startChips = startOfHandChipsRef.current;
-        const endChips = humanShare > 0 ? playerChips + humanShare : playerChips;
+        const heroRow = playersState.find((p) => String(p.id) === humanId || p.id === "human");
+        const stackBeforePotAward = heroRow?.chips ?? playerChips;
+        const endChips = stackBeforePotAward + humanShare;
         const balanceChange = endChips - startChips;
         const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
         addToUserBalance(toAdd);
@@ -1482,14 +1505,28 @@ export function Game() {
         handRank: 0,
         pot: currentPot,
       });
-      addToUserBalance(0);
+      const heroSafety = playersState.find((p) => p.id === userId || p.id === "human");
+      const startChipsSafety = startOfHandChipsRef.current;
+      const humanWonSafety = winner && (winner.id === userId || winner.id === "human");
+      const stackBeforeSafety = heroSafety?.chips ?? playerChips;
+      const endChipsSafety = humanWonSafety ? stackBeforeSafety + currentPot : stackBeforeSafety;
+      const balanceChangeSafety = endChipsSafety - startChipsSafety;
+      const toAddSafety = isBotMode
+        ? balanceChangeSafety > 0
+          ? Math.round(balanceChangeSafety * winMultiplier)
+          : balanceChangeSafety
+        : balanceChangeSafety;
+      addToUserBalance(toAddSafety);
+      toAddLastRef.current = toAddSafety;
     }, 12000);
     return () => clearTimeout(safety);
-  }, [phase, showdownResult, handResult, isBotMode, playersState, pot, userId]);
+  }, [phase, showdownResult, handResult, isBotMode, playersState, pot, userId, winMultiplier]);
 
   useEffect(() => {
     if (!isBotMode || !showdownResult || gameOverReason) return;
-    if (playerChips <= 0) {
+    const human = playersState.find((p) => p.id === userId || p.id === "human");
+    const stack = human?.chips ?? playerChips;
+    if (stack <= 0) {
       setGameOverReason("human_eliminated");
       return;
     }
@@ -1706,7 +1743,9 @@ export function Game() {
       }
       if (humanWon) setPlayerChips((prev) => prev + pot);
       const startChips = startOfHandChipsRef.current;
-      const endChips = humanWon ? playerChips + pot : playerChips;
+      const winnerChipsBefore = winner?.chips ?? 0;
+      const heroRowFold = playersState.find((p) => p.id === userId || p.id === "human");
+      const endChips = humanWon ? winnerChipsBefore + pot : (heroRowFold?.chips ?? playerChips);
       const balanceChange = endChips - startChips;
       const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
       addToUserBalance(toAdd);
@@ -2289,7 +2328,7 @@ export function Game() {
           <div className="flex items-center bg-slate-800/80 backdrop-blur-md border border-slate-700 rounded-full pl-3 pr-1 py-1 shadow-lg gap-3">
             <div className={`text-white font-bold flex items-center gap-1.5 ${isMobile ? 'text-sm' : 'text-base'}`}>
               <ChipIcon size="sm" />
-              <span>{playerChips.toLocaleString()}</span>
+              <span>{displayedHeroChips.toLocaleString()}</span>
             </div>
 
             <button
@@ -2493,7 +2532,7 @@ export function Game() {
         <PlayerDashboard
           ref={tourRefActions}
           name={heroDisplayName}
-          chips={playerChips}
+          chips={displayedHeroChips}
           cards={heroCards}
           colorblindMode={colorblindMode}
           onFold={() => handleFold()}
@@ -2502,7 +2541,7 @@ export function Game() {
           onCheck={() => handleCheck()}
           callAmount={callAmount}
           minRaise={50}
-          maxRaise={Math.max(0, playerChips - callAmount)}
+          maxRaise={Math.max(0, displayedHeroChips - callAmount)}
           isMyTurn={handResult === null && isMyTurn}
           isLoading={isLoading}
           hasFolded={hasFoldedFromState}

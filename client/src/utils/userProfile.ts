@@ -7,6 +7,15 @@ const STORAGE_KEYS = {
   BALANCE: 'quantum_bluff_balance',
 };
 
+/** Émis après chaque changement de balance locale (localStorage). Le Layout peut s’y abonner. */
+export const BALANCE_CHANGED_EVENT = 'quantum-bluff-balance-changed';
+
+function notifyBalanceChanged(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(BALANCE_CHANGED_EVENT));
+  }
+}
+
 export interface UserProfile {
   username: string;
   email: string;
@@ -51,6 +60,7 @@ export function getUserBalance(): number {
 export function updateUserBalance(newBalance: number): void {
   const safe = Math.max(0, Math.floor(newBalance));
   localStorage.setItem(STORAGE_KEYS.BALANCE, safe.toString());
+  notifyBalanceChanged();
 }
 
 /** Add amount to current balance and persist. Returns new balance. */
@@ -83,7 +93,11 @@ export function clearAuthStorage(): void {
   window.dispatchEvent(new Event("auth-changed"));
 }
 
-/** Récupère la balance depuis le serveur (source de vérité) et met à jour le localStorage. Retourne les chips. */
+/**
+ * Récupère la balance serveur et la fusionne avec le localStorage.
+ * `Math.max(local, serveur)` évite d’écraser les gains du **mode bot** (non encore persistés côté API)
+ * quand on revient au lobby.
+ */
 export async function fetchBalanceFromServer(): Promise<number> {
   const token = localStorage.getItem("token");
   if (!token) return getUserBalance();
@@ -92,9 +106,11 @@ export async function fetchBalanceFromServer(): Promise<number> {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return getUserBalance();
     const data = await res.json();
-    const chips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : getUserBalance();
-    updateUserBalance(chips);
-    return chips;
+    const serverChips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : getUserBalance();
+    const localChips = getUserBalance();
+    const merged = Math.max(localChips, serverChips);
+    updateUserBalance(merged);
+    return merged;
   } catch {
     return getUserBalance();
   }
