@@ -74,7 +74,7 @@
       "multiplayerTitle": "Multiplayer servers",
       "multiplayerBody": "Create a room to play with others, or join an existing waiting room.",
       "waitingTitle": "Waiting rooms",
-      "waitingBody": "Games that have not started yet. Each row shows the name, a Public or Private badge, and player count. Join: enter a public room. Request to join: asks the host on a private room. If you are the host, Delete removes the room. Full means no seats left.",
+      "waitingBody": "Not started yet: name, public/private badge, player count. Join a public room, or request access on a private one. Host: Delete. Full = no seats.",
       "gamesTitle": "Games in progress",
       "gamesBody": "Hands already running. Join if you can still take a seat. Spectate: watch without playing.",
       "friendsTitle": "Friends column",
@@ -136,7 +136,6 @@
     "menuGuidedTour": "Guided tour",
     "menuGuidedTourHint": "Highlights the table, pot, and your actions step by step.",
     "menuQuantum": "Probabilities",
-    "menuDemoTutorial": "Demo tutorial (separate page)",
     "help": {
       "close": "Close",
       "skip": "Skip",

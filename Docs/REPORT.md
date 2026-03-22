@@ -15,7 +15,7 @@
 - `README.md`, `DEPLOY.md`, `SETUP_TESTEUR.md`, `CHANGELOG`, `CODEOWNERS`
 
 ### 1.2 Client (`client/`)
-- `src/pages/` – StartScreen, Auth, Lobby, BotConfiguration, WaitingRoom, Game, GameDeal, GameExample, HiddenBetsResult, Profile, Friends, EditProfile, TutorialLobby, TutorialGame
+- `src/pages/` – StartScreen, Auth, Lobby, BotConfiguration, WaitingRoom, Game, GameDeal, GameExample, HiddenBetsResult, Profile, Friends, EditProfile, TutorialLobby
 - `src/components/` – Layout, ProtectedRoute, PokerTable, CommunityCards, ActionButtons, QuantumHUD, ShowdownDisplay, HiddenBetsPanel, InvitationBanner, NotificationCenter, MusicPlayer, AccessibilityMenu, ChipIcon, PokerCard, etc.
 - `src/components/ui/` – Composants shadcn/ui (accordion, alert, avatar, button, card, dialog, form, input, tabs, tooltip, etc.)
 - `src/contexts/` – SocketContext, ToastContext, QuantumHUDContext, AccessibilityContext, AccessibilityMenuOpenContext, HiddenBetsContext, MusicContext, TopBarContext
@@ -250,7 +250,7 @@
 - `/results`, `/hidden-bets-result` – Protégé
 - `/profile`, `/edit-profile` – Protégé
 - `/friends` – Protégé
-- `/tutorial-lobby`, `/tutorial-game` – Protégé
+- `/tutorial-lobby` – Protégé
 
 ### 7.2 StartScreen
 - Animation de chargement (init, shuffling, preparingTable, etc.)

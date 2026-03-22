@@ -74,7 +74,7 @@
       "multiplayerTitle": "Serveurs multijoueurs",
       "multiplayerBody": "Créez une salle pour jouer avec d'autres personnes, ou rejoignez une salle déjà listée.",
       "waitingTitle": "Salles d'attente",
-      "waitingBody": "Parties pas encore commencées. Chaque ligne affiche le nom, un badge Public ou Privé, et le nombre de joueurs. Rejoindre : entre dans une salle publique. Demander à rejoindre : envoie une demande à l'hôte pour une salle privée. Si vous êtes l'hôte, Supprimer retire la salle. Complet indique qu'il n'y a plus de place.",
+      "waitingBody": "Parties non démarrées : nom, badge Public/Privé, joueurs. Rejoindre une salle publique, ou demander l’accès si elle est privée. Hôte : Supprimer. Complet = plus de place.",
       "gamesTitle": "Parties en cours",
       "gamesBody": "Mains déjà lancées. Rejoindre si vous pouvez encore entrer à la table. Spectateur : regarder la partie sans jouer.",
       "friendsTitle": "Colonne Amis",
@@ -136,7 +136,6 @@
     "menuGuidedTour": "Visite guidée",
     "menuGuidedTourHint": "Découvrez la table, le pot et vos actions étape par étape.",
     "menuQuantum": "Probabilités",
-    "menuDemoTutorial": "Tutoriel démo (page séparée)",
     "help": {
       "close": "Fermer",
       "skip": "Passer",

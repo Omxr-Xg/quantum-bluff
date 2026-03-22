@@ -14,7 +14,6 @@ import { Profile } from "./pages/Profile";
 import { Friends } from "./pages/Friends";
 import { EditProfile } from "./pages/EditProfile";
 import { TutorialLobby } from "./pages/TutorialLobby";
-import { TutorialGame } from "./pages/TutorialGame";
 import { GameDeal } from "./pages/GameDeal";
 import { GameExample } from "./pages/GameExample";
 import { Layout } from "./components/Layout";
@@ -58,7 +57,6 @@ function App() {
             <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
 
             <Route path="/tutorial-lobby" element={<ProtectedRoute><TutorialLobby /></ProtectedRoute>} />
-            <Route path="/tutorial-game" element={<ProtectedRoute><TutorialGame /></ProtectedRoute>} />
 
           </Routes>
         </Layout>

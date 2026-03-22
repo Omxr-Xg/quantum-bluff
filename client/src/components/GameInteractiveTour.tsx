@@ -8,6 +8,8 @@ import {
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { PokerCard } from "./PokerCard";
+import { ChipIcon } from "./ChipIcon";
 
 export type GameTourRefs = {
   header: RefObject<HTMLElement | null>;
@@ -17,12 +19,22 @@ export type GameTourRefs = {
   actions: RefObject<HTMLElement | null>;
 };
 
+/** Illustrations cartes dans la bulle du tutoriel (remplace l’ancienne page démo) */
+type TourCardVisual =
+  | "welcome"
+  | "headerSuits"
+  | "tableBacks"
+  | "potChips"
+  | "board"
+  | "heroActions";
+
 type StepDef =
-  | { highlight: null; titleKey: string; bodyKey: string }
+  | { highlight: null; titleKey: string; bodyKey: string; cards: TourCardVisual }
   | {
       highlight: keyof GameTourRefs;
       titleKey: string;
       bodyKey: string;
+      cards: TourCardVisual;
       /** Si spectateur, utiliser ce corps à la place pour cette étape */
       spectatorBodyKey?: string;
     };
@@ -32,23 +44,140 @@ const STEP_DEFS: StepDef[] = [
     highlight: null,
     titleKey: "tourWelcomeTitle",
     bodyKey: "tourWelcomeBody",
+    cards: "welcome",
   },
-  { highlight: "header", titleKey: "headerTitle", bodyKey: "headerBody" },
-  { highlight: "table", titleKey: "tableTitle", bodyKey: "tableBody" },
-  { highlight: "pot", titleKey: "potTitle", bodyKey: "potBody" },
-  { highlight: "board", titleKey: "boardTitle", bodyKey: "boardBody" },
+  {
+    highlight: "header",
+    titleKey: "headerTitle",
+    bodyKey: "headerBody",
+    cards: "headerSuits",
+  },
+  { highlight: "table", titleKey: "tableTitle", bodyKey: "tableBody", cards: "tableBacks" },
+  { highlight: "pot", titleKey: "potTitle", bodyKey: "potBody", cards: "potChips" },
+  { highlight: "board", titleKey: "boardTitle", bodyKey: "boardBody", cards: "board" },
   {
     highlight: "actions",
     titleKey: "actionsTitle",
     bodyKey: "actionsBody",
     spectatorBodyKey: "actionsSpectatorBody",
+    cards: "heroActions",
   },
   {
     highlight: null,
     titleKey: "tourDoneTitle",
     bodyKey: "tourDoneBody",
+    cards: "welcome",
   },
 ];
+
+function GameTourCardStrip({
+  variant,
+}: {
+  variant: TourCardVisual;
+}) {
+  const { t } = useTranslation();
+
+  const wrap = "mb-4 flex flex-col items-center justify-center";
+
+  switch (variant) {
+    case "welcome":
+      return (
+        <div className={wrap}>
+          <div className="flex flex-wrap items-end justify-center gap-4">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-cyan-500/90">
+                {t("game.help.tourVisualHole")}
+              </span>
+              <div className="flex gap-1.5">
+                <PokerCard suit="hearts" value="10" size="sm" />
+                <PokerCard suit="hearts" value="9" size="sm" />
+              </div>
+            </div>
+            <div className="hidden h-14 w-px bg-slate-600/60 sm:block" aria-hidden />
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-cyan-500/90">
+                {t("game.help.tourVisualBoard")}
+              </span>
+              <div className="flex gap-1">
+                <PokerCard suit="spades" value="A" size="xs" />
+                <PokerCard suit="hearts" value="K" size="xs" />
+                <PokerCard suit="clubs" value="Q" size="xs" />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    case "headerSuits":
+      return (
+        <div className={`${wrap} gap-2`}>
+          <div className="flex justify-center gap-4 text-3xl leading-none">
+            <span className="text-red-500 drop-shadow-sm">♥</span>
+            <span className="text-red-500 drop-shadow-sm">♦</span>
+            <span className="text-slate-200 drop-shadow-sm">♣</span>
+            <span className="text-slate-200 drop-shadow-sm">♠</span>
+          </div>
+        </div>
+      );
+    case "tableBacks":
+      return (
+        <div className={wrap}>
+          <div className="flex justify-center gap-1.5">
+            <PokerCard suit="spades" value="—" size="sm" faceDown />
+            <PokerCard suit="spades" value="—" size="sm" faceDown />
+            <PokerCard suit="spades" value="—" size="sm" faceDown />
+            <PokerCard suit="spades" value="—" size="sm" faceDown />
+          </div>
+        </div>
+      );
+    case "potChips":
+      return (
+        <div className={wrap}>
+          <div className="mb-2 flex items-center gap-2 rounded-xl border border-amber-500/35 bg-slate-800/90 px-4 py-2.5 shadow-inner">
+            <ChipIcon size="md" className="brightness-110" />
+            <span className="text-lg font-bold text-amber-100">500</span>
+          </div>
+          <div className="flex justify-center gap-1">
+            <PokerCard suit="spades" value="—" size="xs" faceDown />
+            <PokerCard suit="spades" value="—" size="xs" faceDown />
+          </div>
+        </div>
+      );
+    case "board":
+      return (
+        <div className={wrap}>
+          <div className="flex flex-wrap justify-center gap-1">
+            <PokerCard suit="spades" value="A" size="sm" />
+            <PokerCard suit="hearts" value="K" size="sm" />
+            <PokerCard suit="clubs" value="Q" size="sm" />
+            <PokerCard suit="diamonds" value="J" size="sm" />
+            <PokerCard suit="spades" value="—" size="sm" faceDown />
+          </div>
+        </div>
+      );
+    case "heroActions":
+      return (
+        <div className={wrap}>
+          <div className="mb-2 flex gap-1.5">
+            <PokerCard suit="hearts" value="10" size="sm" />
+            <PokerCard suit="hearts" value="9" size="sm" />
+          </div>
+          <div className="flex flex-wrap justify-center gap-2 text-[11px] font-bold">
+            <span className="rounded-lg border-2 border-red-500/70 px-2.5 py-1.5 text-red-200 shadow-sm">
+              {t("game.fold")}
+            </span>
+            <span className="rounded-lg border-2 border-sky-500/70 px-2.5 py-1.5 text-sky-200 shadow-sm">
+              {t("game.callLabel")}
+            </span>
+            <span className="rounded-lg border-2 border-emerald-500/70 px-2.5 py-1.5 text-emerald-200 shadow-sm">
+              {t("game.raise")}
+            </span>
+          </div>
+        </div>
+      );
+    default:
+      return null;
+  }
+}
 
 const PAD = 10;
 
@@ -204,7 +333,8 @@ export function GameInteractiveTour({
   const tooltipPos = (): { left: number; top: number } => {
     const margin = 16;
     const tw = Math.min(360, typeof window !== "undefined" ? window.innerWidth - margin * 2 : 360);
-    const th = 220;
+    /** Hauteur estimée du panneau (texte + cartes + boutons) pour éviter le chevauchement */
+    const th = 420;
     const vh = typeof window !== "undefined" ? window.innerHeight : 800;
     const vw = typeof window !== "undefined" ? window.innerWidth : 400;
 
@@ -271,6 +401,7 @@ export function GameInteractiveTour({
         <h2 id="game-tour-title" className="mb-2 text-lg font-bold text-white">
           {t(`game.help.${stepDef.titleKey}`)}
         </h2>
+        <GameTourCardStrip variant={stepDef.cards} />
         <p className="mb-5 text-sm leading-relaxed text-slate-300 whitespace-pre-line">
           {t(`game.help.${bodyKey}`)}
         </p>

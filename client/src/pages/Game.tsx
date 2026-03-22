@@ -13,7 +13,7 @@ import { PlayerDashboard } from "../components/PlayerDashboard";
 import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, HelpCircle, Sparkles, Trophy, Frown, Activity } from "lucide-react";
+import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, Sparkles, Trophy, Frown, Activity } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -26,6 +26,7 @@ import { useAccessibility } from "../contexts/AccessibilityContext";
 import { addToUserBalance, addDevMoney, getUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 import { RoundTransition } from "../components/RoundTransition";
 import { GameInteractiveTour } from "../components/GameInteractiveTour";
+import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
@@ -2227,18 +2228,6 @@ export function Game() {
                   <Users className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
                   <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("lobby.friends")}</span>
                 </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    navigate("/tutorial-game");
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-slate-400 hover:bg-slate-700/80 hover:text-slate-200 transition-all border-t border-slate-700/80`}
-                >
-                  <HelpCircle className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
-                  <span className={`${isMobile ? 'text-xs' : 'text-xs'} font-medium`}>{t("game.menuDemoTutorial")}</span>
-                </button>
 
                 <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   {t("game.menuSectionDanger")}
@@ -2374,36 +2363,14 @@ export function Game() {
         </div>
       )}
 
-      {showQuitConfirm && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-red-900 to-red-950 rounded-2xl border-2 border-red-600 shadow-2xl max-w-md w-full p-6 animate-bounce">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-2xl font-bold">!</span>
-              </div>
-              <h2 className="text-2xl font-bold text-white">{t('nav.quitGameTitle')}</h2>
-            </div>
-            <p className="text-red-200 mb-6 leading-relaxed">{t('nav.quitGameMessage')}</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowQuitConfirm(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={() => {
-                  setShowQuitConfirm(false);
-                  navigate("/lobby");
-                }}
-                className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-red-600/50"
-              >
-                {t('nav.confirmQuit')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <QuitGameConfirmDialog
+        open={showQuitConfirm}
+        onCancel={() => setShowQuitConfirm(false)}
+        onConfirm={() => {
+          setShowQuitConfirm(false);
+          navigate("/lobby");
+        }}
+      />
 
       {gameIdParam && !isBotMode && (cashCountdownEndsAt || cashWaitingPlayers) && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2">

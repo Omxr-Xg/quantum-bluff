@@ -74,7 +74,7 @@
       "multiplayerTitle": "Servidores multijugador",
       "multiplayerBody": "Crea una sala o únete a una existente.",
       "waitingTitle": "Salas de espera",
-      "waitingBody": "Partidas no iniciadas. Muestra nombre, público/privado y jugadores. Unirse: sala pública. Solicitar unirse: sala privada. Si eres anfitrión, Eliminar borra la sala. Llena: sin plazas.",
+      "waitingBody": "Sin empezar: nombre, público/privado, jugadores. Unirse (pública) o solicitar (privada). Anfitrión: Eliminar. Llena = sin plazas.",
       "gamesTitle": "Partidas en curso",
       "gamesBody": "Mano en curso. Unirse si hay sitio. Espectador: ver sin jugar.",
       "friendsTitle": "Columna Amigos",
@@ -136,7 +136,6 @@
     "menuGuidedTour": "Visita guiada",
     "menuGuidedTourHint": "Descubre la mesa, el bote y tus acciones paso a paso.",
     "menuQuantum": "Probabilidades",
-    "menuDemoTutorial": "Tutorial demo (página aparte)",
     "help": {
       "close": "Cerrar",
       "skip": "Saltar",

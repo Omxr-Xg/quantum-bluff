@@ -171,7 +171,6 @@ export function Layout({ children }: LayoutProps) {
     isGamePage ||
     path.includes("bot-configuration") ||
     path.includes("waiting-room") ||
-    path.includes("tutorial-game") ||
     path.includes("tutorial-lobby");
   const showHamburgerMenu = showTopBar && isGameConfigOrRoom && !isLobby;
   const showLobbyIntegratedBar = showTopBar && isLobby;
