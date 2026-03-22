@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
@@ -25,6 +25,7 @@ import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
 import { addToUserBalance, addDevMoney, getUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 import { RoundTransition } from "../components/RoundTransition";
+import { GameInteractiveTour } from "../components/GameInteractiveTour";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
@@ -101,7 +102,8 @@ export function Game() {
   const [isLoading, setIsLoading] = useState(false);
   const [playersState, setPlayersState] = useState<(BasePlayer | BotPlayer)[]>([]);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
-  const [showGameHelp, setShowGameHelp] = useState(false);
+  const [gameTourOpen, setGameTourOpen] = useState(false);
+  const [gameTourStep, setGameTourStep] = useState(0);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [devValidation, setDevValidation] = useState("");
@@ -181,6 +183,40 @@ export function Game() {
   const showdownSkipRef = useRef<(() => void) | null>(null);
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const flopAnimatedRef = useRef(false);
+
+  const tourRefHeader = useRef<HTMLDivElement>(null);
+  const tourRefTable = useRef<HTMLDivElement>(null);
+  const tourRefPot = useRef<HTMLDivElement>(null);
+  const tourRefBoard = useRef<HTMLDivElement>(null);
+  const tourRefActions = useRef<HTMLDivElement>(null);
+  const menuContainerRef = useRef<HTMLDivElement>(null);
+
+  const gameTourRefs = useMemo(
+    () => ({
+      header: tourRefHeader,
+      table: tourRefTable,
+      pot: tourRefPot,
+      board: tourRefBoard,
+      actions: tourRefActions,
+    }),
+    []
+  );
+
+  const startGameTour = useCallback(() => {
+    setShowMenu(false);
+    setGameTourStep(0);
+    setGameTourOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = menuContainerRef.current;
+      if (el && !el.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [showMenu]);
 
   const { colorblindMode } = useAccessibility();
   const { addToast } = useToast();
@@ -2087,7 +2123,7 @@ export function Game() {
         )}
       </AnimatePresence>
 
-      <div className={`absolute ${isMobile ? 'top-2 left-2 right-2' : 'top-4 left-8 right-8'} z-50 flex items-center justify-between`}>
+      <div ref={tourRefHeader} className={`absolute ${isMobile ? 'top-2 left-2 right-2' : 'top-4 left-8 right-8'} z-50 flex items-center justify-between`}>
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
           <QuantumBluffLogo className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} drop-shadow-2xl`} />
 
@@ -2103,78 +2139,117 @@ export function Game() {
             </div>
           )}
 
-          <div className="relative">
+          <div className="relative" ref={menuContainerRef}>
             <button
+              type="button"
               onClick={() => setShowMenu(!showMenu)}
               className={`bg-slate-800/90 hover:bg-slate-700/90 backdrop-blur-sm text-white ${isMobile ? 'p-2' : 'p-3'} rounded-lg border border-slate-700 transition-all shadow-lg`}
-              title="Menu"
+              title={t("game.menuTitle")}
+              aria-expanded={showMenu}
+              aria-haspopup="true"
             >
               <Menu className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
             </button>
 
             {showMenu && (
-              <div className={`absolute ${isMobile ? 'top-12' : 'top-14'} left-0 bg-slate-800/95 backdrop-blur-sm rounded-xl shadow-2xl border border-slate-700 overflow-hidden ${isMobile ? 'min-w-[180px]' : 'min-w-[220px]'} z-50`}>
+              <div
+                className={`absolute ${isMobile ? 'top-12' : 'top-14'} left-0 bg-slate-900/98 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-600/80 overflow-hidden ${isMobile ? 'min-w-[min(92vw,280px)]' : 'min-w-[280px]'} z-[60] py-1`}
+                role="menu"
+              >
+                <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {t("game.menuSectionGame")}
+                </p>
                 <button
-                  onClick={() => {
-                    navigate("/profile");
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-white hover:bg-slate-700 transition-all`}
+                  type="button"
+                  role="menuitem"
+                  onClick={startGameTour}
+                  className={`w-full flex items-start ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-left text-cyan-300 hover:bg-cyan-500/15 transition-all border-b border-slate-700/80`}
                 >
-                  <User className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('lobby.profile')}</span>
+                  <Sparkles className={`${isMobile ? 'w-5 h-5' : 'w-5 h-5'} shrink-0 mt-0.5 text-cyan-400`} />
+                  <span className="flex flex-col gap-0.5">
+                    <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-bold text-white`}>{t("game.menuGuidedTour")}</span>
+                    <span className="text-xs text-slate-400 font-normal leading-snug">{t("game.menuGuidedTourHint")}</span>
+                  </span>
                 </button>
                 <button
-                  onClick={() => {
-                    navigate("/friends");
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-white hover:bg-slate-700 transition-all`}
-                >
-                  <Users className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('lobby.friends')}</span>
-                </button>
-                <button
-                  onClick={() => {
-                    navigate("/tutorial-game");
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-cyan-400 hover:bg-slate-700 transition-all`}
-                >
-                  <HelpCircle className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Tutoriel</span>
-                </button>
-                <div className="border-t border-slate-700"></div>
-                <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => {
                     setIsQuantumOpen((o) => !o);
                     setShowMenu(false);
                   }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} ${isQuantumOpen ? 'text-amber-400 bg-amber-500/20' : 'text-white hover:bg-slate-700'} transition-all`}
+                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} ${isQuantumOpen ? 'text-amber-400 bg-amber-500/15' : 'text-white hover:bg-slate-700/80'} transition-all`}
                 >
-                  <Activity className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Probabilités</span>
+                  <Activity className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("game.menuQuantum")}</span>
                 </button>
                 <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => {
                     setIsPanelOpen((o) => !o);
                     setShowMenu(false);
                   }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} ${isPanelOpen ? 'text-yellow-400 bg-yellow-500/20' : 'text-white hover:bg-slate-700'} transition-all`}
+                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} ${isPanelOpen ? 'text-yellow-400 bg-yellow-500/15' : 'text-white hover:bg-slate-700/80'} transition-all`}
                 >
-                  <Trophy className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('hiddenBets.title')}</span>
+                  <Trophy className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("hiddenBets.title")}</span>
                 </button>
-                <div className="border-t border-slate-700"></div>
+
+                <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {t("game.menuSectionAccount")}
+                </p>
                 <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    navigate("/profile");
+                    setShowMenu(false);
+                  }}
+                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-white hover:bg-slate-700/80 transition-all`}
+                >
+                  <User className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("lobby.profile")}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    navigate("/friends");
+                    setShowMenu(false);
+                  }}
+                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-white hover:bg-slate-700/80 transition-all`}
+                >
+                  <Users className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("lobby.friends")}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    navigate("/tutorial-game");
+                    setShowMenu(false);
+                  }}
+                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-slate-400 hover:bg-slate-700/80 hover:text-slate-200 transition-all border-t border-slate-700/80`}
+                >
+                  <HelpCircle className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                  <span className={`${isMobile ? 'text-xs' : 'text-xs'} font-medium`}>{t("game.menuDemoTutorial")}</span>
+                </button>
+
+                <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {t("game.menuSectionDanger")}
+                </p>
+                <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => {
                     setShowQuitConfirm(true);
                     setShowMenu(false);
                   }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-red-400 hover:bg-slate-700 transition-all`}
+                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-red-400 hover:bg-red-950/40 transition-all`}
                 >
-                  <LogOut className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('nav.quitGame')}</span>
+                  <LogOut className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("nav.quitGame")}</span>
                 </button>
               </div>
             )}
@@ -2230,11 +2305,12 @@ export function Game() {
 
           {!isMobile && (
             <button
-              onClick={() => setShowGameHelp(!showGameHelp)}
+              type="button"
+              onClick={startGameTour}
               className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
-              title={t('game.helpRules')}
+              title={t("game.menuGuidedTour")}
             >
-              <HelpCircle className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${showGameHelp ? "text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.8)]" : "text-gray-200 hover:text-white"}`} />
+              <Sparkles className="w-6 h-6 transition-all duration-300 group-hover:scale-110 text-cyan-400 hover:text-cyan-300" />
             </button>
           )}
         </div>
@@ -2369,9 +2445,16 @@ export function Game() {
         </div>
       )}
 
-      <div className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
+      <div ref={tourRefTable} className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
         <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase} burnedCardsCount={displayBurnedCardsCount} colorblindMode={colorblindMode}>
-          <CommunityCards cards={communityCards} pot={pot} sidePots={sidePots.length > 1 ? sidePots : undefined} colorblindMode={colorblindMode} />
+          <CommunityCards
+            cards={communityCards}
+            pot={pot}
+            sidePots={sidePots.length > 1 ? sidePots : undefined}
+            colorblindMode={colorblindMode}
+            potRef={tourRefPot}
+            boardRef={tourRefBoard}
+          />
         </PokerTable>
       </div>
 
@@ -2381,8 +2464,9 @@ export function Game() {
       <MessageFeed messages={chatMessages} />
 
       {isSpectating && gameIdParam && !isBotMode && cashSeats.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30">
+        <div ref={tourRefActions} className="fixed bottom-6 left-1/2 z-30 flex min-h-[48px] min-w-[200px] -translate-x-1/2 items-center justify-center">
           <button
+            type="button"
             onClick={() => {
               if (spectatorWantsToRejoin) {
                 socket?.emit("SPECTATOR_QUEUE_LEAVE", { gameId: gameIdParam });
@@ -2399,6 +2483,7 @@ export function Game() {
 
       {!isSpectating && (
         <PlayerDashboard
+          ref={tourRefActions}
           name={heroDisplayName}
           chips={playerChips}
           cards={heroCards}
@@ -2426,68 +2511,24 @@ export function Game() {
         />
       )}
 
-      {showGameHelp && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setShowGameHelp(false)}>
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-indigo-500 shadow-2xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
-                <HelpCircle className="w-8 h-8 text-indigo-400" />
-                Guide de Quantum Bluff
-              </h2>
-              <button onClick={() => setShowGameHelp(false)} className="text-gray-400 hover:text-white transition-colors">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4 text-white">
-              <section>
-                <h3 className="text-xl font-bold text-indigo-400 mb-2">🎮 Objectif du Jeu</h3>
-                <p className="text-gray-300">Remporter les jetons des autres joueurs en ayant la meilleure main de poker ou en les faisant se coucher.</p>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-bold text-indigo-400 mb-2">🃏 Actions Principales</h3>
-                <ul className="space-y-2 text-gray-300">
-                  <li><strong className="text-red-400">{t('game.fold')} (Fold)</strong> : {t('gameHelp.foldDesc')}</li>
-                  <li><strong className="text-blue-400">{t('game.callLabel')} (Call)</strong> : {t('gameHelp.callDesc')}</li>
-                  <li><strong className="text-green-400">{t('game.raise')}</strong> : {t('gameHelp.raiseDesc')}</li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-bold text-indigo-400 mb-2">✨ Fonctionnalités Spéciales</h3>
-                <ul className="space-y-2 text-gray-300">
-                  <li><strong className="text-purple-400">Probabilités Quantiques</strong> : Survolez pour voir vos chances de gagner, cliquez pour épingler</li>
-                  <li><strong className="text-yellow-400">{t('hiddenBets.title')}</strong> : {t('hiddenBets.helpDesc')}</li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-bold text-indigo-400 mb-2">🏆 Combinaisons (du plus fort au plus faible)</h3>
-                <ol className="space-y-1 text-gray-300 list-decimal list-inside">
-                  <li>Quinte Flush Royale</li>
-                  <li>Quinte Flush</li>
-                  <li>Carré</li>
-                  <li>Full</li>
-                  <li>Couleur</li>
-                  <li>Suite</li>
-                  <li>Brelan</li>
-                  <li>Double Paire</li>
-                  <li>Paire</li>
-                  <li>Carte Haute</li>
-                </ol>
-              </section>
-            </div>
-
-            <button
-              onClick={() => setShowGameHelp(false)}
-              className="mt-6 w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105"
-            >
-              Compris !
-            </button>
-          </div>
+      {isSpectating && !(gameIdParam && !isBotMode && cashSeats.length > 0) && (
+        <div
+          ref={tourRefActions}
+          className="fixed bottom-8 left-1/2 z-30 flex min-h-[40px] w-[min(90vw,320px)] -translate-x-1/2 items-center justify-center rounded-xl border border-dashed border-slate-600/40 bg-slate-900/30 px-3 py-2 text-center text-xs text-slate-500"
+          aria-hidden
+        >
+          {t("game.help.spectatorPlaceholder")}
         </div>
       )}
+
+      <GameInteractiveTour
+        open={gameTourOpen}
+        onClose={() => setGameTourOpen(false)}
+        step={gameTourStep}
+        onStepChange={setGameTourStep}
+        refs={gameTourRefs}
+        isSpectating={isSpectating}
+      />
     </div>
   );
 }

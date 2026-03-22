@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { motion } from "motion/react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "./ui/use-mobile";
@@ -13,9 +14,13 @@ interface CommunityCardsProps {
   pot: number;
   sidePots?: { amount: number; eligibleIds: string[] }[];
   colorblindMode?: boolean;
+  /** Ref sur la pastille POT (tutoriel) */
+  potRef?: Ref<HTMLDivElement>;
+  /** Ref sur cartes communes + libellés Flop/Turn/River (tutoriel) */
+  boardRef?: Ref<HTMLDivElement>;
 }
 
-export function CommunityCards({ cards, pot, sidePots, colorblindMode = false }: CommunityCardsProps) {
+export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, potRef, boardRef }: CommunityCardsProps) {
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
@@ -33,6 +38,7 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false }:
       >
         {/* POT */}
         <div
+          ref={potRef}
           className={`bg-black/40 backdrop-blur-sm rounded-full ${
             isMobile ? "px-2 py-1" : isTablet ? "px-2.5 py-1" : "px-3 py-1.5"
           } shadow-[0_0_10px_rgba(0,0,0,0.5)] border border-white/10`}
@@ -89,7 +95,11 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false }:
           </div>
         )}
 
-        {/* COMMUNITY CARDS */}
+        {/* COMMUNITY CARDS + labels (board) */}
+        <div
+          ref={boardRef}
+          className={`flex flex-col items-center ${isMobile ? "gap-1" : isTablet ? "gap-1.5" : "gap-2"}`}
+        >
         <div className={`flex ${isMobile ? "gap-1" : isTablet ? "gap-1.5" : "gap-2"}`}>
           {cards.map((card, index) => (
             <motion.div
@@ -135,6 +145,7 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false }:
           <span className={`${isMobile ? "w-9" : isTablet ? "w-10" : "w-12"} text-center`}>FLOP</span>
           <span className={`${isMobile ? "w-9" : isTablet ? "w-10" : "w-12"} text-center`}>TURN</span>
           <span className={`${isMobile ? "w-9" : isTablet ? "w-10" : "w-12"} text-center`}>RIVER</span>
+        </div>
         </div>
       </div>
     </div>

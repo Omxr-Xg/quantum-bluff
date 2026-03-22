@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { X, TrendingUp, Loader2, Activity, Eye } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
@@ -39,7 +39,8 @@ interface PlayerDashboardProps {
   colorblindMode?: boolean;
 }
 
-export function PlayerDashboard({
+export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(function PlayerDashboard(
+  {
   name: _name,
   chips,
   cards,
@@ -62,7 +63,9 @@ export function PlayerDashboard({
   isHiddenBetsOpen: _isHiddenBetsOpen,
   timeLeft,
   colorblindMode = false,
-}: PlayerDashboardProps) {
+  },
+  ref
+) {
   const { t } = useTranslation();
   const { visualAlerts } = useAccessibility();
   const effectiveMinRaise = Math.min(minRaise, maxRaise);
@@ -187,7 +190,10 @@ export function PlayerDashboard({
 
   return (
     // 📱 FIX MOBILE : Ajout de fixed bottom-0 left-0 w-full md:relative pour "coller" au bas de l'écran sur mobile
-    <div className="fixed bottom-0 left-0 w-full md:relative shadow-2xl transition-all duration-300 z-40 bg-slate-900 md:bg-transparent pb-safe">
+    <div
+      ref={ref}
+      className="fixed bottom-0 left-0 w-full md:relative shadow-2xl transition-all duration-300 z-40 bg-slate-900 md:bg-transparent pb-safe"
+    >
 
       {showSuccessPopup && (
         <div className="absolute top-0 md:top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full md:-translate-y-1/2 z-50 animate-bounce">
@@ -402,4 +408,4 @@ export function PlayerDashboard({
       </div>
     </div>
   );
-}
+});
