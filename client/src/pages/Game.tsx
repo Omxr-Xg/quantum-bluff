@@ -62,7 +62,7 @@ interface BasePlayer {
 
 interface BotPlayer extends BasePlayer {
   isBot: true;
-  difficulty: "easy" | "medium" | "hard";
+  difficulty: "easy" | "medium" | "hard" | "expert";
 }
 
 export function Game() {
@@ -271,8 +271,16 @@ export function Game() {
   const getPlayers = (): (BasePlayer | BotPlayer)[] => {
     const count = parseInt(searchParams.get("bots") || "1", 10);
     const diff = searchParams.get("difficulty") || "moyen";
-    const diffMap: "easy" | "medium" | "hard" =
-      diff === "facile" ? "easy" : diff === "difficile" || diff === "expert" ? "hard" : "medium";
+    const diffMap: "easy" | "medium" | "hard" | "expert" =
+      diff === "facile"
+        ? "easy"
+        : diff === "moyen"
+          ? "medium"
+          : diff === "difficile"
+            ? "hard"
+            : diff === "expert"
+              ? "expert"
+              : "medium";
     const botChipsParam = searchParams.get("botChips");
     const botChipsList = botChipsParam ? botChipsParam.split(",").map((v) => Math.max(100, parseInt(v, 10) || 1000)) : [];
 
