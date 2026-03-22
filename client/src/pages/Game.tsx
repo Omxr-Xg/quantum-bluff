@@ -30,6 +30,7 @@ import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
+import { intChips } from "../utils/chips";
 
 type Card = ClientCard;
 
@@ -355,7 +356,7 @@ export function Game() {
   const callAmount = useMemo(() => {
     if (!activePlayer) return 0;
     const highestBet = Math.max(...activePlayers.map((p) => p.bet ?? 0), 0);
-    return Math.max(0, highestBet - (activePlayer.bet ?? 0));
+    return intChips(Math.max(0, highestBet - (activePlayer.bet ?? 0)));
   }, [activePlayers, activePlayer]);
   const isHero = (p: BasePlayer | BotPlayer) => p.id === userId || p.id === "human";
   const tablePlayers = activePlayers.map((player) => {
@@ -429,7 +430,7 @@ export function Game() {
 
   const addContribution = (playerId: string | number, amount: number) => {
     const key = String(playerId);
-    handContributionsRef.current[key] = (handContributionsRef.current[key] ?? 0) + amount;
+    handContributionsRef.current[key] = (handContributionsRef.current[key] ?? 0) + intChips(amount);
   };
 
   const resetBetsAndSetFirstToAct = (startIndex: number) => {
@@ -1547,12 +1548,12 @@ export function Game() {
 
         const decision = await response.json();
         const botCurrentBet = activePlayer.bet ?? 0;
-        const amountFromServer = decision.amount ?? 0;
+        const amountFromServer = intChips(decision.amount ?? 0);
         const amountToPut =
           decision.action === "RAISE"
-            ? Math.max(0, amountFromServer - botCurrentBet)
+            ? intChips(Math.max(0, amountFromServer - botCurrentBet))
             : decision.action === "CALL"
-              ? Math.min(decision.amount ?? callAmount, activePlayer.chips ?? 0)
+              ? intChips(Math.min(decision.amount ?? callAmount, activePlayer.chips ?? 0))
               : 0;
 
         const botActionLabel =
@@ -1576,10 +1577,8 @@ export function Game() {
               handleFold(activePlayer.id);
               break;
             case "CALL": {
-              const effectiveCall = Math.min(
-                decision.amount ?? callAmount,
-                callAmount,
-                activePlayer.chips ?? 0
+              const effectiveCall = intChips(
+                Math.min(decision.amount ?? callAmount, callAmount, activePlayer.chips ?? 0)
               );
               handleCall(effectiveCall, activePlayer.id);
               break;
@@ -1736,6 +1735,7 @@ export function Game() {
   };
 
   const handleCall = (amount: number, playerId?: number | string) => {
+    amount = intChips(amount);
     if (handResult !== null) return;
     const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
@@ -1861,8 +1861,9 @@ export function Game() {
   };
 
   const handleRaise = (raiseAmount: number, playerId?: number | string) => {
+    raiseAmount = intChips(raiseAmount);
     if (handResult !== null) return;
-    const totalToPut = callAmount + raiseAmount;
+    const totalToPut = intChips(callAmount + raiseAmount);
     const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (gameIdParam && isHumanActing && !socket) return;

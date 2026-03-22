@@ -4,8 +4,15 @@ import type { Card, Player } from '../types/poker.js'
 import {
   decideBotAction,
   type BotActionRequest,
+  type BotActionResponse,
   type BotDifficulty,
 } from '../logic/botAI.js'
+import { intChips } from '../utils/chips.js'
+
+function sanitizeBotDecision(d: BotActionResponse): BotActionResponse {
+  if (d.amount === undefined) return d
+  return { ...d, amount: intChips(d.amount) }
+}
 
 const router = express.Router()
 
@@ -117,7 +124,7 @@ router.post('/action', (req, res) => {
       communityCards: (raw.communityCards ?? []).map(normalizeCard),
     }
 
-    const decision = decideBotAction(botRequest)
+    const decision = sanitizeBotDecision(decideBotAction(botRequest))
 
     const duration = Date.now() - startBotTime
     console.log('[Monitoring QoS] 🤖 Décision bot calculée', {
