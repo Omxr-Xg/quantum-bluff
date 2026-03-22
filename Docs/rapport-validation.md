@@ -11,8 +11,8 @@
 |------|--------|-------|
 | Build backend | ✅ | `npm run build` OK |
 | Build frontend | ✅ | `vite build` OK |
-| Tests backend | ✅ | 5 suites, 37 tests passés |
-| Tests frontend | ✅ | 3 suites, 3 tests passés |
+| Tests backend (Jest) | ✅ | **12 suites, 257 tests** — inventaire détaillé : [`RAPPORT_TESTS.md`](RAPPORT_TESTS.md) |
+| Tests frontend (Vitest) | ✅ | **6 fichiers, 20 tests** — idem [`RAPPORT_TESTS.md`](RAPPORT_TESTS.md) |
 | Lint backend | ✅ | 0 erreur (6 warnings existants) |
 | Lint frontend | ⚠️ | Exit 0 (script avec `\|\| true`), erreurs préexistantes dans d'autres fichiers |
 | API bot (easy) | ✅ | Retourne action + reasoning |
@@ -93,4 +93,4 @@
 
 ---
 
-*Rapport généré automatiquement. Commandes exécutées : build (server + client), test (server + client), lint (server + client), curl sur API racine et POST /api/bot/action (easy, medium, hard + format frontend).*
+*Rapport généré automatiquement. Commandes exécutées : build (server + client), test (server + client), lint (server + client), curl sur API racine et POST /api/bot/action (easy, medium, hard + format frontend). Pour la liste exhaustive des scénarios et noms de tests automatisés, voir [`RAPPORT_TESTS.md`](RAPPORT_TESTS.md).*
