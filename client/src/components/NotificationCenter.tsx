@@ -88,11 +88,12 @@ export function NotificationCenter() {
   return (
     <div className="relative" ref={panelRef}>
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative bg-slate-700 hover:bg-slate-600 h-10 md:h-12 w-10 md:w-12 rounded-xl text-white transition shrink-0 flex items-center justify-center"
+        className="relative inline-flex items-center justify-center bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition h-10 md:h-12 min-w-[2.5rem] md:min-w-[3rem] shrink-0 px-2"
         title={t("notifications.title")}
       >
-        <Bell className="w-5 h-5 md:w-6 md:h-6" />
+        <Bell className="w-5 h-5 shrink-0" strokeWidth={2.25} />
         {totalCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full px-1">
             {totalCount > 99 ? "99+" : totalCount}
