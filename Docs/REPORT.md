@@ -477,6 +477,7 @@
 - rapport-validation.md
 - POKER_SCENARIOS.md
 - bot-integration-frontend.md
+- **bot-difficulte.md** — niveaux easy/medium/hard, mapping facile→expert, multiplicateur de gains
 - SETUP_TESTEUR.md
 - DEPLOY.md
 - NETWORK_QOS.md

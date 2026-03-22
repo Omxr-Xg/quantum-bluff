@@ -10,7 +10,7 @@
 {
   playerCards: Card[];           // 2 cartes du bot
   communityCards: Card[];        // Cartes communes (0, 3, 4 ou 5)
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
   currentBet: number;            // Mise actuelle
   playerChips: number;           // Jetons restants du bot
   callAmount: number;            // Montant à suivre
@@ -93,6 +93,6 @@ const handleBotTurn = async (botId: string) => {
 // types/bot.ts
 export interface BotPlayer extends Player {
   isBot: true;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
 }
 ```
