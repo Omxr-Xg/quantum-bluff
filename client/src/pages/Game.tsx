@@ -314,7 +314,7 @@ export function Game() {
           chips: startChips,
           bet: 0,
           position: i,
-          isActive: true,
+          isActive: false,
           isDealer: false,
           cards: [],
           isBot: true,
@@ -342,6 +342,8 @@ export function Game() {
       const dealerIndex = Math.floor(Math.random() * totalPlayers);
       allPlayers[dealerIndex].isDealer = true;
 
+      // Même logique que le serveur (GameTable) : après le dealer → SB (auto), puis BB (auto), puis action.
+      // Heads-up : dealer = SB, l’autre = BB ; preflop commence par le SB (dealer).
       const sbIdx = totalPlayers === 2 ? dealerIndex : (dealerIndex + 1) % totalPlayers;
       const bbIdx = totalPlayers === 2 ? (dealerIndex + 1) % totalPlayers : (dealerIndex + 2) % totalPlayers;
 
@@ -392,6 +394,16 @@ export function Game() {
     heroPlayer != null && typeof heroPlayer.chips === "number" ? heroPlayer.chips : playerChips;
 
   playersStateRef.current = activePlayers;
+
+  /** Premier à parler post-flop : SB (heads-up = dealer), sinon siège SB = à gauche du dealer (GameTable.getPostflopFirstPlayerId). */
+  const getPostflopFirstActIndex = (): number => {
+    const players = playersStateRef.current;
+    if (!players || players.length < 2) return 0;
+    const dealerIdx = players.findIndex((p) => p.isDealer);
+    if (dealerIdx === -1) return 0;
+    if (players.length === 2) return dealerIdx;
+    return (dealerIdx + 1) % players.length;
+  };
 
   const heroCards = tablePlayers.find((p) => isHero(p))?.cards || [];
   const communityCards = communityCardsState;
@@ -461,11 +473,9 @@ export function Game() {
     });
   };
 
-  const getPostflopFirstAct = () => (playersState.length === 2 ? 0 : 1);
-
   const dealFlop = (runOutOnly?: boolean) => {
     setPhase("flop");
-      if (!runOutOnly) resetBetsAndSetFirstToAct(0);
+      if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -483,7 +493,7 @@ export function Game() {
 
   const dealTurn = (runOutOnly?: boolean) => {
     setPhase("turn");
-      if (!runOutOnly) resetBetsAndSetFirstToAct(0);
+      if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -497,7 +507,7 @@ export function Game() {
 
   const dealRiver = (runOutOnly?: boolean) => {
     setPhase("river");
-    if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstAct());
+    if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -1249,7 +1259,7 @@ export function Game() {
 
       if (runOutPhase === "preflop") {
         setPhase("flop");
-        resetBetsAndSetFirstToAct(0);
+        resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
         currentDeck.shift(); 
         for (let i = 0; i < 3; i++) {
           const card = currentDeck.shift();
