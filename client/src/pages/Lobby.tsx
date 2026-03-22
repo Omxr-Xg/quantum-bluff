@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bot, Server, Loader2, X, Trash2, Lock, Globe, Minus, Plus, Eye, ChevronDown, ChevronUp, Settings2, XCircle } from "lucide-react";
@@ -7,6 +7,7 @@ import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
+import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
@@ -58,7 +59,30 @@ export function Lobby() {
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
   const [gamesInProgress, setGamesInProgress] = useState<GameInProgressItem[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
+  const [lobbyTourOpen, setLobbyTourOpen] = useState(false);
+  const [lobbyTourStep, setLobbyTourStep] = useState(0);
   const { addToast } = useToast();
+
+  const tourRefHeader = useRef<HTMLDivElement>(null);
+  const tourRefTopBar = useRef<HTMLDivElement>(null);
+  const tourRefBot = useRef<HTMLDivElement>(null);
+  const tourRefMultiplayer = useRef<HTMLDivElement>(null);
+  const tourRefWaiting = useRef<HTMLDivElement>(null);
+  const tourRefGames = useRef<HTMLDivElement>(null);
+  const tourRefFriends = useRef<HTMLDivElement>(null);
+
+  const lobbyTourRefs = useMemo(
+    () => ({
+      header: tourRefHeader,
+      topBar: tourRefTopBar,
+      bot: tourRefBot,
+      multiplayer: tourRefMultiplayer,
+      waitingRooms: tourRefWaiting,
+      gamesInProgress: tourRefGames,
+      friends: tourRefFriends,
+    }),
+    []
+  );
 
   const fetchGamesInProgress = useCallback(async () => {
     try {
@@ -234,7 +258,7 @@ export function Lobby() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 w-full overflow-visible">
 
           {/* Côté Gauche (Logo + Titre) */}
-          <div className="flex items-center gap-4 w-full md:w-auto">
+          <div ref={tourRefHeader} className="flex items-center gap-4 w-full md:w-auto">
             <QuantumBluffLogo className="w-12 h-12 md:w-16 md:h-16 shrink-0" />
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl md:text-4xl font-bold text-purple-400 truncate">
@@ -247,7 +271,7 @@ export function Lobby() {
           </div>
 
           {/* Côté Droit : menu intégré (langue, argent, profil, amis, quitter) */}
-          <div className="flex items-center gap-3 flex-wrap justify-end">
+          <div ref={tourRefTopBar} className="flex items-center gap-3 flex-wrap justify-end">
             {menuContent}
           </div>
         </div>
@@ -427,7 +451,7 @@ export function Lobby() {
           <div className="lg:col-span-2 space-y-6">
 
             {/* Section Jouer contre Bot */}
-            <div className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
+            <div ref={tourRefBot} className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
               <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
                 <Bot className="w-8 h-8 text-purple-400"/>
                 {t('lobby.playBot')}
@@ -442,7 +466,7 @@ export function Lobby() {
             </div>
 
             {/* Section Serveur Multi-joueurs */}
-            <div className="bg-slate-800 rounded-2xl p-6 border border-green-500">
+            <div ref={tourRefMultiplayer} className="bg-slate-800 rounded-2xl p-6 border border-green-500">
               <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
                 <Server className="w-8 h-8 text-green-400"/>
                 {t('lobby.multiplayerServers')}
@@ -459,7 +483,7 @@ export function Lobby() {
                 </button>
 
                 {/* Salles d'attente */}
-                <div className="bg-slate-700/50 p-4 rounded-xl mb-4">
+                <div ref={tourRefWaiting} className="bg-slate-700/50 p-4 rounded-xl mb-4">
                   <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.waitingRooms')}</p>
                   {roomsLoading && rooms.length === 0 ? (
                     <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
@@ -539,7 +563,7 @@ export function Lobby() {
                 </div>
 
                 {/* Parties en cours */}
-                <div className="bg-slate-700/50 p-4 rounded-xl">
+                <div ref={tourRefGames} className="bg-slate-700/50 p-4 rounded-xl">
                   <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.gamesInProgress')}</p>
                   {gamesLoading && gamesInProgress.length === 0 ? (
                     <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
@@ -588,13 +612,38 @@ export function Lobby() {
           </div>
 
           {/* Colonne de droite (1/3) - Amis */}
-          <div className="lg:col-span-1">
+          <div ref={tourRefFriends} className="lg:col-span-1">
             <FriendsList />
           </div>
 
         </div>
 
       </div>
+
+      {/* Tutoriel interactif — bouton fixe bas-gauche */}
+      <button
+        type="button"
+        onClick={() => {
+          if (lobbyTourOpen) setLobbyTourOpen(false);
+          else {
+            setLobbyTourStep(0);
+            setLobbyTourOpen(true);
+          }
+        }}
+        className="fixed bottom-5 left-5 z-[260] flex h-12 w-12 items-center justify-center rounded-full border-2 border-purple-400/90 bg-purple-950/95 text-lg font-bold text-purple-100 shadow-xl backdrop-blur-sm transition hover:border-purple-300 hover:bg-purple-800/95 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+        aria-label={t('lobby.help.openAria')}
+        title={t('lobby.help.openAria')}
+      >
+        <span aria-hidden className="select-none">?</span>
+      </button>
+
+      <LobbyInteractiveTour
+        open={lobbyTourOpen}
+        onClose={() => setLobbyTourOpen(false)}
+        step={lobbyTourStep}
+        onStepChange={setLobbyTourStep}
+        refs={lobbyTourRefs}
+      />
 
     </div>
   );
