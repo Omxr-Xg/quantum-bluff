@@ -267,22 +267,24 @@ export function RoundTransition({
             </motion.div>
           )}
 
-          {/* Barre de progression en bas */}
-          <motion.div
-            className="absolute bottom-12 left-1/2 -translate-x-1/2 w-96"
-            initial={{ scaleX: 0, opacity: 0 }}
-            animate={{ scaleX: 1, opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-          >
-            <div className="h-2 bg-slate-800/50 rounded-full overflow-hidden border border-yellow-500/20">
-              <motion.div
-                className="h-full bg-gradient-to-r from-yellow-600 via-yellow-500 to-amber-600 shadow-[0_0_20px_rgba(251,191,36,0.6)]"
-                initial={{ width: "100%" }}
-                animate={{ width: "0%" }}
-                transition={{ duration: duration, ease: "linear" }}
-              />
-            </div>
-          </motion.div>
+          {/* Barre de progression en bas — flex pour centrer (évite conflit transform scaleX / translate) */}
+          <div className="pointer-events-none absolute bottom-12 left-0 right-0 flex justify-center px-4">
+            <motion.div
+              className="w-full max-w-md origin-center"
+              initial={{ scaleX: 0, opacity: 0 }}
+              animate={{ scaleX: 1, opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+            >
+              <div className="h-2 w-full bg-slate-800/50 rounded-full overflow-hidden border border-yellow-500/20">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-yellow-600 via-yellow-500 to-amber-600 shadow-[0_0_20px_rgba(251,191,36,0.6)]"
+                  initial={{ width: "100%" }}
+                  animate={{ width: "0%" }}
+                  transition={{ duration: duration, ease: "linear" }}
+                />
+              </div>
+            </motion.div>
+          </div>
         </div>
 
         {/* Effet de lumière rayonnante */}
