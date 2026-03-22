@@ -137,6 +137,8 @@ export function Game() {
     handRank: number;
     pot: number;
     isSplit?: boolean;
+    /** Pas d’attente abattage (ex. adversaire parti) */
+    skipRevealDelay?: boolean;
   } | null>(null);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
   const [runOutPhase, setRunOutPhase] = useState<GamePhase | null>(null);
@@ -230,17 +232,22 @@ export function Game() {
   const SB = 50;
   const BB = 100;
 
-  // ⚡ NOUVEAU : INTERCEPTEUR DE FIN DE MANCHE (CORRIGÉ SANS LE "y")
+  /** Après l’abattage, attendre avant d’afficher l’écran « gagnant » / transition (cartes visibles au tapis). */
+  const SHOWDOWN_REVEAL_MS = 3000;
+
   useEffect(() => {
-    if (showdownResult && !showTransition) {
+    if (!showdownResult || showTransition) return;
+    const delayMs = showdownResult.skipRevealDelay ? 0 : SHOWDOWN_REVEAL_MS;
+    const id = window.setTimeout(() => {
       setLastWinnerData({
         name: showdownResult.winnerName,
-        amount: showdownResult.pot
+        amount: showdownResult.pot,
       });
       setShowTransition(true);
       setShowdownResult(null);
-      setHandResult(null); 
-    }
+      setHandResult(null);
+    }, delayMs);
+    return () => clearTimeout(id);
   }, [showdownResult, showTransition]);
 
   const openAddMoney = () => {
@@ -861,6 +868,7 @@ export function Game() {
             hand: t('game.opponentLeft'),
             handRank: 0,
             pot: data.pot ?? 0,
+            skipRevealDelay: true,
           };
         });
       }
@@ -2446,6 +2454,16 @@ export function Game() {
           />
         </PokerTable>
       </div>
+
+      {showdownResult && !showTransition && !showdownResult.skipRevealDelay && (
+        <div
+          className="pointer-events-none fixed bottom-28 left-1/2 z-[130] -translate-x-1/2 rounded-xl border border-amber-500/40 bg-slate-900/95 px-4 py-2 shadow-lg"
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-center text-sm font-semibold text-amber-200">{t("game.showdownRevealBanner")}</p>
+        </div>
+      )}
 
       <QuantumHUD isOpen={isQuantumOpen} onToggle={() => setIsQuantumOpen(!isQuantumOpen)} />
       <HiddenBetsPanel isOpen={isPanelOpen} onToggle={() => setIsPanelOpen(!isPanelOpen)} players={activePlayers} />
