@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
-import { logoDataUrl } from "../assets/logo";
+import { useTranslation } from "react-i18next";
+import { ChipIcon } from "./ChipIcon";
 import logoSrc from "../assets/logo-personnel.png";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
@@ -32,6 +33,9 @@ interface PokerTableProps {
   children?: ReactNode;
   communitySafeZone?: number;
   phase?: string;
+  /** Nombre de cartes brûlées à afficher face cachée dans le conteneur dédié */
+  burnedCardsCount?: number;
+  colorblindMode?: boolean;
 }
 
 // Dimensions de base (référence pour le calcul des positions)
@@ -43,8 +47,10 @@ export function PokerTable({
   children,
   communitySafeZone: _communitySafeZone = 180,
   phase,
+  burnedCardsCount = 0,
+  colorblindMode = false,
 }: PokerTableProps) {
-
+  const { t } = useTranslation();
   const isShowdown = phase === "showdown";
 
   const deviceType = useDeviceType();
@@ -99,6 +105,32 @@ export function PokerTable({
           aspectRatio: `${BASE_TABLE_WIDTH} / ${BASE_TABLE_HEIGHT}`,
         }}
       >
+        {/* Conteneur cartes brûlées - à gauche de la table, face cachée */}
+        {burnedCardsCount > 0 && (
+          <div
+            className="absolute right-full mr-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 pointer-events-none"
+            title={t('game.burned')}
+            aria-label={t('game.burnedCount', { count: burnedCardsCount })}
+          >
+            <span className="text-[10px] md:text-xs text-amber-200/90 font-medium uppercase tracking-wide">{t('game.burned')}</span>
+            <div className="flex -space-x-2 md:-space-x-3">
+              {Array.from({ length: Math.min(burnedCardsCount, 5) }).map((_, i) => (
+                <PokerCard
+                  key={i}
+                  suit="hearts"
+                  value="A"
+                  size="xs"
+                  faceDown
+                  className="shadow-md"
+                />
+              ))}
+              {burnedCardsCount > 5 && (
+                <span className="text-amber-200/80 text-[10px] self-center pl-1">+{burnedCardsCount - 5}</span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* TABLE - remplit le wrapper */}
         <div
           className="relative w-full h-full rounded-full border-[clamp(3px,1vw,8px)] border-amber-900/80"
@@ -158,11 +190,21 @@ export function PokerTable({
 
               <div className="flex flex-col items-center gap-2">
 
+                {/* DEALER BUTTON - simple marqueur de position (disque blanc avec D) */}
+                {player.isDealer && (
+                  <div
+                    className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-full bg-white border-2 border-slate-300 text-slate-700 font-bold text-xs md:text-sm shadow-md"
+                    title={t('game.dealer')}
+                  >
+                    D
+                  </div>
+                )}
+
                 {/* TURN INDICATOR */}
                 {player.isActive && (
                   <div className="inline-flex items-center gap-1 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold animate-pulse">
                     <Clock className="w-3 h-3 animate-pulse" />
-                    SON TOUR
+                    {t('game.theirTurn')}
                   </div>
                 )}
 
@@ -195,7 +237,7 @@ export function PokerTable({
                     className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-800 ${
                       player.isConnected !== false ? "bg-green-500 animate-pulse" : "bg-red-500"
                     }`}
-                    title={player.isConnected !== false ? "En ligne" : "Hors ligne"}
+                    title={player.isConnected !== false ? t('friends.online') : t('friends.offline')}
                     aria-hidden="true"
                   />
 
@@ -216,18 +258,14 @@ export function PokerTable({
                 {/* CHIPS */}
                 <div className="flex items-center gap-1 text-white text-sm font-bold transition hover:scale-105">
 
-                  <img
-                    src={logoDataUrl}
-                    alt="token"
-                    className="w-4 h-4"
-                  />
+                  <ChipIcon size="sm" />
 
                   {player.chips.toLocaleString()}
 
                 </div>
 
                 {/* PLAYER CARDS - hidden for hero (shown in PlayerDashboard), hidden when folded */}
-                {player.cards && player.cards.length > 0 && !player.hasFolded && (player.position !== 0 && player.name !== "Vous") && (
+                {player.cards && player.cards.length > 0 && !player.hasFolded && (player.position !== 0 && player.name !== "Vous" && player.name !== "you") && (
                   <div className="flex gap-1">
                     {player.cards.map((card, index) => (
                       <PokerCard
@@ -236,6 +274,7 @@ export function PokerTable({
                         value={card.value}
                         size="sm"
                         faceDown={!isShowdown}
+                        colorblindMode={colorblindMode}
                       />
                     ))}
                   </div>

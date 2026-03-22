@@ -1,34 +1,51 @@
-## 📌 Description
-<!-- Explique clairement ce que fait cette MR -->
+## Description
 
-## 🔗 Lien vers l'issue
-<!-- Closes #123 -->
+<!-- Explique clairement ce que fait cette MR et pourquoi -->
 
-## ✅ Type de changement
-- [ ] Feature (nouvelle fonctionnalité)
-- [ ] Fix (correction de bug)
-- [ ] Refactor (pas de changement fonctionnel)
-- [ ] Docs (documentation)
-- [ ] Chore (maintenance technique)
-- [ ] Hotfix (urgence)
+## Lien vers la tâche
 
-## 🧪 Comment tester
-<!-- Étapes pour tester manuellement -->
+<!-- Closes #123 ou Fixes #123 -->
 
-## ✅ Checklist
-- [ ] Tests unitaires ajoutés/mis à jour
-- [ ] Documentation mise à jour
+## Type de changement
+
+- [ ] **Feature** — nouvelle fonctionnalité
+- [ ] **Fix** — correction de bug
+- [ ] **Refactor** — modification du code sans changement fonctionnel
+- [ ] **Docs** — documentation uniquement
+- [ ] **Chore** — maintenance (deps, config, etc.)
+- [ ] **Hotfix** — correction urgente en production
+
+## Modifications principales
+
+<!-- Liste les fichiers/sections impactés et les changements clés -->
+
+## Comment tester
+
+1. ...
+2. ...
+3. ...
+
+## Checklist
+
+- [ ] Code relu et conforme aux conventions du projet
+- [ ] Tests ajoutés ou mis à jour si nécessaire
+- [ ] Documentation mise à jour (si applicable)
 - [ ] Pipeline CI vert
-- [ ] Relu par un reviewer
+- [ ] Pas de régression détectée
 
-## 👥 Reviewers requis
-<!-- Sélectionne selon les sections modifiées -->
+## Impact potentiel
+
+- [ ] Breaking change — migration nécessaire
+- [ ] Performance — impacts à surveiller
+- [ ] Sécurité — audit recommandé
+
+## Reviewers
+
+<!-- Coche selon les zones modifiées -->
+
 - [ ] Backend (@azra, @soheil)
 - [ ] Frontend (@mohamed, @yigit)
 - [ ] Sécurité (@linda, @massi)
 - [ ] BDD (@elhadj)
-
-## 🚨 Impact potentiel
-- [ ] Breaking change
-- [ ] Performance
-- [ ] Sécurité
+- [ ] Revue générale (@aguech)
+- [ ] Validation chef de projet (@omar)

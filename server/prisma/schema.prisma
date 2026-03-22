@@ -33,6 +33,7 @@ datasource db {
 }
 
 model User {
+<<<<<<< HEAD
   id                 String          @id @default(uuid())
   username           String          @unique
   email              String          @unique
@@ -51,6 +52,18 @@ model User {
   playerStats        PlayerStats?
   stats              UserStats?
   roomPlayers        RoomPlayer[]
+=======
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  /// 1–10 : index de la question secrète (récupération mot de passe)
+  secretQuestionId  Int?
+  secretAnswerHash  String?
+  chips     Int      @default(1000)
+  level     Int      @default(1)
+  totpSecret String? // 2FA TOTP secret (optionnel)
+>>>>>>> f12c073ce9ab21f80281efcf3ff98b75c892e16f
 
 <<<<<<< Updated upstream
   stats     UserStats?
@@ -268,6 +281,9 @@ model WaitingRoom {
   maxPlayers   Int            @default(5)
   visibility   RoomVisibility @default(PUBLIC)
   status       RoomStatus     @default(WAITING)
+  smallBlind   Int?           // Small blind (optionnel, défaut serveur)
+  bigBlind     Int?           // Big blind / relance minimale
+  minBalance   Int?           // Solde minimal pour rejoindre
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 

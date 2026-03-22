@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
@@ -10,24 +10,30 @@ import { useQuantumHUD } from "../contexts/QuantumHUDContext";
 import { PokerChat } from "../components/PokerChat";
 import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
-import { AccessibilityMenu } from "../components/AccessibilityMenu";
-import { useAccessibility } from "../contexts/AccessibilityContext";
-import { useSocket } from "../contexts/SocketContext";
+import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
+import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, Eye, Plus, MessageCircle, X, LogOut, Palette, Bell, HelpCircle, Sparkles, Trophy, Frown, Activity } from "lucide-react";
+import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, Sparkles, Trophy, Frown, Activity } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { ShowdownDisplay } from "../components/ShowdownDisplay";
+import { ChipIcon } from "../components/ChipIcon";
 import { PokerCard } from "../components/PokerCard";
 import { useUser } from "../hooks/useUser";
-import { addToUserBalance, getUserBalance } from "../utils/userProfile";
+import { useAccessibility } from "../contexts/AccessibilityContext";
+import { addToUserBalance, addDevMoney, getUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
+import { RoundTransition } from "../components/RoundTransition";
+import { GameInteractiveTour } from "../components/GameInteractiveTour";
+import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
 
 type Card = ClientCard;
+
+const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
 interface ChatMessage {
   id: number;
@@ -66,10 +72,10 @@ export function Game() {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode");
   const gameIdParam = searchParams.get("gameId");
+  const isSpectating = searchParams.get("spectate") === "1";
   const isBotMode = mode === "bot";
   const { userId } = useUser();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
-  /** Multiplicateur de gain sur le solde : bot facile 0.3, moyen 0.6, difficile 0.9, expert 1 ; vs humain 1 */
   const difficultyParam = searchParams.get("difficulty") || "moyen";
   const winMultiplier = gameIdParam
     ? 1
@@ -96,17 +102,20 @@ export function Game() {
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [playersState, setPlayersState] = useState<(BasePlayer | BotPlayer)[]>([]);
-  const [showAccessibilityMenu, setShowAccessibilityMenu] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
-  const [showGameHelp, setShowGameHelp] = useState(false);
+  const [gameTourOpen, setGameTourOpen] = useState(false);
+  const [gameTourStep, setGameTourStep] = useState(0);
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
+  const [devValidation, setDevValidation] = useState("");
+  const [addSuccess, setAddSuccess] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const [_timerActive, setTimerActive] = useState(false);
-  /** Mise maximale actuelle (pour l'API bot) = max des bets des joueurs */
   const currentBet = useMemo(() => Math.max(0, ...playersState.map((p) => p.bet ?? 0)), [playersState]);
   
-  // Nouveaux états pour les animations de cartes
   const [phase, setPhase] = useState<GamePhase>("init");
   const [communityCardsState, setCommunityCardsState] = useState<(Card | null)[]>([null, null, null, null, null]);
+  const [burnedCardsCount, setBurnedCardsCount] = useState(0);
   const [deck, setDeck] = useState<Card[]>([]);
   const [shuffleCount, setShuffleCount] = useState(0);
   const [, _setDealingCard] = useState<number | null>(null);
@@ -114,7 +123,11 @@ export function Game() {
   const [gameInitialized, setGameInitialized] = useState(false);
   const [handResult, setHandResult] = useState<"win" | "loss" | null>(null);
   const [handResultData, setHandResultData] = useState<{ winnerName: string; handName: string } | null>(null);
-  /** Un joueur éliminé (0 jetons) : partie terminée (scénario 2.1) */
+
+  const [showTransition, setShowTransition] = useState(false);
+  const [roundCount, setRoundCount] = useState(1);
+  const [lastWinnerData, setLastWinnerData] = useState<{name: string, amount: number} | undefined>(undefined);
+
   const [gameOverReason, setGameOverReason] = useState<"human_eliminated" | "bot_eliminated" | null>(null);
   const [showdownResult, setShowdownResult] = useState<{
     winnerId: string;
@@ -126,7 +139,6 @@ export function Game() {
     isSplit?: boolean;
   } | null>(null);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
-  /** Après un all-in suivi : run-out du board sans nouveau tour de mise (preflop -> flop -> turn -> river -> showdown) */
   const [runOutPhase, setRunOutPhase] = useState<GamePhase | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseRef = useRef(phase);
@@ -140,13 +152,10 @@ export function Game() {
   const communityCardsStateRef = useRef<(Card | null)[]>([]);
   const startOfHandChipsRef = useRef(0);
   const hasSetStartOfHandThisHandRef = useRef(false);
-  /** Évite d'annuler le setTimeout(dealFlop/dealTurn/…) quand l'effet re-run après que le bot agit */
   const streetTransitionScheduledRef = useRef<string | null>(null);
   const streetTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const doStreetTransitionRef = useRef<(() => void) | null>(null);
-  /** Timestamp d'entrée dans la street actuelle (flop/turn/river) pour détecter les blocages en mode bot */
   const streetPhaseEnteredRef = useRef<number>(0);
-  /** Mode bot : les deux ont agi (preflop égalisé), ne pas redonner la main au joueur */
   const bothActedNoTurnRef = useRef(false);
   const toAddLastRef = useRef(0);
   const botIsFetchingRef = useRef(false);
@@ -155,7 +164,6 @@ export function Game() {
   const showdownResultRef = useRef<typeof showdownResult>(null);
   showdownResultRef.current = showdownResult;
   const [showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
-  /** Multiplayer: données du showdown en attente (révélation 3s avant d'afficher le modal) */
   const [pendingShowdownData, setPendingShowdownData] = useState<{
     winnerId: string;
     winnerIds?: string[];
@@ -165,22 +173,55 @@ export function Game() {
     winnerCards: Card[];
     isSplit?: boolean;
   } | null>(null);
-  /** Track total chips contributed per player across all streets (for side pot calculation) */
   const handContributionsRef = useRef<Record<string, number>>({});
   const [sidePots, setSidePots] = useState<{ amount: number; eligibleIds: string[] }[]>([]);
-  /** Multi: host peut relancer avec les mêmes membres */
   const [isRematchHost, setIsRematchHost] = useState(false);
   const [rematchLoading, setRematchLoading] = useState(false);
-  /** Skip la révélation du showdown : appelle cette ref pour passer au résultat */
+  const [cashCountdownEndsAt, setCashCountdownEndsAt] = useState<number | null>(null);
+  const [cashSeats, setCashSeats] = useState<{ seatIndex: number; userId: string | null; username: string | null; chips: number }[]>([]);
+  const [cashWaitingPlayers, setCashWaitingPlayers] = useState(false);
+  const [spectatorWantsToRejoin, setSpectatorWantsToRejoin] = useState(false);
   const showdownSkipRef = useRef<(() => void) | null>(null);
-  /** Multi: timeouts pour l'animation du flop carte par carte */
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  /** Multi: évite de rejouer l'animation flop à chaque GAME_UPDATE (changement de tour) */
   const flopAnimatedRef = useRef(false);
 
-  // Hook d'accessibilité
-  const { highContrast, toggleHighContrast, visualAlerts, toggleVisualAlerts, colorblindMode, toggleColorblindMode } = useAccessibility();
+  const tourRefHeader = useRef<HTMLDivElement>(null);
+  const tourRefTable = useRef<HTMLDivElement>(null);
+  const tourRefPot = useRef<HTMLDivElement>(null);
+  const tourRefBoard = useRef<HTMLDivElement>(null);
+  const tourRefActions = useRef<HTMLDivElement>(null);
+  const menuContainerRef = useRef<HTMLDivElement>(null);
+
+  const gameTourRefs = useMemo(
+    () => ({
+      header: tourRefHeader,
+      table: tourRefTable,
+      pot: tourRefPot,
+      board: tourRefBoard,
+      actions: tourRefActions,
+    }),
+    []
+  );
+
+  const startGameTour = useCallback(() => {
+    setShowMenu(false);
+    setGameTourStep(0);
+    setGameTourOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = menuContainerRef.current;
+      if (el && !el.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [showMenu]);
+
+  const { colorblindMode } = useAccessibility();
   const { addToast } = useToast();
+  const { openAccessibilityMenu } = useAccessibilityMenuOpen() ?? { openAccessibilityMenu: () => {} };
 
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
@@ -188,7 +229,44 @@ export function Game() {
 
   const SB = 50;
   const BB = 100;
-  const BOT_START_CHIPS = 1000;
+
+  // ⚡ NOUVEAU : INTERCEPTEUR DE FIN DE MANCHE (CORRIGÉ SANS LE "y")
+  useEffect(() => {
+    if (showdownResult && !showTransition) {
+      setLastWinnerData({
+        name: showdownResult.winnerName,
+        amount: showdownResult.pot
+      });
+      setShowTransition(true);
+      setShowdownResult(null);
+      setHandResult(null); 
+    }
+  }, [showdownResult, showTransition]);
+
+  const openAddMoney = () => {
+    setShowAddMoney(true);
+    setAddMoneyAmount(null);
+    setDevValidation("");
+    setAddSuccess(false);
+  };
+
+  const closeAddMoney = () => {
+    setShowAddMoney(false);
+    setAddMoneyAmount(null);
+    setDevValidation("");
+    setAddSuccess(false);
+  };
+
+  const submitAddMoney = async () => {
+    if (addMoneyAmount == null || addMoneyAmount <= 0) return;
+    if (devValidation.trim().toLowerCase() !== "dev") return;
+    const newBalance = mode === "bot"
+      ? addToUserBalance(addMoneyAmount)
+      : await addDevMoney(addMoneyAmount);
+    if (mode === "bot") setPlayerChips(newBalance);
+    setAddSuccess(true);
+    setTimeout(() => closeAddMoney(), 800);
+  };
 
   const getPlayers = (): (BasePlayer | BotPlayer)[] => {
     const count = parseInt(searchParams.get("bots") || "1", 10);
@@ -212,7 +290,7 @@ export function Game() {
           bet: 0,
           position: i,
           isActive: true,
-          isDealer: true,
+          isDealer: false,
           cards: [],
           isBot: true,
           difficulty: diffMap,
@@ -225,8 +303,8 @@ export function Game() {
       allPlayers.push({
         id: "human",
         name: "Vous",
-        chips: playerChips - BB,
-        bet: BB,
+        chips: playerChips,
+        bet: 0,
         position: count,
         isActive: false,
         isDealer: false,
@@ -236,26 +314,19 @@ export function Game() {
         role: "PLAYER",
       });
 
-      // Heads-up: index 0 = Dealer/SB, index 1 = BB
-      if (totalPlayers === 2) {
-        allPlayers[0].role = "SB";
-        allPlayers[0].bet = SB;
-        allPlayers[0].chips -= SB;
-        allPlayers[1].role = "BB";
-        allPlayers[1].bet = BB;
-        allPlayers[1].chips -= BB;
-      } else {
-        // 3+: index 0 = Dealer, index 1 = SB, index 2 = BB
-        allPlayers[1].role = "SB";
-        allPlayers[1].bet = SB;
-        allPlayers[1].chips -= SB;
-        allPlayers[2].role = "BB";
-        allPlayers[2].bet = BB;
-        allPlayers[2].chips -= BB;
-      }
+      const dealerIndex = Math.floor(Math.random() * totalPlayers);
+      allPlayers[dealerIndex].isDealer = true;
 
-      // Preflop first-to-act: player after BB
-      const bbIdx = allPlayers.findIndex((p) => p.role === "BB");
+      const sbIdx = totalPlayers === 2 ? dealerIndex : (dealerIndex + 1) % totalPlayers;
+      const bbIdx = totalPlayers === 2 ? (dealerIndex + 1) % totalPlayers : (dealerIndex + 2) % totalPlayers;
+
+      allPlayers[sbIdx].role = "SB";
+      allPlayers[sbIdx].bet = SB;
+      allPlayers[sbIdx].chips = (allPlayers[sbIdx].chips ?? 0) - SB;
+      allPlayers[bbIdx].role = "BB";
+      allPlayers[bbIdx].bet = BB;
+      allPlayers[bbIdx].chips = (allPlayers[bbIdx].chips ?? 0) - BB;
+
       const firstToAct = (bbIdx + 1) % totalPlayers;
       allPlayers[firstToAct].isActive = true;
 
@@ -264,7 +335,6 @@ export function Game() {
     return [];
   };
 
-  // Déclarations dérivées AVANT les useEffect qui les utilisent (évite "Cannot access before initialization")
   const activePlayers = playersState.length > 0 ? playersState : getPlayers();
   const activePlayer = activePlayers.find((p) => p.isActive);
   const callAmount = useMemo(() => {
@@ -290,7 +360,7 @@ export function Game() {
         activePlayer.id === "human")
   );
   const heroPlayer = activePlayers.find((p) => isHero(p));
-  const heroDisplayName = heroPlayer?.name ?? "Vous";
+  const heroDisplayName = heroPlayer?.name === "Vous" || heroPlayer?.name === "you" ? t('game.you') : (heroPlayer?.name ?? t('game.you'));
   const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
 
   playersStateRef.current = activePlayers;
@@ -298,22 +368,22 @@ export function Game() {
   const heroCards = tablePlayers.find((p) => isHero(p))?.cards || [];
   const communityCards = communityCardsState;
 
-  // Générer un jeu de cartes complet
+  const displayBurnedCardsCount = gameIdParam
+    ? burnedCardsCount
+    : (phase === "flop" ? 1 : phase === "turn" ? 2 : phase === "river" || phase === "showdown" ? 3 : 0);
+
   const generateDeck = (): Card[] => {
     const suits: Array<"hearts" | "diamonds" | "clubs" | "spades"> = ["hearts", "diamonds", "clubs", "spades"];
     const values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
     const newDeck: Card[] = [];
-    
     for (const suit of suits) {
       for (const value of values) {
         newDeck.push({ suit, value });
       }
     }
-    
     return newDeck.sort(() => Math.random() - 0.5);
   };
 
-  // Distribution des cartes aux joueurs (utilise le deck et les joueurs passés en argument)
   const dealCardsToPlayers = (currentDeck: Card[], currentPlayers: (BasePlayer | BotPlayer)[]) => {
     const newDeck = [...currentDeck];
     const updatedPlayers = currentPlayers.map((p) => ({ ...p, cards: [...(p.cards || [])] }));
@@ -342,7 +412,6 @@ export function Game() {
     }, 250);
   };
 
-  /** Track contribution: add amount to a player's hand total */
   const addContribution = (playerId: string | number, amount: number) => {
     const key = String(playerId);
     handContributionsRef.current[key] = (handContributionsRef.current[key] ?? 0) + amount;
@@ -364,11 +433,8 @@ export function Game() {
     });
   };
 
-  // Postflop: heads-up → dealer (index 0) first; multi-player → SB (index 1) first
   const getPostflopFirstAct = () => (playersState.length === 2 ? 0 : 1);
 
-  // Distribution du flop (3 cartes)
-  // runOutOnly = true : après un all-in, on distribue les cartes sans donner la main à personne
   const dealFlop = (runOutOnly?: boolean) => {
     setPhase("flop");
       if (!runOutOnly) resetBetsAndSetFirstToAct(0);
@@ -459,17 +525,13 @@ export function Game() {
         handContributionsRef.current = contribs;
       }
     };
-    // Mode bot : différer d'un frame pour éviter blocage config → jeu (React doit finir le mount)
     if (mode === "bot" && !gameIdParam) {
-      const id = requestAnimationFrame(() => {
-        runInit();
-      });
-      return () => cancelAnimationFrame(id);
+      const t = setTimeout(runInit, 0);
+      return () => clearTimeout(t);
     }
     runInit();
-  }, [mode, gameIdParam]);
+  }, [mode, gameIdParam, searchParams.get("bots") ?? "", searchParams.get("difficulty") ?? "", searchParams.get("botChips") ?? ""]);
 
-  // Rejouer avec la même configuration (bouton overlay, mode bot uniquement)
   useEffect(() => {
     const replay = (location.state as { replay?: boolean })?.replay;
     if (!replay || !isBotMode) return;
@@ -499,6 +561,7 @@ export function Game() {
     initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
     handContributionsRef.current = contribs;
     setCommunityCardsState([null, null, null, null, null]);
+    setBurnedCardsCount(0);
     hasSetStartOfHandThisHandRef.current = false;
     streetTransitionScheduledRef.current = null;
     if (streetTransitionTimeoutRef.current) {
@@ -508,11 +571,10 @@ export function Game() {
     navigate(location.pathname + location.search, { replace: true, state: {} });
   }, [location.state, isBotMode]);
 
-  // Multijoueur : récupérer l'état du jeu depuis le backend (évite race localStorage + cartes / phase / pot)
   useEffect(() => {
-    if (!gameIdParam || !userId) return;
-    const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
-    const url = `${baseUrl}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
+    if (!gameIdParam || isSpectating || !userId) return;
+    const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+    const url = `${apiBase}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
     let cancelled = false;
     fetch(url, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
@@ -559,11 +621,11 @@ export function Game() {
         }
         const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
         setPhase(phase as GamePhase);
+        setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
         cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
-        // Flop carte par carte en multijoueur (comme en mode bot)
         if (phase === "flop" && arr[0] && arr[1] && arr[2] && !arr[3] && !arr[4]) {
           flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
           flopAnimateTimeoutsRef.current = [];
@@ -585,12 +647,16 @@ export function Game() {
         if (!cancelled) console.error("Erreur récupération état partie:", err);
       });
     return () => { cancelled = true; };
-  }, [gameIdParam, userId, navigate]);
+  }, [gameIdParam, userId, navigate, isSpectating]);
 
-  // Rejoindre la room socket pour recevoir GAME_UPDATE, TURN_TIMER, GAME_CHAT
   useEffect(() => {
-    if (!socket || !gameIdParam || !userId) return;
-    socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+    if (!socket || !gameIdParam) return;
+    if (isSpectating) {
+      socket.emit("JOIN_SPECTATE", { gameId: gameIdParam });
+    } else {
+      if (!userId) return;
+      socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+    }
 
     const onChatMessage = (data: { playerId: string; playerName: string; content: string; type: "emoji" | "text" }) => {
       const id = Date.now();
@@ -615,7 +681,6 @@ export function Game() {
       if (payload?.code === "GAME_NOT_FOUND") {
         navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
       }
-        // Si le serveur refuse l'action (ex: pas assez de jetons, pas votre tour)
         else if (payload?.code === "ACTION_ERROR" || payload?.code === "INVALID_RAISE" || payload?.code === "TOO_MANY_ACTIONS") {
           addToast(payload?.message || t('common.error'), "error");
           setIsLoading(false);
@@ -627,11 +692,11 @@ export function Game() {
       socket.off("GAME_CHAT", onChatMessage);
       socket.off("ERROR", onError);
     };
-  }, [socket, gameIdParam, userId, navigate, addToast, t]);
+  }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating]);
 
-  // Appliquer les mises à jour d'état envoyées par le serveur (après une action)
   useEffect(() => {
-    if (!socket || !gameIdParam || !userId) return;
+    if (!socket || !gameIdParam) return;
+    if (!isSpectating && !userId) return;
     const phaseMap: Record<string, GamePhase> = {
       WAITING: "init",
       PREFLOP: "preflop",
@@ -641,14 +706,26 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number }) => {
+    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[] }) => {
       gameStateFromSocketRef.current = true;
+      if (gameState.cashCountdownEndsAt != null) setCashCountdownEndsAt(gameState.cashCountdownEndsAt);
+      if (gameState.cashSeats && Array.isArray(gameState.cashSeats)) {
+        setCashSeats(gameState.cashSeats);
+        if (isSpectating && userId && gameState.cashSeats.some((s) => s.userId && String(s.userId) === String(userId))) {
+          navigate(`/game?gameId=${gameIdParam}`, { replace: true });
+          return;
+        }
+      }
+      if (!gameState.cashCountdownEndsAt && gameState.phase !== "WAITING") setCashCountdownEndsAt(null);
+      if (gameState.spectatorRejoinQueue && Array.isArray(gameState.spectatorRejoinQueue)) {
+        setSpectatorWantsToRejoin(gameState.spectatorRejoinQueue.includes(String(userId)));
+      }
       const players = gameState.players ?? [];
       setPlayersState((prev) => {
-        const myCardsFromPrev = prev.find((p) => String(p.id) === String(userId))?.cards ?? [];
+        const myCardsFromPrev = isSpectating ? [] : (prev.find((p) => String(p.id) === String(userId))?.cards ?? []);
         const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
         const mapped = players.map((p, index) => {
-          const isMe = String(p.id) === String(userId);
+          const isMe = !isSpectating && String(p.id) === String(userId);
           const serverCardsRaw = Array.isArray(p.cards) ? p.cards : [];
           const serverCards = serverCardsRaw.map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0])).filter((c): c is Card => c !== null);
           const myCards = isMe && serverCards.length > 0 ? serverCards : (isMe ? myCardsFromPrev : serverCards);
@@ -671,11 +748,11 @@ export function Game() {
       setPot(gameState.pot ?? 0);
       const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? (gameState.phase as string).toLowerCase?.() ?? "preflop") : "preflop";
       setPhase(phase as GamePhase);
+      setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
         cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
-        // Multi: flop carte par carte (comme en mode bot) — une seule fois, pas à chaque changement de tour
         if (phase === "flop" && arr[0] && arr[1] && arr[2]) {
           if (!flopAnimatedRef.current) {
             flopAnimatedRef.current = true;
@@ -688,7 +765,27 @@ export function Game() {
           } else {
             setCommunityCardsState(arr);
           }
-        } else {
+        } 
+        else if (phase === "turn" && arr[3] && !arr[4]) {
+          flopAnimatedRef.current = false;
+          const currentComm = communityCardsStateRef.current;
+          if (!currentComm[3]) {
+            setCommunityCardsState([arr[0]!, arr[1]!, arr[2]!, null, null]);
+            setTimeout(() => setCommunityCardsState(arr), 800);
+          } else {
+            setCommunityCardsState(arr);
+          }
+        }
+        else if (phase === "river" && arr[4]) {
+          const currentComm = communityCardsStateRef.current;
+          if (!currentComm[4]) {
+            setCommunityCardsState([arr[0]!, arr[1]!, arr[2]!, arr[3]!, null]);
+            setTimeout(() => setCommunityCardsState(arr), 800);
+          } else {
+            setCommunityCardsState(arr);
+          }
+        } 
+        else {
           if (phase !== "flop") flopAnimatedRef.current = false;
           setCommunityCardsState(arr);
         }
@@ -698,13 +795,13 @@ export function Game() {
       setIsLoading(false);
       setRoundPlayersActed(new Set());
 
-      const humanServerChips = players.find((p) => String(p.id) === String(userId))?.chips;
+      const humanServerChips = !isSpectating ? players.find((p) => String(p.id) === String(userId))?.chips : undefined;
       if (humanServerChips != null) {
         setPlayerChips(humanServerChips);
       }
 
       const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
-      if (phase === "showdown") {
+      if (phase === "showdown" && !isSpectating) {
         setTimerActive(false);
       } else if (currentTurnId === String(userId)) {
         setTimerActive(true);
@@ -717,7 +814,7 @@ export function Game() {
           : [gameState.showdownWinnerId!];
         const firstWinnerId = winnerIds[0]!;
         const winnerName = gameState.showdownIsSplit && winnerIds.length > 1
-          ? "Égalité"
+          ? t('game.tie')
           : (players.find((p) => String(p.id) === String(firstWinnerId))?.name ?? firstWinnerId);
         const winnerPlayer = players.find((p) => String(p.id) === String(firstWinnerId));
         const totalPot = gameState.showdownPot ?? 0;
@@ -730,15 +827,16 @@ export function Game() {
               .map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]))
               .filter((c): c is Card => c !== null)
           : [];
-        setShowdownReveal(true);
-        setPendingShowdownData({
+        
+        // Multi : on déclenche la transition directe à la place du vieux ShowdownDisplay !
+        setShowdownResult({
           winnerId: firstWinnerId,
           winnerIds: winnerIds.length > 1 ? winnerIds : undefined,
           winnerName,
           hand: gameState.showdownHandName ?? "—",
           pot: potWon,
-          winnerCards: normalized,
           isSplit: gameState.showdownIsSplit ?? false,
+          handRank: 0
         });
       }
     };
@@ -752,7 +850,7 @@ export function Game() {
           return {
             winnerId: data.winnerId,
             winnerName: "Vous",
-            hand: "Adversaire parti",
+            hand: t('game.opponentLeft'),
             handRank: 0,
             pot: data.pot ?? 0,
           };
@@ -760,13 +858,21 @@ export function Game() {
       }
     };
     socket.on("GAME_ENDED", onGameEnded);
+    const onCashWaiting = (state: { cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[] }) => {
+      setCashWaitingPlayers(true);
+      if (state.cashSeats) setCashSeats(state.cashSeats);
+    };
+    socket.on("CASH_WAITING_PLAYERS", onCashWaiting);
+    const onQueueStatus = (data: { queued: boolean }) => setSpectatorWantsToRejoin(data.queued);
+    socket.on("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     return () => {
       socket.off("GAME_UPDATE", onGameUpdate);
       socket.off("GAME_ENDED", onGameEnded);
+      socket.off("CASH_WAITING_PLAYERS", onCashWaiting);
+      socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     };
-  }, [socket, gameIdParam, userId]);
+  }, [socket, gameIdParam, userId, isSpectating]);
 
-  // Multi: fetch room-info quand handResult pour afficher bouton rematch au host
   useEffect(() => {
     if (!handResult || !gameIdParam || isBotMode || !userId) return;
     const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
@@ -778,7 +884,14 @@ export function Game() {
       .catch(() => {});
   }, [handResult, gameIdParam, isBotMode, userId]);
 
-  // Multi: écouter REMATCH_CREATED pour rediriger vers la nouvelle salle
+  const [cashCountdownTick, setCashCountdownTick] = useState(0);
+  useEffect(() => {
+    if (!cashCountdownEndsAt) return;
+    const iv = setInterval(() => setCashCountdownTick((t) => t + 1), 1000);
+    return () => clearInterval(iv);
+  }, [cashCountdownEndsAt]);
+  const cashCountdownSecs = cashCountdownEndsAt ? Math.max(0, Math.ceil((cashCountdownEndsAt - Date.now()) / 1000)) : 0;
+
   useEffect(() => {
     if (!socket) return;
     const onRematch = (data: { newRoomId: string }) => {
@@ -787,35 +900,6 @@ export function Game() {
     socket.on("REMATCH_CREATED", onRematch);
     return () => socket.off("REMATCH_CREATED", onRematch);
   }, [socket, navigate]);
-
-  // Multiplayer: après 3s de révélation des cartes, afficher le modal du gagnant (ou Skip)
-  useEffect(() => {
-    if (!pendingShowdownData || !gameIdParam) return;
-    const applyResult = () => {
-      setShowdownResult({
-        winnerId: pendingShowdownData.winnerId,
-        winnerIds: pendingShowdownData.winnerIds,
-        winnerName: pendingShowdownData.winnerName,
-        hand: pendingShowdownData.hand,
-        handRank: 0,
-        pot: pendingShowdownData.pot,
-        isSplit: pendingShowdownData.isSplit,
-      });
-      setShowdownWinnerCards(pendingShowdownData.winnerCards);
-      setShowdownReveal(false);
-      setPendingShowdownData(null);
-      showdownSkipRef.current = null;
-    };
-    const t = setTimeout(applyResult, 3000);
-    showdownSkipRef.current = () => {
-      clearTimeout(t);
-      applyResult();
-    };
-    return () => {
-      clearTimeout(t);
-      showdownSkipRef.current = null;
-    };
-  }, [pendingShowdownData, gameIdParam]);
 
   useEffect(() => {
     if (phase !== "init" || deck.length === 0) return;
@@ -843,16 +927,13 @@ export function Game() {
   useEffect(() => {
     if (!socket) return;
     socket.on("TURN_TIMER", (data: { gameId: string; timeLeft: number }) => {
-      if (phaseRef.current === "showdown") return; // Ne pas réactiver le timer au showdown
+      if (phaseRef.current === "showdown") return;
       setTimeLeft(data.timeLeft);
       setTimerActive(true);
     });
     return () => socket.off("TURN_TIMER");
   }, [socket]);
 
-  const _playPhase = phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river";
-
-  // Forcer l'activation du timer quand c'est le tour du joueur (arrêter dès le showdown)
   useEffect(() => {
     if (!isMyTurn || !gameInitialized || phase === "init" || phase === "shuffle" || phase === "deal" || phase === "showdown") {
       setTimerActive(false);
@@ -912,7 +993,6 @@ export function Game() {
     }
   }, [playersState, communityCardsState, phase, userId, updateQuantumHUD]);
 
-  // Quand c'est le tour du joueur humain, garantir que les boutons sont actifs (sans écraser hasPlayerActed après une action)
   useEffect(() => {
     if (isMyTurn && !hasFoldedFromState && !hasPlayerActed) {
       setIsLoading(false);
@@ -920,7 +1000,6 @@ export function Game() {
     }
   }, [isMyTurn, hasFoldedFromState, hasPlayerActed]);
 
-  // Safety net: if active player has already acted this round but is still marked active, pass turn
   useEffect(() => {
     if (!isBotMode || playersState.length < 2) return;
     if (phase !== "preflop" && phase !== "flop" && phase !== "turn" && phase !== "river") return;
@@ -1034,7 +1113,6 @@ export function Game() {
     setIsLoading(false);
   };
 
-  // Tour de mises terminé → passer à la street suivante. Utilise playersState (pas la ref) pour avoir l'état à jour quand roundPlayersActed change.
   useEffect(() => {
     if (phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river") {
       const players = playersState;
@@ -1061,7 +1139,6 @@ export function Game() {
           setPlayersState((prev) => prev.map((p) => ({ ...p, isActive: false })));
           setRunOutPhase(phase);
         } else if (!hasAllIn) {
-          // Transition dès que tout le monde a agi et les mises sont égalisées (bot et multi)
           if (streetTransitionScheduledRef.current === phase) return;
           streetTransitionScheduledRef.current = phase;
           streetTransitionTimeoutRef.current = setTimeout(() => {
@@ -1073,7 +1150,6 @@ export function Game() {
     }
   }, [roundPlayersActed, phase, gameIdParam, userId, runOutPhase, playersState]);
 
-  // Capturer le stack du joueur une seule fois au tout début de la main (preflop), avant toute mise
   useEffect(() => {
     if (phase !== "preflop" || !gameInitialized || hasSetStartOfHandThisHandRef.current) return;
     const humanChips = isBotMode ? playerChips : playersState.find((p) => String(p.id) === String(userId))?.chips ?? playerChips;
@@ -1081,13 +1157,11 @@ export function Game() {
     hasSetStartOfHandThisHandRef.current = true;
   }, [phase, gameInitialized, isBotMode, playerChips, playersState, userId]);
 
-  // Garder les refs à jour pour le run-out (éviter closures stales)
   useEffect(() => {
     deckRef.current = deck;
     communityCardsStateRef.current = communityCardsState;
   }, [deck, communityCardsState]);
 
-  // Ref pour la transition de rue : toujours appeler la dernière version (évite closures stales dans nextTurn)
   useEffect(() => {
     doStreetTransitionRef.current = () => {
       if (phase === "preflop") dealFlop();
@@ -1097,7 +1171,6 @@ export function Game() {
     };
   }, [phase, dealFlop, dealTurn, dealRiver]);
 
-  // Réinitialiser le run-out, le flag "début de main", la raison de fin de partie et le flag de transition en début de main
   useEffect(() => {
     if (phase === "init" || phase === "shuffle" || phase === "deal") {
       setRunOutPhase(null);
@@ -1109,7 +1182,6 @@ export function Game() {
     }
   }, [phase]);
 
-  // Réinitialiser le flag de transition et annuler le timeout précédent quand on change de phase
   useEffect(() => {
     if (streetTransitionTimeoutRef.current) {
       clearTimeout(streetTransitionTimeoutRef.current);
@@ -1118,9 +1190,8 @@ export function Game() {
     streetTransitionScheduledRef.current = null;
   }, [phase]);
 
-  // Mode bot : filet de sécurité si bloqué en flop/turn/river (>20s sans transition malgré mises égalisées)
   useEffect(() => {
-    if (!isBotMode || gameIdParam) return; // En bot : pas de gameId
+    if (!isBotMode || gameIdParam) return; 
     if (phase !== "flop" && phase !== "turn" && phase !== "river") return;
     const interval = setInterval(() => {
       const players = playersStateRef.current;
@@ -1139,53 +1210,61 @@ export function Game() {
     return () => clearInterval(interval);
   }, [isBotMode, gameIdParam, phase]);
 
-  // Run-out du board après all-in : distribuer Flop puis Turn puis River sans tour de mise, puis showdown
-  // On lit deckRef/communityCardsStateRef dans le timeout pour avoir l'état à jour (sinon Turn/River écrasent le Flop)
   useEffect(() => {
     if (runOutPhase === null) return;
     const t = setTimeout(() => {
+      const currentDeck = [...deckRef.current];
+      const currentCommunity = [...communityCardsStateRef.current].slice(0, 5) as (Card | null)[];
+      while (currentCommunity.length < 5) currentCommunity.push(null);
+
       if (runOutPhase === "preflop") {
-        dealFlop(true);
+        setPhase("flop");
+        resetBetsAndSetFirstToAct(0);
+        currentDeck.shift(); 
+        for (let i = 0; i < 3; i++) {
+          const card = currentDeck.shift();
+          if (card) currentCommunity[i] = card;
+        }
+        setDeck(currentDeck);
+        setCommunityCardsState([...currentCommunity]);
         setRunOutPhase("flop");
       } else if (runOutPhase === "flop") {
-        const currentDeck = [...deckRef.current];
-        const currentCommunity = [...communityCardsStateRef.current];
-        currentDeck.shift(); // burn
+        currentDeck.shift(); 
         const turnCard = currentDeck.shift();
         if (turnCard) currentCommunity[3] = turnCard;
         setDeck(currentDeck);
-        setCommunityCardsState(currentCommunity);
+        setCommunityCardsState([...currentCommunity]);
         setPhase("turn");
         setRunOutPhase("turn");
       } else if (runOutPhase === "turn") {
-        const currentDeck = [...deckRef.current];
-        const currentCommunity = [...communityCardsStateRef.current];
-        currentDeck.shift(); // burn
+        currentDeck.shift(); 
         const riverCard = currentDeck.shift();
         if (riverCard) currentCommunity[4] = riverCard;
         setDeck(currentDeck);
-        setCommunityCardsState(currentCommunity);
+        setCommunityCardsState([...currentCommunity]);
         setPhase("river");
         setRunOutPhase("river");
       } else if (runOutPhase === "river") {
         setPhase("showdown");
         setRunOutPhase(null);
       }
-    }, runOutPhase === "preflop" ? 1200 : 1400);
+    }, runOutPhase === "preflop" ? 800 : 1400);
     return () => clearTimeout(t);
   }, [runOutPhase]);
 
-  // Reset showdown state on new hand
   useEffect(() => {
     if (phase === "init" || phase === "shuffle") {
       showdownStartedRef.current = false;
       setShowdownReveal(false);
       setShowdownWinnerCards([]);
       setPendingShowdownData(null);
+      setHandResult(null);
+      setHandResultData(null);
+      setCashWaitingPlayers(false); 
+      setCashCountdownEndsAt(null);
     }
   }, [phase]);
 
-  // Showdown: reveal all cards for 3s, then evaluate winner with side pot support
   useEffect(() => {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
     if (showdownStartedRef.current) return;
@@ -1198,9 +1277,9 @@ export function Game() {
 
     if (activeInHand.length === 1) {
       const sole = activeInHand[0];
-      setShowdownReveal(true);
+      showdownStartedRef.current = true;
       const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-      setTimeout(async () => {
+      const applySoleWinner = async () => {
         let handName = "Haute carte";
         try {
           const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
@@ -1220,15 +1299,13 @@ export function Game() {
         setPlayersState((prev) => prev.map((p) => (p.id === sole.id ? { ...p, chips: (p.chips ?? 0) + pot } : p)));
         if (sole.id === userId || sole.id === "human") setPlayerChips((prev) => prev + pot);
         setPot(0);
-        setShowdownReveal(false);
-        setShowdownWinnerCards(sole.cards ?? []);
         setShowdownResult({ winnerId: String(sole.id), winnerName: sole.name, hand: handName, handRank: 0, pot });
-      }, 3000);
+      };
+      applySoleWinner();
       return;
     }
 
     showdownStartedRef.current = true;
-    setShowdownReveal(true);
     let pots: { amount: number; eligibleIds: string[] }[];
     try {
       pots = calculateSidePots(playersState, handContributionsRef.current);
@@ -1249,7 +1326,6 @@ export function Game() {
     const applyFallback = (handNameOverride?: string) => {
       const fallbackWinner = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
       setPot(0);
-      setShowdownReveal(false);
       setShowdownResult({
         winnerId: String(fallbackWinner?.id ?? ""),
         winnerName: fallbackWinner?.name ?? "Inconnu",
@@ -1298,7 +1374,7 @@ export function Game() {
 
           if (pi === 0) {
             mainWinnerId = winnerIds[0];
-            mainWinnerName = data.isSplit ? "Égalité" : (data.winnerName ?? winnerIds[0]);
+            mainWinnerName = data.isSplit ? t('game.tie') : (data.winnerName ?? winnerIds[0]);
             mainHandName = data.handName ?? "Haute carte";
             mainIsSplit = data.isSplit === true && winnerIds.length > 1;
             const winner = activeInHand.find((p) => String(p.id) === winnerIds[0]);
@@ -1318,7 +1394,7 @@ export function Game() {
             return award > 0 ? { ...p, chips: p.chips + award } : p;
           })
         );
-        humanShare = awards[humanId] ?? 0;
+        const humanShare = awards[humanId] ?? 0;
         if (humanShare > 0) setPlayerChips((prev) => prev + humanShare);
 
         const startChips = startOfHandChipsRef.current;
@@ -1328,7 +1404,6 @@ export function Game() {
         addToUserBalance(toAdd);
         toAddLastRef.current = toAdd;
         setPot(0);
-        setShowdownReveal(false);
         setShowdownResult({
           winnerId: mainIsSplit ? "" : mainWinnerId,
           winnerName: mainWinnerName,
@@ -1352,19 +1427,9 @@ export function Game() {
         applyFallback(fallbackHand);
       }
     };
-    const revealTimer = setTimeout(runComplete, 3000);
-    showdownSkipRef.current = () => {
-      clearTimeout(revealTimer);
-      showdownSkipRef.current = null;
-      runComplete();
-    };
-    return () => {
-      clearTimeout(revealTimer);
-      showdownSkipRef.current = null;
-    };
+    runComplete();
   }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId]);
 
-  // Safety net: force showdown completion if stuck for 12s (API timeout, race, validCommunity delay)
   showdownResultRef.current = showdownResult;
   useEffect(() => {
     if (!isBotMode || phase !== "showdown" || showdownResult !== null || handResult !== null) return;
@@ -1387,7 +1452,6 @@ export function Game() {
         } catch { /* ignore */ }
       }
       setPot(0);
-      setShowdownReveal(false);
       showdownStartedRef.current = true;
       if (winner) {
         setPlayersState((prev) => prev.map((p) => (p.id === winner.id ? { ...p, chips: (p.chips ?? 0) + currentPot } : p)));
@@ -1406,7 +1470,6 @@ export function Game() {
     return () => clearTimeout(safety);
   }, [phase, showdownResult, handResult, isBotMode, playersState, pot, userId]);
 
-  // Game over: human eliminated or all bots eliminated
   useEffect(() => {
     if (!isBotMode || !showdownResult || gameOverReason) return;
     if (playerChips <= 0) {
@@ -1437,8 +1500,8 @@ export function Game() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
-        const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
-        const url = `${baseUrl}/api/bot/action`;
+        const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+        const url = `${apiBase}/api/bot/action`;
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1467,8 +1530,6 @@ export function Game() {
         }
 
         const decision = await response.json();
-
-        // Montant que le bot doit mettre (total bet côté serveur pour RAISE = mise totale visée)
         const botCurrentBet = activePlayer.bet ?? 0;
         const amountFromServer = decision.amount ?? 0;
         const amountToPut =
@@ -1480,12 +1541,12 @@ export function Game() {
 
         const botActionLabel =
           decision.action === "FOLD"
-            ? "s'est couché"
+            ? t('game.actionFolded')
             : decision.action === "CHECK" || (decision.action === "RAISE" && amountToPut <= 0)
-              ? "a checké"
+              ? t('game.actionChecked')
               : decision.action === "CALL" || (decision.action === "RAISE" && amountToPut <= callAmount)
-                ? "a suivi"
-                : "a relancé";
+                ? t('game.actionCalled')
+                : t('game.actionRaised');
         if (clearBotActionRef.current) clearTimeout(clearBotActionRef.current);
         setLastBotAction({ name: activePlayer.name, action: botActionLabel });
         clearBotActionRef.current = setTimeout(() => {
@@ -1499,7 +1560,6 @@ export function Game() {
               handleFold(activePlayer.id);
               break;
             case "CALL": {
-              // Ne jamais mettre plus que le callAmount (montant pour égaliser) ni plus que les jetons du bot
               const effectiveCall = Math.min(
                 decision.amount ?? callAmount,
                 callAmount,
@@ -1524,7 +1584,7 @@ export function Game() {
           }
           setIsBotThinking(false);
           botIsFetchingRef.current = false;
-        }, Math.random() * 1000 + 1000);
+        }, 3000);
       } catch (error) {
         console.error("Erreur API bot:", error);
         clearTimeout(timeoutId);
@@ -1540,22 +1600,19 @@ export function Game() {
     fetchBotDecision();
   }, [isBotMode, playersState, isBotThinking, phase, communityCardsState, pot, callAmount, addToast, handResult]);
 
-  // Après gain/perte : animation puis enregistrement des stats (sans navigation)
   useEffect(() => {
     if (handResult === null || !isBotMode) return;
-    const t = setTimeout(() => {
-      const token = localStorage.getItem("token");
-      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/vmProjetIntegrateurgrp10-0';
-      const recordUrl = `${baseUrl}/api/game/record-result`;
-      if (token) {
-        fetch(recordUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ won: handResult === "win", delta: toAddLastRef.current }),
-        }).catch(() => {});
-      }
-    }, 2500);
-    return () => clearTimeout(t);
+    const token = localStorage.getItem("token");
+    const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+    const recordUrl = `${apiBase}/api/game/record-result`;
+    
+    if (token) {
+      fetch(recordUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ won: handResult === "win", delta: toAddLastRef.current }),
+      }).catch((err) => console.error("Erreur de sauvegarde d'argent :", err));
+    }
   }, [handResult, isBotMode]);
 
   const handleFold = (playerId?: number | string) => {
@@ -1581,7 +1638,6 @@ export function Game() {
         (p) => p.isConnected !== false && !(p.hasFolded ?? false)
       );
 
-      // En multijoueur, on laisse le serveur gérer le pot, le SHOWDOWN et le vainqueur
       if (gameIdParam) {
         return newPlayers;
       }
@@ -1611,6 +1667,8 @@ export function Game() {
       return newPlayers;
     });
 
+    if (gameIdParam) return;
+
     const activeInHandCount = playersState.filter(
       (p, i) => i !== foldingIndex && p.isConnected !== false && !(p.hasFolded ?? false)
     ).length;
@@ -1622,6 +1680,7 @@ export function Game() {
       const humanWon = winnerIndex !== -1 && winnerIndex === humanIndex;
       const winner = winnerIndex !== -1 ? playersState[winnerIndex] : null;
       if (winner) {
+        setPhase("showdown");
         setShowdownResult({
           winnerId: String(winner.id),
           winnerName: winner.name,
@@ -1668,7 +1727,6 @@ export function Game() {
     if (gameIdParam && socket && isHumanActing) {
       socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CALL", amount });
     }
-    // Cap call amount at player's chips (all-in if not enough)
     if (playerId !== undefined && !isHumanActing) {
       const highestBet = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
       const actorBet = playersState.find((p) => p.id === playerId)?.bet ?? 0;
@@ -1683,34 +1741,33 @@ export function Game() {
       const highestBet = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
       const neededToCall = Math.max(0, highestBet - actorBetBefore);
       const isBotAllInCall = amount < neededToCall;
+      const botTotalBetAfter = actorBetBefore + amount;
+      
       const totalRefund = playersState
-        .filter((p) => p.id !== playerId && (p.bet ?? 0) > amount)
-        .reduce((sum, p) => sum + ((p.bet ?? 0) - amount), 0);
-      const humanRefund = hero && hero.id !== playerId && (hero.bet ?? 0) > amount ? (hero.bet ?? 0) - amount : 0;
+        .filter((p) => p.id !== playerId && (p.bet ?? 0) > botTotalBetAfter)
+        .reduce((sum, p) => sum + ((p.bet ?? 0) - botTotalBetAfter), 0);
+        
+      const humanRefund = hero && hero.id !== playerId && (hero.bet ?? 0) > botTotalBetAfter ? (hero.bet ?? 0) - botTotalBetAfter : 0;
+      
       setPlayersState((prev) => {
         const nextList = prev.map((p) => {
           let next = p;
           if (p.id !== playerId) {
-            if ((p.bet ?? 0) > amount) {
-              const refund = (p.bet ?? 0) - amount;
-              next = { ...p, chips: p.chips + refund, bet: amount };
+            if ((p.bet ?? 0) > botTotalBetAfter) {
+              const refund = (p.bet ?? 0) - botTotalBetAfter;
+              next = { ...p, chips: p.chips + refund, bet: botTotalBetAfter };
             }
           } else {
-            next = { ...p, chips: Math.max(0, actorChipsBefore - amount), bet: actorBetBefore + amount, isActive: false };
+            next = { ...p, chips: Math.max(0, actorChipsBefore - amount), bet: botTotalBetAfter, isActive: false };
           }
           if (isBotAllInCall) {
             next = { ...next, isActive: false };
           }
           return next;
         });
-        const botNext = nextList.find((p) => p.id === playerId);
-        if (botNext) {
-          console.log("[QB-BOT setPlayersState bot update]", { amount, botChipsBefore: actorChipsBefore, botChipsAfter: botNext.chips, botBetAfter: botNext.bet });
-        }
         return nextList;
       });
       const newPot = Math.max(0, pot + amount - totalRefund);
-      console.log("[QB-BOT pot update]", { potBefore: pot, amount, totalRefund, potAfter: newPot });
       setPot((prev) => Math.max(0, prev + amount - totalRefund));
       setRoundPlayersActed((prev) => {
         const next = new Set(prev).add(botIndex);
@@ -1734,7 +1791,6 @@ export function Game() {
             }, 1000);
           }
           } else if (next.size < activeInHandCount && !isBotAllInCall) {
-            // Bot a agi : donner la main au joueur suivant
           setTimeout(() => {
             setPlayersState((prev) => {
                 const newPlayers = prev.map(p => ({ ...p, isActive: false }));
@@ -1926,7 +1982,6 @@ export function Game() {
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-hidden relative">
-      {/* Particules dorées flottantes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
@@ -1949,59 +2004,87 @@ export function Game() {
         ))}
       </div>
 
-      {/* Animation de shuffle du dealer */}
       <AnimatePresence>
         {phase === "shuffle" && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[60]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
           >
-            <div className="relative">
-              {/* Pile de cartes qui se mélangent */}
-              <div className="relative w-32 h-44">
-                {[...Array(8)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="absolute w-full h-full bg-gradient-to-br from-red-900 to-red-950 rounded-xl border-4 border-yellow-500/50 shadow-2xl"
-                    style={{
-                      backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.03) 10px, rgba(255,255,255,.03) 20px)",
-                    }}
-                    animate={{
-                      rotate: [0, shuffleCount % 2 === 0 ? 15 : -15, 0],
-                      x: [0, shuffleCount % 2 === 0 ? 30 : -30, 0],
-                      y: [0, shuffleCount % 2 === 0 ? -20 : 20, 0],
-                    }}
-                    transition={{
-                      duration: 0.3,
-                      delay: i * 0.05,
-                      ease: "easeInOut",
-                    }}
-                  >
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Sparkles className="w-8 h-8 text-yellow-400" />
-                    </div>
-                  </motion.div>
-                ))}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+              className="relative flex flex-col items-center gap-8"
+            >
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-80 bg-amber-500/15 rounded-full blur-[60px] -z-10 pointer-events-none" />
+              <div className="relative w-36 h-52" style={{ perspective: "1000px" }}>
+                {[...Array(12)].map((_, i) => {
+                  const isLeft = i % 2 === 0;
+                  const spread = shuffleCount % 2 === 0 ? 1 : -1;
+                  const angle = spread * (isLeft ? 12 : -12);
+                  const offsetX = spread * (isLeft ? -18 : 18);
+                  const offsetY = spread * (isLeft ? -8 : 8);
+                  const z = i * 2;
+                  return (
+                    <motion.div
+                      key={i}
+                      className="absolute inset-0 rounded-xl border-2 border-amber-400/60 shadow-2xl"
+                      style={{
+                        background: "linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1e3a5f 100%)",
+                        backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(234,179,8,0.08) 8px, rgba(234,179,8,0.08) 16px), repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(234,179,8,0.06) 8px, rgba(234,179,8,0.06) 16px)",
+                        boxShadow: "0 0 0 1px rgba(234,179,8,0.2), 0 10px 40px -10px rgba(0,0,0,0.5)",
+                        left: `${i * 2}px`,
+                        top: `${i * 1.5}px`,
+                        zIndex: z,
+                      }}
+                      animate={{
+                        rotate: angle,
+                        x: offsetX,
+                        y: offsetY,
+                        rotateY: shuffleCount % 2 === 0 ? 0 : (i % 2) * 10,
+                      }}
+                      transition={{
+                        type: "spring",
+                        damping: 18,
+                        stiffness: 200,
+                        delay: i * 0.02,
+                      }}
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center rounded-xl overflow-hidden">
+                        <div className="w-12 h-16 rounded border border-amber-400/30 flex items-center justify-center">
+                          <span className="text-amber-400/40 text-2xl font-bold">♠</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
-              
-              {/* Texte "Shuffling..." */}
+
               <motion.div
-                className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 whitespace-nowrap"
-                animate={{ opacity: [1, 0.5, 1] }}
-                transition={{ duration: 0.8, repeat: Infinity }}
+                className="flex flex-col items-center gap-1"
+                animate={{ opacity: [1, 0.7, 1] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
               >
-                <p className="text-yellow-400 font-bold text-xl tracking-wider drop-shadow-lg">
-                  Mélange des cartes...
+                <p className="text-amber-300 font-bold text-2xl tracking-[0.3em] uppercase drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]">
+                  {t('startScreen.shuffling')}
                 </p>
+                <div className="h-1 w-28 rounded-full bg-slate-700/80 overflow-hidden mt-2">
+                  <motion.div
+                    className="h-full bg-amber-400 rounded-full"
+                    initial={{ width: "0%" }}
+                    animate={{ width: ["0%", "100%"] }}
+                    transition={{ duration: 1.4, ease: "easeInOut", repeat: Infinity, repeatDelay: 0.2 }}
+                  />
+                </div>
               </motion.div>
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Animation "Bot réfléchit" */}
       {isBotThinking && mode === "bot" && (
         <div className={`absolute z-50 left-1/2 transform -translate-x-1/2 ${
           isMobile ? 'bottom-32' : isTablet ? 'bottom-36' : 'bottom-40'
@@ -2010,255 +2093,45 @@ export function Game() {
             <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'}`}>
               <Loader2 className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} text-blue-400 animate-spin`} />
               <div>
-                <div className={`text-white font-bold ${isMobile ? 'text-base' : 'text-lg'}`}>Bot réfléchit...</div>
-                <div className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>Analyse des probabilités</div>
+                <div className={`text-white font-bold ${isMobile ? 'text-base' : 'text-lg'}`}>{t('botConfig.botThinking')}</div>
+                <div className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>{t('botConfig.analyzingProbabilities')}</div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Showdown card reveal: show all hands for 3s before modal */}
+      {/* TA NOUVELLE TRANSITION FIGMA UNIQUE */}
       <AnimatePresence>
-        {showdownReveal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[105] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", damping: 20, stiffness: 200 }}
-              className="flex flex-col items-center gap-4"
-            >
-              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Showdown</h2>
-
-              {/* Player hands (toutes les cartes de tout le monde) */}
-              <div className="flex flex-wrap justify-center gap-6">
-                {playersState
-                  .filter((p) => p.cards?.length === 2)
-                  .map((player) => (
-                    <motion.div
-                      key={String(player.id)}
-                      initial={{ y: 20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.15 }}
-                      className="flex flex-col items-center gap-2 bg-slate-800/80 rounded-xl px-4 py-3 border border-slate-600"
-                    >
-                      <span className="text-white font-semibold text-sm md:text-base">{player.name}</span>
-                      <div className="flex gap-2">
-                        {player.cards.map((card, i) => (
-                          <PokerCard
-                            key={i}
-                            suit={card.suit}
-                            value={card.value}
-                            size="md"
-                            animated
-                            animationDelay={i * 0.1}
-                          />
-                        ))}
-                      </div>
-                    </motion.div>
-                  ))}
-              </div>
-
-              {/* Community cards */}
-              {(() => {
-                const validCommunity = communityCardsState.filter((c): c is Card => c !== null);
-                if (validCommunity.length === 0) return null;
-                return (
-                  <motion.div
-                    initial={{ y: 15, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.3 }}
-                    className="flex flex-col items-center gap-2 mt-2"
-                  >
-                    <span className="text-gray-400 text-xs font-semibold tracking-wider uppercase">Board</span>
-                    <div className="flex gap-2">
-                      {validCommunity.map((card, i) => (
-                        <PokerCard
-                          key={i}
-                          suit={card.suit}
-                          value={card.value}
-                          size="sm"
-                          animated
-                          animationDelay={0.3 + i * 0.08}
-                        />
-                      ))}
-                    </div>
-                  </motion.div>
-                );
-              })()}
-
-              {/* Bouton Skip pour passer directement au résultat */}
-              <button
-                type="button"
-                onClick={() => showdownSkipRef.current?.()}
-                className="mt-4 px-6 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 border border-white/40 text-white font-semibold text-sm transition-colors"
-              >
-                Skip
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Showdown : gagnant + combinaison + pot */}
-      <ShowdownDisplay
-        winner={
-          showdownResult
-            ? {
-                name: showdownResult.winnerName,
-                hand: showdownResult.hand,
-                pot: showdownResult.pot,
-                isSplit: showdownResult.isSplit,
+        {showTransition && (
+          <RoundTransition 
+            roundNumber={roundCount} 
+            winner={lastWinnerData} 
+            onComplete={() => {
+              setShowTransition(false);
+              setRoundCount(prev => prev + 1);
+              
+              setShowdownResult(null);
+              setHandResult(null);
+              setHandResultData(null);
+              setPhase("init");
+              
+              if (isBotMode) {
+                navigate(location.pathname + location.search, { state: { replay: true } });
               }
-            : null
-        }
-        winnerCards={showdownWinnerCards}
-        onClose={() => {
-          if (!showdownResult) return;
-          if (gameOverReason) {
-            navigate("/lobby", {
-              state: {
-                message: gameOverReason === "bot_eliminated"
-                  ? "Vous avez gagné la partie ! (bot éliminé)"
-                  : "Plus de jetons. Partie terminée.",
-              },
-            });
-            setShowdownResult(null);
-            setGameOverReason(null);
-            return;
-          }
-          const humanId = playersState.find((p) => p.id === userId || p.id === "human")?.id;
-          const won =
-            showdownResult.winnerId === humanId ||
-            showdownResult.winnerId === "human" ||
-            (showdownResult.isSplit && showdownResult.winnerIds?.some((id) => String(id) === String(humanId)));
-          const winnerName = showdownResult.winnerName;
-          const handName = showdownResult.hand;
-          setHandResult(won ? "win" : "loss");
-          setHandResultData({ winnerName, handName });
-          setShowdownResult(null);
-        }}
-      />
-
-      {/* Overlay gain / perte */}
-      <AnimatePresence>
-        {handResult !== null && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", damping: 20, stiffness: 200 }}
-              className={`rounded-3xl shadow-2xl border-2 px-8 py-10 flex flex-col items-center gap-4 ${
-                handResult === "win"
-                  ? "bg-gradient-to-br from-amber-500/20 to-yellow-600/30 border-amber-400"
-                  : "bg-gradient-to-br from-slate-700/95 to-slate-800 border-slate-500"
-              }`}
-            >
-              {handResult === "win" ? (
-                <Trophy className="w-20 h-20 text-amber-400" />
-              ) : (
-                <Frown className="w-20 h-20 text-slate-400" />
-              )}
-              <h2 className="text-2xl md:text-3xl font-bold text-white">
-                {handResult === "win" ? "Vous avez gagné !" : "Vous avez perdu"}
-              </h2>
-              <p className="text-slate-300 text-sm">Résultats des paris cachés...</p>
-              <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full max-w-xs mt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (handResultData) {
-                      navigate("/hidden-bets-result", {
-                        state: {
-                          winnerName: handResultData.winnerName,
-                          handName: handResultData.handName,
-                        },
-                      });
-                    }
-                    setHandResult(null);
-                    setHandResultData(null);
-                  }}
-                  className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-amber-500/30 hover:bg-amber-500/50 border border-amber-400/60 text-white transition-colors"
-                >
-                  {t("game.goToHiddenBets")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigate("/lobby");
-                    setHandResult(null);
-                    setHandResultData(null);
-                  }}
-                  className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-slate-600/80 hover:bg-slate-500/80 border border-slate-500 text-white transition-colors"
-                >
-                  {t("game.backToLobby")}
-                </button>
-                {gameIdParam && !isBotMode && isRematchHost && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setRematchLoading(true);
-                      try {
-                        const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-                        const res = await fetch(`${apiBase}/api/waiting-room/rematch`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
-                          body: JSON.stringify({ gameId: gameIdParam }),
-                        });
-                        if (!res.ok) {
-                          const err = await res.json().catch(() => ({}));
-                          addToast(err?.error ?? "Erreur rematch", "error");
-                        }
-                      } finally {
-                        setRematchLoading(false);
-                      }
-                    }}
-                    disabled={rematchLoading}
-                    className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {rematchLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                    {t("game.rematchSameMembers")}
-                  </button>
-                )}
-                {isBotMode && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setHandResult(null);
-                      setHandResultData(null);
-                      navigate(location.pathname + location.search, { state: { replay: true } });
-                    }}
-                    className="flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500 text-white transition-colors"
-                  >
-                    {t("game.replaySameConfig")}
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
+            }}
+            onLeaveToLobby={() => {
+              setShowTransition(false);
+              navigate("/lobby");
+            }}
+          />
         )}
       </AnimatePresence>
 
-      {/* Barre de navigation - En haut */}
-      <div className={`absolute ${isMobile ? 'top-2 left-2 right-2' : 'top-4 left-8 right-8'} z-50 flex items-center justify-between`}>
-        {/* Partie GAUCHE - Logo, Menu Hamburger, Affichage */}
+      <div ref={tourRefHeader} className={`absolute ${isMobile ? 'top-2 left-2 right-2' : 'top-4 left-8 right-8'} z-50 flex items-center justify-between`}>
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
-          {/* Logo Quantum Bluff */}
-          <QuantumBluffLogo 
-            className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} drop-shadow-2xl`}
-          />
+          <QuantumBluffLogo className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} drop-shadow-2xl`} />
 
-          {/* Indicateur de phase */}
           {!isMobile && phase !== "init" && phase !== "shuffle" && phase !== "deal" && (
             <div className="bg-yellow-500/20 backdrop-blur-sm border border-yellow-500/40 rounded-lg px-3 py-1.5 shadow-lg">
               <p className="text-yellow-400 font-bold text-sm tracking-wide uppercase">
@@ -2271,363 +2144,372 @@ export function Game() {
             </div>
           )}
 
-          {/* Bouton Menu Hamburger */}
-          <div className="relative">
+          <div className="relative" ref={menuContainerRef}>
             <button
+              type="button"
               onClick={() => setShowMenu(!showMenu)}
               className={`bg-slate-800/90 hover:bg-slate-700/90 backdrop-blur-sm text-white ${isMobile ? 'p-2' : 'p-3'} rounded-lg border border-slate-700 transition-all shadow-lg`}
-              title="Menu"
+              title={t("game.menuTitle")}
+              aria-expanded={showMenu}
+              aria-haspopup="true"
             >
               <Menu className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
             </button>
 
-            {/* Menu déroulant */}
             {showMenu && (
-              <div className={`absolute ${isMobile ? 'top-12' : 'top-14'} left-0 bg-slate-800/95 backdrop-blur-sm rounded-xl shadow-2xl border border-slate-700 overflow-hidden ${isMobile ? 'min-w-[180px]' : 'min-w-[220px]'} z-50`}>
+              <div
+                className={`absolute ${isMobile ? 'top-12' : 'top-14'} left-0 bg-slate-900/98 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-600/80 overflow-hidden ${isMobile ? 'min-w-[min(92vw,280px)]' : 'min-w-[280px]'} z-[60] py-1`}
+                role="menu"
+              >
+                <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {t("game.menuSectionGame")}
+                </p>
                 <button
-                  onClick={() => {
-                    navigate("/profile");
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-white hover:bg-slate-700 transition-all`}
+                  type="button"
+                  role="menuitem"
+                  onClick={startGameTour}
+                  className={`w-full flex items-start ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-left text-cyan-300 hover:bg-cyan-500/15 transition-all border-b border-slate-700/80`}
                 >
-                  <User className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('lobby.profile')}</span>
+                  <Sparkles className={`${isMobile ? 'w-5 h-5' : 'w-5 h-5'} shrink-0 mt-0.5 text-cyan-400`} />
+                  <span className="flex flex-col gap-0.5">
+                    <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-bold text-white`}>{t("game.menuGuidedTour")}</span>
+                    <span className="text-xs text-slate-400 font-normal leading-snug">{t("game.menuGuidedTourHint")}</span>
+                  </span>
                 </button>
                 <button
-                  onClick={() => {
-                    navigate("/friends");
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-white hover:bg-slate-700 transition-all`}
-                >
-                  <Users className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>{t('lobby.friends')}</span>
-                </button>
-                <button
-                  onClick={() => {
-                    navigate("/tutorial-game");
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-cyan-400 hover:bg-slate-700 transition-all`}
-                >
-                  <HelpCircle className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Tutoriel</span>
-                </button>
-                <div className="border-t border-slate-700"></div>
-                <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => {
                     setIsQuantumOpen((o) => !o);
                     setShowMenu(false);
                   }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} ${isQuantumOpen ? 'text-amber-400 bg-amber-500/20' : 'text-white hover:bg-slate-700'} transition-all`}
+                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} ${isQuantumOpen ? 'text-amber-400 bg-amber-500/15' : 'text-white hover:bg-slate-700/80'} transition-all`}
                 >
-                  <Activity className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Probabilités</span>
+                  <Activity className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("game.menuQuantum")}</span>
                 </button>
                 <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => {
                     setIsPanelOpen((o) => !o);
                     setShowMenu(false);
                   }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} ${isPanelOpen ? 'text-yellow-400 bg-yellow-500/20' : 'text-white hover:bg-slate-700'} transition-all`}
+                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} ${isPanelOpen ? 'text-yellow-400 bg-yellow-500/15' : 'text-white hover:bg-slate-700/80'} transition-all`}
                 >
-                  <Trophy className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Paris Cachés</span>
+                  <Trophy className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("hiddenBets.title")}</span>
                 </button>
-                <div className="border-t border-slate-700"></div>
+
+                <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {t("game.menuSectionAccount")}
+                </p>
                 <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    navigate("/profile");
+                    setShowMenu(false);
+                  }}
+                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-white hover:bg-slate-700/80 transition-all`}
+                >
+                  <User className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("lobby.profile")}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    navigate("/friends");
+                    setShowMenu(false);
+                  }}
+                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-white hover:bg-slate-700/80 transition-all`}
+                >
+                  <Users className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("lobby.friends")}</span>
+                </button>
+
+                <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {t("game.menuSectionDanger")}
+                </p>
+                <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => {
                     setShowQuitConfirm(true);
                     setShowMenu(false);
                   }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-2 px-4 py-3' : 'gap-3 px-6 py-4'} text-red-400 hover:bg-slate-700 transition-all`}
+                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-red-400 hover:bg-red-950/40 transition-all`}
                 >
-                  <LogOut className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <span className={`${isMobile ? 'text-sm' : ''} font-semibold`}>Quitter la partie</span>
+                  <LogOut className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("nav.quitGame")}</span>
                 </button>
               </div>
             )}
           </div>
-
-          {/* Bouton Affichage (Accessibilité) */}
-          {!isMobile && (
-            <div className="bg-slate-800/90 backdrop-blur-sm border border-slate-700 rounded-full shadow-lg px-2 py-2 flex items-center gap-1">
-              <button
-                onClick={toggleHighContrast}
-                className={`relative rounded-full px-3 py-2 transition-all group ${
-                  highContrast ? "bg-yellow-600" : "bg-slate-700 hover:bg-slate-600"
-                }`}
-                title="Contraste élevé"
-              >
-                <Eye className={`w-4 h-4 ${highContrast ? "text-white" : "text-gray-400"}`} />
-              </button>
-
-              <button
-                onClick={toggleVisualAlerts}
-                className={`relative rounded-full px-3 py-2 transition-all group ${
-                  visualAlerts ? "bg-blue-600" : "bg-slate-700 hover:bg-slate-600"
-                }`}
-                title="Alertes visuelles"
-              >
-                <Bell className={`w-4 h-4 ${visualAlerts ? "text-white" : "text-gray-400"}`} />
-              </button>
-
-              <button
-                onClick={toggleColorblindMode}
-                className={`relative rounded-full px-3 py-2 transition-all group ${
-                  colorblindMode ? "bg-purple-600" : "bg-slate-700 hover:bg-slate-600"
-                }`}
-                title="Mode daltonien"
-              >
-                <Palette className={`w-4 h-4 ${colorblindMode ? "text-white" : "text-gray-400"}`} />
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Partie DROITE - Avatar, Nom/ID, Solde + Ajout, Bouton Chat, Bouton Aide */}
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-4'}`}>
-          {/* Avatar du joueur */}
           {!isMobile && (
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-xl border-2 border-white">
               {getPlayerAvatar(heroDisplayName) ? (
-                <ImageWithFallback
-                  src={getPlayerAvatar(heroDisplayName)}
-                  alt="Avatar du joueur"
-                  className="w-full h-full rounded-full object-cover"
-                />
+                <ImageWithFallback src={getPlayerAvatar(heroDisplayName)} alt="Avatar du joueur" className="w-full h-full rounded-full object-cover" />
               ) : (
                 <span className="text-white font-bold text-xl">{heroDisplayName.charAt(0)}</span>
               )}
             </div>
           )}
 
-          {/* Nom du joueur et ID */}
           {!isMobile && (
             <div className="flex flex-col">
-              <div className="text-white font-bold text-lg leading-tight">
-                {heroDisplayName}
-              </div>
-              <div className="text-gray-400 text-xs font-medium">
-                {userId ? `ID ${userId.slice(0, 8)}` : "—"}
-              </div>
+              <div className="text-white font-bold text-lg leading-tight">{heroDisplayName}</div>
+              <div className="text-gray-400 text-xs font-medium">{userId ? `ID ${userId.slice(0, 8)}` : "—"}</div>
             </div>
           )}
 
-          {/* Séparateur */}
           {!isMobile && <div className="w-px h-10 bg-slate-700"></div>}
 
-          {/* Capsule Solde + Bouton Ajouter */}
           <div className="flex items-center bg-slate-800/80 backdrop-blur-md border border-slate-700 rounded-full pl-3 pr-1 py-1 shadow-lg gap-3">
             <div className={`text-white font-bold flex items-center gap-1.5 ${isMobile ? 'text-sm' : 'text-base'}`}>
-              <span className="text-yellow-400 drop-shadow-sm">🪙</span>
+              <ChipIcon size="sm" />
               <span>{playerChips.toLocaleString()}</span>
             </div>
 
             <button
-              onClick={() => {}}
+              onClick={openAddMoney}
               className={`bg-gradient-to-b from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white ${isMobile ? 'w-7 h-7' : 'w-8 h-8'} rounded-full flex items-center justify-center shadow-md transition-all transform hover:scale-105 border border-green-400`}
-              title={t('gameHelp.addCredits')}
+              title={t("lobby.addMoney")}
             >
               <Plus className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
             </button>
           </div>
 
-          {/* Séparateur */}
           {!isMobile && <div className="w-px h-10 bg-slate-700"></div>}
 
-          {/* Bouton Chat - Minimaliste */}
           {!isMobile && (
             <button
               onClick={() => setIsChatOpen(!isChatOpen)}
               className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
-              title="Ouvrir le chat"
+              title={t('game.openChat')}
             >
-              <MessageCircle 
-                className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${
-                  isChatOpen ? "text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]" : "text-gray-200 hover:text-white"
-                }`} 
-              />
+              <MessageCircle className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${isChatOpen ? "text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]" : "text-gray-200 hover:text-white"}`} />
             </button>
           )}
 
-          {/* NOUVEAU : Bouton Aide (?) - Minimaliste */}
           {!isMobile && (
             <button
-              onClick={() => setShowGameHelp(!showGameHelp)}
+              type="button"
+              onClick={startGameTour}
               className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
-              title="Aide et règles du jeu"
+              title={t("game.menuGuidedTour")}
             >
-              <HelpCircle 
-                className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${
-                  showGameHelp ? "text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.8)]" : "text-gray-200 hover:text-white"
-                }`} 
-              />
+              <Sparkles className="w-6 h-6 transition-all duration-300 group-hover:scale-110 text-cyan-400 hover:text-cyan-300" />
             </button>
           )}
         </div>
       </div>
 
-      {/* Modal Confirmation Quitter */}
-      {showQuitConfirm && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-red-900 to-red-950 rounded-2xl border-2 border-red-600 shadow-2xl max-w-md w-full p-6 animate-bounce">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-2xl font-bold">!</span>
-              </div>
-              <h2 className="text-2xl font-bold text-white">Quitter la partie ?</h2>
-            </div>
-
-            <p className="text-red-200 mb-6 leading-relaxed">
-              Vous êtes sur le point de quitter la partie en cours. Vos jetons seront perdus et vous ne pourrez pas revenir à cette table.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowQuitConfirm(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={() => {
-                  setShowQuitConfirm(false);
-                  navigate("/lobby");
-                }}
-                className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-red-600/50"
-              >
-                Continuer
+      {showAddMoney && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
+          <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">{t("lobby.addMoneyTitle")}</h3>
+              <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
               </button>
             </div>
+            {addSuccess ? (
+              <p className="text-green-400 font-medium text-center py-4">{t("lobby.captchaSuccess")}</p>
+            ) : (
+              <>
+                <p className="text-slate-300 text-sm mb-3">{t("lobby.chooseAmount")}</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {ADD_MONEY_PRESETS.map((amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      onClick={() => setAddMoneyAmount(amount)}
+                      className={`px-4 py-2 rounded-lg font-bold transition ${addMoneyAmount === amount ? "bg-yellow-500 text-slate-900" : "bg-slate-700 text-slate-200 hover:bg-slate-600"}`}
+                    >
+                      {amount.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+                {addMoneyAmount != null && (
+                  <div className="space-y-2">
+                    <label className="text-slate-300 text-sm block">{t("lobby.devValidation") || 'Tapez "dev" pour valider'}</label>
+                    <input
+                      type="text"
+                      value={devValidation}
+                      onChange={(e) => setDevValidation(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
+                      placeholder="dev"
+                      className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={submitAddMoney}
+                      disabled={devValidation.trim().toLowerCase() !== "dev"}
+                      className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
+                    >
+                      {t("lobby.validate")}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {/* Menu Accessibilité */}
-      <AccessibilityMenu 
-        isOpen={showAccessibilityMenu} 
-        onClose={() => setShowAccessibilityMenu(false)} 
+      <QuitGameConfirmDialog
+        open={showQuitConfirm}
+        onCancel={() => setShowQuitConfirm(false)}
+        onConfirm={() => {
+          setShowQuitConfirm(false);
+          navigate("/lobby");
+        }}
       />
 
-      {/* Zone centrale - Table de poker avec cartes communes */}
-      <div className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
-        <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase}>
-          <CommunityCards cards={communityCards} pot={pot} sidePots={sidePots.length > 1 ? sidePots : undefined} />
+      {gameIdParam && !isBotMode && (cashCountdownEndsAt || cashWaitingPlayers) && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2">
+          <div className="bg-slate-800/95 border border-emerald-500/50 rounded-xl px-6 py-3 shadow-lg">
+            {cashWaitingPlayers ? (
+              <p className="text-emerald-300 font-semibold">{t('game.waitingForPlayers')}</p>
+            ) : cashCountdownSecs > 0 ? (
+              <p className="text-white font-semibold">{t('game.newHandIn', { count: cashCountdownSecs })}</p>
+            ) : null}
+          </div>
+          {(cashCountdownEndsAt || cashWaitingPlayers) && (
+            <div className="flex gap-2 flex-wrap justify-center max-w-[min(100vw-1rem,420px)]">
+              {!cashSeats.some((s) => s.userId === userId) ? (
+                cashSeats.some((s) => !s.userId) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const free = cashSeats.findIndex((s) => !s.userId);
+                      if (free >= 0 && socket) socket.emit("CASH_SIT", { gameId: gameIdParam, seatIndex: free, buyIn: 100 });
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                  >
+                    {t("game.cashSitBuyIn", { amount: 100 })}
+                  </button>
+                )
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => socket?.emit("CASH_LEAVE", { gameId: gameIdParam })}
+                    className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                  >
+                    {t("game.cashStandUp")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => socket?.emit("CASH_REBUY", { gameId: gameIdParam, amount: 100 })}
+                    className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                  >
+                    {t("game.cashRebuy", { amount: 100 })}
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowQuitConfirm(true)}
+                className="border border-slate-500 bg-slate-800/90 hover:bg-red-950/60 hover:border-red-500/50 text-slate-200 hover:text-red-200 text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+              >
+                {t("nav.quitGame")}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div ref={tourRefTable} className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
+        <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase} burnedCardsCount={displayBurnedCardsCount} colorblindMode={colorblindMode}>
+          <CommunityCards
+            cards={communityCards}
+            pot={pot}
+            sidePots={sidePots.length > 1 ? sidePots : undefined}
+            colorblindMode={colorblindMode}
+            potRef={tourRefPot}
+            boardRef={tourRefBoard}
+          />
         </PokerTable>
       </div>
 
-      {/* HUD Quantique - s'ouvre en overlay */}
       <QuantumHUD isOpen={isQuantumOpen} onToggle={() => setIsQuantumOpen(!isQuantumOpen)} />
-
-      {/* Panneau Paris Cachés - s'ouvre en overlay */}
-      <HiddenBetsPanel 
-        isOpen={isPanelOpen}
-        onToggle={() => setIsPanelOpen(!isPanelOpen)}
-        players={activePlayers}
-      />
-
-      {/* Chat Poker - s'ouvre en overlay */}
-      <PokerChat 
-        isOpen={isChatOpen} 
-        onToggle={() => setIsChatOpen(!isChatOpen)}
-        onSendMessage={handleSendMessage}
-      />
-
-      {/* Feed de messages - En haut à gauche */}
+      <HiddenBetsPanel isOpen={isPanelOpen} onToggle={() => setIsPanelOpen(!isPanelOpen)} players={activePlayers} />
+      <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />
 
-      {/* Tableau de bord du joueur - EN BAS */}
-      <PlayerDashboard
-        name={heroDisplayName}
-        chips={playerChips}
-        cards={heroCards}
-        onFold={() => handleFold()}
-        onCall={(amount) => handleCall(amount)}
-        onRaise={(amount) => handleRaise(amount)}
-        onCheck={() => handleCheck()}
-        callAmount={callAmount}
-        minRaise={50}
-        maxRaise={Math.max(0, playerChips - callAmount)}
-        isMyTurn={handResult === null && isMyTurn}
-        isLoading={isLoading}
-        hasFolded={hasFoldedFromState}
-        hasActed={hasPlayerActed}
-        actionsDisabled={Boolean(gameIdParam && !socket)}
-        waitingForPlayer={!isMyTurn && !hasFoldedFromState ? activePlayer?.name : undefined}
-        timeLeft={timeLeft ?? 30}
-        onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
-        onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
-        onToggleChat={() => setIsChatOpen(!isChatOpen)}
-        isQuantumOpen={isQuantumOpen}
-        isHiddenBetsOpen={isPanelOpen}
-        isChatOpen={isChatOpen}
-      />
-
-      {/* Modal d'aide du jeu (affiché quand on clique sur le "?") */}
-      {showGameHelp && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setShowGameHelp(false)}>
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-indigo-500 shadow-2xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
-                <HelpCircle className="w-8 h-8 text-indigo-400" />
-                Guide de Quantum Bluff
-              </h2>
-              <button onClick={() => setShowGameHelp(false)} className="text-gray-400 hover:text-white transition-colors">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4 text-white">
-              <section>
-                <h3 className="text-xl font-bold text-indigo-400 mb-2">🎮 Objectif du Jeu</h3>
-                <p className="text-gray-300">Remporter les jetons des autres joueurs en ayant la meilleure main de poker ou en les faisant se coucher.</p>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-bold text-indigo-400 mb-2">🃏 Actions Principales</h3>
-                <ul className="space-y-2 text-gray-300">
-                  <li><strong className="text-red-400">{t('game.fold')} (Fold)</strong> : {t('gameHelp.foldDesc')}</li>
-                  <li><strong className="text-blue-400">{t('game.callLabel')} (Call)</strong> : {t('gameHelp.callDesc')}</li>
-                  <li><strong className="text-green-400">{t('game.raise')}</strong> : {t('gameHelp.raiseDesc')}</li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-bold text-indigo-400 mb-2">✨ Fonctionnalités Spéciales</h3>
-                <ul className="space-y-2 text-gray-300">
-                  <li><strong className="text-purple-400">Probabilités Quantiques</strong> : Survolez pour voir vos chances de gagner, cliquez pour épingler</li>
-                  <li><strong className="text-yellow-400">Paris Cachés</strong> : Pariez discrètement sur le résultat du coup</li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-bold text-indigo-400 mb-2">🏆 Combinaisons de Poker (du plus fort au plus faible)</h3>
-                <ol className="space-y-1 text-gray-300 list-decimal list-inside">
-                  <li>Quinte Flush Royale</li>
-                  <li>Quinte Flush</li>
-                  <li>Carré</li>
-                  <li>Full</li>
-                  <li>Couleur</li>
-                  <li>Suite</li>
-                  <li>Brelan</li>
-                  <li>Double Paire</li>
-                  <li>Paire</li>
-                  <li>Carte Haute</li>
-                </ol>
-              </section>
-            </div>
-
-            <button
-              onClick={() => setShowGameHelp(false)}
-              className="mt-6 w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105"
-            >
-              Compris !
-            </button>
-          </div>
+      {isSpectating && gameIdParam && !isBotMode && cashSeats.length > 0 && (
+        <div ref={tourRefActions} className="fixed bottom-6 left-1/2 z-30 flex min-h-[48px] min-w-[200px] -translate-x-1/2 items-center justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              if (spectatorWantsToRejoin) {
+                socket?.emit("SPECTATOR_QUEUE_LEAVE", { gameId: gameIdParam });
+              } else {
+                socket?.emit("SPECTATOR_QUEUE_JOIN", { gameId: gameIdParam });
+              }
+            }}
+            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${spectatorWantsToRejoin ? "bg-amber-600 hover:bg-amber-500 text-white" : "bg-emerald-600 hover:bg-emerald-500 text-white"}`}
+          >
+            {spectatorWantsToRejoin ? t("game.cancelRejoinNextHand") : t("game.rejoinNextHand")}
+          </button>
         </div>
       )}
+
+      {!isSpectating && (
+        <PlayerDashboard
+          ref={tourRefActions}
+          name={heroDisplayName}
+          chips={playerChips}
+          cards={heroCards}
+          colorblindMode={colorblindMode}
+          onFold={() => handleFold()}
+          onCall={(amount) => handleCall(amount)}
+          onRaise={(amount) => handleRaise(amount)}
+          onCheck={() => handleCheck()}
+          callAmount={callAmount}
+          minRaise={50}
+          maxRaise={Math.max(0, playerChips - callAmount)}
+          isMyTurn={handResult === null && isMyTurn}
+          isLoading={isLoading}
+          hasFolded={hasFoldedFromState}
+          hasActed={hasPlayerActed}
+          actionsDisabled={Boolean(gameIdParam && !socket)}
+          waitingForPlayer={!isMyTurn && !hasFoldedFromState ? (activePlayer?.name === "Vous" || activePlayer?.name === "you" ? t('game.you') : activePlayer?.name) : undefined}
+          timeLeft={timeLeft ?? 30}
+          onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
+          onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
+          onToggleChat={() => setIsChatOpen(!isChatOpen)}
+          isQuantumOpen={isQuantumOpen}
+          isHiddenBetsOpen={isPanelOpen}
+          isChatOpen={isChatOpen}
+        />
+      )}
+
+      {isSpectating && !(gameIdParam && !isBotMode && cashSeats.length > 0) && (
+        <div
+          ref={tourRefActions}
+          className="fixed bottom-8 left-1/2 z-30 flex min-h-[40px] w-[min(90vw,320px)] -translate-x-1/2 items-center justify-center rounded-xl border border-dashed border-slate-600/40 bg-slate-900/30 px-3 py-2 text-center text-xs text-slate-500"
+          aria-hidden
+        >
+          {t("game.help.spectatorPlaceholder")}
+        </div>
+      )}
+
+      <GameInteractiveTour
+        open={gameTourOpen}
+        onClose={() => setGameTourOpen(false)}
+        step={gameTourStep}
+        onStepChange={setGameTourStep}
+        refs={gameTourRefs}
+        isSpectating={isSpectating}
+      />
     </div>
   );
 }

@@ -1,98 +1,12 @@
 import express from 'express';
 import { prisma } from '../config/database.js';
-import { GameTable } from '../logic/GameTable.js';
-import type { Player } from '../types/poker.js';
 import { activeGames } from '../shared/activeGames.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// POST /api/game/start - Démarrer une partie depuis une salle d'attente
-router.post('/start', async (req, res) => {
-  try {
-    const { roomId, hostId } = req.body;
-
-    // Récupérer la salle d'attente
-    const waitingRoom = await prisma.waitingRoom.findUnique({
-      where: { id: roomId },
-      include: {
-        players: {
-          include: {
-            user: true
-          }
-        }
-      }
-    });
-
-    if (!waitingRoom) {
-      return res.status(404).json({ error: 'Salle introuvable' });
-    }
-
-    // Vérifier que c'est bien le host qui démarre
-    if (waitingRoom.hostId !== hostId) {
-      return res.status(403).json({ error: 'Seul le host peut démarrer la partie' });
-    }
-
-    // Vérifier qu'il y a assez de joueurs
-    if (waitingRoom.players.length < 2) {
-      return res.status(400).json({ error: 'Minimum 2 joueurs requis' });
-    }
-
-    // Convertir les utilisateurs en joueurs pour GameTable (chips = balance de chaque utilisateur)
-    const players: Player[] = waitingRoom.players.map((rp, index) => ({
-      id: rp.user.id,
-      name: rp.user.username,
-      cards: [],
-      chips: Math.max(100, rp.user.chips ?? 1000),
-      role: 'PLAYER',
-      isActive: true,
-      position: index,
-      isDealer: false,
-      isConnected: true
-    }));
-
-    // Créer une nouvelle partie
-    const gameId = `game_${Date.now()}`;
-    const gameTable = new GameTable(gameId, players);
-    gameTable.startHand();
-
-    // Sauvegarder la partie active
-    await activeGames.set(gameId, gameTable);
-
-    // Notifier via Socket.io
-    const io = req.app.get('io');
-    if (io) {
-      io.to(roomId).emit('GAME_STARTED', { gameId });
-    }
-
-    // Mettre à jour le statut de la salle d'attente
-    await prisma.waitingRoom.update({
-      where: { id: roomId },
-      data: { status: 'IN_GAME' }
-    });
-
-    // Sauvegarder l'historique
-    await prisma.gameHistory.create({
-      data: {
-        id: gameId,
-        tableId: roomId,
-        gameId: gameId,
-        board: [],
-        pot: 0,
-        winnerId: '',
-      }
-    });
-
-    res.json({
-      gameId,
-      state: gameTable.getSanitizedState()
-    });
-
-  } catch (error) {
-    console.error('Erreur démarrage partie:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
+// Démarrage de partie cash : utiliser uniquement POST /api/waiting-room/:roomId/start
+// (blinds / minBalance, tous prêts, gameId persisté — évite doublon et états incohérents)
 
 // GET /api/game/:gameId/room-info - Infos salle/host pour rematch (partie multi)
 router.get('/:gameId/room-info', async (req, res) => {
@@ -169,6 +83,7 @@ router.post('/record-result', authMiddleware, async (req, res) => {
     const chipsWon = chipsDelta > 0 ? chipsDelta : 0;
     const chipsLost = chipsDelta < 0 ? -chipsDelta : 0;
 
+    // 1. Mise à jour des statistiques (Ton code d'origine)
     await prisma.playerStats.upsert({
       where: { playerId: userId },
       create: {
@@ -186,6 +101,16 @@ router.post('/record-result', authMiddleware, async (req, res) => {
         ...(chipsLost > 0 ? { totalChipsLost: { increment: chipsLost } } : {}),
       },
     });
+
+    // 2. CORRECTION : Mise à jour du VRAI portefeuille du joueur ! 💰
+    if (chipsDelta !== 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          chips: { increment: chipsDelta }
+        }
+      });
+    }
 
     res.json({ ok: true });
   } catch (error) {

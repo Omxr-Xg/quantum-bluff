@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bell, Gamepad2, UserPlus, Check, X } from "lucide-react";
-import { useSocket } from "../contexts/SocketContext";
+import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
 import { useGetFriendRequestsQuery, useRespondToFriendRequestMutation } from "../services/api";
 

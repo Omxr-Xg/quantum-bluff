@@ -1,0 +1,2 @@
+# Activité MAIN/LAUNCHER : android:exported="true" requis (Android 12+) — faux positif SAST
+client/android/app/src/main/AndroidManifest.xml

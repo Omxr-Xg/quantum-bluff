@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Check, X, Gamepad2 } from "lucide-react";
-import { useSocket, type GameInvitationNotification } from "../contexts/SocketContext";
+import { useSocket } from "../hooks/useSocket";
+import type { GameInvitationNotification } from "../contexts/SocketContext";
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 

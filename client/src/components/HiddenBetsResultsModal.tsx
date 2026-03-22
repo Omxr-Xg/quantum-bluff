@@ -1,4 +1,5 @@
 import { X, Trophy, TrendingUp, Award, Coins } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import type { HiddenBet } from "../contexts/HiddenBetsContext";
@@ -12,6 +13,7 @@ export function HiddenBetsResultsModal({
   bets,
   onClose,
 }: HiddenBetsResultsModalProps) {
+  const { t } = useTranslation();
   const totalWinnings = bets
     .filter((bet) => bet.won)
     .reduce((sum, bet) => sum + (bet.winAmount ?? 0), 0);
@@ -53,7 +55,7 @@ export function HiddenBetsResultsModal({
             type="button"
             onClick={onClose}
             className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 p-2 rounded-full transition-all flex items-center justify-center"
-            aria-label="Fermer"
+            aria-label={t('hiddenBets.close')}
           >
             <X className="w-6 h-6 text-white" />
           </button>
@@ -64,10 +66,10 @@ export function HiddenBetsResultsModal({
             </div>
             <div>
               <h2 className="text-3xl font-bold text-white mb-1">
-                Résultats des Paris Cachés
+                {t('hiddenBets.results')}
               </h2>
               <p className="text-yellow-100 text-sm">
-                Tous les paris secrets sont maintenant révélés !
+                {t('hiddenBets.revealed')}
               </p>
             </div>
           </div>
@@ -78,7 +80,7 @@ export function HiddenBetsResultsModal({
           <div className="space-y-3">
             {bets.length === 0 ? (
               <p className="text-gray-400 text-center py-8">
-                Aucun pari à afficher.
+                {t('hiddenBets.noBets')}
               </p>
             ) : (
               bets.map((bet) => (
@@ -106,18 +108,18 @@ export function HiddenBetsResultsModal({
                           className="w-14 h-14 rounded-full object-cover"
                         />
                       ) : (
-                        <span className="text-white text-lg font-bold">
-                          {bet.playerName.charAt(0)}
-                        </span>
+<span className="text-white text-lg font-bold">
+                        {(bet.playerName === "Vous" || bet.playerName === "you" ? t('game.you') : bet.playerName).charAt(0)}
+                      </span>
                       )}
                     </div>
 
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-white font-bold text-lg">
-                          {bet.playerName}
+                          {bet.playerName === "Vous" || bet.playerName === "you" ? t('game.you') : bet.playerName}
                         </span>
-                        <span className="text-gray-400 text-sm">a parié sur</span>
+                        <span className="text-gray-400 text-sm">{t('hiddenBets.betOn')}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <div
@@ -128,8 +130,8 @@ export function HiddenBetsResultsModal({
                           }`}
                         >
                           {bet.betType === "winner"
-                            ? "👤 Qui va gagner"
-                            : "🎴 Combinaison"}
+                            ? `👤 ${t('hiddenBets.whoWins')}`
+                            : `🎴 ${t('hiddenBets.combinationLabel')}`}
                         </div>
                         <div className="text-yellow-300 font-bold text-base">
                           {bet.betType === "winner"
@@ -140,7 +142,7 @@ export function HiddenBetsResultsModal({
                     </div>
 
                     <div className="text-right flex-shrink-0">
-                      <div className="text-gray-400 text-xs mb-1">Mise</div>
+                      <div className="text-gray-400 text-xs mb-1">{t('hiddenBets.stake')}</div>
                       <div className="text-white font-bold text-lg mb-2">
                         ${bet.amount.toLocaleString()}
                       </div>
@@ -148,7 +150,7 @@ export function HiddenBetsResultsModal({
                         className={`${getOddsColor(bet.odds)} text-sm font-bold flex items-center justify-end gap-1`}
                       >
                         <TrendingUp className="w-4 h-4" />
-                        Cote x{bet.odds}
+                        {t('hiddenBets.oddsLabel', { odds: bet.odds })}
                       </div>
                     </div>
 
@@ -156,7 +158,7 @@ export function HiddenBetsResultsModal({
                       {bet.won ? (
                         <div className="bg-green-600 rounded-xl p-3 border-2 border-green-400">
                           <div className="text-green-200 text-xs mb-1">
-                            💰 GAIN
+                            💰 {t('hiddenBets.gainLabel')}
                           </div>
                           <div className="text-white font-bold text-xl">
                             +${(bet.winAmount ?? 0).toLocaleString()}
@@ -165,7 +167,7 @@ export function HiddenBetsResultsModal({
                       ) : (
                         <div className="bg-slate-700 rounded-xl p-3 border-2 border-slate-600">
                           <div className="text-gray-400 text-xs mb-1">
-                            PERDU
+                            {t('hiddenBets.lostLabel')}
                           </div>
                           <div className="text-red-400 font-bold text-xl">
                             -${bet.amount.toLocaleString()}
@@ -186,7 +188,7 @@ export function HiddenBetsResultsModal({
             <div className="flex items-center gap-3">
               <Coins className="w-8 h-8 text-yellow-400" />
               <div>
-                <div className="text-gray-400 text-sm">Total des gains</div>
+                <div className="text-gray-400 text-sm">{t('hiddenBets.totalWinnings')}</div>
                 <div className="text-yellow-400 text-2xl font-bold">
                   ${totalWinnings.toLocaleString()}
                 </div>
@@ -197,7 +199,7 @@ export function HiddenBetsResultsModal({
               onClick={onClose}
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold px-8 py-3 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
             >
-              Fermer
+              {t('hiddenBets.close')}
             </button>
           </div>
         </div>

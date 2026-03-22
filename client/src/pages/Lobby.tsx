@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bot, Server, Loader2, X, Trash2, Lock, Globe, Minus, Plus } from "lucide-react";
+import { Bot, Server, Loader2, X, Trash2, Lock, Globe, Minus, Plus, Eye, ChevronDown, ChevronUp, Settings2, XCircle } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
+import { useTopBar } from '../contexts/TopBarContext';
+import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
@@ -28,10 +30,21 @@ interface WaitingRoomItem {
   playerCount: number;
 }
 
+interface GameInProgressItem {
+  roomId: string;
+  roomName: string;
+  gameId: string;
+  playerCount: number;
+  maxPlayers: number;
+  phase: string;
+  canJoin: boolean;
+}
+
 export function Lobby() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { userId, username } = useUser();
+  const { menuContent } = useTopBar();
   const [rooms, setRooms] = useState<WaitingRoomItem[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -39,8 +52,58 @@ export function Lobby() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createVisibility, setCreateVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [createMaxPlayers, setCreateMaxPlayers] = useState(5);
+  const [showCreateAdvanced, setShowCreateAdvanced] = useState(false);
+  const [createSmallBlind, setCreateSmallBlind] = useState(5);
+  const [createBigBlind, setCreateBigBlind] = useState(10);
+  const [createMinBalance, setCreateMinBalance] = useState(100);
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
+  const [gamesInProgress, setGamesInProgress] = useState<GameInProgressItem[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(true);
+  const [lobbyTourOpen, setLobbyTourOpen] = useState(false);
+  const [lobbyTourStep, setLobbyTourStep] = useState(0);
   const { addToast } = useToast();
+
+  const tourRefHeader = useRef<HTMLDivElement>(null);
+  const tourRefTopBar = useRef<HTMLDivElement>(null);
+  const tourRefBot = useRef<HTMLDivElement>(null);
+  const tourRefMultiplayer = useRef<HTMLDivElement>(null);
+  const tourRefWaiting = useRef<HTMLDivElement>(null);
+  const tourRefGames = useRef<HTMLDivElement>(null);
+  const tourRefFriends = useRef<HTMLDivElement>(null);
+
+  const lobbyTourRefs = useMemo(
+    () => ({
+      header: tourRefHeader,
+      topBar: tourRefTopBar,
+      bot: tourRefBot,
+      multiplayer: tourRefMultiplayer,
+      waitingRooms: tourRefWaiting,
+      gamesInProgress: tourRefGames,
+      friends: tourRefFriends,
+    }),
+    []
+  );
+
+  const fetchGamesInProgress = useCallback(async () => {
+    try {
+      const base = API_BASE ? `${API_BASE}/api/waiting-room/games-in-progress` : "/api/waiting-room/games-in-progress";
+      const url = userId ? `${base}?userId=${encodeURIComponent(userId)}` : base;
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      setGamesInProgress(Array.isArray(data) ? data : []);
+    } catch {
+      setGamesInProgress([]);
+    } finally {
+      setGamesLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    fetchGamesInProgress();
+    const iv = setInterval(fetchGamesInProgress, 5000);
+    return () => clearInterval(iv);
+  }, [fetchGamesInProgress]);
 
   // Auto-navigate when a join request is accepted
   useEffect(() => {
@@ -56,7 +119,8 @@ export function Lobby() {
 
   const fetchRooms = useCallback(async () => {
     try {
-      const url = API_BASE ? `${API_BASE}/api/waiting-room` : "/api/waiting-room";
+      const base = API_BASE ? `${API_BASE}/api/waiting-room` : "/api/waiting-room";
+      const url = userId ? `${base}?userId=${encodeURIComponent(userId)}` : base;
       const res = await fetch(url);
       if (!res.ok) throw new Error(t('common.error'));
       const data = await res.json();
@@ -68,7 +132,7 @@ export function Lobby() {
     } finally {
       setRoomsLoading(false);
     }
-  }, [t]);
+  }, [t, userId]);
 
   useEffect(() => {
     fetchRooms();
@@ -84,10 +148,21 @@ export function Lobby() {
     setShowCreateModal(true);
     setCreateVisibility('PUBLIC');
     setCreateMaxPlayers(5);
+    setShowCreateAdvanced(false);
+    setCreateSmallBlind(5);
+    setCreateBigBlind(10);
+    setCreateMinBalance(100);
   };
+
+  const MIN_BALANCE = 100;
+  const isMinBalanceInvalid = createMinBalance < MIN_BALANCE;
 
   const handleCreateServer = async () => {
     if (!userId) return;
+    if (isMinBalanceInvalid) {
+      addToast(t('lobby.minAmount100'), 'error');
+      return;
+    }
     setCreating(true);
     setShowCreateModal(false);
     try {
@@ -100,6 +175,9 @@ export function Lobby() {
           roomName: `Salle de ${username || "Joueur"}`,
           maxPlayers: createMaxPlayers,
           visibility: createVisibility,
+          smallBlind: createSmallBlind,
+          bigBlind: createBigBlind,
+          minBalance: createMinBalance,
         }),
       });
       if (!res.ok) {
@@ -141,6 +219,14 @@ export function Lobby() {
     navigate(`/waiting-room?roomId=${roomId}`);
   };
 
+  const handleJoinGame = (gameId: string) => {
+    navigate(`/game?gameId=${gameId}`);
+  };
+
+  const handleSpectateGame = (gameId: string) => {
+    navigate(`/game?gameId=${gameId}&spectate=1`);
+  };
+
   const handleDeleteRoom = async (roomId: string) => {
     if (!userId) return;
     try {
@@ -172,7 +258,7 @@ export function Lobby() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 w-full overflow-visible">
 
           {/* Côté Gauche (Logo + Titre) */}
-          <div className="flex items-center gap-4 w-full md:w-auto">
+          <div ref={tourRefHeader} className="flex items-center gap-4 w-full md:w-auto">
             <QuantumBluffLogo className="w-12 h-12 md:w-16 md:h-16 shrink-0" />
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl md:text-4xl font-bold text-purple-400 truncate">
@@ -184,8 +270,10 @@ export function Lobby() {
             </div>
           </div>
 
-          {/* Côté Droit : vide (langue, argent, profil, amis, quitter sont dans la barre Layout) */}
-          <div />
+          {/* Côté Droit : menu intégré (langue, argent, profil, amis, quitter) */}
+          <div ref={tourRefTopBar} className="flex items-center gap-3 flex-wrap justify-end">
+            {menuContent}
+          </div>
         </div>
         {/* FIN DU HEADER */}
 
@@ -275,12 +363,79 @@ export function Lobby() {
                 </div>
               </div>
 
+              {/* Voir plus — options avancées */}
+              <button
+                type="button"
+                onClick={() => setShowCreateAdvanced(v => !v)}
+                className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-slate-300 text-sm font-medium py-2 mb-2 transition-colors"
+              >
+                <Settings2 className="w-4 h-4" />
+                <span>{showCreateAdvanced ? t('lobby.hideOptions') : t('lobby.seeMore')}</span>
+                {showCreateAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {showCreateAdvanced && (
+                <div className="mb-6 p-4 bg-slate-900/50 rounded-xl border border-slate-600 space-y-4">
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.smallBlind')}</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={createSmallBlind}
+                      onChange={(e) => setCreateSmallBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
+                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minRaise')}</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={createBigBlind}
+                      onChange={(e) => setCreateBigBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 2)))}
+                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <p className="text-slate-500 text-xs mt-1">{t('lobby.minRaiseHint')}</p>
+                  </div>
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minBalance')}</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={1000000}
+                        step={100}
+                        value={createMinBalance}
+                        onChange={(e) => {
+                          const raw = e.target.value === "" ? 0 : Number(e.target.value);
+                          const val = Number.isNaN(raw) ? 0 : Math.min(1000000, Math.max(0, raw));
+                          setCreateMinBalance(val);
+                        }}
+                        className={`flex-1 bg-slate-700 border rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                          isMinBalanceInvalid ? "border-red-500" : "border-slate-600"
+                        }`}
+                      />
+                      {isMinBalanceInvalid && (
+                        <div className="relative flex items-center gap-1">
+                          <XCircle className="w-6 h-6 text-red-500 shrink-0" aria-hidden />
+                          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-1 z-10 px-3 py-2 bg-slate-800 border border-red-500 rounded-lg shadow-xl text-red-400 text-sm font-medium whitespace-nowrap">
+                            {t('lobby.minAmount100')}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-slate-500 text-xs mt-1">{t('lobby.minBalanceHint')}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Validate */}
               <button
                 type="button"
                 onClick={handleCreateServer}
-                disabled={creating}
-                className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white font-bold text-lg transition flex items-center justify-center gap-2"
+                disabled={creating || isMinBalanceInvalid}
+                className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold text-lg transition flex items-center justify-center gap-2"
               >
                 {creating && <Loader2 className="w-5 h-5 animate-spin" />}
                 {t('lobby.validateCreate')}
@@ -296,7 +451,7 @@ export function Lobby() {
           <div className="lg:col-span-2 space-y-6">
 
             {/* Section Jouer contre Bot */}
-            <div className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
+            <div ref={tourRefBot} className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
               <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
                 <Bot className="w-8 h-8 text-purple-400"/>
                 {t('lobby.playBot')}
@@ -311,7 +466,7 @@ export function Lobby() {
             </div>
 
             {/* Section Serveur Multi-joueurs */}
-            <div className="bg-slate-800 rounded-2xl p-6 border border-green-500">
+            <div ref={tourRefMultiplayer} className="bg-slate-800 rounded-2xl p-6 border border-green-500">
               <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
                 <Server className="w-8 h-8 text-green-400"/>
                 {t('lobby.multiplayerServers')}
@@ -327,8 +482,9 @@ export function Lobby() {
                   {creating ? t('lobby.creating') : t('lobby.createNewServer')}
                 </button>
 
-                <div className="bg-slate-700/50 p-4 rounded-xl">
-                  <p className="text-gray-300 text-sm mb-2">{t('lobby.serversAvailable')}</p>
+                {/* Salles d'attente */}
+                <div ref={tourRefWaiting} className="bg-slate-700/50 p-4 rounded-xl mb-4">
+                  <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.waitingRooms')}</p>
                   {roomsLoading && rooms.length === 0 ? (
                     <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
@@ -405,19 +561,89 @@ export function Lobby() {
                     </ul>
                   )}
                 </div>
+
+                {/* Parties en cours */}
+                <div ref={tourRefGames} className="bg-slate-700/50 p-4 rounded-xl">
+                  <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.gamesInProgress')}</p>
+                  {gamesLoading && gamesInProgress.length === 0 ? (
+                    <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
+                    </p>
+                  ) : gamesInProgress.length === 0 ? (
+                    <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {gamesInProgress.map((g) => (
+                        <li
+                          key={g.gameId}
+                          className="flex items-center justify-between gap-3 bg-slate-800/70 rounded-lg px-3 py-2 border border-slate-600"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white font-medium truncate">{g.roomName}</p>
+                            <p className="text-gray-400 text-xs">
+                              {t('lobby.playersCount', { count: g.playerCount, max: g.maxPlayers })} · {g.phase}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {g.canJoin && (
+                              <button
+                                onClick={() => handleJoinGame(g.gameId)}
+                                className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                              >
+                                {t('lobby.join')}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleSpectateGame(g.gameId)}
+                              className="shrink-0 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              {t('lobby.spectate')}
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
             </div>
 
           </div>
 
           {/* Colonne de droite (1/3) - Amis */}
-          <div className="lg:col-span-1">
+          <div ref={tourRefFriends} className="lg:col-span-1">
             <FriendsList />
           </div>
 
         </div>
 
       </div>
+
+      {/* Tutoriel interactif — bouton fixe bas-gauche */}
+      <button
+        type="button"
+        onClick={() => {
+          if (lobbyTourOpen) setLobbyTourOpen(false);
+          else {
+            setLobbyTourStep(0);
+            setLobbyTourOpen(true);
+          }
+        }}
+        className="fixed bottom-5 left-5 z-[260] flex h-12 w-12 items-center justify-center rounded-full border-2 border-purple-400/90 bg-purple-950/95 text-lg font-bold text-purple-100 shadow-xl backdrop-blur-sm transition hover:border-purple-300 hover:bg-purple-800/95 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+        aria-label={t('lobby.help.openAria')}
+        title={t('lobby.help.openAria')}
+      >
+        <span aria-hidden className="select-none">?</span>
+      </button>
+
+      <LobbyInteractiveTour
+        open={lobbyTourOpen}
+        onClose={() => setLobbyTourOpen(false)}
+        step={lobbyTourStep}
+        onStepChange={setLobbyTourStep}
+        refs={lobbyTourRefs}
+      />
 
     </div>
   );

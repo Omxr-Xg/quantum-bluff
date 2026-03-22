@@ -3,10 +3,11 @@ import { useTranslation } from "react-i18next";
 import { Home, ChevronRight } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import { QuantumBluffLogo } from "../assets/logo";
+import { QuitGameConfirmDialog } from "./QuitGameConfirmDialog";
 
 const PATH_KEYS: Record<string, string> = {
   "/": "nav.login",
-  "/register": "nav.register",
+  "/auth": "nav.login",
   "/lobby": "nav.lobby",
   "/bot-configuration": "nav.botConfig",
   "/waiting-room": "nav.waitingRoom",
@@ -71,38 +72,11 @@ export function NavigationBreadcrumb() {
         )}
       </div>
 
-      {/* Modal Confirmation Quitter */}
-      {showQuitConfirm && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-red-900 to-red-950 rounded-2xl border-2 border-red-600 shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-2xl font-bold">!</span>
-              </div>
-              <h2 className="text-2xl font-bold text-white">{t('nav.quitGameTitle')}</h2>
-            </div>
-
-            <p className="text-red-200 mb-6 leading-relaxed">
-              {t('nav.quitGameMessage')}
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowQuitConfirm(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl transition-all"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleConfirmQuit}
-                className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-red-600/50"
-              >
-                {t('nav.continue')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <QuitGameConfirmDialog
+        open={showQuitConfirm}
+        onCancel={() => setShowQuitConfirm(false)}
+        onConfirm={handleConfirmQuit}
+      />
     </>
   );
 }

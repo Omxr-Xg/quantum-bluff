@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useEffect, useState, useCallback } from 'react'
 import i18n from '../i18n/config'
 import { io, Socket } from 'socket.io-client'
 import { useUser } from '../hooks/useUser'
@@ -22,9 +22,13 @@ interface SocketContextType {
   dismissInvitation: (invitationId: string) => void
 }
 
-const SocketContext = createContext<SocketContextType | undefined>(undefined)
+export const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-const URL = import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin;
+const socketUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || undefined;
+const isLocalhost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const URL = socketUrl || (import.meta.env.DEV || isLocalhost ? 'http://localhost:3000' : window.location.origin);
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
@@ -49,7 +53,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const token = localStorage.getItem('token')
-    console.log('SOCKET CONTEXT TOKEN:', token)
 
     if (!token) {
       setSocket(null)
@@ -57,41 +60,56 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       return
     }
 
+    const isExternalServer = !!socketUrl || URL.includes('185.155.93.105');
     const socketInstance = io(URL, {
       autoConnect: true,
-      // On force Socket.io à passer par le sous-dossier de l'école
-      path: import.meta.env.DEV ? '' : '/vmProjetIntegrateurgrp10-0/socket.io/',
-      auth: {
-        token
-      }
+      path: isExternalServer || URL.includes('localhost') || URL.includes('127.0.0.1')
+        ? '/socket.io'
+        : '/vmProjetIntegrateurgrp10-0/socket.io',
+      auth: { token },
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 500,
+      reconnectionDelayMax: 3000,
     })
 
     setSocket(socketInstance)
 
     socketInstance.on('connect', () => {
-      console.log('Socket connecté')
       setIsConnected(true)
+      const uid = localStorage.getItem('userId')
+      if (uid) socketInstance.emit('JOIN_USER_ROOM', { userId: uid })
     })
 
-    const uid = localStorage.getItem('userId')
-    if (uid) {
-      socketInstance.emit('JOIN_USER_ROOM', { userId: uid })
+    socketInstance.on('disconnect', () => setIsConnected(false))
+
+    socketInstance.on('connect_error', () => {})
+
+    // Safari/iOS : reconnecter quand l'onglet revient au premier plan (WebSocket "suspended")
+    const tryReconnect = () => {
+      if (!socketInstance.connected) socketInstance.connect()
     }
-
-    socketInstance.on('disconnect', () => {
-      console.log('Socket déconnecté')
-      setIsConnected(false)
-    })
-
-    socketInstance.on('connect_error', (error) => {
-      console.error('Erreur de connexion socket:', error)
-    })
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tryReconnect()
+    }
+    const onPageshow = (e: PageTransitionEvent) => {
+      if (e.persisted) tryReconnect()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('pageshow', onPageshow)
 
     return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('pageshow', onPageshow)
       socketInstance.off('connect')
       socketInstance.off('disconnect')
       socketInstance.off('connect_error')
-      socketInstance.disconnect()
+      // Ne disconnect que si connecté (évite "closed before established" en Strict Mode)
+      const s = socketInstance
+      setTimeout(() => {
+        if (s.connected) s.disconnect()
+      }, 0)
     }
   }, [userId, authVersion])
 
@@ -190,12 +208,4 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       {children}
     </SocketContext.Provider>
   )
-}
-
-export const useSocket = () => {
-  const context = useContext(SocketContext)
-  if (!context) {
-    throw new Error('useSocket must be used within SocketProvider')
-  }
-  return context
 }
