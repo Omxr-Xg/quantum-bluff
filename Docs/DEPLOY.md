@@ -46,3 +46,33 @@ VM
 │   └── .env          # Variables d'environnement production
 └── PM2               # Process manager
 ```
+
+## Production — monitoring, secrets, charge
+
+### Variables sensibles (ne jamais committer)
+
+| Variable | Rôle |
+|----------|------|
+| `JWT_SECRET` | Signature des tokens (obligatoire en prod, forte entropie) |
+| `DATABASE_URL` | PostgreSQL |
+| `REDIS_*` / URL Redis | Si utilisé (sessions, rate limit distribué) |
+| `CORS_ORIGIN` | JSON array des origines front autorisées |
+
+### Erreurs côté client
+
+- `client/src/utils/errorReporting.ts` : `console.error` centralisé, hook optionnel `window.__QB_REPORT_ERROR__`.
+- Optionnel : `VITE_SENTRY_DSN` + intégration `@sentry/react` (commentaire dans le fichier).
+
+### API bot (`POST /api/bot/action`)
+
+- **Rate limit** dédié sur `/api/bot` (voir `server/src/index.ts`, `botApiLimiter`) — ajuster `max` selon la charge (bots en mode solo peuvent solliciter souvent).
+- Surveiller la latence (logs QoS déjà présents dans `bot.routes.ts`).
+
+### Santé & logs
+
+- `pm2 logs quantum-bluff` — erreurs Express / Socket.io.
+- Tester périodiquement : `curl -sSf http://IP:3000/` (ou route health si ajoutée).
+
+### Déploiement front statique (Vite)
+
+- Builder avec les bonnes URLs : `VITE_API_URL`, `VITE_SOCKET_URL` pointant vers l’API publique HTTPS si applicable.
