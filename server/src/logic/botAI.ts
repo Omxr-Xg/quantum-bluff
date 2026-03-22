@@ -4,6 +4,7 @@
  */
 import { getHandValue } from './Evaluator.js'
 import type { Card } from '../types/poker.js'
+import { intChips } from '../utils/chips.js'
 
 export type BotDifficulty = 'easy' | 'medium' | 'hard' | 'expert'
 export type BotAction = 'FOLD' | 'CALL' | 'CHECK' | 'RAISE'
@@ -44,12 +45,12 @@ export function normalizedHandStrength(playerCards: Card[], communityCards: Card
 const isHeadsUp = (req: BotActionRequest) => req.playersCount === 2
 
 function minRaiseAmount(req: BotActionRequest, mult: number): number {
-  return Math.min(req.playerChips, req.currentBet + req.minRaise * mult)
+  return intChips(Math.min(req.playerChips, req.currentBet + req.minRaise * mult))
 }
 
 function randomRaisePot(req: BotActionRequest, potFraction: number): number {
-  const extra = Math.floor(req.potSize * potFraction * Math.random())
-  return Math.min(req.playerChips, req.currentBet + req.minRaise + extra)
+  const extra = intChips(req.potSize * potFraction * Math.random())
+  return intChips(Math.min(req.playerChips, req.currentBet + req.minRaise + extra))
 }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +93,7 @@ export function easyBotDecision(req: BotActionRequest): BotActionResponse {
     return { action: 'FOLD', reasoning: 'easy: fold' }
   }
   if (rand < foldChance + 0.52) {
-    return { action: 'CALL', amount: req.callAmount, reasoning: 'easy: call station' }
+    return { action: 'CALL', amount: intChips(req.callAmount), reasoning: 'easy: call station' }
   }
   return {
     action: 'RAISE',
@@ -129,18 +130,20 @@ export function mediumBotDecision(req: BotActionRequest): BotActionResponse {
       if (Math.random() < 0.28) {
         return {
           action: 'RAISE',
-          amount: Math.min(
-            req.playerChips,
-            req.currentBet + req.minRaise * 2 + Math.floor(req.potSize * 0.25)
+          amount: intChips(
+            Math.min(
+              req.playerChips,
+              req.currentBet + req.minRaise * 2 + intChips(req.potSize * 0.25)
+            )
           ),
           reasoning: 'medium: 3bet light',
         }
       }
-      return { action: 'CALL', amount: req.callAmount, reasoning: 'medium: call preflop' }
+      return { action: 'CALL', amount: intChips(req.callAmount), reasoning: 'medium: call preflop' }
     }
     const callChance = headsUp ? 0.72 : 0.5
     if (Math.random() < callChance) {
-      return { action: 'CALL', amount: req.callAmount, reasoning: 'medium: defend wide' }
+      return { action: 'CALL', amount: intChips(req.callAmount), reasoning: 'medium: defend wide' }
     }
     return { action: 'FOLD', reasoning: 'medium: fold trash' }
   }
@@ -178,10 +181,10 @@ export function mediumBotDecision(req: BotActionRequest): BotActionResponse {
       return { action: 'CHECK', reasoning: 'medium: check medium' }
     }
     if (req.callAmount < req.potSize * 0.35) {
-      return { action: 'CALL', amount: req.callAmount, reasoning: 'medium: call reasonable' }
+      return { action: 'CALL', amount: intChips(req.callAmount), reasoning: 'medium: call reasonable' }
     }
     if (headsUp && Math.random() < 0.22) {
-      return { action: 'CALL', amount: req.callAmount, reasoning: 'medium: float' }
+      return { action: 'CALL', amount: intChips(req.callAmount), reasoning: 'medium: float' }
     }
     return { action: 'FOLD', reasoning: 'medium: fold to pressure' }
   }
@@ -197,7 +200,7 @@ export function mediumBotDecision(req: BotActionRequest): BotActionResponse {
     return { action: 'CHECK', reasoning: 'medium: check weak' }
   }
   if (headsUp && Math.random() < 0.38) {
-    return { action: 'CALL', amount: req.callAmount, reasoning: 'medium: bluffcatch HU' }
+    return { action: 'CALL', amount: intChips(req.callAmount), reasoning: 'medium: bluffcatch HU' }
   }
   if (Math.random() < 0.12) {
     return {
@@ -273,7 +276,7 @@ function advancedPotOddsDecision(req: BotActionRequest, p: AdvancedProfile): Bot
     const callChance = headsUp ? 0.78 : 0.58
     const foldChance = headsUp ? 0.04 : 0.14
     if (r < callChance) {
-      return { action: 'CALL', amount: req.callAmount, reasoning: `${p.name}: call preflop` }
+      return { action: 'CALL', amount: intChips(req.callAmount), reasoning: `${p.name}: call preflop` }
     }
     if (r < callChance + (1 - callChance - foldChance)) {
       return {
@@ -311,7 +314,7 @@ function advancedPotOddsDecision(req: BotActionRequest, p: AdvancedProfile): Bot
     if (req.callAmount === 0) {
       return { action: 'CHECK', reasoning: `${p.name}: check SDV` }
     }
-    return { action: 'CALL', amount: req.callAmount, reasoning: `${p.name}: +EV call` }
+    return { action: 'CALL', amount: intChips(req.callAmount), reasoning: `${p.name}: +EV call` }
   }
 
   if (winProbability > potOdds - margin) {
@@ -333,7 +336,7 @@ function advancedPotOddsDecision(req: BotActionRequest, p: AdvancedProfile): Bot
         reasoning: `${p.name}: bluff raise`,
       }
     }
-    return { action: 'CALL', amount: req.callAmount, reasoning: `${p.name}: call marginal` }
+    return { action: 'CALL', amount: intChips(req.callAmount), reasoning: `${p.name}: call marginal` }
   }
 
   if (req.callAmount === 0) {
@@ -347,7 +350,7 @@ function advancedPotOddsDecision(req: BotActionRequest, p: AdvancedProfile): Bot
     return { action: 'CHECK', reasoning: `${p.name}: check weak` }
   }
   if (headsUp && Math.random() < 0.24) {
-    return { action: 'CALL', amount: req.callAmount, reasoning: `${p.name}: hero call` }
+    return { action: 'CALL', amount: intChips(req.callAmount), reasoning: `${p.name}: hero call` }
   }
   return { action: 'FOLD', reasoning: `${p.name}: fold` }
 }

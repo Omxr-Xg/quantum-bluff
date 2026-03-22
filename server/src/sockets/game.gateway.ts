@@ -6,6 +6,7 @@ import { AntiCheatMonitor } from '../utils/antiCheat.js'
 import { prisma } from '../config/database.js'
 import type { GameTable } from '../logic/GameTable.js'
 import { CashGameController } from '../logic/CashGameController.js'
+import { intChips } from '../utils/chips.js'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -249,7 +250,8 @@ export class GameGateway {
       }) => {
         const startActionTime = Date.now()
         try {
-          const { gameId, playerId, action, amount } = data
+          const { gameId, playerId, action, amount: rawAmount } = data
+          const amount = rawAmount !== undefined ? intChips(rawAmount) : undefined
 
           if (!socket.userId) {
             socket.emit('ERROR', {
@@ -473,7 +475,7 @@ export class GameGateway {
           if (!socket.userId || !gameId || socket.gameId !== gameId) return
           const game = await activeGames.get(gameId)
           if (!(game instanceof CashGameController)) return
-          const result = game.rebuy(socket.userId, amount ?? 100)
+          const result = game.rebuy(socket.userId, intChips(amount ?? 100))
           if (!result.ok) {
             socket.emit('ERROR', { code: 'CASH_REBUY_FAILED', message: result.error })
             return

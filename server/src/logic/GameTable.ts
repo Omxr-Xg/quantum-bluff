@@ -1,6 +1,7 @@
 import type { Card, GamePhase, GameState, Player } from '../types/poker.js'
 import { Deck } from './Deck.js'
 import { findWinnersWithHand } from './Evaluator.js'
+import { intChips } from '../utils/chips.js'
 
 type PlayerAction = 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
 
@@ -26,8 +27,8 @@ export class GameTable {
     this.actedPlayerIds = new Set()
     this.lastRaiserId = null
     this.handStarted = false
-    this.smallBlindAmount = options?.smallBlind ?? 10
-    this.bigBlindAmount = options?.bigBlind ?? 20
+    this.smallBlindAmount = intChips(options?.smallBlind ?? 10)
+    this.bigBlindAmount = intChips(options?.bigBlind ?? 20)
 
     this.state = {
       id,
@@ -153,7 +154,7 @@ export class GameTable {
     const player = this.state.players.find((p) => p.role === role)
     if (!player) return
 
-    const blindAmount = Math.min(amount, player.chips)
+    const blindAmount = intChips(Math.min(amount, player.chips))
     player.chips -= blindAmount
     player.currentBet = blindAmount
     player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + blindAmount
@@ -586,13 +587,13 @@ export class GameTable {
 
   calculateBet(playerId: string, amount: number): number {
     const player = this.getPlayerState(playerId)
-    return player ? Math.min(amount, player.chips) : 0
+    return player ? intChips(Math.min(amount, player.chips)) : 0
   }
 
   calculateCallAmount(playerId: string): number {
     const player = this.getPlayerState(playerId)
     if (!player) return 0
-    return Math.max(0, this.highestBet - (player.currentBet || 0))
+    return intChips(Math.max(0, this.highestBet - (player.currentBet || 0)))
   }
 
   applyBet(playerId: string, amount: number): void {
@@ -600,7 +601,7 @@ export class GameTable {
     if (playerIndex === -1) return
 
     const player = this.state.players[playerIndex]
-    const betAmount = Math.min(amount, player.chips)
+    const betAmount = intChips(Math.min(amount, player.chips))
 
     player.chips -= betAmount
     this.state.pot += betAmount
@@ -654,6 +655,8 @@ export class GameTable {
         throw new Error('Montant de relance invalide')
       }
 
+      amount = intChips(amount)
+
       if (amount < this.bigBlindAmount) {
         throw new Error(`La relance minimum est de ${this.bigBlindAmount}`)
       }
@@ -696,7 +699,7 @@ export class GameTable {
     }
 
     if (action === 'CALL') {
-      const actualCallAmount = Math.min(callAmount, player.chips)
+      const actualCallAmount = intChips(Math.min(callAmount, player.chips))
       player.chips -= actualCallAmount
       player.currentBet = (player.currentBet || 0) + actualCallAmount
       player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + actualCallAmount
@@ -718,8 +721,8 @@ export class GameTable {
       return
     }
 
-    const raiseAmount = amount as number
-    const totalToPut = callAmount + raiseAmount
+    const raiseAmount = intChips(amount as number)
+    const totalToPut = intChips(callAmount + raiseAmount)
 
     player.chips -= totalToPut
     player.currentBet = (player.currentBet || 0) + totalToPut
