@@ -479,8 +479,8 @@
 
 ### 17.1 Docs/
 - **RAPPORT_TESTS.md** — rapport complet tests backend + frontend (inventaire)
+- **POKER_SCENARIOS.md** — scénarios produit / poker / réseau / bots / validation (référence unique)
 - rapport-validation.md
-- POKER_SCENARIOS.md
 - bot-integration-frontend.md
 - **bot-difficulte.md** — niveaux easy/medium/hard, mapping facile→expert, multiplicateur de gains
 - SETUP_TESTEUR.md

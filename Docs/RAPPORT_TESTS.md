@@ -293,6 +293,8 @@ Les tests vérifient des **invariants** et des **scénarios ciblés** ; ce n’e
 
 Ces vérifications sont documentées dans [`rapport-validation.md`](rapport-validation.md) : builds, lint, API `/api/bot/action` (difficultés, format cartes), timer tour, auto CHECK/FOLD, affichage cartes, mode bot, toasts amis, etc. Elles **complètent** mais ne **remplacent** pas les 277 tests automatisés ci-dessus.
 
+Pour une **vue d’ensemble de tous les scénarios** (modes de jeu, tapis, cash, spectateur, bots, accessibilité, backlog), voir [`POKER_SCENARIOS.md`](POKER_SCENARIOS.md).
+
 ---
 
 ## Intégration continue (exemple)
