@@ -1,19 +1,9 @@
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-// Générateur pour la documentation (ERD) - C'EST UN BLOC SÉPARÉ
-generator erd {
-  provider = "prisma-erd-generator"
-  output   = "../src/generated/docs/ERD.svg"
-  puppeteerConfig = "./puppeteer-config.json"
-  theme    = "dark"
-  includeRelationFromFields = true
-}
-=======
 // ERD désactivé ici pour éviter l'échec en CI (Puppeteer/Chrome nécessite libnss3 etc.).
 // Pour régénérer l'ERD en local : décommenter le bloc ci-dessous puis `npx prisma generate`.
 // generator erd {
@@ -23,36 +13,13 @@ generator erd {
 //   theme    = "dark"
 //   includeRelationFromFields = true
 // }
->>>>>>> 81a8e21caa7b117a5bd483b2932b91126f6b5b43
 
-=======
->>>>>>> Stashed changes
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-<<<<<<< HEAD
-  id                 String          @id @default(uuid())
-  username           String          @unique
-  email              String          @unique
-  password           String
-  chips              Int             @default(1000)
-  level              Int             @default(1)
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  receivedRequests   FriendRequest[] @relation("Receiver")
-  sentRequests       FriendRequest[] @relation("Sender")
-  friendshipsAsUser1 Friendship[]    @relation("User1")
-  friendshipsAsUser2 Friendship[]    @relation("User2")
-  gameActions        GameAction[]
-  histories          GameHistory[]   @relation("WinnerHistory")
-  gameWins           GameResult[]
-  playerStats        PlayerStats?
-  stats              UserStats?
-  roomPlayers        RoomPlayer[]
-=======
   id        String   @id @default(uuid())
   username  String   @unique
   email     String   @unique
@@ -63,9 +30,7 @@ model User {
   chips     Int      @default(1000)
   level     Int      @default(1)
   totpSecret String? // 2FA TOTP secret (optionnel)
->>>>>>> f12c073ce9ab21f80281efcf3ff98b75c892e16f
 
-<<<<<<< Updated upstream
   stats     UserStats?
   histories GameHistory[] @relation("WinnerHistory")
 
@@ -94,20 +59,19 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-=======
->>>>>>> Stashed changes
   @@index([username])
   @@index([email])
   @@index([createdAt])
 }
 
 model UserStats {
-  id         String @id @default(uuid())
-  wins       Int    @default(0)
-  totalGames Int    @default(0)
-  biggestPot Int    @default(0)
-  userId     String @unique
-  user       User   @relation(fields: [userId], references: [id])
+  id          String @id @default(uuid())
+  wins        Int    @default(0)
+  totalGames  Int    @default(0)
+  biggestPot  Int    @default(0)
+
+  user        User   @relation(fields: [userId], references: [id])
+  userId      String @unique
 }
 
 model GameHistory {
@@ -117,32 +81,35 @@ model GameHistory {
   board     String[]
   pot       Int
   winnerId  String?
-  createdAt DateTime @default(now())
+
   winner    User?    @relation("WinnerHistory", fields: [winnerId], references: [id])
 
-  //index
-  @@index([gameId])
+  createdAt DateTime @default(now())
+
+  //Index pour accélérer les recherches par gagnant et par date (DA4/DA5)
   @@index([winnerId])
   @@index([createdAt])
-  @@index([tableId, createdAt])
+  @@index([gameId])
 }
 
+// AJOUTER CES NOUVEAUX MODELES
 model FriendRequest {
-  id         String        @id @default(uuid())
+  id         String   @id @default(uuid())
   senderId   String
   receiverId String
   status     RequestStatus @default(PENDING)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  receiver   User          @relation("Receiver", fields: [receiverId], references: [id])
-  sender     User          @relation("Sender", fields: [senderId], references: [id])
+
+  sender   User @relation("Sender", fields: [senderId], references: [id])
+  receiver User @relation("Receiver", fields: [receiverId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([senderId, receiverId])
   @@index([senderId])
   @@index([receiverId])
   @@index([status])
   @@index([createdAt])
-  @@index([receiverId, status])
 }
 
 model Friendship {
@@ -150,107 +117,15 @@ model Friendship {
   user1Id   String
   user2Id   String
   createdAt DateTime @default(now())
-  user1     User     @relation("User1", fields: [user1Id], references: [id])
-  user2     User     @relation("User2", fields: [user2Id], references: [id])
+
+  user1 User @relation("User1", fields: [user1Id], references: [id])
+  user2 User @relation("User2", fields: [user2Id], references: [id])
 
   @@unique([user1Id, user2Id])
   @@index([user1Id])
   @@index([user2Id])
 }
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
-model WaitingRoom {
-  id         String       @id @default(uuid())
-  name       String
-  hostId     String
-  maxPlayers Int          @default(9)
-  status     RoomStatus   @default(WAITING)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  gameId     String?
-  players    RoomPlayer[]
-
-  @@map("waiting_rooms")
-  @@index([status])
-  @@index([status, createdAt])
-  
-}
-
-model RoomPlayer {
-  id       String      @id @default(uuid())
-  roomId   String
-  userId   String
-  isReady  Boolean     @default(false)
-  joinedAt DateTime    @default(now())
-  position Int?
-  room     WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user     User        @relation(fields: [userId], references: [id])
-
-  @@unique([roomId, userId])
-  @@map("room_players")
-  @@index([roomId, isReady])
-}
-
-model GameAction {
-  id        String   @id @default(uuid())
-  gameId    String
-  playerId  String
-  action    String
-  amount    Int?
-  phase     String
-  round     Int      @default(1)
-  timestamp DateTime @default(now())
-  player    User     @relation(fields: [playerId], references: [id])
-
-  @@index([gameId])
-  @@index([playerId])
-  @@index([timestamp])
-  @@index([gameId, playerId, timestamp])
-}
-
-model GameResult {
-  id         String   @id @default(uuid())
-  gameId     String   @unique
-  winnerId   String
-  winnerName String
-  pot        Int
-  hands      Json?
-  startedAt  DateTime
-  endedAt    DateTime @default(now())
-  winner     User     @relation(fields: [winnerId], references: [id])
-
-  @@index([gameId])
-  @@index([winnerId])
-  @@index([endedAt])
-}
-
-model PlayerStats {
-  id             String   @id @default(uuid())
-  playerId       String   @unique
-  totalGames     Int      @default(0)
-  totalWins      Int      @default(0)
-  totalLosses    Int      @default(0)
-  totalHands     Int      @default(0)
-  totalRaises    Int      @default(0)
-  totalCalls     Int      @default(0)
-  totalFolds     Int      @default(0)
-  totalChecks    Int      @default(0)
-  biggestPot     Int      @default(0)
-  biggestWin     Int      @default(0)
-  totalChipsWon  Int      @default(0)
-  totalChipsLost Int      @default(0)
-  updatedAt      DateTime @default(now())
-  player         User     @relation(fields: [playerId], references: [id])
-
-  @@index([playerId])
-  @@index([totalWins])
-  @@index([totalGames])
-}
-
->>>>>>> Stashed changes
-=======
 model FriendMessage {
   id         String   @id @default(uuid())
   senderId   String
@@ -266,14 +141,12 @@ model FriendMessage {
   @@index([createdAt])
 }
 
->>>>>>> 81a8e21caa7b117a5bd483b2932b91126f6b5b43
 enum RequestStatus {
   PENDING
   ACCEPTED
   REJECTED
 }
 
-<<<<<<< Updated upstream
 model WaitingRoom {
   id           String         @id @default(uuid())
   name         String
@@ -391,10 +264,6 @@ model PlayerStats {
   @@index([totalGames])
 }
 
-<<<<<<< HEAD
-=======
->>>>>>> Stashed changes
-=======
 model GameInvitation {
   id         String           @id @default(uuid())
   roomId     String
@@ -424,7 +293,6 @@ enum RoomVisibility {
   PRIVATE
 }
 
->>>>>>> 81a8e21caa7b117a5bd483b2932b91126f6b5b43
 enum RoomStatus {
   WAITING
   STARTING
