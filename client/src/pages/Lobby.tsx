@@ -868,6 +868,7 @@ export function Lobby() {
               >
                 {t("lobby.blackjackPlay")}
               </button>
+              <p className="mt-3 text-center text-xs leading-relaxed text-gray-500">{t("lobby.blackjackSoloHint")}</p>
             </div>
             <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} onSwitchTab={setMainTab} />
           </div>

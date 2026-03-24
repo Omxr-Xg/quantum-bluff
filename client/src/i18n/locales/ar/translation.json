@@ -58,12 +58,13 @@
     "tabRoulette": "الروليت",
     "tabBlackjack": "بلاك جاك",
     "tabListAria": "أقسام الردهة",
-    "rouletteTitle": "روليت أوروبية",
+    "rouletteTitle": "الروليت",
     "rouletteIntro": "37 خانة (0–36). السحب والدفع على الخادم — رهانات داخلية وخارجية.",
     "roulettePlay": "العب الروليت",
     "blackjackTitle": "بلاك جاك",
     "blackjackIntro": "تغلّب على الموزع دون تجاوز 21. البطاقات والدفع تُحسم على الخادم.",
     "blackjackPlay": "العب بلاك جاك",
+    "blackjackSoloHint": "نفس طاولة « إنشاء طاولة »: لعب لك وحدك دون لاعبين آخرين.",
     "blackjackMultiLobby": "طاولات متعددة (ردهة)",
     "devValidation": "اكتب \"dev\" للتحقق",
     "help": {
@@ -165,7 +166,7 @@
     "payoutLine": "دُفع {{payout}} رقاقة (رهان {{totalBet}})."
   },
   "roulette": {
-    "title": "روليت أوروبية",
+    "title": "الروليت",
     "subtitle": "يُحسب السحب والعوائد على الخادم في كل دوران.",
     "back": "العودة إلى الردهة",
     "chipValue": "قيمة القطعة",
@@ -413,7 +414,8 @@
     "retry": "إعادة المحاولة",
     "save": "حفظ",
     "cancel": "إلغاء",
-    "creating": "جاري الإنشاء..."
+    "creating": "جاري الإنشاء...",
+    "close": "إغلاق"
   },
   "auth": {
     "title": "Quantum Bluff",
@@ -821,6 +823,14 @@
     "settle_player_blackjack": "بلاك جاك طبيعي (3:2)",
     "settle_dealer_blackjack": "بلاك جاك للموزع",
     "settle_player_bust": "تجاوزت 21",
-    "settle_dealer_bust": "الموزع يتجاوز — تفوز"
+    "settle_dealer_bust": "الموزع يتجاوز — تفوز",
+    "deleteTable": "حذف الطاولة",
+    "deleteTableConfirm": "حذف هذه الطاولة نهائياً؟ سيُستبعد اللاعبون.",
+    "deleteTableFailed": "تعذر حذف الطاولة",
+    "tableDeleted": "تم حذف الطاولة",
+    "soloRoomName": "بلاك جاك فردي",
+    "soloStarting": "جارٍ فتح طاولتك…",
+    "soloRoomFailed": "تعذر إنشاء الطاولة الفردية",
+    "soloStartFailed": "تعذر بدء اللعبة"
   }
 }

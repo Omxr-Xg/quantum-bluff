@@ -313,6 +313,31 @@ router.post('/invitations/:invitationId/reject', authMiddleware, async (req, res
   }
 })
 
+/** DELETE /:roomId — hôte : supprime la salle (attente ou partie en cours) */
+router.delete('/:roomId', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const room = await prisma.blackjackRoom.findUnique({
+      where: { id: req.params.roomId },
+    })
+    if (!room) return res.status(404).json({ error: 'Salle introuvable' })
+    if (room.hostId !== userId) {
+      return res.status(403).json({ error: 'Seul l’hôte peut supprimer la table' })
+    }
+
+    if (room.gameId) {
+      activeBlackjackGames.delete(room.gameId)
+    }
+    await prisma.blackjackRoom.delete({ where: { id: room.id } })
+    return res.json({ deleted: true })
+  } catch (e) {
+    console.error('blackjackMulti DELETE /:roomId', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 /** GET /:roomId */
 router.get('/:roomId', authMiddleware, async (req, res) => {
   try {
@@ -403,20 +428,26 @@ router.post('/:roomId/leave', authMiddleware, async (req, res) => {
       where: { roomId: room.id, userId },
     })
 
+    const remainingSeats = await prisma.blackjackRoomSeat.count({
+      where: { roomId: room.id },
+    })
+    if (remainingSeats === 0) {
+      if (room.gameId) activeBlackjackGames.delete(room.gameId)
+      await prisma.blackjackRoom.delete({ where: { id: room.id } })
+      return res.json({ left: true, roomDeleted: true })
+    }
+
     if (room.hostId === userId) {
       const nextHost = await prisma.blackjackRoomSeat.findFirst({
         where: { roomId: room.id },
         orderBy: { joinedAt: 'asc' },
       })
-      if (!nextHost) {
-        if (room.gameId) activeBlackjackGames.delete(room.gameId)
-        await prisma.blackjackRoom.delete({ where: { id: room.id } })
-        return res.json({ left: true, roomDeleted: true })
+      if (nextHost) {
+        await prisma.blackjackRoom.update({
+          where: { id: room.id },
+          data: { hostId: nextHost.userId },
+        })
       }
-      await prisma.blackjackRoom.update({
-        where: { id: room.id },
-        data: { hostId: nextHost.userId },
-      })
     }
 
     return res.json({ left: true })

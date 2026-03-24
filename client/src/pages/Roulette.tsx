@@ -734,7 +734,7 @@ export function Roulette() {
                 </button>
               </div>
 
-              {/* Zero — case « bande » comme sur les tapis européens */}
+              {/* Zero — case « bande » sur le tapis */}
               <div className="mb-2 flex justify-center">
                 <div className="w-[min(100%,3.5rem)]">{numCell(0)}</div>
               </div>

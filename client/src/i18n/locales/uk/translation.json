@@ -58,12 +58,13 @@
     "tabRoulette": "Рулетка",
     "tabBlackjack": "Блекджек",
     "tabListAria": "Розділи лобі",
-    "rouletteTitle": "Європейська рулетка",
+    "rouletteTitle": "Рулетка",
     "rouletteIntro": "37 секторів (0–36). Жеребкування та виплати на сервері — внутрішні та зовнішні ставки.",
     "roulettePlay": "Грати в рулетку",
     "blackjackTitle": "Блекджек",
     "blackjackIntro": "Переграйте дилера, не перевищуючи 21. Карти та виплати визначаються на сервері.",
     "blackjackPlay": "Грати в блекджек",
+    "blackjackSoloHint": "Той самий стіл, що й «Створити стіл»: гра лише для вас, без інших гравців.",
     "blackjackMultiLobby": "Багатокористувацькі столи (лобі)",
     "devValidation": "Введіть \"dev\" для підтвердження",
     "help": {
@@ -165,7 +166,7 @@
     "payoutLine": "Виплачено {{payout}} фішок (ставка {{totalBet}})."
   },
   "roulette": {
-    "title": "Європейська рулетка",
+    "title": "Рулетка",
     "subtitle": "Результат і виплати розраховуються на сервері після кожного обертання.",
     "back": "До лобі",
     "chipValue": "Номінал фішки",
@@ -413,7 +414,8 @@
     "retry": "Повторити",
     "save": "Зберегти",
     "cancel": "Скасувати",
-    "creating": "Створення..."
+    "creating": "Створення...",
+    "close": "Закрити"
   },
   "auth": {
     "title": "Quantum Bluff",
@@ -821,6 +823,14 @@
     "settle_player_blackjack": "Натуральний блекджек (3:2)",
     "settle_dealer_blackjack": "Блекджек у дилера",
     "settle_player_bust": "Перебір у вас",
-    "settle_dealer_bust": "Перебір у дилера — ви виграли"
+    "settle_dealer_bust": "Перебір у дилера — ви виграли",
+    "deleteTable": "Видалити стіл",
+    "deleteTableConfirm": "Остаточно видалити цей стіл? Гравців буде викликано.",
+    "deleteTableFailed": "Не вдалося видалити стіл",
+    "tableDeleted": "Стіл видалено",
+    "soloRoomName": "Соло блекджек",
+    "soloStarting": "Відкриваємо ваш стіл…",
+    "soloRoomFailed": "Не вдалося створити соло-стіл",
+    "soloStartFailed": "Не вдалося почати гру"
   }
 }

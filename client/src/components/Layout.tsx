@@ -205,7 +205,9 @@ export function Layout({ children }: LayoutProps) {
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table");
-  const showHamburgerMenu = showTopBar && isGameConfigOrRoom && !isLobby;
+  /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
+  const showHamburgerMenu =
+    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/roulette";
   const showLobbyIntegratedBar = showTopBar && isLobby;
   /** Padding réservé au menu hamburger fixe — sinon bande vide (fond slate) en haut (ex. profil, classement). */
   const topBarPaddingForHamburger = showTopBar && !showLobbyIntegratedBar && showHamburgerMenu;

@@ -13,6 +13,8 @@ import {
   Globe,
   UserPlus,
   Link2,
+  Trash2,
+  X,
 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
@@ -289,6 +291,30 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
     addToast(t("bjMulti.inviteSent"), "info");
   };
 
+  const deleteTableAsHost = async (roomId: string) => {
+    if (!window.confirm(t("bjMulti.deleteTableConfirm"))) return;
+    setBusy(`delete-${roomId}`);
+    try {
+      const res = await fetch(apiUrl(`/api/blackjack-tables/${roomId}`), {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        addToast(err.error ?? t("bjMulti.deleteTableFailed"), "error");
+        return;
+      }
+      addToast(t("bjMulti.tableDeleted"), "success");
+      if (roomIdParam === roomId) {
+        clearBjRoomInUrl();
+        setRoomDetail(null);
+      }
+      await loadList();
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const startGame = async (id: string) => {
     setBusy(`start-${id}`);
     try {
@@ -327,17 +353,44 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
     return (
       <div className="space-y-4">
         <div className="rounded-2xl border border-rose-500/50 bg-slate-800 p-6 shadow-lg shadow-rose-950/20">
-          <button
-            type="button"
-            onClick={() => {
-              clearBjRoomInUrl();
-              setRoomDetail(null);
-            }}
-            className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-rose-300/90 transition hover:text-rose-200"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {t("bjMulti.backToList")}
-          </button>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                clearBjRoomInUrl();
+                setRoomDetail(null);
+              }}
+              className="inline-flex items-center gap-2 text-sm font-medium text-rose-300/90 transition hover:text-rose-200"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {t("bjMulti.backToList")}
+            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {isHost && roomDetail.status === "WAITING" ? (
+                <button
+                  type="button"
+                  disabled={!!busy}
+                  onClick={() => deleteTableAsHost(roomDetail.id)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-rose-600/60 bg-rose-950/50 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-900/60 disabled:opacity-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {t("bjMulti.deleteTable")}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  clearBjRoomInUrl();
+                  setRoomDetail(null);
+                }}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-600/80 bg-slate-900/80 text-slate-300 transition hover:border-rose-500/50 hover:bg-slate-800 hover:text-white"
+                aria-label={t("common.close")}
+                title={t("common.close")}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
 
           <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-3">
@@ -525,10 +578,19 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
   const createModal = showCreate && (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
       <div
-        className="w-full max-w-md rounded-2xl border border-rose-500/50 bg-slate-900 p-6 shadow-2xl shadow-rose-950/40"
+        className="relative w-full max-w-md rounded-2xl border border-rose-500/50 bg-slate-900 p-6 pt-12 shadow-2xl shadow-rose-950/40 sm:pt-6"
         role="dialog"
         aria-modal="true"
       >
+        <button
+          type="button"
+          onClick={() => setShowCreate(false)}
+          className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600/80 bg-slate-800/80 text-slate-300 transition hover:border-rose-500/50 hover:bg-slate-800 hover:text-white"
+          aria-label={t("common.close")}
+          title={t("common.close")}
+        >
+          <X className="h-5 w-5" />
+        </button>
         <h3 className="flex items-center gap-2 text-lg font-bold text-white">
           <Club className="h-6 w-6 text-rose-400" />
           {t("bjMulti.createTable")}
@@ -638,6 +700,8 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
               {rooms.map((r) => {
                 const isPrivate = r.visibility === "PRIVATE";
                 const isFull = r.seats.length >= r.maxSeats;
+                const isHost = r.hostId === userId;
+                const canDeleteFromList = isHost && r.status === "WAITING";
                 return (
                   <li
                     key={r.id}
@@ -675,6 +739,18 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
                       >
                         {t("bjMulti.open")}
                       </button>
+                      {canDeleteFromList ? (
+                        <button
+                          type="button"
+                          disabled={!!busy}
+                          onClick={() => void deleteTableAsHost(r.id)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-600/60 bg-rose-950/50 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-900/60 disabled:cursor-not-allowed disabled:opacity-50"
+                          title={t("bjMulti.deleteTable")}
+                        >
+                          <Trash2 className="h-4 w-4 shrink-0" />
+                          {t("bjMulti.deleteTable")}
+                        </button>
+                      ) : null}
                       {r.status === "WAITING" && !isFull && (
                         <button
                           type="button"

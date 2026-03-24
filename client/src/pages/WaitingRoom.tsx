@@ -423,9 +423,20 @@ export function WaitingRoom() {
             <LogOut className="w-5 h-5" />
             <span>{t('waitingRoom.leave')}</span>
           </button>
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
-            <span className="text-gray-400 text-sm">{isConnected ? t('waitingRoom.connected') : t('waitingRoom.disconnected')}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+              <span className="text-gray-400 text-sm">{isConnected ? t('waitingRoom.connected') : t('waitingRoom.disconnected')}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleLeaveRoom}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-600 bg-slate-800 text-slate-300 transition hover:border-slate-500 hover:bg-slate-700 hover:text-white"
+              aria-label={t("common.close")}
+              title={t("common.close")}
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
         </div>
 

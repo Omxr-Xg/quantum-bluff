@@ -58,12 +58,13 @@
     "tabRoulette": "Roulette",
     "tabBlackjack": "Blackjack",
     "tabListAria": "Sections du lobby",
-    "rouletteTitle": "Roulette européenne",
+    "rouletteTitle": "Roulette",
     "rouletteIntro": "37 cases (0–36). Tirage et paiements calculés sur le serveur — mises intérieures et extérieures.",
     "roulettePlay": "Jouer à la roulette",
     "blackjackTitle": "Blackjack",
     "blackjackIntro": "Battez le croupier sans dépasser 21. Tirage, double et résultats sont validés côté serveur.",
     "blackjackPlay": "Jouer au blackjack",
+    "blackjackSoloHint": "Même table que « créer une table » : partie lancée pour vous seul, sans autres joueurs.",
     "blackjackMultiLobby": "Tables multijoueur (salon)",
     "help": {
       "openAria": "Aide du lobby",
@@ -164,7 +165,7 @@
     "payoutLine": "{{payout}} jetons versés (mise {{totalBet}})."
   },
   "roulette": {
-    "title": "Roulette européenne",
+    "title": "Roulette",
     "subtitle": "Le tirage et les gains sont calculés sur le serveur à chaque lancement.",
     "back": "Retour au lobby",
     "chipValue": "Valeur du jeton",
@@ -412,7 +413,8 @@
     "retry": "Réessayer",
     "save": "Enregistrer",
     "cancel": "Annuler",
-    "creating": "Création..."
+    "creating": "Création...",
+    "close": "Fermer"
   },
   "auth": {
     "title": "Quantum Bluff",
@@ -820,6 +822,14 @@
     "settle_player_blackjack": "Blackjack naturel (3:2)",
     "settle_dealer_blackjack": "Blackjack du croupier",
     "settle_player_bust": "Vous dépassez 21",
-    "settle_dealer_bust": "Le croupier dépasse — vous gagnez"
+    "settle_dealer_bust": "Le croupier dépasse — vous gagnez",
+    "deleteTable": "Supprimer la table",
+    "deleteTableConfirm": "Supprimer définitivement cette table ? Les joueurs en seront exclus.",
+    "deleteTableFailed": "Impossible de supprimer la table",
+    "tableDeleted": "Table supprimée",
+    "soloRoomName": "Blackjack solo",
+    "soloStarting": "Ouverture de votre table…",
+    "soloRoomFailed": "Impossible de créer la table solo",
+    "soloStartFailed": "Impossible de démarrer la partie"
   }
 }

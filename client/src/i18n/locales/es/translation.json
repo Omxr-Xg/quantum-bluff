@@ -58,12 +58,13 @@
     "tabRoulette": "Ruleta",
     "tabBlackjack": "Blackjack",
     "tabListAria": "Secciones del lobby",
-    "rouletteTitle": "Ruleta europea",
+    "rouletteTitle": "Ruleta",
     "rouletteIntro": "37 casillas (0–36). Sorteo y pagos en el servidor — apuestas internas y externas.",
     "roulettePlay": "Jugar a la ruleta",
     "blackjackTitle": "Blackjack",
     "blackjackIntro": "Supera a la banca sin pasarte de 21. Cartas y pagos se resuelven en el servidor.",
     "blackjackPlay": "Jugar al blackjack",
+    "blackjackSoloHint": "La misma mesa que « crear mesa »: partida solo para ti, sin otros jugadores.",
     "blackjackMultiLobby": "Mesas multijugador (vestíbulo)",
     "help": {
       "openAria": "Ayuda del lobby",
@@ -164,7 +165,7 @@
     "payoutLine": "{{payout}} fichas pagadas (apuesta {{totalBet}})."
   },
   "roulette": {
-    "title": "Ruleta europea",
+    "title": "Ruleta",
     "subtitle": "El sorteo y los pagos se calculan en el servidor en cada tirada.",
     "back": "Volver al lobby",
     "chipValue": "Valor de ficha",
@@ -415,7 +416,7 @@
     "save": "Guardar",
     "cancel": "Cancelar",
     "creating": "Guardando...",
-    "retry": "Reintentar"
+    "close": "Cerrar"
   },
   "auth": {
     "title": "Quantum Bluff",
@@ -832,6 +833,14 @@
     "settle_player_blackjack": "Blackjack natural (3:2)",
     "settle_dealer_blackjack": "Blackjack del crupier",
     "settle_player_bust": "Te pasas de 21",
-    "settle_dealer_bust": "El crupier se pasa — ganas"
+    "settle_dealer_bust": "El crupier se pasa — ganas",
+    "deleteTable": "Eliminar mesa",
+    "deleteTableConfirm": "¿Eliminar esta mesa definitivamente? Los jugadores serán expulsados.",
+    "deleteTableFailed": "No se pudo eliminar la mesa",
+    "tableDeleted": "Mesa eliminada",
+    "soloRoomName": "Blackjack solo",
+    "soloStarting": "Abriendo tu mesa…",
+    "soloRoomFailed": "No se pudo crear la mesa solo",
+    "soloStartFailed": "No se pudo iniciar la partida"
   }
 }

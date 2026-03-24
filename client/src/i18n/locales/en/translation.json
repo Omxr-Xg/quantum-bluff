@@ -58,12 +58,13 @@
     "tabRoulette": "Roulette",
     "tabBlackjack": "Blackjack",
     "tabListAria": "Lobby sections",
-    "rouletteTitle": "European roulette",
+    "rouletteTitle": "Roulette",
     "rouletteIntro": "37 pockets (0–36). Draw and payouts are server-side — inside and outside bets.",
     "roulettePlay": "Play roulette",
     "blackjackTitle": "Blackjack",
     "blackjackIntro": "Beat the dealer to 21. Hits, stand, and double are validated on the server — same shoe rules for everyone.",
     "blackjackPlay": "Play blackjack",
+    "blackjackSoloHint": "Same table as « create a table »: a game just for you, with no other players.",
     "blackjackMultiLobby": "Multiplayer tables (lobby)",
     "help": {
       "openAria": "Lobby help",
@@ -164,7 +165,7 @@
     "payoutLine": "{{payout}} chips paid (stake {{totalBet}})."
   },
   "roulette": {
-    "title": "European roulette",
+    "title": "Roulette",
     "subtitle": "Each spin’s outcome and payouts are calculated on the server.",
     "back": "Back to lobby",
     "chipValue": "Chip value",
@@ -415,7 +416,7 @@
     "save": "Save",
     "cancel": "Cancel",
     "creating": "Creating...",
-    "retry": "Retry"
+    "close": "Close"
   },
   "auth": {
     "title": "Quantum Bluff",
@@ -817,7 +818,15 @@
     "settle_player_blackjack": "Natural blackjack (3:2)",
     "settle_dealer_blackjack": "Dealer blackjack",
     "settle_player_bust": "You bust",
-    "settle_dealer_bust": "Dealer busts — you win"
+    "settle_dealer_bust": "Dealer busts — you win",
+    "deleteTable": "Delete table",
+    "deleteTableConfirm": "Permanently delete this table? Players will be removed.",
+    "deleteTableFailed": "Could not delete the table",
+    "tableDeleted": "Table deleted",
+    "soloRoomName": "Solo blackjack",
+    "soloStarting": "Opening your table…",
+    "soloRoomFailed": "Could not create solo table",
+    "soloStartFailed": "Could not start the game"
   },
   "filters": {
     "maxBet50": "Bets < $50",

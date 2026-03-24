@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, X } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
@@ -41,6 +41,7 @@ export function BlackjackMultiTable() {
   const [loading, setLoading] = useState(true);
   const [betInput, setBetInput] = useState(10);
   const [acting, setActing] = useState(false);
+  const [deletingTable, setDeletingTable] = useState(false);
   const [roundSummary, setRoundSummary] = useState<BjRoundSummaryRow[] | null>(null);
 
   const mySeat = useMemo(
@@ -170,6 +171,27 @@ export function BlackjackMultiTable() {
     }
   };
 
+  const deleteTableAsHost = async () => {
+    if (!state?.roomId || hostId !== userId) return;
+    if (!window.confirm(t("bjMulti.deleteTableConfirm"))) return;
+    setDeletingTable(true);
+    try {
+      const res = await fetch(apiUrl(`/api/blackjack-tables/${state.roomId}`), {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        addToast(errBody.error ?? t("bjMulti.deleteTableFailed"), "error");
+        return;
+      }
+      addToast(t("bjMulti.tableDeleted"), "success");
+      navigate("/lobby?tab=blackjack");
+    } finally {
+      setDeletingTable(false);
+    }
+  };
+
   const postAction = async (action: "hit" | "stand" | "double") => {
     if (!gameId || isSpectator) return;
     setActing(true);
@@ -240,11 +262,33 @@ export function BlackjackMultiTable() {
             <ArrowLeft className="h-4 w-4" />
             {t("bjMulti.backToLobby")}
           </button>
-          {isSpectator && (
-            <span className="rounded-full border border-amber-500/50 bg-amber-950/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-200 shadow-inner">
-              {t("bjMulti.spectatorBadge")}
-            </span>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate("/lobby?tab=blackjack")}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/30 text-amber-100/90 backdrop-blur-sm transition hover:border-amber-400/40 hover:bg-black/50 hover:text-white"
+              aria-label={t("common.close")}
+              title={t("common.close")}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {isHost && !isSpectator ? (
+              <button
+                type="button"
+                disabled={deletingTable}
+                onClick={() => void deleteTableAsHost()}
+                className="inline-flex items-center gap-2 rounded-lg border border-rose-600/50 bg-rose-950/60 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-900/70 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {t("bjMulti.deleteTable")}
+              </button>
+            ) : null}
+            {isSpectator ? (
+              <span className="rounded-full border border-amber-500/50 bg-amber-950/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-200 shadow-inner">
+                {t("bjMulti.spectatorBadge")}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 
