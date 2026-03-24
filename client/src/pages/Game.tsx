@@ -33,6 +33,7 @@ import { normalizeServerCard } from "../utils/cards";
 import { intChips } from "../utils/chips";
 import { getWinMultiplierFromDifficultyParam } from "../utils/botModeReward";
 import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
+import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 
 type Card = ClientCard;
 
@@ -1665,7 +1666,14 @@ export function Game() {
         method: "POST",
         headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
         body: JSON.stringify({ won: handResult === "win", delta: toAddLastRef.current }),
-      }).catch((err) => console.error("Erreur de sauvegarde d'argent :", err));
+      })
+        .then((r) => r.json().catch(() => ({})))
+        .then((data) => {
+          if (data && typeof data === "object") {
+            mergeGamificationFromServerResponse(data as Record<string, unknown>);
+          }
+        })
+        .catch((err) => console.error("Erreur de sauvegarde d'argent :", err));
     }
   }, [handResult, isBotMode]);
 

@@ -27,8 +27,10 @@ model User {
   /// 1–10 : index de la question secrète (récupération mot de passe)
   secretQuestionId  Int?
   secretAnswerHash  String?
-  chips     Int      @default(1000)
-  level     Int      @default(1)
+  chips       Int      @default(1000)
+  level       Int      @default(1)
+  /// XP total (cumulative). Le niveau est recalculé à partir de cette valeur.
+  experience  Int      @default(0)
   totpSecret String? // 2FA TOTP secret (optionnel)
 
   stats     UserStats?
@@ -56,12 +58,16 @@ model User {
   gameActions   GameAction[]    // Actions effectuées par le joueur
   gameWins      GameResult[]    // Parties gagnées par le joueur
   playerStats   PlayerStats?    // Statistiques du joueur (relation 1-1)
+  casinoStats   CasinoStats?
+  userBadges    UserBadge[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([username])
   @@index([email])
   @@index([createdAt])
+  @@index([chips])
+  @@index([experience])
 }
 
 model UserStats {
@@ -297,4 +303,35 @@ enum RoomStatus {
   WAITING
   STARTING
   IN_GAME
+}
+
+/// Stats agrégées slot / roulette (leaderboard casino).
+model CasinoStats {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  slotSpins          Int      @default(0)
+  rouletteSpins      Int      @default(0)
+  slotBiggestWin     Int      @default(0)
+  rouletteBiggestWin Int      @default(0)
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([slotBiggestWin])
+  @@index([rouletteBiggestWin])
+  @@map("casino_stats")
+}
+
+/// Badges débloqués (catalogue défini en code, seuil par niveau).
+model UserBadge {
+  id         String   @id @default(uuid())
+  userId     String
+  badgeId    String
+  unlockedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
 }

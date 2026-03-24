@@ -19,6 +19,7 @@ import invitationRoutes from './routes/invitation.routes.js'
 import updatesRouter from './routes/updates.routes.js'
 import slotRoutes from './routes/slot.routes.js'
 import rouletteRoutes from './routes/roulette.routes.js'
+import leaderboardRoutes from './routes/leaderboard.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
@@ -123,6 +124,7 @@ app.use('/api/game', gameApiRoutes)
 app.use('/api/bot', botApiLimiter, botRoutes)
 app.use('/api/slot', slotApiLimiter, slotRoutes)
 app.use('/api/roulette', rouletteApiLimiter, rouletteRoutes)
+app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 
 // Serveur de mises à jour client

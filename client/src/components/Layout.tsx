@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X, User, Users, LogOut, Plus, Menu, Settings } from "lucide-react";
+import { Bell, X, User, Users, LogOut, Plus, Menu, Settings, Trophy } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
@@ -190,41 +190,45 @@ export function Layout({ children }: LayoutProps) {
   const menuContent = (
     <>
       <LanguageSwitcher />
-      <div className="flex h-10 md:h-12 items-stretch rounded-xl overflow-hidden shrink-0 shadow-lg ring-1 ring-slate-500/50">
+      <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
         <button
           type="button"
           onClick={() => navigate("/slot")}
-          className="px-4 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 flex items-center gap-2 hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] transition text-left"
+          className="flex items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left transition hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] sm:gap-2 sm:px-4"
           title={t("lobby.balanceOpenSlot")}
         >
           <ChipIcon size="sm" className="brightness-110 shrink-0" />
-          <span className="text-amber-50 font-bold text-sm whitespace-nowrap">{balance.toLocaleString()}</span>
+          <span className="whitespace-nowrap text-sm font-bold text-amber-50">{balance.toLocaleString()}</span>
         </button>
         <button
           type="button"
           onClick={openAddMoney}
-          className="inline-flex items-center justify-center px-3 bg-amber-500/80 hover:bg-amber-400 text-slate-900 font-bold transition-colors hover:shadow-inner"
+          className="inline-flex items-center justify-center px-2.5 bg-amber-500/80 font-bold text-slate-900 transition-colors hover:bg-amber-400 hover:shadow-inner sm:px-3"
           title={t("lobby.addMoney")}
         >
-          <Plus className="w-5 h-5" strokeWidth={2.5} />
+          <Plus className="h-5 w-5" strokeWidth={2.5} />
         </button>
       </div>
       <NotificationCenter />
-      <button type="button" onClick={() => navigate("/profile")} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-green-600/80 hover:bg-green-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.profile")}>
-        <User className="w-4 h-4 shrink-0" />
-        <span>{t("lobby.profile")}</span>
+      <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-green-600/80 px-2 text-sm text-white transition hover:bg-green-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.profile")}>
+        <User className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:inline">{t("lobby.profile")}</span>
       </button>
-      <button type="button" onClick={() => navigate("/friends")} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-blue-600/80 hover:bg-blue-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.manageFriends")}>
-        <Users className="w-4 h-4 shrink-0" />
-        <span>{t("lobby.manageFriends")}</span>
+      <button type="button" onClick={() => navigate("/friends")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-blue-600/80 px-2 text-sm text-white transition hover:bg-blue-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.manageFriends")}>
+        <Users className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:inline">{t("lobby.manageFriends")}</span>
       </button>
-      <button type="button" onClick={() => openAccessibilityMenu()} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-purple-600/80 hover:bg-purple-500 text-white transition shrink-0 whitespace-nowrap" title={t("accessibility.title", "Accessibilité")}>
-        <Settings className="w-4 h-4 shrink-0" />
-        <span>{t("accessibility.title", "Accessibilité")}</span>
+      <button type="button" onClick={() => navigate("/leaderboard")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600/80 px-2 text-sm text-white transition hover:bg-amber-500 sm:gap-2 sm:px-3 md:h-12" title={t("leaderboard.title")}>
+        <Trophy className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
       </button>
-      <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
-        <LogOut className="w-4 h-4 shrink-0" />
-        <span>{t("lobby.logout")}</span>
+      <button type="button" onClick={() => openAccessibilityMenu()} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("accessibility.title", "Accessibilité")}>
+        <Settings className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:inline">{t("accessibility.title", "Accessibilité")}</span>
+      </button>
+      <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-red-600/80 px-2 text-sm text-white transition hover:bg-red-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.logout")}>
+        <LogOut className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:inline">{t("lobby.logout")}</span>
       </button>
     </>
   );
@@ -283,46 +287,50 @@ export function Layout({ children }: LayoutProps) {
                 closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
               }}
             >
-              <div className="flex items-center flex-wrap gap-6">
+              <div className="flex max-w-[min(100vw-6rem,28rem)] flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
                 <LanguageSwitcher />
-                <div className="flex h-10 md:h-12 items-stretch rounded-xl overflow-hidden shrink-0 shadow-lg ring-1 ring-slate-500/50">
+                <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
                   <button
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
                       navigate("/slot");
                     }}
-                    className="px-4 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 flex items-center gap-2 hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] transition text-left"
+                    className="flex items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left transition hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] sm:gap-2 sm:px-4"
                     title={t("lobby.balanceOpenSlot")}
                   >
                     <ChipIcon size="sm" className="brightness-110 shrink-0" />
-                    <span className="text-amber-50 font-bold text-sm whitespace-nowrap">{balance.toLocaleString()}</span>
+                    <span className="whitespace-nowrap text-sm font-bold text-amber-50">{balance.toLocaleString()}</span>
                   </button>
                   <button
                     type="button"
                     onClick={openAddMoney}
-                    className="inline-flex items-center justify-center px-3 bg-amber-500/80 hover:bg-amber-400 text-slate-900 font-bold transition-colors hover:shadow-inner"
+                    className="inline-flex items-center justify-center px-2.5 bg-amber-500/80 font-bold text-slate-900 transition-colors hover:bg-amber-400 hover:shadow-inner sm:px-3"
                     title={t("lobby.addMoney")}
                   >
-                    <Plus className="w-5 h-5" strokeWidth={2.5} />
+                    <Plus className="h-5 w-5" strokeWidth={2.5} />
                   </button>
                 </div>
                 <NotificationCenter />
-                <button type="button" onClick={() => navigate("/profile")} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-green-600/80 hover:bg-green-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.profile")}>
-                  <User className="w-4 h-4 shrink-0" />
-                  <span>{t("lobby.profile")}</span>
+                <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-green-600/80 px-2 text-sm text-white transition hover:bg-green-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.profile")}>
+                  <User className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{t("lobby.profile")}</span>
                 </button>
-                <button type="button" onClick={() => navigate("/friends")} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-blue-600/80 hover:bg-blue-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.manageFriends")}>
-                  <Users className="w-4 h-4 shrink-0" />
-                  <span>{t("lobby.manageFriends")}</span>
+                <button type="button" onClick={() => navigate("/friends")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-blue-600/80 px-2 text-sm text-white transition hover:bg-blue-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.manageFriends")}>
+                  <Users className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{t("lobby.manageFriends")}</span>
                 </button>
-                <button type="button" onClick={() => { setMenuOpen(false); openAccessibilityMenu(); }} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-purple-600/80 hover:bg-purple-500 text-white transition shrink-0 whitespace-nowrap" title={t("accessibility.title", "Accessibilité")}>
-                  <Settings className="w-4 h-4 shrink-0" />
-                  <span>{t("accessibility.title", "Accessibilité")}</span>
+                <button type="button" onClick={() => { setMenuOpen(false); navigate("/leaderboard"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600/80 px-2 text-sm text-white transition hover:bg-amber-500 sm:gap-2 sm:px-3 md:h-12" title={t("leaderboard.title")}>
+                  <Trophy className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
                 </button>
-                <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
-                  <LogOut className="w-4 h-4 shrink-0" />
-                  <span>{t("lobby.logout")}</span>
+                <button type="button" onClick={() => { setMenuOpen(false); openAccessibilityMenu(); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("accessibility.title", "Accessibilité")}>
+                  <Settings className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{t("accessibility.title", "Accessibilité")}</span>
+                </button>
+                <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-red-600/80 px-2 text-sm text-white transition hover:bg-red-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.logout")}>
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{t("lobby.logout")}</span>
                 </button>
               </div>
             </div>

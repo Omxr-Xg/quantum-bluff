@@ -31,11 +31,14 @@ export const LanguageSwitcher = () => {
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-xl transition h-10 md:h-12 shrink-0"
+        title={`${currentLang.name}`}
+        className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-slate-800 px-2 py-2 text-white transition hover:bg-slate-700 md:h-12 lg:gap-2 lg:px-3"
       >
-        <Globe className="w-5 h-5" />
-        <span>{currentLang.flag} {currentLang.name}</span>
+        <Globe className="h-5 w-5 shrink-0" />
+        <span className="text-lg leading-none lg:hidden">{currentLang.flag}</span>
+        <span className="hidden whitespace-nowrap lg:inline">{currentLang.flag} {currentLang.name}</span>
       </button>
 
       {isOpen && (

@@ -71,6 +71,8 @@ export function addToUserBalance(amount: number): number {
   return next;
 }
 
+import { clearGamificationStorage } from "./gamificationStorage";
+
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
 /** Vide toutes les données d'authentification du localStorage (déconnexion). Appelle l'API logout pour invalider le token côté serveur. */
@@ -88,6 +90,7 @@ export function clearAuthStorage(): void {
   localStorage.removeItem(STORAGE_KEYS.EMAIL);
   localStorage.removeItem(STORAGE_KEYS.AVATAR);
   localStorage.removeItem(STORAGE_KEYS.BALANCE);
+  clearGamificationStorage();
   localStorage.removeItem("gamePlayers");
   localStorage.removeItem("gameId");
   window.dispatchEvent(new Event("auth-changed"));

@@ -15,20 +15,20 @@
 - `README.md`, `DEPLOY.md`, `SETUP_TESTEUR.md`, `CHANGELOG`, `CODEOWNERS`
 
 ### 1.2 Client (`client/`)
-- `src/pages/` – StartScreen, Auth, Lobby, BotConfiguration, SlotMachine, Roulette, WaitingRoom, Game, GameDeal, GameExample, HiddenBetsResult, Profile, Friends, EditProfile, TutorialLobby
+- `src/pages/` – StartScreen, Auth, Lobby, BotConfiguration, SlotMachine, Roulette, Leaderboard, WaitingRoom, Game, GameDeal, GameExample, HiddenBetsResult, Profile, Friends, EditProfile, TutorialLobby
 - `src/components/` – Layout, ProtectedRoute, PokerTable, CommunityCards, ActionButtons, QuantumHUD, ShowdownDisplay, HiddenBetsPanel, InvitationBanner, NotificationCenter, MusicPlayer, AccessibilityMenu, ChipIcon, PokerCard, etc.
 - `src/components/ui/` – Composants shadcn/ui (accordion, alert, avatar, button, card, dialog, form, input, tabs, tooltip, etc.)
 - `src/contexts/` – SocketContext, ToastContext, QuantumHUDContext, AccessibilityContext, AccessibilityMenuOpenContext, HiddenBetsContext, MusicContext, TopBarContext
 - `src/services/` – api.ts (RTK Query), socket via contexts
 - `src/hooks/` – usePokerGame, usePokerSocket, usePokerDeck, useUser, useDeviceType
-- `src/utils/` – cards.ts, avatars.ts, userProfile.ts, tablePositions.ts
+- `src/utils/` – cards.ts, avatars.ts, userProfile.ts, gamificationStorage.ts, tablePositions.ts
 - `src/i18n/` – Traductions fr, en, es, uk, ar
 - `src/types/` – index.ts, game.ts
 - `electron.cjs` – Point d’entrée app desktop Electron
 
 ### 1.3 Serveur (`server/`)
-- `src/routes/` – auth, game, game.api, waitingRoom, bot, friends, invitation, updates, slot, roulette
-- `src/logic/` – GameTable, CashGameController, Evaluator, Deck, slotMachine, roulette
+- `src/routes/` – auth, game, game.api, waitingRoom, bot, friends, invitation, updates, slot, roulette, leaderboard
+- `src/logic/` – GameTable, CashGameController, Evaluator, Deck, slotMachine, roulette, gamification
 - `src/sockets/` – game.gateway.ts
 - `src/middleware/` – auth.middleware, socketAuth.middleware
 - `src/config/` – database.ts, redis.config.ts
@@ -517,6 +517,14 @@
 ### 18.4 Electron
 - electron.cjs
 - Updates: GET /updates/latest
+
+### 18.5 Gamification et classement
+- **XP / niveau** : champ `User.experience` ; niveau dérivé par paliers (`50 × L × (L−1)` XP cumulés pour atteindre le niveau L). Attribution après parties poker (bot `POST /api/game/record-result`, multijoueur via `game.gateway` après showdown), spins slot et roulette.
+- **Plafonds de mise** : `getEffectiveSlotMaxBet` / roulette (ligne et total) montent avec le niveau jusqu’aux caps globaux existants (`SLOT_MAX_BET_CAP`, `ROULETTE_MAX_*`).
+- **Badges** : table `user_badges`, catalogue statique par `minLevel` dans `server/src/logic/gamification.ts`.
+- **Stats casino** : table `casino_stats` (compteurs spins, records de gain par spin) pour le leaderboard.
+- **API** : `GET /api/leaderboard?category=xp|chips|poker_wins|slot_biggest|roulette_biggest&offset&limit` ; `GET /api/auth/gamification` (JWT) pour caps + XP + badges. Login / register enrichissent l’objet `user` avec les mêmes champs.
+- **Client** : page `/leaderboard`, stockage local `quantum_bluff_gamification`, profil (badges + ligne XP), menu Layout.
 
 ---
 

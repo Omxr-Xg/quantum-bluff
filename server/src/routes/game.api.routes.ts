@@ -2,6 +2,11 @@ import express from 'express';
 import { prisma } from '../config/database.js';
 import { activeGames } from '../shared/activeGames.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
+import {
+  awardXpInTransaction,
+  XP_POKER_HAND_BOT,
+  XP_POKER_HAND_BOT_WIN_BONUS,
+} from '../logic/gamification.js';
 
 const router = express.Router();
 
@@ -83,36 +88,44 @@ router.post('/record-result', authMiddleware, async (req, res) => {
     const chipsWon = chipsDelta > 0 ? chipsDelta : 0;
     const chipsLost = chipsDelta < 0 ? -chipsDelta : 0;
 
-    // 1. Mise à jour des statistiques (Ton code d'origine)
-    await prisma.playerStats.upsert({
-      where: { playerId: userId },
-      create: {
-        playerId: userId,
-        totalGames: 1,
-        totalWins: won ? 1 : 0,
-        totalLosses: won ? 0 : 1,
-        totalChipsWon: chipsWon,
-        totalChipsLost: chipsLost,
-      },
-      update: {
-        totalGames: { increment: 1 },
-        ...(won ? { totalWins: { increment: 1 } } : { totalLosses: { increment: 1 } }),
-        ...(chipsWon > 0 ? { totalChipsWon: { increment: chipsWon } } : {}),
-        ...(chipsLost > 0 ? { totalChipsLost: { increment: chipsLost } } : {}),
-      },
+    const xpGain = XP_POKER_HAND_BOT + (won ? XP_POKER_HAND_BOT_WIN_BONUS : 0);
+
+    const gamification = await prisma.$transaction(async (tx) => {
+      await tx.playerStats.upsert({
+        where: { playerId: userId },
+        create: {
+          playerId: userId,
+          totalGames: 1,
+          totalWins: won ? 1 : 0,
+          totalLosses: won ? 0 : 1,
+          totalChipsWon: chipsWon,
+          totalChipsLost: chipsLost,
+        },
+        update: {
+          totalGames: { increment: 1 },
+          ...(won ? { totalWins: { increment: 1 } } : { totalLosses: { increment: 1 } }),
+          ...(chipsWon > 0 ? { totalChipsWon: { increment: chipsWon } } : {}),
+          ...(chipsLost > 0 ? { totalChipsLost: { increment: chipsLost } } : {}),
+        },
+      });
+
+      if (chipsDelta !== 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { chips: { increment: chipsDelta } },
+        });
+      }
+
+      return awardXpInTransaction(tx, userId, xpGain);
     });
 
-    // 2. CORRECTION : Mise à jour du VRAI portefeuille du joueur ! 💰
-    if (chipsDelta !== 0) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          chips: { increment: chipsDelta }
-        }
-      });
-    }
-
-    res.json({ ok: true });
+    res.json({
+      ok: true,
+      experience: gamification.experience,
+      level: gamification.level,
+      xpToNext: gamification.xpToNext,
+      newBadges: gamification.newBadges,
+    });
   } catch (error) {
     console.error('Erreur record-result:', error);
     res.status(500).json({ error: 'Erreur serveur' });

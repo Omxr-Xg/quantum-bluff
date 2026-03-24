@@ -10,6 +10,7 @@ import {
   useRecoveryQuestionMutation,
   useResetPasswordMutation,
 } from "../services/api";
+import { persistGamificationFromAuthUser } from "../utils/gamificationStorage";
 
 type Step = "email" | "login" | "register" | "forgotPassword";
 
@@ -99,6 +100,7 @@ export function Auth() {
       if (typeof response.user.chips === "number") {
         localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
       }
+      persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
       window.dispatchEvent(new Event("auth-changed"));
       navigate(from, { replace: true });
     } catch (err) {
@@ -126,6 +128,7 @@ export function Auth() {
       if (typeof response.user.chips === "number") {
         localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
       }
+      persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
       window.dispatchEvent(new Event("auth-changed"));
       navigate("/lobby", { replace: true });
     } catch (err) {

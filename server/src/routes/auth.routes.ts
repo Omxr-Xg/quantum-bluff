@@ -10,6 +10,7 @@ import { logSuspiciousAction } from '../utils/securityLogger.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
 import { addToBlacklist } from '../auth/tokenBlacklist.js'
 import { verifyTotpToken } from '../auth/totp.service.js'
+import { getGamificationBundle } from '../logic/gamification.js'
 
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -158,6 +159,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     const token = generateToken(user.id)
+    const g = await getGamificationBundle(prisma, user.id)
 
     res.status(201).json({
       token,
@@ -166,7 +168,13 @@ router.post('/register', registerLimiter, async (req, res) => {
         email: user.email,
         username: user.username,
         chips: user.chips,
-        level: user.level,
+        level: g?.level ?? user.level,
+        experience: g?.experience ?? user.experience,
+        xpToNext: g?.xpToNext ?? 0,
+        badges: g?.badges ?? [],
+        maxBetSlot: g?.maxBetSlot,
+        maxBetRouletteLine: g?.maxBetRouletteLine,
+        maxRouletteTotalStake: g?.maxRouletteTotalStake,
         playerStats: playerStats ?? null
       }
     })
@@ -284,6 +292,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     const token = generateToken(user.id)
+    const g = await getGamificationBundle(prisma, user.id)
 
     res.json({
       token,
@@ -292,8 +301,14 @@ router.post('/login', loginLimiter, async (req, res) => {
         email: user.email,
         username: user.username,
         chips: user.chips,
-        level: user.level,
-        playerStats: user.playerStats // ✅ Corrigé ici
+        level: g?.level ?? user.level,
+        experience: g?.experience ?? user.experience,
+        xpToNext: g?.xpToNext ?? 0,
+        badges: g?.badges ?? [],
+        maxBetSlot: g?.maxBetSlot,
+        maxBetRouletteLine: g?.maxBetRouletteLine,
+        maxRouletteTotalStake: g?.maxRouletteTotalStake,
+        playerStats: user.playerStats
       }
     })
 
@@ -305,6 +320,20 @@ router.post('/login', loginLimiter, async (req, res) => {
     res.status(500).json({ error: message })
   }
 
+})
+
+// GET /api/auth/gamification — XP, niveau, badges, plafonds slot/roulette
+router.get('/gamification', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const g = await getGamificationBundle(prisma, userId)
+    if (!g) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    res.json(g)
+  } catch (error) {
+    console.error('[AUTH] gamification error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
 })
 
 // GET /api/auth/balance - Récupère la balance serveur (source de vérité, jamais le client)

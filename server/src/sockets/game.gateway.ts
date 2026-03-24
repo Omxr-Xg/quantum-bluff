@@ -7,6 +7,11 @@ import { prisma } from '../config/database.js'
 import type { GameTable } from '../logic/GameTable.js'
 import { CashGameController } from '../logic/CashGameController.js'
 import { intChips } from '../utils/chips.js'
+import {
+  awardXpInTransaction,
+  XP_POKER_SHOWDOWN_LOSS,
+  XP_POKER_SHOWDOWN_WIN,
+} from '../logic/gamification.js'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -659,24 +664,28 @@ export class GameGateway {
       const chipsLost = !isWinner ? (player.totalPutInThisHand ?? player.currentBet ?? 0) : 0
 
       try {
-        await prisma.playerStats.upsert({
-          where: { playerId: player.id },
-          create: {
-            playerId: player.id,
-            totalGames: 1,
-            totalWins: isWinner ? 1 : 0,
-            totalLosses: isWinner ? 0 : 1,
-            totalChipsWon: chipsWon,
-            totalChipsLost: chipsLost,
-            biggestWin: chipsWon,
-            biggestPot: pot,
-          },
-          update: {
-            totalGames: { increment: 1 },
-            ...(isWinner
-              ? { totalWins: { increment: 1 }, totalChipsWon: { increment: chipsWon } }
-              : { totalLosses: { increment: 1 }, totalChipsLost: { increment: chipsLost } }),
-          },
+        const xpAmount = isWinner ? XP_POKER_SHOWDOWN_WIN : XP_POKER_SHOWDOWN_LOSS
+        await prisma.$transaction(async (tx) => {
+          await tx.playerStats.upsert({
+            where: { playerId: player.id },
+            create: {
+              playerId: player.id,
+              totalGames: 1,
+              totalWins: isWinner ? 1 : 0,
+              totalLosses: isWinner ? 0 : 1,
+              totalChipsWon: chipsWon,
+              totalChipsLost: chipsLost,
+              biggestWin: chipsWon,
+              biggestPot: pot,
+            },
+            update: {
+              totalGames: { increment: 1 },
+              ...(isWinner
+                ? { totalWins: { increment: 1 }, totalChipsWon: { increment: chipsWon } }
+                : { totalLosses: { increment: 1 }, totalChipsLost: { increment: chipsLost } }),
+            },
+          })
+          await awardXpInTransaction(tx, player.id, xpAmount)
         })
       } catch (err) {
         console.error('[Stats] Erreur upsert pour', player.id, err)

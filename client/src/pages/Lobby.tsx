@@ -326,7 +326,7 @@ export function Lobby() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 w-full overflow-visible">
 
           {/* Côté Gauche (Logo + Titre) */}
-          <div ref={tourRefHeader} className="flex items-center gap-4 w-full md:w-auto">
+          <div ref={tourRefHeader} className="flex w-full shrink-0 items-center gap-4 md:w-auto">
             <QuantumBluffLogo className="w-12 h-12 md:w-16 md:h-16 shrink-0" />
             <div className="flex-1 min-w-0">
               <h1
@@ -349,7 +349,10 @@ export function Lobby() {
           </div>
 
           {/* Côté Droit : menu intégré (langue, argent, profil, amis, quitter) */}
-          <div ref={tourRefTopBar} className="flex items-center gap-3 flex-wrap justify-end">
+          <div
+            ref={tourRefTopBar}
+            className="flex w-full max-w-full flex-nowrap items-center justify-end gap-1.5 overflow-x-auto py-1 [-webkit-overflow-scrolling:touch] sm:gap-2 md:min-w-0 md:flex-1 md:gap-3 [scrollbar-width:thin]"
+          >
             {menuContent}
           </div>
         </div>

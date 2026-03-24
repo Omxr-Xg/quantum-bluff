@@ -5,6 +5,11 @@ import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, ChevronDown, Sparkles, X } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { updateUserBalance } from "../utils/userProfile";
+import {
+  mergeGamificationFromServerResponse,
+  readGamification,
+  refreshGamificationFromServer,
+} from "../utils/gamificationStorage";
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
 
@@ -72,10 +77,18 @@ export function SlotMachine() {
     try {
       const url = API_BASE ? `${API_BASE}/api/slot/config` : "/api/slot/config";
       const res = await fetch(url);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (typeof data?.minBet === "number") setMinBet(Math.max(1, Math.floor(data.minBet)));
-      if (typeof data?.maxBet === "number") setMaxBetCap(Math.max(1, Math.floor(data.maxBet)));
+      let cap = 1000;
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data?.minBet === "number") setMinBet(Math.max(1, Math.floor(data.minBet)));
+        if (typeof data?.maxBet === "number") cap = Math.max(1, Math.floor(data.maxBet));
+      }
+      await refreshGamificationFromServer();
+      const g = readGamification();
+      if (typeof g.maxBetSlot === "number") {
+        cap = Math.min(cap, g.maxBetSlot);
+      }
+      setMaxBetCap(cap);
     } catch {
       /* defaults */
     }
@@ -155,6 +168,7 @@ export function SlotMachine() {
 
         updateUserBalance(nextChips);
         setChips(nextChips);
+        mergeGamificationFromServerResponse(data as Record<string, unknown>);
         setLastResult({ winAmount, bet });
         setSpinHistory((prev) => [
           { id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, bet, gain: winAmount },
