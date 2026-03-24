@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io'
 import { activeGames } from '../shared/activeGames.js'
+import { activeBlackjackGames } from '../shared/activeBlackjackGames.js'
 import jwt from 'jsonwebtoken'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
 import { AntiCheatMonitor } from '../utils/antiCheat.js'
@@ -218,6 +219,30 @@ export class GameGateway {
             code: 'SPECTATE_ERROR',
             message: 'Erreur lors de la connexion en spectateur'
           })
+        }
+      })
+
+      socket.on('JOIN_BLACKJACK_TABLE', (data: { gameId?: string }) => {
+        try {
+          const gameId = data?.gameId
+          if (!gameId || !socket.userId) return
+          socket.join(gameId)
+          socket.gameId = gameId
+          const table = activeBlackjackGames.getSync(gameId)
+          if (table) {
+            socket.emit('BLACKJACK_TABLE_UPDATE', {
+              gameId,
+              state: table.toPublicState(socket.userId),
+            })
+            console.log(`🃏 Socket ${socket.id} joined blackjack table ${gameId}`)
+          } else {
+            socket.emit('ERROR', {
+              code: 'GAME_NOT_FOUND',
+              message: 'Table blackjack introuvable',
+            })
+          }
+        } catch (err) {
+          console.error('Erreur JOIN_BLACKJACK_TABLE:', err)
         }
       })
 

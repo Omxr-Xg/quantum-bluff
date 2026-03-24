@@ -67,7 +67,11 @@ export function Layout({ children }: LayoutProps) {
     setBalance(getUserBalance());
     if (localStorage.getItem("token")) {
       const authoritative =
-        location.pathname === "/slot" || location.pathname === "/roulette" || location.pathname === "/blackjack";
+        location.pathname === "/slot" ||
+        location.pathname === "/roulette" ||
+        location.pathname === "/blackjack" ||
+        location.pathname.startsWith("/blackjack/lobby") ||
+        location.pathname.startsWith("/blackjack/table");
       fetchBalanceFromServer({ authoritative }).then(setBalance);
     }
   }, [location.pathname]);
@@ -82,7 +86,11 @@ export function Layout({ children }: LayoutProps) {
     const onFocus = () => {
       if (localStorage.getItem("token")) {
         const authoritative =
-          location.pathname === "/slot" || location.pathname === "/roulette" || location.pathname === "/blackjack";
+          location.pathname === "/slot" ||
+          location.pathname === "/roulette" ||
+          location.pathname === "/blackjack" ||
+          location.pathname.startsWith("/blackjack/lobby") ||
+          location.pathname.startsWith("/blackjack/table");
         fetchBalanceFromServer({ authoritative }).then(setBalance);
       } else {
         setBalance(getUserBalance());
@@ -178,7 +186,12 @@ export function Layout({ children }: LayoutProps) {
   const showTopBar = !isAuthPage && localStorage.getItem("token");
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
-  const isCasinoFullBleed = path === "/slot" || path === "/roulette" || path === "/blackjack";
+  const isCasinoFullBleed =
+    path === "/slot" ||
+    path === "/roulette" ||
+    path === "/blackjack" ||
+    path.startsWith("/blackjack/lobby") ||
+    path.startsWith("/blackjack/table");
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
@@ -186,7 +199,9 @@ export function Layout({ children }: LayoutProps) {
     path.includes("tutorial-lobby") ||
     path === "/slot" ||
     path === "/roulette" ||
-    path === "/blackjack";
+    path === "/blackjack" ||
+    path.startsWith("/blackjack/lobby") ||
+    path.startsWith("/blackjack/table");
   const showHamburgerMenu = showTopBar && isGameConfigOrRoom && !isLobby;
   const showLobbyIntegratedBar = showTopBar && isLobby;
   /** Padding réservé au menu hamburger fixe — sinon bande vide (fond slate) en haut (ex. profil, classement). */

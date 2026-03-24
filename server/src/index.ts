@@ -20,6 +20,7 @@ import updatesRouter from './routes/updates.routes.js'
 import slotRoutes from './routes/slot.routes.js'
 import rouletteRoutes from './routes/roulette.routes.js'
 import blackjackRoutes from './routes/blackjack.routes.js'
+import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
@@ -116,6 +117,14 @@ const blackjackApiLimiter = rateLimit({
   legacyHeaders: false,
 })
 
+const blackjackMultiApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 180 : 3000,
+  message: { error: 'Trop de requêtes tables blackjack, réessaie dans une minute' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 app.use(express.json({ limit: '10kb' }))
 
 app.use((req, _res, next) => {
@@ -134,6 +143,11 @@ app.use('/api/bot', botApiLimiter, botRoutes)
 app.use('/api/slot', slotApiLimiter, slotRoutes)
 app.use('/api/roulette', rouletteApiLimiter, rouletteRoutes)
 app.use('/api/blackjack', blackjackApiLimiter, blackjackRoutes)
+app.use(
+  '/api/blackjack-tables',
+  blackjackMultiApiLimiter,
+  blackjackMultiRoutes
+)
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 

@@ -817,13 +817,22 @@ export function Lobby() {
                 {t("lobby.blackjackTitle")}
               </h2>
               <p className="mb-4 max-w-xl text-sm leading-relaxed text-gray-400">{t("lobby.blackjackIntro")}</p>
-              <button
-                type="button"
-                onClick={() => navigate("/blackjack")}
-                className="w-full rounded-xl bg-rose-700 py-4 font-bold text-white transition hover:bg-rose-600"
-              >
-                {t("lobby.blackjackPlay")}
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => navigate("/blackjack")}
+                  className="w-full rounded-xl bg-rose-700 py-4 font-bold text-white transition hover:bg-rose-600 sm:flex-1"
+                >
+                  {t("lobby.blackjackPlay")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/blackjack/lobby")}
+                  className="w-full rounded-xl border-2 border-rose-400/60 bg-slate-800 py-4 font-bold text-rose-100 transition hover:bg-slate-700 sm:flex-1"
+                >
+                  {t("lobby.blackjackMultiLobby")}
+                </button>
+              </div>
             </div>
           </div>
 

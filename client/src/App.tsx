@@ -17,6 +17,8 @@ import { TutorialLobby } from "./pages/TutorialLobby";
 import { SlotMachine } from "./pages/SlotMachine";
 import { Roulette } from "./pages/Roulette";
 import { Blackjack } from "./pages/Blackjack";
+import { BlackjackMultiLobby } from "./pages/BlackjackMultiLobby";
+import { BlackjackMultiTable } from "./pages/BlackjackMultiTable";
 import { Leaderboard } from "./pages/Leaderboard";
 import { GameDeal } from "./pages/GameDeal";
 import { GameExample } from "./pages/GameExample";
@@ -52,6 +54,9 @@ function App() {
             <Route path="/slot" element={<ProtectedRoute><SlotMachine /></ProtectedRoute>} />
             <Route path="/roulette" element={<ProtectedRoute><Roulette /></ProtectedRoute>} />
             <Route path="/blackjack" element={<ProtectedRoute><Blackjack /></ProtectedRoute>} />
+            <Route path="/blackjack/lobby" element={<ProtectedRoute><BlackjackMultiLobby /></ProtectedRoute>} />
+            <Route path="/blackjack/lobby/:roomId" element={<ProtectedRoute><BlackjackMultiLobby /></ProtectedRoute>} />
+            <Route path="/blackjack/table/:gameId" element={<ProtectedRoute><BlackjackMultiTable /></ProtectedRoute>} />
             <Route path="/waiting-room" element={<ProtectedRoute><WaitingRoom /></ProtectedRoute>} />
 
             <Route path="/game" element={<ProtectedRoute><GameWithKey /></ProtectedRoute>} />
