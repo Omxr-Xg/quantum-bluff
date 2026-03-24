@@ -15,7 +15,7 @@
 - `README.md`, `DEPLOY.md`, `SETUP_TESTEUR.md`, `CHANGELOG`, `CODEOWNERS`
 
 ### 1.2 Client (`client/`)
-- `src/pages/` – StartScreen, Auth, Lobby, BotConfiguration, WaitingRoom, Game, GameDeal, GameExample, HiddenBetsResult, Profile, Friends, EditProfile, TutorialLobby
+- `src/pages/` – StartScreen, Auth, Lobby, BotConfiguration, SlotMachine, WaitingRoom, Game, GameDeal, GameExample, HiddenBetsResult, Profile, Friends, EditProfile, TutorialLobby
 - `src/components/` – Layout, ProtectedRoute, PokerTable, CommunityCards, ActionButtons, QuantumHUD, ShowdownDisplay, HiddenBetsPanel, InvitationBanner, NotificationCenter, MusicPlayer, AccessibilityMenu, ChipIcon, PokerCard, etc.
 - `src/components/ui/` – Composants shadcn/ui (accordion, alert, avatar, button, card, dialog, form, input, tabs, tooltip, etc.)
 - `src/contexts/` – SocketContext, ToastContext, QuantumHUDContext, AccessibilityContext, AccessibilityMenuOpenContext, HiddenBetsContext, MusicContext, TopBarContext
@@ -27,7 +27,7 @@
 - `electron.cjs` – Point d’entrée app desktop Electron
 
 ### 1.3 Serveur (`server/`)
-- `src/routes/` – auth, game, game.api, waitingRoom, bot, friends, invitation, updates
+- `src/routes/` – auth, game, game.api, waitingRoom, bot, friends, invitation, updates, slot
 - `src/logic/` – GameTable, CashGameController, Evaluator, Deck
 - `src/sockets/` – game.gateway.ts
 - `src/middleware/` – auth.middleware, socketAuth.middleware
@@ -62,6 +62,8 @@
   - Plafond: 999999
 - `POST /sync-balance` – Désactivé, renvoie 410
 
+**Mini-jeu machine à sous (`/api/slot/`)** – Tirage et gains **uniquement côté serveur** (`crypto.randomInt`, logique dans `server/src/logic/slotMachine.ts`). Une transaction Prisma lit le solde, valide la mise (min 10, max `min(1000, chips)`), **débite la mise** (`decrement: bet`), calcule le versement `winAmount` (0 si perdu, `bet` en paire, `bet × mult` en brelan — montant total crédité), puis **crédite** ce versement (`increment: winAmount`). Équivalent à `chips += winAmount - bet`. Le client doit appliquer le champ `chips` de la réponse (ex. `updateUserBalance`). `GET /config` expose les bornes et la liste des symboles ; `POST /spin` est protégé par JWT et un rate limit dédié sur le préfixe `/api/slot`. RTP théorique dépend des poids des symboles et de la paytable (triple = multiplicateur 5–20× la mise, paire = 1× la mise).
+
 ### 2.2 JWT
 - Secret: `process.env.JWT_SECRET` ou `quantum_bluff_secret`
 - Expiration: `7d`
@@ -70,7 +72,7 @@
 
 ### 2.3 Middleware HTTP
 - `auth.middleware.ts` – Lit `Authorization: Bearer <token>`, décode JWT, injecte `req.userId`
-- Utilisé sur: balance, add-dev-money, record-result, friends, invitations
+- Utilisé sur: balance, add-dev-money, record-result, friends, invitations, slot spin
 
 ### 2.4 Socket auth
 - `socketAuth.middleware` – Token via `handshake.auth.token` ou header `Authorization`

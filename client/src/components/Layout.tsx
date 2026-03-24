@@ -66,7 +66,8 @@ export function Layout({ children }: LayoutProps) {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
     setBalance(getUserBalance());
     if (localStorage.getItem("token")) {
-      fetchBalanceFromServer().then(setBalance);
+      const authoritative = location.pathname === "/slot";
+      fetchBalanceFromServer({ authoritative }).then(setBalance);
     }
   }, [location.pathname]);
 
@@ -79,14 +80,15 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     const onFocus = () => {
       if (localStorage.getItem("token")) {
-        fetchBalanceFromServer().then(setBalance);
+        const authoritative = location.pathname === "/slot";
+        fetchBalanceFromServer({ authoritative }).then(setBalance);
       } else {
         setBalance(getUserBalance());
       }
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -174,11 +176,13 @@ export function Layout({ children }: LayoutProps) {
   const showTopBar = !isAuthPage && localStorage.getItem("token");
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
+  const isSlotPage = path === "/slot";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
     path.includes("waiting-room") ||
-    path.includes("tutorial-lobby");
+    path.includes("tutorial-lobby") ||
+    path === "/slot";
   const showHamburgerMenu = showTopBar && isGameConfigOrRoom && !isLobby;
   const showLobbyIntegratedBar = showTopBar && isLobby;
 
@@ -186,10 +190,15 @@ export function Layout({ children }: LayoutProps) {
     <>
       <LanguageSwitcher />
       <div className="flex h-10 md:h-12 items-stretch rounded-xl overflow-hidden shrink-0 shadow-lg ring-1 ring-slate-500/50">
-        <div className="px-4 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 flex items-center gap-2">
-          <ChipIcon size="sm" className="brightness-110" />
+        <button
+          type="button"
+          onClick={() => navigate("/slot")}
+          className="px-4 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 flex items-center gap-2 hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] transition text-left"
+          title={t("lobby.balanceOpenSlot")}
+        >
+          <ChipIcon size="sm" className="brightness-110 shrink-0" />
           <span className="text-amber-50 font-bold text-sm whitespace-nowrap">{balance.toLocaleString()}</span>
-        </div>
+        </button>
         <button
           type="button"
           onClick={openAddMoney}
@@ -276,10 +285,18 @@ export function Layout({ children }: LayoutProps) {
               <div className="flex items-center flex-wrap gap-6">
                 <LanguageSwitcher />
                 <div className="flex h-10 md:h-12 items-stretch rounded-xl overflow-hidden shrink-0 shadow-lg ring-1 ring-slate-500/50">
-                  <div className="px-4 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 flex items-center gap-2">
-                    <ChipIcon size="sm" className="brightness-110" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/slot");
+                    }}
+                    className="px-4 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 flex items-center gap-2 hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] transition text-left"
+                    title={t("lobby.balanceOpenSlot")}
+                  >
+                    <ChipIcon size="sm" className="brightness-110 shrink-0" />
                     <span className="text-amber-50 font-bold text-sm whitespace-nowrap">{balance.toLocaleString()}</span>
-                  </div>
+                  </button>
                   <button
                     type="button"
                     onClick={openAddMoney}
@@ -418,7 +435,13 @@ export function Layout({ children }: LayoutProps) {
 
       <InvitationBanner />
 
-      <div className={`min-h-screen w-full ${showTopBar && !showLobbyIntegratedBar ? "pt-14 md:pt-16" : ""}`}>
+      <div
+        className={`w-full ${
+          isSlotPage
+            ? "flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden pt-0"
+            : `min-h-screen ${showTopBar && !showLobbyIntegratedBar ? "pt-14 md:pt-16" : ""}`
+        }`}
+      >
         {children}
       </div>
       </TopBarProvider>
