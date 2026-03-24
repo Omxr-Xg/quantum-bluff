@@ -1,13 +1,6 @@
 import { motion } from "motion/react";
 import logoSrc from "../assets/logo-personnel.png";
 
-const SUIT_SYMBOL: Record<string, string> = {
-  hearts: "♥",
-  diamonds: "♦",
-  clubs: "♣",
-  spades: "♠",
-};
-
 /** Formes pour mode daltonien : ● Cœur, ◆ Carreau, ■ Trèfle, ▲ Pique */
 const SUIT_SHAPE: Record<string, string> = {
   hearts: "●",
@@ -15,11 +8,6 @@ const SUIT_SHAPE: Record<string, string> = {
   clubs: "■",
   spades: "▲",
 };
-
-/** Rouge (cœur, carreau) vs noir (trèfle, pique) — standard poker */
-const isRedSuit = (suit: string) => suit === "hearts" || suit === "diamonds";
-const SUIT_COLOR = (suit: string) =>
-  isRedSuit(suit) ? "text-red-600" : "text-gray-900";
 
 type CardSize = "xs" | "sm" | "md" | "lg";
 
@@ -35,38 +23,11 @@ interface PokerCardProps {
   colorblindMode?: boolean;
 }
 
-const SIZE_MAP: Record<
-  CardSize,
-  { card: string; value: string; suit: string; corner: string; cornerPos: string }
-> = {
-  xs: {
-    card: "w-10 h-[56px]",
-    value: "text-[9px]",
-    suit: "text-sm",
-    corner: "text-[7px]",
-    cornerPos: "top-0.5 left-0.5",
-  },
-  sm: {
-    card: "w-12 h-[68px]",
-    value: "text-[10px]",
-    suit: "text-base",
-    corner: "text-[8px]",
-    cornerPos: "top-0.5 left-1",
-  },
-  md: {
-    card: "w-16 h-[88px]",
-    value: "text-xs",
-    suit: "text-2xl",
-    corner: "text-[9px]",
-    cornerPos: "top-1 left-1.5",
-  },
-  lg: {
-    card: "w-20 h-[112px] md:w-28 md:h-[156px]",
-    value: "text-sm md:text-base",
-    suit: "text-4xl md:text-6xl",
-    corner: "text-xs md:text-sm",
-    cornerPos: "top-1.5 left-2 md:top-2 md:left-2.5",
-  },
+const SIZE_MAP: Record<CardSize, { card: string }> = {
+  xs: { card: "w-10 h-[56px]" },
+  sm: { card: "w-12 h-[68px]" },
+  md: { card: "w-16 h-[88px]" },
+  lg: { card: "w-20 h-[112px] md:w-28 md:h-[156px]" },
 };
 
 export function PokerCard({
@@ -81,10 +42,11 @@ export function PokerCard({
   colorblindMode = false,
 }: PokerCardProps) {
   const s = SIZE_MAP[size];
-  const colorClass = SUIT_COLOR(suit);
-  const symbol = SUIT_SYMBOL[suit] ?? suit;
-  const shape = SUIT_SHAPE[suit] ?? "";
+  const shape = SUIT_SHAPE[suit.toLowerCase()] ?? "";
 
+  // ==========================================
+  // 1. LE DOS DE LA CARTE (Design original gardé)
+  // ==========================================
   if (faceDown) {
     const Wrapper = animated ? motion.div : "div";
     const animProps = animated
@@ -105,28 +67,21 @@ export function PokerCard({
         <div
           className="absolute inset-0 opacity-30"
           style={{
-            backgroundImage: `repeating-linear-gradient(
-              45deg,
-              transparent,
-              transparent 6px,
-              rgba(255,255,255,0.03) 6px,
-              rgba(255,255,255,0.03) 7px
-            )`,
+            backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.03) 6px, rgba(255,255,255,0.03) 7px)`,
           }}
         />
         <div className="absolute inset-[4px] rounded-lg border border-white/10" />
         <div className="absolute inset-0 flex items-center justify-center">
-          <img
-            src={logoSrc}
-            alt=""
-            className="w-1/2 h-1/2 object-contain opacity-50"
-          />
+          <img src={logoSrc} alt="Dos de carte" className="w-1/2 h-1/2 object-contain opacity-50" />
         </div>
         <div className="absolute inset-0 rounded-[8px] border border-blue-400/20" />
       </Wrapper>
     );
   }
 
+  // ==========================================
+  // 2. LA CARTE FACE VISIBLE (Avec tes assets)
+  // ==========================================
   const Wrapper = animated ? motion.div : "div";
   const animProps = animated
     ? {
@@ -135,6 +90,24 @@ export function PokerCard({
         transition: { delay: animationDelay, duration: 0.4, type: "spring", stiffness: 200 },
       }
     : {};
+
+  // ⚠️ CHANGER ICI L'EXTENSION SI BESOIN (.png ou .svg)
+  const IMAGE_EXTENSION = ".svg"; 
+  let fileName = "";
+
+  // On sécurise les données (ex: "hearts" devient "hearts", "k" devient "K")
+  const safeSuit = suit.toLowerCase();
+  const safeValue = value.toUpperCase();
+
+  // Gestion des jokers (au cas où votre jeu les utilise)
+  if (safeValue === "JOKER") {
+    fileName = safeSuit === "red" ? "red_joker" : "black_joker";
+  } else {
+    // Format exact de ta liste : hearts_K, clubs_10, etc.
+    fileName = `${safeSuit}_${safeValue}`;
+  }
+
+  const imageSrc = `${import.meta.env.BASE_URL}cards/${fileName}${IMAGE_EXTENSION}`;
 
   return (
     <Wrapper
@@ -146,36 +119,20 @@ export function PokerCard({
         transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 hover:scale-[1.02]
         ${className}`}
     >
-      {/* Texture papier fin */}
-      <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: "radial-gradient(circle at 1px 1px, #333 0.5px, transparent 0.5px)",
-          backgroundSize: "6px 6px",
-        }}
+      {/* L'image de la carte complète */}
+      <img 
+        src={imageSrc} 
+        alt={`Carte ${safeValue} de ${safeSuit}`} 
+        className="w-full h-full object-contain"
+        draggable={false}
       />
 
-      {/* Bordure intérieure style carte à jouer */}
-      <div className="absolute inset-[3px] rounded-[7px] border border-gray-200/60" />
-
-      {/* Index coin haut-gauche */}
-      <div className={`absolute ${s.cornerPos} flex flex-col items-center leading-[0.9]`}>
-        <span className={`${s.corner} font-bold ${colorClass}`}>{value}</span>
-        <span className={`${s.corner} ${colorClass} -mt-px`}>{symbol}{colorblindMode && shape ? <span className="ml-0.5 opacity-90">{shape}</span> : ""}</span>
-      </div>
-
-      {/* Centre : symbole principal (style Bicycle) */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className={`${s.suit} ${colorClass} font-medium drop-shadow-sm`}>{symbol}{colorblindMode && shape ? <span className="ml-0.5 text-[0.6em] opacity-90 align-middle">{shape}</span> : ""}</span>
-      </div>
-
-      {/* Index coin bas-droit (inversé) */}
-      <div
-        className={`absolute ${s.cornerPos.replace("top", "bottom").replace("left", "right")} flex flex-col items-center leading-[0.9] rotate-180`}
-      >
-        <span className={`${s.corner} font-bold ${colorClass}`}>{value}</span>
-        <span className={`${s.corner} ${colorClass} -mt-px`}>{symbol}{colorblindMode && shape ? <span className="ml-0.5 opacity-90 rotate-180 inline-block">{shape}</span> : ""}</span>
-      </div>
+      {/* Tâche 2 d'Azra : Le filtre d'accessibilité (Daltonisme) */}
+      {colorblindMode && shape && (
+        <div className="absolute top-1 right-1 bg-white/90 rounded px-1.5 py-0.5 text-xs font-bold text-gray-800 shadow-sm border border-gray-200 z-10">
+          {shape}
+        </div>
+      )}
     </Wrapper>
   );
 }
@@ -189,3 +146,4 @@ export function PokerCardSlot({ size = "md", className = "" }: { size?: CardSize
     />
   );
 }
+
