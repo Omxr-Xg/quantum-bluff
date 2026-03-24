@@ -76,7 +76,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         ? '/socket.io'
         : '/vmProjetIntegrateurgrp10-0/socket.io', // Toujours utiliser ce chemin en Prod/VM
       auth: { token },
-      transports: ['websocket'],
+      // Ne pas forcer WebSocket seul : polling puis upgrade évite beaucoup d’échecs en dev / réseaux stricts
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 15,
       reconnectionDelay: 500,

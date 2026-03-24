@@ -7,8 +7,7 @@ import { useUser } from "../hooks/useUser";
 import { fetchBalanceFromServer } from "../utils/userProfile";
 import { useGetFriendsQuery } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
-
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+import { apiUrl } from "../utils/apiBase";
 
 interface Player {
   id: string;
@@ -64,7 +63,7 @@ export function WaitingRoom() {
 
   const fetchRoom = useCallback(
     async (id: string) => {
-      const url = API_BASE ? `${API_BASE}/api/waiting-room/${id}` : `/api/waiting-room/${id}`;
+      const url = apiUrl(`/api/waiting-room/${id}`);
       const res = await fetch(url);
       if (!res.ok) return null;
       return res.json();
@@ -85,7 +84,7 @@ export function WaitingRoom() {
       setRoomError(null);
       try {
         if (!rawRoomId || rawRoomId.startsWith("room_")) {
-          const createUrl = API_BASE ? `${API_BASE}/api/waiting-room/create` : "/api/waiting-room/create";
+          const createUrl = apiUrl("/api/waiting-room/create");
           const res = await fetch(createUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -122,7 +121,7 @@ export function WaitingRoom() {
 
         const inRoom = room.players?.some((p: { id: string }) => p.id === userId);
         if (!inRoom) {
-          const joinUrl = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/join` : `/api/waiting-room/${rawRoomId}/join`;
+          const joinUrl = apiUrl(`/api/waiting-room/${rawRoomId}/join`);
           const joinRes = await fetch(joinUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -233,9 +232,7 @@ export function WaitingRoom() {
   const fetchJoinRequests = useCallback(async () => {
     if (!rawRoomId || !userId || !isCreator || roomVisibility !== 'PRIVATE') return;
     try {
-      const url = API_BASE
-        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests?hostId=${userId}`
-        : `/api/waiting-room/${rawRoomId}/join-requests?hostId=${userId}`;
+      const url = `${apiUrl(`/api/waiting-room/${rawRoomId}/join-requests`)}?hostId=${userId}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -263,9 +260,7 @@ export function WaitingRoom() {
     if (!rawRoomId || !userId) return;
     setProcessingRequest(requestId);
     try {
-      const url = API_BASE
-        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`
-        : `/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`;
+      const url = apiUrl(`/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`);
       await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -280,9 +275,7 @@ export function WaitingRoom() {
     if (!rawRoomId || !userId) return;
     setProcessingRequest(requestId);
     try {
-      const url = API_BASE
-        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`
-        : `/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`;
+      const url = apiUrl(`/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`);
       await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -323,7 +316,7 @@ export function WaitingRoom() {
     socket?.emit("player-ready", { roomId, userId });
     setMyIsReady(true); // Optimistic update
     if (rawRoomId && !rawRoomId.startsWith("room_")) {
-      const url = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/ready` : `/api/waiting-room/${rawRoomId}/ready`;
+      const url = apiUrl(`/api/waiting-room/${rawRoomId}/ready`);
       fetch(url, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -337,7 +330,7 @@ export function WaitingRoom() {
     setStartError(null);
     setStarting(true);
     try {
-      const url = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/start` : `/api/waiting-room/${rawRoomId}/start`;
+      const url = apiUrl(`/api/waiting-room/${rawRoomId}/start`);
       const forceCardsPayload: Record<string, Array<{ suit: string; rank: string }>> = {};
       for (const [pid, cards] of Object.entries(forceCards)) {
         if (cards?.[0]?.suit && cards?.[0]?.rank && cards?.[1]?.suit && cards?.[1]?.rank) {
@@ -380,7 +373,7 @@ export function WaitingRoom() {
   const handleLeaveRoom = async () => {
     if (rawRoomId && !rawRoomId.startsWith("room_") && userId) {
       try {
-        const url = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/leave` : `/api/waiting-room/${rawRoomId}/leave`;
+        const url = apiUrl(`/api/waiting-room/${rawRoomId}/leave`);
         await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

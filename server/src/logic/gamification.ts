@@ -39,6 +39,11 @@ export function getEffectiveSlotMaxBet(level: number): number {
   return Math.min(SLOT_MAX_BET_CAP, Math.max(SLOT_MIN_BET, Math.floor(baseCap + t * span)))
 }
 
+/** Plafond mise blackjack : même courbe que le slot. */
+export function getEffectiveBlackjackMaxBet(level: number): number {
+  return getEffectiveSlotMaxBet(level)
+}
+
 export function getEffectiveRouletteMaxPerLine(level: number): number {
   return getEffectiveSlotMaxBet(level)
 }
@@ -78,6 +83,8 @@ export const XP_SLOT_SPIN = 4
 export const XP_SLOT_WIN_BONUS = 8
 export const XP_ROULETTE_SPIN = 4
 export const XP_ROULETTE_WIN_BONUS = 10
+export const XP_BLACKJACK_HAND = 5
+export const XP_BLACKJACK_WIN_BONUS = 10
 
 type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
 
@@ -163,7 +170,15 @@ export async function awardXp(prisma: PrismaClient, userId: string, amount: numb
 export function gamificationPayloadForUser(row: {
   experience: number
   level: number
-}): { experience: number; level: number; xpToNext: number; maxBetSlot: number; maxBetRouletteLine: number; maxRouletteTotalStake: number } {
+}): {
+  experience: number
+  level: number
+  xpToNext: number
+  maxBetSlot: number
+  maxBetRouletteLine: number
+  maxRouletteTotalStake: number
+  maxBetBlackjack: number
+} {
   const lvl = levelFromExperience(row.experience)
   return {
     experience: row.experience,
@@ -172,6 +187,7 @@ export function gamificationPayloadForUser(row: {
     maxBetSlot: getEffectiveSlotMaxBet(lvl),
     maxBetRouletteLine: getEffectiveRouletteMaxPerLine(lvl),
     maxRouletteTotalStake: getEffectiveRouletteMaxTotalStake(lvl),
+    maxBetBlackjack: getEffectiveBlackjackMaxBet(lvl),
   }
 }
 
@@ -182,6 +198,7 @@ export type GamificationBundle = {
   maxBetSlot: number
   maxBetRouletteLine: number
   maxRouletteTotalStake: number
+  maxBetBlackjack: number
   badges: string[]
 }
 
@@ -215,6 +232,7 @@ export async function getGamificationBundle(
     maxBetSlot: g.maxBetSlot,
     maxBetRouletteLine: g.maxBetRouletteLine,
     maxRouletteTotalStake: g.maxRouletteTotalStake,
+    maxBetBlackjack: g.maxBetBlackjack,
     badges: badgeRows.map((b) => b.badgeId),
   }
 }

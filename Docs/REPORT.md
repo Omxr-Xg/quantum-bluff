@@ -15,7 +15,7 @@
 - `README.md`, `DEPLOY.md`, `SETUP_TESTEUR.md`, `CHANGELOG`, `CODEOWNERS`
 
 ### 1.2 Client (`client/`)
-- `src/pages/` – StartScreen, Auth, Lobby, BotConfiguration, SlotMachine, Roulette, Leaderboard, WaitingRoom, Game, GameDeal, GameExample, HiddenBetsResult, Profile, Friends, EditProfile, TutorialLobby
+- `src/pages/` – StartScreen, Auth, Lobby, BotConfiguration, SlotMachine, Roulette, Blackjack, Leaderboard, WaitingRoom, Game, GameDeal, GameExample, HiddenBetsResult, Profile, Friends, EditProfile, TutorialLobby
 - `src/components/` – Layout, ProtectedRoute, PokerTable, CommunityCards, ActionButtons, QuantumHUD, ShowdownDisplay, HiddenBetsPanel, InvitationBanner, NotificationCenter, MusicPlayer, AccessibilityMenu, ChipIcon, PokerCard, etc.
 - `src/components/ui/` – Composants shadcn/ui (accordion, alert, avatar, button, card, dialog, form, input, tabs, tooltip, etc.)
 - `src/contexts/` – SocketContext, ToastContext, QuantumHUDContext, AccessibilityContext, AccessibilityMenuOpenContext, HiddenBetsContext, MusicContext, TopBarContext
@@ -27,8 +27,8 @@
 - `electron.cjs` – Point d’entrée app desktop Electron
 
 ### 1.3 Serveur (`server/`)
-- `src/routes/` – auth, game, game.api, waitingRoom, bot, friends, invitation, updates, slot, roulette, leaderboard
-- `src/logic/` – GameTable, CashGameController, Evaluator, Deck, slotMachine, roulette, gamification
+- `src/routes/` – auth, game, game.api, waitingRoom, bot, friends, invitation, updates, slot, roulette, blackjack, leaderboard
+- `src/logic/` – GameTable, CashGameController, Evaluator, Deck, slotMachine, roulette, blackjack, blackjackSessionStore, gamification
 - `src/sockets/` – game.gateway.ts
 - `src/middleware/` – auth.middleware, socketAuth.middleware
 - `src/config/` – database.ts, redis.config.ts
@@ -66,6 +66,8 @@
 
 **Mini-jeu roulette européenne (`/api/roulette/`)** – Logique pure dans `server/src/logic/roulette.ts` (37 cases 0–36, mises plein / cheval / transversale / carré / sixain / douzaines / colonnes / chances simples). `POST /spin` (JWT) : transaction Prisma **débite la somme des mises**, tire `result` avec `crypto.randomInt`, calcule les versements par ligne, **crédite la somme des payouts** ; réponse `{ chips, result, resultColor, totalStake, totalPayout, betsResolved }`. `GET /config` (public) : bornes (mise min 10, max 1000 par ligne, total max 5000 par tour, max 40 mises), ordre des cases sur la roue pour l’animation client. Rate limit dédié sur `/api/roulette`. Page client `/roulette` : tapis interactif + roue animée (Motion) **après** la réponse serveur. **Lobby** : onglets *Texas Hold’em* (serveurs, création de salle, bot) et *Roulette* (accès roulette + lien machine à sous). Aperçu RTP / règles : **`Docs/ROULETTE.adoc`**.
 
+**Blackjack (`/api/blackjack/`)** – Logique pure dans `server/src/logic/blackjack.ts` (sabot 6 jeux, BJ naturel 3:2, croupier tire jusqu’à ≥ 17 — s’arrête sur soft 17, double sur 2 cartes uniquement, pas de split en v1). **Sessions en mémoire** par utilisateur dans `blackjackSessionStore.ts` (TTL ~30 min) : une main active par joueur sur le process ; **perte au redémarrage** du serveur ou en multi-instances sans sticky sessions. `POST /start` (JWT) : valide la mise (min 10, plafond niveau + cap 1000), débite, distribue ; si BJ naturel joueur, règle tout de suite (stats casino + XP). Sinon réponse `phase: "player"` avec `dealerUp` + trou caché. `POST /action` : `{ action: "hit" | "stand" | "double" }` ; fin de main : crédit `payout`, mise à jour `CasinoStats` (`blackjackHandsPlayed`, `blackjackBiggestWin`), `awardXpInTransaction`. Rate limit dédié sur `/api/blackjack`. Page client `/blackjack`. **Classement** : catégorie `blackjack_biggest` sur `casino_stats.blackjackBiggestWin`. **Lobby** : troisième onglet *Blackjack* (palette rose/bordeaux) avec CTA vers `/blackjack`.
+
 ### 2.2 JWT
 - Secret: `process.env.JWT_SECRET` ou `quantum_bluff_secret`
 - Expiration: `7d`
@@ -74,7 +76,7 @@
 
 ### 2.3 Middleware HTTP
 - `auth.middleware.ts` – Lit `Authorization: Bearer <token>`, décode JWT, injecte `req.userId`
-- Utilisé sur: balance, add-dev-money, record-result, friends, invitations, slot spin, roulette spin
+- Utilisé sur: balance, add-dev-money, record-result, friends, invitations, slot spin, roulette spin, blackjack start/action
 
 ### 2.4 Socket auth
 - `socketAuth.middleware` – Token via `handshake.auth.token` ou header `Authorization`

@@ -10,8 +10,7 @@ import {
   readGamification,
   refreshGamificationFromServer,
 } from "../utils/gamificationStorage";
-
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+import { apiUrl } from "../utils/apiBase";
 
 type SlotSymbolId = "cherry" | "lemon" | "bell" | "seven" | "diamond";
 
@@ -59,7 +58,7 @@ export function SlotMachine() {
       navigate("/lobby");
       return;
     }
-    const url = API_BASE ? `${API_BASE}/api/auth/balance` : "/api/auth/balance";
+    const url = apiUrl("/api/auth/balance");
     try {
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error("balance");
@@ -75,7 +74,7 @@ export function SlotMachine() {
 
   const loadConfig = useCallback(async () => {
     try {
-      const url = API_BASE ? `${API_BASE}/api/slot/config` : "/api/slot/config";
+      const url = apiUrl("/api/slot/config");
       const res = await fetch(url);
       let cap = 1000;
       if (res.ok) {
@@ -138,7 +137,7 @@ export function SlotMachine() {
       const interval = window.setInterval(shuffle, 80);
 
       try {
-        const url = API_BASE ? `${API_BASE}/api/slot/spin` : "/api/slot/spin";
+        const url = apiUrl("/api/slot/spin");
         const res = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

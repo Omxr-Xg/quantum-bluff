@@ -175,6 +175,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         maxBetSlot: g?.maxBetSlot,
         maxBetRouletteLine: g?.maxBetRouletteLine,
         maxRouletteTotalStake: g?.maxRouletteTotalStake,
+        maxBetBlackjack: g?.maxBetBlackjack,
         playerStats: playerStats ?? null
       }
     })
@@ -308,6 +309,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         maxBetSlot: g?.maxBetSlot,
         maxBetRouletteLine: g?.maxBetRouletteLine,
         maxRouletteTotalStake: g?.maxRouletteTotalStake,
+        maxBetBlackjack: g?.maxBetBlackjack,
         playerStats: user.playerStats
       }
     })

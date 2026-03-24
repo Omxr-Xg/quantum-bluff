@@ -72,13 +72,12 @@ export function addToUserBalance(amount: number): number {
 }
 
 import { clearGamificationStorage } from "./gamificationStorage";
-
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+import { apiUrl } from "./apiBase";
 
 /** Vide toutes les données d'authentification du localStorage (déconnexion). Appelle l'API logout pour invalider le token côté serveur. */
 export function clearAuthStorage(): void {
   const token = localStorage.getItem("token");
-  const url = API_BASE ? `${API_BASE}/api/auth/logout` : "/api/auth/logout";
+  const url = apiUrl("/api/auth/logout");
   if (token) {
     fetch(url, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
   }
@@ -112,7 +111,7 @@ export type FetchBalanceOptions = {
 export async function fetchBalanceFromServer(options?: FetchBalanceOptions): Promise<number> {
   const token = localStorage.getItem("token");
   if (!token) return getUserBalance();
-  const url = API_BASE ? `${API_BASE}/api/auth/balance` : "/api/auth/balance";
+  const url = apiUrl("/api/auth/balance");
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return getUserBalance();
@@ -135,7 +134,7 @@ export async function fetchBalanceFromServer(options?: FetchBalanceOptions): Pro
 export async function addDevMoney(amount: number): Promise<number> {
   const token = localStorage.getItem("token");
   if (!token) return getUserBalance();
-  const url = API_BASE ? `${API_BASE}/api/auth/add-dev-money` : "/api/auth/add-dev-money";
+  const url = apiUrl("/api/auth/add-dev-money");
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

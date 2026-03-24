@@ -16,6 +16,7 @@ import { EditProfile } from "./pages/EditProfile";
 import { TutorialLobby } from "./pages/TutorialLobby";
 import { SlotMachine } from "./pages/SlotMachine";
 import { Roulette } from "./pages/Roulette";
+import { Blackjack } from "./pages/Blackjack";
 import { Leaderboard } from "./pages/Leaderboard";
 import { GameDeal } from "./pages/GameDeal";
 import { GameExample } from "./pages/GameExample";
@@ -50,6 +51,7 @@ function App() {
             <Route path="/bot-configuration" element={<ProtectedRoute><BotConfiguration /></ProtectedRoute>} />
             <Route path="/slot" element={<ProtectedRoute><SlotMachine /></ProtectedRoute>} />
             <Route path="/roulette" element={<ProtectedRoute><Roulette /></ProtectedRoute>} />
+            <Route path="/blackjack" element={<ProtectedRoute><Blackjack /></ProtectedRoute>} />
             <Route path="/waiting-room" element={<ProtectedRoute><WaitingRoom /></ProtectedRoute>} />
 
             <Route path="/game" element={<ProtectedRoute><GameWithKey /></ProtectedRoute>} />

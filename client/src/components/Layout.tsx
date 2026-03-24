@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X, User, Users, LogOut, Plus, Menu, Settings, Trophy } from "lucide-react";
+import { Bell, X, User, Users, LogOut, Plus, Menu, Settings, Trophy, Sparkles } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
@@ -66,7 +66,8 @@ export function Layout({ children }: LayoutProps) {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
     setBalance(getUserBalance());
     if (localStorage.getItem("token")) {
-      const authoritative = location.pathname === "/slot" || location.pathname === "/roulette";
+      const authoritative =
+        location.pathname === "/slot" || location.pathname === "/roulette" || location.pathname === "/blackjack";
       fetchBalanceFromServer({ authoritative }).then(setBalance);
     }
   }, [location.pathname]);
@@ -80,7 +81,8 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     const onFocus = () => {
       if (localStorage.getItem("token")) {
-        const authoritative = location.pathname === "/slot" || location.pathname === "/roulette";
+        const authoritative =
+          location.pathname === "/slot" || location.pathname === "/roulette" || location.pathname === "/blackjack";
         fetchBalanceFromServer({ authoritative }).then(setBalance);
       } else {
         setBalance(getUserBalance());
@@ -176,14 +178,15 @@ export function Layout({ children }: LayoutProps) {
   const showTopBar = !isAuthPage && localStorage.getItem("token");
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
-  const isCasinoFullBleed = path === "/slot" || path === "/roulette";
+  const isCasinoFullBleed = path === "/slot" || path === "/roulette" || path === "/blackjack";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
     path.includes("waiting-room") ||
     path.includes("tutorial-lobby") ||
     path === "/slot" ||
-    path === "/roulette";
+    path === "/roulette" ||
+    path === "/blackjack";
   const showHamburgerMenu = showTopBar && isGameConfigOrRoom && !isLobby;
   const showLobbyIntegratedBar = showTopBar && isLobby;
   /** Padding réservé au menu hamburger fixe — sinon bande vide (fond slate) en haut (ex. profil, classement). */
@@ -205,10 +208,19 @@ export function Layout({ children }: LayoutProps) {
         <button
           type="button"
           onClick={openAddMoney}
-          className="inline-flex items-center justify-center px-2.5 bg-amber-500/80 font-bold text-slate-900 transition-colors hover:bg-amber-400 hover:shadow-inner sm:px-3"
+          className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-500/80 font-bold text-slate-900 transition-colors hover:bg-amber-400 hover:shadow-inner sm:px-3"
           title={t("lobby.addMoney")}
         >
           <Plus className="h-5 w-5" strokeWidth={2.5} />
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate("/slot")}
+          className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-600/75 text-amber-50 transition-colors hover:bg-amber-500/90 hover:shadow-inner sm:px-3"
+          title={t("lobby.openSlot")}
+          aria-label={t("lobby.openSlot")}
+        >
+          <Sparkles className="h-5 w-5 shrink-0" strokeWidth={2.5} aria-hidden />
         </button>
       </div>
       <NotificationCenter />
@@ -307,10 +319,22 @@ export function Layout({ children }: LayoutProps) {
                   <button
                     type="button"
                     onClick={openAddMoney}
-                    className="inline-flex items-center justify-center px-2.5 bg-amber-500/80 font-bold text-slate-900 transition-colors hover:bg-amber-400 hover:shadow-inner sm:px-3"
+                    className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-500/80 font-bold text-slate-900 transition-colors hover:bg-amber-400 hover:shadow-inner sm:px-3"
                     title={t("lobby.addMoney")}
                   >
                     <Plus className="h-5 w-5" strokeWidth={2.5} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/slot");
+                    }}
+                    className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-600/75 text-amber-50 transition-colors hover:bg-amber-500/90 hover:shadow-inner sm:px-3"
+                    title={t("lobby.openSlot")}
+                    aria-label={t("lobby.openSlot")}
+                  >
+                    <Sparkles className="h-5 w-5 shrink-0" strokeWidth={2.5} aria-hidden />
                   </button>
                 </div>
                 <NotificationCenter />

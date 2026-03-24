@@ -14,8 +14,7 @@ import {
 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { useUser } from "../hooks/useUser";
-
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+import { apiUrl } from "../utils/apiBase";
 const PAGE_SIZE = 25;
 
 type MainTab = "general" | "poker" | "casino";
@@ -25,7 +24,8 @@ type LeaderboardCategory =
   | "chips"
   | "poker_wins"
   | "slot_biggest"
-  | "roulette_biggest";
+  | "roulette_biggest"
+  | "blackjack_biggest";
 
 type Row = { username: string; rank: number; value: number; level?: number };
 
@@ -61,7 +61,9 @@ export function Leaderboard() {
 
   const [mainTab, setMainTab] = useState<MainTab>("general");
   const [pokerMetric, setPokerMetric] = useState<"poker_wins" | "chips">("poker_wins");
-  const [casinoMetric, setCasinoMetric] = useState<"chips" | "slot_biggest" | "roulette_biggest">("chips");
+  const [casinoMetric, setCasinoMetric] = useState<
+    "chips" | "slot_biggest" | "roulette_biggest" | "blackjack_biggest"
+  >("chips");
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,9 +87,7 @@ export function Leaderboard() {
       limit: String(PAGE_SIZE),
       offset: String(offset),
     });
-    const url = API_BASE
-      ? `${API_BASE}/api/leaderboard?${params}`
-      : `/api/leaderboard?${params}`;
+    const url = `${apiUrl("/api/leaderboard")}?${params}`;
     try {
       const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -132,6 +132,8 @@ export function Leaderboard() {
         return t("leaderboard.colSlotBiggest");
       case "roulette_biggest":
         return t("leaderboard.colRouletteBiggest");
+      case "blackjack_biggest":
+        return t("leaderboard.colBlackjackBiggest");
       default:
         return "";
     }
@@ -385,6 +387,7 @@ export function Leaderboard() {
                   ["chips", t("leaderboard.metricChips")] as const,
                   ["slot_biggest", t("leaderboard.metricSlotBiggest")] as const,
                   ["roulette_biggest", t("leaderboard.metricRouletteBiggest")] as const,
+                  ["blackjack_biggest", t("leaderboard.metricBlackjackBiggest")] as const,
                 ] as const
               ).map(([id, label]) => (
                 <button

@@ -3,8 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Check, X, Gamepad2 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import type { GameInvitationNotification } from "../contexts/SocketContext";
-
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+import { apiUrl } from "../utils/apiBase";
 
 export function InvitationBanner() {
   const { t } = useTranslation();
@@ -14,9 +13,7 @@ export function InvitationBanner() {
   const handleAccept = async (inv: GameInvitationNotification) => {
     try {
       const token = localStorage.getItem("token");
-      const url = API_BASE
-        ? `${API_BASE}/api/invitations/${inv.invitationId}/accept`
-        : `/api/invitations/${inv.invitationId}/accept`;
+      const url = apiUrl(`/api/invitations/${inv.invitationId}/accept`);
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -36,9 +33,7 @@ export function InvitationBanner() {
   const handleReject = async (inv: GameInvitationNotification) => {
     try {
       const token = localStorage.getItem("token");
-      const url = API_BASE
-        ? `${API_BASE}/api/invitations/${inv.invitationId}/reject`
-        : `/api/invitations/${inv.invitationId}/reject`;
+      const url = apiUrl(`/api/invitations/${inv.invitationId}/reject`);
       await fetch(url, {
         method: "POST",
         headers: {

@@ -34,6 +34,7 @@ import { intChips } from "../utils/chips";
 import { getWinMultiplierFromDifficultyParam } from "../utils/botModeReward";
 import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
+import { apiUrl } from "../utils/apiBase";
 
 type Card = ClientCard;
 
@@ -604,8 +605,7 @@ export function Game() {
 
   useEffect(() => {
     if (!gameIdParam || isSpectating || !userId) return;
-    const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-    const url = `${apiBase}/api/game/${encodeURIComponent(gameIdParam)}?playerId=${encodeURIComponent(userId)}`;
+    const url = `${apiUrl(`/api/game/${encodeURIComponent(gameIdParam)}`)}?playerId=${encodeURIComponent(userId)}`;
     let cancelled = false;
     fetch(url, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
@@ -907,8 +907,7 @@ export function Game() {
 
   useEffect(() => {
     if (!handResult || !gameIdParam || isBotMode || !userId) return;
-    const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-    fetch(`${apiBase}/api/game/${gameIdParam}/room-info`)
+    fetch(apiUrl(`/api/game/${gameIdParam}/room-info`))
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data?.hostId && String(data.hostId) === String(userId)) setIsRematchHost(true);
@@ -1311,12 +1310,10 @@ export function Game() {
     if (activeInHand.length === 1) {
       const sole = activeInHand[0];
       showdownStartedRef.current = true;
-      const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
       const applySoleWinner = async () => {
         let handName = "Haute carte";
         try {
-          const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
-          const res = await fetch(url, {
+          const res = await fetch(apiUrl("/api/bot/evaluate-winner"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1347,7 +1344,6 @@ export function Game() {
     }
     if (pots.length > 1) setSidePots(pots);
 
-    const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
     const currentPot = pot;
     const humanId = String(playersState.find((p) => p.id === userId || p.id === "human")?.id ?? "human");
     let mainWinnerName = "";
@@ -1395,7 +1391,7 @@ export function Game() {
             if (pi === 0) { mainWinnerId = String(eligible[0].id); mainWinnerName = eligible[0].name; }
             continue;
           }
-          const url = apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner";
+          const url = apiUrl("/api/bot/evaluate-winner");
           const controller = new AbortController();
           const to = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
           const res = await fetch(url, {
@@ -1460,7 +1456,7 @@ export function Game() {
         try {
           const fw = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
           if (fw?.cards?.length === 2) {
-            const r = await fetch(apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner", {
+            const r = await fetch(apiUrl("/api/bot/evaluate-winner"), {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ players: [{ id: String(fw.id), name: fw.name, cards: fw.cards }], communityCards: validCommunity }),
             });
@@ -1486,8 +1482,7 @@ export function Game() {
       const validComm = communityCardsState.filter((c): c is Card => c !== null);
       if (winner && (winner as BasePlayer | BotPlayer).cards?.length === 2 && validComm.length >= 5) {
         try {
-          const apiUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-          const r = await fetch(apiUrl ? `${apiUrl}/api/bot/evaluate-winner` : "/api/bot/evaluate-winner", {
+          const r = await fetch(apiUrl("/api/bot/evaluate-winner"), {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ players: [{ id: String(winner.id), name: winner.name, cards: (winner as BasePlayer | BotPlayer).cards }], communityCards: validComm }),
           });
@@ -1557,8 +1552,7 @@ export function Game() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
-        const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-        const url = `${apiBase}/api/bot/action`;
+        const url = apiUrl("/api/bot/action");
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1658,8 +1652,7 @@ export function Game() {
   useEffect(() => {
     if (handResult === null || !isBotMode) return;
     const token = localStorage.getItem("token");
-    const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-    const recordUrl = `${apiBase}/api/game/record-result`;
+    const recordUrl = apiUrl("/api/game/record-result");
     
     if (token) {
       fetch(recordUrl, {

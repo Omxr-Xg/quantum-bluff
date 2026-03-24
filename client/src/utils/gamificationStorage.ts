@@ -1,3 +1,5 @@
+import { apiUrl } from "./apiBase";
+
 /** Aligné sur le catalogue serveur (badges débloqués par niveau). */
 export const BADGE_CATALOG: { id: string; minLevel: number }[] = [
   { id: "novice", minLevel: 2 },
@@ -20,6 +22,7 @@ export type StoredGamification = {
   maxBetSlot: number;
   maxBetRouletteLine: number;
   maxRouletteTotalStake: number;
+  maxBetBlackjack: number;
 };
 
 const KEY = "quantum_bluff_gamification";
@@ -45,6 +48,7 @@ export function readGamification(): Partial<StoredGamification> {
     if (typeof o.maxBetSlot === "number") out.maxBetSlot = o.maxBetSlot;
     if (typeof o.maxBetRouletteLine === "number") out.maxBetRouletteLine = o.maxBetRouletteLine;
     if (typeof o.maxRouletteTotalStake === "number") out.maxRouletteTotalStake = o.maxRouletteTotalStake;
+    if (typeof o.maxBetBlackjack === "number") out.maxBetBlackjack = o.maxBetBlackjack;
     return out;
   } catch {
     return {};
@@ -71,6 +75,7 @@ export function persistGamificationFromAuthUser(u: Record<string, unknown>): voi
     maxBetSlot: typeof u.maxBetSlot === "number" ? u.maxBetSlot : undefined,
     maxBetRouletteLine: typeof u.maxBetRouletteLine === "number" ? u.maxBetRouletteLine : undefined,
     maxRouletteTotalStake: typeof u.maxRouletteTotalStake === "number" ? u.maxRouletteTotalStake : undefined,
+    maxBetBlackjack: typeof u.maxBetBlackjack === "number" ? u.maxBetBlackjack : undefined,
   });
 }
 
@@ -83,6 +88,7 @@ export function mergeGamificationFromServerResponse(data: Record<string, unknown
   if (typeof data.maxBetSlot === "number") patch.maxBetSlot = data.maxBetSlot;
   if (typeof data.maxBetPerLine === "number") patch.maxBetRouletteLine = data.maxBetPerLine;
   if (typeof data.maxTotalStake === "number") patch.maxRouletteTotalStake = data.maxTotalStake;
+  if (typeof data.maxBetBlackjack === "number") patch.maxBetBlackjack = data.maxBetBlackjack;
   if (Array.isArray(data.newBadges) && data.newBadges.length > 0) {
     const prev = readGamification();
     const merged = new Set([...(prev.badges ?? []), ...(data.newBadges as string[])]);
@@ -91,12 +97,10 @@ export function mergeGamificationFromServerResponse(data: Record<string, unknown
   if (Object.keys(patch).length > 0) persistGamification(patch);
 }
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
-
 export async function refreshGamificationFromServer(): Promise<Partial<StoredGamification>> {
   const token = localStorage.getItem("token");
   if (!token) return {};
-  const url = API_BASE ? `${API_BASE}/api/auth/gamification` : "/api/auth/gamification";
+  const url = apiUrl("/api/auth/gamification");
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return readGamification();
@@ -109,6 +113,7 @@ export async function refreshGamificationFromServer(): Promise<Partial<StoredGam
       maxBetSlot: typeof g.maxBetSlot === "number" ? g.maxBetSlot : undefined,
       maxBetRouletteLine: typeof g.maxBetRouletteLine === "number" ? g.maxBetRouletteLine : undefined,
       maxRouletteTotalStake: typeof g.maxRouletteTotalStake === "number" ? g.maxRouletteTotalStake : undefined,
+      maxBetBlackjack: typeof g.maxBetBlackjack === "number" ? g.maxBetBlackjack : undefined,
     });
     return readGamification();
   } catch {

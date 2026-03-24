@@ -6,6 +6,40 @@ import path from 'path';
 
 const basePath = process.env.VITE_BASE_PATH ?? '/vmProjetIntegrateurgrp10-0/';
 
+/** Même proxy que `server` pour que `vite preview` atteigne l’API sur :3000. */
+const devApiProxy = {
+  '/api': {
+    target: 'http://localhost:3000',
+    changeOrigin: true,
+    configure: (proxy) => {
+      proxy.on('proxyReq', (proxyReq, req) => {
+        const auth = (req.headers as Record<string, string>).authorization;
+        if (auth) proxyReq.setHeader('Authorization', auth);
+      });
+    },
+  },
+  '/vmProjetIntegrateurgrp10-0/api': {
+    target: 'http://localhost:3000',
+    changeOrigin: true,
+    rewrite: (p: string) => p.replace(/^\/vmProjetIntegrateurgrp10-0/, ''),
+    configure: (proxy) => {
+      proxy.on('proxyReq', (proxyReq, req) => {
+        const auth = (req.headers as Record<string, string>).authorization;
+        if (auth) proxyReq.setHeader('Authorization', auth);
+      });
+    },
+  },
+  '/socket.io': {
+    target: 'http://localhost:3000',
+    ws: true,
+  },
+  '/vmProjetIntegrateurgrp10-0/socket.io': {
+    target: 'http://localhost:3000',
+    ws: true,
+    rewrite: (p: string) => p.replace(/^\/vmProjetIntegrateurgrp10-0/, ''),
+  },
+};
+
 export default defineConfig({
   base: basePath,
   plugins: [
@@ -48,39 +82,11 @@ export default defineConfig({
   server: {
     host: true,
     port: 5175,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        configure: proxy => {
-          proxy.on('proxyReq', (proxyReq, req) => {
-            const auth = (req.headers as Record<string, string>).authorization;
-            if (auth) proxyReq.setHeader('Authorization', auth);
-          });
-        }
-      },
-      '/vmProjetIntegrateurgrp10-0/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/vmProjetIntegrateurgrp10-0/, ''),
-        configure: proxy => {
-          proxy.on('proxyReq', (proxyReq, req) => {
-            const auth = (req.headers as Record<string, string>).authorization;
-            if (auth) proxyReq.setHeader('Authorization', auth);
-          });
-        }
-      },
-      // WebSocket proxy pour Socket.IO (évite ws://localhost:5173 quand le socket se connecte à l'origine)
-      '/socket.io': {
-        target: 'http://localhost:3000',
-        ws: true
-      },
-      '/vmProjetIntegrateurgrp10-0/socket.io': {
-        target: 'http://localhost:3000',
-        ws: true,
-        rewrite: path => path.replace(/^\/vmProjetIntegrateurgrp10-0/, '')
-      }
-    }
+    proxy: devApiProxy,
+  },
+  preview: {
+    port: 4175,
+    proxy: devApiProxy,
   },
   test: {
     environment: 'jsdom',

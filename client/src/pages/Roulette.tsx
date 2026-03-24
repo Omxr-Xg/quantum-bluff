@@ -11,7 +11,7 @@ import {
   refreshGamificationFromServer,
 } from "../utils/gamificationStorage";
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+import { apiUrl } from "../utils/apiBase";
 
 /** Valeurs disponibles + styles (couleur du bord / face) — style « tapis » réel. */
 const ROULETTE_CHIP_TOKENS: readonly {
@@ -388,7 +388,7 @@ export function Roulette() {
       navigate("/lobby");
       return;
     }
-    const url = API_BASE ? `${API_BASE}/api/auth/balance` : "/api/auth/balance";
+    const url = apiUrl("/api/auth/balance");
     try {
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error("balance");
@@ -404,7 +404,7 @@ export function Roulette() {
 
   const loadConfig = useCallback(async () => {
     try {
-      const url = API_BASE ? `${API_BASE}/api/roulette/config` : "/api/roulette/config";
+      const url = apiUrl("/api/roulette/config");
       const res = await fetch(url);
       let lineCap = 1000;
       let totalCap = 5000;
@@ -527,7 +527,7 @@ export function Roulette() {
     const step = 360 / n;
 
     try {
-      const url = API_BASE ? `${API_BASE}/api/roulette/spin` : "/api/roulette/spin";
+      const url = apiUrl("/api/roulette/spin");
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
