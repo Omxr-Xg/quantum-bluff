@@ -330,6 +330,7 @@
   },
   "leaderboard": {
     "title": "Leaderboards",
+    "subtitle": "Global XP, poker, and casino — all players",
     "shortTitle": "Ranks",
     "tabGeneral": "General",
     "tabPoker": "Poker",

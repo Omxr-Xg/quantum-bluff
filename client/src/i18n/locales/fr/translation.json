@@ -328,6 +328,7 @@
   },
   "leaderboard": {
     "title": "Classements",
+    "subtitle": "XP global, poker et casino — tous les joueurs",
     "shortTitle": "Classement",
     "tabGeneral": "Général",
     "tabPoker": "Poker",

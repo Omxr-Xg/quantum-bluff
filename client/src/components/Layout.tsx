@@ -186,6 +186,8 @@ export function Layout({ children }: LayoutProps) {
     path === "/roulette";
   const showHamburgerMenu = showTopBar && isGameConfigOrRoom && !isLobby;
   const showLobbyIntegratedBar = showTopBar && isLobby;
+  /** Padding réservé au menu hamburger fixe — sinon bande vide (fond slate) en haut (ex. profil, classement). */
+  const topBarPaddingForHamburger = showTopBar && !showLobbyIntegratedBar && showHamburgerMenu;
 
   const menuContent = (
     <>
@@ -448,7 +450,7 @@ export function Layout({ children }: LayoutProps) {
         className={`w-full ${
           isCasinoFullBleed
             ? "flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden pt-0"
-            : `min-h-screen ${showTopBar && !showLobbyIntegratedBar ? "pt-14 md:pt-16" : ""}`
+            : `min-h-screen ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`
         }`}
       >
         {children}

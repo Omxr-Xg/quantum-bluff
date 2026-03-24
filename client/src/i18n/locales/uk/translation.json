@@ -329,6 +329,7 @@
   },
   "leaderboard": {
     "title": "Рейтинги",
+    "subtitle": "Загальний XP, покер і казино — усі гравці",
     "shortTitle": "Рейтинг",
     "tabGeneral": "Загальний",
     "tabPoker": "Покер",
