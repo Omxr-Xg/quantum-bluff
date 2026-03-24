@@ -1,0 +1,18 @@
+[1.0.0-alpha] - 02/03/2026
+Ajouts (Added)
+ - Architecture Monorepo : Séparation complète du /client et du /server pour un développement parallèle fluide.
+ - Setup Frontend : Initialisation de React 19 avec Vite et TypeScript.
+ - Setup Backend : Configuration de Node.js avec support natif des ES Modules et Express.
+ - Communication Temps Réel : Intégration de Socket.io pour la gestion du futur lobby.
+ - Structure de Dossiers : Création des répertoires components, hooks, pages, contexts et types dans le dossier src du client.
+
+Corrections (Fixed)
+ - Routage Vite : Correction du point d'entrée main.tsx et résolution de l'erreur Pre-transform error.
+ - Config TypeScript : Alignement des fichiers tsconfig.json pour supporter la syntaxe moderne des modules.
+ - Git Clean-up : Suppression des dépôts Git imbriqués qui bloquaient l'indexation des fichiers sur GitLab.
+ - Accessibilité Port : Résolution des conflits EADDRINUSE sur le port 3000.
+
+ Documentation
+ - Wiki Initialisé : Ajout des sections État d'avancement, Bugs connus et Déploiement.
+ - Licence : Adoption de la licence MIT pour le partage du code.
+ - Milestones : Création des jalons basés sur le diagramme de GANTT.

@@ -1,0 +1,300 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+// ERD désactivé ici pour éviter l'échec en CI (Puppeteer/Chrome nécessite libnss3 etc.).
+// Pour régénérer l'ERD en local : décommenter le bloc ci-dessous puis `npx prisma generate`.
+// generator erd {
+//   provider = "prisma-erd-generator"
+//   output   = "../src/generated/docs/ERD.svg"
+//   puppeteerConfig = "./puppeteer-config.json"
+//   theme    = "dark"
+//   includeRelationFromFields = true
+// }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  /// 1–10 : index de la question secrète (récupération mot de passe)
+  secretQuestionId  Int?
+  secretAnswerHash  String?
+  chips     Int      @default(1000)
+  level     Int      @default(1)
+  totpSecret String? // 2FA TOTP secret (optionnel)
+
+  stats     UserStats?
+  histories GameHistory[] @relation("WinnerHistory")
+
+  // Relations amis (AJOUTER CES LIGNES)
+  sentRequests  FriendRequest[] @relation("Sender")
+  receivedRequests FriendRequest[] @relation("Receiver")
+  friendshipsAsUser1 Friendship[] @relation("User1")
+  friendshipsAsUser2 Friendship[] @relation("User2")
+  sentFriendMessages     FriendMessage[] @relation("MessageSender")
+  receivedFriendMessages FriendMessage[] @relation("MessageReceiver")
+
+  // Salle d'attente intégrée
+  roomPlayers  RoomPlayer[]
+
+  // Invitations à des parties
+  sentInvitations     GameInvitation[] @relation("InvitationSender")
+  receivedInvitations GameInvitation[] @relation("InvitationReceiver")
+
+  // Demandes de rejoindre des salles privées
+  joinRequests JoinRequest[]
+
+  // NOUVELLES RELATIONS
+  gameActions   GameAction[]    // Actions effectuées par le joueur
+  gameWins      GameResult[]    // Parties gagnées par le joueur
+  playerStats   PlayerStats?    // Statistiques du joueur (relation 1-1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([username])
+  @@index([email])
+  @@index([createdAt])
+}
+
+model UserStats {
+  id          String @id @default(uuid())
+  wins        Int    @default(0)
+  totalGames  Int    @default(0)
+  biggestPot  Int    @default(0)
+
+  user        User   @relation(fields: [userId], references: [id])
+  userId      String @unique
+}
+
+model GameHistory {
+  id        String   @id @default(uuid())
+  tableId   String
+  gameId    String
+  board     String[]
+  pot       Int
+  winnerId  String?
+
+  winner    User?    @relation("WinnerHistory", fields: [winnerId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  //Index pour accélérer les recherches par gagnant et par date (DA4/DA5)
+  @@index([winnerId])
+  @@index([createdAt])
+  @@index([gameId])
+}
+
+// AJOUTER CES NOUVEAUX MODELES
+model FriendRequest {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  status     RequestStatus @default(PENDING)
+
+  sender   User @relation("Sender", fields: [senderId], references: [id])
+  receiver User @relation("Receiver", fields: [receiverId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  user1Id   String
+  user2Id   String
+  createdAt DateTime @default(now())
+
+  user1 User @relation("User1", fields: [user1Id], references: [id])
+  user2 User @relation("User2", fields: [user2Id], references: [id])
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+}
+
+model FriendMessage {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  content    String
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model WaitingRoom {
+  id           String         @id @default(uuid())
+  name         String
+  hostId       String
+  maxPlayers   Int            @default(5)
+  visibility   RoomVisibility @default(PUBLIC)
+  status       RoomStatus     @default(WAITING)
+  smallBlind   Int?           // Small blind (optionnel, défaut serveur)
+  bigBlind     Int?           // Big blind / relance minimale
+  minBalance   Int?           // Solde minimal pour rejoindre
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  players      RoomPlayer[]
+  invitations  GameInvitation[]
+  joinRequests JoinRequest[]
+  gameId       String?
+
+  @@map("waiting_rooms")
+}
+
+model JoinRequest {
+  id         String        @id @default(uuid())
+  roomId     String
+  userId     String
+  status     RequestStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  room WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, userId])
+  @@index([roomId, status])
+  @@map("join_requests")
+}
+
+model RoomPlayer {
+  id           String   @id @default(uuid())
+  roomId       String
+  userId       String
+  isReady      Boolean  @default(false)
+  joinedAt     DateTime @default(now())
+  position     Int?     // Position à la table (optionnel)
+
+  room         WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, userId])
+  @@map("room_players")
+}
+
+// ============================================
+// HISTORIQUE DES PARTIES
+// ============================================
+
+// Journal de toutes les actions pendant une partie
+model GameAction {
+  id        String   @id @default(uuid())
+  gameId    String   // ID de la partie (game_xxx)
+  playerId  String
+  action    String   // 'FOLD', 'CALL', 'RAISE', 'CHECK', 'BET'
+  amount    Int?     // Montant pour RAISE/BET
+  phase     String   // 'PREFLOP', 'FLOP', 'TURN', 'RIVER'
+  round     Int      @default(1) // Numéro du tour de mise
+  timestamp DateTime @default(now())
+
+  player User @relation(fields: [playerId], references: [id])
+
+  @@index([gameId])
+  @@index([playerId])
+  @@index([timestamp])
+}
+
+// Résultat final d'une partie
+model GameResult {
+  id        String   @id @default(uuid())
+  gameId    String   @unique // ID de la partie (game_xxx)
+  winnerId  String
+  winnerName String
+  pot       Int
+  hands     Json?    // Stocke les mains des joueurs (format JSON)
+  startedAt DateTime
+  endedAt   DateTime @default(now())
+
+  winner User @relation(fields: [winnerId], references: [id])
+
+  @@index([gameId])
+  @@index([winnerId])
+  @@index([endedAt])
+}
+
+// Statistiques cumulées des joueurs (à côté de UserStats)
+model PlayerStats {
+  id              String   @id @default(uuid())
+  playerId        String   @unique
+  totalGames      Int      @default(0)
+  totalWins       Int      @default(0)
+  totalLosses     Int      @default(0)
+  totalHands      Int      @default(0) // Nombre de mains jouées
+  totalRaises     Int      @default(0)
+  totalCalls      Int      @default(0)
+  totalFolds      Int      @default(0)
+  totalChecks     Int      @default(0)
+  biggestPot      Int      @default(0)
+  biggestWin      Int      @default(0)
+  totalChipsWon   Int      @default(0)
+  totalChipsLost  Int      @default(0)
+  updatedAt       DateTime @default(now())
+
+  player User @relation(fields: [playerId], references: [id])
+
+  @@index([playerId])
+  @@index([totalWins])
+  @@index([totalGames])
+}
+
+model GameInvitation {
+  id         String           @id @default(uuid())
+  roomId     String
+  senderId   String
+  receiverId String
+  status     InvitationStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  room     WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender   User        @relation("InvitationSender", fields: [senderId], references: [id])
+  receiver User        @relation("InvitationReceiver", fields: [receiverId], references: [id])
+
+  @@unique([roomId, receiverId])
+  @@index([receiverId, status])
+  @@index([roomId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum RoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum RoomStatus {
+  WAITING
+  STARTING
+  IN_GAME
+}

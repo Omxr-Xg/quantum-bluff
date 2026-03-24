@@ -5,3 +5,18 @@ target/
 .DS_Store
 .vite/
 .vite/deps/
+node_modules/
+.env
+dist/
+build/
+# Rapports de test (énormément de HTML généré)
+coverage/
+# Build Electron local (centaines de Mo, pas versionné)
+client/dist-electron/
+.DS_Storetsconfig.tsbuildinfo
+server/tsconfig.tsbuildinfo
+server/junit.xml
+server/junit.xml
+.cursor/**
+/Docs/SSH/
+temporaire/
