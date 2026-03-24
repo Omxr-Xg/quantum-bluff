@@ -107,7 +107,7 @@ export function PokerCard({
     fileName = `${safeSuit}_${safeValue}`;
   }
 
-  const imageSrc = `/cards/${fileName}${IMAGE_EXTENSION}`;
+  const imageSrc = `${import.meta.env.BASE_URL}cards/${fileName}${IMAGE_EXTENSION}`;
 
   return (
     <Wrapper
