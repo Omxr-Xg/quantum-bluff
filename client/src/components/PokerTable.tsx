@@ -105,32 +105,6 @@ export function PokerTable({
           aspectRatio: `${BASE_TABLE_WIDTH} / ${BASE_TABLE_HEIGHT}`,
         }}
       >
-        {/* Conteneur cartes brûlées - à gauche de la table, face cachée */}
-        {burnedCardsCount > 0 && (
-          <div
-            className="absolute right-full mr-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 pointer-events-none"
-            title={t('game.burned')}
-            aria-label={t('game.burnedCount', { count: burnedCardsCount })}
-          >
-            <span className="text-[10px] md:text-xs text-amber-200/90 font-medium uppercase tracking-wide">{t('game.burned')}</span>
-            <div className="flex -space-x-2 md:-space-x-3">
-              {Array.from({ length: Math.min(burnedCardsCount, 5) }).map((_, i) => (
-                <PokerCard
-                  key={i}
-                  suit="hearts"
-                  value="A"
-                  size="xs"
-                  faceDown
-                  className="shadow-md"
-                />
-              ))}
-              {burnedCardsCount > 5 && (
-                <span className="text-amber-200/80 text-[10px] self-center pl-1">+{burnedCardsCount - 5}</span>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* TABLE - remplit le wrapper */}
         <div
           className="relative w-full h-full rounded-full border-[clamp(3px,1vw,8px)] border-amber-900/80"
@@ -167,6 +141,37 @@ export function PokerTable({
           <div className="absolute top-[18%] left-1/2 -translate-x-1/2 flex justify-center">
             {children}
           </div>
+
+          {/* Cartes brûlées - directement sur le tapis, style pile discrète */}
+          {burnedCardsCount > 0 && (
+            <div
+              className="absolute right-[16%] top-[24%] pointer-events-none"
+              title={t('game.burned')}
+              aria-label={t('game.burnedCount', { count: burnedCardsCount })}
+            >
+              <div className="relative">
+                <div className="absolute -inset-2 rounded-xl bg-black/20 blur-md" />
+                <div className="relative flex -space-x-3">
+                  {Array.from({ length: Math.min(burnedCardsCount, 4) }).map((_, i) => (
+                    <PokerCard
+                      key={i}
+                      suit="spades"
+                      value="A"
+                      size={isMobile ? "xs" : "sm"}
+                      faceDown
+                      className={`shadow-xl border border-white/10 ${
+                        i % 2 === 0 ? "-rotate-6" : "rotate-3"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-300/30 bg-black/45 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200/90">
+                  <span>{t('game.burned')}</span>
+                  <span>({burnedCardsCount})</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* PLAYERS - positions en % pour scaling proportionnel (offset = rayon * factor) */}
