@@ -1,83 +1,136 @@
-import { useTranslation } from 'react-i18next';
-import { Globe, ChevronDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
+import { useTranslation } from "react-i18next";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
-const mainLanguages = [
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'en', name: 'English', flag: '🇬🇧' },
-];
+const PANEL_W = 56; // w-14
 
-const moreLanguages = [
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
-  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
-  { code: 'uk', name: 'Українська', flag: '🇺🇦' },
-];
-
-const allLanguages = [...mainLanguages, ...moreLanguages];
+const allLanguages = [
+  { code: "fr", flag: "🇫🇷" },
+  { code: "en", flag: "🇬🇧" },
+  { code: "es", flag: "🇪🇸" },
+  { code: "ar", flag: "🇸🇦" },
+  { code: "uk", flag: "🇺🇦" },
+] as const;
 
 export const LanguageSwitcher = () => {
   const { i18n, t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
-  const [showMore, setShowMore] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng);
     setIsOpen(false);
-    setShowMore(false);
   };
 
-  const currentLang = allLanguages.find(l => l.code === i18n.language || i18n.language.startsWith(l.code + '-')) || mainLanguages[1];
+  const updatePosition = useCallback(() => {
+    const el = buttonRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const rtl = typeof document !== "undefined" && document.documentElement.dir === "rtl";
+    let left = rtl ? r.right - PANEL_W : r.left;
+    const margin = 8;
+    if (left + PANEL_W > window.innerWidth - margin) {
+      left = window.innerWidth - PANEL_W - margin;
+    }
+    if (left < margin) left = margin;
+    setCoords({ top: r.bottom + 8, left });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setCoords(null);
+      return;
+    }
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [isOpen, updatePosition]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (buttonRef.current?.contains(t)) return;
+      if (panelRef.current?.contains(t)) return;
+      setIsOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [isOpen]);
+
+  const currentLang =
+    allLanguages.find((l) => l.code === i18n.language || i18n.language.startsWith(l.code + "-")) ?? allLanguages[1];
+
+  const panel =
+    isOpen && coords
+      ? createPortal(
+          <div
+            ref={panelRef}
+            role="listbox"
+            className="fixed z-[500] w-14 overflow-hidden rounded-lg border border-slate-700 bg-slate-800 shadow-xl"
+            style={{ top: coords.top, left: coords.left }}
+          >
+            <div className="max-h-[min(50vh,14rem)] overflow-y-auto overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.5)_transparent]">
+              {allLanguages.map((lang) => (
+                <button
+                  key={lang.code}
+                  type="button"
+                  role="option"
+                  aria-selected={i18n.language === lang.code || i18n.language.startsWith(lang.code + "-")}
+                  onClick={() => changeLanguage(lang.code)}
+                  aria-label={`${t("language.chooseLanguage")} (${lang.code})`}
+                  className={`relative flex w-full items-center justify-center py-3 transition hover:bg-slate-700 ${
+                    i18n.language === lang.code || i18n.language.startsWith(lang.code + "-")
+                      ? "bg-slate-700 text-white"
+                      : "text-gray-300"
+                  }`}
+                >
+                  <span className="text-xl leading-none">{lang.flag}</span>
+                  {(i18n.language === lang.code || i18n.language.startsWith(lang.code + "-")) && (
+                    <span className="absolute right-1 top-1/2 -translate-y-1/2 text-xs leading-none" aria-hidden>
+                      ✓
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        title={`${currentLang.name}`}
-        className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-slate-800 px-2 py-2 text-white transition hover:bg-slate-700 md:h-12 lg:gap-2 lg:px-3"
+        onClick={() => setIsOpen((o) => !o)}
+        title={t("language.chooseLanguage")}
+        aria-label={t("language.chooseLanguage")}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-white transition hover:bg-slate-700 md:h-12 md:w-12"
       >
-        <Globe className="h-5 w-5 shrink-0" />
-        <span className="text-lg leading-none lg:hidden">{currentLang.flag}</span>
-        <span className="hidden whitespace-nowrap lg:inline">{currentLang.flag} {currentLang.name}</span>
+        <span className="text-xl leading-none" aria-hidden>
+          {currentLang.flag}
+        </span>
       </button>
-
-      {isOpen && (
-        <div className="absolute left-0 top-full mt-2 w-48 bg-slate-800 rounded-lg shadow-xl border border-slate-700 overflow-hidden z-[100]">
-          {mainLanguages.map(lang => (
-            <button
-              key={lang.code}
-              onClick={() => changeLanguage(lang.code)}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-700 transition ${
-                i18n.language === lang.code || i18n.language.startsWith(lang.code + '-') ? 'bg-slate-700 text-white' : 'text-gray-300'
-              }`}
-            >
-              <span className="text-xl">{lang.flag}</span>
-              <span>{lang.name}</span>
-              {(i18n.language === lang.code || i18n.language.startsWith(lang.code + '-')) && <span className="ml-auto">✓</span>}
-            </button>
-          ))}
-          <button
-            onClick={() => setShowMore(!showMore)}
-            className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-slate-700 transition text-blue-300 text-sm border-t border-slate-700"
-          >
-            {showMore ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            <span>{t('language.seeMore', 'Voir plus')}</span>
-          </button>
-          {showMore && moreLanguages.map(lang => (
-            <button
-              key={lang.code}
-              onClick={() => changeLanguage(lang.code)}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-700 transition ${
-                i18n.language === lang.code || i18n.language.startsWith(lang.code + '-') ? 'bg-slate-700 text-white' : 'text-gray-300'
-              }`}
-            >
-              <span className="text-xl">{lang.flag}</span>
-              <span>{lang.name}</span>
-              {(i18n.language === lang.code || i18n.language.startsWith(lang.code + '-')) && <span className="ml-auto">✓</span>}
-            </button>
-          ))}
-        </div>
-      )}
+      {panel}
     </div>
   );
 };

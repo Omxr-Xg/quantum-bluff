@@ -1,6 +1,7 @@
 {
   "language": {
-    "seeMore": "See more"
+    "seeMore": "See more",
+    "chooseLanguage": "Change language"
   },
   "lobby": {
     "title": "Quantum Bluff",

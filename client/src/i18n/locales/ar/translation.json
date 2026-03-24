@@ -1,6 +1,7 @@
 {
   "language": {
-    "seeMore": "عرض المزيد"
+    "seeMore": "عرض المزيد",
+    "chooseLanguage": "تغيير اللغة"
   },
   "lobby": {
     "title": "Quantum Bluff",
