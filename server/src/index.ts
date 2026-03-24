@@ -17,6 +17,7 @@ import gameApiRoutes from './routes/game.api.routes.js'
 import botRoutes from './routes/bot.routes.js'
 import invitationRoutes from './routes/invitation.routes.js'
 import updatesRouter from './routes/updates.routes.js'
+import slotRoutes from './routes/slot.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
@@ -88,6 +89,14 @@ const botApiLimiter = rateLimit({
   legacyHeaders: false,
 })
 
+const slotApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 120 : 2000,
+  message: { error: 'Trop de requêtes slot, réessaie dans une minute' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 app.use(express.json({ limit: '10kb' }))
 
 app.use((req, _res, next) => {
@@ -103,6 +112,7 @@ app.use('/api/friends', friendsRoutes)
 app.use('/api/waiting-room', waitingRoomRoutes)
 app.use('/api/game', gameApiRoutes)
 app.use('/api/bot', botApiLimiter, botRoutes)
+app.use('/api/slot', slotApiLimiter, slotRoutes)
 app.use('/api/invitations', invitationRoutes)
 
 // Serveur de mises à jour client

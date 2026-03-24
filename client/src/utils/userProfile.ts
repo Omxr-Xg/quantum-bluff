@@ -93,12 +93,20 @@ export function clearAuthStorage(): void {
   window.dispatchEvent(new Event("auth-changed"));
 }
 
+export type FetchBalanceOptions = {
+  /**
+   * Solde serveur tel quel (pas de fusion `max` avec le local).
+   * À utiliser sur `/slot` pour que gains/pertes du mini-jeu restent cohérents.
+   */
+  authoritative?: boolean;
+};
+
 /**
  * Récupère la balance serveur et la fusionne avec le localStorage.
  * `Math.max(local, serveur)` évite d’écraser les gains du **mode bot** (non encore persistés côté API)
  * quand on revient au lobby.
  */
-export async function fetchBalanceFromServer(): Promise<number> {
+export async function fetchBalanceFromServer(options?: FetchBalanceOptions): Promise<number> {
   const token = localStorage.getItem("token");
   if (!token) return getUserBalance();
   const url = API_BASE ? `${API_BASE}/api/auth/balance` : "/api/auth/balance";
@@ -107,6 +115,10 @@ export async function fetchBalanceFromServer(): Promise<number> {
     if (!res.ok) return getUserBalance();
     const data = await res.json();
     const serverChips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : getUserBalance();
+    if (options?.authoritative) {
+      updateUserBalance(serverChips);
+      return serverChips;
+    }
     const localChips = getUserBalance();
     const merged = Math.max(localChips, serverChips);
     updateUserBalance(merged);
