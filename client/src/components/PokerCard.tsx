@@ -119,17 +119,31 @@ export function PokerCard({
         transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 hover:scale-[1.02]
         ${className}`}
     >
-      {/* L'image de la carte complète */}
+      {/* 1. L'image de la carte complète (en fond) */}
       <img 
         src={imageSrc} 
         alt={`Carte ${safeValue} de ${safeSuit}`} 
-        className="w-full h-full object-contain"
+        className="w-full h-full object-contain relative z-10"
         draggable={false}
       />
 
-      {/* Tâche 2 d'Azra : Le filtre d'accessibilité (Daltonisme) */}
+      {/* TÂCHE 2 : Textures pour les Daltoniens (Hachures ou Points) */}
+      {colorblindMode && (
+        <div 
+          className="absolute inset-0 z-20 pointer-events-none mix-blend-multiply opacity-20"
+          style={{
+            // Cœurs/Carreaux (Rouge) = Hachures diagonales | Trèfles/Piques (Noir) = Petits points
+            backgroundImage: (safeSuit === 'hearts' || safeSuit === 'diamonds') 
+              ? 'repeating-linear-gradient(45deg, transparent, transparent 4px, #000 4px, #000 5px)'
+              : 'radial-gradient(circle, #000 1.5px, transparent 1.5px)',
+            backgroundSize: (safeSuit === 'hearts' || safeSuit === 'diamonds') ? 'auto' : '8px 8px'
+          }}
+        />
+      )}
+
+      {/* Le filtre d'accessibilité (La petite forme en haut à droite) */}
       {colorblindMode && shape && (
-        <div className="absolute top-1 right-1 bg-white/90 rounded px-1.5 py-0.5 text-xs font-bold text-gray-800 shadow-sm border border-gray-200 z-10">
+        <div className="absolute top-1 right-1 bg-white/90 rounded px-1.5 py-0.5 text-xs font-bold text-gray-800 shadow-sm border border-gray-200 z-30">
           {shape}
         </div>
       )}

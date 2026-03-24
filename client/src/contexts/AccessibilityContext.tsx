@@ -7,6 +7,9 @@ interface AccessibilityContextType {
   toggleVisualAlerts: () => void;
   colorblindMode: boolean;
   toggleColorblindMode: () => void;
+  // NOUVEAU : Ajout du type de daltonisme
+  colorblindType: string;
+  setColorblindType: (type: string) => void;
 }
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);
@@ -27,7 +30,13 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     return saved === "true";
   });
 
-  // useLayoutEffect pour appliquer les classes avant le premier paint (évite le flash)
+  // NOUVEAU : État pour le type de filtre
+  const [colorblindType, setColorblindType] = useState(() => {
+    const saved = localStorage.getItem("colorblindType");
+    return saved || "protanopia"; // Protanopie par défaut
+  });
+
+  // useLayoutEffect pour le haut contraste
   useLayoutEffect(() => {
     localStorage.setItem("highContrast", highContrast.toString());
     if (highContrast) {
@@ -37,18 +46,32 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     }
   }, [highContrast]);
 
+  // useEffect pour les alertes visuelles
   useEffect(() => {
     localStorage.setItem("visualAlerts", visualAlerts.toString());
   }, [visualAlerts]);
 
+  // useLayoutEffect MODIFIÉ : Gère le mode ET le type spécifique de daltonisme
   useLayoutEffect(() => {
     localStorage.setItem("colorblindMode", colorblindMode.toString());
+    localStorage.setItem("colorblindType", colorblindType);
+
+    const html = document.documentElement;
+
+    // 1. On nettoie toujours les anciennes classes pour éviter les conflits
+    html.classList.remove(
+      "colorblind-mode",
+      "colorblind-protanopia",
+      "colorblind-deuteranopia",
+      "colorblind-tritanopia"
+    );
+
+    // 2. Si le mode est actif, on applique les bonnes classes
     if (colorblindMode) {
-      document.documentElement.classList.add("colorblind-mode");
-    } else {
-      document.documentElement.classList.remove("colorblind-mode");
+      html.classList.add("colorblind-mode");
+      html.classList.add(`colorblind-${colorblindType}`);
     }
-  }, [colorblindMode]);
+  }, [colorblindMode, colorblindType]);
 
   const toggleHighContrast = () => setHighContrast(!highContrast);
   const toggleVisualAlerts = () => setVisualAlerts(!visualAlerts);
@@ -63,6 +86,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         toggleVisualAlerts,
         colorblindMode,
         toggleColorblindMode,
+        colorblindType,
+        setColorblindType,
       }}
     >
       {children}
