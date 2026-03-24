@@ -30,6 +30,9 @@ import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
+import { intChips } from "../utils/chips";
+import { getWinMultiplierFromDifficultyParam } from "../utils/botModeReward";
+import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
 
 type Card = ClientCard;
 
@@ -62,7 +65,7 @@ interface BasePlayer {
 
 interface BotPlayer extends BasePlayer {
   isBot: true;
-  difficulty: "easy" | "medium" | "hard";
+  difficulty: "easy" | "medium" | "hard" | "expert";
 }
 
 export function Game() {
@@ -77,15 +80,7 @@ export function Game() {
   const { userId } = useUser();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
   const difficultyParam = searchParams.get("difficulty") || "moyen";
-  const winMultiplier = gameIdParam
-    ? 1
-    : difficultyParam === "facile"
-      ? 0.3
-      : difficultyParam === "moyen"
-        ? 0.6
-        : difficultyParam === "difficile"
-          ? 0.9
-          : 1;
+  const winMultiplier = gameIdParam ? 1 : getWinMultiplierFromDifficultyParam(difficultyParam);
 
   const { socket } = useSocket();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -137,6 +132,8 @@ export function Game() {
     handRank: number;
     pot: number;
     isSplit?: boolean;
+    /** Pas d’attente abattage (ex. adversaire parti) */
+    skipRevealDelay?: boolean;
   } | null>(null);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
   const [runOutPhase, setRunOutPhase] = useState<GamePhase | null>(null);
@@ -227,20 +224,25 @@ export function Game() {
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
 
-  const SB = 50;
-  const BB = 100;
+  const SB = BOT_TABLE_DEFAULTS.SMALL_BLIND;
+  const BB = BOT_TABLE_DEFAULTS.BIG_BLIND;
 
-  // ⚡ NOUVEAU : INTERCEPTEUR DE FIN DE MANCHE (CORRIGÉ SANS LE "y")
+  /** Après l’abattage, attendre avant d’afficher l’écran « gagnant » / transition (cartes visibles au tapis). */
+  const SHOWDOWN_REVEAL_MS = 3000;
+
   useEffect(() => {
-    if (showdownResult && !showTransition) {
+    if (!showdownResult || showTransition) return;
+    const delayMs = showdownResult.skipRevealDelay ? 0 : SHOWDOWN_REVEAL_MS;
+    const id = window.setTimeout(() => {
       setLastWinnerData({
         name: showdownResult.winnerName,
-        amount: showdownResult.pot
+        amount: showdownResult.pot,
       });
       setShowTransition(true);
       setShowdownResult(null);
-      setHandResult(null); 
-    }
+      setHandResult(null);
+    }, delayMs);
+    return () => clearTimeout(id);
   }, [showdownResult, showTransition]);
 
   const openAddMoney = () => {
@@ -263,7 +265,14 @@ export function Game() {
     const newBalance = mode === "bot"
       ? addToUserBalance(addMoneyAmount)
       : await addDevMoney(addMoneyAmount);
-    if (mode === "bot") setPlayerChips(newBalance);
+    if (mode === "bot") {
+      setPlayerChips(newBalance);
+      setPlayersState((prev) =>
+        prev.map((p) =>
+          p.id === "human" || String(p.id) === String(userId) ? { ...p, chips: newBalance } : p
+        )
+      );
+    }
     setAddSuccess(true);
     setTimeout(() => closeAddMoney(), 800);
   };
@@ -271,8 +280,16 @@ export function Game() {
   const getPlayers = (): (BasePlayer | BotPlayer)[] => {
     const count = parseInt(searchParams.get("bots") || "1", 10);
     const diff = searchParams.get("difficulty") || "moyen";
-    const diffMap: "easy" | "medium" | "hard" =
-      diff === "facile" ? "easy" : diff === "difficile" || diff === "expert" ? "hard" : "medium";
+    const diffMap: "easy" | "medium" | "hard" | "expert" =
+      diff === "facile"
+        ? "easy"
+        : diff === "moyen"
+          ? "medium"
+          : diff === "difficile"
+            ? "hard"
+            : diff === "expert"
+              ? "expert"
+              : "medium";
     const botChipsParam = searchParams.get("botChips");
     const botChipsList = botChipsParam ? botChipsParam.split(",").map((v) => Math.max(100, parseInt(v, 10) || 1000)) : [];
 
@@ -289,7 +306,7 @@ export function Game() {
           chips: startChips,
           bet: 0,
           position: i,
-          isActive: true,
+          isActive: false,
           isDealer: false,
           cards: [],
           isBot: true,
@@ -317,6 +334,8 @@ export function Game() {
       const dealerIndex = Math.floor(Math.random() * totalPlayers);
       allPlayers[dealerIndex].isDealer = true;
 
+      // Même logique que le serveur (GameTable) : après le dealer → SB (auto), puis BB (auto), puis action.
+      // Heads-up : dealer = SB, l’autre = BB ; preflop commence par le SB (dealer).
       const sbIdx = totalPlayers === 2 ? dealerIndex : (dealerIndex + 1) % totalPlayers;
       const bbIdx = totalPlayers === 2 ? (dealerIndex + 1) % totalPlayers : (dealerIndex + 2) % totalPlayers;
 
@@ -340,7 +359,7 @@ export function Game() {
   const callAmount = useMemo(() => {
     if (!activePlayer) return 0;
     const highestBet = Math.max(...activePlayers.map((p) => p.bet ?? 0), 0);
-    return Math.max(0, highestBet - (activePlayer.bet ?? 0));
+    return intChips(Math.max(0, highestBet - (activePlayer.bet ?? 0)));
   }, [activePlayers, activePlayer]);
   const isHero = (p: BasePlayer | BotPlayer) => p.id === userId || p.id === "human";
   const tablePlayers = activePlayers.map((player) => {
@@ -362,8 +381,21 @@ export function Game() {
   const heroPlayer = activePlayers.find((p) => isHero(p));
   const heroDisplayName = heroPlayer?.name === "Vous" || heroPlayer?.name === "you" ? t('game.you') : (heroPlayer?.name ?? t('game.you'));
   const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
+  /** Même montant en-tête (haut) et dans PlayerDashboard (bas) : pile du héros sur la table. */
+  const displayedHeroChips =
+    heroPlayer != null && typeof heroPlayer.chips === "number" ? heroPlayer.chips : playerChips;
 
   playersStateRef.current = activePlayers;
+
+  /** Premier à parler post-flop : SB (heads-up = dealer), sinon siège SB = à gauche du dealer (GameTable.getPostflopFirstPlayerId). */
+  const getPostflopFirstActIndex = (): number => {
+    const players = playersStateRef.current;
+    if (!players || players.length < 2) return 0;
+    const dealerIdx = players.findIndex((p) => p.isDealer);
+    if (dealerIdx === -1) return 0;
+    if (players.length === 2) return dealerIdx;
+    return (dealerIdx + 1) % players.length;
+  };
 
   const heroCards = tablePlayers.find((p) => isHero(p))?.cards || [];
   const communityCards = communityCardsState;
@@ -414,7 +446,7 @@ export function Game() {
 
   const addContribution = (playerId: string | number, amount: number) => {
     const key = String(playerId);
-    handContributionsRef.current[key] = (handContributionsRef.current[key] ?? 0) + amount;
+    handContributionsRef.current[key] = (handContributionsRef.current[key] ?? 0) + intChips(amount);
   };
 
   const resetBetsAndSetFirstToAct = (startIndex: number) => {
@@ -433,11 +465,9 @@ export function Game() {
     });
   };
 
-  const getPostflopFirstAct = () => (playersState.length === 2 ? 0 : 1);
-
   const dealFlop = (runOutOnly?: boolean) => {
     setPhase("flop");
-      if (!runOutOnly) resetBetsAndSetFirstToAct(0);
+      if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -455,7 +485,7 @@ export function Game() {
 
   const dealTurn = (runOutOnly?: boolean) => {
     setPhase("turn");
-      if (!runOutOnly) resetBetsAndSetFirstToAct(0);
+      if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -469,7 +499,7 @@ export function Game() {
 
   const dealRiver = (runOutOnly?: boolean) => {
     setPhase("river");
-    if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstAct());
+    if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
     const newDeck = [...deck];
     const newCommunityCards = [...communityCardsState];
     newDeck.shift();
@@ -853,6 +883,7 @@ export function Game() {
             hand: t('game.opponentLeft'),
             handRank: 0,
             pot: data.pot ?? 0,
+            skipRevealDelay: true,
           };
         });
       }
@@ -1152,10 +1183,11 @@ export function Game() {
 
   useEffect(() => {
     if (phase !== "preflop" || !gameInitialized || hasSetStartOfHandThisHandRef.current) return;
-    const humanChips = isBotMode ? playerChips : playersState.find((p) => String(p.id) === String(userId))?.chips ?? playerChips;
+    const humanRow = playersState.find((p) => String(p.id) === String(userId) || p.id === "human");
+    const humanChips = humanRow?.chips ?? playerChips;
     startOfHandChipsRef.current = humanChips;
     hasSetStartOfHandThisHandRef.current = true;
-  }, [phase, gameInitialized, isBotMode, playerChips, playersState, userId]);
+  }, [phase, gameInitialized, playerChips, playersState, userId]);
 
   useEffect(() => {
     deckRef.current = deck;
@@ -1219,7 +1251,7 @@ export function Game() {
 
       if (runOutPhase === "preflop") {
         setPhase("flop");
-        resetBetsAndSetFirstToAct(0);
+        resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
         currentDeck.shift(); 
         for (let i = 0; i < 3; i++) {
           const card = currentDeck.shift();
@@ -1336,8 +1368,16 @@ export function Game() {
       if (fallbackWinner) {
         setPlayersState((prev) => prev.map((p) => (p.id === fallbackWinner.id ? { ...p, chips: (p.chips ?? 0) + currentPot } : p)));
         if (fallbackWinner.id === userId || fallbackWinner.id === "human") setPlayerChips((prev) => prev + currentPot);
+        const hero = playersState.find((p) => p.id === userId || p.id === "human");
+        const startChips = startOfHandChipsRef.current;
+        const stackBefore = hero?.chips ?? playerChips;
+        const humanWonFb = fallbackWinner.id === userId || fallbackWinner.id === "human";
+        const endChips = humanWonFb ? stackBefore + currentPot : stackBefore;
+        const balanceChange = endChips - startChips;
+        const toAddFb = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
+        addToUserBalance(toAddFb);
+        toAddLastRef.current = toAddFb;
       }
-      addToUserBalance(0);
     };
 
     const runComplete = async () => {
@@ -1398,7 +1438,9 @@ export function Game() {
         if (humanShare > 0) setPlayerChips((prev) => prev + humanShare);
 
         const startChips = startOfHandChipsRef.current;
-        const endChips = humanShare > 0 ? playerChips + humanShare : playerChips;
+        const heroRow = playersState.find((p) => String(p.id) === humanId || p.id === "human");
+        const stackBeforePotAward = heroRow?.chips ?? playerChips;
+        const endChips = stackBeforePotAward + humanShare;
         const balanceChange = endChips - startChips;
         const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
         addToUserBalance(toAdd);
@@ -1465,14 +1507,28 @@ export function Game() {
         handRank: 0,
         pot: currentPot,
       });
-      addToUserBalance(0);
+      const heroSafety = playersState.find((p) => p.id === userId || p.id === "human");
+      const startChipsSafety = startOfHandChipsRef.current;
+      const humanWonSafety = winner && (winner.id === userId || winner.id === "human");
+      const stackBeforeSafety = heroSafety?.chips ?? playerChips;
+      const endChipsSafety = humanWonSafety ? stackBeforeSafety + currentPot : stackBeforeSafety;
+      const balanceChangeSafety = endChipsSafety - startChipsSafety;
+      const toAddSafety = isBotMode
+        ? balanceChangeSafety > 0
+          ? Math.round(balanceChangeSafety * winMultiplier)
+          : balanceChangeSafety
+        : balanceChangeSafety;
+      addToUserBalance(toAddSafety);
+      toAddLastRef.current = toAddSafety;
     }, 12000);
     return () => clearTimeout(safety);
-  }, [phase, showdownResult, handResult, isBotMode, playersState, pot, userId]);
+  }, [phase, showdownResult, handResult, isBotMode, playersState, pot, userId, winMultiplier]);
 
   useEffect(() => {
     if (!isBotMode || !showdownResult || gameOverReason) return;
-    if (playerChips <= 0) {
+    const human = playersState.find((p) => p.id === userId || p.id === "human");
+    const stack = human?.chips ?? playerChips;
+    if (stack <= 0) {
       setGameOverReason("human_eliminated");
       return;
     }
@@ -1513,7 +1569,7 @@ export function Game() {
             currentBet: currentBet,
             playerChips: activePlayer.chips,
             callAmount,
-            minRaise: 20,
+            minRaise: BOT_TABLE_DEFAULTS.MIN_RAISE_FOR_BOT_API,
             potSize: pot,
             position: activePlayer.position,
             playersCount: playersState.filter((p) => p.isConnected !== false).length,
@@ -1531,12 +1587,12 @@ export function Game() {
 
         const decision = await response.json();
         const botCurrentBet = activePlayer.bet ?? 0;
-        const amountFromServer = decision.amount ?? 0;
+        const amountFromServer = intChips(decision.amount ?? 0);
         const amountToPut =
           decision.action === "RAISE"
-            ? Math.max(0, amountFromServer - botCurrentBet)
+            ? intChips(Math.max(0, amountFromServer - botCurrentBet))
             : decision.action === "CALL"
-              ? Math.min(decision.amount ?? callAmount, activePlayer.chips ?? 0)
+              ? intChips(Math.min(decision.amount ?? callAmount, activePlayer.chips ?? 0))
               : 0;
 
         const botActionLabel =
@@ -1560,10 +1616,8 @@ export function Game() {
               handleFold(activePlayer.id);
               break;
             case "CALL": {
-              const effectiveCall = Math.min(
-                decision.amount ?? callAmount,
-                callAmount,
-                activePlayer.chips ?? 0
+              const effectiveCall = intChips(
+                Math.min(decision.amount ?? callAmount, callAmount, activePlayer.chips ?? 0)
               );
               handleCall(effectiveCall, activePlayer.id);
               break;
@@ -1691,7 +1745,9 @@ export function Game() {
       }
       if (humanWon) setPlayerChips((prev) => prev + pot);
       const startChips = startOfHandChipsRef.current;
-      const endChips = humanWon ? playerChips + pot : playerChips;
+      const winnerChipsBefore = winner?.chips ?? 0;
+      const heroRowFold = playersState.find((p) => p.id === userId || p.id === "human");
+      const endChips = humanWon ? winnerChipsBefore + pot : (heroRowFold?.chips ?? playerChips);
       const balanceChange = endChips - startChips;
       const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
       addToUserBalance(toAdd);
@@ -1720,6 +1776,7 @@ export function Game() {
   };
 
   const handleCall = (amount: number, playerId?: number | string) => {
+    amount = intChips(amount);
     if (handResult !== null) return;
     const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
@@ -1845,8 +1902,9 @@ export function Game() {
   };
 
   const handleRaise = (raiseAmount: number, playerId?: number | string) => {
+    raiseAmount = intChips(raiseAmount);
     if (handResult !== null) return;
-    const totalToPut = callAmount + raiseAmount;
+    const totalToPut = intChips(callAmount + raiseAmount);
     const hero = playersState.find((p) => p.id === userId || p.id === "human");
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (gameIdParam && isHumanActing && !socket) return;
@@ -2272,7 +2330,7 @@ export function Game() {
           <div className="flex items-center bg-slate-800/80 backdrop-blur-md border border-slate-700 rounded-full pl-3 pr-1 py-1 shadow-lg gap-3">
             <div className={`text-white font-bold flex items-center gap-1.5 ${isMobile ? 'text-sm' : 'text-base'}`}>
               <ChipIcon size="sm" />
-              <span>{playerChips.toLocaleString()}</span>
+              <span>{displayedHeroChips.toLocaleString()}</span>
             </div>
 
             <button
@@ -2439,6 +2497,16 @@ export function Game() {
         </PokerTable>
       </div>
 
+      {showdownResult && !showTransition && !showdownResult.skipRevealDelay && (
+        <div
+          className="pointer-events-none fixed bottom-28 left-1/2 z-[130] -translate-x-1/2 rounded-xl border border-amber-500/40 bg-slate-900/95 px-4 py-2 shadow-lg"
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-center text-sm font-semibold text-amber-200">{t("game.showdownRevealBanner")}</p>
+        </div>
+      )}
+
       <QuantumHUD isOpen={isQuantumOpen} onToggle={() => setIsQuantumOpen(!isQuantumOpen)} />
       <HiddenBetsPanel isOpen={isPanelOpen} onToggle={() => setIsPanelOpen(!isPanelOpen)} players={activePlayers} />
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
@@ -2466,7 +2534,7 @@ export function Game() {
         <PlayerDashboard
           ref={tourRefActions}
           name={heroDisplayName}
-          chips={playerChips}
+          chips={displayedHeroChips}
           cards={heroCards}
           colorblindMode={colorblindMode}
           onFold={() => handleFold()}
@@ -2475,7 +2543,7 @@ export function Game() {
           onCheck={() => handleCheck()}
           callAmount={callAmount}
           minRaise={50}
-          maxRaise={Math.max(0, playerChips - callAmount)}
+          maxRaise={Math.max(0, displayedHeroChips - callAmount)}
           isMyTurn={handResult === null && isMyTurn}
           isLoading={isLoading}
           hasFolded={hasFoldedFromState}

@@ -69,7 +69,10 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   const { t } = useTranslation();
   const { visualAlerts } = useAccessibility();
   const effectiveMinRaise = Math.min(minRaise, maxRaise);
-  const clampRaise = (v: number) => Math.max(effectiveMinRaise, Math.min(maxRaise, Math.round(v)));
+  const clampRaise = (v: number) => {
+    const vi = Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+    return Math.max(effectiveMinRaise, Math.min(maxRaise, vi));
+  };
   const [raiseAmount, setRaiseAmount] = useState(() => clampRaise(Math.min(minRaise, maxRaise)));
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -181,9 +184,9 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
     if (range <= 0) return [maxRaise];
     return [
       effectiveMinRaise,
-      effectiveMinRaise + Math.round(range * 0.25),
-      effectiveMinRaise + Math.round(range * 0.5),
-      effectiveMinRaise + Math.round(range * 0.75),
+      effectiveMinRaise + Math.floor(range * 0.25),
+      effectiveMinRaise + Math.floor(range * 0.5),
+      effectiveMinRaise + Math.floor(range * 0.75),
       maxRaise,
     ].filter((v, i, a) => a.indexOf(v) === i);
   })();

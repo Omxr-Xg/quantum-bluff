@@ -5,6 +5,7 @@
  */
 import type { GameState, Player } from '../types/poker.js'
 import { GameTable } from './GameTable.js'
+import { intChips } from '../utils/chips.js'
 
 const DEFAULT_BUY_IN = 100
 const COUNTDOWN_SECONDS = 10
@@ -213,7 +214,7 @@ export class CashGameController implements IGameSession {
     if (this.gameTable != null) return { ok: false, error: 'Une main est en cours' }
     if (seatIndex < 0 || seatIndex >= this.maxSeats) return { ok: false, error: 'Siège invalide' }
     if (this.seats[seatIndex].userId != null) return { ok: false, error: 'Siège occupé' }
-    const amount = Math.max(this.defaultBuyIn, Math.min(buyIn, 10000))
+    const amount = intChips(Math.max(this.defaultBuyIn, Math.min(buyIn, 10000)))
     this.seats[seatIndex] = { seatIndex, userId, username, chips: amount }
     return { ok: true }
   }
@@ -245,7 +246,7 @@ export class CashGameController implements IGameSession {
     if (this.gameTable != null) return { ok: false, error: 'Une main est en cours' }
     const seat = this.seats.find((s) => s.userId === userId)
     if (!seat) return { ok: false, error: 'Vous n\'êtes pas assis' }
-    const add = Math.max(10, Math.min(amount, 5000))
+    const add = intChips(Math.max(10, Math.min(amount, 5000)))
     seat.chips += add
     return { ok: true }
   }

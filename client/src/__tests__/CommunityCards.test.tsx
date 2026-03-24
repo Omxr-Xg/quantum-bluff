@@ -43,8 +43,9 @@ describe('CommunityCards - Cartes affichées', () => {
       null,
     ];
     render(<CommunityCards cards={cards} pot={100} />);
-    expect(screen.getAllByText('A').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('♥').length).toBeGreaterThanOrEqual(1);
+    
+    // 🛠️ MODIFIÉ ICI : On cherche l'attribut 'alt' de la nouvelle balise <img>
+    expect(screen.getByAltText('Carte A de hearts')).toBeDefined();
   });
 
   it('accepte des cartes avec value string (J, Q, K, 10)', () => {
@@ -56,9 +57,10 @@ describe('CommunityCards - Cartes affichées', () => {
       null,
     ];
     render(<CommunityCards cards={cards} pot={0} />);
-    expect(screen.getAllByText('J').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('♦').length).toBeGreaterThanOrEqual(1);
+    
+    // 🛠️ MODIFIÉ ICI : On vérifie que les images des cartes J et 10 sont bien là
+    expect(screen.getByAltText('Carte J de spades')).toBeDefined();
+    expect(screen.getByAltText('Carte 10 de diamonds')).toBeDefined();
   });
 });
 

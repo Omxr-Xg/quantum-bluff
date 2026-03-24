@@ -450,15 +450,19 @@
 
 ## 15. Tests
 
+**Source de vérité :** [`Docs/RAPPORT_TESTS.md`](Docs/RAPPORT_TESTS.md) — **257** tests Jest (12 suites) + **20** tests Vitest (6 fichiers) = **277** tests automatisés, avec inventaire par fichier et par scénario.
+
 ### 15.1 Serveur (Jest)
-- Deck: shuffle préserve 52 cartes
-- Evaluator
-- GameTable
-- game.api.routes
+- `Deck`, `Evaluator`, `GameTable`, `CashGameController`, `poker.types`
+- Matrices paramétrées (blinds, actions HU), couverture déconnexion / all-in / RAISE, etc.
 
 ### 15.2 Client (Vitest)
-- PokerTable
-- avatars, cards utils
+- `CommunityCards`, `PokerTable` (smoke)
+- Utilitaires : `normalizeServerCard`, `getPlayerAvatar`
+
+### 15.3 Non automatisé dans le dépôt
+- Pas de suite E2E (Playwright/Cypress) référencée au moment du rapport
+- Validation manuelle / API bot / build : voir `Docs/rapport-validation.md`
 
 ---
 
@@ -474,13 +478,14 @@
 ## 17. Documentation existante
 
 ### 17.1 Docs/
+- **RAPPORT_TESTS.md** — rapport complet tests backend + frontend (inventaire)
+- **POKER_SCENARIOS.md** — scénarios produit / poker / réseau / bots / validation (référence unique)
 - rapport-validation.md
-- POKER_SCENARIOS.md
 - bot-integration-frontend.md
+- **bot-difficulte.md** — niveaux easy/medium/hard, mapping facile→expert, multiplicateur de gains
 - SETUP_TESTEUR.md
 - DEPLOY.md
 - NETWORK_QOS.md
-- socket_test/ (test-socket-S1.html, socket-test.html)
 
 ### 17.2 Racine
 - README.md, DEPLOY.md, SETUP_TESTEUR.md, CHANGELOG, CODEOWNERS
@@ -493,7 +498,7 @@
 - Pas d’appel /api/game/:id
 - État local (deck, players, phase)
 - Appels: POST /api/bot/action, POST /api/bot/evaluate-winner
-- winMultiplier selon difficulté (facile 0.3, moyen 0.6, difficile 0.9, expert 1)
+- winMultiplier selon difficulté (`client/src/utils/botModeReward.ts`) : facile 0.3, moyen 0.6, difficile 1, expert 1.05
 - Enregistrement: POST /api/game/record-result avec token
 
 ### 18.2 localStorage

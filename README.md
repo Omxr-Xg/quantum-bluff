@@ -184,6 +184,8 @@ cd server && npm test
 cd client && npm test
 ```
 
+Documentation : **[`Docs/RAPPORT_TESTS.md`](Docs/RAPPORT_TESTS.md)** (inventaire Jest/Vitest) · **[`Docs/POKER_SCENARIOS.md`](Docs/POKER_SCENARIOS.md)** (tous les scénarios produit / poker / validation).
+
 ---
 
 ## Déploiement
