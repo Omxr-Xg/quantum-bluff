@@ -176,6 +176,7 @@ export function Layout({ children }: LayoutProps) {
   const showTopBar = !isAuthPage && localStorage.getItem("token");
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
+  const isSlotPage = path === "/slot";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
@@ -434,7 +435,13 @@ export function Layout({ children }: LayoutProps) {
 
       <InvitationBanner />
 
-      <div className={`min-h-screen w-full ${showTopBar && !showLobbyIntegratedBar ? "pt-14 md:pt-16" : ""}`}>
+      <div
+        className={`w-full ${
+          isSlotPage
+            ? "flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden pt-0"
+            : `min-h-screen ${showTopBar && !showLobbyIntegratedBar ? "pt-14 md:pt-16" : ""}`
+        }`}
+      >
         {children}
       </div>
       </TopBarProvider>
