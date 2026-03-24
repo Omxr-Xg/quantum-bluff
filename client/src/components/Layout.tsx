@@ -66,7 +66,7 @@ export function Layout({ children }: LayoutProps) {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
     setBalance(getUserBalance());
     if (localStorage.getItem("token")) {
-      const authoritative = location.pathname === "/slot";
+      const authoritative = location.pathname === "/slot" || location.pathname === "/roulette";
       fetchBalanceFromServer({ authoritative }).then(setBalance);
     }
   }, [location.pathname]);
@@ -80,7 +80,7 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     const onFocus = () => {
       if (localStorage.getItem("token")) {
-        const authoritative = location.pathname === "/slot";
+        const authoritative = location.pathname === "/slot" || location.pathname === "/roulette";
         fetchBalanceFromServer({ authoritative }).then(setBalance);
       } else {
         setBalance(getUserBalance());
@@ -176,13 +176,14 @@ export function Layout({ children }: LayoutProps) {
   const showTopBar = !isAuthPage && localStorage.getItem("token");
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
-  const isSlotPage = path === "/slot";
+  const isCasinoFullBleed = path === "/slot" || path === "/roulette";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
     path.includes("waiting-room") ||
     path.includes("tutorial-lobby") ||
-    path === "/slot";
+    path === "/slot" ||
+    path === "/roulette";
   const showHamburgerMenu = showTopBar && isGameConfigOrRoom && !isLobby;
   const showLobbyIntegratedBar = showTopBar && isLobby;
 
@@ -437,7 +438,7 @@ export function Layout({ children }: LayoutProps) {
 
       <div
         className={`w-full ${
-          isSlotPage
+          isCasinoFullBleed
             ? "flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden pt-0"
             : `min-h-screen ${showTopBar && !showLobbyIntegratedBar ? "pt-14 md:pt-16" : ""}`
         }`}

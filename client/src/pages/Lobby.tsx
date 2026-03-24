@@ -1,7 +1,24 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bot, Server, Loader2, X, Trash2, Lock, Globe, Minus, Plus, Eye, ChevronDown, ChevronUp, Settings2, XCircle } from "lucide-react";
+import {
+  Bot,
+  Server,
+  Loader2,
+  X,
+  Trash2,
+  Lock,
+  Globe,
+  Minus,
+  Plus,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  Settings2,
+  XCircle,
+  Spade,
+  CircleDot,
+} from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
@@ -61,6 +78,7 @@ export function Lobby() {
   const [gamesLoading, setGamesLoading] = useState(true);
   const [lobbyTourOpen, setLobbyTourOpen] = useState(false);
   const [lobbyTourStep, setLobbyTourStep] = useState(0);
+  const [lobbyMainTab, setLobbyMainTab] = useState<"poker" | "roulette">("poker");
   const { addToast } = useToast();
 
   const tourRefHeader = useRef<HTMLDivElement>(null);
@@ -249,9 +267,17 @@ export function Lobby() {
   };
 
   return (
-    <div className="relative w-full min-h-screen overflow-hidden bg-[#070912] p-6">
-      {/* Fond lobby stylisé (auras + grille subtile) */}
-      <div className="pointer-events-none absolute inset-0">
+    <div
+      className={`relative w-full min-h-screen overflow-hidden p-6 transition-[background-color] duration-700 ease-in-out ${
+        lobbyMainTab === "poker" ? "bg-[#070912]" : "bg-[#03150f]"
+      }`}
+    >
+      {/* Fond Texas Hold’em — violet / cyan / magenta (inchangé) */}
+      <div
+        className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
+        style={{ opacity: lobbyMainTab === "poker" ? 1 : 0 }}
+        aria-hidden
+      >
         <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-purple-700/25 blur-[120px]" />
         <div className="absolute -left-20 top-1/3 h-80 w-80 rounded-full bg-cyan-500/10 blur-[90px]" />
         <div className="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-fuchsia-500/15 blur-[110px]" />
@@ -266,6 +292,33 @@ export function Lobby() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(168,85,247,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(34,211,238,0.06),transparent_55%)]" />
       </div>
 
+      {/* Fond Roulette — feutre, or, émeraude */}
+      <div
+        className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
+        style={{ opacity: lobbyMainTab === "roulette" ? 1 : 0 }}
+        aria-hidden
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(5,80,55,0.55),transparent_50%),radial-gradient(ellipse_90%_70%_at_100%_50%,rgba(120,80,20,0.12),transparent_45%),linear-gradient(165deg,#031a14_0%,#041f18_40%,#020c09_100%)]" />
+        <div className="absolute -top-32 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-emerald-500/18 blur-[100px]" />
+        <div className="absolute -right-16 top-1/4 h-72 w-72 rounded-full bg-amber-500/12 blur-[90px]" />
+        <div className="absolute -bottom-20 left-0 h-96 w-96 rounded-full bg-teal-600/10 blur-[100px]" />
+        <div
+          className="absolute inset-0 opacity-[0.09]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(212,175,55,0.35) 1px, transparent 0)",
+            backgroundSize: "20px 20px",
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 h-[min(140vw,52rem)] w-[min(140vw,52rem)] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.04]"
+          style={{
+            background: "conic-gradient(from 0deg, rgba(212,175,55,0.5), transparent 8%, transparent 92%, rgba(212,175,55,0.35))",
+          }}
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(180,140,40,0.07),transparent_55%)]" />
+      </div>
+
       <div className="relative z-10 max-w-7xl mx-auto">
 
         {/* HEADER */}
@@ -276,10 +329,20 @@ export function Lobby() {
           <div ref={tourRefHeader} className="flex items-center gap-4 w-full md:w-auto">
             <QuantumBluffLogo className="w-12 h-12 md:w-16 md:h-16 shrink-0" />
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl md:text-4xl font-bold text-purple-400 truncate">
+              <h1
+                className={`truncate text-2xl font-bold transition-colors duration-700 md:text-4xl ${
+                  lobbyMainTab === "poker"
+                    ? "text-purple-400"
+                    : "bg-gradient-to-r from-amber-100 via-amber-300 to-emerald-200 bg-clip-text text-transparent"
+                }`}
+              >
                 {t('lobby.title')}
               </h1>
-              <p className="text-sm md:text-base text-gray-400 truncate">
+              <p
+                className={`truncate text-sm transition-colors duration-700 md:text-base ${
+                  lobbyMainTab === "poker" ? "text-gray-400" : "text-emerald-200/65"
+                }`}
+              >
                 {t('lobby.welcome', { username: username || 'Joueur' })}
               </p>
             </div>
@@ -291,6 +354,57 @@ export function Lobby() {
           </div>
         </div>
         {/* FIN DU HEADER */}
+
+        <nav
+          className={`mx-auto mb-10 flex max-w-2xl gap-1.5 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-md transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
+            lobbyMainTab === "poker"
+              ? "border-white/10 bg-slate-950/75"
+              : "border-amber-500/25 bg-emerald-950/70"
+          }`}
+          role="tablist"
+          aria-label={t("lobby.tabListAria")}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={lobbyMainTab === "poker"}
+            onClick={() => setLobbyMainTab("poker")}
+            className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
+              lobbyMainTab === "poker"
+                ? "bg-gradient-to-br from-green-500/40 via-emerald-600/25 to-slate-900/60 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_24px_rgba(34,197,94,0.15)] ring-1 ring-green-400/45"
+                : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
+            }`}
+          >
+            <Spade
+              className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "poker" ? "text-green-200 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]" : ""}`}
+              strokeWidth={2.2}
+              aria-hidden
+            />
+            <span className="font-serif text-xs font-bold tracking-wide md:text-sm">{t("lobby.tabPoker")}</span>
+          </button>
+          <div
+            className={`hidden w-px self-stretch md:block ${lobbyMainTab === "poker" ? "bg-white/10" : "bg-amber-500/20"}`}
+            aria-hidden
+          />
+          <button
+            type="button"
+            role="tab"
+            aria-selected={lobbyMainTab === "roulette"}
+            onClick={() => setLobbyMainTab("roulette")}
+            className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
+              lobbyMainTab === "roulette"
+                ? "bg-gradient-to-br from-amber-500/35 via-amber-900/30 to-emerald-950/70 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_0_28px_rgba(245,158,11,0.18)] ring-1 ring-amber-400/50"
+                : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
+            }`}
+          >
+            <CircleDot
+              className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "roulette" ? "text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.45)]" : ""}`}
+              strokeWidth={2.2}
+              aria-hidden
+            />
+            <span className="font-serif text-xs font-bold tracking-wide md:text-sm">{t("lobby.tabRoulette")}</span>
+          </button>
+        </nav>
 
         {/* Modal Créer un serveur */}
         {showCreateModal && (
@@ -459,11 +573,11 @@ export function Lobby() {
           </div>
         )}
 
-        {/* MAIN GRID - 2 colonnes */}
+        {/* MAIN GRID - 2 colonnes (onglets : poker visible ou roulette ; contenu poker reste dans le DOM pour le tour guidé) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Colonne de gauche (2/3) - Jeu */}
-          <div className="lg:col-span-2 space-y-6">
+          {/* Colonne de gauche (2/3) - Texas Hold'em */}
+          <div className={`lg:col-span-2 space-y-6 ${lobbyMainTab !== "poker" ? "hidden" : ""}`} aria-hidden={lobbyMainTab !== "poker"}>
 
             {/* Section Jouer contre Bot */}
             <div ref={tourRefBot} className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
@@ -626,6 +740,24 @@ export function Lobby() {
 
           </div>
 
+          {/* Onglet Roulette */}
+          <div className={`lg:col-span-2 space-y-6 ${lobbyMainTab !== "roulette" ? "hidden" : ""}`} aria-hidden={lobbyMainTab !== "roulette"}>
+            <div className="bg-slate-800 rounded-2xl p-6 border border-amber-500">
+              <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
+                <CircleDot className="w-8 h-8 text-amber-400" aria-hidden />
+                {t("lobby.rouletteTitle")}
+              </h2>
+              <p className="text-gray-400 text-sm leading-relaxed mb-4 max-w-xl">{t("lobby.rouletteIntro")}</p>
+              <button
+                type="button"
+                onClick={() => navigate("/roulette")}
+                className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 rounded-xl transition"
+              >
+                {t("lobby.roulettePlay")}
+              </button>
+            </div>
+          </div>
+
           {/* Colonne de droite (1/3) - Amis */}
           <div ref={tourRefFriends} className="lg:col-span-1">
             <FriendsList />
@@ -641,6 +773,7 @@ export function Lobby() {
         onClick={() => {
           if (lobbyTourOpen) setLobbyTourOpen(false);
           else {
+            setLobbyMainTab("poker");
             setLobbyTourStep(0);
             setLobbyTourOpen(true);
           }
