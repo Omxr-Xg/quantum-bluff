@@ -8,77 +8,15 @@ import { useUser } from "../hooks/useUser";
 import { apiUrl } from "../utils/apiBase";
 import { updateUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
-
-type BjPhase = "betting" | "player_turn" | "dealer" | "payout";
-
-type BjCard = { rank: string; suit: string };
-
-interface BjSeatPublic {
-  userId: string;
-  username: string;
-  position: number;
-  cards: BjCard[];
-  bet: number;
-  totalBet: number;
-  doubled: boolean;
-  playState: string;
-  isCurrentTurn: boolean;
-  handTotal?: number;
-}
-
-interface BjTableState {
-  gameId: string;
-  roomId: string;
-  phase: BjPhase;
-  handNumber: number;
-  minBet: number;
-  dealerCards: BjCard[];
-  dealerHoleHidden: boolean;
-  seats: BjSeatPublic[];
-  currentSeatUserId: string | null;
-}
-
-function suitSymbol(s: string): string {
-  switch (s) {
-    case "h":
-      return "♥";
-    case "d":
-      return "♦";
-    case "c":
-      return "♣";
-    case "s":
-      return "♠";
-    default:
-      return s;
-  }
-}
-
-function suitColor(s: string): string {
-  return s === "h" || s === "d" ? "text-rose-600" : "text-slate-900";
-}
-
-function CardFace({ card, hidden }: { card?: BjCard; hidden?: boolean }) {
-  if (hidden || !card || card.suit === "?") {
-    return (
-      <div className="flex h-16 w-11 shrink-0 items-center justify-center rounded-md border-2 border-rose-900/60 bg-gradient-to-br from-rose-900 to-slate-900 shadow md:h-20 md:w-14">
-        <span className="text-[10px] font-bold text-rose-300/50">?</span>
-      </div>
-    );
-  }
-  return (
-    <div className="flex h-16 w-11 shrink-0 flex-col justify-between rounded-md border-2 border-white/90 bg-white p-1 shadow md:h-20 md:w-14">
-      <div className={`text-[10px] font-bold leading-none ${suitColor(card.suit)}`}>
-        {card.rank}
-        <span className="ml-0.5">{suitSymbol(card.suit)}</span>
-      </div>
-      <div className={`text-center text-lg ${suitColor(card.suit)}`}>{suitSymbol(card.suit)}</div>
-      <div className={`text-right text-[10px] font-bold leading-none ${suitColor(card.suit)}`}>
-        {card.rank}
-        <span className="ml-0.5">{suitSymbol(card.suit)}</span>
-      </div>
-    </div>
-  );
-}
+import { BlackjackLobbyBackdrop } from "../components/blackjack/BlackjackLobbyBackdrop";
+import {
+  BlackjackMultiCasinoTable,
+  type BjTableState,
+} from "../components/blackjack/BlackjackMultiCasinoTable";
+import {
+  BlackjackRoundReveal,
+  type BjRoundSummaryRow,
+} from "../components/blackjack/BlackjackRoundReveal";
 
 function authHeaders(): HeadersInit {
   const token = localStorage.getItem("token");
@@ -103,6 +41,7 @@ export function BlackjackMultiTable() {
   const [loading, setLoading] = useState(true);
   const [betInput, setBetInput] = useState(10);
   const [acting, setActing] = useState(false);
+  const [roundSummary, setRoundSummary] = useState<BjRoundSummaryRow[] | null>(null);
 
   const mySeat = useMemo(
     () => state?.seats.find((s) => s.userId === userId) ?? null,
@@ -120,7 +59,7 @@ export function BlackjackMultiTable() {
     }
     if (res.status === 410) {
       addToast(t("bjMulti.tableGone"), "error");
-      navigate("/blackjack/lobby");
+      navigate("/lobby?tab=blackjack");
       return;
     }
     if (!res.ok) return;
@@ -145,11 +84,26 @@ export function BlackjackMultiTable() {
   }, [loadState]);
 
   useEffect(() => {
+    if (state && state.phase !== "payout") {
+      setRoundSummary(null);
+    }
+  }, [state?.phase]);
+
+  useEffect(() => {
     if (!socket || !gameId) return;
     socket.emit("JOIN_BLACKJACK_TABLE", { gameId });
-    const onUpdate = (payload: { gameId: string; state: BjTableState }) => {
+    const onUpdate = (payload: {
+      gameId: string;
+      state: BjTableState;
+      roundSummary?: BjRoundSummaryRow[];
+    }) => {
       if (payload.gameId !== gameId) return;
       setState(payload.state);
+      if (payload.roundSummary?.length) {
+        setRoundSummary(payload.roundSummary);
+      } else if (payload.state.phase !== "payout") {
+        setRoundSummary(null);
+      }
     };
     socket.on("BLACKJACK_TABLE_UPDATE", onUpdate);
     return () => {
@@ -196,6 +150,7 @@ export function BlackjackMultiTable() {
       const data = (await res.json().catch(() => ({}))) as {
         state?: BjTableState;
         settlements?: Array<Record<string, unknown>>;
+        roundSummary?: BjRoundSummaryRow[];
         error?: string;
       };
       if (!res.ok) {
@@ -203,6 +158,7 @@ export function BlackjackMultiTable() {
         return;
       }
       if (data.state) setState(data.state);
+      if (data.roundSummary?.length) setRoundSummary(data.roundSummary);
       if (data.settlements?.length) {
         for (const row of data.settlements) {
           mergeGamificationFromServerResponse(row);
@@ -226,6 +182,7 @@ export function BlackjackMultiTable() {
       const data = (await res.json().catch(() => ({}))) as {
         state?: BjTableState;
         settlements?: Array<Record<string, unknown>>;
+        roundSummary?: BjRoundSummaryRow[];
         chips?: number;
         error?: string;
       };
@@ -235,6 +192,7 @@ export function BlackjackMultiTable() {
       }
       if (typeof data.chips === "number") updateUserBalance(data.chips);
       if (data.state) setState(data.state);
+      if (data.roundSummary?.length) setRoundSummary(data.roundSummary);
       if (data.settlements?.length) {
         for (const row of data.settlements) {
           mergeGamificationFromServerResponse(row);
@@ -248,8 +206,9 @@ export function BlackjackMultiTable() {
 
   if (loading || !state) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center text-rose-200">
-        <Loader2 className="h-10 w-10 animate-spin" />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#14080d]">
+        <BlackjackLobbyBackdrop />
+        <Loader2 className="relative z-10 h-10 w-10 animate-spin text-rose-400" />
       </div>
     );
   }
@@ -259,141 +218,110 @@ export function BlackjackMultiTable() {
   const canDeal =
     !isSpectator && isHost && state.phase === "betting" && state.seats.some((s) => s.playState === "bet_placed");
   const myTurn =
-    !isSpectator && state.phase === "player_turn" && state.currentSeatUserId === userId && mySeat?.playState === "in_hand";
+    !isSpectator &&
+    state.phase === "player_turn" &&
+    state.currentSeatUserId === userId &&
+    mySeat?.playState === "in_hand";
   const canDouble = myTurn && mySeat && mySeat.cards.length === 2 && !mySeat.doubled;
 
+  const btnBase =
+    "rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wide shadow-lg transition disabled:cursor-not-allowed disabled:opacity-45 sm:px-8 sm:text-base";
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 text-white">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => navigate("/blackjack/lobby")}
-          className="inline-flex items-center gap-2 text-rose-300 hover:text-rose-200"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("bjMulti.backToLobby")}
-        </button>
-        {isSpectator && (
-          <span className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-amber-200">
-            {t("bjMulti.spectatorBadge")}
-          </span>
-        )}
-      </div>
-
-      <div className="text-center">
-        <p className="text-xs uppercase tracking-widest text-slate-500">{t("bjMulti.phase")}</p>
-        <p className="text-lg font-bold text-rose-100">{state.phase}</p>
-        <p className="text-sm text-slate-400">
-          {t("bjMulti.handLabel", { n: state.handNumber })} · {t("bjMulti.minBetLabel")} {state.minBet}
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-rose-500/30 bg-slate-800/90 p-6">
-        <h2 className="mb-3 text-center text-sm font-semibold text-slate-400">{t("bjMulti.dealer")}</h2>
-        <div className="flex flex-wrap justify-center gap-2">
-          {state.dealerCards.map((c, i) => (
-            <CardFace
-              key={`d-${i}-${c.rank}-${c.suit}`}
-              card={c}
-              hidden={state.dealerHoleHidden && i === 1}
-            />
-          ))}
+    <div className="relative w-full min-h-screen overflow-hidden bg-[#0a0608] pb-10">
+      <BlackjackLobbyBackdrop />
+      <div className="relative z-10 mx-auto max-w-6xl px-4 pt-5 sm:pt-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => navigate("/lobby?tab=blackjack")}
+            className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm font-medium text-amber-100/90 backdrop-blur-sm transition hover:border-amber-400/40 hover:bg-black/50 hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t("bjMulti.backToLobby")}
+          </button>
+          {isSpectator && (
+            <span className="rounded-full border border-amber-500/50 bg-amber-950/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-200 shadow-inner">
+              {t("bjMulti.spectatorBadge")}
+            </span>
+          )}
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {state.seats
-          .slice()
-          .sort((a, b) => a.position - b.position)
-          .map((s) => (
-            <div
-              key={s.userId}
-              className={`rounded-xl border p-4 ${
-                s.isCurrentTurn ? "border-amber-400 bg-amber-950/30" : "border-slate-600 bg-slate-900/60"
-              }`}
-            >
-              <div className="flex items-center justify-between text-sm font-semibold">
-                <span>{s.username}</span>
-                {s.userId === userId && <span className="text-rose-300">{t("bjMulti.you")}</span>}
-              </div>
-              <p className="mt-1 text-xs text-slate-400">
-                {t("bjMulti.seatBet", { bet: s.bet, total: s.totalBet })} · {s.playState}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {s.cards.map((c, i) => (
-                  <CardFace key={`${s.userId}-${i}`} card={c} />
-                ))}
-              </div>
-            </div>
-          ))}
-      </div>
-
-      {!isSpectator && (
-        <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-600 bg-slate-900/50 p-6">
-          {canBet && (
-            <div className="flex flex-wrap items-end justify-center gap-3">
-              <label className="text-sm text-slate-300">
-                {t("bjMulti.yourBet")}
-                <input
-                  type="number"
-                  min={state.minBet}
-                  value={betInput}
-                  onChange={(e) => setBetInput(Number(e.target.value))}
-                  className="ml-2 w-28 rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-white"
-                />
-              </label>
-              <button
-                type="button"
-                disabled={acting}
-                onClick={postBet}
-                className="rounded-xl bg-rose-600 px-6 py-2 font-bold hover:bg-rose-500 disabled:opacity-50"
-              >
-                {t("bjMulti.placeBet")}
-              </button>
-            </div>
-          )}
-          {canDeal && (
-            <button
-              type="button"
-              disabled={acting}
-              onClick={postDeal}
-              className="rounded-xl bg-emerald-600 px-8 py-3 font-bold hover:bg-emerald-500 disabled:opacity-50"
-            >
-              {t("bjMulti.dealCards")}
-            </button>
-          )}
-          {myTurn && (
-            <div className="flex flex-wrap justify-center gap-2">
-              <button
-                type="button"
-                disabled={acting}
-                onClick={() => postAction("hit")}
-                className="rounded-xl bg-amber-500 px-5 py-2 font-bold text-slate-900 hover:bg-amber-400 disabled:opacity-50"
-              >
-                {t("bjMulti.hit")}
-              </button>
-              <button
-                type="button"
-                disabled={acting}
-                onClick={() => postAction("stand")}
-                className="rounded-xl bg-slate-600 px-5 py-2 font-bold hover:bg-slate-500 disabled:opacity-50"
-              >
-                {t("bjMulti.stand")}
-              </button>
-              {canDouble && (
+      <BlackjackMultiCasinoTable state={state} userId={userId ?? null}>
+        {!isSpectator ? (
+          <div className="flex flex-col items-center gap-5">
+            {canBet && (
+              <div className="flex w-full max-w-md flex-col items-stretch gap-4 sm:flex-row sm:items-end sm:justify-center">
+                <label className="flex flex-1 flex-col gap-1.5 text-center text-xs font-semibold uppercase tracking-wide text-amber-200/80 sm:text-left">
+                  {t("bjMulti.yourBet")}
+                  <input
+                    type="number"
+                    min={state.minBet}
+                    value={betInput}
+                    onChange={(e) => setBetInput(Number(e.target.value))}
+                    className="rounded-xl border-2 border-amber-700/50 bg-black/50 px-4 py-3 text-center font-mono text-lg text-white shadow-inner focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  />
+                </label>
                 <button
                   type="button"
                   disabled={acting}
-                  onClick={() => postAction("double")}
-                  className="rounded-xl bg-violet-600 px-5 py-2 font-bold hover:bg-violet-500 disabled:opacity-50"
+                  onClick={postBet}
+                  className={`${btnBase} w-full bg-gradient-to-b from-emerald-500 to-emerald-800 text-white shadow-emerald-950/50 hover:from-emerald-400 hover:to-emerald-700 sm:w-auto`}
                 >
-                  {t("bjMulti.double")}
+                  {t("bjMulti.placeBet")}
                 </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+              </div>
+            )}
+            {canDeal && (
+              <button
+                type="button"
+                disabled={acting}
+                onClick={postDeal}
+                className={`${btnBase} w-full max-w-sm bg-gradient-to-b from-amber-400 via-amber-600 to-amber-900 text-slate-950 shadow-amber-950/40 hover:from-amber-300 hover:to-amber-800`}
+              >
+                {t("bjMulti.dealCards")}
+              </button>
+            )}
+            {myTurn && (
+              <div className="flex w-full max-w-lg flex-wrap justify-center gap-3">
+                <button
+                  type="button"
+                  disabled={acting}
+                  onClick={() => postAction("hit")}
+                  className={`${btnBase} min-w-[7rem] bg-gradient-to-b from-sky-500 to-sky-900 text-white hover:from-sky-400`}
+                >
+                  {t("bjMulti.hit")}
+                </button>
+                <button
+                  type="button"
+                  disabled={acting}
+                  onClick={() => postAction("stand")}
+                  className={`${btnBase} min-w-[7rem] bg-gradient-to-b from-slate-600 to-slate-900 text-white hover:from-slate-500`}
+                >
+                  {t("bjMulti.stand")}
+                </button>
+                {canDouble && (
+                  <button
+                    type="button"
+                    disabled={acting}
+                    onClick={() => postAction("double")}
+                    className={`${btnBase} min-w-[7rem] bg-gradient-to-b from-violet-500 to-violet-950 text-white hover:from-violet-400`}
+                  >
+                    {t("bjMulti.double")}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-center text-sm text-amber-200/60">{t("bjMulti.spectatorHint")}</p>
+        )}
+      </BlackjackMultiCasinoTable>
+
+      {state.phase === "payout" ? (
+        <BlackjackRoundReveal state={state} roundSummary={roundSummary ?? []} userId={userId ?? null} />
+      ) : null}
     </div>
   );
 }

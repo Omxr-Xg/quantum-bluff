@@ -63,6 +63,8 @@ model User {
 
   blackjackHostedRooms BlackjackRoom[] @relation("BlackjackRoomHost")
   blackjackRoomSeats   BlackjackRoomSeat[]
+  sentBlackjackInvitations     BlackjackRoomInvitation[] @relation("BjRoomInviteSender")
+  receivedBlackjackInvitations BlackjackRoomInvitation[] @relation("BjRoomInviteReceiver")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -328,6 +330,7 @@ model BlackjackRoom {
 
   host  User                  @relation("BlackjackRoomHost", fields: [hostId], references: [id])
   seats BlackjackRoomSeat[]
+  invitations BlackjackRoomInvitation[]
 
   @@index([hostId])
   @@index([status])
@@ -348,6 +351,25 @@ model BlackjackRoomSeat {
   @@unique([roomId, userId])
   @@unique([roomId, position])
   @@map("blackjack_room_seats")
+}
+
+/// Invitation à une table blackjack multijoueur (distincte des invitations poker / WaitingRoom).
+model BlackjackRoomInvitation {
+  id              String           @id @default(uuid())
+  blackjackRoomId String
+  senderId        String
+  receiverId      String
+  status          InvitationStatus @default(PENDING)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  room     BlackjackRoom @relation(fields: [blackjackRoomId], references: [id], onDelete: Cascade)
+  sender   User          @relation("BjRoomInviteSender", fields: [senderId], references: [id])
+  receiver User          @relation("BjRoomInviteReceiver", fields: [receiverId], references: [id])
+
+  @@unique([blackjackRoomId, receiverId])
+  @@index([receiverId, status])
+  @@map("blackjack_room_invitations")
 }
 
 /// Stats agrégées slot / roulette / blackjack (leaderboard casino).

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
   Bot,
@@ -27,6 +27,19 @@ import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
 import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { apiUrl } from "../utils/apiBase";
+import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
+
+function readLobbyTabFromUrl(): "poker" | "roulette" | "blackjack" {
+  if (typeof window === "undefined") return "poker";
+  try {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab === "blackjack") return "blackjack";
+    if (tab === "roulette") return "roulette";
+  } catch {
+    /* ignore */
+  }
+  return "poker";
+}
 
 interface RoomPlayer {
   id: string;
@@ -60,6 +73,7 @@ interface GameInProgressItem {
 export function Lobby() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { userId, username } = useUser();
   const { menuContent } = useTopBar();
   const [rooms, setRooms] = useState<WaitingRoomItem[]>([]);
@@ -78,8 +92,38 @@ export function Lobby() {
   const [gamesLoading, setGamesLoading] = useState(true);
   const [lobbyTourOpen, setLobbyTourOpen] = useState(false);
   const [lobbyTourStep, setLobbyTourStep] = useState(0);
-  const [lobbyMainTab, setLobbyMainTab] = useState<"poker" | "roulette" | "blackjack">("poker");
+  const [lobbyMainTab, setLobbyMainTabState] = useState<"poker" | "roulette" | "blackjack">(readLobbyTabFromUrl);
   const { addToast } = useToast();
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "blackjack") setLobbyMainTabState("blackjack");
+    else if (tab === "roulette") setLobbyMainTabState("roulette");
+    else setLobbyMainTabState("poker");
+  }, [searchParams]);
+
+  const setMainTab = useCallback(
+    (tab: "poker" | "roulette" | "blackjack") => {
+      setLobbyMainTabState(tab);
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (tab === "blackjack") {
+            p.set("tab", "blackjack");
+          } else if (tab === "roulette") {
+            p.set("tab", "roulette");
+            p.delete("bjRoom");
+          } else {
+            p.delete("tab");
+            p.delete("bjRoom");
+          }
+          return p;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
 
   const tourRefHeader = useRef<HTMLDivElement>(null);
   const tourRefTopBar = useRef<HTMLDivElement>(null);
@@ -403,7 +447,7 @@ export function Lobby() {
             type="button"
             role="tab"
             aria-selected={lobbyMainTab === "poker"}
-            onClick={() => setLobbyMainTab("poker")}
+            onClick={() => setMainTab("poker")}
             className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
               lobbyMainTab === "poker"
                 ? "bg-gradient-to-br from-green-500/40 via-emerald-600/25 to-slate-900/60 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_24px_rgba(34,197,94,0.15)] ring-1 ring-green-400/45"
@@ -422,7 +466,7 @@ export function Lobby() {
             type="button"
             role="tab"
             aria-selected={lobbyMainTab === "roulette"}
-            onClick={() => setLobbyMainTab("roulette")}
+            onClick={() => setMainTab("roulette")}
             className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
               lobbyMainTab === "roulette"
                 ? "bg-gradient-to-br from-amber-500/35 via-amber-900/30 to-emerald-950/70 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_0_28px_rgba(245,158,11,0.18)] ring-1 ring-amber-400/50"
@@ -441,7 +485,7 @@ export function Lobby() {
             type="button"
             role="tab"
             aria-selected={lobbyMainTab === "blackjack"}
-            onClick={() => setLobbyMainTab("blackjack")}
+            onClick={() => setMainTab("blackjack")}
             className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
               lobbyMainTab === "blackjack"
                 ? "bg-gradient-to-br from-rose-600/40 via-rose-950/50 to-slate-950/80 text-rose-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_26px_rgba(244,63,94,0.2)] ring-1 ring-rose-400/45"
@@ -809,7 +853,7 @@ export function Lobby() {
             </div>
           </div>
 
-          {/* Onglet Blackjack */}
+          {/* Onglet Blackjack — solo + tables multijoueur intégrées */}
           <div className={`lg:col-span-2 space-y-6 ${lobbyMainTab !== "blackjack" ? "hidden" : ""}`} aria-hidden={lobbyMainTab !== "blackjack"}>
             <div className="rounded-2xl border border-rose-500/50 bg-slate-800 p-6">
               <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
@@ -817,23 +861,15 @@ export function Lobby() {
                 {t("lobby.blackjackTitle")}
               </h2>
               <p className="mb-4 max-w-xl text-sm leading-relaxed text-gray-400">{t("lobby.blackjackIntro")}</p>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => navigate("/blackjack")}
-                  className="w-full rounded-xl bg-rose-700 py-4 font-bold text-white transition hover:bg-rose-600 sm:flex-1"
-                >
-                  {t("lobby.blackjackPlay")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/blackjack/lobby")}
-                  className="w-full rounded-xl border-2 border-rose-400/60 bg-slate-800 py-4 font-bold text-rose-100 transition hover:bg-slate-700 sm:flex-1"
-                >
-                  {t("lobby.blackjackMultiLobby")}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/blackjack")}
+                className="w-full rounded-xl bg-rose-700 py-4 font-bold text-white transition hover:bg-rose-600"
+              >
+                {t("lobby.blackjackPlay")}
+              </button>
             </div>
+            <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} onSwitchTab={setMainTab} />
           </div>
 
           {/* Colonne de droite (1/3) - Amis */}
@@ -851,7 +887,7 @@ export function Lobby() {
         onClick={() => {
           if (lobbyTourOpen) setLobbyTourOpen(false);
           else {
-            setLobbyMainTab("poker");
+            setMainTab("poker");
             setLobbyTourStep(0);
             setLobbyTourOpen(true);
           }

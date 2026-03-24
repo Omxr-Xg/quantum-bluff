@@ -141,6 +141,69 @@ export class GameGateway {
         }
       })
 
+      socket.on(
+        'invite-to-blackjack-room',
+        async (data: { blackjackRoomId: string; invitedUserId: string; inviterId: string }) => {
+          const { blackjackRoomId, invitedUserId, inviterId } = data
+          if (!blackjackRoomId || !invitedUserId || !inviterId) return
+          if (socket.userId !== inviterId) return
+          if (invitedUserId === inviterId) return
+
+          try {
+            const room = await prisma.blackjackRoom.findUnique({
+              where: { id: blackjackRoomId },
+              include: { seats: true },
+            })
+            if (!room || room.status !== 'WAITING' || room.hostId !== inviterId) return
+
+            const friendship = await prisma.friendship.findFirst({
+              where: {
+                OR: [
+                  { user1Id: inviterId, user2Id: invitedUserId },
+                  { user1Id: invitedUserId, user2Id: inviterId },
+                ],
+              },
+            })
+            if (!friendship) return
+
+            if (room.seats.some((s) => s.userId === invitedUserId)) return
+            if (room.seats.length >= room.maxSeats) return
+
+            const invitation = await prisma.blackjackRoomInvitation.upsert({
+              where: {
+                blackjackRoomId_receiverId: {
+                  blackjackRoomId,
+                  receiverId: invitedUserId,
+                },
+              },
+              create: {
+                blackjackRoomId,
+                senderId: inviterId,
+                receiverId: invitedUserId,
+                status: 'PENDING',
+              },
+              update: { status: 'PENDING', senderId: inviterId },
+            })
+
+            const sender = await prisma.user.findUnique({
+              where: { id: inviterId },
+              select: { username: true },
+            })
+
+            this.io.to(`user:${invitedUserId}`).emit('GAME_INVITATION_RECEIVED', {
+              invitationId: invitation.id,
+              roomId: blackjackRoomId,
+              roomName: room.name,
+              sender: { id: inviterId, username: sender?.username ?? 'Joueur' },
+              game: 'blackjack',
+            })
+            console.log(`📨 Invitation blackjack: ${inviterId} → ${invitedUserId} (${blackjackRoomId})`)
+          } catch (err) {
+            console.error('Erreur invite-to-blackjack-room:', err)
+          }
+        }
+      )
+
       socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string }) => {
         try {
           const { gameId, playerId } = data

@@ -66,15 +66,18 @@ export function Layout({ children }: LayoutProps) {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
     setBalance(getUserBalance());
     if (localStorage.getItem("token")) {
+      const blackjackMultiInLobby =
+        location.pathname === "/lobby" && location.search.includes("tab=blackjack");
       const authoritative =
         location.pathname === "/slot" ||
         location.pathname === "/roulette" ||
         location.pathname === "/blackjack" ||
         location.pathname.startsWith("/blackjack/lobby") ||
-        location.pathname.startsWith("/blackjack/table");
+        location.pathname.startsWith("/blackjack/table") ||
+        blackjackMultiInLobby;
       fetchBalanceFromServer({ authoritative }).then(setBalance);
     }
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   /** Mise à jour immédiate du solde affiché (ex. mode bot : `addToUserBalance` ne touche que le localStorage). */
   useEffect(() => {
@@ -98,7 +101,7 @@ export function Layout({ children }: LayoutProps) {
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     if (!isConnected) {

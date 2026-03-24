@@ -22,29 +22,55 @@ import {
 
 const router = express.Router()
 
+/** Révélation des cartes croupier + résultats (sync client animation). */
+const ROUND_REVEAL_MS = 3000
+
+type BjRoundSummaryRow = {
+  userId: string
+  username: string
+  payout: number
+  reason: string
+}
+
 function getIo(req: express.Request): Server | undefined {
   return req.app.get('io') as Server | undefined
 }
 
-function broadcastTable(gameId: string, table: BlackjackTableController, io?: Server) {
+function broadcastTable(
+  gameId: string,
+  table: BlackjackTableController,
+  io?: Server,
+  options?: { roundSummary?: BjRoundSummaryRow[] }
+) {
   if (!io) return
   const state = table.toPublicState()
-  io.to(gameId).emit('BLACKJACK_TABLE_UPDATE', { gameId, state } satisfies {
+  const payload: {
     gameId: string
     state: BlackjackTablePublicState
-  })
+    roundSummary?: BjRoundSummaryRow[]
+  } = { gameId, state }
+  if (options?.roundSummary?.length) {
+    payload.roundSummary = options.roundSummary
+  }
+  io.to(gameId).emit('BLACKJACK_TABLE_UPDATE', payload)
 }
 
 async function payoutAndFinish(
   table: BlackjackTableController,
   io: Server | undefined
-): Promise<{ settlements: unknown[] }> {
+): Promise<{ settlements: unknown[]; roundSummary: BjRoundSummaryRow[] }> {
   const rows = table.computeSettlements()
   const settlements: unknown[] = []
+  const roundSummary: BjRoundSummaryRow[] = rows.map((r) => ({
+    userId: r.userId,
+    username: r.username,
+    payout: r.payout,
+    reason: r.reason,
+  }))
 
   await prisma.$transaction(async (tx) => {
     for (const row of rows) {
-      const { userId, totalBet, payout, reason } = row
+      const { userId, totalBet, payout, reason, username } = row
       const updated = await tx.user.update({
         where: { id: userId },
         data: { chips: { increment: payout } },
@@ -79,6 +105,7 @@ async function payoutAndFinish(
       const lvl = levelFromExperience(updated.experience)
       settlements.push({
         userId,
+        username,
         payout,
         reason,
         chips: intChips(updated.chips),
@@ -91,15 +118,23 @@ async function payoutAndFinish(
     }
   })
 
-  table.finishHandAfterPayout()
-  broadcastTable(table.gameId, table, io)
-  return { settlements }
+  const gameId = table.gameId
+  broadcastTable(gameId, table, io, { roundSummary })
+
+  setTimeout(() => {
+    const t = activeBlackjackGames.get(gameId)
+    if (!t || t.phase !== 'payout') return
+    t.finishHandAfterPayout()
+    broadcastTable(gameId, t, io)
+  }, ROUND_REVEAL_MS)
+
+  return { settlements, roundSummary }
 }
 
 async function maybeRunDealerAndPayout(
   table: BlackjackTableController,
   io: Server | undefined
-): Promise<{ settlements?: unknown[] } | null> {
+): Promise<{ settlements: unknown[]; roundSummary: BjRoundSummaryRow[] } | null> {
   if (table.phase !== 'dealer') return null
   table.runDealerDraws()
   return payoutAndFinish(table, io)
@@ -131,18 +166,26 @@ router.post('/', authMiddleware, async (req, res) => {
     minBet = Math.floor(minBet)
     if (minBet < 10) minBet = 10
 
-    const room = await prisma.blackjackRoom.create({
-      data: {
-        name,
-        hostId: userId,
-        maxSeats,
-        visibility,
-        minBet,
-        status: 'WAITING',
-      },
-      include: {
-        seats: { include: { user: { select: { id: true, username: true } } } },
-      },
+    const room = await prisma.$transaction(async (tx) => {
+      const r = await tx.blackjackRoom.create({
+        data: {
+          name,
+          hostId: userId,
+          maxSeats,
+          visibility,
+          minBet,
+          status: 'WAITING',
+        },
+      })
+      await tx.blackjackRoomSeat.create({
+        data: { roomId: r.id, userId, position: 0, isReady: true },
+      })
+      return tx.blackjackRoom.findUniqueOrThrow({
+        where: { id: r.id },
+        include: {
+          seats: { include: { user: { select: { id: true, username: true } } } },
+        },
+      })
     })
 
     return res.status(201).json({ room })
@@ -176,6 +219,96 @@ router.get('/', authMiddleware, async (req, res) => {
     return res.json({ rooms })
   } catch (e) {
     console.error('blackjackMulti GET /', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/** POST /invitations/:invitationId/accept — invitation table blackjack */
+router.post('/invitations/:invitationId/accept', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const { invitationId } = req.params
+
+    const invitation = await prisma.blackjackRoomInvitation.findUnique({
+      where: { id: invitationId },
+      include: {
+        room: { include: { seats: true } },
+      },
+    })
+    if (!invitation) return res.status(404).json({ error: 'Invitation introuvable' })
+    if (invitation.receiverId !== userId) {
+      return res.status(403).json({ error: 'Pas votre invitation' })
+    }
+    if (invitation.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Invitation déjà traitée' })
+    }
+
+    const room = invitation.room
+    if (room.status !== 'WAITING') {
+      return res.status(400).json({ error: 'La partie a déjà commencé' })
+    }
+    if (room.seats.length >= room.maxSeats) {
+      return res.status(400).json({ error: 'Table pleine' })
+    }
+
+    const existing = room.seats.find((s) => s.userId === userId)
+    if (!existing) {
+      const taken = new Set(room.seats.map((s) => s.position))
+      let position = 0
+      while (taken.has(position) && position < room.maxSeats) position++
+      if (position >= room.maxSeats) {
+        return res.status(400).json({ error: 'Table pleine' })
+      }
+      await prisma.blackjackRoomSeat.create({
+        data: { roomId: room.id, userId, position },
+      })
+    }
+
+    await prisma.blackjackRoomInvitation.update({
+      where: { id: invitationId },
+      data: { status: 'ACCEPTED' },
+    })
+
+    const io = getIo(req)
+    if (io) {
+      io.to(`user:${invitation.senderId}`).emit('BLACKJACK_INVITATION_ACCEPTED', {
+        invitationId,
+        userId,
+        blackjackRoomId: room.id,
+      })
+    }
+
+    return res.json({ roomId: room.id })
+  } catch (e) {
+    console.error('blackjackMulti invitations accept', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/** POST /invitations/:invitationId/reject */
+router.post('/invitations/:invitationId/reject', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const { invitationId } = req.params
+
+    const invitation = await prisma.blackjackRoomInvitation.findUnique({
+      where: { id: invitationId },
+    })
+    if (!invitation) return res.status(404).json({ error: 'Invitation introuvable' })
+    if (invitation.receiverId !== userId) {
+      return res.status(403).json({ error: 'Pas votre invitation' })
+    }
+    if (invitation.status === 'PENDING') {
+      await prisma.blackjackRoomInvitation.update({
+        where: { id: invitationId },
+        data: { status: 'REJECTED' },
+      })
+    }
+    return res.json({ ok: true })
+  } catch (e) {
+    console.error('blackjackMulti invitations reject', e)
     return res.status(500).json({ error: 'Erreur serveur' })
   }
 })
@@ -339,9 +472,11 @@ router.post('/:roomId/start', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Au moins un joueur requis' })
     }
 
-    const allReady = room.seats.every((s) => s.isReady)
-    if (!allReady) {
-      return res.status(400).json({ error: 'Tous les joueurs doivent être prêts' })
+    if (room.seats.length > 1) {
+      const allReady = room.seats.every((s) => s.isReady)
+      if (!allReady) {
+        return res.status(400).json({ error: 'Tous les joueurs doivent être prêts' })
+      }
     }
 
     const gameId = `bj_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`
@@ -512,14 +647,16 @@ router.post('/game/:gameId/deal', authMiddleware, async (req, res) => {
     }
 
     const io = getIo(req)
-    broadcastTable(table.gameId, table, io)
-
     const extra = await maybeRunDealerAndPayout(table, io)
+    if (!extra) {
+      broadcastTable(table.gameId, table, io)
+    }
 
     return res.json({
       ok: true,
       state: table.toPublicState(userId),
       settlements: extra?.settlements,
+      roundSummary: extra?.roundSummary,
     })
   } catch (e) {
     console.error('blackjackMulti deal', e)
@@ -574,9 +711,10 @@ router.post('/game/:gameId/action', authMiddleware, async (req, res) => {
     }
 
     const io = getIo(req)
-    broadcastTable(table.gameId, table, io)
-
     const extra = await maybeRunDealerAndPayout(table, io)
+    if (!extra) {
+      broadcastTable(table.gameId, table, io)
+    }
 
     const fresh = await prisma.user.findUnique({
       where: { id: userId },
@@ -588,6 +726,7 @@ router.post('/game/:gameId/action', authMiddleware, async (req, res) => {
       chips: intChips(fresh?.chips ?? 0),
       state: table.toPublicState(userId),
       settlements: extra?.settlements,
+      roundSummary: extra?.roundSummary,
     })
   } catch (e) {
     console.error('blackjackMulti action', e)
