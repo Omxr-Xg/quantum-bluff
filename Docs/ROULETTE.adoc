@@ -1,0 +1,21 @@
+= Roulette européenne (Quantum Bluff)
+
+Règle du jeu côté serveur : une case gagnante uniforme parmi stem:[\{0,\ldots,36\}] (37 issues).
+
+== Paiements (versement total si le pari couvre le numéro tiré)
+
+* Plein : stem:[36 \times] mise
+* Cheval : stem:[18 \times] mise
+* Transversale : stem:[12 \times] mise
+* Carré : stem:[9 \times] mise
+* Sixain : stem:[6 \times] mise
+* Douzaine / colonne : stem:[3 \times] mise
+* Chances simples (rouge, noir, pair, impair, manque, passe) : stem:[2 \times] mise si gagnant
+
+Le **0** fait perdre toutes les mises *extérieures* (douzaine, colonne, chances simples) ; seuls les paris qui couvrent explicitement le 0 peuvent gagner.
+
+== Espérance
+
+Sur une roulette européenne à paiements standards, l’espérance du gain net par unité misée est la même pour toutes les mises proportionnelles aux cases couvertes : stem:[-\frac{1}{37}] (avantage maison stem:[\frac{1}{37}]).
+
+Les paramètres économiques du serveur (mise min/max, plafond total par tour) sont exposés via `GET /api/roulette/config`.
