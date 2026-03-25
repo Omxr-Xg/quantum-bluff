@@ -19,3 +19,56 @@ Le **0** fait perdre toutes les mises *extérieures* (douzaine, colonne, chances
 Sur une roulette européenne à paiements standards, l’espérance du gain net par unité misée est la même pour toutes les mises proportionnelles aux cases couvertes : stem:[-\frac{1}{37}] (avantage maison stem:[\frac{1}{37}]).
 
 Les paramètres économiques du serveur (mise min/max, plafond total par tour) sont exposés via `GET /api/roulette/config`.
+
+== Probabilités par type de pari (roue européenne = 37 issues équiprobables)
+Sur cette roulette :
+* une issue gagne (ou perd) de façon uniforme dans stem:[\{0,\ldots,36\}]
+* la probabilité de gagner vaut donc stem:[k/37] où stem:[k] est le nombre de cases couvertes *qui gagnent effectivement*.
+
+[cols="1,1,1,1",options="header"]
+|===
+| Type de pari (UI)
+| Cases gagnantes (k)
+| Probabilité stem:[P(win)]
+| Multiplicateur de versement total (mise incluse)
+| Plein (straight)
+| 1
+| stem:[1/37]
+| 36
+| Cheval (split)
+| 2
+| stem:[2/37]
+| 18
+| Transversale (street)
+| 3
+| stem:[3/37]
+| 12
+| Carré (corner)
+| 4
+| stem:[4/37]
+| 9
+| Sixain (sixLine)
+| 6
+| stem:[6/37]
+| 6
+| Douzaine / colonne (dozen/column)
+| 12
+| stem:[12/37]
+| 3
+| Chances simples (rouge/noir/pair/impair/manque/passe)
+| 18
+| stem:[18/37]
+| 2
+|===
+
+=== Gain net attendu (même pour tous les paris standards)
+Le serveur paie un *versement total* stem:[bet × m] et la mise stem:[bet] est implicitement perdue sur les cas qui ne gagnent pas.
+
+Donc, en gain net par unité misée :
+
+stem:[
+E[net]/bet = P(win)\times m - 1 = (k/37)\times (36/k) - 1 = 36/37 - 1 = -1/37
+]
+
+== Avantage maison et lois des grands nombres
+En répétant un grand nombre de spins indépendants (mêmes mises, mêmes types de paris), la *moyenne* du gain net par spin tend vers stem:[-bet/37] (Loi des grands nombres), ce qui matérialise l’avantage maison stem:[1/37].
