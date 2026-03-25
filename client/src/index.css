@@ -8,6 +8,48 @@ html, body, #root {
   @apply w-full min-h-screen m-0 p-0 bg-slate-900 overflow-x-hidden;
 }
 
+/* Blackjack multijoueur — révélation fin de main */
+@keyframes bj-card-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.92) rotate(-3deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+  }
+}
+
+@keyframes bj-row-reveal {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bj-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.bj-card-reveal {
+  animation: bj-card-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  opacity: 0;
+}
+
+.bj-row-reveal {
+  animation: bj-row-reveal 0.45s ease-out both;
+  opacity: 0;
+}
+
 /* ==========================================================================
    FILTRES ACCESSIBILITÉ (DALTONISME)
    ========================================================================== */

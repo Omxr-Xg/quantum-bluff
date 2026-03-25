@@ -16,6 +16,10 @@ import { EditProfile } from "./pages/EditProfile";
 import { TutorialLobby } from "./pages/TutorialLobby";
 import { SlotMachine } from "./pages/SlotMachine";
 import { Roulette } from "./pages/Roulette";
+import { Blackjack } from "./pages/Blackjack";
+import { BlackjackMultiLobby } from "./pages/BlackjackMultiLobby";
+import { BlackjackMultiTable } from "./pages/BlackjackMultiTable";
+import { Leaderboard } from "./pages/Leaderboard";
 import { GameDeal } from "./pages/GameDeal";
 import { GameExample } from "./pages/GameExample";
 import { Layout } from "./components/Layout";
@@ -49,6 +53,10 @@ function App() {
             <Route path="/bot-configuration" element={<ProtectedRoute><BotConfiguration /></ProtectedRoute>} />
             <Route path="/slot" element={<ProtectedRoute><SlotMachine /></ProtectedRoute>} />
             <Route path="/roulette" element={<ProtectedRoute><Roulette /></ProtectedRoute>} />
+            <Route path="/blackjack" element={<ProtectedRoute><Blackjack /></ProtectedRoute>} />
+            <Route path="/blackjack/lobby" element={<ProtectedRoute><BlackjackMultiLobby /></ProtectedRoute>} />
+            <Route path="/blackjack/lobby/:roomId" element={<ProtectedRoute><BlackjackMultiLobby /></ProtectedRoute>} />
+            <Route path="/blackjack/table/:gameId" element={<ProtectedRoute><BlackjackMultiTable /></ProtectedRoute>} />
             <Route path="/waiting-room" element={<ProtectedRoute><WaitingRoom /></ProtectedRoute>} />
 
             <Route path="/game" element={<ProtectedRoute><GameWithKey /></ProtectedRoute>} />
@@ -57,6 +65,7 @@ function App() {
             <Route path="/results" element={<ProtectedRoute><HiddenBetsResult /></ProtectedRoute>} />
             <Route path="/hidden-bets-result" element={<ProtectedRoute><HiddenBetsResult /></ProtectedRoute>} />
 
+            <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
             <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />

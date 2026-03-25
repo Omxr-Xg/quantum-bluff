@@ -15,25 +15,25 @@
 - `README.md`, `DEPLOY.md`, `SETUP_TESTEUR.md`, `CHANGELOG`, `CODEOWNERS`
 
 ### 1.2 Client (`client/`)
-- `src/pages/` – StartScreen, Auth, Lobby, BotConfiguration, SlotMachine, Roulette, WaitingRoom, Game, GameDeal, GameExample, HiddenBetsResult, Profile, Friends, EditProfile, TutorialLobby
-- `src/components/` – Layout, ProtectedRoute, PokerTable, CommunityCards, ActionButtons, QuantumHUD, ShowdownDisplay, HiddenBetsPanel, InvitationBanner, NotificationCenter, MusicPlayer, AccessibilityMenu, ChipIcon, PokerCard, etc.
+- `src/pages/` – StartScreen, Auth, Lobby, BotConfiguration, SlotMachine, Roulette, Blackjack, BlackjackMultiLobby (redirect), BlackjackMultiTable, Leaderboard, WaitingRoom, Game, GameDeal, GameExample, HiddenBetsResult, Profile, Friends, EditProfile, TutorialLobby
+- `src/components/` – Layout, ProtectedRoute, LobbyBlackjackMultiSection, PokerTable, CommunityCards, ActionButtons, QuantumHUD, ShowdownDisplay, HiddenBetsPanel, InvitationBanner, NotificationCenter, MusicPlayer, AccessibilityMenu, ChipIcon, PokerCard, etc.
 - `src/components/ui/` – Composants shadcn/ui (accordion, alert, avatar, button, card, dialog, form, input, tabs, tooltip, etc.)
 - `src/contexts/` – SocketContext, ToastContext, QuantumHUDContext, AccessibilityContext, AccessibilityMenuOpenContext, HiddenBetsContext, MusicContext, TopBarContext
 - `src/services/` – api.ts (RTK Query), socket via contexts
 - `src/hooks/` – usePokerGame, usePokerSocket, usePokerDeck, useUser, useDeviceType
-- `src/utils/` – cards.ts, avatars.ts, userProfile.ts, tablePositions.ts
+- `src/utils/` – cards.ts, avatars.ts, userProfile.ts, gamificationStorage.ts, tablePositions.ts
 - `src/i18n/` – Traductions fr, en, es, uk, ar
 - `src/types/` – index.ts, game.ts
 - `electron.cjs` – Point d’entrée app desktop Electron
 
 ### 1.3 Serveur (`server/`)
-- `src/routes/` – auth, game, game.api, waitingRoom, bot, friends, invitation, updates, slot, roulette
-- `src/logic/` – GameTable, CashGameController, Evaluator, Deck, slotMachine, roulette
+- `src/routes/` – auth, game, game.api, waitingRoom, bot, friends, invitation, updates, slot, roulette, blackjack, blackjackMulti (`blackjackMulti.routes.ts`), leaderboard
+- `src/logic/` – GameTable, CashGameController, Evaluator, Deck, slotMachine, roulette, blackjack, blackjackSessionStore, BlackjackTableController, gamification
 - `src/sockets/` – game.gateway.ts
 - `src/middleware/` – auth.middleware, socketAuth.middleware
 - `src/config/` – database.ts, redis.config.ts
 - `src/validation/` – auth.validation, game.validation, friends.validation
-- `src/shared/` – activeGames.ts
+- `src/shared/` – activeGames.ts, activeBlackjackGames.ts
 - `src/utils/` – antiCheat.ts, securityLogger.ts, cleanup.job.ts
 - `prisma/` – schema.prisma, migrations
 
@@ -66,6 +66,10 @@
 
 **Mini-jeu roulette européenne (`/api/roulette/`)** – Logique pure dans `server/src/logic/roulette.ts` (37 cases 0–36, mises plein / cheval / transversale / carré / sixain / douzaines / colonnes / chances simples). `POST /spin` (JWT) : transaction Prisma **débite la somme des mises**, tire `result` avec `crypto.randomInt`, calcule les versements par ligne, **crédite la somme des payouts** ; réponse `{ chips, result, resultColor, totalStake, totalPayout, betsResolved }`. `GET /config` (public) : bornes (mise min 10, max 1000 par ligne, total max 5000 par tour, max 40 mises), ordre des cases sur la roue pour l’animation client. Rate limit dédié sur `/api/roulette`. Page client `/roulette` : tapis interactif + roue animée (Motion) **après** la réponse serveur. **Lobby** : onglets *Texas Hold’em* (serveurs, création de salle, bot) et *Roulette* (accès roulette + lien machine à sous). Aperçu RTP / règles : **`Docs/ROULETTE.adoc`**.
 
+**Blackjack (`/api/blackjack/`)** – Logique pure dans `server/src/logic/blackjack.ts` (sabot 6 jeux, BJ naturel 3:2, croupier tire jusqu’à ≥ 17 — s’arrête sur soft 17, double sur 2 cartes uniquement, pas de split en v1). **Sessions en mémoire** par utilisateur dans `blackjackSessionStore.ts` (TTL ~30 min) : une main active par joueur sur le process ; **perte au redémarrage** du serveur ou en multi-instances sans sticky sessions. `POST /start` (JWT) : valide la mise (min 10, plafond niveau + cap 1000), débite, distribue ; si BJ naturel joueur, règle tout de suite (stats casino + XP). Sinon réponse `phase: "player"` avec `dealerUp` + trou caché. `POST /action` : `{ action: "hit" | "stand" | "double" }` ; fin de main : crédit `payout`, mise à jour `CasinoStats` (`blackjackHandsPlayed`, `blackjackBiggestWin`), `awardXpInTransaction`. Rate limit dédié sur `/api/blackjack`. Page client `/blackjack`. **Classement** : catégorie `blackjack_biggest` sur `casino_stats.blackjackBiggestWin`. **Lobby** : troisième onglet *Blackjack* (palette rose/bordeaux) avec CTA vers `/blackjack` et **tables multijoueur intégrées** dans le même onglet (`LobbyBlackjackMultiSection`, query `?tab=blackjack` et `bjRoom` pour une salle).
+
+**Blackjack multijoueur (`/api/blackjack-tables/`)** – Flux dédié (hors waiting-room poker). **Persistance** : modèles Prisma `BlackjackRoom` / `BlackjackRoomSeat` / `BlackjackRoomInvitation` (migrations `blackjack_multi_rooms`, `blackjack_room_invitations`). **Runtime** : `BlackjackTableController` (`server/src/logic/BlackjackTableController.ts`) réutilise `blackjack.ts` (`settleRound`, `playDealerHand`, etc.) ; sabot et main croupier communs ; mises débitées au `POST .../bet`, règlement multi-joueurs en transaction Prisma (crédit + `CasinoStats` + `awardXpInTransaction` par siège). Tables stockées dans **`activeBlackjackGames`** (`server/src/shared/activeBlackjackGames.ts`) — **mémoire process uniquement** (pas de sérialisation Redis comme `GameTable` poker) : en cluster multi-nœuds, une partie n’est visible que sur l’instance qui a exécuté `POST .../start` ; redémarrage = tables perdues (salle DB peut rester `PLAYING` avec `gameId` orphelin → client reçoit 410). **HTTP** (JWT, rate limit `blackjackMultiApiLimiter` dans `index.ts`) : `POST /` créer salle (l’hôte est **auto-assis** siège 0, `isReady: true`) ; `GET /` liste ; `GET /:roomId` détail ; `POST /:roomId/join|leave` ; `PATCH /:roomId/ready` ; `POST /:roomId/start` (hôte ; **1 joueur** = démarrage sans exiger « prêt » ; **2+** = tous prêts) ; `POST /invitations/:id/accept|reject` (invitations blackjack, distinctes du poker) ; `GET /game/:gameId/state` (réponse inclut `hostId`, `roomId`, `state`) ; `POST /game/:gameId/bet` ; `POST /game/:gameId/deal` (hôte) ; `POST /game/:gameId/action` `{ hit | stand | double }`. **Socket.IO** (`game.gateway.ts`) : **`invite-to-blackjack-room`** (hôte → ami, amitié requise) crée une ligne `BlackjackRoomInvitation` et émet **`GAME_INVITATION_RECEIVED`** avec `game: "blackjack"` (bannière : accept → `/lobby?tab=blackjack&bjRoom=...`). Client émet **`JOIN_BLACKJACK_TABLE`** `{ gameId }` → `socket.join(gameId)` ; serveur diffuse **`BLACKJACK_TABLE_UPDATE`** `{ gameId, state, roundSummary? }` après les mutations HTTP. Après le paiement d’une main, l’état reste **`payout`** (cartes croupier complètes) pendant **3 s** (`ROUND_REVEAL_MS` dans `blackjackMulti.routes.ts`) avant `finishHandAfterPayout()` et second broadcast — l’UI affiche une **modale de résultat** (animation cartes + gains). Identifiants `gameId` préfixés `bj_...` pour ne pas entrer en collision avec les `gameId` poker. **Spectateurs** : rejoindre la room socket comme un joueur ; UI lecture seule via `?spectate=1` sur `/blackjack/table/:gameId`. Salles **PRIVATE** : `GET .../state` refusé si ni hôte ni siège (HTTP) ; la room socket ne refait pas ce contrôle en MVP. **Client** : `Lobby.tsx` + `LobbyBlackjackMultiSection.tsx` (liste / création / attente), `BlackjackMultiTable.tsx`, route `/blackjack/table/:gameId` ; `/blackjack/lobby` et `/blackjack/lobby/:roomId` **redirigent** vers `/lobby?tab=blackjack` (et `bjRoom` si présent). **MVP** : pas de split / assurance ; pas de file spectateur→siège automatique.
+
 ### 2.2 JWT
 - Secret: `process.env.JWT_SECRET` ou `quantum_bluff_secret`
 - Expiration: `7d`
@@ -74,7 +78,7 @@
 
 ### 2.3 Middleware HTTP
 - `auth.middleware.ts` – Lit `Authorization: Bearer <token>`, décode JWT, injecte `req.userId`
-- Utilisé sur: balance, add-dev-money, record-result, friends, invitations, slot spin, roulette spin
+- Utilisé sur: balance, add-dev-money, record-result, friends, invitations, slot spin, roulette spin, blackjack start/action
 
 ### 2.4 Socket auth
 - `socketAuth.middleware` – Token via `handshake.auth.token` ou header `Authorization`
@@ -517,6 +521,14 @@
 ### 18.4 Electron
 - electron.cjs
 - Updates: GET /updates/latest
+
+### 18.5 Gamification et classement
+- **XP / niveau** : champ `User.experience` ; niveau dérivé par paliers (`50 × L × (L−1)` XP cumulés pour atteindre le niveau L). Attribution après parties poker (bot `POST /api/game/record-result`, multijoueur via `game.gateway` après showdown), spins slot et roulette.
+- **Plafonds de mise** : `getEffectiveSlotMaxBet` / roulette (ligne et total) montent avec le niveau jusqu’aux caps globaux existants (`SLOT_MAX_BET_CAP`, `ROULETTE_MAX_*`).
+- **Badges** : table `user_badges`, catalogue statique par `minLevel` dans `server/src/logic/gamification.ts`.
+- **Stats casino** : table `casino_stats` (compteurs spins, records de gain par spin) pour le leaderboard.
+- **API** : `GET /api/leaderboard?category=xp|chips|poker_wins|slot_biggest|roulette_biggest&offset&limit` ; `GET /api/auth/gamification` (JWT) pour caps + XP + badges. Login / register enrichissent l’objet `user` avec les mêmes champs.
+- **Client** : page `/leaderboard`, stockage local `quantum_bluff_gamification`, profil (badges + ligne XP), menu Layout.
 
 ---
 

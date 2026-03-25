@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io'
 import { activeGames } from '../shared/activeGames.js'
+import { activeBlackjackGames } from '../shared/activeBlackjackGames.js'
 import jwt from 'jsonwebtoken'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
 import { AntiCheatMonitor } from '../utils/antiCheat.js'
@@ -7,6 +8,11 @@ import { prisma } from '../config/database.js'
 import type { GameTable } from '../logic/GameTable.js'
 import { CashGameController } from '../logic/CashGameController.js'
 import { intChips } from '../utils/chips.js'
+import {
+  awardXpInTransaction,
+  XP_POKER_SHOWDOWN_LOSS,
+  XP_POKER_SHOWDOWN_WIN,
+} from '../logic/gamification.js'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -135,6 +141,69 @@ export class GameGateway {
         }
       })
 
+      socket.on(
+        'invite-to-blackjack-room',
+        async (data: { blackjackRoomId: string; invitedUserId: string; inviterId: string }) => {
+          const { blackjackRoomId, invitedUserId, inviterId } = data
+          if (!blackjackRoomId || !invitedUserId || !inviterId) return
+          if (socket.userId !== inviterId) return
+          if (invitedUserId === inviterId) return
+
+          try {
+            const room = await prisma.blackjackRoom.findUnique({
+              where: { id: blackjackRoomId },
+              include: { seats: true },
+            })
+            if (!room || room.status !== 'WAITING' || room.hostId !== inviterId) return
+
+            const friendship = await prisma.friendship.findFirst({
+              where: {
+                OR: [
+                  { user1Id: inviterId, user2Id: invitedUserId },
+                  { user1Id: invitedUserId, user2Id: inviterId },
+                ],
+              },
+            })
+            if (!friendship) return
+
+            if (room.seats.some((s) => s.userId === invitedUserId)) return
+            if (room.seats.length >= room.maxSeats) return
+
+            const invitation = await prisma.blackjackRoomInvitation.upsert({
+              where: {
+                blackjackRoomId_receiverId: {
+                  blackjackRoomId,
+                  receiverId: invitedUserId,
+                },
+              },
+              create: {
+                blackjackRoomId,
+                senderId: inviterId,
+                receiverId: invitedUserId,
+                status: 'PENDING',
+              },
+              update: { status: 'PENDING', senderId: inviterId },
+            })
+
+            const sender = await prisma.user.findUnique({
+              where: { id: inviterId },
+              select: { username: true },
+            })
+
+            this.io.to(`user:${invitedUserId}`).emit('GAME_INVITATION_RECEIVED', {
+              invitationId: invitation.id,
+              roomId: blackjackRoomId,
+              roomName: room.name,
+              sender: { id: inviterId, username: sender?.username ?? 'Joueur' },
+              game: 'blackjack',
+            })
+            console.log(`📨 Invitation blackjack: ${inviterId} → ${invitedUserId} (${blackjackRoomId})`)
+          } catch (err) {
+            console.error('Erreur invite-to-blackjack-room:', err)
+          }
+        }
+      )
+
       socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string }) => {
         try {
           const { gameId, playerId } = data
@@ -213,6 +282,30 @@ export class GameGateway {
             code: 'SPECTATE_ERROR',
             message: 'Erreur lors de la connexion en spectateur'
           })
+        }
+      })
+
+      socket.on('JOIN_BLACKJACK_TABLE', (data: { gameId?: string }) => {
+        try {
+          const gameId = data?.gameId
+          if (!gameId || !socket.userId) return
+          socket.join(gameId)
+          socket.gameId = gameId
+          const table = activeBlackjackGames.getSync(gameId)
+          if (table) {
+            socket.emit('BLACKJACK_TABLE_UPDATE', {
+              gameId,
+              state: table.toPublicState(socket.userId),
+            })
+            console.log(`🃏 Socket ${socket.id} joined blackjack table ${gameId}`)
+          } else {
+            socket.emit('ERROR', {
+              code: 'GAME_NOT_FOUND',
+              message: 'Table blackjack introuvable',
+            })
+          }
+        } catch (err) {
+          console.error('Erreur JOIN_BLACKJACK_TABLE:', err)
         }
       })
 
@@ -659,24 +752,28 @@ export class GameGateway {
       const chipsLost = !isWinner ? (player.totalPutInThisHand ?? player.currentBet ?? 0) : 0
 
       try {
-        await prisma.playerStats.upsert({
-          where: { playerId: player.id },
-          create: {
-            playerId: player.id,
-            totalGames: 1,
-            totalWins: isWinner ? 1 : 0,
-            totalLosses: isWinner ? 0 : 1,
-            totalChipsWon: chipsWon,
-            totalChipsLost: chipsLost,
-            biggestWin: chipsWon,
-            biggestPot: pot,
-          },
-          update: {
-            totalGames: { increment: 1 },
-            ...(isWinner
-              ? { totalWins: { increment: 1 }, totalChipsWon: { increment: chipsWon } }
-              : { totalLosses: { increment: 1 }, totalChipsLost: { increment: chipsLost } }),
-          },
+        const xpAmount = isWinner ? XP_POKER_SHOWDOWN_WIN : XP_POKER_SHOWDOWN_LOSS
+        await prisma.$transaction(async (tx) => {
+          await tx.playerStats.upsert({
+            where: { playerId: player.id },
+            create: {
+              playerId: player.id,
+              totalGames: 1,
+              totalWins: isWinner ? 1 : 0,
+              totalLosses: isWinner ? 0 : 1,
+              totalChipsWon: chipsWon,
+              totalChipsLost: chipsLost,
+              biggestWin: chipsWon,
+              biggestPot: pot,
+            },
+            update: {
+              totalGames: { increment: 1 },
+              ...(isWinner
+                ? { totalWins: { increment: 1 }, totalChipsWon: { increment: chipsWon } }
+                : { totalLosses: { increment: 1 }, totalChipsLost: { increment: chipsLost } }),
+            },
+          })
+          await awardXpInTransaction(tx, player.id, xpAmount)
         })
       } catch (err) {
         console.error('[Stats] Erreur upsert pour', player.id, err)

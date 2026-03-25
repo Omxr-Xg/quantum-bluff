@@ -14,6 +14,14 @@ import {
   type RouletteBetNormalized,
 } from '../logic/roulette.js'
 import { intChips } from '../utils/chips.js'
+import {
+  awardXpInTransaction,
+  getEffectiveRouletteMaxPerLine,
+  getEffectiveRouletteMaxTotalStake,
+  levelFromExperience,
+  XP_ROULETTE_SPIN,
+  XP_ROULETTE_WIN_BONUS,
+} from '../logic/gamification.js'
 
 const router = express.Router()
 
@@ -50,16 +58,27 @@ router.post('/spin', authMiddleware, async (req, res) => {
     const outcome = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: userId },
-        select: { chips: true },
+        select: { chips: true, experience: true },
       })
       if (!user) {
         throw Object.assign(new Error('USER_NOT_FOUND'), { code: 'USER_NOT_FOUND' })
       }
 
+      const lvl = levelFromExperience(user.experience)
+      const maxPerLine = getEffectiveRouletteMaxPerLine(lvl)
+      const maxTotal = getEffectiveRouletteMaxTotalStake(lvl)
+
       const chipsBefore = intChips(user.chips)
-      const validation = validateRouletteBets(rawBets, chipsBefore)
+      const validation = validateRouletteBets(rawBets, chipsBefore, {
+        maxPerLine,
+        maxTotalStake: maxTotal,
+      })
       if (!validation.ok) {
-        throw Object.assign(new Error(validation.code), { code: validation.code })
+        throw Object.assign(new Error(validation.code), {
+          code: validation.code,
+          maxPerLine,
+          maxTotalStake: maxTotal,
+        })
       }
 
       const { bets, totalStake } = validation
@@ -78,6 +97,25 @@ router.post('/spin', authMiddleware, async (req, res) => {
         select: { chips: true },
       })
 
+      const prevCasino = await tx.casinoStats.findUnique({ where: { userId } })
+      if (!prevCasino) {
+        await tx.casinoStats.create({
+          data: { userId, rouletteSpins: 1, rouletteBiggestWin: totalPayout },
+        })
+      } else {
+        await tx.casinoStats.update({
+          where: { userId },
+          data: {
+            rouletteSpins: { increment: 1 },
+            rouletteBiggestWin: Math.max(totalPayout, prevCasino.rouletteBiggestWin),
+          },
+        })
+      }
+
+      const netPositive = totalPayout > totalStake
+      const xpGain = XP_ROULETTE_SPIN + (netPositive ? XP_ROULETTE_WIN_BONUS : 0)
+      const gamification = await awardXpInTransaction(tx, userId, xpGain)
+
       return {
         chips: intChips(updated.chips),
         result,
@@ -89,17 +127,24 @@ router.post('/spin', authMiddleware, async (req, res) => {
           stake: row.stake,
           payout: row.payout,
         })),
+        experience: gamification.experience,
+        level: gamification.level,
+        xpToNext: gamification.xpToNext,
+        newBadges: gamification.newBadges,
+        maxBetPerLine: maxPerLine,
+        maxTotalStake: maxTotal,
       }
     })
 
     return res.json(outcome)
   } catch (e) {
     const code = (e as { code?: string }).code
+    const extra = e as { maxPerLine?: number; maxTotalStake?: number }
     const messages: Record<string, string> = {
       INSUFFICIENT_CHIPS: 'Solde insuffisant',
       BET_TOO_LOW: `Mise minimum : ${ROULETTE_MIN_BET}`,
-      BET_TOO_HIGH: `Mise maximum par ligne : ${ROULETTE_MAX_BET_CAP}`,
-      TOTAL_STAKE_TOO_HIGH: `Mise totale max par tour : ${ROULETTE_MAX_TOTAL_STAKE}`,
+      BET_TOO_HIGH: `Mise maximum par ligne : ${typeof extra.maxPerLine === 'number' ? extra.maxPerLine : ROULETTE_MAX_BET_CAP}`,
+      TOTAL_STAKE_TOO_HIGH: `Mise totale max par tour : ${typeof extra.maxTotalStake === 'number' ? extra.maxTotalStake : ROULETTE_MAX_TOTAL_STAKE}`,
       NO_BETS: 'Aucune mise',
       BETS_NOT_ARRAY: 'Format des mises invalide',
       TOO_MANY_BETS: `Trop de mises (max ${ROULETTE_MAX_BETS_PER_SPIN})`,
@@ -115,7 +160,12 @@ router.post('/spin', authMiddleware, async (req, res) => {
       UNKNOWN_BET_TYPE: 'Type de pari inconnu',
     }
     if (code && messages[code]) {
-      return res.status(400).json({ error: messages[code], code })
+      return res.status(400).json({
+        error: messages[code],
+        code,
+        ...(typeof extra.maxPerLine === 'number' ? { maxBetPerLine: extra.maxPerLine } : {}),
+        ...(typeof extra.maxTotalStake === 'number' ? { maxTotalStake: extra.maxTotalStake } : {}),
+      })
     }
     if (code === 'USER_NOT_FOUND') {
       return res.status(404).json({ error: 'Utilisateur introuvable' })

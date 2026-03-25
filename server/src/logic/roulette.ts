@@ -229,7 +229,7 @@ export function payoutForBet(bet: RouletteBetNormalized, result: number): number
   }
 }
 
-function parseOneBet(raw: unknown): RouletteBetNormalized | { error: string } {
+function parseOneBet(raw: unknown, maxPerLine: number = ROULETTE_MAX_BET_CAP): RouletteBetNormalized | { error: string } {
   if (raw === null || typeof raw !== 'object') return { error: 'INVALID_BET' }
   const o = raw as Record<string, unknown>
   const type = o.type
@@ -238,7 +238,7 @@ function parseOneBet(raw: unknown): RouletteBetNormalized | { error: string } {
   if (!Number.isFinite(amount)) return { error: 'INVALID_AMOUNT' }
   const a = intChips(amount)
   if (a < ROULETTE_MIN_BET) return { error: 'BET_TOO_LOW' }
-  if (a > ROULETTE_MAX_BET_CAP) return { error: 'BET_TOO_HIGH' }
+  if (a > maxPerLine) return { error: 'BET_TOO_HIGH' }
 
   if (type === 'straight') {
     const n = typeof o.n === 'number' ? o.n : Number(o.n)
@@ -290,7 +290,24 @@ export type ValidateBetsResult =
   | { ok: true; bets: RouletteBetNormalized[]; totalStake: number }
   | { ok: false; code: string }
 
-export function validateRouletteBets(rawBets: unknown, chips: number): ValidateBetsResult {
+export type RouletteValidateCaps = {
+  maxPerLine?: number
+  maxTotalStake?: number
+}
+
+export function validateRouletteBets(
+  rawBets: unknown,
+  chips: number,
+  caps?: RouletteValidateCaps
+): ValidateBetsResult {
+  const effPerLine = Math.min(
+    ROULETTE_MAX_BET_CAP,
+    Math.max(ROULETTE_MIN_BET, intChips(caps?.maxPerLine ?? ROULETTE_MAX_BET_CAP))
+  )
+  const effTotal = Math.min(
+    ROULETTE_MAX_TOTAL_STAKE,
+    Math.max(effPerLine, intChips(caps?.maxTotalStake ?? ROULETTE_MAX_TOTAL_STAKE))
+  )
   const c = intChips(chips)
   if (!Array.isArray(rawBets)) return { ok: false, code: 'BETS_NOT_ARRAY' }
   if (rawBets.length === 0) return { ok: false, code: 'NO_BETS' }
@@ -299,7 +316,7 @@ export function validateRouletteBets(rawBets: unknown, chips: number): ValidateB
   const bets: RouletteBetNormalized[] = []
   let totalStake = 0
   for (const raw of rawBets) {
-    const parsed = parseOneBet(raw)
+    const parsed = parseOneBet(raw, effPerLine)
     if ('error' in parsed) {
       const map: Record<string, string> = {
         INVALID_BET: 'INVALID_BET',
@@ -318,7 +335,7 @@ export function validateRouletteBets(rawBets: unknown, chips: number): ValidateB
       return { ok: false, code: map[parsed.error] ?? 'INVALID_BET' }
     }
     totalStake = intChips(totalStake + parsed.amount)
-    if (totalStake > ROULETTE_MAX_TOTAL_STAKE) return { ok: false, code: 'TOTAL_STAKE_TOO_HIGH' }
+    if (totalStake > effTotal) return { ok: false, code: 'TOTAL_STAKE_TOO_HIGH' }
     bets.push(parsed)
   }
   if (totalStake > c) return { ok: false, code: 'INSUFFICIENT_CHIPS' }

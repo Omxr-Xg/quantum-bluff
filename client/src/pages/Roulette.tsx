@@ -5,8 +5,13 @@ import { motion, useMotionValue, animate, type MotionValue } from "motion/react"
 import { ArrowLeft, Trash2, Undo2 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { updateUserBalance } from "../utils/userProfile";
+import {
+  mergeGamificationFromServerResponse,
+  readGamification,
+  refreshGamificationFromServer,
+} from "../utils/gamificationStorage";
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+import { apiUrl } from "../utils/apiBase";
 
 /** Valeurs disponibles + styles (couleur du bord / face) — style « tapis » réel. */
 const ROULETTE_CHIP_TOKENS: readonly {
@@ -383,7 +388,7 @@ export function Roulette() {
       navigate("/lobby");
       return;
     }
-    const url = API_BASE ? `${API_BASE}/api/auth/balance` : "/api/auth/balance";
+    const url = apiUrl("/api/auth/balance");
     try {
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error("balance");
@@ -399,16 +404,29 @@ export function Roulette() {
 
   const loadConfig = useCallback(async () => {
     try {
-      const url = API_BASE ? `${API_BASE}/api/roulette/config` : "/api/roulette/config";
+      const url = apiUrl("/api/roulette/config");
       const res = await fetch(url);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (typeof data?.minBet === "number") setMinBet(Math.max(1, Math.floor(data.minBet)));
-      if (typeof data?.maxBetPerLine === "number") setMaxBetPerLine(Math.max(1, Math.floor(data.maxBetPerLine)));
-      if (typeof data?.maxTotalStake === "number") setMaxTotalStake(Math.max(1, Math.floor(data.maxTotalStake)));
-      if (Array.isArray(data?.wheelOrder) && data.wheelOrder.length > 0) {
-        setWheelOrder(data.wheelOrder.map((x: unknown) => Number(x)).filter((n: number) => !Number.isNaN(n)));
+      let lineCap = 1000;
+      let totalCap = 5000;
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data?.minBet === "number") setMinBet(Math.max(1, Math.floor(data.minBet)));
+        if (typeof data?.maxBetPerLine === "number") lineCap = Math.max(1, Math.floor(data.maxBetPerLine));
+        if (typeof data?.maxTotalStake === "number") totalCap = Math.max(1, Math.floor(data.maxTotalStake));
+        if (Array.isArray(data?.wheelOrder) && data.wheelOrder.length > 0) {
+          setWheelOrder(data.wheelOrder.map((x: unknown) => Number(x)).filter((n: number) => !Number.isNaN(n)));
+        }
       }
+      await refreshGamificationFromServer();
+      const g = readGamification();
+      if (typeof g.maxBetRouletteLine === "number") {
+        lineCap = Math.min(lineCap, g.maxBetRouletteLine);
+      }
+      if (typeof g.maxRouletteTotalStake === "number") {
+        totalCap = Math.min(totalCap, g.maxRouletteTotalStake);
+      }
+      setMaxBetPerLine(lineCap);
+      setMaxTotalStake(totalCap);
     } catch {
       /* defaults */
     }
@@ -509,7 +527,7 @@ export function Roulette() {
     const step = 360 / n;
 
     try {
-      const url = API_BASE ? `${API_BASE}/api/roulette/spin` : "/api/roulette/spin";
+      const url = apiUrl("/api/roulette/spin");
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -526,6 +544,7 @@ export function Roulette() {
       const nextChips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : chips;
       updateUserBalance(nextChips);
       setChips(nextChips);
+      mergeGamificationFromServerResponse(data as Record<string, unknown>);
       setLastResult(result);
       setLastColor(typeof data?.resultColor === "string" ? data.resultColor : null);
 
@@ -715,7 +734,7 @@ export function Roulette() {
                 </button>
               </div>
 
-              {/* Zero — case « bande » comme sur les tapis européens */}
+              {/* Zero — case « bande » sur le tapis */}
               <div className="mb-2 flex justify-center">
                 <div className="w-[min(100%,3.5rem)]">{numCell(0)}</div>
               </div>

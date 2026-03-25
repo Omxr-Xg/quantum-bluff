@@ -89,16 +89,21 @@ export function spinSlot(bet: number, randomInt: RandomIntFn = defaultRandomInt)
   return { reels, winAmount }
 }
 
-export function clampBetForChips(rawBet: number, chips: number): number {
+export function clampBetForChips(rawBet: number, chips: number, maxBetCap: number = SLOT_MAX_BET_CAP): number {
   const b = intChips(rawBet)
   const maxByBalance = intChips(chips)
-  const cap = Math.min(SLOT_MAX_BET_CAP, maxByBalance)
+  const cap = Math.min(intChips(maxBetCap), maxByBalance)
   if (b < SLOT_MIN_BET) return 0
   if (b > cap) return 0
   return b
 }
 
-export function validateSlotBet(rawBet: number, chips: number): { ok: true; bet: number } | { ok: false; code: string } {
+export function validateSlotBet(
+  rawBet: number,
+  chips: number,
+  maxBetCap: number = SLOT_MAX_BET_CAP
+): { ok: true; bet: number } | { ok: false; code: string } {
+  const capTop = Math.min(SLOT_MAX_BET_CAP, Math.max(SLOT_MIN_BET, intChips(maxBetCap)))
   const c = intChips(chips)
   if (c < SLOT_MIN_BET) {
     return { ok: false, code: 'INSUFFICIENT_CHIPS' }
@@ -107,7 +112,7 @@ export function validateSlotBet(rawBet: number, chips: number): { ok: true; bet:
   if (!Number.isFinite(rawBet) || b < SLOT_MIN_BET) {
     return { ok: false, code: 'BET_TOO_LOW' }
   }
-  const maxAllowed = Math.min(SLOT_MAX_BET_CAP, c)
+  const maxAllowed = Math.min(capTop, c)
   if (b > maxAllowed) {
     return { ok: false, code: 'BET_TOO_HIGH' }
   }

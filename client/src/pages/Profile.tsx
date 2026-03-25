@@ -1,11 +1,18 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { User, TrendingUp, Trophy, Target, DollarSign, Gamepad2, Home } from "lucide-react";
+import { User, TrendingUp, Trophy, Target, DollarSign, Gamepad2, Home, Award } from "lucide-react";
 import { useNavigate } from "react-router";
 import { QuantumBluffLogo } from "../assets/logo";
 import { getUserProfile } from "../utils/userProfile";
 import { HelpButton } from "../components/HelpButton";
 import { useUser } from "../hooks/useUser";
 import { useGetPlayerStatsQuery } from "../services/api";
+import {
+  BADGE_CATALOG,
+  GAMIFICATION_CHANGED_EVENT,
+  readGamification,
+  refreshGamificationFromServer,
+} from "../utils/gamificationStorage";
 
 export function Profile() {
   const { t } = useTranslation();
@@ -22,6 +29,14 @@ export function Profile() {
     skip: !userId,
     refetchOnMountOrArgChange: true,
   });
+
+  const [gam, setGam] = useState(() => readGamification());
+  useEffect(() => {
+    void refreshGamificationFromServer().then(() => setGam({ ...readGamification() }));
+    const onG = () => setGam({ ...readGamification() });
+    window.addEventListener(GAMIFICATION_CHANGED_EVENT, onG);
+    return () => window.removeEventListener(GAMIFICATION_CHANGED_EVENT, onG);
+  }, []);
 
   const totalGames = stats?.totalGames ?? 0;
   const totalWins = stats?.totalWins ?? 0;
@@ -107,7 +122,23 @@ export function Profile() {
                   <Target className="w-4 h-4" />
                   <span className="text-sm font-semibold">{t('profile.streakWins', { count: profileData.currentStreak })}</span>
                 </div>
+                {typeof gam.level === "number" && (
+                  <div className="flex items-center gap-2 bg-amber-500/20 text-amber-200 px-4 py-2 rounded-full border border-amber-500/40">
+                    <Trophy className="w-4 h-4" />
+                    <span className="text-sm font-semibold">
+                      {t("gamification.levelShort", { level: gam.level })}
+                    </span>
+                  </div>
+                )}
               </div>
+              {(typeof gam.experience === "number" || typeof gam.xpToNext === "number") && (
+                <p className="text-slate-400 text-sm mt-3">
+                  {t("gamification.xpLine", {
+                    xp: gam.experience ?? 0,
+                    toNext: gam.xpToNext ?? 0,
+                  })}
+                </p>
+              )}
             </div>
 
             {/* Colonne de droite avec bouton et solde */}
@@ -129,6 +160,35 @@ export function Profile() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-800/80 border border-slate-600 rounded-2xl p-5 sm:p-6 mb-6">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+            <Award className="w-5 h-5 text-amber-400" />
+            {t("gamification.badgesTitle")}
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            {BADGE_CATALOG.map((b) => {
+              const unlocked = gam.badges?.includes(b.id) ?? false;
+              return (
+                <div
+                  key={b.id}
+                  className={`rounded-xl border px-3 py-3 text-center ${
+                    unlocked
+                      ? "border-amber-500/50 bg-amber-500/10 text-amber-100"
+                      : "border-slate-600 bg-slate-900/50 text-slate-500"
+                  }`}
+                >
+                  <p className="text-xs font-bold truncate">{t(`gamification.badge.${b.id}.name`)}</p>
+                  <p className="text-[10px] mt-1 opacity-80">
+                    {unlocked
+                      ? t("gamification.badgeUnlocked")
+                      : t("gamification.badgeLocked", { level: b.minLevel })}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
 
