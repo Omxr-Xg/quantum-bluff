@@ -107,6 +107,7 @@ export function Game() {
   const [devValidation, setDevValidation] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
+  const turnTimeLimitSecRef = useRef(30);
   const [_timerActive, setTimerActive] = useState(false);
   const currentBet = useMemo(() => Math.max(0, ...playersState.map((p) => p.bet ?? 0)), [playersState]);
   
@@ -619,9 +620,12 @@ export function Game() {
         if (!res.ok) throw new Error(String(res.status));
         return res.json();
       })
-      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string } | null) => {
+      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; turnTimeLimitSec?: number } | null) => {
         if (cancelled || !gameState) return;
         if (gameStateFromSocketRef.current) return;
+        if (typeof gameState.turnTimeLimitSec === "number" && gameState.turnTimeLimitSec > 0) {
+          turnTimeLimitSecRef.current = gameState.turnTimeLimitSec;
+        }
         const players = gameState.players ?? [];
         const phaseMap: Record<string, GamePhase> = {
           WAITING: "init",
@@ -737,8 +741,11 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[] }) => {
+    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number }) => {
       gameStateFromSocketRef.current = true;
+      if (typeof gameState.turnTimeLimitSec === "number" && gameState.turnTimeLimitSec > 0) {
+        turnTimeLimitSecRef.current = gameState.turnTimeLimitSec;
+      }
       if (gameState.cashCountdownEndsAt != null) setCashCountdownEndsAt(gameState.cashCountdownEndsAt);
       if (gameState.cashSeats && Array.isArray(gameState.cashSeats)) {
         setCashSeats(gameState.cashSeats);
@@ -836,7 +843,7 @@ export function Game() {
         setTimerActive(false);
       } else if (currentTurnId === String(userId)) {
         setTimerActive(true);
-        setTimeLeft(30);
+        setTimeLeft(turnTimeLimitSecRef.current);
       }
       const hasShowdownWinner = gameState.showdownWinnerId || (gameState.showdownWinnerIds && gameState.showdownWinnerIds.length > 0);
       if (phase === "showdown" && hasShowdownWinner) {
@@ -959,6 +966,9 @@ export function Game() {
     if (!socket) return;
     socket.on("TURN_TIMER", (data: { gameId: string; timeLeft: number }) => {
       if (phaseRef.current === "showdown") return;
+      if (typeof data.timeLeft === "number" && data.timeLeft > 0) {
+        turnTimeLimitSecRef.current = data.timeLeft;
+      }
       setTimeLeft(data.timeLeft);
       setTimerActive(true);
     });
@@ -986,7 +996,7 @@ export function Game() {
     }
 
     setTimerActive(true);
-    setTimeLeft(30);
+    setTimeLeft(gameIdParam ? turnTimeLimitSecRef.current : 30);
 
     timerIntervalRef.current = setInterval(() => {
       setTimeLeft((prev) => {

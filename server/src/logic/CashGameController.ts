@@ -11,6 +11,9 @@ const DEFAULT_BUY_IN = 100
 const COUNTDOWN_SECONDS = 10
 const DEFAULT_SMALL_BLIND = 1
 const DEFAULT_BIG_BLIND = 2
+/** Tour multi : 30 s par défaut, 10 s en mode turbo */
+export const DEFAULT_TURN_TIMEOUT_MS = 30_000
+export const TURBO_TURN_TIMEOUT_MS = 10_000
 
 export interface CashSeat {
   seatIndex: number
@@ -26,6 +29,8 @@ export interface CashGameControllerOptions {
   smallBlind?: number
   bigBlind?: number
   defaultBuyIn?: number
+  /** Durée max d’un tour (ms), ex. turbo = 10_000 */
+  turnTimeoutMs?: number
 }
 
 /** Interface compatible avec GameTable pour activeGames */
@@ -44,6 +49,7 @@ export class CashGameController implements IGameSession {
   private readonly smallBlind: number
   private readonly bigBlind: number
   private readonly defaultBuyIn: number
+  private readonly turnTimeoutMs: number
   private seats: CashSeat[]
   private buttonSeatIndex: number
   private gameTable: GameTable | null = null
@@ -61,6 +67,10 @@ export class CashGameController implements IGameSession {
     this.smallBlind = options.smallBlind ?? DEFAULT_SMALL_BLIND
     this.bigBlind = options.bigBlind ?? DEFAULT_BIG_BLIND
     this.defaultBuyIn = options.defaultBuyIn ?? DEFAULT_BUY_IN
+    this.turnTimeoutMs =
+      typeof options.turnTimeoutMs === 'number' && options.turnTimeoutMs >= 3000 && options.turnTimeoutMs <= 120_000
+        ? options.turnTimeoutMs
+        : DEFAULT_TURN_TIMEOUT_MS
     this.seats = Array.from({ length: this.maxSeats }, (_, i) => ({
       seatIndex: i,
       userId: null,
@@ -85,6 +95,10 @@ export class CashGameController implements IGameSession {
 
   setOnCountdownDone(cb: () => void): void {
     this.onCountdownDone = cb
+  }
+
+  getTurnTimeoutMs(): number {
+    return this.turnTimeoutMs
   }
 
   getOccupiedSeats(): CashSeat[] {
@@ -287,8 +301,10 @@ export class CashGameController implements IGameSession {
     const base = this.gameTable
       ? { ...this.gameTable.getSanitizedState(requestingPlayerId), cashCountdownEndsAt: undefined, cashSeats: this.seats }
       : { ...this.state, phase: this.countdownEndsAt ? 'WAITING' : 'WAITING' as const }
+    const turnTimeLimitSec = Math.round(this.turnTimeoutMs / 1000)
     return {
       ...base,
+      turnTimeLimitSec,
       spectatorRejoinQueue: Array.from(this.spectatorRejoinQueue)
     }
   }

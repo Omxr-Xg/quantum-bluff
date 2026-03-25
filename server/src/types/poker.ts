@@ -65,4 +65,6 @@ export interface GameState {
   showdownPot?: number
   /** Nombre de cartes brûlées (affichage face cachée à côté de la table) */
   burnedCardsCount?: number
+  /** Durée max d’un tour en secondes (cash game multi) */
+  turnTimeLimitSec?: number
 }

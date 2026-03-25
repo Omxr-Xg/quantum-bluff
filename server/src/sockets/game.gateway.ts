@@ -787,47 +787,53 @@ export class GameGateway {
       clearTimeout(this.timers.get(gameId)!)
     }
 
-    const TURN_TIMEOUT_MS = 30000
-
-    const timer = setTimeout(async () => {
-      this.resetTimer(gameId)
+    void (async () => {
       const game = await activeGames.get(gameId)
       if (!game) return
+      const turnMs =
+        game instanceof CashGameController ? game.getTurnTimeoutMs() : 30_000
+      const timeLeftSec = Math.round(turnMs / 1000)
 
-      const currentPlayerId = game.state.currentTurn
-      if (currentPlayerId) {
-        try {
-          const player = game.getPlayerState(currentPlayerId)
-          if (!player) return
+      const timer = setTimeout(async () => {
+        this.resetTimer(gameId)
+        const g = await activeGames.get(gameId)
+        if (!g) return
 
-          const callAmount = game.calculateCallAmount(currentPlayerId)
+        const currentPlayerId = g.state.currentTurn
+        if (currentPlayerId) {
+          try {
+            const player = g.getPlayerState(currentPlayerId)
+            if (!player) return
 
-          if (callAmount === 0) {
-            console.log(`⏱️ Timeout - ${player.name} CHECK auto`)
-            game.handlePlayerAction(currentPlayerId, 'CHECK')
-          } else {
-            console.log(
-              `⏱️ Timeout - ${player.name} FOLD auto (callAmount: ${callAmount})`
-            )
-            game.handlePlayerAction(currentPlayerId, 'FOLD')
+            const callAmount = g.calculateCallAmount(currentPlayerId)
+
+            if (callAmount === 0) {
+              console.log(`⏱️ Timeout - ${player.name} CHECK auto`)
+              g.handlePlayerAction(currentPlayerId, 'CHECK')
+            } else {
+              console.log(
+                `⏱️ Timeout - ${player.name} FOLD auto (callAmount: ${callAmount})`
+              )
+              g.handlePlayerAction(currentPlayerId, 'FOLD')
+            }
+
+            const socketsInRoom = await this.io.in(gameId).fetchSockets()
+            for (const s of socketsInRoom) {
+              const uid = (s as unknown as AuthenticatedSocket).userId
+              s.emit('GAME_UPDATE', g.getSanitizedState(uid))
+            }
+            if (g.state.currentTurn) {
+              this.startTurnTimer(gameId)
+            }
+          } catch (error) {
+            console.error('Erreur timeout:', error)
           }
-
-          const socketsInRoom = await this.io.in(gameId).fetchSockets()
-          for (const s of socketsInRoom) {
-            const uid = (s as unknown as AuthenticatedSocket).userId
-            s.emit('GAME_UPDATE', game.getSanitizedState(uid))
-          }
-          if (game.state.currentTurn) {
-            this.startTurnTimer(gameId)
-          }
-        } catch (error) {
-          console.error('Erreur timeout:', error)
         }
-      }
-    }, TURN_TIMEOUT_MS)
+      }, turnMs)
 
-    this.timers.set(gameId, timer)
-    this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: 30 })
+      this.timers.set(gameId, timer)
+      this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: timeLeftSec })
+    })()
   }
 
   private resetTimer(gameId: string) {

@@ -19,6 +19,7 @@ import {
   Spade,
   CircleDot,
   Club,
+  Zap,
 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { FriendsList } from '../components/FriendsList';
@@ -56,6 +57,7 @@ interface WaitingRoomItem {
   maxPlayers: number;
   visibility: 'PUBLIC' | 'PRIVATE';
   status: string;
+  turbo?: boolean;
   players: RoomPlayer[];
   playerCount: number;
 }
@@ -87,6 +89,7 @@ export function Lobby() {
   const [createSmallBlind, setCreateSmallBlind] = useState(5);
   const [createBigBlind, setCreateBigBlind] = useState(10);
   const [createMinBalance, setCreateMinBalance] = useState(100);
+  const [createTurbo, setCreateTurbo] = useState(false);
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
   const [gamesInProgress, setGamesInProgress] = useState<GameInProgressItem[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
@@ -214,6 +217,7 @@ export function Lobby() {
     setCreateSmallBlind(5);
     setCreateBigBlind(10);
     setCreateMinBalance(100);
+    setCreateTurbo(false);
   };
 
   const MIN_BALANCE = 100;
@@ -240,6 +244,7 @@ export function Lobby() {
           smallBlind: createSmallBlind,
           bigBlind: createBigBlind,
           minBalance: createMinBalance,
+          turbo: createTurbo,
         }),
       });
       if (!res.ok) {
@@ -546,6 +551,30 @@ export function Lobby() {
                 </p>
               </div>
 
+              {/* Mode turbo */}
+              <div className="mb-6">
+                <button
+                  type="button"
+                  onClick={() => setCreateTurbo((v) => !v)}
+                  className={`flex w-full items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left transition-all ${
+                    createTurbo
+                      ? "border-amber-500/80 bg-amber-600/15 text-amber-100"
+                      : "border-slate-600 bg-slate-700/50 text-slate-300 hover:border-slate-500"
+                  }`}
+                >
+                  <span className="flex items-center gap-2 font-semibold">
+                    <Zap className={`h-5 w-5 shrink-0 ${createTurbo ? "text-amber-400" : "text-slate-400"}`} />
+                    {t("lobby.turboMode")}
+                  </span>
+                  <span
+                    className={`text-xs font-bold uppercase ${createTurbo ? "text-amber-300" : "text-slate-500"}`}
+                  >
+                    {createTurbo ? t("lobby.turboOn") : t("lobby.turboOff")}
+                  </span>
+                </button>
+                <p className="mt-2 text-xs text-slate-500">{t("lobby.turboModeHint")}</p>
+              </div>
+
               {/* Max players */}
               <div className="mb-6">
                 <label className="text-slate-300 text-sm font-medium block mb-3">
@@ -742,6 +771,12 @@ export function Lobby() {
                                   {t('lobby.public')}
                                 </span>
                               )}
+                              {room.turbo ? (
+                                <span className="flex shrink-0 items-center gap-0.5 rounded-full border border-amber-500/50 bg-amber-600/25 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
+                                  <Zap className="h-2.5 w-2.5" />
+                                  {t("lobby.turboBadge")}
+                                </span>
+                              ) : null}
                             </div>
                             <p className="text-gray-400 text-xs">
                               {t('lobby.playersCount', { count: room.playerCount, max: room.maxPlayers })}
