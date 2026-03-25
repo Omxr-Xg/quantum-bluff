@@ -255,11 +255,26 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
   const setReady = async (id: string, ready: boolean) => {
     setBusy(`ready-${id}`);
     try {
-      await fetch(apiUrl(`/api/blackjack-tables/${id}/ready`), {
+      const res = await fetch(apiUrl(`/api/blackjack-tables/${id}/ready`), {
         method: "PATCH",
         headers: authHeaders(),
         body: JSON.stringify({ ready }),
       });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        addToast(err.error ?? t("common.error"), "error");
+        return;
+      }
+      // Update optimiste (améliore le ressenti côté invité)
+      if (userId) {
+        setRoomDetail((prev) => {
+          if (!prev || prev.id !== id) return prev;
+          return {
+            ...prev,
+            seats: prev.seats.map((s) => (s.userId === userId ? { ...s, isReady: ready } : s)),
+          };
+        });
+      }
       await loadRoom(id);
     } finally {
       setBusy(null);

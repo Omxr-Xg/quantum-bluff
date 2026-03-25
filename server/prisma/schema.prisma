@@ -168,6 +168,8 @@ model WaitingRoom {
   smallBlind   Int?           // Small blind (optionnel, défaut serveur)
   bigBlind     Int?           // Big blind / relance minimale
   minBalance   Int?           // Solde minimal pour rejoindre
+  /** Mode turbo : tour de jeu limité à 10 s (sinon 30 s) */
+  turbo        Boolean        @default(false)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, ChevronDown, ChevronUp, TestTube } from "lucide-react";
+import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, ChevronDown, ChevronUp, TestTube, Zap } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
 import { fetchBalanceFromServer } from "../utils/userProfile";
@@ -32,6 +32,7 @@ export function WaitingRoom() {
   const [isCreator, setIsCreator] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [roomVisibility, setRoomVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
+  const [roomTurbo, setRoomTurbo] = useState(false);
   const [roomLoading, setRoomLoading] = useState(true);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -138,6 +139,7 @@ export function WaitingRoom() {
 
         setRoomName(room.name || "");
         setRoomVisibility(room.visibility || 'PUBLIC');
+        setRoomTurbo(!!room.turbo);
         setIsCreator(room.hostId === userId);
         const me = room.players?.find((p: { id: string }) => p.id === userId);
         setMyIsReady(me?.isReady ?? false);
@@ -211,6 +213,7 @@ export function WaitingRoom() {
       if (!room || room.status !== "WAITING") return;
       setIsCreator(room.hostId === userId);
       setRoomVisibility(room.visibility || 'PUBLIC');
+      setRoomTurbo(!!room.turbo);
       const me = room.players?.find((p: { id: string }) => p.id === userId);
       setMyIsReady(me?.isReady ?? false);
       setPlayers(
@@ -458,6 +461,12 @@ export function WaitingRoom() {
                   {t('lobby.public')}
                 </span>
               )}
+              {roomTurbo ? (
+                <span className="flex items-center gap-1 border border-amber-500/50 bg-amber-600/25 text-amber-200 text-xs font-semibold px-2 py-1 rounded-full">
+                  <Zap className="w-3 h-3" />
+                  {t("waitingRoom.turboMode")}
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
