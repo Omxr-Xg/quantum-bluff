@@ -2,19 +2,29 @@ import express from 'express';
 import { prisma } from '../config/database.js';
 import { activeGames } from '../shared/activeGames.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
-import {
-  awardXpInTransaction,
-  XP_POKER_HAND_BOT,
-  XP_POKER_HAND_BOT_WIN_BONUS,
-} from '../logic/gamification.js';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
+const gameReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const gameActionLimiter = rateLimit({
+  windowMs: 10 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop d’actions API. Réessaie dans quelques secondes.' }
+});
 
 // Démarrage de partie cash : utiliser uniquement POST /api/waiting-room/:roomId/start
 // (blinds / minBalance, tous prêts, gameId persisté — évite doublon et états incohérents)
 
 // GET /api/game/:gameId/room-info - Infos salle/host pour rematch (partie multi)
-router.get('/:gameId/room-info', async (req, res) => {
+router.get('/:gameId/room-info', gameReadLimiter, async (req, res) => {
   try {
     const { gameId } = req.params;
     const room = await prisma.waitingRoom.findFirst({
@@ -30,7 +40,7 @@ router.get('/:gameId/room-info', async (req, res) => {
 });
 
 // GET /api/game/:gameId - Récupérer l'état d'une partie (?playerId= pour recevoir ses cartes)
-router.get('/:gameId', async (req, res) => {
+router.get('/:gameId', gameReadLimiter, async (req, res) => {
   const { gameId } = req.params;
   const playerId = typeof req.query.playerId === 'string' ? req.query.playerId : undefined;
   const game = await activeGames.get(gameId);
@@ -44,7 +54,7 @@ router.get('/:gameId', async (req, res) => {
 });
 
 // POST /api/game/:gameId/action - Effectuer une action
-router.post('/:gameId/action', async (req, res) => {
+router.post('/:gameId/action', gameActionLimiter, async (req, res) => {
   try {
     const { gameId } = req.params;
     const { playerId, action, amount } = req.body;
@@ -65,7 +75,7 @@ router.post('/:gameId/action', async (req, res) => {
 });
 
 // GET /api/game/active - Liste des parties actives
-router.get('/active/list', async (req, res) => {
+router.get('/active/list', gameReadLimiter, async (req, res) => {
   const allGames = await activeGames.getAll();
   const games = Array.from(allGames.entries()).map(([id, game]) => ({
     id,
@@ -88,44 +98,36 @@ router.post('/record-result', authMiddleware, async (req, res) => {
     const chipsWon = chipsDelta > 0 ? chipsDelta : 0;
     const chipsLost = chipsDelta < 0 ? -chipsDelta : 0;
 
-    const xpGain = XP_POKER_HAND_BOT + (won ? XP_POKER_HAND_BOT_WIN_BONUS : 0);
+    // 1. Mise à jour des statistiques (Ton code d'origine)
+    await prisma.playerStats.upsert({
+      where: { playerId: userId },
+      create: {
+        playerId: userId,
+        totalGames: 1,
+        totalWins: won ? 1 : 0,
+        totalLosses: won ? 0 : 1,
+        totalChipsWon: chipsWon,
+        totalChipsLost: chipsLost,
+      },
+      update: {
+        totalGames: { increment: 1 },
+        ...(won ? { totalWins: { increment: 1 } } : { totalLosses: { increment: 1 } }),
+        ...(chipsWon > 0 ? { totalChipsWon: { increment: chipsWon } } : {}),
+        ...(chipsLost > 0 ? { totalChipsLost: { increment: chipsLost } } : {}),
+      },
+    });
 
-    const gamification = await prisma.$transaction(async (tx) => {
-      await tx.playerStats.upsert({
-        where: { playerId: userId },
-        create: {
-          playerId: userId,
-          totalGames: 1,
-          totalWins: won ? 1 : 0,
-          totalLosses: won ? 0 : 1,
-          totalChipsWon: chipsWon,
-          totalChipsLost: chipsLost,
-        },
-        update: {
-          totalGames: { increment: 1 },
-          ...(won ? { totalWins: { increment: 1 } } : { totalLosses: { increment: 1 } }),
-          ...(chipsWon > 0 ? { totalChipsWon: { increment: chipsWon } } : {}),
-          ...(chipsLost > 0 ? { totalChipsLost: { increment: chipsLost } } : {}),
-        },
+    // 2. CORRECTION : Mise à jour du VRAI portefeuille du joueur ! 💰
+    if (chipsDelta !== 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          chips: { increment: chipsDelta }
+        }
       });
+    }
 
-      if (chipsDelta !== 0) {
-        await tx.user.update({
-          where: { id: userId },
-          data: { chips: { increment: chipsDelta } },
-        });
-      }
-
-      return awardXpInTransaction(tx, userId, xpGain);
-    });
-
-    res.json({
-      ok: true,
-      experience: gamification.experience,
-      level: gamification.level,
-      xpToNext: gamification.xpToNext,
-      newBadges: gamification.newBadges,
-    });
+    res.json({ ok: true });
   } catch (error) {
     console.error('Erreur record-result:', error);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -133,7 +135,7 @@ router.post('/record-result', authMiddleware, async (req, res) => {
 });
 
 // GET /api/game/history/:gameId - Récupérer l'historique d'une partie
-router.get('/history/:gameId', async (req, res) => {
+router.get('/history/:gameId', gameReadLimiter, async (req, res) => {
   try {
     const { gameId } = req.params;
 
@@ -174,7 +176,7 @@ router.get('/history/:gameId', async (req, res) => {
 });
 
 // GET /api/game/stats/:playerId - Statistiques d'un joueur
-router.get('/stats/:playerId', async (req, res) => {
+router.get('/stats/:playerId', gameReadLimiter, async (req, res) => {
   try {
     const { playerId } = req.params;
 

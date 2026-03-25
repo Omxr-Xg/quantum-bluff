@@ -15,6 +15,8 @@ type SuspiciousActionType =
   | 'BRUTE_FORCE_LOGIN'
   | 'BRUTE_FORCE_REGISTER'
 
+type SecuritySeverity = 'warning' | 'critical'
+
 interface SuspiciousLogPayload {
   userId?: string
   socketId?: string
@@ -24,7 +26,8 @@ interface SuspiciousLogPayload {
 }
 
 const logsDir = path.resolve(process.cwd(), 'logs')
-const logFilePath = path.join(logsDir, 'security.log')
+const securityLogFilePath = path.join(logsDir, 'security.log')
+const alertsLogFilePath = path.join(logsDir, 'alerts.log')
 
 function ensureLogsDir() {
   if (!fs.existsSync(logsDir)) {
@@ -32,18 +35,49 @@ function ensureLogsDir() {
   }
 }
 
+function getSeverity(type: SuspiciousActionType): SecuritySeverity {
+  switch (type) {
+    case 'BRUTE_FORCE_LOGIN':
+    case 'BRUTE_FORCE_REGISTER':
+    case 'PLAYER_ID_MISMATCH':
+    case 'INVALID_TOKEN':
+    case 'TOO_MANY_ACTIONS':
+      return 'critical'
+    default:
+      return 'warning'
+  }
+}
+
 export function logSuspiciousAction(
   type: SuspiciousActionType,
   payload: SuspiciousLogPayload
 ) {
+  const severity = getSeverity(type)
+
   const entry = {
     timestamp: new Date().toISOString(),
+    severity,
     type,
     ...payload
   }
 
   ensureLogsDir()
-  fs.appendFileSync(logFilePath, JSON.stringify(entry) + '\n', 'utf8')
+
+  fs.appendFileSync(
+    securityLogFilePath,
+    JSON.stringify(entry) + '\n',
+    'utf8'
+  )
+
+  if (severity === 'critical') {
+    fs.appendFileSync(
+      alertsLogFilePath,
+      JSON.stringify(entry) + '\n',
+      'utf8'
+    )
+    console.error('[SECURITY ALERT]', entry)
+    return
+  }
 
   console.warn('[ANTI-CHEAT]', entry)
 }

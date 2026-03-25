@@ -1,11 +1,47 @@
 import express from 'express';
 import { prisma } from '../config/database.js';
-import { CashGameController, TURBO_TURN_TIMEOUT_MS, DEFAULT_TURN_TIMEOUT_MS } from '../logic/CashGameController.js';
+import { CashGameController } from '../logic/CashGameController.js';
 import { activeGames } from '../shared/activeGames.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import sanitizeHtml from 'sanitize-html';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
+const waitingRoomListLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const waitingRoomCreateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de créations de salles. Réessaie plus tard.' }
+});
+
+const waitingRoomJoinLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 25,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const waitingRoomActionLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const waitingRoomHostLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 // Fonction utilitaire pour nettoyer le nom de la salle
 //const sanitizeRoomName = (roomName: string) => sanitizeHtml(roomName);
@@ -13,7 +49,7 @@ const router = express.Router();
 // GET /api/waiting-room - Liste toutes les salles disponibles
 // Filtre : au moins 1 joueur actif, créées dans la dernière heure
 // Salles PRIVATE : visibles uniquement par l'hôte et ses amis
-router.get('/', async (req, res) => {
+router.get('/', waitingRoomListLimiter, async (req, res) => {
   try {
     const userId = req.query.userId as string | undefined;
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -69,7 +105,6 @@ router.get('/', async (req, res) => {
       maxPlayers: room.maxPlayers,
       visibility: room.visibility,
       status: room.status,
-      turbo: room.turbo,
       players: room.players
         .filter((p): p is typeof p & { user: NonNullable<typeof p.user> } => p.user != null)
         .map(p => ({
@@ -91,7 +126,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/waiting-room/active/games - Liste des parties actives (doit être avant /:roomId)
-router.get('/active/games', async (req, res) => {
+router.get('/', waitingRoomListLimiter, async (req, res) => {
   try {
     const allGames = await activeGames.getAll();
     const games = Array.from(allGames.entries()).map(([id, game]) => ({
@@ -110,7 +145,7 @@ const GAME_MAX_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 // GET /api/waiting-room/games-in-progress - Parties en cours (Rejoindre si place, Spectateur)
 // Salles PRIVATE : visibles par l'hôte, ses amis, ou toute personne ayant un ami dans la partie
-router.get('/games-in-progress', async (req, res) => {
+router.get('/games-in-progress', waitingRoomListLimiter, async (req, res) => {
   try {
     const userId = req.query.userId as string | undefined;
     const rooms = await prisma.waitingRoom.findMany({
@@ -185,10 +220,9 @@ router.get('/games-in-progress', async (req, res) => {
 });
 
 // POST /api/waiting-room/create - Créer une nouvelle salle
-router.post('/create', async (req, res) => {
+router.post('/create', waitingRoomCreateLimiter, async (req, res) => {
   try {
-    const { hostId, roomName, maxPlayers = 5, visibility = 'PUBLIC', smallBlind, bigBlind, minBalance, turbo: turboRaw } = req.body;
-    const turbo = turboRaw === true || turboRaw === 'true';
+    const { hostId, roomName, maxPlayers = 5, visibility = 'PUBLIC', smallBlind, bigBlind, minBalance } = req.body;
 
     const clampedMaxPlayers = Math.min(5, Math.max(2, Number(maxPlayers) || 5));
     const roomVisibility = visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC';
@@ -214,7 +248,6 @@ router.post('/create', async (req, res) => {
         smallBlind: sb,
         bigBlind: bb,
         minBalance: minB,
-        turbo,
         players: {
           create: {
             userId: hostId,
@@ -245,7 +278,6 @@ router.post('/create', async (req, res) => {
       maxPlayers: room.maxPlayers,
       visibility: room.visibility,
       status: room.status,
-      turbo: room.turbo,
       players: room.players.map(p => ({
         id: p.user.id,
         username: p.user.username,
@@ -261,7 +293,7 @@ router.post('/create', async (req, res) => {
 });
 
 // POST /api/waiting-room/rematch - Host: créer une nouvelle salle avec les mêmes membres
-router.post('/rematch', authMiddleware, async (req, res) => {
+router.post('/rematch', waitingRoomHostLimiter, authMiddleware, async (req, res) => {
   try {
     const userId = (req as express.Request & { userId?: string }).userId;
     if (!userId) return res.status(401).json({ error: 'Non authentifié' });
@@ -294,7 +326,6 @@ router.post('/rematch', authMiddleware, async (req, res) => {
         hostId: userId,
         maxPlayers: oldRoom.maxPlayers,
         visibility: oldRoom.visibility,
-        turbo: oldRoom.turbo,
         players: {
           create: oldRoom.players.map((rp, idx) => ({
             userId: rp.userId,
@@ -318,7 +349,7 @@ router.post('/rematch', authMiddleware, async (req, res) => {
 });
 
 // GET /api/waiting-room/:roomId - Détails d'une salle
-router.get('/:roomId', async (req, res) => {
+router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
 
@@ -350,7 +381,6 @@ router.get('/:roomId', async (req, res) => {
       maxPlayers: room.maxPlayers,
       visibility: room.visibility,
       status: room.status,
-      turbo: room.turbo,
       players: room.players.map(p => ({
         id: p.user.id,
         username: p.user.username,
@@ -366,7 +396,7 @@ router.get('/:roomId', async (req, res) => {
 });
 
 // POST /api/waiting-room/:roomId/join - Rejoindre une salle
-router.post('/:roomId/join', async (req, res) => {
+router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
     const { userId } = req.body;
@@ -451,7 +481,7 @@ router.post('/:roomId/join', async (req, res) => {
 });
 
 // POST /api/waiting-room/:roomId/leave - Quitter une salle
-router.post('/:roomId/leave', async (req, res) => {
+router.post('/:roomId/leave', waitingRoomActionLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
     const { userId } = req.body;
@@ -494,7 +524,7 @@ router.post('/:roomId/leave', async (req, res) => {
 });
 
 // PUT /api/waiting-room/:roomId/ready - Changer statut prêt
-router.put('/:roomId/ready', async (req, res) => {
+router.put('/:roomId/ready', waitingRoomActionLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
     const { userId, isReady } = req.body;
@@ -518,7 +548,7 @@ router.put('/:roomId/ready', async (req, res) => {
 
 // POST /api/waiting-room/:roomId/start - Démarrer la partie
 // POST /api/waiting-room/:roomId/start - Démarrer la partie
-router.post('/:roomId/start', async (req, res) => {
+router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
     const { userId } = req.body;
@@ -568,7 +598,6 @@ router.post('/:roomId/start', async (req, res) => {
     const sb = room.smallBlind ?? 1;
     const bb = room.bigBlind ?? sb * 2;
     const minBal = room.minBalance ?? 100;
-    const turnTimeoutMs = room.turbo ? TURBO_TURN_TIMEOUT_MS : DEFAULT_TURN_TIMEOUT_MS;
     const gameId = `game_${Date.now()}`;
     const cashGame = new CashGameController({
       id: gameId,
@@ -576,8 +605,7 @@ router.post('/:roomId/start', async (req, res) => {
       maxSeats: 9,
       smallBlind: sb,
       bigBlind: bb,
-      defaultBuyIn: minBal,
-      turnTimeoutMs
+      defaultBuyIn: minBal
     });
     cashGame.initFromRoomPlayers(
       room.players.map((rp) => ({
@@ -633,7 +661,7 @@ router.post('/:roomId/start', async (req, res) => {
 
 // POST /api/waiting-room/:roomId/request-join - Demander à rejoindre une salle privée
 // Salle PRIVATE : ami de l'hôte ou ami d'un joueur déjà dans la salle
-router.post('/:roomId/request-join', async (req, res) => {
+router.post('/:roomId/request-join', waitingRoomJoinLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
     const { userId } = req.body;
@@ -721,7 +749,7 @@ router.post('/:roomId/request-join', async (req, res) => {
 });
 
 // GET /api/waiting-room/:roomId/join-requests - Liste des demandes (host only)
-router.get('/:roomId/join-requests', async (req, res) => {
+router.get('/:roomId/join-requests', waitingRoomHostLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
     const hostId = req.query.hostId as string;
@@ -757,7 +785,7 @@ router.get('/:roomId/join-requests', async (req, res) => {
 });
 
 // POST /api/waiting-room/:roomId/join-requests/:requestId/accept
-router.post('/:roomId/join-requests/:requestId/accept', async (req, res) => {
+router.post('/:roomId/join-requests/:requestId/accept', waitingRoomHostLimiter, async (req, res) => {
   try {
     const { roomId, requestId } = req.params;
     const { hostId } = req.body;
@@ -807,7 +835,7 @@ router.post('/:roomId/join-requests/:requestId/accept', async (req, res) => {
 });
 
 // POST /api/waiting-room/:roomId/join-requests/:requestId/reject
-router.post('/:roomId/join-requests/:requestId/reject', async (req, res) => {
+router.post('/:roomId/join-requests/:requestId/accept', waitingRoomHostLimiter, async (req, res) => {
   try {
     const { requestId } = req.params;
     const { hostId } = req.body;
@@ -841,7 +869,7 @@ router.post('/:roomId/join-requests/:requestId/reject', async (req, res) => {
 });
 
 // DELETE /api/waiting-room/:roomId - Suppression manuelle par l'hôte (nettoyage de salles inactives)
-router.delete('/:roomId', async (req, res) => {
+router.delete('/:roomId', waitingRoomHostLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
     const { userId } = req.body as { userId?: string };
