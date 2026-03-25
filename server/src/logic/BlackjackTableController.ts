@@ -324,7 +324,7 @@ export class BlackjackTableController {
     return this.phase === 'betting' || this.phase === 'player_turn'
   }
 
-  toPublicState(viewerId?: string | null): BlackjackTablePublicState {
+  toPublicState(_viewerId?: string | null): BlackjackTablePublicState {
     const hideHole = this.dealerHoleHidden()
     const dealerCards = maskDealerPublic(this.dealerHand, hideHole)
 

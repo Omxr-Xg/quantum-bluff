@@ -5,7 +5,7 @@ import {
   getEffectiveSlotMaxBet,
   BADGE_CATALOG,
 } from '../logic/gamification.js'
-import { SLOT_MAX_BET_CAP, SLOT_MIN_BET } from '../logic/slotMachine.js'
+import { SLOT_MAX_BET_CAP } from '../logic/slotMachine.js'
 
 describe('gamification', () => {
   it('xpThresholdForLevel', () => {

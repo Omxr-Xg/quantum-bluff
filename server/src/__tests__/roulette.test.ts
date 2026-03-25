@@ -7,7 +7,6 @@ import {
   resultColor,
   ROULETTE_MIN_BET,
   ROULETTE_MAX_BET_CAP,
-  ROULETTE_MAX_TOTAL_STAKE,
   type RouletteBetNormalized,
 } from '../logic/roulette.js'
 
