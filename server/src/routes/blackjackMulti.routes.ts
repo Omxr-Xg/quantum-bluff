@@ -526,6 +526,54 @@ router.post('/:roomId/start', authMiddleware, async (req, res) => {
       members,
     })
 
+    // Auto-mise + deal immédiat (comme un vrai casino) :
+    // si les joueurs sont "ready", on place une mise minimale pour chacun,
+    // puis on distribue les cartes tout de suite.
+    const defaultBet = table.minBet
+    const memberUserIds = members.map((m) => m.userId)
+    const dbUsers = await prisma.user.findMany({
+      where: { id: { in: memberUserIds } },
+      select: { id: true, chips: true, experience: true },
+    })
+
+    if (dbUsers.length !== memberUserIds.length) {
+      return res.status(500).json({ error: 'Erreur serveur' })
+    }
+
+    for (const m of members) {
+      const u = dbUsers.find((x) => x.id === m.userId)
+      if (!u) continue
+      const lvl = levelFromExperience(u.experience)
+      const maxBetEffective = Math.min(
+        BLACKJACK_MAX_BET_CAP,
+        getEffectiveBlackjackMaxBet(lvl)
+      )
+
+      const v = validateBlackjackBet(defaultBet, u.chips, maxBetEffective)
+      if (!v.ok) {
+        return res.status(400).json({ error: v.code, code: v.code })
+      }
+
+      const upd = await prisma.user.updateMany({
+        where: { id: u.id, chips: { gte: v.bet } },
+        data: { chips: { decrement: v.bet } },
+      })
+      if (upd.count === 0) {
+        return res.status(409).json({ error: 'INSUFFICIENT_CHIPS', code: 'INSUFFICIENT_CHIPS' })
+      }
+
+      // On ne déduit pas ici (déjà fait en DB), on remplit juste l’état de la table.
+      const placed = table.placeBet(u.id, v.bet, u.chips, maxBetEffective)
+      if (!placed.ok) {
+        return res.status(500).json({ error: 'Erreur serveur' })
+      }
+    }
+
+    const d = table.deal()
+    if (!d.ok) {
+      return res.status(500).json({ error: d.code, code: d.code })
+    }
+
     activeBlackjackGames.set(gameId, table)
 
     await prisma.blackjackRoom.update({
