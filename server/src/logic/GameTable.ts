@@ -269,13 +269,14 @@ export class GameTable {
     }
 
     // All-in players (chips === 0) have no more actions; others must have acted and matched highestBet
-    return activePlayers.every((player) => {
+    const isComplete = activePlayers.every((player) => {
       if (player.chips === 0) return true // all-in: no action needed
       return (
         this.actedPlayerIds.has(player.id) &&
         (player.currentBet || 0) === this.highestBet
       )
     })
+    return isComplete
   }
 
   private awardPotToSingleRemainingPlayer(): void {
@@ -606,6 +607,7 @@ export class GameTable {
     this.setBlinds()
     this.state.currentTurn = this.getPreflopFirstPlayerId()
     this.state.handId = `${this.id}:${Date.now()}`
+    this.state.lastHandAction = undefined
     this.state.actionVersion = 0
     this.state.streetVersion = 0
     this.state.handParticipantIds = Array.from(this.handParticipantIds)
@@ -746,6 +748,8 @@ export class GameTable {
       throw new Error('Impossible de check, une mise est à suivre')
     }
 
+    const streetForLog = this.state.phase
+
     if (action === 'CALL' && callAmount <= 0) {
       throw new Error('Rien à suivre')
     }
@@ -781,18 +785,18 @@ export class GameTable {
 
       if (this.getActivePlayers().length === 1) {
         this.awardPotToSingleRemainingPlayer()
-        this.bumpVersion()
+        this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
         return
       }
 
       if (this.canCloseCurrentBettingRound()) {
         this.moveToNextPhase()
-        this.bumpVersion()
+        this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
         return
       }
 
       this.advanceTurn()
-      this.bumpVersion()
+      this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
       return
     }
 
@@ -801,12 +805,12 @@ export class GameTable {
 
       if (this.canCloseCurrentBettingRound()) {
         this.moveToNextPhase()
-        this.bumpVersion()
+        this.finishPlayerActionLedger(player, 'CHECK', streetForLog)
         return
       }
 
       this.advanceTurn()
-      this.bumpVersion()
+      this.finishPlayerActionLedger(player, 'CHECK', streetForLog)
       return
     }
 
@@ -821,12 +825,12 @@ export class GameTable {
 
       if (this.canCloseCurrentBettingRound()) {
         this.moveToNextPhase()
-        this.bumpVersion()
+        this.finishPlayerActionLedger(player, 'CALL', streetForLog, actualCallAmount)
         return
       }
 
       this.advanceTurn()
-      this.bumpVersion()
+      this.finishPlayerActionLedger(player, 'CALL', streetForLog, actualCallAmount)
       return
     }
 
@@ -856,12 +860,12 @@ export class GameTable {
 
     if (this.canCloseCurrentBettingRound()) {
       this.moveToNextPhase()
-      this.bumpVersion()
+      this.finishPlayerActionLedger(player, 'RAISE', streetForLog, raiseAmount)
       return
     }
 
     this.advanceTurn()
-    this.bumpVersion()
+    this.finishPlayerActionLedger(player, 'RAISE', streetForLog, raiseAmount)
   }
 
   advancePhase(): void {
@@ -900,6 +904,27 @@ export class GameTable {
   private bumpVersion(): void {
     this.state.actionVersion = (this.state.actionVersion ?? 0) + 1
     this.state.updatedAt = new Date().toISOString()
+  }
+
+  /**
+   * Incrémente actionVersion et enregistre la dernière action pour le journal client (multijoueur).
+   */
+  private finishPlayerActionLedger(
+    player: Player,
+    action: PlayerAction,
+    streetForLog: GamePhase,
+    amount?: number
+  ): void {
+    this.bumpVersion()
+    this.state.lastHandAction = {
+      playerId: player.id,
+      playerName: player.name,
+      action,
+      street: streetForLog,
+      amount: amount !== undefined ? intChips(amount) : undefined,
+      actionVersion: this.state.actionVersion ?? 0,
+      actorRole: player.role,
+    }
   }
 
     /**
@@ -943,6 +968,10 @@ export class GameTable {
       players: this.state.players,
       currentTurn: this.state.currentTurn,
       phase: this.state.phase,
+      handId: this.state.handId,
+      actionVersion: this.state.actionVersion,
+      streetVersion: this.state.streetVersion,
+      updatedAt: this.state.updatedAt,
       showdownWinnerId: this.state.showdownWinnerId,
       showdownWinnerIds: this.state.showdownWinnerIds,
       showdownIsSplit: this.state.showdownIsSplit,
@@ -952,6 +981,7 @@ export class GameTable {
       handParticipantIds: this.state.handParticipantIds,
       handEndReason: this.state.handEndReason,
       handRuntimePhase: this.state.handRuntimePhase,
+      lastHandAction: this.state.lastHandAction,
     }
   }
 
@@ -962,6 +992,11 @@ export class GameTable {
       communityCards: this.state.communityCards,
       currentTurn: this.state.currentTurn,
       phase: this.state.phase,
+      handId: this.state.handId,
+      lastHandAction: this.state.lastHandAction,
+      actionVersion: this.state.actionVersion,
+      streetVersion: this.state.streetVersion,
+      updatedAt: this.state.updatedAt,
       showdownWinnerId: this.state.showdownWinnerId,
       showdownWinnerIds: this.state.showdownWinnerIds,
       showdownIsSplit: this.state.showdownIsSplit,
