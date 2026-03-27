@@ -90,14 +90,24 @@
   - `waitingRoom.routes.ts`, `roulette.routes.ts`, `slot.routes.ts`
   - `blackjack.routes.ts`, `blackjackMulti.routes.ts`
   - `friends.routes.ts`, `invitation.routes.ts`, `leaderboard.routes.ts`, `updates.routes.ts`
+  - `admin.blackjack.runtime.routes.ts` (diagnostic/metrics runtime blackjack)
 - `server/src/logic/`
   - moteurs de jeu: poker (`GameTable`, `CashGameController`), roulette, slot, blackjack
+- `server/src/blackjack/`
+  - domaine/runtime (`domain/`)
+  - state store abstrait + implementations in-memory/redis (`store/`)
+  - sync runtime->store (`services/blackjackStateSync.service.ts`)
+  - locks distribues (`services/blackjackTableLock.service.ts`)
+  - readiness runtime + mapping HTTP (`services/blackjackRuntimeHealth.service.ts`)
+  - recovery/cleanup/snapshots (`recovery/`)
 - `server/src/sockets/game.gateway.ts`
   - events realtime, invitations, updates de jeu, gestion disconnect/reconnect
 - `server/src/shared/`
-  - `activeGames.ts` (poker), `activeBlackjackGames.ts` (blackjack multi en memoire)
+  - `activeGames.ts` (poker), `activeBlackjackGames.ts` (registre runtime local)
+  - `blackjackStateStore.ts` (singleton store blackjack)
 - `server/prisma/`
   - `schema.prisma` + migrations
+  - migration snapshot blackjack: `20260327120000_blackjack_room_snapshots`
 
 ---
 
@@ -139,7 +149,11 @@
 - **Blackjack multijoueur**:
   - salles, sieges, host, ready, start
   - invitations dediees blackjack
-  - table runtime memoire + updates socket
+  - runtime hybride: execution locale + projection Redis/state store
+  - verrouillage distribue des mutations critiques (start/deal/action)
+  - readiness runtime (codes stables: `TABLE_RECOVERING`, `TABLE_STATE_STALE`, `TABLE_UNAVAILABLE`, etc.)
+  - snapshots DB periodiques + recovery boot + nettoyage runtime/salles orphelines
+  - endpoints admin de diagnostic runtime (`/api/admin/blackjack/runtime/*`)
 
 ## 4.4 Social
 
@@ -169,6 +183,7 @@
   - `/api/roulette`
   - `/api/blackjack`
   - `/api/blackjack-tables`
+  - `/api/admin/blackjack/runtime`
   - `/api/friends`
   - `/api/invitations`
   - `/api/leaderboard`
@@ -197,7 +212,7 @@ Rate limits dedies visibles dans `server/src/index.ts`:
 
 Points structurels:
 - Poker: support redis/memoire via `activeGames`
-- Blackjack multi: memoire locale process (`activeBlackjackGames`) -> pas resilient multi-instance sans sticky/session strategy
+- Blackjack multi: resilience active via state store (memory/redis), snapshots DB, lock distribue et pub/sub; `activeBlackjackGames` reste un registre runtime local de controllers vivants
 
 ---
 
@@ -211,6 +226,7 @@ Modeles centraux identifies dans `schema.prisma`:
 - `CasinoStats`, `UserBadge`
 - Blackjack multi:
   - `BlackjackRoom`
+  - `BlackjackRoomSnapshot`
   - `BlackjackRoomSeat`
   - `BlackjackRoomInvitation`
 
@@ -312,20 +328,25 @@ Docs existantes utiles:
 - `Docs/DEPLOY.md`
 - `Docs/Security_Audit.md`
 - `Docs/RAPPORT_TESTS.md`
-- `Docs/ROULETTE.adoc`
-- `Docs/SLOT_MACHINE.adoc`
-- `Docs/BLACKJACK.adoc`
+- `Docs/NETWORK_QOS.md`
+- `Docs/BUILD_APPS.md`
+- `Docs/intern/RAPPORT_INTERNE_AZ.md`
 
 Tests:
 - backend: Jest/Supertest (`server/src/__tests__`)
 - frontend: Vitest + Playwright
+- verrous recents:
+  - backend unit: `server/src/blackjack/services/__tests__/blackjackRuntimeHealth.service.test.ts`
+  - backend integration: `server/src/__tests__/blackjackMulti.state.integration.test.ts`
+  - frontend unit: `client/src/features/blackjack/runtimeStatus.test.ts`
+  - frontend integration: `client/src/pages/BlackjackMultiTable.runtime.integration.test.tsx`
 
 ---
 
 ## 12) Etat actuel des choix techniques importants
 
 - Poker multi: plus industrialise (activeGames + redis path)
-- Blackjack multi: runtime memoire locale
+- Blackjack multi: runtime distribue (store abstrait), avec fallback memoire local pour execution des controllers
 - API riche + realtime dense
 - i18n 5 langues
 - support desktop electron + support mobile capacitor
@@ -338,10 +359,10 @@ Tests:
 1. **Sortir tous les secrets du depot** (`.env` local, mdp DB, fallback JWT)
 2. **Rotations immediates** des credentials deja exposes
 3. **Limiter/retirer `forceResult` roulette** en prod (role admin ou flag serveur strict)
-4. **Unifier persistance runtime** blackjack multi (equivalent poker) pour robustesse multi-instance
-5. **Ajouter audit logs structurels** (actions sensibles, admin/debug endpoints)
-6. **Scanner secret automatique CI** (gitleaks/trufflehog)
-7. **Durcir politiques CORS** par environnement
+4. **Durcir l'observabilite blackjack** (logs structures + dashboard sur metrics runtime admin)
+5. **Scanner secret automatique CI** (gitleaks/trufflehog)
+6. **Durcir politiques CORS** par environnement
+7. **Verifier hygiene API friends** (surveiller 404 anormaux et bruit reseau client)
 
 ---
 
@@ -351,6 +372,9 @@ Tests:
 - Socket gateway: `server/src/sockets/game.gateway.ts`
 - Roulette route: `server/src/routes/roulette.routes.ts`
 - Blackjack multi route: `server/src/routes/blackjackMulti.routes.ts`
+- Admin runtime blackjack: `server/src/routes/admin.blackjack.runtime.routes.ts`
+- Runtime health blackjack: `server/src/blackjack/services/blackjackRuntimeHealth.service.ts`
+- Recovery blackjack: `server/src/blackjack/recovery/blackjackRecovery.service.ts`
 - Poker room route: `server/src/routes/waitingRoom.routes.ts`
 - Prisma schema: `server/prisma/schema.prisma`
 - Front roulette: `client/src/pages/Roulette.tsx`
