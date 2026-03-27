@@ -70,5 +70,21 @@ describe('GameTable runtime rules', () => {
     expect(t.state.phase).toBe('SHOWDOWN')
     expect(t.state.handEndReason).toBe('WIN_BY_FOLD')
   })
+
+  it('keeps heads-up blinds and actor order deterministic', () => {
+    const t = new GameTable('g5', mkPlayers(), { smallBlind: 10, bigBlind: 20 })
+    t.startHand()
+    const dealer = t.state.players.find((p) => p.isDealer)!
+    const bigBlind = t.state.players.find((p) => p.role === 'BIG_BLIND')!
+
+    expect(dealer.role).toBe('SMALL_BLIND')
+    expect(t.state.currentTurn).toBe(dealer.id) // preflop: dealer/SB first
+
+    t.handlePlayerAction(dealer.id, 'CALL')
+    t.handlePlayerAction(bigBlind.id, 'CHECK')
+
+    expect(t.state.phase).toBe('FLOP')
+    expect(t.state.currentTurn).toBe(bigBlind.id) // postflop: BB first
+  })
 })
 
