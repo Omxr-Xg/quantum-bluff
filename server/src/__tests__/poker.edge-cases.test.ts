@@ -112,7 +112,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     expect(t.getMinRaise()).toBe(minRaiseBefore)
   })
 
-  test('heads-up order remains BB first preflop, dealer first postflop', () => {
+  test('heads-up: button (SB) acts first preflop, BB (non-dealer) first postflop', () => {
     const t = new GameTable(
       'edge-hu-order',
       [player('p1', 1000), player('p2', 1000)],
