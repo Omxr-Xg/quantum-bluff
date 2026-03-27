@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto'
 import { prisma } from '../../config/database.js'
+import type { PrismaClient } from '../../generated/prisma/index.js'
 import type { CasinoRoundContext } from '../domain/casinoRound.types.js'
+
+/** Client Prisma racine ou client de transaction (`$transaction`) pour écrire le ledger dans la même tx que les jetons. */
+export type WalletLedgerDb = Pick<PrismaClient, 'walletLedgerEntry'>
 
 type WalletLedgerReason =
   | 'ROULETTE_STAKE'
@@ -39,8 +43,11 @@ function integrityHashFor(input: WalletLedgerInput): string {
     .digest('hex')
 }
 
-export async function appendWalletLedgerEntry(input: WalletLedgerInput): Promise<void> {
-  const delegate = (prisma as unknown as { walletLedgerEntry?: { create: (args: unknown) => Promise<unknown> } }).walletLedgerEntry
+export async function appendWalletLedgerEntry(
+  input: WalletLedgerInput,
+  db: WalletLedgerDb = prisma
+): Promise<void> {
+  const delegate = db.walletLedgerEntry as { create?: (args: unknown) => Promise<unknown> }
   if (!delegate?.create) {
     // Migration may not yet be applied in all envs.
     return
