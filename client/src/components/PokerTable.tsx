@@ -21,6 +21,8 @@ interface Player {
   position: number;
   isActive: boolean;
   isDealer?: boolean;
+  /** SB / BB alignés serveur (comme le journal) ; DEALER = bouton via isDealer. */
+  role?: "SB" | "BB" | "PLAYER";
   cards?: Card[];
   isConnected?: boolean;
   hasFolded?: boolean;
@@ -195,13 +197,33 @@ export function PokerTable({
 
               <div className="flex flex-col items-center gap-2">
 
-                {/* DEALER BUTTON - simple marqueur de position (disque blanc avec D) */}
-                {player.isDealer && (
-                  <div
-                    className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-full bg-white border-2 border-slate-300 text-slate-700 font-bold text-xs md:text-sm shadow-md"
-                    title={t('game.dealer')}
-                  >
-                    D
+                {/* Bouton dealer + jetons SB/BB (même source que le journal multijoueur) */}
+                {(player.isDealer || player.role === "SB" || player.role === "BB") && (
+                  <div className="flex flex-wrap items-center justify-center gap-1">
+                    {player.isDealer && (
+                      <div
+                        className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-full bg-white border-2 border-slate-300 text-slate-700 font-bold text-xs md:text-sm shadow-md"
+                        title={t('game.dealer')}
+                      >
+                        D
+                      </div>
+                    )}
+                    {player.role === "SB" && (
+                      <div
+                        className="flex h-7 min-w-[1.75rem] items-center justify-center rounded-full border-2 border-amber-800/40 bg-amber-100 px-1 text-[10px] font-bold text-amber-950 shadow-md md:h-8 md:text-xs"
+                        title={t("lobby.smallBlind")}
+                      >
+                        SB
+                      </div>
+                    )}
+                    {player.role === "BB" && (
+                      <div
+                        className="flex h-7 min-w-[1.75rem] items-center justify-center rounded-full border-2 border-amber-500/50 bg-slate-800 px-1 text-[10px] font-bold text-amber-100 shadow-md md:h-8 md:text-xs"
+                        title={t("lobby.bigBlind")}
+                      >
+                        BB
+                      </div>
+                    )}
                   </div>
                 )}
 
