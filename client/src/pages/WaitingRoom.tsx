@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, ChevronDown, ChevronUp, TestTube, Zap } from "lucide-react";
@@ -50,6 +50,33 @@ export function WaitingRoom() {
   /** Host: section "Voir plus" pour forcer des cartes (tests) */
   const [showTestCards, setShowTestCards] = useState(false);
   const [forceCards, setForceCards] = useState<Record<string, [{ suit: string; rank: string } | null, { suit: string; rank: string } | null]>>({});
+  const roomPollInFlightRef = useRef(false);
+
+  const applyRoomSnapshot = useCallback((room: {
+    name?: string;
+    visibility?: 'PUBLIC' | 'PRIVATE';
+    turbo?: boolean;
+    hostId?: string;
+    players?: Array<{ id: string; username: string; level?: number; isReady?: boolean }>;
+  }) => {
+    setRoomName(room.name || "");
+    setRoomVisibility(room.visibility || 'PUBLIC');
+    setRoomTurbo(!!room.turbo);
+    setIsCreator(room.hostId === userId);
+    const me = room.players?.find((p) => p.id === userId);
+    setMyIsReady(me?.isReady ?? false);
+    setPlayers(
+      (room.players || [])
+        .filter((p) => p.id !== userId)
+        .map((p) => ({
+          id: p.id,
+          name: p.username,
+          avatar: (p.username || "?").charAt(0),
+          level: p.level ?? 0,
+          isReady: p.isReady ?? false,
+        }))
+    );
+  }, [userId]);
 
   const SUITS = ["HEARTS", "DIAMONDS", "CLUBS", "SPADES"] as const;
   const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"] as const;
@@ -137,23 +164,7 @@ export function WaitingRoom() {
           }
         }
 
-        setRoomName(room.name || "");
-        setRoomVisibility(room.visibility || 'PUBLIC');
-        setRoomTurbo(!!room.turbo);
-        setIsCreator(room.hostId === userId);
-        const me = room.players?.find((p: { id: string }) => p.id === userId);
-        setMyIsReady(me?.isReady ?? false);
-        setPlayers(
-          (room.players || [])
-            .filter((p: { id: string }) => p.id !== userId)
-            .map((p: { id: string; username: string; level?: number; isReady?: boolean }) => ({
-              id: p.id,
-              name: p.username,
-              avatar: (p.username || "?").charAt(0),
-              level: p.level ?? 0,
-              isReady: p.isReady ?? false,
-            }))
-        );
+        applyRoomSnapshot(room);
         // Récupérer la balance serveur avant démarrage (le serveur utilise user.chips en DB)
         fetchBalanceFromServer().catch(() => {});
       } catch (e) {
@@ -167,7 +178,7 @@ export function WaitingRoom() {
     return () => {
       cancelled = true;
     };
-  }, [userId, username, rawRoomId, navigate, fetchRoom]);
+  }, [userId, username, rawRoomId, navigate, fetchRoom, applyRoomSnapshot]);
 
   useEffect(() => {
     if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;
@@ -203,33 +214,41 @@ export function WaitingRoom() {
       }
     };
     socket.on("HOST_REQUESTED_START", onHostRequestedStart);
-    return () => socket.off("HOST_REQUESTED_START", onHostRequestedStart);
-  }, [socket, userId, addToast]);
+    const onWaitingRoomUpdated = (room: {
+      id?: string;
+      status?: string;
+      name?: string;
+      visibility?: 'PUBLIC' | 'PRIVATE';
+      turbo?: boolean;
+      hostId?: string;
+      players?: Array<{ id: string; username: string; level?: number; isReady?: boolean }>;
+    } | null) => {
+      if (!room || room.status !== "WAITING") return;
+      applyRoomSnapshot(room);
+    };
+    socket.on("WAITING_ROOM_UPDATED", onWaitingRoomUpdated);
+    return () => {
+      socket.off("HOST_REQUESTED_START", onHostRequestedStart);
+      socket.off("WAITING_ROOM_UPDATED", onWaitingRoomUpdated);
+    };
+  }, [socket, userId, addToast, applyRoomSnapshot]);
 
   useEffect(() => {
     if (!rawRoomId || rawRoomId.startsWith("room_")) return;
     const interval = setInterval(async () => {
-      const room = await fetchRoom(rawRoomId);
+      if (roomPollInFlightRef.current) return;
+      roomPollInFlightRef.current = true;
+      let room: Awaited<ReturnType<typeof fetchRoom>> = null;
+      try {
+        room = await fetchRoom(rawRoomId);
+      } finally {
+        roomPollInFlightRef.current = false;
+      }
       if (!room || room.status !== "WAITING") return;
-      setIsCreator(room.hostId === userId);
-      setRoomVisibility(room.visibility || 'PUBLIC');
-      setRoomTurbo(!!room.turbo);
-      const me = room.players?.find((p: { id: string }) => p.id === userId);
-      setMyIsReady(me?.isReady ?? false);
-      setPlayers(
-        (room.players || [])
-          .filter((p: { id: string }) => p.id !== userId)
-          .map((p: { id: string; username: string; level?: number; isReady?: boolean }) => ({
-            id: p.id,
-            name: p.username,
-            avatar: (p.username || "?").charAt(0),
-            level: p.level ?? 0,
-            isReady: p.isReady ?? false,
-          }))
-      );
-    }, 3000);
+      applyRoomSnapshot(room);
+    }, 5000);
     return () => clearInterval(interval);
-  }, [rawRoomId, userId, fetchRoom]);
+  }, [rawRoomId, fetchRoom, applyRoomSnapshot]);
 
   // Polling join requests for private rooms (host only)
   const fetchJoinRequests = useCallback(async () => {

@@ -883,6 +883,7 @@ export function Game() {
       }
     };
     socket.on("GAME_UPDATE", onGameUpdate);
+    socket.on("GAME_STATE_UPDATED", onGameUpdate);
     const onGameEnded = (data: { gameId: string; winnerId: string; reason: string; pot?: number }) => {
       if (data.reason === "opponent_left" && String(data.winnerId) === String(userId)) {
         const balanceChange = Math.round(data.pot ?? 0);
@@ -910,6 +911,7 @@ export function Game() {
     socket.on("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     return () => {
       socket.off("GAME_UPDATE", onGameUpdate);
+      socket.off("GAME_STATE_UPDATED", onGameUpdate);
       socket.off("GAME_ENDED", onGameEnded);
       socket.off("CASH_WAITING_PLAYERS", onCashWaiting);
       socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
