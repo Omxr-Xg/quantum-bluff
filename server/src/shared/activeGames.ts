@@ -23,7 +23,9 @@ class ActiveGamesManager {
     if (this.useRedis) {
       try {
         const restored = await restoreAllGames();
-        this.localCache = restored;
+        // Ne pas écraser le cache local : les parties cash (CashGameController) n’y sont pas
+        // sérialisées ; une restauration Redis qui arrive après un set() test / runtime sinon les fait disparaître.
+        this.localCache = new Map([...restored, ...this.localCache]);
       } catch (err) {
         console.error('[activeGames] Redis down, fallback mémoire uniquement:', err);
         this.useRedis = false;
@@ -46,6 +48,7 @@ class ActiveGamesManager {
         // Redis toujours down, on reste en fallback
       }
     }, REDIS_RECONNECT_INTERVAL_MS);
+    this.reconnectTimer?.unref?.();
   }
 
   async get(gameId: string): Promise<ActiveGame | undefined> {

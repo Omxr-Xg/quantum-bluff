@@ -797,7 +797,9 @@ export class GameGateway {
             }
             this.disconnectionTimeouts.delete(userId)
           }, 10000)
-          
+
+          ;(timeout as NodeJS.Timeout).unref?.()
+
           this.disconnectionTimeouts.set(userId, timeout)
         }
       })

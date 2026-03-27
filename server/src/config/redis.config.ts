@@ -26,7 +26,7 @@ const redisClient = process.env.REDIS_URL
   : new Redis(redisOptions);
 
 redisClient.on('connect', () => {
-  console.log('✅ Redis connecté');
+  if (!process.env.JEST_WORKER_ID) console.log('✅ Redis connecté');
 });
 
 redisClient.on('error', (err: Error) => {
@@ -137,9 +137,10 @@ export const getAllGames = async (): Promise<Map<string, GameTable>> => {
 
 // Restaurer toutes les parties au démarrage
 export const restoreAllGames = async (): Promise<Map<string, GameTable>> => {
-  console.log('🔄 Restauration des parties en cours...');
+  const quietJest = Boolean(process.env.JEST_WORKER_ID)
+  if (!quietJest) console.log('🔄 Restauration des parties en cours...');
   const games = await getAllGames();
-  console.log(`✅ ${games.size} parties restaurées`);
+  if (!quietJest) console.log(`✅ ${games.size} parties restaurées`);
   return games;
 };
 
