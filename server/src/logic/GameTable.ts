@@ -1,7 +1,7 @@
 import type { Card, GamePhase, GameState, Player } from '../types/poker.js'
 import { Deck } from './Deck.js'
-import { findWinnersWithHand } from './Evaluator.js'
 import { intChips } from '../utils/chips.js'
+import { settlePots } from './poker/potSettlement.js'
 
 type PlayerAction = 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
 
@@ -18,6 +18,7 @@ export class GameTable {
   private handStarted: boolean
   private readonly smallBlindAmount: number
   private readonly bigBlindAmount: number
+  private minRaiseIncrement: number
 
   constructor(id: string, players: Player[], options?: { smallBlind?: number; bigBlind?: number }) {
     this.id = id
@@ -29,6 +30,7 @@ export class GameTable {
     this.handStarted = false
     this.smallBlindAmount = intChips(options?.smallBlind ?? 10)
     this.bigBlindAmount = intChips(options?.bigBlind ?? 20)
+    this.minRaiseIncrement = this.bigBlindAmount
 
     this.state = {
       id,
@@ -36,7 +38,11 @@ export class GameTable {
       communityCards: [],
       players,
       currentTurn: players[0]?.id || '',
-      phase: 'PREFLOP'
+      phase: 'PREFLOP',
+      handId: '',
+      actionVersion: 0,
+      streetVersion: 0,
+      updatedAt: new Date().toISOString(),
     }
 
     this.normalizePlayers()
@@ -77,7 +83,7 @@ export class GameTable {
       index = (index + 1) % this.state.players.length
       const player = this.state.players[index]
 
-      if (player.isActive && player.isConnected !== false) {
+      if (player.isActive && player.isConnected !== false && player.chips > 0) {
         return index
       }
     }
@@ -189,9 +195,9 @@ export class GameTable {
 
   private getPostflopFirstPlayerId(): string {
     if (this.state.players.length === 2) {
-      const dealer = this.state.players[this.dealerIndex]
-      if (dealer?.isActive && dealer?.isConnected !== false) {
-        return dealer.id
+      const nonDealerIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
+      if (nonDealerIndex !== -1) {
+        return this.state.players[nonDealerIndex].id
       }
     }
     const firstIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
@@ -203,7 +209,9 @@ export class GameTable {
   private resetBetsForNewRound(): void {
     this.highestBet = 0
     this.lastRaiserId = null
+    this.minRaiseIncrement = this.bigBlindAmount
     this.actedPlayerIds.clear()
+    this.state.streetVersion = (this.state.streetVersion ?? 0) + 1
 
     for (const player of this.state.players) {
       player.currentBet = 0
@@ -307,7 +315,7 @@ export class GameTable {
    * Passe à la phase suivante.
    * @param lastActorId - Si fourni, le premier à jouer sur la nouvelle rue est le joueur APRÈS lastActorId (évite qu'un joueur joue deux fois de suite)
    */
-  private moveToNextPhase(lastActorId?: string): void {
+  private moveToNextPhase(): void {
     const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
     const currentIndex = phaseOrder.indexOf(this.state.phase)
 
@@ -321,7 +329,7 @@ export class GameTable {
     const nextPhase = phaseOrder[currentIndex + 1]
     this.state.phase = nextPhase
 
-    const firstToActId = this.getFirstToActOnNewStreet(lastActorId)
+    const firstToActId = this.getFirstToActOnNewStreet()
 
     if (nextPhase === 'FLOP') {
       this.resetBetsForNewRound()
@@ -351,17 +359,8 @@ export class GameTable {
     this.state.currentTurn = ''
   }
 
-  /** Premier à jouer sur une nouvelle rue : après lastActorId si fourni, sinon dealer/postflop standard */
-  private getFirstToActOnNewStreet(lastActorId?: string): string {
-    if (lastActorId) {
-      const lastIndex = this.getPlayerIndexById(lastActorId)
-      if (lastIndex !== -1) {
-        const nextIndex = this.getNextEligiblePlayerIndex(lastIndex)
-        if (nextIndex !== -1) {
-          return this.state.players[nextIndex].id
-        }
-      }
-    }
+  /** Premier à jouer sur une nouvelle rue : ordre poker postflop standard. */
+  private getFirstToActOnNewStreet(): string {
     return this.getPostflopFirstPlayerId()
   }
 
@@ -371,10 +370,11 @@ export class GameTable {
    */
   private runOutBoardIfAllIn(): void {
     const activePlayers = this.getActivePlayers()
-    const hasAllIn = activePlayers.some((p) => p.chips === 0)
+    const actingPlayers = activePlayers.filter((p) => p.chips > 0)
+    const hasNoMoreBetting = actingPlayers.length <= 1
     const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
     const currentPhase: GamePhase = this.state.phase
-    if (!hasAllIn || currentPhase === 'SHOWDOWN') return
+    if (!hasNoMoreBetting || currentPhase === 'SHOWDOWN') return
 
     const currentIndex = phaseOrder.indexOf(currentPhase)
     if (currentIndex === -1 || currentIndex >= phaseOrder.length - 1) return
@@ -517,11 +517,18 @@ export class GameTable {
         }
       }
     } else {
-      this.deck.dealInitialCards(this.state.players)
+      const eligiblePlayers = this.state.players.filter(
+        (player) => player.isActive && player.isConnected !== false
+      )
+      this.deck.dealInitialCards(eligiblePlayers)
     }
 
     this.setBlinds()
     this.state.currentTurn = this.getPreflopFirstPlayerId()
+    this.state.handId = `${this.id}:${Date.now()}`
+    this.state.actionVersion = 0
+    this.state.streetVersion = 0
+    this.bumpVersion()
   }
 
   addPlayer(player: Player): void {
@@ -575,9 +582,9 @@ export class GameTable {
     return this.state.players.find((player) => player.id === playerId)
   }
 
-  /** Relance minimum = big blind (pour validation gateway) */
+  /** Relance minimum dynamique (last raise increment, floor = big blind). */
   getMinRaise(): number {
-    return this.bigBlindAmount
+    return Math.max(this.bigBlindAmount, this.minRaiseIncrement)
   }
 
   canPlayerAct(playerId: string): boolean {
@@ -657,14 +664,17 @@ export class GameTable {
 
       amount = intChips(amount)
 
-      if (amount < this.bigBlindAmount) {
-        throw new Error(`La relance minimum est de ${this.bigBlindAmount}`)
-      }
-
       const totalToPut = callAmount + amount
+      const minRaise = this.getMinRaise()
+      const isAllIn = totalToPut === player.chips
+      const isShortAllInRaise = amount < minRaise && isAllIn
 
       if (totalToPut > player.chips) {
         throw new Error('Pas assez de jetons pour relancer')
+      }
+
+      if (amount < minRaise && !isShortAllInRaise) {
+        throw new Error(`La relance minimum est de ${minRaise}`)
       }
     }
 
@@ -674,15 +684,18 @@ export class GameTable {
 
       if (this.getActivePlayers().length === 1) {
         this.awardPotToSingleRemainingPlayer()
+        this.bumpVersion()
         return
       }
 
       if (this.isBettingRoundComplete()) {
-        this.moveToNextPhase(player.id) // premier à jouer = suivant du folder
+        this.moveToNextPhase()
+        this.bumpVersion()
         return
       }
 
       this.advanceTurn()
+      this.bumpVersion()
       return
     }
 
@@ -690,11 +703,13 @@ export class GameTable {
       this.actedPlayerIds.add(player.id)
 
       if (this.isBettingRoundComplete()) {
-        this.moveToNextPhase(player.id) // évite que le même joueur joue deux fois de suite
+        this.moveToNextPhase()
+        this.bumpVersion()
         return
       }
 
       this.advanceTurn()
+      this.bumpVersion()
       return
     }
 
@@ -706,34 +721,50 @@ export class GameTable {
       this.state.pot += actualCallAmount
 
       this.actedPlayerIds.add(player.id)
-      // S'assurer que le relanceur et tous ceux qui ont matché sont dans acted (évite de redemander au raiser)
-      if (this.lastRaiserId) this.actedPlayerIds.add(this.lastRaiserId)
-      for (const p of this.getActivePlayers()) {
-        if ((p.currentBet || 0) === this.highestBet) this.actedPlayerIds.add(p.id)
-      }
 
       if (this.isBettingRoundComplete()) {
-        this.moveToNextPhase(player.id) // A raise B call → premier sur nouvelle rue = B (qui vient de call)
+        this.moveToNextPhase()
+        this.bumpVersion()
         return
       }
 
       this.advanceTurn()
+      this.bumpVersion()
       return
     }
 
     const raiseAmount = intChips(amount as number)
     const totalToPut = intChips(callAmount + raiseAmount)
+    const minRaise = this.getMinRaise()
+    const isShortAllInRaise =
+      totalToPut === player.chips && raiseAmount < minRaise
 
     player.chips -= totalToPut
     player.currentBet = (player.currentBet || 0) + totalToPut
     player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + totalToPut
     this.state.pot += totalToPut
+    const previousHighestBet = this.highestBet
     this.highestBet = player.currentBet || 0
-    this.lastRaiserId = player.id
-    this.actedPlayerIds.clear()
     this.actedPlayerIds.add(player.id)
 
+    if (!isShortAllInRaise) {
+      this.lastRaiserId = player.id
+      this.minRaiseIncrement = Math.max(
+        this.bigBlindAmount,
+        this.highestBet - previousHighestBet
+      )
+      this.actedPlayerIds.clear()
+      this.actedPlayerIds.add(player.id)
+    }
+
+    if (this.isBettingRoundComplete()) {
+      this.moveToNextPhase()
+      this.bumpVersion()
+      return
+    }
+
     this.advanceTurn()
+    this.bumpVersion()
   }
 
   advancePhase(): void {
@@ -749,85 +780,26 @@ export class GameTable {
   }
 
   private resolveShowdown(): void {
-    const activePlayers = this.getActivePlayers()
-    const playersToEvaluate =
-      activePlayers.length > 0 ? activePlayers : this.state.players
-    const allPlayers = this.state.players
-
-    if (playersToEvaluate.length === 0) {
-      this.state.pot = 0
-      return
+    const settled = settlePots({
+      players: this.state.players,
+      communityCards: this.state.communityCards,
+    })
+    for (const [winnerId, payout] of settled.payouts.entries()) {
+      const winner = this.state.players.find((p) => p.id === winnerId)
+      if (winner) winner.chips += payout
     }
-
-    const totalPot = this.state.pot
-
-    // Get unique contribution levels from active (non-folded) players
-    const levels = [
-      ...new Set(
-        playersToEvaluate.map((p) => p.totalPutInThisHand ?? p.currentBet ?? 0)
-      ),
-    ].sort((a, b) => a - b)
-
-    let distributed = 0
-    let lastWinnerId = ''
-    let lastWinnerIds: string[] = []
-    let lastHandName = ''
-
-    for (let i = 0; i < levels.length; i++) {
-      const level = levels[i]
-      const prevLevel = i === 0 ? 0 : levels[i - 1]
-      const diff = level - prevLevel
-      if (diff <= 0) continue
-
-      // Eligible to WIN: only active (non-folded) players who contributed at least this level
-      const eligible = playersToEvaluate.filter(
-        (p) => (p.totalPutInThisHand ?? p.currentBet ?? 0) >= level
-      )
-      if (eligible.length === 0) continue
-
-      // Pot size: count contributions from ALL players (including folded) at this level
-      let potSize = 0
-      for (const p of allPlayers) {
-        const contrib = p.totalPutInThisHand ?? p.currentBet ?? 0
-        const contributionAtThisLevel = Math.min(Math.max(0, contrib - prevLevel), diff)
-        potSize += contributionAtThisLevel
-      }
-      if (potSize <= 0) continue
-
-      const { winnerIds, handName } = findWinnersWithHand(
-        eligible,
-        this.state.communityCards
-      )
-      const n = winnerIds.length
-      const share = n > 0 ? Math.floor(potSize / n) : 0
-      const remainderThisLevel = potSize - share * n
-      for (let j = 0; j < winnerIds.length; j++) {
-        const wid = winnerIds[j]
-        const winner = this.state.players.find((p) => p.id === wid)
-        if (winner) {
-          let amount = share
-          if (j === 0) amount += remainderThisLevel
-          winner.chips += amount
-          distributed += amount
-        }
-      }
-      lastWinnerId = winnerIds[0] ?? lastWinnerId
-      lastWinnerIds = winnerIds
-      lastHandName = handName
-    }
-
-    const remainder = totalPot - distributed
-    if (remainder > 0 && lastWinnerId) {
-      const winner = this.state.players.find((p) => p.id === lastWinnerId)
-      if (winner) winner.chips += remainder
-    }
-
     this.state.pot = 0
-    this.state.showdownWinnerId = lastWinnerId
-    this.state.showdownWinnerIds = lastWinnerIds
-    this.state.showdownIsSplit = lastWinnerIds.length > 1
-    this.state.showdownHandName = lastHandName
-    this.state.showdownPot = totalPot
+    this.state.showdownWinnerId = settled.showdownWinnerId
+    this.state.showdownWinnerIds = settled.showdownWinnerIds
+    this.state.showdownIsSplit = settled.showdownWinnerIds.length > 1
+    this.state.showdownHandName = settled.showdownHandName
+    this.state.showdownPot = settled.showdownPot
+    this.bumpVersion()
+  }
+
+  private bumpVersion(): void {
+    this.state.actionVersion = (this.state.actionVersion ?? 0) + 1
+    this.state.updatedAt = new Date().toISOString()
   }
 
     /**

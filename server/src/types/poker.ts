@@ -67,4 +67,12 @@ export interface GameState {
   burnedCardsCount?: number
   /** Durée max d’un tour en secondes (cash game multi) */
   turnTimeLimitSec?: number
+  /** Identifiant logique de la main courante (canonical runtime state). */
+  handId?: string
+  /** Version incrémentale de mutation de la main. */
+  actionVersion?: number
+  /** Marqueur de version de rue/street (préflop/flop/turn/river). */
+  streetVersion?: number
+  /** Horodatage ISO de la dernière mutation serveur. */
+  updatedAt?: string
 }

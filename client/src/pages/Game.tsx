@@ -108,6 +108,8 @@ export function Game() {
   const [addSuccess, setAddSuccess] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const turnTimeLimitSecRef = useRef(30);
+  const handIdRef = useRef<string | undefined>(undefined);
+  const actionSeqRef = useRef(0);
   const [_timerActive, setTimerActive] = useState(false);
   const currentBet = useMemo(() => Math.max(0, ...playersState.map((p) => p.bet ?? 0)), [playersState]);
   
@@ -620,12 +622,13 @@ export function Game() {
         if (!res.ok) throw new Error(String(res.status));
         return res.json();
       })
-      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; turnTimeLimitSec?: number } | null) => {
+      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; turnTimeLimitSec?: number; handId?: string } | null) => {
         if (cancelled || !gameState) return;
         if (gameStateFromSocketRef.current) return;
         if (typeof gameState.turnTimeLimitSec === "number" && gameState.turnTimeLimitSec > 0) {
           turnTimeLimitSecRef.current = gameState.turnTimeLimitSec;
         }
+        handIdRef.current = gameState.handId;
         const players = gameState.players ?? [];
         const phaseMap: Record<string, GamePhase> = {
           WAITING: "init",
@@ -741,11 +744,12 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number }) => {
+    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string }) => {
       gameStateFromSocketRef.current = true;
       if (typeof gameState.turnTimeLimitSec === "number" && gameState.turnTimeLimitSec > 0) {
         turnTimeLimitSecRef.current = gameState.turnTimeLimitSec;
       }
+      handIdRef.current = gameState.handId;
       if (gameState.cashCountdownEndsAt != null) setCashCountdownEndsAt(gameState.cashCountdownEndsAt);
       if (gameState.cashSeats && Array.isArray(gameState.cashSeats)) {
         setCashSeats(gameState.cashSeats);
@@ -1686,7 +1690,15 @@ export function Game() {
     const isHuman = playerId === undefined || playerId === heroId;
     if (gameIdParam && isHuman && !socket) return;
     if (gameIdParam && socket && isHuman) {
-      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "FOLD" });
+      actionSeqRef.current += 1;
+      socket.emit("PLAYER_ACTION", {
+        gameId: gameIdParam,
+        playerId: String(userId),
+        action: "FOLD",
+        handId: handIdRef.current,
+        expectedStreet: String(phase).toUpperCase(),
+        actionId: `act-${Date.now()}-${actionSeqRef.current}`,
+      });
     }
     const foldingIndex =
       playerId !== undefined
@@ -1773,7 +1785,15 @@ export function Game() {
     if (callAmount > 0 && isHumanActing) return;
     if (gameIdParam && isHumanActing && !socket) return;
     if (gameIdParam && socket && isHumanActing) {
-      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CHECK" });
+      actionSeqRef.current += 1;
+      socket.emit("PLAYER_ACTION", {
+        gameId: gameIdParam,
+        playerId: String(userId),
+        action: "CHECK",
+        handId: handIdRef.current,
+        expectedStreet: String(phase).toUpperCase(),
+        actionId: `act-${Date.now()}-${actionSeqRef.current}`,
+      });
     }
     const justActedIndex =
       playerId !== undefined
@@ -1793,7 +1813,16 @@ export function Game() {
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (gameIdParam && isHumanActing && !socket) return;
     if (gameIdParam && socket && isHumanActing) {
-      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CALL", amount });
+      actionSeqRef.current += 1;
+      socket.emit("PLAYER_ACTION", {
+        gameId: gameIdParam,
+        playerId: String(userId),
+        action: "CALL",
+        amount,
+        handId: handIdRef.current,
+        expectedStreet: String(phase).toUpperCase(),
+        actionId: `act-${Date.now()}-${actionSeqRef.current}`,
+      });
     }
     if (playerId !== undefined && !isHumanActing) {
       const highestBet = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
@@ -1920,7 +1949,16 @@ export function Game() {
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (gameIdParam && isHumanActing && !socket) return;
     if (gameIdParam && socket && isHumanActing) {
-      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "RAISE", amount: raiseAmount });
+      actionSeqRef.current += 1;
+      socket.emit("PLAYER_ACTION", {
+        gameId: gameIdParam,
+        playerId: String(userId),
+        action: "RAISE",
+        amount: raiseAmount,
+        handId: handIdRef.current,
+        expectedStreet: String(phase).toUpperCase(),
+        actionId: `act-${Date.now()}-${actionSeqRef.current}`,
+      });
     }
     const currentIndex = playersState.findIndex((p) => p.isActive);
     setRoundPlayersActed(new Set(currentIndex !== -1 ? [currentIndex] : []));

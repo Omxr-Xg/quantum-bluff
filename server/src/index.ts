@@ -23,11 +23,13 @@ import blackjackRoutes from './routes/blackjack.routes.js'
 import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
+import adminPokerRuntimeRoutes from './routes/admin.poker.runtime.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
 import { connectDB } from './config/database.js'
 import { recoverBlackjackRuntimeAtBoot } from './blackjack/recovery/blackjackRecovery.service.js'
+import { recoverPokerRuntimeAtBoot } from './poker/recovery/pokerRecovery.service.js'
 
 const app = express()
 
@@ -154,6 +156,7 @@ app.use(
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
+app.use('/api/admin/poker/runtime', adminPokerRuntimeRoutes)
 
 // Serveur de mises à jour client
 app.use('/', updatesRouter)
@@ -205,6 +208,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10)
 ;(async () => {
   await connectDB()
   await recoverBlackjackRuntimeAtBoot()
+  await recoverPokerRuntimeAtBoot()
   httpServer.listen(PORT, () => {
     console.log(`[SERVER] Quantum Bluff tourne sur http://localhost:${PORT}`)
   })

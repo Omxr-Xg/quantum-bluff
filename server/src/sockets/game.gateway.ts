@@ -15,6 +15,7 @@ import {
   XP_POKER_SHOWDOWN_WIN,
 } from '../logic/gamification.js'
 import { assessBlackjackRuntimeReadiness } from '../blackjack/services/blackjackRuntimeHealth.service.js'
+import { applyPokerAction } from '../poker/services/pokerActionOrchestrator.service.js'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -378,6 +379,9 @@ export class GameGateway {
         playerId: string; 
         action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'; 
         amount?: number;
+        actionId?: string;
+        handId?: string;
+        expectedStreet?: string;
       }) => {
         const startActionTime = Date.now()
         try {
@@ -445,63 +449,41 @@ export class GameGateway {
             return
           }
 
-          // Action « hors tour » : rejet explicite (équivalent live « out of turn »).
-          // String bet : en ligne chaque RAISE est une action atomique ; pas de relance en deux temps.
-          if (game.state.currentTurn !== playerId) {
-            logSuspiciousAction('NOT_YOUR_TURN', {
-              userId: socket.userId,
-              socketId: socket.id,
-              gameId,
-              action,
-              details: {
-                currentTurn: game.state.currentTurn,
-                providedPlayerId: playerId
-              }
-            })
-
-            socket.emit('ERROR', {
-              code: 'NOT_YOUR_TURN',
-              message: 'Ce n\'est pas votre tour'
-            })
-            return
-          }
-
-          const minRaise = 'getMinRaise' in game && typeof game.getMinRaise === 'function' ? game.getMinRaise() : (game instanceof CashGameController ? 2 : 20)
-          if (action === 'RAISE' && (!amount || amount < minRaise)) {
-            logSuspiciousAction('INVALID_RAISE', {
-              userId: socket.userId,
-              socketId: socket.id,
-              gameId,
-              action,
-              details: { amount }
-            })
-
-            socket.emit('ERROR', {
-              code: 'INVALID_RAISE',
-              message: `La relance minimum est de ${minRaise}`
-            })
-            return
-          }
-
-          game.handlePlayerAction(playerId, action, amount)
+          await applyPokerAction({
+            gameId,
+            playerId,
+            actionType: action,
+            amount,
+            actionId: data.actionId,
+            handId: data.handId,
+            expectedStreet: data.expectedStreet,
+          })
 
           this.resetTimer(gameId)
+          const freshGame = await activeGames.get(gameId)
+          if (!freshGame) {
+            socket.emit('ERROR', {
+              code: 'GAME_NOT_FOUND',
+              message: 'Partie introuvable',
+            })
+            return
+          }
           const socketsInRoom = await this.io.in(gameId).fetchSockets()
           for (const s of socketsInRoom) {
             const uid = (s as unknown as AuthenticatedSocket).userId
-            const isSpectator = !game.getPlayerState(uid ?? '')
-            s.emit('GAME_UPDATE', game.getSanitizedState(isSpectator ? undefined : uid))
+            const isSpectator = !freshGame.getPlayerState(uid ?? '')
+            s.emit('GAME_UPDATE', freshGame.getSanitizedState(isSpectator ? undefined : uid))
           }
 
-          if (game.state.phase === 'SHOWDOWN') {
-            const innerGame = game instanceof CashGameController ? game.getGameTable() : game
-            if (innerGame && game.state.showdownWinnerId) {
+          if (freshGame.state.phase === 'SHOWDOWN') {
+            const innerGame = freshGame instanceof CashGameController ? freshGame.getGameTable() : freshGame
+            if (innerGame && freshGame.state.showdownWinnerId) {
               this.recordMultiPlayerStats(innerGame as GameTable).catch((err) =>
                 console.error('[Stats] Erreur enregistrement stats multi:', err)
               )
             }
-            if (game instanceof CashGameController) {
-              const cashGame = game as CashGameController
+            if (freshGame instanceof CashGameController) {
+              const cashGame = freshGame as CashGameController
               cashGame.onHandComplete()
               await cashGame.processRejoinQueue(async (uid) => {
                 const u = await prisma.user.findUnique({
@@ -513,7 +495,7 @@ export class GameGateway {
               const socketsInRoom2 = await this.io.in(gameId).fetchSockets()
               for (const s of socketsInRoom2) {
                 const uid = (s as unknown as AuthenticatedSocket).userId
-                s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+                s.emit('GAME_UPDATE', freshGame.getSanitizedState(uid))
               }
             }
             // Pas de startTurnTimer en SHOWDOWN (partie terminée pour one-shot, ou countdown pour cash game)
@@ -524,18 +506,19 @@ export class GameGateway {
           const duration = Date.now() - startActionTime
           console.log(`[Réseau] ⚡ Action ${action} traitée et diffusée en ${duration}ms pour ${playerId}`)
         } catch (error) {
+          const e = error as { code?: string; message?: string }
           logSuspiciousAction('ACTION_ERROR', {
             userId: socket.userId,
             socketId: socket.id,
             gameId: data.gameId,
             action: data.action,
-            details: (error as Error).message
+            details: e?.message ?? (error as Error).message
           })
 
           console.error('Erreur PLAYER_ACTION:', error)
           socket.emit('ERROR', {
-            code: 'ACTION_ERROR',
-            message: (error as Error).message
+            code: e?.code ?? 'ACTION_ERROR',
+            message: e?.message ?? (error as Error).message
           })
         }
       })

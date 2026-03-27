@@ -3,6 +3,7 @@ import { prisma } from '../config/database.js';
 import { activeGames } from '../shared/activeGames.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import rateLimit from 'express-rate-limit';
+import { applyPokerAction } from '../poker/services/pokerActionOrchestrator.service.js';
 
 const router = express.Router();
 const gameReadLimiter = rateLimit({
@@ -54,23 +55,44 @@ router.get('/:gameId', gameReadLimiter, async (req, res) => {
 });
 
 // POST /api/game/:gameId/action - Effectuer une action
-router.post('/:gameId/action', gameActionLimiter, async (req, res) => {
+router.post('/:gameId/action', authMiddleware, gameActionLimiter, async (req, res) => {
   try {
     const { gameId } = req.params;
-    const { playerId, action, amount } = req.body;
+    const { playerId, action, amount, actionId, handId, expectedStreet } = req.body as {
+      playerId?: string
+      action?: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
+      amount?: number
+      actionId?: string
+      handId?: string
+      expectedStreet?: string
+    };
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié', code: 'UNAUTHORIZED' })
+    if (String(userId) !== String(playerId)) {
+      return res.status(403).json({ error: 'Action non autorisée', code: 'UNAUTHORIZED' })
+    }
 
     const game = await activeGames.get(gameId);
     if (!game) {
       return res.status(404).json({ error: 'Partie introuvable' });
     }
 
-    game.handlePlayerAction(playerId, action, amount);
+    await applyPokerAction({
+      gameId,
+      playerId,
+      actionType: action,
+      amount,
+      actionId,
+      handId,
+      expectedStreet,
+    });
     
     res.json(game.getSanitizedState(playerId));
 
   } catch (error) {
+    const e = error as { code?: string; message?: string; httpStatus?: number }
     console.error('Erreur action:', error);
-    res.status(400).json({ error: (error as Error).message });
+    res.status(e.httpStatus ?? 400).json({ error: e.message ?? (error as Error).message, code: e.code ?? 'ACTION_ERROR' });
   }
 });
 

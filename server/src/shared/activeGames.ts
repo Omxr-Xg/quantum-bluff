@@ -1,6 +1,8 @@
 import { GameTable } from '../logic/GameTable.js';
 import type { CashGameController } from '../logic/CashGameController.js';
 import { saveGame, getGame, deleteGame, restoreAllGames, isRedisHealthy } from '../config/redis.config.js';
+import { pokerStateStore } from './pokerStateStore.js';
+import { serializePokerRuntimeSnapshot } from '../poker/services/pokerStateSync.service.js';
 
 export type ActiveGame = GameTable | CashGameController;
 
@@ -66,6 +68,11 @@ class ActiveGamesManager {
 
   async set(gameId: string, game: ActiveGame): Promise<void> {
     this.localCache.set(gameId, game);
+    void pokerStateStore
+      .set(gameId, serializePokerRuntimeSnapshot(gameId, game), { ttlSec: 60 * 60 * 6 })
+      .catch((err) => {
+        console.error('[activeGames] Erreur sync pokerStateStore:', err);
+      });
     if (this.useRedis && game instanceof GameTable) {
       saveGame(gameId, game).catch((err) => {
         console.error('[activeGames] Erreur save Redis, jeu conservé en mémoire:', err);
@@ -75,6 +82,9 @@ class ActiveGamesManager {
 
   async delete(gameId: string): Promise<void> {
     this.localCache.delete(gameId);
+    void pokerStateStore.delete(gameId).catch((err) => {
+      console.error('[activeGames] Erreur delete pokerStateStore:', err);
+    });
     if (this.useRedis) {
       try {
         await deleteGame(gameId);
@@ -104,6 +114,11 @@ class ActiveGamesManager {
 
   setSync(gameId: string, game: ActiveGame): void {
     this.localCache.set(gameId, game);
+    void pokerStateStore
+      .set(gameId, serializePokerRuntimeSnapshot(gameId, game), { ttlSec: 60 * 60 * 6 })
+      .catch((err) => {
+        console.error('[activeGames] Erreur sync pokerStateStore:', err);
+      });
     if (this.useRedis && game instanceof GameTable) {
       saveGame(gameId, game).catch(err => 
         console.error('Erreur sauvegarde Redis:', err)

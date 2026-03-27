@@ -4,6 +4,7 @@ import {
   cleanupOrphanBlackjackRuntime,
   cleanupStaleBlackjackRooms,
 } from '../blackjack/recovery/blackjackRecovery.service.js';
+import { cleanupOrphanPokerRuntime } from '../poker/recovery/pokerRecovery.service.js';
 
 /**
  * DA4: Maintenance de la base de données
@@ -45,6 +46,7 @@ async function performCleanup() {
     await checkDatabaseSize();
     await cleanupOrphanBlackjackRuntime();
     await cleanupStaleBlackjackRooms();
+    await cleanupOrphanPokerRuntime();
 
   } catch (error) {
     console.error("❌ [DA4-CLEANUP] Erreur pendant le nettoyage :", error);
@@ -64,6 +66,7 @@ export const initCleanupJobs = () => {
     try {
       await cleanupOrphanBlackjackRuntime();
       await cleanupStaleBlackjackRooms();
+      await cleanupOrphanPokerRuntime();
     } catch (error) {
       console.error('❌ [DA4-BLACKJACK-CLEANUP] Erreur:', error);
     }
