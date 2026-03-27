@@ -57,6 +57,10 @@ export class CashGameController implements IGameSession {
   private countdownTimer: ReturnType<typeof setTimeout> | null = null
   private handNumber: number = 0
   private onCountdownDone?: () => void
+  private runtimePhase:
+    | 'HAND_IN_PROGRESS'
+    | 'NEXT_HAND_COUNTDOWN'
+    | 'WAITING_PLAYERS' = 'WAITING_PLAYERS'
   /** Spectateurs qui veulent rejoindre à la prochaine manche */
   private spectatorRejoinQueue: Set<string> = new Set()
 
@@ -166,6 +170,7 @@ export class CashGameController implements IGameSession {
     if (occupied.length < 2) {
       this.countdownEndsAt = null
       this.gameTable = null
+      this.runtimePhase = 'WAITING_PLAYERS'
       return
     }
 
@@ -176,6 +181,7 @@ export class CashGameController implements IGameSession {
     })
     this.gameTable.startHand()
     this.handNumber++
+    this.runtimePhase = 'HAND_IN_PROGRESS'
   }
 
   /** Appelé après le showdown: synchronise les jetons, supprime les éliminés, déclenche le countdown */
@@ -214,11 +220,13 @@ export class CashGameController implements IGameSession {
 
     this.gameTable = null
     this.countdownEndsAt = Date.now() + COUNTDOWN_SECONDS * 1000
+    this.runtimePhase = 'NEXT_HAND_COUNTDOWN'
 
     if (this.countdownTimer) clearTimeout(this.countdownTimer)
     this.countdownTimer = setTimeout(() => {
       this.countdownTimer = null
       this.countdownEndsAt = null
+      this.runtimePhase = 'WAITING_PLAYERS'
       this.onCountdownDone?.()
     }, COUNTDOWN_SECONDS * 1000)
   }
@@ -292,6 +300,7 @@ export class CashGameController implements IGameSession {
       })),
       currentTurn: '',
       phase: this.countdownEndsAt ? 'WAITING' : 'WAITING',
+      handRuntimePhase: this.runtimePhase === 'NEXT_HAND_COUNTDOWN' ? 'NEXT_HAND_COUNTDOWN' : undefined,
       cashCountdownEndsAt: this.countdownEndsAt ?? undefined,
       cashSeats: this.seats
     }

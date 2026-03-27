@@ -19,6 +19,7 @@ export class GameTable {
   private readonly smallBlindAmount: number
   private readonly bigBlindAmount: number
   private minRaiseIncrement: number
+  private handParticipantIds: Set<string>
 
   constructor(id: string, players: Player[], options?: { smallBlind?: number; bigBlind?: number }) {
     this.id = id
@@ -31,6 +32,7 @@ export class GameTable {
     this.smallBlindAmount = intChips(options?.smallBlind ?? 10)
     this.bigBlindAmount = intChips(options?.bigBlind ?? 20)
     this.minRaiseIncrement = this.bigBlindAmount
+    this.handParticipantIds = new Set()
 
     this.state = {
       id,
@@ -43,6 +45,8 @@ export class GameTable {
       actionVersion: 0,
       streetVersion: 0,
       updatedAt: new Date().toISOString(),
+      handParticipantIds: [],
+      handRuntimePhase: 'HAND_IN_PROGRESS',
     }
 
     this.normalizePlayers()
@@ -68,6 +72,24 @@ export class GameTable {
     return this.state.players.filter(
       (player) => player.isActive && player.isConnected !== false
     )
+  }
+
+  private isHeadsUp(): boolean {
+    return this.handParticipantIds.size === 2
+  }
+
+  private getHandParticipants(): Player[] {
+    return this.state.players.filter((player) =>
+      this.handParticipantIds.has(player.id)
+    )
+  }
+
+  private getNonFoldedParticipants(): Player[] {
+    return this.getHandParticipants().filter((player) => player.isActive)
+  }
+
+  private getShowdownEligiblePlayers(): Player[] {
+    return this.getNonFoldedParticipants()
   }
 
   private getPlayerIndexById(playerId: string): number {
@@ -128,7 +150,7 @@ export class GameTable {
     const dealer = this.state.players[this.dealerIndex]
     dealer.isDealer = true
 
-    if (this.state.players.length === 2) {
+    if (this.isHeadsUp()) {
       dealer.role = 'SMALL_BLIND'
 
       const bigBlindIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
@@ -177,7 +199,7 @@ export class GameTable {
   }
 
   private getPreflopFirstPlayerId(): string {
-    if (this.state.players.length === 2) {
+    if (this.isHeadsUp()) {
       return this.state.players[this.dealerIndex]?.id || ''
     }
 
@@ -194,7 +216,7 @@ export class GameTable {
   }
 
   private getPostflopFirstPlayerId(): string {
-    if (this.state.players.length === 2) {
+    if (this.isHeadsUp()) {
       const nonDealerIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
       if (nonDealerIndex !== -1) {
         return this.state.players[nonDealerIndex].id
@@ -220,7 +242,7 @@ export class GameTable {
   }
 
   private isBettingRoundComplete(): boolean {
-    const activePlayers = this.getActivePlayers()
+    const activePlayers = this.getNonFoldedParticipants()
 
     if (activePlayers.length <= 1) {
       return true
@@ -237,7 +259,7 @@ export class GameTable {
   }
 
   private awardPotToSingleRemainingPlayer(): void {
-    const activePlayers = this.getActivePlayers()
+    const activePlayers = this.getNonFoldedParticipants()
 
     if (activePlayers.length !== 1) return
 
@@ -251,6 +273,8 @@ export class GameTable {
 
     this.state.pot = 0
     this.state.phase = 'SHOWDOWN'
+    this.state.handEndReason = 'WIN_BY_FOLD'
+    this.state.handRuntimePhase = 'HAND_COMPLETE'
     this.state.currentTurn = ''
   }
 
@@ -325,6 +349,7 @@ export class GameTable {
 
     // Remboursement immédiat des mises non appelées avant de passer à la rue suivante
     this.processUncalledBetsRefund()
+    this.state.handRuntimePhase = 'BETTING_ROUND_CLOSED'
 
     const nextPhase = phaseOrder[currentIndex + 1]
     this.state.phase = nextPhase
@@ -335,6 +360,7 @@ export class GameTable {
       this.resetBetsForNewRound()
       this.state.communityCards.push(...this.deck.dealFlop())
       this.state.currentTurn = firstToActId
+      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       this.runOutBoardIfAllIn()
       return
     }
@@ -343,6 +369,7 @@ export class GameTable {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealTurn())
       this.state.currentTurn = firstToActId
+      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       this.runOutBoardIfAllIn()
       return
     }
@@ -351,10 +378,12 @@ export class GameTable {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealRiver())
       this.state.currentTurn = firstToActId
+      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       this.runOutBoardIfAllIn()
       return
     }
 
+    this.state.handRuntimePhase = 'SHOWDOWN_PENDING'
     this.resolveShowdown()
     this.state.currentTurn = ''
   }
@@ -369,7 +398,7 @@ export class GameTable {
    * deal all remaining community cards and go straight to showdown (no more betting).
    */
   private runOutBoardIfAllIn(): void {
-    const activePlayers = this.getActivePlayers()
+    const activePlayers = this.getNonFoldedParticipants()
     const actingPlayers = activePlayers.filter((p) => p.chips > 0)
     const hasNoMoreBetting = actingPlayers.length <= 1
     const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
@@ -399,6 +428,8 @@ export class GameTable {
     }
 
     this.state.currentTurn = ''
+    this.state.handEndReason = 'ALL_IN_RUNOUT'
+    this.state.handRuntimePhase = 'SHOWDOWN_PENDING'
     this.resolveShowdown()
   }
 
@@ -492,6 +523,8 @@ export class GameTable {
       player.role = 'PLAYER'
     }
 
+    this.handParticipantIds.clear()
+
     if (forcedHoleCards && Object.keys(forcedHoleCards).length > 0) {
       const allForced: Card[] = []
       for (const pid of Object.keys(forcedHoleCards)) {
@@ -515,12 +548,26 @@ export class GameTable {
           const c2 = this.deck.draw(1)[0]
           player.cards = [c1, c2]
         }
+        if (player.isActive && player.isConnected !== false) {
+          this.handParticipantIds.add(player.id)
+        }
       }
     } else {
       const eligiblePlayers = this.state.players.filter(
         (player) => player.isActive && player.isConnected !== false
       )
+      for (const player of eligiblePlayers) {
+        this.handParticipantIds.add(player.id)
+      }
       this.deck.dealInitialCards(eligiblePlayers)
+    }
+
+    if (this.handParticipantIds.size === 0) {
+      for (const player of this.state.players) {
+        if (player.isActive && player.isConnected !== false) {
+          this.handParticipantIds.add(player.id)
+        }
+      }
     }
 
     this.setBlinds()
@@ -528,13 +575,19 @@ export class GameTable {
     this.state.handId = `${this.id}:${Date.now()}`
     this.state.actionVersion = 0
     this.state.streetVersion = 0
+    this.state.handParticipantIds = Array.from(this.handParticipantIds)
+    this.state.handEndReason = undefined
+    this.state.handRuntimePhase = 'BETTING_ACTIVE'
     this.bumpVersion()
   }
 
   addPlayer(player: Player): void {
     player.cards = Array.isArray(player.cards) ? player.cards : []
     player.currentBet = 0
-    player.isActive = player.isActive ?? true
+    player.isActive =
+      this.handStarted && this.state.phase !== 'SHOWDOWN'
+        ? false
+        : (player.isActive ?? true)
     player.position = this.state.players.length
     player.isDealer = false
     player.isConnected = player.isConnected ?? true
@@ -589,7 +642,14 @@ export class GameTable {
 
   canPlayerAct(playerId: string): boolean {
     const player = this.getPlayerState(playerId)
-    return !!player && player.isActive && this.state.currentTurn === playerId
+    return (
+      !!player &&
+      this.handParticipantIds.has(playerId) &&
+      player.isActive &&
+      player.isConnected !== false &&
+      player.chips > 0 &&
+      this.state.currentTurn === playerId
+    )
   }
 
   calculateBet(playerId: string, amount: number): number {
@@ -629,6 +689,10 @@ export class GameTable {
 
     if (!this.handStarted) {
       throw new Error('La main n’a pas commencé')
+    }
+
+    if (!this.handParticipantIds.has(playerId)) {
+      throw new Error('Joueur non participant sur cette main')
     }
 
     if (this.state.phase === 'SHOWDOWN') {
@@ -780,6 +844,7 @@ export class GameTable {
   }
 
   private resolveShowdown(): void {
+    this.state.handRuntimePhase = 'SHOWDOWN_REVEAL'
     const settled = settlePots({
       players: this.state.players,
       communityCards: this.state.communityCards,
@@ -794,6 +859,8 @@ export class GameTable {
     this.state.showdownIsSplit = settled.showdownWinnerIds.length > 1
     this.state.showdownHandName = settled.showdownHandName
     this.state.showdownPot = settled.showdownPot
+    this.state.handEndReason = this.state.handEndReason ?? 'SHOWDOWN'
+    this.state.handRuntimePhase = 'HAND_COMPLETE'
     this.bumpVersion()
   }
 
@@ -848,7 +915,10 @@ export class GameTable {
       showdownIsSplit: this.state.showdownIsSplit,
       showdownHandName: this.state.showdownHandName,
       showdownPot: this.state.showdownPot,
-      burnedCardsCount: this.deck.burnedCards.length
+      burnedCardsCount: this.deck.burnedCards.length,
+      handParticipantIds: this.state.handParticipantIds,
+      handEndReason: this.state.handEndReason,
+      handRuntimePhase: this.state.handRuntimePhase,
     }
   }
 
@@ -865,6 +935,9 @@ export class GameTable {
       showdownHandName: this.state.showdownHandName,
       showdownPot: this.state.showdownPot,
       burnedCardsCount: this.deck.burnedCards.length,
+      handParticipantIds: this.state.handParticipantIds,
+      handEndReason: this.state.handEndReason,
+      handRuntimePhase: this.state.handRuntimePhase,
       players: this.state.players.map((player) => ({
         id: player.id,
         name: player.name,

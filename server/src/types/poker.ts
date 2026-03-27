@@ -75,4 +75,19 @@ export interface GameState {
   streetVersion?: number
   /** Horodatage ISO de la dernière mutation serveur. */
   updatedAt?: string
+  /** Participants figés pour la main courante (snapshot au start). */
+  handParticipantIds?: string[]
+  /** Raison explicite de fin de main calculée par le backend. */
+  handEndReason?: 'WIN_BY_FOLD' | 'SHOWDOWN' | 'ALL_IN_RUNOUT' | 'FORCED_END'
+  /** Phase runtime détaillée (pilotage backend/front). */
+  handRuntimePhase?:
+    | 'HAND_IN_PROGRESS'
+    | 'BETTING_ACTIVE'
+    | 'BETTING_ROUND_CLOSED'
+    | 'SHOWDOWN_PENDING'
+    | 'SHOWDOWN_REVEAL'
+    | 'SHOWDOWN_RESULT'
+    | 'POT_DISTRIBUTION'
+    | 'HAND_COMPLETE'
+    | 'NEXT_HAND_COUNTDOWN'
 }
