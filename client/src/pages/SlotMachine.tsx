@@ -136,21 +136,68 @@ export function SlotMachine() {
       };
       const interval = window.setInterval(shuffle, 80);
 
-      try {
-        const url = apiUrl("/api/slot/spin");
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ bet: selectedBet }),
-        });
-        const data = await res.json().catch(() => ({}));
+      const actionId = crypto.randomUUID();
+      const roundId = actionId;
+      const url = apiUrl("/api/slot/spin");
+      const maxAttempts = 3;
 
-        if (!res.ok) {
-          if (!opts?.suppressResultToasts) {
-            addToast(typeof data?.error === "string" ? data.error : t("slot.errorSpin"), "error");
-          } else {
-            addToast(t("slot.autoStoppedError"), "error");
+      const failToast = (msg: string) => {
+        if (!opts?.suppressResultToasts) {
+          addToast(msg, "error");
+        } else {
+          addToast(t("slot.autoStoppedError"), "error");
+        }
+      };
+
+      try {
+        let data: Record<string, unknown> | null = null;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          try {
+            const res = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ bet: selectedBet, actionId, roundId }),
+            });
+            const parsed = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+            if (res.ok) {
+              data = parsed;
+              break;
+            }
+
+            if (parsed?.code === "IDEMPOTENCY_PAYLOAD_MISMATCH") {
+              failToast(typeof parsed?.error === "string" ? parsed.error : t("slot.errorSpin"));
+              if (autoSpinRef.current) setAutoSpin(false);
+              return;
+            }
+
+            const retriable =
+              res.status >= 500 ||
+              res.status === 408 ||
+              (res.status === 409 && parsed?.code === "DUPLICATE_ACTION");
+
+            if (retriable && attempt < maxAttempts - 1) {
+              await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+              continue;
+            }
+
+            failToast(typeof parsed?.error === "string" ? parsed.error : t("slot.errorSpin"));
+            if (autoSpinRef.current) setAutoSpin(false);
+            return;
+          } catch {
+            if (attempt < maxAttempts - 1) {
+              await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+              continue;
+            }
+            failToast(t("slot.errorSpin"));
+            if (autoSpinRef.current) setAutoSpin(false);
+            return;
           }
+        }
+
+        if (!data) {
+          failToast(t("slot.errorSpin"));
           if (autoSpinRef.current) setAutoSpin(false);
           return;
         }
