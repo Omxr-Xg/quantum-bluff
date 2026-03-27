@@ -400,16 +400,36 @@
     "badgeUnlocked": "Débloqué",
     "badgeLocked": "Niveau {{level}} requis",
     "badge": {
-      "novice": { "name": "Novice" },
-      "regular": { "name": "Habitué" },
-      "rising": { "name": "Étoile montante" },
-      "skilled": { "name": "Confirmé" },
-      "veteran": { "name": "Vétéran" },
-      "expert": { "name": "Expert" },
-      "elite": { "name": "Élite" },
-      "master": { "name": "Maître" },
-      "champion": { "name": "Champion" },
-      "legend": { "name": "Légende" }
+      "novice": {
+        "name": "Novice"
+      },
+      "regular": {
+        "name": "Habitué"
+      },
+      "rising": {
+        "name": "Étoile montante"
+      },
+      "skilled": {
+        "name": "Confirmé"
+      },
+      "veteran": {
+        "name": "Vétéran"
+      },
+      "expert": {
+        "name": "Expert"
+      },
+      "elite": {
+        "name": "Élite"
+      },
+      "master": {
+        "name": "Maître"
+      },
+      "champion": {
+        "name": "Champion"
+      },
+      "legend": {
+        "name": "Légende"
+      }
     }
   },
   "common": {
@@ -836,6 +856,15 @@
     "soloRoomName": "Blackjack solo",
     "soloStarting": "Ouverture de votre table…",
     "soloRoomFailed": "Impossible de créer la table solo",
-    "soloStartFailed": "Impossible de démarrer la partie"
+    "soloStartFailed": "Impossible de démarrer la partie",
+    "runtime": {
+      "tableRecovering": "La table est en cours de recuperation. Les actions sont temporairement desactivees.",
+      "tableStateStale": "L'etat de la table est obsolete. Reessayez dans quelques instants.",
+      "tableUnavailable": "La table est temporairement indisponible.",
+      "tableMismatch": "La table est dans un etat incoherent. Reessayez plus tard.",
+      "tableNotLoadedLocally": "La table n'est pas encore chargee sur cette instance.",
+      "tableLocked": "Une action est deja en cours sur cette table.",
+      "unknown": "Etat runtime inattendu. Reessayez dans quelques instants."
+    }
   }
 }

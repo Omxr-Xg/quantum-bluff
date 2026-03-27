@@ -401,16 +401,36 @@
     "badgeUnlocked": "مفتوحة",
     "badgeLocked": "يتطلب المستوى {{level}}",
     "badge": {
-      "novice": { "name": "مبتدئ" },
-      "regular": { "name": "منتظم" },
-      "rising": { "name": "نجم صاعد" },
-      "skilled": { "name": "ماهر" },
-      "veteran": { "name": "محارب قديم" },
-      "expert": { "name": "خبير" },
-      "elite": { "name": "نخبة" },
-      "master": { "name": "سيد" },
-      "champion": { "name": "بطل" },
-      "legend": { "name": "أسطورة" }
+      "novice": {
+        "name": "مبتدئ"
+      },
+      "regular": {
+        "name": "منتظم"
+      },
+      "rising": {
+        "name": "نجم صاعد"
+      },
+      "skilled": {
+        "name": "ماهر"
+      },
+      "veteran": {
+        "name": "محارب قديم"
+      },
+      "expert": {
+        "name": "خبير"
+      },
+      "elite": {
+        "name": "نخبة"
+      },
+      "master": {
+        "name": "سيد"
+      },
+      "champion": {
+        "name": "بطل"
+      },
+      "legend": {
+        "name": "أسطورة"
+      }
     }
   },
   "common": {
@@ -837,6 +857,15 @@
     "soloRoomName": "بلاك جاك فردي",
     "soloStarting": "جارٍ فتح طاولتك…",
     "soloRoomFailed": "تعذر إنشاء الطاولة الفردية",
-    "soloStartFailed": "تعذر بدء اللعبة"
+    "soloStartFailed": "تعذر بدء اللعبة",
+    "runtime": {
+      "tableRecovering": "الطاولة قيد الاستعادة. الإجراءات معطلة مؤقتا.",
+      "tableStateStale": "حالة الطاولة قديمة. حاول مرة أخرى بعد لحظات.",
+      "tableUnavailable": "الطاولة غير متاحة مؤقتا.",
+      "tableMismatch": "حالة الطاولة غير متسقة. حاول لاحقا.",
+      "tableNotLoadedLocally": "الطاولة لم تُحمَّل بعد على هذه العقدة.",
+      "tableLocked": "يوجد إجراء جارٍ بالفعل على هذه الطاولة.",
+      "unknown": "حالة تشغيل غير متوقعة. حاول مرة أخرى بعد لحظات."
+    }
   }
 }

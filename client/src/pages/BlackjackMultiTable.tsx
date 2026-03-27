@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Loader2, Trash2, X } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
@@ -17,6 +17,7 @@ import {
   BlackjackRoundReveal,
   type BjRoundSummaryRow,
 } from "../components/blackjack/BlackjackRoundReveal";
+import { mapBlackjackRuntimeCodeToUi } from "../features/blackjack/runtimeStatus";
 
 function authHeaders(): HeadersInit {
   const token = localStorage.getItem("token");
@@ -43,6 +44,29 @@ export function BlackjackMultiTable() {
   const [acting, setActing] = useState(false);
   const [deletingTable, setDeletingTable] = useState(false);
   const [roundSummary, setRoundSummary] = useState<BjRoundSummaryRow[] | null>(null);
+  const [runtimeBanner, setRuntimeBanner] = useState<string | null>(null);
+  const [runtimeSeverity, setRuntimeSeverity] = useState<"info" | "warning" | "error">("info");
+  const [runtimeDisableActions, setRuntimeDisableActions] = useState(false);
+
+  const applyRuntimeCode = useCallback(
+    (code?: string) => {
+      const mapped = mapBlackjackRuntimeCodeToUi(code);
+      if (!mapped) {
+        setRuntimeBanner(null);
+        setRuntimeDisableActions(false);
+        setRuntimeSeverity("info");
+        return;
+      }
+      const text = mapped.messageKey ? t(mapped.messageKey) : null;
+      setRuntimeBanner(text);
+      setRuntimeDisableActions(mapped.disableActions);
+      setRuntimeSeverity(mapped.severity);
+      if (code === "TABLE_LOCKED") {
+        addToast(text ?? t("bjMulti.runtime.tableLocked"), "info");
+      }
+    },
+    [addToast, t]
+  );
 
   const mySeat = useMemo(
     () => state?.seats.find((s) => s.userId === userId) ?? null,
@@ -63,14 +87,20 @@ export function BlackjackMultiTable() {
       navigate("/lobby?tab=blackjack");
       return;
     }
-    if (!res.ok) return;
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
+      applyRuntimeCode(err.code);
+      if (err.error) addToast(err.error, "error");
+      return;
+    }
     const data = (await res.json()) as {
       state: BjTableState;
       hostId: string;
     };
+    applyRuntimeCode(undefined);
     setState(data.state);
     setHostId(data.hostId);
-  }, [gameId, navigate, addToast, t]);
+  }, [gameId, navigate, addToast, t, applyRuntimeCode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +129,7 @@ export function BlackjackMultiTable() {
       roundSummary?: BjRoundSummaryRow[];
     }) => {
       if (payload.gameId !== gameId) return;
+      applyRuntimeCode(undefined);
       setState(payload.state);
       if (payload.roundSummary?.length) {
         setRoundSummary(payload.roundSummary);
@@ -106,11 +137,20 @@ export function BlackjackMultiTable() {
         setRoundSummary(null);
       }
     };
+    const onSocketError = (payload: { code?: string; message?: string }) => {
+      if (!payload?.code) return;
+      applyRuntimeCode(payload.code);
+      if (payload.message && payload.code !== "TABLE_LOCKED") {
+        addToast(payload.message, "error");
+      }
+    };
     socket.on("BLACKJACK_TABLE_UPDATE", onUpdate);
+    socket.on("ERROR", onSocketError);
     return () => {
       socket.off("BLACKJACK_TABLE_UPDATE", onUpdate);
+      socket.off("ERROR", onSocketError);
     };
-  }, [socket, gameId]);
+  }, [socket, gameId, addToast, applyRuntimeCode]);
 
   const postBet = async () => {
     if (!gameId || isSpectator) return;
@@ -128,9 +168,11 @@ export function BlackjackMultiTable() {
         code?: string;
       };
       if (!res.ok) {
+        applyRuntimeCode(data.code);
         addToast(data.error ?? t("bjMulti.betFailed"), "error");
         return;
       }
+      applyRuntimeCode(undefined);
       if (typeof data.chips === "number") updateUserBalance(data.chips);
       if (data.state) setState(data.state);
       await fetchBalanceFromServer({ authoritative: true });
@@ -153,11 +195,14 @@ export function BlackjackMultiTable() {
         settlements?: Array<Record<string, unknown>>;
         roundSummary?: BjRoundSummaryRow[];
         error?: string;
+        code?: string;
       };
       if (!res.ok) {
+        applyRuntimeCode(data.code);
         addToast(data.error ?? t("bjMulti.dealFailed"), "error");
         return;
       }
+      applyRuntimeCode(undefined);
       if (data.state) setState(data.state);
       if (data.roundSummary?.length) setRoundSummary(data.roundSummary);
       if (data.settlements?.length) {
@@ -207,11 +252,14 @@ export function BlackjackMultiTable() {
         roundSummary?: BjRoundSummaryRow[];
         chips?: number;
         error?: string;
+        code?: string;
       };
       if (!res.ok) {
+        applyRuntimeCode(data.code);
         addToast(data.error ?? t("bjMulti.actionFailed"), "error");
         return;
       }
+      applyRuntimeCode(undefined);
       if (typeof data.chips === "number") updateUserBalance(data.chips);
       if (data.state) setState(data.state);
       if (data.roundSummary?.length) setRoundSummary(data.roundSummary);
@@ -230,16 +278,44 @@ export function BlackjackMultiTable() {
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#14080d]">
         <BlackjackLobbyBackdrop />
+        {runtimeBanner ? (
+          <div
+            className={`absolute left-4 right-4 top-5 z-20 mx-auto max-w-3xl rounded-lg border px-4 py-3 text-sm ${
+              runtimeSeverity === "error"
+                ? "border-rose-500/60 bg-rose-950/40 text-rose-100"
+                : runtimeSeverity === "warning"
+                ? "border-amber-500/60 bg-amber-950/40 text-amber-100"
+                : "border-sky-500/50 bg-sky-950/40 text-sky-100"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span>{runtimeBanner}</span>
+              <button
+                type="button"
+                onClick={() => void loadState()}
+                className="rounded-md border border-white/20 bg-black/30 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-black/50"
+              >
+                Reessayer
+              </button>
+            </div>
+          </div>
+        ) : null}
         <Loader2 className="relative z-10 h-10 w-10 animate-spin text-rose-400" />
       </div>
     );
   }
 
   const isHost = hostId === userId;
-  const canBet = !isSpectator && state.phase === "betting" && mySeat?.playState === "no_bet";
+  const canBet =
+    !runtimeDisableActions &&
+    !isSpectator &&
+    state.phase === "betting" &&
+    mySeat?.playState === "no_bet";
   const canDeal =
+    !runtimeDisableActions &&
     !isSpectator && isHost && state.phase === "betting" && state.seats.some((s) => s.playState === "bet_placed");
   const myTurn =
+    !runtimeDisableActions &&
     !isSpectator &&
     state.phase === "player_turn" &&
     state.currentSeatUserId === userId &&
@@ -253,6 +329,28 @@ export function BlackjackMultiTable() {
     <div className="relative w-full min-h-screen overflow-hidden bg-[#0a0608] pb-10">
       <BlackjackLobbyBackdrop />
       <div className="relative z-10 mx-auto max-w-6xl px-4 pt-5 sm:pt-6">
+        {runtimeBanner ? (
+          <div
+            className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+              runtimeSeverity === "error"
+                ? "border-rose-500/60 bg-rose-950/40 text-rose-100"
+                : runtimeSeverity === "warning"
+                ? "border-amber-500/60 bg-amber-950/40 text-amber-100"
+                : "border-sky-500/50 bg-sky-950/40 text-sky-100"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span>{runtimeBanner}</span>
+              <button
+                type="button"
+                onClick={() => void loadState()}
+                className="rounded-md border border-white/20 bg-black/30 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-black/50"
+              >
+                Reessayer
+              </button>
+            </div>
+          </div>
+        ) : null}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
@@ -263,15 +361,6 @@ export function BlackjackMultiTable() {
             {t("bjMulti.backToLobby")}
           </button>
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate("/lobby?tab=blackjack")}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/30 text-amber-100/90 backdrop-blur-sm transition hover:border-amber-400/40 hover:bg-black/50 hover:text-white"
-              aria-label={t("common.close")}
-              title={t("common.close")}
-            >
-              <X className="h-5 w-5" />
-            </button>
             {isHost && !isSpectator ? (
               <button
                 type="button"
@@ -309,7 +398,7 @@ export function BlackjackMultiTable() {
                 </label>
                 <button
                   type="button"
-                  disabled={acting}
+                  disabled={runtimeDisableActions || acting}
                   onClick={postBet}
                   className={`${btnBase} w-full bg-gradient-to-b from-emerald-500 to-emerald-800 text-white shadow-emerald-950/50 hover:from-emerald-400 hover:to-emerald-700 sm:w-auto`}
                 >
@@ -320,7 +409,7 @@ export function BlackjackMultiTable() {
             {canDeal && (
               <button
                 type="button"
-                disabled={acting}
+                disabled={runtimeDisableActions || acting}
                 onClick={postDeal}
                 className={`${btnBase} w-full max-w-sm bg-gradient-to-b from-amber-400 via-amber-600 to-amber-900 text-slate-950 shadow-amber-950/40 hover:from-amber-300 hover:to-amber-800`}
               >
@@ -331,7 +420,7 @@ export function BlackjackMultiTable() {
               <div className="flex w-full max-w-lg flex-wrap justify-center gap-3">
                 <button
                   type="button"
-                  disabled={acting}
+                  disabled={runtimeDisableActions || acting}
                   onClick={() => postAction("hit")}
                   className={`${btnBase} min-w-[7rem] bg-gradient-to-b from-sky-500 to-sky-900 text-white hover:from-sky-400`}
                 >
@@ -339,7 +428,7 @@ export function BlackjackMultiTable() {
                 </button>
                 <button
                   type="button"
-                  disabled={acting}
+                  disabled={runtimeDisableActions || acting}
                   onClick={() => postAction("stand")}
                   className={`${btnBase} min-w-[7rem] bg-gradient-to-b from-slate-600 to-slate-900 text-white hover:from-slate-500`}
                 >
@@ -348,7 +437,7 @@ export function BlackjackMultiTable() {
                 {canDouble && (
                   <button
                     type="button"
-                    disabled={acting}
+                    disabled={runtimeDisableActions || acting}
                     onClick={() => postAction("double")}
                     className={`${btnBase} min-w-[7rem] bg-gradient-to-b from-violet-500 to-violet-950 text-white hover:from-violet-400`}
                   >

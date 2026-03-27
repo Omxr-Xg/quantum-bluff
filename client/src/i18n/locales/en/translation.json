@@ -359,8 +359,6 @@
     "hoursAgo": "{{count}} h ago",
     "daysAgo": "{{count}} days ago",
     "noMessagesYet": "No messages yet. Start the conversation!",
-    "noMessagesYet": "No messages yet. Start the conversation!",
-    "noMessagesYet": "No messages yet. Start the conversation!",
     "noMessages": "No messages yet. Start the conversation!",
     "gamesCount": "{{count}} games",
     "send": "Send",
@@ -402,16 +400,36 @@
     "badgeUnlocked": "Unlocked",
     "badgeLocked": "Unlocks at level {{level}}",
     "badge": {
-      "novice": { "name": "Novice" },
-      "regular": { "name": "Regular" },
-      "rising": { "name": "Rising star" },
-      "skilled": { "name": "Skilled" },
-      "veteran": { "name": "Veteran" },
-      "expert": { "name": "Expert" },
-      "elite": { "name": "Elite" },
-      "master": { "name": "Master" },
-      "champion": { "name": "Champion" },
-      "legend": { "name": "Legend" }
+      "novice": {
+        "name": "Novice"
+      },
+      "regular": {
+        "name": "Regular"
+      },
+      "rising": {
+        "name": "Rising star"
+      },
+      "skilled": {
+        "name": "Skilled"
+      },
+      "veteran": {
+        "name": "Veteran"
+      },
+      "expert": {
+        "name": "Expert"
+      },
+      "elite": {
+        "name": "Elite"
+      },
+      "master": {
+        "name": "Master"
+      },
+      "champion": {
+        "name": "Champion"
+      },
+      "legend": {
+        "name": "Legend"
+      }
     }
   },
   "common": {
@@ -832,7 +850,16 @@
     "soloRoomName": "Solo blackjack",
     "soloStarting": "Opening your table…",
     "soloRoomFailed": "Could not create solo table",
-    "soloStartFailed": "Could not start the game"
+    "soloStartFailed": "Could not start the game",
+    "runtime": {
+      "tableRecovering": "Table is recovering. Actions are temporarily disabled.",
+      "tableStateStale": "Table state is stale. Please retry in a moment.",
+      "tableUnavailable": "Table is temporarily unavailable.",
+      "tableMismatch": "Table runtime is inconsistent. Please retry later.",
+      "tableNotLoadedLocally": "Table is not yet loaded on this node.",
+      "tableLocked": "Another action is already in progress on this table.",
+      "unknown": "Unexpected runtime status. Please retry shortly."
+    }
   },
   "filters": {
     "maxBet50": "Bets < $50",

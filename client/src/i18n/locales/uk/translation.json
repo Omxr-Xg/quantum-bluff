@@ -401,16 +401,36 @@
     "badgeUnlocked": "Відкрито",
     "badgeLocked": "Рівень {{level}}",
     "badge": {
-      "novice": { "name": "Новачок" },
-      "regular": { "name": "Звичний" },
-      "rising": { "name": "Зірка" },
-      "skilled": { "name": "Досвідчений" },
-      "veteran": { "name": "Ветеран" },
-      "expert": { "name": "Експерт" },
-      "elite": { "name": "Еліта" },
-      "master": { "name": "Майстер" },
-      "champion": { "name": "Чемпіон" },
-      "legend": { "name": "Легенда" }
+      "novice": {
+        "name": "Новачок"
+      },
+      "regular": {
+        "name": "Звичний"
+      },
+      "rising": {
+        "name": "Зірка"
+      },
+      "skilled": {
+        "name": "Досвідчений"
+      },
+      "veteran": {
+        "name": "Ветеран"
+      },
+      "expert": {
+        "name": "Експерт"
+      },
+      "elite": {
+        "name": "Еліта"
+      },
+      "master": {
+        "name": "Майстер"
+      },
+      "champion": {
+        "name": "Чемпіон"
+      },
+      "legend": {
+        "name": "Легенда"
+      }
     }
   },
   "common": {
@@ -837,6 +857,15 @@
     "soloRoomName": "Соло блекджек",
     "soloStarting": "Відкриваємо ваш стіл…",
     "soloRoomFailed": "Не вдалося створити соло-стіл",
-    "soloStartFailed": "Не вдалося почати гру"
+    "soloStartFailed": "Не вдалося почати гру",
+    "runtime": {
+      "tableRecovering": "Стіл відновлюється. Дії тимчасово вимкнено.",
+      "tableStateStale": "Стан столу застарів. Спробуйте ще раз за мить.",
+      "tableUnavailable": "Стіл тимчасово недоступний.",
+      "tableMismatch": "Стан столу неузгоджений. Спробуйте пізніше.",
+      "tableNotLoadedLocally": "Стіл ще не завантажений на цьому вузлі.",
+      "tableLocked": "На цьому столі вже виконується інша дія.",
+      "unknown": "Неочікуваний стан runtime. Спробуйте ще раз за мить."
+    }
   }
 }

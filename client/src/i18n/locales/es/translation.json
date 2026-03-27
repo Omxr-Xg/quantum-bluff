@@ -358,8 +358,6 @@
     "minutesAgo": "Hace {{count}} min",
     "hoursAgo": "Hace {{count}} h",
     "daysAgo": "Hace {{count}} días",
-    "noMessagesYet": "Sin mensajes. ¡Comienza la conversación!",
-    "noMessagesYet": "Sin mensajes. ¡Comienza la conversación!",
     "noMessagesYet": "Sin mensajes. ¡Inicia la conversación!",
     "noMessages": "Sin mensajes. ¡Inicia la conversación!",
     "gamesCount": "{{count}} partidas",
@@ -402,16 +400,36 @@
     "badgeUnlocked": "Desbloqueada",
     "badgeLocked": "Nivel {{level}}",
     "badge": {
-      "novice": { "name": "Novato" },
-      "regular": { "name": "Regular" },
-      "rising": { "name": "Estrella" },
-      "skilled": { "name": "Hábil" },
-      "veteran": { "name": "Veterano" },
-      "expert": { "name": "Experto" },
-      "elite": { "name": "Élite" },
-      "master": { "name": "Maestro" },
-      "champion": { "name": "Campeón" },
-      "legend": { "name": "Leyenda" }
+      "novice": {
+        "name": "Novato"
+      },
+      "regular": {
+        "name": "Regular"
+      },
+      "rising": {
+        "name": "Estrella"
+      },
+      "skilled": {
+        "name": "Hábil"
+      },
+      "veteran": {
+        "name": "Veterano"
+      },
+      "expert": {
+        "name": "Experto"
+      },
+      "elite": {
+        "name": "Élite"
+      },
+      "master": {
+        "name": "Maestro"
+      },
+      "champion": {
+        "name": "Campeón"
+      },
+      "legend": {
+        "name": "Leyenda"
+      }
     }
   },
   "common": {
@@ -703,14 +721,9 @@
   },
   "notifications": {
     "title": "Notificaciones",
+    "toastTitle": "Notificación",
     "empty": "Sin notificaciones",
     "gameInvitations": "Invitaciones de partida",
-    "friendRequests": "Solicitudes de amistad"
-  },
-  "notifications": {
-    "title": "Notificaciones",
-    "empty": "Sin notificaciones",
-    "gameInvitations": "Invitaciones a jugar",
     "friendRequests": "Solicitudes de amistad"
   },
   "filters": {
@@ -743,13 +756,6 @@
     "title": "{{username}} te ha invitado a jugar!",
     "accept": "Unirse",
     "reject": "Rechazar"
-  },
-  "notifications": {
-    "title": "Notificaciones",
-    "toastTitle": "Notificación",
-    "empty": "Sin notificaciones",
-    "gameInvitations": "Invitaciones de partida",
-    "friendRequests": "Solicitudes de amistad"
   },
   "bjMulti": {
     "lobbyTitle": "Mesas de blackjack multijugador",
@@ -847,6 +853,15 @@
     "soloRoomName": "Blackjack solo",
     "soloStarting": "Abriendo tu mesa…",
     "soloRoomFailed": "No se pudo crear la mesa solo",
-    "soloStartFailed": "No se pudo iniciar la partida"
+    "soloStartFailed": "No se pudo iniciar la partida",
+    "runtime": {
+      "tableRecovering": "La mesa se esta recuperando. Las acciones estan desactivadas temporalmente.",
+      "tableStateStale": "El estado de la mesa esta obsoleto. Intentalo de nuevo en unos instantes.",
+      "tableUnavailable": "La mesa no esta disponible temporalmente.",
+      "tableMismatch": "La mesa esta en un estado incoherente. Intentalo mas tarde.",
+      "tableNotLoadedLocally": "La mesa aun no esta cargada en esta instancia.",
+      "tableLocked": "Ya hay una accion en curso en esta mesa.",
+      "unknown": "Estado de runtime inesperado. Intentalo de nuevo en unos instantes."
+    }
   }
 }
