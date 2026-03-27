@@ -10,6 +10,16 @@ import {
   XP_SLOT_SPIN,
   XP_SLOT_WIN_BONUS,
 } from '../logic/gamification.js'
+import {
+  buildIdempotencyKey,
+  getIdempotentResult,
+  saveIdempotentResult,
+  tryBeginIdempotentAction,
+} from '../casino/services/idempotency.service.js'
+import { createCasinoRoundContext } from '../casino/services/roundContext.service.js'
+import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
+import { assertRoundTransition } from '../casino/services/roundStateMachine.service.js'
+import { logCasinoAuditEvent } from '../casino/services/casinoAudit.service.js'
 
 const router = express.Router()
 
@@ -20,10 +30,31 @@ router.post('/spin', authMiddleware, async (req, res) => {
       return res.status(401).json({ error: 'Non authentifié' })
     }
 
+    const context = createCasinoRoundContext({
+      userId,
+      gameType: 'slot',
+      actionId: req.body?.actionId,
+      roundId: req.body?.roundId,
+    })
+    const idemKey = buildIdempotencyKey({
+      userId,
+      gameType: 'slot',
+      actionId: context.actionId,
+    })
+    const idemStart = tryBeginIdempotentAction(idemKey)
+    if (!idemStart.accepted) {
+      const prev = getIdempotentResult(idemKey)
+      if (prev) return res.json(prev)
+      return res.status(409).json({ error: 'Action déjà traitée', code: 'DUPLICATE_ACTION' })
+    }
+
     const rawBet = req.body?.bet
     const betInput = typeof rawBet === 'number' ? rawBet : Number(rawBet)
 
     const result = await prisma.$transaction(async (tx) => {
+      let roundState: import('../casino/domain/casinoRound.types.js').CasinoRoundState = 'CREATED'
+      assertRoundTransition(roundState, 'BETTING_OPEN')
+      roundState = 'BETTING_OPEN'
       const user = await tx.user.findUnique({
         where: { id: userId },
         select: { chips: true, experience: true },
@@ -44,18 +75,58 @@ router.post('/spin', authMiddleware, async (req, res) => {
       }
 
       const bet = validation.bet
-      await tx.user.update({
-        where: { id: userId },
+      logCasinoAuditEvent({
+        event: 'bet_accepted',
+        roundId: context.roundId,
+        actionId: context.actionId,
+        userId,
+        gameType: 'slot',
+        details: { bet },
+      })
+      assertRoundTransition(roundState, 'BETTING_CLOSED')
+      roundState = 'BETTING_CLOSED'
+      const debit = await tx.user.updateMany({
+        where: { id: userId, chips: { gte: bet } },
         data: { chips: { decrement: bet } },
+      })
+      if (debit.count === 0) {
+        throw Object.assign(new Error('INSUFFICIENT_CHIPS'), { code: 'INSUFFICIENT_CHIPS' })
+      }
+      const afterDebit = chipsBefore - bet
+      await appendWalletLedgerEntry({
+        context,
+        reason: 'SLOT_STAKE',
+        amount: -bet,
+        balanceBefore: chipsBefore,
+        balanceAfter: afterDebit,
       })
 
       const { reels, winAmount } = spinSlot(bet)
+      assertRoundTransition(roundState, 'SPINNING')
+      roundState = 'SPINNING'
       const payout = intChips(winAmount)
+      logCasinoAuditEvent({
+        event: 'result_computed',
+        roundId: context.roundId,
+        actionId: context.actionId,
+        userId,
+        gameType: 'slot',
+        details: { reels, payout },
+      })
+      assertRoundTransition(roundState, 'RESULT_READY')
+      roundState = 'RESULT_READY'
 
       const updated = await tx.user.update({
         where: { id: userId },
         data: { chips: { increment: payout } },
         select: { chips: true },
+      })
+      await appendWalletLedgerEntry({
+        context,
+        reason: 'SLOT_PAYOUT',
+        amount: payout,
+        balanceBefore: afterDebit,
+        balanceAfter: intChips(updated.chips),
       })
 
       const prevCasino = await tx.casinoStats.findUnique({ where: { userId } })
@@ -76,6 +147,15 @@ router.post('/spin', authMiddleware, async (req, res) => {
       const netPositive = payout > bet
       const xpGain = XP_SLOT_SPIN + (netPositive ? XP_SLOT_WIN_BONUS : 0)
       const gamification = await awardXpInTransaction(tx, userId, xpGain)
+      assertRoundTransition(roundState, 'SETTLED')
+      logCasinoAuditEvent({
+        event: 'round_closed',
+        roundId: context.roundId,
+        actionId: context.actionId,
+        userId,
+        gameType: 'slot',
+        details: { bet, payout, settlement: 'SETTLED' },
+      })
 
       return {
         chips: intChips(updated.chips),
@@ -87,8 +167,11 @@ router.post('/spin', authMiddleware, async (req, res) => {
         xpToNext: gamification.xpToNext,
         newBadges: gamification.newBadges,
         maxBetSlot: maxBetEffective,
+        roundId: context.roundId,
+        actionId: context.actionId,
       }
     })
+    saveIdempotentResult(idemKey, result)
 
     return res.json(result)
   } catch (e) {

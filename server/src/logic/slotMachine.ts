@@ -1,8 +1,8 @@
 /**
  * Machine à sous — logique pure (testable). Tirage via injectable randomInt (défaut: crypto).
  */
-import { randomInt as cryptoRandomInt } from 'node:crypto'
 import { intChips } from '../utils/chips.js'
+import { drawInt } from '../rng/rng.service.js'
 
 export const SLOT_MIN_BET = 10
 /** Plafond de mise par spin (indépendamment du solde). */
@@ -36,7 +36,7 @@ const PAIR_MULT = 1
 export type RandomIntFn = (minInclusive: number, maxInclusive: number) => number
 
 function defaultRandomInt(min: number, max: number): number {
-  return cryptoRandomInt(min, max + 1)
+  return drawInt('slot', 'legacy-round', 'slot.defaultRandomInt', min, max).value
 }
 
 function pickSymbol(randomInt: RandomIntFn): SlotSymbolId {

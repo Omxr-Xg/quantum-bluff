@@ -113,12 +113,10 @@ router.post('/record-result', authMiddleware, async (req, res) => {
     const userId = (req as express.Request & { userId?: string }).userId;
     if (!userId) return res.status(401).json({ error: 'Non authentifié' });
 
-    const { won, delta } = req.body as { won?: boolean; delta?: number };
-    if (typeof won !== 'boolean') return res.status(400).json({ error: 'Body attendu: { won: boolean, delta?: number }' });
-
-    const chipsDelta = typeof delta === 'number' && !Number.isNaN(delta) ? Math.trunc(delta) : 0;
-    const chipsWon = chipsDelta > 0 ? chipsDelta : 0;
-    const chipsLost = chipsDelta < 0 ? -chipsDelta : 0;
+    const { won } = req.body as { won?: boolean };
+    if (typeof won !== 'boolean') {
+      return res.status(400).json({ error: 'Body attendu: { won: boolean }' });
+    }
 
     // 1. Mise à jour des statistiques (Ton code d'origine)
     await prisma.playerStats.upsert({
@@ -128,26 +126,14 @@ router.post('/record-result', authMiddleware, async (req, res) => {
         totalGames: 1,
         totalWins: won ? 1 : 0,
         totalLosses: won ? 0 : 1,
-        totalChipsWon: chipsWon,
-        totalChipsLost: chipsLost,
+        totalChipsWon: 0,
+        totalChipsLost: 0,
       },
       update: {
         totalGames: { increment: 1 },
         ...(won ? { totalWins: { increment: 1 } } : { totalLosses: { increment: 1 } }),
-        ...(chipsWon > 0 ? { totalChipsWon: { increment: chipsWon } } : {}),
-        ...(chipsLost > 0 ? { totalChipsLost: { increment: chipsLost } } : {}),
       },
     });
-
-    // 2. CORRECTION : Mise à jour du VRAI portefeuille du joueur ! 💰
-    if (chipsDelta !== 0) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          chips: { increment: chipsDelta }
-        }
-      });
-    }
 
     res.json({ ok: true });
   } catch (error) {
