@@ -69,6 +69,11 @@ export class GameTable {
   }
 
   private getActivePlayers(): Player[] {
+    if (this.handStarted && this.handParticipantIds.size > 0) {
+      return this.getNonFoldedParticipants().filter(
+        (player) => player.isConnected !== false
+      )
+    }
     return this.state.players.filter(
       (player) => player.isActive && player.isConnected !== false
     )
@@ -90,6 +95,21 @@ export class GameTable {
 
   private getShowdownEligiblePlayers(): Player[] {
     return this.getNonFoldedParticipants()
+  }
+
+  private computeHandEndReason():
+    | 'WIN_BY_FOLD'
+    | 'SHOWDOWN'
+    | 'ALL_IN_RUNOUT'
+    | null {
+    const nonFoldedCount = this.getNonFoldedParticipants().length
+    if (nonFoldedCount === 1) return 'WIN_BY_FOLD'
+    if (this.getShowdownEligiblePlayers().length > 1) return 'SHOWDOWN'
+    return null
+  }
+
+  private canCloseCurrentBettingRound(): boolean {
+    return this.isBettingRoundComplete()
   }
 
   private getPlayerIndexById(playerId: string): number {
@@ -273,7 +293,7 @@ export class GameTable {
 
     this.state.pot = 0
     this.state.phase = 'SHOWDOWN'
-    this.state.handEndReason = 'WIN_BY_FOLD'
+    this.state.handEndReason = this.computeHandEndReason() ?? 'WIN_BY_FOLD'
     this.state.handRuntimePhase = 'HAND_COMPLETE'
     this.state.currentTurn = ''
   }
@@ -340,6 +360,13 @@ export class GameTable {
    * @param lastActorId - Si fourni, le premier à jouer sur la nouvelle rue est le joueur APRÈS lastActorId (évite qu'un joueur joue deux fois de suite)
    */
   private moveToNextPhase(): void {
+    // Guardrail: if only one participant remains, always end by fold.
+    const handEndReason = this.computeHandEndReason()
+    if (handEndReason === 'WIN_BY_FOLD') {
+      this.awardPotToSingleRemainingPlayer()
+      return
+    }
+
     const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
     const currentIndex = phaseOrder.indexOf(this.state.phase)
 
@@ -383,9 +410,15 @@ export class GameTable {
       return
     }
 
-    this.state.handRuntimePhase = 'SHOWDOWN_PENDING'
-    this.resolveShowdown()
-    this.state.currentTurn = ''
+    if ((this.computeHandEndReason() ?? null) === 'SHOWDOWN') {
+      this.state.handRuntimePhase = 'SHOWDOWN_PENDING'
+      this.resolveShowdown()
+      this.state.currentTurn = ''
+      return
+    }
+
+    // Defensive fallback for inconsistent states.
+    this.awardPotToSingleRemainingPlayer()
   }
 
   /** Premier à jouer sur une nouvelle rue : ordre poker postflop standard. */
@@ -752,7 +785,7 @@ export class GameTable {
         return
       }
 
-      if (this.isBettingRoundComplete()) {
+      if (this.canCloseCurrentBettingRound()) {
         this.moveToNextPhase()
         this.bumpVersion()
         return
@@ -766,7 +799,7 @@ export class GameTable {
     if (action === 'CHECK') {
       this.actedPlayerIds.add(player.id)
 
-      if (this.isBettingRoundComplete()) {
+      if (this.canCloseCurrentBettingRound()) {
         this.moveToNextPhase()
         this.bumpVersion()
         return
@@ -786,7 +819,7 @@ export class GameTable {
 
       this.actedPlayerIds.add(player.id)
 
-      if (this.isBettingRoundComplete()) {
+      if (this.canCloseCurrentBettingRound()) {
         this.moveToNextPhase()
         this.bumpVersion()
         return
@@ -821,7 +854,7 @@ export class GameTable {
       this.actedPlayerIds.add(player.id)
     }
 
-    if (this.isBettingRoundComplete()) {
+    if (this.canCloseCurrentBettingRound()) {
       this.moveToNextPhase()
       this.bumpVersion()
       return

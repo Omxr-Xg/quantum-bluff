@@ -43,6 +43,34 @@ const waitingRoomHostLimiter = rateLimit({
   legacyHeaders: false
 });
 
+const formatWaitingRoomPayload = (room: {
+  id: string
+  name: string
+  hostId: string
+  maxPlayers: number
+  visibility: 'PUBLIC' | 'PRIVATE'
+  status: 'WAITING' | 'IN_GAME'
+  players: Array<{
+    isReady: boolean
+    position: number
+    user: { id: string; username: string; level: number }
+  }>
+}) => ({
+  id: room.id,
+  name: room.name,
+  hostId: room.hostId,
+  maxPlayers: room.maxPlayers,
+  visibility: room.visibility,
+  status: room.status,
+  players: room.players.map((p) => ({
+    id: p.user.id,
+    username: p.user.username,
+    level: p.user.level,
+    isReady: p.isReady,
+    position: p.position,
+  })),
+})
+
 // Fonction utilitaire pour nettoyer le nom de la salle
 //const sanitizeRoomName = (roomName: string) => sanitizeHtml(roomName);
 
@@ -399,7 +427,7 @@ router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
 router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId, turnTimeoutMs, turbo } = req.body;
+    const { userId } = req.body;
 
     // Vérifier que la salle existe et est en WAITING
     const room = await prisma.waitingRoom.findUnique({
@@ -459,21 +487,10 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
       }
     });
 
-    res.json({
-      id: updatedRoom.id,
-      name: updatedRoom.name,
-      hostId: updatedRoom.hostId,
-      maxPlayers: updatedRoom.maxPlayers,
-      visibility: updatedRoom.visibility,
-      status: updatedRoom.status,
-      players: updatedRoom.players.map(p => ({
-        id: p.user.id,
-        username: p.user.username,
-        level: p.user.level,
-        isReady: p.isReady,
-        position: p.position
-      }))
-    });
+    const payload = formatWaitingRoomPayload(updatedRoom as never)
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    io?.to(roomId).emit('WAITING_ROOM_UPDATED', payload);
+    res.json(payload);
   } catch (error) {
     console.error('Erreur rejoindre salle:', error);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -500,11 +517,15 @@ router.post('/:roomId/leave', waitingRoomActionLimiter, async (req, res) => {
       include: { players: true }
     });
 
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    io?.to(roomId).emit('PLAYER_LEFT', { roomId, userId, scope: 'WAITING_ROOM' });
+
     // Si plus de joueurs, supprimer la salle
     if (room && room.players.length === 0) {
       await prisma.waitingRoom.delete({
         where: { id: roomId }
       });
+      io?.to(roomId).emit('WAITING_ROOM_UPDATED', null);
       return res.json({ message: 'Salle supprimée', empty: true });
     }
 
@@ -514,6 +535,24 @@ router.post('/:roomId/leave', waitingRoomActionLimiter, async (req, res) => {
         where: { id: roomId },
         data: { hostId: room.players[0].userId }
       });
+    }
+
+    if (room) {
+      const refreshed = await prisma.waitingRoom.findUnique({
+        where: { id: roomId },
+        include: {
+          players: {
+            include: {
+              user: {
+                select: { id: true, username: true, level: true }
+              }
+            }
+          }
+        }
+      });
+      if (refreshed) {
+        io?.to(roomId).emit('WAITING_ROOM_UPDATED', formatWaitingRoomPayload(refreshed as never));
+      }
     }
 
     res.json({ message: 'Joueur retiré' });
@@ -539,6 +578,23 @@ router.put('/:roomId/ready', waitingRoomActionLimiter, async (req, res) => {
       data: { isReady }
     });
 
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    const refreshed = await prisma.waitingRoom.findUnique({
+      where: { id: roomId },
+      include: {
+        players: {
+          include: {
+            user: {
+              select: { id: true, username: true, level: true }
+            }
+          }
+        }
+      }
+    });
+    if (refreshed) {
+      io?.to(roomId).emit('WAITING_ROOM_UPDATED', formatWaitingRoomPayload(refreshed as never));
+    }
+
     res.json({ isReady: player.isReady });
   } catch (error) {
     console.error('Erreur changement statut:', error);
@@ -551,7 +607,7 @@ router.put('/:roomId/ready', waitingRoomActionLimiter, async (req, res) => {
 router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId } = req.body;
+    const { userId, turnTimeoutMs, turbo } = req.body;
 
     const room = await prisma.waitingRoom.findUnique({
       where: { id: roomId },

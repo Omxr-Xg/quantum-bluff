@@ -472,7 +472,9 @@ export class GameGateway {
           for (const s of socketsInRoom) {
             const uid = (s as unknown as AuthenticatedSocket).userId
             const isSpectator = !freshGame.getPlayerState(uid ?? '')
-            s.emit('GAME_UPDATE', freshGame.getSanitizedState(isSpectator ? undefined : uid))
+            const snapshot = freshGame.getSanitizedState(isSpectator ? undefined : uid)
+            s.emit('GAME_UPDATE', snapshot)
+            s.emit('GAME_STATE_UPDATED', snapshot)
           }
           this.io.to(gameId).emit('HAND_STATE_CHANGED', {
             gameId,
@@ -576,7 +578,9 @@ export class GameGateway {
           const socketsInRoom = await this.io.in(gameId).fetchSockets()
           for (const s of socketsInRoom) {
             const uid = (s as unknown as AuthenticatedSocket).userId
-            s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+            const snapshot = game.getSanitizedState(uid)
+            s.emit('GAME_UPDATE', snapshot)
+            s.emit('GAME_STATE_UPDATED', snapshot)
           }
         } catch (err) {
           console.error('Erreur CASH_SIT:', err)
@@ -597,8 +601,11 @@ export class GameGateway {
           const socketsInRoom = await this.io.in(gameId).fetchSockets()
           for (const s of socketsInRoom) {
             const uid = (s as unknown as AuthenticatedSocket).userId
-            s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+            const snapshot = game.getSanitizedState(uid)
+            s.emit('GAME_UPDATE', snapshot)
+            s.emit('GAME_STATE_UPDATED', snapshot)
           }
+          this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: socket.userId, scope: 'GAME' })
           // Si plus aucun joueur : supprimer la partie et remettre la salle en WAITING
           if (game.getOccupiedCount() === 0) {
             await activeGames.delete(gameId)
@@ -725,7 +732,9 @@ export class GameGateway {
                     const socketsInRoom = await this.io.in(gameId).fetchSockets()
                     for (const s of socketsInRoom) {
                       const uid = (s as unknown as AuthenticatedSocket).userId
-                      s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+                      const snapshot = game.getSanitizedState(uid)
+                      s.emit('GAME_UPDATE', snapshot)
+                      s.emit('GAME_STATE_UPDATED', snapshot)
                     }
                     this.startTurnTimer(gameId)
                   } catch (error) {
@@ -738,7 +747,9 @@ export class GameGateway {
                   const socketsInRoom = await this.io.in(gameId).fetchSockets()
                   for (const s of socketsInRoom) {
                     const uid = (s as unknown as AuthenticatedSocket).userId
-                    s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+                    const snapshot = game.getSanitizedState(uid)
+                    s.emit('GAME_UPDATE', snapshot)
+                    s.emit('GAME_STATE_UPDATED', snapshot)
                   }
                   if (game.state.phase === 'SHOWDOWN') {
                     this.startTurnTimer(gameId)
@@ -760,6 +771,7 @@ export class GameGateway {
                     playerId: userId,
                     gameId
                   })
+                  this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: userId, scope: 'GAME' })
                 }
               } else if (game instanceof CashGameController) {
                 // Entre les mains : retirer le joueur déconnecté du siège

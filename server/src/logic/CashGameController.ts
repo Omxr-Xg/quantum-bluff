@@ -63,6 +63,8 @@ export class CashGameController implements IGameSession {
     | 'WAITING_PLAYERS' = 'WAITING_PLAYERS'
   /** Spectateurs qui veulent rejoindre à la prochaine manche */
   private spectatorRejoinQueue: Set<string> = new Set()
+  private readonly debugRuntimeLogsEnabled: boolean =
+    process.env.POKER_RUNTIME_DEBUG_LOGS === '1'
 
   constructor(options: CashGameControllerOptions) {
     this.id = options.id
@@ -99,6 +101,38 @@ export class CashGameController implements IGameSession {
 
   setOnCountdownDone(cb: () => void): void {
     this.onCountdownDone = cb
+  }
+
+  private logRuntimeEvent(event: 'HAND_START' | 'PLAYER_ACTION' | 'STREET_ADVANCE' | 'HAND_END', extra?: Record<string, unknown>): void {
+    if (!this.debugRuntimeLogsEnabled || !this.gameTable) return
+    const state = this.gameTable.state
+    const dealer = state.players.find((p) => p.isDealer)
+    const smallBlind = state.players.find((p) => p.role === 'SMALL_BLIND')
+    const bigBlind = state.players.find((p) => p.role === 'BIG_BLIND')
+    const foldedPlayerIds = state.players.filter((p) => !p.isActive).map((p) => p.id)
+    const showdownEligiblePlayerIds = state.players
+      .filter((p) => p.isActive && (state.handParticipantIds ?? []).includes(p.id))
+      .map((p) => p.id)
+
+    console.log(
+      '[POKER_RUNTIME_DEBUG]',
+      JSON.stringify({
+        event,
+        gameId: this.id,
+        handId: state.handId,
+        phase: state.phase,
+        handRuntimePhase: state.handRuntimePhase,
+        dealerId: dealer?.id ?? null,
+        smallBlindId: smallBlind?.id ?? null,
+        bigBlindId: bigBlind?.id ?? null,
+        currentTurn: state.currentTurn ?? null,
+        handParticipantIds: state.handParticipantIds ?? [],
+        foldedPlayerIds,
+        showdownEligiblePlayerIds,
+        handEndReason: state.handEndReason ?? null,
+        ...extra,
+      })
+    )
   }
 
   getTurnTimeoutMs(): number {
@@ -182,6 +216,7 @@ export class CashGameController implements IGameSession {
     this.gameTable.startHand()
     this.handNumber++
     this.runtimePhase = 'HAND_IN_PROGRESS'
+    this.logRuntimeEvent('HAND_START')
   }
 
   /** Appelé après le showdown: synchronise les jetons, supprime les éliminés, déclenche le countdown */
@@ -320,7 +355,22 @@ export class CashGameController implements IGameSession {
 
   handlePlayerAction(playerId: string, action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK', amount?: number): void {
     if (!this.gameTable) throw new Error('Aucune main en cours')
+    const phaseBefore = this.gameTable.state.phase
     this.gameTable.handlePlayerAction(playerId, action, amount)
+    this.logRuntimeEvent('PLAYER_ACTION', {
+      playerId,
+      action,
+      amount: amount ?? null,
+    })
+    if (this.gameTable.state.phase !== phaseBefore) {
+      this.logRuntimeEvent('STREET_ADVANCE', {
+        from: phaseBefore,
+        to: this.gameTable.state.phase,
+      })
+    }
+    if (this.gameTable.state.phase === 'SHOWDOWN') {
+      this.logRuntimeEvent('HAND_END')
+    }
   }
 
   getPlayerState(playerId: string): Player | undefined {
