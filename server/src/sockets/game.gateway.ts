@@ -25,6 +25,8 @@ interface AuthenticatedSocket extends Socket {
 export class GameGateway {
   private io: Server
   private timers: Map<string, NodeJS.Timeout> = new Map()
+  /** Invalide les timers / callbacks obsolètes quand resetTimer/startTurnTimer se chevauchent (async gap). */
+  private turnTimerEpoch: Map<string, number> = new Map()
   private socketToUser: Map<string, string> = new Map()
   private userToSocket: Map<string, string> = new Map()
   private antiCheat = new AntiCheatMonitor(8, 3000)
@@ -857,19 +859,31 @@ export class GameGateway {
     console.log(`[Stats] Stats multi enregistrées pour la partie ${game.id} (gagnant: ${winnerId})`)
   }
 
+  private bumpTurnTimerEpoch(gameId: string): number {
+    const next = (this.turnTimerEpoch.get(gameId) ?? 0) + 1
+    this.turnTimerEpoch.set(gameId, next)
+    return next
+  }
+
   private startTurnTimer(gameId: string) {
-    if (this.timers.has(gameId)) {
-      clearTimeout(this.timers.get(gameId)!)
+    const existing = this.timers.get(gameId)
+    if (existing) {
+      clearTimeout(existing)
+      this.timers.delete(gameId)
     }
+    const epoch = this.bumpTurnTimerEpoch(gameId)
 
     void (async () => {
       const game = await activeGames.get(gameId)
       if (!game) return
+      if (this.turnTimerEpoch.get(gameId) !== epoch) return
+
       const turnMs =
         game instanceof CashGameController ? game.getTurnTimeoutMs() : 30_000
       const timeLeftSec = Math.round(turnMs / 1000)
 
       const timer = setTimeout(async () => {
+        if (this.turnTimerEpoch.get(gameId) !== epoch) return
         this.resetTimer(gameId)
         const g = await activeGames.get(gameId)
         if (!g) return
@@ -906,6 +920,10 @@ export class GameGateway {
         }
       }, turnMs)
 
+      if (this.turnTimerEpoch.get(gameId) !== epoch) {
+        clearTimeout(timer)
+        return
+      }
       this.timers.set(gameId, timer)
       this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: timeLeftSec })
     })()
@@ -916,5 +934,6 @@ export class GameGateway {
       clearTimeout(this.timers.get(gameId)!)
       this.timers.delete(gameId)
     }
+    this.bumpTurnTimerEpoch(gameId)
   }
 }
