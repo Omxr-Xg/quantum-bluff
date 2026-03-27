@@ -158,7 +158,9 @@
   - roulette europeenne (0..36)
   - paris complets (plein/cheval/street/corner/sixline/dozen/column/chances simples)
   - endpoint spin + config
-  - forgage resultat ajoute (forceResult) via API
+  - tirage public crypto (`spinWheel`) sans `forceResult` sur la route joueur
+  - idempotence spin : le client envoie `actionId` / `roundId` (meme UUID stable jusqu’a reponse HTTP OK), retries avec la meme cle ; le serveur stocke le resultat JSON sous cle `gameType:userId:actionId` (Redis `SET NX` + TTL **15 minutes** si Redis disponible, sinon Map memoire process). Si le corps des mises differe pour le meme `actionId`, reponse **409** `IDEMPOTENCY_PAYLOAD_MISMATCH`. Apres expiration TTL, un retry tardif avec la meme cle ne replay plus (nouvelle intention possible sans rejeu serveur — a documenter cote produit)
+  - forgage resultat reserve a une route **admin** non-prod (localhost + token + flag `ENABLE_ADMIN_ROULETTE_OVERRIDE`, voir `server/.env.example`)
 - **Blackjack solo**:
   - sabot 6 decks
   - hit/stand/double
@@ -336,7 +338,7 @@ Dans `server/src/index.ts`, CORS permet notamment:
 
 - mot de passe DB clair present dans plusieurs fichiers versionnes
 - secret JWT de fallback faible/explicite
-- forgage roulette (`forceResult`) actif si body present (comportement volontaire demande) -> risque de triche total
+- route publique roulette : sans `forceResult` ; risque residuel principalement sur hygiene secrets / CORS (l’override force resultat reste une route admin opt-in non-prod, localhost)
 
 ---
 
@@ -381,7 +383,7 @@ Tests:
 
 1. **Sortir tous les secrets du depot** (`.env` local, mdp DB, fallback JWT)
 2. **Rotations immediates** des credentials deja exposes
-3. **Limiter/retirer `forceResult` roulette** en prod (role admin ou flag serveur strict)
+3. **Surveillance override roulette** : ne jamais activer `ENABLE_ADMIN_ROULETTE_OVERRIDE` hors machine locale ; tokens admin longs et non versionnes
 4. **Durcir l'observabilite blackjack** (logs structures + dashboard sur metrics runtime admin)
 5. **Etendre observabilite poker** (compteurs dedup/stale/lock wait/recovery)
 6. **Scanner secret automatique CI** (gitleaks/trufflehog)
@@ -406,6 +408,7 @@ Tests:
 - Poker room route: `server/src/routes/waitingRoom.routes.ts`
 - Prisma schema: `server/prisma/schema.prisma`
 - Front roulette: `client/src/pages/Roulette.tsx`
+- Idempotence casino: `server/src/casino/services/idempotency.service.ts` (Redis avec repli memoire si Redis indisponible ; TTL ~15 min). Le client roulette et slot envoient `actionId` / `roundId` (UUID) par spin et reessaient les erreurs reseau ou HTTP 5xx avec le meme identifiant pour permettre le rejeu serveur. En production multi-instance, Redis doit etre operationnel pour que la deduplication soit fiable entre pods. Voir `server/.env.example` pour `REDIS_*` et pour `ADMIN_API_TOKEN` / `ENABLE_ADMIN_ROULETTE_OVERRIDE` (reserve machine locale + jeton).
 - Front blackjack multi lobby: `client/src/components/LobbyBlackjackMultiSection.tsx`
 - Front blackjack table: `client/src/pages/BlackjackMultiTable.tsx`
 
