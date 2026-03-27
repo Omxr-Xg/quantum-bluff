@@ -291,7 +291,7 @@ export class GameGateway {
 
             const game = await activeGames.get(gameId);
             if (game) {
-              socket.emit("GAME_UPDATE", game.getSanitizedState(playerId));
+              await this.emitGameUpdateToSocket(socket, game, playerId);
               console.log(
                 `✅ Joueur ${playerId} a rejoint la partie ${gameId}`,
               );
@@ -326,7 +326,7 @@ export class GameGateway {
 
           const game = await activeGames.get(gameId);
           if (game) {
-            socket.emit("GAME_UPDATE", game.getSanitizedState());
+            await this.emitGameUpdateToSocket(socket, game, socket.userId);
             console.log(`👁️ Spectateur a rejoint la partie ${gameId}`);
           } else {
             socket.emit("ERROR", {
@@ -555,15 +555,7 @@ export class GameGateway {
             game.handlePlayerAction(playerId, action, amount);
 
             this.resetTimer(gameId);
-            const socketsInRoom = await this.io.in(gameId).fetchSockets();
-            for (const s of socketsInRoom) {
-              const uid = (s as unknown as AuthenticatedSocket).userId;
-              const isSpectator = !game.getPlayerState(uid ?? "");
-              s.emit(
-                "GAME_UPDATE",
-                game.getSanitizedState(isSpectator ? undefined : uid),
-              );
-            }
+            await this.emitGameUpdateToRoom(gameId, game);
 
             if (game.state.phase === "SHOWDOWN") {
               const innerGame =
@@ -611,11 +603,8 @@ export class GameGateway {
                       }
                     : null;
                 });
-                const socketsInRoom2 = await this.io.in(gameId).fetchSockets();
-                for (const s of socketsInRoom2) {
-                  const uid = (s as unknown as AuthenticatedSocket).userId;
-                  s.emit("GAME_UPDATE", game.getSanitizedState(uid));
-                }
+
+                await this.emitGameUpdateToRoom(gameId, game);
               }
               // Pas de startTurnTimer en SHOWDOWN (partie terminée pour one-shot, ou countdown pour cash game)
             } else {
@@ -694,11 +683,7 @@ export class GameGateway {
               });
               return;
             }
-            const socketsInRoom = await this.io.in(gameId).fetchSockets();
-            for (const s of socketsInRoom) {
-              const uid = (s as unknown as AuthenticatedSocket).userId;
-              s.emit("GAME_UPDATE", game.getSanitizedState(uid));
-            }
+            await this.emitGameUpdateToRoom(gameId, game);
           } catch (err) {
             console.error("Erreur CASH_SIT:", err);
           }
@@ -719,11 +704,7 @@ export class GameGateway {
             });
             return;
           }
-          const socketsInRoom = await this.io.in(gameId).fetchSockets();
-          for (const s of socketsInRoom) {
-            const uid = (s as unknown as AuthenticatedSocket).userId;
-            s.emit("GAME_UPDATE", game.getSanitizedState(uid));
-          }
+          await this.emitGameUpdateToRoom(gameId, game);
           // Si plus aucun joueur : supprimer la partie et remettre la salle en WAITING
           if (game.getOccupiedCount() === 0) {
             await activeGames.delete(gameId);
@@ -756,11 +737,7 @@ export class GameGateway {
               });
               return;
             }
-            const socketsInRoom = await this.io.in(gameId).fetchSockets();
-            for (const s of socketsInRoom) {
-              const uid = (s as unknown as AuthenticatedSocket).userId;
-              s.emit("GAME_UPDATE", game.getSanitizedState(uid));
-            }
+            await this.emitGameUpdateToRoom(gameId, game);
           } catch (err) {
             console.error("Erreur CASH_REBUY:", err);
           }
@@ -793,7 +770,7 @@ export class GameGateway {
               player.isConnected = true;
             }
 
-            socket.emit("GAME_UPDATE", game.getSanitizedState(socket.userId));
+            await this.emitGameUpdateToSocket(socket, game, socket.userId);
             this.io.to(gameId).emit("PLAYER_RECONNECTED", {
               playerId: socket.userId,
               gameId,
@@ -869,13 +846,7 @@ export class GameGateway {
                       `[Réseau] Auto-FOLD pour le joueur déconnecté ${userId}`,
                     );
                     game.handlePlayerAction(userId, "FOLD"); // gère avancement turn + award si 1 seul reste
-                    const socketsInRoom = await this.io
-                      .in(gameId)
-                      .fetchSockets();
-                    for (const s of socketsInRoom) {
-                      const uid = (s as unknown as AuthenticatedSocket).userId;
-                      s.emit("GAME_UPDATE", game.getSanitizedState(uid));
-                    }
+                    await this.emitGameUpdateToRoom(gameId, game);
                     this.startTurnTimer(gameId);
                   } catch (error) {
                     console.error("[Réseau] Erreur auto-fold timeout:", error);
@@ -884,11 +855,7 @@ export class GameGateway {
                   // Pas son tour : fold manuel (handlePlayerAction exigerait que ce soit son tour)
                   player.isActive = false;
                   game.forceFoldForDisconnect(userId);
-                  const socketsInRoom = await this.io.in(gameId).fetchSockets();
-                  for (const s of socketsInRoom) {
-                    const uid = (s as unknown as AuthenticatedSocket).userId;
-                    s.emit("GAME_UPDATE", game.getSanitizedState(uid));
-                  }
+                  await this.emitGameUpdateToRoom(gameId, game);
                   if (game.state.phase === "SHOWDOWN") {
                     this.startTurnTimer(gameId);
                   }
@@ -914,11 +881,7 @@ export class GameGateway {
                 // Entre les mains : retirer le joueur déconnecté du siège
                 const removed = game.removeDisconnectedPlayer(userId);
                 if (removed) {
-                  const socketsInRoom = await this.io.in(gameId).fetchSockets();
-                  for (const s of socketsInRoom) {
-                    const uid = (s as unknown as AuthenticatedSocket).userId;
-                    s.emit("GAME_UPDATE", game.getSanitizedState(uid));
-                  }
+                  await this.emitGameUpdateToRoom(gameId, game);
                   if (game.getOccupiedCount() === 0) {
                     await activeGames.delete(gameId);
                     await prisma.waitingRoom.update({
@@ -942,6 +905,75 @@ export class GameGateway {
         }
       });
     });
+  }
+
+  private async resolveGameUpdateBalance(
+    game: {
+      getPlayerState: (playerId: string) => { chips?: number } | undefined;
+    },
+    requestingUserId?: string,
+  ): Promise<number | undefined> {
+    if (!requestingUserId) return undefined;
+
+    const player = game.getPlayerState(requestingUserId);
+    if (player && typeof player.chips === "number") {
+      return intChips(player.chips);
+    }
+
+    if (game instanceof CashGameController) {
+      const effectiveBalance = game.getEffectiveBalance(requestingUserId);
+      if (effectiveBalance != null) {
+        return intChips(effectiveBalance);
+      }
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: requestingUserId },
+      select: { chips: true },
+    });
+
+    return user ? intChips(user.chips ?? 0) : undefined;
+  }
+
+  private async buildGameUpdatePayload(
+    game: {
+      getSanitizedState: (requestingPlayerId?: string) => any;
+      getPlayerState: (playerId: string) => { chips?: number } | undefined;
+    },
+    requestingUserId?: string,
+  ): Promise<any> {
+    const state = game.getSanitizedState(requestingUserId);
+    const balance = await this.resolveGameUpdateBalance(game, requestingUserId);
+
+    return balance === undefined ? state : { ...state, balance };
+  }
+
+  private async emitGameUpdateToSocket(
+    socket: Pick<Socket, "emit">,
+    game: {
+      getSanitizedState: (requestingPlayerId?: string) => any;
+      getPlayerState: (playerId: string) => { chips?: number } | undefined;
+    },
+    requestingUserId?: string,
+  ): Promise<void> {
+    socket.emit(
+      "GAME_UPDATE",
+      await this.buildGameUpdatePayload(game, requestingUserId),
+    );
+  }
+
+  private async emitGameUpdateToRoom(
+    gameId: string,
+    game: {
+      getSanitizedState: (requestingPlayerId?: string) => any;
+      getPlayerState: (playerId: string) => { chips?: number } | undefined;
+    },
+  ): Promise<void> {
+    const socketsInRoom = await this.io.in(gameId).fetchSockets();
+    for (const s of socketsInRoom) {
+      const uid = (s as unknown as AuthenticatedSocket).userId;
+      await this.emitGameUpdateToSocket(s, game, uid);
+    }
   }
 
   private setupBlackjackStoreSubscription() {
@@ -1046,11 +1078,7 @@ export class GameGateway {
               g.handlePlayerAction(currentPlayerId, "FOLD");
             }
 
-            const socketsInRoom = await this.io.in(gameId).fetchSockets();
-            for (const s of socketsInRoom) {
-              const uid = (s as unknown as AuthenticatedSocket).userId;
-              s.emit("GAME_UPDATE", g.getSanitizedState(uid));
-            }
+            await this.emitGameUpdateToRoom(gameId, g);
             if (g.state.currentTurn) {
               this.startTurnTimer(gameId);
             }

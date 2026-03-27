@@ -374,6 +374,21 @@ export class CashGameController implements IGameSession {
     return this.gameTable?.getPlayerState(playerId);
   }
 
+  /**
+   * Solde effectif exposé dans GAME_UPDATE.
+   * - Pendant une main : stack courant du joueur dans la main
+   * - Entre les mains : stack actuellement assis au siège
+   */
+  getEffectiveBalance(userId: string): number | null {
+    const inHandPlayer = this.gameTable?.getPlayerState(userId);
+    if (inHandPlayer) return intChips(inHandPlayer.chips);
+
+    const seat = this.seats.find((s) => s.userId === userId);
+    if (seat) return intChips(seat.chips);
+
+    return null;
+  }
+
   getMinRaise(): number {
     return this.gameTable?.getMinRaise() ?? this.bigBlind;
   }
