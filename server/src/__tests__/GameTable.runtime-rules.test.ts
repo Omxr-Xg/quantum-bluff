@@ -43,5 +43,32 @@ describe('GameTable runtime rules', () => {
     expect(t.state.phase).toBe('FLOP')
     expect(t.state.currentTurn).toBe(other.id)
   })
+
+  it('freezes hand participants during active hand', () => {
+    const t = new GameTable('g3', mkPlayers(), { smallBlind: 10, bigBlind: 20 })
+    t.startHand()
+    const before = t.state.handParticipantIds ?? []
+    t.addPlayer({
+      id: 'p3',
+      name: 'p3',
+      cards: [],
+      chips: 5000,
+      role: 'PLAYER',
+      isActive: true,
+      isConnected: true,
+    })
+    expect(t.state.handParticipantIds).toEqual(before)
+    expect(() => t.handlePlayerAction('p3', 'FOLD')).toThrow(
+      'Joueur non participant sur cette main'
+    )
+  })
+
+  it('sets explicit hand end reason on fold-to-win', () => {
+    const t = new GameTable('g4', mkPlayers(), { smallBlind: 10, bigBlind: 20 })
+    t.startHand()
+    t.handlePlayerAction(t.state.currentTurn, 'FOLD')
+    expect(t.state.phase).toBe('SHOWDOWN')
+    expect(t.state.handEndReason).toBe('WIN_BY_FOLD')
+  })
 })
 

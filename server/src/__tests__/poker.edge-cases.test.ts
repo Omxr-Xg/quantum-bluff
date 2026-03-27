@@ -168,6 +168,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     t.advancePhase()
     expect(t.state.phase).toBe('SHOWDOWN')
     expect((t.state.actionVersion ?? 0)).toBe(versionAfterShowdown)
+    expect(t.state.handEndReason).toBe('ALL_IN_RUNOUT')
   })
 
   test('all-in on flop runs out turn+river and resolves exactly once', () => {
@@ -206,7 +207,27 @@ describe('Poker edge cases pack - runtime rules', () => {
     t.handlePlayerAction(t.state.currentTurn, 'FOLD')
     expect(t.state.phase).toBe('SHOWDOWN')
     expect(t.state.showdownHandName).toBe('Gagne par abandon')
+    expect(t.state.handEndReason).toBe('WIN_BY_FOLD')
     expect(phaseBefore).toBe('PREFLOP')
+  })
+
+  test('joiner added during showdown pending is excluded from current hand', () => {
+    const t = new GameTable(
+      'edge-join-showdown-pending',
+      [player('p1', 100), player('p2', 100)],
+      { smallBlind: 10, bigBlind: 20 }
+    )
+    t.startHand()
+    const d = t.state.players.find((p) => p.isDealer)!.id
+    const bb = t.state.players.find((p) => p.role === 'BIG_BLIND')!.id
+    t.handlePlayerAction(d, 'CALL')
+    t.handlePlayerAction(bb, 'CHECK')
+    t.handlePlayerAction(t.state.currentTurn, 'RAISE', 80)
+    t.handlePlayerAction(t.state.currentTurn, 'CALL')
+    expect(t.state.phase).toBe('SHOWDOWN')
+
+    t.addPlayer(player('p3', 1000))
+    expect(t.state.handParticipantIds?.includes('p3')).toBe(false)
   })
 
   test('multiway progression keeps round in preflop until completion', () => {
