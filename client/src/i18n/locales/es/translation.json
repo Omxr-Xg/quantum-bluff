@@ -264,6 +264,24 @@
     "actionChecked": "pasó",
     "actionCalled": "igualó",
     "actionRaised": "subió",
+    "actionLogTitle": "Historial",
+    "actionLogEmpty": "Sin acciones en esta mano.",
+    "actionLogLine": "[{{street}}] {{detail}}",
+    "actionLogCheck": "{{name}} pasa",
+    "actionLogFold": "{{name}} se retira",
+    "actionLogCall": "{{name}} iguala {{amount}}",
+    "actionLogRaise": "{{name}} sube {{amount}}",
+    "actionLogStreet": {
+      "preflop": "Preflop",
+      "flop": "Flop",
+      "turn": "Turn",
+      "river": "River"
+    },
+    "actionLogRole": {
+      "SMALL_BLIND": "SB",
+      "BIG_BLIND": "BB",
+      "DEALER": "BTN"
+    },
     "you": "Tú",
     "dealer": "Repartidor",
     "turnSeconds": "Turno: {{seconds}}s",
