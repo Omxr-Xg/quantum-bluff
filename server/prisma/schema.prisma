@@ -333,10 +333,26 @@ model BlackjackRoom {
   host  User                  @relation("BlackjackRoomHost", fields: [hostId], references: [id])
   seats BlackjackRoomSeat[]
   invitations BlackjackRoomInvitation[]
+  snapshot BlackjackRoomSnapshot?
 
   @@index([hostId])
   @@index([status])
   @@map("blackjack_rooms")
+}
+
+/// Snapshot runtime JSON d'une table blackjack pour recovery après restart.
+model BlackjackRoomSnapshot {
+  id        String   @id @default(uuid())
+  roomId    String   @unique
+  snapshot  Json
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  room BlackjackRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
+  @@map("blackjack_room_snapshots")
 }
 
 model BlackjackRoomSeat {

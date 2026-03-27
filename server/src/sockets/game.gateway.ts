@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io'
 import { activeGames } from '../shared/activeGames.js'
 import { activeBlackjackGames } from '../shared/activeBlackjackGames.js'
+import { blackjackStateStore } from '../shared/blackjackStateStore.js'
 import jwt from 'jsonwebtoken'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
 import { AntiCheatMonitor } from '../utils/antiCheat.js'
@@ -13,6 +14,7 @@ import {
   XP_POKER_SHOWDOWN_LOSS,
   XP_POKER_SHOWDOWN_WIN,
 } from '../logic/gamification.js'
+import { assessBlackjackRuntimeReadiness } from '../blackjack/services/blackjackRuntimeHealth.service.js'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -31,6 +33,7 @@ export class GameGateway {
     this.io = io
     this.setupMiddleware()
     this.setupHandlers()
+    this.setupBlackjackStoreSubscription()
   }
 
   public notifyUser(userId: string, event: string, payload: unknown) {
@@ -286,10 +289,34 @@ export class GameGateway {
       })
 
       socket.on('JOIN_BLACKJACK_TABLE', (data: { gameId?: string }) => {
-        try {
+        void (async () => {
+          try {
           const gameId = data?.gameId
           if (!gameId || !socket.userId) return
+
+          const room = await prisma.blackjackRoom.findFirst({
+            where: { gameId },
+            select: { id: true, status: true, gameId: true },
+          })
+          const runtimeState = await blackjackStateStore.getTable(gameId)
+          const runtimeAssessment = assessBlackjackRuntimeReadiness({
+            requestedGameId: gameId,
+            room,
+            runtimeState,
+            snapshot: {
+              exists: false,
+            },
+          })
+          if (!runtimeAssessment.canServeState) {
+            socket.emit('ERROR', {
+              code: runtimeAssessment.status,
+              message: runtimeAssessment.reason ?? 'Table indisponible',
+            })
+            return
+          }
+
           socket.join(gameId)
+          socket.join(`blackjack:${gameId}`)
           socket.gameId = gameId
           const table = activeBlackjackGames.getSync(gameId)
           if (table) {
@@ -299,14 +326,25 @@ export class GameGateway {
             })
             console.log(`🃏 Socket ${socket.id} joined blackjack table ${gameId}`)
           } else {
-            socket.emit('ERROR', {
-              code: 'GAME_NOT_FOUND',
-              message: 'Table blackjack introuvable',
-            })
+            const stored = await blackjackStateStore.getTable(gameId)
+            const storedPublicState = stored?.runtime?.publicState
+            if (storedPublicState && typeof storedPublicState === 'object') {
+              socket.emit('BLACKJACK_TABLE_UPDATE', {
+                gameId,
+                state: storedPublicState,
+              })
+              console.log(`🃏 Socket ${socket.id} joined blackjack table ${gameId} (store hydrate)`)
+            } else {
+              socket.emit('ERROR', {
+                code: 'GAME_NOT_FOUND',
+                message: 'Table blackjack introuvable',
+              })
+            }
           }
-        } catch (err) {
-          console.error('Erreur JOIN_BLACKJACK_TABLE:', err)
-        }
+          } catch (err) {
+            console.error('Erreur JOIN_BLACKJACK_TABLE:', err)
+          }
+        })()
       })
 
       socket.on('SPECTATOR_QUEUE_JOIN', async (data: { gameId: string }) => {
@@ -737,6 +775,20 @@ export class GameGateway {
           
           this.disconnectionTimeouts.set(userId, timeout)
         }
+      })
+    })
+  }
+
+  private setupBlackjackStoreSubscription() {
+    void blackjackStateStore.subscribeUpdates(async (event) => {
+      if (event.type !== 'BLACKJACK_TABLE_UPDATE') return
+      const state = await blackjackStateStore.getTable(event.tableId)
+      const storedPublicState = state?.runtime?.publicState
+      if (!storedPublicState || typeof storedPublicState !== 'object') return
+
+      this.io.to(`blackjack:${event.tableId}`).emit('BLACKJACK_TABLE_UPDATE', {
+        gameId: event.tableId,
+        state: storedPublicState,
       })
     })
   }

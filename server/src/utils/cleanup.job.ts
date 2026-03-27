@@ -1,5 +1,9 @@
 import cron from 'node-cron';
 import { prisma } from '../config/database.js';
+import {
+  cleanupOrphanBlackjackRuntime,
+  cleanupStaleBlackjackRooms,
+} from '../blackjack/recovery/blackjackRecovery.service.js';
 
 /**
  * DA4: Maintenance de la base de données
@@ -39,6 +43,8 @@ async function performCleanup() {
     
     // Après le nettoyage, on vérifie la taille pour voir le gain
     await checkDatabaseSize();
+    await cleanupOrphanBlackjackRuntime();
+    await cleanupStaleBlackjackRooms();
 
   } catch (error) {
     console.error("❌ [DA4-CLEANUP] Erreur pendant le nettoyage :", error);
@@ -51,6 +57,16 @@ export const initCleanupJobs = () => {
   
   cron.schedule('0 0 * * *', async () => {
     await performCleanup();
+  });
+
+  // Nettoyage blackjack plus fréquent (rooms orphelines / bloquées)
+  cron.schedule('*/10 * * * *', async () => {
+    try {
+      await cleanupOrphanBlackjackRuntime();
+      await cleanupStaleBlackjackRooms();
+    } catch (error) {
+      console.error('❌ [DA4-BLACKJACK-CLEANUP] Erreur:', error);
+    }
   });
 
   // Optionnel : Lancer une vérification immédiate au démarrage pour le debug

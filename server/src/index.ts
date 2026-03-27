@@ -22,10 +22,12 @@ import rouletteRoutes from './routes/roulette.routes.js'
 import blackjackRoutes from './routes/blackjack.routes.js'
 import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
+import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
 import { connectDB } from './config/database.js'
+import { recoverBlackjackRuntimeAtBoot } from './blackjack/recovery/blackjackRecovery.service.js'
 
 const app = express()
 
@@ -137,6 +139,7 @@ app.use('/api', gameRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/auth/2fa', twofaRoutes)
 app.use('/api/friends', friendsRoutes)
+app.use('/api/friends', invitationRoutes)
 app.use('/api/waiting-room', waitingRoomRoutes)
 app.use('/api/game', gameApiRoutes)
 app.use('/api/bot', botApiLimiter, botRoutes)
@@ -150,6 +153,7 @@ app.use(
 )
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
+app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
 
 // Serveur de mises à jour client
 app.use('/', updatesRouter)
@@ -200,6 +204,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10)
 
 ;(async () => {
   await connectDB()
+  await recoverBlackjackRuntimeAtBoot()
   httpServer.listen(PORT, () => {
     console.log(`[SERVER] Quantum Bluff tourne sur http://localhost:${PORT}`)
   })

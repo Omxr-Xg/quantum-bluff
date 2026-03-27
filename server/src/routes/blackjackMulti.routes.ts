@@ -12,6 +12,15 @@ import {
   type BlackjackTablePublicState,
 } from '../logic/BlackjackTableController.js'
 import { activeBlackjackGames } from '../shared/activeBlackjackGames.js'
+import { blackjackStateStore } from '../shared/blackjackStateStore.js'
+import {
+  BlackjackTableLockedError,
+  withBlackjackTableLock,
+} from '../blackjack/services/blackjackTableLock.service.js'
+import {
+  assessBlackjackRuntimeReadiness,
+  runtimeReadinessToHttp,
+} from '../blackjack/services/blackjackRuntimeHealth.service.js'
 import {
   awardXpInTransaction,
   getEffectiveBlackjackMaxBet,
@@ -32,8 +41,67 @@ type BjRoundSummaryRow = {
   reason: string
 }
 
+type RouteHttpError = Error & {
+  httpStatus?: number
+  httpBody?: Record<string, unknown>
+}
+
+function makeHttpError(
+  httpStatus: number,
+  error: string,
+  extras?: Record<string, unknown>
+): RouteHttpError {
+  const err = new Error(error) as RouteHttpError
+  err.httpStatus = httpStatus
+  err.httpBody = { error, ...(extras ?? {}) }
+  return err
+}
+
 function getIo(req: express.Request): Server | undefined {
   return req.app.get('io') as Server | undefined
+}
+
+async function getStoredPublicState(
+  gameId: string
+): Promise<BlackjackTablePublicState | null> {
+  const stored = await blackjackStateStore.getTable(gameId)
+  const publicState = stored?.runtime?.publicState
+  if (!publicState || typeof publicState !== 'object') return null
+  return publicState as BlackjackTablePublicState
+}
+
+async function getRuntimeAssessment(gameId: string) {
+  const room = await prisma.blackjackRoom.findFirst({
+    where: { gameId },
+    select: { id: true, status: true, gameId: true, hostId: true, visibility: true },
+  })
+  const runtimeState = await blackjackStateStore.getTable(gameId)
+  const snapshotDelegate = (
+    prisma as unknown as {
+      blackjackRoomSnapshot?: {
+        findUnique: (args: unknown) => Promise<{ updatedAt?: Date; version?: number } | null>
+      }
+    }
+  ).blackjackRoomSnapshot
+  const snapshot = room
+    ? await snapshotDelegate?.findUnique?.({
+        where: { roomId: room.id },
+        select: { updatedAt: true, version: true },
+      })
+    : null
+
+  const assessment = assessBlackjackRuntimeReadiness({
+    requestedGameId: gameId,
+    room,
+    runtimeState,
+    snapshot: {
+      exists: Boolean(snapshot),
+      updatedAt: snapshot?.updatedAt,
+      version: snapshot?.version,
+    },
+  })
+
+  return { assessment, room, runtimeState }
 }
 
 function broadcastTable(
@@ -125,6 +193,7 @@ async function payoutAndFinish(
     const t = activeBlackjackGames.get(gameId)
     if (!t || t.phase !== 'payout') return
     t.finishHandAfterPayout()
+    activeBlackjackGames.sync(gameId)
     broadcastTable(gameId, t, io)
   }, ROUND_REVEAL_MS)
 
@@ -137,6 +206,7 @@ async function maybeRunDealerAndPayout(
 ): Promise<{ settlements: unknown[]; roundSummary: BjRoundSummaryRow[] } | null> {
   if (table.phase !== 'dealer') return null
   table.runDealerDraws()
+  activeBlackjackGames.sync(table.gameId)
   return payoutAndFinish(table, io)
 }
 
@@ -510,82 +580,94 @@ router.post('/:roomId/start', authMiddleware, async (req, res) => {
       }
     }
 
-    const gameId = `bj_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`
+    const result = await withBlackjackTableLock(
+      blackjackStateStore,
+      `room:${room.id}`,
+      async () => {
+        const gameId = `bj_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`
 
-    const members = room.seats.map((s) => ({
-      userId: s.userId,
-      username: s.user.username,
-      position: s.position,
-    }))
+        const members = room.seats.map((s) => ({
+          userId: s.userId,
+          username: s.user.username,
+          position: s.position,
+        }))
 
-    const table = new BlackjackTableController({
-      gameId,
-      roomId: room.id,
-      maxSeats: room.maxSeats,
-      minBet: room.minBet,
-      members,
-    })
+        const table = new BlackjackTableController({
+          gameId,
+          roomId: room.id,
+          maxSeats: room.maxSeats,
+          minBet: room.minBet,
+          members,
+        })
 
-    // Auto-mise + deal immédiat (comme un vrai casino) :
-    // si les joueurs sont "ready", on place une mise minimale pour chacun,
-    // puis on distribue les cartes tout de suite.
-    const defaultBet = table.minBet
-    const memberUserIds = members.map((m) => m.userId)
-    const dbUsers = await prisma.user.findMany({
-      where: { id: { in: memberUserIds } },
-      select: { id: true, chips: true, experience: true },
-    })
+        // Auto-mise + deal immédiat (comme un vrai casino)
+        const defaultBet = table.minBet
+        const memberUserIds = members.map((m) => m.userId)
+        const dbUsers = await prisma.user.findMany({
+          where: { id: { in: memberUserIds } },
+          select: { id: true, chips: true, experience: true },
+        })
 
-    if (dbUsers.length !== memberUserIds.length) {
-      return res.status(500).json({ error: 'Erreur serveur' })
-    }
+        if (dbUsers.length !== memberUserIds.length) {
+          throw makeHttpError(500, 'Erreur serveur')
+        }
 
-    for (const m of members) {
-      const u = dbUsers.find((x) => x.id === m.userId)
-      if (!u) continue
-      const lvl = levelFromExperience(u.experience)
-      const maxBetEffective = Math.min(
-        BLACKJACK_MAX_BET_CAP,
-        getEffectiveBlackjackMaxBet(lvl)
-      )
+        for (const m of members) {
+          const u = dbUsers.find((x) => x.id === m.userId)
+          if (!u) continue
+          const lvl = levelFromExperience(u.experience)
+          const maxBetEffective = Math.min(
+            BLACKJACK_MAX_BET_CAP,
+            getEffectiveBlackjackMaxBet(lvl)
+          )
 
-      const v = validateBlackjackBet(defaultBet, u.chips, maxBetEffective)
-      if (!v.ok) {
-        return res.status(400).json({ error: v.code, code: v.code })
+          const v = validateBlackjackBet(defaultBet, u.chips, maxBetEffective)
+          if (!v.ok) {
+            throw makeHttpError(400, v.code, { code: v.code })
+          }
+
+          const upd = await prisma.user.updateMany({
+            where: { id: u.id, chips: { gte: v.bet } },
+            data: { chips: { decrement: v.bet } },
+          })
+          if (upd.count === 0) {
+            throw makeHttpError(409, 'INSUFFICIENT_CHIPS', { code: 'INSUFFICIENT_CHIPS' })
+          }
+
+          const placed = table.placeBet(u.id, v.bet, u.chips, maxBetEffective)
+          if (!placed.ok) {
+            throw makeHttpError(500, 'Erreur serveur')
+          }
+        }
+
+        const d = table.deal()
+        if (!d.ok) {
+          throw makeHttpError(500, d.code, { code: d.code })
+        }
+
+        activeBlackjackGames.set(gameId, table)
+
+        await prisma.blackjackRoom.update({
+          where: { id: room.id },
+          data: { status: 'PLAYING', gameId },
+        })
+
+        const io = getIo(req)
+        broadcastTable(gameId, table, io)
+
+        return { gameId, roomId: room.id, state: table.toPublicState() }
       }
+    )
 
-      const upd = await prisma.user.updateMany({
-        where: { id: u.id, chips: { gte: v.bet } },
-        data: { chips: { decrement: v.bet } },
-      })
-      if (upd.count === 0) {
-        return res.status(409).json({ error: 'INSUFFICIENT_CHIPS', code: 'INSUFFICIENT_CHIPS' })
-      }
-
-      // On ne déduit pas ici (déjà fait en DB), on remplit juste l’état de la table.
-      const placed = table.placeBet(u.id, v.bet, u.chips, maxBetEffective)
-      if (!placed.ok) {
-        return res.status(500).json({ error: 'Erreur serveur' })
-      }
-    }
-
-    const d = table.deal()
-    if (!d.ok) {
-      return res.status(500).json({ error: d.code, code: d.code })
-    }
-
-    activeBlackjackGames.set(gameId, table)
-
-    await prisma.blackjackRoom.update({
-      where: { id: room.id },
-      data: { status: 'PLAYING', gameId },
-    })
-
-    const io = getIo(req)
-    broadcastTable(gameId, table, io)
-
-    return res.json({ gameId, roomId: room.id, state: table.toPublicState() })
+    return res.json(result)
   } catch (e) {
+    if (e instanceof BlackjackTableLockedError) {
+      return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+    }
+    const he = e as RouteHttpError
+    if (he.httpStatus && he.httpBody) {
+      return res.status(he.httpStatus).json(he.httpBody)
+    }
     console.error('blackjackMulti start', e)
     return res.status(500).json({ error: 'Erreur serveur' })
   }
@@ -597,17 +679,26 @@ router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const table = activeBlackjackGames.get(req.params.gameId)
-    if (!table) {
-      return res.status(410).json({ error: 'Table inactive ou serveur redémarré' })
+    const { assessment, room, runtimeState } = await getRuntimeAssessment(
+      req.params.gameId
+    )
+    if (!assessment.canServeState) {
+      const out = runtimeReadinessToHttp(assessment)
+      return res.status(out.status).json(out.body)
     }
 
-    const room = await prisma.blackjackRoom.findFirst({
-      where: { gameId: req.params.gameId },
-    })
-    if (!room) {
-      return res.status(410).json({ error: 'Salle introuvable' })
+    const table = activeBlackjackGames.get(req.params.gameId)
+    const storedState =
+      table?.toPublicState(userId) ??
+      ((runtimeState?.runtime?.publicState as BlackjackTablePublicState | undefined) ?? null)
+    if (!storedState) {
+      return res.status(409).json({
+        error: 'TABLE_NOT_LOADED_LOCALLY',
+        code: 'TABLE_NOT_LOADED_LOCALLY',
+        message: 'Table state not available on this node.',
+      })
     }
+    if (!room) return res.status(410).json({ error: 'Salle introuvable' })
 
     if (room.visibility === 'PRIVATE' && room.hostId !== userId) {
       const seated = await prisma.blackjackRoomSeat.findFirst({
@@ -619,7 +710,7 @@ router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
     }
 
     return res.json({
-      state: table.toPublicState(userId),
+      state: storedState,
       hostId: room.hostId,
       roomId: room.id,
     })
@@ -635,8 +726,21 @@ router.post('/game/:gameId/bet', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
+    const { assessment } = await getRuntimeAssessment(req.params.gameId)
+    if (!assessment.canAcceptActions) {
+      const out = runtimeReadinessToHttp(assessment)
+      return res.status(out.status).json(out.body)
+    }
+
     const table = activeBlackjackGames.get(req.params.gameId)
-    if (!table) return res.status(410).json({ error: 'Table inactive' })
+    if (!table) {
+      const out = runtimeReadinessToHttp({
+        status: 'TABLE_NOT_LOADED_LOCALLY',
+        canServeState: false,
+        canAcceptActions: false,
+      })
+      return res.status(out.status).json(out.body)
+    }
 
     if (table.phase !== 'betting') {
       return res.status(409).json({ error: 'Phase de mise terminée' })
@@ -683,6 +787,7 @@ router.post('/game/:gameId/bet', authMiddleware, async (req, res) => {
     seat.bet = preview.bet
     seat.totalBet = preview.bet
     seat.playState = 'bet_placed'
+    activeBlackjackGames.sync(table.gameId)
 
     const io = getIo(req)
     broadcastTable(table.gameId, table, io)
@@ -710,8 +815,21 @@ router.post('/game/:gameId/deal', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
+    const { assessment } = await getRuntimeAssessment(req.params.gameId)
+    if (!assessment.canAcceptActions) {
+      const out = runtimeReadinessToHttp(assessment)
+      return res.status(out.status).json(out.body)
+    }
+
     const table = activeBlackjackGames.get(req.params.gameId)
-    if (!table) return res.status(410).json({ error: 'Table inactive' })
+    if (!table) {
+      const out = runtimeReadinessToHttp({
+        status: 'TABLE_NOT_LOADED_LOCALLY',
+        canServeState: false,
+        canAcceptActions: false,
+      })
+      return res.status(out.status).json(out.body)
+    }
 
     const room = await prisma.blackjackRoom.findFirst({
       where: { gameId: table.gameId },
@@ -720,16 +838,23 @@ router.post('/game/:gameId/deal', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: 'Seul l’hôte peut distribuer' })
     }
 
-    const d = table.deal()
-    if (!d.ok) {
-      return res.status(400).json({ error: d.code, code: d.code })
-    }
-
     const io = getIo(req)
-    const extra = await maybeRunDealerAndPayout(table, io)
-    if (!extra) {
-      broadcastTable(table.gameId, table, io)
-    }
+    const extra = await withBlackjackTableLock(
+      blackjackStateStore,
+      `game:${table.gameId}`,
+      async () => {
+        const d = table.deal()
+        if (!d.ok) {
+          throw makeHttpError(400, d.code, { code: d.code })
+        }
+        activeBlackjackGames.sync(table.gameId)
+        const settled = await maybeRunDealerAndPayout(table, io)
+        if (!settled) {
+          broadcastTable(table.gameId, table, io)
+        }
+        return settled
+      }
+    )
 
     return res.json({
       ok: true,
@@ -738,6 +863,13 @@ router.post('/game/:gameId/deal', authMiddleware, async (req, res) => {
       roundSummary: extra?.roundSummary,
     })
   } catch (e) {
+    if (e instanceof BlackjackTableLockedError) {
+      return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+    }
+    const he = e as RouteHttpError
+    if (he.httpStatus && he.httpBody) {
+      return res.status(he.httpStatus).json(he.httpBody)
+    }
     console.error('blackjackMulti deal', e)
     return res.status(500).json({ error: 'Erreur serveur' })
   }
@@ -749,51 +881,72 @@ router.post('/game/:gameId/action', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
+    const { assessment } = await getRuntimeAssessment(req.params.gameId)
+    if (!assessment.canAcceptActions) {
+      const out = runtimeReadinessToHttp(assessment)
+      return res.status(out.status).json(out.body)
+    }
+
     const action = req.body?.action
     if (action !== 'hit' && action !== 'stand' && action !== 'double') {
       return res.status(400).json({ error: 'Action invalide' })
     }
 
     const table = activeBlackjackGames.get(req.params.gameId)
-    if (!table) return res.status(410).json({ error: 'Table inactive' })
-
-    let doubleExtraDebited = 0
-    if (action === 'double') {
-      const idx = table.currentSeatIndex
-      const seat = table.seats[idx]
-      if (!seat || seat.userId !== userId) {
-        return res.status(400).json({ error: 'NOT_YOUR_TURN' })
-      }
-      if (seat.hand.length !== 2) {
-        return res.status(400).json({ error: 'DOUBLE_NOT_ALLOWED' })
-      }
-      const extra = seat.bet
-      const upd = await prisma.user.updateMany({
-        where: { id: userId, chips: { gte: extra } },
-        data: { chips: { decrement: extra } },
+    if (!table) {
+      const out = runtimeReadinessToHttp({
+        status: 'TABLE_NOT_LOADED_LOCALLY',
+        canServeState: false,
+        canAcceptActions: false,
       })
-      if (upd.count === 0) {
-        return res.status(409).json({ error: 'INSUFFICIENT_CHIPS', code: 'INSUFFICIENT_CHIPS' })
-      }
-      doubleExtraDebited = extra
-    }
-
-    const r = table.playerAction(userId, action)
-    if (!r.ok) {
-      if (doubleExtraDebited > 0) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { chips: { increment: doubleExtraDebited } },
-        })
-      }
-      return res.status(400).json({ error: r.code, code: r.code })
+      return res.status(out.status).json(out.body)
     }
 
     const io = getIo(req)
-    const extra = await maybeRunDealerAndPayout(table, io)
-    if (!extra) {
-      broadcastTable(table.gameId, table, io)
-    }
+    const extra = await withBlackjackTableLock(
+      blackjackStateStore,
+      `game:${table.gameId}`,
+      async () => {
+        let doubleExtraDebited = 0
+        if (action === 'double') {
+          const idx = table.currentSeatIndex
+          const seat = table.seats[idx]
+          if (!seat || seat.userId !== userId) {
+            throw makeHttpError(400, 'NOT_YOUR_TURN')
+          }
+          if (seat.hand.length !== 2) {
+            throw makeHttpError(400, 'DOUBLE_NOT_ALLOWED')
+          }
+          const extra = seat.bet
+          const upd = await prisma.user.updateMany({
+            where: { id: userId, chips: { gte: extra } },
+            data: { chips: { decrement: extra } },
+          })
+          if (upd.count === 0) {
+            throw makeHttpError(409, 'INSUFFICIENT_CHIPS', { code: 'INSUFFICIENT_CHIPS' })
+          }
+          doubleExtraDebited = extra
+        }
+
+        const r = table.playerAction(userId, action)
+        if (!r.ok) {
+          if (doubleExtraDebited > 0) {
+            await prisma.user.update({
+              where: { id: userId },
+              data: { chips: { increment: doubleExtraDebited } },
+            })
+          }
+          throw makeHttpError(400, r.code, { code: r.code })
+        }
+        activeBlackjackGames.sync(table.gameId)
+
+        const settled = await maybeRunDealerAndPayout(table, io)
+        if (!settled) {
+          broadcastTable(table.gameId, table, io)
+        }
+        return settled
+      }
+    )
 
     const fresh = await prisma.user.findUnique({
       where: { id: userId },
@@ -808,6 +961,13 @@ router.post('/game/:gameId/action', authMiddleware, async (req, res) => {
       roundSummary: extra?.roundSummary,
     })
   } catch (e) {
+    if (e instanceof BlackjackTableLockedError) {
+      return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+    }
+    const he = e as RouteHttpError
+    if (he.httpStatus && he.httpBody) {
+      return res.status(he.httpStatus).json(he.httpBody)
+    }
     console.error('blackjackMulti action', e)
     return res.status(500).json({ error: 'Erreur serveur' })
   }
