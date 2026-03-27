@@ -399,7 +399,7 @@ router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
 router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId } = req.body;
+    const { userId, turnTimeoutMs, turbo } = req.body;
 
     // Vérifier que la salle existe et est en WAITING
     const room = await prisma.waitingRoom.findUnique({
@@ -605,7 +605,13 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
       maxSeats: 9,
       smallBlind: sb,
       bigBlind: bb,
-      defaultBuyIn: minBal
+      defaultBuyIn: minBal,
+      turnTimeoutMs:
+        typeof turnTimeoutMs === 'number'
+          ? turnTimeoutMs
+          : turbo === true
+            ? 10_000
+            : undefined,
     });
     cashGame.initFromRoomPlayers(
       room.players.map((rp) => ({

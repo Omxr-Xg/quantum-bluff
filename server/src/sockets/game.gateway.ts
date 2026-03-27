@@ -474,8 +474,20 @@ export class GameGateway {
             const isSpectator = !freshGame.getPlayerState(uid ?? '')
             s.emit('GAME_UPDATE', freshGame.getSanitizedState(isSpectator ? undefined : uid))
           }
+          this.io.to(gameId).emit('HAND_STATE_CHANGED', {
+            gameId,
+            phase: freshGame.state.phase,
+            handRuntimePhase: freshGame.state.handRuntimePhase,
+            handEndReason: freshGame.state.handEndReason,
+            handId: freshGame.state.handId,
+          })
 
           if (freshGame.state.phase === 'SHOWDOWN') {
+            this.io.to(gameId).emit('SHOWDOWN_REVEAL', {
+              gameId,
+              handId: freshGame.state.handId,
+              handEndReason: freshGame.state.handEndReason,
+            })
             const innerGame = freshGame instanceof CashGameController ? freshGame.getGameTable() : freshGame
             if (innerGame && freshGame.state.showdownWinnerId) {
               this.recordMultiPlayerStats(innerGame as GameTable).catch((err) =>
@@ -497,6 +509,22 @@ export class GameGateway {
                 const uid = (s as unknown as AuthenticatedSocket).userId
                 s.emit('GAME_UPDATE', freshGame.getSanitizedState(uid))
               }
+              this.io.to(gameId).emit('SHOWDOWN_RESULT', {
+                gameId,
+                handId: freshGame.state.handId,
+                winnerId: freshGame.state.showdownWinnerId,
+                winnerIds: freshGame.state.showdownWinnerIds ?? [],
+                handEndReason: freshGame.state.handEndReason,
+              })
+              this.io.to(gameId).emit('POT_DISTRIBUTED', {
+                gameId,
+                handId: freshGame.state.handId,
+                pot: freshGame.state.showdownPot ?? 0,
+              })
+              this.io.to(gameId).emit('NEXT_HAND_COUNTDOWN', {
+                gameId,
+                countdownEndsAt: freshGame.state.cashCountdownEndsAt,
+              })
             }
             // Pas de startTurnTimer en SHOWDOWN (partie terminée pour one-shot, ou countdown pour cash game)
           } else {
