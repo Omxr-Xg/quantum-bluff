@@ -260,10 +260,11 @@ export function BlackjackMultiCasinoTable({
               {state.dealerCards.map((c, i) => (
                 <div
                   key={`d-${i}-${c.rank}-${c.suit}`}
-                  className="-ml-4 first:ml-0 sm:-ml-5"
+                  className="bj-card-reveal -ml-4 first:ml-0 sm:-ml-5"
                   style={{
                     transform: `rotate(${-8 + i * 6}deg) translateY(${i * 2}px)`,
                     zIndex: i,
+                    animationDelay: `${i * 0.09}s`,
                   }}
                 >
                   <PlayingCard
@@ -327,7 +328,11 @@ export function BlackjackMultiCasinoTable({
                     </div>
                     <div className="mt-2 flex min-h-[4.5rem] justify-center pl-3 sm:min-h-[5rem] sm:pl-4">
                       {s.cards.map((c, ci) => (
-                        <div key={`${s.userId}-c-${ci}`} className="-ml-3 first:ml-0 sm:-ml-3.5">
+                        <div
+                          key={`${s.userId}-c-${ci}`}
+                          className="bj-card-reveal -ml-3 first:ml-0 sm:-ml-3.5"
+                          style={{ animationDelay: `${0.12 + ci * 0.08}s` }}
+                        >
                           <PlayingCard card={c} />
                         </div>
                       ))}

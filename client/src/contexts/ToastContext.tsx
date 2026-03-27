@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useRef,
   ReactNode,
 } from "react";
 
@@ -24,10 +25,12 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastSeqRef = useRef(0);
 
   const addToast = useCallback(
     (message: string, type: ToastType = "info") => {
-      const id = Date.now();
+      toastSeqRef.current += 1;
+      const id = Date.now() * 1000 + toastSeqRef.current;
       setToasts((prev) => [...prev, { id, message, type }]);
 
       setTimeout(() => {
