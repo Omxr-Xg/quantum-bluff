@@ -25,8 +25,9 @@ import {
   XP_BLACKJACK_WIN_BONUS,
 } from '../logic/gamification.js'
 import {
+  abortIdempotentAction,
   buildIdempotencyKey,
-  getIdempotentResult,
+  fingerprintStableJson,
   saveIdempotentResult,
   tryBeginIdempotentAction,
 } from '../casino/services/idempotency.service.js'
@@ -101,6 +102,8 @@ async function finalizeHand(
 
 /** POST /start — nouvelle main (débite la mise). */
 router.post('/start', authMiddleware, async (req, res) => {
+  let idemKey: string | undefined
+  let idemCommitted = false
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
@@ -111,19 +114,26 @@ router.post('/start', authMiddleware, async (req, res) => {
       actionId: req.body?.actionId,
       roundId: req.body?.roundId,
     })
-    const idemKey = buildIdempotencyKey({
+    idemKey = buildIdempotencyKey({
       userId,
       gameType: 'blackjack:start',
       actionId: context.actionId,
     })
-    const idemStart = tryBeginIdempotentAction(idemKey)
+    const startFingerprint = fingerprintStableJson({ bet: req.body?.bet })
+    const idemStart = await tryBeginIdempotentAction(idemKey, { payloadFingerprint: startFingerprint })
     if (!idemStart.accepted) {
-      const previous = getIdempotentResult(idemKey)
-      if (previous) return res.json(previous)
+      if (idemStart.reason === 'PAYLOAD_MISMATCH') {
+        return res.status(409).json({
+          error: 'Rejeu idempotent : mise différente pour le même actionId',
+          code: 'IDEMPOTENCY_PAYLOAD_MISMATCH',
+        })
+      }
+      if (idemStart.storedResult != null) return res.json(idemStart.storedResult)
       return res.status(409).json({ error: 'Action déjà traitée', code: 'DUPLICATE_ACTION' })
     }
 
     if (getSession(userId)) {
+      await abortIdempotentAction(idemKey)
       return res.status(409).json({ error: 'Une main est déjà en cours', code: 'SESSION_ACTIVE' })
     }
 
@@ -156,13 +166,16 @@ router.post('/start', authMiddleware, async (req, res) => {
       if (debit.count === 0) {
         throw Object.assign(new Error('INSUFFICIENT_CHIPS'), { code: 'INSUFFICIENT_CHIPS' })
       }
-      await appendWalletLedgerEntry({
-        context,
-        reason: 'BLACKJACK_STAKE',
-        amount: -bet,
-        balanceBefore: chipsBefore,
-        balanceAfter: chipsBefore - bet,
-      })
+      await appendWalletLedgerEntry(
+        {
+          context,
+          reason: 'BLACKJACK_STAKE',
+          amount: -bet,
+          balanceBefore: chipsBefore,
+          balanceAfter: chipsBefore - bet,
+        },
+        tx
+      )
 
       const shoe = createShoe()
       shuffleShoe(shoe)
@@ -197,7 +210,8 @@ router.post('/start', authMiddleware, async (req, res) => {
 
     if (outcome.type === 'complete') {
       const { type: _t, ...rest } = outcome
-      saveIdempotentResult(idemKey, rest)
+      await saveIdempotentResult(idemKey, rest)
+      idemCommitted = true
       return res.json(rest)
     }
 
@@ -229,9 +243,11 @@ router.post('/start', authMiddleware, async (req, res) => {
       roundId: outcome.roundId,
       actionId: outcome.actionId,
     }
-    saveIdempotentResult(idemKey, response)
+    await saveIdempotentResult(idemKey, response)
+    idemCommitted = true
     return res.json(response)
   } catch (e) {
+    if (idemKey && !idemCommitted) await abortIdempotentAction(idemKey)
     const code = (e as { code?: string }).code
     const maxBetEffective = (e as { maxBetEffective?: number }).maxBetEffective
     if (code === 'INSUFFICIENT_CHIPS') {
