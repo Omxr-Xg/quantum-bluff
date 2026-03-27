@@ -25,6 +25,21 @@ import {
 
 const router = express.Router()
 
+function parseForcedRouletteResult(raw: unknown): number | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (raw === '') return undefined
+  let n: number
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    n = Math.trunc(raw)
+  } else {
+    const s = String(raw).trim()
+    if (s === '') return undefined
+    n = parseInt(s, 10)
+  }
+  if (!Number.isFinite(n) || n < 0 || n > 36) return undefined
+  return n
+}
+
 function betToJson(b: RouletteBetNormalized): Record<string, unknown> {
   switch (b.type) {
     case 'straight':
@@ -88,7 +103,8 @@ router.post('/spin', authMiddleware, async (req, res) => {
         data: { chips: { decrement: totalStake } },
       })
 
-      const result = spinWheel()
+      const forced = parseForcedRouletteResult(req.body?.forceResult)
+      const result = forced !== undefined ? forced : spinWheel()
       const { breakdown, totalPayout } = resolveSpin(bets, result)
 
       const updated = await tx.user.update({
