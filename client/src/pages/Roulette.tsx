@@ -149,13 +149,6 @@ const DEFAULT_WHEEL = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
 ];
 
-/** Entier 0–36 pour forcer le résultat roulette. */
-function clampRouletteResultInt(raw: number): number {
-  const n = Math.trunc(raw);
-  if (!Number.isFinite(n)) return 0;
-  return Math.min(36, Math.max(0, n));
-}
-
 function mod360(x: number): number {
   let m = x % 360;
   if (m < 0) m += 360;
@@ -407,9 +400,6 @@ export function Roulette() {
   const betsRef = useRef(bets);
   betsRef.current = bets;
   const [spinning, setSpinning] = useState(false);
-  /** Si défini : ce numéro 0–36 est envoyé à chaque spin tant que le champ reste rempli. */
-  const [devForceNextResult, setDevForceNextResult] = useState<number | null>(null);
-  const devForceInputRef = useRef<HTMLInputElement>(null);
   const [lastResult, setLastResult] = useState<number | null>(null);
   const [lastColor, setLastColor] = useState<string | null>(null);
   const rotation = useMotionValue(0);
@@ -559,15 +549,9 @@ export function Roulette() {
     setLastResult(null);
     setLastColor(null);
 
-    const forcedResultInt =
-      devForceNextResult !== null ? clampRouletteResultInt(devForceNextResult) : null;
-
     try {
       const url = apiUrl("/api/roulette/spin");
-      const payload: { bets: ApiBet[]; forceResult?: number } = { bets: body };
-      if (forcedResultInt !== null) {
-        payload.forceResult = forcedResultInt;
-      }
+      const payload: { bets: ApiBet[] } = { bets: body };
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -582,11 +566,8 @@ export function Roulette() {
 
       const result =
         typeof data?.result === "number" && Number.isFinite(data.result)
-          ? clampRouletteResultInt(data.result)
+          ? Math.min(36, Math.max(0, Math.trunc(data.result)))
           : 0;
-      if (forcedResultInt !== null && result !== forcedResultInt) {
-        addToast(`Résultat API ${result} ≠ forcé ${forcedResultInt}`, "error");
-      }
       const nextChips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : chips;
       updateUserBalance(nextChips);
       setChips(nextChips);
@@ -984,52 +965,6 @@ export function Roulette() {
                       );
                     })}
                   </div>
-                  <div className="mt-1 border-t border-[#5c4a2a]/30 pt-1 opacity-[0.06] transition-opacity hover:opacity-100 focus-within:opacity-100">
-                      <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          className="h-1 w-8 shrink-0 cursor-pointer rounded-full bg-slate-700/40 opacity-40 hover:opacity-100"
-                          title="Forcer le tirage : entier 0–36 (chaque spin tant que le champ est rempli)"
-                          aria-label="Forcer résultat roulette"
-                          onClick={() => devForceInputRef.current?.focus()}
-                        />
-                        <input
-                          ref={devForceInputRef}
-                          type="number"
-                          min={0}
-                          max={36}
-                          step={1}
-                          disabled={spinning}
-                          placeholder="0–36"
-                          value={devForceNextResult === null ? "" : devForceNextResult}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (v === "") {
-                              setDevForceNextResult(null);
-                              return;
-                            }
-                            const n = parseInt(v, 10);
-                            if (!Number.isNaN(n)) {
-                              setDevForceNextResult(clampRouletteResultInt(n));
-                            }
-                          }}
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            if (v === "") {
-                              setDevForceNextResult(null);
-                              return;
-                            }
-                            const n = parseInt(v, 10);
-                            if (!Number.isNaN(n)) {
-                              setDevForceNextResult(clampRouletteResultInt(n));
-                            }
-                          }}
-                          className="w-14 rounded border border-slate-700/80 bg-black/60 px-1 py-0.5 text-center font-mono text-[10px] text-slate-400 outline-none ring-amber-500/40 focus:ring-1"
-                          title="Entier 0–36 : ce numéro est tiré à chaque spin tant que le champ n’est pas vide"
-                        />
-                        <span className="font-mono text-[9px] text-slate-600">= tirage</span>
-                      </div>
-                    </div>
                 </div>
               </details>
             </div>
