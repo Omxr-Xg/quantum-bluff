@@ -91,8 +91,11 @@
   - `blackjack.routes.ts`, `blackjackMulti.routes.ts`
   - `friends.routes.ts`, `invitation.routes.ts`, `leaderboard.routes.ts`, `updates.routes.ts`
   - `admin.blackjack.runtime.routes.ts` (diagnostic/metrics runtime blackjack)
+  - `admin.poker.runtime.routes.ts` (diagnostic/readiness runtime poker)
 - `server/src/logic/`
   - moteurs de jeu: poker (`GameTable`, `CashGameController`), roulette, slot, blackjack
+- `server/src/logic/poker/`
+  - pipeline showdown/payout pur poker (`showdownRanking.ts`, `potSettlement.ts`)
 - `server/src/blackjack/`
   - domaine/runtime (`domain/`)
   - state store abstrait + implementations in-memory/redis (`store/`)
@@ -105,6 +108,12 @@
 - `server/src/shared/`
   - `activeGames.ts` (poker), `activeBlackjackGames.ts` (registre runtime local)
   - `blackjackStateStore.ts` (singleton store blackjack)
+  - `pokerStateStore.ts` (singleton store poker)
+- `server/src/poker/`
+  - `domain/` (contrat + validation action poker)
+  - `services/` (orchestrator mutation, dedup, lock, sync state)
+  - `store/` (PokerStateStore memory/redis)
+  - `recovery/` (readiness/recovery poker)
 - `server/prisma/`
   - `schema.prisma` + migrations
   - migration snapshot blackjack: `20260327120000_blackjack_room_snapshots`
@@ -130,6 +139,14 @@
 - actions realtime (fold/call/raise/check)
 - spectateurs + file de rejoin
 - reconnect/disconnect avec timeout
+- **Durcissement runtime poker (etat actuel)**:
+  - source de verite runtime recentree sur l'etat serveur (`handId`, `actionVersion`, `streetVersion`, `updatedAt`)
+  - contrat d'action unifie socket/HTTP (`gameId`, `handId`, `playerId`, `actionType`, `amount`, `actionId`, `expectedStreet`)
+  - point d'entree unique de mutation (`pokerActionOrchestrator.service.ts`)
+  - lock de table + dedup TTL `actionId` + rejet `STALE_ACTION`/`DUPLICATE_ACTION`
+  - settlement deterministe via modules purs (`showdownRanking`, `potSettlement`)
+  - readiness/recovery poker + snapshots runtime store + endpoint admin poker runtime
+  - certification interne de regles poker couverte via `Docs/intern/POKER_EDGE_CASES_100.md`
 
 ## 4.3 Casino
 
@@ -184,6 +201,7 @@
   - `/api/blackjack`
   - `/api/blackjack-tables`
   - `/api/admin/blackjack/runtime`
+  - `/api/admin/poker/runtime`
   - `/api/friends`
   - `/api/invitations`
   - `/api/leaderboard`
@@ -213,6 +231,7 @@ Rate limits dedies visibles dans `server/src/index.ts`:
 Points structurels:
 - Poker: support redis/memoire via `activeGames`
 - Blackjack multi: resilience active via state store (memory/redis), snapshots DB, lock distribue et pub/sub; `activeBlackjackGames` reste un registre runtime local de controllers vivants
+- Poker (nouveau niveau de maturite): orchestration mutations lock+dedup, contrat d'action unifie, settlement pur, state store poker, readiness/recovery admin
 
 ---
 
@@ -338,6 +357,10 @@ Tests:
 - verrous recents:
   - backend unit: `server/src/blackjack/services/__tests__/blackjackRuntimeHealth.service.test.ts`
   - backend integration: `server/src/__tests__/blackjackMulti.state.integration.test.ts`
+  - backend poker edge rules: `server/src/__tests__/poker.edge-cases.test.ts`
+  - backend poker runtime rules: `server/src/__tests__/GameTable.runtime-rules.test.ts`
+  - backend poker dedup: `server/src/__tests__/pokerActionDedup.service.test.ts`
+  - backend poker settlement: `server/src/__tests__/potSettlement.test.ts`
   - frontend unit: `client/src/features/blackjack/runtimeStatus.test.ts`
   - frontend integration: `client/src/pages/BlackjackMultiTable.runtime.integration.test.tsx`
 
@@ -345,7 +368,7 @@ Tests:
 
 ## 12) Etat actuel des choix techniques importants
 
-- Poker multi: plus industrialise (activeGames + redis path)
+- Poker multi: runtime fortement durci (orchestrator mutation, lock/dedup, contrat action unifie, settlement pur, readiness/recovery/store)
 - Blackjack multi: runtime distribue (store abstrait), avec fallback memoire local pour execution des controllers
 - API riche + realtime dense
 - i18n 5 langues
@@ -360,9 +383,10 @@ Tests:
 2. **Rotations immediates** des credentials deja exposes
 3. **Limiter/retirer `forceResult` roulette** en prod (role admin ou flag serveur strict)
 4. **Durcir l'observabilite blackjack** (logs structures + dashboard sur metrics runtime admin)
-5. **Scanner secret automatique CI** (gitleaks/trufflehog)
-6. **Durcir politiques CORS** par environnement
-7. **Verifier hygiene API friends** (surveiller 404 anormaux et bruit reseau client)
+5. **Etendre observabilite poker** (compteurs dedup/stale/lock wait/recovery)
+6. **Scanner secret automatique CI** (gitleaks/trufflehog)
+7. **Durcir politiques CORS** par environnement
+8. **Verifier hygiene API friends** (surveiller 404 anormaux et bruit reseau client)
 
 ---
 
@@ -373,8 +397,12 @@ Tests:
 - Roulette route: `server/src/routes/roulette.routes.ts`
 - Blackjack multi route: `server/src/routes/blackjackMulti.routes.ts`
 - Admin runtime blackjack: `server/src/routes/admin.blackjack.runtime.routes.ts`
+- Admin runtime poker: `server/src/routes/admin.poker.runtime.routes.ts`
 - Runtime health blackjack: `server/src/blackjack/services/blackjackRuntimeHealth.service.ts`
 - Recovery blackjack: `server/src/blackjack/recovery/blackjackRecovery.service.ts`
+- Poker action orchestrator: `server/src/poker/services/pokerActionOrchestrator.service.ts`
+- Poker store/recovery: `server/src/poker/store/*`, `server/src/poker/recovery/*`
+- Poker edge certification: `Docs/intern/POKER_EDGE_CASES_100.md`
 - Poker room route: `server/src/routes/waitingRoom.routes.ts`
 - Prisma schema: `server/prisma/schema.prisma`
 - Front roulette: `client/src/pages/Roulette.tsx`
