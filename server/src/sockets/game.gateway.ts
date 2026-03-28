@@ -16,6 +16,10 @@ import {
 } from '../logic/gamification.js'
 import { assessBlackjackRuntimeReadiness } from '../blackjack/services/blackjackRuntimeHealth.service.js'
 import { applyPokerAction } from '../poker/services/pokerActionOrchestrator.service.js'
+import {
+  PokerTableLockedError,
+  withPokerTableLock,
+} from '../poker/services/pokerTableLock.service.js'
 import { rootLogger } from '../observability/logger.js'
 import { metrics as promMetrics } from '../observability/metrics.js'
 
@@ -531,35 +535,19 @@ export class GameGateway {
             }
             if (freshGame instanceof CashGameController) {
               const cashGame = freshGame as CashGameController
-              cashGame.onHandComplete()
-              await cashGame.processRejoinQueue(async (uid) => {
-                const u = await prisma.user.findUnique({
-                  where: { id: uid },
-                  select: { username: true, chips: true }
-                })
-                return u ? { username: u.username, chips: Math.max(100, u.chips ?? 1000) } : null
-              })
-              const socketsInRoom2 = await this.io.in(gameId).fetchSockets()
-              for (const s of socketsInRoom2) {
-                const uid = (s as unknown as AuthenticatedSocket).userId
-                s.emit('GAME_UPDATE', freshGame.getSanitizedState(uid))
-              }
-              this.io.to(gameId).emit('SHOWDOWN_RESULT', {
-                gameId,
-                handId: freshGame.state.handId,
-                winnerId: freshGame.state.showdownWinnerId,
-                winnerIds: freshGame.state.showdownWinnerIds ?? [],
+              const showdownSnapshot = {
+                handId: freshGame.state.handId ?? '',
                 handEndReason: freshGame.state.handEndReason,
-              })
-              this.io.to(gameId).emit('POT_DISTRIBUTED', {
+                showdownWinnerId: freshGame.state.showdownWinnerId,
+                showdownWinnerIds: freshGame.state.showdownWinnerIds,
+                showdownPot: freshGame.state.showdownPot,
+              }
+              await this.completeCashHandAndBroadcast(
                 gameId,
-                handId: freshGame.state.handId,
-                pot: freshGame.state.showdownPot ?? 0,
-              })
-              this.io.to(gameId).emit('NEXT_HAND_COUNTDOWN', {
-                gameId,
-                countdownEndsAt: freshGame.state.cashCountdownEndsAt,
-              })
+                cashGame,
+                cashGame.roomId,
+                showdownSnapshot
+              )
             }
           } else {
             this.startTurnTimer(gameId)
@@ -622,56 +610,126 @@ export class GameGateway {
       socket.on('CASH_LEAVE', async (data: { gameId: string }) => {
         try {
           const { gameId } = data
-          if (!socket.userId || !gameId || socket.gameId !== gameId) return
-          const game = await activeGames.get(gameId)
-          if (!(game instanceof CashGameController)) return
-          const roomId = game.roomId
-          const result = game.leave(socket.userId)
-          if (!result.ok) {
-            socket.emit('ERROR', { code: 'CASH_LEAVE_FAILED', message: result.error })
+          const userId = socket.userId
+          if (!userId || !gameId || socket.gameId !== gameId) return
+          await withPokerTableLock(gameId, `cashleave:${userId}`, async () => {
+            const game = await activeGames.get(gameId)
+            if (!(game instanceof CashGameController)) return
+            const roomId = game.roomId
+            const leaverId = userId
+
+            if (game.isInHand()) {
+              const r = game.quitVoluntaryDuringHand(leaverId)
+              if (!r.ok) {
+                socket.emit('ERROR', { code: 'CASH_LEAVE_FAILED', message: r.error })
+                return
+              }
+
+              this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: leaverId, scope: 'GAME' })
+              this.resetTimer(gameId)
+
+              const freshGame = await activeGames.get(gameId)
+              if (!freshGame) return
+
+              const socketsInRoom = await this.io.in(gameId).fetchSockets()
+              for (const s of socketsInRoom) {
+                const uid = (s as unknown as AuthenticatedSocket).userId
+                const isSpectator = !freshGame.getPlayerState(uid ?? '')
+                const snapshot = freshGame.getSanitizedState(isSpectator ? undefined : uid)
+                s.emit('GAME_UPDATE', snapshot)
+                s.emit('GAME_STATE_UPDATED', snapshot)
+              }
+              this.io.to(gameId).emit('HAND_STATE_CHANGED', {
+                gameId,
+                phase: freshGame.state.phase,
+                handRuntimePhase: freshGame.state.handRuntimePhase,
+                handEndReason: freshGame.state.handEndReason,
+                handId: freshGame.state.handId,
+              })
+
+              if (r.showdown && freshGame instanceof CashGameController) {
+                const cashGame = freshGame as CashGameController
+                this.io.to(gameId).emit('SHOWDOWN_REVEAL', {
+                  gameId,
+                  handId: freshGame.state.handId,
+                  handEndReason: freshGame.state.handEndReason,
+                })
+                const innerGame = cashGame.getGameTable()
+                if (innerGame && freshGame.state.showdownWinnerId) {
+                  this.recordMultiPlayerStats(innerGame as GameTable).catch((err) =>
+                    console.error('[Stats] Erreur enregistrement stats multi:', err)
+                  )
+                }
+                const showdownSnapshot = {
+                  handId: freshGame.state.handId ?? '',
+                  handEndReason: freshGame.state.handEndReason,
+                  showdownWinnerId: freshGame.state.showdownWinnerId,
+                  showdownWinnerIds: freshGame.state.showdownWinnerIds,
+                  showdownPot: freshGame.state.showdownPot,
+                }
+                await this.completeCashHandAndBroadcast(
+                  gameId,
+                  cashGame,
+                  roomId,
+                  showdownSnapshot
+                )
+              } else {
+                this.startTurnTimer(gameId)
+              }
+              return
+            }
+
+            const result = game.leave(leaverId)
+            if (!result.ok) {
+              socket.emit('ERROR', { code: 'CASH_LEAVE_FAILED', message: result.error })
+              return
+            }
+
+            let dissolveReason: 'all_players_left' | 'heads_up_peer_left' | null = null
+
+            this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: leaverId, scope: 'GAME' })
+
+            if (game.getOccupiedCount() === 1) {
+              const remaining = game.getOccupiedSeats()[0]?.userId
+              if (remaining) {
+                game.cancelInterHandCountdown()
+                game.leave(remaining)
+                dissolveReason = 'heads_up_peer_left'
+              }
+            }
+
+            if (game.getOccupiedCount() > 0) {
+              const socketsInRoom = await this.io.in(gameId).fetchSockets()
+              for (const s of socketsInRoom) {
+                const uid = (s as unknown as AuthenticatedSocket).userId
+                const snapshot = game.getSanitizedState(uid)
+                s.emit('GAME_UPDATE', snapshot)
+                s.emit('GAME_STATE_UPDATED', snapshot)
+              }
+            }
+
+            if (game.getOccupiedCount() === 0) {
+              if (!dissolveReason) dissolveReason = 'all_players_left'
+              await activeGames.delete(gameId)
+              await prisma.waitingRoom.updateMany({
+                where: { id: roomId },
+                data: { status: 'WAITING', gameId: null },
+              })
+              this.io.to(gameId).emit('GAME_ENDED', {
+                gameId,
+                reason: dissolveReason,
+                roomId,
+              })
+            }
+          })
+        } catch (err) {
+          if (err instanceof PokerTableLockedError) {
+            socket.emit('ERROR', {
+              code: 'TABLE_LOCKED',
+              message: 'Une action est déjà en cours sur cette table.',
+            })
             return
           }
-
-          const leaverId = socket.userId
-          let dissolveReason: 'all_players_left' | 'heads_up_peer_left' | null = null
-
-          this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: leaverId, scope: 'GAME' })
-
-          // Heads-up : s’il ne reste qu’un joueur entre deux mains, on dissout la table (retour salle d’attente).
-          // 3+ joueurs : la partie continue avec les sièges restants.
-          if (game.getOccupiedCount() === 1) {
-            const remaining = game.getOccupiedSeats()[0]?.userId
-            if (remaining) {
-              game.cancelInterHandCountdown()
-              game.leave(remaining)
-              dissolveReason = 'heads_up_peer_left'
-            }
-          }
-
-          if (game.getOccupiedCount() > 0) {
-            const socketsInRoom = await this.io.in(gameId).fetchSockets()
-            for (const s of socketsInRoom) {
-              const uid = (s as unknown as AuthenticatedSocket).userId
-              const snapshot = game.getSanitizedState(uid)
-              s.emit('GAME_UPDATE', snapshot)
-              s.emit('GAME_STATE_UPDATED', snapshot)
-            }
-          }
-
-          if (game.getOccupiedCount() === 0) {
-            if (!dissolveReason) dissolveReason = 'all_players_left'
-            await activeGames.delete(gameId)
-            await prisma.waitingRoom.updateMany({
-              where: { id: roomId },
-              data: { status: 'WAITING', gameId: null },
-            })
-            this.io.to(gameId).emit('GAME_ENDED', {
-              gameId,
-              reason: dissolveReason,
-              roomId,
-            })
-          }
-        } catch (err) {
           console.error('Erreur CASH_LEAVE:', err)
         }
       })
@@ -920,6 +978,86 @@ export class GameGateway {
       }
     }
     console.log(`[Stats] Stats multi enregistrées pour la partie ${game.id} (gagnant: ${winnerId})`)
+  }
+
+  /**
+   * Après une main cash : HU → s’il ne reste qu’un joueur, retour lobby (GAME_ENDED).
+   */
+  private async maybeDissolveCashAfterHand(
+    cashGame: CashGameController,
+    gameId: string,
+    roomId: string
+  ): Promise<boolean> {
+    let dissolveReason: 'all_players_left' | 'heads_up_peer_left' | null = null
+    if (cashGame.getOccupiedCount() === 1) {
+      const remaining = cashGame.getOccupiedSeats()[0]?.userId
+      if (remaining) {
+        cashGame.cancelInterHandCountdown()
+        cashGame.leave(remaining)
+        dissolveReason = 'heads_up_peer_left'
+      }
+    }
+    if (cashGame.getOccupiedCount() === 0) {
+      if (!dissolveReason) dissolveReason = 'all_players_left'
+      await activeGames.delete(gameId)
+      await prisma.waitingRoom.updateMany({
+        where: { id: roomId },
+        data: { status: 'WAITING', gameId: null },
+      })
+      this.io.to(gameId).emit('GAME_ENDED', {
+        gameId,
+        reason: dissolveReason,
+        roomId,
+      })
+      return true
+    }
+    return false
+  }
+
+  private async completeCashHandAndBroadcast(
+    gameId: string,
+    cashGame: CashGameController,
+    roomId: string,
+    showdownSnapshot: {
+      handId: string
+      handEndReason?: string
+      showdownWinnerId?: string
+      showdownWinnerIds?: string[]
+      showdownPot?: number
+    }
+  ): Promise<void> {
+    cashGame.onHandComplete()
+    await cashGame.processRejoinQueue(async (uid) => {
+      const u = await prisma.user.findUnique({
+        where: { id: uid },
+        select: { username: true, chips: true },
+      })
+      return u ? { username: u.username, chips: Math.max(100, u.chips ?? 1000) } : null
+    })
+    const socketsInRoom2 = await this.io.in(gameId).fetchSockets()
+    for (const s of socketsInRoom2) {
+      const uid = (s as unknown as AuthenticatedSocket).userId
+      s.emit('GAME_UPDATE', cashGame.getSanitizedState(uid))
+    }
+    this.io.to(gameId).emit('SHOWDOWN_RESULT', {
+      gameId,
+      handId: showdownSnapshot.handId,
+      winnerId: showdownSnapshot.showdownWinnerId,
+      winnerIds: showdownSnapshot.showdownWinnerIds ?? [],
+      handEndReason: showdownSnapshot.handEndReason,
+    })
+    this.io.to(gameId).emit('POT_DISTRIBUTED', {
+      gameId,
+      handId: showdownSnapshot.handId,
+      pot: showdownSnapshot.showdownPot ?? 0,
+    })
+    const dissolved = await this.maybeDissolveCashAfterHand(cashGame, gameId, roomId)
+    if (!dissolved) {
+      this.io.to(gameId).emit('NEXT_HAND_COUNTDOWN', {
+        gameId,
+        countdownEndsAt: cashGame.state.cashCountdownEndsAt,
+      })
+    }
   }
 
   private bumpTurnTimerEpoch(gameId: string): number {

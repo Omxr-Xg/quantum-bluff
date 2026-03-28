@@ -327,6 +327,48 @@ export class GameTable {
   }
 
   /**
+   * Fold forcé à la sortie volontaire (quit) : même effet qu'un FOLD, même hors de son tour.
+   */
+  forceFoldQuit(playerId: string): void {
+    const player = this.getPlayerState(playerId)
+    if (!player) {
+      throw new Error('Joueur introuvable')
+    }
+    if (!this.handStarted) {
+      throw new Error('La main n’a pas commencé')
+    }
+    if (!this.handParticipantIds.has(playerId)) {
+      throw new Error('Joueur non participant sur cette main')
+    }
+    if (!player.isActive) {
+      return
+    }
+
+    const streetForLog = this.state.phase
+    const wasTheirTurn = this.state.currentTurn === playerId
+
+    player.isActive = false
+    this.actedPlayerIds.add(player.id)
+
+    if (this.getActivePlayers().length === 1) {
+      this.awardPotToSingleRemainingPlayer()
+      this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
+      return
+    }
+
+    if (this.canCloseCurrentBettingRound()) {
+      this.moveToNextPhase()
+      this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
+      return
+    }
+
+    if (wasTheirTurn) {
+      this.advanceTurn()
+    }
+    this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
+  }
+
+  /**
    * Rembourse immédiatement les mises non appelées (ex: J1 mise 500, J2 call 300, J3 call 400 → J1 récupère 100 tout de suite).
    * À appeler à la fin du tour d'enchères, avant de passer à la rue suivante ou au showdown.
    */
@@ -530,13 +572,28 @@ export class GameTable {
    * Vigilance : le bouton ne tourne qu'à la fin complète d'une main, au tout début de la suivante.
    * L'affichage du jeton "D" (isDealer) est dérivé de dealerIndex via assignPositionsAndRoles.
    */
-  startHand(forcedHoleCards?: Record<string, Card[]>): void {
+  startHand(
+    forcedHoleCards?: Record<string, Card[]>,
+    opts?: { forcedBigBlindUserId?: string }
+  ): void {
     if (this.getConnectedPlayers().length < 2) {
       throw new Error('Il faut au moins 2 joueurs pour démarrer')
     }
 
     if (this.handStarted) {
       this.dealerIndex = this.getNextLivingPlayerIndex(this.dealerIndex)
+    }
+
+    if (opts?.forcedBigBlindUserId) {
+      const bbIdx = this.state.players.findIndex((p) => p.id === opts.forcedBigBlindUserId)
+      if (bbIdx >= 0) {
+        const n = this.state.players.length
+        if (n === 2) {
+          this.dealerIndex = (bbIdx + 1) % 2
+        } else if (n > 2) {
+          this.dealerIndex = (bbIdx - 2 + n) % n
+        }
+      }
     }
 
     this.handStarted = true

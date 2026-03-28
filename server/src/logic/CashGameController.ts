@@ -63,6 +63,10 @@ export class CashGameController implements IGameSession {
     | 'WAITING_PLAYERS' = 'WAITING_PLAYERS'
   /** Spectateurs qui veulent rejoindre à la prochaine manche */
   private spectatorRejoinQueue: Set<string> = new Set()
+  /** Siège libéré à la fin de la main après quit volontaire en cours de partie */
+  private pendingQuitUserIds: Set<string> = new Set()
+  /** Joueur entré depuis la file spectateur : BB sur la prochaine main */
+  private nextHandBigBlindUserId: string | null = null
   private readonly debugRuntimeLogsEnabled: boolean =
     process.env.POKER_RUNTIME_DEBUG_LOGS === '1'
 
@@ -213,7 +217,12 @@ export class CashGameController implements IGameSession {
       smallBlind: this.smallBlind,
       bigBlind: this.bigBlind
     })
-    this.gameTable.startHand()
+    const forcedBb = this.nextHandBigBlindUserId
+    this.nextHandBigBlindUserId = null
+    this.gameTable.startHand(
+      undefined,
+      forcedBb ? { forcedBigBlindUserId: forcedBb } : undefined
+    )
     this.handNumber++
     this.runtimePhase = 'HAND_IN_PROGRESS'
     this.logRuntimeEvent('HAND_START')
@@ -247,6 +256,16 @@ export class CashGameController implements IGameSession {
         }
       }
     }
+
+    for (const uid of this.pendingQuitUserIds) {
+      const seat = this.seats.find((s) => s.userId === uid)
+      if (seat) {
+        seat.userId = null
+        seat.username = null
+        seat.chips = 0
+      }
+    }
+    this.pendingQuitUserIds.clear()
 
     // Rotation du bouton vers le prochain siège occupé (entre les mains uniquement).
     // Vigilance : joueurs éliminés/déconnectés ont déjà libéré leur siège ci-dessus.
@@ -298,6 +317,31 @@ export class CashGameController implements IGameSession {
     this.countdownEndsAt = null
     if (this.runtimePhase === 'NEXT_HAND_COUNTDOWN') {
       this.runtimePhase = 'WAITING_PLAYERS'
+    }
+  }
+
+  /**
+   * Quit volontaire pendant une main : fold forcé, siège libéré à la fin de la main.
+   */
+  quitVoluntaryDuringHand(userId: string): { ok: true; showdown: boolean } | { ok: false; error: string } {
+    if (!this.gameTable) {
+      return { ok: false, error: 'Aucune main en cours' }
+    }
+    const seat = this.seats.find((s) => s.userId === userId)
+    if (!seat) {
+      return { ok: false, error: 'Vous n\'êtes pas assis' }
+    }
+    try {
+      this.pendingQuitUserIds.add(userId)
+      this.gameTable.forceFoldQuit(userId)
+      for (const p of this.gameTable.state.players) {
+        const s = this.seats.find((s) => s.userId === p.id)
+        if (s) s.chips = p.chips
+      }
+      return { ok: true, showdown: this.gameTable.state.phase === 'SHOWDOWN' }
+    } catch (e) {
+      this.pendingQuitUserIds.delete(userId)
+      return { ok: false, error: (e as Error).message ?? String(e) }
     }
   }
 
@@ -443,15 +487,20 @@ export class CashGameController implements IGameSession {
   async processRejoinQueue(getUser: (userId: string) => Promise<{ username: string; chips: number } | null>): Promise<void> {
     const toProcess = Array.from(this.spectatorRejoinQueue)
     this.spectatorRejoinQueue.clear()
+    let firstSeated: string | null = null
     for (const userId of toProcess) {
       const user = await getUser(userId)
       if (!user) continue
       const free = this.seats.findIndex((s) => s.userId == null)
       if (free >= 0) {
         this.sit(userId, user.username, free, Math.max(this.defaultBuyIn, user.chips))
+        if (!firstSeated) firstSeated = userId
       } else {
         this.spectatorRejoinQueue.add(userId) // pas de place, reste en file
       }
+    }
+    if (firstSeated) {
+      this.nextHandBigBlindUserId = firstSeated
     }
   }
 }
