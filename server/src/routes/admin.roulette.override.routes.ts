@@ -16,10 +16,28 @@ import { logCasinoAuditEvent } from '../casino/services/casinoAudit.service.js'
 
 const router = express.Router()
 
+function clientIp(req: express.Request): string {
+  const raw = req.ip || req.socket.remoteAddress || ''
+  return String(raw)
+}
+
+function isLocalhostRequest(req: express.Request): boolean {
+  const ip = clientIp(req)
+  return (
+    ip === '127.0.0.1' ||
+    ip === '::1' ||
+    ip === '::ffff:127.0.0.1' ||
+    ip === 'localhost'
+  )
+}
+
+/** Non-prod, opt-in, localhost + jeton admin uniquement (jamais exposé en prod : route 404). */
 function isAllowed(req: express.Request): boolean {
   if (process.env.NODE_ENV === 'production') return false
+  if (process.env.ENABLE_ADMIN_ROULETTE_OVERRIDE !== 'true') return false
   const configured = process.env.ADMIN_API_TOKEN
-  if (!configured) return false
+  if (!configured || configured.length < 8) return false
+  if (!isLocalhostRequest(req)) return false
   return req.header('X-Admin-Token') === configured
 }
 
@@ -60,13 +78,16 @@ router.post('/spin', authMiddleware, async (req, res) => {
     })
     if (debited.count === 0) throw new Error('INSUFFICIENT_CHIPS')
     const afterDebit = chipsBefore - totalStake
-    await appendWalletLedgerEntry({
-      context,
-      reason: 'ROULETTE_STAKE',
-      amount: -totalStake,
-      balanceBefore: chipsBefore,
-      balanceAfter: afterDebit,
-    })
+    await appendWalletLedgerEntry(
+      {
+        context,
+        reason: 'ROULETTE_STAKE',
+        amount: -totalStake,
+        balanceBefore: chipsBefore,
+        balanceAfter: afterDebit,
+      },
+      tx
+    )
 
     const resolved = resolveSpin(bets, forced)
     logCasinoAuditEvent({
@@ -82,13 +103,16 @@ router.post('/spin', authMiddleware, async (req, res) => {
       data: { chips: { increment: resolved.totalPayout } },
       select: { chips: true },
     })
-    await appendWalletLedgerEntry({
-      context,
-      reason: 'ROULETTE_PAYOUT',
-      amount: resolved.totalPayout,
-      balanceBefore: afterDebit,
-      balanceAfter: intChips(credited.chips),
-    })
+    await appendWalletLedgerEntry(
+      {
+        context,
+        reason: 'ROULETTE_PAYOUT',
+        amount: resolved.totalPayout,
+        balanceBefore: afterDebit,
+        balanceAfter: intChips(credited.chips),
+      },
+      tx
+    )
     return {
       chips: intChips(credited.chips),
       result: forced,

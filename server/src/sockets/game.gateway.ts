@@ -16,6 +16,11 @@ import {
 } from '../logic/gamification.js'
 import { assessBlackjackRuntimeReadiness } from '../blackjack/services/blackjackRuntimeHealth.service.js'
 import { applyPokerAction } from '../poker/services/pokerActionOrchestrator.service.js'
+import { rootLogger } from '../observability/logger.js'
+import { metrics as promMetrics } from '../observability/metrics.js'
+
+// 👇 B4 : IMPORT DU SERVICE ANTI-TRICHE 👇
+import { AntiCheatService } from '../services/antiCheat.service.js'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -25,6 +30,12 @@ interface AuthenticatedSocket extends Socket {
 export class GameGateway {
   private io: Server
   private timers: Map<string, NodeJS.Timeout> = new Map()
+  
+  // 👇 B4 : CHRONOMÈTRE ANTI-BOT 👇
+  private turnStartTimes: Map<string, number> = new Map()
+
+  /** Invalide les timers / callbacks obsolètes quand resetTimer/startTurnTimer se chevauchent (async gap). */
+  private turnTimerEpoch: Map<string, number> = new Map()
   private socketToUser: Map<string, string> = new Map()
   private userToSocket: Map<string, string> = new Map()
   private antiCheat = new AntiCheatMonitor(8, 3000)
@@ -48,7 +59,7 @@ export class GameGateway {
       const token = authToken || (typeof headerAuth === 'string' ? headerAuth.split(' ')[1] : undefined)
 
       if (!token) {
-        console.log('❌ Socket: token manquant')
+        rootLogger.warn({ msg: 'socket_auth_missing_token', socketId: socket.id })
         logSuspiciousAction('MISSING_TOKEN', {
           socketId: socket.id,
           details: 'Connexion socket sans token'
@@ -63,11 +74,11 @@ export class GameGateway {
         ) as { userId: string }
 
         socket.userId = decoded.userId
-        console.log('✅ Socket authentifié:', socket.userId)
+        rootLogger.debug({ msg: 'socket_auth_ok', userId: socket.userId, socketId: socket.id })
         next()
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Token invalide'
-        console.log('❌ Socket token invalide:', msg)
+        rootLogger.warn({ msg: 'socket_auth_invalid_token', socketId: socket.id, detail: msg })
         logSuspiciousAction('INVALID_TOKEN', {
           socketId: socket.id,
           details: 'Token socket invalide'
@@ -80,13 +91,23 @@ export class GameGateway {
   private setupHandlers() {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
       const clientsCount = (this.io as unknown as { engine: { clientsCount: number } }).engine.clientsCount
-      console.log(`[Monitoring Réseau] 🌐 Nouvelle connexion socket: ${socket.id} (User: ${socket.userId}). Total simultanées: ${clientsCount}`)
+      promMetrics.incSocketEvent('connection')
+      rootLogger.debug({
+        msg: 'socket_client_connected',
+        socketId: socket.id,
+        userId: socket.userId,
+        clientsCount,
+      })
 
       if (socket.userId) {
         this.socketToUser.set(socket.id, socket.userId)
         this.userToSocket.set(socket.userId, socket.id)
         socket.join(`user:${socket.userId}`)
-        console.log(`🔐 ${socket.userId} joined room user:${socket.userId}`)
+        rootLogger.debug({
+          msg: 'socket_user_room_joined',
+          userId: socket.userId,
+          socketId: socket.id,
+        })
       }
 
       socket.on('JOIN_USER_ROOM', ({ userId }: { userId?: string }) => {
@@ -212,7 +233,6 @@ export class GameGateway {
         try {
           const { gameId, playerId } = data
 
-          // Désamorcer le timeout de déconnexion si le joueur revient via JOIN_GAME (ex: F5)
           if (socket.userId && this.disconnectionTimeouts.has(socket.userId)) {
             clearTimeout(this.disconnectionTimeouts.get(socket.userId)!)
             this.disconnectionTimeouts.delete(socket.userId)
@@ -396,6 +416,19 @@ export class GameGateway {
             return
           }
 
+          // 👇 B4 : ANTI-BOT : VÉRIFICATION DU TEMPS DE RÉACTION 👇
+          const turnStart = this.turnStartTimes.get(gameId);
+          if (turnStart) {
+            const reactionTimeMs = Date.now() - turnStart;
+            this.turnStartTimes.delete(gameId); // On le supprime pour éviter de recompter
+
+            // Appel non-bloquant au service anti-triche
+            AntiCheatService.checkBotAction(socket.userId, reactionTimeMs).catch(err => {
+              rootLogger.error({ msg: 'anticheat_bot_check_error', detail: err });
+            });
+          }
+          // 👆 B4 : FIN ANTI-BOT 👆
+
           const antiCheatResult = this.antiCheat.registerAction(socket.userId)
 
           if (antiCheatResult.suspicious) {
@@ -528,7 +561,6 @@ export class GameGateway {
                 countdownEndsAt: freshGame.state.cashCountdownEndsAt,
               })
             }
-            // Pas de startTurnTimer en SHOWDOWN (partie terminée pour one-shot, ou countdown pour cash game)
           } else {
             this.startTurnTimer(gameId)
           }
@@ -606,7 +638,6 @@ export class GameGateway {
             s.emit('GAME_STATE_UPDATED', snapshot)
           }
           this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: socket.userId, scope: 'GAME' })
-          // Si plus aucun joueur : supprimer la partie et remettre la salle en WAITING
           if (game.getOccupiedCount() === 0) {
             await activeGames.delete(gameId)
             await prisma.waitingRoom.update({
@@ -696,7 +727,13 @@ export class GameGateway {
 
       socket.on('disconnect', async (reason) => {
         const currentCount = (this.io as unknown as { engine: { clientsCount: number } }).engine.clientsCount
-        console.log(`[Monitoring Réseau] 🔌 Déconnexion socket: ${socket.id}, Raison: ${reason}. Total: ${currentCount}`)
+        promMetrics.incSocketEvent('disconnect')
+        rootLogger.debug({
+          msg: 'socket_client_disconnected',
+          socketId: socket.id,
+          reason,
+          clientsCount: currentCount,
+        })
 
         const userId = socket.userId
         if (userId) {
@@ -712,7 +749,7 @@ export class GameGateway {
           this.socketToUser.delete(socket.id)
         }
 
-        if (socket.gameId && userId) {
+        if (socket.gameId && userId && !process.env.JEST_WORKER_ID) {
           const gameId = socket.gameId
           console.log(`[Réseau] Joueur ${userId} déconnecté. Lancement du délai de 10s...`)
 
@@ -723,12 +760,11 @@ export class GameGateway {
               const player = game.getPlayerState(userId)
               if (player) {
                 player.isConnected = false
-                // Ne pas set isActive ici quand c'est son tour: handlePlayerAction('FOLD') le fera
 
                 if (game.state.currentTurn === userId) {
                   try {
                     console.log(`[Réseau] Auto-FOLD pour le joueur déconnecté ${userId}`)
-                    game.handlePlayerAction(userId, 'FOLD') // gère avancement turn + award si 1 seul reste
+                    game.handlePlayerAction(userId, 'FOLD') 
                     const socketsInRoom = await this.io.in(gameId).fetchSockets()
                     for (const s of socketsInRoom) {
                       const uid = (s as unknown as AuthenticatedSocket).userId
@@ -741,7 +777,6 @@ export class GameGateway {
                     console.error('[Réseau] Erreur auto-fold timeout:', error)
                   }
                 } else {
-                  // Pas son tour : fold manuel (handlePlayerAction exigerait que ce soit son tour)
                   player.isActive = false
                   game.forceFoldForDisconnect(userId)
                   const socketsInRoom = await this.io.in(gameId).fetchSockets()
@@ -774,7 +809,6 @@ export class GameGateway {
                   this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: userId, scope: 'GAME' })
                 }
               } else if (game instanceof CashGameController) {
-                // Entre les mains : retirer le joueur déconnecté du siège
                 const removed = game.removeDisconnectedPlayer(userId)
                 if (removed) {
                   const socketsInRoom = await this.io.in(gameId).fetchSockets()
@@ -795,7 +829,9 @@ export class GameGateway {
             }
             this.disconnectionTimeouts.delete(userId)
           }, 10000)
-          
+
+          ;(timeout as NodeJS.Timeout).unref?.()
+
           this.disconnectionTimeouts.set(userId, timeout)
         }
       })
@@ -857,19 +893,31 @@ export class GameGateway {
     console.log(`[Stats] Stats multi enregistrées pour la partie ${game.id} (gagnant: ${winnerId})`)
   }
 
+  private bumpTurnTimerEpoch(gameId: string): number {
+    const next = (this.turnTimerEpoch.get(gameId) ?? 0) + 1
+    this.turnTimerEpoch.set(gameId, next)
+    return next
+  }
+
   private startTurnTimer(gameId: string) {
-    if (this.timers.has(gameId)) {
-      clearTimeout(this.timers.get(gameId)!)
+    const existing = this.timers.get(gameId)
+    if (existing) {
+      clearTimeout(existing)
+      this.timers.delete(gameId)
     }
+    const epoch = this.bumpTurnTimerEpoch(gameId)
 
     void (async () => {
       const game = await activeGames.get(gameId)
       if (!game) return
+      if (this.turnTimerEpoch.get(gameId) !== epoch) return
+
       const turnMs =
         game instanceof CashGameController ? game.getTurnTimeoutMs() : 30_000
       const timeLeftSec = Math.round(turnMs / 1000)
 
       const timer = setTimeout(async () => {
+        if (this.turnTimerEpoch.get(gameId) !== epoch) return
         this.resetTimer(gameId)
         const g = await activeGames.get(gameId)
         if (!g) return
@@ -906,7 +954,15 @@ export class GameGateway {
         }
       }, turnMs)
 
+      if (this.turnTimerEpoch.get(gameId) !== epoch) {
+        clearTimeout(timer)
+        return
+      }
       this.timers.set(gameId, timer)
+      
+      // 👇 B4 : ANTI-BOT : ON DÉMARRE LE CHRONO ICI 👇
+      this.turnStartTimes.set(gameId, Date.now())
+      
       this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: timeLeftSec })
     })()
   }
@@ -916,5 +972,9 @@ export class GameGateway {
       clearTimeout(this.timers.get(gameId)!)
       this.timers.delete(gameId)
     }
+    // 👇 B4 : ANTI-BOT : ON VIDE LE CHRONO 👇
+    this.turnStartTimes.delete(gameId)
+    
+    this.bumpTurnTimerEpoch(gameId)
   }
 }

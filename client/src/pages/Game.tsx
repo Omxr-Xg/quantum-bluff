@@ -27,6 +27,7 @@ import { addToUserBalance, addDevMoney, getUserBalance, fetchBalanceFromServer }
 import { RoundTransition } from "../components/RoundTransition";
 import { GameInteractiveTour } from "../components/GameInteractiveTour";
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
+import { HandActionLogPanel } from "../components/HandActionLogPanel";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
@@ -50,6 +51,27 @@ interface ChatMessage {
 }
 
 type GamePhase = "init" | "shuffle" | "deal" | "preflop" | "flop" | "turn" | "river" | "showdown";
+
+/** SB / BB / BTN dans le journal (aligné préflop vs postflop). */
+function actionLogRoleAbbrev(role: string | undefined, tr: (key: string) => string): string {
+  if (!role || role === "PLAYER") return "";
+  const keyMap: Record<string, string> = {
+    SB: "game.actionLogRole.SMALL_BLIND",
+    BB: "game.actionLogRole.BIG_BLIND",
+    SMALL_BLIND: "game.actionLogRole.SMALL_BLIND",
+    BIG_BLIND: "game.actionLogRole.BIG_BLIND",
+    DEALER: "game.actionLogRole.DEALER",
+  };
+  const i18nKey = keyMap[role];
+  return i18nKey ? tr(i18nKey) : "";
+}
+
+/** SB / BB tapis : mêmes rôles que `role` serveur / journal (SMALL_BLIND → SB, etc.). */
+function mapServerRoleToTableRole(serverRole: string | undefined): NonNullable<BasePlayer["role"]> {
+  if (serverRole === "SMALL_BLIND") return "SB";
+  if (serverRole === "BIG_BLIND") return "BB";
+  return "PLAYER";
+}
 
 interface BasePlayer {
   id: number | string;
@@ -96,6 +118,7 @@ export function Game() {
   );
   const [isBotThinking, setIsBotThinking] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [handActionLog, setHandActionLog] = useState<{ id: string; line: string }[]>([]);
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [playersState, setPlayersState] = useState<(BasePlayer | BotPlayer)[]>([]);
@@ -110,6 +133,12 @@ export function Game() {
   const turnTimeLimitSecRef = useRef(30);
   const handIdRef = useRef<string | undefined>(undefined);
   const actionSeqRef = useRef(0);
+  const lastServerActionVersionRef = useRef<number>(-1);
+  const lastServerActionVersionHandRef = useRef<string | undefined>(undefined);
+  const lastCommunitySnapshotSigRef = useRef<string>("");
+  const lastAppliedSocketSnapshotSigRef = useRef<string>("");
+  const lastShowdownSnapshotAtRef = useRef<number>(0);
+  const lastHandLogSocketDedupeRef = useRef<string>("");
   const [_timerActive, setTimerActive] = useState(false);
   const currentBet = useMemo(() => Math.max(0, ...playersState.map((p) => p.bet ?? 0)), [playersState]);
   
@@ -186,6 +215,39 @@ export function Game() {
   const showdownSkipRef = useRef<(() => void) | null>(null);
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const flopAnimatedRef = useRef(false);
+
+  const appendLocalHandAction = useCallback(
+    (actor: BasePlayer | BotPlayer | undefined, kind: "check" | "call" | "raise" | "fold", extra?: { amount?: number }) => {
+      if (gameIdParam) return;
+      const st = phaseRef.current;
+      if (st !== "preflop" && st !== "flop" && st !== "turn" && st !== "river") return;
+      const nameBase =
+        !actor
+          ? "?"
+          : actor.id === userId || actor.id === "human" || actor.name === "Vous" || actor.name === "you"
+            ? t("game.you")
+            : actor.name;
+      const roleAbb = actionLogRoleAbbrev(actor?.role, t);
+      const name = roleAbb && nameBase !== "?" ? `${nameBase} (${roleAbb})` : nameBase;
+      const streetLabel = t(`game.actionLogStreet.${st}`);
+      const amt = extra?.amount ?? 0;
+      const detail =
+        kind === "check"
+          ? t("game.actionLogCheck", { name })
+          : kind === "fold"
+            ? t("game.actionLogFold", { name })
+            : kind === "call"
+              ? t("game.actionLogCall", { name, amount: amt })
+              : t("game.actionLogRaise", { name, amount: amt });
+      const line = t("game.actionLogLine", { street: streetLabel, detail });
+      setHandActionLog((prev) => [...prev.slice(-99), { id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, line }]);
+    },
+    [gameIdParam, t, userId]
+  );
+
+  useEffect(() => {
+    if (phase === "shuffle") setHandActionLog([]);
+  }, [phase]);
 
   const tourRefHeader = useRef<HTMLDivElement>(null);
   const tourRefTable = useRef<HTMLDivElement>(null);
@@ -392,14 +454,14 @@ export function Game() {
 
   playersStateRef.current = activePlayers;
 
-  /** Premier à parler post-flop : SB (heads-up = dealer), sinon siège SB = à gauche du dealer (GameTable.getPostflopFirstPlayerId). */
+  /** Premier à parler post-flop : premier siège actif à gauche du bouton (SB en ring ; en HU = BB car le bouton est la SB) — aligné avec GameTable.getPostflopFirstPlayerId. */
   const getPostflopFirstActIndex = (): number => {
     const players = playersStateRef.current;
     if (!players || players.length < 2) return 0;
     const dealerIdx = players.findIndex((p) => p.isDealer);
     if (dealerIdx === -1) return 0;
-    if (players.length === 2) return dealerIdx;
-    return (dealerIdx + 1) % players.length;
+    const idx = (dealerIdx + 1) % players.length;
+    return idx;
   };
 
   const heroCards = tablePlayers.find((p) => isHero(p))?.cards || [];
@@ -423,6 +485,7 @@ export function Game() {
 
   const dealCardsToPlayers = (currentDeck: Card[], currentPlayers: (BasePlayer | BotPlayer)[]) => {
     const newDeck = [...currentDeck];
+    deckRef.current = newDeck;
     const updatedPlayers = currentPlayers.map((p) => ({ ...p, cards: [...(p.cards || [])] }));
     let cardIndex = 0;
 
@@ -443,7 +506,9 @@ export function Game() {
         updatedPlayers[playerIndex].cards.push(card);
         const finalPlayers = updatedPlayers.map((p) => ({ ...p, cards: [...(p.cards || [])] }));
         setPlayersState(finalPlayers);
-        setDeck([...newDeck]);
+        const d = [...newDeck];
+        deckRef.current = d;
+        setDeck(d);
       }
       cardIndex++;
     }, 250);
@@ -473,47 +538,62 @@ export function Game() {
   const dealFlop = (runOutOnly?: boolean) => {
     setPhase("flop");
       if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
-    const newDeck = [...deck];
-    const newCommunityCards = [...communityCardsState];
+    const newDeck = [...deckRef.current];
     newDeck.shift();
+    const flopCards: Card[] = [];
     for (let i = 0; i < 3; i++) {
       const card = newDeck.shift();
-      if (card) {
-        setTimeout(() => {
-          newCommunityCards[i] = card;
-          setCommunityCardsState([...newCommunityCards]);
-        }, i * 800);
-      }
+      if (card) flopCards.push(card);
     }
-    setDeck([...newDeck]);
+    deckRef.current = newDeck;
+    setDeck(newDeck);
+    flopCards.forEach((card, i) => {
+      const slot = i;
+      setTimeout(() => {
+        setCommunityCardsState((prev) => {
+          const next = [...prev];
+          next[slot] = card;
+          communityCardsStateRef.current = next;
+          return next;
+        });
+      }, i * 800);
+    });
   };
 
   const dealTurn = (runOutOnly?: boolean) => {
     setPhase("turn");
       if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
-    const newDeck = [...deck];
-    const newCommunityCards = [...communityCardsState];
+    const newDeck = [...deckRef.current];
     newDeck.shift();
     const card = newDeck.shift();
+    deckRef.current = newDeck;
+    setDeck(newDeck);
     if (card) {
-      newCommunityCards[3] = card;
-      setCommunityCardsState([...newCommunityCards]);
+      setCommunityCardsState((prev) => {
+        const next = [...prev];
+        next[3] = card;
+        communityCardsStateRef.current = next;
+        return next;
+      });
     }
-    setDeck([...newDeck]);
   };
 
   const dealRiver = (runOutOnly?: boolean) => {
     setPhase("river");
     if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
-    const newDeck = [...deck];
-    const newCommunityCards = [...communityCardsState];
+    const newDeck = [...deckRef.current];
     newDeck.shift();
     const card = newDeck.shift();
+    deckRef.current = newDeck;
+    setDeck(newDeck);
     if (card) {
-      newCommunityCards[4] = card;
-      setCommunityCardsState([...newCommunityCards]);
+      setCommunityCardsState((prev) => {
+        const next = [...prev];
+        next[4] = card;
+        communityCardsStateRef.current = next;
+        return next;
+      });
     }
-    setDeck([...newDeck]);
   };
 
   useEffect(() => {
@@ -596,6 +676,7 @@ export function Game() {
     initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
     handContributionsRef.current = contribs;
     setCommunityCardsState([null, null, null, null, null]);
+    setHandActionLog([]);
     setBurnedCardsCount(0);
     hasSetStartOfHandThisHandRef.current = false;
     streetTransitionScheduledRef.current = null;
@@ -622,7 +703,7 @@ export function Game() {
         if (!res.ok) throw new Error(String(res.status));
         return res.json();
       })
-      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; turnTimeLimitSec?: number; handId?: string } | null) => {
+      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; turnTimeLimitSec?: number; handId?: string } | null) => {
         if (cancelled || !gameState) return;
         if (gameStateFromSocketRef.current) return;
         if (typeof gameState.turnTimeLimitSec === "number" && gameState.turnTimeLimitSec > 0) {
@@ -638,26 +719,35 @@ export function Game() {
           RIVER: "river",
           SHOWDOWN: "showdown",
         };
-        const mapped = players.map((p, index) => ({
-          id: String(p.id),
-          name: p.name,
-          chips: p.chips ?? 1000,
-          bet: p.currentBet ?? 0,
-          position: p.position ?? index,
-          isActive: p.id === gameState.currentTurn,
-          isDealer: p.isDealer ?? false,
-          cards: Array.isArray(p.cards) ? p.cards.map((c) => normalizeServerCard(c)).filter((c): c is Card => c !== null) : [],
-          isConnected: p.isConnected !== false,
-          hasFolded: false,
-          isBot: false,
-        }));
+        const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
+        const mapped = players.map((p, index) => {
+          const isMe = !isSpectating && String(p.id) === String(userId);
+          const serverCards = Array.isArray(p.cards) ? p.cards.map((c) => normalizeServerCard(c)).filter((c): c is Card => c !== null) : [];
+          const hiddenOpponentCards: Card[] =
+            !isMe && phase !== "showdown" && p.isActive !== false
+              ? [{ suit: "hidden", value: "?" }, { suit: "hidden", value: "?" }]
+              : [];
+          return {
+            id: String(p.id),
+            name: p.name,
+            chips: p.chips ?? 1000,
+            bet: p.currentBet ?? 0,
+            position: p.position ?? index,
+            isActive: p.id === gameState.currentTurn,
+            isDealer: p.isDealer ?? false,
+            cards: isMe ? serverCards : (serverCards.length > 0 ? serverCards : hiddenOpponentCards),
+            isConnected: p.isConnected !== false,
+            hasFolded: false,
+            isBot: false,
+            role: mapServerRoleToTableRole(p.role),
+          };
+        });
         setPlayersState(mapped);
         setPot(gameState.pot ?? 0);
         const humanChips = players.find((p) => String(p.id) === String(userId))?.chips;
         if (humanChips != null) {
           setPlayerChips(humanChips);
         }
-        const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
         setPhase(phase as GamePhase);
         setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
       const cc = gameState.communityCards;
@@ -744,8 +834,54 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string }) => {
+    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string }) => {
       gameStateFromSocketRef.current = true;
+      const socketSnapshotSig = `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}`;
+      if (socketSnapshotSig === lastAppliedSocketSnapshotSigRef.current) {
+        return;
+      }
+      lastAppliedSocketSnapshotSigRef.current = socketSnapshotSig;
+      const incomingVersion = typeof gameState.actionVersion === "number" ? gameState.actionVersion : -1;
+      const incomingHandId = gameState.handId ?? undefined;
+      if (incomingHandId && incomingHandId !== lastServerActionVersionHandRef.current) {
+        lastServerActionVersionHandRef.current = incomingHandId;
+        lastServerActionVersionRef.current = -1;
+        lastHandLogSocketDedupeRef.current = "";
+        setHandActionLog([]);
+      } else if (!incomingHandId && lastServerActionVersionHandRef.current) {
+        lastServerActionVersionHandRef.current = undefined;
+        lastServerActionVersionRef.current = -1;
+        lastHandLogSocketDedupeRef.current = "";
+        setHandActionLog([]);
+      }
+      if (
+        incomingVersion >= 0 &&
+        incomingHandId &&
+        lastServerActionVersionHandRef.current === incomingHandId &&
+        incomingVersion < lastServerActionVersionRef.current
+      ) {
+        return;
+      }
+      if (incomingVersion >= 0) {
+        lastServerActionVersionRef.current = Math.max(lastServerActionVersionRef.current, incomingVersion);
+        if (incomingHandId) {
+          lastServerActionVersionHandRef.current = incomingHandId;
+        }
+      }
+      const incomingPhase =
+        gameState.phase != null
+          ? (phaseMap[gameState.phase] ?? (gameState.phase as string).toLowerCase?.() ?? "preflop")
+          : "preflop";
+      /** Garde AVANT toute mutation : évite d'appliquer WAITING (tous isActive false) juste après SHOWDOWN. */
+      const previousHandIdBeforeUpdate = handIdRef.current;
+      if (
+        incomingPhase === "init" &&
+        gameState.phase === "WAITING" &&
+        previousHandIdBeforeUpdate &&
+        Date.now() - lastShowdownSnapshotAtRef.current < 3000
+      ) {
+        return;
+      }
       if (typeof gameState.turnTimeLimitSec === "number" && gameState.turnTimeLimitSec > 0) {
         turnTimeLimitSecRef.current = gameState.turnTimeLimitSec;
       }
@@ -770,7 +906,14 @@ export function Game() {
           const isMe = !isSpectating && String(p.id) === String(userId);
           const serverCardsRaw = Array.isArray(p.cards) ? p.cards : [];
           const serverCards = serverCardsRaw.map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0])).filter((c): c is Card => c !== null);
-          const myCards = isMe && serverCards.length > 0 ? serverCards : (isMe ? myCardsFromPrev : serverCards);
+          const hiddenOpponentCards: Card[] =
+            !isMe && incomingPhase !== "showdown" && p.isActive !== false
+              ? [{ suit: "hidden", value: "?" }, { suit: "hidden", value: "?" }]
+              : [];
+          const myCards = isMe
+            ? (serverCards.length > 0 ? serverCards : myCardsFromPrev)
+            : (serverCards.length > 0 ? serverCards : hiddenOpponentCards);
+          const serverInHand = p.isActive !== false;
           return {
             id: String(p.id),
             name: p.name,
@@ -781,20 +924,29 @@ export function Game() {
             isDealer: p.isDealer ?? false,
             cards: myCards,
             isConnected: p.isConnected !== false,
-            hasFolded: !(p.isActive),
+            hasFolded: gameState.phase === "WAITING" ? false : !serverInHand,
             isBot: false,
+            role: mapServerRoleToTableRole(p.role),
           };
         });
         return mapped;
       });
       setPot(gameState.pot ?? 0);
-      const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? (gameState.phase as string).toLowerCase?.() ?? "preflop") : "preflop";
-      setPhase(phase as GamePhase);
+      const phase = incomingPhase;
+      if (phase === "showdown") {
+        lastShowdownSnapshotAtRef.current = Date.now();
+      }
+      if (!(phase === "init" && phaseRef.current === "showdown" && showdownResultRef.current)) {
+        setPhase(phase as GamePhase);
+      }
       setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
         cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
+        const incomingCommunityCount = arr.filter((c) => c != null).length;
+        const communitySig = `${gameState.handId ?? 'no-hand'}:${gameState.phase ?? 'no-phase'}:${typeof gameState.actionVersion === 'number' ? gameState.actionVersion : 'no-ver'}:${incomingCommunityCount}`;
+        lastCommunitySnapshotSigRef.current = communitySig;
         if (phase === "flop" && arr[0] && arr[1] && arr[2]) {
           if (!flopAnimatedRef.current) {
             flopAnimatedRef.current = true;
@@ -881,9 +1033,58 @@ export function Game() {
           handRank: 0
         });
       }
+
+      const la = (gameState as {
+        lastHandAction?: {
+          playerId: string;
+          playerName: string;
+          action: string;
+          amount?: number;
+          street: string;
+          actionVersion: number;
+          actorRole?: string;
+        };
+      }).lastHandAction;
+      if (
+        la &&
+        typeof la.actionVersion === "number" &&
+        incomingVersion >= 0 &&
+        la.actionVersion === incomingVersion &&
+        incomingHandId &&
+        (la.action === "FOLD" || la.action === "CHECK" || la.action === "CALL" || la.action === "RAISE")
+      ) {
+        const dedupeKey = `${incomingHandId}:${la.actionVersion}`;
+        if (lastHandLogSocketDedupeRef.current !== dedupeKey) {
+          lastHandLogSocketDedupeRef.current = dedupeKey;
+          const streetMap: Record<string, "preflop" | "flop" | "turn" | "river"> = {
+            PREFLOP: "preflop",
+            FLOP: "flop",
+            TURN: "turn",
+            RIVER: "river",
+          };
+          const streetKey = streetMap[la.street] ?? "preflop";
+          const streetLabel = t(`game.actionLogStreet.${streetKey}`);
+          const nameBase = String(la.playerId) === String(userId) ? t("game.you") : la.playerName;
+          const roleAbb = actionLogRoleAbbrev(la.actorRole, t);
+          const name = roleAbb ? `${nameBase} (${roleAbb})` : nameBase;
+          const amt = typeof la.amount === "number" ? la.amount : 0;
+          const detail =
+            la.action === "CHECK"
+              ? t("game.actionLogCheck", { name })
+              : la.action === "FOLD"
+                ? t("game.actionLogFold", { name })
+                : la.action === "CALL"
+                  ? t("game.actionLogCall", { name, amount: amt })
+                  : t("game.actionLogRaise", { name, amount: amt });
+          const line = t("game.actionLogLine", { street: streetLabel, detail });
+          setHandActionLog((prev) => [...prev.slice(-99), { id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, line }]);
+        }
+      }
     };
-    socket.on("GAME_UPDATE", onGameUpdate);
-    socket.on("GAME_STATE_UPDATED", onGameUpdate);
+    const onGameUpdateMain = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_UPDATE", state);
+    const onGameStateUpdated = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_STATE_UPDATED", state);
+    socket.on("GAME_UPDATE", onGameUpdateMain);
+    socket.on("GAME_STATE_UPDATED", onGameStateUpdated);
     const onGameEnded = (data: { gameId: string; winnerId: string; reason: string; pot?: number }) => {
       if (data.reason === "opponent_left" && String(data.winnerId) === String(userId)) {
         const balanceChange = Math.round(data.pot ?? 0);
@@ -910,8 +1111,8 @@ export function Game() {
     const onQueueStatus = (data: { queued: boolean }) => setSpectatorWantsToRejoin(data.queued);
     socket.on("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     return () => {
-      socket.off("GAME_UPDATE", onGameUpdate);
-      socket.off("GAME_STATE_UPDATED", onGameUpdate);
+      socket.off("GAME_UPDATE", onGameUpdateMain);
+      socket.off("GAME_STATE_UPDATED", onGameStateUpdated);
       socket.off("GAME_ENDED", onGameEnded);
       socket.off("CASH_WAITING_PLAYERS", onCashWaiting);
       socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
@@ -1111,6 +1312,10 @@ export function Game() {
           const hasAllIn = latestActive.some((p) => (p.chips ?? 0) === 0);
           if (bettingComplete && !hasAllIn && streetTransitionScheduledRef.current !== currentPhase) {
             streetTransitionScheduledRef.current = currentPhase;
+            if (streetTransitionTimeoutRef.current) {
+              clearTimeout(streetTransitionTimeoutRef.current);
+              streetTransitionTimeoutRef.current = null;
+            }
             streetTransitionTimeoutRef.current = setTimeout(() => {
               streetTransitionTimeoutRef.current = null;
               doStreetTransitionRef.current?.();
@@ -1161,6 +1366,9 @@ export function Game() {
   };
 
   useEffect(() => {
+    if (gameIdParam && !isBotMode) {
+      return;
+    }
     if (phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river") {
       const players = playersState;
       const activeInHand = players.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
@@ -1185,9 +1393,15 @@ export function Game() {
         if (hasAllIn && runOutPhase === null && !gameIdParam) {
           setPlayersState((prev) => prev.map((p) => ({ ...p, isActive: false })));
           setRunOutPhase(phase);
-        } else if (!hasAllIn) {
+        } else if (!hasAllIn && gameIdParam) {
+          // Local (!gameIdParam): nextTurn + bot action path already schedule transitions; doing it here too
+          // stacks orphan timeouts on streetTransitionTimeoutRef (overwrite without clear) → double dealTurn/dealRiver.
           if (streetTransitionScheduledRef.current === phase) return;
           streetTransitionScheduledRef.current = phase;
+          if (streetTransitionTimeoutRef.current) {
+            clearTimeout(streetTransitionTimeoutRef.current);
+            streetTransitionTimeoutRef.current = null;
+          }
           streetTransitionTimeoutRef.current = setTimeout(() => {
             streetTransitionTimeoutRef.current = null;
             doStreetTransitionRef.current?.();
@@ -1212,12 +1426,13 @@ export function Game() {
 
   useEffect(() => {
     doStreetTransitionRef.current = () => {
-      if (phase === "preflop") dealFlop();
-      else if (phase === "flop") dealTurn();
-      else if (phase === "turn") dealRiver();
-      else if (phase === "river") setPhase("showdown");
+      const p = phaseRef.current;
+      if (p === "preflop") dealFlop();
+      else if (p === "flop") dealTurn();
+      else if (p === "turn") dealRiver();
+      else if (p === "river") setPhase("showdown");
     };
-  }, [phase, dealFlop, dealTurn, dealRiver]);
+  }, [dealFlop, dealTurn, dealRiver, gameIdParam, isBotMode]);
 
   useEffect(() => {
     if (phase === "init" || phase === "shuffle" || phase === "deal") {
@@ -1701,12 +1916,19 @@ export function Game() {
         expectedStreet: String(phase).toUpperCase(),
         actionId: `act-${Date.now()}-${actionSeqRef.current}`,
       });
+      setHasPlayerActed(true);
+      setIsLoading(true);
+      return;
     }
     const foldingIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
         : playersState.findIndex((p) => p.id === userId || p.id === "human");
     if (foldingIndex === -1) return;
+
+    if (!gameIdParam) {
+      appendLocalHandAction(playersState[foldingIndex], "fold");
+    }
 
     setRoundPlayersActed((prev) => new Set(prev).add(foldingIndex));
     setPlayersState((prev) => {
@@ -1796,6 +2018,9 @@ export function Game() {
         expectedStreet: String(phase).toUpperCase(),
         actionId: `act-${Date.now()}-${actionSeqRef.current}`,
       });
+      setHasPlayerActed(true);
+      setIsLoading(true);
+      return;
     }
     const justActedIndex =
       playerId !== undefined
@@ -1805,7 +2030,10 @@ export function Game() {
       setHasPlayerActed(true);
       setIsLoading(true);
     }
-    if (!gameIdParam) nextTurn(justActedIndex);
+    if (!gameIdParam) {
+      appendLocalHandAction(justActedIndex >= 0 ? playersState[justActedIndex] : undefined, "check");
+      nextTurn(justActedIndex);
+    }
   };
 
   const handleCall = (amount: number, playerId?: number | string) => {
@@ -1825,6 +2053,9 @@ export function Game() {
         expectedStreet: String(phase).toUpperCase(),
         actionId: `act-${Date.now()}-${actionSeqRef.current}`,
       });
+      setHasPlayerActed(true);
+      setIsLoading(true);
+      return;
     }
     if (playerId !== undefined && !isHumanActing) {
       const highestBet = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
@@ -1876,6 +2107,10 @@ export function Game() {
           const currentPhase = phase;
           if (streetTransitionScheduledRef.current !== currentPhase) {
             streetTransitionScheduledRef.current = currentPhase;
+            if (streetTransitionTimeoutRef.current) {
+              clearTimeout(streetTransitionTimeoutRef.current);
+              streetTransitionTimeoutRef.current = null;
+            }
             const transitionFn =
               currentPhase === "preflop"
                 ? dealFlop
@@ -1914,6 +2149,7 @@ export function Game() {
         setPlayerChips((prev) => prev + humanRefund);
       }
       if (isBotAllInCall) setTimeout(() => setRunOutPhase(phase), 50);
+      appendLocalHandAction(playersState.find((p) => p.id === playerId), "call", { amount });
       setHasPlayerActed(false);
       setIsLoading(false);
       return;
@@ -1940,7 +2176,10 @@ export function Game() {
       setHasPlayerActed(true);
       setIsLoading(true);
     }
-    if (!gameIdParam) nextTurn(justActedIndex);
+    if (!gameIdParam) {
+      appendLocalHandAction(justActedIndex >= 0 ? playersState[justActedIndex] : undefined, "call", { amount });
+      nextTurn(justActedIndex);
+    }
   };
 
   const handleRaise = (raiseAmount: number, playerId?: number | string) => {
@@ -1961,6 +2200,9 @@ export function Game() {
         expectedStreet: String(phase).toUpperCase(),
         actionId: `act-${Date.now()}-${actionSeqRef.current}`,
       });
+      setHasPlayerActed(true);
+      setIsLoading(true);
+      return;
     }
     const currentIndex = playersState.findIndex((p) => p.isActive);
     setRoundPlayersActed(new Set(currentIndex !== -1 ? [currentIndex] : []));
@@ -2002,7 +2244,10 @@ export function Game() {
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
         : playersState.findIndex((p) => p.id === userId || p.id === "human");
-    if (!gameIdParam) nextTurn(justActedIndex);
+    if (!gameIdParam) {
+      appendLocalHandAction(justActedIndex >= 0 ? playersState[justActedIndex] : undefined, "raise", { amount: raiseAmount });
+      nextTurn(justActedIndex);
+    }
   };
 
   const handleSendMessage = (content: string, type: "emoji" | "text") => {
@@ -2558,6 +2803,7 @@ export function Game() {
         </div>
       )}
 
+      <HandActionLogPanel entries={handActionLog} />
       <QuantumHUD isOpen={isQuantumOpen} onToggle={() => setIsQuantumOpen(!isQuantumOpen)} />
       <HiddenBetsPanel isOpen={isPanelOpen} onToggle={() => setIsPanelOpen(!isPanelOpen)} players={activePlayers} />
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />

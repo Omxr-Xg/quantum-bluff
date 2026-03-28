@@ -258,12 +258,14 @@ export class CashGameController implements IGameSession {
     this.runtimePhase = 'NEXT_HAND_COUNTDOWN'
 
     if (this.countdownTimer) clearTimeout(this.countdownTimer)
-    this.countdownTimer = setTimeout(() => {
+    const t = setTimeout(() => {
       this.countdownTimer = null
       this.countdownEndsAt = null
       this.runtimePhase = 'WAITING_PLAYERS'
       this.onCountdownDone?.()
     }, COUNTDOWN_SECONDS * 1000)
+    ;(t as NodeJS.Timeout).unref?.()
+    this.countdownTimer = t
   }
 
   /** S'asseoir à un siège (entre les mains uniquement) */

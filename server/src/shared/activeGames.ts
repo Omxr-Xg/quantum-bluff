@@ -23,9 +23,18 @@ class ActiveGamesManager {
     if (this.useRedis) {
       try {
         const restored = await restoreAllGames();
-        this.localCache = restored;
+        // Ne pas écraser le cache local : les parties cash (CashGameController) n’y sont pas
+        // sérialisées ; une restauration Redis qui arrive après un set() test / runtime sinon les fait disparaître.
+        this.localCache = new Map([...restored, ...this.localCache]);
       } catch (err) {
-        console.error('[activeGames] Redis down, fallback mémoire uniquement:', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        if (
+          !/Connection is closed|ECONNRESET|READONLY|ENOTFOUND|ECONNREFUSED|max retries per request|Stream isn't writeable|enableOfflineQueue/i.test(
+            msg
+          )
+        ) {
+          console.error('[activeGames] Redis down, fallback mémoire uniquement:', err);
+        }
         this.useRedis = false;
       }
     }
@@ -46,6 +55,7 @@ class ActiveGamesManager {
         // Redis toujours down, on reste en fallback
       }
     }, REDIS_RECONNECT_INTERVAL_MS);
+    this.reconnectTimer?.unref?.();
   }
 
   async get(gameId: string): Promise<ActiveGame | undefined> {
@@ -112,6 +122,14 @@ class ActiveGamesManager {
     return this.localCache.get(gameId);
   }
 
+  /** Fermeture propre pour tests (timer + évite handles Jest). */
+  disposeBackgroundTimersForTests(): void {
+    if (this.reconnectTimer !== null) {
+      clearInterval(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
   setSync(gameId: string, game: ActiveGame): void {
     this.localCache.set(gameId, game);
     void pokerStateStore
@@ -128,3 +146,7 @@ class ActiveGamesManager {
 }
 
 export const activeGames = new ActiveGamesManager();
+
+export function disposeActiveGamesForTests(): void {
+  activeGames.disposeBackgroundTimersForTests();
+}

@@ -265,6 +265,24 @@
     "actionChecked": "تحقق",
     "actionCalled": "متابعة",
     "actionRaised": "رفع",
+    "actionLogTitle": "سجل الأفعال",
+    "actionLogEmpty": "لا أفعال في هذه اليد بعد.",
+    "actionLogLine": "[{{street}}] {{detail}}",
+    "actionLogCheck": "{{name}} يمر",
+    "actionLogFold": "{{name}} يطوي",
+    "actionLogCall": "{{name}} يتابع {{amount}}",
+    "actionLogRaise": "{{name}} يرفع {{amount}}",
+    "actionLogStreet": {
+      "preflop": "قبل الفلوب",
+      "flop": "الفلوب",
+      "turn": "الترن",
+      "river": "الريفر"
+    },
+    "actionLogRole": {
+      "SMALL_BLIND": "SB",
+      "BIG_BLIND": "BB",
+      "DEALER": "BTN"
+    },
     "you": "أنت",
     "dealer": "الموزع",
     "turnSeconds": "الدور: {{seconds}}ث",

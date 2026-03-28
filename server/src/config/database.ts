@@ -2,6 +2,8 @@ import { PrismaClient } from '../generated/prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import dotenv from 'dotenv';
+import { rootLogger } from '../observability/logger.js';
+import { metrics } from '../observability/metrics.js';
 
 dotenv.config();
 
@@ -21,6 +23,7 @@ export const prisma = new PrismaClient({
   adapter,
   log: [
     { emit: 'event', level: 'query' },
+    { emit: 'event', level: 'error' },
     { emit: 'stdout', level: 'error' },
     { emit: 'stdout', level: 'warn' },
   ],
@@ -30,20 +33,38 @@ export const prisma = new PrismaClient({
  * 🟡 DA5 : Monitoring des requêtes lentes
  * On écoute l'événement 'query' pour mesurer le temps d'exécution
  */
+prisma.$on('error' as never, (e: { message?: string }) => {
+  metrics.incDbError('prisma_client')
+  rootLogger.error({
+    msg: 'prisma_client_error',
+    detail: e?.message ?? 'unknown',
+  })
+})
+
 prisma.$on('query' as never, (e: { duration?: number; query?: string }) => {
-  if ((e?.duration ?? 0) >= 100) { // Seuil de performance : 100ms
-    console.warn(`🐢 [DA5-PERF] Requête lente détectée !`);
-    console.warn(`⏱️ Durée : ${e?.duration}ms`);
-    console.warn(`📝 SQL : ${e?.query}`);
+  const durationMs = e?.duration ?? 0
+  if (!process.env.JEST_WORKER_ID && durationMs > 0) {
+    metrics.observePrismaDurationMs('query', durationMs)
+  }
+  if (durationMs >= 100) {
+    rootLogger.warn({
+      msg: 'prisma_slow_query',
+      durationMs,
+      detail: 'seuil 100ms',
+    })
   }
 });
 
 export const connectDB = async () => {
   try {
     await prisma.$connect();
-    console.log('✅ Database connected successfully');
+    rootLogger.info({ msg: 'database_connected' });
   } catch (error) {
-    console.error('❌ Database connection failed:', error);
+    metrics.incDbError('connect');
+    rootLogger.error({
+      msg: 'database_connection_failed',
+      detail: error instanceof Error ? error.message : String(error),
+    });
     process.exit(1);
   }
 };
@@ -67,12 +88,18 @@ export const getDbPerformanceMetrics = async () => {
       poolConnections: activeConns
     };
   } catch (error) {
-    console.error("❌ [DA5] Échec du monitoring performance:", error);
+    rootLogger.error({
+      msg: 'db_performance_metrics_failed',
+      detail: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 };
 
 export const disconnectDB = async () => {
   await prisma.$disconnect();
-  console.log('✅ Database disconnected');
+  await pool.end();
+  if (!process.env.JEST_WORKER_ID) {
+    rootLogger.info({ msg: 'database_disconnected' });
+  }
 };

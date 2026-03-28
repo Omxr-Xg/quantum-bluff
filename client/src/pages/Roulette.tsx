@@ -549,33 +549,76 @@ export function Roulette() {
     setLastResult(null);
     setLastColor(null);
 
+    const actionId = crypto.randomUUID();
+    const roundId = actionId;
+    const url = apiUrl("/api/roulette/spin");
+    const maxAttempts = 3;
+    let data: Record<string, unknown> | null = null;
+
     try {
-      const url = apiUrl("/api/roulette/spin");
-      const payload: { bets: ApiBet[] } = { bets: body };
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        addToast(typeof data?.error === "string" ? data.error : t("roulette.errorSpin"), "error");
-        setSpinning(false);
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ bets: body, actionId, roundId }),
+          });
+          const parsed = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+          if (res.ok) {
+            data = parsed;
+            break;
+          }
+
+          if (parsed?.code === "IDEMPOTENCY_PAYLOAD_MISMATCH") {
+            addToast(
+              typeof parsed?.error === "string" ? parsed.error : t("roulette.errorSpin"),
+              "error"
+            );
+            return;
+          }
+
+          const retriable =
+            res.status >= 500 ||
+            res.status === 408 ||
+            (res.status === 409 && parsed?.code === "DUPLICATE_ACTION");
+
+          if (retriable && attempt < maxAttempts - 1) {
+            await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+            continue;
+          }
+
+          addToast(
+            typeof parsed?.error === "string" ? parsed.error : t("roulette.errorSpin"),
+            "error"
+          );
+          return;
+        } catch {
+          if (attempt < maxAttempts - 1) {
+            await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+            continue;
+          }
+          addToast(t("roulette.errorSpin"), "error");
+          return;
+        }
+      }
+
+      if (!data) {
+        addToast(t("roulette.errorSpin"), "error");
         return;
       }
 
       const result =
-        typeof data?.result === "number" && Number.isFinite(data.result)
+        typeof data.result === "number" && Number.isFinite(data.result)
           ? Math.min(36, Math.max(0, Math.trunc(data.result)))
           : 0;
-      const nextChips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : chips;
+      const nextChips = typeof data.chips === "number" ? Math.max(0, Math.floor(data.chips)) : chips;
       updateUserBalance(nextChips);
       setChips(nextChips);
-      mergeGamificationFromServerResponse(data as Record<string, unknown>);
+      mergeGamificationFromServerResponse(data);
       setLastResult(result);
-      setLastColor(typeof data?.resultColor === "string" ? data.resultColor : null);
+      setLastColor(typeof data.resultColor === "string" ? data.resultColor : null);
 
-      // Alignement roue = résultat serveur (= forcage si champ rempli)
       const landingNumber = result;
       let segmentIndex = wheelOrder.indexOf(landingNumber);
       if (segmentIndex < 0) segmentIndex = 0;
@@ -595,8 +638,8 @@ export function Roulette() {
 
       setBets(new Map());
       setBetHistory([]);
-      const totalPayout = typeof data?.totalPayout === "number" ? data.totalPayout : 0;
-      const stake = typeof data?.totalStake === "number" ? data.totalStake : 0;
+      const totalPayout = typeof data.totalPayout === "number" ? data.totalPayout : 0;
+      const stake = typeof data.totalStake === "number" ? data.totalStake : 0;
       if (totalPayout > stake) {
         addToast(t("roulette.winSummary", { result, payout: totalPayout - stake }), "success");
       } else if (totalPayout > 0) {
@@ -604,8 +647,6 @@ export function Roulette() {
       } else {
         addToast(t("roulette.lose", { result }), "info");
       }
-    } catch {
-      addToast(t("roulette.errorSpin"), "error");
     } finally {
       setSpinning(false);
     }

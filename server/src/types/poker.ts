@@ -75,6 +75,17 @@ export interface GameState {
   streetVersion?: number
   /** Horodatage ISO de la dernière mutation serveur. */
   updatedAt?: string
+  /** Dernière action joueur (journal multijoueur, alignée sur actionVersion). */
+  lastHandAction?: {
+    playerId: string
+    playerName: string
+    action: 'FOLD' | 'CHECK' | 'CALL' | 'RAISE'
+    amount?: number
+    street: GamePhase
+    actionVersion: number
+    /** Rôle à l’instant de l’action (ordre preflop vs postflop). */
+    actorRole?: PlayerRole
+  }
   /** Participants figés pour la main courante (snapshot au start). */
   handParticipantIds?: string[]
   /** Raison explicite de fin de main calculée par le backend. */

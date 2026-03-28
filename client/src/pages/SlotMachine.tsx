@@ -42,10 +42,8 @@ export function SlotMachine() {
   
   const [isSpinning, setIsSpinning] = useState(false);
   const [bet, setBet] = useState(10);
-  // 1. On prend le vrai solde au démarrage
   const [balance, setBalance] = useState<number>(getUserBalance());
 
-  // 2. On écoute en temps réel TOUTES les modifications du solde
   useEffect(() => {
     const syncBalance = () => setBalance(getUserBalance());
     window.addEventListener(BALANCE_CHANGED_EVENT, syncBalance);
@@ -66,7 +64,6 @@ export function SlotMachine() {
   const [showWin, setShowWin] = useState(false);
   const [spinningReels, setSpinningReels] = useState([false, false, false]);
 
-  // Chargement du solde initial depuis le serveur
   const loadBalance = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -87,7 +84,6 @@ export function SlotMachine() {
     void loadBalance();
   }, [loadBalance]);
 
-  // Génère un rouleau. Si un targetSymbol est fourni, il sera placé au centre pour l'arrêt
   function generateReelSymbols(targetSymbol?: SlotSymbol): SlotSymbol[] {
     const arr = Array(REEL_SYMBOLS_COUNT)
       .fill(0)
@@ -99,7 +95,7 @@ export function SlotMachine() {
   }
 
   const handleSpin = async () => {
-    const currentBalance = getUserBalance(); // On récupère le solde le plus frais possible
+    const currentBalance = getUserBalance();
     if (isSpinning || currentBalance < bet) return;
 
     const token = localStorage.getItem("token");
@@ -108,27 +104,69 @@ export function SlotMachine() {
       return;
     }
 
-    // 1. DÉDUCTION IMMÉDIATE DU VRAI SOLDE
+    // Déduction visuelle immédiate
     const newBalanceAfterBet = currentBalance - bet;
-    updateUserBalance(newBalanceAfterBet); // Cela mettra à jour l'UI partout instantanément
+    updateUserBalance(newBalanceAfterBet);
 
+    // Lancement des animations (Code d'Azra)
     setIsSpinning(true);
     setShowWin(false);
     setSpinningReels([true, true, true]);
     setReels([generateReelSymbols(), generateReelSymbols(), generateReelSymbols()]);
 
+    // Sécurité et tentatives du backend (Code Serveur)
+    const actionId = crypto.randomUUID();
+    const roundId = actionId;
+    const maxAttempts = 3;
+
     try {
-      const res = await fetch(apiUrl("/api/slot/spin"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ bet }),
-      });
-      const data = await res.json();
+      let data: Record<string, any> | null = null;
 
-      if (!res.ok) throw new Error(data.error || "Erreur serveur");
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const res = await fetch(apiUrl("/api/slot/spin"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ bet, actionId, roundId }),
+          });
+          const parsed = await res.json().catch(() => ({}));
 
+          if (res.ok) {
+            data = parsed;
+            break;
+          }
+
+          if (parsed?.code === "IDEMPOTENCY_PAYLOAD_MISMATCH") {
+            throw new Error(typeof parsed?.error === "string" ? parsed.error : "Erreur de synchronisation");
+          }
+
+          const retriable =
+            res.status >= 500 ||
+            res.status === 408 ||
+            (res.status === 409 && parsed?.code === "DUPLICATE_ACTION");
+
+          if (retriable && attempt < maxAttempts - 1) {
+            await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+            continue;
+          }
+
+          throw new Error(typeof parsed?.error === "string" ? parsed.error : "Erreur serveur");
+        } catch (err: any) {
+          if (attempt < maxAttempts - 1 && !err.message.includes("synchronisation")) {
+            await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (!data) {
+        throw new Error("Impossible de joindre le serveur");
+      }
+
+      // Application des résultats sur l'UI (Code d'Azra)
       const finalApiSymbols = (data.reels || ["cherry", "cherry", "cherry"]) as string[];
-      const finalUiSymbols = finalApiSymbols.map((sym) => API_TO_UI[sym] || "🍒") as SlotSymbol[];
+      const finalUiSymbols = finalApiSymbols.map((sym: string) => API_TO_UI[sym] || "🍒") as SlotSymbol[];
       const isWin = data.winAmount > 0;
 
       setReels([
@@ -148,28 +186,26 @@ export function SlotMachine() {
           winAmount: data.winAmount,
         });
         
-        // 2. MISE À JOUR FINALE (On prend la valeur exacte renvoyée par le serveur)
-        const finalChips = typeof data.chips === "number" 
-          ? Math.max(0, Math.floor(data.chips)) 
-          : getUserBalance() + (data.winAmount || 0);
+        const finalChips = typeof data!.chips === "number" 
+          ? Math.max(0, Math.floor(data!.chips)) 
+          : getUserBalance() + (data!.winAmount || 0);
 
-        updateUserBalance(finalChips); // Met à jour tout le site avec le résultat final
+        updateUserBalance(finalChips);
 
         setSessionStats(prev => ({ 
-          wins: prev.wins + (isWin && data.winAmount > bet ? 1 : 0), 
+          wins: prev.wins + (isWin && data!.winAmount > bet ? 1 : 0), 
           spins: prev.spins + 1 
         }));
 
-        if (isWin && data.winAmount > bet) {
+        if (isWin && data!.winAmount > bet) {
           setShowWin(true);
           setTimeout(() => setShowWin(false), 3000);
         }
-        
         setIsSpinning(false);
       }, 1500);
 
     } catch (err: any) {
-      // Si la requête échoue, on annule la mise et on rend l'argent !
+      // Si tout échoue, on rembourse la mise visuellement
       updateUserBalance(currentBalance);
       addToast(err.message || "Erreur lors du spin", "error");
       setIsSpinning(false);
@@ -275,7 +311,6 @@ export function SlotMachine() {
                           {reel.map((symbol, symbolIndex) => {
                             const isCenterSymbol = symbolIndex === centerIndex;
                             const isResultSymbol = !isSpinning && isCenterSymbol;
-                            // Assombrit seulement s'il y a un vrai gain (supérieur à la mise)
                             const shouldDim = !isSpinning && result.isWin && result.winAmount! > bet && !isCenterSymbol;
                             
                             const distanceFromCenter = Math.abs(symbolIndex - centerIndex);

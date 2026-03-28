@@ -15,8 +15,9 @@ import {
 } from '../logic/roulette.js'
 import { intChips } from '../utils/chips.js'
 import {
+  abortIdempotentAction,
   buildIdempotencyKey,
-  getIdempotentResult,
+  fingerprintStableJson,
   saveIdempotentResult,
   tryBeginIdempotentAction,
 } from '../casino/services/idempotency.service.js'
@@ -57,6 +58,8 @@ function betToJson(b: RouletteBetNormalized): Record<string, unknown> {
 }
 
 router.post('/spin', authMiddleware, async (req, res) => {
+  let idemKey: string | undefined
+  let idemCommitted = false
   try {
     const userId = req.userId
     if (!userId) {
@@ -69,15 +72,21 @@ router.post('/spin', authMiddleware, async (req, res) => {
       actionId: req.body?.actionId,
       roundId: req.body?.roundId,
     })
-    const idemKey = buildIdempotencyKey({
+    idemKey = buildIdempotencyKey({
       userId,
       gameType: 'roulette',
       actionId: context.actionId,
     })
-    const idemStart = tryBeginIdempotentAction(idemKey)
+    const betsFingerprint = fingerprintStableJson(req.body?.bets)
+    const idemStart = await tryBeginIdempotentAction(idemKey, { payloadFingerprint: betsFingerprint })
     if (!idemStart.accepted) {
-      const previous = getIdempotentResult(idemKey)
-      if (previous) return res.json(previous)
+      if (idemStart.reason === 'PAYLOAD_MISMATCH') {
+        return res.status(409).json({
+          error: 'Rejeu idempotent : mises différentes pour le même actionId',
+          code: 'IDEMPOTENCY_PAYLOAD_MISMATCH',
+        })
+      }
+      if (idemStart.storedResult != null) return res.json(idemStart.storedResult)
       return res.status(409).json({ error: 'Action déjà traitée', code: 'DUPLICATE_ACTION' })
     }
 
@@ -132,13 +141,16 @@ router.post('/spin', authMiddleware, async (req, res) => {
         throw Object.assign(new Error('INSUFFICIENT_CHIPS'), { code: 'INSUFFICIENT_CHIPS' })
       }
       const afterDebit = chipsBefore - totalStake
-      await appendWalletLedgerEntry({
-        context,
-        reason: 'ROULETTE_STAKE',
-        amount: -totalStake,
-        balanceBefore: chipsBefore,
-        balanceAfter: afterDebit,
-      })
+      await appendWalletLedgerEntry(
+        {
+          context,
+          reason: 'ROULETTE_STAKE',
+          amount: -totalStake,
+          balanceBefore: chipsBefore,
+          balanceAfter: afterDebit,
+        },
+        tx
+      )
 
       const result = spinWheel()
       assertRoundTransition(roundState, 'SPINNING')
@@ -160,13 +172,16 @@ router.post('/spin', authMiddleware, async (req, res) => {
         data: { chips: { increment: totalPayout } },
         select: { chips: true },
       })
-      await appendWalletLedgerEntry({
-        context,
-        reason: 'ROULETTE_PAYOUT',
-        amount: totalPayout,
-        balanceBefore: afterDebit,
-        balanceAfter: intChips(updated.chips),
-      })
+      await appendWalletLedgerEntry(
+        {
+          context,
+          reason: 'ROULETTE_PAYOUT',
+          amount: totalPayout,
+          balanceBefore: afterDebit,
+          balanceAfter: intChips(updated.chips),
+        },
+        tx
+      )
 
       const prevCasino = await tx.casinoStats.findUnique({ where: { userId } })
       if (!prevCasino) {
@@ -217,10 +232,12 @@ router.post('/spin', authMiddleware, async (req, res) => {
         actionId: context.actionId,
       }
     })
-    saveIdempotentResult(idemKey, outcome)
+    await saveIdempotentResult(idemKey, outcome)
+    idemCommitted = true
 
     return res.json(outcome)
   } catch (e) {
+    if (idemKey && !idemCommitted) await abortIdempotentAction(idemKey)
     const code = (e as { code?: string }).code
     const extra = e as { maxPerLine?: number; maxTotalStake?: number }
     const messages: Record<string, string> = {

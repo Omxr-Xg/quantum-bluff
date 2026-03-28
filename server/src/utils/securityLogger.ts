@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { rootLogger } from '../observability/logger.js'
 
 type SuspiciousActionType =
   | 'MISSING_TOKEN'
@@ -58,7 +59,7 @@ export function logSuspiciousAction(
     timestamp: new Date().toISOString(),
     severity,
     type,
-    ...payload
+    ...payload,
   }
 
   ensureLogsDir()
@@ -75,9 +76,17 @@ export function logSuspiciousAction(
       JSON.stringify(entry) + '\n',
       'utf8'
     )
-    console.error('[SECURITY ALERT]', entry)
-    return
   }
 
-  console.warn('[ANTI-CHEAT]', entry)
+  const logFn = severity === 'critical' ? rootLogger.error.bind(rootLogger) : rootLogger.warn.bind(rootLogger)
+  logFn({
+    msg: 'security_suspicious_action',
+    event: type,
+    severity,
+    userId: payload.userId,
+    socketId: payload.socketId,
+    gameId: payload.gameId,
+    action: payload.action,
+    detail: payload.details,
+  })
 }

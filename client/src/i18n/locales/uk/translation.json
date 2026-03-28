@@ -265,6 +265,24 @@
     "actionChecked": "чекає",
     "actionCalled": "колл",
     "actionRaised": "підняв",
+    "actionLogTitle": "Журнал дій",
+    "actionLogEmpty": "Ще немає дій у цій роздачі.",
+    "actionLogLine": "[{{street}}] {{detail}}",
+    "actionLogCheck": "{{name}} чек",
+    "actionLogFold": "{{name}} пас",
+    "actionLogCall": "{{name}} колл {{amount}}",
+    "actionLogRaise": "{{name}} рейз +{{amount}}",
+    "actionLogStreet": {
+      "preflop": "Префлоп",
+      "flop": "Флоп",
+      "turn": "Терн",
+      "river": "Рівер"
+    },
+    "actionLogRole": {
+      "SMALL_BLIND": "SB",
+      "BIG_BLIND": "BB",
+      "DEALER": "BTN"
+    },
     "you": "Ви",
     "dealer": "Дилер",
     "turnSeconds": "Хід: {{seconds}}с",

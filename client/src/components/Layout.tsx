@@ -184,6 +184,7 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
+  const isWaitingRoomPage = location.pathname === "/waiting-room";
   const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
   const showTopBar = !isAuthPage && localStorage.getItem("token");
   const path = location.pathname;
@@ -206,8 +207,12 @@ export function Layout({ children }: LayoutProps) {
   const showHamburgerMenu =
     showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames";
   const showLobbyIntegratedBar = showTopBar && isLobby;
-  /** Padding réservé au menu hamburger fixe — sinon bande vide (fond slate) en haut (ex. profil, classement). */
-  const topBarPaddingForHamburger = showTopBar && !showLobbyIntegratedBar && showHamburgerMenu;
+  /**
+   * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
+   * et seul un bouton paramètres est en coin ; éviter la « barre » vide / décalage en haut.
+   */
+  const topBarPaddingForHamburger =
+    showTopBar && !showLobbyIntegratedBar && showHamburgerMenu && !isGamePage && !isWaitingRoomPage;
 
   const menuContent = (
     <>
