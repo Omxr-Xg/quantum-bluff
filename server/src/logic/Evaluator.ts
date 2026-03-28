@@ -260,6 +260,40 @@ function evaluateSeven(cards: Card[]): EvalOut {
   return { category: 0, kickers: high, score };
 }
 
+/** C(n,5) index tuples pour choisir 5 cartes parmi n (n ≥ 5). */
+function combinations5Indices(n: number): number[][] {
+  const result: number[][] = [];
+  for (let i0 = 0; i0 < n; i0++)
+    for (let i1 = i0 + 1; i1 < n; i1++)
+      for (let i2 = i1 + 1; i2 < n; i2++)
+        for (let i3 = i2 + 1; i3 < n; i3++)
+          for (let i4 = i3 + 1; i4 < n; i4++) result.push([i0, i1, i2, i3, i4]);
+  return result;
+}
+
+/**
+ * Vrai si le rang apparaît dans au moins un sous-ensemble de 5 cartes qui réalise le meilleur score (Hold'em).
+ * Utilisé par les marchés hidden bets `WINNING_HAND_CONTAINS_RANK`.
+ */
+export function isRankUsedInBestFiveOfSeven(cards: Card[], rank: Rank): boolean {
+  const safe = cards.slice();
+  for (const c of safe) {
+    if (typeof c.value !== "number") c.value = RANK_VALUE[c.rank];
+  }
+  const n = safe.length;
+  if (n === 0) return false;
+  if (n < 5) return safe.some((c) => c.rank === rank);
+  const bestScore = evaluateSeven(safe).score;
+  const target = RANK_VALUE[rank];
+  for (const comb of combinations5Indices(n)) {
+    const five = comb.map((i) => safe[i]);
+    if (evaluateSeven(five).score === bestScore) {
+      if (five.some((c) => (c.value ?? RANK_VALUE[c.rank]) === target)) return true;
+    }
+  }
+  return false;
+}
+
 // ------------------------------
 // Public API (required)
 // ------------------------------

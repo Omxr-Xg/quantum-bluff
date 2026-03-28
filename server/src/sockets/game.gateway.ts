@@ -22,6 +22,8 @@ import {
 } from '../poker/services/pokerTableLock.service.js'
 import { rootLogger } from '../observability/logger.js'
 import { metrics as promMetrics } from '../observability/metrics.js'
+import { buildHiddenBetResolutionPayload } from '../poker/hiddenBets/hiddenBetSnapshot.js'
+import { resolveHiddenBetsForHand } from '../poker/hiddenBets/hiddenBetResolver.js'
 
 // 👇 B4 : IMPORT DU SERVICE ANTI-TRICHE 👇
 import { AntiCheatService } from '../services/antiCheat.service.js'
@@ -1026,7 +1028,15 @@ export class GameGateway {
       showdownPot?: number
     }
   ): Promise<void> {
+    const hiddenBetSnap = buildHiddenBetResolutionPayload(gameId, cashGame)
     cashGame.onHandComplete()
+    if (hiddenBetSnap) {
+      try {
+        await resolveHiddenBetsForHand(hiddenBetSnap, this.io)
+      } catch (err) {
+        rootLogger.error({ msg: 'hidden_bet_resolve_hand_failed', gameId, handId: hiddenBetSnap.handId, err: String(err) })
+      }
+    }
     await cashGame.processRejoinQueue(async (uid) => {
       const u = await prisma.user.findUnique({
         where: { id: uid },
@@ -1037,7 +1047,9 @@ export class GameGateway {
     const socketsInRoom2 = await this.io.in(gameId).fetchSockets()
     for (const s of socketsInRoom2) {
       const uid = (s as unknown as AuthenticatedSocket).userId
-      s.emit('GAME_UPDATE', cashGame.getSanitizedState(uid))
+      const snapshot = cashGame.getSanitizedState(uid)
+      s.emit('GAME_UPDATE', snapshot)
+      s.emit('GAME_STATE_UPDATED', snapshot)
     }
     this.io.to(gameId).emit('SHOWDOWN_RESULT', {
       gameId,
