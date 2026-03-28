@@ -194,6 +194,16 @@ export async function recoverBlackjackRuntimeAtBoot(): Promise<void> {
 }
 
 export async function cleanupOrphanBlackjackRuntime(): Promise<void> {
+  const snapshotDelegate = (
+    prisma as unknown as {
+      blackjackRoomSnapshot?: {
+        deleteMany?: (args: {
+          where: { room: { status: { not: string } } }
+        }) => Promise<{ count: number }>
+      }
+    }
+  ).blackjackRoomSnapshot
+
   const activeTableIds = await blackjackStateStore.listActiveTableIds()
   metrics.cleanupStoreScanned += activeTableIds.length
   if (activeTableIds.length === 0) return
