@@ -1,15 +1,27 @@
 import type { Card, Rank } from '../../types/poker.js'
 
-export const HIDDEN_BETS_PRICING_VERSION = 'hidden-bets-v1'
+/** @deprecated Utiliser HIDDEN_BETS_PRE_PRICING_VERSION pour les nouveaux tickets */
+export const HIDDEN_BETS_PRICING_VERSION = 'hidden-bets-pre-v1'
+export const HIDDEN_BETS_PRE_PRICING_VERSION = 'hidden-bets-pre-v1'
+export const HIDDEN_BETS_LIVE_PRICING_VERSION = 'hidden-bets-live-v1'
 export const HIDDEN_BETS_RESOLUTION_VERSION = 'hidden-bets-resolve-v1'
 export const QUOTE_TTL_MS = 60_000
 
 export type HandEndReason = 'WIN_BY_FOLD' | 'SHOWDOWN' | 'ALL_IN_RUNOUT' | 'FORCED_END' | undefined
 
+/** Phases API / Prisma (V1 LIVE sans PREFLOP). */
+export type HiddenBetMarketPhase = 'PRE_HAND' | 'LIVE_FLOP' | 'LIVE_TURN' | 'LIVE_RIVER'
+
+export type HiddenBetWindowType = 'PRE_HAND' | 'LIVE_FLOP' | 'LIVE_TURN' | 'LIVE_RIVER' | null
+
 export type MarketType =
   | 'PLAYER_WINS'
   | 'WINNING_HAND_CLASS'
   | 'WINNING_HAND_CONTAINS_RANK'
+  | 'PLAYER_WINS_CURRENT_HAND'
+  | 'HAND_REACHES_SHOWDOWN'
+  | 'HAND_ENDS_BY_FOLD'
+  | 'FINAL_WINNING_HAND_CLASS'
 
 /** Classes alignées sur Evaluator category 0–9 */
 export type WinningHandClassKey =
@@ -54,10 +66,17 @@ export type SelectionPayload =
   | { marketType: 'PLAYER_WINS'; playerId: string }
   | { marketType: 'WINNING_HAND_CLASS'; class: WinningHandClassKey }
   | { marketType: 'WINNING_HAND_CONTAINS_RANK'; rank: Rank }
+  | { marketType: 'PLAYER_WINS_CURRENT_HAND'; playerId: string }
+  | { marketType: 'HAND_REACHES_SHOWDOWN' }
+  | { marketType: 'HAND_ENDS_BY_FOLD' }
+  | { marketType: 'FINAL_WINNING_HAND_CLASS'; class: WinningHandClassKey }
 
 export interface QuoteRequestBody {
   gameId: string
-  handId: string
+  /** @deprecated utiliser targetHandId */
+  handId?: string
+  targetHandId?: string
+  marketPhase: HiddenBetMarketPhase
   combinator: 'SINGLE' | 'AND'
   selections: SelectionPayload[]
 }
@@ -72,4 +91,8 @@ export interface HiddenBetResolutionPayload {
   board: Card[]
   /** Cartes par joueur encore en jeu au showdown ; pour fold, seulement le gagnant. */
   playerCards: Record<string, Card[]>
+}
+
+export function pricingVersionForPhase(phase: HiddenBetMarketPhase): string {
+  return phase === 'PRE_HAND' ? HIDDEN_BETS_PRE_PRICING_VERSION : HIDDEN_BETS_LIVE_PRICING_VERSION
 }
