@@ -73,6 +73,7 @@ model User {
   playerStats       PlayerStats?    // Statistiques du joueur (relation 1-1)
   casinoStats       CasinoStats?
   userBadges        UserBadge[]
+  walletEntries     WalletLedgerEntry[] // AJOUT: Relation pour la comptabilité du casino
 
   blackjackHostedRooms BlackjackRoom[] @relation("BlackjackRoomHost")
   blackjackRoomSeats   BlackjackRoomSeat[]
@@ -427,6 +428,24 @@ model UserBadge {
   @@unique([userId, badgeId])
   @@index([userId])
   @@map("user_badges")
+}
+
+// ============================================
+// MODÈLE MANQUANT - COMPTABILITÉ CASINO
+// ============================================
+model WalletLedgerEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Int
+  reason    String
+  game      String?  // 'slot', 'roulette', 'blackjack', etc.
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("wallet_ledger_entries")
 }
 
 // ============================================

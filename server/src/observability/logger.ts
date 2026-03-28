@@ -1,4 +1,4 @@
-import pino from 'pino'
+import { pino, stdTimeFunctions } from 'pino'
 
 const level =
   process.env.LOG_LEVEL ??
@@ -7,5 +7,5 @@ const level =
 export const rootLogger = pino({
   level,
   base: undefined,
-  timestamp: pino.stdTimeFunctions.isoTime,
+  timestamp: stdTimeFunctions.isoTime,
 })

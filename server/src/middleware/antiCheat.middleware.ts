@@ -2,56 +2,58 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database.js';
 import { AntiCheatService } from '../services/antiCheat.service.js';
 import jwt from 'jsonwebtoken';
+import { rootLogger } from '../observability/index.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+// Alignement sur le secret global du projet
+const JWT_SECRET = process.env.JWT_SECRET || 'quantum_bluff_secret';
 
 export const antiCheatMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // 1. Extraction du token (Header ou Cookies)
+    // 1. Uniquement via le Header Authorization (plus de cookies non parsés)
     const authHeader = req.headers.authorization;
-    
-    // 👇 ICI : On utilise directement req.cookies, sans aucun "as any" !
-    const token = (authHeader && authHeader.startsWith('Bearer ')) 
-      ? authHeader.split(' ')[1] 
-      : req.cookies?.token;
+    const token = (authHeader && authHeader.startsWith('Bearer ')) ? authHeader.split(' ')[1] : undefined;
 
     let userId: string | undefined;
 
-    // 2. Décodage silencieux du token
     if (token) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET) as { id?: string, userId?: string };
         userId = decoded.id || decoded.userId; 
       } catch { 
-        // Token invalide : on ignore ici
+        // Token invalide : on ignore silencieusement
       }
     }
     
-    // Si aucun utilisateur n'est identifié (visiteur ou route publique), on laisse passer
     if (!userId) return next(); 
 
-    // 3. Vérification du statut de bannissement
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    // 2. Vérification du statut de bannissement
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      select: { bannedUntil: true } // Optimisation DB : on ne demande que ce dont on a besoin
+    });
+    
     if (!user) return next();
 
     if (user.bannedUntil && user.bannedUntil > new Date()) {
       return res.status(403).json({ 
-          error: `Votre compte a été suspendu pour activités suspectes (Multi-compte ou Bot). Fin de la sanction : ${user.bannedUntil.toLocaleString('fr-FR')}` 
+          error: `Compte suspendu jusqu'au ${user.bannedUntil.toLocaleString('fr-FR')}.` 
       });
     }
 
-    // 4. Récupération de l'IP du joueur
+    // 3. Récupération IP
     let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
     if (Array.isArray(ip)) ip = ip[0];
 
-    // 5. Analyse multi-comptes en arrière-plan (ne bloque pas le temps de réponse)
+    // 4. Analyse en arrière-plan
     if (ip !== 'unknown') {
-      AntiCheatService.logIpAndCheckMultiAccount(userId, ip).catch(console.error);
+      AntiCheatService.logIpAndCheckMultiAccount(userId, ip).catch(err => {
+        rootLogger.error({ msg: 'anticheat_service_error', detail: err });
+      });
     }
 
     next();
   } catch (error) {
-    console.error("[AntiCheat Middleware Error]", error);
+    rootLogger.error({ msg: 'anticheat_middleware_error', detail: error });
     next(); 
   }
 };
