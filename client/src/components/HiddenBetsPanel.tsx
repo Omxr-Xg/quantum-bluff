@@ -13,7 +13,7 @@ import { useHiddenBets } from "../contexts/HiddenBetsContext";
 import { useDeviceType } from "./ui/use-mobile";
 import { ChipIcon } from "./ChipIcon";
 
-const COMBO_KEYS = ["pair", "twoPair", "threeKind", "straight", "flush", "fullHouse", "fourKind", "straightFlush", "royalFlush"];
+const COMBO_KEYS = ["pair", "twoPair", "threeKind", "straight", "flush", "quantumCombi", "fullHouse", "fourKind", "straightFlush", "royalFlush"];
 
 interface HiddenBetsPanelProps {
   isOpen: boolean;

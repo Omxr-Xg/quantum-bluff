@@ -12,6 +12,7 @@ export type CombinationHandKey =
   | "straightFlush"
   | "fourKind"
   | "fullHouse"
+  | "quantumCombi"
   | "flush"
   | "straight"
   | "threeKind"
@@ -24,6 +25,7 @@ const RANK_DISPLAY_ORDER: CombinationHandKey[] = [
   "straightFlush",
   "fourKind",
   "fullHouse",
+  "quantumCombi",
   "flush",
   "straight",
   "threeKind",
@@ -53,6 +55,16 @@ const EXAMPLES: Record<CombinationHandKey, { suit: string; value: string }[]> = 
     { suit: "diamonds", value: "K" },
     { suit: "clubs", value: "9" },
     { suit: "hearts", value: "9" },
+  ],
+  /** 7 cartes : 3,5,6,7,10 + kickers A et K */
+  quantumCombi: [
+    { suit: "spades", value: "A" },
+    { suit: "clubs", value: "K" },
+    { suit: "hearts", value: "10" },
+    { suit: "diamonds", value: "7" },
+    { suit: "clubs", value: "6" },
+    { suit: "hearts", value: "5" },
+    { suit: "diamonds", value: "3" },
   ],
   flush: [
     { suit: "hearts", value: "2" },
@@ -208,7 +220,13 @@ export function HandCombinationsHelpButton({
                 <p className="mt-1 text-[11px] leading-snug text-slate-400">
                   {t(`game.combinationsHelp.desc.${key}`)}
                 </p>
-                <div className="mt-2 flex justify-center pl-1 -space-x-2 sm:-space-x-1.5">
+                <div
+                  className={
+                    EXAMPLES[key].length > 5
+                      ? "mt-2 flex flex-wrap justify-center gap-1 px-0.5"
+                      : "mt-2 flex justify-center pl-1 -space-x-2 sm:-space-x-1.5"
+                  }
+                >
                   {EXAMPLES[key].map((c, i) => (
                     <PokerCard
                       key={`${key}-${i}`}
