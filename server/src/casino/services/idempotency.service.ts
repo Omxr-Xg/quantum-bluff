@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import redisClient, { isRedisHealthy } from '../../config/redis.config.js'
+import { metrics } from '../../observability/metrics.js'
+import { rootLogger } from '../../observability/logger.js'
 
 /**
  * Durée de rétention des entrées d'idempotence (Redis TTL + fenêtre GC mémoire).
@@ -145,15 +147,32 @@ function tryBeginMemory(fullKey: string, incomingFp: string | undefined): TryBeg
   return { accepted: true }
 }
 
+function recordIdempotencyRejection(
+  reason: 'DUPLICATE_ACTION' | 'PAYLOAD_MISMATCH'
+): void {
+  metrics.incCasinoIdempotency(reason)
+  const level = reason === 'DUPLICATE_ACTION' ? 'info' : 'warn'
+  rootLogger[level]({
+    msg: 'casino_idempotency_rejected',
+    code: reason,
+  })
+}
+
 export async function tryBeginIdempotentAction(
   fullKey: string,
   options?: { payloadFingerprint?: string }
 ): Promise<TryBeginIdempotentResult> {
   const incomingFp = options?.payloadFingerprint
-  if (await useRedis()) {
-    return tryBeginRedis(fullKey, incomingFp)
+  const result = await (async (): Promise<TryBeginIdempotentResult> => {
+    if (await useRedis()) {
+      return tryBeginRedis(fullKey, incomingFp)
+    }
+    return tryBeginMemory(fullKey, incomingFp)
+  })()
+  if (!result.accepted) {
+    recordIdempotencyRejection(result.reason)
   }
-  return tryBeginMemory(fullKey, incomingFp)
+  return result
 }
 
 export async function saveIdempotentResult(fullKey: string, result: unknown): Promise<void> {
