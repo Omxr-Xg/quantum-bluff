@@ -1,28 +1,16 @@
 /**
- * Par worker Jest : coupe le timer activeGames et ferme ioredis pour éviter
- * « A worker process has failed to exit gracefully ».
+ * Par worker Jest : arrête le timer activeGames et coupe le socket Redis sans
+ * `quit()` (qui peut bloquer >5s si aucun serveur Redis — cas GitLab CI).
  */
 import { afterAll } from '@jest/globals'
 import { disposeActiveGamesForTests } from './src/shared/activeGames.js'
 import redisClient from './src/config/redis.config.js'
 
-afterAll(async () => {
+afterAll(() => {
   disposeActiveGamesForTests()
   try {
-    if (redisClient.status !== 'end' && redisClient.status !== 'close') {
-      await redisClient.quit()
-    }
+    redisClient.disconnect()
   } catch {
-    try {
-      redisClient.disconnect()
-    } catch {
-      /* noop */
-    }
-  }
-  try {
-    const { disconnectDB } = await import('./src/config/database.js')
-    await disconnectDB()
-  } catch {
-    /* pas de DB en env minimal */
+    /* noop */
   }
 })

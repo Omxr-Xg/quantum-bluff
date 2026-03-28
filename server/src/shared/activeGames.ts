@@ -28,7 +28,11 @@ class ActiveGamesManager {
         this.localCache = new Map([...restored, ...this.localCache]);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (!/Connection is closed|ECONNRESET|READONLY|ENOTFOUND/i.test(msg)) {
+        if (
+          !/Connection is closed|ECONNRESET|READONLY|ENOTFOUND|ECONNREFUSED|max retries per request|Stream isn't writeable|enableOfflineQueue/i.test(
+            msg
+          )
+        ) {
           console.error('[activeGames] Redis down, fallback mémoire uniquement:', err);
         }
         this.useRedis = false;

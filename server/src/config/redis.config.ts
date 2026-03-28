@@ -10,6 +10,10 @@ interface SerializedGameState {
   phase: string;
 }
 
+/** CI / Jest sans Redis : éviter les reconnexions longues et le spam de logs. */
+const redisLiteClient =
+  Boolean(process.env.JEST_WORKER_ID) || process.env.CI === 'true'
+
 // Configuration Redis
 const redisOptions = {
   host: process.env.REDIS_HOST || 'localhost',
@@ -18,20 +22,31 @@ const redisOptions = {
   retryStrategy: (times: number) => {
     const delay = Math.min(times * 50, 2000);
     return delay;
-  }
-};
+  },
+  maxRetriesPerRequest: redisLiteClient ? 1 : 20,
+  connectTimeout: redisLiteClient ? 1000 : undefined,
+}
 
-const redisClient = process.env.REDIS_URL 
-  ? new Redis(process.env.REDIS_URL, { retryStrategy: redisOptions.retryStrategy })
-  : new Redis(redisOptions);
+const redisClient = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL, {
+      retryStrategy: redisOptions.retryStrategy,
+      maxRetriesPerRequest: redisOptions.maxRetriesPerRequest,
+      connectTimeout: redisOptions.connectTimeout,
+    })
+  : new Redis(redisOptions)
 
 redisClient.on('connect', () => {
-  if (!process.env.JEST_WORKER_ID) console.log('✅ Redis connecté');
-});
+  if (!process.env.JEST_WORKER_ID) console.log('✅ Redis connecté')
+})
 
 redisClient.on('error', (err: Error) => {
-  console.error('❌ Erreur Redis:', err);
-});
+  if (redisLiteClient) {
+    if (err instanceof AggregateError) return
+    const msg = err?.message ?? String(err)
+    if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(msg)) return
+  }
+  console.error('❌ Erreur Redis:', err)
+})
 
 /** Vérifie si Redis est opérationnel (pour fallback activeGames) */
 export const isRedisHealthy = async (): Promise<boolean> => {
