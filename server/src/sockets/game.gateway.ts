@@ -23,7 +23,7 @@ import {
 import { rootLogger } from '../observability/logger.js'
 import { metrics as promMetrics } from '../observability/metrics.js'
 import { buildHiddenBetResolutionPayload } from '../poker/hiddenBets/hiddenBetSnapshot.js'
-import { resolveHiddenBetsForHand } from '../poker/hiddenBets/hiddenBetResolver.js'
+import { resolveHiddenBetsForHand } from '../poker/hiddenBets/resolver/hiddenBetResolver.js'
 
 // 👇 B4 : IMPORT DU SERVICE ANTI-TRICHE 👇
 import { AntiCheatService } from '../services/antiCheat.service.js'
@@ -266,6 +266,11 @@ export class GameGateway {
           
           const game = await activeGames.get(gameId);
           if (game) {
+            if (game instanceof CashGameController) {
+              game.setOnLiveBetWindowClosed(() => {
+                void this.broadcastCashGameSnapshot(gameId)
+              })
+            }
             socket.emit('GAME_UPDATE', game.getSanitizedState(playerId))
             console.log(`✅ Joueur ${playerId} a rejoint la partie ${gameId}`)
           } else {
@@ -298,6 +303,11 @@ export class GameGateway {
 
           const game = await activeGames.get(gameId)
           if (game) {
+            if (game instanceof CashGameController) {
+              game.setOnLiveBetWindowClosed(() => {
+                void this.broadcastCashGameSnapshot(gameId)
+              })
+            }
             socket.emit('GAME_UPDATE', game.getSanitizedState())
             console.log(`👁️ Spectateur a rejoint la partie ${gameId}`)
           } else {
@@ -1014,6 +1024,19 @@ export class GameGateway {
       return true
     }
     return false
+  }
+
+  private async broadcastCashGameSnapshot(gameId: string): Promise<void> {
+    const game = await activeGames.get(gameId)
+    if (!game || !(game instanceof CashGameController)) return
+    const socketsInRoom = await this.io.in(gameId).fetchSockets()
+    for (const s of socketsInRoom) {
+      const uid = (s as unknown as AuthenticatedSocket).userId
+      const isSpectator = !game.getPlayerState(uid ?? '')
+      const snapshot = game.getSanitizedState(isSpectator ? undefined : uid)
+      s.emit('GAME_UPDATE', snapshot)
+      s.emit('GAME_STATE_UPDATED', snapshot)
+    }
   }
 
   private async completeCashHandAndBroadcast(

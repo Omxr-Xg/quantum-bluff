@@ -692,6 +692,15 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
 
     const io = req.app.get('io') as import('socket.io').Server | undefined;
     if (io) {
+      cashGame.setOnLiveBetWindowClosed(async () => {
+        const socketsInRoom = await io.in(gameId).fetchSockets()
+        for (const s of socketsInRoom) {
+          const uid = (s as { userId?: string }).userId
+          const snap = cashGame.getSanitizedState(uid)
+          s.emit('GAME_UPDATE', snap)
+          s.emit('GAME_STATE_UPDATED', snap)
+        }
+      })
       cashGame.setOnCountdownDone(async () => {
         cashGame.startHand();
         if (cashGame.isInHand()) {
