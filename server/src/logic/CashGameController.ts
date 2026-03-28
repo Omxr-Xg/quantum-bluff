@@ -70,8 +70,67 @@ export class CashGameController implements IGameSession {
   private nextHandBigBlindUserId: string | null = null
   /** Identifiant stable pour les paris cachés ciblant la prochaine main (entre deux mains). */
   private pendingNextHandId: string | null = null
+  private liveBetTimer: ReturnType<typeof setTimeout> | null = null
+  private onLiveBetWindowClosed?: () => void
   private readonly debugRuntimeLogsEnabled: boolean =
     process.env.POKER_RUNTIME_DEBUG_LOGS === '1'
+
+  /** Enregistré par la gateway pour diffuser l’état après fermeture fenêtre live. */
+  setOnLiveBetWindowClosed(cb: () => void): void {
+    this.onLiveBetWindowClosed = cb
+  }
+
+  private clearLiveBetTimer(): void {
+    if (this.liveBetTimer) {
+      clearTimeout(this.liveBetTimer)
+      this.liveBetTimer = null
+    }
+  }
+
+  private scheduleLiveBetAfterAction(): void {
+    this.clearLiveBetTimer()
+    const gt = this.gameTable
+    const lw = gt?.state.hiddenBetLiveWindow
+    if (!lw) return
+    const delay = Math.max(0, lw.closesAt - Date.now())
+    this.liveBetTimer = setTimeout(() => {
+      this.liveBetTimer = null
+      if (!this.gameTable) return
+      this.gameTable.resumeAfterHiddenBetLiveWindow()
+      this.onLiveBetWindowClosed?.()
+    }, delay)
+  }
+
+  private buildHiddenBetState(): NonNullable<import('../types/poker.js').GameState['hiddenBetState']> {
+    this.syncHiddenBetNextHandId()
+    if (!this.gameTable) {
+      const open = this.isHiddenBetWindowOpen()
+      return {
+        currentHandId: null,
+        nextHandId: this.pendingNextHandId ?? null,
+        windowOpen: open,
+        windowType: open ? 'PRE_HAND' : null,
+        closesAt: this.countdownEndsAt ?? undefined,
+      }
+    }
+    const st = this.gameTable.state
+    const lw = st.hiddenBetLiveWindow
+    if (lw) {
+      return {
+        currentHandId: st.handId ?? null,
+        nextHandId: null,
+        windowOpen: true,
+        windowType: lw.windowType,
+        closesAt: lw.closesAt,
+      }
+    }
+    return {
+      currentHandId: st.handId ?? null,
+      nextHandId: null,
+      windowOpen: false,
+      windowType: null,
+    }
+  }
 
   constructor(options: CashGameControllerOptions) {
     this.id = options.id
@@ -207,6 +266,7 @@ export class CashGameController implements IGameSession {
 
   /** Démarrer une nouvelle main */
   startHand(): void {
+    this.clearLiveBetTimer()
     const occupied = this.getOccupiedSeats().filter((s) => s.chips > 0)
     if (occupied.length < 2) {
       this.countdownEndsAt = null
@@ -216,9 +276,11 @@ export class CashGameController implements IGameSession {
     }
 
     const players = this.buildPlayersFromSeats(true)
+    const liveBetWindowMs = this.turnTimeoutMs <= TURBO_TURN_TIMEOUT_MS ? 3000 : 5000
     this.gameTable = new GameTable(this.id, players, {
       smallBlind: this.smallBlind,
-      bigBlind: this.bigBlind
+      bigBlind: this.bigBlind,
+      liveBetWindowMs,
     })
     const forcedBb = this.nextHandBigBlindUserId
     this.nextHandBigBlindUserId = null
@@ -236,6 +298,7 @@ export class CashGameController implements IGameSession {
   /** Appelé après le showdown: synchronise les jetons, supprime les éliminés, déclenche le countdown */
   onHandComplete(): void {
     if (!this.gameTable) return
+    this.clearLiveBetTimer()
 
     const state = this.gameTable.state
     for (const p of state.players) {
@@ -437,6 +500,7 @@ export class CashGameController implements IGameSession {
     const turnTimeLimitSec = Math.round(this.turnTimeoutMs / 1000)
     const cashCountdownRemainingSec =
       !this.gameTable && this.countdownEndsAt ? this.getCountdownSecondsRemaining() : undefined
+    const hiddenBetState = this.buildHiddenBetState()
     return {
       ...base,
       turnTimeLimitSec,
@@ -444,15 +508,20 @@ export class CashGameController implements IGameSession {
       spectatorRejoinQueue: Array.from(this.spectatorRejoinQueue),
       hiddenBetNextHandId: this.gameTable ? undefined : this.pendingNextHandId ?? undefined,
       hiddenBetCurrentHandId: this.gameTable?.state?.handId,
-      hiddenBetWindowOpen: this.isHiddenBetWindowOpen(),
-      hiddenBetWindowClosesAt: this.gameTable ? undefined : this.countdownEndsAt ?? undefined
+      hiddenBetWindowOpen: hiddenBetState.windowOpen,
+      hiddenBetWindowClosesAt: hiddenBetState.closesAt,
+      hiddenBetState,
     }
   }
 
   handlePlayerAction(playerId: string, action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK', amount?: number): void {
     if (!this.gameTable) throw new Error('Aucune main en cours')
+    if (this.gameTable.state.hiddenBetLiveWindow) {
+      throw new Error('Fenêtre paris live — actions suspendues')
+    }
     const phaseBefore = this.gameTable.state.phase
     this.gameTable.handlePlayerAction(playerId, action, amount)
+    this.scheduleLiveBetAfterAction()
     this.logRuntimeEvent('PLAYER_ACTION', {
       playerId,
       action,

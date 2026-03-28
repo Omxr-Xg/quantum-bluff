@@ -20,8 +20,23 @@ export class GameTable {
   private readonly bigBlindAmount: number
   private minRaiseIncrement: number
   private handParticipantIds: Set<string>
+  private readonly liveBetWindowMs: number
+  /** Si true, pas de pause paris live (tests / outils). */
+  private readonly liveBetWindowDisabled: boolean
+  /** Premier joueur à agir après fermeture fenêtre paris live (entre streets). */
+  private pendingFirstToActAfterLiveWindow: string | null = null
 
-  constructor(id: string, players: Player[], options?: { smallBlind?: number; bigBlind?: number }) {
+  constructor(
+    id: string,
+    players: Player[],
+    options?: {
+      smallBlind?: number
+      bigBlind?: number
+      liveBetWindowMs?: number
+      /** Désactive les fenêtres gelées (comportement historique immédiat). */
+      liveBetWindowDisabled?: boolean
+    }
+  ) {
     this.id = id
     this.deck = new Deck()
     this.dealerIndex = 0
@@ -33,6 +48,8 @@ export class GameTable {
     this.bigBlindAmount = intChips(options?.bigBlind ?? 20)
     this.minRaiseIncrement = this.bigBlindAmount
     this.handParticipantIds = new Set()
+    this.liveBetWindowMs = typeof options?.liveBetWindowMs === 'number' && options.liveBetWindowMs >= 1000 ? options.liveBetWindowMs : 5000
+    this.liveBetWindowDisabled = options?.liveBetWindowDisabled === true
 
     this.state = {
       id,
@@ -429,27 +446,42 @@ export class GameTable {
     if (nextPhase === 'FLOP') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(...this.deck.dealFlop())
-      this.state.currentTurn = firstToActId
-      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       this.runOutBoardIfAllIn()
+      if (this.state.phase === 'SHOWDOWN') return
+      if (this.liveBetWindowDisabled) {
+        this.state.currentTurn = firstToActId
+        this.state.handRuntimePhase = 'BETTING_ACTIVE'
+        return
+      }
+      this.beginLiveBetWindow('LIVE_FLOP', firstToActId)
       return
     }
 
     if (nextPhase === 'TURN') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealTurn())
-      this.state.currentTurn = firstToActId
-      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       this.runOutBoardIfAllIn()
+      if (this.state.phase === 'SHOWDOWN') return
+      if (this.liveBetWindowDisabled) {
+        this.state.currentTurn = firstToActId
+        this.state.handRuntimePhase = 'BETTING_ACTIVE'
+        return
+      }
+      this.beginLiveBetWindow('LIVE_TURN', firstToActId)
       return
     }
 
     if (nextPhase === 'RIVER') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealRiver())
-      this.state.currentTurn = firstToActId
-      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       this.runOutBoardIfAllIn()
+      if (this.state.phase === 'SHOWDOWN') return
+      if (this.liveBetWindowDisabled) {
+        this.state.currentTurn = firstToActId
+        this.state.handRuntimePhase = 'BETTING_ACTIVE'
+        return
+      }
+      this.beginLiveBetWindow('LIVE_RIVER', firstToActId)
       return
     }
 
@@ -462,6 +494,27 @@ export class GameTable {
 
     // Defensive fallback for inconsistent states.
     this.awardPotToSingleRemainingPlayer()
+  }
+
+  private beginLiveBetWindow(
+    windowType: 'LIVE_FLOP' | 'LIVE_TURN' | 'LIVE_RIVER',
+    firstToActId: string
+  ): void {
+    this.pendingFirstToActAfterLiveWindow = firstToActId
+    const closesAt = Date.now() + this.liveBetWindowMs
+    this.state.hiddenBetLiveWindow = { windowType, closesAt }
+    this.state.currentTurn = ''
+    this.state.handRuntimePhase = 'LIVE_BET_WINDOW'
+  }
+
+  /** Fermeture timer fenêtre paris live — reprend le tour d’enchères. */
+  resumeAfterHiddenBetLiveWindow(): void {
+    if (!this.state.hiddenBetLiveWindow) return
+    this.state.hiddenBetLiveWindow = undefined
+    const first = this.pendingFirstToActAfterLiveWindow ?? this.getFirstToActOnNewStreet()
+    this.pendingFirstToActAfterLiveWindow = null
+    this.state.currentTurn = first
+    this.state.handRuntimePhase = 'BETTING_ACTIVE'
   }
 
   /** Premier à jouer sur une nouvelle rue : ordre poker postflop standard. */
@@ -783,6 +836,10 @@ export class GameTable {
       throw new Error('La main n’a pas commencé')
     }
 
+    if (this.state.hiddenBetLiveWindow) {
+      throw new Error('Fenêtre paris live — actions suspendues')
+    }
+
     if (!this.handParticipantIds.has(playerId)) {
       throw new Error('Joueur non participant sur cette main')
     }
@@ -1063,6 +1120,7 @@ export class GameTable {
       handParticipantIds: this.state.handParticipantIds,
       handEndReason: this.state.handEndReason,
       handRuntimePhase: this.state.handRuntimePhase,
+      hiddenBetLiveWindow: this.state.hiddenBetLiveWindow,
       players: this.state.players.map((player) => ({
         id: player.id,
         name: player.name,
