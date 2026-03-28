@@ -1016,6 +1016,7 @@ export class GameTable {
         isActive: player.isActive,
         isDealer: player.isDealer || false,
         isConnected: player.isConnected !== false,
+        ...(player.avatar ? { avatar: player.avatar } : {}),
         // Règles de révélation des cartes :
         // - Avant showdown : chaque joueur voit uniquement ses propres cartes
         // - Au showdown réel (plusieurs joueurs) : tous voient les cartes des joueurs encore en lice (isActive)

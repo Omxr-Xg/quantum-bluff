@@ -20,7 +20,7 @@ import { useDeviceType } from "../components/ui/use-mobile";
 import { ChipIcon } from "../components/ChipIcon";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
-import { addToUserBalance, addDevMoney, getUserBalance } from "../utils/userProfile";
+import { addToUserBalance, addDevMoney, getUserBalance, getUserAvatar } from "../utils/userProfile";
 import { RoundTransition } from "../components/RoundTransition";
 import { GameInteractiveTour } from "../components/GameInteractiveTour";
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
@@ -82,6 +82,8 @@ interface BasePlayer {
   isConnected?: boolean;
   hasFolded?: boolean;
   role?: "SB" | "BB" | "PLAYER";
+  /** URL d’avatar (cash multijoueur, renvoyée par l’API / socket). */
+  avatar?: string;
 }
 
 interface BotPlayer extends BasePlayer {
@@ -734,6 +736,7 @@ export function Game() {
             hasFolded: false,
             isBot: false,
             role: mapServerRoleToTableRole(p.role),
+            avatar: (p as { avatar?: string }).avatar,
           };
         });
         setPlayersState(mapped);
@@ -777,7 +780,7 @@ export function Game() {
       socket.emit("JOIN_SPECTATE", { gameId: gameIdParam });
     } else {
       if (!userId) return;
-      socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+      socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId, avatarUrl: getUserAvatar() });
     }
 
     const onChatMessage = (data: { playerId: string; playerName: string; content: string; type: "emoji" | "text" }) => {
@@ -931,6 +934,7 @@ export function Game() {
             hasFolded: gameState.phase === "WAITING" ? false : !serverInHand,
             isBot: false,
             role: mapServerRoleToTableRole(p.role),
+            avatar: (p as { avatar?: string }).avatar,
           };
         });
         return mapped;
@@ -2763,7 +2767,7 @@ export function Game() {
                     type="button"
                     onClick={() => {
                       const free = cashSeats.findIndex((s) => !s.userId);
-                      if (free >= 0 && socket) socket.emit("CASH_SIT", { gameId: gameIdParam, seatIndex: free, buyIn: 100 });
+                      if (free >= 0 && socket) socket.emit("CASH_SIT", { gameId: gameIdParam, seatIndex: free, buyIn: 100, avatarUrl: getUserAvatar() });
                     }}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
                   >

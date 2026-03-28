@@ -20,6 +20,8 @@ export interface CashSeat {
   userId: string | null
   username: string | null
   chips: number
+  /** URL d’avatar (client), diffusée aux autres joueurs. */
+  avatarUrl?: string | null
 }
 
 export interface CashGameControllerOptions {
@@ -87,14 +89,31 @@ export class CashGameController implements IGameSession {
   }
 
   /** Initialiser avec des joueurs (depuis la salle d'attente) */
-  initFromRoomPlayers(players: { userId: string; username: string; chips?: number }[]): void {
+  initFromRoomPlayers(players: { userId: string; username: string; chips?: number; avatarUrl?: string | null }[]): void {
     for (let i = 0; i < players.length && i < this.maxSeats; i++) {
       const p = players[i]
       this.seats[i] = {
         seatIndex: i,
         userId: p.userId,
         username: p.username,
-        chips: p.chips ?? this.defaultBuyIn
+        chips: p.chips ?? this.defaultBuyIn,
+        avatarUrl: p.avatarUrl ?? null
+      }
+    }
+  }
+
+  /**
+   * Met à jour l’URL d’avatar d’un siège (join socket, sit, etc.) et la main courante si elle existe.
+   */
+  setSeatAvatar(userId: string, avatarUrl: string | null): void {
+    const seat = this.seats.find((s) => s.userId === userId)
+    if (!seat) return
+    seat.avatarUrl = avatarUrl
+    if (this.gameTable) {
+      const pl = this.gameTable.state.players.find((p) => p.id === userId)
+      if (pl) {
+        if (avatarUrl) pl.avatar = avatarUrl
+        else delete pl.avatar
       }
     }
   }
@@ -181,7 +200,8 @@ export class CashGameController implements IGameSession {
         isActive: true,
         position: pos,
         isDealer: false,
-        isConnected: true
+        isConnected: true,
+        ...(s.avatarUrl ? { avatar: s.avatarUrl } : {})
       }))
     }
 
@@ -194,7 +214,8 @@ export class CashGameController implements IGameSession {
       isActive: true,
       position: pos,
       isDealer: false,
-      isConnected: true
+      isConnected: true,
+      ...(s.avatarUrl ? { avatar: s.avatarUrl } : {})
     }))
   }
 
@@ -235,6 +256,7 @@ export class CashGameController implements IGameSession {
         s.userId = null
         s.username = null
         s.chips = 0
+        s.avatarUrl = null
       }
     }
     for (const p of state.players) {
@@ -244,6 +266,7 @@ export class CashGameController implements IGameSession {
           seat.userId = null
           seat.username = null
           seat.chips = 0
+          seat.avatarUrl = null
         }
       }
     }
@@ -269,12 +292,12 @@ export class CashGameController implements IGameSession {
   }
 
   /** S'asseoir à un siège (entre les mains uniquement) */
-  sit(userId: string, username: string, seatIndex: number, buyIn: number): { ok: boolean; error?: string } {
+  sit(userId: string, username: string, seatIndex: number, buyIn: number, avatarUrl?: string | null): { ok: boolean; error?: string } {
     if (this.gameTable != null) return { ok: false, error: 'Une main est en cours' }
     if (seatIndex < 0 || seatIndex >= this.maxSeats) return { ok: false, error: 'Siège invalide' }
     if (this.seats[seatIndex].userId != null) return { ok: false, error: 'Siège occupé' }
     const amount = intChips(Math.max(this.defaultBuyIn, Math.min(buyIn, 10000)))
-    this.seats[seatIndex] = { seatIndex, userId, username, chips: amount }
+    this.seats[seatIndex] = { seatIndex, userId, username, chips: amount, avatarUrl: avatarUrl ?? null }
     return { ok: true }
   }
 
@@ -286,6 +309,7 @@ export class CashGameController implements IGameSession {
     seat.userId = null
     seat.username = null
     seat.chips = 0
+    seat.avatarUrl = null
     return true
   }
 
@@ -309,6 +333,7 @@ export class CashGameController implements IGameSession {
     seat.userId = null
     seat.username = null
     seat.chips = 0
+    seat.avatarUrl = null
     return { ok: true }
   }
 
@@ -345,7 +370,8 @@ export class CashGameController implements IGameSession {
         isActive: false,
         position: i,
         isDealer: false,
-        isConnected: true
+        isConnected: true,
+        ...(s.avatarUrl ? { avatar: s.avatarUrl } : {})
       })),
       currentTurn: '',
       phase: this.countdownEndsAt ? 'WAITING' : 'WAITING',

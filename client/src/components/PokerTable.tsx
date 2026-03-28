@@ -28,6 +28,8 @@ interface Player {
   hasFolded?: boolean;
   /** Dernière action affichée à côté de l'avatar (ex: "a checké", "s'est couché") */
   lastAction?: string | null;
+  /** URL d’avatar (cash multijoueur, diffusée par le serveur). */
+  avatar?: string;
 }
 
 interface PokerTableProps {
@@ -246,9 +248,9 @@ export function PokerTable({
                   ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`}
                 >
 
-                  {getPlayerAvatar(player.name, player.id, heroSeatId) ? (
+                  {getPlayerAvatar(player.name, player.id, heroSeatId, player.avatar) ? (
                     <ImageWithFallback
-                      src={getPlayerAvatar(player.name, player.id, heroSeatId)}
+                      src={getPlayerAvatar(player.name, player.id, heroSeatId, player.avatar)}
                       alt={player.name}
                       className={`w-full h-full object-cover ${player.hasFolded ? "blur-[2px] opacity-40 brightness-50" : ""}`}
                     />

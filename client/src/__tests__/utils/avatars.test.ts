@@ -28,4 +28,9 @@ describe("getPlayerAvatar", () => {
     const url = getPlayerAvatar("Bot Gamma", "bot-3", "human");
     expect(url).not.toBe("https://profile.example/me.png");
   });
+
+  it("utilise l’URL serveur pour un adversaire multijoueur quand elle est fournie", () => {
+    const remote = "https://cdn.example/peer-avatar.png";
+    expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me", remote)).toBe(remote);
+  });
 });

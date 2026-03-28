@@ -35,15 +35,21 @@ function isLocalPlayerSeat(
 /**
  * Avatar affiché pour un joueur à la table ou dans les listes.
  * — Siège local : avatar du profil (`getUserAvatar()`).
- * — Autres (bots, adversaires) : image stable et distincte (Dicebear `bottts` + seed siège).
+ * — Multijoueur : si le serveur a diffusé une URL (`remoteAvatarUrl`), on l’utilise.
+ * — Sinon (bots, adversaires sans URL) : Dicebear `bottts` + seed siège.
  */
 export function getPlayerAvatar(
   playerName: string,
   playerId?: string | number,
-  heroSeatId?: string | number | null
+  heroSeatId?: string | number | null,
+  remoteAvatarUrl?: string | null
 ): string {
   if (isLocalPlayerSeat(playerName, playerId, heroSeatId)) {
     return getUserAvatar();
+  }
+  const trimmed = typeof remoteAvatarUrl === "string" ? remoteAvatarUrl.trim() : "";
+  if (trimmed !== "") {
+    return trimmed;
   }
   const seedKey = playerId != null ? String(playerId) : playerName;
   const seed = encodeURIComponent(`qb-opp-${seedKey}-${playerName}`);
