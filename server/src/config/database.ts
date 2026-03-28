@@ -74,5 +74,6 @@ export const getDbPerformanceMetrics = async () => {
 
 export const disconnectDB = async () => {
   await prisma.$disconnect();
-  console.log('✅ Database disconnected');
+  await pool.end();
+  if (!process.env.JEST_WORKER_ID) console.log('✅ Database disconnected');
 };

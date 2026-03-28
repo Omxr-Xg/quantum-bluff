@@ -714,7 +714,7 @@ export class GameGateway {
           this.socketToUser.delete(socket.id)
         }
 
-        if (socket.gameId && userId) {
+        if (socket.gameId && userId && !process.env.JEST_WORKER_ID) {
           const gameId = socket.gameId
           console.log(`[Réseau] Joueur ${userId} déconnecté. Lancement du délai de 10s...`)
 

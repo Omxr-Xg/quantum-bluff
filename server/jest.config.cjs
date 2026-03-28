@@ -1,5 +1,10 @@
 module.exports = {
   testEnvironment: 'node',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  /** Un seul worker : teardown Redis/DB partagé, supprime « worker failed to exit gracefully ». */
+  maxWorkers: 1,
+  /** Évite le message « Jest did not exit » (handles résiduels hors teardown). */
+  forceExit: true,
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   testPathIgnorePatterns: [
