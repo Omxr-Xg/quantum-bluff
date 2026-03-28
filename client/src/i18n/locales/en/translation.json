@@ -104,6 +104,14 @@
       "createBody": "Choose Public (open join) or Private (host must approve). Set max players (2–5). “See more” sets small blind, big blind (minimum raise), and minimum balance to sit. Validate opens your waiting room."
     }
   },
+  "minigames": {
+    "rouletteTitle": "Roulette",
+    "rouletteBlurb": "Place your bets on the layout and spin the wheel.",
+    "slotTitle": "Slots",
+    "slotBlurb": "Line up the symbols and shoot for the jackpot.",
+    "play": "Play",
+    "backToLobbyMinigamesTab": "Back to lobby"
+  },
   "slot": {
     "title": "Slot machine",
     "subtitle": "Bet chips to try your luck. Outcomes are determined on the server.",
