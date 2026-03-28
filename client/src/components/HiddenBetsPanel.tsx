@@ -14,6 +14,7 @@ import {
   placeHiddenBet,
   fetchHiddenBetHistory,
   type SelectionPayload,
+  type HiddenBetMarketPhase,
 } from "../api/hiddenBetsApi";
 import { useSocket } from "../hooks/useSocket";
 
@@ -32,16 +33,31 @@ const CLASS_OPTIONS = [
 
 const RANK_OPTIONS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"] as const;
 
-type MarketMode = "PLAYER_WINS" | "WINNING_HAND_CLASS" | "WINNING_HAND_CONTAINS_RANK";
+type MarketModePre = "PLAYER_WINS" | "WINNING_HAND_CLASS" | "WINNING_HAND_CONTAINS_RANK";
+type MarketModeLive =
+  | "PLAYER_WINS_CURRENT_HAND"
+  | "HAND_REACHES_SHOWDOWN"
+  | "HAND_ENDS_BY_FOLD"
+  | "FINAL_WINNING_HAND_CLASS";
+
+type BetTab = "pre" | "live";
+
+export type HiddenBetStatePayload = {
+  currentHandId: string | null;
+  nextHandId: string | null;
+  windowOpen: boolean;
+  windowType: "PRE_HAND" | "LIVE_FLOP" | "LIVE_TURN" | "LIVE_RIVER" | null;
+  closesAt?: number;
+};
 
 interface HiddenBetsPanelProps {
   isOpen: boolean;
   onToggle: () => void;
   players: { id: string | number; name: string }[];
-  /** Partie cash en ligne uniquement */
   gameId?: string | null;
   hiddenBetNextHandId?: string | null;
   hiddenBetWindowOpen?: boolean;
+  hiddenBetState?: HiddenBetStatePayload | null;
 }
 
 export function HiddenBetsPanel({
@@ -51,9 +67,12 @@ export function HiddenBetsPanel({
   gameId,
   hiddenBetNextHandId,
   hiddenBetWindowOpen,
+  hiddenBetState,
 }: HiddenBetsPanelProps) {
   const { t } = useTranslation();
-  const [marketMode, setMarketMode] = useState<MarketMode>("PLAYER_WINS");
+  const [betTab, setBetTab] = useState<BetTab>("pre");
+  const [marketModePre, setMarketModePre] = useState<MarketModePre>("PLAYER_WINS");
+  const [marketModeLive, setMarketModeLive] = useState<MarketModeLive>("PLAYER_WINS_CURRENT_HAND");
   const [playerId, setPlayerId] = useState("");
   const [classKey, setClassKey] = useState<string>("STRAIGHT");
   const [rank, setRank] = useState<string>("A");
@@ -77,6 +96,13 @@ export function HiddenBetsPanel({
   const [position, setPosition] = useState({ x: 20, y: 96 });
   const dragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
+
+  const livePhase: HiddenBetMarketPhase | null =
+    hiddenBetState?.windowType === "LIVE_FLOP" ||
+    hiddenBetState?.windowType === "LIVE_TURN" ||
+    hiddenBetState?.windowType === "LIVE_RIVER"
+      ? hiddenBetState.windowType
+      : null;
 
   const loadHistory = useCallback(async () => {
     if (!gameId) return;
@@ -106,37 +132,77 @@ export function HiddenBetsPanel({
     };
   }, [socket, gameId, loadHistory]);
 
-  const buildSelection = (): SelectionPayload => {
-    if (marketMode === "PLAYER_WINS") {
+  const buildSelectionPre = (): SelectionPayload => {
+    if (marketModePre === "PLAYER_WINS") {
       return { marketType: "PLAYER_WINS", playerId: String(playerId) };
     }
-    if (marketMode === "WINNING_HAND_CLASS") {
+    if (marketModePre === "WINNING_HAND_CLASS") {
       return { marketType: "WINNING_HAND_CLASS", class: classKey };
     }
     return { marketType: "WINNING_HAND_CONTAINS_RANK", rank };
   };
 
+  const buildSelectionLive = (): SelectionPayload => {
+    if (marketModeLive === "PLAYER_WINS_CURRENT_HAND") {
+      return { marketType: "PLAYER_WINS_CURRENT_HAND", playerId: String(playerId) };
+    }
+    if (marketModeLive === "HAND_REACHES_SHOWDOWN") {
+      return { marketType: "HAND_REACHES_SHOWDOWN" };
+    }
+    if (marketModeLive === "HAND_ENDS_BY_FOLD") {
+      return { marketType: "HAND_ENDS_BY_FOLD" };
+    }
+    return { marketType: "FINAL_WINNING_HAND_CLASS", class: classKey };
+  };
+
   useEffect(() => {
-    if (!gameId || !hiddenBetNextHandId || !hiddenBetWindowOpen) {
+    if (!gameId) {
       setQuoteLoading(false);
       setQuoteOdds(null);
       setQuoteMeta(null);
       return;
     }
-    if (marketMode === "PLAYER_WINS" && !playerId) {
+
+    const marketPhase: HiddenBetMarketPhase | null =
+      betTab === "pre" ? "PRE_HAND" : livePhase;
+
+    const targetHandId =
+      betTab === "pre" ? hiddenBetNextHandId ?? null : hiddenBetState?.currentHandId ?? null;
+
+    const windowOk =
+      betTab === "pre"
+        ? Boolean(hiddenBetWindowOpen && hiddenBetNextHandId)
+        : Boolean(hiddenBetState?.windowOpen && livePhase && hiddenBetState?.currentHandId);
+
+    if (!marketPhase || !targetHandId || !windowOk) {
       setQuoteLoading(false);
       setQuoteOdds(null);
       setQuoteMeta(null);
       return;
     }
+
+    const sel = betTab === "pre" ? buildSelectionPre() : buildSelectionLive();
+    if (betTab === "pre" && marketModePre === "PLAYER_WINS" && !playerId) {
+      setQuoteLoading(false);
+      setQuoteOdds(null);
+      setQuoteMeta(null);
+      return;
+    }
+    if (betTab === "live" && marketModeLive === "PLAYER_WINS_CURRENT_HAND" && !playerId) {
+      setQuoteLoading(false);
+      setQuoteOdds(null);
+      setQuoteMeta(null);
+      return;
+    }
+
     let cancelled = false;
     setQuoteLoading(true);
     const run = async () => {
       try {
-        const sel = buildSelection();
         const q = await quoteHiddenBet({
           gameId,
-          handId: hiddenBetNextHandId,
+          marketPhase,
+          targetHandId,
           combinator: "SINGLE",
           selections: [sel],
           stakePreview: amount,
@@ -165,7 +231,21 @@ export function HiddenBetsPanel({
       cancelled = true;
       setQuoteLoading(false);
     };
-  }, [gameId, hiddenBetNextHandId, hiddenBetWindowOpen, marketMode, playerId, classKey, rank, amount]);
+  }, [
+    gameId,
+    betTab,
+    hiddenBetNextHandId,
+    hiddenBetWindowOpen,
+    hiddenBetState?.windowOpen,
+    hiddenBetState?.currentHandId,
+    livePhase,
+    marketModePre,
+    marketModeLive,
+    playerId,
+    classKey,
+    rank,
+    amount,
+  ]);
 
   const onDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     dragging.current = true;
@@ -194,15 +274,22 @@ export function HiddenBetsPanel({
   }, [position]);
 
   const handlePlaceBet = async () => {
-    if (!gameId || !hiddenBetNextHandId || !quoteMeta || !quoteOdds) return;
-    if (marketMode === "PLAYER_WINS" && !playerId) return;
+    if (!gameId || !quoteMeta || !quoteOdds) return;
+    const marketPhase: HiddenBetMarketPhase | null = betTab === "pre" ? "PRE_HAND" : livePhase;
+    const targetHandId =
+      betTab === "pre" ? hiddenBetNextHandId ?? null : hiddenBetState?.currentHandId ?? null;
+    if (!marketPhase || !targetHandId) return;
+    if (betTab === "pre" && marketModePre === "PLAYER_WINS" && !playerId) return;
+    if (betTab === "live" && marketModeLive === "PLAYER_WINS_CURRENT_HAND" && !playerId) return;
+
     setIsPlacing(true);
     setError(null);
     try {
-      const sel = buildSelection();
+      const sel = betTab === "pre" ? buildSelectionPre() : buildSelectionLive();
       await placeHiddenBet({
         gameId,
-        handId: hiddenBetNextHandId,
+        marketPhase,
+        targetHandId,
         stake: amount,
         combinator: "SINGLE",
         selections: [sel],
@@ -226,31 +313,44 @@ export function HiddenBetsPanel({
 
   const panelStyle = isMobile ? undefined : { left: position.x, top: position.y };
 
-  const disabledOffline = !gameId || !hiddenBetWindowOpen || !hiddenBetNextHandId;
-  const needsWinner = marketMode === "PLAYER_WINS" && !playerId;
+  const windowOkPre = Boolean(gameId && hiddenBetWindowOpen && hiddenBetNextHandId);
+  const windowOkLive = Boolean(
+    gameId && hiddenBetState?.windowOpen && livePhase && hiddenBetState?.currentHandId
+  );
+  const windowOk = betTab === "pre" ? windowOkPre : windowOkLive;
+
+  const needsWinnerPre = betTab === "pre" && marketModePre === "PLAYER_WINS" && !playerId;
+  const needsWinnerLive = betTab === "live" && marketModeLive === "PLAYER_WINS_CURRENT_HAND" && !playerId;
+  const needsWinner = needsWinnerPre || needsWinnerLive;
+
   const placeDisabled =
-    disabledOffline ||
+    !windowOk ||
     isPlacing ||
     quoteLoading ||
     quoteOdds == null ||
     needsWinner;
 
   const placeDisabledHint = (() => {
-    if (disabledOffline) {
-      if (!gameId) {
-        return t("hiddenBets.hintNoGameId", "Ouvre une partie cash en ligne (URL avec gameId).");
-      }
-      if (!hiddenBetNextHandId || !hiddenBetWindowOpen) {
+    if (!gameId) {
+      return t("hiddenBets.hintNoGameId", "Ouvre une partie cash en ligne (URL avec gameId).");
+    }
+    if (!windowOk) {
+      if (betTab === "pre") {
         return t(
           "hiddenBets.hintWindowClosed",
-          "Les paris cachés ne sont possibles qu’entre deux mains, quand le compte à rebours est actif ou en attente de joueurs."
+          "Les paris « prochaine main » sont disponibles entre deux mains (fenêtre ouverte)."
         );
       }
+      return t(
+        "hiddenBets.hintLiveClosed",
+        "Paris live : fenêtre courte après flop/turn/river (attends l’ouverture)."
+      );
     }
-    if (needsWinner) return t("hiddenBets.hintPickWinner", "Choisis un joueur dans la liste « Gagnant ».");
+    if (needsWinner) return t("hiddenBets.hintPickWinner", "Choisis un joueur.");
     if (quoteLoading) return t("hiddenBets.hintQuoting", "Calcul de la cote…");
     if (quoteOdds == null && error) return null;
-    if (quoteOdds == null) return t("hiddenBets.hintNoQuote", "Cote indisponible. Vérifie ta connexion ou réessaie après le prochain message de table.");
+    if (quoteOdds == null)
+      return t("hiddenBets.hintNoQuote", "Cote indisponible. Réessaie ou vérifie la connexion.");
     return null;
   })();
 
@@ -288,10 +388,41 @@ export function HiddenBetsPanel({
             </button>
           </div>
 
+          <div className="px-4 py-2 flex gap-2 border-b border-slate-700">
+            <button
+              type="button"
+              onClick={() => setBetTab("pre")}
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold ${
+                betTab === "pre" ? "bg-yellow-600 text-white" : "bg-slate-700 text-slate-300"
+              }`}
+            >
+              {t("hiddenBets.tabNextHand", "Prochaine main")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBetTab("live")}
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold ${
+                betTab === "live" ? "bg-yellow-600 text-white" : "bg-slate-700 text-slate-300"
+              }`}
+            >
+              {t("hiddenBets.tabLive", "Main en cours")}
+            </button>
+          </div>
+
           <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-700">
-            {disabledOffline
-              ? t("hiddenBets.serverOnly", "Paris cachés disponibles entre deux mains (partie en ligne).")
-              : `${t("hiddenBets.nextHand", "Prochaine main")}: ${hiddenBetNextHandId?.slice(0, 8)}…`}
+            {betTab === "pre" && windowOkPre && (
+              <>
+                {t("hiddenBets.nextHand", "Prochaine main")}: {hiddenBetNextHandId?.slice(0, 8)}…
+              </>
+            )}
+            {betTab === "pre" && !windowOkPre && t("hiddenBets.preClosed", "Fenêtre prochaine main fermée.")}
+            {betTab === "live" && livePhase && (
+              <>
+                {t("hiddenBets.live", "Live")} — {livePhase} — main{" "}
+                {hiddenBetState?.currentHandId?.slice(0, 8)}…
+              </>
+            )}
+            {betTab === "live" && !windowOkLive && t("hiddenBets.liveClosed", "Pas de fenêtre live ouverte.")}
           </div>
 
           <div className="px-4 py-3 bg-slate-700/30 border-b border-slate-700">
@@ -310,19 +441,33 @@ export function HiddenBetsPanel({
 
           <div className="p-4 border-b border-slate-700 space-y-2">
             <div className="text-gray-400 text-sm">{t("hiddenBets.marketType", "Marché")}</div>
-            <select
-              value={marketMode}
-              onChange={(e) => setMarketMode(e.target.value as MarketMode)}
-              className="w-full bg-slate-700 text-white rounded-lg p-2 text-sm"
-            >
-              <option value="PLAYER_WINS">{t("hiddenBets.winner")}</option>
-              <option value="WINNING_HAND_CLASS">{t("hiddenBets.winningClass", "Classe main gagnante")}</option>
-              <option value="WINNING_HAND_CONTAINS_RANK">{t("hiddenBets.containsRank", "Rang dans la main")}</option>
-            </select>
+            {betTab === "pre" && (
+              <select
+                value={marketModePre}
+                onChange={(e) => setMarketModePre(e.target.value as MarketModePre)}
+                className="w-full bg-slate-700 text-white rounded-lg p-2 text-sm"
+              >
+                <option value="PLAYER_WINS">{t("hiddenBets.winner")}</option>
+                <option value="WINNING_HAND_CLASS">{t("hiddenBets.winningClass", "Classe main gagnante")}</option>
+                <option value="WINNING_HAND_CONTAINS_RANK">{t("hiddenBets.containsRank", "Rang dans la main")}</option>
+              </select>
+            )}
+            {betTab === "live" && (
+              <select
+                value={marketModeLive}
+                onChange={(e) => setMarketModeLive(e.target.value as MarketModeLive)}
+                className="w-full bg-slate-700 text-white rounded-lg p-2 text-sm"
+              >
+                <option value="PLAYER_WINS_CURRENT_HAND">{t("hiddenBets.winnerCurrent", "Gagnant (main en cours)")}</option>
+                <option value="HAND_REACHES_SHOWDOWN">Showdown</option>
+                <option value="HAND_ENDS_BY_FOLD">{t("hiddenBets.endsByFold", "Fin par fold")}</option>
+                <option value="FINAL_WINNING_HAND_CLASS">{t("hiddenBets.finalClass", "Classe finale")}</option>
+              </select>
+            )}
           </div>
 
           <div className="p-4 border-b border-slate-700 space-y-2">
-            {marketMode === "PLAYER_WINS" && (
+            {betTab === "pre" && marketModePre === "PLAYER_WINS" && (
               <select
                 value={playerId}
                 onChange={(e) => setPlayerId(e.target.value)}
@@ -336,7 +481,22 @@ export function HiddenBetsPanel({
                 ))}
               </select>
             )}
-            {marketMode === "WINNING_HAND_CLASS" && (
+            {betTab === "live" && marketModeLive === "PLAYER_WINS_CURRENT_HAND" && (
+              <select
+                value={playerId}
+                onChange={(e) => setPlayerId(e.target.value)}
+                className="w-full bg-slate-700 text-white rounded-lg p-2 text-sm"
+              >
+                <option value="">{t("hiddenBets.chooseWinner")}</option>
+                {players.map((p) => (
+                  <option key={String(p.id)} value={String(p.id)}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {((betTab === "pre" && marketModePre === "WINNING_HAND_CLASS") ||
+              (betTab === "live" && marketModeLive === "FINAL_WINNING_HAND_CLASS")) && (
               <select
                 value={classKey}
                 onChange={(e) => setClassKey(e.target.value)}
@@ -349,7 +509,7 @@ export function HiddenBetsPanel({
                 ))}
               </select>
             )}
-            {marketMode === "WINNING_HAND_CONTAINS_RANK" && (
+            {betTab === "pre" && marketModePre === "WINNING_HAND_CONTAINS_RANK" && (
               <select
                 value={rank}
                 onChange={(e) => setRank(e.target.value)}
