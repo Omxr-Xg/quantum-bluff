@@ -2505,6 +2505,9 @@ export function Game() {
             }}
             onLeaveToLobby={() => {
               setShowTransition(false);
+              if (gameIdParam && socket && !isBotMode && !isSpectating) {
+                socket.emit("CASH_LEAVE", { gameId: gameIdParam });
+              }
               navigate("/lobby");
             }}
           />
@@ -2751,6 +2754,9 @@ export function Game() {
         onCancel={() => setShowQuitConfirm(false)}
         onConfirm={() => {
           setShowQuitConfirm(false);
+          if (gameIdParam && socket) {
+            socket.emit("CASH_LEAVE", { gameId: gameIdParam });
+          }
           navigate("/lobby");
         }}
       />
