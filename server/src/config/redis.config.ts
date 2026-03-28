@@ -1,5 +1,6 @@
 import { Redis } from 'ioredis';
 import { GameTable } from '../logic/GameTable.js';
+import { rootLogger } from '../observability/logger.js';
 import type { Card, GamePhase, Player } from '../types/poker.js';
 
 interface SerializedGameState {
@@ -36,7 +37,9 @@ const redisClient = process.env.REDIS_URL
   : new Redis(redisOptions)
 
 redisClient.on('connect', () => {
-  if (!process.env.JEST_WORKER_ID) console.log('✅ Redis connecté')
+  if (!process.env.JEST_WORKER_ID) {
+    rootLogger.info({ msg: 'redis_connected' })
+  }
 })
 
 redisClient.on('error', (err: Error) => {
@@ -45,7 +48,10 @@ redisClient.on('error', (err: Error) => {
     const msg = err?.message ?? String(err)
     if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(msg)) return
   }
-  console.error('❌ Erreur Redis:', err)
+  rootLogger.error({
+    msg: 'redis_client_error',
+    detail: err instanceof Error ? err.message : String(err),
+  })
 })
 
 /** Vérifie si Redis est opérationnel (pour fallback activeGames) */
@@ -107,7 +113,10 @@ export const deserializeGame = (gameId: string, data: string): GameTable | null 
     };
     return game;
   } catch (err) {
-    console.error('Erreur désérialisation partie:', err);
+    rootLogger.error({
+      msg: 'redis_deserialize_game_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    })
     return null;
   }
 };
@@ -153,9 +162,13 @@ export const getAllGames = async (): Promise<Map<string, GameTable>> => {
 // Restaurer toutes les parties au démarrage
 export const restoreAllGames = async (): Promise<Map<string, GameTable>> => {
   const quietJest = Boolean(process.env.JEST_WORKER_ID)
-  if (!quietJest) console.log('🔄 Restauration des parties en cours...');
+  if (!quietJest) {
+    rootLogger.info({ msg: 'redis_restore_games_start' })
+  }
   const games = await getAllGames();
-  if (!quietJest) console.log(`✅ ${games.size} parties restaurées`);
+  if (!quietJest) {
+    rootLogger.info({ msg: 'redis_restore_games_complete', count: games.size })
+  }
   return games;
 };
 
