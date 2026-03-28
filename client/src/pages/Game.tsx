@@ -107,6 +107,8 @@ export function Game() {
 
   const { socket } = useSocket();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [hiddenBetNextHandId, setHiddenBetNextHandId] = useState<string | null>(null);
+  const [hiddenBetWindowOpen, setHiddenBetWindowOpen] = useState(false);
   const [isQuantumOpen, setIsQuantumOpen] = useState(false);
   /** true = ouvert via clic ou menu ; le panneau reste si la souris quitte (sauf fermeture explicite) */
   const [quantumPinned, setQuantumPinned] = useState(false);
@@ -913,8 +915,10 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashCountdownRemainingSec?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string }) => {
+    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashCountdownRemainingSec?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string; hiddenBetNextHandId?: string; hiddenBetWindowOpen?: boolean }) => {
       gameStateFromSocketRef.current = true;
+      setHiddenBetNextHandId(gameState.hiddenBetNextHandId ?? null);
+      setHiddenBetWindowOpen(Boolean(gameState.hiddenBetWindowOpen));
       const socketSnapshotSig = `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}`;
       if (socketSnapshotSig === lastAppliedSocketSnapshotSigRef.current) {
         return;
@@ -2930,7 +2934,14 @@ export function Game() {
         onPanelPointerEnter={onQuantumPanelEnter}
         onPanelPointerLeave={onQuantumPanelLeave}
       />
-      <HiddenBetsPanel isOpen={isPanelOpen} onToggle={() => setIsPanelOpen(!isPanelOpen)} players={activePlayers} />
+      <HiddenBetsPanel
+        isOpen={isPanelOpen}
+        onToggle={() => setIsPanelOpen(!isPanelOpen)}
+        players={activePlayers}
+        gameId={gameIdParam}
+        hiddenBetNextHandId={hiddenBetNextHandId}
+        hiddenBetWindowOpen={hiddenBetWindowOpen}
+      />
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />
 
