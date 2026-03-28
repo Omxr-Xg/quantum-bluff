@@ -309,6 +309,7 @@
         "straightFlush": "Cinq cartes de la même couleur qui se suivent. 10–V–D–R–As d'une même couleur : quinte flush royale (meilleure main possible).",
         "fourKind": "Quatre cartes de même rang, plus une carte restante.",
         "fullHouse": "Un brelan plus une paire.",
+        "quantumCombi": "Exclusif à Quantum Bluff : les sept cartes contiennent au moins un 3, 5, 6, 7 et 10 (couleurs quelconques). Bat une couleur, perd contre un full. Égalité : comparer les deux kickers restants.",
         "flush": "Cinq cartes de la même couleur, sans suite.",
         "straight": "Cinq cartes qui se suivent, couleurs mélangées.",
         "threeKind": "Trois cartes de même rang.",
@@ -724,6 +725,7 @@
       "threeKind": "Brelan",
       "straight": "Quinte",
       "flush": "Couleur",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Full",
       "fourKind": "Carré",
       "straightFlush": "Quinte Flush",
@@ -838,6 +840,7 @@
       "threeKind": "Brelan",
       "straight": "Quinte",
       "flush": "Couleur",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Full",
       "fourKind": "Carré",
       "straightFlush": "Quinte flush"

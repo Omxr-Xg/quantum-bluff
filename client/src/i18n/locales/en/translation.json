@@ -309,6 +309,7 @@
         "straightFlush": "Five cards of the same suit in sequence. 10–J–Q–K–A of one suit is a royal flush (the strongest possible hand).",
         "fourKind": "Four cards of the same rank, plus a kicker.",
         "fullHouse": "Three of a kind plus a pair.",
+        "quantumCombi": "Exclusive to Quantum Bluff: your seven cards contain at least one 3, 5, 6, 7 and 10 (any suits). Beats a flush and loses to a full house. Tie-break: compare the two remaining kickers.",
         "flush": "Five cards of the same suit, not in sequence.",
         "straight": "Five cards in sequence, with mixed suits.",
         "threeKind": "Three cards of the same rank.",
@@ -727,6 +728,7 @@
       "fullHouse": "Full house",
       "fourKind": "Four of a kind",
       "straightFlush": "Straight flush",
+      "quantumCombi": "Quantum Combi",
       "royalFlush": "Royal flush"
     },
     "backHome": "Back to home",
@@ -838,6 +840,7 @@
       "threeKind": "Three of a kind",
       "straight": "Straight",
       "flush": "Flush",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Full house",
       "fourKind": "Four of a kind",
       "straightFlush": "Straight flush"
