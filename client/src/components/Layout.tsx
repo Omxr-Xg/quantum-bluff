@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X, User, Users, LogOut, Plus, Menu, Settings, Trophy, Sparkles } from "lucide-react";
+import { Bell, X, User, Users, LogOut, Plus, Menu, Settings, Trophy } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
@@ -235,15 +235,6 @@ export function Layout({ children }: LayoutProps) {
         >
           <Plus className="h-5 w-5" strokeWidth={2.5} />
         </button>
-        <button
-          type="button"
-          onClick={() => navigate("/minigames")}
-          className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-600/75 text-amber-50 transition-colors hover:bg-amber-500/90 hover:shadow-inner sm:px-3"
-          title={t("lobby.openSlot")}
-          aria-label={t("lobby.openSlot")}
-        >
-          <Sparkles className="h-5 w-5 shrink-0" strokeWidth={2.5} aria-hidden />
-        </button>
       </div>
       <NotificationCenter />
       <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-green-600/80 px-2 text-sm text-white transition hover:bg-green-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.profile")}>
@@ -345,18 +336,6 @@ export function Layout({ children }: LayoutProps) {
                     title={t("lobby.addMoney")}
                   >
                     <Plus className="h-5 w-5" strokeWidth={2.5} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      navigate("/minigames");
-                    }}
-                    className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-600/75 text-amber-50 transition-colors hover:bg-amber-500/90 hover:shadow-inner sm:px-3"
-                    title={t("lobby.openSlot")}
-                    aria-label={t("lobby.openSlot")}
-                  >
-                    <Sparkles className="h-5 w-5 shrink-0" strokeWidth={2.5} aria-hidden />
                   </button>
                 </div>
                 <NotificationCenter />

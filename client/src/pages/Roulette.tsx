@@ -12,6 +12,7 @@ import {
 } from "../utils/gamificationStorage";
 
 import { apiUrl } from "../utils/apiBase";
+import { ChipIcon } from "../components/ChipIcon";
 
 /** Valeurs disponibles + styles (couleur du bord / face) — style « tapis » réel. */
 const ROULETTE_CHIP_TOKENS: readonly {
@@ -384,9 +385,23 @@ function RouletteWheelSvg({ wheelOrder, rotation }: { wheelOrder: number[]; rota
   );
 }
 
-export function Roulette() {
+type RouletteProps = {
+  /** Dans `/minigames`, le retour mène au lobby (onglet mini-jeux) au lieu du lobby seul. */
+  backToMinigamesHub?: boolean;
+  onBackToMinigamesHub?: () => void;
+};
+
+export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: RouletteProps = {}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  const handleBack = () => {
+    if (backToMinigamesHub && onBackToMinigamesHub) {
+      onBackToMinigamesHub();
+    } else {
+      navigate("/lobby");
+    }
+  };
   const { addToast } = useToast();
   const [chips, setChips] = useState<number | null>(null);
   const [minBet, setMinBet] = useState(10);
@@ -699,17 +714,26 @@ export function Roulette() {
       <header className="relative z-10 shrink-0 flex items-center justify-between gap-2 border-b-2 border-[#8b6914]/60 bg-gradient-to-r from-[#1a120d] via-[#2d2118] to-[#1a120d] px-3 py-2.5 shadow-[0_6px_24px_rgba(0,0,0,0.55)] md:px-5">
         <button
           type="button"
-          onClick={() => navigate("/lobby")}
+          onClick={handleBack}
           className="inline-flex items-center gap-2 rounded-lg border border-[#5c4a2a]/80 bg-black/35 px-3 py-2 text-sm font-semibold text-[#f5e6c8] shadow-inner hover:bg-black/50 hover:border-amber-600/50"
         >
           <ArrowLeft className="h-4 w-4" />
-          {t("roulette.back")}
+          {backToMinigamesHub
+            ? t("minigames.backToLobbyMinigamesTab")
+            : t("roulette.back")}
         </button>
         <h1 className="text-center font-serif text-base font-bold tracking-wide text-[#fde68a] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] md:text-lg">
           {t("roulette.title")}
         </h1>
-        <div className="w-[4.5rem] shrink-0 text-right font-serif text-sm font-bold tabular-nums text-[#fde68a] md:w-24 md:text-base">
-          {chips !== null ? chips.toLocaleString() : "—"}
+        <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 font-serif text-sm font-bold tabular-nums text-[#fde68a] md:max-w-none md:text-base">
+          {chips !== null ? (
+            <>
+              <span className="truncate">{chips.toLocaleString()}</span>
+              <ChipIcon size="sm" className="shrink-0 brightness-110" />
+            </>
+          ) : (
+            "—"
+          )}
         </div>
       </header>
 
