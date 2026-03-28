@@ -1,38 +1,38 @@
 import { Router } from 'express';
 import { prisma } from '../config/database.js';
+import { rootLogger } from '../observability/index.js';
 
 const router = Router();
 
-// Route : GET /api/admin/cheaters
-// Permet de lister tous les joueurs suspects ou bannis
-router.get('/cheaters', async (req, res) => {
+// Middleware de protection Admin
+const requireAdmin = (req: any, res: any, next: any) => {
+  const adminSecret = process.env.ADMIN_SECRET_TOKEN || 'super_admin_secret_dev';
+  const providedToken = req.headers['x-admin-token'];
+
+  if (!providedToken || providedToken !== adminSecret) {
+    rootLogger.warn({ msg: 'unauthorized_admin_access', ip: req.ip });
+    return res.status(403).json({ error: "Accès interdit : Privilèges administrateur requis." });
+  }
+  next();
+};
+
+router.get('/cheaters', requireAdmin, async (req, res) => {
   try {
-    // Note : Idéalement, il faudrait ajouter un middleware ici pour vérifier 
-    // que l'utilisateur qui fait la requête a bien le rôle "ADMIN".
-    
-    const suspiciousUsers = await prisma.user.findMany({
-      where: {
-        OR: [
-          { antiCheatAlerts: { gt: 0 } }, // Ceux qui ont au moins 1 alerte
-          { bannedUntil: { not: null } }  // Ceux qui sont bannis
-        ]
-      },
+    const cheaters = await prisma.user.findMany({
+      where: { antiCheatAlerts: { gt: 0 } },
       select: {
         id: true,
         username: true,
-        lastIp: true,
         antiCheatAlerts: true,
-        bannedUntil: true
+        bannedUntil: true,
+        lastIp: true
       },
-      orderBy: {
-        antiCheatAlerts: 'desc' // Les pires tricheurs en premier
-      }
+      orderBy: { antiCheatAlerts: 'desc' }
     });
-
-    res.json(suspiciousUsers);
+    res.json(cheaters);
   } catch (error) {
-    console.error("[Admin API Error]", error);
-    res.status(500).json({ error: "Erreur lors de la récupération des données anti-triche" });
+    rootLogger.error({ msg: 'admin_cheaters_fetch_error', detail: error });
+    res.status(500).json({ error: "Erreur lors de la récupération des données." });
   }
 });
 

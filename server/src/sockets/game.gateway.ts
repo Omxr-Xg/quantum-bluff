@@ -19,6 +19,9 @@ import { applyPokerAction } from '../poker/services/pokerActionOrchestrator.serv
 import { rootLogger } from '../observability/logger.js'
 import { metrics as promMetrics } from '../observability/metrics.js'
 
+// 👇 B4 : IMPORT DU SERVICE ANTI-TRICHE 👇
+import { AntiCheatService } from '../services/antiCheat.service.js'
+
 interface AuthenticatedSocket extends Socket {
   userId?: string
   gameId?: string
@@ -27,6 +30,10 @@ interface AuthenticatedSocket extends Socket {
 export class GameGateway {
   private io: Server
   private timers: Map<string, NodeJS.Timeout> = new Map()
+  
+  // 👇 B4 : CHRONOMÈTRE ANTI-BOT 👇
+  private turnStartTimes: Map<string, number> = new Map()
+
   /** Invalide les timers / callbacks obsolètes quand resetTimer/startTurnTimer se chevauchent (async gap). */
   private turnTimerEpoch: Map<string, number> = new Map()
   private socketToUser: Map<string, string> = new Map()
@@ -226,7 +233,6 @@ export class GameGateway {
         try {
           const { gameId, playerId } = data
 
-          // Désamorcer le timeout de déconnexion si le joueur revient via JOIN_GAME (ex: F5)
           if (socket.userId && this.disconnectionTimeouts.has(socket.userId)) {
             clearTimeout(this.disconnectionTimeouts.get(socket.userId)!)
             this.disconnectionTimeouts.delete(socket.userId)
@@ -410,6 +416,19 @@ export class GameGateway {
             return
           }
 
+          // 👇 B4 : ANTI-BOT : VÉRIFICATION DU TEMPS DE RÉACTION 👇
+          const turnStart = this.turnStartTimes.get(gameId);
+          if (turnStart) {
+            const reactionTimeMs = Date.now() - turnStart;
+            this.turnStartTimes.delete(gameId); // On le supprime pour éviter de recompter
+
+            // Appel non-bloquant au service anti-triche
+            AntiCheatService.checkBotAction(socket.userId, reactionTimeMs).catch(err => {
+              rootLogger.error({ msg: 'anticheat_bot_check_error', detail: err });
+            });
+          }
+          // 👆 B4 : FIN ANTI-BOT 👆
+
           const antiCheatResult = this.antiCheat.registerAction(socket.userId)
 
           if (antiCheatResult.suspicious) {
@@ -542,7 +561,6 @@ export class GameGateway {
                 countdownEndsAt: freshGame.state.cashCountdownEndsAt,
               })
             }
-            // Pas de startTurnTimer en SHOWDOWN (partie terminée pour one-shot, ou countdown pour cash game)
           } else {
             this.startTurnTimer(gameId)
           }
@@ -620,7 +638,6 @@ export class GameGateway {
             s.emit('GAME_STATE_UPDATED', snapshot)
           }
           this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: socket.userId, scope: 'GAME' })
-          // Si plus aucun joueur : supprimer la partie et remettre la salle en WAITING
           if (game.getOccupiedCount() === 0) {
             await activeGames.delete(gameId)
             await prisma.waitingRoom.update({
@@ -743,12 +760,11 @@ export class GameGateway {
               const player = game.getPlayerState(userId)
               if (player) {
                 player.isConnected = false
-                // Ne pas set isActive ici quand c'est son tour: handlePlayerAction('FOLD') le fera
 
                 if (game.state.currentTurn === userId) {
                   try {
                     console.log(`[Réseau] Auto-FOLD pour le joueur déconnecté ${userId}`)
-                    game.handlePlayerAction(userId, 'FOLD') // gère avancement turn + award si 1 seul reste
+                    game.handlePlayerAction(userId, 'FOLD') 
                     const socketsInRoom = await this.io.in(gameId).fetchSockets()
                     for (const s of socketsInRoom) {
                       const uid = (s as unknown as AuthenticatedSocket).userId
@@ -761,7 +777,6 @@ export class GameGateway {
                     console.error('[Réseau] Erreur auto-fold timeout:', error)
                   }
                 } else {
-                  // Pas son tour : fold manuel (handlePlayerAction exigerait que ce soit son tour)
                   player.isActive = false
                   game.forceFoldForDisconnect(userId)
                   const socketsInRoom = await this.io.in(gameId).fetchSockets()
@@ -794,7 +809,6 @@ export class GameGateway {
                   this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: userId, scope: 'GAME' })
                 }
               } else if (game instanceof CashGameController) {
-                // Entre les mains : retirer le joueur déconnecté du siège
                 const removed = game.removeDisconnectedPlayer(userId)
                 if (removed) {
                   const socketsInRoom = await this.io.in(gameId).fetchSockets()
@@ -945,6 +959,10 @@ export class GameGateway {
         return
       }
       this.timers.set(gameId, timer)
+      
+      // 👇 B4 : ANTI-BOT : ON DÉMARRE LE CHRONO ICI 👇
+      this.turnStartTimes.set(gameId, Date.now())
+      
       this.io.to(gameId).emit('TURN_TIMER', { gameId, timeLeft: timeLeftSec })
     })()
   }
@@ -954,6 +972,9 @@ export class GameGateway {
       clearTimeout(this.timers.get(gameId)!)
       this.timers.delete(gameId)
     }
+    // 👇 B4 : ANTI-BOT : ON VIDE LE CHRONO 👇
+    this.turnStartTimes.delete(gameId)
+    
     this.bumpTurnTimerEpoch(gameId)
   }
 }
