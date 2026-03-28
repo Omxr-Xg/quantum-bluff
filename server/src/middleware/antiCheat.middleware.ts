@@ -17,27 +17,45 @@ export const antiCheatMiddleware = async (req: Request, res: Response, next: Nex
 
     if (token) {
       try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { id?: string, userId?: string };
-        userId = decoded.id || decoded.userId; 
-      } catch { 
+        const decoded = jwt.verify(token, JWT_SECRET) as {
+          id?: string
+          userId?: string
+          sub?: string
+        }
+        const raw = decoded.userId ?? decoded.id ?? decoded.sub
+        userId = raw != null ? String(raw).trim() : undefined
+      } catch {
         // Token invalide : on ignore silencieusement
       }
     }
-    
-    if (!userId) return next(); 
 
-    // 2. Vérification du statut de bannissement
-    const user = await prisma.user.findUnique({ 
-      where: { id: userId },
-      select: { bannedUntil: true } // Optimisation DB : on ne demande que ce dont on a besoin
-    });
-    
-    if (!user) return next();
+    if (!userId) return next()
 
-    if (user.bannedUntil && user.bannedUntil > new Date()) {
-      return res.status(403).json({ 
-          error: `Compte suspendu jusqu'au ${user.bannedUntil.toLocaleString('fr-FR')}.` 
-      });
+    // Cuid / UUID : évite findUnique avec chaîne vide ou valeur invalide
+    if (userId.length < 8) return next()
+
+    // 2. Vérification du statut de bannissement (ne doit pas casser la route si la DB est en retard sur les migrations)
+    let bannedUntil: Date | null = null
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { bannedUntil: true },
+      })
+      if (!user) return next()
+      bannedUntil = user.bannedUntil
+    } catch (err) {
+      rootLogger.error({
+        msg: 'anticheat_ban_lookup_failed',
+        requestId: req.requestId,
+        detail: err instanceof Error ? err.message : String(err),
+      })
+      return next()
+    }
+
+    if (bannedUntil && bannedUntil > new Date()) {
+      return res.status(403).json({
+        error: `Compte suspendu jusqu'au ${bannedUntil.toLocaleString('fr-FR')}.`,
+      })
     }
 
     // 3. Récupération IP

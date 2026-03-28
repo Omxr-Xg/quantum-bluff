@@ -14,8 +14,6 @@ import { Profile } from "./pages/Profile";
 import { Friends } from "./pages/Friends";
 import { EditProfile } from "./pages/EditProfile";
 import { TutorialLobby } from "./pages/TutorialLobby";
-import { SlotMachine } from "./pages/SlotMachine";
-import { Roulette } from "./pages/Roulette";
 import { Blackjack } from "./pages/Blackjack";
 import { BlackjackMultiLobby } from "./pages/BlackjackMultiLobby";
 import { BlackjackMultiTable } from "./pages/BlackjackMultiTable";

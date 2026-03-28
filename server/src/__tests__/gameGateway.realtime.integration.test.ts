@@ -71,7 +71,7 @@ describe('GameGateway realtime integration', () => {
     return client
   }
 
-  test('emits PLAYER_LEFT and GAME_STATE_UPDATED on CASH_LEAVE', async () => {
+  test('CASH_LEAVE in heads-up dissolves table and emits GAME_ENDED', async () => {
     const gameId = `it-game-${Date.now()}`
     const game = new CashGameController({
       id: gameId,
@@ -96,21 +96,22 @@ describe('GameGateway realtime integration', () => {
       playerId: string
       scope: string
     }>(u2, 'PLAYER_LEFT')
-    const gameStatePromise = waitForEvent<{ players: Array<{ id: string }> }>(
-      u2,
-      'GAME_STATE_UPDATED'
-    )
+    const gameEndedPromise = waitForEvent<{
+      gameId: string
+      reason: string
+      roomId?: string
+    }>(u2, 'GAME_ENDED')
 
     u1.emit('CASH_LEAVE', { gameId })
 
     const playerLeft = await playerLeftPromise
-    const gameState = await gameStatePromise
+    const gameEnded = await gameEndedPromise
 
     expect(playerLeft.gameId).toBe(gameId)
     expect(playerLeft.playerId).toBe('u1')
     expect(playerLeft.scope).toBe('GAME')
-    expect(gameState.players.some((p) => p.id === 'u1')).toBe(false)
-
-    await activeGames.delete(gameId)
+    expect(gameEnded.reason).toBe('heads_up_peer_left')
+    expect(gameEnded.roomId).toBe('room-it')
+    expect(await activeGames.get(gameId)).toBeUndefined()
   })
 })

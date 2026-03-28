@@ -1,6 +1,6 @@
 import express from 'express';
 import { prisma } from '../config/database.js';
-import { CashGameController } from '../logic/CashGameController.js';
+import { CashGameController, TURBO_TURN_TIMEOUT_MS } from '../logic/CashGameController.js';
 import { activeGames } from '../shared/activeGames.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import sanitizeHtml from 'sanitize-html';
@@ -50,6 +50,7 @@ const formatWaitingRoomPayload = (room: {
   maxPlayers: number
   visibility: 'PUBLIC' | 'PRIVATE'
   status: 'WAITING' | 'IN_GAME'
+  turbo?: boolean
   players: Array<{
     isReady: boolean
     position: number
@@ -62,6 +63,7 @@ const formatWaitingRoomPayload = (room: {
   maxPlayers: room.maxPlayers,
   visibility: room.visibility,
   status: room.status,
+  turbo: room.turbo ?? false,
   players: room.players.map((p) => ({
     id: p.user.id,
     username: p.user.username,
@@ -133,6 +135,7 @@ router.get('/', waitingRoomListLimiter, async (req, res) => {
       maxPlayers: room.maxPlayers,
       visibility: room.visibility,
       status: room.status,
+      turbo: room.turbo,
       players: room.players
         .filter((p): p is typeof p & { user: NonNullable<typeof p.user> } => p.user != null)
         .map(p => ({
@@ -250,7 +253,7 @@ router.get('/games-in-progress', waitingRoomListLimiter, async (req, res) => {
 // POST /api/waiting-room/create - Créer une nouvelle salle
 router.post('/create', waitingRoomCreateLimiter, async (req, res) => {
   try {
-    const { hostId, roomName, maxPlayers = 5, visibility = 'PUBLIC', smallBlind, bigBlind, minBalance } = req.body;
+    const { hostId, roomName, maxPlayers = 5, visibility = 'PUBLIC', smallBlind, bigBlind, minBalance, turbo } = req.body;
 
     const clampedMaxPlayers = Math.min(5, Math.max(2, Number(maxPlayers) || 5));
     const roomVisibility = visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC';
@@ -276,6 +279,7 @@ router.post('/create', waitingRoomCreateLimiter, async (req, res) => {
         smallBlind: sb,
         bigBlind: bb,
         minBalance: minB,
+        turbo: turbo === true,
         players: {
           create: {
             userId: hostId,
@@ -306,6 +310,7 @@ router.post('/create', waitingRoomCreateLimiter, async (req, res) => {
       maxPlayers: room.maxPlayers,
       visibility: room.visibility,
       status: room.status,
+      turbo: room.turbo,
       players: room.players.map(p => ({
         id: p.user.id,
         username: p.user.username,
@@ -354,6 +359,7 @@ router.post('/rematch', waitingRoomHostLimiter, authMiddleware, async (req, res)
         hostId: userId,
         maxPlayers: oldRoom.maxPlayers,
         visibility: oldRoom.visibility,
+        turbo: oldRoom.turbo,
         players: {
           create: oldRoom.players.map((rp, idx) => ({
             userId: rp.userId,
@@ -409,6 +415,7 @@ router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
       maxPlayers: room.maxPlayers,
       visibility: room.visibility,
       status: room.status,
+      turbo: room.turbo,
       players: room.players.map(p => ({
         id: p.user.id,
         username: p.user.username,
@@ -665,8 +672,8 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
       turnTimeoutMs:
         typeof turnTimeoutMs === 'number'
           ? turnTimeoutMs
-          : turbo === true
-            ? 10_000
+          : turbo === true || room.turbo
+            ? TURBO_TURN_TIMEOUT_MS
             : undefined,
     });
     cashGame.initFromRoomPlayers(

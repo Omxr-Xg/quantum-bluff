@@ -62,6 +62,7 @@
     "tabPoker": "تكساس هولدم",
     "tabRoulette": "الروليت",
     "tabBlackjack": "بلاك جاك",
+    "tabMinigames": "ألعاب مصغّرة",
     "tabListAria": "أقسام الردهة",
     "rouletteTitle": "الروليت",
     "rouletteIntro": "37 خانة (0–36). السحب والدفع على الخادم — رهانات داخلية وخارجية.",
@@ -104,6 +105,14 @@
       "createBody": "عام أو خاص. الحد الأقصى للاعبين (2–5). «عرض المزيد»: العمى الصغير/الكبير والحد الأدنى للرصيد. التأكيد يفتح غرفة الانتظار."
     }
   },
+  "minigames": {
+    "rouletteTitle": "الروليت",
+    "rouletteBlurb": "اراهن على الطاولة ودوّر العجلة.",
+    "slotTitle": "آلة سلوت",
+    "slotBlurb": "صفّ الرموز واطلب الجائزة الكبرى.",
+    "play": "العب",
+    "backToLobbyMinigamesTab": "العودة إلى الردهة"
+  },
   "slot": {
     "title": "آلة سلوت",
     "subtitle": "اراهن بالرقائق. النتيجة تُحسب على الخادم.",
@@ -140,7 +149,25 @@
     "autoStoppedAtCeiling": "توقف تلقائي: تم بلوغ الهدف الأعلى (≥ {{ceiling}}).",
     "autoStoppedAtFloor": "توقف تلقائي: الرصيد عند الحد (≤ {{floor}}).",
     "autoStoppedWouldBreach": "توقف تلقائي: الرهان يخفض الرصيد تحت الحد ({{floor}}).",
-    "autoStoppedError": "توقف تلقائي (خطأ شبكة أو خادم)."
+    "autoStoppedError": "توقف تلقائي (خطأ شبكة أو خادم).",
+    "brandTitle": "QUANTUM SLOTS",
+    "winLine": "★ خط رابح ★",
+    "winBanner": "🎰 QUANTUM WIN! 🎰",
+    "insufficientFunds": "رصيد غير كافٍ",
+    "paytableTitle": "جدول المكافآت",
+    "paytableTriple": "3× {{symbol}}",
+    "paytableThreeSame": "3 رموز متطابقة",
+    "multiplierLabel": "المضاعف",
+    "quantumBoostTitle": "Quantum Boost",
+    "quantumBoostBody": "يضمن الخادم عشوائية عادلة في كل دورة.",
+    "sessionCurrent": "الجلسة الحالية",
+    "sessionWins": "مرات الفوز",
+    "sessionSpins": "الدورات",
+    "errorMustLogin": "يجب تسجيل الدخول.",
+    "errorInvalidServerResponse": "استجابة غير صالحة من الخادم.",
+    "errorSync": "خطأ في المزامنة.",
+    "errorServer": "خطأ في الخادم.",
+    "errorUnreachable": "تعذّر الاتصال بالخادم."
   },
   "blackjack": {
     "title": "بلاك جاك",
@@ -287,7 +314,8 @@
     "dealer": "الموزع",
     "turnSeconds": "الدور: {{seconds}}ث",
     "waitingForPlayers": "في انتظار اللاعبين...",
-    "newHandIn": "يد جديدة خلال {{count}} ثانية...",
+    "newHandIn_one": "يد جديدة خلال {{count}} ثانية…",
+    "newHandIn_other": "يد جديدة خلال {{count}} ثوانٍ…",
     "leaveBetweenHands": "العودة إلى الردهة",
     "nextRoundIn": "اليد التالية خلال...",
     "roundTransitionRound": "اليد #{{n}}",
@@ -299,6 +327,7 @@
     "roundWinnerLabel": "فائز اليد",
     "tie": "تعادل",
     "opponentLeft": "المعارض غادر",
+    "cashTableClosedReturnToWaitingRoom": "أُغلقت الطاولة: العودة إلى غرفة الانتظار.",
     "showdownRevealBanner": "عرض الأوراق…",
     "openChat": "فتح الدردشة",
     "helpRules": "المساعدة وقواعد اللعبة",

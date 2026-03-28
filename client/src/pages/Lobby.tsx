@@ -483,7 +483,7 @@ export function Lobby() {
               strokeWidth={2.2}
               aria-hidden
             />
-            <span className="font-serif text-xs font-bold tracking-wide md:text-sm">{t("lobby.tabMinigames", "Mini-jeux")}</span>
+            <span className="font-serif text-xs font-bold tracking-wide md:text-sm">{t("lobby.tabMinigames")}</span>
           </button>
           <div className="hidden w-px self-stretch bg-slate-600/40 md:block" aria-hidden />
           <button
@@ -870,22 +870,45 @@ export function Lobby() {
 
           </div>
 
-          {/* Onglet Mini-jeux */}
-          <div className={`lg:col-span-2 space-y-6 ${lobbyMainTab !== "minigames" ? "hidden" : ""}`} aria-hidden={lobbyMainTab !== "minigames"}>
-            <div className="bg-slate-800 rounded-2xl p-6 border border-amber-500">
-              <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
-                <Sparkles className="w-8 h-8 text-amber-400" aria-hidden />
-                {t("lobby.tabMinigames", "Mini-jeux")}
+          {/* Onglet Mini-jeux — deux blocs : roulette et machine à sous */}
+          <div
+            className={`lg:col-span-2 grid grid-cols-1 gap-6 md:grid-cols-2 ${lobbyMainTab !== "minigames" ? "hidden" : ""}`}
+            aria-hidden={lobbyMainTab !== "minigames"}
+          >
+            <div className="rounded-2xl border border-emerald-500/70 bg-gradient-to-br from-emerald-950/95 via-slate-900 to-slate-950 p-6 shadow-lg shadow-emerald-950/30 ring-1 ring-emerald-400/20">
+              <h2 className="mb-3 flex items-center gap-2 text-xl font-bold text-emerald-50">
+                <span className="text-2xl" aria-hidden>
+                  🎡
+                </span>
+                {t("minigames.rouletteTitle")}
               </h2>
-              <p className="text-gray-400 text-sm leading-relaxed mb-4 max-w-xl">
-                Plongez dans l'univers de nos Mini-jeux. Défiez la Roulette ou tentez le jackpot sur la Machine à sous !
+              <p className="mb-5 text-sm leading-relaxed text-emerald-100/75">
+                {t("minigames.rouletteBlurb")}
               </p>
               <button
                 type="button"
-                onClick={() => navigate("/minigames")}
-                className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 rounded-xl transition"
+                onClick={() => navigate("/minigames?game=roulette")}
+                className="w-full rounded-xl bg-emerald-600 py-4 text-base font-bold text-white shadow-md shadow-emerald-900/40 transition hover:bg-emerald-500"
               >
-                {t("lobby.playMinigames", "Jouer aux Mini-jeux")}
+                {t("minigames.play")}
+              </button>
+            </div>
+            <div className="rounded-2xl border border-violet-500/70 bg-gradient-to-br from-violet-950/95 via-slate-900 to-slate-950 p-6 shadow-lg shadow-violet-950/30 ring-1 ring-violet-400/20">
+              <h2 className="mb-3 flex items-center gap-2 text-xl font-bold text-violet-50">
+                <span className="text-2xl" aria-hidden>
+                  🎰
+                </span>
+                {t("minigames.slotTitle")}
+              </h2>
+              <p className="mb-5 text-sm leading-relaxed text-violet-100/75">
+                {t("minigames.slotBlurb")}
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/minigames?game=slots")}
+                className="w-full rounded-xl bg-violet-600 py-4 text-base font-bold text-white shadow-md shadow-violet-900/40 transition hover:bg-violet-500"
+              >
+                {t("minigames.play")}
               </button>
             </div>
           </div>

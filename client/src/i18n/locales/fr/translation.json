@@ -62,6 +62,7 @@
     "tabPoker": "Texas Hold’em",
     "tabRoulette": "Roulette",
     "tabBlackjack": "Blackjack",
+    "tabMinigames": "Mini-jeux",
     "tabListAria": "Sections du lobby",
     "rouletteTitle": "Roulette",
     "rouletteIntro": "37 cases (0–36). Tirage et paiements calculés sur le serveur — mises intérieures et extérieures.",
@@ -103,6 +104,14 @@
       "createBody": "Choisissez Public (accès libre) ou Privé (validation par l'hôte). Réglez le nombre max de joueurs (2 à 5). « Voir plus » permet de définir la small blind, la big blind (relance minimale) et le solde minimal pour rejoindre la table. Valider ouvre votre salle d'attente."
     }
   },
+  "minigames": {
+    "rouletteTitle": "Roulette",
+    "rouletteBlurb": "Misez sur le tapis et laissez tourner la roue.",
+    "slotTitle": "Machine à sous",
+    "slotBlurb": "Alignez les symboles et visez le jackpot.",
+    "play": "Jouer",
+    "backToLobbyMinigamesTab": "Retour au lobby"
+  },
   "slot": {
     "title": "Machine à sous",
     "subtitle": "Misez des jetons pour tenter votre chance. Le résultat est calculé sur le serveur.",
@@ -139,7 +148,25 @@
     "autoStoppedAtCeiling": "Auto arrêté : objectif max atteint (≥ {{ceiling}}).",
     "autoStoppedAtFloor": "Auto arrêté : solde au plancher (≤ {{floor}}).",
     "autoStoppedWouldBreach": "Auto arrêté : la mise ferait passer le solde sous le plancher ({{floor}}).",
-    "autoStoppedError": "Auto arrêté (erreur réseau ou serveur)."
+    "autoStoppedError": "Auto arrêté (erreur réseau ou serveur).",
+    "brandTitle": "QUANTUM SLOTS",
+    "winLine": "★ LIGNE GAGNANTE ★",
+    "winBanner": "🎰 QUANTUM WIN ! 🎰",
+    "insufficientFunds": "Solde insuffisant",
+    "paytableTitle": "Tableau des gains",
+    "paytableTriple": "3× {{symbol}}",
+    "paytableThreeSame": "3 symboles identiques",
+    "multiplierLabel": "Multiplicateur",
+    "quantumBoostTitle": "Quantum Boost",
+    "quantumBoostBody": "Le serveur garantit un tirage équitable à chaque tour.",
+    "sessionCurrent": "Session actuelle",
+    "sessionWins": "Victoires",
+    "sessionSpins": "Tours joués",
+    "errorMustLogin": "Vous devez être connecté.",
+    "errorInvalidServerResponse": "Réponse serveur invalide.",
+    "errorSync": "Erreur de synchronisation.",
+    "errorServer": "Erreur serveur.",
+    "errorUnreachable": "Impossible de joindre le serveur."
   },
   "blackjack": {
     "title": "Blackjack",
@@ -286,7 +313,8 @@
     "dealer": "Donneur",
     "turnSeconds": "Tour : {{seconds}}s",
     "waitingForPlayers": "En attente de joueurs...",
-    "newHandIn": "Nouvelle main dans {{count}} secondes...",
+    "newHandIn_one": "Nouvelle main dans {{count}} seconde…",
+    "newHandIn_other": "Nouvelle main dans {{count}} secondes…",
     "leaveBetweenHands": "Retour au lobby",
     "nextRoundIn": "Prochaine manche dans...",
     "roundTransitionRound": "Manche #{{n}}",
@@ -298,6 +326,7 @@
     "roundWinnerLabel": "Gagnant de la manche",
     "tie": "Égalité",
     "opponentLeft": "Adversaire parti",
+    "cashTableClosedReturnToWaitingRoom": "Table fermée : retour à la salle d'attente.",
     "showdownRevealBanner": "Abattage des cartes",
     "openChat": "Ouvrir le chat",
     "helpRules": "Aide et règles du jeu",

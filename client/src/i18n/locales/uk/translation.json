@@ -62,6 +62,7 @@
     "tabPoker": "Техаський холдем",
     "tabRoulette": "Рулетка",
     "tabBlackjack": "Блекджек",
+    "tabMinigames": "Міні-ігри",
     "tabListAria": "Розділи лобі",
     "rouletteTitle": "Рулетка",
     "rouletteIntro": "37 секторів (0–36). Жеребкування та виплати на сервері — внутрішні та зовнішні ставки.",
@@ -104,6 +105,14 @@
       "createBody": "Публічна або приватна. Макс. гравців (2–5). «Показати більше»: малі/великий блайнд і мін. баланс. Підтвердити — відкриває кімнату очікування."
     }
   },
+  "minigames": {
+    "rouletteTitle": "Рулетка",
+    "rouletteBlurb": "Робіть ставки на полі та крутіть колесо.",
+    "slotTitle": "Слот-машина",
+    "slotBlurb": "Зберіть один ряд символів і зірвіть джекпот.",
+    "play": "Грати",
+    "backToLobbyMinigamesTab": "Назад до лобі"
+  },
   "slot": {
     "title": "Слот-машина",
     "subtitle": "Робіть ставки фішками. Результат визначається на сервері.",
@@ -140,7 +149,25 @@
     "autoStoppedAtCeiling": "Авто зупинено: досягнуто цільового максимуму (≥ {{ceiling}}).",
     "autoStoppedAtFloor": "Авто зупинено: баланс на підлозі (≤ {{floor}}).",
     "autoStoppedWouldBreach": "Авто зупинено: ставка опустить баланс нижче підлоги ({{floor}}).",
-    "autoStoppedError": "Авто зупинено (помилка мережі або сервера)."
+    "autoStoppedError": "Авто зупинено (помилка мережі або сервера).",
+    "brandTitle": "QUANTUM SLOTS",
+    "winLine": "★ ВИГРАШНА ЛІНІЯ ★",
+    "winBanner": "🎰 QUANTUM WIN! 🎰",
+    "insufficientFunds": "Недостатньо фішок",
+    "paytableTitle": "Таблиця виплат",
+    "paytableTriple": "3× {{symbol}}",
+    "paytableThreeSame": "3 однакові символи",
+    "multiplierLabel": "Множник",
+    "quantumBoostTitle": "Quantum Boost",
+    "quantumBoostBody": "Сервер застосовує чесну випадковість на кожному обертанні.",
+    "sessionCurrent": "Поточна сесія",
+    "sessionWins": "Виграші",
+    "sessionSpins": "Обертання",
+    "errorMustLogin": "Потрібно увійти в акаунт.",
+    "errorInvalidServerResponse": "Некоректна відповідь сервера.",
+    "errorSync": "Помилка синхронізації.",
+    "errorServer": "Помилка сервера.",
+    "errorUnreachable": "Не вдалося з’єднатися з сервером."
   },
   "blackjack": {
     "title": "Блекджек",
@@ -287,7 +314,8 @@
     "dealer": "Дилер",
     "turnSeconds": "Хід: {{seconds}}с",
     "waitingForPlayers": "Очікування гравців...",
-    "newHandIn": "Нова рука через {{count}} сек...",
+    "newHandIn_one": "Нова рука за {{count}} секунду…",
+    "newHandIn_other": "Нова рука за {{count}} сек…",
     "leaveBetweenHands": "Назад у лобі",
     "nextRoundIn": "Наступна роздача через...",
     "roundTransitionRound": "Роздача #{{n}}",
@@ -299,6 +327,7 @@
     "roundWinnerLabel": "Переможець роздачі",
     "tie": "Нічия",
     "opponentLeft": "Супротивник вийшов",
+    "cashTableClosedReturnToWaitingRoom": "Стіл закрито: повернення в зал очікування.",
     "showdownRevealBanner": "Показ карт…",
     "openChat": "Відкрити чат",
     "helpRules": "Допомога та правила гри",

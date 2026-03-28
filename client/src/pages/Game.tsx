@@ -834,7 +834,7 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string }) => {
+    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashCountdownRemainingSec?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string }) => {
       gameStateFromSocketRef.current = true;
       const socketSnapshotSig = `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}`;
       if (socketSnapshotSig === lastAppliedSocketSnapshotSigRef.current) {
@@ -886,7 +886,11 @@ export function Game() {
         turnTimeLimitSecRef.current = gameState.turnTimeLimitSec;
       }
       handIdRef.current = gameState.handId;
-      if (gameState.cashCountdownEndsAt != null) setCashCountdownEndsAt(gameState.cashCountdownEndsAt);
+      if (typeof gameState.cashCountdownRemainingSec === "number") {
+        setCashCountdownEndsAt(Date.now() + Math.max(0, gameState.cashCountdownRemainingSec) * 1000);
+      } else if (gameState.cashCountdownEndsAt != null) {
+        setCashCountdownEndsAt(gameState.cashCountdownEndsAt);
+      }
       if (gameState.cashSeats && Array.isArray(gameState.cashSeats)) {
         setCashSeats(gameState.cashSeats);
         if (isSpectating && userId && gameState.cashSeats.some((s) => s.userId && String(s.userId) === String(userId))) {
@@ -894,7 +898,13 @@ export function Game() {
           return;
         }
       }
-      if (!gameState.cashCountdownEndsAt && gameState.phase !== "WAITING") setCashCountdownEndsAt(null);
+      if (
+        gameState.cashCountdownEndsAt == null &&
+        (typeof gameState.cashCountdownRemainingSec !== "number" || gameState.cashCountdownRemainingSec <= 0) &&
+        gameState.phase !== "WAITING"
+      ) {
+        setCashCountdownEndsAt(null);
+      }
       if (gameState.spectatorRejoinQueue && Array.isArray(gameState.spectatorRejoinQueue)) {
         setSpectatorWantsToRejoin(gameState.spectatorRejoinQueue.includes(String(userId)));
       }
@@ -1085,8 +1095,14 @@ export function Game() {
     const onGameStateUpdated = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_STATE_UPDATED", state);
     socket.on("GAME_UPDATE", onGameUpdateMain);
     socket.on("GAME_STATE_UPDATED", onGameStateUpdated);
-    const onGameEnded = (data: { gameId: string; winnerId: string; reason: string; pot?: number }) => {
-      if (data.reason === "opponent_left" && String(data.winnerId) === String(userId)) {
+    const onGameEnded = (data: {
+      gameId: string;
+      winnerId?: string;
+      reason: string;
+      pot?: number;
+      roomId?: string;
+    }) => {
+      if (data.reason === "opponent_left" && data.winnerId != null && String(data.winnerId) === String(userId)) {
         const balanceChange = Math.round(data.pot ?? 0);
         addToUserBalance(balanceChange);
         setShowdownResult((prevResult) => {
@@ -1099,6 +1115,16 @@ export function Game() {
             pot: data.pot ?? 0,
             skipRevealDelay: true,
           };
+        });
+      }
+      if (
+        (data.reason === "heads_up_peer_left" || data.reason === "all_players_left") &&
+        data.roomId &&
+        String(data.gameId) === String(gameIdParam)
+      ) {
+        navigate(`/waiting-room?roomId=${encodeURIComponent(data.roomId)}`, {
+          replace: true,
+          state: { message: t("game.cashTableClosedReturnToWaitingRoom") },
         });
       }
     };
@@ -1117,7 +1143,7 @@ export function Game() {
       socket.off("CASH_WAITING_PLAYERS", onCashWaiting);
       socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     };
-  }, [socket, gameIdParam, userId, isSpectating]);
+  }, [socket, gameIdParam, userId, isSpectating, navigate, t]);
 
   useEffect(() => {
     if (!handResult || !gameIdParam || isBotMode || !userId) return;
@@ -1132,10 +1158,13 @@ export function Game() {
   const [cashCountdownTick, setCashCountdownTick] = useState(0);
   useEffect(() => {
     if (!cashCountdownEndsAt) return;
-    const iv = setInterval(() => setCashCountdownTick((t) => t + 1), 1000);
+    const iv = setInterval(() => setCashCountdownTick((t) => t + 1), 250);
     return () => clearInterval(iv);
   }, [cashCountdownEndsAt]);
-  const cashCountdownSecs = cashCountdownEndsAt ? Math.max(0, Math.ceil((cashCountdownEndsAt - Date.now()) / 1000)) : 0;
+  const cashCountdownSecs = useMemo(() => {
+    if (!cashCountdownEndsAt) return 0;
+    return Math.max(0, Math.ceil((cashCountdownEndsAt - Date.now()) / 1000));
+  }, [cashCountdownEndsAt, cashCountdownTick]);
 
   useEffect(() => {
     if (!socket) return;
