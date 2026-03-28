@@ -1,6 +1,8 @@
 import { prisma } from '../../config/database.js'
 import { activeGames } from '../../shared/activeGames.js'
 import { pokerStateStore } from '../../shared/pokerStateStore.js'
+import { metrics as promMetrics } from '../../observability/metrics.js'
+import { rootLogger } from '../../observability/logger.js'
 
 type PokerRecoveryMetrics = {
   roomsScanned: number
@@ -33,6 +35,13 @@ export async function recoverPokerRuntimeAtBoot(): Promise<void> {
     // Current implementation stores snapshots for diagnostics/readiness only.
     // Runtime rehydration of CashGameController is intentionally conservative.
   }
+  promMetrics.incRecoveryEvent('poker', 'boot_scan_complete')
+  rootLogger.info({
+    msg: 'recovery_boot_complete',
+    game: 'poker',
+    roomsScanned: metrics.roomsScanned,
+    detail: 'scan IN_GAME sans réhydratation runtime (design conservateur)',
+  })
 }
 
 export async function cleanupOrphanPokerRuntime(): Promise<void> {

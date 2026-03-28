@@ -2,6 +2,8 @@ import { prisma } from '../../config/database.js'
 import { blackjackStateStore } from '../../shared/blackjackStateStore.js'
 import { blackjackSnapshotRepository } from './blackjackSnapshot.repository.js'
 import type { BlackjackTableState } from '../domain/blackjackState.types.js'
+import { metrics as promMetrics } from '../../observability/metrics.js'
+import { rootLogger } from '../../observability/logger.js'
 
 const ACTIVE_TTL_SEC = 60 * 60 * 6
 const ORPHAN_RUNTIME_GRACE_MS = 30 * 60 * 1000
@@ -150,7 +152,11 @@ export async function recoverBlackjackRuntimeAtBoot(): Promise<void> {
           data: { status: 'WAITING' },
         })
         metrics.bootResetToWaiting += 1
-        console.warn('[blackjack-recovery] reset room to WAITING (missing gameId)', {
+        promMetrics.incRecoveryEvent('blackjack', 'boot_reset_missing_game_id')
+        rootLogger.info({
+          msg: 'recovery_boot_room_reset',
+          game: 'blackjack',
+          reason: 'missing_game_id',
           roomId: room.id,
         })
         continue
@@ -166,7 +172,10 @@ export async function recoverBlackjackRuntimeAtBoot(): Promise<void> {
       if (isValidStoredState(snapshot, room.id)) {
         await blackjackStateStore.setTable(tableId, snapshot, { ttlSec: ACTIVE_TTL_SEC })
         metrics.bootRehydratedFromSnapshot += 1
-        console.info('[blackjack-recovery] rehydrated runtime from snapshot', {
+        promMetrics.incRecoveryEvent('blackjack', 'boot_rehydrated')
+        rootLogger.info({
+          msg: 'recovery_boot_rehydrated',
+          game: 'blackjack',
           roomId: room.id,
           tableId,
           version: snapshot.version,
@@ -179,15 +188,22 @@ export async function recoverBlackjackRuntimeAtBoot(): Promise<void> {
         data: { status: 'WAITING', gameId: null },
       })
       metrics.bootResetToWaiting += 1
-      console.warn('[blackjack-recovery] reset room to WAITING (no runtime/snapshot)', {
+      promMetrics.incRecoveryEvent('blackjack', 'boot_reset_no_snapshot')
+      rootLogger.info({
+        msg: 'recovery_boot_room_reset',
+        game: 'blackjack',
+        reason: 'no_runtime_snapshot',
         roomId: room.id,
         tableId,
       })
     } catch (err) {
       metrics.bootRecoveryFailures += 1
-      console.error('[blackjack-recovery] failure while recovering room', {
+      promMetrics.incRecoveryEvent('blackjack', 'boot_failure')
+      rootLogger.error({
+        msg: 'recovery_boot_failure',
+        game: 'blackjack',
         roomId: room.id,
-        error: err instanceof Error ? err.message : String(err),
+        detail: err instanceof Error ? err.message : String(err),
       })
     }
   }
@@ -237,7 +253,10 @@ export async function cleanupOrphanBlackjackRuntime(): Promise<void> {
     if (shouldDelete) {
       await blackjackStateStore.deleteTable(tableId)
       metrics.cleanupStoreDeleted += 1
-      console.warn('[blackjack-cleanup] deleted orphan/stale runtime', {
+      promMetrics.incRecoveryEvent('blackjack', 'cleanup_orphan_deleted')
+      rootLogger.warn({
+        msg: 'recovery_cleanup_orphan_deleted',
+        game: 'blackjack',
         tableId,
         roomStatus: linked?.status ?? null,
         runtimeAgeMs: Number.isFinite(runtimeAgeMs) ? runtimeAgeMs : null,
