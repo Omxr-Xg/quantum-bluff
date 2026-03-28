@@ -10,7 +10,6 @@ import { useQuantumHUD } from "../contexts/QuantumHUDContext";
 import { PokerChat } from "../components/PokerChat";
 import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
-import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, Sparkles, Trophy, Frown, Activity } from "lucide-react";
@@ -109,6 +108,88 @@ export function Game() {
   const { socket } = useSocket();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isQuantumOpen, setIsQuantumOpen] = useState(false);
+  /** true = ouvert via clic ou menu ; le panneau reste si la souris quitte (sauf fermeture explicite) */
+  const [quantumPinned, setQuantumPinned] = useState(false);
+  const quantumPinnedRef = useRef(quantumPinned);
+  useEffect(() => {
+    quantumPinnedRef.current = quantumPinned;
+  }, [quantumPinned]);
+  const quantumHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const quantumLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearQuantumHoverTimer = useCallback(() => {
+    if (quantumHoverTimerRef.current) {
+      clearTimeout(quantumHoverTimerRef.current);
+      quantumHoverTimerRef.current = null;
+    }
+  }, []);
+
+  const clearQuantumLeaveTimer = useCallback(() => {
+    if (quantumLeaveTimerRef.current) {
+      clearTimeout(quantumLeaveTimerRef.current);
+      quantumLeaveTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearQuantumHoverTimer();
+      clearQuantumLeaveTimer();
+    };
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const onQuantumProbasEnter = useCallback(() => {
+    clearQuantumLeaveTimer();
+    clearQuantumHoverTimer();
+    quantumHoverTimerRef.current = setTimeout(() => {
+      setIsQuantumOpen(true);
+      quantumHoverTimerRef.current = null;
+    }, 500);
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const onQuantumProbasLeave = useCallback(() => {
+    clearQuantumHoverTimer();
+    clearQuantumLeaveTimer();
+    quantumLeaveTimerRef.current = setTimeout(() => {
+      if (!quantumPinnedRef.current) setIsQuantumOpen(false);
+      quantumLeaveTimerRef.current = null;
+    }, 280);
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const onQuantumPanelEnter = useCallback(() => {
+    clearQuantumLeaveTimer();
+  }, [clearQuantumLeaveTimer]);
+
+  const onQuantumPanelLeave = useCallback(() => {
+    clearQuantumLeaveTimer();
+    quantumLeaveTimerRef.current = setTimeout(() => {
+      if (!quantumPinnedRef.current) setIsQuantumOpen(false);
+      quantumLeaveTimerRef.current = null;
+    }, 280);
+  }, [clearQuantumLeaveTimer]);
+
+  const onQuantumToggleClick = useCallback(() => {
+    clearQuantumHoverTimer();
+    clearQuantumLeaveTimer();
+    if (!isQuantumOpen) {
+      setIsQuantumOpen(true);
+      setQuantumPinned(true);
+      return;
+    }
+    if (!quantumPinned) {
+      setQuantumPinned(true);
+      return;
+    }
+    setIsQuantumOpen(false);
+    setQuantumPinned(false);
+  }, [isQuantumOpen, quantumPinned, clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const closeQuantumPanel = useCallback(() => {
+    clearQuantumHoverTimer();
+    clearQuantumLeaveTimer();
+    setIsQuantumOpen(false);
+    setQuantumPinned(false);
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [_hasFolded, _setHasFolded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -285,8 +366,6 @@ export function Game() {
 
   const { colorblindMode } = useAccessibility();
   const { addToast } = useToast();
-  const { openAccessibilityMenu } = useAccessibilityMenuOpen() ?? { openAccessibilityMenu: () => {} };
-
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
@@ -2521,11 +2600,13 @@ export function Game() {
           {!isMobile && phase !== "init" && phase !== "shuffle" && phase !== "deal" && (
             <div className="bg-yellow-500/20 backdrop-blur-sm border border-yellow-500/40 rounded-lg px-3 py-1.5 shadow-lg">
               <p className="text-yellow-400 font-bold text-sm tracking-wide uppercase">
-                {phase === "preflop" && "Pre-Flop"}
-                {phase === "flop" && "Flop"}
-                {phase === "turn" && "Turn"}
-                {phase === "river" && "River"}
-                {phase === "showdown" && "Showdown"}
+                {phase === "preflop" ||
+                phase === "flop" ||
+                phase === "turn" ||
+                phase === "river" ||
+                phase === "showdown"
+                  ? t(`game.phaseBadge.${phase}`)
+                  : null}
               </p>
             </div>
           )}
@@ -2566,7 +2647,11 @@ export function Game() {
                   type="button"
                   role="menuitem"
                   onClick={() => {
-                    setIsQuantumOpen((o) => !o);
+                    setIsQuantumOpen((o) => {
+                      const next = !o;
+                      setQuantumPinned(next);
+                      return next;
+                    });
                     setShowMenu(false);
                   }}
                   className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} ${isQuantumOpen ? 'text-amber-400 bg-amber-500/15' : 'text-white hover:bg-slate-700/80'} transition-all`}
@@ -2839,7 +2924,12 @@ export function Game() {
       )}
 
       <HandActionLogPanel entries={handActionLog} />
-      <QuantumHUD isOpen={isQuantumOpen} onToggle={() => setIsQuantumOpen(!isQuantumOpen)} />
+      <QuantumHUD
+        isOpen={isQuantumOpen}
+        onToggle={closeQuantumPanel}
+        onPanelPointerEnter={onQuantumPanelEnter}
+        onPanelPointerLeave={onQuantumPanelLeave}
+      />
       <HiddenBetsPanel isOpen={isPanelOpen} onToggle={() => setIsPanelOpen(!isPanelOpen)} players={activePlayers} />
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />
@@ -2883,10 +2973,11 @@ export function Game() {
           actionsDisabled={Boolean(gameIdParam && !socket)}
           waitingForPlayer={!isMyTurn && !hasFoldedFromState ? (activePlayer?.name === "Vous" || activePlayer?.name === "you" ? t('game.you') : activePlayer?.name) : undefined}
           timeLeft={timeLeft ?? 30}
-          onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
+          onToggleQuantum={onQuantumToggleClick}
+          onQuantumHoverEnter={onQuantumProbasEnter}
+          onQuantumHoverLeave={onQuantumProbasLeave}
           onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
-          isQuantumOpen={isQuantumOpen}
           isHiddenBetsOpen={isPanelOpen}
           isChatOpen={isChatOpen}
         />
