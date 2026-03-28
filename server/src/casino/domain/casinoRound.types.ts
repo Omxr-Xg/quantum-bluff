@@ -15,7 +15,7 @@ export interface CasinoRoundContext {
   roundId: string
   actionId: string
   userId: string
-  gameType: 'roulette' | 'slot' | 'blackjack'
+  gameType: 'roulette' | 'slot' | 'blackjack' | 'poker_hidden_bet'
   engineVersion: string
   rulesVersion: string
   payoutTableVersion: string
