@@ -434,17 +434,32 @@ model UserBadge {
 // MODÈLE MANQUANT - COMPTABILITÉ CASINO
 // ============================================
 model WalletLedgerEntry {
-  id        String   @id @default(uuid())
-  userId    String
-  amount    Int
-  reason    String
-  game      String?  // 'slot', 'roulette', 'blackjack', etc.
-  createdAt DateTime @default(now())
+  id                 String   @id @default(uuid())
+  userId             String
+  amount             Int
+  reason             String
+  game               String?  // Gardé pour la compatibilité
+  
+  // Nouveaux champs demandés par le moteur de casino pro
+  roundId            String?
+  actionId           String?
+  gameType           String?  // 'slot', 'roulette', etc.
+  balanceBefore      Int?
+  balanceAfter       Int?
+  settlementState    String   @default("SETTLED")
+  engineVersion      String?
+  rulesVersion       String?
+  payoutTableVersion String?
+  rngVersion         String?
+  integrityHash      String?
+
+  createdAt          DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])
+  @@index([roundId])
   @@map("wallet_ledger_entries")
 }
 
