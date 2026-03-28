@@ -7,6 +7,7 @@
 //
 // This implementation scores Texas Hold'em hands from up to 7 cards (2 hole + board).
 // Score is a single number built from (category + tie breakers).
+// Catégories 0–9 : haute carte … quinte flush ; Quantum Combi = 6 (entre full 7 et couleur 5).
 
 import type { Card, Player, Rank, Suit } from "../types/poker.js";
 
@@ -37,6 +38,30 @@ function countByRank(values: number[]): Map<number, number> {
   const m = new Map<number, number>();
   for (const v of values) m.set(v, (m.get(v) ?? 0) + 1);
   return m;
+}
+
+/** Rangs requis pour une Quantum Combi (valeurs 2–14 : 3,5,6,7,10). */
+const QUANTUM_RANKS = [3, 5, 6, 7, 10] as const;
+
+/**
+ * Si les 7 cartes contiennent au moins un 3,5,6,7 et 10, retourne les 2 kickers (hors ces 5 rangs consommés).
+ */
+function quantumCombiKickers(allValues: number[]): [number, number] | null {
+  const counts = countByRank(allValues);
+  for (const r of QUANTUM_RANKS) {
+    if ((counts.get(r) ?? 0) < 1) return null;
+  }
+  const mult = new Map(counts);
+  for (const r of QUANTUM_RANKS) {
+    mult.set(r, (mult.get(r) ?? 0) - 1);
+  }
+  const remaining: number[] = [];
+  for (const [r, c] of mult) {
+    for (let i = 0; i < c; i++) remaining.push(r);
+  }
+  remaining.sort((a, b) => b - a);
+  if (remaining.length < 2) return null;
+  return [remaining[0], remaining[1]];
 }
 
 function countBySuit(cards: Card[]): Map<Suit, Card[]> {
@@ -147,8 +172,8 @@ function evaluateSeven(cards: Card[]): EvalOut {
     const sfHigh = findStraightHigh(flushValues);
     if (sfHigh > 0) {
       // Straight Flush (including royal flush as sfHigh=14)
-      const score = packScore(8, [sfHigh, 0, 0, 0, 0]);
-      return { category: 8, kickers: [sfHigh], score };
+      const score = packScore(9, [sfHigh, 0, 0, 0, 0]);
+      return { category: 9, kickers: [sfHigh], score };
     }
   }
 
@@ -156,8 +181,8 @@ function evaluateSeven(cards: Card[]): EvalOut {
   if (groups[0]?.count === 4) {
     const quadRank = groups[0].rank;
     const kicker = groups.find((g) => g.rank !== quadRank)?.rank ?? 0;
-    const score = packScore(7, [quadRank, kicker, 0, 0, 0]);
-    return { category: 7, kickers: [quadRank, kicker], score };
+    const score = packScore(8, [quadRank, kicker, 0, 0, 0]);
+    return { category: 8, kickers: [quadRank, kicker], score };
   }
 
   // Full house (3 + 2)
@@ -167,9 +192,17 @@ function evaluateSeven(cards: Card[]): EvalOut {
       (g) => g.rank !== tripsRank && g.count >= 2,
     );
     if (pairCandidate) {
-      const score = packScore(6, [tripsRank, pairCandidate.rank, 0, 0, 0]);
-      return { category: 6, kickers: [tripsRank, pairCandidate.rank], score };
+      const score = packScore(7, [tripsRank, pairCandidate.rank, 0, 0, 0]);
+      return { category: 7, kickers: [tripsRank, pairCandidate.rank], score };
     }
+  }
+
+  // Quantum Combi (3, 5, 6, 7, 10 parmi les 7 cartes) — entre full et couleur
+  const allValues = cards.map((c) => c.value ?? RANK_VALUE[c.rank]);
+  const qKick = quantumCombiKickers(allValues);
+  if (qKick) {
+    const score = packScore(6, [qKick[0], qKick[1], 0, 0, 0]);
+    return { category: 6, kickers: [...qKick], score };
   }
 
   // Flush
@@ -254,13 +287,14 @@ const HAND_NAMES: Record<number, string> = {
   3: "Brelan",
   4: "Quinte",
   5: "Couleur",
-  6: "Full",
-  7: "Carré",
-  8: "Quinte flush",
+  6: "Quantum Combi",
+  7: "Full",
+  8: "Carré",
+  9: "Quinte flush",
 };
 
 /**
- * Returns the category (0-8) and French hand name for the best hand from the given cards.
+ * Returns the category (0-9) and French hand name for the best hand from the given cards.
  */
 export function getHandInfo(cards: Card[]): { category: number; handName: string } {
   const safe = cards.slice();
