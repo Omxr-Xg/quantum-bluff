@@ -13,6 +13,10 @@ type WalletLedgerReason =
   | 'SLOT_PAYOUT'
   | 'BLACKJACK_STAKE'
   | 'BLACKJACK_PAYOUT'
+  | 'HIDDEN_BET_STAKE'
+  | 'HIDDEN_BET_PAYOUT'
+  | 'HIDDEN_BET_REFUND_VOID'
+  | 'HIDDEN_BET_REFUND_CANCEL'
 
 export type WalletLedgerInput = {
   context: CasinoRoundContext
