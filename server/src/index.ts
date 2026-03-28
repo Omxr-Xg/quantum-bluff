@@ -23,14 +23,17 @@ import blackjackRoutes from './routes/blackjack.routes.js'
 import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
-import adminPokerRuntimeRoutes from './routes/admin.poker.runtime.routes.js'
-import adminRouletteOverrideRoutes from './routes/admin.roulette.override.routes.js'
+
+// ==========================================
+// 🛡️ B4 : IMPORTS ANTI-TRICHE & ADMIN
+// ==========================================
+import { antiCheatMiddleware } from './middleware/antiCheat.middleware.js'
+import adminRoutes from './routes/admin.routes.js'
 
 import { GameGateway } from './sockets/game.gateway.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
 import { connectDB } from './config/database.js'
 import { recoverBlackjackRuntimeAtBoot } from './blackjack/recovery/blackjackRecovery.service.js'
-import { recoverPokerRuntimeAtBoot } from './poker/recovery/pokerRecovery.service.js'
 
 const app = express()
 
@@ -39,19 +42,19 @@ app.set('trust proxy', 1)
 const FRONTEND_ORIGINS: string[] = process.env.CORS_ORIGIN
   ? JSON.parse(process.env.CORS_ORIGIN)
   : [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:5175',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:5174',
-    'http://127.0.0.1:5175',
-    'https://mai-projet-integrateur.u-strasbg.fr',
-    'capacitor://localhost',
-    'http://localhost',
-    'http://185.155.93.105',
-    'http://185.155.93.105:5173',
-    'http://185.155.93.105:3000',
-  ]
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:5174',
+      'http://127.0.0.1:5175',
+      'https://mai-projet-integrateur.u-strasbg.fr',
+      'capacitor://localhost',
+      'http://localhost',
+      'http://185.155.93.105',
+      'http://185.155.93.105:5173',
+      'http://185.155.93.105:3000',
+    ]
 
 // sécurité HTTP (CSP adapté pour API + Swagger UI)
 app.use(helmet({
@@ -89,7 +92,6 @@ const limiter = rateLimit({
 
 app.use(limiter)
 
-/** Limite dédiée API bot (decisions / seconde) — ajuster sous charge réelle. */
 const botApiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: process.env.NODE_ENV === 'production' ? 240 : 2000,
@@ -137,6 +139,11 @@ app.use((req, _res, next) => {
   next()
 })
 
+// ==========================================
+// 🛡️ B4 : ACTIVATION DU BOUCLIER ANTI-TRICHE
+// ==========================================
+app.use(antiCheatMiddleware)
+
 // routes API
 app.use('/api', gameRoutes)
 app.use('/api/auth', authRoutes)
@@ -157,8 +164,11 @@ app.use(
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
-app.use('/api/admin/poker/runtime', adminPokerRuntimeRoutes)
-app.use('/api/admin/roulette/override', adminRouletteOverrideRoutes)
+
+// ==========================================
+// 🛡️ B4 : ROUTE ADMIN POUR VOIR LES TRICHEURS
+// ==========================================
+app.use('/api/admin', adminRoutes)
 
 // Serveur de mises à jour client
 app.use('/', updatesRouter)
@@ -167,7 +177,6 @@ app.get('/', (_req, res) => {
   res.send('🚀 Quantum Bluff API - Le serveur répond !')
 })
 
-// B5 : Route de santé pour le monitoring Docker/Serveur
 app.get('/api/health', (_req, res) => {
   res.status(200).send('OK')
 })
@@ -175,7 +184,7 @@ app.get('/api/health', (_req, res) => {
 // Swagger / OpenAPI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customCss: '.swagger-ui .topbar { display: none }' }))
 
-// Middleware de gestion des erreurs non capturées (pour déboguer les 500)
+// Middleware de gestion des erreurs non capturées
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const msg = err instanceof Error ? err.message : String(err)
   const stack = err instanceof Error ? err.stack : undefined
@@ -210,7 +219,6 @@ const PORT = parseInt(process.env.PORT || '3000', 10)
 ;(async () => {
   await connectDB()
   await recoverBlackjackRuntimeAtBoot()
-  await recoverPokerRuntimeAtBoot()
   httpServer.listen(PORT, () => {
     console.log(`[SERVER] Quantum Bluff tourne sur http://localhost:${PORT}`)
   })
