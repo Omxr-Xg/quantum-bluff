@@ -1,4 +1,4 @@
-import { getPlayerAvatar } from "@/utils/avatars";
+import { AVATAR_PRESETS } from "@/utils/avatars";
 
 interface AvatarGalleryProps {
   selectedAvatar: string;
@@ -8,7 +8,7 @@ interface AvatarGalleryProps {
 export function AvatarGallery({ selectedAvatar, onSelect }: AvatarGalleryProps) {
   return (
     <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-4">
-      {avatars.map((avatar, index) => {
+      {AVATAR_PRESETS.map((avatar, index) => {
         const isSelected = selectedAvatar === avatar;
 
         return (

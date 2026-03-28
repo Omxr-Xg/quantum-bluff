@@ -24,7 +24,6 @@ interface QuantumHUDContextType {
 const QuantumHUDContext = createContext<QuantumHUDContextType | undefined>(undefined);
 
 const RANK_ORDER = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
-const SUITS = ["hearts","diamonds","clubs","spades"];
 
 function rankIndex(v: string): number {
   const i = RANK_ORDER.indexOf(v);

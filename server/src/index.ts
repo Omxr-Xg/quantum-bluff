@@ -251,8 +251,7 @@ app.use((err: unknown, req: express.Request, res: express.Response, _next: expre
   const msg = err instanceof Error ? err.message : String(err)
   const stack = err instanceof Error ? err.stack : undefined
   
-  // Utilisation de req as any temporairement pour éviter les erreurs TypeScript avec custom req fields
-  const requestId = (req as any).requestId;
+  const requestId = req.requestId
   
   rootLogger.error({
     msg: 'http_unhandled_error',

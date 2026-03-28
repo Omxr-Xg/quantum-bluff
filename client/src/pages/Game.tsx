@@ -10,20 +10,17 @@ import { useQuantumHUD } from "../contexts/QuantumHUDContext";
 import { PokerChat } from "../components/PokerChat";
 import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
-import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, Sparkles, Trophy, Frown, Activity } from "lucide-react";
+import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, Sparkles, Trophy, Activity } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "../components/ui/use-mobile";
-import { ShowdownDisplay } from "../components/ShowdownDisplay";
 import { ChipIcon } from "../components/ChipIcon";
-import { PokerCard } from "../components/PokerCard";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
-import { addToUserBalance, addDevMoney, getUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
+import { addToUserBalance, addDevMoney, getUserBalance } from "../utils/userProfile";
 import { RoundTransition } from "../components/RoundTransition";
 import { GameInteractiveTour } from "../components/GameInteractiveTour";
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
@@ -151,7 +148,7 @@ export function Game() {
   const [roundPlayersActed, setRoundPlayersActed] = useState<Set<number>>(new Set());
   const [gameInitialized, setGameInitialized] = useState(false);
   const [handResult, setHandResult] = useState<"win" | "loss" | null>(null);
-  const [handResultData, setHandResultData] = useState<{ winnerName: string; handName: string } | null>(null);
+  const [_handResultData, setHandResultData] = useState<{ winnerName: string; handName: string } | null>(null);
 
   const [showTransition, setShowTransition] = useState(false);
   const [roundCount, setRoundCount] = useState(1);
@@ -190,12 +187,12 @@ export function Game() {
   const bothActedNoTurnRef = useRef(false);
   const toAddLastRef = useRef(0);
   const botIsFetchingRef = useRef(false);
-  const [showdownReveal, setShowdownReveal] = useState(false);
+  const [_showdownReveal, setShowdownReveal] = useState(false);
   const showdownStartedRef = useRef(false);
   const showdownResultRef = useRef<typeof showdownResult>(null);
   showdownResultRef.current = showdownResult;
-  const [showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
-  const [pendingShowdownData, setPendingShowdownData] = useState<{
+  const [_showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
+  const [_pendingShowdownData, setPendingShowdownData] = useState<{
     winnerId: string;
     winnerIds?: string[];
     winnerName: string;
@@ -206,13 +203,11 @@ export function Game() {
   } | null>(null);
   const handContributionsRef = useRef<Record<string, number>>({});
   const [sidePots, setSidePots] = useState<{ amount: number; eligibleIds: string[] }[]>([]);
-  const [isRematchHost, setIsRematchHost] = useState(false);
-  const [rematchLoading, setRematchLoading] = useState(false);
+  const [_isRematchHost, setIsRematchHost] = useState(false);
   const [cashCountdownEndsAt, setCashCountdownEndsAt] = useState<number | null>(null);
   const [cashSeats, setCashSeats] = useState<{ seatIndex: number; userId: string | null; username: string | null; chips: number }[]>([]);
   const [cashWaitingPlayers, setCashWaitingPlayers] = useState(false);
   const [spectatorWantsToRejoin, setSpectatorWantsToRejoin] = useState(false);
-  const showdownSkipRef = useRef<(() => void) | null>(null);
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const flopAnimatedRef = useRef(false);
 
@@ -285,7 +280,6 @@ export function Game() {
 
   const { colorblindMode } = useAccessibility();
   const { addToast } = useToast();
-  const { openAccessibilityMenu } = useAccessibilityMenuOpen() ?? { openAccessibilityMenu: () => {} };
 
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
@@ -523,7 +517,7 @@ export function Game() {
     setRoundPlayersActed(new Set());
     setPlayersState((prev) => {
       if (prev.length === 0) return prev;
-      let firstIdx = startIndex % prev.length;
+      const firstIdx = startIndex % prev.length;
       for (let i = 0; i < prev.length; i++) {
         const idx = (firstIdx + i) % prev.length;
         const p = prev[idx];
@@ -963,7 +957,7 @@ export function Game() {
             flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
             flopAnimateTimeoutsRef.current = [];
             setCommunityCardsState([arr[0], null, null, null, null]);
-            const t1 = setTimeout(() => setCommunityCardsState((prev) => [arr[0]!, arr[1]!, null, null, null]), 800);
+            const t1 = setTimeout(() => setCommunityCardsState((_prev) => [arr[0]!, arr[1]!, null, null, null]), 800);
             const t2 = setTimeout(() => setCommunityCardsState(arr), 1600);
             flopAnimateTimeoutsRef.current = [t1, t2];
           } else {
@@ -1020,18 +1014,12 @@ export function Game() {
         const winnerName = gameState.showdownIsSplit && winnerIds.length > 1
           ? t('game.tie')
           : (players.find((p) => String(p.id) === String(firstWinnerId))?.name ?? firstWinnerId);
-        const winnerPlayer = players.find((p) => String(p.id) === String(firstWinnerId));
         const totalPot = gameState.showdownPot ?? 0;
         const potWon = winnerIds.length > 1 ? Math.floor(totalPot / winnerIds.length) : totalPot;
         const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
         addToUserBalance(balanceChange);
-        const normalized = winnerPlayer?.cards?.length
-          ? winnerPlayer.cards
-              .map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]))
-              .filter((c): c is Card => c !== null)
-          : [];
-        
+
         // Multi : on déclenche la transition directe à la place du vieux ShowdownDisplay !
         setShowdownResult({
           winnerId: firstWinnerId,
@@ -1382,7 +1370,7 @@ export function Game() {
         return -1;
       };
 
-        let nextIndex = nextPlayerWithChips((idx + 1) % newPlayers.length);
+        const nextIndex = nextPlayerWithChips((idx + 1) % newPlayers.length);
         if (nextIndex !== -1) {
           newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
         }
@@ -2126,7 +2114,6 @@ export function Game() {
         });
         return nextList;
       });
-      const newPot = Math.max(0, pot + amount - totalRefund);
       setPot((prev) => Math.max(0, prev + amount - totalRefund));
       setRoundPlayersActed((prev) => {
         const next = new Set(prev).add(botIndex);
@@ -2635,8 +2622,12 @@ export function Game() {
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-4'}`}>
           {!isMobile && (
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-xl border-2 border-white">
-              {getPlayerAvatar(heroDisplayName) ? (
-                <ImageWithFallback src={getPlayerAvatar(heroDisplayName)} alt="Avatar du joueur" className="w-full h-full rounded-full object-cover" />
+              {getPlayerAvatar(heroPlayer?.name ?? "Vous", heroPlayer?.id, isBotMode ? "human" : userId) ? (
+                <ImageWithFallback
+                  src={getPlayerAvatar(heroPlayer?.name ?? "Vous", heroPlayer?.id, isBotMode ? "human" : userId)}
+                  alt="Avatar du joueur"
+                  className="w-full h-full rounded-full object-cover"
+                />
               ) : (
                 <span className="text-white font-bold text-xl">{heroDisplayName.charAt(0)}</span>
               )}
@@ -2810,7 +2801,14 @@ export function Game() {
       )}
 
       <div ref={tourRefTable} className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
-        <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase} burnedCardsCount={displayBurnedCardsCount} colorblindMode={colorblindMode}>
+        <PokerTable
+          players={tablePlayers}
+          communitySafeZone={230}
+          phase={phase}
+          burnedCardsCount={displayBurnedCardsCount}
+          colorblindMode={colorblindMode}
+          heroSeatId={isBotMode ? "human" : (userId ?? undefined)}
+        >
           <CommunityCards
             cards={communityCards}
             pot={pot}

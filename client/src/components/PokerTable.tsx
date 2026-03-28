@@ -38,6 +38,8 @@ interface PokerTableProps {
   /** Nombre de cartes brûlées à afficher face cachée dans le conteneur dédié */
   burnedCardsCount?: number;
   colorblindMode?: boolean;
+  /** Id du siège du joueur local (`userId` en ligne, `"human"` en mode bot). */
+  heroSeatId?: string | number | null;
 }
 
 // Dimensions de base (référence pour le calcul des positions)
@@ -51,6 +53,7 @@ export function PokerTable({
   phase,
   burnedCardsCount = 0,
   colorblindMode = false,
+  heroSeatId = null,
 }: PokerTableProps) {
   const { t } = useTranslation();
   const isShowdown = phase === "showdown";
@@ -243,9 +246,9 @@ export function PokerTable({
                   ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`}
                 >
 
-                  {getPlayerAvatar(player.name) ? (
+                  {getPlayerAvatar(player.name, player.id, heroSeatId) ? (
                     <ImageWithFallback
-                      src={getPlayerAvatar(player.name)}
+                      src={getPlayerAvatar(player.name, player.id, heroSeatId)}
                       alt={player.name}
                       className={`w-full h-full object-cover ${player.hasFolded ? "blur-[2px] opacity-40 brightness-50" : ""}`}
                     />

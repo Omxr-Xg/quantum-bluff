@@ -128,7 +128,9 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
       if (visualAlerts) {
         try {
           if (navigator.vibrate) navigator.vibrate(timeLeft === 0 ? [300, 100, 300] : [50]);
-        } catch {}
+        } catch {
+          /* vibrate non supporté */
+        }
       } else {
         try {
           const ctx = new AudioContext();

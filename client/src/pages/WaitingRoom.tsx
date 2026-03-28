@@ -184,7 +184,6 @@ export function WaitingRoom() {
     if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;
     joinRoom(rawRoomId);
     return () => leaveRoom(rawRoomId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, rawRoomId, roomLoading]);
 
   useEffect(() => {
@@ -201,7 +200,6 @@ export function WaitingRoom() {
     };
     socket.on("GAME_STARTED", onGameStarted);
     return () => socket.off("GAME_STARTED", onGameStarted);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, navigate, rawRoomId]);
 
   useEffect(() => {

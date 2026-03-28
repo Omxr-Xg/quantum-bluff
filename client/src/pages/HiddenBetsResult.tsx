@@ -4,9 +4,11 @@ import { X, Trophy, TrendingUp, Award, Coins, Home } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useHiddenBets, HiddenBet } from "../contexts/HiddenBetsContext";
+import { useUser } from "../hooks/useUser";
 
 export function HiddenBetsResult() {
   const { t } = useTranslation();
+  const { userId } = useUser();
   const navigate = useNavigate();
   const location = useLocation() as {
     state?: {
@@ -145,9 +147,9 @@ export function HiddenBetsResult() {
                 <div className="flex items-center gap-4">
                   {/* Avatar du joueur */}
                   <div className="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-white flex items-center justify-center shadow-lg flex-shrink-0">
-                    {getPlayerAvatar(bet.playerName) ? (
+                    {getPlayerAvatar(bet.playerName, undefined, userId ?? undefined) ? (
                       <ImageWithFallback
-                        src={getPlayerAvatar(bet.playerName)}
+                        src={getPlayerAvatar(bet.playerName, undefined, userId ?? undefined)}
                         alt={`${bet.playerName}'s avatar`}
                         className="w-14 h-14 rounded-full object-cover"
                       />
