@@ -15,11 +15,11 @@ describe("getPlayerAvatar", () => {
     expect(getPlayerAvatar("Vous", "human", "human")).toBe("https://profile.example/me.png");
   });
 
-  it("retourne un avatar distinct pour chaque bot (Dicebear bottts)", () => {
+  it("retourne un avatar distinct pour chaque bot (Dicebear micah, style luxe)", () => {
     const a = getPlayerAvatar("Bot Alpha", "bot-1", "human");
     const b = getPlayerAvatar("Bot Beta", "bot-2", "human");
     expect(a).toContain("api.dicebear.com");
-    expect(a).toContain("bottts");
+    expect(a).toContain("micah");
     expect(b).toContain("api.dicebear.com");
     expect(a).not.toBe(b);
   });
