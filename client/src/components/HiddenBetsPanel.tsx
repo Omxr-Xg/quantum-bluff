@@ -1,48 +1,171 @@
 import {
   X,
   Trophy,
-  Target,
-  TrendingUp,
-  DollarSign,
   GripVertical,
+  DollarSign,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useHiddenBets } from "../contexts/HiddenBetsContext";
 import { useDeviceType } from "./ui/use-mobile";
 import { ChipIcon } from "./ChipIcon";
+import {
+  quoteHiddenBet,
+  placeHiddenBet,
+  fetchHiddenBetHistory,
+  type SelectionPayload,
+} from "../api/hiddenBetsApi";
+import { useSocket } from "../hooks/useSocket";
 
-const COMBO_KEYS = ["pair", "twoPair", "threeKind", "straight", "flush", "quantumCombi", "fullHouse", "fourKind", "straightFlush", "royalFlush"];
+const CLASS_OPTIONS = [
+  "HIGH_CARD",
+  "PAIR",
+  "TWO_PAIR",
+  "THREE_OF_A_KIND",
+  "STRAIGHT",
+  "FLUSH",
+  "QUANTUM_COMBI",
+  "FULL_HOUSE",
+  "FOUR_OF_A_KIND",
+  "STRAIGHT_FLUSH",
+] as const;
+
+const RANK_OPTIONS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"] as const;
+
+type MarketMode = "PLAYER_WINS" | "WINNING_HAND_CLASS" | "WINNING_HAND_CONTAINS_RANK";
 
 interface HiddenBetsPanelProps {
   isOpen: boolean;
   onToggle: () => void;
   players: { id: string | number; name: string }[];
-  combinations?: string[];
+  /** Partie cash en ligne uniquement */
+  gameId?: string | null;
+  hiddenBetNextHandId?: string | null;
+  hiddenBetWindowOpen?: boolean;
 }
 
 export function HiddenBetsPanel({
   isOpen,
   onToggle,
   players,
-  combinations,
+  gameId,
+  hiddenBetNextHandId,
+  hiddenBetWindowOpen,
 }: HiddenBetsPanelProps) {
   const { t } = useTranslation();
-  const comboChoices = combinations ?? COMBO_KEYS.map(k => t(`hiddenBets.combinations.${k}`));
-  const [selectedType, setSelectedType] = useState<"winner" | "combination">(
-    "winner"
-  );
-  const [selectedChoice, setSelectedChoice] = useState("");
+  const [marketMode, setMarketMode] = useState<MarketMode>("PLAYER_WINS");
+  const [playerId, setPlayerId] = useState("");
+  const [classKey, setClassKey] = useState<string>("STRAIGHT");
+  const [rank, setRank] = useState<string>("A");
   const [amount, setAmount] = useState(50);
   const [isPlacing, setIsPlacing] = useState(false);
+  const [quoteOdds, setQuoteOdds] = useState<number | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [potentialPayout, setPotentialPayout] = useState(0);
+  const [quoteMeta, setQuoteMeta] = useState<{
+    quoteHash: string;
+    quoteExpiresAt: string;
+    pricingVersion: string;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [ticketCount, setTicketCount] = useState(0);
+  const [stakeTotal, setStakeTotal] = useState(0);
 
-  const { placeBet, totalBets, totalAmount } = useHiddenBets();
+  const { socket } = useSocket();
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const [position, setPosition] = useState({ x: 20, y: 96 });
   const dragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
+
+  const loadHistory = useCallback(async () => {
+    if (!gameId) return;
+    try {
+      const { tickets } = await fetchHiddenBetHistory(30);
+      const list = (tickets ?? []) as { gameId?: string; stake?: number }[];
+      const mine = list.filter((x) => x.gameId === gameId);
+      setTicketCount(mine.length);
+      setStakeTotal(mine.reduce((s, x) => s + (x.stake ?? 0), 0));
+    } catch {
+      /* ignore */
+    }
+  }, [gameId]);
+
+  useEffect(() => {
+    if (isOpen && gameId) void loadHistory();
+  }, [isOpen, gameId, loadHistory]);
+
+  useEffect(() => {
+    if (!socket || !gameId) return;
+    const onUpd = () => {
+      void loadHistory();
+    };
+    socket.on("HIDDEN_BET_TICKET_UPDATED", onUpd);
+    return () => {
+      socket.off("HIDDEN_BET_TICKET_UPDATED", onUpd);
+    };
+  }, [socket, gameId, loadHistory]);
+
+  const buildSelection = (): SelectionPayload => {
+    if (marketMode === "PLAYER_WINS") {
+      return { marketType: "PLAYER_WINS", playerId: String(playerId) };
+    }
+    if (marketMode === "WINNING_HAND_CLASS") {
+      return { marketType: "WINNING_HAND_CLASS", class: classKey };
+    }
+    return { marketType: "WINNING_HAND_CONTAINS_RANK", rank };
+  };
+
+  useEffect(() => {
+    if (!gameId || !hiddenBetNextHandId || !hiddenBetWindowOpen) {
+      setQuoteLoading(false);
+      setQuoteOdds(null);
+      setQuoteMeta(null);
+      return;
+    }
+    if (marketMode === "PLAYER_WINS" && !playerId) {
+      setQuoteLoading(false);
+      setQuoteOdds(null);
+      setQuoteMeta(null);
+      return;
+    }
+    let cancelled = false;
+    setQuoteLoading(true);
+    const run = async () => {
+      try {
+        const sel = buildSelection();
+        const q = await quoteHiddenBet({
+          gameId,
+          handId: hiddenBetNextHandId,
+          combinator: "SINGLE",
+          selections: [sel],
+          stakePreview: amount,
+        });
+        if (cancelled) return;
+        setQuoteOdds(q.quotedOdds);
+        setPotentialPayout(q.potentialPayout);
+        setQuoteMeta({
+          quoteHash: q.quoteHash,
+          quoteExpiresAt: q.quoteExpiresAt,
+          pricingVersion: q.pricingVersion,
+        });
+        setError(null);
+      } catch (e) {
+        if (!cancelled) {
+          setQuoteOdds(null);
+          setQuoteMeta(null);
+          setError((e as Error).message);
+        }
+      } finally {
+        if (!cancelled) setQuoteLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+      setQuoteLoading(false);
+    };
+  }, [gameId, hiddenBetNextHandId, hiddenBetWindowOpen, marketMode, playerId, classKey, rank, amount]);
 
   const onDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     dragging.current = true;
@@ -70,40 +193,66 @@ export function HiddenBetsPanel({
     window.addEventListener("touchend", onUp);
   }, [position]);
 
-  const getOdds = (type: "winner" | "combination", choice: string) => {
-    if (type === "winner") {
-      return (players.length * 1.5).toFixed(1);
-    }
-    const rareKeys = ["royalFlush", "straightFlush", "fourKind"];
-    const isRare = rareKeys.some(k => t(`hiddenBets.combinations.${k}`) === choice);
-    return isRare ? "8.0" : "4.5";
-  };
-
   const handlePlaceBet = async () => {
-    if (!selectedChoice || amount < 10) return;
-
+    if (!gameId || !hiddenBetNextHandId || !quoteMeta || !quoteOdds) return;
+    if (marketMode === "PLAYER_WINS" && !playerId) return;
     setIsPlacing(true);
-    await placeBet({
-      playerName: "Vous",
-      playerId: "current-player",
-      betType: selectedType,
-      betChoice: selectedChoice,
-      amount,
-    });
-    setIsPlacing(false);
-    setSelectedChoice("");
-    setAmount(50);
+    setError(null);
+    try {
+      const sel = buildSelection();
+      await placeHiddenBet({
+        gameId,
+        handId: hiddenBetNextHandId,
+        stake: amount,
+        combinator: "SINGLE",
+        selections: [sel],
+        actionId: crypto.randomUUID(),
+        quoteHash: quoteMeta.quoteHash,
+        pricingVersion: quoteMeta.pricingVersion,
+        quoteExpiresAt: quoteMeta.quoteExpiresAt,
+      });
+      await loadHistory();
+      setAmount(50);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setIsPlacing(false);
+    }
   };
-
-  const winnerChoices = players.map((p) => p.name);
-  const displayedChoices =
-    selectedType === "winner" ? winnerChoices : comboChoices;
 
   const panelClassName = isMobile
     ? "fixed z-[60] left-2 right-2 top-20 md:top-24 max-h-[85vh] overflow-y-auto bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl"
     : "fixed z-[60] w-80 md:w-96 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl";
 
   const panelStyle = isMobile ? undefined : { left: position.x, top: position.y };
+
+  const disabledOffline = !gameId || !hiddenBetWindowOpen || !hiddenBetNextHandId;
+  const needsWinner = marketMode === "PLAYER_WINS" && !playerId;
+  const placeDisabled =
+    disabledOffline ||
+    isPlacing ||
+    quoteLoading ||
+    quoteOdds == null ||
+    needsWinner;
+
+  const placeDisabledHint = (() => {
+    if (disabledOffline) {
+      if (!gameId) {
+        return t("hiddenBets.hintNoGameId", "Ouvre une partie cash en ligne (URL avec gameId).");
+      }
+      if (!hiddenBetNextHandId || !hiddenBetWindowOpen) {
+        return t(
+          "hiddenBets.hintWindowClosed",
+          "Les paris cachés ne sont possibles qu’entre deux mains, quand le compte à rebours est actif ou en attente de joueurs."
+        );
+      }
+    }
+    if (needsWinner) return t("hiddenBets.hintPickWinner", "Choisis un joueur dans la liste « Gagnant ».");
+    if (quoteLoading) return t("hiddenBets.hintQuoting", "Calcul de la cote…");
+    if (quoteOdds == null && error) return null;
+    if (quoteOdds == null) return t("hiddenBets.hintNoQuote", "Cote indisponible. Vérifie ta connexion ou réessaie après le prochain message de table.");
+    return null;
+  })();
 
   return (
     <AnimatePresence>
@@ -116,7 +265,6 @@ export function HiddenBetsPanel({
           className={panelClassName}
           style={panelStyle}
         >
-          {/* Header with drag handle */}
           <div className="p-4 border-b border-slate-700 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div
@@ -129,9 +277,10 @@ export function HiddenBetsPanel({
               <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
                 <Trophy className="w-4 h-4 text-white" />
               </div>
-              <h3 className="text-white font-bold">{t('hiddenBets.title')}</h3>
+              <h3 className="text-white font-bold">{t("hiddenBets.title")}</h3>
             </div>
             <button
+              type="button"
               onClick={onToggle}
               className="text-gray-400 hover:text-white transition-colors"
             >
@@ -139,96 +288,96 @@ export function HiddenBetsPanel({
             </button>
           </div>
 
-          {/* Stats */}
+          <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-700">
+            {disabledOffline
+              ? t("hiddenBets.serverOnly", "Paris cachés disponibles entre deux mains (partie en ligne).")
+              : `${t("hiddenBets.nextHand", "Prochaine main")}: ${hiddenBetNextHandId?.slice(0, 8)}…`}
+          </div>
+
           <div className="px-4 py-3 bg-slate-700/30 border-b border-slate-700">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-400">{t('hiddenBets.inProgress')}</span>
-              <span className="text-white font-bold">{totalBets}</span>
+              <span className="text-gray-400">{t("hiddenBets.inProgress")}</span>
+              <span className="text-white font-bold">{ticketCount}</span>
             </div>
             <div className="flex justify-between text-sm mt-1">
-              <span className="text-gray-400">{t('hiddenBets.totalWagered')}</span>
+              <span className="text-gray-400">{t("hiddenBets.totalWagered")}</span>
               <span className="text-yellow-400 font-bold">
-                {totalAmount} <ChipIcon size="sm" className="inline-block align-middle ml-0.5" />
+                {stakeTotal}{" "}
+                <ChipIcon size="sm" className="inline-block align-middle ml-0.5" />
               </span>
             </div>
           </div>
 
-          {/* Type de pari */}
-          <div className="p-4 border-b border-slate-700">
-            <div className="text-gray-400 text-sm mb-3">{t('hiddenBets.betType')}</div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedType("winner")}
-                className={`flex-1 py-2 px-3 rounded-lg font-semibold transition-all ${
-                  selectedType === "winner"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-700 text-gray-400 hover:bg-slate-600"
-                }`}
-              >
-                <Target className="w-4 h-4 inline mr-2" />
-                {t('hiddenBets.winner')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedType("combination")}
-                className={`flex-1 py-2 px-3 rounded-lg font-semibold transition-all ${
-                  selectedType === "combination"
-                    ? "bg-purple-600 text-white"
-                    : "bg-slate-700 text-gray-400 hover:bg-slate-600"
-                }`}
-              >
-                <TrendingUp className="w-4 h-4 inline mr-2" />
-                {t('hiddenBets.combination')}
-              </button>
-            </div>
+          <div className="p-4 border-b border-slate-700 space-y-2">
+            <div className="text-gray-400 text-sm">{t("hiddenBets.marketType", "Marché")}</div>
+            <select
+              value={marketMode}
+              onChange={(e) => setMarketMode(e.target.value as MarketMode)}
+              className="w-full bg-slate-700 text-white rounded-lg p-2 text-sm"
+            >
+              <option value="PLAYER_WINS">{t("hiddenBets.winner")}</option>
+              <option value="WINNING_HAND_CLASS">{t("hiddenBets.winningClass", "Classe main gagnante")}</option>
+              <option value="WINNING_HAND_CONTAINS_RANK">{t("hiddenBets.containsRank", "Rang dans la main")}</option>
+            </select>
           </div>
 
-          {/* Choix */}
-          <div className="p-4 border-b border-slate-700">
-            <div className="text-gray-400 text-sm mb-3">
-              {selectedType === "winner"
-                ? t('hiddenBets.chooseWinner')
-                : t('hiddenBets.chooseCombination')}
-            </div>
-            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-              {displayedChoices.map((item) => (
-                <button
-                  type="button"
-                  key={item}
-                  onClick={() => setSelectedChoice(item)}
-                  className={`p-2 rounded-lg text-sm font-medium transition-all ${
-                    selectedChoice === item
-                      ? selectedType === "winner"
-                        ? "bg-blue-600 text-white"
-                        : "bg-purple-600 text-white"
-                      : "bg-slate-700 text-gray-300 hover:bg-slate-600"
-                  }`}
-                >
-                  {(selectedType === "winner" && (item === "Vous" || item === "you")) ? t('game.you') : item}
-                </button>
-              ))}
-            </div>
+          <div className="p-4 border-b border-slate-700 space-y-2">
+            {marketMode === "PLAYER_WINS" && (
+              <select
+                value={playerId}
+                onChange={(e) => setPlayerId(e.target.value)}
+                className="w-full bg-slate-700 text-white rounded-lg p-2 text-sm"
+              >
+                <option value="">{t("hiddenBets.chooseWinner")}</option>
+                {players.map((p) => (
+                  <option key={String(p.id)} value={String(p.id)}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {marketMode === "WINNING_HAND_CLASS" && (
+              <select
+                value={classKey}
+                onChange={(e) => setClassKey(e.target.value)}
+                className="w-full bg-slate-700 text-white rounded-lg p-2 text-sm"
+              >
+                {CLASS_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            )}
+            {marketMode === "WINNING_HAND_CONTAINS_RANK" && (
+              <select
+                value={rank}
+                onChange={(e) => setRank(e.target.value)}
+                className="w-full bg-slate-700 text-white rounded-lg p-2 text-sm"
+              >
+                {RANK_OPTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
-          {/* Montant + cote */}
           <div className="p-4 border-b border-slate-700">
             <div className="flex gap-4">
               <div className="flex-1">
-                <div className="text-gray-400 text-xs mb-2">{t('hiddenBets.amount')}</div>
+                <div className="text-gray-400 text-xs mb-2">{t("hiddenBets.amount")}</div>
                 <div className="flex items-center bg-slate-700 rounded-lg overflow-hidden">
                   <DollarSign className="w-5 h-5 text-gray-400 ml-3" />
                   <input
                     type="number"
                     min={10}
-                    max={1000}
+                    max={10000}
                     value={amount}
                     onChange={(e) =>
                       setAmount(
-                        Math.min(
-                          1000,
-                          Math.max(10, parseInt(e.target.value, 10) || 0)
-                        )
+                        Math.min(10000, Math.max(10, parseInt(e.target.value, 10) || 0))
                       )
                     }
                     className="w-full bg-transparent text-white p-2 focus:outline-none"
@@ -236,44 +385,42 @@ export function HiddenBetsPanel({
                 </div>
               </div>
               <div className="flex-1">
-                <div className="text-gray-400 text-xs mb-2">{t('hiddenBets.odds')}</div>
+                <div className="text-gray-400 text-xs mb-2">{t("hiddenBets.odds")}</div>
                 <div className="bg-slate-700 rounded-lg p-2 text-center">
                   <span className="text-yellow-400 font-bold">
-                    x
-                    {selectedChoice
-                      ? getOdds(selectedType, selectedChoice)
-                      : "-"}
+                    x{quoteOdds != null ? quoteOdds.toFixed(2) : "—"}
                   </span>
                 </div>
               </div>
             </div>
-            {selectedChoice && (
+            {quoteOdds != null && (
               <div className="mt-3 text-sm">
-                <span className="text-gray-400">{t('hiddenBets.potentialGain')}</span>
+                <span className="text-gray-400">{t("hiddenBets.potentialGain")}</span>
                 <span className="text-green-400 font-bold ml-2">
-                  {Math.round(
-                    amount * parseFloat(getOdds(selectedType, selectedChoice))
-                  )}{" "}
+                  {potentialPayout}{" "}
                   <ChipIcon size="sm" className="inline-block align-middle" />
                 </span>
               </div>
             )}
+            {error && !quoteLoading && <p className="text-red-400 text-xs mt-2">{error}</p>}
           </div>
 
-          {/* Bouton placer le pari */}
           <div className="p-4">
             <button
               type="button"
-              onClick={handlePlaceBet}
-              disabled={!selectedChoice || amount < 10 || isPlacing}
+              onClick={() => void handlePlaceBet()}
+              disabled={placeDisabled}
               className={`w-full py-3 rounded-xl font-bold transition-all ${
-                selectedChoice && !isPlacing
+                !placeDisabled
                   ? "bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 text-white shadow-lg"
                   : "bg-slate-700 text-gray-500 cursor-not-allowed"
               }`}
             >
-              {isPlacing ? t('hiddenBets.placing') : t('hiddenBets.placeBet')}
+              {isPlacing ? t("hiddenBets.placing") : t("hiddenBets.placeBet")}
             </button>
+            {placeDisabled && placeDisabledHint && (
+              <p className="text-slate-400 text-xs mt-2 text-center leading-snug">{placeDisabledHint}</p>
+            )}
           </div>
         </motion.div>
       )}
