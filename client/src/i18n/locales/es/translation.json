@@ -309,6 +309,7 @@
         "straightFlush": "Cinco cartas de la misma pinta en secuencia. 10–J–Q–K–A de una pinta es escalera de color real (la mejor mano).",
         "fourKind": "Cuatro cartas del mismo rango, más una kicker.",
         "fullHouse": "Trío más pareja.",
+        "quantumCombi": "Exclusivo de Quantum Bluff: entre tus siete cartas hay al menos un 3, 5, 6, 7 y 10 (pintas libres). Gana a color, pierde contra full. Desempate: las dos cartas restantes.",
         "flush": "Cinco cartas de la misma pinta, sin escalera.",
         "straight": "Cinco cartas en secuencia, pintas mezcladas.",
         "threeKind": "Tres cartas del mismo rango.",
@@ -721,6 +722,7 @@
       "threeKind": "Trío",
       "straight": "Escalera",
       "flush": "Color",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Full",
       "fourKind": "Poker",
       "straightFlush": "Escalera de color",
@@ -848,6 +850,7 @@
       "threeKind": "Trío",
       "straight": "Escalera",
       "flush": "Color",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Full",
       "fourKind": "Poker",
       "straightFlush": "Escalera de color"
