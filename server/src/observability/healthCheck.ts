@@ -13,7 +13,7 @@ export type ReadyPayload = {
 }
 
 export async function getReadyState(): Promise<ReadyPayload> {
-  let dbOk = false
+  let dbOk: boolean
   try {
     await prisma.$queryRaw`SELECT 1`
     dbOk = true
