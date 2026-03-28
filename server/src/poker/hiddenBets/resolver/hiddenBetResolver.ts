@@ -1,22 +1,31 @@
-import { prisma } from '../../config/database.js'
-import { isRankUsedInBestFiveOfSeven } from '../../logic/Evaluator.js'
-import { appendWalletLedgerEntry } from '../../casino/services/walletLedger.service.js'
-import { createHiddenBetLedgerContext } from './hiddenBetLedgerContext.js'
-import { CLASS_KEY_TO_CATEGORY, HIDDEN_BETS_RESOLUTION_VERSION, type HiddenBetResolutionPayload, type SelectionPayload } from './types.js'
-import { rootLogger } from '../../observability/logger.js'
+import { prisma } from '../../../config/database.js'
+import { isRankUsedInBestFiveOfSeven } from '../../../logic/Evaluator.js'
+import { appendWalletLedgerEntry } from '../../../casino/services/walletLedger.service.js'
+import { createHiddenBetLedgerContext } from '../hiddenBetLedgerContext.js'
+import {
+  CLASS_KEY_TO_CATEGORY,
+  HIDDEN_BETS_RESOLUTION_VERSION,
+  type HiddenBetResolutionPayload,
+  type SelectionPayload,
+} from '../types.js'
+import { rootLogger } from '../../../observability/logger.js'
 import type { Server } from 'socket.io'
 
 type Tri = boolean | 'VOID'
 
 function evalSelection(sel: SelectionPayload, payload: HiddenBetResolutionPayload): Tri {
   const reason = payload.handEndReason
-  if (sel.marketType === 'WINNING_HAND_CLASS' || sel.marketType === 'WINNING_HAND_CONTAINS_RANK') {
+  if (
+    sel.marketType === 'WINNING_HAND_CLASS' ||
+    sel.marketType === 'WINNING_HAND_CONTAINS_RANK' ||
+    sel.marketType === 'FINAL_WINNING_HAND_CLASS'
+  ) {
     if (reason === 'WIN_BY_FOLD' || reason === 'FORCED_END' || !reason) return 'VOID'
   }
-  if (sel.marketType === 'PLAYER_WINS') {
+  if (sel.marketType === 'PLAYER_WINS' || sel.marketType === 'PLAYER_WINS_CURRENT_HAND') {
     return payload.winnerIds.includes(sel.playerId)
   }
-  if (sel.marketType === 'WINNING_HAND_CLASS') {
+  if (sel.marketType === 'WINNING_HAND_CLASS' || sel.marketType === 'FINAL_WINNING_HAND_CLASS') {
     if (reason !== 'SHOWDOWN' && reason !== 'ALL_IN_RUNOUT') return 'VOID'
     return CLASS_KEY_TO_CATEGORY[sel.class] === payload.winningCategory
   }
@@ -26,6 +35,18 @@ function evalSelection(sel: SelectionPayload, payload: HiddenBetResolutionPayloa
     const hole = payload.playerCards[wid]
     if (!hole) return 'VOID'
     return isRankUsedInBestFiveOfSeven([...hole, ...payload.board], sel.rank)
+  }
+  if (sel.marketType === 'HAND_REACHES_SHOWDOWN') {
+    if (reason === 'FORCED_END' || !reason) return 'VOID'
+    if (reason === 'SHOWDOWN' || reason === 'ALL_IN_RUNOUT') return true
+    if (reason === 'WIN_BY_FOLD') return false
+    return 'VOID'
+  }
+  if (sel.marketType === 'HAND_ENDS_BY_FOLD') {
+    if (reason === 'FORCED_END' || !reason) return 'VOID'
+    if (reason === 'WIN_BY_FOLD') return true
+    if (reason === 'SHOWDOWN' || reason === 'ALL_IN_RUNOUT') return false
+    return 'VOID'
   }
   return false
 }
@@ -64,9 +85,7 @@ export async function resolveHiddenBetsForHand(
           data: { status: 'SETTLING', resolutionStartedAt: new Date() },
         })
 
-        const sels: SelectionPayload[] = ticket.selections.map(
-          (row) => JSON.parse(row.paramsJson) as SelectionPayload
-        )
+        const sels = ticket.selections.map((row) => JSON.parse(row.paramsJson) as SelectionPayload)
 
         let outcome: 'WON' | 'LOST' | 'VOID'
         if (ticket.combinator === 'AND') {
