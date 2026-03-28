@@ -574,7 +574,7 @@ export class GameTable {
    */
   startHand(
     forcedHoleCards?: Record<string, Card[]>,
-    opts?: { forcedBigBlindUserId?: string }
+    opts?: { forcedBigBlindUserId?: string; handId?: string }
   ): void {
     if (this.getConnectedPlayers().length < 2) {
       throw new Error('Il faut au moins 2 joueurs pour démarrer')
@@ -663,7 +663,7 @@ export class GameTable {
 
     this.setBlinds()
     this.state.currentTurn = this.getPreflopFirstPlayerId()
-    this.state.handId = `${this.id}:${Date.now()}`
+    this.state.handId = opts?.handId ?? `${this.id}:${Date.now()}`
     this.state.lastHandAction = undefined
     this.state.actionVersion = 0
     this.state.streetVersion = 0

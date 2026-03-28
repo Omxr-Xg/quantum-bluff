@@ -3,6 +3,7 @@
  * Gère les sièges, la rotation du bouton, le compte à rebours entre les mains,
  * et les commandes sit / leave / rebuy.
  */
+import { randomUUID } from 'node:crypto'
 import type { GameState, Player } from '../types/poker.js'
 import { GameTable } from './GameTable.js'
 import { intChips } from '../utils/chips.js'
@@ -67,6 +68,8 @@ export class CashGameController implements IGameSession {
   private pendingQuitUserIds: Set<string> = new Set()
   /** Joueur entré depuis la file spectateur : BB sur la prochaine main */
   private nextHandBigBlindUserId: string | null = null
+  /** Identifiant stable pour les paris cachés ciblant la prochaine main (entre deux mains). */
+  private pendingNextHandId: string | null = null
   private readonly debugRuntimeLogsEnabled: boolean =
     process.env.POKER_RUNTIME_DEBUG_LOGS === '1'
 
@@ -219,10 +222,12 @@ export class CashGameController implements IGameSession {
     })
     const forcedBb = this.nextHandBigBlindUserId
     this.nextHandBigBlindUserId = null
-    this.gameTable.startHand(
-      undefined,
-      forcedBb ? { forcedBigBlindUserId: forcedBb } : undefined
-    )
+    const handIdToUse = this.pendingNextHandId ?? randomUUID()
+    this.pendingNextHandId = null
+    this.gameTable.startHand(undefined, {
+      ...(forcedBb ? { forcedBigBlindUserId: forcedBb } : {}),
+      handId: handIdToUse
+    })
     this.handNumber++
     this.runtimePhase = 'HAND_IN_PROGRESS'
     this.logRuntimeEvent('HAND_START')
@@ -273,6 +278,7 @@ export class CashGameController implements IGameSession {
     this.buttonSeatIndex = this.getNextOccupiedSeatIndex(this.buttonSeatIndex)
 
     this.gameTable = null
+    this.pendingNextHandId = randomUUID()
     this.countdownEndsAt = Date.now() + COUNTDOWN_SECONDS * 1000
     this.runtimePhase = 'NEXT_HAND_COUNTDOWN'
 
@@ -399,7 +405,32 @@ export class CashGameController implements IGameSession {
     }
   }
 
+  /** Paris cachés : fenêtre ouverte entre deux mains avec au moins 2 joueurs ayant des jetons. */
+  isHiddenBetWindowOpen(): boolean {
+    if (this.gameTable) return false
+    const occupied = this.getOccupiedSeats().filter((s) => s.userId && s.chips > 0)
+    if (occupied.length < 2) return false
+    return this.runtimePhase === 'NEXT_HAND_COUNTDOWN' || this.runtimePhase === 'WAITING_PLAYERS'
+  }
+
+  /** Garantit un nextHandId pour quote/place quand la fenêtre est ouverte. */
+  private syncHiddenBetNextHandId(): void {
+    if (this.gameTable) return
+    const occupied = this.getOccupiedSeats().filter((s) => s.userId && s.chips > 0)
+    if (occupied.length < 2) {
+      this.pendingNextHandId = null
+      return
+    }
+    if (!this.pendingNextHandId) this.pendingNextHandId = randomUUID()
+  }
+
+  getPendingNextHandId(): string | null {
+    this.syncHiddenBetNextHandId()
+    return this.pendingNextHandId
+  }
+
   getSanitizedState(requestingPlayerId?: string): GameState & { cashCountdownEndsAt?: number; cashSeats?: CashSeat[]; spectatorRejoinQueue?: string[] } {
+    this.syncHiddenBetNextHandId()
     const base = this.gameTable
       ? { ...this.gameTable.getSanitizedState(requestingPlayerId), cashCountdownEndsAt: undefined, cashSeats: this.seats }
       : { ...this.state, phase: this.countdownEndsAt ? 'WAITING' : 'WAITING' as const }
@@ -410,7 +441,11 @@ export class CashGameController implements IGameSession {
       ...base,
       turnTimeLimitSec,
       cashCountdownRemainingSec,
-      spectatorRejoinQueue: Array.from(this.spectatorRejoinQueue)
+      spectatorRejoinQueue: Array.from(this.spectatorRejoinQueue),
+      hiddenBetNextHandId: this.gameTable ? undefined : this.pendingNextHandId ?? undefined,
+      hiddenBetCurrentHandId: this.gameTable?.state?.handId,
+      hiddenBetWindowOpen: this.isHiddenBetWindowOpen(),
+      hiddenBetWindowClosesAt: this.gameTable ? undefined : this.countdownEndsAt ?? undefined
     }
   }
 
