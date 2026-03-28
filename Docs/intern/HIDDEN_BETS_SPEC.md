@@ -5,63 +5,122 @@ Référence normative pour le backend autoritaire. Le client n’interprète pas
 ## Identifiants
 
 - **gameId** : identifiant de session cash (`CashGameController.id`), aligné sur la room WebSocket.
-- **handId** : identifiant logique de la main. Entre deux mains, le serveur expose **nextHandId** : les paris V1 ciblent la **prochaine** main ; au `startHand`, ce `handId` devient **currentHandId** sur la table.
-- **nextHandId** : généré à la fin de main (`onHandComplete`) ; stable jusqu’au démarrage effectif de la main suivante.
+- **handId / targetHandId** : identifiant logique de la main ciblée par le ticket.
+  - **PRE_HAND** : cible **nextHandId** (prochaine main).
+  - **LIVE_*** : cible **currentHandId** (main en cours).
+- **nextHandId** : généré à la fin de main (`onHandComplete`) ; stable jusqu’au `startHand()` suivant.
+- **currentHandId** : `gameTable.state.handId` pendant une main en cours.
 
-## Fenêtre de marché (règle unique)
+## Phases marché (`marketPhase`)
 
-- **hiddenBetWindowOpen** = `true` uniquement lorsque :
-  - `runtimePhase` est `NEXT_HAND_COUNTDOWN` ou `WAITING_PLAYERS`, **et**
-  - aucune main n’est en cours (`gameTable === null`), **et**
-  - au moins 2 joueurs assis avec jetons peuvent jouer la prochaine main.
-- Fermeture **dès** `startHand()` (première carte / blinds) : plus aucun placement accepté pour ce `nextHandId`.
-- Tout placement est refusé si `handId` ≠ `nextHandId` attendu ou si la fenêtre est fermée.
+Enum produit (API / Prisma) :
 
-## Marchés V1 (sélection simple ou combiné AND whitelist P3)
+- `PRE_HAND` — paris entre deux mains.
+- `LIVE_FLOP`, `LIVE_TURN`, `LIVE_RIVER` — paris pendant la main, fenêtres gelées après révélation de la street (V1 LIVE **sans** `LIVE_PREFLOP`).
 
-### A — `PLAYER_WINS`
+Règle : **PRE_HAND** → `targetHandId === nextHandId` ; **LIVE_*** → `targetHandId === currentHandId`. Le serveur rejette toute incohérence (400, code stable).
 
-- **Paramètre** : `playerId` (userId du siège).
-- **Showdown** : gagnant si `playerId ∈ showdownWinnerIds` (split : tous les IDs listés sont gagnants pour **leur** ticket respectif).
-- **WIN_BY_FOLD** : gagnant si ce joueur est l’unique récipiendaire du pot (dernier non couché) — `showdownWinnerIds` côté moteur contient ce joueur.
+## Types runtime : `HiddenBetWindowType` (socket / `hiddenBetState`)
 
-### B — `WINNING_HAND_CLASS`
+```text
+"PRE_HAND" | "LIVE_FLOP" | "LIVE_TURN" | "LIVE_RIVER" | null
+```
 
-- **Paramètre** : classe d’évaluation alignée sur `Evaluator` / `evaluateSeven` : `HIGH_CARD`, `PAIR`, `TWO_PAIR`, `THREE_OF_A_KIND`, `STRAIGHT`, `FLUSH`, `QUANTUM_COMBI`, `FULL_HOUSE`, `FOUR_OF_A_KIND`, `STRAIGHT_FLUSH`.
-- **Showdown / ALL_IN_RUNOUT** : on compare la classe de la **meilleure main 7 cartes** du (des) gagnant(s). En split, les gagnants ont la même valeur de main → **une seule classe** ; le marché est gagnant si la classe annoncée == classe gagnante.
-- **WIN_BY_FOLD** : **VOID** (aucune main showdown observable).
-- **hand_canceled** : **VOID**.
+`LIVE_PREFLOP` n’existe pas dans ce type tant que le produit ne l’active pas.
 
-### C — `WINNING_HAND_CONTAINS_RANK`
+## Fenêtres PRE_HAND
 
-- **Paramètre** : rang (`2`…`A`) : la **meilleure main de 5 cartes** du joueur gagnant (ou du premier gagnant en split, même board) contient au moins une carte de ce rang.
-- Implémentation : extraire les 7 cartes du gagnant, calculer le score via `evaluateSeven` ; les 5 cartes effectives sont dérivées du même chemin d’évaluation que le showdown (utiliser la logique d’évaluation existante pour obtenir rangs présents dans la main retenue). En pratique : vérifier la présence du rang dans les cartes formant la meilleure combinaison (aligné serveur `Evaluator`).
-- **WIN_BY_FOLD** : **VOID**.
-- **hand_canceled** : **VOID**.
+- Ouverte entre deux mains quand : pas de `gameTable`, au moins 2 joueurs avec jetons, phase runtime entre-mains autorisée (countdown ou attente joueurs), comme aujourd’hui.
+- Fermeture à `startHand()` : plus de placement PRE sur ce `nextHandId`.
+- **Validation quote/place** : `targetHandId === nextHandId` au moment de la requête.
 
-## Matrice de résolution (rappel)
+## Fenêtres LIVE (V1) — fenêtres gelées
 
-| Marché | Showdown | WIN_BY_FOLD | ALL_IN_RUNOUT | hand annulée |
-|--------|----------|-------------|-----------------|--------------|
-| PLAYER_WINS | WON/LOST selon gagnants | WON/LOST selon pot | idem showdown | VOID |
+Contrat serveur (le front ne déduit pas la fin de fenêtre) :
+
+1. Cartes de la street révélées ; état table à jour.
+2. `hiddenBetState.windowOpen = true`, `windowType` ∈ { `LIVE_FLOP`, `LIVE_TURN`, `LIVE_RIVER` }, `closesAt` renseigné.
+3. **`PLAYER_ACTION` refusé** pendant toute la fenêtre (erreur explicite).
+4. Fin du timer serveur.
+5. `windowOpen = false` ; `windowType` = `null` hors fenêtre.
+6. **`currentTurn`** activé pour le tour d’enchères sur cette street ; actions autorisées.
+
+Durées par défaut (config serveur) : **5 s** mode normal, **3 s** mode turbo pour chaque fenêtre FLOP/TURN/RIVER. Le turbo affecte surtout le temps d’action poker ; les fenêtres LIVE sont des constantes distinctes.
+
+**All-in runout automatique** : aucune fenêtre LIVE ouverte entre streets si la main est déjà en runout automatique (mains entièrement all-in avant nouvelle street) — évite courses et UX incohérentes.
+
+Détails d’implémentation (timers, sous-phases `BET_WINDOW_*`) : [HIDDEN_BETS_RUNTIME_DESIGN.md](./HIDDEN_BETS_RUNTIME_DESIGN.md).
+
+## Pricing
+
+- **PRE_HAND** : `pricingVersion = hidden-bets-pre-v1` (tables heuristiques ; pas Monte Carlo généralisé).
+- **LIVE** : `pricingVersion = hidden-bets-live-v1` (tables / heuristiques distinctes ; entrées : street, board, joueurs actifs/foldés).
+- Les cotes PRE et LIVE pour un même marché conceptuel peuvent différer (règle non négociable).
+
+### Compatibilité tickets legacy
+
+- Ancienne version `hidden-bets-v1` : tickets existants **read-only** en historique ; **aucun nouveau ticket** avec cette version.
+- Affichage : couche de compatibilité mappe l’ancienne version vers l’affichage unifié (`hidden-bets-pre-v1` en lecture logique pour les anciens enregistrements PRE).
+
+## Marchés PRE_HAND (V1)
+
+| Marché | Paramètres |
+|--------|------------|
+| `PLAYER_WINS` | `playerId` |
+| `WINNING_HAND_CLASS` | `class` (classe Evaluator) |
+| `WINNING_HAND_CONTAINS_RANK` | `rank` |
+
+## Marchés LIVE (V1)
+
+| Marché | Paramètres |
+|--------|------------|
+| `PLAYER_WINS_CURRENT_HAND` | `playerId` |
+| `HAND_REACHES_SHOWDOWN` | — |
+| `HAND_ENDS_BY_FOLD` | — |
+| `FINAL_WINNING_HAND_CLASS` | `class` |
+
+Pas de combinés LIVE en V1. Pas de `LIVE_PREFLOP` en V1.
+
+## Matrice de résolution PRE_HAND
+
+| Marché | Showdown | WIN_BY_FOLD | ALL_IN_RUNOUT | Main annulée |
+|--------|----------|-------------|----------------|--------------|
+| PLAYER_WINS | WON/LOST | WON/LOST | idem showdown | VOID |
 | WINNING_HAND_CLASS | WON/LOST | VOID | WON/LOST | VOID |
 | WINNING_HAND_CONTAINS_RANK | WON/LOST | VOID | WON/LOST | VOID |
 
+## Matrice de résolution LIVE
+
+| Marché | Showdown | WIN_BY_FOLD | ALL_IN_RUNOUT | Main annulée |
+|--------|----------|-------------|----------------|--------------|
+| PLAYER_WINS_CURRENT_HAND | WON/LOST | WON/LOST | idem showdown | VOID |
+| HAND_REACHES_SHOWDOWN | WON | LOST | WON | VOID |
+| HAND_ENDS_BY_FOLD | LOST | WON | LOST | VOID |
+| FINAL_WINNING_HAND_CLASS | WON/LOST | VOID | WON/LOST | VOID |
+
+`FORCED_END` / annulation : traiter comme « main annulée » (VOID pour les marchés concernés).
+
+## Split pot
+
+- **PLAYER_WINS** / **PLAYER_WINS_CURRENT_HAND** : vrai si `playerId ∈ winnerIds` (chaque gagnant en split valide son propre ticket).
+- **WINNING_HAND_CLASS** / **FINAL_WINNING_HAND_CLASS** : une seule classe gagnante ; split = même classe pour les gagnants.
+- Si cas ambigu impossible à classer proprement → **VOID**.
+
 ## Quote et placement
 
-- **POST /quote** : pas de ledger ; retourne `pricingVersion`, `quotedOdds`, `potentialPayout`, `quoteExpiresAt`, `quoteHash` (intégrité des paramètres + version).
-- **POST /place** : idempotence forte sur `(userId, actionId)` ; valide fenêtre, `handId`, quote non expirée, hash si fourni ; débit stake + ticket `PENDING`.
+- **POST /quote** : pas de ledger ; `marketPhase`, `targetHandId`, `selections`, `combinator` ; retour `pricingVersion`, `quotedOdds`, `potentialPayout`, `quoteExpiresAt`, `quoteHash` ; pour LIVE, snapshot d’état peut être persisté au place (`stateSnapshotJson`).
+- **POST /place** : idempotence `(userId, actionId)` ; valide fenêtre, `targetHandId`, quote non expirée, hash ; débit stake + ticket `PENDING` avec `marketPhase`, `quoteExpiresAt` stocké.
 
 ## Résolution
 
-- Statuts ticket : `PENDING` → `SETTLING` → `WON` | `LOST` | `VOID` | `CANCELED`.
-- Résolution **idempotente** par `(gameId, handId)` : une seule passe de traitement effective (verrou in-process ou transaction unique).
+- Statuts : `PENDING` → `SETTLING` → `WON` | `LOST` | `VOID` | `CANCELED`.
+- Idempotence par `(gameId, handId)` pour la passe de résolution.
 - Ledger : `HIDDEN_BET_STAKE`, `HIDDEN_BET_PAYOUT`, `HIDDEN_BET_REFUND_VOID`, `HIDDEN_BET_REFUND_CANCEL`.
 
 ## Temps réel (optionnel)
 
-- Événement `HIDDEN_BET_TICKET_UPDATED` : `{ ticketId, status, resolvedAt?, payout?, resultSummary? }`. La vérité reste API + historique.
+- `HIDDEN_BET_TICKET_UPDATED` : `{ ticketId, status, resolvedAt?, payout?, resultSummary? }`. Vérité = API + historique.
 
-## Combinés AND (P3)
+## Combinés AND (P3 uniquement, PRE)
 
-- Uniquement **AND**, **2 conditions max**, paires **whitelist** avec **cotes tabulaires dédiées** (pas de produit libre des cotes).
+- **AND**, 2 conditions max, paires whitelist, `hidden-bets-pre-v1` ; pas de combinés LIVE.
