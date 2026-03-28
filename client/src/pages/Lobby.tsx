@@ -17,9 +17,9 @@ import {
   Settings2,
   XCircle,
   Spade,
-  CircleDot,
   Club,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { FriendsList } from '../components/FriendsList';
@@ -30,12 +30,12 @@ import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { apiUrl } from "../utils/apiBase";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 
-function readLobbyTabFromUrl(): "poker" | "roulette" | "blackjack" {
+function readLobbyTabFromUrl(): "poker" | "minigames" | "blackjack" {
   if (typeof window === "undefined") return "poker";
   try {
     const tab = new URLSearchParams(window.location.search).get("tab");
     if (tab === "blackjack") return "blackjack";
-    if (tab === "roulette") return "roulette";
+    if (tab === "minigames" || tab === "roulette") return "minigames";
   } catch {
     /* ignore */
   }
@@ -95,26 +95,26 @@ export function Lobby() {
   const [gamesLoading, setGamesLoading] = useState(true);
   const [lobbyTourOpen, setLobbyTourOpen] = useState(false);
   const [lobbyTourStep, setLobbyTourStep] = useState(0);
-  const [lobbyMainTab, setLobbyMainTabState] = useState<"poker" | "roulette" | "blackjack">(readLobbyTabFromUrl);
+  const [lobbyMainTab, setLobbyMainTabState] = useState<"poker" | "minigames" | "blackjack">(readLobbyTabFromUrl);
   const { addToast } = useToast();
 
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (tab === "blackjack") setLobbyMainTabState("blackjack");
-    else if (tab === "roulette") setLobbyMainTabState("roulette");
+    else if (tab === "minigames" || tab === "roulette") setLobbyMainTabState("minigames");
     else setLobbyMainTabState("poker");
   }, [searchParams]);
 
   const setMainTab = useCallback(
-    (tab: "poker" | "roulette" | "blackjack") => {
+    (tab: "poker" | "minigames" | "blackjack") => {
       setLobbyMainTabState(tab);
       setSearchParams(
         (prev) => {
           const p = new URLSearchParams(prev);
           if (tab === "blackjack") {
             p.set("tab", "blackjack");
-          } else if (tab === "roulette") {
-            p.set("tab", "roulette");
+          } else if (tab === "minigames") {
+            p.set("tab", "minigames");
             p.delete("bjRoom");
           } else {
             p.delete("tab");
@@ -320,7 +320,7 @@ export function Lobby() {
       className={`relative w-full min-h-screen overflow-hidden p-6 transition-[background-color] duration-700 ease-in-out ${
         lobbyMainTab === "poker"
           ? "bg-[#070912]"
-          : lobbyMainTab === "roulette"
+          : lobbyMainTab === "minigames"
             ? "bg-[#03150f]"
             : "bg-[#14080d]"
       }`}
@@ -345,10 +345,10 @@ export function Lobby() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(168,85,247,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(34,211,238,0.06),transparent_55%)]" />
       </div>
 
-      {/* Fond Roulette — feutre, or, émeraude */}
+      {/* Fond Mini-jeux — or, émeraude */}
       <div
         className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
-        style={{ opacity: lobbyMainTab === "roulette" ? 1 : 0 }}
+        style={{ opacity: lobbyMainTab === "minigames" ? 1 : 0 }}
         aria-hidden
       >
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(5,80,55,0.55),transparent_50%),radial-gradient(ellipse_90%_70%_at_100%_50%,rgba(120,80,20,0.12),transparent_45%),linear-gradient(165deg,#031a14_0%,#041f18_40%,#020c09_100%)]" />
@@ -406,7 +406,7 @@ export function Lobby() {
                 className={`truncate text-2xl font-bold transition-colors duration-700 md:text-4xl ${
                   lobbyMainTab === "poker"
                     ? "text-purple-400"
-                    : lobbyMainTab === "roulette"
+                    : lobbyMainTab === "minigames"
                       ? "bg-gradient-to-r from-amber-100 via-amber-300 to-emerald-200 bg-clip-text text-transparent"
                       : "bg-gradient-to-r from-rose-200 via-fuchsia-200 to-slate-200 bg-clip-text text-transparent"
                 }`}
@@ -417,7 +417,7 @@ export function Lobby() {
                 className={`truncate text-sm transition-colors duration-700 md:text-base ${
                   lobbyMainTab === "poker"
                     ? "text-gray-400"
-                    : lobbyMainTab === "roulette"
+                    : lobbyMainTab === "minigames"
                       ? "text-emerald-200/65"
                       : "text-rose-200/65"
                 }`}
@@ -441,7 +441,7 @@ export function Lobby() {
           className={`mx-auto mb-10 flex max-w-3xl gap-1.5 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-md transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
             lobbyMainTab === "poker"
               ? "border-white/10 bg-slate-950/75"
-              : lobbyMainTab === "roulette"
+              : lobbyMainTab === "minigames"
                 ? "border-amber-500/25 bg-emerald-950/70"
                 : "border-rose-500/35 bg-rose-950/75"
           }`}
@@ -470,20 +470,20 @@ export function Lobby() {
           <button
             type="button"
             role="tab"
-            aria-selected={lobbyMainTab === "roulette"}
-            onClick={() => setMainTab("roulette")}
+            aria-selected={lobbyMainTab === "minigames"}
+            onClick={() => setMainTab("minigames")}
             className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
-              lobbyMainTab === "roulette"
+              lobbyMainTab === "minigames"
                 ? "bg-gradient-to-br from-amber-500/35 via-amber-900/30 to-emerald-950/70 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_0_28px_rgba(245,158,11,0.18)] ring-1 ring-amber-400/50"
                 : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
             }`}
           >
-            <CircleDot
-              className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "roulette" ? "text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.45)]" : ""}`}
+            <Sparkles
+              className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "minigames" ? "text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.45)]" : ""}`}
               strokeWidth={2.2}
               aria-hidden
             />
-            <span className="font-serif text-xs font-bold tracking-wide md:text-sm">{t("lobby.tabRoulette")}</span>
+            <span className="font-serif text-xs font-bold tracking-wide md:text-sm">{t("lobby.tabMinigames", "Mini-jeux")}</span>
           </button>
           <div className="hidden w-px self-stretch bg-slate-600/40 md:block" aria-hidden />
           <button
@@ -697,7 +697,7 @@ export function Lobby() {
           </div>
         )}
 
-        {/* MAIN GRID — poker / roulette / blackjack (2 cols) + amis ; poker reste dans le DOM pour le tour guidé */}
+        {/* MAIN GRID — poker / minigames / blackjack (2 cols) + amis ; poker reste dans le DOM pour le tour guidé */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Colonne de gauche (2/3) - Texas Hold'em */}
@@ -870,20 +870,22 @@ export function Lobby() {
 
           </div>
 
-          {/* Onglet Roulette */}
-          <div className={`lg:col-span-2 space-y-6 ${lobbyMainTab !== "roulette" ? "hidden" : ""}`} aria-hidden={lobbyMainTab !== "roulette"}>
+          {/* Onglet Mini-jeux */}
+          <div className={`lg:col-span-2 space-y-6 ${lobbyMainTab !== "minigames" ? "hidden" : ""}`} aria-hidden={lobbyMainTab !== "minigames"}>
             <div className="bg-slate-800 rounded-2xl p-6 border border-amber-500">
               <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
-                <CircleDot className="w-8 h-8 text-amber-400" aria-hidden />
-                {t("lobby.rouletteTitle")}
+                <Sparkles className="w-8 h-8 text-amber-400" aria-hidden />
+                {t("lobby.tabMinigames", "Mini-jeux")}
               </h2>
-              <p className="text-gray-400 text-sm leading-relaxed mb-4 max-w-xl">{t("lobby.rouletteIntro")}</p>
+              <p className="text-gray-400 text-sm leading-relaxed mb-4 max-w-xl">
+                Plongez dans l'univers de nos Mini-jeux. Défiez la Roulette ou tentez le jackpot sur la Machine à sous !
+              </p>
               <button
                 type="button"
-                onClick={() => navigate("/roulette")}
+                onClick={() => navigate("/minigames")}
                 className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 rounded-xl transition"
               >
-                {t("lobby.roulettePlay")}
+                {t("lobby.playMinigames", "Jouer aux Mini-jeux")}
               </button>
             </div>
           </div>

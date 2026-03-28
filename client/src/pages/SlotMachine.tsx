@@ -1,574 +1,469 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router";
-import { useTranslation } from "react-i18next";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowLeft, ChevronDown, Sparkles, X } from "lucide-react";
+import { Sparkles, TrendingUp, Zap } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useToast } from "../contexts/ToastContext";
 import { updateUserBalance } from "../utils/userProfile";
-import {
-  mergeGamificationFromServerResponse,
-  readGamification,
-  refreshGamificationFromServer,
-} from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
 
-type SlotSymbolId = "cherry" | "lemon" | "bell" | "seven" | "diamond";
+import { getUserBalance, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
 
-type SpinHistoryEntry = { id: string; bet: number; gain: number };
+type SlotSymbol = "🍒" | "🍊" | "💎" | "7️⃣" | "🎰";
 
-const SYMBOL_EMOJI: Record<SlotSymbolId, string> = {
+// Mapping entre les données du backend et tes émojis UI
+const API_TO_UI: Record<string, SlotSymbol> = {
   cherry: "🍒",
-  lemon: "🍋",
-  bell: "🔔",
-  seven: "7",
+  lemon: "🍊",
   diamond: "💎",
+  seven: "7️⃣",
+  bell: "🎰",
 };
+
+interface SlotResult {
+  symbols: SlotSymbol[];
+  isWin: boolean;
+  winAmount?: number;
+}
+
+const SYMBOLS: SlotSymbol[] = ["🍒", "🍊", "💎", "7️⃣", "🎰"];
+const MULTIPLIERS = {
+  "🍒": 2,
+  "🍊": 3,
+  "💎": 5,
+  "7️⃣": 10,
+  "🎰": 50,
+};
+
+const REEL_SYMBOLS_COUNT = 20;
 
 export function SlotMachine() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { addToast } = useToast();
-  const [chips, setChips] = useState<number | null>(null);
-  const [minBet, setMinBet] = useState(10);
-  const [maxBetCap, setMaxBetCap] = useState(1000);
-  const [selectedBet, setSelectedBet] = useState(10);
-  const [spinning, setSpinning] = useState(false);
-  const [displayReels, setDisplayReels] = useState<SlotSymbolId[]>(["cherry", "lemon", "bell"]);
-  const [lastResult, setLastResult] = useState<{ winAmount: number; bet: number } | null>(null);
-  const [slotTab, setSlotTab] = useState<"play" | "history">("play");
-  const [spinHistory, setSpinHistory] = useState<SpinHistoryEntry[]>([]);
-  const [autoSpin, setAutoSpin] = useState(false);
-  const [autoFloor, setAutoFloor] = useState(0);
-  const [autoCeiling, setAutoCeiling] = useState(0);
-  const [autoPanelOpen, setAutoPanelOpen] = useState(false);
-  const autoSpinRef = useRef(false);
+  
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [bet, setBet] = useState(10);
+  // 1. On prend le vrai solde au démarrage
+  const [balance, setBalance] = useState<number>(getUserBalance());
 
+  // 2. On écoute en temps réel TOUTES les modifications du solde
   useEffect(() => {
-    autoSpinRef.current = autoSpin;
-  }, [autoSpin]);
+    const syncBalance = () => setBalance(getUserBalance());
+    window.addEventListener(BALANCE_CHANGED_EVENT, syncBalance);
+    return () => window.removeEventListener(BALANCE_CHANGED_EVENT, syncBalance);
+  }, []);
+  const [sessionStats, setSessionStats] = useState({ wins: 0, spins: 0 });
 
-  const closeHistoryAndReset = () => {
-    setSpinHistory([]);
-    setSlotTab("play");
-  };
+  const [reels, setReels] = useState<SlotSymbol[][]>([
+    generateReelSymbols(),
+    generateReelSymbols(),
+    generateReelSymbols(),
+  ]);
+  const [result, setResult] = useState<SlotResult>({
+    symbols: ["💎", "💎", "💎"],
+    isWin: false,
+    winAmount: 0,
+  });
+  const [showWin, setShowWin] = useState(false);
+  const [spinningReels, setSpinningReels] = useState([false, false, false]);
 
+  // Chargement du solde initial depuis le serveur
   const loadBalance = useCallback(async () => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/lobby");
-      return;
-    }
-    const url = apiUrl("/api/auth/balance");
+    if (!token) return;
     try {
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error("balance");
-      const data = await res.json();
-      const c = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : 0;
-      updateUserBalance(c);
-      setChips(c);
-    } catch {
-      addToast(t("slot.errorLoadBalance"), "error");
-      setChips(0);
-    }
-  }, [addToast, navigate, t]);
-
-  const loadConfig = useCallback(async () => {
-    try {
-      const url = apiUrl("/api/slot/config");
-      const res = await fetch(url);
-      let cap = 1000;
+      const res = await fetch(apiUrl("/api/auth/balance"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
         const data = await res.json();
-        if (typeof data?.minBet === "number") setMinBet(Math.max(1, Math.floor(data.minBet)));
-        if (typeof data?.maxBet === "number") cap = Math.max(1, Math.floor(data.maxBet));
+        setBalance(Math.max(0, Math.floor(data.chips)));
       }
-      await refreshGamificationFromServer();
-      const g = readGamification();
-      if (typeof g.maxBetSlot === "number") {
-        cap = Math.min(cap, g.maxBetSlot);
-      }
-      setMaxBetCap(cap);
     } catch {
-      /* defaults */
+      addToast(t("slot.errorLoadBalance", "Erreur de chargement du solde"), "error");
     }
-  }, []);
+  }, [addToast, t]);
 
   useEffect(() => {
-    void loadConfig();
     void loadBalance();
-  }, [loadConfig, loadBalance]);
+  }, [loadBalance]);
 
-  const effectiveMaxBet = useMemo(() => {
-    if (chips === null) return maxBetCap;
-    return Math.min(maxBetCap, chips);
-  }, [chips, maxBetCap]);
-
-  const betPresets = useMemo(() => {
-    const m = minBet;
-    const cap = effectiveMaxBet;
-    const raw = [m, 50, 100, 250, 500, cap].filter((v, i, a) => v >= m && v <= cap && a.indexOf(v) === i);
-    return raw.sort((a, b) => a - b);
-  }, [minBet, effectiveMaxBet]);
-
-  useEffect(() => {
-    if (betPresets.length === 0) return;
-    if (!betPresets.includes(selectedBet)) {
-      setSelectedBet(betPresets[0]!);
+  // Génère un rouleau. Si un targetSymbol est fourni, il sera placé au centre pour l'arrêt
+  function generateReelSymbols(targetSymbol?: SlotSymbol): SlotSymbol[] {
+    const arr = Array(REEL_SYMBOLS_COUNT)
+      .fill(0)
+      .map(() => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]);
+    if (targetSymbol) {
+      arr[Math.floor(REEL_SYMBOLS_COUNT / 2)] = targetSymbol;
     }
-  }, [betPresets, selectedBet]);
+    return arr;
+  }
 
-  const spin = useCallback(
-    async (opts?: { suppressResultToasts?: boolean }) => {
-      const token = localStorage.getItem("token");
-      if (!token || chips === null || spinning) return;
-      if (selectedBet < minBet || selectedBet > effectiveMaxBet) {
-        addToast(t("slot.invalidBet"), "error");
-        if (autoSpinRef.current) setAutoSpin(false);
-        return;
-      }
+  const handleSpin = async () => {
+    const currentBalance = getUserBalance(); // On récupère le solde le plus frais possible
+    if (isSpinning || currentBalance < bet) return;
 
-      setSpinning(true);
-      setLastResult(null);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      addToast("Vous devez être connecté", "error");
+      return;
+    }
 
-      const shuffle = () => {
-        const ids: SlotSymbolId[] = ["cherry", "lemon", "bell", "seven", "diamond"];
-        setDisplayReels([ids[Math.floor(Math.random() * 5)]!, ids[Math.floor(Math.random() * 5)]!, ids[Math.floor(Math.random() * 5)]!]);
-      };
-      const interval = window.setInterval(shuffle, 80);
+    // 1. DÉDUCTION IMMÉDIATE DU VRAI SOLDE
+    const newBalanceAfterBet = currentBalance - bet;
+    updateUserBalance(newBalanceAfterBet); // Cela mettra à jour l'UI partout instantanément
 
-      try {
-        const url = apiUrl("/api/slot/spin");
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ bet: selectedBet }),
+    setIsSpinning(true);
+    setShowWin(false);
+    setSpinningReels([true, true, true]);
+    setReels([generateReelSymbols(), generateReelSymbols(), generateReelSymbols()]);
+
+    try {
+      const res = await fetch(apiUrl("/api/slot/spin"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ bet }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Erreur serveur");
+
+      const finalApiSymbols = (data.reels || ["cherry", "cherry", "cherry"]) as string[];
+      const finalUiSymbols = finalApiSymbols.map((sym) => API_TO_UI[sym] || "🍒") as SlotSymbol[];
+      const isWin = data.winAmount > 0;
+
+      setReels([
+        generateReelSymbols(finalUiSymbols[0]),
+        generateReelSymbols(finalUiSymbols[1]),
+        generateReelSymbols(finalUiSymbols[2]),
+      ]);
+
+      setTimeout(() => setSpinningReels([false, true, true]), 500);
+      setTimeout(() => setSpinningReels([false, false, true]), 1000);
+      setTimeout(() => {
+        setSpinningReels([false, false, false]);
+        
+        setResult({
+          symbols: finalUiSymbols,
+          isWin: isWin,
+          winAmount: data.winAmount,
         });
-        const data = await res.json().catch(() => ({}));
+        
+        // 2. MISE À JOUR FINALE (On prend la valeur exacte renvoyée par le serveur)
+        const finalChips = typeof data.chips === "number" 
+          ? Math.max(0, Math.floor(data.chips)) 
+          : getUserBalance() + (data.winAmount || 0);
 
-        if (!res.ok) {
-          if (!opts?.suppressResultToasts) {
-            addToast(typeof data?.error === "string" ? data.error : t("slot.errorSpin"), "error");
-          } else {
-            addToast(t("slot.autoStoppedError"), "error");
-          }
-          if (autoSpinRef.current) setAutoSpin(false);
-          return;
+        updateUserBalance(finalChips); // Met à jour tout le site avec le résultat final
+
+        setSessionStats(prev => ({ 
+          wins: prev.wins + (isWin && data.winAmount > bet ? 1 : 0), 
+          spins: prev.spins + 1 
+        }));
+
+        if (isWin && data.winAmount > bet) {
+          setShowWin(true);
+          setTimeout(() => setShowWin(false), 3000);
         }
+        
+        setIsSpinning(false);
+      }, 1500);
 
-        const reels = data?.reels as SlotSymbolId[] | undefined;
-        const winAmount = typeof data?.winAmount === "number" ? data.winAmount : 0;
-        const bet = typeof data?.bet === "number" ? data.bet : selectedBet;
-        const nextChips =
-          typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : chips ?? 0;
-
-        if (reels && reels.length === 3) {
-          setDisplayReels(reels);
-        }
-
-        updateUserBalance(nextChips);
-        setChips(nextChips);
-        mergeGamificationFromServerResponse(data as Record<string, unknown>);
-        setLastResult({ winAmount, bet });
-        setSpinHistory((prev) => [
-          { id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, bet, gain: winAmount },
-          ...prev,
-        ]);
-
-        const net = winAmount - bet;
-        if (!opts?.suppressResultToasts) {
-          if (net > 0) {
-            addToast(t("slot.winMessage", { total: winAmount, bet, net }), "success");
-          } else if (net === 0 && winAmount > 0) {
-            addToast(t("slot.breakEven", { bet }), "success");
-          } else if (net < 0) {
-            addToast(t("slot.loseMessage", { bet }), "info");
-          }
-        }
-
-        const floorAfter = Math.max(0, Math.floor(autoFloor));
-        const ceilingAfter = Math.max(0, Math.floor(autoCeiling));
-        if (autoSpinRef.current && nextChips <= floorAfter) {
-          setAutoSpin(false);
-          addToast(t("slot.autoStoppedAtFloor", { floor: floorAfter }), "info");
-        } else if (autoSpinRef.current && ceilingAfter > 0 && nextChips >= ceilingAfter) {
-          setAutoSpin(false);
-          addToast(t("slot.autoStoppedAtCeiling", { ceiling: ceilingAfter }), "info");
-        }
-      } catch {
-        if (!opts?.suppressResultToasts) {
-          addToast(t("slot.errorSpin"), "error");
-        } else {
-          addToast(t("slot.autoStoppedError"), "error");
-        }
-        if (autoSpinRef.current) setAutoSpin(false);
-      } finally {
-        window.clearInterval(interval);
-        setSpinning(false);
-      }
-    },
-    [addToast, autoCeiling, chips, effectiveMaxBet, minBet, selectedBet, spinning, t, autoFloor],
-  );
-
-  useEffect(() => {
-    if (slotTab !== "play" && autoSpin) setAutoSpin(false);
-  }, [slotTab, autoSpin]);
-
-  useEffect(() => {
-    if (!autoSpin || spinning || chips === null || slotTab !== "play") return;
-    if (selectedBet < minBet || selectedBet > effectiveMaxBet) {
-      setAutoSpin(false);
-      return;
+    } catch (err: any) {
+      // Si la requête échoue, on annule la mise et on rend l'argent !
+      updateUserBalance(currentBalance);
+      addToast(err.message || "Erreur lors du spin", "error");
+      setIsSpinning(false);
+      setSpinningReels([false, false, false]);
     }
-    const floor = Math.max(0, Math.floor(autoFloor));
-    const ceiling = Math.max(0, Math.floor(autoCeiling));
-    if (ceiling > 0 && chips >= ceiling) {
-      setAutoSpin(false);
-      addToast(t("slot.autoStoppedAtCeiling", { ceiling }), "info");
-      return;
-    }
-    if (chips <= floor) {
-      setAutoSpin(false);
-      addToast(t("slot.autoStoppedAtFloor", { floor }), "info");
-      return;
-    }
-    if (chips - selectedBet < floor) {
-      setAutoSpin(false);
-      addToast(t("slot.autoStoppedWouldBreach", { floor }), "info");
-      return;
-    }
-    void spin({ suppressResultToasts: true });
-  }, [autoSpin, spinning, chips, autoFloor, autoCeiling, selectedBet, minBet, effectiveMaxBet, slotTab, spin, addToast, t]);
+  };
 
   return (
-    <div className="relative flex min-h-0 w-full max-w-[100%] flex-1 flex-col overflow-hidden bg-[#0c0a12]">
-      <div
-        className="pointer-events-none absolute inset-0 overflow-hidden opacity-90"
-        style={{
-          background:
-            "radial-gradient(ellipse 75% 45% at 50% 0%, rgba(185, 28, 28, 0.32), transparent 50%), radial-gradient(ellipse 55% 35% at 50% 100%, rgba(234, 179, 8, 0.1), transparent 48%), repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px)",
-        }}
-      />
-      <div className="pointer-events-none absolute inset-0 overflow-hidden bg-gradient-to-t from-black/60 via-transparent to-black/40" />
+    <div className="flex gap-6 items-start">
+      {/* Machine à sous principale */}
+      <div className="flex-1 relative">
+        <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl border-4 border-yellow-600/50 shadow-[0_0_60px_20px_rgba(202,138,4,0.3)] p-8">
+          
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-600 via-yellow-500 to-yellow-600 px-8 py-2 rounded-full border-2 border-yellow-400 shadow-lg">
+            <h3 className="text-white font-bold text-xl tracking-wider">QUANTUM SLOTS</h3>
+          </div>
 
-      <div
-        className="relative z-10 mx-auto flex w-full min-w-0 max-w-md flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain px-3 pb-4 pt-[max(0.5rem,env(safe-area-inset-top))] md:px-4 md:pb-5"
-        style={{ maxHeight: "100%" }}
-      >
-        <button
-          type="button"
-          onClick={() => navigate("/lobby")}
-          className="mb-2 inline-flex max-w-full shrink-0 items-center gap-2 rounded-full border border-white/15 bg-black/40 px-3 py-1.5 text-xs font-medium text-zinc-300 shadow-lg backdrop-blur-sm transition hover:border-amber-500/40 hover:text-white md:mb-3 md:px-4 md:py-2 md:text-sm"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("nav.backToLobby")}
-        </button>
+          <div className="absolute top-4 left-4">
+            <Sparkles className="w-6 h-6 text-yellow-400 animate-pulse" />
+          </div>
+          <div className="absolute top-4 right-4">
+            <Sparkles className="w-6 h-6 text-yellow-400 animate-pulse" style={{ animationDelay: "0.5s" }} />
+          </div>
 
-        {/* Boîtier type cabine de casino */}
-        <div
-          className="min-w-0 shrink-0 rounded-[1.35rem] p-[4px] shadow-[0_16px_40px_-12px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.35)] md:rounded-[2rem] md:p-[5px]"
-          style={{
-            background: "linear-gradient(145deg, #d4d4d8 0%, #71717a 22%, #a1a1aa 45%, #52525b 70%, #3f3f46 100%)",
-          }}
-        >
-          <div className="rounded-[1.2rem] border border-black/50 bg-gradient-to-b from-[#5c0a0a] via-[#3d0508] to-[#1a0305] p-3 shadow-[inset_0_2px_24px_rgba(0,0,0,0.65)] md:rounded-[1.75rem] md:p-5">
-            {/* Enseigne + lampes */}
-            <div className="relative mb-3 overflow-hidden rounded-lg border border-amber-600/40 bg-gradient-to-b from-[#2a0505] to-black px-2 py-2 shadow-[inset_0_0_20px_rgba(0,0,0,0.8),0_0_20px_rgba(234,179,8,0.15)] md:mb-4 md:rounded-xl md:px-3 md:py-3">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
-              <div className="mb-2 flex justify-center gap-1.5">
-                {[0, 1, 2, 3, 4, 5].map((i) => (
-                  <span
-                    key={i}
-                    className={`h-2 w-2 rounded-full shadow-[0_0_8px_currentColor] ${
-                      spinning ? "animate-pulse text-amber-300" : "text-amber-700/80"
-                    }`}
-                    style={{
-                      background: spinning ? "#fcd34d" : "#78350f",
-                      animationDelay: `${i * 0.12}s`,
-                    }}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center justify-center gap-2">
-                <Sparkles className="h-5 w-5 shrink-0 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
-                <h1 className="min-w-0 bg-gradient-to-b from-amber-200 via-yellow-300 to-amber-600 bg-clip-text text-center text-sm font-black uppercase leading-tight tracking-[0.12em] text-transparent drop-shadow-sm [text-shadow:0_0_30px_rgba(251,191,36,0.4)] md:text-xl md:tracking-[0.2em]">
-                  {t("slot.title")}
-                </h1>
-              </div>
-              <p className="mt-1.5 text-center text-[10px] font-medium uppercase tracking-wider text-amber-200/50">
-                {t("slot.subtitle")}
+          {/* Affichage du solde et mise */}
+          <div className="flex justify-between items-center mb-6">
+            <div className="bg-slate-950/60 backdrop-blur-sm border-2 border-yellow-500/30 rounded-xl px-6 py-3">
+              <p className="text-yellow-200/70 text-sm font-semibold mb-1">Solde</p>
+              <p className="text-3xl font-bold text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]">
+                {balance.toLocaleString()} 🪙
               </p>
             </div>
 
-            {/* Onglets style bandeau métal */}
-            <div className="mb-3 flex rounded-lg border border-zinc-700/80 bg-gradient-to-b from-zinc-700 to-zinc-900 p-1 shadow-inner md:mb-4">
-              <button
-                type="button"
-                onClick={() => setSlotTab("play")}
-                className={`flex-1 rounded-md py-2 text-xs font-black uppercase tracking-wider transition md:text-sm ${
-                  slotTab === "play"
-                    ? "bg-gradient-to-b from-amber-400 to-amber-600 text-black shadow-[0_2px_0_#78350f,inset_0_1px_0_rgba(255,255,255,0.4)]"
-                    : "text-zinc-400 hover:text-zinc-200"
+            <div className="bg-slate-950/60 backdrop-blur-sm border-2 border-yellow-500/30 rounded-xl px-6 py-3">
+              <p className="text-yellow-200/70 text-sm font-semibold mb-1">Mise</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setBet(Math.max(10, bet - 10))}
+                  disabled={isSpinning}
+                  className="w-8 h-8 bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg font-bold transition-all"
+                >
+                  -
+                </button>
+                <p className="text-2xl font-bold text-yellow-400 min-w-[80px] text-center drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]">
+                  {bet} 🪙
+                </p>
+                <button
+                  onClick={() => setBet(Math.min(balance, bet + 10))}
+                  disabled={isSpinning || balance < bet + 10}
+                  className="w-8 h-8 bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg font-bold transition-all"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Rouleaux de la machine à sous */}
+          <div className="relative mb-8">
+            <div className="bg-slate-950/80 backdrop-blur-xl rounded-2xl border-4 border-yellow-500/40 p-8 shadow-inner">
+              <div
+                className={`absolute left-8 right-8 h-32 top-1/2 -translate-y-1/2 transition-all duration-500 pointer-events-none z-20 flex items-center justify-center ${
+                  result.isWin && !isSpinning && result.winAmount! > bet
+                    ? "bg-gradient-to-r from-transparent via-green-500/30 to-transparent border-y-4 border-green-400 shadow-[0_0_40px_15px_rgba(34,197,94,0.5)]"
+                    : ""
                 }`}
               >
-                {t("slot.tabPlay")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSlotTab("history")}
-                className={`flex-1 rounded-md py-2 text-xs font-black uppercase tracking-wider transition md:text-sm ${
-                  slotTab === "history"
-                    ? "bg-gradient-to-b from-amber-400 to-amber-600 text-black shadow-[0_2px_0_#78350f,inset_0_1px_0_rgba(255,255,255,0.4)]"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                {t("slot.tabHistory")}
-              </button>
+                {result.isWin && !isSpinning && result.winAmount! > bet && (
+                  <motion.div
+                    className="text-green-400 font-bold text-2xl"
+                    animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  >
+                    ★ WIN LINE ★
+                  </motion.div>
+                )}
+              </div>
+
+              <div className="flex gap-4 justify-center">
+                {reels.map((reel, reelIndex) => {
+                  const isReelSpinning = spinningReels[reelIndex];
+                  const centerIndex = Math.floor(REEL_SYMBOLS_COUNT / 2);
+
+                  return (
+                    <div key={reelIndex} className="flex-1 max-w-[200px]">
+                      <div className="relative h-[350px] bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-4 border-yellow-600/40 overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-slate-900 via-slate-900/80 to-transparent z-10 pointer-events-none" />
+                        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent z-10 pointer-events-none" />
+
+                        <motion.div
+                          className="flex flex-col items-center"
+                          animate={
+                            isReelSpinning
+                              ? { y: [0, -110 * REEL_SYMBOLS_COUNT] }
+                              : { y: -(centerIndex * 110) + 175 - 55 }
+                          }
+                          transition={
+                            isReelSpinning
+                              ? { duration: 0.8, repeat: Infinity, ease: "linear" }
+                              : { duration: 0.5, ease: "easeOut" }
+                          }
+                        >
+                          {reel.map((symbol, symbolIndex) => {
+                            const isCenterSymbol = symbolIndex === centerIndex;
+                            const isResultSymbol = !isSpinning && isCenterSymbol;
+                            // Assombrit seulement s'il y a un vrai gain (supérieur à la mise)
+                            const shouldDim = !isSpinning && result.isWin && result.winAmount! > bet && !isCenterSymbol;
+                            
+                            const distanceFromCenter = Math.abs(symbolIndex - centerIndex);
+                            const blurAmount = isSpinning ? 0 : Math.min(distanceFromCenter * 2, 8);
+                            const opacityAmount = isSpinning ? 1 : Math.max(1 - distanceFromCenter * 0.3, 0.2);
+                            const scaleAmount = isSpinning ? 1 : isCenterSymbol ? 1 : Math.max(1 - distanceFromCenter * 0.1, 0.7);
+
+                            return (
+                              <div
+                                key={symbolIndex}
+                                className={`flex items-center justify-center text-7xl transition-all duration-500 relative ${
+                                  shouldDim ? "grayscale opacity-30 blur-sm" : ""
+                                } ${isResultSymbol && result.isWin && result.winAmount! > bet ? "animate-pulse" : ""}`}
+                                style={{ 
+                                  height: "110px",
+                                  filter: shouldDim ? undefined : `blur(${blurAmount}px)`,
+                                  opacity: shouldDim ? undefined : opacityAmount,
+                                  transform: shouldDim ? undefined : `scale(${scaleAmount})`,
+                                }}
+                              >
+                                {isResultSymbol && result.isWin && result.winAmount! > bet && (
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    {[...Array(8)].map((_, i) => (
+                                      <motion.div
+                                        key={i}
+                                        className="absolute w-3 h-3 bg-green-400 rounded-full"
+                                        initial={{ x: 0, y: 0, opacity: 1 }}
+                                        animate={{
+                                          x: Math.cos((i * Math.PI * 2) / 8) * 80,
+                                          y: Math.sin((i * Math.PI * 2) / 8) * 80,
+                                          opacity: 0,
+                                          scale: [1, 0.5, 0],
+                                        }}
+                                        transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                                <span className="relative z-10">{symbol}</span>
+                              </div>
+                            );
+                          })}
+                        </motion.div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {slotTab === "play" ? (
-              <>
-                {/* Crédits type afficheur LED */}
-                <div className="mb-3 rounded-lg border-2 border-zinc-600 bg-[#0a1608] px-3 py-2 shadow-[inset_0_3px_12px_rgba(0,0,0,0.9)] md:mb-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-800/90">
-                      {t("slot.balance")}
-                    </span>
-                    <span
-                      className="min-w-0 shrink font-mono text-lg font-bold tabular-nums tracking-wide text-emerald-400 md:text-2xl md:tracking-widest"
-                      style={{ textShadow: "0 0 12px rgba(52, 211, 153, 0.45)" }}
-                    >
-                      {chips === null ? "———" : chips.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Mise — boutons type touches */}
-                <div className="mb-3 md:mb-4">
-                  <p className="mb-1.5 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-amber-600/90 md:mb-2">
-                    {t("slot.selectBet")}
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {betPresets.map((b) => (
-                      <button
-                        key={b}
-                        type="button"
-                        disabled={spinning || chips === null || b > effectiveMaxBet}
-                        onClick={() => setSelectedBet(b)}
-                        className={`min-w-[3rem] rounded-lg border-2 px-3 py-2 text-sm font-black tabular-nums transition active:translate-y-0.5 disabled:opacity-40 ${
-                          selectedBet === b
-                            ? "border-amber-300 bg-gradient-to-b from-amber-400 to-amber-600 text-black shadow-[0_3px_0_#78350f,inset_0_1px_0_rgba(255,255,255,0.35)]"
-                            : "border-zinc-600 bg-gradient-to-b from-zinc-700 to-zinc-900 text-zinc-200 shadow-[0_2px_0_#171717,inset_0_1px_0_rgba(255,255,255,0.08)] hover:border-zinc-500"
-                        }`}
-                      >
-                        {b}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-center text-[10px] text-zinc-500">
-                    {t("slot.betRange", { min: minBet, max: effectiveMaxBet })}
-                  </p>
-                </div>
-
-                {/* Vitrine rouleaux */}
-                <div className="relative mb-3 rounded-lg border-[3px] border-zinc-500 bg-black p-2 shadow-[inset_0_8px_32px_rgba(0,0,0,0.95),0_4px_0_rgba(0,0,0,0.5)] md:mb-4 md:rounded-xl md:border-4 md:p-3">
-                  <div className="absolute inset-x-3 top-2 z-10 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
-                  <div className="flex items-stretch justify-center gap-0">
-                    {displayReels.map((sym, i) => (
-                      <div key={`reel-${i}`} className="relative flex flex-1 justify-center px-0.5">
-                        {i > 0 ? (
-                          <div className="absolute -left-px top-2 bottom-2 w-px bg-gradient-to-b from-transparent via-zinc-600 to-transparent" />
-                        ) : null}
-                        <div className="relative w-full max-w-[5.5rem]">
-                          <motion.div
-                            className="relative flex aspect-[3/4] max-h-[5.5rem] items-center justify-center overflow-hidden rounded-md border border-zinc-700 bg-gradient-to-b from-[#1c1917] via-black to-[#0c0a09] shadow-[inset_0_0_20px_rgba(0,0,0,0.9)] sm:max-h-28 md:max-h-32"
-                            animate={spinning ? { y: [0, -3, 0] } : {}}
-                            transition={spinning ? { repeat: Infinity, duration: 0.22, delay: i * 0.06 } : {}}
-                          >
-                            <span className="relative z-10 text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] filter sm:text-4xl md:text-5xl">
-                              {SYMBOL_EMOJI[sym] ?? "?"}
-                            </span>
-                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-black/40" />
-                          </motion.div>
-                          {/* Ligne de gain */}
-                          <div className="pointer-events-none absolute left-0 right-0 top-1/2 z-20 -translate-y-1/2 border-y-2 border-amber-400/90 shadow-[0_0_12px_rgba(251,191,36,0.5)]" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="absolute inset-x-3 bottom-2 z-10 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-                </div>
-
-                <AnimatePresence>
-                  {lastResult && !spinning && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="mb-4 rounded-lg border border-amber-500/30 bg-black/50 px-3 py-2 text-center"
-                    >
-                      <p
-                        className={`text-xs font-bold uppercase tracking-wide md:text-sm ${
-                          lastResult.winAmount > lastResult.bet
-                            ? "text-emerald-400"
-                            : lastResult.winAmount === lastResult.bet
-                              ? "text-amber-300"
-                              : "text-zinc-400"
-                        }`}
-                      >
-                        {lastResult.winAmount - lastResult.bet > 0
-                          ? t("slot.resultWin", {
-                              total: lastResult.winAmount,
-                              bet: lastResult.bet,
-                              net: lastResult.winAmount - lastResult.bet,
-                            })
-                          : lastResult.winAmount === lastResult.bet && lastResult.winAmount > 0
-                            ? t("slot.resultBreakEven", { bet: lastResult.bet })
-                            : t("slot.resultLose", { bet: lastResult.bet })}
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Gros bouton SPIN */}
-                <button
-                  type="button"
-                  disabled={
-                    spinning ||
-                    autoSpin ||
-                    chips === null ||
-                    chips < minBet ||
-                    selectedBet > effectiveMaxBet
-                  }
-                  onClick={() => void spin()}
-                  className="group relative mx-auto mb-2 flex w-full max-w-[min(280px,100%)] items-center justify-center rounded-full border-[3px] border-[#7f1d1d] bg-gradient-to-b from-red-500 via-red-600 to-red-800 py-3.5 text-base font-black uppercase tracking-[0.12em] text-white shadow-[0_5px_0_#450a0a,0_8px_20px_rgba(0,0,0,0.5),inset_0_2px_0_rgba(255,255,255,0.25)] transition enabled:active:translate-y-1 enabled:active:shadow-[0_2px_0_#450a0a] disabled:cursor-not-allowed disabled:opacity-45 md:mb-3 md:border-4 md:py-5 md:text-xl md:tracking-[0.15em]"
+            {/* Pop-up de victoire */}
+            <AnimatePresence>
+              {showWin && result.winAmount && (
+                <motion.div
+                  initial={{ scale: 0, opacity: 0, y: 50 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0, opacity: 0, y: -50 }}
+                  className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
                 >
-                  <span className="absolute inset-x-6 top-1 h-px rounded-full bg-white/35" />
-                  {spinning ? t("slot.spinning") : t("slot.spin")}
-                </button>
-
-                <p className="mb-4 text-center text-[10px] leading-relaxed text-zinc-500">{t("slot.disclaimer")}</p>
-
-                {/* Panneau technique auto */}
-                <div className="overflow-hidden rounded-lg border border-zinc-700 bg-gradient-to-b from-zinc-900/90 to-black/80 shadow-inner">
-                  <button
-                    type="button"
-                    onClick={() => setAutoPanelOpen((o) => !o)}
-                    aria-expanded={autoPanelOpen}
-                    className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition hover:bg-white/5"
-                  >
-                    <span className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-amber-500/90">
-                        {t("slot.autoPanelTitle")}
-                      </span>
-                      <span className="text-[10px] text-zinc-500">
-                        {autoPanelOpen ? t("slot.autoPanelTapClose") : t("slot.autoPanelTapOpen")}
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      {autoSpin ? (
-                        <span className="rounded border border-emerald-600/50 bg-emerald-950/80 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-400">
-                          {t("slot.autoActiveBadge")}
-                        </span>
-                      ) : null}
-                      <ChevronDown
-                        className={`h-4 w-4 text-zinc-400 transition-transform ${autoPanelOpen ? "rotate-180" : ""}`}
-                      />
-                    </span>
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {autoPanelOpen ? (
+                  <div className="bg-gradient-to-br from-green-600 via-green-500 to-green-600 border-4 border-green-300 rounded-3xl px-12 py-8 shadow-[0_0_60px_30px_rgba(34,197,94,0.6)] relative overflow-hidden">
+                    {[...Array(12)].map((_, i) => (
                       <motion.div
-                        key="auto-panel-body"
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -6 }}
-                        transition={{ duration: 0.15 }}
-                        className="border-t border-zinc-700"
+                        key={i}
+                        className="absolute"
+                        initial={{ scale: 0, x: "50%", y: "50%" }}
+                        animate={{
+                          scale: [0, 1, 0],
+                          x: `${50 + Math.cos((i * Math.PI * 2) / 12) * 200}%`,
+                          y: `${50 + Math.sin((i * Math.PI * 2) / 12) * 200}%`,
+                        }}
+                        transition={{ duration: 1, ease: "easeOut" }}
                       >
-                        <div className="space-y-3 px-3 pb-3 pt-2">
-                          <label className="flex cursor-pointer items-center gap-3">
-                            <input
-                              type="checkbox"
-                              checked={autoSpin}
-                              onChange={(e) => setAutoSpin(e.target.checked)}
-                              disabled={chips === null || chips < minBet || selectedBet > effectiveMaxBet}
-                              className="h-4 w-4 rounded border-zinc-500 bg-zinc-900 text-amber-500"
-                            />
-                            <span className="text-xs font-semibold text-zinc-300">{t("slot.autoToggle")}</span>
-                          </label>
-                          <div className="flex flex-col gap-1">
-                            <label htmlFor="slot-auto-floor" className="text-[10px] font-bold uppercase text-zinc-500">
-                              {t("slot.autoFloorLabel")}
-                            </label>
-                            <input
-                              id="slot-auto-floor"
-                              type="number"
-                              min={0}
-                              value={autoFloor}
-                              onChange={(e) => setAutoFloor(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-                              disabled={chips === null}
-                              className="rounded border border-zinc-600 bg-black/60 px-2 py-1.5 text-sm text-white focus:border-amber-600/50 focus:outline-none disabled:opacity-40"
-                            />
-                            <p className="text-[10px] text-zinc-500">{t("slot.autoFloorHint")}</p>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <label htmlFor="slot-auto-ceiling" className="text-[10px] font-bold uppercase text-zinc-500">
-                              {t("slot.autoCeilingLabel")}
-                            </label>
-                            <input
-                              id="slot-auto-ceiling"
-                              type="number"
-                              min={0}
-                              value={autoCeiling}
-                              onChange={(e) => setAutoCeiling(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-                              disabled={chips === null}
-                              className="rounded border border-zinc-600 bg-black/60 px-2 py-1.5 text-sm text-white focus:border-amber-600/50 focus:outline-none disabled:opacity-40"
-                            />
-                            <p className="text-[10px] text-zinc-500">{t("slot.autoCeilingHint")}</p>
-                          </div>
-                        </div>
+                        <Sparkles className="w-6 h-6 text-yellow-300" />
                       </motion.div>
-                    ) : null}
-                  </AnimatePresence>
+                    ))}
+                    <div className="relative z-10">
+                      <motion.p
+                        className="text-white font-bold text-4xl mb-2 text-center drop-shadow-lg"
+                        animate={{ scale: [1, 1.1, 1] }}
+                        transition={{ duration: 0.5, repeat: Infinity }}
+                      >
+                        🎰 QUANTUM WIN! 🎰
+                      </motion.p>
+                      <motion.p
+                        className="text-yellow-100 font-bold text-5xl text-center drop-shadow-lg"
+                        animate={{ scale: [1, 1.15, 1] }}
+                        transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                      >
+                        +{result.winAmount} 🪙
+                      </motion.p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <motion.button
+            onClick={handleSpin}
+            disabled={isSpinning || balance < bet}
+            whileHover={!isSpinning && balance >= bet ? { scale: 1.05 } : {}}
+            whileTap={!isSpinning && balance >= bet ? { scale: 0.95 } : {}}
+            className={`w-full py-6 rounded-2xl font-bold text-2xl tracking-widest transition-all shadow-2xl relative overflow-hidden ${
+              isSpinning || balance < bet
+                ? "bg-slate-700 text-slate-500 cursor-not-allowed"
+                : "bg-gradient-to-r from-yellow-600 via-yellow-500 to-yellow-600 text-white shadow-[0_0_40px_10px_rgba(202,138,4,0.5)] hover:shadow-[0_0_60px_20px_rgba(202,138,4,0.7)]"
+            }`}
+          >
+            {!isSpinning && balance >= bet && (
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              />
+            )}
+            <span className="relative z-10 flex items-center justify-center gap-3">
+              {isSpinning ? (
+                <>
+                  <Zap className="w-8 h-8 animate-spin" /> SPINNING...
+                </>
+              ) : balance < bet ? (
+                <>SOLDE INSUFFISANT</>
+              ) : (
+                <>
+                  <Sparkles className="w-8 h-8" /> SPIN <Sparkles className="w-8 h-8" />
+                </>
+              )}
+            </span>
+          </motion.button>
+        </div>
+      </div>
+
+      {/* Panneau des règles (INCHANGÉ - Parfait comme il est) */}
+      <div className="w-80 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border-2 border-yellow-600/40 p-6 shadow-[0_0_40px_10px_rgba(202,138,4,0.2)]">
+        <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-yellow-600/30">
+          <div className="w-10 h-10 bg-yellow-600/20 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-6 h-6 text-yellow-400" />
+          </div>
+          <h3 className="text-xl font-bold text-yellow-400">Tableau des gains</h3>
+        </div>
+
+        <div className="space-y-4">
+          {Object.entries(MULTIPLIERS).map(([symbol, multiplier]) => (
+            <motion.div
+              key={symbol}
+              className="bg-slate-950/60 backdrop-blur-sm border-2 border-yellow-600/20 rounded-xl p-4 hover:border-yellow-500/40 transition-all"
+              whileHover={{ scale: 1.02, x: 5 }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-4xl">{symbol}</span>
+                  <div>
+                    <p className="text-white font-semibold">3x {symbol}</p>
+                    <p className="text-yellow-200/60 text-sm">3 symboles identiques</p>
+                  </div>
                 </div>
-              </>
-            ) : (
-              <div className="rounded-lg border-2 border-zinc-600 bg-black/40 shadow-inner">
-                <div className="flex items-center justify-between border-b border-zinc-700 bg-zinc-900/50 px-3 py-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-600/90">
-                    {t("slot.tabHistory")}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={closeHistoryAndReset}
-                    className="inline-flex items-center gap-1 rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-[10px] font-bold uppercase text-zinc-300 transition hover:bg-zinc-700 hover:text-white"
-                    title={t("slot.closeHistory")}
-                  >
-                    <X className="h-3 w-3" />
-                    {t("slot.closeHistory")}
-                  </button>
-                </div>
-                <div className="max-h-52 overflow-y-auto px-3 py-2 font-mono text-xs text-zinc-300 md:text-sm">
-                  {spinHistory.length === 0 ? (
-                    <p className="py-8 text-center text-zinc-600">{t("slot.historyEmpty")}</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {spinHistory.map((row) => (
-                        <li
-                          key={row.id}
-                          className="flex justify-between gap-3 border-b border-zinc-800 pb-2 last:border-0 last:pb-0"
-                        >
-                          <span className="text-zinc-500">{t("slot.historyBet", { bet: row.bet })}</span>
-                          <span className={row.gain > 0 ? "font-bold text-amber-400" : "text-zinc-600"}>
-                            {t("slot.historyGain", { gain: row.gain })}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-green-400">x{multiplier}</p>
+                  <p className="text-green-300/60 text-xs">multiplicateur</p>
                 </div>
               </div>
-            )}
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="mt-6 bg-gradient-to-r from-yellow-600/20 to-yellow-500/20 border-2 border-yellow-500/40 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <Zap className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-yellow-300 font-semibold mb-1">Quantum Boost</p>
+              <p className="text-yellow-200/70 text-sm leading-relaxed">
+                Le serveur garantit des probabilités quantiques sur chaque tour !
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-6 border-t-2 border-yellow-600/30">
+          <p className="text-yellow-400/70 text-sm font-semibold mb-3">Session actuelle</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-950/60 rounded-lg p-3 text-center">
+              <p className="text-green-400 font-bold text-xl">{sessionStats.wins}</p>
+              <p className="text-green-300/60 text-xs">Victoires</p>
+            </div>
+            <div className="bg-slate-950/60 rounded-lg p-3 text-center">
+              <p className="text-yellow-400 font-bold text-xl">{sessionStats.spins}</p>
+              <p className="text-yellow-300/60 text-xs">Tours joués</p>
+            </div>
           </div>
         </div>
       </div>
