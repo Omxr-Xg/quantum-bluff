@@ -69,8 +69,7 @@ export function Layout({ children }: LayoutProps) {
       const blackjackMultiInLobby =
         location.pathname === "/lobby" && location.search.includes("tab=blackjack");
       const authoritative =
-        location.pathname === "/slot" ||
-        location.pathname === "/roulette" ||
+        location.pathname === "/minigames" ||
         location.pathname === "/blackjack" ||
         location.pathname.startsWith("/blackjack/lobby") ||
         location.pathname.startsWith("/blackjack/table") ||
@@ -85,12 +84,12 @@ export function Layout({ children }: LayoutProps) {
     window.addEventListener(BALANCE_CHANGED_EVENT, sync);
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, sync);
   }, []);
+  
   useEffect(() => {
     const onFocus = () => {
       if (localStorage.getItem("token")) {
         const authoritative =
-          location.pathname === "/slot" ||
-          location.pathname === "/roulette" ||
+          location.pathname === "/minigames" ||
           location.pathname === "/blackjack" ||
           location.pathname.startsWith("/blackjack/lobby") ||
           location.pathname.startsWith("/blackjack/table");
@@ -191,8 +190,7 @@ export function Layout({ children }: LayoutProps) {
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
   const isCasinoFullBleed =
-    path === "/slot" ||
-    path === "/roulette" ||
+    path === "/minigames" ||
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table");
@@ -201,18 +199,13 @@ export function Layout({ children }: LayoutProps) {
     path.includes("bot-configuration") ||
     path.includes("waiting-room") ||
     path.includes("tutorial-lobby") ||
-    path === "/slot" ||
-    path === "/roulette" ||
+    path === "/minigames" ||
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table");
-  /** Sur roulette et blackjack table, le panneau recouvre les actions principales — pas de hamburger. */
+  /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
   const showHamburgerMenu =
-    showTopBar &&
-    isGameConfigOrRoom &&
-    !isLobby &&
-    path !== "/roulette" &&
-    !path.startsWith("/blackjack/table");
+    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames";
   const showLobbyIntegratedBar = showTopBar && isLobby;
   /**
    * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
@@ -227,7 +220,7 @@ export function Layout({ children }: LayoutProps) {
       <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
         <button
           type="button"
-          onClick={() => navigate("/slot")}
+          onClick={() => navigate("/minigames")}
           className="flex items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left transition hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] sm:gap-2 sm:px-4"
           title={t("lobby.balanceOpenSlot")}
         >
@@ -244,7 +237,7 @@ export function Layout({ children }: LayoutProps) {
         </button>
         <button
           type="button"
-          onClick={() => navigate("/slot")}
+          onClick={() => navigate("/minigames")}
           className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-600/75 text-amber-50 transition-colors hover:bg-amber-500/90 hover:shadow-inner sm:px-3"
           title={t("lobby.openSlot")}
           aria-label={t("lobby.openSlot")}
@@ -337,7 +330,7 @@ export function Layout({ children }: LayoutProps) {
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
-                      navigate("/slot");
+                      navigate("/minigames");
                     }}
                     className="flex items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left transition hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] sm:gap-2 sm:px-4"
                     title={t("lobby.balanceOpenSlot")}
@@ -357,7 +350,7 @@ export function Layout({ children }: LayoutProps) {
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
-                      navigate("/slot");
+                      navigate("/minigames");
                     }}
                     className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-600/75 text-amber-50 transition-colors hover:bg-amber-500/90 hover:shadow-inner sm:px-3"
                     title={t("lobby.openSlot")}

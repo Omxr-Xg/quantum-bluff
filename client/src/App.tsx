@@ -26,6 +26,8 @@ import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
+import { MiniGames } from './pages/MiniGames';
+
 /** Force un remount propre lors de la navigation (ex: config bot → jeu) pour éviter les blocages */
 function GameWithKey() {
   const location = useLocation();
@@ -51,8 +53,8 @@ function App() {
 
             <Route path="/lobby" element={<ProtectedRoute><Lobby /></ProtectedRoute>} />
             <Route path="/bot-configuration" element={<ProtectedRoute><BotConfiguration /></ProtectedRoute>} />
-            <Route path="/slot" element={<ProtectedRoute><SlotMachine /></ProtectedRoute>} />
-            <Route path="/roulette" element={<ProtectedRoute><Roulette /></ProtectedRoute>} />
+            
+            <Route path="/minigames" element={<ProtectedRoute><MiniGames /></ProtectedRoute>} />
             <Route path="/blackjack" element={<ProtectedRoute><Blackjack /></ProtectedRoute>} />
             <Route path="/blackjack/lobby" element={<ProtectedRoute><BlackjackMultiLobby /></ProtectedRoute>} />
             <Route path="/blackjack/lobby/:roomId" element={<ProtectedRoute><BlackjackMultiLobby /></ProtectedRoute>} />
