@@ -61,7 +61,7 @@ describe('Poker runtime integration', () => {
     game.startHand()
     const r = game.quitVoluntaryDuringHand('u1')
     expect(r.ok).toBe(true)
-    expect(r.showdown).toBe(true)
+    if (r.ok) expect(r.showdown).toBe(true)
     game.onHandComplete()
     expect(game.getGameTable()).toBeNull()
     expect(game.getOccupiedSeats().some((s) => s.userId === 'u1')).toBe(false)
