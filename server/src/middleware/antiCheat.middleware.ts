@@ -9,9 +9,11 @@ export const antiCheatMiddleware = async (req: Request, res: Response, next: Nex
   try {
     // 1. Extraction du token (Header ou Cookies)
     const authHeader = req.headers.authorization;
+    
+    // 👇 ICI : On utilise directement req.cookies, sans aucun "as any" !
     const token = (authHeader && authHeader.startsWith('Bearer ')) 
       ? authHeader.split(' ')[1] 
-      : (req as any).cookies?.token;
+      : req.cookies?.token;
 
     let userId: string | undefined;
 
@@ -20,8 +22,8 @@ export const antiCheatMiddleware = async (req: Request, res: Response, next: Nex
       try {
         const decoded = jwt.verify(token, JWT_SECRET) as { id?: string, userId?: string };
         userId = decoded.id || decoded.userId; 
-      } catch (err) {
-        // Token invalide : on ignore ici, le authMiddleware classique s'en chargera
+      } catch { 
+        // Token invalide : on ignore ici
       }
     }
     
@@ -50,6 +52,6 @@ export const antiCheatMiddleware = async (req: Request, res: Response, next: Nex
     next();
   } catch (error) {
     console.error("[AntiCheat Middleware Error]", error);
-    next(); // On ne bloque pas le serveur si l'anti-triche rencontre une erreur
+    next(); 
   }
 };
