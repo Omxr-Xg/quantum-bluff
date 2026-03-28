@@ -3,6 +3,8 @@
 > Usage strictement interne.  
 > Ce document contient volontairement des informations techniques detaillees, y compris des informations sensibles presentes dans le depot au moment de la redaction.
 
+**Dernière mise à jour du document :** mars 2026 (synthèse des évolutions récentes du dépôt, CI, casino, poker, blackjack, base de données).
+
 ---
 
 ## 1) Identite du projet
@@ -70,6 +72,9 @@
 - Tests backend: Jest + Supertest
 - Coverage: Jest/Vitest coverage
 - Dev orchestration monorepo: `concurrently`
+- **CI GitLab (backend)** :
+  - Le job `backend:test` exécute `npm run test:coverage` **sans service Redis** sur le runner : la suite Jest ne doit pas dépendre d’un Redis local. Le teardown global (`server/jest.setup.ts`) appelle `redisClient.disconnect()` (et non `quit()`, qui peut dépasser le timeout Jest si aucun serveur n’écoute). En environnement `JEST_WORKER_ID` ou `CI=true`, le client ioredis partagé est configuré pour échouer vite (`maxRetriesPerRequest` réduit, `connectTimeout` court) et pour ne pas spammer la console sur erreurs de connexion attendues (`ECONNREFUSED`, etc.). `activeGames` filtre les messages Redis « normaux » en cas d’indisponibilité (dont `max retries per request`).
+  - Le job `backend:build` exécute `tsc` en **strict** + copie Prisma generate : les imports `ioredis` côté blackjack store utilisent `import { Redis } from 'ioredis'` (compatible `moduleResolution: NodeNext`). Le nettoyage snapshot dans `cleanupOrphanBlackjackRuntime` référence explicitement le delegate Prisma `blackjackRoomSnapshot` pour éviter les erreurs TS sur `snapshotDelegate`.
 
 ---
 
@@ -132,7 +137,7 @@
 
 ## 4.2 Poker multijoueur
 
-- waiting rooms publiques/privees
+- waiting rooms publiques/privees (champ **`turbo`** : tour limité à ~10 s au lieu de ~30 s quand activé côté salle ; migration Prisma avec ajout de colonne **idempotent** `IF NOT EXISTS` pour environnements déjà partiellement migrés)
 - systeme ready/start
 - join requests pour salles privees
 - moteur cash game (`CashGameController`)
@@ -243,7 +248,7 @@ Modeles centraux identifies dans `schema.prisma`:
 - `User`, `UserStats`, `PlayerStats`
 - `GameHistory`, `GameAction`, `GameResult`
 - `FriendRequest`, `Friendship`, `FriendMessage`
-- `WaitingRoom`, `RoomPlayer`, `JoinRequest`, `GameInvitation`
+- `WaitingRoom` (dont champ **`turbo`** pour parties « rapides »), `RoomPlayer`, `JoinRequest`, `GameInvitation`
 - `CasinoStats`, `UserBadge`
 - Blackjack multi:
   - `BlackjackRoom`
@@ -270,7 +275,7 @@ Enums:
 ## 8.2 Backend (`server/package.json`)
 
 - dev: `nodemon --exec tsx src/index.ts`
-- build: `prisma generate && tsc`
+- build: `prisma generate && tsc && cp -r src/generated dist/` (client Prisma généré copié dans `dist/` pour l’exécution Node)
 - lint, test, coverage
 
 ## 8.3 Frontend (`client/package.json`)
@@ -351,10 +356,11 @@ Docs existantes utiles:
 - `Docs/RAPPORT_TESTS.md`
 - `Docs/NETWORK_QOS.md`
 - `Docs/BUILD_APPS.md`
-- `Docs/intern/RAPPORT_INTERNE_AZ.md`
+- `Docs/intern/RAPPORT_INTERNE_AZ.md` (vue d’ensemble + **§16 nouveautés récentes** + sensibilités §10)
 
 Tests:
 - backend: Jest/Supertest (`server/src/__tests__`)
+- setup global: `server/jest.setup.ts` (teardown `activeGames` + `redis.disconnect()` — pas de `quit()` bloquant)
 - frontend: Vitest + Playwright
 - verrous recents:
   - backend unit: `server/src/blackjack/services/__tests__/blackjackRuntimeHealth.service.test.ts`
@@ -376,6 +382,8 @@ Tests:
 - i18n 5 langues
 - support desktop electron + support mobile capacitor
 - securite basique bonne (helmet/cors/rate-limit/JWT/bcrypt), mais hygiene secrets a renforcer
+- **Casino** : idempotence des spins (roulette, slot) avec `actionId` / `roundId` côté client, retries réseau ou HTTP 5xx avec le même identifiant ; persistance Redis `SET NX` + TTL avec repli mémoire processus ; ledger wallet dans la transaction Prisma là où c’est en place
+- **CI** : tests backend reproductibles sans Redis ni import dynamique fragile en teardown Jest
 
 ---
 
@@ -407,6 +415,8 @@ Tests:
 - Poker edge certification: `Docs/intern/POKER_EDGE_CASES_100.md`
 - Poker room route: `server/src/routes/waitingRoom.routes.ts`
 - Prisma schema: `server/prisma/schema.prisma`
+- Config Redis partagée + mode CI/Jest: `server/src/config/redis.config.ts`
+- Setup Jest global: `server/jest.setup.ts`
 - Front roulette: `client/src/pages/Roulette.tsx`
 - Idempotence casino: `server/src/casino/services/idempotency.service.ts` (Redis avec repli memoire si Redis indisponible ; TTL ~15 min). Le client roulette et slot envoient `actionId` / `roundId` (UUID) par spin et reessaient les erreurs reseau ou HTTP 5xx avec le meme identifiant pour permettre le rejeu serveur. En production multi-instance, Redis doit etre operationnel pour que la deduplication soit fiable entre pods. Voir `server/.env.example` pour `REDIS_*` et pour `ADMIN_API_TOKEN` / `ENABLE_ADMIN_ROULETTE_OVERRIDE` (reserve machine locale + jeton).
 - Front blackjack multi lobby: `client/src/components/LobbyBlackjackMultiSection.tsx`
@@ -530,8 +540,45 @@ Priorite moyenne:
 
 ---
 
-## 16) Clause interne
+## 16) Nouveautés récentes du projet (synthèse 2025–2026)
+
+> Liste non exhaustive, ordre par thème. Voir l’historique Git pour le détail commit par commit.
+
+### Casino et monétisation fiable
+
+- **Idempotence** : service dédié (`idempotency.service.ts`) — clé par `gameType`, utilisateur et `actionId` ; réponse rejouée si identique ; **409** `IDEMPOTENCY_PAYLOAD_MISMATCH` si le corps des mises diffère pour la même clé.
+- **Roulette / Slot** : le client génère des UUID stables par spin (`actionId` / `roundId`), réessaie les erreurs réseau ou **5xx** avec le même identifiant ; alignement avec le traitement serveur **async** (await sur la chaîne idempotente / abort en cas d’échec).
+- **Admin override résultat roulette** : réservé aux environnements **non production**, **localhost** et jeton (`ENABLE_ADMIN_ROULETTE_OVERRIDE`, `ADMIN_API_TOKEN` — voir `server/.env.example`).
+- **Tests** : intégration POST double avec même `actionId` ; scénarios async, replay et mismatch de payload.
+
+### Poker multijoueur (produit et UX)
+
+- **Journal de main** : état serveur (`lastHandAction`, rôle acteur) consommé par le client ; panneau journal dans l’UI.
+- **i18n** : libellés du journal d’actions poker en **FR, EN, ES, AR, UK**.
+- **Realtime** : réduction des timers de tour obsolètes via un **epoch** par partie (évite les déclenchements croisés après changement de main).
+- **Layout / table** : pastilles SB/BB alignées sur les rôles serveur ; ajustements layout salle d’attente (bande hamburger).
+- **Tests** : couverture runtime + temps réel (leave/disconnect, invariants lock, showdown, etc.).
+
+### Blackjack multijoueur et recovery
+
+- Idempotence renforcée sur certaines routes (ex. **start** avec gestion de session).
+- Nettoyage snapshot Prisma dans `cleanupOrphanBlackjackRuntime` (suppression des snapshots pour salles dont `room.status` n’est pas `PLAYING`) avec typage explicite du delegate pour le build TypeScript strict.
+
+### Base de données
+
+- Modèle **WaitingRoom** : champ **`turbo`** (booléen, défaut `false`) pour mode partie rapide ; migrations Prisma avec garde-fous `IF NOT EXISTS` sur colonnes sensibles lors de déploiements hétérogènes.
+
+### Qualité et pipeline
+
+- **Backend test** : compatible exécution GitLab **sans Redis** (voir §2.4).
+- **Backend build** : compilation stricte ; correctifs **ioredis** (`NodeNext`) et recovery blackjack pour éviter les régressions CI.
+
+---
+
+## 17) Clause interne
 
 Ce document est destine a un usage interne d'equipe technique.  
 Toute copie externe doit etre prealablement nettoyee des sections sensibles (section 10 minimum).
+
+*La section 16 et les mises à jour des §2.4, §8.2 et §11 documentent l’état du dépôt à la révision indiquée en tête de document ; en cas de divergence, le code et la CI GitLab font foi.*
 

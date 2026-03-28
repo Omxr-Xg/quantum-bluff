@@ -16,6 +16,8 @@ import {
 } from '../logic/gamification.js'
 import { assessBlackjackRuntimeReadiness } from '../blackjack/services/blackjackRuntimeHealth.service.js'
 import { applyPokerAction } from '../poker/services/pokerActionOrchestrator.service.js'
+import { rootLogger } from '../observability/logger.js'
+import { metrics as promMetrics } from '../observability/metrics.js'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -50,7 +52,7 @@ export class GameGateway {
       const token = authToken || (typeof headerAuth === 'string' ? headerAuth.split(' ')[1] : undefined)
 
       if (!token) {
-        console.log('❌ Socket: token manquant')
+        rootLogger.warn({ msg: 'socket_auth_missing_token', socketId: socket.id })
         logSuspiciousAction('MISSING_TOKEN', {
           socketId: socket.id,
           details: 'Connexion socket sans token'
@@ -65,11 +67,11 @@ export class GameGateway {
         ) as { userId: string }
 
         socket.userId = decoded.userId
-        console.log('✅ Socket authentifié:', socket.userId)
+        rootLogger.debug({ msg: 'socket_auth_ok', userId: socket.userId, socketId: socket.id })
         next()
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Token invalide'
-        console.log('❌ Socket token invalide:', msg)
+        rootLogger.warn({ msg: 'socket_auth_invalid_token', socketId: socket.id, detail: msg })
         logSuspiciousAction('INVALID_TOKEN', {
           socketId: socket.id,
           details: 'Token socket invalide'
@@ -82,13 +84,23 @@ export class GameGateway {
   private setupHandlers() {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
       const clientsCount = (this.io as unknown as { engine: { clientsCount: number } }).engine.clientsCount
-      console.log(`[Monitoring Réseau] 🌐 Nouvelle connexion socket: ${socket.id} (User: ${socket.userId}). Total simultanées: ${clientsCount}`)
+      promMetrics.incSocketEvent('connection')
+      rootLogger.debug({
+        msg: 'socket_client_connected',
+        socketId: socket.id,
+        userId: socket.userId,
+        clientsCount,
+      })
 
       if (socket.userId) {
         this.socketToUser.set(socket.id, socket.userId)
         this.userToSocket.set(socket.userId, socket.id)
         socket.join(`user:${socket.userId}`)
-        console.log(`🔐 ${socket.userId} joined room user:${socket.userId}`)
+        rootLogger.debug({
+          msg: 'socket_user_room_joined',
+          userId: socket.userId,
+          socketId: socket.id,
+        })
       }
 
       socket.on('JOIN_USER_ROOM', ({ userId }: { userId?: string }) => {
@@ -698,7 +710,13 @@ export class GameGateway {
 
       socket.on('disconnect', async (reason) => {
         const currentCount = (this.io as unknown as { engine: { clientsCount: number } }).engine.clientsCount
-        console.log(`[Monitoring Réseau] 🔌 Déconnexion socket: ${socket.id}, Raison: ${reason}. Total: ${currentCount}`)
+        promMetrics.incSocketEvent('disconnect')
+        rootLogger.debug({
+          msg: 'socket_client_disconnected',
+          socketId: socket.id,
+          reason,
+          clientsCount: currentCount,
+        })
 
         const userId = socket.userId
         if (userId) {
