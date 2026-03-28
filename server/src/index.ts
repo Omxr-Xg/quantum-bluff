@@ -31,6 +31,7 @@ import blackjackRoutes from './routes/blackjack.routes.js'
 import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
+import hiddenBetsRoutes from './routes/hiddenBets.routes.js'
 
 // ==========================================
 // 🛡️ B4 : IMPORTS ANTI-TRICHE & ADMIN
@@ -144,6 +145,14 @@ const blackjackMultiApiLimiter = rateLimitWithMetrics({
   legacyHeaders: false,
 })
 
+const hiddenBetsApiLimiter = rateLimitWithMetrics({
+  windowMs: 60 * 1000,
+  limit: process.env.NODE_ENV === 'production' ? 120 : 2000,
+  message: { error: 'Trop de requêtes paris cachés, réessaie dans une minute' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 app.use(express.json({ limit: '10kb' }))
 
 // ==========================================
@@ -163,6 +172,7 @@ app.use('/api/bot', botApiLimiter, botRoutes)
 app.use('/api/slot', slotApiLimiter, slotRoutes)
 app.use('/api/roulette', rouletteApiLimiter, rouletteRoutes)
 app.use('/api/blackjack', blackjackApiLimiter, blackjackRoutes)
+app.use('/api/hidden-bets', hiddenBetsApiLimiter, hiddenBetsRoutes)
 app.use(
   '/api/blackjack-tables',
   blackjackMultiApiLimiter,
