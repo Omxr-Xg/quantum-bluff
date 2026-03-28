@@ -1,54 +1,60 @@
 import { prisma } from '../config/database.js';
+import { rootLogger } from '../observability/logger.js';
+
+/** Nombre minimum d'autres comptes sur la même IP pour lever une alerte multi-compte (réduit les faux positifs NAT / 4G / foyer). */
+const MULTI_ACCOUNT_MIN_OTHERS_ON_IP = 2;
 
 export class AntiCheatService {
-  // 1. Détection Multi-comptes (basée sur l'IP)
   static async logIpAndCheckMultiAccount(userId: string, ip: string) {
-
     if (ip === '::1' || ip === '127.0.0.1' || ip.includes('localhost')) {
-      return; // On ignore l'analyse si on est en développement local
+      return;
     }
-    // On met à jour la dernière IP connue du joueur
-    await prisma.user.update({ 
-        where: { id: userId }, 
-        data: { lastIp: ip } 
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lastIp: ip },
     });
 
-    // On cherche si d'autres joueurs utilisent exactement la même IP
-    const multiAccounts = await prisma.user.findMany({
-      where: { 
-          lastIp: ip, 
-          id: { not: userId } 
-      }
+    const othersOnSameIp = await prisma.user.findMany({
+      where: {
+        lastIp: ip,
+        id: { not: userId },
+      },
+      select: { id: true },
     });
 
-    // S'il y en a, on considère que c'est du multi-compte
-    if (multiAccounts.length > 0) {
+    if (othersOnSameIp.length >= MULTI_ACCOUNT_MIN_OTHERS_ON_IP) {
       await this.addAlert(userId);
     }
   }
 
-  // 2. Détection de Bot (Temps de réponse < 200ms)
   static async checkBotAction(userId: string, actionTimeMs: number) {
     if (actionTimeMs < 200) {
       await this.addAlert(userId);
     }
   }
 
-  // 3. Gestion des alertes et Sanction automatique
   private static async addAlert(userId: string) {
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { antiCheatAlerts: { increment: 1 } }
+      data: { antiCheatAlerts: { increment: 1 } },
     });
-    console.log(`🚨 [AntiCheat] Alerte ajoutée pour ${userId} ! (Total: ${user.antiCheatAlerts}/5)`);
-    // Si le joueur a 5 alertes ou plus, on le ban automatiquement pour 24h
+    rootLogger.warn({
+      msg: 'anticheat_alert_incremented',
+      userId,
+      totalAlerts: user.antiCheatAlerts,
+    });
     if (user.antiCheatAlerts >= 5) {
-      const bannedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); // +24 heures
+      const bannedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
       await prisma.user.update({
         where: { id: userId },
-        data: { bannedUntil }
+        data: { bannedUntil },
       });
-      console.warn(`[ANTI-CHEAT] Utilisateur ${userId} banni automatiquement pour 24h.`);
+      rootLogger.warn({
+        msg: 'anticheat_auto_ban',
+        userId,
+        bannedUntil: bannedUntil.toISOString(),
+      });
     }
   }
 }

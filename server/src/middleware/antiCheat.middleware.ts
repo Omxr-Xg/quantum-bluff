@@ -54,6 +54,6 @@ export const antiCheatMiddleware = async (req: Request, res: Response, next: Nex
     next();
   } catch (error) {
     rootLogger.error({ msg: 'anticheat_middleware_error', detail: error });
-    next(); 
+    next();
   }
 };
