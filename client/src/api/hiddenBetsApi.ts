@@ -2,10 +2,20 @@ import { apiUrl } from "../utils/apiBase";
 
 const jsonHeaders = { "Content-Type": "application/json" };
 
+export type HiddenBetMarketPhase =
+  | "PRE_HAND"
+  | "LIVE_FLOP"
+  | "LIVE_TURN"
+  | "LIVE_RIVER";
+
 export type SelectionPayload =
   | { marketType: "PLAYER_WINS"; playerId: string }
   | { marketType: "WINNING_HAND_CLASS"; class: string }
-  | { marketType: "WINNING_HAND_CONTAINS_RANK"; rank: string };
+  | { marketType: "WINNING_HAND_CONTAINS_RANK"; rank: string }
+  | { marketType: "PLAYER_WINS_CURRENT_HAND"; playerId: string }
+  | { marketType: "HAND_REACHES_SHOWDOWN" }
+  | { marketType: "HAND_ENDS_BY_FOLD" }
+  | { marketType: "FINAL_WINNING_HAND_CLASS"; class: string };
 
 export interface HiddenBetQuoteResponse {
   quotedOdds: number;
@@ -14,11 +24,13 @@ export interface HiddenBetQuoteResponse {
   quoteExpiresAt: string;
   quoteHash: string;
   quotedProbability?: number;
+  marketPhase?: HiddenBetMarketPhase;
 }
 
 export async function quoteHiddenBet(body: {
   gameId: string;
-  handId: string;
+  marketPhase: HiddenBetMarketPhase;
+  targetHandId: string;
   combinator: "SINGLE" | "AND";
   selections: SelectionPayload[];
   stakePreview?: number;
@@ -36,7 +48,8 @@ export async function quoteHiddenBet(body: {
 
 export async function placeHiddenBet(body: {
   gameId: string;
-  handId: string;
+  marketPhase: HiddenBetMarketPhase;
+  targetHandId: string;
   stake: number;
   combinator: "SINGLE" | "AND";
   selections: SelectionPayload[];
@@ -63,4 +76,14 @@ export async function fetchHiddenBetHistory(limit = 50): Promise<{ tickets: unkn
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error ?? res.statusText);
   return data as { tickets: unknown[] };
+}
+
+export async function fetchHiddenBetMarkets(gameId: string, phase?: HiddenBetMarketPhase | "ALL") {
+  const q = phase ? `&phase=${encodeURIComponent(phase)}` : "";
+  const res = await fetch(apiUrl(`/api/hidden-bets/markets?gameId=${encodeURIComponent(gameId)}${q}`), {
+    credentials: "include",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? res.statusText);
+  return data as { markets: unknown[]; gameId: string };
 }

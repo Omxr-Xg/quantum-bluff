@@ -2,7 +2,7 @@ import { validateSelections, computeQuotedOdds } from '../poker/hiddenBets/marke
 
 describe('hidden bets markets', () => {
   it('valide SINGLE PLAYER_WINS', () => {
-    const r = validateSelections([{ marketType: 'PLAYER_WINS', playerId: 'u1' }], 'SINGLE')
+    const r = validateSelections([{ marketType: 'PLAYER_WINS', playerId: 'u1' }], 'SINGLE', 'PRE_HAND')
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.selections[0].marketType).toBe('PLAYER_WINS')
   })
@@ -13,7 +13,8 @@ describe('hidden bets markets', () => {
         { marketType: 'PLAYER_WINS', playerId: 'u1' },
         { marketType: 'WINNING_HAND_CLASS', class: 'STRAIGHT' },
       ],
-      'AND'
+      'AND',
+      'PRE_HAND'
     )
     expect(r.ok).toBe(true)
   })
@@ -24,16 +25,17 @@ describe('hidden bets markets', () => {
         { marketType: 'WINNING_HAND_CLASS', class: 'STRAIGHT' },
         { marketType: 'WINNING_HAND_CLASS', class: 'FLUSH' },
       ],
-      'AND'
+      'AND',
+      'PRE_HAND'
     )
     expect(r.ok).toBe(false)
   })
 
   it('computeQuotedOdds PLAYER_WINS', () => {
-    const v = validateSelections([{ marketType: 'PLAYER_WINS', playerId: 'a' }], 'SINGLE')
+    const v = validateSelections([{ marketType: 'PLAYER_WINS', playerId: 'a' }], 'SINGLE', 'PRE_HAND')
     expect(v.ok).toBe(true)
     if (!v.ok) return
-    const odds = computeQuotedOdds(v.selections, 'SINGLE', 4)
+    const odds = computeQuotedOdds(v.selections, 'SINGLE', 4, 'PRE_HAND')
     expect(odds).toBeGreaterThan(2)
   })
 })
