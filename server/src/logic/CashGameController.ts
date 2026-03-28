@@ -289,6 +289,18 @@ export class CashGameController implements IGameSession {
     return true
   }
 
+  /** Annule le compte à rebours entre deux mains (timer + date de fin). */
+  cancelInterHandCountdown(): void {
+    if (this.countdownTimer) {
+      clearTimeout(this.countdownTimer)
+      this.countdownTimer = null
+    }
+    this.countdownEndsAt = null
+    if (this.runtimePhase === 'NEXT_HAND_COUNTDOWN') {
+      this.runtimePhase = 'WAITING_PLAYERS'
+    }
+  }
+
   /** Se lever (entre les mains uniquement) */
   leave(userId: string): { ok: boolean; error?: string } {
     if (this.gameTable != null) return { ok: false, error: 'Une main est en cours' }
@@ -348,9 +360,12 @@ export class CashGameController implements IGameSession {
       ? { ...this.gameTable.getSanitizedState(requestingPlayerId), cashCountdownEndsAt: undefined, cashSeats: this.seats }
       : { ...this.state, phase: this.countdownEndsAt ? 'WAITING' : 'WAITING' as const }
     const turnTimeLimitSec = Math.round(this.turnTimeoutMs / 1000)
+    const cashCountdownRemainingSec =
+      !this.gameTable && this.countdownEndsAt ? this.getCountdownSecondsRemaining() : undefined
     return {
       ...base,
       turnTimeLimitSec,
+      cashCountdownRemainingSec,
       spectatorRejoinQueue: Array.from(this.spectatorRejoinQueue)
     }
   }
