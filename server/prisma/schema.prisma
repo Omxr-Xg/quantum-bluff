@@ -482,11 +482,19 @@ enum HiddenBetCombinator {
   AND
 }
 
+enum HiddenBetMarketPhase {
+  PRE_HAND
+  LIVE_FLOP
+  LIVE_TURN
+  LIVE_RIVER
+}
+
 model HiddenBetTicket {
   id                    String                 @id @default(uuid())
   userId                String
   gameId                String
   handId                String
+  marketPhase           HiddenBetMarketPhase   @default(PRE_HAND)
   status                HiddenBetTicketStatus  @default(PENDING)
   stake                 Int
   quotedOdds            Float
@@ -496,13 +504,16 @@ model HiddenBetTicket {
   placedAt              DateTime               @default(now())
   resolvedAt            DateTime?
   resolutionStartedAt   DateTime?
+  quoteExpiresAt        DateTime?
   actionId              String
   pricingVersion        String
   resolutionVersion     String                 @default("hidden-bets-resolve-v1")
   resultSummaryJson     String?
+  stateSnapshotJson     String?
   ticketHash            String?
   quoteHash             String?
   quotedProbability     Float?
+  houseEdgeVersion      String?
 
   user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   selections HiddenBetSelection[]
@@ -511,6 +522,7 @@ model HiddenBetTicket {
   @@index([userId, gameId, handId])
   @@index([gameId, handId, status])
   @@index([userId, status])
+  @@index([gameId, handId, marketPhase])
   @@map("hidden_bet_tickets")
 }
 
