@@ -1,6 +1,12 @@
 import { apiUrl } from "../utils/apiBase";
 
-const jsonHeaders = { "Content-Type": "application/json" };
+function authHeaders(json = false): HeadersInit {
+  const token = typeof localStorage !== "undefined" ? localStorage.getItem("token") : null;
+  const h: Record<string, string> = {};
+  if (json) h["Content-Type"] = "application/json";
+  if (token) h.Authorization = `Bearer ${token}`;
+  return h;
+}
 
 export type HiddenBetMarketPhase =
   | "PRE_HAND"
@@ -38,7 +44,7 @@ export async function quoteHiddenBet(body: {
   const res = await fetch(apiUrl("/api/hidden-bets/quote"), {
     method: "POST",
     credentials: "include",
-    headers: jsonHeaders,
+    headers: authHeaders(true),
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
@@ -61,7 +67,7 @@ export async function placeHiddenBet(body: {
   const res = await fetch(apiUrl("/api/hidden-bets/place"), {
     method: "POST",
     credentials: "include",
-    headers: jsonHeaders,
+    headers: authHeaders(true),
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
@@ -72,6 +78,7 @@ export async function placeHiddenBet(body: {
 export async function fetchHiddenBetHistory(limit = 50): Promise<{ tickets: unknown[] }> {
   const res = await fetch(apiUrl(`/api/hidden-bets/history?limit=${limit}`), {
     credentials: "include",
+    headers: authHeaders(),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error ?? res.statusText);
@@ -82,6 +89,7 @@ export async function fetchHiddenBetMarkets(gameId: string, phase?: HiddenBetMar
   const q = phase ? `&phase=${encodeURIComponent(phase)}` : "";
   const res = await fetch(apiUrl(`/api/hidden-bets/markets?gameId=${encodeURIComponent(gameId)}${q}`), {
     credentials: "include",
+    headers: authHeaders(),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error ?? res.statusText);

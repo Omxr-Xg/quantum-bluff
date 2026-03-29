@@ -140,13 +140,14 @@ export function HandCombinationsHelpButton({
     }
   }, []);
 
-  const setOpenTracked = useCallback(
-    (next: boolean) => {
-      setOpen(next);
-      onOpenChange?.(next);
-    },
-    [onOpenChange]
-  );
+  const setOpenTracked = useCallback((next: boolean) => {
+    setOpen(next);
+  }, []);
+
+  /** Ne pas appeler onOpenChange dans un updater setOpen (effet de bord interdit ; Strict Mode double-invocation). */
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [open, onOpenChange]);
 
   useEffect(() => {
     return () => {
@@ -177,12 +178,8 @@ export function HandCombinationsHelpButton({
   const handleClick = useCallback(() => {
     clearShowTimer();
     clearHideTimer();
-    setOpen((o) => {
-      const next = !o;
-      onOpenChange?.(next);
-      return next;
-    });
-  }, [clearShowTimer, clearHideTimer, onOpenChange]);
+    setOpen((o) => !o);
+  }, [clearShowTimer, clearHideTimer]);
 
   return (
     <div
