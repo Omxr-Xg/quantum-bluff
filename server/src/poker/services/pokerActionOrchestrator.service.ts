@@ -5,6 +5,7 @@ import { makePokerActionDedupKey, registerPokerActionDedup } from './pokerAction
 import { withPokerTableLock } from './pokerTableLock.service.js'
 import { metrics } from '../../observability/metrics.js'
 import { rootLogger } from '../../observability/logger.js'
+import { TournamentService } from '../../services/tournament.service.js'
 
 type ActionTarget = {
   getStateContext: () => { handId?: string; phase?: string; currentTurn?: string }
@@ -113,7 +114,50 @@ export async function applyPokerAction(payloadLike: Partial<PokerActionPayload>)
 
   const lockOwner = `${payload.playerId}:${payload.actionId ?? Date.now().toString()}`
   await withPokerTableLock(payload.gameId, lockOwner, async () => {
+    
+    // 1. Le joueur fait son action (Fold, Call, Raise...)
     target.apply(payload.playerId, payload.actionType, payload.amount)
+
+    // 2. 🔄 GESTION DE LA FIN DE MAIN ET RELANCE AUTOMATIQUE
+    if (game.state.handRuntimePhase === 'HAND_COMPLETE') {
+      
+      // A. L'Élimination (La faucheuse)
+      if (payload.gameId.startsWith('game_tournoi_')) {
+        const bustedPlayers = game.state.players.filter(p => p.chips <= 0);
+        for (const busted of bustedPlayers) {
+          TournamentService.notifyElimination(busted.id);
+        }
+      }
+
+      // B. On compte les survivants (ceux qui ont encore des jetons et sont connectés)
+      const survivors = game.state.players.filter(p => p.chips > 0 && p.isConnected !== false);
+
+      if (survivors.length > 1) {
+        // ⏱️ CAS 1 : Il reste des joueurs. On relance une main dans 5 secondes.
+        console.log(`⏱️ [MOTEUR] Fin de main. Prochaine main dans 5 secondes...`);
+        
+        setTimeout(async () => {
+          try {
+            // On récupère la table à jour
+            const currentGame = await activeGames.get(payload.gameId);
+            if (currentGame) {
+              console.log(`🃏 [MOTEUR] Distribution de la nouvelle main pour ${payload.gameId}`);
+              currentGame.startHand(); // Le croupier distribue !
+              await activeGames.set(payload.gameId, currentGame); // On sauvegarde le nouvel état
+            }
+          } catch (error) {
+            console.error("❌ Erreur lors de la relance auto de la main :", error);
+          }
+        }, 5000); // 5000 millisecondes = 5 secondes
+
+      } else if (survivors.length === 1 && payload.gameId.startsWith('game_tournoi_')) {
+        // 🏆 CAS 2 : Il ne reste qu'un seul joueur. FIN DU TOURNOI !
+        console.log(`🏆 [TOURNOI] VICTOIRE IMPÉRIALE DE ${survivors[0].name} !`);
+        
+        // Bientôt, on mettra ici le code pour donner l'argent au gagnant !
+      }
+    }
+
   })
 
   metrics.incPokerAction('ACCEPTED')

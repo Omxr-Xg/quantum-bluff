@@ -7,12 +7,25 @@ export class TournamentService {
   // Stockage du socket au niveau de la classe
   private static io: any = null;
 
+  private static alreadyEliminated = new Set<string>();
+
   /**
    * Initialise le socket pour tout le service
    */
   static setIo(io: any) {
     this.io = io;
     console.log("✅ [TournamentService] Mégaphone Socket branché au service.");
+  }
+
+  static notifyElimination(userId: string) {
+    if (this.alreadyEliminated.has(userId)) return; // S'il est déjà mort, on le laisse en paix
+    
+    this.alreadyEliminated.add(userId);
+    
+    if (this.io) {
+      console.log(`📣 [SOCKET] Éjection activée pour le joueur ${userId}`);
+      this.io.emit('tournament-eliminated', { userId });
+    }
   }
 
   /**

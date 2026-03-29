@@ -68,42 +68,32 @@ function TournamentTeleporter() {
   const { addToast } = useToast();
 
   useEffect(() => {
-    console.log("🔌 [DEBUG] Téléporteur actif pour l'utilisateur :", userId);
-
-    if (!socket.connected) {
-      console.log("🔌 Tentative de connexion manuelle...");
-      socket.connect();
-    }
-
-    console.log("🔌 Statut Socket:", socket.connected ? "CONNECTÉ ✅" : "DÉCONNECTÉ ❌");
-    console.log("🆔 Mon ID Socket:", socket.id);
-
+    // 1. L'écouteur de départ du tournoi (celui que tu as déjà)
     const handleTournamentStart = (data: any) => {
-      // 🚩 LOG N°1 : Est-ce que le message arrive au navigateur ?
-      console.log("📩 [SOCKET] Signal 'tournament-started' reçu !", data);
-      
-      if (!userId) {
-        console.warn("⚠️ [DEBUG] Signal reçu mais userId est indéfini dans le store.");
-        return;
-      }
-
-      // 🚩 LOG N°2 : Vérification de la présence dans la liste
       const isIncluded = data.playersToTeleport?.includes(userId);
-      console.log(`🧐 [DEBUG] Mon ID (${userId}) est-il dans la liste ?`, isIncluded);
-
       if (isIncluded) {
         const myTableId = data.playerToGameMap[userId];
-        console.log("🚀 [DEBUG] Téléportation vers la table :", myTableId);
-        
         addToast(`Le tournoi commence !`, "success");
         navigate(`/game?gameId=${myTableId}`);
       }
     };
 
+    // 2. 💀 LE NOUVEL ÉCOUTEUR : L'Élimination
+    const handleElimination = (data: { userId: string, rank?: number }) => {
+      // Si le message m'est destiné
+      if (data.userId === userId) {
+        console.log("💀 [SOCKET] Signal d'élimination reçu !");
+        addToast("Vous n'avez plus de jetons. Vous êtes éliminé du tournoi ! 😭", "error"); // Message rouge
+        navigate('/tournaments'); // Retour au lobby des tournois
+      }
+    };
+
     socket.on('tournament-started', handleTournamentStart);
+    socket.on('tournament-eliminated', handleElimination); // On branche le signal
 
     return () => {
       socket.off('tournament-started', handleTournamentStart);
+      socket.off('tournament-eliminated', handleElimination); // On le débranche proprement
     };
   }, [userId, navigate, addToast]);
 
