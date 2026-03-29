@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 
 import { AccessibilityProvider } from "./contexts/AccessibilityContext";
 import { AccessibilityMenuOpenProvider } from "./contexts/AccessibilityMenuOpenContext";
@@ -25,11 +26,88 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 import { MiniGames } from './pages/MiniGames';
+import { TournamentLobby } from './pages/TournamentLobby';
+import { AdminTournaments } from './pages/AdminTournaments';
+
+// NOUVEAUX IMPORTS POUR LA TÉLÉPORTATION DU TOURNOI
+import { socket } from './services/socket'; // Vérifie que ce chemin pointe bien vers ton fichier socket.ts
+import { useUser } from './hooks/useUser';
+import { useToast } from './contexts/ToastContext';
+
+socket.on("connect_error", (err) => {
+  console.error("❌ ERREUR DE CONNEXION SOCKET :", err.message);
+  if (err.message === "xhr poll error") {
+    console.log("👉 Cause probable : Le serveur est éteint ou l'URL est mauvaise.");
+  }
+  if (err.message === "Not authorized") {
+    console.log("👉 Cause probable : Ton token JWT est absent ou invalide.");
+  }
+});
+
+socket.on("connect", () => {
+  console.log("✅ SOCKET ENFIN CONNECTÉ ! ID :", socket.id);
+});
+
+
+socket.onAny((eventName, ...args) => {
+  console.log(`🌐 [SOCKET GLOBAL] Événement reçu : ${eventName}`, args);
+});
 
 /** Force un remount propre lors de la navigation (ex: config bot → jeu) pour éviter les blocages */
 function GameWithKey() {
   const location = useLocation();
   return <Game key={location.pathname + location.search} />;
+}
+
+/** * 🚀 LE TÉLÉPORTEUR SECRET : Il écoute les signaux Socket en tâche de fond 
+ * et téléporte le joueur quand son tournoi commence.
+ */
+function TournamentTeleporter() {
+  const navigate = useNavigate();
+  const { userId } = useUser();
+  const { addToast } = useToast();
+
+  useEffect(() => {
+    console.log("🔌 [DEBUG] Téléporteur actif pour l'utilisateur :", userId);
+
+    if (!socket.connected) {
+      console.log("🔌 Tentative de connexion manuelle...");
+      socket.connect();
+    }
+
+    console.log("🔌 Statut Socket:", socket.connected ? "CONNECTÉ ✅" : "DÉCONNECTÉ ❌");
+    console.log("🆔 Mon ID Socket:", socket.id);
+
+    const handleTournamentStart = (data: any) => {
+      // 🚩 LOG N°1 : Est-ce que le message arrive au navigateur ?
+      console.log("📩 [SOCKET] Signal 'tournament-started' reçu !", data);
+      
+      if (!userId) {
+        console.warn("⚠️ [DEBUG] Signal reçu mais userId est indéfini dans le store.");
+        return;
+      }
+
+      // 🚩 LOG N°2 : Vérification de la présence dans la liste
+      const isIncluded = data.playersToTeleport?.includes(userId);
+      console.log(`🧐 [DEBUG] Mon ID (${userId}) est-il dans la liste ?`, isIncluded);
+
+      if (isIncluded) {
+        const myTableId = data.playerToGameMap[userId];
+        console.log("🚀 [DEBUG] Téléportation vers la table :", myTableId);
+        
+        addToast(`Le tournoi commence !`, "success");
+        navigate(`/game?gameId=${myTableId}`);
+      }
+    };
+
+    socket.on('tournament-started', handleTournamentStart);
+
+    return () => {
+      socket.off('tournament-started', handleTournamentStart);
+    };
+  }, [userId, navigate, addToast]);
+
+  return null;
 }
 
 const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
@@ -43,10 +121,12 @@ function App() {
         <AccessibilityMenuOpenProvider>
         <ErrorBoundary>
         <Layout>
+          
+          {/* On place le téléporteur ici pour qu'il soit actif sur TOUTES les pages */}
+          <TournamentTeleporter />
+
           <Routes>
-
             <Route path="/" element={<StartScreen />} />
-
             <Route path="/auth" element={<Auth />} />
 
             <Route path="/lobby" element={<ProtectedRoute><Lobby /></ProtectedRoute>} />
@@ -71,6 +151,10 @@ function App() {
             <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
 
             <Route path="/tutorial-lobby" element={<ProtectedRoute><TutorialLobby /></ProtectedRoute>} />
+
+            {/* Note : J'ai mis ProtectedRoute pour le lobby des tournois, c'est mieux si ça coûte des jetons ! */}
+            <Route path="/tournaments" element={<ProtectedRoute><TournamentLobby /></ProtectedRoute>} />
+            <Route path="/admin/tournaments" element={<ProtectedRoute><AdminTournaments /></ProtectedRoute>} />
 
           </Routes>
         </Layout>
