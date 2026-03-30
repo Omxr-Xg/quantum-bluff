@@ -1,5 +1,6 @@
 import { Redis } from 'ioredis';
 import { GameTable } from '../logic/GameTable.js';
+import { rootLogger } from '../observability/logger.js';
 import type { Card, GamePhase, Player } from '../types/poker.js';
 
 interface SerializedGameState {
@@ -10,6 +11,10 @@ interface SerializedGameState {
   phase: string;
 }
 
+/** CI / Jest sans Redis : éviter les reconnexions longues et le spam de logs. */
+const redisLiteClient =
+  Boolean(process.env.JEST_WORKER_ID) || process.env.CI === 'true'
+
 // Configuration Redis
 const redisOptions = {
   host: process.env.REDIS_HOST || 'localhost',
@@ -18,20 +23,36 @@ const redisOptions = {
   retryStrategy: (times: number) => {
     const delay = Math.min(times * 50, 2000);
     return delay;
-  }
-};
+  },
+  maxRetriesPerRequest: redisLiteClient ? 1 : 20,
+  connectTimeout: redisLiteClient ? 1000 : undefined,
+}
 
-const redisClient = process.env.REDIS_URL 
-  ? new Redis(process.env.REDIS_URL, { retryStrategy: redisOptions.retryStrategy })
-  : new Redis(redisOptions);
+const redisClient = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL, {
+      retryStrategy: redisOptions.retryStrategy,
+      maxRetriesPerRequest: redisOptions.maxRetriesPerRequest,
+      connectTimeout: redisOptions.connectTimeout,
+    })
+  : new Redis(redisOptions)
 
 redisClient.on('connect', () => {
-  console.log('✅ Redis connecté');
-});
+  if (!process.env.JEST_WORKER_ID) {
+    rootLogger.info({ msg: 'redis_connected' })
+  }
+})
 
 redisClient.on('error', (err: Error) => {
-  console.error('❌ Erreur Redis:', err);
-});
+  if (redisLiteClient) {
+    if (err instanceof AggregateError) return
+    const msg = err?.message ?? String(err)
+    if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(msg)) return
+  }
+  rootLogger.error({
+    msg: 'redis_client_error',
+    detail: err instanceof Error ? err.message : String(err),
+  })
+})
 
 /** Vérifie si Redis est opérationnel (pour fallback activeGames) */
 export const isRedisHealthy = async (): Promise<boolean> => {
@@ -92,7 +113,10 @@ export const deserializeGame = (gameId: string, data: string): GameTable | null 
     };
     return game;
   } catch (err) {
-    console.error('Erreur désérialisation partie:', err);
+    rootLogger.error({
+      msg: 'redis_deserialize_game_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    })
     return null;
   }
 };
@@ -137,9 +161,14 @@ export const getAllGames = async (): Promise<Map<string, GameTable>> => {
 
 // Restaurer toutes les parties au démarrage
 export const restoreAllGames = async (): Promise<Map<string, GameTable>> => {
-  console.log('🔄 Restauration des parties en cours...');
+  const quietJest = Boolean(process.env.JEST_WORKER_ID)
+  if (!quietJest) {
+    rootLogger.info({ msg: 'redis_restore_games_start' })
+  }
   const games = await getAllGames();
-  console.log(`✅ ${games.size} parties restaurées`);
+  if (!quietJest) {
+    rootLogger.info({ msg: 'redis_restore_games_complete', count: games.size })
+  }
   return games;
 };
 

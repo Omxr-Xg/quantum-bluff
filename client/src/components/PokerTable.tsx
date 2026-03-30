@@ -7,6 +7,7 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { PokerCard } from "./PokerCard";
 import { Clock } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
+import { useTableTheme } from "../contexts/TableThemeContext";
 
 interface Card {
   suit: string;
@@ -21,11 +22,15 @@ interface Player {
   position: number;
   isActive: boolean;
   isDealer?: boolean;
+  /** SB / BB alignés serveur (comme le journal) ; DEALER = bouton via isDealer. */
+  role?: "SB" | "BB" | "PLAYER";
   cards?: Card[];
   isConnected?: boolean;
   hasFolded?: boolean;
   /** Dernière action affichée à côté de l'avatar (ex: "a checké", "s'est couché") */
   lastAction?: string | null;
+  /** URL d’avatar (cash multijoueur, diffusée par le serveur). */
+  avatar?: string;
 }
 
 interface PokerTableProps {
@@ -36,6 +41,8 @@ interface PokerTableProps {
   /** Nombre de cartes brûlées à afficher face cachée dans le conteneur dédié */
   burnedCardsCount?: number;
   colorblindMode?: boolean;
+  /** Id du siège du joueur local (`userId` en ligne, `"human"` en mode bot). */
+  heroSeatId?: string | number | null;
 }
 
 // Dimensions de base (référence pour le calcul des positions)
@@ -49,8 +56,10 @@ export function PokerTable({
   phase,
   burnedCardsCount = 0,
   colorblindMode = false,
+  heroSeatId = null,
 }: PokerTableProps) {
   const { t } = useTranslation();
+  const { feltGradient, feltBorder } = useTableTheme();
   const isShowdown = phase === "showdown";
 
   const deviceType = useDeviceType();
@@ -107,10 +116,11 @@ export function PokerTable({
       >
         {/* TABLE - remplit le wrapper */}
         <div
-          className="relative w-full h-full rounded-full border-[clamp(3px,1vw,8px)] border-amber-900/80"
+          className="relative w-full h-full rounded-full border-[clamp(3px,1vw,8px)]"
           style={{
-            background:
-              "radial-gradient(ellipse at center, #0d9660 0%, #0a7c4a 35%, #065a36 70%, #043d24 100%)",
+            background: feltGradient,
+            borderColor: feltBorder,
+            borderStyle: "solid",
             transform: `rotateX(${isMobile ? "20deg" : isTablet ? "22deg" : "25deg"})`,
             boxShadow:
               "inset 0 8px 24px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06), 0 12px 32px rgba(0,0,0,0.4)",
@@ -195,13 +205,33 @@ export function PokerTable({
 
               <div className="flex flex-col items-center gap-2">
 
-                {/* DEALER BUTTON - simple marqueur de position (disque blanc avec D) */}
-                {player.isDealer && (
-                  <div
-                    className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-full bg-white border-2 border-slate-300 text-slate-700 font-bold text-xs md:text-sm shadow-md"
-                    title={t('game.dealer')}
-                  >
-                    D
+                {/* Bouton dealer + jetons SB/BB (même source que le journal multijoueur) */}
+                {(player.isDealer || player.role === "SB" || player.role === "BB") && (
+                  <div className="flex flex-wrap items-center justify-center gap-1">
+                    {player.isDealer && (
+                      <div
+                        className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-full bg-white border-2 border-slate-300 text-slate-700 font-bold text-xs md:text-sm shadow-md"
+                        title={t('game.dealer')}
+                      >
+                        D
+                      </div>
+                    )}
+                    {player.role === "SB" && (
+                      <div
+                        className="flex h-7 min-w-[1.75rem] items-center justify-center rounded-full border-2 border-amber-800/40 bg-amber-100 px-1 text-[10px] font-bold text-amber-950 shadow-md md:h-8 md:text-xs"
+                        title={t("lobby.smallBlind")}
+                      >
+                        SB
+                      </div>
+                    )}
+                    {player.role === "BB" && (
+                      <div
+                        className="flex h-7 min-w-[1.75rem] items-center justify-center rounded-full border-2 border-amber-500/50 bg-slate-800 px-1 text-[10px] font-bold text-amber-100 shadow-md md:h-8 md:text-xs"
+                        title={t("lobby.bigBlind")}
+                      >
+                        BB
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -221,9 +251,9 @@ export function PokerTable({
                   ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`}
                 >
 
-                  {getPlayerAvatar(player.name) ? (
+                  {getPlayerAvatar(player.name, player.id, heroSeatId, player.avatar) ? (
                     <ImageWithFallback
-                      src={getPlayerAvatar(player.name)}
+                      src={getPlayerAvatar(player.name, player.id, heroSeatId, player.avatar)}
                       alt={player.name}
                       className={`w-full h-full object-cover ${player.hasFolded ? "blur-[2px] opacity-40 brightness-50" : ""}`}
                     />

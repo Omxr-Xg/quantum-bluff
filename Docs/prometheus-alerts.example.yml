@@ -1,0 +1,48 @@
+# Exemples d’alertes Prometheus (à adapter à votre stack Alertmanager / kube-prometheus).
+# Non chargés automatiquement par l’application.
+
+groups:
+  - name: quantum-bluff-http
+    rules:
+      - alert: HighHttp5xxRate
+        expr: |
+          sum(rate(http_requests_total{status_class="5xx"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Taux HTTP 5xx élevé
+          description: Vérifier les logs `http_unhandled_error` et la charge.
+
+      - alert: HighRateLimit429
+        expr: |
+          sum(rate(http_requests_total{status_class="4xx"}[5m])) by (route_group) > 10
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: Pic de 4xx (dont 429 possibles) par route_group
+          description: Corréler avec `rate_limit_exceeded_total`.
+
+  - name: quantum-bluff-degraded
+    rules:
+      - alert: AppDegradedRedis
+        expr: app_degraded{reason="redis_unavailable"} == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Mode dégradé (Redis indisponible, fallback mémoire)
+          description: Vérifier Redis et la charge idempotence.
+
+  - name: quantum-bluff-poker
+    rules:
+      - alert: PokerStaleActionSpike
+        expr: |
+          sum(rate(poker_actions_total{code="STALE_ACTION"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Pic d’actions poker rejetées STALE_ACTION
+          description: Investiguer latence réseau ou clients désynchronisés.

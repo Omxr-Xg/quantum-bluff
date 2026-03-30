@@ -5,6 +5,9 @@
 * link:ROULETTE.adoc[Roulette européenne]
 * link:SLOT_MACHINE.adoc[Machine à sous]
 
+== Poker (Texas Hold’em)
+* link:QUANTUM_COMBI.adoc[Quantum Combi — définition et probabilité]
+
 == Où sont les règles ?
 * Blackjack : `server/src/logic/blackjack.ts`
 * Roulette : `server/src/logic/roulette.ts`

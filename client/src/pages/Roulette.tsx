@@ -12,6 +12,7 @@ import {
 } from "../utils/gamificationStorage";
 
 import { apiUrl } from "../utils/apiBase";
+import { ChipIcon } from "../components/ChipIcon";
 
 /** Valeurs disponibles + styles (couleur du bord / face) — style « tapis » réel. */
 const ROULETTE_CHIP_TOKENS: readonly {
@@ -148,13 +149,6 @@ function cornerKey(n1: number, n2: number, n3: number, n4: number): BetKey {
 const DEFAULT_WHEEL = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
 ];
-
-/** Entier 0–36 pour forcer le résultat roulette. */
-function clampRouletteResultInt(raw: number): number {
-  const n = Math.trunc(raw);
-  if (!Number.isFinite(n)) return 0;
-  return Math.min(36, Math.max(0, n));
-}
 
 function mod360(x: number): number {
   let m = x % 360;
@@ -391,9 +385,23 @@ function RouletteWheelSvg({ wheelOrder, rotation }: { wheelOrder: number[]; rota
   );
 }
 
-export function Roulette() {
+type RouletteProps = {
+  /** Dans `/minigames`, le retour mène au lobby (onglet mini-jeux) au lieu du lobby seul. */
+  backToMinigamesHub?: boolean;
+  onBackToMinigamesHub?: () => void;
+};
+
+export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: RouletteProps = {}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  const handleBack = () => {
+    if (backToMinigamesHub && onBackToMinigamesHub) {
+      onBackToMinigamesHub();
+    } else {
+      navigate("/lobby");
+    }
+  };
   const { addToast } = useToast();
   const [chips, setChips] = useState<number | null>(null);
   const [minBet, setMinBet] = useState(10);
@@ -403,13 +411,10 @@ export function Roulette() {
   /** Somme des jetons tapés avant de poser sur le tapis. */
   const [pendingStake, setPendingStake] = useState(0);
   const [bets, setBets] = useState<Map<BetKey, number>>(() => new Map());
-  const [betHistory, setBetHistory] = useState<{ key: BetKey; amt: number }[]>([]);
+  const [_betHistory, setBetHistory] = useState<{ key: BetKey; amt: number }[]>([]);
   const betsRef = useRef(bets);
   betsRef.current = bets;
   const [spinning, setSpinning] = useState(false);
-  /** Si défini : ce numéro 0–36 est envoyé à chaque spin tant que le champ reste rempli. */
-  const [devForceNextResult, setDevForceNextResult] = useState<number | null>(null);
-  const devForceInputRef = useRef<HTMLInputElement>(null);
   const [lastResult, setLastResult] = useState<number | null>(null);
   const [lastColor, setLastColor] = useState<string | null>(null);
   const rotation = useMotionValue(0);
@@ -559,42 +564,76 @@ export function Roulette() {
     setLastResult(null);
     setLastColor(null);
 
-    const forcedResultInt =
-      devForceNextResult !== null ? clampRouletteResultInt(devForceNextResult) : null;
+    const actionId = crypto.randomUUID();
+    const roundId = actionId;
+    const url = apiUrl("/api/roulette/spin");
+    const maxAttempts = 3;
+    let data: Record<string, unknown> | null = null;
 
     try {
-      const url = apiUrl("/api/roulette/spin");
-      const payload: { bets: ApiBet[]; forceResult?: number } = { bets: body };
-      if (forcedResultInt !== null) {
-        payload.forceResult = forcedResultInt;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ bets: body, actionId, roundId }),
+          });
+          const parsed = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+          if (res.ok) {
+            data = parsed;
+            break;
+          }
+
+          if (parsed?.code === "IDEMPOTENCY_PAYLOAD_MISMATCH") {
+            addToast(
+              typeof parsed?.error === "string" ? parsed.error : t("roulette.errorSpin"),
+              "error"
+            );
+            return;
+          }
+
+          const retriable =
+            res.status >= 500 ||
+            res.status === 408 ||
+            (res.status === 409 && parsed?.code === "DUPLICATE_ACTION");
+
+          if (retriable && attempt < maxAttempts - 1) {
+            await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+            continue;
+          }
+
+          addToast(
+            typeof parsed?.error === "string" ? parsed.error : t("roulette.errorSpin"),
+            "error"
+          );
+          return;
+        } catch {
+          if (attempt < maxAttempts - 1) {
+            await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+            continue;
+          }
+          addToast(t("roulette.errorSpin"), "error");
+          return;
+        }
       }
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        addToast(typeof data?.error === "string" ? data.error : t("roulette.errorSpin"), "error");
-        setSpinning(false);
+
+      if (!data) {
+        addToast(t("roulette.errorSpin"), "error");
         return;
       }
 
       const result =
-        typeof data?.result === "number" && Number.isFinite(data.result)
-          ? clampRouletteResultInt(data.result)
+        typeof data.result === "number" && Number.isFinite(data.result)
+          ? Math.min(36, Math.max(0, Math.trunc(data.result)))
           : 0;
-      if (forcedResultInt !== null && result !== forcedResultInt) {
-        addToast(`Résultat API ${result} ≠ forcé ${forcedResultInt}`, "error");
-      }
-      const nextChips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : chips;
+      const nextChips = typeof data.chips === "number" ? Math.max(0, Math.floor(data.chips)) : chips;
       updateUserBalance(nextChips);
       setChips(nextChips);
-      mergeGamificationFromServerResponse(data as Record<string, unknown>);
+      mergeGamificationFromServerResponse(data);
       setLastResult(result);
-      setLastColor(typeof data?.resultColor === "string" ? data.resultColor : null);
+      setLastColor(typeof data.resultColor === "string" ? data.resultColor : null);
 
-      // Alignement roue = résultat serveur (= forcage si champ rempli)
       const landingNumber = result;
       let segmentIndex = wheelOrder.indexOf(landingNumber);
       if (segmentIndex < 0) segmentIndex = 0;
@@ -614,8 +653,8 @@ export function Roulette() {
 
       setBets(new Map());
       setBetHistory([]);
-      const totalPayout = typeof data?.totalPayout === "number" ? data.totalPayout : 0;
-      const stake = typeof data?.totalStake === "number" ? data.totalStake : 0;
+      const totalPayout = typeof data.totalPayout === "number" ? data.totalPayout : 0;
+      const stake = typeof data.totalStake === "number" ? data.totalStake : 0;
       if (totalPayout > stake) {
         addToast(t("roulette.winSummary", { result, payout: totalPayout - stake }), "success");
       } else if (totalPayout > 0) {
@@ -623,8 +662,6 @@ export function Roulette() {
       } else {
         addToast(t("roulette.lose", { result }), "info");
       }
-    } catch {
-      addToast(t("roulette.errorSpin"), "error");
     } finally {
       setSpinning(false);
     }
@@ -677,17 +714,26 @@ export function Roulette() {
       <header className="relative z-10 shrink-0 flex items-center justify-between gap-2 border-b-2 border-[#8b6914]/60 bg-gradient-to-r from-[#1a120d] via-[#2d2118] to-[#1a120d] px-3 py-2.5 shadow-[0_6px_24px_rgba(0,0,0,0.55)] md:px-5">
         <button
           type="button"
-          onClick={() => navigate("/lobby")}
+          onClick={handleBack}
           className="inline-flex items-center gap-2 rounded-lg border border-[#5c4a2a]/80 bg-black/35 px-3 py-2 text-sm font-semibold text-[#f5e6c8] shadow-inner hover:bg-black/50 hover:border-amber-600/50"
         >
           <ArrowLeft className="h-4 w-4" />
-          {t("roulette.back")}
+          {backToMinigamesHub
+            ? t("minigames.backToLobbyMinigamesTab")
+            : t("roulette.back")}
         </button>
         <h1 className="text-center font-serif text-base font-bold tracking-wide text-[#fde68a] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] md:text-lg">
           {t("roulette.title")}
         </h1>
-        <div className="w-[4.5rem] shrink-0 text-right font-serif text-sm font-bold tabular-nums text-[#fde68a] md:w-24 md:text-base">
-          {chips !== null ? chips.toLocaleString() : "—"}
+        <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 font-serif text-sm font-bold tabular-nums text-[#fde68a] md:max-w-none md:text-base">
+          {chips !== null ? (
+            <>
+              <span className="truncate">{chips.toLocaleString()}</span>
+              <ChipIcon size="sm" className="shrink-0 brightness-110" />
+            </>
+          ) : (
+            "—"
+          )}
         </div>
       </header>
 
@@ -984,52 +1030,6 @@ export function Roulette() {
                       );
                     })}
                   </div>
-                  <div className="mt-1 border-t border-[#5c4a2a]/30 pt-1 opacity-[0.06] transition-opacity hover:opacity-100 focus-within:opacity-100">
-                      <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          className="h-1 w-8 shrink-0 cursor-pointer rounded-full bg-slate-700/40 opacity-40 hover:opacity-100"
-                          title="Forcer le tirage : entier 0–36 (chaque spin tant que le champ est rempli)"
-                          aria-label="Forcer résultat roulette"
-                          onClick={() => devForceInputRef.current?.focus()}
-                        />
-                        <input
-                          ref={devForceInputRef}
-                          type="number"
-                          min={0}
-                          max={36}
-                          step={1}
-                          disabled={spinning}
-                          placeholder="0–36"
-                          value={devForceNextResult === null ? "" : devForceNextResult}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (v === "") {
-                              setDevForceNextResult(null);
-                              return;
-                            }
-                            const n = parseInt(v, 10);
-                            if (!Number.isNaN(n)) {
-                              setDevForceNextResult(clampRouletteResultInt(n));
-                            }
-                          }}
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            if (v === "") {
-                              setDevForceNextResult(null);
-                              return;
-                            }
-                            const n = parseInt(v, 10);
-                            if (!Number.isNaN(n)) {
-                              setDevForceNextResult(clampRouletteResultInt(n));
-                            }
-                          }}
-                          className="w-14 rounded border border-slate-700/80 bg-black/60 px-1 py-0.5 text-center font-mono text-[10px] text-slate-400 outline-none ring-amber-500/40 focus:ring-1"
-                          title="Entier 0–36 : ce numéro est tiré à chaque spin tant que le champ n’est pas vide"
-                        />
-                        <span className="font-mono text-[9px] text-slate-600">= tirage</span>
-                      </div>
-                    </div>
                 </div>
               </details>
             </div>

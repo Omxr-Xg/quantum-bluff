@@ -11,7 +11,7 @@
  * - Victoire normale / dealer bust : 1:1 (rendu 2× mise totale engagée sur la main).
  * - Égalité : push (rendu mise totale).
  */
-import { randomInt as cryptoRandomInt } from 'node:crypto'
+import { drawInt } from '../rng/rng.service.js'
 
 export const BLACKJACK_MIN_BET = 10
 /** Plafond absolu par main (aligné slot). */
@@ -30,7 +30,13 @@ const SUITS: Suit[] = ['h', 'd', 'c', 's']
 const DECKS = 6
 
 function defaultRandomInt(min: number, max: number): number {
-  return cryptoRandomInt(min, max + 1)
+  return drawInt(
+    'blackjack',
+    'legacy-round',
+    'blackjack.defaultRandomInt',
+    min,
+    max
+  ).value
 }
 
 /** Sabot : 6 × 52 cartes. */

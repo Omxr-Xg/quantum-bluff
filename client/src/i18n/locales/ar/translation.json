@@ -62,6 +62,7 @@
     "tabPoker": "تكساس هولدم",
     "tabRoulette": "الروليت",
     "tabBlackjack": "بلاك جاك",
+    "tabMinigames": "ألعاب مصغّرة",
     "tabListAria": "أقسام الردهة",
     "rouletteTitle": "الروليت",
     "rouletteIntro": "37 خانة (0–36). السحب والدفع على الخادم — رهانات داخلية وخارجية.",
@@ -80,7 +81,7 @@
       "headerTitle": "الترويسة",
       "headerBody": "الشعار واسم اللعبة ورسالة الترحيب.",
       "topBarTitle": "القائمة العلوية",
-      "topBarBody": "اللغة، الرصيد، الملف، الأصدقاء، إمكانية الوصول وتسجيل الخروج.",
+      "topBarBody": "اللغة، الرصيد، الملف، الأصدقاء، الإعدادات وتسجيل الخروج.",
       "tourWelcomeTitle": "مرحباً!",
       "tourWelcomeBody": "الجولة تبرز كل منطقة في الردهة. التالي، أو انقر خارج النافذة للإغلاق.",
       "tourDoneTitle": "انتهى!",
@@ -103,6 +104,14 @@
       "createTitle": "إنشاء خادم",
       "createBody": "عام أو خاص. الحد الأقصى للاعبين (2–5). «عرض المزيد»: العمى الصغير/الكبير والحد الأدنى للرصيد. التأكيد يفتح غرفة الانتظار."
     }
+  },
+  "minigames": {
+    "rouletteTitle": "الروليت",
+    "rouletteBlurb": "اراهن على الطاولة ودوّر العجلة.",
+    "slotTitle": "آلة سلوت",
+    "slotBlurb": "صفّ الرموز واطلب الجائزة الكبرى.",
+    "play": "العب",
+    "backToLobbyMinigamesTab": "العودة إلى الردهة"
   },
   "slot": {
     "title": "آلة سلوت",
@@ -140,7 +149,25 @@
     "autoStoppedAtCeiling": "توقف تلقائي: تم بلوغ الهدف الأعلى (≥ {{ceiling}}).",
     "autoStoppedAtFloor": "توقف تلقائي: الرصيد عند الحد (≤ {{floor}}).",
     "autoStoppedWouldBreach": "توقف تلقائي: الرهان يخفض الرصيد تحت الحد ({{floor}}).",
-    "autoStoppedError": "توقف تلقائي (خطأ شبكة أو خادم)."
+    "autoStoppedError": "توقف تلقائي (خطأ شبكة أو خادم).",
+    "brandTitle": "QUANTUM SLOTS",
+    "winLine": "★ خط رابح ★",
+    "winBanner": "🎰 QUANTUM WIN! 🎰",
+    "insufficientFunds": "رصيد غير كافٍ",
+    "paytableTitle": "جدول المكافآت",
+    "paytableTriple": "3× {{symbol}}",
+    "paytableThreeSame": "3 رموز متطابقة",
+    "multiplierLabel": "المضاعف",
+    "quantumBoostTitle": "Quantum Boost",
+    "quantumBoostBody": "يضمن الخادم عشوائية عادلة في كل دورة.",
+    "sessionCurrent": "الجلسة الحالية",
+    "sessionWins": "مرات الفوز",
+    "sessionSpins": "الدورات",
+    "errorMustLogin": "يجب تسجيل الدخول.",
+    "errorInvalidServerResponse": "استجابة غير صالحة من الخادم.",
+    "errorSync": "خطأ في المزامنة.",
+    "errorServer": "خطأ في الخادم.",
+    "errorUnreachable": "تعذّر الاتصال بالخادم."
   },
   "blackjack": {
     "title": "بلاك جاك",
@@ -243,6 +270,14 @@
     "burned": "محروقة",
     "burnedCount": "{{count}} بطاقة محروقة",
     "bets": "الرهانات",
+    "probabilitiesShort": "احتمالات",
+    "phaseBadge": {
+      "preflop": "ما قبل الفلوب",
+      "flop": "الفلوب",
+      "turn": "الترن",
+      "river": "الريفر",
+      "showdown": "المواجهة"
+    },
     "waiting": "في انتظار...",
     "waitingFor": "في انتظار {{name}}",
     "check": "تحقق",
@@ -265,11 +300,48 @@
     "actionChecked": "تحقق",
     "actionCalled": "متابعة",
     "actionRaised": "رفع",
+    "actionLogTitle": "سجل الأفعال",
+    "combinationsHelp": {
+      "buttonShort": "الأيدي",
+      "buttonTitle": "ترتيب الأيدي — مرّر المؤشر أو اضغط على الجوال",
+      "title": "ترتيب الأيدي",
+      "subtitle": "من الأقوى إلى الأضعف في تكساس هولدم. كل صف يعرض مثالاً بخمس ورقات.",
+      "desc": {
+        "straightFlush": "خمس ورقات من نفس اللون متتالية. 10–ج–ق–ك–آ من نفس اللون يُسمّى رويال فلاش (أقوى يد).",
+        "fourKind": "أربع ورقات بنفس الرتبة، مع ورقة خامسة.",
+        "fullHouse": "ثلاثية زائد زوج.",
+        "quantumCombi": "حصري لـ Quantum Bluff: بين سبع ورقات يوجد على الأقل 3 و5 و6 و7 و10. أقوى من الفلاش وأضعف من الفول هاوس. التعادل: مقارنة الورقتين الباقيتين.",
+        "flush": "خمس ورقات من نفس اللون دون تسلسل.",
+        "straight": "خمس ورقات متتالية بألوان مختلفة.",
+        "threeKind": "ثلاث ورقات بنفس الرتبة.",
+        "twoPair": "زوجان مختلفان مع ورقة خامسة.",
+        "pair": "ورقتان بنفس الرتبة.",
+        "highCard": "بدون زوج أو أفضل — تفوز أعلى ورقة."
+      }
+    },
+    "actionLogEmpty": "لا أفعال في هذه اليد بعد.",
+    "actionLogLine": "[{{street}}] {{detail}}",
+    "actionLogCheck": "{{name}} يمر",
+    "actionLogFold": "{{name}} يطوي",
+    "actionLogCall": "{{name}} يتابع {{amount}}",
+    "actionLogRaise": "{{name}} يرفع {{amount}}",
+    "actionLogStreet": {
+      "preflop": "قبل الفلوب",
+      "flop": "الفلوب",
+      "turn": "الترن",
+      "river": "الريفر"
+    },
+    "actionLogRole": {
+      "SMALL_BLIND": "SB",
+      "BIG_BLIND": "BB",
+      "DEALER": "BTN"
+    },
     "you": "أنت",
     "dealer": "الموزع",
     "turnSeconds": "الدور: {{seconds}}ث",
     "waitingForPlayers": "في انتظار اللاعبين...",
-    "newHandIn": "يد جديدة خلال {{count}} ثانية...",
+    "newHandIn_one": "يد جديدة خلال {{count}} ثانية…",
+    "newHandIn_other": "يد جديدة خلال {{count}} ثوانٍ…",
     "leaveBetweenHands": "العودة إلى الردهة",
     "nextRoundIn": "اليد التالية خلال...",
     "roundTransitionRound": "اليد #{{n}}",
@@ -281,6 +353,7 @@
     "roundWinnerLabel": "فائز اليد",
     "tie": "تعادل",
     "opponentLeft": "المعارض غادر",
+    "cashTableClosedReturnToWaitingRoom": "أُغلقت الطاولة: العودة إلى غرفة الانتظار.",
     "showdownRevealBanner": "عرض الأوراق…",
     "openChat": "فتح الدردشة",
     "helpRules": "المساعدة وقواعد اللعبة",
@@ -537,7 +610,29 @@
     "saving": "جاري الحفظ...",
     "fileTooBig": "يجب ألا يتجاوز حجم الملف 5 ميجابايت!",
     "passwordMismatch": "كلمات المرور الجديدة غير متطابقة!",
-    "passwordMinLength": "يجب أن تحتوي كلمة المرور الجديدة على 6 أحرف على الأقل!"
+    "passwordMinLength": "يجب أن تحتوي كلمة المرور الجديدة على 6 أحرف على الأقل!",
+    "avatarGalleryLabel": "اختيار صورة رمزية",
+    "avatarPresetHint": "يمكنك اختيار صورة رمزية جاهزة أو استيراد صورتك الخاصة.",
+    "avatarOption": "صورة {{index}} من {{total}}",
+    "showMoreAvatars": "عرض المزيد من الصور ({{count}})",
+    "showLessAvatars": "عرض أقل",
+    "profilePhotoSection": "صورة الملف الشخصي",
+    "profilePreviewAlt": "معاينة الملف الشخصي",
+    "choosePhoto": "اختيار صورة",
+    "photoFormatsHint": "JPG أو PNG أو GIF • الحد الأقصى 5 ميجابايت",
+    "basicInfoSection": "المعلومات الأساسية",
+    "usernameLabel": "اسم المستخدم",
+    "usernamePlaceholder": "اسم المستخدم",
+    "emailLabel": "البريد الإلكتروني",
+    "emailPlaceholder": "you@email.com",
+    "securitySection": "الأمان",
+    "currentPasswordLabel": "كلمة المرور الحالية",
+    "currentPasswordPlaceholder": "أدخل كلمة المرور الحالية",
+    "newPasswordLabel": "كلمة المرور الجديدة",
+    "newPasswordPlaceholder": "أدخل كلمة مرور جديدة",
+    "newPasswordOptionalHint": "اتركه فارغاً إذا كنت لا تريد التغيير",
+    "confirmPasswordLabel": "تأكيد كلمة المرور الجديدة",
+    "confirmPasswordPlaceholder": "أكد كلمة المرور الجديدة"
   },
   "waitingRoom": {
     "roomNotFound": "الغرفة غير موجودة",
@@ -650,6 +745,7 @@
       "threeKind": "ثلاثة",
       "straight": "سلسلة",
       "flush": "فلاش",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "فول هاوس",
       "fourKind": "رباعية",
       "straightFlush": "ستريت فلاش",
@@ -684,6 +780,37 @@
     "gain": "الربح",
     "continue": "متابعة",
     "highCard": "ورقة عالية"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "subtitle": "مظهر الطاولة والعرض",
+    "close": "إغلاق",
+    "tabAesthetic": "المظهر",
+    "tabAccessibility": "إمكانية الوصول",
+    "tableThemeHint": "اختر لون بساط طاولة البوكر.",
+    "tableTheme": {
+      "default": "أخضر كلاسيكي",
+      "vegasRed": "أحمر بأسلوب فيغاس",
+      "vegasPurple": "بنفسجي بأسلوب فيغاس",
+      "darkBlue": "أزرق داكن"
+    }
+  },
+  "accessibility": {
+    "title": "إمكانية الوصول",
+    "highContrastTitle": "تباين عالٍ",
+    "highContrastHint": "حدود أوضح ونص أقرب للقراءة",
+    "highContrastBody": "يحسّن القراءة من خلال زيادة التباين على الطاولة والعناصر.",
+    "visualAlertsTitle": "تنبيهات بصرية",
+    "visualAlertsHint": "تأكيد إضافي على دورك والإجراءات المهمة",
+    "visualAlertsBody": "يعرض تمييزًا أوضح عند دورك أو عند الحاجة لإجراء.",
+    "colorblindTitle": "أوراق مناسبة لعمى الألوان",
+    "colorblindHint": "ضبط ألوان الأوراق للبروتانوبيا أو الديوتيرانوبيا أو التريتانوبيا",
+    "colorblindSelectLabel": "نوع رؤية الألوان",
+    "colorblindProtanopia": "بروتانوبيا (ضعف الأحمر)",
+    "colorblindDeuteranopia": "ديوتيرانوبيا (ضعف الأخضر)",
+    "colorblindTritanopia": "تريتانوبيا (أزرق–أصفر)",
+    "savedInfoTitle": "محفوظ على هذا الجهاز",
+    "savedInfoBody": "تُخزَّن هذه الخيارات في المتصفح وتُطبَّق على كل الطاولات."
   },
   "nav": {
     "login": "تسجيل الدخول",
@@ -746,15 +873,13 @@
       "threeKind": "ثلاثة",
       "straight": "سلسلة",
       "flush": "فلاش",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "فول هاوس",
       "fourKind": "رباعية",
       "straightFlush": "ستريت فلاش"
     },
     "acquired": "مكتسبة",
     "chancePercent": "{{percent}}% فرصة"
-  },
-  "accessibility": {
-    "title": "إمكانية الوصول"
   },
   "invitation": {
     "title": "{{username}} دعاك للعب!",

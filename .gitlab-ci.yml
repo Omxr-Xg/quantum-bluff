@@ -44,7 +44,7 @@ backend:lint:
 backend:test:
   stage: test
   services:
-    - postgres:15
+    - $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
   variables:
     POSTGRES_DB: quantum_test
     POSTGRES_USER: test_user
@@ -142,9 +142,9 @@ frontend:build:
 
 database:test:
   stage: test
-  image: postgres:15
+  image: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
   services:
-    - postgres:15
+    - $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
   variables:
     POSTGRES_DB: quantum_test
     POSTGRES_USER: test_user
@@ -160,9 +160,9 @@ database:test:
 
 database:migrations:
   stage: build
-  image: postgres:15
+  image: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
   services:
-    - postgres:15
+    - $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
   variables:
     POSTGRES_DB: quantum_test
     POSTGRES_USER: test_user
@@ -241,39 +241,31 @@ security:sast:
 # ============================================
 # DOCKER - Construction et scan des images
 # ============================================
+# Kaniko : build sans daemon Docker (compatible exécuteur Kubernetes sans privileged + docker:dind).
+# Image backend : server/Dockerfile avec contexte server/ (pas de Dockerfile à la racine).
 
 docker:build:
   stage: docker-build
-  image: docker:latest
-  services:
-    - docker:dind
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: ['']
   variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
     IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
   script:
-    - echo "🐳 Construction de l'image Docker..."
-    - docker build -t $IMAGE_TAG .
-    - docker tag $IMAGE_TAG $CI_REGISTRY_IMAGE:latest
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker push $IMAGE_TAG
-    - docker push $CI_REGISTRY_IMAGE:latest
+    - echo "🐳 Construction et push de l'image (Kaniko)..."
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --context "${CI_PROJECT_DIR}/server" --dockerfile "${CI_PROJECT_DIR}/server/Dockerfile" --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}" --destination "${CI_REGISTRY_IMAGE}:latest"
   only:
     - main
     - /^release\/.*$/
 
 docker:scan:
   stage: test-security
-  image: docker:latest
-  services:
-    - docker:dind
-  variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
+  image: aquasec/trivy:0.58.1
   script:
-    - echo "🔐 Scan de l'image Docker..."
-    - docker build -t quantum-bluff:test .
-    - docker scan quantum-bluff:test || echo "⚠️ Docker scan non disponible"
+    - echo "🔐 Analyse statique du Dockerfile (Trivy)..."
+    - trivy config --severity HIGH,CRITICAL --exit-code 0 server/Dockerfile
   allow_failure: true
   only:
     - main
@@ -295,15 +287,10 @@ infra:nginx-config:
 
 infra:docker-compose:
   stage: test
-  image: docker:latest
-  services:
-    - docker:dind
-  variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
+  # docker-compose config ne nécessite pas le daemon Docker (validation du fichier uniquement).
+  image: docker/compose:1.29.2
   script:
     - echo "🔧 Validation du docker-compose..."
-    - apk add --no-cache docker-compose  # ← Installation de docker-compose
     - docker-compose -f database/docker-compose.yml config
   only:
     - develop

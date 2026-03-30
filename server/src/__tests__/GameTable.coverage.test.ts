@@ -124,15 +124,17 @@ describe('GameTable - startHand erreurs', () => {
 })
 
 describe('GameTable - runOutBoardIfAllIn (all-in scenario)', () => {
-  test('quand un joueur est all-in, le board se déroule jusqu au showdown', () => {
+  test('quand tous les joueurs restants ne peuvent plus miser, le board se déroule jusqu au showdown', () => {
     const players = createPlayers()
     players[0]!.chips = 20
     players[1]!.chips = 2000
     const table = new GameTable('r13', players, { smallBlind: 10, bigBlind: 20 })
     table.startHand()
-    // p1 CALL → all-in, isBettingRoundComplete (p1 all-in compte comme acted, p2 BB déjà égal)
-    // → moveToNextPhase FLOP → runOutBoardIfAllIn → SHOWDOWN
+    // p1 CALL all-in, puis p2 CHECK pour clôturer préflop.
+    // Le moteur déroule ensuite le board jusqu'au showdown.
     table.handlePlayerAction('p1', 'CALL')
+    expect(table.state.phase).toBe('PREFLOP')
+    table.handlePlayerAction('p2', 'CHECK')
     expect(table.state.phase).toBe('SHOWDOWN')
     expect(table.state.communityCards).toHaveLength(5)
   })

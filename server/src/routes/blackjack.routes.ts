@@ -24,6 +24,15 @@ import {
   XP_BLACKJACK_HAND,
   XP_BLACKJACK_WIN_BONUS,
 } from '../logic/gamification.js'
+import {
+  abortIdempotentAction,
+  buildIdempotencyKey,
+  fingerprintStableJson,
+  saveIdempotentResult,
+  tryBeginIdempotentAction,
+} from '../casino/services/idempotency.service.js'
+import { createCasinoRoundContext } from '../casino/services/roundContext.service.js'
+import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
 
 const router = express.Router()
 
@@ -93,11 +102,38 @@ async function finalizeHand(
 
 /** POST /start — nouvelle main (débite la mise). */
 router.post('/start', authMiddleware, async (req, res) => {
+  let idemKey: string | undefined
+  let idemCommitted = false
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
+    const context = createCasinoRoundContext({
+      userId,
+      gameType: 'blackjack',
+      actionId: req.body?.actionId,
+      roundId: req.body?.roundId,
+    })
+    idemKey = buildIdempotencyKey({
+      userId,
+      gameType: 'blackjack:start',
+      actionId: context.actionId,
+    })
+    const startFingerprint = fingerprintStableJson({ bet: req.body?.bet })
+    const idemStart = await tryBeginIdempotentAction(idemKey, { payloadFingerprint: startFingerprint })
+    if (!idemStart.accepted) {
+      if (idemStart.reason === 'PAYLOAD_MISMATCH') {
+        return res.status(409).json({
+          error: 'Rejeu idempotent : mise différente pour le même actionId',
+          code: 'IDEMPOTENCY_PAYLOAD_MISMATCH',
+        })
+      }
+      if (idemStart.storedResult != null) return res.json(idemStart.storedResult)
+      return res.status(409).json({ error: 'Action déjà traitée', code: 'DUPLICATE_ACTION' })
+    }
+
     if (getSession(userId)) {
+      await abortIdempotentAction(idemKey)
       return res.status(409).json({ error: 'Une main est déjà en cours', code: 'SESSION_ACTIVE' })
     }
 
@@ -123,10 +159,23 @@ router.post('/start', authMiddleware, async (req, res) => {
       }
       const bet = validation.bet
 
-      await tx.user.update({
-        where: { id: userId },
+      const debit = await tx.user.updateMany({
+        where: { id: userId, chips: { gte: bet } },
         data: { chips: { decrement: bet } },
       })
+      if (debit.count === 0) {
+        throw Object.assign(new Error('INSUFFICIENT_CHIPS'), { code: 'INSUFFICIENT_CHIPS' })
+      }
+      await appendWalletLedgerEntry(
+        {
+          context,
+          reason: 'BLACKJACK_STAKE',
+          amount: -bet,
+          balanceBefore: chipsBefore,
+          balanceAfter: chipsBefore - bet,
+        },
+        tx
+      )
 
       const shoe = createShoe()
       shuffleShoe(shoe)
@@ -142,6 +191,8 @@ router.post('/start', authMiddleware, async (req, res) => {
           ...fin,
           totalBet: bet,
           maxBetBlackjack: fin.maxBetBlackjack,
+          roundId: context.roundId,
+          actionId: context.actionId,
         }
       }
 
@@ -152,11 +203,15 @@ router.post('/start', authMiddleware, async (req, res) => {
         player,
         dealer,
         maxBetEffective,
+        roundId: context.roundId,
+        actionId: context.actionId,
       }
     })
 
     if (outcome.type === 'complete') {
       const { type: _t, ...rest } = outcome
+      await saveIdempotentResult(idemKey, rest)
+      idemCommitted = true
       return res.json(rest)
     }
 
@@ -176,7 +231,7 @@ router.post('/start', authMiddleware, async (req, res) => {
     })
     const chipsAfter = intChips(uAfter?.chips ?? 0)
 
-    return res.json({
+    const response = {
       phase: 'player',
       player: publicCards(player),
       dealerUp: publicCards([dealer[0]!]),
@@ -185,8 +240,14 @@ router.post('/start', authMiddleware, async (req, res) => {
       chips: chipsAfter,
       totalBet: bet,
       maxBetBlackjack: maxBetEffective,
-    })
+      roundId: outcome.roundId,
+      actionId: outcome.actionId,
+    }
+    await saveIdempotentResult(idemKey, response)
+    idemCommitted = true
+    return res.json(response)
   } catch (e) {
+    if (idemKey && !idemCommitted) await abortIdempotentAction(idemKey)
     const code = (e as { code?: string }).code
     const maxBetEffective = (e as { maxBetEffective?: number }).maxBetEffective
     if (code === 'INSUFFICIENT_CHIPS') {

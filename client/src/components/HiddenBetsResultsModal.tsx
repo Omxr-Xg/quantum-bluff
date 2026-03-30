@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import type { HiddenBet } from "../contexts/HiddenBetsContext";
+import { useUser } from "../hooks/useUser";
 
 interface HiddenBetsResultsModalProps {
   bets: HiddenBet[];
@@ -14,6 +15,7 @@ export function HiddenBetsResultsModal({
   onClose,
 }: HiddenBetsResultsModalProps) {
   const { t } = useTranslation();
+  const { userId } = useUser();
   const totalWinnings = bets
     .filter((bet) => bet.won)
     .reduce((sum, bet) => sum + (bet.winAmount ?? 0), 0);
@@ -101,9 +103,9 @@ export function HiddenBetsResultsModal({
 
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-white flex items-center justify-center shadow-lg flex-shrink-0">
-                      {getPlayerAvatar(bet.playerName) ? (
+                      {getPlayerAvatar(bet.playerName, undefined, userId ?? undefined) ? (
                         <ImageWithFallback
-                          src={getPlayerAvatar(bet.playerName)}
+                          src={getPlayerAvatar(bet.playerName, undefined, userId ?? undefined)}
                           alt={`${bet.playerName}`}
                           className="w-14 h-14 rounded-full object-cover"
                         />

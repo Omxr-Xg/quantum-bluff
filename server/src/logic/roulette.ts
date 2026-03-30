@@ -1,8 +1,8 @@
 /**
  * Roulette européenne — logique pure (testable). Tirage via RNG injectable (défaut: crypto).
  */
-import { randomInt as cryptoRandomInt } from 'node:crypto'
 import { intChips } from '../utils/chips.js'
+import { drawInt } from '../rng/rng.service.js'
 
 export const ROULETTE_MIN_BET = 10
 /** Plafond par mise individuelle (comme le slot). */
@@ -14,7 +14,8 @@ export const ROULETTE_MAX_BETS_PER_SPIN = 40
 export type RandomIntFn = (minInclusive: number, maxInclusive: number) => number
 
 function defaultRandomInt(min: number, max: number): number {
-  return cryptoRandomInt(min, max + 1)
+  return drawInt('roulette', 'legacy-round', 'roulette.defaultRandomInt', min, max)
+    .value
 }
 
 /** Ordre physique des cases sur une roue européenne (sens horaire, à partir de 0). Utile pour l’UI. */

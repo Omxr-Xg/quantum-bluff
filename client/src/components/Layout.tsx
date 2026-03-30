@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X, User, Users, LogOut, Plus, Menu, Settings, Trophy, Sparkles } from "lucide-react";
+import { Bell, X, User, Users, LogOut, Plus, Menu, Settings, Trophy } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
@@ -15,7 +15,8 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ChipIcon } from "./ChipIcon";
 import { TopBarProvider } from "../contexts/TopBarContext";
 import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
-import { AccessibilityMenu } from "./AccessibilityMenu";
+import { SettingsMenu } from "./SettingsMenu";
+import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
@@ -40,27 +41,22 @@ export function Layout({ children }: LayoutProps) {
   const [devValidation, setDevValidation] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showAccessibilityMenu, setShowAccessibilityMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("aesthetic");
   const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MENU_CLOSE_DELAY = 500;
-  const { registerOpener, openAccessibilityMenu } = useAccessibilityMenuOpen() ?? { registerOpener: () => {}, openAccessibilityMenu: () => {} };
+  const { registerOpener, openSettingsMenu } = useAccessibilityMenuOpen() ?? {
+    registerOpener: () => {},
+    openSettingsMenu: () => {},
+  };
 
   useEffect(() => {
-    registerOpener(() => setShowAccessibilityMenu(true));
+    registerOpener((tab) => {
+      setSettingsInitialTab(tab ?? "aesthetic");
+      setShowSettingsMenu(true);
+    });
     return () => registerOpener(null);
   }, [registerOpener]);
-
-  const handleMenuMouseEnter = () => {
-    if (closeMenuTimerRef.current) {
-      clearTimeout(closeMenuTimerRef.current);
-      closeMenuTimerRef.current = null;
-    }
-    setMenuOpen(true);
-  };
-
-  const handleMenuMouseLeave = () => {
-    closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
-  };
 
   useEffect(() => {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
@@ -69,8 +65,7 @@ export function Layout({ children }: LayoutProps) {
       const blackjackMultiInLobby =
         location.pathname === "/lobby" && location.search.includes("tab=blackjack");
       const authoritative =
-        location.pathname === "/slot" ||
-        location.pathname === "/roulette" ||
+        location.pathname === "/minigames" ||
         location.pathname === "/blackjack" ||
         location.pathname.startsWith("/blackjack/lobby") ||
         location.pathname.startsWith("/blackjack/table") ||
@@ -85,12 +80,12 @@ export function Layout({ children }: LayoutProps) {
     window.addEventListener(BALANCE_CHANGED_EVENT, sync);
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, sync);
   }, []);
+  
   useEffect(() => {
     const onFocus = () => {
       if (localStorage.getItem("token")) {
         const authoritative =
-          location.pathname === "/slot" ||
-          location.pathname === "/roulette" ||
+          location.pathname === "/minigames" ||
           location.pathname === "/blackjack" ||
           location.pathname.startsWith("/blackjack/lobby") ||
           location.pathname.startsWith("/blackjack/table");
@@ -185,13 +180,13 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
+  const isWaitingRoomPage = location.pathname === "/waiting-room";
   const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
   const showTopBar = !isAuthPage && localStorage.getItem("token");
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
   const isCasinoFullBleed =
-    path === "/slot" ||
-    path === "/roulette" ||
+    path === "/minigames" ||
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table");
@@ -200,17 +195,20 @@ export function Layout({ children }: LayoutProps) {
     path.includes("bot-configuration") ||
     path.includes("waiting-room") ||
     path.includes("tutorial-lobby") ||
-    path === "/slot" ||
-    path === "/roulette" ||
+    path === "/minigames" ||
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table");
   /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
   const showHamburgerMenu =
-    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/roulette";
+    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames";
   const showLobbyIntegratedBar = showTopBar && isLobby;
-  /** Padding réservé au menu hamburger fixe — sinon bande vide (fond slate) en haut (ex. profil, classement). */
-  const topBarPaddingForHamburger = showTopBar && !showLobbyIntegratedBar && showHamburgerMenu;
+  /**
+   * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
+   * et seul un bouton paramètres est en coin ; éviter la « barre » vide / décalage en haut.
+   */
+  const topBarPaddingForHamburger =
+    showTopBar && !showLobbyIntegratedBar && showHamburgerMenu && !isGamePage && !isWaitingRoomPage;
 
   const menuContent = (
     <>
@@ -218,7 +216,7 @@ export function Layout({ children }: LayoutProps) {
       <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
         <button
           type="button"
-          onClick={() => navigate("/slot")}
+          onClick={() => navigate("/minigames")}
           className="flex items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left transition hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] sm:gap-2 sm:px-4"
           title={t("lobby.balanceOpenSlot")}
         >
@@ -232,15 +230,6 @@ export function Layout({ children }: LayoutProps) {
           title={t("lobby.addMoney")}
         >
           <Plus className="h-5 w-5" strokeWidth={2.5} />
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate("/slot")}
-          className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-600/75 text-amber-50 transition-colors hover:bg-amber-500/90 hover:shadow-inner sm:px-3"
-          title={t("lobby.openSlot")}
-          aria-label={t("lobby.openSlot")}
-        >
-          <Sparkles className="h-5 w-5 shrink-0" strokeWidth={2.5} aria-hidden />
         </button>
       </div>
       <NotificationCenter />
@@ -256,9 +245,9 @@ export function Layout({ children }: LayoutProps) {
         <Trophy className="h-4 w-4 shrink-0" />
         <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
       </button>
-      <button type="button" onClick={() => openAccessibilityMenu()} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("accessibility.title", "Accessibilité")}>
+      <button type="button" onClick={() => openSettingsMenu()} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
         <Settings className="h-4 w-4 shrink-0" />
-        <span className="hidden lg:inline">{t("accessibility.title", "Accessibilité")}</span>
+        <span className="hidden lg:inline">{t("settings.title")}</span>
       </button>
       <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-red-600/80 px-2 text-sm text-white transition hover:bg-red-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.logout")}>
         <LogOut className="h-4 w-4 shrink-0" />
@@ -272,14 +261,14 @@ export function Layout({ children }: LayoutProps) {
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
       {showHamburgerMenu && (
         <>
-          {/* Sur la page Game : bouton Paramètres (ouvre Accessibilité). Sinon : menu hamburger classique */}
+          {/* Sur la page Game : bouton Paramètres (modal Esthétique / Accessibilité). Sinon : menu hamburger classique */}
           <div className="fixed top-4 right-8 z-[250]">
             {isGamePage ? (
               <button
                 type="button"
-                onClick={() => openAccessibilityMenu?.()}
+                onClick={() => openSettingsMenu?.()}
                 className="w-12 h-12 rounded-xl bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 text-white flex items-center justify-center transition shadow-lg"
-                title={t("accessibility.title", "Paramètres")}
+                title={t("settings.title")}
               >
                 <Settings className="w-6 h-6" />
               </button>
@@ -328,7 +317,7 @@ export function Layout({ children }: LayoutProps) {
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
-                      navigate("/slot");
+                      navigate("/minigames");
                     }}
                     className="flex items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left transition hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] sm:gap-2 sm:px-4"
                     title={t("lobby.balanceOpenSlot")}
@@ -344,18 +333,6 @@ export function Layout({ children }: LayoutProps) {
                   >
                     <Plus className="h-5 w-5" strokeWidth={2.5} />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      navigate("/slot");
-                    }}
-                    className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-600/75 text-amber-50 transition-colors hover:bg-amber-500/90 hover:shadow-inner sm:px-3"
-                    title={t("lobby.openSlot")}
-                    aria-label={t("lobby.openSlot")}
-                  >
-                    <Sparkles className="h-5 w-5 shrink-0" strokeWidth={2.5} aria-hidden />
-                  </button>
                 </div>
                 <NotificationCenter />
                 <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-green-600/80 px-2 text-sm text-white transition hover:bg-green-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.profile")}>
@@ -370,9 +347,9 @@ export function Layout({ children }: LayoutProps) {
                   <Trophy className="h-4 w-4 shrink-0" />
                   <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
                 </button>
-                <button type="button" onClick={() => { setMenuOpen(false); openAccessibilityMenu(); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("accessibility.title", "Accessibilité")}>
+                <button type="button" onClick={() => { setMenuOpen(false); openSettingsMenu(); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
                   <Settings className="h-4 w-4 shrink-0" />
-                  <span className="hidden lg:inline">{t("accessibility.title", "Accessibilité")}</span>
+                  <span className="hidden lg:inline">{t("settings.title")}</span>
                 </button>
                 <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-red-600/80 px-2 text-sm text-white transition hover:bg-red-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.logout")}>
                   <LogOut className="h-4 w-4 shrink-0" />
@@ -384,10 +361,10 @@ export function Layout({ children }: LayoutProps) {
         </>
       )}
 
-      {/* Menu Accessibilité (rendu globalement pour Lobby et Game) */}
-      <AccessibilityMenu
-        isOpen={showAccessibilityMenu}
-        onClose={() => setShowAccessibilityMenu(false)}
+      <SettingsMenu
+        isOpen={showSettingsMenu}
+        onClose={() => setShowSettingsMenu(false)}
+        initialTab={settingsInitialTab}
       />
 
       {/* Modal Ajouter des jetons */}

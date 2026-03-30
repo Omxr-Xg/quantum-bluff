@@ -24,7 +24,7 @@ import { apiUrl } from "../utils/apiBase";
 
 type BjVisibility = "PUBLIC" | "PRIVATE";
 
-type MainTab = "poker" | "roulette" | "blackjack";
+type MainTab = "poker" | "minigames" | "blackjack";
 
 interface BjSeat {
   id: string;

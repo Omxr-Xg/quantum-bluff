@@ -1,4 +1,4 @@
-import Redis from 'ioredis'
+import { Redis } from 'ioredis'
 import type { BlackjackStateStore } from './blackjackStateStore.js'
 import { InMemoryBlackjackStateStore } from './inMemoryBlackjackStateStore.js'
 import { RedisBlackjackStateStore } from './redisBlackjackStateStore.js'
@@ -18,7 +18,7 @@ function createRedisClient(): Redis {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
     password: process.env.REDIS_PASSWORD || undefined,
-    retryStrategy: (times) => Math.min(times * 50, 2000),
+    retryStrategy: (times: number) => Math.min(times * 50, 2000),
   })
 }
 

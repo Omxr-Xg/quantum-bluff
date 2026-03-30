@@ -396,9 +396,9 @@ export function Friends() {
               >
                 <div className="flex items-start gap-4">
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-yellow-400 bg-gradient-to-br from-green-600 to-green-800 shadow-lg sm:h-20 sm:w-20">
-                    {getPlayerAvatar(friend.username) ? (
+                    {getPlayerAvatar(friend.username, friend.id) ? (
                       <ImageWithFallback
-                        src={getPlayerAvatar(friend.username)}
+                        src={getPlayerAvatar(friend.username, friend.id)}
                         alt={`${friend.username}'s avatar`}
                         className="h-16 w-16 rounded-full object-cover sm:h-20 sm:w-20"
                       />
@@ -564,9 +564,9 @@ export function Friends() {
             <div className="flex items-center justify-between border-b border-slate-700 p-6">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-gradient-to-br from-green-600 to-green-800">
-                  {getPlayerAvatar(selectedFriend.username) ? (
+                  {getPlayerAvatar(selectedFriend.username, selectedFriend.id) ? (
                     <ImageWithFallback
-                      src={getPlayerAvatar(selectedFriend.username)}
+                      src={getPlayerAvatar(selectedFriend.username, selectedFriend.id)}
                       alt={`${selectedFriend.username}'s avatar`}
                       className="h-12 w-12 rounded-full object-cover"
                     />

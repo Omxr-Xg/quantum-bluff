@@ -10,23 +10,23 @@ import { useQuantumHUD } from "../contexts/QuantumHUDContext";
 import { PokerChat } from "../components/PokerChat";
 import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
-import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, Sparkles, Trophy, Frown, Activity } from "lucide-react";
+import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, Sparkles, Trophy, Activity, Info } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "../components/ui/use-mobile";
-import { ShowdownDisplay } from "../components/ShowdownDisplay";
 import { ChipIcon } from "../components/ChipIcon";
-import { PokerCard } from "../components/PokerCard";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
-import { addToUserBalance, addDevMoney, getUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
+import { addToUserBalance, addDevMoney, getUserBalance, getUserAvatar } from "../utils/userProfile";
 import { RoundTransition } from "../components/RoundTransition";
 import { GameInteractiveTour } from "../components/GameInteractiveTour";
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
+import { HandActionLogPanel } from "../components/HandActionLogPanel";
+
+import { fetchHiddenBetTableHistory } from "../api/hiddenBetsApi";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
@@ -51,6 +51,27 @@ interface ChatMessage {
 
 type GamePhase = "init" | "shuffle" | "deal" | "preflop" | "flop" | "turn" | "river" | "showdown";
 
+/** SB / BB / BTN dans le journal (aligné préflop vs postflop). */
+function actionLogRoleAbbrev(role: string | undefined, tr: (key: string) => string): string {
+  if (!role || role === "PLAYER") return "";
+  const keyMap: Record<string, string> = {
+    SB: "game.actionLogRole.SMALL_BLIND",
+    BB: "game.actionLogRole.BIG_BLIND",
+    SMALL_BLIND: "game.actionLogRole.SMALL_BLIND",
+    BIG_BLIND: "game.actionLogRole.BIG_BLIND",
+    DEALER: "game.actionLogRole.DEALER",
+  };
+  const i18nKey = keyMap[role];
+  return i18nKey ? tr(i18nKey) : "";
+}
+
+/** SB / BB tapis : mêmes rôles que `role` serveur / journal (SMALL_BLIND → SB, etc.). */
+function mapServerRoleToTableRole(serverRole: string | undefined): NonNullable<BasePlayer["role"]> {
+  if (serverRole === "SMALL_BLIND") return "SB";
+  if (serverRole === "BIG_BLIND") return "BB";
+  return "PLAYER";
+}
+
 interface BasePlayer {
   id: number | string;
   name: string;
@@ -63,6 +84,8 @@ interface BasePlayer {
   isConnected?: boolean;
   hasFolded?: boolean;
   role?: "SB" | "BB" | "PLAYER";
+  /** URL d’avatar (cash multijoueur, renvoyée par l’API / socket). */
+  avatar?: string;
 }
 
 interface BotPlayer extends BasePlayer {
@@ -86,7 +109,98 @@ export function Game() {
 
   const { socket } = useSocket();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [hiddenBetNextHandId, setHiddenBetNextHandId] = useState<string | null>(null);
+  const [hiddenBetWindowOpen, setHiddenBetWindowOpen] = useState(false);
+  const [hiddenBetState, setHiddenBetState] = useState<{
+    currentHandId: string | null;
+    nextHandId: string | null;
+    windowOpen: boolean;
+    windowType: "PRE_HAND" | "LIVE_FLOP" | "LIVE_TURN" | "LIVE_RIVER" | null;
+    closesAt?: number;
+  } | null>(null);
   const [isQuantumOpen, setIsQuantumOpen] = useState(false);
+  /** true = ouvert via clic ou menu ; le panneau reste si la souris quitte (sauf fermeture explicite) */
+  const [quantumPinned, setQuantumPinned] = useState(false);
+  const quantumPinnedRef = useRef(quantumPinned);
+  useEffect(() => {
+    quantumPinnedRef.current = quantumPinned;
+  }, [quantumPinned]);
+  const quantumHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const quantumLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearQuantumHoverTimer = useCallback(() => {
+    if (quantumHoverTimerRef.current) {
+      clearTimeout(quantumHoverTimerRef.current);
+      quantumHoverTimerRef.current = null;
+    }
+  }, []);
+
+  const clearQuantumLeaveTimer = useCallback(() => {
+    if (quantumLeaveTimerRef.current) {
+      clearTimeout(quantumLeaveTimerRef.current);
+      quantumLeaveTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearQuantumHoverTimer();
+      clearQuantumLeaveTimer();
+    };
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const onQuantumProbasEnter = useCallback(() => {
+    clearQuantumLeaveTimer();
+    clearQuantumHoverTimer();
+    quantumHoverTimerRef.current = setTimeout(() => {
+      setIsQuantumOpen(true);
+      quantumHoverTimerRef.current = null;
+    }, 500);
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const onQuantumProbasLeave = useCallback(() => {
+    clearQuantumHoverTimer();
+    clearQuantumLeaveTimer();
+    quantumLeaveTimerRef.current = setTimeout(() => {
+      if (!quantumPinnedRef.current) setIsQuantumOpen(false);
+      quantumLeaveTimerRef.current = null;
+    }, 280);
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const onQuantumPanelEnter = useCallback(() => {
+    clearQuantumLeaveTimer();
+  }, [clearQuantumLeaveTimer]);
+
+  const onQuantumPanelLeave = useCallback(() => {
+    clearQuantumLeaveTimer();
+    quantumLeaveTimerRef.current = setTimeout(() => {
+      if (!quantumPinnedRef.current) setIsQuantumOpen(false);
+      quantumLeaveTimerRef.current = null;
+    }, 280);
+  }, [clearQuantumLeaveTimer]);
+
+  const onQuantumToggleClick = useCallback(() => {
+    clearQuantumHoverTimer();
+    clearQuantumLeaveTimer();
+    if (!isQuantumOpen) {
+      setIsQuantumOpen(true);
+      setQuantumPinned(true);
+      return;
+    }
+    if (!quantumPinned) {
+      setQuantumPinned(true);
+      return;
+    }
+    setIsQuantumOpen(false);
+    setQuantumPinned(false);
+  }, [isQuantumOpen, quantumPinned, clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const closeQuantumPanel = useCallback(() => {
+    clearQuantumHoverTimer();
+    clearQuantumLeaveTimer();
+    setIsQuantumOpen(false);
+    setQuantumPinned(false);
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [_hasFolded, _setHasFolded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -96,6 +210,7 @@ export function Game() {
   );
   const [isBotThinking, setIsBotThinking] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [handActionLog, setHandActionLog] = useState<{ id: string; line: string }[]>([]);
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [playersState, setPlayersState] = useState<(BasePlayer | BotPlayer)[]>([]);
@@ -108,6 +223,14 @@ export function Game() {
   const [addSuccess, setAddSuccess] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const turnTimeLimitSecRef = useRef(30);
+  const handIdRef = useRef<string | undefined>(undefined);
+  const actionSeqRef = useRef(0);
+  const lastServerActionVersionRef = useRef<number>(-1);
+  const lastServerActionVersionHandRef = useRef<string | undefined>(undefined);
+  const lastCommunitySnapshotSigRef = useRef<string>("");
+  const lastAppliedSocketSnapshotSigRef = useRef<string>("");
+  const lastShowdownSnapshotAtRef = useRef<number>(0);
+  const lastHandLogSocketDedupeRef = useRef<string>("");
   const [_timerActive, setTimerActive] = useState(false);
   const currentBet = useMemo(() => Math.max(0, ...playersState.map((p) => p.bet ?? 0)), [playersState]);
   
@@ -120,7 +243,7 @@ export function Game() {
   const [roundPlayersActed, setRoundPlayersActed] = useState<Set<number>>(new Set());
   const [gameInitialized, setGameInitialized] = useState(false);
   const [handResult, setHandResult] = useState<"win" | "loss" | null>(null);
-  const [handResultData, setHandResultData] = useState<{ winnerName: string; handName: string } | null>(null);
+  const [_handResultData, setHandResultData] = useState<{ winnerName: string; handName: string } | null>(null);
 
   const [showTransition, setShowTransition] = useState(false);
   const [roundCount, setRoundCount] = useState(1);
@@ -159,12 +282,12 @@ export function Game() {
   const bothActedNoTurnRef = useRef(false);
   const toAddLastRef = useRef(0);
   const botIsFetchingRef = useRef(false);
-  const [showdownReveal, setShowdownReveal] = useState(false);
+  const [_showdownReveal, setShowdownReveal] = useState(false);
   const showdownStartedRef = useRef(false);
   const showdownResultRef = useRef<typeof showdownResult>(null);
   showdownResultRef.current = showdownResult;
-  const [showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
-  const [pendingShowdownData, setPendingShowdownData] = useState<{
+  const [_showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
+  const [_pendingShowdownData, setPendingShowdownData] = useState<{
     winnerId: string;
     winnerIds?: string[];
     winnerName: string;
@@ -175,15 +298,113 @@ export function Game() {
   } | null>(null);
   const handContributionsRef = useRef<Record<string, number>>({});
   const [sidePots, setSidePots] = useState<{ amount: number; eligibleIds: string[] }[]>([]);
-  const [isRematchHost, setIsRematchHost] = useState(false);
-  const [rematchLoading, setRematchLoading] = useState(false);
-  const [cashCountdownEndsAt, setCashCountdownEndsAt] = useState<number | null>(null);
+  const [_isRematchHost, setIsRematchHost] = useState(false);
+  const [, setCashCountdownEndsAt] = useState<number | null>(null);
   const [cashSeats, setCashSeats] = useState<{ seatIndex: number; userId: string | null; username: string | null; chips: number }[]>([]);
   const [cashWaitingPlayers, setCashWaitingPlayers] = useState(false);
+  const [showInterHandPanel, setShowInterHandPanel] = useState(false);
+  const [, setHasClickedReadyThisInterHand] = useState(false);
+  const [interHandResultsVisible, setInterHandResultsVisible] = useState(false);
+  const [nextHandReadyUserIds, setNextHandReadyUserIds] = useState<string[]>([]);
+  const [allNextHandReady, setAllNextHandReady] = useState(false);
+  const myNextHandReady =
+    userId && nextHandReadyUserIds.some((u) => String(u) === String(userId));
   const [spectatorWantsToRejoin, setSpectatorWantsToRejoin] = useState(false);
-  const showdownSkipRef = useRef<(() => void) | null>(null);
+
+  type TableTicketRow = {
+    id: string;
+    status: string;
+    userId?: string;
+    user?: { username: string };
+    stake?: number;
+    quotedOdds?: number;
+    potentialPayout?: number;
+    stateSnapshotJson?: string | null;
+    resolvedAt?: string | null;
+    marketPhase?: string;
+  };
+
+  const [interHandTableTickets, setInterHandTableTickets] = useState<TableTicketRow[]>([]);
+  const [interHandTableTicketsLoading, setInterHandTableTicketsLoading] = useState(false);
+  const [interHandTableTicketsError, setInterHandTableTicketsError] = useState<string | null>(null);
+  const [pricingInfo, setPricingInfo] = useState<{
+    ticketId: string;
+    pricingBreakdown: unknown;
+    pricingInputs: unknown;
+  } | null>(null);
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const flopAnimatedRef = useRef(false);
+
+  const appendLocalHandAction = useCallback(
+    (actor: BasePlayer | BotPlayer | undefined, kind: "check" | "call" | "raise" | "fold", extra?: { amount?: number }) => {
+      if (gameIdParam) return;
+      const st = phaseRef.current;
+      if (st !== "preflop" && st !== "flop" && st !== "turn" && st !== "river") return;
+      const nameBase =
+        !actor
+          ? "?"
+          : actor.id === userId || actor.id === "human" || actor.name === "Vous" || actor.name === "you"
+            ? t("game.you")
+            : actor.name;
+      const roleAbb = actionLogRoleAbbrev(actor?.role, t);
+      const name = roleAbb && nameBase !== "?" ? `${nameBase} (${roleAbb})` : nameBase;
+      const streetLabel = t(`game.actionLogStreet.${st}`);
+      const amt = extra?.amount ?? 0;
+      const detail =
+        kind === "check"
+          ? t("game.actionLogCheck", { name })
+          : kind === "fold"
+            ? t("game.actionLogFold", { name })
+            : kind === "call"
+              ? t("game.actionLogCall", { name, amount: amt })
+              : t("game.actionLogRaise", { name, amount: amt });
+      const line = t("game.actionLogLine", { street: streetLabel, detail });
+      setHandActionLog((prev) => [...prev.slice(-99), { id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, line }]);
+    },
+    [gameIdParam, t, userId]
+  );
+
+  useEffect(() => {
+    if (phase === "shuffle") setHandActionLog([]);
+  }, [phase]);
+
+  const loadInterHandTableTickets = useCallback(async () => {
+    if (!gameIdParam) return;
+    setInterHandTableTicketsLoading(true);
+    setInterHandTableTicketsError(null);
+    try {
+      const { tickets } = await fetchHiddenBetTableHistory(gameIdParam, 100);
+      setInterHandTableTickets((tickets ?? []) as TableTicketRow[]);
+    } catch (e) {
+      setInterHandTableTicketsError((e as Error).message);
+    } finally {
+      setInterHandTableTicketsLoading(false);
+    }
+  }, [gameIdParam]);
+
+  // Pendant l’attente “ready”, on recharge les tickets résolus pour que tout le monde voie les mêmes résultats.
+  useEffect(() => {
+    if (!cashWaitingPlayers) return;
+    void loadInterHandTableTickets();
+  }, [cashWaitingPlayers, loadInterHandTableTickets]);
+
+  useEffect(() => {
+    if (!socket || !cashWaitingPlayers) return;
+    const onUpd = () => {
+      void loadInterHandTableTickets();
+    };
+    socket.on("HIDDEN_BET_TICKET_UPDATED", onUpd);
+    return () => {
+      socket.off("HIDDEN_BET_TICKET_UPDATED", onUpd);
+    };
+  }, [socket, cashWaitingPlayers, loadInterHandTableTickets]);
+
+  useEffect(() => {
+    if (cashWaitingPlayers) return;
+    setInterHandTableTickets([]);
+    setInterHandTableTicketsError(null);
+    setPricingInfo(null);
+  }, [cashWaitingPlayers]);
 
   const tourRefHeader = useRef<HTMLDivElement>(null);
   const tourRefTable = useRef<HTMLDivElement>(null);
@@ -221,8 +442,6 @@ export function Game() {
 
   const { colorblindMode } = useAccessibility();
   const { addToast } = useToast();
-  const { openAccessibilityMenu } = useAccessibilityMenuOpen() ?? { openAccessibilityMenu: () => {} };
-
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
@@ -233,20 +452,27 @@ export function Game() {
   /** Après l’abattage, attendre avant d’afficher l’écran « gagnant » / transition (cartes visibles au tapis). */
   const SHOWDOWN_REVEAL_MS = 3000;
 
+  const lastScheduledShowdownTransitionSigRef = useRef<string>("");
+
   useEffect(() => {
     if (!showdownResult || showTransition) return;
+    const sig = `${showdownResult.winnerId}:${showdownResult.winnerName}:${showdownResult.hand}:${showdownResult.pot}:${showdownResult.isSplit ? 1 : 0}:${showdownResult.skipRevealDelay ? 1 : 0}`;
+    if (lastScheduledShowdownTransitionSigRef.current === sig) return;
+    lastScheduledShowdownTransitionSigRef.current = sig;
     const delayMs = showdownResult.skipRevealDelay ? 0 : SHOWDOWN_REVEAL_MS;
     const id = window.setTimeout(() => {
       setLastWinnerData({
         name: showdownResult.winnerName,
         amount: showdownResult.pot,
       });
-      setShowTransition(true);
-      setShowdownResult(null);
-      setHandResult(null);
+      // Cash multijoueur : pas de RoundTransition (overlay jaune + compte secondes).
+      const isCashMultiplayer = Boolean(gameIdParam) && !isBotMode;
+      if (!isCashMultiplayer) {
+        setShowTransition(true);
+      }
     }, delayMs);
     return () => clearTimeout(id);
-  }, [showdownResult, showTransition]);
+  }, [showdownResult, showTransition, gameIdParam, isBotMode]);
 
   const openAddMoney = () => {
     setShowAddMoney(true);
@@ -390,14 +616,14 @@ export function Game() {
 
   playersStateRef.current = activePlayers;
 
-  /** Premier à parler post-flop : SB (heads-up = dealer), sinon siège SB = à gauche du dealer (GameTable.getPostflopFirstPlayerId). */
+  /** Premier à parler post-flop : premier siège actif à gauche du bouton (SB en ring ; en HU = BB car le bouton est la SB) — aligné avec GameTable.getPostflopFirstPlayerId. */
   const getPostflopFirstActIndex = (): number => {
     const players = playersStateRef.current;
     if (!players || players.length < 2) return 0;
     const dealerIdx = players.findIndex((p) => p.isDealer);
     if (dealerIdx === -1) return 0;
-    if (players.length === 2) return dealerIdx;
-    return (dealerIdx + 1) % players.length;
+    const idx = (dealerIdx + 1) % players.length;
+    return idx;
   };
 
   const heroCards = tablePlayers.find((p) => isHero(p))?.cards || [];
@@ -421,6 +647,7 @@ export function Game() {
 
   const dealCardsToPlayers = (currentDeck: Card[], currentPlayers: (BasePlayer | BotPlayer)[]) => {
     const newDeck = [...currentDeck];
+    deckRef.current = newDeck;
     const updatedPlayers = currentPlayers.map((p) => ({ ...p, cards: [...(p.cards || [])] }));
     let cardIndex = 0;
 
@@ -441,7 +668,9 @@ export function Game() {
         updatedPlayers[playerIndex].cards.push(card);
         const finalPlayers = updatedPlayers.map((p) => ({ ...p, cards: [...(p.cards || [])] }));
         setPlayersState(finalPlayers);
-        setDeck([...newDeck]);
+        const d = [...newDeck];
+        deckRef.current = d;
+        setDeck(d);
       }
       cardIndex++;
     }, 250);
@@ -456,7 +685,7 @@ export function Game() {
     setRoundPlayersActed(new Set());
     setPlayersState((prev) => {
       if (prev.length === 0) return prev;
-      let firstIdx = startIndex % prev.length;
+      const firstIdx = startIndex % prev.length;
       for (let i = 0; i < prev.length; i++) {
         const idx = (firstIdx + i) % prev.length;
         const p = prev[idx];
@@ -471,47 +700,62 @@ export function Game() {
   const dealFlop = (runOutOnly?: boolean) => {
     setPhase("flop");
       if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
-    const newDeck = [...deck];
-    const newCommunityCards = [...communityCardsState];
+    const newDeck = [...deckRef.current];
     newDeck.shift();
+    const flopCards: Card[] = [];
     for (let i = 0; i < 3; i++) {
       const card = newDeck.shift();
-      if (card) {
-        setTimeout(() => {
-          newCommunityCards[i] = card;
-          setCommunityCardsState([...newCommunityCards]);
-        }, i * 800);
-      }
+      if (card) flopCards.push(card);
     }
-    setDeck([...newDeck]);
+    deckRef.current = newDeck;
+    setDeck(newDeck);
+    flopCards.forEach((card, i) => {
+      const slot = i;
+      setTimeout(() => {
+        setCommunityCardsState((prev) => {
+          const next = [...prev];
+          next[slot] = card;
+          communityCardsStateRef.current = next;
+          return next;
+        });
+      }, i * 800);
+    });
   };
 
   const dealTurn = (runOutOnly?: boolean) => {
     setPhase("turn");
       if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
-    const newDeck = [...deck];
-    const newCommunityCards = [...communityCardsState];
+    const newDeck = [...deckRef.current];
     newDeck.shift();
     const card = newDeck.shift();
+    deckRef.current = newDeck;
+    setDeck(newDeck);
     if (card) {
-      newCommunityCards[3] = card;
-      setCommunityCardsState([...newCommunityCards]);
+      setCommunityCardsState((prev) => {
+        const next = [...prev];
+        next[3] = card;
+        communityCardsStateRef.current = next;
+        return next;
+      });
     }
-    setDeck([...newDeck]);
   };
 
   const dealRiver = (runOutOnly?: boolean) => {
     setPhase("river");
     if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
-    const newDeck = [...deck];
-    const newCommunityCards = [...communityCardsState];
+    const newDeck = [...deckRef.current];
     newDeck.shift();
     const card = newDeck.shift();
+    deckRef.current = newDeck;
+    setDeck(newDeck);
     if (card) {
-      newCommunityCards[4] = card;
-      setCommunityCardsState([...newCommunityCards]);
+      setCommunityCardsState((prev) => {
+        const next = [...prev];
+        next[4] = card;
+        communityCardsStateRef.current = next;
+        return next;
+      });
     }
-    setDeck([...newDeck]);
   };
 
   useEffect(() => {
@@ -594,6 +838,7 @@ export function Game() {
     initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
     handContributionsRef.current = contribs;
     setCommunityCardsState([null, null, null, null, null]);
+    setHandActionLog([]);
     setBurnedCardsCount(0);
     hasSetStartOfHandThisHandRef.current = false;
     streetTransitionScheduledRef.current = null;
@@ -620,12 +865,13 @@ export function Game() {
         if (!res.ok) throw new Error(String(res.status));
         return res.json();
       })
-      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; turnTimeLimitSec?: number } | null) => {
+      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; turnTimeLimitSec?: number; handId?: string } | null) => {
         if (cancelled || !gameState) return;
         if (gameStateFromSocketRef.current) return;
         if (typeof gameState.turnTimeLimitSec === "number" && gameState.turnTimeLimitSec > 0) {
           turnTimeLimitSecRef.current = gameState.turnTimeLimitSec;
         }
+        handIdRef.current = gameState.handId;
         const players = gameState.players ?? [];
         const phaseMap: Record<string, GamePhase> = {
           WAITING: "init",
@@ -635,26 +881,36 @@ export function Game() {
           RIVER: "river",
           SHOWDOWN: "showdown",
         };
-        const mapped = players.map((p, index) => ({
-          id: String(p.id),
-          name: p.name,
-          chips: p.chips ?? 1000,
-          bet: p.currentBet ?? 0,
-          position: p.position ?? index,
-          isActive: p.id === gameState.currentTurn,
-          isDealer: p.isDealer ?? false,
-          cards: Array.isArray(p.cards) ? p.cards.map((c) => normalizeServerCard(c)).filter((c): c is Card => c !== null) : [],
-          isConnected: p.isConnected !== false,
-          hasFolded: false,
-          isBot: false,
-        }));
+        const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
+        const mapped = players.map((p, index) => {
+          const isMe = !isSpectating && String(p.id) === String(userId);
+          const serverCards = Array.isArray(p.cards) ? p.cards.map((c) => normalizeServerCard(c)).filter((c): c is Card => c !== null) : [];
+          const hiddenOpponentCards: Card[] =
+            !isMe && phase !== "showdown" && p.isActive !== false
+              ? [{ suit: "hidden", value: "?" }, { suit: "hidden", value: "?" }]
+              : [];
+          return {
+            id: String(p.id),
+            name: p.name,
+            chips: p.chips ?? 1000,
+            bet: p.currentBet ?? 0,
+            position: p.position ?? index,
+            isActive: p.id === gameState.currentTurn,
+            isDealer: p.isDealer ?? false,
+            cards: isMe ? serverCards : (serverCards.length > 0 ? serverCards : hiddenOpponentCards),
+            isConnected: p.isConnected !== false,
+            hasFolded: false,
+            isBot: false,
+            role: mapServerRoleToTableRole(p.role),
+            avatar: (p as { avatar?: string }).avatar,
+          };
+        });
         setPlayersState(mapped);
         setPot(gameState.pot ?? 0);
         const humanChips = players.find((p) => String(p.id) === String(userId))?.chips;
         if (humanChips != null) {
           setPlayerChips(humanChips);
         }
-        const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? gameState.phase.toLowerCase?.() ?? "preflop") : "preflop";
         setPhase(phase as GamePhase);
         setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
       const cc = gameState.communityCards;
@@ -690,7 +946,7 @@ export function Game() {
       socket.emit("JOIN_SPECTATE", { gameId: gameIdParam });
     } else {
       if (!userId) return;
-      socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+      socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId, avatarUrl: getUserAvatar() });
     }
 
     const onChatMessage = (data: { playerId: string; playerName: string; content: string; type: "emoji" | "text" }) => {
@@ -741,12 +997,70 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number }) => {
+    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashCountdownRemainingSec?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string; hiddenBetNextHandId?: string; hiddenBetWindowOpen?: boolean; hiddenBetState?: { currentHandId: string | null; nextHandId: string | null; windowOpen: boolean; windowType: "PRE_HAND" | "LIVE_FLOP" | "LIVE_TURN" | "LIVE_RIVER" | null; closesAt?: number } | null }) => {
       gameStateFromSocketRef.current = true;
+      setHiddenBetNextHandId(gameState.hiddenBetNextHandId ?? null);
+      setHiddenBetWindowOpen(Boolean(gameState.hiddenBetWindowOpen));
+      setHiddenBetState(gameState.hiddenBetState ?? null);
+      const socketSnapshotSig = `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}`;
+      if (socketSnapshotSig === lastAppliedSocketSnapshotSigRef.current) {
+        return;
+      }
+      lastAppliedSocketSnapshotSigRef.current = socketSnapshotSig;
+      const incomingVersion = typeof gameState.actionVersion === "number" ? gameState.actionVersion : -1;
+      const incomingHandId = gameState.handId ?? undefined;
+      if (incomingHandId && incomingHandId !== lastServerActionVersionHandRef.current) {
+        lastServerActionVersionHandRef.current = incomingHandId;
+        lastServerActionVersionRef.current = -1;
+        lastHandLogSocketDedupeRef.current = "";
+        setHandActionLog([]);
+      } else if (!incomingHandId && lastServerActionVersionHandRef.current) {
+        lastServerActionVersionHandRef.current = undefined;
+        lastServerActionVersionRef.current = -1;
+        lastHandLogSocketDedupeRef.current = "";
+        setHandActionLog([]);
+      }
+      if (
+        incomingVersion >= 0 &&
+        incomingHandId &&
+        lastServerActionVersionHandRef.current === incomingHandId &&
+        incomingVersion < lastServerActionVersionRef.current
+      ) {
+        return;
+      }
+      if (incomingVersion >= 0) {
+        lastServerActionVersionRef.current = Math.max(lastServerActionVersionRef.current, incomingVersion);
+        if (incomingHandId) {
+          lastServerActionVersionHandRef.current = incomingHandId;
+        }
+      }
+      const incomingPhase =
+        gameState.phase != null
+          ? (phaseMap[gameState.phase] ?? (gameState.phase as string).toLowerCase?.() ?? "preflop")
+          : "preflop";
+      if (incomingPhase !== "init" && incomingPhase !== "shuffle") {
+        setCashWaitingPlayers(false);
+        setCashCountdownEndsAt(null);
+      }
+      /** Garde AVANT toute mutation : évite d'appliquer WAITING (tous isActive false) juste après SHOWDOWN. */
+      const previousHandIdBeforeUpdate = handIdRef.current;
+      if (
+        incomingPhase === "init" &&
+        gameState.phase === "WAITING" &&
+        previousHandIdBeforeUpdate &&
+        Date.now() - lastShowdownSnapshotAtRef.current < 3000
+      ) {
+        return;
+      }
       if (typeof gameState.turnTimeLimitSec === "number" && gameState.turnTimeLimitSec > 0) {
         turnTimeLimitSecRef.current = gameState.turnTimeLimitSec;
       }
-      if (gameState.cashCountdownEndsAt != null) setCashCountdownEndsAt(gameState.cashCountdownEndsAt);
+      handIdRef.current = gameState.handId;
+      if (typeof gameState.cashCountdownRemainingSec === "number") {
+        setCashCountdownEndsAt(Date.now() + Math.max(0, gameState.cashCountdownRemainingSec) * 1000);
+      } else if (gameState.cashCountdownEndsAt != null) {
+        setCashCountdownEndsAt(gameState.cashCountdownEndsAt);
+      }
       if (gameState.cashSeats && Array.isArray(gameState.cashSeats)) {
         setCashSeats(gameState.cashSeats);
         if (isSpectating && userId && gameState.cashSeats.some((s) => s.userId && String(s.userId) === String(userId))) {
@@ -754,7 +1068,13 @@ export function Game() {
           return;
         }
       }
-      if (!gameState.cashCountdownEndsAt && gameState.phase !== "WAITING") setCashCountdownEndsAt(null);
+      if (
+        gameState.cashCountdownEndsAt == null &&
+        (typeof gameState.cashCountdownRemainingSec !== "number" || gameState.cashCountdownRemainingSec <= 0) &&
+        gameState.phase !== "WAITING"
+      ) {
+        setCashCountdownEndsAt(null);
+      }
       if (gameState.spectatorRejoinQueue && Array.isArray(gameState.spectatorRejoinQueue)) {
         setSpectatorWantsToRejoin(gameState.spectatorRejoinQueue.includes(String(userId)));
       }
@@ -766,7 +1086,14 @@ export function Game() {
           const isMe = !isSpectating && String(p.id) === String(userId);
           const serverCardsRaw = Array.isArray(p.cards) ? p.cards : [];
           const serverCards = serverCardsRaw.map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0])).filter((c): c is Card => c !== null);
-          const myCards = isMe && serverCards.length > 0 ? serverCards : (isMe ? myCardsFromPrev : serverCards);
+          const hiddenOpponentCards: Card[] =
+            !isMe && incomingPhase !== "showdown" && p.isActive !== false
+              ? [{ suit: "hidden", value: "?" }, { suit: "hidden", value: "?" }]
+              : [];
+          const myCards = isMe
+            ? (serverCards.length > 0 ? serverCards : myCardsFromPrev)
+            : (serverCards.length > 0 ? serverCards : hiddenOpponentCards);
+          const serverInHand = p.isActive !== false;
           return {
             id: String(p.id),
             name: p.name,
@@ -777,27 +1104,37 @@ export function Game() {
             isDealer: p.isDealer ?? false,
             cards: myCards,
             isConnected: p.isConnected !== false,
-            hasFolded: !(p.isActive),
+            hasFolded: gameState.phase === "WAITING" ? false : !serverInHand,
             isBot: false,
+            role: mapServerRoleToTableRole(p.role),
+            avatar: (p as { avatar?: string }).avatar,
           };
         });
         return mapped;
       });
       setPot(gameState.pot ?? 0);
-      const phase = gameState.phase != null ? (phaseMap[gameState.phase] ?? (gameState.phase as string).toLowerCase?.() ?? "preflop") : "preflop";
-      setPhase(phase as GamePhase);
+      const phase = incomingPhase;
+      if (phase === "showdown") {
+        lastShowdownSnapshotAtRef.current = Date.now();
+      }
+      if (!(phase === "init" && phaseRef.current === "showdown" && showdownResultRef.current)) {
+        setPhase(phase as GamePhase);
+      }
       setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
         cc.forEach((c, i) => { if (i < 5 && c && typeof c === "object") arr[i] = normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]); });
+        const incomingCommunityCount = arr.filter((c) => c != null).length;
+        const communitySig = `${gameState.handId ?? 'no-hand'}:${gameState.phase ?? 'no-phase'}:${typeof gameState.actionVersion === 'number' ? gameState.actionVersion : 'no-ver'}:${incomingCommunityCount}`;
+        lastCommunitySnapshotSigRef.current = communitySig;
         if (phase === "flop" && arr[0] && arr[1] && arr[2]) {
           if (!flopAnimatedRef.current) {
             flopAnimatedRef.current = true;
             flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
             flopAnimateTimeoutsRef.current = [];
             setCommunityCardsState([arr[0], null, null, null, null]);
-            const t1 = setTimeout(() => setCommunityCardsState((prev) => [arr[0]!, arr[1]!, null, null, null]), 800);
+            const t1 = setTimeout(() => setCommunityCardsState((_prev) => [arr[0]!, arr[1]!, null, null, null]), 800);
             const t2 = setTimeout(() => setCommunityCardsState(arr), 1600);
             flopAnimateTimeoutsRef.current = [t1, t2];
           } else {
@@ -854,18 +1191,12 @@ export function Game() {
         const winnerName = gameState.showdownIsSplit && winnerIds.length > 1
           ? t('game.tie')
           : (players.find((p) => String(p.id) === String(firstWinnerId))?.name ?? firstWinnerId);
-        const winnerPlayer = players.find((p) => String(p.id) === String(firstWinnerId));
         const totalPot = gameState.showdownPot ?? 0;
         const potWon = winnerIds.length > 1 ? Math.floor(totalPot / winnerIds.length) : totalPot;
         const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
         addToUserBalance(balanceChange);
-        const normalized = winnerPlayer?.cards?.length
-          ? winnerPlayer.cards
-              .map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]))
-              .filter((c): c is Card => c !== null)
-          : [];
-        
+
         // Multi : on déclenche la transition directe à la place du vieux ShowdownDisplay !
         setShowdownResult({
           winnerId: firstWinnerId,
@@ -877,10 +1208,66 @@ export function Game() {
           handRank: 0
         });
       }
+
+      const la = (gameState as {
+        lastHandAction?: {
+          playerId: string;
+          playerName: string;
+          action: string;
+          amount?: number;
+          street: string;
+          actionVersion: number;
+          actorRole?: string;
+        };
+      }).lastHandAction;
+      if (
+        la &&
+        typeof la.actionVersion === "number" &&
+        incomingVersion >= 0 &&
+        la.actionVersion === incomingVersion &&
+        incomingHandId &&
+        (la.action === "FOLD" || la.action === "CHECK" || la.action === "CALL" || la.action === "RAISE")
+      ) {
+        const dedupeKey = `${incomingHandId}:${la.actionVersion}`;
+        if (lastHandLogSocketDedupeRef.current !== dedupeKey) {
+          lastHandLogSocketDedupeRef.current = dedupeKey;
+          const streetMap: Record<string, "preflop" | "flop" | "turn" | "river"> = {
+            PREFLOP: "preflop",
+            FLOP: "flop",
+            TURN: "turn",
+            RIVER: "river",
+          };
+          const streetKey = streetMap[la.street] ?? "preflop";
+          const streetLabel = t(`game.actionLogStreet.${streetKey}`);
+          const nameBase = String(la.playerId) === String(userId) ? t("game.you") : la.playerName;
+          const roleAbb = actionLogRoleAbbrev(la.actorRole, t);
+          const name = roleAbb ? `${nameBase} (${roleAbb})` : nameBase;
+          const amt = typeof la.amount === "number" ? la.amount : 0;
+          const detail =
+            la.action === "CHECK"
+              ? t("game.actionLogCheck", { name })
+              : la.action === "FOLD"
+                ? t("game.actionLogFold", { name })
+                : la.action === "CALL"
+                  ? t("game.actionLogCall", { name, amount: amt })
+                  : t("game.actionLogRaise", { name, amount: amt });
+          const line = t("game.actionLogLine", { street: streetLabel, detail });
+          setHandActionLog((prev) => [...prev.slice(-99), { id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, line }]);
+        }
+      }
     };
-    socket.on("GAME_UPDATE", onGameUpdate);
-    const onGameEnded = (data: { gameId: string; winnerId: string; reason: string; pot?: number }) => {
-      if (data.reason === "opponent_left" && String(data.winnerId) === String(userId)) {
+    const onGameUpdateMain = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_UPDATE", state);
+    const onGameStateUpdated = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_STATE_UPDATED", state);
+    socket.on("GAME_UPDATE", onGameUpdateMain);
+    socket.on("GAME_STATE_UPDATED", onGameStateUpdated);
+    const onGameEnded = (data: {
+      gameId: string;
+      winnerId?: string;
+      reason: string;
+      pot?: number;
+      roomId?: string;
+    }) => {
+      if (data.reason === "opponent_left" && data.winnerId != null && String(data.winnerId) === String(userId)) {
         const balanceChange = Math.round(data.pot ?? 0);
         addToUserBalance(balanceChange);
         setShowdownResult((prevResult) => {
@@ -895,22 +1282,46 @@ export function Game() {
           };
         });
       }
+      if (
+        (data.reason === "heads_up_peer_left" || data.reason === "all_players_left") &&
+        data.roomId &&
+        String(data.gameId) === String(gameIdParam)
+      ) {
+        navigate(`/waiting-room?roomId=${encodeURIComponent(data.roomId)}`, {
+          replace: true,
+          state: { message: t("game.cashTableClosedReturnToWaitingRoom") },
+        });
+      }
     };
     socket.on("GAME_ENDED", onGameEnded);
     const onCashWaiting = (state: { cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[] }) => {
       setCashWaitingPlayers(true);
+      setShowTransition(false); // jamais l’overlay jaune « prochaine manche » entre deux mains cash
+      setShowInterHandPanel(false); // on attend d’abord la phase d’abattage
+      setHasClickedReadyThisInterHand(false);
+      setCashCountdownEndsAt(null);
+      setNextHandReadyUserIds([]);
+      setAllNextHandReady(false);
       if (state.cashSeats) setCashSeats(state.cashSeats);
     };
     socket.on("CASH_WAITING_PLAYERS", onCashWaiting);
+
+    const onNextHandReadyUpdated = (data: { readyUserIds?: string[]; allReady?: boolean }) => {
+      setNextHandReadyUserIds(Array.isArray(data.readyUserIds) ? data.readyUserIds : []);
+      setAllNextHandReady(Boolean(data.allReady));
+    };
+    socket.on("CASH_NEXT_HAND_READY_UPDATED", onNextHandReadyUpdated);
     const onQueueStatus = (data: { queued: boolean }) => setSpectatorWantsToRejoin(data.queued);
     socket.on("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     return () => {
-      socket.off("GAME_UPDATE", onGameUpdate);
+      socket.off("GAME_UPDATE", onGameUpdateMain);
+      socket.off("GAME_STATE_UPDATED", onGameStateUpdated);
       socket.off("GAME_ENDED", onGameEnded);
       socket.off("CASH_WAITING_PLAYERS", onCashWaiting);
+      socket.off("CASH_NEXT_HAND_READY_UPDATED", onNextHandReadyUpdated);
       socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     };
-  }, [socket, gameIdParam, userId, isSpectating]);
+  }, [socket, gameIdParam, userId, isSpectating, navigate, t]);
 
   useEffect(() => {
     if (!handResult || !gameIdParam || isBotMode || !userId) return;
@@ -922,13 +1333,8 @@ export function Game() {
       .catch(() => {});
   }, [handResult, gameIdParam, isBotMode, userId]);
 
-  const [cashCountdownTick, setCashCountdownTick] = useState(0);
-  useEffect(() => {
-    if (!cashCountdownEndsAt) return;
-    const iv = setInterval(() => setCashCountdownTick((t) => t + 1), 1000);
-    return () => clearInterval(iv);
-  }, [cashCountdownEndsAt]);
-  const cashCountdownSecs = cashCountdownEndsAt ? Math.max(0, Math.ceil((cashCountdownEndsAt - Date.now()) / 1000)) : 0;
+  // On garde cashCountdownEndsAt uniquement pour que le state soit cohérent,
+  // mais on ne l’utilise plus pour aucun affichage de countdown côté UI.
 
   useEffect(() => {
     if (!socket) return;
@@ -1105,6 +1511,10 @@ export function Game() {
           const hasAllIn = latestActive.some((p) => (p.chips ?? 0) === 0);
           if (bettingComplete && !hasAllIn && streetTransitionScheduledRef.current !== currentPhase) {
             streetTransitionScheduledRef.current = currentPhase;
+            if (streetTransitionTimeoutRef.current) {
+              clearTimeout(streetTransitionTimeoutRef.current);
+              streetTransitionTimeoutRef.current = null;
+            }
             streetTransitionTimeoutRef.current = setTimeout(() => {
               streetTransitionTimeoutRef.current = null;
               doStreetTransitionRef.current?.();
@@ -1142,7 +1552,7 @@ export function Game() {
         return -1;
       };
 
-        let nextIndex = nextPlayerWithChips((idx + 1) % newPlayers.length);
+        const nextIndex = nextPlayerWithChips((idx + 1) % newPlayers.length);
         if (nextIndex !== -1) {
           newPlayers[nextIndex] = { ...newPlayers[nextIndex], isActive: true };
         }
@@ -1155,6 +1565,9 @@ export function Game() {
   };
 
   useEffect(() => {
+    if (gameIdParam && !isBotMode) {
+      return;
+    }
     if (phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river") {
       const players = playersState;
       const activeInHand = players.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
@@ -1179,9 +1592,15 @@ export function Game() {
         if (hasAllIn && runOutPhase === null && !gameIdParam) {
           setPlayersState((prev) => prev.map((p) => ({ ...p, isActive: false })));
           setRunOutPhase(phase);
-        } else if (!hasAllIn) {
+        } else if (!hasAllIn && gameIdParam) {
+          // Local (!gameIdParam): nextTurn + bot action path already schedule transitions; doing it here too
+          // stacks orphan timeouts on streetTransitionTimeoutRef (overwrite without clear) → double dealTurn/dealRiver.
           if (streetTransitionScheduledRef.current === phase) return;
           streetTransitionScheduledRef.current = phase;
+          if (streetTransitionTimeoutRef.current) {
+            clearTimeout(streetTransitionTimeoutRef.current);
+            streetTransitionTimeoutRef.current = null;
+          }
           streetTransitionTimeoutRef.current = setTimeout(() => {
             streetTransitionTimeoutRef.current = null;
             doStreetTransitionRef.current?.();
@@ -1206,12 +1625,13 @@ export function Game() {
 
   useEffect(() => {
     doStreetTransitionRef.current = () => {
-      if (phase === "preflop") dealFlop();
-      else if (phase === "flop") dealTurn();
-      else if (phase === "turn") dealRiver();
-      else if (phase === "river") setPhase("showdown");
+      const p = phaseRef.current;
+      if (p === "preflop") dealFlop();
+      else if (p === "flop") dealTurn();
+      else if (p === "turn") dealRiver();
+      else if (p === "river") setPhase("showdown");
     };
-  }, [phase, dealFlop, dealTurn, dealRiver]);
+  }, [dealFlop, dealTurn, dealRiver, gameIdParam, isBotMode]);
 
   useEffect(() => {
     if (phase === "init" || phase === "shuffle" || phase === "deal") {
@@ -1302,10 +1722,35 @@ export function Game() {
       setPendingShowdownData(null);
       setHandResult(null);
       setHandResultData(null);
-      setCashWaitingPlayers(false); 
-      setCashCountdownEndsAt(null);
+      // Ne pas reset la fenêtre inter-main ici :
+      // entre les mains, la phase côté UI peut repasser en "init"/"shuffle" tout en attendant le système "ready".
     }
   }, [phase]);
+
+  // Affichage du panneau inter-mains : seulement après 3s d’abattage, puis attente des ready.
+  useEffect(() => {
+    if (!cashWaitingPlayers) {
+      setShowInterHandPanel(false);
+      setHasClickedReadyThisInterHand(false);
+      return;
+    }
+    // On laisse 3s d’abattage “pur” avant de montrer les résultats + boutons ready.
+    const id = window.setTimeout(() => {
+      setShowInterHandPanel(true);
+    }, SHOWDOWN_REVEAL_MS);
+    return () => window.clearTimeout(id);
+  }, [cashWaitingPlayers, SHOWDOWN_REVEAL_MS]);
+
+
+  useEffect(() => {
+    if (!cashWaitingPlayers) return;
+    setInterHandResultsVisible(false);
+  }, [cashWaitingPlayers]);
+
+  useEffect(() => {
+    if (!cashWaitingPlayers) return;
+    if (showInterHandPanel) setInterHandResultsVisible(true);
+  }, [cashWaitingPlayers, showInterHandPanel]);
 
   useEffect(() => {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
@@ -1686,13 +2131,28 @@ export function Game() {
     const isHuman = playerId === undefined || playerId === heroId;
     if (gameIdParam && isHuman && !socket) return;
     if (gameIdParam && socket && isHuman) {
-      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "FOLD" });
+      actionSeqRef.current += 1;
+      socket.emit("PLAYER_ACTION", {
+        gameId: gameIdParam,
+        playerId: String(userId),
+        action: "FOLD",
+        handId: handIdRef.current,
+        expectedStreet: String(phase).toUpperCase(),
+        actionId: `act-${Date.now()}-${actionSeqRef.current}`,
+      });
+      setHasPlayerActed(true);
+      setIsLoading(true);
+      return;
     }
     const foldingIndex =
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
         : playersState.findIndex((p) => p.id === userId || p.id === "human");
     if (foldingIndex === -1) return;
+
+    if (!gameIdParam) {
+      appendLocalHandAction(playersState[foldingIndex], "fold");
+    }
 
     setRoundPlayersActed((prev) => new Set(prev).add(foldingIndex));
     setPlayersState((prev) => {
@@ -1773,7 +2233,18 @@ export function Game() {
     if (callAmount > 0 && isHumanActing) return;
     if (gameIdParam && isHumanActing && !socket) return;
     if (gameIdParam && socket && isHumanActing) {
-      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CHECK" });
+      actionSeqRef.current += 1;
+      socket.emit("PLAYER_ACTION", {
+        gameId: gameIdParam,
+        playerId: String(userId),
+        action: "CHECK",
+        handId: handIdRef.current,
+        expectedStreet: String(phase).toUpperCase(),
+        actionId: `act-${Date.now()}-${actionSeqRef.current}`,
+      });
+      setHasPlayerActed(true);
+      setIsLoading(true);
+      return;
     }
     const justActedIndex =
       playerId !== undefined
@@ -1783,7 +2254,10 @@ export function Game() {
       setHasPlayerActed(true);
       setIsLoading(true);
     }
-    if (!gameIdParam) nextTurn(justActedIndex);
+    if (!gameIdParam) {
+      appendLocalHandAction(justActedIndex >= 0 ? playersState[justActedIndex] : undefined, "check");
+      nextTurn(justActedIndex);
+    }
   };
 
   const handleCall = (amount: number, playerId?: number | string) => {
@@ -1793,7 +2267,19 @@ export function Game() {
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (gameIdParam && isHumanActing && !socket) return;
     if (gameIdParam && socket && isHumanActing) {
-      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "CALL", amount });
+      actionSeqRef.current += 1;
+      socket.emit("PLAYER_ACTION", {
+        gameId: gameIdParam,
+        playerId: String(userId),
+        action: "CALL",
+        amount,
+        handId: handIdRef.current,
+        expectedStreet: String(phase).toUpperCase(),
+        actionId: `act-${Date.now()}-${actionSeqRef.current}`,
+      });
+      setHasPlayerActed(true);
+      setIsLoading(true);
+      return;
     }
     if (playerId !== undefined && !isHumanActing) {
       const highestBet = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
@@ -1835,7 +2321,6 @@ export function Game() {
         });
         return nextList;
       });
-      const newPot = Math.max(0, pot + amount - totalRefund);
       setPot((prev) => Math.max(0, prev + amount - totalRefund));
       setRoundPlayersActed((prev) => {
         const next = new Set(prev).add(botIndex);
@@ -1845,6 +2330,10 @@ export function Game() {
           const currentPhase = phase;
           if (streetTransitionScheduledRef.current !== currentPhase) {
             streetTransitionScheduledRef.current = currentPhase;
+            if (streetTransitionTimeoutRef.current) {
+              clearTimeout(streetTransitionTimeoutRef.current);
+              streetTransitionTimeoutRef.current = null;
+            }
             const transitionFn =
               currentPhase === "preflop"
                 ? dealFlop
@@ -1883,6 +2372,7 @@ export function Game() {
         setPlayerChips((prev) => prev + humanRefund);
       }
       if (isBotAllInCall) setTimeout(() => setRunOutPhase(phase), 50);
+      appendLocalHandAction(playersState.find((p) => p.id === playerId), "call", { amount });
       setHasPlayerActed(false);
       setIsLoading(false);
       return;
@@ -1909,7 +2399,10 @@ export function Game() {
       setHasPlayerActed(true);
       setIsLoading(true);
     }
-    if (!gameIdParam) nextTurn(justActedIndex);
+    if (!gameIdParam) {
+      appendLocalHandAction(justActedIndex >= 0 ? playersState[justActedIndex] : undefined, "call", { amount });
+      nextTurn(justActedIndex);
+    }
   };
 
   const handleRaise = (raiseAmount: number, playerId?: number | string) => {
@@ -1920,7 +2413,19 @@ export function Game() {
     const isHumanActing = playerId === undefined || playerId === hero?.id;
     if (gameIdParam && isHumanActing && !socket) return;
     if (gameIdParam && socket && isHumanActing) {
-      socket.emit("PLAYER_ACTION", { gameId: gameIdParam, playerId: String(userId), action: "RAISE", amount: raiseAmount });
+      actionSeqRef.current += 1;
+      socket.emit("PLAYER_ACTION", {
+        gameId: gameIdParam,
+        playerId: String(userId),
+        action: "RAISE",
+        amount: raiseAmount,
+        handId: handIdRef.current,
+        expectedStreet: String(phase).toUpperCase(),
+        actionId: `act-${Date.now()}-${actionSeqRef.current}`,
+      });
+      setHasPlayerActed(true);
+      setIsLoading(true);
+      return;
     }
     const currentIndex = playersState.findIndex((p) => p.isActive);
     setRoundPlayersActed(new Set(currentIndex !== -1 ? [currentIndex] : []));
@@ -1962,7 +2467,10 @@ export function Game() {
       playerId !== undefined
         ? playersState.findIndex((p) => p.id === playerId)
         : playersState.findIndex((p) => p.id === userId || p.id === "human");
-    if (!gameIdParam) nextTurn(justActedIndex);
+    if (!gameIdParam) {
+      appendLocalHandAction(justActedIndex >= 0 ? playersState[justActedIndex] : undefined, "raise", { amount: raiseAmount });
+      nextTurn(justActedIndex);
+    }
   };
 
   const handleSendMessage = (content: string, type: "emoji" | "text") => {
@@ -2172,16 +2680,15 @@ export function Game() {
 
       {/* TA NOUVELLE TRANSITION FIGMA UNIQUE */}
       <AnimatePresence>
-        {showTransition && (
+        {showTransition && !(gameIdParam && !isBotMode && cashWaitingPlayers) && (
           <RoundTransition 
             roundNumber={roundCount} 
             winner={lastWinnerData} 
+            duration={3}
             onComplete={() => {
               setShowTransition(false);
               setRoundCount(prev => prev + 1);
               
-              setShowdownResult(null);
-              setHandResult(null);
               setHandResultData(null);
               setPhase("init");
               
@@ -2191,6 +2698,9 @@ export function Game() {
             }}
             onLeaveToLobby={() => {
               setShowTransition(false);
+              if (gameIdParam && socket && !isBotMode && !isSpectating) {
+                socket.emit("CASH_LEAVE", { gameId: gameIdParam });
+              }
               navigate("/lobby");
             }}
           />
@@ -2204,11 +2714,13 @@ export function Game() {
           {!isMobile && phase !== "init" && phase !== "shuffle" && phase !== "deal" && (
             <div className="bg-yellow-500/20 backdrop-blur-sm border border-yellow-500/40 rounded-lg px-3 py-1.5 shadow-lg">
               <p className="text-yellow-400 font-bold text-sm tracking-wide uppercase">
-                {phase === "preflop" && "Pre-Flop"}
-                {phase === "flop" && "Flop"}
-                {phase === "turn" && "Turn"}
-                {phase === "river" && "River"}
-                {phase === "showdown" && "Showdown"}
+                {phase === "preflop" ||
+                phase === "flop" ||
+                phase === "turn" ||
+                phase === "river" ||
+                phase === "showdown"
+                  ? t(`game.phaseBadge.${phase}`)
+                  : null}
               </p>
             </div>
           )}
@@ -2249,7 +2761,11 @@ export function Game() {
                   type="button"
                   role="menuitem"
                   onClick={() => {
-                    setIsQuantumOpen((o) => !o);
+                    setIsQuantumOpen((o) => {
+                      const next = !o;
+                      setQuantumPinned(next);
+                      return next;
+                    });
                     setShowMenu(false);
                   }}
                   className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} ${isQuantumOpen ? 'text-amber-400 bg-amber-500/15' : 'text-white hover:bg-slate-700/80'} transition-all`}
@@ -2321,8 +2837,12 @@ export function Game() {
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-4'}`}>
           {!isMobile && (
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-xl border-2 border-white">
-              {getPlayerAvatar(heroDisplayName) ? (
-                <ImageWithFallback src={getPlayerAvatar(heroDisplayName)} alt="Avatar du joueur" className="w-full h-full rounded-full object-cover" />
+              {getPlayerAvatar(heroPlayer?.name ?? "Vous", heroPlayer?.id, isBotMode ? "human" : userId) ? (
+                <ImageWithFallback
+                  src={getPlayerAvatar(heroPlayer?.name ?? "Vous", heroPlayer?.id, isBotMode ? "human" : userId)}
+                  alt="Avatar du joueur"
+                  className="w-full h-full rounded-full object-cover"
+                />
               ) : (
                 <span className="text-white font-bold text-xl">{heroDisplayName.charAt(0)}</span>
               )}
@@ -2437,66 +2957,295 @@ export function Game() {
         onCancel={() => setShowQuitConfirm(false)}
         onConfirm={() => {
           setShowQuitConfirm(false);
+          if (gameIdParam && socket) {
+            socket.emit("CASH_LEAVE", { gameId: gameIdParam });
+          }
           navigate("/lobby");
         }}
       />
 
-      {gameIdParam && !isBotMode && (cashCountdownEndsAt || cashWaitingPlayers) && (
+      {gameIdParam && !isBotMode && cashWaitingPlayers && showInterHandPanel && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2">
-          <div className="bg-slate-800/95 border border-emerald-500/50 rounded-xl px-6 py-3 shadow-lg">
-            {cashWaitingPlayers ? (
-              <p className="text-emerald-300 font-semibold">{t('game.waitingForPlayers')}</p>
-            ) : cashCountdownSecs > 0 ? (
-              <p className="text-white font-semibold">{t('game.newHandIn', { count: cashCountdownSecs })}</p>
-            ) : null}
-          </div>
-          {(cashCountdownEndsAt || cashWaitingPlayers) && (
-            <div className="flex gap-2 flex-wrap justify-center max-w-[min(100vw-1rem,420px)]">
-              {!cashSeats.some((s) => s.userId === userId) ? (
-                cashSeats.some((s) => !s.userId) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const free = cashSeats.findIndex((s) => !s.userId);
-                      if (free >= 0 && socket) socket.emit("CASH_SIT", { gameId: gameIdParam, seatIndex: free, buyIn: 100 });
-                    }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
-                  >
-                    {t("game.cashSitBuyIn", { amount: 100 })}
-                  </button>
-                )
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => socket?.emit("CASH_LEAVE", { gameId: gameIdParam })}
-                    className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
-                  >
-                    {t("game.cashStandUp")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => socket?.emit("CASH_REBUY", { gameId: gameIdParam, amount: 100 })}
-                    className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
-                  >
-                    {t("game.cashRebuy", { amount: 100 })}
-                  </button>
-                </>
+          <div className="bg-slate-800/95 border border-emerald-500/50 rounded-xl px-6 py-4 shadow-lg max-w-[min(100vw-1rem,520px)] w-full">
+            <div className="space-y-4">
+                  <div className="text-center">
+                <p className="text-emerald-300 font-semibold">
+                  {t("game.waitingForReady", "En attente : cliquez « Prêt » pour la prochaine main")}
+                </p>
+                  {!interHandResultsVisible ? (
+                    <p className="text-slate-300 text-xs mt-2">
+                      {t("game.revealInProgress", "Abattage en cours…")}
+                    </p>
+                  ) : (
+                    <>
+                      {showdownResult && (
+                  <div className="mt-2">
+                    <div className="text-sm text-amber-200 font-semibold">{t("game.winnerLabel", "Gagnant")}</div>
+                    <div className="text-2xl font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.25)]">
+                      {showdownResult.winnerName}
+                    </div>
+                    <div className="text-sm text-slate-200">
+                      {t("game.winningHandLabel", "Combinaison gagnante")}:{" "}
+                      <span className="text-amber-200 font-semibold">{showdownResult.hand}</span>
+                    </div>
+                    <div className="text-sm text-slate-200">
+                      +{(showdownResult.pot ?? 0).toLocaleString()} {t("game.jets", "jetons")}
+                    </div>
+                  </div>
+                      )}
+                    </>
+                  )}
+              </div>
+
+              {interHandResultsVisible && (
+                <div className="border-t border-slate-700 pt-3">
+                  <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                    <span>{t("hiddenBets.tableResolvedTitle", "Tickets résolus (paris cachés)")}</span>
+                    {interHandTableTicketsLoading && <span>{t("hiddenBets.loading", "Chargement…")}</span>}
+                  </div>
+
+                  {interHandTableTicketsError && (
+                    <p className="text-red-400 text-xs mb-2">{interHandTableTicketsError}</p>
+                  )}
+
+                  {!interHandTableTicketsLoading && interHandTableTickets.length === 0 && (
+                    <p className="text-slate-400 text-xs">
+                      {t("hiddenBets.noTableTickets", "Aucun ticket résolu pour le moment.")}
+                    </p>
+                  )}
+
+                  {!interHandTableTicketsLoading && interHandTableTickets.length > 0 && (
+                    <div className="space-y-2 max-h-[170px] overflow-y-auto pr-1">
+                      {interHandTableTickets.slice(0, 20).map((tk) => {
+                        const uname =
+                          (tk.user?.username ?? tk.userId ?? "").toString() || t("game.unknown", "Inconnu");
+                        const whoLabel =
+                          userId && tk.userId != null && String(tk.userId) === String(userId)
+                            ? t("game.you", "Vous")
+                            : uname;
+                        const odds = typeof tk.quotedOdds === "number" ? tk.quotedOdds : null;
+                        const status =
+                          tk.status === "WON" ? "GAGNÉ" : tk.status === "VOID" ? "ANNULÉ" : "PERDU";
+
+                        const statusClass =
+                          tk.status === "WON"
+                            ? "border-green-500/50 bg-green-900/20"
+                            : tk.status === "VOID"
+                              ? "border-slate-600 bg-slate-700/20"
+                              : "border-red-500/40 bg-red-900/15";
+
+                        return (
+                          <div
+                            key={tk.id}
+                            className={`rounded-lg border px-3 py-2 ${statusClass}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-xs text-white font-semibold truncate">
+                                {whoLabel}
+                              </div>
+                              <div className="text-[10px] text-slate-200">{status}</div>
+                            </div>
+                            <div className="flex items-center justify-between mt-1">
+                              <div className="text-[11px] text-yellow-300 font-bold">
+                                {odds != null ? `x${odds.toFixed(2)}` : "—"}
+                              </div>
+                              <button
+                                type="button"
+                                className="p-0.5 rounded hover:bg-white/10 text-slate-200"
+                                aria-label={t("hiddenBets.oddsInfo", "Infos sur la cote")}
+                                onClick={() => {
+                                  try {
+                                    const parsed = tk.stateSnapshotJson ? JSON.parse(tk.stateSnapshotJson) : null;
+                                    setPricingInfo({
+                                      ticketId: tk.id,
+                                      pricingBreakdown: parsed?.pricingBreakdown ?? null,
+                                      pricingInputs: parsed?.pricingInputs ?? null,
+                                    });
+                                  } catch {
+                                    setPricingInfo({
+                                      ticketId: tk.id,
+                                      pricingBreakdown: null,
+                                      pricingInputs: null,
+                                    });
+                                  }
+                                }}
+                              >
+                                <Info className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               )}
+
+              {interHandResultsVisible && (
+                <div className="border-t border-slate-700 pt-3">
+                  <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                    <span>{t("game.nextHandReadyTitle", "Joueurs prêts")}</span>
+                    <span>
+                      {allNextHandReady
+                        ? t("game.allReady", "Tout le monde est prêt")
+                        : t("game.waiting", "En attente…")}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {cashSeats
+                      .filter((s) => !!s.userId)
+                      .sort((a, b) => a.seatIndex - b.seatIndex)
+                      .map((seat) => {
+                        const seatUserId = seat.userId!;
+                        const isReady = nextHandReadyUserIds.some((u) => String(u) === String(seatUserId));
+                        const isMe = userId && String(userId) === String(seatUserId);
+
+                        return (
+                          <div
+                            key={seat.seatIndex}
+                            className="flex items-center justify-between gap-3 bg-slate-900/20 border border-slate-700/70 rounded-lg px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-white truncate">
+                                {seat.username ?? t("game.unknown", "Inconnu")}
+                                {isMe ? ` (${t("game.you", "Vous")})` : ""}
+                              </div>
+                              <div className={`text-[11px] ${isReady ? "text-emerald-200" : "text-slate-400"}`}>
+                                {isReady ? t("game.ready", "Prêt") : t("game.notReady", "Pas prêt")}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={!isMe || allNextHandReady}
+                              onClick={() => {
+                                if (!isMe) return;
+                                socket?.emit("CASH_NEXT_HAND_READY", { gameId: gameIdParam, ready: !myNextHandReady });
+                              }}
+                              className={`text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition ${
+                                isMe
+                                  ? isReady
+                                    ? "bg-emerald-700 hover:bg-emerald-600"
+                                    : "bg-emerald-600 hover:bg-emerald-500"
+                                  : "bg-slate-700 text-slate-300 cursor-not-allowed"
+                              } ${!isMe ? "opacity-70" : ""}`}
+                            >
+                              {isReady
+                                ? t("game.ready", "✅ Prêt")
+                                : isMe
+                                  ? t("game.notReady", "Prêt ?")
+                                  : t("game.notReady", "Pas prêt")}
+                            </button>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-2 flex-wrap justify-center max-w-[min(100vw-1rem,520px)] w-full px-2">
+            {!cashSeats.some((s) => s.userId != null && userId != null && String(s.userId) === String(userId)) ? (
+              cashSeats.some((s) => !s.userId) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const free = cashSeats.findIndex((s) => !s.userId);
+                    if (free >= 0 && socket) socket.emit("CASH_SIT", { gameId: gameIdParam, seatIndex: free, buyIn: 100, avatarUrl: getUserAvatar() });
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                >
+                  {t("game.cashSitBuyIn", { amount: 100 })}
+                </button>
+              )
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => socket?.emit("CASH_LEAVE", { gameId: gameIdParam })}
+                  className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                >
+                  {t("game.cashStandUp")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => socket?.emit("CASH_REBUY", { gameId: gameIdParam, amount: 100 })}
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                >
+                  {t("game.cashRebuy", { amount: 100 })}
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowQuitConfirm(true)}
+              className="border border-slate-500 bg-slate-800/90 hover:bg-red-950/60 hover:border-red-500/50 text-slate-200 hover:text-red-200 text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+            >
+              {t("nav.quitGame")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {pricingInfo && (
+        <div
+          className="fixed inset-0 z-[220] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPricingInfo(null)}
+        >
+          <div
+            className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border-2 border-yellow-500 shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between gap-3">
+              <div className="text-white text-sm font-semibold">
+                {t("hiddenBets.oddsInfoTitle", "Calcul exact de la cote")}
+              </div>
               <button
                 type="button"
-                onClick={() => setShowQuitConfirm(true)}
-                className="border border-slate-500 bg-slate-800/90 hover:bg-red-950/60 hover:border-red-500/50 text-slate-200 hover:text-red-200 text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                className="text-slate-200 hover:text-white bg-white/10 hover:bg-white/15 rounded px-2 py-1 text-xs"
+                onClick={() => setPricingInfo(null)}
               >
-                {t("nav.quitGame")}
+                {t("hiddenBets.close", "Fermer")}
               </button>
             </div>
-          )}
+            <div className="p-4 text-xs text-slate-200 space-y-4">
+              <div className="text-slate-400">
+                Ticket: <span className="text-slate-100 font-mono">{pricingInfo.ticketId}</span>
+              </div>
+
+              <div>
+                <div className="text-slate-400 mb-2">{t("hiddenBets.pricingBreakdown", "Détail pricing")}</div>
+                <pre className="bg-slate-950/40 border border-slate-700 rounded p-3 whitespace-pre-wrap break-words">
+                  {pricingInfo.pricingBreakdown != null
+                    ? JSON.stringify(pricingInfo.pricingBreakdown, null, 2)
+                    : t("hiddenBets.noPricingInfo", "Détail non disponible pour ce ticket.")}
+                </pre>
+              </div>
+
+              <div>
+                <div className="text-slate-400 mb-2">{t("hiddenBets.pricingInputs", "Inputs pricing")}</div>
+                <pre className="bg-slate-950/40 border border-slate-700 rounded p-3 whitespace-pre-wrap break-words">
+                  {pricingInfo.pricingInputs != null
+                    ? JSON.stringify(pricingInfo.pricingInputs, null, 2)
+                    : t("hiddenBets.noPricingInfo", "Détail non disponible pour ce ticket.")}
+                </pre>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       <div ref={tourRefTable} className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
-        <PokerTable players={tablePlayers} communitySafeZone={230} phase={phase} burnedCardsCount={displayBurnedCardsCount} colorblindMode={colorblindMode}>
+        <PokerTable
+          players={tablePlayers}
+          communitySafeZone={230}
+          phase={phase}
+          burnedCardsCount={displayBurnedCardsCount}
+          colorblindMode={colorblindMode}
+          heroSeatId={isBotMode ? "human" : (userId ?? undefined)}
+        >
           <CommunityCards
             cards={communityCards}
             pot={pot}
@@ -2508,18 +3257,22 @@ export function Game() {
         </PokerTable>
       </div>
 
-      {showdownResult && !showTransition && !showdownResult.skipRevealDelay && (
-        <div
-          className="pointer-events-none fixed bottom-28 left-1/2 z-[130] -translate-x-1/2 rounded-xl border border-amber-500/40 bg-slate-900/95 px-4 py-2 shadow-lg"
-          role="status"
-          aria-live="polite"
-        >
-          <p className="text-center text-sm font-semibold text-amber-200">{t("game.showdownRevealBanner")}</p>
-        </div>
-      )}
-
-      <QuantumHUD isOpen={isQuantumOpen} onToggle={() => setIsQuantumOpen(!isQuantumOpen)} />
-      <HiddenBetsPanel isOpen={isPanelOpen} onToggle={() => setIsPanelOpen(!isPanelOpen)} players={activePlayers} />
+      <HandActionLogPanel entries={handActionLog} />
+      <QuantumHUD
+        isOpen={isQuantumOpen}
+        onToggle={closeQuantumPanel}
+        onPanelPointerEnter={onQuantumPanelEnter}
+        onPanelPointerLeave={onQuantumPanelLeave}
+      />
+      <HiddenBetsPanel
+        isOpen={isPanelOpen}
+        onToggle={() => setIsPanelOpen(!isPanelOpen)}
+        players={activePlayers}
+        gameId={gameIdParam}
+        hiddenBetNextHandId={hiddenBetNextHandId}
+        hiddenBetWindowOpen={hiddenBetWindowOpen}
+        hiddenBetState={hiddenBetState}
+      />
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />
 
@@ -2562,10 +3315,11 @@ export function Game() {
           actionsDisabled={Boolean(gameIdParam && !socket)}
           waitingForPlayer={!isMyTurn && !hasFoldedFromState ? (activePlayer?.name === "Vous" || activePlayer?.name === "you" ? t('game.you') : activePlayer?.name) : undefined}
           timeLeft={timeLeft ?? 30}
-          onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
+          onToggleQuantum={onQuantumToggleClick}
+          onQuantumHoverEnter={onQuantumProbasEnter}
+          onQuantumHoverLeave={onQuantumProbasLeave}
           onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
-          isQuantumOpen={isQuantumOpen}
           isHiddenBetsOpen={isPanelOpen}
           isChatOpen={isChatOpen}
         />

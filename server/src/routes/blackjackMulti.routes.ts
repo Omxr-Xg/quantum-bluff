@@ -61,15 +61,6 @@ function getIo(req: express.Request): Server | undefined {
   return req.app.get('io') as Server | undefined
 }
 
-async function getStoredPublicState(
-  gameId: string
-): Promise<BlackjackTablePublicState | null> {
-  const stored = await blackjackStateStore.getTable(gameId)
-  const publicState = stored?.runtime?.publicState
-  if (!publicState || typeof publicState !== 'object') return null
-  return publicState as BlackjackTablePublicState
-}
-
 async function getRuntimeAssessment(gameId: string) {
   const room = await prisma.blackjackRoom.findFirst({
     where: { gameId },

@@ -1,4 +1,4 @@
-import Redis from 'ioredis'
+import { Redis } from 'ioredis'
 import type { BlackjackStateStore } from './blackjackStateStore.js'
 import type {
   BlackjackTableState,
@@ -80,7 +80,7 @@ export class RedisBlackjackStateStore implements BlackjackStateStore {
     handler: (event: BlackjackTableUpdateEvent) => Promise<void> | void
   ): Promise<void> {
     await this.subscriber.subscribe(UPDATE_CHANNEL)
-    this.subscriber.on('message', async (channel, message) => {
+    this.subscriber.on('message', async (channel: string, message: string) => {
       if (channel !== UPDATE_CHANNEL) return
       try {
         const evt = JSON.parse(message) as BlackjackTableUpdateEvent

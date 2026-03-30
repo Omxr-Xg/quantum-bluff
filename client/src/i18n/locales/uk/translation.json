@@ -62,6 +62,7 @@
     "tabPoker": "Техаський холдем",
     "tabRoulette": "Рулетка",
     "tabBlackjack": "Блекджек",
+    "tabMinigames": "Міні-ігри",
     "tabListAria": "Розділи лобі",
     "rouletteTitle": "Рулетка",
     "rouletteIntro": "37 секторів (0–36). Жеребкування та виплати на сервері — внутрішні та зовнішні ставки.",
@@ -80,7 +81,7 @@
       "headerTitle": "Заголовок",
       "headerBody": "Логотип, назва гри та привітання.",
       "topBarTitle": "Верхнє меню",
-      "topBarBody": "Мова, баланс фішок, профіль, друзі, доступність і вихід.",
+      "topBarBody": "Мова, баланс фішок, профіль, друзі, налаштування і вихід.",
       "tourWelcomeTitle": "Вітаємо!",
       "tourWelcomeBody": "Тур підсвічує кожну зону лобі. Далі або клік поза вікном — закрити.",
       "tourDoneTitle": "Готово!",
@@ -103,6 +104,14 @@
       "createTitle": "Створити сервер",
       "createBody": "Публічна або приватна. Макс. гравців (2–5). «Показати більше»: малі/великий блайнд і мін. баланс. Підтвердити — відкриває кімнату очікування."
     }
+  },
+  "minigames": {
+    "rouletteTitle": "Рулетка",
+    "rouletteBlurb": "Робіть ставки на полі та крутіть колесо.",
+    "slotTitle": "Слот-машина",
+    "slotBlurb": "Зберіть один ряд символів і зірвіть джекпот.",
+    "play": "Грати",
+    "backToLobbyMinigamesTab": "Назад до лобі"
   },
   "slot": {
     "title": "Слот-машина",
@@ -140,7 +149,25 @@
     "autoStoppedAtCeiling": "Авто зупинено: досягнуто цільового максимуму (≥ {{ceiling}}).",
     "autoStoppedAtFloor": "Авто зупинено: баланс на підлозі (≤ {{floor}}).",
     "autoStoppedWouldBreach": "Авто зупинено: ставка опустить баланс нижче підлоги ({{floor}}).",
-    "autoStoppedError": "Авто зупинено (помилка мережі або сервера)."
+    "autoStoppedError": "Авто зупинено (помилка мережі або сервера).",
+    "brandTitle": "QUANTUM SLOTS",
+    "winLine": "★ ВИГРАШНА ЛІНІЯ ★",
+    "winBanner": "🎰 QUANTUM WIN! 🎰",
+    "insufficientFunds": "Недостатньо фішок",
+    "paytableTitle": "Таблиця виплат",
+    "paytableTriple": "3× {{symbol}}",
+    "paytableThreeSame": "3 однакові символи",
+    "multiplierLabel": "Множник",
+    "quantumBoostTitle": "Quantum Boost",
+    "quantumBoostBody": "Сервер застосовує чесну випадковість на кожному обертанні.",
+    "sessionCurrent": "Поточна сесія",
+    "sessionWins": "Виграші",
+    "sessionSpins": "Обертання",
+    "errorMustLogin": "Потрібно увійти в акаунт.",
+    "errorInvalidServerResponse": "Некоректна відповідь сервера.",
+    "errorSync": "Помилка синхронізації.",
+    "errorServer": "Помилка сервера.",
+    "errorUnreachable": "Не вдалося з’єднатися з сервером."
   },
   "blackjack": {
     "title": "Блекджек",
@@ -243,6 +270,14 @@
     "burned": "Спалені",
     "burnedCount": "{{count}} спалена карта",
     "bets": "Ставки",
+    "probabilitiesShort": "Шанси",
+    "phaseBadge": {
+      "preflop": "Префлоп",
+      "flop": "Флоп",
+      "turn": "Терн",
+      "river": "Рівер",
+      "showdown": "Відкриття"
+    },
     "waiting": "Очікування...",
     "waitingFor": "Очікування {{name}}",
     "check": "Чек",
@@ -265,11 +300,48 @@
     "actionChecked": "чекає",
     "actionCalled": "колл",
     "actionRaised": "підняв",
+    "actionLogTitle": "Журнал дій",
+    "combinationsHelp": {
+      "buttonShort": "Комбінації",
+      "buttonTitle": "Рейтинг комбінацій — наведіть або натисніть на мобільному",
+      "title": "Рейтинг комбінацій",
+      "subtitle": "Від найсильнішої до найслабшої в Texas Hold'em. У кожному рядку — приклад із 5 карт.",
+      "desc": {
+        "straightFlush": "П'ять карт однієї масті поспіль. 10–В–Д–К–Т однієї масті — роял-флеш (найсильніша рука).",
+        "fourKind": "Чотири карти одного рангу плюс кікер.",
+        "fullHouse": "Трійка плюс пара.",
+        "quantumCombi": "Ексклюзив Quantum Bluff: серед семи карт є хоча б одна 3, 5, 6, 7 і 10. Сильніше за флеш, слабше за фул-хаус. Нічия — порівняти два кікери.",
+        "flush": "П'ять карт однієї масті без стріта.",
+        "straight": "П'ять карт поспіль, різні масті.",
+        "threeKind": "Три карти одного рангу.",
+        "twoPair": "Дві різні пари плюс кікер.",
+        "pair": "Дві карти одного рангу.",
+        "highCard": "Без пари чи краще — перемагає найстарша карта."
+      }
+    },
+    "actionLogEmpty": "Ще немає дій у цій роздачі.",
+    "actionLogLine": "[{{street}}] {{detail}}",
+    "actionLogCheck": "{{name}} чек",
+    "actionLogFold": "{{name}} пас",
+    "actionLogCall": "{{name}} колл {{amount}}",
+    "actionLogRaise": "{{name}} рейз +{{amount}}",
+    "actionLogStreet": {
+      "preflop": "Префлоп",
+      "flop": "Флоп",
+      "turn": "Терн",
+      "river": "Рівер"
+    },
+    "actionLogRole": {
+      "SMALL_BLIND": "SB",
+      "BIG_BLIND": "BB",
+      "DEALER": "BTN"
+    },
     "you": "Ви",
     "dealer": "Дилер",
     "turnSeconds": "Хід: {{seconds}}с",
     "waitingForPlayers": "Очікування гравців...",
-    "newHandIn": "Нова рука через {{count}} сек...",
+    "newHandIn_one": "Нова рука за {{count}} секунду…",
+    "newHandIn_other": "Нова рука за {{count}} сек…",
     "leaveBetweenHands": "Назад у лобі",
     "nextRoundIn": "Наступна роздача через...",
     "roundTransitionRound": "Роздача #{{n}}",
@@ -281,6 +353,7 @@
     "roundWinnerLabel": "Переможець роздачі",
     "tie": "Нічия",
     "opponentLeft": "Супротивник вийшов",
+    "cashTableClosedReturnToWaitingRoom": "Стіл закрито: повернення в зал очікування.",
     "showdownRevealBanner": "Показ карт…",
     "openChat": "Відкрити чат",
     "helpRules": "Допомога та правила гри",
@@ -537,7 +610,29 @@
     "saving": "Збереження...",
     "fileTooBig": "Розмір файлу не повинен перевищувати 5 МБ!",
     "passwordMismatch": "Нові паролі не збігаються!",
-    "passwordMinLength": "Новий пароль має містити щонайменше 6 символів!"
+    "passwordMinLength": "Новий пароль має містити щонайменше 6 символів!",
+    "avatarGalleryLabel": "Обрати аватар",
+    "avatarPresetHint": "Можна обрати готовий аватар або завантажити своє зображення.",
+    "avatarOption": "Аватар {{index}} з {{total}}",
+    "showMoreAvatars": "Показати ще аватари ({{count}})",
+    "showLessAvatars": "Згорнути",
+    "profilePhotoSection": "Фото профілю",
+    "profilePreviewAlt": "Попередній перегляд профілю",
+    "choosePhoto": "Обрати фото",
+    "photoFormatsHint": "JPG, PNG або GIF • Макс. 5 МБ",
+    "basicInfoSection": "Основна інформація",
+    "usernameLabel": "Ім'я користувача",
+    "usernamePlaceholder": "Ваше ім'я користувача",
+    "emailLabel": "Електронна пошта",
+    "emailPlaceholder": "ви@email.com",
+    "securitySection": "Безпека",
+    "currentPasswordLabel": "Поточний пароль",
+    "currentPasswordPlaceholder": "Введіть поточний пароль",
+    "newPasswordLabel": "Новий пароль",
+    "newPasswordPlaceholder": "Введіть новий пароль",
+    "newPasswordOptionalHint": "Залиште порожнім, якщо не хочете змінювати",
+    "confirmPasswordLabel": "Підтвердіть новий пароль",
+    "confirmPasswordPlaceholder": "Підтвердіть новий пароль"
   },
   "waitingRoom": {
     "roomNotFound": "Кімнату не знайдено",
@@ -650,6 +745,7 @@
       "threeKind": "Трійка",
       "straight": "Стріт",
       "flush": "Флеш",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Фулл-хаус",
       "fourKind": "Каре",
       "straightFlush": "Стріт-флеш",
@@ -684,6 +780,37 @@
     "gain": "Виграш",
     "continue": "Продовжити",
     "highCard": "Старша карта"
+  },
+  "settings": {
+    "title": "Налаштування",
+    "subtitle": "Вигляд столу та відображення",
+    "close": "Закрити",
+    "tabAesthetic": "Вигляд",
+    "tabAccessibility": "Доступність",
+    "tableThemeHint": "Оберіть колір сукна для покерного столу.",
+    "tableTheme": {
+      "default": "Класичний зелений",
+      "vegasRed": "Червоний у стилі Вегас",
+      "vegasPurple": "Фіолетовий у стилі Вегас",
+      "darkBlue": "Темно-синій"
+    }
+  },
+  "accessibility": {
+    "title": "Доступність",
+    "highContrastTitle": "Високий контраст",
+    "highContrastHint": "Чіткіші межі та текст",
+    "highContrastBody": "Покращує читабельність завдяки вищому контрасту на столі та елементах керування.",
+    "visualAlertsTitle": "Візуальні сповіщення",
+    "visualAlertsHint": "Більше наголосу на ваш хід і важливі дії",
+    "visualAlertsBody": "Показує помітніші підсвічування, коли ваш хід або потрібна дія.",
+    "colorblindTitle": "Карти для дальтоніків",
+    "colorblindHint": "Коригує кольори мастей для протанопії, дейтеранопії чи тританопії",
+    "colorblindSelectLabel": "Тип сприйняття кольору",
+    "colorblindProtanopia": "Протанопія (слабкий червоний)",
+    "colorblindDeuteranopia": "Дейтеранопія (слабкий зелений)",
+    "colorblindTritanopia": "Тританопія (синьо–жовтий)",
+    "savedInfoTitle": "Збережено на цьому пристрої",
+    "savedInfoBody": "Ці налаштування зберігаються в браузері й застосовуються до всіх столів."
   },
   "nav": {
     "login": "Вхід",
@@ -746,15 +873,13 @@
       "threeKind": "Трійка",
       "straight": "Стріт",
       "flush": "Флеш",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Фулл-хаус",
       "fourKind": "Каре",
       "straightFlush": "Стріт-флеш"
     },
     "acquired": "Досягнуто",
     "chancePercent": "{{percent}}% шанс"
-  },
-  "accessibility": {
-    "title": "Доступність"
   },
   "invitation": {
     "title": "{{username}} запросив вас грати!",

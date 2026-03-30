@@ -1,6 +1,6 @@
 // server/src/logic/Deck.ts
-import { randomInt } from "crypto";
 import type { Card, Player, Rank, Suit } from "../types/poker.js";
+import { drawInt } from "../rng/rng.service.js";
 
 // ------------------------------
 // Constants
@@ -50,7 +50,7 @@ export class Deck {
    */
   shuffle(): void {
     for (let i = this.cards.length - 1; i > 0; i--) {
-      const j = randomInt(0, i + 1);
+      const j = drawInt("poker", "legacy-round", "poker.deck.shuffle", 0, i).value;
       [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
     }
   }
