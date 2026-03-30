@@ -701,18 +701,6 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
           s.emit('GAME_STATE_UPDATED', snap)
         }
       })
-      cashGame.setOnCountdownDone(async () => {
-        cashGame.startHand();
-        if (cashGame.isInHand()) {
-          const socketsInRoom = await io.in(gameId).fetchSockets();
-          for (const s of socketsInRoom) {
-            const uid = (s as { userId?: string }).userId;
-            s.emit('GAME_UPDATE', cashGame.getSanitizedState(uid));
-          }
-        } else {
-          io.to(gameId).emit('CASH_WAITING_PLAYERS', cashGame.getSanitizedState());
-        }
-      });
       io.to(roomId).emit('GAME_STARTED', { gameId, players: room.players.map((rp) => ({ id: rp.user.id, name: rp.user.username })) });
     }
 
