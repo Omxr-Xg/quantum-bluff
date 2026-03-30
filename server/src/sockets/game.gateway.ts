@@ -393,6 +393,21 @@ export class GameGateway {
         })()
       })
 
+      // 👇 NOUVEAU : LE NETTOYAGE DU BLACKJACK 👇
+      socket.on('LEAVE_BLACKJACK_TABLE', (data: { gameId?: string }) => {
+        const gameId = data?.gameId;
+        if (!gameId) return;
+
+        socket.leave(gameId);
+        socket.leave(`blackjack:${gameId}`);
+        if (socket.gameId === gameId) {
+          socket.gameId = undefined;
+        }
+        
+        console.log(`👋 Socket ${socket.id} a quitté proprement la table blackjack ${gameId}`);
+      });
+      // 👆 FIN DU NOUVEAU BLOC 👆
+
       socket.on('SPECTATOR_QUEUE_JOIN', async (data: { gameId: string }) => {
         try {
           const { gameId } = data
