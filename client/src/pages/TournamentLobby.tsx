@@ -1,12 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Users, Coins, Clock, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Trophy, Users, Coins, Clock, ChevronRight, ArrowLeft, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { TournamentService, Tournament } from '../services/tournament.service';
 import { useToast } from '../contexts/ToastContext';
-
-import { useNavigate } from 'react-router-dom';
-import { Settings } from 'lucide-react'; // L'icône pour le bouton Admin
-
-
+import { socket } from '../services/socket'; // 👈 IMPORT DU SOCKET
 
 // Fonction utilitaire pour le compte à rebours
 function formatTimeLeft(targetDate: string) {
@@ -39,14 +36,24 @@ export function TournamentLobby() {
 
   useEffect(() => {
     loadTournaments();
-    // Refresh de la liste toutes les minutes
+    
+    // Refresh de la liste toutes les minutes en sécurité
     const listInterval = setInterval(loadTournaments, 60000);
     // Refresh du timer toutes les secondes
     const timerInterval = setInterval(() => setNow(new Date()), 1000);
 
+    // 🎧 NOUVEAU : Écouteur en temps réel pour actualiser les compteurs de joueurs
+    const handleTournamentUpdate = () => {
+      console.log("🔄 Mise à jour des tournois reçue via Socket !");
+      loadTournaments();
+    };
+
+    socket.on('tournament-updated', handleTournamentUpdate);
+
     return () => {
       clearInterval(listInterval);
       clearInterval(timerInterval);
+      socket.off('tournament-updated', handleTournamentUpdate); // On débranche au démontage
     };
   }, []);
 
@@ -62,18 +69,13 @@ export function TournamentLobby() {
 
   const handleLeave = async (id: string) => {
     try {
-        // On appelle le service pour quitter
         await TournamentService.leaveTournament(id);
-        
         addToast("Vous avez quitté le tournoi.", "info");
-        
-        // TRÈS IMPORTANT : On recharge la liste pour que le bouton 
-        // redevienne "S'inscrire" et que les jetons s'actualisent
         loadTournaments(); 
     } catch (err: any) {
         addToast(err.message, "error");
     }
-    };
+  };
 
   if (loading && tournaments.length === 0) {
     return <div className="flex justify-center items-center h-64 text-amber-500 font-bold">Initialisation du lobby...</div>;
@@ -85,7 +87,6 @@ export function TournamentLobby() {
       <div className="flex justify-between items-start mb-10">
 
         <div className="flex flex-col gap-4">
-          {/* 🔙 NOUVEAU BOUTON RETOUR 👇 */}
           <button
             onClick={() => navigate('/lobby')}
             className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors w-fit group"
@@ -103,7 +104,6 @@ export function TournamentLobby() {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* BOUTON CRÉER UN TOURNOI (ADMIN) 👇 */}
           <button
             onClick={() => navigate('/admin/tournaments')}
             className="flex items-center gap-2 bg-slate-800 hover:bg-amber-500/10 text-slate-400 hover:text-amber-400 hover:border-amber-500/50 p-4 rounded-2xl border border-slate-700 transition-all shadow-xl group"
@@ -112,7 +112,6 @@ export function TournamentLobby() {
             <span className="font-bold text-sm uppercase tracking-wider">Créer</span>
           </button>
 
-          {/* Le trophée d'origine */}
           <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl">
             <Trophy className="text-amber-500 w-8 h-8" />
           </div>
@@ -170,7 +169,6 @@ export function TournamentLobby() {
                   </div>
 
                   {t.isJoined ? (
-                    /* ÉTAT : DÉJÀ INSCRIT + BOUTON QUITTER */
                     <div className="flex gap-2">
                         <div className="flex-1 bg-green-500/10 border border-green-500/30 text-green-400 font-black py-4 rounded-2xl flex items-center justify-center gap-3 tracking-widest uppercase italic text-sm">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-ping" />
@@ -184,11 +182,10 @@ export function TournamentLobby() {
                         </button>
                     </div>
                     ) : (
-                    /* ÉTAT : BOUTON S'INSCRIRE */
                     <button
                         onClick={() => handleJoin(t.id)}
                         disabled={t._count.players >= t.maxPlayers}
-                        className="w-full bg-amber-500 hover:bg-white text-slate-950 font-black py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 group-hover:scale-[1.02] shadow-lg shadow-amber-500/20"
+                        className="w-full bg-amber-500 hover:bg-white text-slate-950 font-black py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 group-hover:scale-[1.02] shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {t._count.players >= t.maxPlayers ? 'TOURNOI COMPLET' : "S'INSCRIRE"}
                         <ChevronRight className="w-6 h-6" />

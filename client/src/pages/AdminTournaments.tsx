@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Trophy, Calendar, Users, Coins, PlusCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // 👈 IMPORT AJOUTÉ
+import { Trophy, Calendar, Users, Coins, PlusCircle, ArrowLeft } from 'lucide-react'; // 👈 ArrowLeft AJOUTÉ
 import { TournamentService } from '../services/tournament.service';
 import { useToast } from '../contexts/ToastContext';
 
 export function AdminTournaments() {
   const { addToast } = useToast();
+  const navigate = useNavigate(); // 👈 INITIALISATION DE NAVIGATE
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -26,7 +28,10 @@ export function AdminTournaments() {
       });
       
       addToast("Tournoi créé avec succès !", "success");
-      setFormData({ name: '', buyIn: 100, maxPlayers: 9, startTime: '' }); // Reset
+      
+      // 🚀 REDIRECTION VERS LE LOBBY APRÈS CRÉATION
+      navigate('/tournaments'); 
+      
     } catch (err: any) {
       addToast(err.message, "error");
     } finally {
@@ -36,6 +41,18 @@ export function AdminTournaments() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 mt-10">
+      
+      {/* 🔙 LE NOUVEAU BOUTON RETOUR */}
+      <div className="mb-6">
+        <button
+          onClick={() => navigate('/tournaments')}
+          className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors w-fit group"
+        >
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="font-bold text-sm uppercase tracking-wider">Retour aux Tournois</span>
+        </button>
+      </div>
+
       <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
         {/* Déco */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl" />

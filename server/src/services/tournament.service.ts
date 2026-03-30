@@ -94,6 +94,11 @@ export class TournamentService {
         data: { prizePool: { increment: tournament.buyIn } }
       });
 
+      if (this.io) {
+      // On crie à tout le monde "Hé, un tournoi a été mis à jour !"
+      this.io.emit('tournament-updated'); 
+    }
+
       return await tx.tournamentPlayer.create({
         data: { tournamentId, userId }
       });
@@ -125,6 +130,11 @@ export class TournamentService {
         where: { id: tournamentId },
         data: { prizePool: { decrement: tournament.buyIn } }
       });
+
+      if (this.io) {
+      // On crie à tout le monde "Hé, un tournoi a été mis à jour !"
+      this.io.emit('tournament-updated'); 
+    }
 
       return await tx.tournamentPlayer.delete({
         where: { tournamentId_userId: { tournamentId, userId } }
@@ -292,5 +302,5 @@ export class TournamentService {
       console.error("❌ [TOURNOI] Erreur lors du versement des gains :", error);
     }
   }
-  
+
 }
