@@ -1,6 +1,9 @@
 import { type CSSProperties, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+// ⚠️ AJUSTE CE CHEMIN SELON OÙ SE TROUVE TON FICHIER PokerCard.tsx
+import { PokerCard } from "../PokerCard"; 
+
 export type BjCard = { rank: string; suit: string };
 
 export type BjPhase = "betting" | "player_turn" | "dealer" | "payout";
@@ -30,29 +33,15 @@ export interface BjTableState {
   currentSeatUserId: string | null;
 }
 
-function suitSymbol(s: string): string {
+// 🃏 TRADUCTEUR POUR LE POKERCARD (h -> hearts, etc.)
+function mapSuitToPokerCard(s: string): string {
   switch (s) {
-    case "h":
-      return "♥";
-    case "d":
-      return "♦";
-    case "c":
-      return "♣";
-    case "s":
-      return "♠";
-    default:
-      return s;
+    case "h": return "hearts";
+    case "d": return "diamonds";
+    case "c": return "clubs";
+    case "s": return "spades";
+    default: return "spades"; // Fallback de sécurité
   }
-}
-
-function isRedSuit(s: string): boolean {
-  return s === "h" || s === "d";
-}
-
-/** Valeur affichage pour coin de carte */
-function rankCorner(rank: string): string {
-  if (rank === "10") return "10";
-  return rank;
 }
 
 export function handValueFromCards(cards: BjCard[]): { total: number; soft: boolean; bust: boolean } {
@@ -93,6 +82,9 @@ function dealerDisplayTotal(
   return { text: v.soft ? `S${v.total}` : String(v.total) };
 }
 
+// ==========================================
+// LE NOUVEAU WRAPPER QUI UTILISE PokerCard
+// ==========================================
 export function PlayingCard({
   card,
   hidden,
@@ -104,63 +96,32 @@ export function PlayingCard({
   className?: string;
   style?: CSSProperties;
 }) {
+  // On injecte ces classes pour garder la responsivité (réduction sur petits écrans) propre au Blackjack
+  const responsiveClasses = `!w-[min(4.5rem,22vw)] !h-auto aspect-[63/88] shrink-0 ${className}`;
+
   if (hidden || !card || card.suit === "?" || card.rank === "?") {
     return (
-      <div
-        className={`relative aspect-[63/88] w-[min(4.5rem,22vw)] shrink-0 overflow-hidden rounded-xl border-[3px] border-[#1a0a0f] shadow-[0_8px_24px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] ${className}`}
-        style={style}
-      >
-        <div
-          className="absolute inset-0 bg-[linear-gradient(145deg,#5c0a1e_0%,#2d0612_40%,#1a0508_100%)]"
-          aria-hidden
+      <div style={style}>
+        <PokerCard 
+          suit="spades" // Peu importe, on ne verra que le dos
+          value="A" 
+          faceDown={true} 
+          animated={true}
+          className={responsiveClasses} 
         />
-        <div
-          className="absolute inset-[5px] rounded-lg opacity-90"
-          style={{
-            backgroundImage: `
-              repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(212,175,55,0.12) 4px, rgba(212,175,55,0.12) 5px),
-              repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(212,175,55,0.08) 4px, rgba(212,175,55,0.08) 5px)
-            `,
-          }}
-        />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-[42%] w-[42%] rounded-full border-2 border-[#c9a227]/50 bg-[#3d0a14]/80 shadow-inner" />
-        </div>
-        <div className="absolute bottom-1.5 left-0 right-0 text-center font-serif text-[9px] font-bold uppercase tracking-[0.2em] text-[#d4af37]/70">
-          ♠ ♣
-        </div>
       </div>
     );
   }
 
-  const red = isRedSuit(card.suit);
-  const sym = suitSymbol(card.suit);
-  const rc = rankCorner(card.rank);
-
   return (
-    <div
-      className={`relative aspect-[63/88] w-[min(4.5rem,22vw)] shrink-0 rounded-xl border-[2px] border-white bg-gradient-to-br from-white via-white to-[#f0ebe3] shadow-[0_10px_28px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,1),inset_0_-2px_6px_rgba(0,0,0,0.06)] ${className}`}
-      style={style}
-    >
-      <div
-        className={`absolute left-1 top-1 flex flex-col items-center leading-none ${red ? "text-[#c41e3a]" : "text-[#0d0d0d]"}`}
-      >
-        <span className="font-serif text-[11px] font-black tracking-tight">{rc}</span>
-        <span className="font-serif text-[13px] leading-none">{sym}</span>
-      </div>
-      <div
-        className={`absolute bottom-1 right-1 flex rotate-180 flex-col items-center leading-none ${red ? "text-[#c41e3a]" : "text-[#0d0d0d]"}`}
-      >
-        <span className="font-serif text-[11px] font-black tracking-tight">{rc}</span>
-        <span className="font-serif text-[13px] leading-none">{sym}</span>
-      </div>
-      <div className="flex h-full items-center justify-center pb-3 pt-5">
-        <span
-          className={`select-none font-serif text-[clamp(1.75rem,8vw,2.75rem)] leading-none ${red ? "text-[#c41e3a]" : "text-[#0d0d0d]"}`}
-        >
-          {sym}
-        </span>
-      </div>
+    <div style={style}>
+      <PokerCard
+        suit={mapSuitToPokerCard(card.suit)}
+        value={card.rank}
+        faceDown={false}
+        animated={true}
+        className={responsiveClasses}
+      />
     </div>
   );
 }
