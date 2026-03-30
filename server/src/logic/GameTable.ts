@@ -297,6 +297,7 @@ export class GameTable {
     this.state.handEndReason = this.computeHandEndReason() ?? 'WIN_BY_FOLD'
     this.state.handRuntimePhase = 'HAND_COMPLETE'
     this.state.currentTurn = ''
+    this.sweepBustedPlayers()
   }
 
   /**
@@ -608,8 +609,6 @@ export class GameTable {
     this.state.currentTurn = this.getPreflopFirstPlayerId()
     this.state.handId = `${this.id}:${Date.now()}`
     this.state.lastHandAction = undefined
-    this.state.actionVersion = 0
-    this.state.streetVersion = 0
     this.state.handParticipantIds = Array.from(this.handParticipantIds)
     this.state.handEndReason = undefined
     this.state.handRuntimePhase = 'BETTING_ACTIVE'
@@ -899,6 +898,7 @@ export class GameTable {
     this.state.handEndReason = this.state.handEndReason ?? 'SHOWDOWN'
     this.state.handRuntimePhase = 'HAND_COMPLETE'
     this.bumpVersion()
+    this.sweepBustedPlayers()
   }
 
   private bumpVersion(): void {
@@ -957,6 +957,34 @@ export class GameTable {
   endBettingRound(): void {
     if (this.bettingRoundComplete()) {
       this.moveToNextPhase()
+    }
+  }
+
+  /**
+   * 💀 LA FAUCHEUSE (Mode Tournoi)
+   * Vérifie tous les joueurs après la distribution du pot.
+   * Si un joueur a 0 jeton, il est désactivé et marqué comme "Buste" (éliminé).
+   */
+  public sweepBustedPlayers(): void {
+    let playersEliminated = false;
+
+    for (const player of this.state.players) {
+      if (player.chips <= 0) {
+        // Le joueur est officiellement éliminé
+        player.isActive = false;
+        player.isConnected = false; // On le déconnecte virtuellement de la table
+        
+        // Optionnel: tu peux ajouter un flag isBusted dans le type Player si tu veux l'afficher côté Frontend
+        // player.isBusted = true; 
+
+        console.log(`💀 [GameTable] Le joueur ${player.name} (${player.id}) a été éliminé du tournoi (0 jeton) !`);
+        playersEliminated = true;
+      }
+    }
+
+    // Si on a éliminé des gens, on met à jour la version pour forcer le rafraîchissement du frontend
+    if (playersEliminated) {
+      this.bumpVersion();
     }
   }
 

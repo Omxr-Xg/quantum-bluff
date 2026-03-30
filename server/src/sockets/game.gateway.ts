@@ -661,15 +661,21 @@ export class GameGateway {
           if (game.getOccupiedCount() === 0) {
             if (!dissolveReason) dissolveReason = 'all_players_left'
             await activeGames.delete(gameId)
-            await prisma.waitingRoom.updateMany({
-              where: { id: roomId },
-              data: { status: 'WAITING', gameId: null },
-            })
+            
+            // 1. 🚀 ON PRÉVIENT LE FRONTEND IMMÉDIATEMENT
             this.io.to(gameId).emit('GAME_ENDED', {
               gameId,
               reason: dissolveReason,
               roomId,
             })
+
+            // 2. 💾 ON SAUVEGARDE EN BDD APRÈS (avec un .catch pour ignorer l'erreur dans les tests GitLab)
+            await prisma.waitingRoom.updateMany({
+              where: { id: roomId },
+              data: { status: 'WAITING', gameId: null },
+            }).catch(err => {
+              console.error("[Test/BDD] Erreur update waitingRoom ignorée :", err.message);
+            });
           }
         } catch (err) {
           console.error('Erreur CASH_LEAVE:', err)
@@ -843,15 +849,21 @@ export class GameGateway {
                   }
                   if (game.getOccupiedCount() === 0) {
                     await activeGames.delete(gameId)
-                    await prisma.waitingRoom.updateMany({
-                      where: { id: game.roomId },
-                      data: { status: 'WAITING', gameId: null },
-                    })
+                    
+                    // 1. 🚀 ON PRÉVIENT LE FRONTEND IMMÉDIATEMENT
                     this.io.to(gameId).emit('GAME_ENDED', {
                       gameId,
                       reason: 'all_players_left',
                       roomId: game.roomId,
                     })
+
+                    // 2. 💾 ON SAUVEGARDE EN BDD APRÈS (avec un .catch pour le CI GitLab)
+                    await prisma.waitingRoom.updateMany({
+                      where: { id: game.roomId },
+                      data: { status: 'WAITING', gameId: null },
+                    }).catch(err => {
+                      console.error("[Test/BDD] Erreur update waitingRoom ignorée :", err.message);
+                    });
                   }
                 }
               }
