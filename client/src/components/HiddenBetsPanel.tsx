@@ -475,7 +475,9 @@ export function HiddenBetsPanel({
             {betTab === "pre" && !windowOkPre && t("hiddenBets.preClosed", "Fenêtre prochaine main fermée.")}
             {betTab === "live" && livePhase && (
               <>
-                {t("hiddenBets.live", "Live")} — {livePhase} — main{" "}
+                {t("hiddenBets.live", "Live")} —{" "}
+                {t(`hiddenBets.livePhase.${livePhase}`, livePhase)} —{" "}
+                {t("hiddenBets.currentHandShort", "main")}{" "}
                 {hiddenBetState?.currentHandId?.slice(0, 8)}…
               </>
             )}
@@ -603,10 +605,18 @@ export function HiddenBetsPanel({
                 onChange={(e) => setMarketModeLive(e.target.value as MarketModeLive)}
                 className="w-full bg-slate-700 text-white rounded-lg p-2 text-sm"
               >
-                <option value="PLAYER_WINS_CURRENT_HAND">{t("hiddenBets.winnerCurrent", "Gagnant (main en cours)")}</option>
-                <option value="HAND_REACHES_SHOWDOWN">Showdown</option>
-                <option value="HAND_ENDS_BY_FOLD">{t("hiddenBets.endsByFold", "Fin par fold")}</option>
-                <option value="FINAL_WINNING_HAND_CLASS">{t("hiddenBets.finalClass", "Classe finale")}</option>
+                <option value="PLAYER_WINS_CURRENT_HAND">
+                  {t("hiddenBets.winnerCurrent", "Gagnant (main en cours)")}
+                </option>
+                <option value="HAND_REACHES_SHOWDOWN">
+                  {t("hiddenBets.reachesShowdown", "Va jusqu'au showdown")}
+                </option>
+                <option value="HAND_ENDS_BY_FOLD">
+                  {t("hiddenBets.endsByFold", "Fin par fold")}
+                </option>
+                <option value="FINAL_WINNING_HAND_CLASS">
+                  {t("hiddenBets.finalClass", "Classe finale")}
+                </option>
               </select>
             )}
           </div>

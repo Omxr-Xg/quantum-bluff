@@ -303,6 +303,8 @@ export function Game() {
   const [cashCountdownEndsAt, setCashCountdownEndsAt] = useState<number | null>(null);
   const [cashSeats, setCashSeats] = useState<{ seatIndex: number; userId: string | null; username: string | null; chips: number }[]>([]);
   const [cashWaitingPlayers, setCashWaitingPlayers] = useState(false);
+  const [showInterHandPanel, setShowInterHandPanel] = useState(false);
+  const [hasClickedReadyThisInterHand, setHasClickedReadyThisInterHand] = useState(false);
   const [interHandResultsVisible, setInterHandResultsVisible] = useState(false);
   const [nextHandReadyUserIds, setNextHandReadyUserIds] = useState<string[]>([]);
   const [allNextHandReady, setAllNextHandReady] = useState(false);
@@ -465,11 +467,14 @@ export function Game() {
         name: showdownResult.winnerName,
         amount: showdownResult.pot,
       });
-      // On garde showdownResult pour l’afficher dans la fenêtre inter-main.
-      setShowTransition(true);
+      // Cash multijoueur : pas de RoundTransition (overlay jaune + compte secondes).
+      const isCashMultiplayer = Boolean(gameIdParam) && !isBotMode;
+      if (!isCashMultiplayer) {
+        setShowTransition(true);
+      }
     }, delayMs);
     return () => clearTimeout(id);
-  }, [showdownResult, showTransition]);
+  }, [showdownResult, showTransition, gameIdParam, isBotMode]);
 
   const openAddMoney = () => {
     setShowAddMoney(true);
@@ -1297,6 +1302,9 @@ export function Game() {
     socket.on("GAME_ENDED", onGameEnded);
     const onCashWaiting = (state: { cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[] }) => {
       setCashWaitingPlayers(true);
+      setShowTransition(false); // jamais l’overlay jaune « prochaine manche » entre deux mains cash
+      setShowInterHandPanel(false); // on attend d’abord la phase d’abattage
+      setHasClickedReadyThisInterHand(false);
       setCashCountdownEndsAt(null);
       setNextHandReadyUserIds([]);
       setAllNextHandReady(false);
@@ -1331,16 +1339,8 @@ export function Game() {
       .catch(() => {});
   }, [handResult, gameIdParam, isBotMode, userId]);
 
-  const [cashCountdownTick, setCashCountdownTick] = useState(0);
-  useEffect(() => {
-    if (!cashCountdownEndsAt) return;
-    const iv = setInterval(() => setCashCountdownTick((t) => t + 1), 250);
-    return () => clearInterval(iv);
-  }, [cashCountdownEndsAt]);
-  const cashCountdownSecs = useMemo(() => {
-    if (!cashCountdownEndsAt) return 0;
-    return Math.max(0, Math.ceil((cashCountdownEndsAt - Date.now()) / 1000));
-  }, [cashCountdownEndsAt, cashCountdownTick]);
+  // On garde cashCountdownEndsAt uniquement pour que le state soit cohérent,
+  // mais on ne l’utilise plus pour aucun affichage de countdown côté UI.
 
   useEffect(() => {
     if (!socket) return;
@@ -1733,6 +1733,21 @@ export function Game() {
     }
   }, [phase]);
 
+  // Affichage du panneau inter-mains : seulement après 3s d’abattage, puis attente des ready.
+  useEffect(() => {
+    if (!cashWaitingPlayers) {
+      setShowInterHandPanel(false);
+      setHasClickedReadyThisInterHand(false);
+      return;
+    }
+    // On laisse 3s d’abattage “pur” avant de montrer les résultats + boutons ready.
+    const id = window.setTimeout(() => {
+      setShowInterHandPanel(true);
+    }, SHOWDOWN_REVEAL_MS);
+    return () => window.clearTimeout(id);
+  }, [cashWaitingPlayers, SHOWDOWN_REVEAL_MS]);
+
+
   useEffect(() => {
     if (!cashWaitingPlayers) return;
     setInterHandResultsVisible(false);
@@ -1740,8 +1755,8 @@ export function Game() {
 
   useEffect(() => {
     if (!cashWaitingPlayers) return;
-    if (showTransition) setInterHandResultsVisible(true);
-  }, [cashWaitingPlayers, showTransition]);
+    if (showInterHandPanel) setInterHandResultsVisible(true);
+  }, [cashWaitingPlayers, showInterHandPanel]);
 
   useEffect(() => {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
@@ -2672,7 +2687,7 @@ export function Game() {
 
       {/* TA NOUVELLE TRANSITION FIGMA UNIQUE */}
       <AnimatePresence>
-        {showTransition && (
+        {showTransition && !(gameIdParam && !isBotMode && cashWaitingPlayers) && (
           <RoundTransition 
             roundNumber={roundCount} 
             winner={lastWinnerData} 
@@ -2952,11 +2967,11 @@ export function Game() {
         }}
       />
 
-      {gameIdParam && !isBotMode && cashWaitingPlayers && (
+      {gameIdParam && !isBotMode && cashWaitingPlayers && showInterHandPanel && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2">
           <div className="bg-slate-800/95 border border-emerald-500/50 rounded-xl px-6 py-4 shadow-lg max-w-[min(100vw-1rem,520px)] w-full">
             <div className="space-y-4">
-              <div className="text-center">
+                  <div className="text-center">
                 <p className="text-emerald-300 font-semibold">
                   {t("game.waitingForReady", "En attente : cliquez « Prêt » pour la prochaine main")}
                 </p>
@@ -2966,11 +2981,6 @@ export function Game() {
                     </p>
                   ) : (
                     <>
-                      {allNextHandReady && cashCountdownSecs > 0 && (
-                        <p className="text-white font-semibold mt-2">
-                          {t("game.newHandIn", { count: cashCountdownSecs })}
-                        </p>
-                      )}
                       {showdownResult && (
                   <div className="mt-2">
                     <div className="text-sm text-amber-200 font-semibold">{t("game.winnerLabel", "Gagnant")}</div>
@@ -3254,16 +3264,6 @@ export function Game() {
           />
         </PokerTable>
       </div>
-
-      {showdownResult && !showTransition && !cashWaitingPlayers && !showdownResult.skipRevealDelay && (
-        <div
-          className="pointer-events-none fixed bottom-28 left-1/2 z-[130] -translate-x-1/2 rounded-xl border border-amber-500/40 bg-slate-900/95 px-4 py-2 shadow-lg"
-          role="status"
-          aria-live="polite"
-        >
-          <p className="text-center text-sm font-semibold text-amber-200">{t("game.showdownRevealBanner")}</p>
-        </div>
-      )}
 
       <HandActionLogPanel entries={handActionLog} />
       <QuantumHUD
