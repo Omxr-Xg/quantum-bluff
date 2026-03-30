@@ -985,6 +985,7 @@
     "runtime": {
       "tableRecovering": "La mesa se esta recuperando. Las acciones estan desactivadas temporalmente.",
       "tableStateStale": "El estado de la mesa esta obsoleto. Intentalo de nuevo en unos instantes.",
+      "sessionReset": "La mesa estuvo inactiva demasiado tiempo y se reinicio. Abre la sala de nuevo desde el lobby.",
       "tableUnavailable": "La mesa no esta disponible temporalmente.",
       "tableMismatch": "La mesa esta en un estado incoherente. Intentalo mas tarde.",
       "tableNotLoadedLocally": "La mesa aun no esta cargada en esta instancia.",
