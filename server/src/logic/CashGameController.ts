@@ -24,6 +24,12 @@ export interface CashSeat {
   avatarUrl?: string | null
 }
 
+/** Stacks finales des joueurs encore liés à la main, pour sync DB post-showdown. */
+export interface CashBalanceSnapshot {
+  userId: string
+  chips: number
+}
+
 export interface CashGameControllerOptions {
   id: string
   roomId: string
@@ -355,11 +361,15 @@ export class CashGameController implements IGameSession {
   }
 
   /** Appelé après le showdown: synchronise les jetons, supprime les éliminés, déclenche le countdown */
-  onHandComplete(): void {
-    if (!this.gameTable) return
+  onHandComplete(): CashBalanceSnapshot[] {
+    if (!this.gameTable) return []
     this.clearLiveBetTimer()
 
     const state = this.gameTable.state
+    const balanceSnapshot: CashBalanceSnapshot[] = state.players.map((p) => ({
+      userId: p.id,
+      chips: p.chips,
+    }))
     for (const p of state.players) {
       const seat = this.seats.find((s) => s.userId === p.id)
       if (seat) seat.chips = p.chips
@@ -392,6 +402,7 @@ export class CashGameController implements IGameSession {
         seat.userId = null
         seat.username = null
         seat.chips = 0
+        seat.avatarUrl = null
       }
     }
     this.pendingQuitUserIds.clear()
@@ -408,6 +419,7 @@ export class CashGameController implements IGameSession {
     this.countdownTimer = null
     this.runtimePhase = 'WAITING_READY'
     this.nextHandReadyUserIds.clear()
+    return balanceSnapshot
   }
 
   /**
