@@ -742,56 +742,7 @@ export class GameGateway {
             })
             return
           }
-
-          const leaverId = socket.userId
-          let dissolveReason: 'all_players_left' | 'heads_up_peer_left' | null = null
-
-          this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: leaverId, scope: 'GAME' })
-
-          // Heads-up : s’il ne reste qu’un joueur entre deux mains, on dissout la table (retour salle d’attente).
-          // 3+ joueurs : la partie continue avec les sièges restants.
-          if (game.getOccupiedCount() === 1) {
-            const remaining = game.getOccupiedSeats()[0]?.userId
-            if (remaining) {
-              game.cancelInterHandCountdown()
-              game.leave(remaining)
-              dissolveReason = 'heads_up_peer_left'
-            }
-          }
-
-          if (game.getOccupiedCount() > 0) {
-            const socketsInRoom = await this.io.in(gameId).fetchSockets()
-            for (const s of socketsInRoom) {
-              const uid = (s as unknown as AuthenticatedSocket).userId
-              const snapshot = game.getSanitizedState(uid)
-              s.emit('GAME_UPDATE', snapshot)
-              s.emit('GAME_STATE_UPDATED', snapshot)
-            }
-          }
-
-          if (game.getOccupiedCount() === 0) {
-            if (!dissolveReason) dissolveReason = 'all_players_left'
-            await activeGames.delete(gameId)
-            
-            // 1. 🚀 ON PRÉVIENT LE FRONTEND IMMÉDIATEMENT
-            this.io.to(gameId).emit('GAME_ENDED', {
-              gameId,
-              reason: dissolveReason,
-              roomId,
-            })
-
-            // 2. 💾 ON SAUVEGARDE EN BDD APRÈS
-            // (on swallow pour éviter qu'une erreur BDD bloque la diffusion côté front)
-            try {
-              await prisma.waitingRoom.updateMany({
-                where: { id: roomId },
-                data: { status: 'WAITING', gameId: null },
-              })
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : String(err)
-              console.error("[Test/BDD] Erreur update waitingRoom ignorée :", msg);
-            }
-          }
+          console.error('Erreur CASH_LEAVE:', err)
         }
       })
 
@@ -832,11 +783,16 @@ export class GameGateway {
           })
 
           if (result.allReady) {
-            game.setOnCountdownDone(() => {
-              void this.broadcastCashGameSnapshot(gameId)
-            })
-            game.beginNextHandCountdown(5000)
+            game.startHand()
             await this.broadcastCashGameSnapshot(gameId)
+            this.io.to(gameId).emit('HAND_STATE_CHANGED', {
+              gameId,
+              phase: game.state.phase,
+              handRuntimePhase: game.state.handRuntimePhase,
+              handEndReason: game.state.handEndReason,
+              handId: game.state.handId,
+            })
+            this.resetTimer(gameId)
           }
         } catch (err) {
           console.error('Erreur CASH_NEXT_HAND_READY:', err)

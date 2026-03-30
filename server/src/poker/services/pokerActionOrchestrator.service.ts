@@ -6,6 +6,7 @@ import { withPokerTableLock } from './pokerTableLock.service.js'
 import { metrics } from '../../observability/metrics.js'
 import { rootLogger } from '../../observability/logger.js'
 import { TournamentService } from '../../services/tournament.service.js'
+import { CashGameController } from '../../logic/CashGameController.js'
 
 type ActionTarget = {
   getStateContext: () => { handId?: string; phase?: string; currentTurn?: string }
@@ -132,6 +133,12 @@ export async function applyPokerAction(payloadLike: Partial<PokerActionPayload>)
           console.log(`📣 [SOCKET] Envoi du signal d'élimination à ${busted.name}`);
           if (io) io.emit('tournament-eliminated', { userId: busted.id });
         }
+      }
+
+      // Cash : pas de relance auto (sinon la main suivante part sans attendre les « Prêt »).
+      // La gateway appelle onHandComplete puis startHand() quand tous ont validé (CASH_NEXT_HAND_READY).
+      if (game instanceof CashGameController) {
+        return
       }
 
       // B. On compte les survivants
