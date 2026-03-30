@@ -22,6 +22,7 @@ import { computeQuotedOdds, marketKeyAndSignature, validateSelections } from '..
 import { assertHiddenBetQuoteOrPlace, buildLiveQuoteSnapshotJson } from './hiddenBetWindow.service.js'
 import { computeQuoteHash } from './hiddenBetQuote.service.js'
 import { rootLogger } from '../../../observability/logger.js'
+import { computeQuotedOddsWithBreakdown } from '../markets.js'
 
 const MIN_STAKE = 10
 const MAX_STAKE = 10_000
@@ -86,6 +87,7 @@ export async function placeHiddenBet(
       marketPhase,
       combinator: input.combinator,
       selections: v.selections,
+      numActivePlayers: occupied.length,
       quoteExpiresAt: exp,
     })
     if (expectedHash !== input.quoteHash) throw new Error('Quote invalide ou altérée')
@@ -102,7 +104,26 @@ export async function placeHiddenBet(
 
   const potentialPayout = Math.floor(stake * odds)
   const quoteExpiresAtDate = input.quoteExpiresAt ? new Date(input.quoteExpiresAt) : null
-  const stateSnapshotJson = marketPhase !== 'PRE_HAND' ? buildLiveQuoteSnapshotJson(cash) : null
+
+  // Snapshot/audit : mémorise les entrées de pricing pour permettre un "calcul exact" côté UI.
+  const { breakdown } = computeQuotedOddsWithBreakdown(
+    v.selections,
+    input.combinator,
+    occupied.length,
+    marketPhase,
+    expectedPv
+  )
+
+  const stateSnapshotJson = buildLiveQuoteSnapshotJson(cash, {
+    pricingVersion: expectedPv,
+    pricingBreakdown: breakdown,
+    pricingInputs: {
+      combinator: input.combinator,
+      selections: v.selections,
+      numActivePlayers: occupied.length,
+      quotedOdds: odds,
+    },
+  })
 
   const idemKey = buildIdempotencyKey({
     userId,

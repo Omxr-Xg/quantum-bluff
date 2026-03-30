@@ -22,6 +22,8 @@ export function computeQuoteHash(parts: {
   marketPhase: HiddenBetMarketPhase
   combinator: string
   selections: SelectionPayload[]
+  /** Verrouille l'état "visible" utilisé pour les cotes (n joueurs actifs). */
+  numActivePlayers: number
   quoteExpiresAt: number
 }): string {
   return createHash('sha256')
@@ -77,6 +79,7 @@ export function quoteHiddenBet(
     marketPhase,
     combinator: body.combinator,
     selections: v.selections,
+    numActivePlayers: n,
     quoteExpiresAt: quoteExpiresAtMs,
   })
 
