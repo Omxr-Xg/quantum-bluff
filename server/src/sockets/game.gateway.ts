@@ -780,16 +780,18 @@ export class GameGateway {
               roomId,
             })
 
-            // 2. 💾 ON SAUVEGARDE EN BDD APRÈS (avec un .catch pour ignorer l'erreur dans les tests GitLab)
-            await prisma.waitingRoom.updateMany({
-              where: { id: roomId },
-              data: { status: 'WAITING', gameId: null },
-            }).catch(err => {
-              console.error("[Test/BDD] Erreur update waitingRoom ignorée :", err.message);
-            });
+            // 2. 💾 ON SAUVEGARDE EN BDD APRÈS
+            // (on swallow pour éviter qu'une erreur BDD bloque la diffusion côté front)
+            try {
+              await prisma.waitingRoom.updateMany({
+                where: { id: roomId },
+                data: { status: 'WAITING', gameId: null },
+              })
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err)
+              console.error("[Test/BDD] Erreur update waitingRoom ignorée :", msg);
+            }
           }
-        } catch (err) {
-          console.error('Erreur CASH_LEAVE:', err)
         }
       })
 
