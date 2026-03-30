@@ -25,27 +25,70 @@ export function assertHiddenBetQuoteOrPlace(
   if (!hid || hid !== targetHandId) {
     return { ok: false, error: 'targetHandId ne correspond pas à la main courante', code: 'TARGET_MISMATCH' }
   }
-  const lw = gt.state.hiddenBetLiveWindow
-  if (!lw) {
-    return { ok: false, error: 'Fenêtre live fermée', code: 'LIVE_WINDOW_CLOSED' }
+
+  const expected: HiddenBetMarketPhase | null =
+    gt.state.phase === 'FLOP'
+      ? 'LIVE_FLOP'
+      : gt.state.phase === 'TURN'
+        ? 'LIVE_TURN'
+        : gt.state.phase === 'RIVER'
+          ? 'LIVE_RIVER'
+          : null
+
+  if (!expected) {
+    return { ok: false, error: 'Marché live indisponible hors street', code: 'LIVE_WINDOW_CLOSED' }
   }
-  const expected: HiddenBetMarketPhase = lw.windowType
   if (marketPhase !== expected) {
-    return { ok: false, error: 'Phase incompatible avec la fenêtre live', code: 'PHASE_MISMATCH' }
+    return { ok: false, error: 'Phase incompatible avec le street courant', code: 'PHASE_MISMATCH' }
   }
   return { ok: true }
 }
 
-export function buildLiveQuoteSnapshotJson(cash: CashGameController): string {
+export function buildLiveQuoteSnapshotJson(
+  cash: CashGameController,
+  extra: {
+    pricingVersion: string
+    pricingBreakdown: unknown
+    pricingInputs: Record<string, unknown>
+  }
+): string {
+  const activePlayerIds = cash
+    .getOccupiedSeats()
+    .filter((s) => s.userId && s.chips > 0)
+    .map((s) => s.userId!)
+
   const gt = cash.getGameTable()
-  if (!gt) return '{}'
+  if (!gt) {
+    return JSON.stringify({
+      pricingVersion: extra.pricingVersion,
+      marketSnapshotType: 'PRE_OR_NO_HAND',
+      pricingInputs: extra.pricingInputs,
+      pricingBreakdown: extra.pricingBreakdown,
+      activePlayerIds,
+    })
+  }
+
   const st = gt.state
+  const street =
+    st.phase === 'FLOP'
+      ? 'LIVE_FLOP'
+      : st.phase === 'TURN'
+        ? 'LIVE_TURN'
+        : st.phase === 'RIVER'
+          ? 'LIVE_RIVER'
+          : null
+
   return JSON.stringify({
+    pricingVersion: extra.pricingVersion,
+    marketSnapshotType: 'LIVE',
     handId: st.handId,
     phase: st.phase,
+    street,
     board: st.communityCards,
     activePlayerIds: st.players.filter((p) => p.isActive).map((p) => p.id),
     foldedPlayerIds: st.players.filter((p) => !p.isActive).map((p) => p.id),
-    window: st.hiddenBetLiveWindow,
+    pricingInputs: extra.pricingInputs,
+    pricingBreakdown: extra.pricingBreakdown,
+    activeSeatPlayerIds: activePlayerIds,
   })
 }

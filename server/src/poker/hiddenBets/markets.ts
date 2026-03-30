@@ -134,6 +134,192 @@ export function computeQuotedOdds(
   return 0
 }
 
+export type HiddenBetPricingBreakdown = {
+  pricingVersionUsed: string
+  marketPhase: HiddenBetMarketPhase
+  combinator: 'SINGLE' | 'AND'
+  numActivePlayers: number
+  method:
+    | 'AND_COMBO'
+    | 'PRE_PLAYER_WINS'
+    | 'PRE_WINNING_HAND_CLASS'
+    | 'PRE_WINNING_HAND_CONTAINS_RANK'
+    | 'LIVE_PLAYER_WINS_CURRENT_HAND'
+    | 'LIVE_HAND_REACHES_SHOWDOWN'
+    | 'LIVE_HAND_ENDS_BY_FOLD'
+    | 'LIVE_FINAL_WINNING_HAND_CLASS'
+  input: Record<string, unknown>
+  output: {
+    odds: number
+  }
+  usedAndPricingKey?: string
+}
+
+export function computeQuotedOddsWithBreakdown(
+  selections: SelectionPayload[],
+  combinator: 'SINGLE' | 'AND',
+  numActivePlayers: number,
+  marketPhase: HiddenBetMarketPhase,
+  pricingVersionUsed: string
+): { odds: number; breakdown: HiddenBetPricingBreakdown } {
+  if (combinator === 'AND') {
+    const pk = andComboPricingKey(selections)
+    const odds = pk ? (getAndComboOdds(pk) ?? 0) : 0
+    return {
+      odds,
+      breakdown: {
+        pricingVersionUsed,
+        marketPhase,
+        combinator,
+        numActivePlayers,
+        method: 'AND_COMBO',
+        usedAndPricingKey: pk ?? undefined,
+        input: { andPricingKey: pk ?? null, selections },
+        output: { odds },
+      },
+    }
+  }
+
+  const s = selections[0]
+  if (!s) {
+    return {
+      odds: 0,
+      breakdown: {
+        pricingVersionUsed,
+        marketPhase,
+        combinator,
+        numActivePlayers,
+        method: 'PRE_PLAYER_WINS',
+        input: {},
+        output: { odds: 0 },
+      },
+    }
+  }
+
+  if (marketPhase === 'PRE_HAND') {
+    if (s.marketType === 'PLAYER_WINS') {
+      const odds = oddsPlayerWins(numActivePlayers)
+      return {
+        odds,
+        breakdown: {
+          pricingVersionUsed,
+          marketPhase,
+          combinator,
+          numActivePlayers,
+          method: 'PRE_PLAYER_WINS',
+          input: { numActivePlayers },
+          output: { odds },
+        },
+      }
+    }
+    if (s.marketType === 'WINNING_HAND_CLASS') {
+      const odds = oddsWinningHandClass(s.class)
+      return {
+        odds,
+        breakdown: {
+          pricingVersionUsed,
+          marketPhase,
+          combinator,
+          numActivePlayers,
+          method: 'PRE_WINNING_HAND_CLASS',
+          input: { class: s.class },
+          output: { odds },
+        },
+      }
+    }
+    if (s.marketType === 'WINNING_HAND_CONTAINS_RANK') {
+      const odds = oddsContainsRank(s.rank)
+      return {
+        odds,
+        breakdown: {
+          pricingVersionUsed,
+          marketPhase,
+          combinator,
+          numActivePlayers,
+          method: 'PRE_WINNING_HAND_CONTAINS_RANK',
+          input: { rank: s.rank },
+          output: { odds },
+        },
+      }
+    }
+  }
+
+  if (s.marketType === 'PLAYER_WINS_CURRENT_HAND') {
+    const odds = oddsPlayerWinsCurrentHand(numActivePlayers)
+    return {
+      odds,
+      breakdown: {
+        pricingVersionUsed,
+        marketPhase,
+        combinator,
+        numActivePlayers,
+        method: 'LIVE_PLAYER_WINS_CURRENT_HAND',
+        input: { numActivePlayers },
+        output: { odds },
+      },
+    }
+  }
+  if (s.marketType === 'HAND_REACHES_SHOWDOWN') {
+    const odds = oddsHandReachesShowdown(numActivePlayers)
+    return {
+      odds,
+      breakdown: {
+        pricingVersionUsed,
+        marketPhase,
+        combinator,
+        numActivePlayers,
+        method: 'LIVE_HAND_REACHES_SHOWDOWN',
+        input: { numActivePlayers },
+        output: { odds },
+      },
+    }
+  }
+  if (s.marketType === 'HAND_ENDS_BY_FOLD') {
+    const odds = oddsHandEndsByFold(numActivePlayers)
+    return {
+      odds,
+      breakdown: {
+        pricingVersionUsed,
+        marketPhase,
+        combinator,
+        numActivePlayers,
+        method: 'LIVE_HAND_ENDS_BY_FOLD',
+        input: { numActivePlayers },
+        output: { odds },
+      },
+    }
+  }
+  if (s.marketType === 'FINAL_WINNING_HAND_CLASS') {
+    const odds = oddsFinalWinningHandClass(s.class)
+    return {
+      odds,
+      breakdown: {
+        pricingVersionUsed,
+        marketPhase,
+        combinator,
+        numActivePlayers,
+        method: 'LIVE_FINAL_WINNING_HAND_CLASS',
+        input: { class: s.class },
+        output: { odds },
+      },
+    }
+  }
+
+  // Defensive fallback; should be unreachable if selections validated.
+  return {
+    odds: 0,
+    breakdown: {
+      pricingVersionUsed,
+      marketPhase,
+      combinator,
+      numActivePlayers,
+      method: 'PRE_PLAYER_WINS',
+      input: { selections },
+      output: { odds: 0 },
+    },
+  }
+}
+
 export function marketKeyAndSignature(sel: SelectionPayload): { marketKey: string; paramSignature: string } {
   if (sel.marketType === 'PLAYER_WINS' || sel.marketType === 'PLAYER_WINS_CURRENT_HAND') {
     return {
