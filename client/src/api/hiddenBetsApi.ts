@@ -85,6 +85,19 @@ export async function fetchHiddenBetHistory(limit = 50): Promise<{ tickets: unkn
   return data as { tickets: unknown[] };
 }
 
+export async function fetchHiddenBetTableHistory(gameId: string, limit = 50): Promise<{ tickets: unknown[] }> {
+  const res = await fetch(
+    apiUrl(`/api/hidden-bets/history?limit=${limit}&gameId=${encodeURIComponent(gameId)}`),
+    {
+      credentials: "include",
+      headers: authHeaders(),
+    }
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? res.statusText);
+  return data as { tickets: unknown[] };
+}
+
 export async function fetchHiddenBetMarkets(gameId: string, phase?: HiddenBetMarketPhase | "ALL") {
   const q = phase ? `&phase=${encodeURIComponent(phase)}` : "";
   const res = await fetch(apiUrl(`/api/hidden-bets/markets?gameId=${encodeURIComponent(gameId)}${q}`), {

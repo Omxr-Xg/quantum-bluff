@@ -95,6 +95,29 @@ router.get('/history', authMiddleware, async (req, res) => {
   const userId = req.userId
   if (!userId) return res.status(401).json({ error: 'Non authentifié' })
   const take = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? '50'), 10) || 50))
+
+  const gameIdQ = req.query.gameId as string | undefined
+  if (gameIdQ) {
+    const game = await activeGames.get(gameIdQ)
+    if (!game || !(game instanceof CashGameController)) {
+      return res.status(404).json({ error: 'Partie cash introuvable' })
+    }
+    const state = game.getSanitizedState(userId)
+    const hasSeat = state.cashSeats?.some((s) => s.userId === userId)
+    if (!hasSeat) return res.status(403).json({ error: 'Accès refusé' })
+
+    const tickets = await prisma.hiddenBetTicket.findMany({
+      where: { gameId: gameIdQ, resolvedAt: { not: null } },
+      orderBy: { resolvedAt: 'desc' },
+      take,
+      include: {
+        user: { select: { id: true, username: true } },
+        selections: true,
+      },
+    })
+    return res.json({ tickets })
+  }
+
   const tickets = await prisma.hiddenBetTicket.findMany({
     where: { userId },
     orderBy: { placedAt: 'desc' },
