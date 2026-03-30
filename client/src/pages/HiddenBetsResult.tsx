@@ -85,7 +85,6 @@ export function HiddenBetsResult() {
                     {tk.stake} → {tk.potentialPayout} (x{tk.quotedOdds.toFixed?.(2) ?? tk.quotedOdds})
                   </span>
                 </div>
-                </div>
                 <div className="text-xs text-slate-400 mt-1 font-mono truncate">
                   {tk.gameId} / {tk.handId}
                 </div>
