@@ -3,7 +3,7 @@
 > Usage strictement interne.  
 > Ce document contient volontairement des informations techniques detaillees, y compris des informations sensibles presentes dans le depot au moment de la redaction.
 
-**Dernière mise à jour du document :** mars 2026 (synthèse des évolutions récentes du dépôt, CI, casino, poker, blackjack, base de données).
+**Dernière mise à jour du document :** 30 mars 2026 (synthèse des évolutions récentes du dépôt, CI, casino, poker, blackjack, base de données).
 
 ---
 
@@ -144,6 +144,14 @@
 - actions realtime (fold/call/raise/check)
 - spectateurs + file de rejoin
 - reconnect/disconnect avec timeout
+- coherence avatars multi-comptes entre salle d’attente et table:
+  - propagation d’URL avatar publique (sanitisee serveur) depuis le client
+  - diffusion `avatarUrl` dans les payloads waiting room pour eviter les fallbacks differents selon le compte observateur
+  - reprise de l’avatar au demarrage de la cash table via `initFromRoomPlayers`
+- hidden bets PRE+LIVE (v1) integres au runtime cash:
+  - fenetres PRE_HAND + LIVE_FLOP/TURN/RIVER
+  - affichage des resultats pendant l’inter-main avec gate "ready" (pas de decompte client force en cash)
+  - resolution backend autoritaire (wallet/idempotence/audit) + historique table
 - **Durcissement runtime poker (etat actuel)**:
   - source de verite runtime recentree sur l'etat serveur (`handId`, `actionVersion`, `streetVersion`, `updatedAt`)
   - contrat d'action unifie socket/HTTP (`gameId`, `handId`, `playerId`, `actionType`, `amount`, `actionId`, `expectedStreet`)
@@ -248,7 +256,8 @@ Modeles centraux identifies dans `schema.prisma`:
 - `User`, `UserStats`, `PlayerStats`
 - `GameHistory`, `GameAction`, `GameResult`
 - `FriendRequest`, `Friendship`, `FriendMessage`
-- `WaitingRoom` (dont champ **`turbo`** pour parties « rapides »), `RoomPlayer`, `JoinRequest`, `GameInvitation`
+- `WaitingRoom` (dont champ **`turbo`** pour parties « rapides »), `RoomPlayer` (incluant `avatarUrl`), `JoinRequest`, `GameInvitation`
+- `HiddenBetTicket`, `HiddenBetSelection` (tickets PRE+LIVE, resolution et historique)
 - `CasinoStats`, `UserBadge`
 - Blackjack multi:
   - `BlackjackRoom`
@@ -567,11 +576,16 @@ Priorite moyenne:
 ### Base de données
 
 - Modèle **WaitingRoom** : champ **`turbo`** (booléen, défaut `false`) pour mode partie rapide ; migrations Prisma avec garde-fous `IF NOT EXISTS` sur colonnes sensibles lors de déploiements hétérogènes.
+- Modèle **RoomPlayer** : ajout `avatarUrl` (URL publique facultative) pour conserver le meme rendu avatar entre clients en salle d’attente puis en partie.
+- Modèle **HiddenBetTicket** : extension V1 (phase de marche, expiration de quote, snapshot de pricing/etat, version de house edge) + index associes.
 
 ### Qualité et pipeline
 
 - **Backend test** : compatible exécution GitLab **sans Redis** (voir §2.4).
 - **Backend build** : compilation stricte ; correctifs **ioredis** (`NodeNext`) et recovery blackjack pour éviter les régressions CI.
+- Validation locale recente:
+  - backend: `npm run lint`, `npm test`, `npm run build` -> OK (warnings non bloquants restants)
+  - frontend: `npm run lint`, `npm test`, `npm run build` -> OK (warnings non bloquants restants)
 
 ---
 

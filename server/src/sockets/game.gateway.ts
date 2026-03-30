@@ -733,10 +733,21 @@ export class GameGateway {
             if (game.getOccupiedCount() === 0) {
               if (!dissolveReason) dissolveReason = 'all_players_left'
               await activeGames.delete(gameId)
-              await prisma.waitingRoom.updateMany({
-                where: { id: roomId },
-                data: { status: 'WAITING', gameId: null },
-              })
+              try {
+                await prisma.waitingRoom.updateMany({
+                  where: { id: roomId },
+                  data: { status: 'WAITING', gameId: null },
+                })
+              } catch (err) {
+                // Some CI test databases do not include waiting room tables.
+                // Game teardown must still complete and emit GAME_ENDED.
+                rootLogger.warn({
+                  msg: 'cash_leave_waiting_room_update_failed',
+                  gameId,
+                  roomId,
+                  detail: err instanceof Error ? err.message : String(err),
+                })
+              }
               this.io.to(gameId).emit('GAME_ENDED', {
                 gameId,
                 reason: dissolveReason,
