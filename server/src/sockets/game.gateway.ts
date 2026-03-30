@@ -1136,7 +1136,21 @@ export class GameGateway {
     }
   ): Promise<void> {
     const hiddenBetSnap = buildHiddenBetResolutionPayload(gameId, cashGame)
-    cashGame.onHandComplete()
+    const balanceSnapshot = cashGame.onHandComplete()
+    if (balanceSnapshot.length > 0) {
+      try {
+        await prisma.$transaction(
+          balanceSnapshot.map(({ userId, chips }) =>
+            prisma.user.update({
+              where: { id: userId },
+              data: { chips: intChips(chips) },
+            }),
+          ),
+        )
+      } catch (err) {
+        console.error('[CashGame] Erreur persistance soldes showdown:', err)
+      }
+    }
     if (hiddenBetSnap) {
       try {
         await resolveHiddenBetsForHand(hiddenBetSnap, this.io)
