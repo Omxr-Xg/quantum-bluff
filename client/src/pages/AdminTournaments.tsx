@@ -32,8 +32,9 @@ export function AdminTournaments() {
       // 🚀 REDIRECTION VERS LE LOBBY APRÈS CRÉATION
       navigate('/tournaments'); 
       
-    } catch (err: any) {
-      addToast(err.message, "error");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      addToast(message, "error");
     } finally {
       setLoading(false);
     }

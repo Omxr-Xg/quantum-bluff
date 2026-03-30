@@ -78,10 +78,11 @@ function TournamentTeleporter() {
       }
     }
 
-    const handleTournamentStart = (data: any) => {
+    const handleTournamentStart = (data: { playersToTeleport?: string[]; playerToGameMap?: Record<string, string> }) => {
       const isIncluded = data.playersToTeleport?.includes(userId);
       if (isIncluded) {
-        const myTableId = data.playerToGameMap[userId];
+        const myTableId = data.playerToGameMap?.[userId];
+        if (!myTableId) return;
         addToast(`Le tournoi commence !`, "success");
         navigate(`/game?gameId=${myTableId}`);
       }
