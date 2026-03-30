@@ -767,6 +767,33 @@ export class GameGateway {
         }
       })
 
+      socket.on('CASH_NEXT_HAND_READY', async (data: { gameId: string; ready: boolean }) => {
+        try {
+          const { gameId, ready } = data
+          if (!socket.userId || !gameId || socket.gameId !== gameId) return
+
+          const game = await activeGames.get(gameId)
+          if (!(game instanceof CashGameController)) return
+
+          const result = game.setNextHandReady(socket.userId, Boolean(ready))
+
+          this.io.to(gameId).emit('CASH_NEXT_HAND_READY_UPDATED', {
+            readyUserIds: result.readyUserIds,
+            allReady: result.allReady,
+          })
+
+          if (result.allReady) {
+            game.setOnCountdownDone(() => {
+              void this.broadcastCashGameSnapshot(gameId)
+            })
+            game.beginNextHandCountdown(5000)
+            await this.broadcastCashGameSnapshot(gameId)
+          }
+        } catch (err) {
+          console.error('Erreur CASH_NEXT_HAND_READY:', err)
+        }
+      })
+
       socket.on('RECONNECT_GAME', async (data: { gameId: string }) => {
         try {
           const { gameId } = data
@@ -1088,9 +1115,13 @@ export class GameGateway {
     })
     const dissolved = await this.maybeDissolveCashAfterHand(cashGame, gameId, roomId)
     if (!dissolved) {
-      this.io.to(gameId).emit('NEXT_HAND_COUNTDOWN', {
-        gameId,
-        countdownEndsAt: cashGame.state.cashCountdownEndsAt,
+      const snap = cashGame.getSanitizedState()
+      this.io.to(gameId).emit('CASH_WAITING_PLAYERS', {
+        cashSeats: snap.cashSeats,
+      })
+      this.io.to(gameId).emit('CASH_NEXT_HAND_READY_UPDATED', {
+        readyUserIds: cashGame.getNextHandReadyUserIds(),
+        allReady: cashGame.isAllNextHandPlayersReady(),
       })
     }
   }

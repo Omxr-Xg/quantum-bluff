@@ -60,6 +60,7 @@ export class CashGameController implements IGameSession {
   private onCountdownDone?: () => void
   private runtimePhase:
     | 'HAND_IN_PROGRESS'
+    | 'WAITING_READY'
     | 'NEXT_HAND_COUNTDOWN'
     | 'WAITING_PLAYERS' = 'WAITING_PLAYERS'
   /** Spectateurs qui veulent rejoindre à la prochaine manche */
@@ -70,6 +71,8 @@ export class CashGameController implements IGameSession {
   private nextHandBigBlindUserId: string | null = null
   /** Identifiant stable pour les paris cachés ciblant la prochaine main (entre deux mains). */
   private pendingNextHandId: string | null = null
+  /** Ready prochain tour (entre deux mains). */
+  private nextHandReadyUserIds: Set<string> = new Set()
   private liveBetTimer: ReturnType<typeof setTimeout> | null = null
   private onLiveBetWindowClosed?: () => void
   private readonly debugRuntimeLogsEnabled: boolean =
@@ -78,6 +81,36 @@ export class CashGameController implements IGameSession {
   /** Enregistré par la gateway pour diffuser l’état après fermeture fenêtre live. */
   setOnLiveBetWindowClosed(cb: () => void): void {
     this.onLiveBetWindowClosed = cb
+  }
+
+  getNextHandReadyUserIds(): string[] {
+    return Array.from(this.nextHandReadyUserIds)
+  }
+
+  isAllNextHandPlayersReady(): boolean {
+    const occupied = this.getOccupiedSeats().filter((s) => s.userId && s.chips > 0)
+    if (occupied.length < 2) return false
+    return occupied.every((s) => s.userId && this.nextHandReadyUserIds.has(s.userId))
+  }
+
+  /**
+   * Ready prochain tour : uniquement entre deux mains.
+   * Retourne l'état agrégé pour la diffusion côté gateway.
+   */
+  setNextHandReady(userId: string, ready: boolean): { allReady: boolean; readyUserIds: string[] } {
+    if (this.gameTable != null) {
+      return { allReady: false, readyUserIds: this.getNextHandReadyUserIds() }
+    }
+
+    const seat = this.seats.find((s) => s.userId === userId)
+    if (!seat || seat.chips <= 0) {
+      return { allReady: false, readyUserIds: this.getNextHandReadyUserIds() }
+    }
+
+    if (ready) this.nextHandReadyUserIds.add(userId)
+    else this.nextHandReadyUserIds.delete(userId)
+
+    return { allReady: this.isAllNextHandPlayersReady(), readyUserIds: this.getNextHandReadyUserIds() }
   }
 
   private clearLiveBetTimer(): void {
@@ -105,12 +138,15 @@ export class CashGameController implements IGameSession {
     this.syncHiddenBetNextHandId()
     if (!this.gameTable) {
       const open = this.isHiddenBetWindowOpen()
+      // On garde `windowType: PRE_HAND` tant qu'il existe un next hand potentiel,
+      // même si `windowOpen` est false (ex: pendant le countdown 5s).
+      const windowType: 'PRE_HAND' | null = this.pendingNextHandId ? 'PRE_HAND' : null
       return {
         currentHandId: null,
         nextHandId: this.pendingNextHandId ?? null,
         windowOpen: open,
-        windowType: open ? 'PRE_HAND' : null,
-        closesAt: this.countdownEndsAt ?? undefined,
+        windowType,
+        closesAt: undefined,
       }
     }
     const st = this.gameTable.state
@@ -267,9 +303,12 @@ export class CashGameController implements IGameSession {
   /** Démarrer une nouvelle main */
   startHand(): void {
     this.clearLiveBetTimer()
+    this.nextHandReadyUserIds.clear()
+    this.countdownEndsAt = null
+    if (this.countdownTimer) clearTimeout(this.countdownTimer)
+    this.countdownTimer = null
     const occupied = this.getOccupiedSeats().filter((s) => s.chips > 0)
     if (occupied.length < 2) {
-      this.countdownEndsAt = null
       this.gameTable = null
       this.runtimePhase = 'WAITING_PLAYERS'
       return
@@ -342,18 +381,32 @@ export class CashGameController implements IGameSession {
 
     this.gameTable = null
     this.pendingNextHandId = randomUUID()
-    this.countdownEndsAt = Date.now() + COUNTDOWN_SECONDS * 1000
+    this.countdownEndsAt = null
+    if (this.countdownTimer) clearTimeout(this.countdownTimer)
+    this.countdownTimer = null
+    this.runtimePhase = 'WAITING_READY'
+    this.nextHandReadyUserIds.clear()
+  }
+
+  /**
+   * Lance un compte à rebours (inter-mains) avant le démarrage de la prochaine main.
+   * Pendant ce temps, on ferme les paris cachés pour le next hand.
+   */
+  beginNextHandCountdown(countdownMs: number): void {
+    if (this.gameTable != null) return
+    if (countdownMs < 500) return
+    if (this.runtimePhase === 'NEXT_HAND_COUNTDOWN') return
+    if (this.countdownTimer) clearTimeout(this.countdownTimer)
+
+    this.countdownEndsAt = Date.now() + countdownMs
     this.runtimePhase = 'NEXT_HAND_COUNTDOWN'
 
-    if (this.countdownTimer) clearTimeout(this.countdownTimer)
-    const t = setTimeout(() => {
+    this.countdownTimer = setTimeout(() => {
       this.countdownTimer = null
       this.countdownEndsAt = null
-      this.runtimePhase = 'WAITING_PLAYERS'
+      this.startHand()
       this.onCountdownDone?.()
-    }, COUNTDOWN_SECONDS * 1000)
-    ;(t as NodeJS.Timeout).unref?.()
-    this.countdownTimer = t
+    }, countdownMs)
   }
 
   /** S'asseoir à un siège (entre les mains uniquement) */
@@ -374,6 +427,7 @@ export class CashGameController implements IGameSession {
     seat.userId = null
     seat.username = null
     seat.chips = 0
+    this.nextHandReadyUserIds.delete(userId)
     return true
   }
 
@@ -384,9 +438,8 @@ export class CashGameController implements IGameSession {
       this.countdownTimer = null
     }
     this.countdownEndsAt = null
-    if (this.runtimePhase === 'NEXT_HAND_COUNTDOWN') {
-      this.runtimePhase = 'WAITING_PLAYERS'
-    }
+    if (this.runtimePhase === 'WAITING_READY' || this.runtimePhase === 'NEXT_HAND_COUNTDOWN') this.runtimePhase = 'WAITING_PLAYERS'
+    this.nextHandReadyUserIds.clear()
   }
 
   /**
@@ -422,6 +475,7 @@ export class CashGameController implements IGameSession {
     seat.userId = null
     seat.username = null
     seat.chips = 0
+    this.nextHandReadyUserIds.delete(userId)
     return { ok: true }
   }
 
@@ -462,7 +516,7 @@ export class CashGameController implements IGameSession {
       })),
       currentTurn: '',
       phase: this.countdownEndsAt ? 'WAITING' : 'WAITING',
-      handRuntimePhase: this.runtimePhase === 'NEXT_HAND_COUNTDOWN' ? 'NEXT_HAND_COUNTDOWN' : undefined,
+      handRuntimePhase: undefined,
       cashCountdownEndsAt: this.countdownEndsAt ?? undefined,
       cashSeats: this.seats
     }
@@ -473,7 +527,7 @@ export class CashGameController implements IGameSession {
     if (this.gameTable) return false
     const occupied = this.getOccupiedSeats().filter((s) => s.userId && s.chips > 0)
     if (occupied.length < 2) return false
-    return this.runtimePhase === 'NEXT_HAND_COUNTDOWN' || this.runtimePhase === 'WAITING_PLAYERS'
+    return this.runtimePhase === 'WAITING_READY' || this.runtimePhase === 'WAITING_PLAYERS'
   }
 
   /** Garantit un nextHandId pour quote/place quand la fenêtre est ouverte. */
