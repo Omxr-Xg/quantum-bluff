@@ -19,8 +19,10 @@ import {
 } from '../blackjack/services/blackjackTableLock.service.js'
 import {
   assessBlackjackRuntimeReadiness,
+  BLACKJACK_RUNTIME_STALE_MS,
   runtimeReadinessToHttp,
 } from '../blackjack/services/blackjackRuntimeHealth.service.js'
+import { resetStaleBlackjackPlaySession } from '../blackjack/recovery/blackjackRecovery.service.js'
 import {
   awardXpInTransaction,
   getEffectiveBlackjackMaxBet,
@@ -93,6 +95,45 @@ async function getRuntimeAssessment(gameId: string) {
   })
 
   return { assessment, room, runtimeState }
+}
+
+type RuntimeAssessmentBundle = Awaited<ReturnType<typeof getRuntimeAssessment>>
+
+/**
+ * Détecte un runtime blackjack « stale » (partie abandonnée) et remet la salle en WAITING.
+ * Sinon renvoie le bundle d’évaluation sans second fetch.
+ */
+async function getRuntimeAssessmentWithStaleRecovery(
+  gameId: string
+): Promise<{ kind: 'reset'; roomId: string } | { kind: 'ok'; bundle: RuntimeAssessmentBundle }> {
+  const bundle = await getRuntimeAssessment(gameId)
+  if (bundle.assessment.status !== 'TABLE_STATE_STALE' || !bundle.room) {
+    return { kind: 'ok', bundle }
+  }
+  const didReset = await withBlackjackTableLock(
+    blackjackStateStore,
+    `room:${bundle.room.id}`,
+    async (): Promise<boolean> => {
+      const r = await prisma.blackjackRoom.findFirst({
+        where: { gameId },
+        select: { id: true, status: true },
+      })
+      if (!r || r.status !== 'PLAYING') return false
+      const rt = await blackjackStateStore.getTable(gameId)
+      if (!rt) return false
+      const ms = Date.parse(rt.updatedAt)
+      if (
+        !Number.isFinite(ms) ||
+        Date.now() - ms <= BLACKJACK_RUNTIME_STALE_MS
+      ) {
+        return false
+      }
+      await resetStaleBlackjackPlaySession({ roomId: r.id, gameId })
+      return true
+    }
+  )
+  if (didReset) return { kind: 'reset', roomId: bundle.room.id }
+  return { kind: 'ok', bundle }
 }
 
 function broadcastTable(
@@ -670,9 +711,25 @@ router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const { assessment, room, runtimeState } = await getRuntimeAssessment(
-      req.params.gameId
-    )
+    let outcome: Awaited<ReturnType<typeof getRuntimeAssessmentWithStaleRecovery>>
+    try {
+      outcome = await getRuntimeAssessmentWithStaleRecovery(req.params.gameId)
+    } catch (e) {
+      if (e instanceof BlackjackTableLockedError) {
+        return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+      }
+      throw e
+    }
+    if (outcome.kind === 'reset') {
+      return res.status(410).json({
+        error: 'TABLE_SESSION_RESET',
+        code: 'TABLE_SESSION_RESET',
+        message:
+          'La partie inactive a été fermée. Rouvrez la salle depuis le lobby.',
+        roomId: outcome.roomId,
+      })
+    }
+    const { assessment, room, runtimeState } = outcome.bundle
     if (!assessment.canServeState) {
       const out = runtimeReadinessToHttp(assessment)
       return res.status(out.status).json(out.body)
@@ -717,7 +774,25 @@ router.post('/game/:gameId/bet', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const { assessment } = await getRuntimeAssessment(req.params.gameId)
+    let outcome: Awaited<ReturnType<typeof getRuntimeAssessmentWithStaleRecovery>>
+    try {
+      outcome = await getRuntimeAssessmentWithStaleRecovery(req.params.gameId)
+    } catch (e) {
+      if (e instanceof BlackjackTableLockedError) {
+        return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+      }
+      throw e
+    }
+    if (outcome.kind === 'reset') {
+      return res.status(410).json({
+        error: 'TABLE_SESSION_RESET',
+        code: 'TABLE_SESSION_RESET',
+        message:
+          'La partie inactive a été fermée. Rouvrez la salle depuis le lobby.',
+        roomId: outcome.roomId,
+      })
+    }
+    const { assessment } = outcome.bundle
     if (!assessment.canAcceptActions) {
       const out = runtimeReadinessToHttp(assessment)
       return res.status(out.status).json(out.body)
@@ -806,7 +881,25 @@ router.post('/game/:gameId/deal', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const { assessment } = await getRuntimeAssessment(req.params.gameId)
+    let outcome: Awaited<ReturnType<typeof getRuntimeAssessmentWithStaleRecovery>>
+    try {
+      outcome = await getRuntimeAssessmentWithStaleRecovery(req.params.gameId)
+    } catch (e) {
+      if (e instanceof BlackjackTableLockedError) {
+        return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+      }
+      throw e
+    }
+    if (outcome.kind === 'reset') {
+      return res.status(410).json({
+        error: 'TABLE_SESSION_RESET',
+        code: 'TABLE_SESSION_RESET',
+        message:
+          'La partie inactive a été fermée. Rouvrez la salle depuis le lobby.',
+        roomId: outcome.roomId,
+      })
+    }
+    const { assessment } = outcome.bundle
     if (!assessment.canAcceptActions) {
       const out = runtimeReadinessToHttp(assessment)
       return res.status(out.status).json(out.body)
@@ -872,7 +965,25 @@ router.post('/game/:gameId/action', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const { assessment } = await getRuntimeAssessment(req.params.gameId)
+    let outcome: Awaited<ReturnType<typeof getRuntimeAssessmentWithStaleRecovery>>
+    try {
+      outcome = await getRuntimeAssessmentWithStaleRecovery(req.params.gameId)
+    } catch (e) {
+      if (e instanceof BlackjackTableLockedError) {
+        return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+      }
+      throw e
+    }
+    if (outcome.kind === 'reset') {
+      return res.status(410).json({
+        error: 'TABLE_SESSION_RESET',
+        code: 'TABLE_SESSION_RESET',
+        message:
+          'La partie inactive a été fermée. Rouvrez la salle depuis le lobby.',
+        roomId: outcome.roomId,
+      })
+    }
+    const { assessment } = outcome.bundle
     if (!assessment.canAcceptActions) {
       const out = runtimeReadinessToHttp(assessment)
       return res.status(out.status).json(out.body)
