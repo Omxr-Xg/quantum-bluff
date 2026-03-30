@@ -19,7 +19,7 @@ function formatTimeLeft(targetDate: string) {
 export function TournamentLobby() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
-  const [now, setNow] = useState(new Date()); // Pour forcer le refresh du timer
+  const [, setNow] = useState(new Date()); // Pour forcer le refresh du timer
   const { addToast } = useToast();
   const navigate = useNavigate();
 
@@ -27,8 +27,9 @@ export function TournamentLobby() {
     try {
       const data = await TournamentService.getTournaments();
       setTournaments(data);
-    } catch (err: any) {
-      addToast(err.message, "error");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      addToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -62,8 +63,9 @@ export function TournamentLobby() {
       await TournamentService.joinTournament(id);
       addToast("Inscription validée !", "success");
       loadTournaments(); 
-    } catch (err: any) {
-      addToast(err.message, "error");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      addToast(message, "error");
     }
   };
 
@@ -72,8 +74,9 @@ export function TournamentLobby() {
         await TournamentService.leaveTournament(id);
         addToast("Vous avez quitté le tournoi.", "info");
         loadTournaments(); 
-    } catch (err: any) {
-        addToast(err.message, "error");
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Erreur inconnue";
+        addToast(message, "error");
     }
   };
 

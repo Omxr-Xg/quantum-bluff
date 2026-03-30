@@ -87,21 +87,6 @@ function findStraightHigh(values: number[]): number {
   return 0;
 }
 
-const BASE = 15;
-
-function packScore(category: number, kickers: number[]): number {
-  const k = [...kickers];
-  while (k.length < 5) k.push(0);
-  return (
-    category * Math.pow(BASE, 5) +
-    k[0] * Math.pow(BASE, 4) +
-    k[1] * Math.pow(BASE, 3) +
-    k[2] * Math.pow(BASE, 2) +
-    k[3] * Math.pow(BASE, 1) +
-    k[4]
-  );
-}
-
 function evaluateSeven(cards: EvalCard[]): { category: number } {
   if (cards.length < 5) {
     return { category: 0 };
