@@ -60,16 +60,23 @@ const FRONTEND_ORIGINS: string[] = process.env.CORS_ORIGIN
       'http://localhost:5173',
       'http://localhost:5174',
       'http://localhost:5175',
+      'http://localhost:5176',
+      'http://localhost:5177',
+
       'http://127.0.0.1:5173',
       'http://127.0.0.1:5174',
       'http://127.0.0.1:5175',
+      'http://127.0.0.1:5176',
+      'http://127.0.0.1:5177',
+
       'https://mai-projet-integrateur.u-strasbg.fr',
       'capacitor://localhost',
       'http://localhost',
+
       'http://185.155.93.105',
       'http://185.155.93.105:5173',
       'http://185.155.93.105:3000',
-    ]
+    ];
 
 // sécurité HTTP (CSP adapté pour API + Swagger UI)
 app.use(helmet({
@@ -264,8 +271,7 @@ app.use((err: unknown, req: express.Request, res: express.Response, _next: expre
   const msg = err instanceof Error ? err.message : String(err)
   const stack = err instanceof Error ? err.stack : undefined
   
-  // Utilisation de req as any temporairement pour éviter les erreurs TypeScript avec custom req fields
-  const requestId = (req as any).requestId;
+  const requestId = req.requestId
   
   rootLogger.error({
     msg: 'http_unhandled_error',

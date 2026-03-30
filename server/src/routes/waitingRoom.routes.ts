@@ -901,7 +901,7 @@ router.post('/:roomId/join-requests/:requestId/accept', waitingRoomHostLimiter, 
 });
 
 // POST /api/waiting-room/:roomId/join-requests/:requestId/reject
-router.post('/:roomId/join-requests/:requestId/accept', waitingRoomHostLimiter, async (req, res) => {
+router.post('/:roomId/join-requests/:requestId/reject', waitingRoomHostLimiter, async (req, res) => {
   try {
     const { requestId } = req.params;
     const { hostId } = req.body;

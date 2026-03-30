@@ -58,18 +58,6 @@ export function Layout({ children }: LayoutProps) {
     return () => registerOpener(null);
   }, [registerOpener]);
 
-  const handleMenuMouseEnter = () => {
-    if (closeMenuTimerRef.current) {
-      clearTimeout(closeMenuTimerRef.current);
-      closeMenuTimerRef.current = null;
-    }
-    setMenuOpen(true);
-  };
-
-  const handleMenuMouseLeave = () => {
-    closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
-  };
-
   useEffect(() => {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
     setBalance(getUserBalance());

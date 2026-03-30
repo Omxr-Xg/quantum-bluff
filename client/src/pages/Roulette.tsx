@@ -411,7 +411,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   /** Somme des jetons tapés avant de poser sur le tapis. */
   const [pendingStake, setPendingStake] = useState(0);
   const [bets, setBets] = useState<Map<BetKey, number>>(() => new Map());
-  const [betHistory, setBetHistory] = useState<{ key: BetKey; amt: number }[]>([]);
+  const [_betHistory, setBetHistory] = useState<{ key: BetKey; amt: number }[]>([]);
   const betsRef = useRef(bets);
   betsRef.current = bets;
   const [spinning, setSpinning] = useState(false);

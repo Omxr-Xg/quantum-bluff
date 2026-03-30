@@ -43,6 +43,8 @@ export interface Player {
   position?: number;
   isDealer?: boolean;
   isConnected?: boolean;
+  /** URL d’avatar (cash multi), fournie par le client au join / sit. */
+  avatar?: string;
 }
 
 export type GamePhase = 'WAITING' | 'PREFLOP' | 'FLOP' | 'TURN' | 'RIVER' | 'SHOWDOWN' | 'ENDED_OPPONENT_LEFT'

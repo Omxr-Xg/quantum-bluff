@@ -1,30 +1,36 @@
 /**
- * =============================================================================
- * AVATARS.TEST.TS — Tests du module avatars
- * =============================================================================
- *
- * Teste getPlayerAvatar() qui retourne une URL d’avatar ou une chaîne vide.
- * Comportement actuel : toujours une chaîne vide (placeholder pour future intégration).
- *
- * Tous les tests sont commentés de A à Z.
- * =============================================================================
+ * Tests du module `avatars` — siège local vs adversaires (bots).
  */
+import { describe, it, expect, vi } from "vitest";
 
-import { describe, it, expect } from 'vitest';
-import { getPlayerAvatar } from '../../utils/avatars';
+vi.mock("../../utils/userProfile", () => ({
+  getUserAvatar: () => "https://profile.example/me.png",
+  getUsername: () => "TestUser",
+}));
 
-describe('getPlayerAvatar', () => {
-  it('retourne une chaîne (pas undefined/null) pour un nom donné', () => {
-    const result = getPlayerAvatar('Alice');
-    expect(typeof result).toBe('string');
+import { getPlayerAvatar } from "../../utils/avatars";
+
+describe("getPlayerAvatar", () => {
+  it("retourne l’avatar profil pour le joueur local (siège human, mode bot)", () => {
+    expect(getPlayerAvatar("Vous", "human", "human")).toBe("https://profile.example/me.png");
   });
 
-  it('retourne une chaîne vide pour l’instant (implémentation placeholder)', () => {
-    expect(getPlayerAvatar('Bob')).toBe('');
-    expect(getPlayerAvatar('')).toBe('');
+  it("retourne un avatar distinct pour chaque bot (Dicebear micah, style luxe)", () => {
+    const a = getPlayerAvatar("Bot Alpha", "bot-1", "human");
+    const b = getPlayerAvatar("Bot Beta", "bot-2", "human");
+    expect(a).toContain("api.dicebear.com");
+    expect(a).toContain("micah");
+    expect(b).toContain("api.dicebear.com");
+    expect(a).not.toBe(b);
   });
 
-  it('accepte n’importe quelle chaîne sans lever', () => {
-    expect(() => getPlayerAvatar('User123')).not.toThrow();
+  it("n’utilise pas l’avatar profil pour un adversaire", () => {
+    const url = getPlayerAvatar("Bot Gamma", "bot-3", "human");
+    expect(url).not.toBe("https://profile.example/me.png");
+  });
+
+  it("utilise l’URL serveur pour un adversaire multijoueur quand elle est fournie", () => {
+    const remote = "https://cdn.example/peer-avatar.png";
+    expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me", remote)).toBe(remote);
   });
 });

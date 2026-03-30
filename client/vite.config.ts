@@ -68,6 +68,10 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         navigateFallback: `${basePath}index.html`,
+        // Sans ce mode, workbox-build enchaîne @rollup/plugin-terser sur le SW :
+        // certains environnements (sandbox, CI) lèvent « Unfinished hook (terser) renderChunk ».
+        // 'development' désactive le terser du bundle Workbox uniquement (l’app Vite reste minifiée).
+        mode: 'development',
       },
     }),
   ],

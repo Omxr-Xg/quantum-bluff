@@ -47,7 +47,9 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
         // Alertes visuelles : flash + vibration au lieu du son
         try {
           if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-        } catch {}
+        } catch {
+          /* vibrate non supporté */
+        }
       } else {
         const audio = new Audio(victorySound);
         audio.volume = 0.6;

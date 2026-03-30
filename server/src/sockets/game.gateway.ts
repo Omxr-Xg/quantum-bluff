@@ -22,6 +22,7 @@ import {
 } from '../poker/services/pokerTableLock.service.js'
 import { rootLogger } from '../observability/logger.js'
 import { metrics as promMetrics } from '../observability/metrics.js'
+import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js'
 import { buildHiddenBetResolutionPayload } from '../poker/hiddenBets/hiddenBetSnapshot.js'
 import { resolveHiddenBetsForHand } from '../poker/hiddenBets/resolver/hiddenBetResolver.js'
 
@@ -235,7 +236,7 @@ export class GameGateway {
         }
       )
 
-      socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string }) => {
+      socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string; avatarUrl?: string }) => {
         try {
           const { gameId, playerId } = data
 
@@ -270,8 +271,16 @@ export class GameGateway {
               game.setOnLiveBetWindowClosed(() => {
                 void this.broadcastCashGameSnapshot(gameId)
               })
+              const url = sanitizePublicAvatarUrl(data.avatarUrl)
+              if (url) game.setSeatAvatar(playerId, url)
+              const socketsInRoom = await this.io.in(gameId).fetchSockets()
+              for (const s of socketsInRoom) {
+                const uid = (s as unknown as AuthenticatedSocket).userId
+                s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+              }
+            } else {
+              socket.emit('GAME_UPDATE', game.getSanitizedState(playerId))
             }
-            socket.emit('GAME_UPDATE', game.getSanitizedState(playerId))
             console.log(`✅ Joueur ${playerId} a rejoint la partie ${gameId}`)
           } else {
             logSuspiciousAction('GAME_NOT_FOUND', {
@@ -592,7 +601,7 @@ export class GameGateway {
         socket.broadcast.to(gameId).emit('GAME_CHAT', { playerId, playerName, content, type })
       })
 
-      socket.on('CASH_SIT', async (data: { gameId: string; seatIndex: number; buyIn: number }) => {
+      socket.on('CASH_SIT', async (data: { gameId: string; seatIndex: number; buyIn: number; avatarUrl?: string }) => {
         try {
           const { gameId, seatIndex, buyIn } = data
           if (!socket.userId || !gameId || socket.gameId !== gameId) return
@@ -602,7 +611,8 @@ export class GameGateway {
             where: { id: socket.userId },
             select: { username: true }
           })
-          const result = game.sit(socket.userId, user?.username ?? 'Joueur', seatIndex, buyIn ?? 100)
+          const avatarUrl = sanitizePublicAvatarUrl(data.avatarUrl)
+          const result = game.sit(socket.userId, user?.username ?? 'Joueur', seatIndex, buyIn ?? 100, avatarUrl)
           if (!result.ok) {
             socket.emit('ERROR', { code: 'CASH_SIT_FAILED', message: result.error })
             return
@@ -799,7 +809,7 @@ export class GameGateway {
         }
       })
 
-      socket.on('RECONNECT_GAME', async (data: { gameId: string }) => {
+      socket.on('RECONNECT_GAME', async (data: { gameId: string; avatarUrl?: string }) => {
         try {
           const { gameId } = data
 
@@ -823,7 +833,17 @@ export class GameGateway {
               player.isConnected = true
             }
 
-            socket.emit('GAME_UPDATE', game.getSanitizedState(socket.userId))
+            if (game instanceof CashGameController) {
+              const url = sanitizePublicAvatarUrl(data.avatarUrl)
+              if (url) game.setSeatAvatar(socket.userId, url)
+              const socketsInRoom = await this.io.in(gameId).fetchSockets()
+              for (const s of socketsInRoom) {
+                const uid = (s as unknown as AuthenticatedSocket).userId
+                s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+              }
+            } else {
+              socket.emit('GAME_UPDATE', game.getSanitizedState(socket.userId))
+            }
             this.io.to(gameId).emit('PLAYER_RECONNECTED', {
               playerId: socket.userId,
               gameId
