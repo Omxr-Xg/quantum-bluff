@@ -8,9 +8,6 @@ export type MarketDefinition = {
 }
 
 const PRE: HiddenBetMarketPhase[] = ['PRE_HAND']
-const LIVE_F: HiddenBetMarketPhase[] = ['LIVE_FLOP']
-const LIVE_T: HiddenBetMarketPhase[] = ['LIVE_TURN']
-const LIVE_R: HiddenBetMarketPhase[] = ['LIVE_RIVER']
 const LIVE_ALL: HiddenBetMarketPhase[] = ['LIVE_FLOP', 'LIVE_TURN', 'LIVE_RIVER']
 
 const CATALOG: MarketDefinition[] = [

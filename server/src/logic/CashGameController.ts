@@ -9,7 +9,6 @@ import { GameTable } from './GameTable.js'
 import { intChips } from '../utils/chips.js'
 
 const DEFAULT_BUY_IN = 100
-const COUNTDOWN_SECONDS = 10
 const DEFAULT_SMALL_BLIND = 1
 const DEFAULT_BIG_BLIND = 2
 /** Tour multi : 30 s par défaut, 10 s en mode turbo */
