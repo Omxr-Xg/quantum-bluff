@@ -158,15 +158,8 @@ export function HiddenBetsPanel({
     try {
       const { tickets } = await fetchHiddenBetTableHistory(gameId, 100);
       const list = (tickets ?? []) as TableTicketRow[];
-      // On n'affiche que les tickets "récents" pour coller à la transition entre deux mains.
-      const cutoff = Date.now() - 15_000;
-      setTableTickets(
-        list.filter((tk) => {
-          if (!tk.resolvedAt) return false;
-          const ts = Date.parse(tk.resolvedAt);
-          return Number.isFinite(ts) && ts >= cutoff;
-        })
-      );
+      // Pendant la transition entre deux mains, on affiche tous les tickets résolus de la table (API déjà filtrée sur resolvedAt != null).
+      setTableTickets(list);
     } catch (e) {
       setTableTicketsError((e as Error).message);
     } finally {
