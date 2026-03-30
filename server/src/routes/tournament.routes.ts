@@ -31,7 +31,7 @@ router.get('/', async (req: Request, res: Response) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as TokenPayload;
         currentUserId = decoded.userId;
         console.log("ID Utilisateur détecté dans le Lobby:", currentUserId); // LOG DE DEBUG
-      } catch (e) {
+      } catch {
         console.log("Token invalide ou manquant");
       }
     }
