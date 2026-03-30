@@ -151,6 +151,14 @@ const blackjackMultiApiLimiter = rateLimitWithMetrics({
   legacyHeaders: false,
 })
 
+const hiddenBetsApiLimiter = rateLimitWithMetrics({
+  windowMs: 60 * 1000,
+  limit: process.env.NODE_ENV === 'production' ? 180 : 3000,
+  message: { error: 'Trop de requêtes hidden-bets, réessaie dans une minute' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 app.get('/test-me', (req, res) => res.send("Le serveur me voit !"));
 
 app.use(express.json({ limit: '10kb' }))

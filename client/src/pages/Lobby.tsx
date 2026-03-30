@@ -704,8 +704,6 @@ export function Lobby() {
           {/* Colonne de gauche (2/3) - Texas Hold'em */}
           <div className={`lg:col-span-2 space-y-6 ${lobbyMainTab !== "poker" ? "hidden" : ""}`} aria-hidden={lobbyMainTab !== "poker"}>
 
-            <TournamentWidget />
-
             {/* Section Jouer contre Bot */}
             <div ref={tourRefBot} className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
               <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
@@ -870,6 +868,9 @@ export function Lobby() {
                 </div>
               </div>
             </div>
+            
+            {/* Arène des tournois (en bas sous les serveurs multi-joueurs) */}
+            <TournamentWidget />
 
           </div>
 
