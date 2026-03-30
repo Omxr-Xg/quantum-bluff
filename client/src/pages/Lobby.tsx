@@ -29,6 +29,7 @@ import { useTopBar } from '../contexts/TopBarContext';
 import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { apiUrl } from "../utils/apiBase";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
+import { TournamentWidget } from '../components/TournamentWidget';
 
 function readLobbyTabFromUrl(): "poker" | "minigames" | "blackjack" {
   if (typeof window === "undefined") return "poker";
@@ -702,6 +703,8 @@ export function Lobby() {
           
           {/* Colonne de gauche (2/3) - Texas Hold'em */}
           <div className={`lg:col-span-2 space-y-6 ${lobbyMainTab !== "poker" ? "hidden" : ""}`} aria-hidden={lobbyMainTab !== "poker"}>
+
+            <TournamentWidget />
 
             {/* Section Jouer contre Bot */}
             <div ref={tourRefBot} className="bg-slate-800 rounded-2xl p-6 border border-purple-500">

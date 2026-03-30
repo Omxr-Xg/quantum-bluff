@@ -2,6 +2,8 @@ import { GameTable } from '../logic/GameTable.js'
 import type { Player } from '../types/poker.js'
 
 class GameService {
+  public instanceId = Math.floor(Math.random() * 10000); 
+  
   private games: Map<string, GameTable> = new Map()
 
   listGames() {
@@ -13,12 +15,15 @@ class GameService {
     }))
   }
 
-  createGame(playerName: string) {
-    const playerId = `player_${Date.now()}_${Math.floor(Math.random() * 100000)}`
+  createGame(playerName: string, forcedPlayerId?: string) {
+    // Si on donne un ID (Tournoi), on l'utilise. Sinon, on en génère un (Cash Game).
+    const playerId = forcedPlayerId || `player_${Date.now()}_${Math.floor(Math.random() * 100000)}`
     const gameId = `game_${Date.now()}_${Math.floor(Math.random() * 100000)}`
 
+    console.log(`[MOTEUR n°${this.instanceId}] 🛠️ CRÉATION de la partie : ${gameId}`);
+
     const player: Player = {
-      id: playerId,
+      id: playerId, // 👈 Utilise l'ID fourni
       name: playerName,
       cards: [],
       chips: 1000,
@@ -36,21 +41,15 @@ class GameService {
     return { gameId, playerId, player, gameState: table.getSanitizedState(playerId) }
   }
 
-  joinGame(gameId: string, playerName: string) {
+  joinGame(gameId: string, playerName: string, forcedPlayerId?: string) {
     const table = this.games.get(gameId)
+    if (!table) throw new Error('Partie introuvable')
+    if (table.state.players.length >= 9) throw new Error('La partie est complète')
 
-    if (!table) {
-      throw new Error('Partie introuvable')
-    }
-
-    if (table.state.players.length >= 9) {
-      throw new Error('La partie est complète')
-    }
-
-    const playerId = `player_${Date.now()}_${Math.floor(Math.random() * 100000)}`
+    const playerId = forcedPlayerId || `player_${Date.now()}_${Math.floor(Math.random() * 100000)}`
 
     const player: Player = {
-      id: playerId,
+      id: playerId, // 👈 Utilise l'ID fourni
       name: playerName,
       cards: [],
       chips: 1000,
@@ -63,11 +62,11 @@ class GameService {
     }
 
     table.addPlayer(player)
-
     return { gameId, playerId, player, gameState: table.getSanitizedState(playerId) }
   }
 
   getGame(gameId: string) {
+    console.log(`[MOTEUR n°${this.instanceId}] 🔍 RECHERCHE de la partie : ${gameId}`);
     return this.games.get(gameId)
   }
 

@@ -6,6 +6,12 @@ import helmet from 'helmet'
 import swaggerUi from 'swagger-ui-express'
 import { swaggerSpec } from './config/swagger.config.js'
 import { initCleanupJobs } from './utils/cleanup.job.js'
+
+import { TournamentService } from './services/tournament.service.js';
+
+import './cron/tournament.cron.js'; // On importe juste le fichier pour lancer le cron
+import tournamentRoutes from './routes/tournament.routes.js';
+
 import {
   requestIdMiddleware,
   httpAccessLogMiddleware,
@@ -145,13 +151,7 @@ const blackjackMultiApiLimiter = rateLimitWithMetrics({
   legacyHeaders: false,
 })
 
-const hiddenBetsApiLimiter = rateLimitWithMetrics({
-  windowMs: 60 * 1000,
-  limit: process.env.NODE_ENV === 'production' ? 120 : 2000,
-  message: { error: 'Trop de requêtes paris cachés, réessaie dans une minute' },
-  standardHeaders: true,
-  legacyHeaders: false,
-})
+app.get('/test-me', (req, res) => res.send("Le serveur me voit !"));
 
 app.use(express.json({ limit: '10kb' }))
 
@@ -181,6 +181,8 @@ app.use(
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
+
+app.use('/api/tournaments', tournamentRoutes);
 
 // ==========================================
 // 🛡️ B4 : ROUTE ADMIN POUR VOIR LES TRICHEURS
@@ -281,6 +283,7 @@ const io = new Server(httpServer, {
 })
 
 // sécurité websocket (JWT)
+TournamentService.setIo(io);
 io.use(socketAuth)
 app.set('io', io)
 
@@ -300,5 +303,8 @@ const PORT = parseInt(process.env.PORT || '3000', 10)
       port: PORT,
       detail: 'Quantum Bluff API démarrée',
     })
+    
+    // 🚀 ON ALLUME LE VEILLEUR DE TOURNOIS ICI 👇
+    TournamentService.startTournamentWatcher(io);
   })
 })()
