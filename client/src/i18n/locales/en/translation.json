@@ -993,6 +993,7 @@
     "runtime": {
       "tableRecovering": "Table is recovering. Actions are temporarily disabled.",
       "tableStateStale": "Table state is stale. Please retry in a moment.",
+      "sessionReset": "This table had been idle too long and was reset. Open the room again from the lobby.",
       "tableUnavailable": "Table is temporarily unavailable.",
       "tableMismatch": "Table runtime is inconsistent. Please retry later.",
       "tableNotLoadedLocally": "Table is not yet loaded on this node.",

@@ -999,6 +999,7 @@
     "runtime": {
       "tableRecovering": "La table est en cours de recuperation. Les actions sont temporairement desactivees.",
       "tableStateStale": "L'etat de la table est obsolete. Reessayez dans quelques instants.",
+      "sessionReset": "La table etait inactive trop longtemps : elle a ete reinitialisee. Rouvrez la salle depuis le lobby.",
       "tableUnavailable": "La table est temporairement indisponible.",
       "tableMismatch": "La table est dans un etat incoherent. Reessayez plus tard.",
       "tableNotLoadedLocally": "La table n'est pas encore chargee sur cette instance.",
