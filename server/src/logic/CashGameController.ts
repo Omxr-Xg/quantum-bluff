@@ -114,21 +114,21 @@ export class CashGameController implements IGameSession {
       }
     }
     const st = this.gameTable.state
-    const lw = st.hiddenBetLiveWindow
-    if (lw) {
-      return {
-        currentHandId: st.handId ?? null,
-        nextHandId: null,
-        windowOpen: true,
-        windowType: lw.windowType,
-        closesAt: lw.closesAt,
-      }
-    }
+    const windowType =
+      st.phase === 'FLOP'
+        ? 'LIVE_FLOP'
+        : st.phase === 'TURN'
+          ? 'LIVE_TURN'
+          : st.phase === 'RIVER'
+            ? 'LIVE_RIVER'
+            : null
+
     return {
       currentHandId: st.handId ?? null,
       nextHandId: null,
-      windowOpen: false,
-      windowType: null,
+      windowOpen: windowType != null,
+      windowType,
+      closesAt: undefined,
     }
   }
 
@@ -516,12 +516,8 @@ export class CashGameController implements IGameSession {
 
   handlePlayerAction(playerId: string, action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK', amount?: number): void {
     if (!this.gameTable) throw new Error('Aucune main en cours')
-    if (this.gameTable.state.hiddenBetLiveWindow) {
-      throw new Error('Fenêtre paris live — actions suspendues')
-    }
     const phaseBefore = this.gameTable.state.phase
     this.gameTable.handlePlayerAction(playerId, action, amount)
-    this.scheduleLiveBetAfterAction()
     this.logRuntimeEvent('PLAYER_ACTION', {
       playerId,
       action,

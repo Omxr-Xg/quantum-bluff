@@ -448,12 +448,10 @@ export class GameTable {
       this.state.communityCards.push(...this.deck.dealFlop())
       this.runOutBoardIfAllIn()
       if (this.state.phase === 'SHOWDOWN') return
-      if (this.liveBetWindowDisabled) {
-        this.state.currentTurn = firstToActId
-        this.state.handRuntimePhase = 'BETTING_ACTIVE'
-        return
-      }
-      this.beginLiveBetWindow('LIVE_FLOP', firstToActId)
+      // LIVE bets are open at any moment during this street; no "frozen window" pause.
+      this.state.hiddenBetLiveWindow = undefined
+      this.state.currentTurn = firstToActId
+      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       return
     }
 
@@ -462,12 +460,9 @@ export class GameTable {
       this.state.communityCards.push(this.deck.dealTurn())
       this.runOutBoardIfAllIn()
       if (this.state.phase === 'SHOWDOWN') return
-      if (this.liveBetWindowDisabled) {
-        this.state.currentTurn = firstToActId
-        this.state.handRuntimePhase = 'BETTING_ACTIVE'
-        return
-      }
-      this.beginLiveBetWindow('LIVE_TURN', firstToActId)
+      this.state.hiddenBetLiveWindow = undefined
+      this.state.currentTurn = firstToActId
+      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       return
     }
 
@@ -476,12 +471,9 @@ export class GameTable {
       this.state.communityCards.push(this.deck.dealRiver())
       this.runOutBoardIfAllIn()
       if (this.state.phase === 'SHOWDOWN') return
-      if (this.liveBetWindowDisabled) {
-        this.state.currentTurn = firstToActId
-        this.state.handRuntimePhase = 'BETTING_ACTIVE'
-        return
-      }
-      this.beginLiveBetWindow('LIVE_RIVER', firstToActId)
+      this.state.hiddenBetLiveWindow = undefined
+      this.state.currentTurn = firstToActId
+      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       return
     }
 
@@ -834,10 +826,6 @@ export class GameTable {
 
     if (!this.handStarted) {
       throw new Error('La main n’a pas commencé')
-    }
-
-    if (this.state.hiddenBetLiveWindow) {
-      throw new Error('Fenêtre paris live — actions suspendues')
     }
 
     if (!this.handParticipantIds.has(playerId)) {
