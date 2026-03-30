@@ -14,7 +14,15 @@ import {
   XP_POKER_SHOWDOWN_LOSS,
   XP_POKER_SHOWDOWN_WIN,
 } from '../logic/gamification.js'
-import { assessBlackjackRuntimeReadiness } from '../blackjack/services/blackjackRuntimeHealth.service.js'
+import {
+  assessBlackjackRuntimeReadiness,
+  BLACKJACK_RUNTIME_STALE_MS,
+} from '../blackjack/services/blackjackRuntimeHealth.service.js'
+import { resetStaleBlackjackPlaySession } from '../blackjack/recovery/blackjackRecovery.service.js'
+import {
+  BlackjackTableLockedError,
+  withBlackjackTableLock,
+} from '../blackjack/services/blackjackTableLock.service.js'
 import { applyPokerAction } from '../poker/services/pokerActionOrchestrator.service.js'
 import {
   PokerTableLockedError,
@@ -353,6 +361,50 @@ export class GameGateway {
               exists: false,
             },
           })
+          if (runtimeAssessment.status === 'TABLE_STATE_STALE' && room) {
+            try {
+              const didReset = await withBlackjackTableLock(
+                blackjackStateStore,
+                `room:${room.id}`,
+                async (): Promise<boolean> => {
+                  const r = await prisma.blackjackRoom.findFirst({
+                    where: { gameId },
+                    select: { id: true, status: true },
+                  })
+                  if (!r || r.status !== 'PLAYING') return false
+                  const rt = await blackjackStateStore.getTable(gameId)
+                  if (!rt) return false
+                  const ms = Date.parse(rt.updatedAt)
+                  if (
+                    !Number.isFinite(ms) ||
+                    Date.now() - ms <= BLACKJACK_RUNTIME_STALE_MS
+                  ) {
+                    return false
+                  }
+                  await resetStaleBlackjackPlaySession({ roomId: r.id, gameId })
+                  return true
+                }
+              )
+              if (didReset) {
+                socket.emit('ERROR', {
+                  code: 'TABLE_SESSION_RESET',
+                  message:
+                    'La partie inactive a été fermée. Rouvrez la salle depuis le lobby.',
+                  roomId: room.id,
+                })
+                return
+              }
+            } catch (bjLockErr) {
+              if (bjLockErr instanceof BlackjackTableLockedError) {
+                socket.emit('ERROR', {
+                  code: 'TABLE_LOCKED',
+                  message: 'Table verrouillée, réessaie.',
+                })
+                return
+              }
+              console.error('Erreur reset stale blackjack (JOIN):', bjLockErr)
+            }
+          }
           if (!runtimeAssessment.canServeState) {
             socket.emit('ERROR', {
               code: runtimeAssessment.status,
