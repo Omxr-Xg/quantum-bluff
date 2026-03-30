@@ -419,7 +419,8 @@ export function HiddenBetsPanel({
   })();
 
   return (
-    <AnimatePresence>
+    <>
+      <AnimatePresence>
       {isOpen && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -736,9 +737,9 @@ export function HiddenBetsPanel({
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+      </AnimatePresence>
 
-    {pricingInfo && (
+      {pricingInfo && (
       <div
         className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
         onClick={() => setPricingInfo(null)}
@@ -786,6 +787,7 @@ export function HiddenBetsPanel({
           </div>
         </div>
       </div>
-    )}
+      )}
+    </>
   );
 }
