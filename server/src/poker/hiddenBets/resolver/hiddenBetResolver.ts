@@ -120,11 +120,9 @@ export async function resolveHiddenBetsForHand(
           continue
         }
 
-        let balanceAfter = user.chips
-
         if (outcome === 'WON') {
           const pay = ticket.potentialPayout
-          balanceAfter = user.chips + pay
+          const balanceAfter = user.chips + pay
           await tx.user.update({
             where: { id: ticket.userId },
             data: { chips: balanceAfter },
@@ -146,7 +144,7 @@ export async function resolveHiddenBetsForHand(
           )
         } else if (outcome === 'VOID') {
           const refund = ticket.stake
-          balanceAfter = user.chips + refund
+          const balanceAfter = user.chips + refund
           await tx.user.update({
             where: { id: ticket.userId },
             data: { chips: balanceAfter },

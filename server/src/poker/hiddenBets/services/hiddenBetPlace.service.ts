@@ -13,10 +13,8 @@ import {
 import { createHiddenBetLedgerContext } from '../hiddenBetLedgerContext.js'
 import {
   HIDDEN_BETS_PRE_PRICING_VERSION,
-  HIDDEN_BETS_LIVE_PRICING_VERSION,
   pricingVersionForPhase,
   type HiddenBetMarketPhase,
-  type SelectionPayload,
 } from '../types.js'
 import { computeQuotedOdds, marketKeyAndSignature, validateSelections } from '../markets.js'
 import { assertHiddenBetQuoteOrPlace, buildLiveQuoteSnapshotJson } from './hiddenBetWindow.service.js'
