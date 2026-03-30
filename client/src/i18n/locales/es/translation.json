@@ -80,7 +80,7 @@
       "headerTitle": "Cabecera",
       "headerBody": "Logo, nombre del juego y mensaje de bienvenida.",
       "topBarTitle": "Menú superior",
-      "topBarBody": "Idioma, saldo, perfil, amigos, accesibilidad y salir.",
+      "topBarBody": "Idioma, saldo, perfil, amigos, ajustes y salir.",
       "tourWelcomeTitle": "¡Bienvenido!",
       "tourWelcomeBody": "Este tour resalta cada zona del lobby. Usa Siguiente o haz clic fuera para cerrar.",
       "tourDoneTitle": "¡Listo!",
@@ -269,6 +269,14 @@
     "burned": "Quemadas",
     "burnedCount": "{{count}} carta(s) quemada(s)",
     "bets": "Apuestas",
+    "probabilitiesShort": "Prob.",
+    "phaseBadge": {
+      "preflop": "Preflop",
+      "flop": "Flop",
+      "turn": "Turn",
+      "river": "River",
+      "showdown": "Showdown"
+    },
     "waiting": "Esperando...",
     "waitingFor": "Esperando a {{name}}",
     "check": "Pasar",
@@ -292,6 +300,24 @@
     "actionCalled": "igualó",
     "actionRaised": "subió",
     "actionLogTitle": "Historial",
+    "combinationsHelp": {
+      "buttonShort": "Manos",
+      "buttonTitle": "Ranking de manos — pasa el cursor o toca en móvil",
+      "title": "Ranking de manos",
+      "subtitle": "De la más fuerte a la más débil en Texas Hold'em. Cada fila muestra un ejemplo de 5 cartas.",
+      "desc": {
+        "straightFlush": "Cinco cartas de la misma pinta en secuencia. 10–J–Q–K–A de una pinta es escalera de color real (la mejor mano).",
+        "fourKind": "Cuatro cartas del mismo rango, más una kicker.",
+        "fullHouse": "Trío más pareja.",
+        "quantumCombi": "Exclusivo de Quantum Bluff: entre tus siete cartas hay al menos un 3, 5, 6, 7 y 10 (pintas libres). Gana a color, pierde contra full. Desempate: las dos cartas restantes.",
+        "flush": "Cinco cartas de la misma pinta, sin escalera.",
+        "straight": "Cinco cartas en secuencia, pintas mezcladas.",
+        "threeKind": "Tres cartas del mismo rango.",
+        "twoPair": "Dos parejas distintas más kicker.",
+        "pair": "Dos cartas del mismo rango.",
+        "highCard": "Sin pareja ni mejor — gana la carta más alta."
+      }
+    },
     "actionLogEmpty": "Sin acciones en esta mano.",
     "actionLogLine": "[{{street}}] {{detail}}",
     "actionLogCheck": "{{name}} pasa",
@@ -718,6 +744,7 @@
       "threeKind": "Trío",
       "straight": "Escalera",
       "flush": "Color",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Full",
       "fourKind": "Poker",
       "straightFlush": "Escalera de color",
@@ -752,6 +779,37 @@
     "gain": "Ganancia",
     "continue": "Continuar",
     "highCard": "Carta alta"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "subtitle": "Aspecto de la mesa y pantalla",
+    "close": "Cerrar",
+    "tabAesthetic": "Estética",
+    "tabAccessibility": "Accesibilidad",
+    "tableThemeHint": "Elige el color del tapete de la mesa de póker.",
+    "tableTheme": {
+      "default": "Verde clásico",
+      "vegasRed": "Rojo estilo Vegas",
+      "vegasPurple": "Morado estilo Vegas",
+      "darkBlue": "Azul oscuro"
+    }
+  },
+  "accessibility": {
+    "title": "Accesibilidad",
+    "highContrastTitle": "Alto contraste",
+    "highContrastHint": "Bordes más marcados y texto más claro",
+    "highContrastBody": "Mejora la legibilidad aumentando el contraste en la mesa y los controles.",
+    "visualAlertsTitle": "Alertas visuales",
+    "visualAlertsHint": "Más énfasis en tu turno y acciones importantes",
+    "visualAlertsBody": "Muestra resaltados más claros cuando es tu turno o hay una acción pendiente.",
+    "colorblindTitle": "Cartas para daltonismo",
+    "colorblindHint": "Ajusta los colores de los palos para protanopia, deuteranopia o tritanopia",
+    "colorblindSelectLabel": "Tipo de visión del color",
+    "colorblindProtanopia": "Protanopia (rojo débil)",
+    "colorblindDeuteranopia": "Deuteranopia (verde débil)",
+    "colorblindTritanopia": "Tritanopia (azul–amarillo)",
+    "savedInfoTitle": "Guardado en este dispositivo",
+    "savedInfoBody": "Estas opciones se guardan en tu navegador y se aplican a todas las mesas."
   },
   "nav": {
     "login": "Entrar",
@@ -814,6 +872,7 @@
       "threeKind": "Trío",
       "straight": "Escalera",
       "flush": "Color",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Full",
       "fourKind": "Poker",
       "straightFlush": "Escalera de color"

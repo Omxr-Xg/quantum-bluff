@@ -6,6 +6,12 @@ import helmet from 'helmet'
 import swaggerUi from 'swagger-ui-express'
 import { swaggerSpec } from './config/swagger.config.js'
 import { initCleanupJobs } from './utils/cleanup.job.js'
+
+import { TournamentService } from './services/tournament.service.js';
+
+import './cron/tournament.cron.js'; // On importe juste le fichier pour lancer le cron
+import tournamentRoutes from './routes/tournament.routes.js';
+
 import {
   requestIdMiddleware,
   httpAccessLogMiddleware,
@@ -31,6 +37,7 @@ import blackjackRoutes from './routes/blackjack.routes.js'
 import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
+import hiddenBetsRoutes from './routes/hiddenBets.routes.js'
 
 // ==========================================
 // 🛡️ B4 : IMPORTS ANTI-TRICHE & ADMIN
@@ -151,6 +158,16 @@ const blackjackMultiApiLimiter = rateLimitWithMetrics({
   legacyHeaders: false,
 })
 
+const hiddenBetsApiLimiter = rateLimitWithMetrics({
+  windowMs: 60 * 1000,
+  limit: process.env.NODE_ENV === 'production' ? 180 : 3000,
+  message: { error: 'Trop de requêtes hidden-bets, réessaie dans une minute' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+app.get('/test-me', (req, res) => res.send("Le serveur me voit !"));
+
 app.use(express.json({ limit: '10kb' }))
 
 // ==========================================
@@ -170,6 +187,7 @@ app.use('/api/bot', botApiLimiter, botRoutes)
 app.use('/api/slot', slotApiLimiter, slotRoutes)
 app.use('/api/roulette', rouletteApiLimiter, rouletteRoutes)
 app.use('/api/blackjack', blackjackApiLimiter, blackjackRoutes)
+app.use('/api/hidden-bets', hiddenBetsApiLimiter, hiddenBetsRoutes)
 app.use(
   '/api/blackjack-tables',
   blackjackMultiApiLimiter,
@@ -178,6 +196,8 @@ app.use(
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
+
+app.use('/api/tournaments', tournamentRoutes);
 
 // ==========================================
 // 🛡️ B4 : ROUTE ADMIN POUR VOIR LES TRICHEURS
@@ -277,6 +297,7 @@ const io = new Server(httpServer, {
 })
 
 // sécurité websocket (JWT)
+TournamentService.setIo(io);
 io.use(socketAuth)
 app.set('io', io)
 
@@ -296,5 +317,8 @@ const PORT = parseInt(process.env.PORT || '3000', 10)
       port: PORT,
       detail: 'Quantum Bluff API démarrée',
     })
+    
+    // 🚀 ON ALLUME LE VEILLEUR DE TOURNOIS ICI 👇
+    TournamentService.startTournamentWatcher(io);
   })
 })()

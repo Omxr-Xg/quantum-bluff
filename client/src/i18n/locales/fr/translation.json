@@ -80,7 +80,7 @@
       "headerTitle": "En-tête",
       "headerBody": "Le logo, le nom du jeu et votre message de bienvenue.",
       "topBarTitle": "Menu du haut",
-      "topBarBody": "Langue, solde en jetons, profil, amis, accessibilité et déconnexion.",
+      "topBarBody": "Langue, solde en jetons, profil, amis, paramètres et déconnexion.",
       "tourWelcomeTitle": "Bienvenue !",
       "tourWelcomeBody": "Ce tutoriel met en surbrillance chaque zone du lobby. Utilisez Suivant ou cliquez hors de la fenêtre pour fermer.",
       "tourDoneTitle": "C'est tout !",
@@ -269,6 +269,14 @@
     "burned": "Brûlées",
     "burnedCount": "{{count}} carte(s) brûlée(s)",
     "bets": "Paris",
+    "probabilitiesShort": "Probas",
+    "phaseBadge": {
+      "preflop": "Préflop",
+      "flop": "Flop",
+      "turn": "Turn",
+      "river": "River",
+      "showdown": "Abattage"
+    },
     "waiting": "En attente...",
     "waitingFor": "En attente de {{name}}",
     "check": "Check",
@@ -292,6 +300,24 @@
     "actionCalled": "a suivi",
     "actionRaised": "a relancé",
     "actionLogTitle": "Historique",
+    "combinationsHelp": {
+      "buttonShort": "Combis",
+      "buttonTitle": "Classement des combinaisons — survol pour ouvrir, appui sur mobile",
+      "title": "Classement des combinaisons",
+      "subtitle": "Du plus fort au plus faible au Texas Hold'em. Chaque ligne montre un exemple en 5 cartes.",
+      "desc": {
+        "straightFlush": "Cinq cartes de la même couleur qui se suivent. 10–V–D–R–As d'une même couleur : quinte flush royale (meilleure main possible).",
+        "fourKind": "Quatre cartes de même rang, plus une carte restante.",
+        "fullHouse": "Un brelan plus une paire.",
+        "quantumCombi": "Exclusif à Quantum Bluff : les sept cartes contiennent au moins un 3, 5, 6, 7 et 10 (couleurs quelconques). Bat une couleur, perd contre un full. Égalité : comparer les deux kickers restants.",
+        "flush": "Cinq cartes de la même couleur, sans suite.",
+        "straight": "Cinq cartes qui se suivent, couleurs mélangées.",
+        "threeKind": "Trois cartes de même rang.",
+        "twoPair": "Deux paires différentes, plus une carte restante.",
+        "pair": "Deux cartes de même rang.",
+        "highCard": "Aucune combinaison ci-dessus — la plus haute carte l'emporte."
+      }
+    },
     "actionLogEmpty": "Aucune action sur cette main.",
     "actionLogLine": "[{{street}}] {{detail}}",
     "actionLogCheck": "{{name}} check",
@@ -721,6 +747,7 @@
       "threeKind": "Brelan",
       "straight": "Quinte",
       "flush": "Couleur",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Full",
       "fourKind": "Carré",
       "straightFlush": "Quinte Flush",
@@ -743,7 +770,18 @@
     "totalWinnings": "Total des gains",
     "close": "Fermer",
     "unknownWinner": "Gagnant inconnu",
-    "unknownCombination": "Combinaison inconnue"
+    "unknownCombination": "Combinaison inconnue",
+    "reachesShowdown": "Va jusqu'au showdown",
+    "marketType": "Marché",
+    "tabNextHand": "Prochaine main",
+    "tabLive": "Main en cours",
+    "live": "Live",
+    "currentHandShort": "main",
+    "livePhase": {
+      "LIVE_FLOP": "Flop",
+      "LIVE_TURN": "Turn",
+      "LIVE_RIVER": "River"
+    }
   },
   "showdown": {
     "title": "Showdown !",
@@ -755,6 +793,37 @@
     "gain": "Gain",
     "continue": "Continuer",
     "highCard": "Haute carte"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Apparence de la table et affichage",
+    "close": "Fermer",
+    "tabAesthetic": "Esthétique",
+    "tabAccessibility": "Accessibilité",
+    "tableThemeHint": "Choisissez la couleur du tapis pour la partie.",
+    "tableTheme": {
+      "default": "Vert (classique)",
+      "vegasRed": "Rouge style Vegas",
+      "vegasPurple": "Violet style Vegas",
+      "darkBlue": "Bleu foncé"
+    }
+  },
+  "accessibility": {
+    "title": "Accessibilité",
+    "highContrastTitle": "Contraste élevé",
+    "highContrastHint": "Bordures plus marquées et texte plus lisible",
+    "highContrastBody": "Améliore la lisibilité en augmentant le contraste sur la table et les contrôles.",
+    "visualAlertsTitle": "Alertes visuelles",
+    "visualAlertsHint": "Mise en avant de votre tour et des actions importantes",
+    "visualAlertsBody": "Affiche des surbrillances plus visibles quand c’est à vous de jouer ou qu’une action requiert votre attention.",
+    "colorblindTitle": "Cartes adaptées daltonisme",
+    "colorblindHint": "Ajuste les couleurs des enseignes pour protanopie, deuteranopie ou tritanopie",
+    "colorblindSelectLabel": "Type de vision des couleurs",
+    "colorblindProtanopia": "Protanopie (rouge affaibli)",
+    "colorblindDeuteranopia": "Deuteranopie (vert affaibli)",
+    "colorblindTritanopia": "Tritanopie (bleu–jaune)",
+    "savedInfoTitle": "Enregistré sur cet appareil",
+    "savedInfoBody": "Ces choix sont stockés dans votre navigateur et s’appliquent à toutes les tables."
   },
   "nav": {
     "login": "Connexion",
@@ -804,6 +873,7 @@
       "threeKind": "Brelan",
       "straight": "Quinte",
       "flush": "Couleur",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Full",
       "fourKind": "Carré",
       "straightFlush": "Quinte flush"

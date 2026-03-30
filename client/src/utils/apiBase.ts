@@ -16,6 +16,8 @@ export function getApiBaseUrl(): string {
   const { hostname, protocol } = window.location;
   if (protocol === "capacitor:" || protocol === "ionic:" || protocol === "file:") return "";
   if (hostname === "localhost" || hostname === "127.0.0.1") {
+    // En `vite dev`, `/api` est proxifié vers le backend : utiliser l’origine évite les appels directs `:3000`.
+    if (import.meta.env.DEV) return "";
     return "http://localhost:3000";
   }
   return "";

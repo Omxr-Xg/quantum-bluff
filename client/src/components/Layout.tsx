@@ -15,7 +15,8 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ChipIcon } from "./ChipIcon";
 import { TopBarProvider } from "../contexts/TopBarContext";
 import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
-import { AccessibilityMenu } from "./AccessibilityMenu";
+import { SettingsMenu } from "./SettingsMenu";
+import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
@@ -40,13 +41,20 @@ export function Layout({ children }: LayoutProps) {
   const [devValidation, setDevValidation] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showAccessibilityMenu, setShowAccessibilityMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("aesthetic");
   const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MENU_CLOSE_DELAY = 500;
-  const { registerOpener, openAccessibilityMenu } = useAccessibilityMenuOpen() ?? { registerOpener: () => {}, openAccessibilityMenu: () => {} };
+  const { registerOpener, openSettingsMenu } = useAccessibilityMenuOpen() ?? {
+    registerOpener: () => {},
+    openSettingsMenu: () => {},
+  };
 
   useEffect(() => {
-    registerOpener(() => setShowAccessibilityMenu(true));
+    registerOpener((tab) => {
+      setSettingsInitialTab(tab ?? "aesthetic");
+      setShowSettingsMenu(true);
+    });
     return () => registerOpener(null);
   }, [registerOpener]);
 
@@ -237,9 +245,9 @@ export function Layout({ children }: LayoutProps) {
         <Trophy className="h-4 w-4 shrink-0" />
         <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
       </button>
-      <button type="button" onClick={() => openAccessibilityMenu()} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("accessibility.title", "Accessibilité")}>
+      <button type="button" onClick={() => openSettingsMenu()} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
         <Settings className="h-4 w-4 shrink-0" />
-        <span className="hidden lg:inline">{t("accessibility.title", "Accessibilité")}</span>
+        <span className="hidden lg:inline">{t("settings.title")}</span>
       </button>
       <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-red-600/80 px-2 text-sm text-white transition hover:bg-red-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.logout")}>
         <LogOut className="h-4 w-4 shrink-0" />
@@ -253,14 +261,14 @@ export function Layout({ children }: LayoutProps) {
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
       {showHamburgerMenu && (
         <>
-          {/* Sur la page Game : bouton Paramètres (ouvre Accessibilité). Sinon : menu hamburger classique */}
+          {/* Sur la page Game : bouton Paramètres (modal Esthétique / Accessibilité). Sinon : menu hamburger classique */}
           <div className="fixed top-4 right-8 z-[250]">
             {isGamePage ? (
               <button
                 type="button"
-                onClick={() => openAccessibilityMenu?.()}
+                onClick={() => openSettingsMenu?.()}
                 className="w-12 h-12 rounded-xl bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 text-white flex items-center justify-center transition shadow-lg"
-                title={t("accessibility.title", "Paramètres")}
+                title={t("settings.title")}
               >
                 <Settings className="w-6 h-6" />
               </button>
@@ -339,9 +347,9 @@ export function Layout({ children }: LayoutProps) {
                   <Trophy className="h-4 w-4 shrink-0" />
                   <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
                 </button>
-                <button type="button" onClick={() => { setMenuOpen(false); openAccessibilityMenu(); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("accessibility.title", "Accessibilité")}>
+                <button type="button" onClick={() => { setMenuOpen(false); openSettingsMenu(); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
                   <Settings className="h-4 w-4 shrink-0" />
-                  <span className="hidden lg:inline">{t("accessibility.title", "Accessibilité")}</span>
+                  <span className="hidden lg:inline">{t("settings.title")}</span>
                 </button>
                 <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-red-600/80 px-2 text-sm text-white transition hover:bg-red-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.logout")}>
                   <LogOut className="h-4 w-4 shrink-0" />
@@ -353,10 +361,10 @@ export function Layout({ children }: LayoutProps) {
         </>
       )}
 
-      {/* Menu Accessibilité (rendu globalement pour Lobby et Game) */}
-      <AccessibilityMenu
-        isOpen={showAccessibilityMenu}
-        onClose={() => setShowAccessibilityMenu(false)}
+      <SettingsMenu
+        isOpen={showSettingsMenu}
+        onClose={() => setShowSettingsMenu(false)}
+        initialTab={settingsInitialTab}
       />
 
       {/* Modal Ajouter des jetons */}

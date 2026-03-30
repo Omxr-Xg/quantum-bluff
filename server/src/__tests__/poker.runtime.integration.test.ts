@@ -49,6 +49,25 @@ describe('Poker runtime integration', () => {
     expect(game.getOccupiedCount()).toBe(2)
   })
 
+  it('quit volontaire en cours de main : fold puis siège libéré à onHandComplete', () => {
+    const game = new CashGameController({
+      id: 'g-quit',
+      roomId: 'r5',
+    })
+    game.initFromRoomPlayers([
+      { userId: 'u1', username: 'u1', chips: 1000 },
+      { userId: 'u2', username: 'u2', chips: 1000 },
+    ])
+    game.startHand()
+    const r = game.quitVoluntaryDuringHand('u1')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.showdown).toBe(true)
+    game.onHandComplete()
+    expect(game.getGameTable()).toBeNull()
+    expect(game.getOccupiedSeats().some((s) => s.userId === 'u1')).toBe(false)
+    expect(game.getOccupiedSeats().some((s) => s.userId === 'u2')).toBe(true)
+  })
+
   it('applies disconnect cleanup between hands and keeps state consistent', () => {
     const game = new CashGameController({
       id: 'g-disconnect',

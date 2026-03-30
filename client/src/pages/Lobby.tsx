@@ -29,6 +29,7 @@ import { useTopBar } from '../contexts/TopBarContext';
 import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { apiUrl } from "../utils/apiBase";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
+import { TournamentWidget } from '../components/TournamentWidget';
 
 function readLobbyTabFromUrl(): "poker" | "minigames" | "blackjack" {
   if (typeof window === "undefined") return "poker";
@@ -867,6 +868,9 @@ export function Lobby() {
                 </div>
               </div>
             </div>
+            
+            {/* Arène des tournois (en bas sous les serveurs multi-joueurs) */}
+            <TournamentWidget />
 
           </div>
 

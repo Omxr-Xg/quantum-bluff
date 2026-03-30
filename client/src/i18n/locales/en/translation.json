@@ -80,7 +80,7 @@
       "headerTitle": "Header",
       "headerBody": "Logo, game name, and your welcome message.",
       "topBarTitle": "Top menu",
-      "topBarBody": "Language, chip balance, profile, friends, accessibility, and logout.",
+      "topBarBody": "Language, chip balance, profile, friends, settings, and logout.",
       "tourWelcomeTitle": "Welcome!",
       "tourWelcomeBody": "This tour highlights each lobby area. Use Next, or click outside to close.",
       "tourDoneTitle": "You're set!",
@@ -103,6 +103,14 @@
       "createTitle": "Create a server",
       "createBody": "Choose Public (open join) or Private (host must approve). Set max players (2–5). “See more” sets small blind, big blind (minimum raise), and minimum balance to sit. Validate opens your waiting room."
     }
+  },
+  "minigames": {
+    "rouletteTitle": "Roulette",
+    "rouletteBlurb": "Place your bets on the layout and spin the wheel.",
+    "slotTitle": "Slots",
+    "slotBlurb": "Line up the symbols and shoot for the jackpot.",
+    "play": "Play",
+    "backToLobbyMinigamesTab": "Back to lobby"
   },
   "slot": {
     "title": "Slot machine",
@@ -261,6 +269,14 @@
     "burned": "Burned",
     "burnedCount": "{{count}} burned card(s)",
     "bets": "Bets",
+    "probabilitiesShort": "Probs",
+    "phaseBadge": {
+      "preflop": "Pre-Flop",
+      "flop": "Flop",
+      "turn": "Turn",
+      "river": "River",
+      "showdown": "Showdown"
+    },
     "waiting": "Waiting...",
     "waitingFor": "Waiting for {{name}}",
     "check": "Check",
@@ -284,6 +300,24 @@
     "actionCalled": "called",
     "actionRaised": "raised",
     "actionLogTitle": "Action log",
+    "combinationsHelp": {
+      "buttonShort": "Hands",
+      "buttonTitle": "Hand rankings — hover to open, tap on mobile",
+      "title": "Hand rankings",
+      "subtitle": "From strongest to weakest in Texas Hold'em. Each row shows a five-card example.",
+      "desc": {
+        "straightFlush": "Five cards of the same suit in sequence. 10–J–Q–K–A of one suit is a royal flush (the strongest possible hand).",
+        "fourKind": "Four cards of the same rank, plus a kicker.",
+        "fullHouse": "Three of a kind plus a pair.",
+        "quantumCombi": "Exclusive to Quantum Bluff: your seven cards contain at least one 3, 5, 6, 7 and 10 (any suits). Beats a flush and loses to a full house. Tie-break: compare the two remaining kickers.",
+        "flush": "Five cards of the same suit, not in sequence.",
+        "straight": "Five cards in sequence, with mixed suits.",
+        "threeKind": "Three cards of the same rank.",
+        "twoPair": "Two different pairs plus a kicker.",
+        "pair": "Two cards of the same rank.",
+        "highCard": "No pair or better — the highest card wins."
+      }
+    },
     "actionLogEmpty": "No actions yet this hand.",
     "actionLogLine": "[{{street}}] {{detail}}",
     "actionLogCheck": "{{name}} checks",
@@ -716,6 +750,7 @@
       "fullHouse": "Full house",
       "fourKind": "Four of a kind",
       "straightFlush": "Straight flush",
+      "quantumCombi": "Quantum Combi",
       "royalFlush": "Royal flush"
     },
     "backHome": "Back to home",
@@ -735,7 +770,18 @@
     "totalWinnings": "Total winnings",
     "close": "Close",
     "unknownWinner": "Unknown winner",
-    "unknownCombination": "Unknown combination"
+    "unknownCombination": "Unknown combination",
+    "reachesShowdown": "Hand reaches showdown",
+    "marketType": "Market",
+    "tabNextHand": "Next hand",
+    "tabLive": "Live hand",
+    "live": "Live",
+    "currentHandShort": "hand",
+    "livePhase": {
+      "LIVE_FLOP": "Flop",
+      "LIVE_TURN": "Turn",
+      "LIVE_RIVER": "River"
+    }
   },
   "showdown": {
     "title": "Showdown!",
@@ -747,6 +793,37 @@
     "gain": "Gain",
     "continue": "Continue",
     "highCard": "High card"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Table look and display options",
+    "close": "Close",
+    "tabAesthetic": "Look",
+    "tabAccessibility": "Accessibility",
+    "tableThemeHint": "Choose the felt color for the poker table.",
+    "tableTheme": {
+      "default": "Classic green",
+      "vegasRed": "Vegas red",
+      "vegasPurple": "Vegas purple",
+      "darkBlue": "Deep blue"
+    }
+  },
+  "accessibility": {
+    "title": "Accessibility",
+    "highContrastTitle": "High contrast",
+    "highContrastHint": "Stronger borders and clearer text",
+    "highContrastBody": "Improves readability by increasing contrast across the table and controls.",
+    "visualAlertsTitle": "Visual alerts",
+    "visualAlertsHint": "Extra emphasis on your turn and important actions",
+    "visualAlertsBody": "Shows clearer highlights when it is your turn or when an action needs attention.",
+    "colorblindTitle": "Color-blind friendly cards",
+    "colorblindHint": "Adjust suit colors for protanopia, deuteranopia, or tritanopia",
+    "colorblindSelectLabel": "Color vision type",
+    "colorblindProtanopia": "Protanopia (red weak)",
+    "colorblindDeuteranopia": "Deuteranopia (green weak)",
+    "colorblindTritanopia": "Tritanopia (blue–yellow)",
+    "savedInfoTitle": "Saved on this device",
+    "savedInfoBody": "These choices are stored in your browser and apply to every table."
   },
   "nav": {
     "login": "Login",
@@ -796,6 +873,7 @@
       "threeKind": "Three of a kind",
       "straight": "Straight",
       "flush": "Flush",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Full house",
       "fourKind": "Four of a kind",
       "straightFlush": "Straight flush"

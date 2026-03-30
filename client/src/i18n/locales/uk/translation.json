@@ -81,7 +81,7 @@
       "headerTitle": "Заголовок",
       "headerBody": "Логотип, назва гри та привітання.",
       "topBarTitle": "Верхнє меню",
-      "topBarBody": "Мова, баланс фішок, профіль, друзі, доступність і вихід.",
+      "topBarBody": "Мова, баланс фішок, профіль, друзі, налаштування і вихід.",
       "tourWelcomeTitle": "Вітаємо!",
       "tourWelcomeBody": "Тур підсвічує кожну зону лобі. Далі або клік поза вікном — закрити.",
       "tourDoneTitle": "Готово!",
@@ -270,6 +270,14 @@
     "burned": "Спалені",
     "burnedCount": "{{count}} спалена карта",
     "bets": "Ставки",
+    "probabilitiesShort": "Шанси",
+    "phaseBadge": {
+      "preflop": "Префлоп",
+      "flop": "Флоп",
+      "turn": "Терн",
+      "river": "Рівер",
+      "showdown": "Відкриття"
+    },
     "waiting": "Очікування...",
     "waitingFor": "Очікування {{name}}",
     "check": "Чек",
@@ -293,6 +301,24 @@
     "actionCalled": "колл",
     "actionRaised": "підняв",
     "actionLogTitle": "Журнал дій",
+    "combinationsHelp": {
+      "buttonShort": "Комбінації",
+      "buttonTitle": "Рейтинг комбінацій — наведіть або натисніть на мобільному",
+      "title": "Рейтинг комбінацій",
+      "subtitle": "Від найсильнішої до найслабшої в Texas Hold'em. У кожному рядку — приклад із 5 карт.",
+      "desc": {
+        "straightFlush": "П'ять карт однієї масті поспіль. 10–В–Д–К–Т однієї масті — роял-флеш (найсильніша рука).",
+        "fourKind": "Чотири карти одного рангу плюс кікер.",
+        "fullHouse": "Трійка плюс пара.",
+        "quantumCombi": "Ексклюзив Quantum Bluff: серед семи карт є хоча б одна 3, 5, 6, 7 і 10. Сильніше за флеш, слабше за фул-хаус. Нічия — порівняти два кікери.",
+        "flush": "П'ять карт однієї масті без стріта.",
+        "straight": "П'ять карт поспіль, різні масті.",
+        "threeKind": "Три карти одного рангу.",
+        "twoPair": "Дві різні пари плюс кікер.",
+        "pair": "Дві карти одного рангу.",
+        "highCard": "Без пари чи краще — перемагає найстарша карта."
+      }
+    },
     "actionLogEmpty": "Ще немає дій у цій роздачі.",
     "actionLogLine": "[{{street}}] {{detail}}",
     "actionLogCheck": "{{name}} чек",
@@ -719,6 +745,7 @@
       "threeKind": "Трійка",
       "straight": "Стріт",
       "flush": "Флеш",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Фулл-хаус",
       "fourKind": "Каре",
       "straightFlush": "Стріт-флеш",
@@ -753,6 +780,37 @@
     "gain": "Виграш",
     "continue": "Продовжити",
     "highCard": "Старша карта"
+  },
+  "settings": {
+    "title": "Налаштування",
+    "subtitle": "Вигляд столу та відображення",
+    "close": "Закрити",
+    "tabAesthetic": "Вигляд",
+    "tabAccessibility": "Доступність",
+    "tableThemeHint": "Оберіть колір сукна для покерного столу.",
+    "tableTheme": {
+      "default": "Класичний зелений",
+      "vegasRed": "Червоний у стилі Вегас",
+      "vegasPurple": "Фіолетовий у стилі Вегас",
+      "darkBlue": "Темно-синій"
+    }
+  },
+  "accessibility": {
+    "title": "Доступність",
+    "highContrastTitle": "Високий контраст",
+    "highContrastHint": "Чіткіші межі та текст",
+    "highContrastBody": "Покращує читабельність завдяки вищому контрасту на столі та елементах керування.",
+    "visualAlertsTitle": "Візуальні сповіщення",
+    "visualAlertsHint": "Більше наголосу на ваш хід і важливі дії",
+    "visualAlertsBody": "Показує помітніші підсвічування, коли ваш хід або потрібна дія.",
+    "colorblindTitle": "Карти для дальтоніків",
+    "colorblindHint": "Коригує кольори мастей для протанопії, дейтеранопії чи тританопії",
+    "colorblindSelectLabel": "Тип сприйняття кольору",
+    "colorblindProtanopia": "Протанопія (слабкий червоний)",
+    "colorblindDeuteranopia": "Дейтеранопія (слабкий зелений)",
+    "colorblindTritanopia": "Тританопія (синьо–жовтий)",
+    "savedInfoTitle": "Збережено на цьому пристрої",
+    "savedInfoBody": "Ці налаштування зберігаються в браузері й застосовуються до всіх столів."
   },
   "nav": {
     "login": "Вхід",
@@ -815,15 +873,13 @@
       "threeKind": "Трійка",
       "straight": "Стріт",
       "flush": "Флеш",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "Фулл-хаус",
       "fourKind": "Каре",
       "straightFlush": "Стріт-флеш"
     },
     "acquired": "Досягнуто",
     "chancePercent": "{{percent}}% шанс"
-  },
-  "accessibility": {
-    "title": "Доступність"
   },
   "invitation": {
     "title": "{{username}} запросив вас грати!",
