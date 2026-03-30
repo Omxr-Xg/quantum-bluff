@@ -219,6 +219,8 @@ model RoomPlayer {
   isReady      Boolean  @default(false)
   joinedAt     DateTime @default(now())
   position     Int?     // Position à la table (optionnel)
+  /// URL d’avatar publique (client), validée par le serveur — partagée avec tous les joueurs de la salle
+  avatarUrl    String?
 
   room         WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user         User        @relation(fields: [userId], references: [id])

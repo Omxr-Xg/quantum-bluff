@@ -4,17 +4,19 @@ import { useTranslation } from "react-i18next";
 import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, ChevronDown, ChevronUp, TestTube, Zap } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
-import { fetchBalanceFromServer } from "../utils/userProfile";
+import { fetchBalanceFromServer, getUserAvatar } from "../utils/userProfile";
 import { useGetFriendsQuery } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
 import { apiUrl } from "../utils/apiBase";
+import { getPlayerAvatar } from "../utils/avatars";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
 interface Player {
   id: string;
   name: string;
-  avatar: string;
   level: number;
   isReady: boolean;
+  avatarUrl?: string | null;
 }
 
 export function WaitingRoom() {
@@ -57,7 +59,7 @@ export function WaitingRoom() {
     visibility?: 'PUBLIC' | 'PRIVATE';
     turbo?: boolean;
     hostId?: string;
-    players?: Array<{ id: string; username: string; level?: number; isReady?: boolean }>;
+    players?: Array<{ id: string; username: string; level?: number; isReady?: boolean; avatarUrl?: string | null }>;
   }) => {
     setRoomName(room.name || "");
     setRoomVisibility(room.visibility || 'PUBLIC');
@@ -71,9 +73,9 @@ export function WaitingRoom() {
         .map((p) => ({
           id: p.id,
           name: p.username,
-          avatar: (p.username || "?").charAt(0),
           level: p.level ?? 0,
           isReady: p.isReady ?? false,
+          avatarUrl: p.avatarUrl ?? null,
         }))
     );
   }, [userId]);
@@ -83,7 +85,7 @@ export function WaitingRoom() {
 
   /** Tous les joueurs (host + autres) pour l'association des cartes forcées */
   const allPlayersForCards = userId
-    ? [{ id: userId, name: username || "Vous", avatar: (username || "?")[0] }, ...players]
+    ? [{ id: userId, name: username || "Vous" }, ...players]
     : [...players];
 
   const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
@@ -120,6 +122,7 @@ export function WaitingRoom() {
               hostId: userId,
               roomName: `Salle de ${username || "Joueur"}`,
               maxPlayers: 5,
+              avatarUrl: getUserAvatar(),
             }),
           });
           if (cancelled) return;
@@ -148,23 +151,25 @@ export function WaitingRoom() {
         }
 
         const inRoom = room.players?.some((p: { id: string }) => p.id === userId);
-        if (!inRoom) {
-          const joinUrl = apiUrl(`/api/waiting-room/${rawRoomId}/join`);
-          const joinRes = await fetch(joinUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId }),
-          });
-          if (cancelled) return;
-          if (!joinRes.ok) {
+        const joinUrl = apiUrl(`/api/waiting-room/${rawRoomId}/join`);
+        const joinRes = await fetch(joinUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, avatarUrl: getUserAvatar() }),
+        });
+        if (cancelled) return;
+        if (!joinRes.ok) {
+          if (!inRoom) {
             const err = await joinRes.json().catch(() => ({}));
             setRoomError(err?.error || t('waitingRoom.cannotJoin'));
             setRoomLoading(false);
             return;
           }
+          applyRoomSnapshot(room);
+        } else {
+          const payload = await joinRes.json();
+          applyRoomSnapshot(payload);
         }
-
-        applyRoomSnapshot(room);
         // Récupérer la balance serveur avant démarrage (le serveur utilise user.chips en DB)
         fetchBalanceFromServer().catch(() => {});
       } catch (e) {
@@ -219,7 +224,7 @@ export function WaitingRoom() {
       visibility?: 'PUBLIC' | 'PRIVATE';
       turbo?: boolean;
       hostId?: string;
-      players?: Array<{ id: string; username: string; level?: number; isReady?: boolean }>;
+      players?: Array<{ id: string; username: string; level?: number; isReady?: boolean; avatarUrl?: string | null }>;
     } | null) => {
       if (!room || room.status !== "WAITING") return;
       applyRoomSnapshot(room);
@@ -318,7 +323,6 @@ export function WaitingRoom() {
     setInvitedPlayers(prev => [...prev, {
       id: friend.id,
       name: friend.username,
-      avatar: friend.username.charAt(0),
       level: friend.level ?? 0,
       isReady: false
     }]);
@@ -501,10 +505,12 @@ export function WaitingRoom() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white flex items-center justify-center shadow-lg">
-                      <span className="text-white text-lg font-bold">
-                        {username?.charAt(0) || '?'}
-                      </span>
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
+                      <ImageWithFallback
+                        src={getPlayerAvatar(username || "Vous", userId, userId)}
+                        alt={`${username || "Vous"} avatar`}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
                     </div>
                     <div className={`absolute bottom-0 right-0 w-5 h-5 ${myIsReady ? 'bg-green-500' : isCreator ? 'bg-amber-500' : 'bg-yellow-500'} rounded-full border-2 border-slate-800`} title={myIsReady ? t('waitingRoom.ready') : t('game.waiting')}></div>
                   </div>
@@ -533,8 +539,12 @@ export function WaitingRoom() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 border-2 border-white flex items-center justify-center shadow-lg">
-                        <span className="text-white text-lg font-bold">{player.avatar}</span>
+                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
+                        <ImageWithFallback
+                          src={getPlayerAvatar(player.name, player.id, userId, player.avatarUrl)}
+                          alt={`${player.name} avatar`}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
                       </div>
                       <div className={`absolute bottom-0 right-0 w-5 h-5 ${player.isReady ? 'bg-green-500' : 'bg-yellow-500'} rounded-full border-2 border-slate-800`}></div>
                     </div>
@@ -572,10 +582,12 @@ export function WaitingRoom() {
                   <div key={friend.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white flex items-center justify-center shadow-lg">
-                          <span className="text-white text-lg font-bold">
-                            {friend.username.charAt(0)}
-                          </span>
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
+                          <ImageWithFallback
+                            src={getPlayerAvatar(friend.username, friend.id, userId)}
+                            alt={`${friend.username} avatar`}
+                            className="w-12 h-12 rounded-full object-cover"
+                          />
                         </div>
                         <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-slate-800"></div>
                       </div>
@@ -624,8 +636,12 @@ export function WaitingRoom() {
                     {joinRequests.map((req) => (
                       <div key={req.id} className="flex items-center justify-between bg-slate-800/70 rounded-lg px-3 py-2 border border-slate-600">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
-                            <span className="text-white text-sm font-bold">{req.username.charAt(0)}</span>
+                          <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
+                            <ImageWithFallback
+                              src={getPlayerAvatar(req.username, req.userId, userId)}
+                              alt={`${req.username} avatar`}
+                              className="w-9 h-9 rounded-full object-cover"
+                            />
                           </div>
                           <div>
                             <p className="text-white font-medium text-sm">{req.username}</p>
