@@ -3,7 +3,7 @@
 > Usage strictement interne.  
 > Ce document contient volontairement des informations techniques detaillees, y compris des informations sensibles presentes dans le depot au moment de la redaction.
 
-**Dernière mise à jour du document :** 30 mars 2026 (synthèse des évolutions récentes du dépôt, CI, casino, poker, blackjack, base de données).
+**Dernière mise à jour du document :** 30 mars 2026 (synthèse des évolutions récentes du dépôt, CI, casino, poker, blackjack, base de données ; prise en compte du **MR !129** blackjack).
 
 ---
 
@@ -239,7 +239,7 @@ Rate limits dedies visibles dans `server/src/index.ts`:
 - Auth JWT sur handshake
 - Events majeurs:
   - `JOIN_GAME`, `JOIN_SPECTATE`, `PLAYER_ACTION`
-  - `JOIN_BLACKJACK_TABLE`, `BLACKJACK_TABLE_UPDATE`
+  - `JOIN_BLACKJACK_TABLE`, `BLACKJACK_TABLE_UPDATE`, `LEAVE_BLACKJACK_TABLE` (sortie propre des rooms blackjack côté socket)
   - invitations (`GAME_INVITATION_RECEIVED`)
   - lifecycle (`GAME_STARTED`, `GAME_ENDED`, reconnect/disconnect events)
 
@@ -572,6 +572,11 @@ Priorite moyenne:
 
 - Idempotence renforcée sur certaines routes (ex. **start** avec gestion de session).
 - Nettoyage snapshot Prisma dans `cleanupOrphanBlackjackRuntime` (suppression des snapshots pour salles dont `room.status` n’est pas `PLAYING`) avec typage explicite du delegate pour le build TypeScript strict.
+- **MR GitLab !129** (`fix/blackjack`, mars 2026, auteur Azra Bayrak), fusionné dans `develop` :
+  - **Cartes unifiées** : le composant `BlackjackMultiCasinoTable` affiche les cartes via **`PokerCard`** (face visible / dos animé) au lieu du rendu HTML ad hoc précédent — alignement produit avec le poker et maintenance visuelle simplifiée.
+  - **WebSocket** : nouvel événement **`LEAVE_BLACKJACK_TABLE`** dans `server/src/sockets/game.gateway.ts` : le socket quitte les rooms `gameId` et `blackjack:${gameId}` et efface `socket.gameId` si pertinent, pour limiter les souscriptions « fantômes » et le risque de croissance mémoire sur des sessions longues.
+  - **`vite.config.ts`** : ajustements de configuration (dont règles de proxy) dans le même changement ; revue surtout structurelle.
+  - **Lecture interne** : **apport net positif** (cohérence UX + hygiène temps réel). Pour tirer pleinement parti : le client doit **émettre** `LEAVE_BLACKJACK_TABLE` aux sorties de table (navigation, unmount) ; à la date de rédaction, le handler existe côté serveur ; vérifier que tous les chemins de fermeture du blackjack multi l’utilisent.
 
 ### Base de données
 
