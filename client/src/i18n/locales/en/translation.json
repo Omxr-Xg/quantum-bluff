@@ -748,7 +748,18 @@
     "totalWinnings": "Total winnings",
     "close": "Close",
     "unknownWinner": "Unknown winner",
-    "unknownCombination": "Unknown combination"
+    "unknownCombination": "Unknown combination",
+    "reachesShowdown": "Hand reaches showdown",
+    "marketType": "Market",
+    "tabNextHand": "Next hand",
+    "tabLive": "Live hand",
+    "live": "Live",
+    "currentHandShort": "hand",
+    "livePhase": {
+      "LIVE_FLOP": "Flop",
+      "LIVE_TURN": "Turn",
+      "LIVE_RIVER": "River"
+    }
   },
   "showdown": {
     "title": "Showdown!",

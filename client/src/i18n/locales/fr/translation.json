@@ -748,7 +748,18 @@
     "totalWinnings": "Total des gains",
     "close": "Fermer",
     "unknownWinner": "Gagnant inconnu",
-    "unknownCombination": "Combinaison inconnue"
+    "unknownCombination": "Combinaison inconnue",
+    "reachesShowdown": "Va jusqu'au showdown",
+    "marketType": "Marché",
+    "tabNextHand": "Prochaine main",
+    "tabLive": "Main en cours",
+    "live": "Live",
+    "currentHandShort": "main",
+    "livePhase": {
+      "LIVE_FLOP": "Flop",
+      "LIVE_TURN": "Turn",
+      "LIVE_RIVER": "River"
+    }
   },
   "showdown": {
     "title": "Showdown !",
