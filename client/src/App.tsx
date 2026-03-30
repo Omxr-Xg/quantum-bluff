@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 
 import { AccessibilityProvider } from "./contexts/AccessibilityContext";
@@ -59,16 +59,24 @@ function GameWithKey() {
   return <Game key={location.pathname + location.search} />;
 }
 
-/** * 🚀 LE TÉLÉPORTEUR SECRET : Il écoute les signaux Socket en tâche de fond 
- * et téléporte le joueur quand son tournoi commence.
- */
+/** * 🚀 LE TÉLÉPORTEUR SECRET & L'ÉCRAN DE FIN DE TOURNOI */
 function TournamentTeleporter() {
   const navigate = useNavigate();
   const { userId } = useUser();
   const { addToast } = useToast();
+  
+  // 🎬 NOUVEAU : On crée un état pour savoir quel écran afficher
+  const [tournamentResult, setTournamentResult] = useState<'win' | 'lose' | null>(null);
 
   useEffect(() => {
-    // 1. L'écouteur de départ du tournoi (celui que tu as déjà)
+    const currentToken = localStorage.getItem('token');
+    if (currentToken) {
+      socket.auth = { token: currentToken }; 
+      if (!socket.connected) {
+        socket.connect();
+      }
+    }
+
     const handleTournamentStart = (data: any) => {
       const isIncluded = data.playersToTeleport?.includes(userId);
       if (isIncluded) {
@@ -78,24 +86,85 @@ function TournamentTeleporter() {
       }
     };
 
-    // 2. 💀 LE NOUVEL ÉCOUTEUR : L'Élimination
-    const handleElimination = (data: { userId: string, rank?: number }) => {
-      // Si le message m'est destiné
+    const handleElimination = (data: { userId: string }) => {
       if (data.userId === userId) {
         console.log("💀 [SOCKET] Signal d'élimination reçu !");
-        addToast("Vous n'avez plus de jetons. Vous êtes éliminé du tournoi ! 😭", "error"); // Message rouge
-        navigate('/tournaments'); // Retour au lobby des tournois
+        setTournamentResult('lose'); // 🎬 On déclenche l'écran de défaite !
+        
+        setTimeout(() => { 
+          setTournamentResult(null); // On referme le rideau
+          navigate('/tournaments'); 
+        }, 7000); 
+      }
+    };
+
+    const handleVictory = (data: { userId: string }) => {
+      if (data.userId === userId) {
+        console.log("🏆 [SOCKET] Signal de victoire reçu !");
+        setTournamentResult('win'); // 🎬 On déclenche l'écran de victoire !
+        
+        setTimeout(() => { 
+          setTournamentResult(null); // On referme le rideau
+          navigate('/tournaments'); 
+        }, 7000); 
       }
     };
 
     socket.on('tournament-started', handleTournamentStart);
-    socket.on('tournament-eliminated', handleElimination); // On branche le signal
+    socket.on('tournament-eliminated', handleElimination);
+    socket.on('tournament-won', handleVictory);
 
     return () => {
       socket.off('tournament-started', handleTournamentStart);
-      socket.off('tournament-eliminated', handleElimination); // On le débranche proprement
+      socket.off('tournament-eliminated', handleElimination);
+      socket.off('tournament-won', handleVictory);
     };
   }, [userId, navigate, addToast]);
+
+  // 🎨 NOUVEAU : LE RENDU VISUEL MAGNIFIQUE (OVERLAY PIPLEIN ÉCRAN)
+  if (tournamentResult) {
+    const isWin = tournamentResult === 'win';
+    
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: isWin ? 'rgba(0, 0, 0, 0.85)' : 'rgba(30, 0, 0, 0.9)', // Fond sombre (légèrement rouge si perte)
+        backdropFilter: 'blur(8px)', // Floute la table de poker derrière !
+        zIndex: 99999, // Passe par-dessus TOUT (même le chronomètre)
+        display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+        color: 'white', fontFamily: 'sans-serif', textAlign: 'center',
+        animation: 'fadeIn 0.5s ease-out'
+      }}>
+        {isWin ? (
+          <>
+            <div style={{ fontSize: '6rem', marginBottom: '20px' }}>🏆</div>
+            <h1 style={{ fontSize: '4rem', margin: 0, color: '#FFD700', textShadow: '0 0 20px #FFD700' }}>
+              VICTOIRE !
+            </h1>
+            <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
+              Félicitations, tu es le grand gagnant du tournoi !
+            </p>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: '6rem', marginBottom: '20px' }}>💥</div>
+            <h1 style={{ fontSize: '4rem', margin: 0, color: '#FF4444', textShadow: '0 0 20px #FF0000' }}>
+              ÉLIMINÉ
+            </h1>
+            <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
+              Tu n'as plus de jetons. Fin de la partie...
+            </p>
+          </>
+        )}
+        
+        {/* Petit spinner de chargement pour faire patienter avant le retour au lobby */}
+        <p style={{ marginTop: '50px', fontSize: '1rem', opacity: 0.5 }}>
+          Retour au lobby dans quelques secondes...
+        </p>
+      </div>
+    );
+  }
 
   return null;
 }

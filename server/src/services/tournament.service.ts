@@ -251,4 +251,46 @@ export class TournamentService {
       }
     }, 5000);
   }
+
+  // 💰 NOUVEAU : La distribution des gains et la clôture
+  static async processVictory(winnerId: string) {
+    try {
+      // 1. On cherche le tournoi ACTIF de ce joueur
+      const playerRecord = await prisma.tournamentPlayer.findFirst({
+        where: { 
+          userId: winnerId, 
+          tournament: { status: 'ACTIVE' } 
+        },
+        include: { tournament: true }
+      });
+
+      if (!playerRecord) {
+        console.log(`⚠️ [TOURNOI] Impossible de trouver le tournoi actif pour le gagnant ${winnerId}.`);
+        return;
+      }
+
+      const tournament = playerRecord.tournament;
+
+      // 2. On fait une TRANSACTION (soit tout réussit, soit rien, pour éviter les bugs d'argent)
+      await prisma.$transaction([
+        // A. On donne le Prize Pool au gagnant
+        prisma.user.update({
+          where: { id: winnerId },
+          data: { chips: { increment: tournament.prizePool } }
+        }),
+        // B. On marque le tournoi comme terminé
+        prisma.tournament.update({
+          where: { id: tournament.id },
+          data: { status: 'COMPLETED' }
+        })
+      ]);
+
+      console.log(`🏦 [TOURNOI] Tournoi ${tournament.id} CLÔTURÉ !`);
+      console.log(`💸 [TOURNOI] Le pactole de ${tournament.prizePool} jetons a été versé au joueur ${winnerId} !`);
+      
+    } catch (error) {
+      console.error("❌ [TOURNOI] Erreur lors du versement des gains :", error);
+    }
+  }
+  
 }

@@ -609,8 +609,6 @@ export class GameTable {
     this.state.currentTurn = this.getPreflopFirstPlayerId()
     this.state.handId = `${this.id}:${Date.now()}`
     this.state.lastHandAction = undefined
-    this.state.actionVersion = 0
-    this.state.streetVersion = 0
     this.state.handParticipantIds = Array.from(this.handParticipantIds)
     this.state.handEndReason = undefined
     this.state.handRuntimePhase = 'BETTING_ACTIVE'
