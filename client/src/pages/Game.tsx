@@ -10,10 +10,9 @@ import { useQuantumHUD } from "../contexts/QuantumHUDContext";
 import { PokerChat } from "../components/PokerChat";
 import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
-import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, Sparkles, Trophy, Frown, Activity } from "lucide-react";
+import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, Sparkles, Trophy, Frown, Activity, Info } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -28,6 +27,8 @@ import { RoundTransition } from "../components/RoundTransition";
 import { GameInteractiveTour } from "../components/GameInteractiveTour";
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
 import { HandActionLogPanel } from "../components/HandActionLogPanel";
+
+import { fetchHiddenBetTableHistory } from "../api/hiddenBetsApi";
 
 import type { ClientCard } from "../utils/cards";
 import { normalizeServerCard } from "../utils/cards";
@@ -108,7 +109,98 @@ export function Game() {
 
   const { socket } = useSocket();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [hiddenBetNextHandId, setHiddenBetNextHandId] = useState<string | null>(null);
+  const [hiddenBetWindowOpen, setHiddenBetWindowOpen] = useState(false);
+  const [hiddenBetState, setHiddenBetState] = useState<{
+    currentHandId: string | null;
+    nextHandId: string | null;
+    windowOpen: boolean;
+    windowType: "PRE_HAND" | "LIVE_FLOP" | "LIVE_TURN" | "LIVE_RIVER" | null;
+    closesAt?: number;
+  } | null>(null);
   const [isQuantumOpen, setIsQuantumOpen] = useState(false);
+  /** true = ouvert via clic ou menu ; le panneau reste si la souris quitte (sauf fermeture explicite) */
+  const [quantumPinned, setQuantumPinned] = useState(false);
+  const quantumPinnedRef = useRef(quantumPinned);
+  useEffect(() => {
+    quantumPinnedRef.current = quantumPinned;
+  }, [quantumPinned]);
+  const quantumHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const quantumLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearQuantumHoverTimer = useCallback(() => {
+    if (quantumHoverTimerRef.current) {
+      clearTimeout(quantumHoverTimerRef.current);
+      quantumHoverTimerRef.current = null;
+    }
+  }, []);
+
+  const clearQuantumLeaveTimer = useCallback(() => {
+    if (quantumLeaveTimerRef.current) {
+      clearTimeout(quantumLeaveTimerRef.current);
+      quantumLeaveTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearQuantumHoverTimer();
+      clearQuantumLeaveTimer();
+    };
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const onQuantumProbasEnter = useCallback(() => {
+    clearQuantumLeaveTimer();
+    clearQuantumHoverTimer();
+    quantumHoverTimerRef.current = setTimeout(() => {
+      setIsQuantumOpen(true);
+      quantumHoverTimerRef.current = null;
+    }, 500);
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const onQuantumProbasLeave = useCallback(() => {
+    clearQuantumHoverTimer();
+    clearQuantumLeaveTimer();
+    quantumLeaveTimerRef.current = setTimeout(() => {
+      if (!quantumPinnedRef.current) setIsQuantumOpen(false);
+      quantumLeaveTimerRef.current = null;
+    }, 280);
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const onQuantumPanelEnter = useCallback(() => {
+    clearQuantumLeaveTimer();
+  }, [clearQuantumLeaveTimer]);
+
+  const onQuantumPanelLeave = useCallback(() => {
+    clearQuantumLeaveTimer();
+    quantumLeaveTimerRef.current = setTimeout(() => {
+      if (!quantumPinnedRef.current) setIsQuantumOpen(false);
+      quantumLeaveTimerRef.current = null;
+    }, 280);
+  }, [clearQuantumLeaveTimer]);
+
+  const onQuantumToggleClick = useCallback(() => {
+    clearQuantumHoverTimer();
+    clearQuantumLeaveTimer();
+    if (!isQuantumOpen) {
+      setIsQuantumOpen(true);
+      setQuantumPinned(true);
+      return;
+    }
+    if (!quantumPinned) {
+      setQuantumPinned(true);
+      return;
+    }
+    setIsQuantumOpen(false);
+    setQuantumPinned(false);
+  }, [isQuantumOpen, quantumPinned, clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+
+  const closeQuantumPanel = useCallback(() => {
+    clearQuantumHoverTimer();
+    clearQuantumLeaveTimer();
+    setIsQuantumOpen(false);
+    setQuantumPinned(false);
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [_hasFolded, _setHasFolded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -211,7 +303,34 @@ export function Game() {
   const [cashCountdownEndsAt, setCashCountdownEndsAt] = useState<number | null>(null);
   const [cashSeats, setCashSeats] = useState<{ seatIndex: number; userId: string | null; username: string | null; chips: number }[]>([]);
   const [cashWaitingPlayers, setCashWaitingPlayers] = useState(false);
+  const [interHandResultsVisible, setInterHandResultsVisible] = useState(false);
+  const [nextHandReadyUserIds, setNextHandReadyUserIds] = useState<string[]>([]);
+  const [allNextHandReady, setAllNextHandReady] = useState(false);
+  const myNextHandReady =
+    userId && nextHandReadyUserIds.some((u) => String(u) === String(userId));
   const [spectatorWantsToRejoin, setSpectatorWantsToRejoin] = useState(false);
+
+  type TableTicketRow = {
+    id: string;
+    status: string;
+    userId?: string;
+    user?: { username: string };
+    stake?: number;
+    quotedOdds?: number;
+    potentialPayout?: number;
+    stateSnapshotJson?: string | null;
+    resolvedAt?: string | null;
+    marketPhase?: string;
+  };
+
+  const [interHandTableTickets, setInterHandTableTickets] = useState<TableTicketRow[]>([]);
+  const [interHandTableTicketsLoading, setInterHandTableTicketsLoading] = useState(false);
+  const [interHandTableTicketsError, setInterHandTableTicketsError] = useState<string | null>(null);
+  const [pricingInfo, setPricingInfo] = useState<{
+    ticketId: string;
+    pricingBreakdown: unknown;
+    pricingInputs: unknown;
+  } | null>(null);
   const showdownSkipRef = useRef<(() => void) | null>(null);
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const flopAnimatedRef = useRef(false);
@@ -249,6 +368,44 @@ export function Game() {
     if (phase === "shuffle") setHandActionLog([]);
   }, [phase]);
 
+  const loadInterHandTableTickets = useCallback(async () => {
+    if (!gameIdParam) return;
+    setInterHandTableTicketsLoading(true);
+    setInterHandTableTicketsError(null);
+    try {
+      const { tickets } = await fetchHiddenBetTableHistory(gameIdParam, 100);
+      setInterHandTableTickets((tickets ?? []) as TableTicketRow[]);
+    } catch (e) {
+      setInterHandTableTicketsError((e as Error).message);
+    } finally {
+      setInterHandTableTicketsLoading(false);
+    }
+  }, [gameIdParam]);
+
+  // Pendant l’attente “ready”, on recharge les tickets résolus pour que tout le monde voie les mêmes résultats.
+  useEffect(() => {
+    if (!cashWaitingPlayers) return;
+    void loadInterHandTableTickets();
+  }, [cashWaitingPlayers, loadInterHandTableTickets]);
+
+  useEffect(() => {
+    if (!socket || !cashWaitingPlayers) return;
+    const onUpd = () => {
+      void loadInterHandTableTickets();
+    };
+    socket.on("HIDDEN_BET_TICKET_UPDATED", onUpd);
+    return () => {
+      socket.off("HIDDEN_BET_TICKET_UPDATED", onUpd);
+    };
+  }, [socket, cashWaitingPlayers, loadInterHandTableTickets]);
+
+  useEffect(() => {
+    if (cashWaitingPlayers) return;
+    setInterHandTableTickets([]);
+    setInterHandTableTicketsError(null);
+    setPricingInfo(null);
+  }, [cashWaitingPlayers]);
+
   const tourRefHeader = useRef<HTMLDivElement>(null);
   const tourRefTable = useRef<HTMLDivElement>(null);
   const tourRefPot = useRef<HTMLDivElement>(null);
@@ -285,8 +442,6 @@ export function Game() {
 
   const { colorblindMode } = useAccessibility();
   const { addToast } = useToast();
-  const { openAccessibilityMenu } = useAccessibilityMenuOpen() ?? { openAccessibilityMenu: () => {} };
-
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
@@ -297,17 +452,21 @@ export function Game() {
   /** Après l’abattage, attendre avant d’afficher l’écran « gagnant » / transition (cartes visibles au tapis). */
   const SHOWDOWN_REVEAL_MS = 3000;
 
+  const lastScheduledShowdownTransitionSigRef = useRef<string>("");
+
   useEffect(() => {
     if (!showdownResult || showTransition) return;
+    const sig = `${showdownResult.winnerId}:${showdownResult.winnerName}:${showdownResult.hand}:${showdownResult.pot}:${showdownResult.isSplit ? 1 : 0}:${showdownResult.skipRevealDelay ? 1 : 0}`;
+    if (lastScheduledShowdownTransitionSigRef.current === sig) return;
+    lastScheduledShowdownTransitionSigRef.current = sig;
     const delayMs = showdownResult.skipRevealDelay ? 0 : SHOWDOWN_REVEAL_MS;
     const id = window.setTimeout(() => {
       setLastWinnerData({
         name: showdownResult.winnerName,
         amount: showdownResult.pot,
       });
+      // On garde showdownResult pour l’afficher dans la fenêtre inter-main.
       setShowTransition(true);
-      setShowdownResult(null);
-      setHandResult(null);
     }, delayMs);
     return () => clearTimeout(id);
   }, [showdownResult, showTransition]);
@@ -834,8 +993,11 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashCountdownRemainingSec?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string }) => {
+    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashCountdownRemainingSec?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string; hiddenBetNextHandId?: string; hiddenBetWindowOpen?: boolean; hiddenBetState?: { currentHandId: string | null; nextHandId: string | null; windowOpen: boolean; windowType: "PRE_HAND" | "LIVE_FLOP" | "LIVE_TURN" | "LIVE_RIVER" | null; closesAt?: number } | null }) => {
       gameStateFromSocketRef.current = true;
+      setHiddenBetNextHandId(gameState.hiddenBetNextHandId ?? null);
+      setHiddenBetWindowOpen(Boolean(gameState.hiddenBetWindowOpen));
+      setHiddenBetState(gameState.hiddenBetState ?? null);
       const socketSnapshotSig = `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}`;
       if (socketSnapshotSig === lastAppliedSocketSnapshotSigRef.current) {
         return;
@@ -872,6 +1034,10 @@ export function Game() {
         gameState.phase != null
           ? (phaseMap[gameState.phase] ?? (gameState.phase as string).toLowerCase?.() ?? "preflop")
           : "preflop";
+      if (incomingPhase !== "init" && incomingPhase !== "shuffle") {
+        setCashWaitingPlayers(false);
+        setCashCountdownEndsAt(null);
+      }
       /** Garde AVANT toute mutation : évite d'appliquer WAITING (tous isActive false) juste après SHOWDOWN. */
       const previousHandIdBeforeUpdate = handIdRef.current;
       if (
@@ -1131,9 +1297,18 @@ export function Game() {
     socket.on("GAME_ENDED", onGameEnded);
     const onCashWaiting = (state: { cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[] }) => {
       setCashWaitingPlayers(true);
+      setCashCountdownEndsAt(null);
+      setNextHandReadyUserIds([]);
+      setAllNextHandReady(false);
       if (state.cashSeats) setCashSeats(state.cashSeats);
     };
     socket.on("CASH_WAITING_PLAYERS", onCashWaiting);
+
+    const onNextHandReadyUpdated = (data: { readyUserIds?: string[]; allReady?: boolean }) => {
+      setNextHandReadyUserIds(Array.isArray(data.readyUserIds) ? data.readyUserIds : []);
+      setAllNextHandReady(Boolean(data.allReady));
+    };
+    socket.on("CASH_NEXT_HAND_READY_UPDATED", onNextHandReadyUpdated);
     const onQueueStatus = (data: { queued: boolean }) => setSpectatorWantsToRejoin(data.queued);
     socket.on("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     return () => {
@@ -1141,6 +1316,7 @@ export function Game() {
       socket.off("GAME_STATE_UPDATED", onGameStateUpdated);
       socket.off("GAME_ENDED", onGameEnded);
       socket.off("CASH_WAITING_PLAYERS", onCashWaiting);
+      socket.off("CASH_NEXT_HAND_READY_UPDATED", onNextHandReadyUpdated);
       socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     };
   }, [socket, gameIdParam, userId, isSpectating, navigate, t]);
@@ -1552,10 +1728,20 @@ export function Game() {
       setPendingShowdownData(null);
       setHandResult(null);
       setHandResultData(null);
-      setCashWaitingPlayers(false); 
-      setCashCountdownEndsAt(null);
+      // Ne pas reset la fenêtre inter-main ici :
+      // entre les mains, la phase côté UI peut repasser en "init"/"shuffle" tout en attendant le système "ready".
     }
   }, [phase]);
+
+  useEffect(() => {
+    if (!cashWaitingPlayers) return;
+    setInterHandResultsVisible(false);
+  }, [cashWaitingPlayers]);
+
+  useEffect(() => {
+    if (!cashWaitingPlayers) return;
+    if (showTransition) setInterHandResultsVisible(true);
+  }, [cashWaitingPlayers, showTransition]);
 
   useEffect(() => {
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
@@ -2490,12 +2676,11 @@ export function Game() {
           <RoundTransition 
             roundNumber={roundCount} 
             winner={lastWinnerData} 
+            duration={3}
             onComplete={() => {
               setShowTransition(false);
               setRoundCount(prev => prev + 1);
               
-              setShowdownResult(null);
-              setHandResult(null);
               setHandResultData(null);
               setPhase("init");
               
@@ -2505,6 +2690,9 @@ export function Game() {
             }}
             onLeaveToLobby={() => {
               setShowTransition(false);
+              if (gameIdParam && socket && !isBotMode && !isSpectating) {
+                socket.emit("CASH_LEAVE", { gameId: gameIdParam });
+              }
               navigate("/lobby");
             }}
           />
@@ -2518,11 +2706,13 @@ export function Game() {
           {!isMobile && phase !== "init" && phase !== "shuffle" && phase !== "deal" && (
             <div className="bg-yellow-500/20 backdrop-blur-sm border border-yellow-500/40 rounded-lg px-3 py-1.5 shadow-lg">
               <p className="text-yellow-400 font-bold text-sm tracking-wide uppercase">
-                {phase === "preflop" && "Pre-Flop"}
-                {phase === "flop" && "Flop"}
-                {phase === "turn" && "Turn"}
-                {phase === "river" && "River"}
-                {phase === "showdown" && "Showdown"}
+                {phase === "preflop" ||
+                phase === "flop" ||
+                phase === "turn" ||
+                phase === "river" ||
+                phase === "showdown"
+                  ? t(`game.phaseBadge.${phase}`)
+                  : null}
               </p>
             </div>
           )}
@@ -2563,7 +2753,11 @@ export function Game() {
                   type="button"
                   role="menuitem"
                   onClick={() => {
-                    setIsQuantumOpen((o) => !o);
+                    setIsQuantumOpen((o) => {
+                      const next = !o;
+                      setQuantumPinned(next);
+                      return next;
+                    });
                     setShowMenu(false);
                   }}
                   className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} ${isQuantumOpen ? 'text-amber-400 bg-amber-500/15' : 'text-white hover:bg-slate-700/80'} transition-all`}
@@ -2751,61 +2945,300 @@ export function Game() {
         onCancel={() => setShowQuitConfirm(false)}
         onConfirm={() => {
           setShowQuitConfirm(false);
+          if (gameIdParam && socket) {
+            socket.emit("CASH_LEAVE", { gameId: gameIdParam });
+          }
           navigate("/lobby");
         }}
       />
 
-      {gameIdParam && !isBotMode && (cashCountdownEndsAt || cashWaitingPlayers) && (
+      {gameIdParam && !isBotMode && cashWaitingPlayers && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2">
-          <div className="bg-slate-800/95 border border-emerald-500/50 rounded-xl px-6 py-3 shadow-lg">
-            {cashWaitingPlayers ? (
-              <p className="text-emerald-300 font-semibold">{t('game.waitingForPlayers')}</p>
-            ) : cashCountdownSecs > 0 ? (
-              <p className="text-white font-semibold">{t('game.newHandIn', { count: cashCountdownSecs })}</p>
-            ) : null}
-          </div>
-          {(cashCountdownEndsAt || cashWaitingPlayers) && (
-            <div className="flex gap-2 flex-wrap justify-center max-w-[min(100vw-1rem,420px)]">
-              {!cashSeats.some((s) => s.userId === userId) ? (
-                cashSeats.some((s) => !s.userId) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const free = cashSeats.findIndex((s) => !s.userId);
-                      if (free >= 0 && socket) socket.emit("CASH_SIT", { gameId: gameIdParam, seatIndex: free, buyIn: 100 });
-                    }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
-                  >
-                    {t("game.cashSitBuyIn", { amount: 100 })}
-                  </button>
-                )
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => socket?.emit("CASH_LEAVE", { gameId: gameIdParam })}
-                    className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
-                  >
-                    {t("game.cashStandUp")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => socket?.emit("CASH_REBUY", { gameId: gameIdParam, amount: 100 })}
-                    className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
-                  >
-                    {t("game.cashRebuy", { amount: 100 })}
-                  </button>
-                </>
+          <div className="bg-slate-800/95 border border-emerald-500/50 rounded-xl px-6 py-4 shadow-lg max-w-[min(100vw-1rem,520px)] w-full">
+            <div className="space-y-4">
+              <div className="text-center">
+                <p className="text-emerald-300 font-semibold">
+                  {t("game.waitingForReady", "En attente : cliquez « Prêt » pour la prochaine main")}
+                </p>
+                  {!interHandResultsVisible ? (
+                    <p className="text-slate-300 text-xs mt-2">
+                      {t("game.revealInProgress", "Abattage en cours…")}
+                    </p>
+                  ) : (
+                    <>
+                      {allNextHandReady && cashCountdownSecs > 0 && (
+                        <p className="text-white font-semibold mt-2">
+                          {t("game.newHandIn", { count: cashCountdownSecs })}
+                        </p>
+                      )}
+                      {showdownResult && (
+                  <div className="mt-2">
+                    <div className="text-sm text-amber-200 font-semibold">{t("game.winnerLabel", "Gagnant")}</div>
+                    <div className="text-2xl font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.25)]">
+                      {showdownResult.winnerName}
+                    </div>
+                    <div className="text-sm text-slate-200">
+                      {t("game.winningHandLabel", "Combinaison gagnante")}:{" "}
+                      <span className="text-amber-200 font-semibold">{showdownResult.hand}</span>
+                    </div>
+                    <div className="text-sm text-slate-200">
+                      +{(showdownResult.pot ?? 0).toLocaleString()} {t("game.jets", "jetons")}
+                    </div>
+                  </div>
+                      )}
+                    </>
+                  )}
+              </div>
+
+              {interHandResultsVisible && (
+                <div className="border-t border-slate-700 pt-3">
+                  <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                    <span>{t("hiddenBets.tableResolvedTitle", "Tickets résolus (paris cachés)")}</span>
+                    {interHandTableTicketsLoading && <span>{t("hiddenBets.loading", "Chargement…")}</span>}
+                  </div>
+
+                  {interHandTableTicketsError && (
+                    <p className="text-red-400 text-xs mb-2">{interHandTableTicketsError}</p>
+                  )}
+
+                  {!interHandTableTicketsLoading && interHandTableTickets.length === 0 && (
+                    <p className="text-slate-400 text-xs">
+                      {t("hiddenBets.noTableTickets", "Aucun ticket résolu pour le moment.")}
+                    </p>
+                  )}
+
+                  {!interHandTableTicketsLoading && interHandTableTickets.length > 0 && (
+                    <div className="space-y-2 max-h-[170px] overflow-y-auto pr-1">
+                      {interHandTableTickets.slice(0, 20).map((tk) => {
+                        const uname =
+                          (tk.user?.username ?? tk.userId ?? "").toString() || t("game.unknown", "Inconnu");
+                        const whoLabel =
+                          userId && tk.userId != null && String(tk.userId) === String(userId)
+                            ? t("game.you", "Vous")
+                            : uname;
+                        const odds = typeof tk.quotedOdds === "number" ? tk.quotedOdds : null;
+                        const status =
+                          tk.status === "WON" ? "GAGNÉ" : tk.status === "VOID" ? "ANNULÉ" : "PERDU";
+
+                        const statusClass =
+                          tk.status === "WON"
+                            ? "border-green-500/50 bg-green-900/20"
+                            : tk.status === "VOID"
+                              ? "border-slate-600 bg-slate-700/20"
+                              : "border-red-500/40 bg-red-900/15";
+
+                        return (
+                          <div
+                            key={tk.id}
+                            className={`rounded-lg border px-3 py-2 ${statusClass}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-xs text-white font-semibold truncate">
+                                {whoLabel}
+                              </div>
+                              <div className="text-[10px] text-slate-200">{status}</div>
+                            </div>
+                            <div className="flex items-center justify-between mt-1">
+                              <div className="text-[11px] text-yellow-300 font-bold">
+                                {odds != null ? `x${odds.toFixed(2)}` : "—"}
+                              </div>
+                              <button
+                                type="button"
+                                className="p-0.5 rounded hover:bg-white/10 text-slate-200"
+                                aria-label={t("hiddenBets.oddsInfo", "Infos sur la cote")}
+                                onClick={() => {
+                                  try {
+                                    const parsed = tk.stateSnapshotJson ? JSON.parse(tk.stateSnapshotJson) : null;
+                                    setPricingInfo({
+                                      ticketId: tk.id,
+                                      pricingBreakdown: parsed?.pricingBreakdown ?? null,
+                                      pricingInputs: parsed?.pricingInputs ?? null,
+                                    });
+                                  } catch {
+                                    setPricingInfo({
+                                      ticketId: tk.id,
+                                      pricingBreakdown: null,
+                                      pricingInputs: null,
+                                    });
+                                  }
+                                }}
+                              >
+                                <Info className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               )}
+
+              {interHandResultsVisible && (
+                <div className="border-t border-slate-700 pt-3">
+                  <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                    <span>{t("game.nextHandReadyTitle", "Joueurs prêts")}</span>
+                    <span>
+                      {allNextHandReady
+                        ? t("game.allReady", "Tout le monde est prêt")
+                        : t("game.waiting", "En attente…")}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {cashSeats
+                      .filter((s) => !!s.userId)
+                      .sort((a, b) => a.seatIndex - b.seatIndex)
+                      .map((seat) => {
+                        const seatUserId = seat.userId!;
+                        const isReady = nextHandReadyUserIds.some((u) => String(u) === String(seatUserId));
+                        const isMe = userId && String(userId) === String(seatUserId);
+
+                        return (
+                          <div
+                            key={seat.seatIndex}
+                            className="flex items-center justify-between gap-3 bg-slate-900/20 border border-slate-700/70 rounded-lg px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-white truncate">
+                                {seat.username ?? t("game.unknown", "Inconnu")}
+                                {isMe ? ` (${t("game.you", "Vous")})` : ""}
+                              </div>
+                              <div className={`text-[11px] ${isReady ? "text-emerald-200" : "text-slate-400"}`}>
+                                {isReady ? t("game.ready", "Prêt") : t("game.notReady", "Pas prêt")}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={!isMe || allNextHandReady}
+                              onClick={() => {
+                                if (!isMe) return;
+                                socket?.emit("CASH_NEXT_HAND_READY", { gameId: gameIdParam, ready: !myNextHandReady });
+                              }}
+                              className={`text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition ${
+                                isMe
+                                  ? isReady
+                                    ? "bg-emerald-700 hover:bg-emerald-600"
+                                    : "bg-emerald-600 hover:bg-emerald-500"
+                                  : "bg-slate-700 text-slate-300 cursor-not-allowed"
+                              } ${!isMe ? "opacity-70" : ""}`}
+                            >
+                              {isReady
+                                ? t("game.ready", "✅ Prêt")
+                                : isMe
+                                  ? t("game.notReady", "Prêt ?")
+                                  : t("game.notReady", "Pas prêt")}
+                            </button>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-2 flex-wrap justify-center max-w-[min(100vw-1rem,520px)] w-full px-2">
+            {!cashSeats.some((s) => s.userId != null && userId != null && String(s.userId) === String(userId)) ? (
+              cashSeats.some((s) => !s.userId) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const free = cashSeats.findIndex((s) => !s.userId);
+                    if (free >= 0 && socket) socket.emit("CASH_SIT", { gameId: gameIdParam, seatIndex: free, buyIn: 100 });
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                >
+                  {t("game.cashSitBuyIn", { amount: 100 })}
+                </button>
+              )
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => socket?.emit("CASH_LEAVE", { gameId: gameIdParam })}
+                  className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                >
+                  {t("game.cashStandUp")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => socket?.emit("CASH_REBUY", { gameId: gameIdParam, amount: 100 })}
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+                >
+                  {t("game.cashRebuy", { amount: 100 })}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => socket?.emit("CASH_NEXT_HAND_READY", { gameId: gameIdParam, ready: !myNextHandReady })}
+                  disabled={allNextHandReady}
+                  className={`text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition ${
+                    myNextHandReady
+                      ? "bg-emerald-700 hover:bg-emerald-600"
+                      : "bg-emerald-600 hover:bg-emerald-500"
+                  } ${allNextHandReady ? "opacity-60 cursor-not-allowed" : ""}`}
+                >
+                  {myNextHandReady ? t("game.ready", "✅ Prêt") : t("game.notReady", "Je suis prêt")}
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowQuitConfirm(true)}
+              className="border border-slate-500 bg-slate-800/90 hover:bg-red-950/60 hover:border-red-500/50 text-slate-200 hover:text-red-200 text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+            >
+              {t("nav.quitGame")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {pricingInfo && (
+        <div
+          className="fixed inset-0 z-[220] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPricingInfo(null)}
+        >
+          <div
+            className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border-2 border-yellow-500 shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between gap-3">
+              <div className="text-white text-sm font-semibold">
+                {t("hiddenBets.oddsInfoTitle", "Calcul exact de la cote")}
+              </div>
               <button
                 type="button"
-                onClick={() => setShowQuitConfirm(true)}
-                className="border border-slate-500 bg-slate-800/90 hover:bg-red-950/60 hover:border-red-500/50 text-slate-200 hover:text-red-200 text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                className="text-slate-200 hover:text-white bg-white/10 hover:bg-white/15 rounded px-2 py-1 text-xs"
+                onClick={() => setPricingInfo(null)}
               >
-                {t("nav.quitGame")}
+                {t("hiddenBets.close", "Fermer")}
               </button>
             </div>
-          )}
+            <div className="p-4 text-xs text-slate-200 space-y-4">
+              <div className="text-slate-400">
+                Ticket: <span className="text-slate-100 font-mono">{pricingInfo.ticketId}</span>
+              </div>
+
+              <div>
+                <div className="text-slate-400 mb-2">{t("hiddenBets.pricingBreakdown", "Détail pricing")}</div>
+                <pre className="bg-slate-950/40 border border-slate-700 rounded p-3 whitespace-pre-wrap break-words">
+                  {pricingInfo.pricingBreakdown != null
+                    ? JSON.stringify(pricingInfo.pricingBreakdown, null, 2)
+                    : t("hiddenBets.noPricingInfo", "Détail non disponible pour ce ticket.")}
+                </pre>
+              </div>
+
+              <div>
+                <div className="text-slate-400 mb-2">{t("hiddenBets.pricingInputs", "Inputs pricing")}</div>
+                <pre className="bg-slate-950/40 border border-slate-700 rounded p-3 whitespace-pre-wrap break-words">
+                  {pricingInfo.pricingInputs != null
+                    ? JSON.stringify(pricingInfo.pricingInputs, null, 2)
+                    : t("hiddenBets.noPricingInfo", "Détail non disponible pour ce ticket.")}
+                </pre>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2822,7 +3255,7 @@ export function Game() {
         </PokerTable>
       </div>
 
-      {showdownResult && !showTransition && !showdownResult.skipRevealDelay && (
+      {showdownResult && !showTransition && !cashWaitingPlayers && !showdownResult.skipRevealDelay && (
         <div
           className="pointer-events-none fixed bottom-28 left-1/2 z-[130] -translate-x-1/2 rounded-xl border border-amber-500/40 bg-slate-900/95 px-4 py-2 shadow-lg"
           role="status"
@@ -2833,8 +3266,21 @@ export function Game() {
       )}
 
       <HandActionLogPanel entries={handActionLog} />
-      <QuantumHUD isOpen={isQuantumOpen} onToggle={() => setIsQuantumOpen(!isQuantumOpen)} />
-      <HiddenBetsPanel isOpen={isPanelOpen} onToggle={() => setIsPanelOpen(!isPanelOpen)} players={activePlayers} />
+      <QuantumHUD
+        isOpen={isQuantumOpen}
+        onToggle={closeQuantumPanel}
+        onPanelPointerEnter={onQuantumPanelEnter}
+        onPanelPointerLeave={onQuantumPanelLeave}
+      />
+      <HiddenBetsPanel
+        isOpen={isPanelOpen}
+        onToggle={() => setIsPanelOpen(!isPanelOpen)}
+        players={activePlayers}
+        gameId={gameIdParam}
+        hiddenBetNextHandId={hiddenBetNextHandId}
+        hiddenBetWindowOpen={hiddenBetWindowOpen}
+        hiddenBetState={hiddenBetState}
+      />
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />
 
@@ -2877,10 +3323,11 @@ export function Game() {
           actionsDisabled={Boolean(gameIdParam && !socket)}
           waitingForPlayer={!isMyTurn && !hasFoldedFromState ? (activePlayer?.name === "Vous" || activePlayer?.name === "you" ? t('game.you') : activePlayer?.name) : undefined}
           timeLeft={timeLeft ?? 30}
-          onToggleQuantum={() => setIsQuantumOpen(!isQuantumOpen)}
+          onToggleQuantum={onQuantumToggleClick}
+          onQuantumHoverEnter={onQuantumProbasEnter}
+          onQuantumHoverLeave={onQuantumProbasLeave}
           onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
-          isQuantumOpen={isQuantumOpen}
           isHiddenBetsOpen={isPanelOpen}
           isChatOpen={isChatOpen}
         />

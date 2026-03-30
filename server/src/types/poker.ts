@@ -92,11 +92,27 @@ export interface GameState {
   handEndReason?: 'WIN_BY_FOLD' | 'SHOWDOWN' | 'ALL_IN_RUNOUT' | 'FORCED_END'
   /** Secondes restantes avant la prochaine main (cash), alignées serveur — évite décalage d’horloge client. */
   cashCountdownRemainingSec?: number
+  /** Paris cachés (cash) : identifiant de la prochaine main pour quote/place. */
+  hiddenBetNextHandId?: string
+  hiddenBetCurrentHandId?: string
+  hiddenBetWindowOpen?: boolean
+  hiddenBetWindowClosesAt?: number
+  /** Fenêtre live gelée (FLOP/TURN/RIVER) : pas d’action poker tant que ouverte. */
+  hiddenBetLiveWindow?: { windowType: 'LIVE_FLOP' | 'LIVE_TURN' | 'LIVE_RIVER'; closesAt: number }
+  /** Bloc unifié pour le client (cash). */
+  hiddenBetState?: {
+    currentHandId: string | null
+    nextHandId: string | null
+    windowOpen: boolean
+    windowType: 'PRE_HAND' | 'LIVE_FLOP' | 'LIVE_TURN' | 'LIVE_RIVER' | null
+    closesAt?: number
+  }
   /** Phase runtime détaillée (pilotage backend/front). */
   handRuntimePhase?:
     | 'HAND_IN_PROGRESS'
     | 'BETTING_ACTIVE'
     | 'BETTING_ROUND_CLOSED'
+    | 'LIVE_BET_WINDOW'
     | 'SHOWDOWN_PENDING'
     | 'SHOWDOWN_REVEAL'
     | 'SHOWDOWN_RESULT'

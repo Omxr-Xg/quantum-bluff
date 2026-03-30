@@ -5,6 +5,7 @@ import { useDeviceType } from "./ui/use-mobile";
 import { useAccessibility } from "../contexts/AccessibilityContext";
 import { NeonButton } from "./NeonButton";
 import { PokerCard } from "./PokerCard";
+import { HandCombinationsHelpButton } from "./HandCombinationsHelpButton";
 
 interface Card {
   suit: string;
@@ -30,9 +31,10 @@ interface PlayerDashboardProps {
   actionsDisabled?: boolean;
   waitingForPlayer?: string;
   onToggleQuantum?: () => void;
+  onQuantumHoverEnter?: () => void;
+  onQuantumHoverLeave?: () => void;
   onToggleHiddenBets?: () => void;
   onToggleChat?: () => void;
-  isQuantumOpen?: boolean;
   isHiddenBetsOpen?: boolean;
   isChatOpen?: boolean;
   timeLeft?: number;
@@ -58,8 +60,9 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   actionsDisabled = false,
   waitingForPlayer,
   onToggleQuantum,
+  onQuantumHoverEnter,
+  onQuantumHoverLeave,
   onToggleHiddenBets,
-  isQuantumOpen,
   isHiddenBetsOpen: _isHiddenBetsOpen,
   timeLeft,
   colorblindMode = false,
@@ -77,6 +80,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [raisePopoverOpen, setRaisePopoverOpen] = useState(false);
+  const [combinationsHelpOpen, setCombinationsHelpOpen] = useState(false);
   const isAllIn = maxRaise > 0 && raiseAmount >= maxRaise;
   const canRaise = isMyTurn && !actionsDisabled && !isLoading && !hasFolded && !hasActed && maxRaise > 0;
 
@@ -88,7 +92,6 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
     if (!canRaise) setRaisePopoverOpen(false);
   }, [canRaise]);
 
-  const [isQuantumPinned, setIsQuantumPinned] = useState(false);
   const raiseLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTickSoundRef = useRef<number>(-1);
 
@@ -157,18 +160,6 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
 
   useDeviceType();
 
-  const handleQuantumClick = () => {
-    setIsQuantumPinned(!isQuantumPinned);
-
-    if (isQuantumPinned) {
-      setTimeout(() => onToggleQuantum?.(), 0);
-    } else {
-      if (!isQuantumOpen) {
-        setTimeout(() => onToggleQuantum?.(), 0);
-      }
-    }
-  };
-
   const handleRaiseClick = () => {
     const amount = clampRaise(raiseAmount);
     setRaisePopoverOpen(false);
@@ -195,7 +186,9 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
     // 📱 FIX MOBILE : Ajout de fixed bottom-0 left-0 w-full md:relative pour "coller" au bas de l'écran sur mobile
     <div
       ref={ref}
-      className="fixed bottom-0 left-0 w-full md:relative shadow-2xl transition-all duration-300 z-40 bg-slate-900 md:bg-transparent pb-safe"
+      className={`fixed bottom-0 left-0 w-full md:relative shadow-2xl transition-all duration-300 ${
+        raisePopoverOpen || combinationsHelpOpen ? "z-[120]" : "z-40"
+      } bg-slate-900 md:bg-transparent pb-safe`}
     >
 
       {showSuccessPopup && (
@@ -400,10 +393,20 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 {t('game.bets')}
               </NeonButton>
             )}
+            <HandCombinationsHelpButton
+              colorblindMode={colorblindMode}
+              onOpenChange={setCombinationsHelpOpen}
+            />
             {onToggleQuantum && (
-              <NeonButton onClick={handleQuantumClick} variant="amber" icon={<Activity className="w-4 h-4" />}>
-                Probas
-              </NeonButton>
+              <div
+                className="shrink-0"
+                onMouseEnter={onQuantumHoverEnter}
+                onMouseLeave={onQuantumHoverLeave}
+              >
+                <NeonButton onClick={onToggleQuantum} variant="amber" icon={<Activity className="w-4 h-4" />}>
+                  {t("game.probabilitiesShort")}
+                </NeonButton>
+              </div>
             )}
           </div>
 

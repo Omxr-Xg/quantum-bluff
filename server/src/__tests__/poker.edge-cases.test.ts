@@ -23,7 +23,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-min-raise',
       [player('p1', 2000), player('p2', 2000), player('p3', 2000)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     t.startHand()
     // UTG opens +40 (to 60 total if call=20)
@@ -35,7 +35,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-short-under-min',
       [player('p1', 2000), player('p2', 120), player('p3', 2000)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     t.startHand()
     // First actor raises to set min raise > 20
@@ -54,7 +54,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-short-allin',
       [player('p1', 1000), player('p2', 80), player('p3', 1000)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     t.startHand()
 
@@ -79,7 +79,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-reopen-legal',
       [player('p1', 2000), player('p2', 2000), player('p3', 2000)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     t.startHand()
     const first = t.state.currentTurn
@@ -95,7 +95,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-short-after-raise',
       [player('p1', 5000), player('p2', 5000), player('p3', 450)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     t.startHand()
     if (t.state.currentTurn !== 'p1') return
@@ -116,7 +116,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-hu-order',
       [player('p1', 1000), player('p2', 1000)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     t.startHand()
     const dealer = t.state.players.find((p) => p.isDealer)!
@@ -132,7 +132,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-hu-rotation',
       [player('p1', 5000), player('p2', 5000)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     const dealers: string[] = []
     for (let i = 0; i < 5; i++) {
@@ -151,7 +151,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-runout-preflop',
       [player('p1', 100), player('p2', 100), player('p3', 100)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     t.startHand()
     const versionBefore = t.state.actionVersion ?? 0
@@ -175,7 +175,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-runout-flop',
       [player('p1', 400), player('p2', 400)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     t.startHand()
     const d = t.state.players.find((p) => p.isDealer)!.id
@@ -199,7 +199,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-fold-win',
       [player('p1', 1000), player('p2', 1000), player('p3', 1000)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     t.startHand()
     const phaseBefore = t.state.phase
@@ -215,7 +215,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-join-showdown-pending',
       [player('p1', 100), player('p2', 100)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     t.startHand()
     const d = t.state.players.find((p) => p.isDealer)!.id
@@ -234,7 +234,7 @@ describe('Poker edge cases pack - runtime rules', () => {
     const t = new GameTable(
       'edge-multiway-prog',
       [player('p1', 2000), player('p2', 2000), player('p3', 2000), player('p4', 2000), player('p5', 2000)],
-      { smallBlind: 10, bigBlind: 20 }
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
     )
     t.startHand()
     t.handlePlayerAction(t.state.currentTurn, 'FOLD')

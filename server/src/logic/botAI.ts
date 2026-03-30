@@ -28,8 +28,8 @@ export interface BotActionResponse {
   reasoning?: string
 }
 
-/** Score max théorique (Evaluator — quinte flush royale). */
-const MAX_HAND_SCORE = 8 * Math.pow(15, 5) + 14 * Math.pow(15, 4)
+/** Score max théorique (Evaluator — quinte flush royale, catégorie 9). */
+const MAX_HAND_SCORE = 9 * Math.pow(15, 5) + 14 * Math.pow(15, 4)
 
 /**
  * Force 0–1 à partir des cartes visibles (2–7 cartes).

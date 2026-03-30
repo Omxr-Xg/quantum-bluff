@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-ro
 
 import { AccessibilityProvider } from "./contexts/AccessibilityContext";
 import { AccessibilityMenuOpenProvider } from "./contexts/AccessibilityMenuOpenContext";
+import { TableThemeProvider } from "./contexts/TableThemeContext";
 
 import { Auth } from "./pages/Auth";
 import { Lobby } from "./pages/Lobby";
@@ -178,6 +179,7 @@ function App() {
     <BrowserRouter basename={basename}>
       <AccessibilityProvider>
         <AccessibilityMenuOpenProvider>
+        <TableThemeProvider>
         <ErrorBoundary>
         <Layout>
           
@@ -218,6 +220,7 @@ function App() {
           </Routes>
         </Layout>
         </ErrorBoundary>
+        </TableThemeProvider>
         </AccessibilityMenuOpenProvider>
       </AccessibilityProvider>
     </BrowserRouter>

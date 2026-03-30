@@ -26,14 +26,14 @@ function mkPlayers(): Player[] {
 
 describe('GameTable runtime rules', () => {
   it('keeps heads-up preflop actor as dealer', () => {
-    const t = new GameTable('g1', mkPlayers(), { smallBlind: 10, bigBlind: 20 })
+    const t = new GameTable('g1', mkPlayers(), { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true })
     t.startHand()
     const dealer = t.state.players.find((p) => p.isDealer)
     expect(dealer?.id).toBe(t.state.currentTurn)
   })
 
   it('assigns postflop first actor to non-dealer in heads-up', () => {
-    const t = new GameTable('g2', mkPlayers(), { smallBlind: 10, bigBlind: 20 })
+    const t = new GameTable('g2', mkPlayers(), { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true })
     t.startHand()
     const dealer = t.state.players.find((p) => p.isDealer)!
     const other = t.state.players.find((p) => p.id !== dealer.id)!
@@ -45,7 +45,7 @@ describe('GameTable runtime rules', () => {
   })
 
   it('freezes hand participants during active hand', () => {
-    const t = new GameTable('g3', mkPlayers(), { smallBlind: 10, bigBlind: 20 })
+    const t = new GameTable('g3', mkPlayers(), { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true })
     t.startHand()
     const before = t.state.handParticipantIds ?? []
     t.addPlayer({
@@ -64,7 +64,7 @@ describe('GameTable runtime rules', () => {
   })
 
   it('sets explicit hand end reason on fold-to-win', () => {
-    const t = new GameTable('g4', mkPlayers(), { smallBlind: 10, bigBlind: 20 })
+    const t = new GameTable('g4', mkPlayers(), { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true })
     t.startHand()
     t.handlePlayerAction(t.state.currentTurn, 'FOLD')
     expect(t.state.phase).toBe('SHOWDOWN')
@@ -72,7 +72,7 @@ describe('GameTable runtime rules', () => {
   })
 
   it('keeps heads-up blinds and actor order deterministic', () => {
-    const t = new GameTable('g5', mkPlayers(), { smallBlind: 10, bigBlind: 20 })
+    const t = new GameTable('g5', mkPlayers(), { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true })
     t.startHand()
     const dealer = t.state.players.find((p) => p.isDealer)!
     const bigBlind = t.state.players.find((p) => p.role === 'BIG_BLIND')!

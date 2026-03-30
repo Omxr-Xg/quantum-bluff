@@ -37,6 +37,7 @@ import blackjackRoutes from './routes/blackjack.routes.js'
 import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
+import hiddenBetsRoutes from './routes/hiddenBets.routes.js'
 
 // ==========================================
 // 🛡️ B4 : IMPORTS ANTI-TRICHE & ADMIN
@@ -171,6 +172,7 @@ app.use('/api/bot', botApiLimiter, botRoutes)
 app.use('/api/slot', slotApiLimiter, slotRoutes)
 app.use('/api/roulette', rouletteApiLimiter, rouletteRoutes)
 app.use('/api/blackjack', blackjackApiLimiter, blackjackRoutes)
+app.use('/api/hidden-bets', hiddenBetsApiLimiter, hiddenBetsRoutes)
 app.use(
   '/api/blackjack-tables',
   blackjackMultiApiLimiter,

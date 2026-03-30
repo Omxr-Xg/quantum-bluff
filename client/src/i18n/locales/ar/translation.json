@@ -81,7 +81,7 @@
       "headerTitle": "الترويسة",
       "headerBody": "الشعار واسم اللعبة ورسالة الترحيب.",
       "topBarTitle": "القائمة العلوية",
-      "topBarBody": "اللغة، الرصيد، الملف، الأصدقاء، إمكانية الوصول وتسجيل الخروج.",
+      "topBarBody": "اللغة، الرصيد، الملف، الأصدقاء، الإعدادات وتسجيل الخروج.",
       "tourWelcomeTitle": "مرحباً!",
       "tourWelcomeBody": "الجولة تبرز كل منطقة في الردهة. التالي، أو انقر خارج النافذة للإغلاق.",
       "tourDoneTitle": "انتهى!",
@@ -270,6 +270,14 @@
     "burned": "محروقة",
     "burnedCount": "{{count}} بطاقة محروقة",
     "bets": "الرهانات",
+    "probabilitiesShort": "احتمالات",
+    "phaseBadge": {
+      "preflop": "ما قبل الفلوب",
+      "flop": "الفلوب",
+      "turn": "الترن",
+      "river": "الريفر",
+      "showdown": "المواجهة"
+    },
     "waiting": "في انتظار...",
     "waitingFor": "في انتظار {{name}}",
     "check": "تحقق",
@@ -293,6 +301,24 @@
     "actionCalled": "متابعة",
     "actionRaised": "رفع",
     "actionLogTitle": "سجل الأفعال",
+    "combinationsHelp": {
+      "buttonShort": "الأيدي",
+      "buttonTitle": "ترتيب الأيدي — مرّر المؤشر أو اضغط على الجوال",
+      "title": "ترتيب الأيدي",
+      "subtitle": "من الأقوى إلى الأضعف في تكساس هولدم. كل صف يعرض مثالاً بخمس ورقات.",
+      "desc": {
+        "straightFlush": "خمس ورقات من نفس اللون متتالية. 10–ج–ق–ك–آ من نفس اللون يُسمّى رويال فلاش (أقوى يد).",
+        "fourKind": "أربع ورقات بنفس الرتبة، مع ورقة خامسة.",
+        "fullHouse": "ثلاثية زائد زوج.",
+        "quantumCombi": "حصري لـ Quantum Bluff: بين سبع ورقات يوجد على الأقل 3 و5 و6 و7 و10. أقوى من الفلاش وأضعف من الفول هاوس. التعادل: مقارنة الورقتين الباقيتين.",
+        "flush": "خمس ورقات من نفس اللون دون تسلسل.",
+        "straight": "خمس ورقات متتالية بألوان مختلفة.",
+        "threeKind": "ثلاث ورقات بنفس الرتبة.",
+        "twoPair": "زوجان مختلفان مع ورقة خامسة.",
+        "pair": "ورقتان بنفس الرتبة.",
+        "highCard": "بدون زوج أو أفضل — تفوز أعلى ورقة."
+      }
+    },
     "actionLogEmpty": "لا أفعال في هذه اليد بعد.",
     "actionLogLine": "[{{street}}] {{detail}}",
     "actionLogCheck": "{{name}} يمر",
@@ -697,6 +723,7 @@
       "threeKind": "ثلاثة",
       "straight": "سلسلة",
       "flush": "فلاش",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "فول هاوس",
       "fourKind": "رباعية",
       "straightFlush": "ستريت فلاش",
@@ -731,6 +758,37 @@
     "gain": "الربح",
     "continue": "متابعة",
     "highCard": "ورقة عالية"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "subtitle": "مظهر الطاولة والعرض",
+    "close": "إغلاق",
+    "tabAesthetic": "المظهر",
+    "tabAccessibility": "إمكانية الوصول",
+    "tableThemeHint": "اختر لون بساط طاولة البوكر.",
+    "tableTheme": {
+      "default": "أخضر كلاسيكي",
+      "vegasRed": "أحمر بأسلوب فيغاس",
+      "vegasPurple": "بنفسجي بأسلوب فيغاس",
+      "darkBlue": "أزرق داكن"
+    }
+  },
+  "accessibility": {
+    "title": "إمكانية الوصول",
+    "highContrastTitle": "تباين عالٍ",
+    "highContrastHint": "حدود أوضح ونص أقرب للقراءة",
+    "highContrastBody": "يحسّن القراءة من خلال زيادة التباين على الطاولة والعناصر.",
+    "visualAlertsTitle": "تنبيهات بصرية",
+    "visualAlertsHint": "تأكيد إضافي على دورك والإجراءات المهمة",
+    "visualAlertsBody": "يعرض تمييزًا أوضح عند دورك أو عند الحاجة لإجراء.",
+    "colorblindTitle": "أوراق مناسبة لعمى الألوان",
+    "colorblindHint": "ضبط ألوان الأوراق للبروتانوبيا أو الديوتيرانوبيا أو التريتانوبيا",
+    "colorblindSelectLabel": "نوع رؤية الألوان",
+    "colorblindProtanopia": "بروتانوبيا (ضعف الأحمر)",
+    "colorblindDeuteranopia": "ديوتيرانوبيا (ضعف الأخضر)",
+    "colorblindTritanopia": "تريتانوبيا (أزرق–أصفر)",
+    "savedInfoTitle": "محفوظ على هذا الجهاز",
+    "savedInfoBody": "تُخزَّن هذه الخيارات في المتصفح وتُطبَّق على كل الطاولات."
   },
   "nav": {
     "login": "تسجيل الدخول",
@@ -793,15 +851,13 @@
       "threeKind": "ثلاثة",
       "straight": "سلسلة",
       "flush": "فلاش",
+      "quantumCombi": "Quantum Combi",
       "fullHouse": "فول هاوس",
       "fourKind": "رباعية",
       "straightFlush": "ستريت فلاش"
     },
     "acquired": "مكتسبة",
     "chancePercent": "{{percent}}% فرصة"
-  },
-  "accessibility": {
-    "title": "إمكانية الوصول"
   },
   "invitation": {
     "title": "{{username}} دعاك للعب!",

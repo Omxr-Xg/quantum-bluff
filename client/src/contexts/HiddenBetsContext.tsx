@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { useSocket } from "../hooks/useSocket";
+import React, { createContext, useContext } from "react";
 
+/** @deprecated Les paris cachés sont gérés côté serveur ; ce contexte conserve une API minimale pour les anciennes pages. */
 export interface HiddenBet {
   id: string;
   playerName: string;
@@ -36,77 +36,19 @@ export const HiddenBetsProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [bets, setBets] = useState<HiddenBet[]>([]);
-  const [showResults, setShowResults] = useState(false);
-  const { socket } = useSocket();
-
-  const setBetsResults = (results: HiddenBet[]) => {
-    setBets(results);
-    setShowResults(true);
-  };
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const handlePlaced = (bet: HiddenBet) => {
-      setBets((prev) => [...prev, bet]);
-    };
-
-    const handleResults = (results: HiddenBet[]) => {
-      setBetsResults(results);
-    };
-
-    socket.on("BET_PLACED", handlePlaced);
-    socket.on("BET_RESULTS", handleResults);
-
-    return () => {
-      socket.off("BET_PLACED", handlePlaced);
-      socket.off("BET_RESULTS", handleResults);
-    };
-  }, [socket]);
-
-  const placeBet = async (
-    bet: Omit<HiddenBet, "id" | "odds" | "won" | "winAmount">
-  ): Promise<void> => {
-    return new Promise((resolve) => {
-      const odds = bet.betType === "winner" ? 2.5 : 5.0;
-
-      const newBet: HiddenBet = {
-        ...bet,
-        id: `bet_${Date.now()}`,
-        odds,
-        won: undefined,
-        winAmount: undefined,
-      };
-
-      setBets((prev) => [...prev, newBet]);
-
-      if (socket) {
-        socket.emit("PLACE_BET", newBet);
-      }
-
-      setTimeout(resolve, 500);
-    });
-  };
-
-  const togglePanel = () => setIsOpen((prev) => !prev);
-
-  const totalBets = bets.length;
-  const totalAmount = bets.reduce((sum, bet) => sum + bet.amount, 0);
-
+  const noop = () => {};
   return (
     <HiddenBetsContext.Provider
       value={{
-        bets,
-        placeBet,
-        isOpen,
-        togglePanel,
-        totalBets,
-        totalAmount,
-        showResults,
-        setShowResults,
-        setBetsResults,
+        bets: [],
+        placeBet: async () => {},
+        isOpen: false,
+        togglePanel: noop,
+        totalBets: 0,
+        totalAmount: 0,
+        showResults: false,
+        setShowResults: noop,
+        setBetsResults: noop,
       }}
     >
       {children}
@@ -121,4 +63,3 @@ export const useHiddenBets = (): HiddenBetsContextType => {
   }
   return context;
 };
-
