@@ -133,7 +133,6 @@ export function HiddenBetsPanel({
   const inInterHandTransition =
     Boolean(
       gameId &&
-        hiddenBetState?.windowOpen &&
         hiddenBetState?.windowType === "PRE_HAND" &&
         !hiddenBetState?.currentHandId
     );
