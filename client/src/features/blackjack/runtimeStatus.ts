@@ -2,6 +2,7 @@ export type BlackjackRuntimeErrorCode =
   | "TABLE_LOCKED"
   | "TABLE_RECOVERING"
   | "TABLE_STATE_STALE"
+  | "TABLE_SESSION_RESET"
   | "TABLE_UNAVAILABLE"
   | "TABLE_DB_RUNTIME_MISMATCH"
   | "TABLE_NOT_LOADED_LOCALLY";
@@ -28,6 +29,12 @@ export function mapBlackjackRuntimeCodeToUi(
         messageKey: "bjMulti.runtime.tableStateStale",
         disableActions: true,
         severity: "warning",
+      };
+    case "TABLE_SESSION_RESET":
+      return {
+        messageKey: "bjMulti.runtime.sessionReset",
+        disableActions: true,
+        severity: "info",
       };
     case "TABLE_UNAVAILABLE":
       return {

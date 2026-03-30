@@ -83,7 +83,12 @@ export function BlackjackMultiTable() {
       return;
     }
     if (res.status === 410) {
-      addToast(t("bjMulti.tableGone"), "error");
+      const body = (await res.json().catch(() => ({}))) as { code?: string };
+      if (body.code === "TABLE_SESSION_RESET") {
+        addToast(t("bjMulti.runtime.sessionReset"), "info");
+      } else {
+        addToast(t("bjMulti.tableGone"), "error");
+      }
       navigate("/lobby?tab=blackjack");
       return;
     }
@@ -137,8 +142,17 @@ export function BlackjackMultiTable() {
         setRoundSummary(null);
       }
     };
-    const onSocketError = (payload: { code?: string; message?: string }) => {
+    const onSocketError = (payload: {
+      code?: string;
+      message?: string;
+      roomId?: string;
+    }) => {
       if (!payload?.code) return;
+      if (payload.code === "TABLE_SESSION_RESET") {
+        addToast(t("bjMulti.runtime.sessionReset"), "info");
+        navigate("/lobby?tab=blackjack");
+        return;
+      }
       applyRuntimeCode(payload.code);
       if (payload.message && payload.code !== "TABLE_LOCKED") {
         addToast(payload.message, "error");
