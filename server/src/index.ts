@@ -31,7 +31,7 @@ import blackjackRoutes from './routes/blackjack.routes.js'
 import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
-import dailyChallengesRoutes from "./routes/dailyChallenges.routes.js";
+import dailyChallengesRoutes from './dailyChallenges/dailyChallenge.routes.js'
 
 // ==========================================
 // 🛡️ B4 : IMPORTS ANTI-TRICHE & ADMIN
@@ -179,7 +179,7 @@ app.use(
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
-app.use("/api/daily-challenges", dailyChallengesRoutes);
+app.use('/api/daily-challenges', dailyChallengesRoutes)
 
 // ==========================================
 // 🛡️ B4 : ROUTE ADMIN POUR VOIR LES TRICHEURS
