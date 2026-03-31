@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { useDispatch } from "react-redux";
 import { UserPlus, Search, MessageCircle, Users, X, Check, Loader2, Gamepad2, Home, Coins } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -18,9 +17,7 @@ import {
   useGetFriendMessagesQuery,
   useSendFriendMessageMutation,
   useCreateFriendLoanRequestMutation,
-  api,
 } from "../services/api";
-import type { AppDispatch } from "../store/index";
 import { FriendSearch } from "../components/FriendSearch";
 import { FriendLoansPanel } from "../components/FriendLoansPanel";
 import {
@@ -35,7 +32,6 @@ type FriendsTab = "friends" | "requests" | "messages" | "loans";
 export function Friends() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const dispatch = useDispatch<AppDispatch>();
   const { userId } = useUser();
   const { socket, isConnected, connect } = useSocket();
   const { addToast } = useToast();
@@ -146,31 +142,16 @@ export function Friends() {
       refetchRequests();
     };
 
-    const invalidateLoans = () => {
-      dispatch(api.util.invalidateTags(["FriendLoan"]));
-    };
-
-    const loanEvents = [
-      "LOAN_REQUEST_RECEIVED",
-      "LOAN_REQUEST_ACCEPTED",
-      "LOAN_REQUEST_REJECTED",
-      "LOAN_CREATED",
-      "LOAN_REPAYMENT_PROGRESS",
-      "LOAN_COMPLETED",
-    ] as const;
-
     socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
     socket.on("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
     socket.on("FRIEND_LIST_UPDATED", handleFriendListUpdated);
-    loanEvents.forEach((ev) => socket.on(ev, invalidateLoans));
 
     return () => {
       socket.off("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
       socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
       socket.off("FRIEND_LIST_UPDATED", handleFriendListUpdated);
-      loanEvents.forEach((ev) => socket.off(ev, invalidateLoans));
     };
-  }, [socket, userId, refetchFriends, refetchRequests, dispatch]);
+  }, [socket, userId, refetchFriends, refetchRequests]);
 
   const handleSearchUser = () => {
     if (!friendUsername.trim() || friendUsername.trim().length < 2) {
