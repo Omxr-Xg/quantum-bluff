@@ -17,6 +17,10 @@ type WalletLedgerReason =
   | 'HIDDEN_BET_PAYOUT'
   | 'HIDDEN_BET_REFUND_VOID'
   | 'HIDDEN_BET_REFUND_CANCEL'
+  | 'LOAN_FUNDED_OUT'
+  | 'LOAN_FUNDED_IN'
+  | 'LOAN_REPAYMENT_OUT'
+  | 'LOAN_REPAYMENT_IN'
 
 export type WalletLedgerInput = {
   context: CasinoRoundContext

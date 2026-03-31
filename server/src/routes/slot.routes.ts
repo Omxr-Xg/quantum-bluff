@@ -1,4 +1,5 @@
 import express from 'express'
+import type { Server } from 'socket.io'
 import { prisma } from '../config/database.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
 import { spinSlot, validateSlotBet, SLOT_MIN_BET, SLOT_MAX_BET_CAP } from '../logic/slotMachine.js'
@@ -21,6 +22,8 @@ import { createCasinoRoundContext } from '../casino/services/roundContext.servic
 import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
 import { assertRoundTransition } from '../casino/services/roundStateMachine.service.js'
 import { logCasinoAuditEvent } from '../casino/services/casinoAudit.service.js'
+import { applyRepaymentOnPositiveWin } from '../services/friendLoan.service.js'
+import { FRIEND_LOAN_SOCKET, emitToUsers } from '../services/friendLoan.emit.js'
 
 const router = express.Router()
 
@@ -60,7 +63,7 @@ router.post('/spin', authMiddleware, async (req, res) => {
     const rawBet = req.body?.bet
     const betInput = typeof rawBet === 'number' ? rawBet : Number(rawBet)
 
-    const result = await prisma.$transaction(async (tx) => {
+    const { payload: result, loanPay } = await prisma.$transaction(async (tx) => {
       let roundState: import('../casino/domain/casinoRound.types.js').CasinoRoundState = 'CREATED'
       assertRoundTransition(roundState, 'BETTING_OPEN')
       roundState = 'BETTING_OPEN'
@@ -128,21 +131,52 @@ router.post('/spin', authMiddleware, async (req, res) => {
       assertRoundTransition(roundState, 'RESULT_READY')
       roundState = 'RESULT_READY'
 
-      const updated = await tx.user.update({
-        where: { id: userId },
-        data: { chips: { increment: payout } },
-        select: { chips: true },
-      })
-      await appendWalletLedgerEntry(
-        {
-          context,
-          reason: 'SLOT_PAYOUT',
-          amount: payout,
-          balanceBefore: afterDebit,
-          balanceAfter: intChips(updated.chips),
-        },
-        tx
-      )
+      let loanPay:
+        | Awaited<ReturnType<typeof applyRepaymentOnPositiveWin>>
+        | undefined
+      let updated: { chips: number }
+      if (payout > 0) {
+        loanPay = await applyRepaymentOnPositiveWin(
+          tx,
+          {
+            userId,
+            gameType: 'SLOT',
+            grossWinAmount: payout,
+            casinoStakeAmount: bet,
+            sourceReferenceId: context.actionId,
+            casinoContext: context,
+            balanceBeforeGrossPayout: afterDebit,
+            payoutLedgerReason: 'SLOT_PAYOUT',
+          }
+        )
+        if (!loanPay.hadActiveLoan) {
+          updated = await tx.user.update({
+            where: { id: userId },
+            data: { chips: { increment: payout } },
+            select: { chips: true },
+          })
+          await appendWalletLedgerEntry(
+            {
+              context,
+              reason: 'SLOT_PAYOUT',
+              amount: payout,
+              balanceBefore: afterDebit,
+              balanceAfter: intChips(updated.chips),
+            },
+            tx
+          )
+        } else {
+          updated = (await tx.user.findUnique({
+            where: { id: userId },
+            select: { chips: true },
+          }))!
+        }
+      } else {
+        updated = (await tx.user.findUnique({
+          where: { id: userId },
+          select: { chips: true },
+        }))!
+      }
 
       const prevCasino = await tx.casinoStats.findUnique({ where: { userId } })
       if (!prevCasino) {
@@ -173,21 +207,42 @@ router.post('/spin', authMiddleware, async (req, res) => {
       })
 
       return {
-        chips: intChips(updated.chips),
-        bet,
-        winAmount: payout,
-        reels,
-        experience: gamification.experience,
-        level: gamification.level,
-        xpToNext: gamification.xpToNext,
-        newBadges: gamification.newBadges,
-        maxBetSlot: maxBetEffective,
-        roundId: context.roundId,
-        actionId: context.actionId,
+        payload: {
+          chips: intChips(updated.chips),
+          bet,
+          winAmount: payout,
+          reels,
+          experience: gamification.experience,
+          level: gamification.level,
+          xpToNext: gamification.xpToNext,
+          newBadges: gamification.newBadges,
+          maxBetSlot: maxBetEffective,
+          roundId: context.roundId,
+          actionId: context.actionId,
+        },
+        loanPay,
       }
     })
     await saveIdempotentResult(idemKey, result)
     idemCommitted = true
+
+    const io = req.app.get('io') as Server | undefined
+    if (loanPay?.socketRepayment) {
+      emitToUsers(
+        io,
+        [loanPay.socketRepayment.borrowerId, loanPay.socketRepayment.lenderId],
+        FRIEND_LOAN_SOCKET.LOAN_REPAYMENT_PROGRESS,
+        loanPay.socketRepayment
+      )
+    }
+    if (loanPay?.socketCompleted) {
+      emitToUsers(
+        io,
+        [loanPay.socketCompleted.borrowerId, loanPay.socketCompleted.lenderId],
+        FRIEND_LOAN_SOCKET.LOAN_COMPLETED,
+        loanPay.socketCompleted
+      )
+    }
 
     return res.json(result)
   } catch (e) {

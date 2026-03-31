@@ -1,4 +1,5 @@
 import express from 'express'
+import { randomUUID } from 'node:crypto'
 import type { Server } from 'socket.io'
 import { prisma } from '../config/database.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
@@ -30,6 +31,10 @@ import {
   XP_BLACKJACK_HAND,
   XP_BLACKJACK_WIN_BONUS,
 } from '../logic/gamification.js'
+import { createCasinoRoundContext } from '../casino/services/roundContext.service.js'
+import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
+import { applyRepaymentOnPositiveWin } from '../services/friendLoan.service.js'
+import { emitToUsers, FRIEND_LOAN_SOCKET } from '../services/friendLoan.emit.js'
 
 const router = express.Router()
 
@@ -167,15 +172,63 @@ async function payoutAndFinish(
     payout: r.payout,
     reason: r.reason,
   }))
+  const gameId = table.gameId
+  const loanEmits: Awaited<ReturnType<typeof applyRepaymentOnPositiveWin>>[] = []
 
   await prisma.$transaction(async (tx) => {
     for (const row of rows) {
       const { userId, totalBet, payout, reason, username } = row
-      const updated = await tx.user.update({
+      const beforeRow = await tx.user.findUnique({
         where: { id: userId },
-        data: { chips: { increment: payout } },
         select: { chips: true, experience: true },
       })
+      if (!beforeRow) continue
+      const balBefore = intChips(beforeRow.chips)
+      let updated: { chips: number; experience: number }
+
+      if (payout > 0) {
+        const ctx = createCasinoRoundContext({
+          userId,
+          gameType: 'blackjack',
+          roundId: gameId,
+          actionId: randomUUID(),
+        })
+        const loanPay = await applyRepaymentOnPositiveWin(tx, {
+          userId,
+          gameType: 'BLACKJACK_MULTI',
+          grossWinAmount: payout,
+          casinoStakeAmount: totalBet,
+          sourceReferenceId: ctx.actionId,
+          casinoContext: ctx,
+          balanceBeforeGrossPayout: balBefore,
+          payoutLedgerReason: 'BLACKJACK_PAYOUT',
+        })
+        if (loanPay.socketRepayment || loanPay.socketCompleted) loanEmits.push(loanPay)
+        if (!loanPay.hadActiveLoan) {
+          updated = await tx.user.update({
+            where: { id: userId },
+            data: { chips: { increment: payout } },
+            select: { chips: true, experience: true },
+          })
+          await appendWalletLedgerEntry(
+            {
+              context: ctx,
+              reason: 'BLACKJACK_PAYOUT',
+              amount: payout,
+              balanceBefore: balBefore,
+              balanceAfter: intChips(updated.chips),
+            },
+            tx
+          )
+        } else {
+          updated = await tx.user.findUniqueOrThrow({
+            where: { id: userId },
+            select: { chips: true, experience: true },
+          })
+        }
+      } else {
+        updated = beforeRow
+      }
 
       const prevCasino = await tx.casinoStats.findUnique({ where: { userId } })
       if (!prevCasino) {
@@ -218,7 +271,25 @@ async function payoutAndFinish(
     }
   })
 
-  const gameId = table.gameId
+  for (const lp of loanEmits) {
+    if (lp.socketRepayment) {
+      emitToUsers(
+        io,
+        [lp.socketRepayment.borrowerId, lp.socketRepayment.lenderId],
+        FRIEND_LOAN_SOCKET.LOAN_REPAYMENT_PROGRESS,
+        lp.socketRepayment
+      )
+    }
+    if (lp.socketCompleted) {
+      emitToUsers(
+        io,
+        [lp.socketCompleted.borrowerId, lp.socketCompleted.lenderId],
+        FRIEND_LOAN_SOCKET.LOAN_COMPLETED,
+        lp.socketCompleted
+      )
+    }
+  }
+
   broadcastTable(gameId, table, io, { roundSummary })
 
   setTimeout(() => {

@@ -3,6 +3,9 @@ import i18n from '../i18n/config'
 import { io, Socket } from 'socket.io-client'
 import { useUser } from '../hooks/useUser'
 import { useToast } from './ToastContext'
+import { store } from '../store'
+import { api } from '../services/api'
+import { fetchBalanceFromServer } from '../utils/userProfile'
 
 export interface GameInvitationNotification {
   invitationId: string
@@ -197,6 +200,34 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       socket.off('JOIN_REQUEST_REJECTED')
     }
   }, [socket, addToast])
+
+  useEffect(() => {
+    if (!socket) return
+
+    const invalidateLoanList = () => {
+      store.dispatch(api.util.invalidateTags(['FriendLoan']))
+    }
+
+    const invalidateLoanListAndSyncBalance = () => {
+      invalidateLoanList()
+      void fetchBalanceFromServer({ authoritative: true })
+    }
+
+    const notifyOnly = [
+      'LOAN_REQUEST_RECEIVED',
+      'LOAN_REQUEST_ACCEPTED',
+      'LOAN_REQUEST_REJECTED',
+    ] as const
+    const walletEvents = ['LOAN_CREATED', 'LOAN_REPAYMENT_PROGRESS', 'LOAN_COMPLETED'] as const
+
+    notifyOnly.forEach((ev) => socket.on(ev, invalidateLoanList))
+    walletEvents.forEach((ev) => socket.on(ev, invalidateLoanListAndSyncBalance))
+
+    return () => {
+      notifyOnly.forEach((ev) => socket.off(ev, invalidateLoanList))
+      walletEvents.forEach((ev) => socket.off(ev, invalidateLoanListAndSyncBalance))
+    }
+  }, [socket])
 
   const connect = useCallback(() => {
     if (socket && !socket.connected) {

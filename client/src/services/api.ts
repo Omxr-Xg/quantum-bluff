@@ -74,7 +74,7 @@ export const api = createApi({
       return headers
     },
   }),
-  tagTypes: ['User', 'Game', 'Friend', 'FriendRequest', 'FriendMessage'],
+  tagTypes: ['User', 'Game', 'Friend', 'FriendRequest', 'FriendMessage', 'FriendLoan'],
   endpoints: (builder) => ({
     login: builder.mutation({
       query: (credentials) => ({
@@ -203,6 +203,61 @@ export const api = createApi({
     getPlayerStats: builder.query<PlayerStats, string>({
       query: (playerId) => `/game/stats/${playerId}`,
     }),
+
+    getFriendLoans: builder.query<
+      {
+        requestsSent: Record<string, unknown>[]
+        requestsReceived: Record<string, unknown>[]
+        activeLoans: Record<string, unknown>[]
+        completedLoans: Record<string, unknown>[]
+      },
+      void
+    >({
+      query: () => '/friends/loans',
+      providesTags: ['FriendLoan'],
+      refetchOnMountOrArgChange: true,
+    }),
+
+    getFriendLoan: builder.query<{ loan: Record<string, unknown> }, string>({
+      query: (loanId) => `/friends/loans/${loanId}`,
+      providesTags: (_r, _e, loanId) => [{ type: 'FriendLoan', id: loanId }],
+    }),
+
+    createFriendLoanRequest: builder.mutation<
+      { loanRequest: Record<string, unknown> },
+      { lenderId: string; amount: number; repaymentRate: number }
+    >({
+      query: (body) => ({
+        url: '/friends/loans/requests',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['FriendLoan'],
+    }),
+
+    acceptFriendLoanRequest: builder.mutation<{ loan: Record<string, unknown> }, { loanRequestId: string }>({
+      query: ({ loanRequestId }) => ({
+        url: `/friends/loans/requests/${loanRequestId}/accept`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['FriendLoan'],
+    }),
+
+    rejectFriendLoanRequest: builder.mutation<{ ok: boolean }, { loanRequestId: string }>({
+      query: ({ loanRequestId }) => ({
+        url: `/friends/loans/requests/${loanRequestId}/reject`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['FriendLoan'],
+    }),
+
+    cancelFriendLoanRequest: builder.mutation<{ ok: boolean }, { loanRequestId: string }>({
+      query: ({ loanRequestId }) => ({
+        url: `/friends/loans/requests/${loanRequestId}/cancel`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['FriendLoan'],
+    }),
   }),
 })
 
@@ -223,4 +278,11 @@ export const {
   useGetFriendMessagesQuery,
   useSendFriendMessageMutation,
   useGetPlayerStatsQuery,
+  useGetFriendLoansQuery,
+  useGetFriendLoanQuery,
+  useLazyGetFriendLoanQuery,
+  useCreateFriendLoanRequestMutation,
+  useAcceptFriendLoanRequestMutation,
+  useRejectFriendLoanRequestMutation,
+  useCancelFriendLoanRequestMutation,
 } = api
