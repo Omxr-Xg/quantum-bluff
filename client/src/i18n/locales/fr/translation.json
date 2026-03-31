@@ -913,5 +913,13 @@
       "tableLocked": "Une action est deja en cours sur cette table.",
       "unknown": "Etat runtime inattendu. Reessayez dans quelques instants."
     }
+  },
+  "dailyChallenges": {
+    "winWithPair": "Gagner une main avec une paire",
+    "win200Roulette": "Gagner 200 jetons a la roulette",
+    "play5Times": "Jouer 5 mains multijoueur",
+    "win200Slot": "Gagner 200 jetons a la machine a sous",
+    "claimReward": "Recuperer la recompense",
+    "reward": "Recompense :"
   }
 }
