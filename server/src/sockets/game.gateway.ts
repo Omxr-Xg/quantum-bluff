@@ -33,6 +33,11 @@ import { metrics as promMetrics } from '../observability/metrics.js'
 import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js'
 import { buildHiddenBetResolutionPayload } from '../poker/hiddenBets/hiddenBetSnapshot.js'
 import { resolveHiddenBetsForHand } from '../poker/hiddenBets/resolver/hiddenBetResolver.js'
+import {
+  applyRepaymentOnPokerSettlement,
+  type RepaymentSocketPayload,
+} from '../services/friendLoan.service.js'
+import { emitToUsers, FRIEND_LOAN_SOCKET } from '../services/friendLoan.emit.js'
 
 // 👇 B4 : IMPORT DU SERVICE ANTI-TRICHE 👇
 import { AntiCheatService } from '../services/antiCheat.service.js'
@@ -1191,14 +1196,85 @@ export class GameGateway {
     const balanceSnapshot = cashGame.onHandComplete()
     if (balanceSnapshot.length > 0) {
       try {
-        await prisma.$transaction(
-          balanceSnapshot.map(({ userId, chips }) =>
-            prisma.user.update({
-              where: { id: userId },
+        const loanEmits: {
+          socketRepayment?: RepaymentSocketPayload
+          socketCompleted?: RepaymentSocketPayload
+        }[] = []
+        await prisma.$transaction(async (tx) => {
+          const userIds = [...new Set(balanceSnapshot.map((b) => b.userId))]
+          const dbRows = await tx.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, chips: true },
+          })
+          const dbMap = new Map(dbRows.map((r) => [r.id, intChips(r.chips)]))
+          async function chipsFromDb(uid: string): Promise<number> {
+            if (!dbMap.has(uid)) {
+              const r = await tx.user.findUnique({
+                where: { id: uid },
+                select: { chips: true },
+              })
+              dbMap.set(uid, intChips(r?.chips ?? 0))
+            }
+            return dbMap.get(uid)!
+          }
+
+          const finalChips = new Map<string, number>()
+          for (const { userId, chips } of balanceSnapshot) {
+            finalChips.set(userId, intChips(chips))
+          }
+
+          for (const { userId, chips: snapRaw } of balanceSnapshot) {
+            const snap = intChips(snapRaw)
+            const db = dbMap.get(userId) ?? snap
+            const delta = snap - db
+            if (delta <= 0) continue
+            const r = await applyRepaymentOnPokerSettlement(tx, {
+              borrowerId: userId,
+              grossWinDelta: delta,
+              borrowerBalanceAfterFullWin: snap,
+              gameId,
+              handId: showdownSnapshot.handId,
+            })
+            if (r.repayment > 0 && r.lenderId) {
+              finalChips.set(userId, snap - r.repayment)
+              const lenderPrev = finalChips.has(r.lenderId)
+                ? finalChips.get(r.lenderId)!
+                : await chipsFromDb(r.lenderId)
+              finalChips.set(r.lenderId, lenderPrev + r.repayment)
+            }
+            if (r.socketRepayment || r.socketCompleted) {
+              loanEmits.push({
+                socketRepayment: r.socketRepayment,
+                socketCompleted: r.socketCompleted,
+              })
+            }
+          }
+
+          for (const [uid, chips] of finalChips) {
+            await tx.user.update({
+              where: { id: uid },
               data: { chips: intChips(chips) },
-            }),
-          ),
-        )
+            })
+          }
+        })
+        for (const ev of loanEmits) {
+          if (ev.socketRepayment) {
+            emitToUsers(
+              this.io,
+              [ev.socketRepayment.borrowerId, ev.socketRepayment.lenderId],
+              FRIEND_LOAN_SOCKET.LOAN_REPAYMENT_PROGRESS,
+              ev.socketRepayment
+            )
+          }
+          if (ev.socketCompleted) {
+            emitToUsers(
+              this.io,
+              [ev.socketCompleted.borrowerId, ev.socketCompleted.lenderId],
+              FRIEND_LOAN_SOCKET.LOAN_COMPLETED,
+              ev.socketCompleted
+            )
+          }
+        }
       } catch (err) {
         console.error('[CashGame] Erreur persistance soldes showdown:', err)
       }

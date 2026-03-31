@@ -13,6 +13,9 @@ export type BlackjackSession = {
   /** Mise totale engagée (initial ou 2× si double). */
   totalBet: number
   updatedAt: number
+  /** Reprise du tour pour le wallet / prêts (POST /start). */
+  roundId: string
+  actionId: string
 }
 
 const TTL_MS = 30 * 60 * 1000
