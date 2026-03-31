@@ -17,6 +17,7 @@ interface Challenge {
 export function DailyChallenges() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
 
   const { userId } = useUser();
@@ -25,22 +26,35 @@ export function DailyChallenges() {
   const fetchChallenges = async () => {
     if (!userId) {
       setChallenges([]);
+      setError(null);
       setLoading(false);
       return;
     }
 
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setChallenges([]);
+        setError("Missing auth token");
+        return;
+      }
+
       const res = await fetch(apiUrl("/api/daily-challenges/me"), {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await res.json();
+      if (!res.ok) {
+        setChallenges([]);
+        setError(data?.error || `HTTP ${res.status}`);
+        return;
+      }
 
       setChallenges(data.challenges || []); 
+      setError(null);
     } catch (err) {
       console.error("DailyChallenges error:", err);
+      setError("Network error");
     } finally {
       setLoading(false);
     }
@@ -53,23 +67,32 @@ export function DailyChallenges() {
   // CLAIM REWARD
   const handleClaim = async (challengeCode: string) => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Missing auth token");
+        return;
+      }
+
       const res = await fetch(apiUrl(`/api/daily-challenges/${challengeCode}/claim`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       const data = await res.json();
 
       if (data.success) {
+        setError(null);
         await fetchChallenges(); // refresh
       } else {
         console.error(data.error);
+        setError(data?.error || "Claim failed");
       }
     } catch (err) {
       console.error("Claim error:", err);
+      setError("Claim network error");
     }
   };
 
@@ -92,6 +115,9 @@ export function DailyChallenges() {
 
       {challenges.length === 0 && (
         <p className="text-gray-400 text-sm">No challenges available</p>
+      )}
+      {error && (
+        <p className="text-red-400 text-xs mt-2">{error}</p>
       )}
 
       <div className="space-y-3">
