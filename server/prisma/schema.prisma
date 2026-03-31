@@ -76,6 +76,11 @@ model User {
   walletEntries     WalletLedgerEntry[] // AJOUT: Relation pour la comptabilité du casino
   hiddenBetTickets  HiddenBetTicket[]
 
+  loanRequestsAsBorrower LoanRequest[] @relation("LoanRequestsBorrower")
+  loanRequestsAsLender   LoanRequest[] @relation("LoanRequestsLender")
+  loansAsBorrower        Loan[]        @relation("LoansBorrower")
+  loansAsLender          Loan[]        @relation("LoansLender")
+
   blackjackHostedRooms BlackjackRoom[] @relation("BlackjackRoomHost")
   blackjackRoomSeats   BlackjackRoomSeat[]
   sentBlackjackInvitations     BlackjackRoomInvitation[] @relation("BjRoomInviteSender")
@@ -150,6 +155,130 @@ model Friendship {
   @@unique([user1Id, user2Id])
   @@index([user1Id])
   @@index([user2Id])
+}
+
+// ============================================
+// PRÊTS ENTRE AMIS (V1)
+// ============================================
+
+enum LoanRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+enum LoanStatus {
+  ACTIVE
+  COMPLETED
+  DEFAULTED
+  CANCELLED
+}
+
+enum LoanLedgerEventType {
+  REQUEST_CREATED
+  REQUEST_ACCEPTED
+  REQUEST_REJECTED
+  REQUEST_CANCELLED
+  FUNDED
+  REPAYMENT_APPLIED
+  COMPLETED
+}
+
+enum LoanSourceGameType {
+  SLOT
+  ROULETTE
+  BLACKJACK_SOLO
+  BLACKJACK_MULTI
+  POKER_CASH
+}
+
+model LoanRequest {
+  id             String            @id @default(uuid())
+  borrowerId     String
+  lenderId       String
+  amount         Int
+  repaymentRate  Int
+  interestRate   Int
+  totalDue       Int
+  status         LoanRequestStatus @default(PENDING)
+  createdAt      DateTime          @default(now())
+  respondedAt    DateTime?
+  expiresAt      DateTime
+
+  borrower User  @relation("LoanRequestsBorrower", fields: [borrowerId], references: [id], onDelete: Cascade)
+  lender   User  @relation("LoanRequestsLender", fields: [lenderId], references: [id], onDelete: Cascade)
+  loan     Loan?
+  ledgerEvents LoanLedgerEvent[]
+
+  @@index([borrowerId, status])
+  @@index([lenderId, status])
+  @@map("loan_requests")
+}
+
+model Loan {
+  id               String      @id @default(uuid())
+  requestId        String      @unique
+  borrowerId       String
+  lenderId         String
+  principalAmount  Int
+  interestRate    Int
+  totalDue         Int
+  repaidAmount     Int         @default(0)
+  remainingAmount  Int
+  repaymentRate   Int
+  status           LoanStatus  @default(ACTIVE)
+  createdAt        DateTime    @default(now())
+  completedAt      DateTime?
+  lastRepaymentAt  DateTime?
+
+  request LoanRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  borrower User       @relation("LoansBorrower", fields: [borrowerId], references: [id], onDelete: Cascade)
+  lender   User       @relation("LoansLender", fields: [lenderId], references: [id], onDelete: Cascade)
+
+  repayments    LoanRepayment[]
+  ledgerEvents LoanLedgerEvent[]
+
+  @@index([borrowerId, status])
+  @@map("loans")
+}
+
+model LoanRepayment {
+  id                 String             @id @default(uuid())
+  loanId             String
+  borrowerId         String
+  lenderId           String
+  sourceGameType     LoanSourceGameType
+  sourceReferenceId  String
+  grossWinAmount     Int
+  repaymentAmount    Int
+  borrowerNetReceived Int
+  createdAt          DateTime           @default(now())
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@index([loanId])
+  @@index([borrowerId])
+  @@map("loan_repayments")
+}
+
+model LoanLedgerEvent {
+  id           String              @id @default(uuid())
+  loanId       String?
+  requestId    String?
+  type         LoanLedgerEventType
+  amount       Int
+  metadataJson Json?
+  createdAt    DateTime            @default(now())
+
+  loan    Loan?       @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  request LoanRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([loanId])
+  @@index([requestId])
+  @@index([createdAt])
+  @@map("loan_ledger_events")
 }
 
 model FriendMessage {
