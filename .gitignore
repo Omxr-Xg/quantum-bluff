@@ -20,3 +20,5 @@ server/junit.xml
 .cursor/**
 /Docs/SSH/
 temporaire/
+# Journaux de sauvegardes locales (cron / launchd)
+backups/*.log

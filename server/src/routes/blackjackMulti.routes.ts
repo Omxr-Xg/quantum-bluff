@@ -1,4 +1,5 @@
 import express from 'express'
+import { randomUUID } from 'node:crypto'
 import type { Server } from 'socket.io'
 import { prisma } from '../config/database.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
@@ -19,8 +20,10 @@ import {
 } from '../blackjack/services/blackjackTableLock.service.js'
 import {
   assessBlackjackRuntimeReadiness,
+  BLACKJACK_RUNTIME_STALE_MS,
   runtimeReadinessToHttp,
 } from '../blackjack/services/blackjackRuntimeHealth.service.js'
+import { resetStaleBlackjackPlaySession } from '../blackjack/recovery/blackjackRecovery.service.js'
 import {
   awardXpInTransaction,
   getEffectiveBlackjackMaxBet,
@@ -29,11 +32,15 @@ import {
   XP_BLACKJACK_WIN_BONUS,
 } from '../logic/gamification.js'
 import { incrementMultiplayerPlayCount } from '../dailyChallenges/dailyChallenge.service.js'
+import { createCasinoRoundContext } from '../casino/services/roundContext.service.js'
+import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
+import { applyRepaymentOnPositiveWin } from '../services/friendLoan.service.js'
+import { emitToUsers, FRIEND_LOAN_SOCKET } from '../services/friendLoan.emit.js'
 
 const router = express.Router()
 
 /** Révélation des cartes croupier + résultats (sync client animation). */
-const ROUND_REVEAL_MS = 3000
+const ROUND_REVEAL_MS = 2000
 
 type BjRoundSummaryRow = {
   userId: string
@@ -96,6 +103,45 @@ async function getRuntimeAssessment(gameId: string) {
   return { assessment, room, runtimeState }
 }
 
+type RuntimeAssessmentBundle = Awaited<ReturnType<typeof getRuntimeAssessment>>
+
+/**
+ * Détecte un runtime blackjack « stale » (partie abandonnée) et remet la salle en WAITING.
+ * Sinon renvoie le bundle d’évaluation sans second fetch.
+ */
+async function getRuntimeAssessmentWithStaleRecovery(
+  gameId: string
+): Promise<{ kind: 'reset'; roomId: string } | { kind: 'ok'; bundle: RuntimeAssessmentBundle }> {
+  const bundle = await getRuntimeAssessment(gameId)
+  if (bundle.assessment.status !== 'TABLE_STATE_STALE' || !bundle.room) {
+    return { kind: 'ok', bundle }
+  }
+  const didReset = await withBlackjackTableLock(
+    blackjackStateStore,
+    `room:${bundle.room.id}`,
+    async (): Promise<boolean> => {
+      const r = await prisma.blackjackRoom.findFirst({
+        where: { gameId },
+        select: { id: true, status: true },
+      })
+      if (!r || r.status !== 'PLAYING') return false
+      const rt = await blackjackStateStore.getTable(gameId)
+      if (!rt) return false
+      const ms = Date.parse(rt.updatedAt)
+      if (
+        !Number.isFinite(ms) ||
+        Date.now() - ms <= BLACKJACK_RUNTIME_STALE_MS
+      ) {
+        return false
+      }
+      await resetStaleBlackjackPlaySession({ roomId: r.id, gameId })
+      return true
+    }
+  )
+  if (didReset) return { kind: 'reset', roomId: bundle.room.id }
+  return { kind: 'ok', bundle }
+}
+
 function broadcastTable(
   gameId: string,
   table: BlackjackTableController,
@@ -127,15 +173,63 @@ async function payoutAndFinish(
     payout: r.payout,
     reason: r.reason,
   }))
+  const gameId = table.gameId
+  const loanEmits: Awaited<ReturnType<typeof applyRepaymentOnPositiveWin>>[] = []
 
   await prisma.$transaction(async (tx) => {
     for (const row of rows) {
       const { userId, totalBet, payout, reason, username } = row
-      const updated = await tx.user.update({
+      const beforeRow = await tx.user.findUnique({
         where: { id: userId },
-        data: { chips: { increment: payout } },
         select: { chips: true, experience: true },
       })
+      if (!beforeRow) continue
+      const balBefore = intChips(beforeRow.chips)
+      let updated: { chips: number; experience: number }
+
+      if (payout > 0) {
+        const ctx = createCasinoRoundContext({
+          userId,
+          gameType: 'blackjack',
+          roundId: gameId,
+          actionId: randomUUID(),
+        })
+        const loanPay = await applyRepaymentOnPositiveWin(tx, {
+          userId,
+          gameType: 'BLACKJACK_MULTI',
+          grossWinAmount: payout,
+          casinoStakeAmount: totalBet,
+          sourceReferenceId: ctx.actionId,
+          casinoContext: ctx,
+          balanceBeforeGrossPayout: balBefore,
+          payoutLedgerReason: 'BLACKJACK_PAYOUT',
+        })
+        if (loanPay.socketRepayment || loanPay.socketCompleted) loanEmits.push(loanPay)
+        if (!loanPay.hadActiveLoan) {
+          updated = await tx.user.update({
+            where: { id: userId },
+            data: { chips: { increment: payout } },
+            select: { chips: true, experience: true },
+          })
+          await appendWalletLedgerEntry(
+            {
+              context: ctx,
+              reason: 'BLACKJACK_PAYOUT',
+              amount: payout,
+              balanceBefore: balBefore,
+              balanceAfter: intChips(updated.chips),
+            },
+            tx
+          )
+        } else {
+          updated = await tx.user.findUniqueOrThrow({
+            where: { id: userId },
+            select: { chips: true, experience: true },
+          })
+        }
+      } else {
+        updated = beforeRow
+      }
 
       const prevCasino = await tx.casinoStats.findUnique({ where: { userId } })
       if (!prevCasino) {
@@ -179,7 +273,25 @@ async function payoutAndFinish(
     }
   })
 
-  const gameId = table.gameId
+  for (const lp of loanEmits) {
+    if (lp.socketRepayment) {
+      emitToUsers(
+        io,
+        [lp.socketRepayment.borrowerId, lp.socketRepayment.lenderId],
+        FRIEND_LOAN_SOCKET.LOAN_REPAYMENT_PROGRESS,
+        lp.socketRepayment
+      )
+    }
+    if (lp.socketCompleted) {
+      emitToUsers(
+        io,
+        [lp.socketCompleted.borrowerId, lp.socketCompleted.lenderId],
+        FRIEND_LOAN_SOCKET.LOAN_COMPLETED,
+        lp.socketCompleted
+      )
+    }
+  }
+
   broadcastTable(gameId, table, io, { roundSummary })
 
   setTimeout(() => {
@@ -593,51 +705,6 @@ router.post('/:roomId/start', authMiddleware, async (req, res) => {
           members,
         })
 
-        // Auto-mise + deal immédiat (comme un vrai casino)
-        const defaultBet = table.minBet
-        const memberUserIds = members.map((m) => m.userId)
-        const dbUsers = await prisma.user.findMany({
-          where: { id: { in: memberUserIds } },
-          select: { id: true, chips: true, experience: true },
-        })
-
-        if (dbUsers.length !== memberUserIds.length) {
-          throw makeHttpError(500, 'Erreur serveur')
-        }
-
-        for (const m of members) {
-          const u = dbUsers.find((x) => x.id === m.userId)
-          if (!u) continue
-          const lvl = levelFromExperience(u.experience)
-          const maxBetEffective = Math.min(
-            BLACKJACK_MAX_BET_CAP,
-            getEffectiveBlackjackMaxBet(lvl)
-          )
-
-          const v = validateBlackjackBet(defaultBet, u.chips, maxBetEffective)
-          if (!v.ok) {
-            throw makeHttpError(400, v.code, { code: v.code })
-          }
-
-          const upd = await prisma.user.updateMany({
-            where: { id: u.id, chips: { gte: v.bet } },
-            data: { chips: { decrement: v.bet } },
-          })
-          if (upd.count === 0) {
-            throw makeHttpError(409, 'INSUFFICIENT_CHIPS', { code: 'INSUFFICIENT_CHIPS' })
-          }
-
-          const placed = table.placeBet(u.id, v.bet, u.chips, maxBetEffective)
-          if (!placed.ok) {
-            throw makeHttpError(500, 'Erreur serveur')
-          }
-        }
-
-        const d = table.deal()
-        if (!d.ok) {
-          throw makeHttpError(500, d.code, { code: d.code })
-        }
-
         activeBlackjackGames.set(gameId, table)
 
         await prisma.blackjackRoom.update({
@@ -672,9 +739,25 @@ router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const { assessment, room, runtimeState } = await getRuntimeAssessment(
-      req.params.gameId
-    )
+    let outcome: Awaited<ReturnType<typeof getRuntimeAssessmentWithStaleRecovery>>
+    try {
+      outcome = await getRuntimeAssessmentWithStaleRecovery(req.params.gameId)
+    } catch (e) {
+      if (e instanceof BlackjackTableLockedError) {
+        return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+      }
+      throw e
+    }
+    if (outcome.kind === 'reset') {
+      return res.status(410).json({
+        error: 'TABLE_SESSION_RESET',
+        code: 'TABLE_SESSION_RESET',
+        message:
+          'La partie inactive a été fermée. Rouvrez la salle depuis le lobby.',
+        roomId: outcome.roomId,
+      })
+    }
+    const { assessment, room, runtimeState } = outcome.bundle
     if (!assessment.canServeState) {
       const out = runtimeReadinessToHttp(assessment)
       return res.status(out.status).json(out.body)
@@ -719,7 +802,25 @@ router.post('/game/:gameId/bet', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const { assessment } = await getRuntimeAssessment(req.params.gameId)
+    let outcome: Awaited<ReturnType<typeof getRuntimeAssessmentWithStaleRecovery>>
+    try {
+      outcome = await getRuntimeAssessmentWithStaleRecovery(req.params.gameId)
+    } catch (e) {
+      if (e instanceof BlackjackTableLockedError) {
+        return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+      }
+      throw e
+    }
+    if (outcome.kind === 'reset') {
+      return res.status(410).json({
+        error: 'TABLE_SESSION_RESET',
+        code: 'TABLE_SESSION_RESET',
+        message:
+          'La partie inactive a été fermée. Rouvrez la salle depuis le lobby.',
+        roomId: outcome.roomId,
+      })
+    }
+    const { assessment } = outcome.bundle
     if (!assessment.canAcceptActions) {
       const out = runtimeReadinessToHttp(assessment)
       return res.status(out.status).json(out.body)
@@ -783,7 +884,39 @@ router.post('/game/:gameId/bet', authMiddleware, async (req, res) => {
     activeBlackjackGames.sync(table.gameId)
 
     const io = getIo(req)
-    broadcastTable(table.gameId, table, io)
+    let autoDealResult: Awaited<ReturnType<typeof maybeRunDealerAndPayout>> = null
+
+    if (table.allSeatsReadyForDeal()) {
+      try {
+        autoDealResult = await withBlackjackTableLock(
+          blackjackStateStore,
+          `game:${table.gameId}`,
+          async () => {
+            const d = table.deal()
+            if (!d.ok) {
+              throw makeHttpError(400, d.code, { code: d.code })
+            }
+            activeBlackjackGames.sync(table.gameId)
+            const settled = await maybeRunDealerAndPayout(table, io)
+            if (!settled) {
+              broadcastTable(table.gameId, table, io)
+            }
+            return settled
+          }
+        )
+      } catch (e) {
+        if (e instanceof BlackjackTableLockedError) {
+          return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+        }
+        const he = e as RouteHttpError
+        if (he.httpStatus && he.httpBody) {
+          return res.status(he.httpStatus).json(he.httpBody)
+        }
+        throw e
+      }
+    } else {
+      broadcastTable(table.gameId, table, io)
+    }
 
     const fresh = await prisma.user.findUnique({
       where: { id: userId },
@@ -795,6 +928,12 @@ router.post('/game/:gameId/bet', authMiddleware, async (req, res) => {
       bet: preview.bet,
       chips: intChips(fresh?.chips ?? 0),
       state: table.toPublicState(userId),
+      ...(autoDealResult
+        ? {
+            settlements: autoDealResult.settlements,
+            roundSummary: autoDealResult.roundSummary,
+          }
+        : {}),
     })
   } catch (e) {
     console.error('blackjackMulti bet', e)
@@ -808,7 +947,25 @@ router.post('/game/:gameId/deal', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const { assessment } = await getRuntimeAssessment(req.params.gameId)
+    let outcome: Awaited<ReturnType<typeof getRuntimeAssessmentWithStaleRecovery>>
+    try {
+      outcome = await getRuntimeAssessmentWithStaleRecovery(req.params.gameId)
+    } catch (e) {
+      if (e instanceof BlackjackTableLockedError) {
+        return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+      }
+      throw e
+    }
+    if (outcome.kind === 'reset') {
+      return res.status(410).json({
+        error: 'TABLE_SESSION_RESET',
+        code: 'TABLE_SESSION_RESET',
+        message:
+          'La partie inactive a été fermée. Rouvrez la salle depuis le lobby.',
+        roomId: outcome.roomId,
+      })
+    }
+    const { assessment } = outcome.bundle
     if (!assessment.canAcceptActions) {
       const out = runtimeReadinessToHttp(assessment)
       return res.status(out.status).json(out.body)
@@ -874,7 +1031,25 @@ router.post('/game/:gameId/action', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const { assessment } = await getRuntimeAssessment(req.params.gameId)
+    let outcome: Awaited<ReturnType<typeof getRuntimeAssessmentWithStaleRecovery>>
+    try {
+      outcome = await getRuntimeAssessmentWithStaleRecovery(req.params.gameId)
+    } catch (e) {
+      if (e instanceof BlackjackTableLockedError) {
+        return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+      }
+      throw e
+    }
+    if (outcome.kind === 'reset') {
+      return res.status(410).json({
+        error: 'TABLE_SESSION_RESET',
+        code: 'TABLE_SESSION_RESET',
+        message:
+          'La partie inactive a été fermée. Rouvrez la salle depuis le lobby.',
+        roomId: outcome.roomId,
+      })
+    }
+    const { assessment } = outcome.bundle
     if (!assessment.canAcceptActions) {
       const out = runtimeReadinessToHttp(assessment)
       return res.status(out.status).json(out.body)

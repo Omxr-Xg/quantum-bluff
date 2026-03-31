@@ -118,13 +118,15 @@ export function EditProfile() {
             </h1>
 
             <div className="mb-8 pb-8 border-b border-slate-700">
-              <h2 className="text-xl font-semibold text-white mb-4">Photo de profil</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">
+                {t("editProfile.profilePhotoSection")}
+              </h2>
 
               <div className="flex flex-col md:flex-row md:items-center gap-6 mb-6">
                 <div className="w-32 h-32 rounded-full bg-gradient-to-br from-green-600 to-green-800 border-4 border-yellow-400 overflow-hidden flex items-center justify-center shadow-2xl">
                   <img
                     src={profileImage}
-                    alt="Profile preview"
+                    alt={t("editProfile.profilePreviewAlt")}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -143,21 +145,17 @@ export function EditProfile() {
                     className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg"
                   >
                     <Camera className="w-5 h-5" />
-                    Choisir une photo
+                    {t("editProfile.choosePhoto")}
                   </button>
-                  <p className="text-gray-400 text-sm mt-2">
-                    JPG, PNG ou GIF • Max 5MB
-                  </p>
+                  <p className="text-gray-400 text-sm mt-2">{t("editProfile.photoFormatsHint")}</p>
                 </div>
               </div>
 
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-white mb-3">
-                  Choisir un avatar
+                  {t("editProfile.avatarGalleryLabel")}
                 </h3>
-                <p className="text-gray-400 text-sm mb-4">
-                  Vous pouvez sélectionner un avatar prédéfini ou importer votre propre image.
-                </p>
+                <p className="text-gray-400 text-sm mb-4">{t("editProfile.avatarPresetHint")}</p>
                 <AvatarGallery
                   selectedAvatar={profileImage}
                   onSelect={handleAvatarSelect}
@@ -167,13 +165,13 @@ export function EditProfile() {
 
             <div className="mb-8 pb-8 border-b border-slate-700">
               <h2 className="text-xl font-semibold text-white mb-4">
-                Informations de base
+                {t("editProfile.basicInfoSection")}
               </h2>
 
               <div className="space-y-4">
                 <div>
                   <label className="block text-gray-400 text-sm font-semibold mb-2">
-                    Nom d'utilisateur
+                    {t("editProfile.usernameLabel")}
                   </label>
                   <input
                     type="text"
@@ -182,13 +180,13 @@ export function EditProfile() {
                       setFormData({ ...formData, username: e.target.value })
                     }
                     className="w-full bg-slate-700/50 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-green-500 transition-colors"
-                    placeholder="Votre nom d'utilisateur"
+                    placeholder={t("editProfile.usernamePlaceholder")}
                   />
                 </div>
 
                 <div>
                   <label className="block text-gray-400 text-sm font-semibold mb-2">
-                    Adresse email
+                    {t("editProfile.emailLabel")}
                   </label>
                   <input
                     type="email"
@@ -197,19 +195,21 @@ export function EditProfile() {
                       setFormData({ ...formData, email: e.target.value })
                     }
                     className="w-full bg-slate-700/50 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-green-500 transition-colors"
-                    placeholder="votre@email.com"
+                    placeholder={t("editProfile.emailPlaceholder")}
                   />
                 </div>
               </div>
             </div>
 
             <div className="mb-8">
-              <h2 className="text-xl font-semibold text-white mb-4">Sécurité</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">
+                {t("editProfile.securitySection")}
+              </h2>
 
               <div className="space-y-4">
                 <div>
                   <label className="block text-gray-400 text-sm font-semibold mb-2">
-                    Mot de passe actuel
+                    {t("editProfile.currentPasswordLabel")}
                   </label>
                   <div className="relative">
                     <input
@@ -219,7 +219,7 @@ export function EditProfile() {
                         setFormData({ ...formData, currentPassword: e.target.value })
                       }
                       className="w-full bg-slate-700/50 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-green-500 transition-colors pr-12"
-                      placeholder="Entrez votre mot de passe actuel"
+                      placeholder={t("editProfile.currentPasswordPlaceholder")}
                     />
                     <button
                       type="button"
@@ -237,7 +237,7 @@ export function EditProfile() {
 
                 <div>
                   <label className="block text-gray-400 text-sm font-semibold mb-2">
-                    Nouveau mot de passe
+                    {t("editProfile.newPasswordLabel")}
                   </label>
                   <div className="relative">
                     <input
@@ -247,7 +247,7 @@ export function EditProfile() {
                         setFormData({ ...formData, newPassword: e.target.value })
                       }
                       className="w-full bg-slate-700/50 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-green-500 transition-colors pr-12"
-                      placeholder="Entrez un nouveau mot de passe"
+                      placeholder={t("editProfile.newPasswordPlaceholder")}
                     />
                     <button
                       type="button"
@@ -262,13 +262,13 @@ export function EditProfile() {
                     </button>
                   </div>
                   <p className="text-gray-500 text-xs mt-1">
-                    Laissez vide si vous ne souhaitez pas changer
+                    {t("editProfile.newPasswordOptionalHint")}
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-gray-400 text-sm font-semibold mb-2">
-                    Confirmer le nouveau mot de passe
+                    {t("editProfile.confirmPasswordLabel")}
                   </label>
                   <div className="relative">
                     <input
@@ -278,7 +278,7 @@ export function EditProfile() {
                         setFormData({ ...formData, confirmPassword: e.target.value })
                       }
                       className="w-full bg-slate-700/50 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-green-500 transition-colors pr-12"
-                      placeholder="Confirmez votre nouveau mot de passe"
+                      placeholder={t("editProfile.confirmPasswordPlaceholder")}
                     />
                     <button
                       type="button"

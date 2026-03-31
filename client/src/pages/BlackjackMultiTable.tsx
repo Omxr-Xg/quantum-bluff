@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
@@ -6,18 +6,33 @@ import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
 import { apiUrl } from "../utils/apiBase";
-import { updateUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
-import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
+import {
+  updateUserBalance,
+  fetchBalanceFromServer,
+  getUserBalance,
+  BALANCE_CHANGED_EVENT,
+} from "../utils/userProfile";
+import {
+  mergeGamificationFromServerResponse,
+  getDisplayedBlackjackMaxBet,
+  refreshGamificationFromServer,
+  GAMIFICATION_CHANGED_EVENT,
+} from "../utils/gamificationStorage";
 import { BlackjackLobbyBackdrop } from "../components/blackjack/BlackjackLobbyBackdrop";
 import {
   BlackjackMultiCasinoTable,
+  handValueFromCards,
   type BjTableState,
 } from "../components/blackjack/BlackjackMultiCasinoTable";
 import {
   BlackjackRoundReveal,
+  bjOutcomeKind,
   type BjRoundSummaryRow,
 } from "../components/blackjack/BlackjackRoundReveal";
 import { mapBlackjackRuntimeCodeToUi } from "../features/blackjack/runtimeStatus";
+
+/** Same duration as `ROUND_REVEAL_MS` on the server before `finishHandAfterPayout`. */
+const PAYOUT_TABLE_REVEAL_MS = 2000;
 
 function authHeaders(): HeadersInit {
   const token = localStorage.getItem("token");
@@ -47,6 +62,10 @@ export function BlackjackMultiTable() {
   const [runtimeBanner, setRuntimeBanner] = useState<string | null>(null);
   const [runtimeSeverity, setRuntimeSeverity] = useState<"info" | "warning" | "error">("info");
   const [runtimeDisableActions, setRuntimeDisableActions] = useState(false);
+  const [showdownPhase, setShowdownPhase] = useState<"idle" | "table_reveal" | "results">("idle");
+  const showdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [playerChips, setPlayerChips] = useState(() => getUserBalance());
+  const [bjMaxDisplay, setBjMaxDisplay] = useState(() => getDisplayedBlackjackMaxBet());
 
   const applyRuntimeCode = useCallback(
     (code?: string) => {
@@ -73,6 +92,21 @@ export function BlackjackMultiTable() {
     [state, userId]
   );
 
+  const myHandTotal = useMemo(() => {
+    if (!mySeat?.cards.length) return null;
+    if (typeof mySeat.handTotal === "number") return mySeat.handTotal;
+    return handValueFromCards(mySeat.cards).total;
+  }, [mySeat]);
+
+  /** Résumé manche : priorité à l’état serveur (`payoutSummary`) pour toujours avoir les gains/pertes. */
+  const effectiveRoundSummary = useMemo(() => {
+    if (state?.phase !== "payout") return [];
+    if (state.payoutSummary?.length) return state.payoutSummary;
+    return roundSummary ?? [];
+  }, [state?.phase, state?.payoutSummary, roundSummary]);
+
+  const lastOutcomeToastHandRef = useRef<number | null>(null);
+
   const loadState = useCallback(async () => {
     if (!gameId) return;
     const res = await fetch(apiUrl(`/api/blackjack-tables/game/${gameId}/state`), {
@@ -83,7 +117,12 @@ export function BlackjackMultiTable() {
       return;
     }
     if (res.status === 410) {
-      addToast(t("bjMulti.tableGone"), "error");
+      const body = (await res.json().catch(() => ({}))) as { code?: string };
+      if (body.code === "TABLE_SESSION_RESET") {
+        addToast(t("bjMulti.runtime.sessionReset"), "info");
+      } else {
+        addToast(t("bjMulti.tableGone"), "error");
+      }
       navigate("/lobby?tab=blackjack");
       return;
     }
@@ -100,6 +139,7 @@ export function BlackjackMultiTable() {
     applyRuntimeCode(undefined);
     setState(data.state);
     setHostId(data.hostId);
+    setPlayerChips(getUserBalance());
   }, [gameId, navigate, addToast, t, applyRuntimeCode]);
 
   useEffect(() => {
@@ -121,6 +161,66 @@ export function BlackjackMultiTable() {
   }, [state?.phase]);
 
   useEffect(() => {
+    if (state?.phase === "betting") {
+      setShowdownPhase("idle");
+    }
+  }, [state?.phase]);
+
+  useEffect(() => {
+    if (state?.phase !== "payout") {
+      if (showdownTimerRef.current) {
+        clearTimeout(showdownTimerRef.current);
+        showdownTimerRef.current = null;
+      }
+      return;
+    }
+    if (!effectiveRoundSummary.length) return;
+
+    setShowdownPhase("table_reveal");
+    if (showdownTimerRef.current) clearTimeout(showdownTimerRef.current);
+    showdownTimerRef.current = setTimeout(() => {
+      showdownTimerRef.current = null;
+      setShowdownPhase("results");
+    }, PAYOUT_TABLE_REVEAL_MS);
+
+    return () => {
+      if (showdownTimerRef.current) {
+        clearTimeout(showdownTimerRef.current);
+        showdownTimerRef.current = null;
+      }
+    };
+  }, [state?.phase, state?.handNumber, effectiveRoundSummary]);
+
+  useEffect(() => {
+    if (state?.phase !== "payout" || !userId || isSpectator || !effectiveRoundSummary.length) return;
+    const row = effectiveRoundSummary.find((r) => r.userId === userId);
+    if (!row) return;
+    const h = state.handNumber;
+    if (lastOutcomeToastHandRef.current === h) return;
+    lastOutcomeToastHandRef.current = h;
+    const kind = bjOutcomeKind(row.reason);
+    if (kind === "win") addToast(t("bjMulti.toastYouWin", { chips: row.payout }), "success");
+    else if (kind === "push") addToast(t("bjMulti.toastYouPush", { chips: row.payout }), "info");
+    else addToast(t("bjMulti.toastYouLose"), "error");
+  }, [state?.phase, state?.handNumber, effectiveRoundSummary, userId, isSpectator, addToast, t]);
+
+  useEffect(() => {
+    const onBalance = () => setPlayerChips(getUserBalance());
+    window.addEventListener(BALANCE_CHANGED_EVENT, onBalance);
+    return () => window.removeEventListener(BALANCE_CHANGED_EVENT, onBalance);
+  }, []);
+
+  useEffect(() => {
+    void refreshGamificationFromServer().then(() => setBjMaxDisplay(getDisplayedBlackjackMaxBet()));
+  }, []);
+
+  useEffect(() => {
+    const sync = () => setBjMaxDisplay(getDisplayedBlackjackMaxBet());
+    window.addEventListener(GAMIFICATION_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(GAMIFICATION_CHANGED_EVENT, sync);
+  }, []);
+
+  useEffect(() => {
     if (!socket || !gameId) return;
     socket.emit("JOIN_BLACKJACK_TABLE", { gameId });
     const onUpdate = (payload: {
@@ -137,8 +237,17 @@ export function BlackjackMultiTable() {
         setRoundSummary(null);
       }
     };
-    const onSocketError = (payload: { code?: string; message?: string }) => {
+    const onSocketError = (payload: {
+      code?: string;
+      message?: string;
+      roomId?: string;
+    }) => {
       if (!payload?.code) return;
+      if (payload.code === "TABLE_SESSION_RESET") {
+        addToast(t("bjMulti.runtime.sessionReset"), "info");
+        navigate("/lobby?tab=blackjack");
+        return;
+      }
       applyRuntimeCode(payload.code);
       if (payload.message && payload.code !== "TABLE_LOCKED") {
         addToast(payload.message, "error");
@@ -164,6 +273,8 @@ export function BlackjackMultiTable() {
       const data = (await res.json().catch(() => ({}))) as {
         chips?: number;
         state?: BjTableState;
+        settlements?: Array<Record<string, unknown>>;
+        roundSummary?: BjRoundSummaryRow[];
         error?: string;
         code?: string;
       };
@@ -175,6 +286,12 @@ export function BlackjackMultiTable() {
       applyRuntimeCode(undefined);
       if (typeof data.chips === "number") updateUserBalance(data.chips);
       if (data.state) setState(data.state);
+      if (data.roundSummary?.length) setRoundSummary(data.roundSummary);
+      if (data.settlements?.length) {
+        for (const row of data.settlements) {
+          mergeGamificationFromServerResponse(row);
+        }
+      }
       await fetchBalanceFromServer({ authoritative: true });
     } finally {
       setActing(false);
@@ -267,8 +384,8 @@ export function BlackjackMultiTable() {
         for (const row of data.settlements) {
           mergeGamificationFromServerResponse(row);
         }
-        await fetchBalanceFromServer({ authoritative: true });
       }
+      await fetchBalanceFromServer({ authoritative: true });
     } finally {
       setActing(false);
     }
@@ -306,20 +423,30 @@ export function BlackjackMultiTable() {
   }
 
   const isHost = hostId === userId;
+  const allSeatsHaveBet =
+    state.phase === "betting" &&
+    state.seats.length > 0 &&
+    state.seats.every((s) => s.playState === "bet_placed");
   const canBet =
     !runtimeDisableActions &&
     !isSpectator &&
     state.phase === "betting" &&
     mySeat?.playState === "no_bet";
+  /** Distribution manuelle seulement si une mise existe mais pas tout le monde encore (ex. joueur AFK). */
   const canDeal =
     !runtimeDisableActions &&
-    !isSpectator && isHost && state.phase === "betting" && state.seats.some((s) => s.playState === "bet_placed");
+    !isSpectator &&
+    isHost &&
+    state.phase === "betting" &&
+    state.seats.some((s) => s.playState === "bet_placed") &&
+    !allSeatsHaveBet;
   const myTurn =
     !runtimeDisableActions &&
     !isSpectator &&
     state.phase === "player_turn" &&
     state.currentSeatUserId === userId &&
-    mySeat?.playState === "in_hand";
+    mySeat?.playState === "in_hand" &&
+    (myHandTotal == null || myHandTotal < 21);
   const canDouble = myTurn && mySeat && mySeat.cards.length === 2 && !mySeat.doubled;
 
   const btnBase =
@@ -381,7 +508,12 @@ export function BlackjackMultiTable() {
         </div>
       </div>
 
-      <BlackjackMultiCasinoTable state={state} userId={userId ?? null}>
+      <BlackjackMultiCasinoTable
+        state={state}
+        userId={userId ?? null}
+        playerBalance={isSpectator ? null : playerChips}
+        playerEffectiveMaxBet={bjMaxDisplay}
+      >
         {!isSpectator ? (
           <div className="flex flex-col items-center gap-5">
             {canBet && (
@@ -391,6 +523,7 @@ export function BlackjackMultiTable() {
                   <input
                     type="number"
                     min={state.minBet}
+                    max={bjMaxDisplay}
                     value={betInput}
                     onChange={(e) => setBetInput(Number(e.target.value))}
                     className="rounded-xl border-2 border-amber-700/50 bg-black/50 px-4 py-3 text-center font-mono text-lg text-white shadow-inner focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
@@ -452,8 +585,14 @@ export function BlackjackMultiTable() {
         )}
       </BlackjackMultiCasinoTable>
 
-      {state.phase === "payout" ? (
-        <BlackjackRoundReveal state={state} roundSummary={roundSummary ?? []} userId={userId ?? null} />
+      {showdownPhase === "table_reveal" ? (
+        <div className="pointer-events-none fixed bottom-6 left-1/2 z-[90] max-w-md -translate-x-1/2 rounded-full border border-amber-500/40 bg-black/75 px-6 py-3 text-center text-sm font-semibold text-amber-100 shadow-lg backdrop-blur-sm">
+          {t("bjMulti.showdownRevealing")}
+        </div>
+      ) : null}
+
+      {state.phase === "payout" && showdownPhase === "results" ? (
+        <BlackjackRoundReveal state={state} roundSummary={effectiveRoundSummary} userId={userId ?? null} />
       ) : null}
     </div>
   );

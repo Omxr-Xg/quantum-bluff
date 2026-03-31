@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useSocket } from "../hooks/useSocket";
+import { getHandCategoryIndex } from "../utils/pokerHandCategory";
 
 export interface HandProbability {
   handKey: string;
@@ -24,40 +25,24 @@ interface QuantumHUDContextType {
 const QuantumHUDContext = createContext<QuantumHUDContextType | undefined>(undefined);
 
 const RANK_ORDER = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
-const SUITS = ["hearts","diamonds","clubs","spades"];
 
 function rankIndex(v: string): number {
   const i = RANK_ORDER.indexOf(v);
   return i === -1 ? 0 : i;
 }
 
-function evalCategory(allValues: number[]): number {
-  const counts = new Map<number, number>();
-  for (const v of allValues) counts.set(v, (counts.get(v) ?? 0) + 1);
-  const groups = Array.from(counts.entries())
-    .map(([r, c]) => ({ r, c }))
-    .sort((a, b) => b.c - a.c || b.r - a.r);
-
-  const uniq = Array.from(new Set(allValues)).sort((a, b) => b - a);
-  if (uniq.includes(14)) uniq.push(1);
-  let run = 1, hasStraight = false;
-  for (let i = 0; i < uniq.length - 1; i++) {
-    if (uniq[i] - 1 === uniq[i + 1]) { run++; if (run >= 5) { hasStraight = true; break; } }
-    else run = 1;
-  }
-
-  if (groups[0]?.c === 4) return 7;
-  if (groups[0]?.c === 3 && groups[1]?.c >= 2) return 6;
-  if (hasStraight) return 4;
-  if (groups[0]?.c === 3) return 3;
-  if (groups[0]?.c === 2 && groups[1]?.c === 2) return 2;
-  if (groups[0]?.c === 2) return 1;
-  return 0;
-}
-
+/** Indices = catégories serveur (0–9), du plus faible au plus fort. */
 const HAND_KEYS = [
-  "highCard", "pair", "twoPair", "threeKind", "straight",
-  "flush", "fullHouse", "fourKind", "straightFlush"
+  "highCard",
+  "pair",
+  "twoPair",
+  "threeKind",
+  "straight",
+  "flush",
+  "quantumCombi",
+  "fullHouse",
+  "fourKind",
+  "straightFlush",
 ];
 
 function estimateWinProbability(
@@ -74,22 +59,14 @@ function estimateWinProbability(
     .filter((c): c is { suit: string; value: string } => c !== null)
     .map(c => ({ s: c.suit, v: rankIndex(c.value) + 2 }));
 
-  const allKnown = [...pCards, ...cCards];
-  const allValues = allKnown.map(c => c.v);
-
-  const suitCounts = new Map<string, number>();
-  for (const c of allKnown) suitCounts.set(c.s, (suitCounts.get(c.s) ?? 0) + 1);
-  const hasFlush = Array.from(suitCounts.values()).some(v => v >= 5);
-
-  let cat = evalCategory(allValues);
-  if (hasFlush && cat < 5) cat = 5;
+  const cat = getHandCategoryIndex(playerCards, communityCards);
 
   const currentHand = HAND_KEYS[cat] ?? "highCard";
 
   const communityCount = cCards.length;
   const cardsTocome = 5 - communityCount;
 
-  let baseStrength = cat / 8;
+  let baseStrength = cat / 9;
   const highCard = Math.max(...pCards.map(c => c.v));
   baseStrength += (highCard / 14) * 0.15;
   const hasPocket = pCards[0].v === pCards[1].v;

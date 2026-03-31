@@ -47,6 +47,16 @@ vi.mock("../components/blackjack/BlackjackLobbyBackdrop", () => ({
 
 vi.mock("../components/blackjack/BlackjackRoundReveal", () => ({
   BlackjackRoundReveal: () => <div data-testid="round-reveal" />,
+  bjOutcomeKind: (reason: string) => {
+    if (reason === "push") return "push";
+    if (
+      reason === "player_win" ||
+      reason === "player_blackjack" ||
+      reason === "dealer_bust"
+    )
+      return "win";
+    return "lose";
+  },
 }));
 
 vi.mock("../components/blackjack/BlackjackMultiCasinoTable", () => ({

@@ -21,10 +21,15 @@ import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { useGetFriendsQuery } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
+import {
+  getDisplayedBlackjackMaxBet,
+  refreshGamificationFromServer,
+  GAMIFICATION_CHANGED_EVENT,
+} from "../utils/gamificationStorage";
 
 type BjVisibility = "PUBLIC" | "PRIVATE";
 
-type MainTab = "poker" | "roulette" | "blackjack";
+type MainTab = "poker" | "minigames" | "blackjack";
 
 interface BjSeat {
   id: string;
@@ -85,6 +90,17 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
   const [newVis, setNewVis] = useState<BjVisibility>("PUBLIC");
   const [busy, setBusy] = useState<string | null>(null);
   const [invitedFriendIds, setInvitedFriendIds] = useState<string[]>([]);
+  const [bjMaxDisplay, setBjMaxDisplay] = useState(() => getDisplayedBlackjackMaxBet());
+
+  useEffect(() => {
+    void refreshGamificationFromServer().then(() => setBjMaxDisplay(getDisplayedBlackjackMaxBet()));
+  }, []);
+
+  useEffect(() => {
+    const sync = () => setBjMaxDisplay(getDisplayedBlackjackMaxBet());
+    window.addEventListener(GAMIFICATION_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(GAMIFICATION_CHANGED_EVENT, sync);
+  }, []);
 
   const setBjRoomInUrl = useCallback(
     (id: string) => {
@@ -426,7 +442,7 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
                     </span>
                   )}
                   <span className="text-xs text-gray-500">
-                    {t("bjMulti.minBetLabel")} {roomDetail.minBet} ·{" "}
+                    {t("bjMulti.betLimitsLine", { min: roomDetail.minBet, max: bjMaxDisplay })} ·{" "}
                     {t("bjMulti.seatsCount", { n: roomDetail.seats.length, max: roomDetail.maxSeats })}
                   </span>
                 </div>
@@ -740,7 +756,7 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
                       <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-400">
                         <Users className="h-3.5 w-3.5 shrink-0 opacity-70" />
                         {t("lobby.playersCount", { count: r.seats.length, max: r.maxSeats })} ·{" "}
-                        {t("bjMulti.minBetLabel")} {r.minBet}
+                        {t("bjMulti.betLimitsLine", { min: r.minBet, max: bjMaxDisplay })}
                         {isFull ? (
                           <span className="ml-1 text-amber-200/90">· {t("lobby.roomFull")}</span>
                         ) : null}

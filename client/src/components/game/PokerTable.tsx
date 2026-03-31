@@ -38,15 +38,19 @@ interface Player {
   isActive: boolean;
   isDealer?: boolean;
   cards?: Card[]; 
-  isConnected?: boolean; 
+  isConnected?: boolean;
+  /** URL d’avatar (multijoueur). */
+  avatar?: string;
 }
 
 interface PokerTableProps {
   players: Player[];
   children?: ReactNode;
+  /** Id du siège du joueur local (ex. même sémantique que `Game` / `PokerTable`). */
+  heroSeatId?: string | number | null;
 }
 
-export function PokerTable({ players, children }: PokerTableProps) {
+export function PokerTable({ players, children, heroSeatId = null }: PokerTableProps) {
   const { t } = useTranslation();
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
@@ -189,9 +193,9 @@ export function PokerTable({ players, children }: PokerTableProps) {
                     } rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-xl transition-all ${
                       player.isActive ? "border-2 border-yellow-300 scale-105" : "border-2 border-white"
                     }`}>
-                      {getPlayerAvatar(player.name) ? (
+                      {getPlayerAvatar(player.name, player.id, heroSeatId, player.avatar) ? (
                         <ImageWithFallback
-                          src={getPlayerAvatar(player.name) || ''}
+                          src={getPlayerAvatar(player.name, player.id, heroSeatId, player.avatar) || ''}
                           alt={`${player.name}'s avatar`}
                           className="w-full h-full rounded-full object-cover"
                         />

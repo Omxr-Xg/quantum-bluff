@@ -20,6 +20,8 @@ import {
   Club,
   Zap,
   Sparkles,
+  Disc,
+  SquareStack,
 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { FriendsList } from '../components/FriendsList';
@@ -30,6 +32,7 @@ import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { apiUrl } from "../utils/apiBase";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 import { DailyChallenges } from "../components/DailyChallenges";
+import { TournamentWidget } from '../components/TournamentWidget';
 
 function readLobbyTabFromUrl(): "poker" | "minigames" | "blackjack" {
   if (typeof window === "undefined") return "poker";
@@ -868,6 +871,9 @@ export function Lobby() {
                 </div>
               </div>
             </div>
+            
+            {/* Arène des tournois (en bas sous les serveurs multi-joueurs) */}
+            <TournamentWidget />
 
           </div>
 
@@ -876,38 +882,34 @@ export function Lobby() {
             className={`lg:col-span-2 grid grid-cols-1 gap-6 md:grid-cols-2 ${lobbyMainTab !== "minigames" ? "hidden" : ""}`}
             aria-hidden={lobbyMainTab !== "minigames"}
           >
-            <div className="rounded-2xl border border-emerald-500/70 bg-gradient-to-br from-emerald-950/95 via-slate-900 to-slate-950 p-6 shadow-lg shadow-emerald-950/30 ring-1 ring-emerald-400/20">
-              <h2 className="mb-3 flex items-center gap-2 text-xl font-bold text-emerald-50">
-                <span className="text-2xl" aria-hidden>
-                  🎡
-                </span>
+            <div className="rounded-2xl border border-green-500 bg-slate-800 p-6">
+              <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
+                <Disc className="h-8 w-8 shrink-0 text-green-400" strokeWidth={2.2} aria-hidden />
                 {t("minigames.rouletteTitle")}
               </h2>
-              <p className="mb-5 text-sm leading-relaxed text-emerald-100/75">
+              <p className="mb-4 text-sm leading-relaxed text-gray-400">
                 {t("minigames.rouletteBlurb")}
               </p>
               <button
                 type="button"
                 onClick={() => navigate("/minigames?game=roulette")}
-                className="w-full rounded-xl bg-emerald-600 py-4 text-base font-bold text-white shadow-md shadow-emerald-900/40 transition hover:bg-emerald-500"
+                className="w-full rounded-xl bg-green-600 py-4 text-base font-bold text-white transition hover:bg-green-500"
               >
                 {t("minigames.play")}
               </button>
             </div>
-            <div className="rounded-2xl border border-violet-500/70 bg-gradient-to-br from-violet-950/95 via-slate-900 to-slate-950 p-6 shadow-lg shadow-violet-950/30 ring-1 ring-violet-400/20">
-              <h2 className="mb-3 flex items-center gap-2 text-xl font-bold text-violet-50">
-                <span className="text-2xl" aria-hidden>
-                  🎰
-                </span>
+            <div className="rounded-2xl border border-blue-900/90 bg-gradient-to-br from-slate-900 via-[#0a1522] to-[#030910] p-6 shadow-[inset_0_1px_0_rgba(30,58,138,0.12)]">
+              <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
+                <SquareStack className="h-8 w-8 shrink-0 text-blue-500" strokeWidth={2.2} aria-hidden />
                 {t("minigames.slotTitle")}
               </h2>
-              <p className="mb-5 text-sm leading-relaxed text-violet-100/75">
+              <p className="mb-4 text-sm leading-relaxed text-slate-500">
                 {t("minigames.slotBlurb")}
               </p>
               <button
                 type="button"
                 onClick={() => navigate("/minigames?game=slots")}
-                className="w-full rounded-xl bg-violet-600 py-4 text-base font-bold text-white shadow-md shadow-violet-900/40 transition hover:bg-violet-500"
+                className="w-full rounded-xl bg-blue-800 py-4 text-base font-bold text-white transition hover:bg-blue-700"
               >
                 {t("minigames.play")}
               </button>

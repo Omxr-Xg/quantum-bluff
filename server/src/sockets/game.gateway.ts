@@ -14,14 +14,34 @@ import {
   XP_POKER_SHOWDOWN_LOSS,
   XP_POKER_SHOWDOWN_WIN,
 } from '../logic/gamification.js'
-import { assessBlackjackRuntimeReadiness } from '../blackjack/services/blackjackRuntimeHealth.service.js'
+import {
+  assessBlackjackRuntimeReadiness,
+  BLACKJACK_RUNTIME_STALE_MS,
+} from '../blackjack/services/blackjackRuntimeHealth.service.js'
+import { resetStaleBlackjackPlaySession } from '../blackjack/recovery/blackjackRecovery.service.js'
+import {
+  BlackjackTableLockedError,
+  withBlackjackTableLock,
+} from '../blackjack/services/blackjackTableLock.service.js'
 import { applyPokerAction } from '../poker/services/pokerActionOrchestrator.service.js'
+import {
+  PokerTableLockedError,
+  withPokerTableLock,
+} from '../poker/services/pokerTableLock.service.js'
 import { rootLogger } from '../observability/logger.js'
 import { metrics as promMetrics } from '../observability/metrics.js'
 import {
   incrementMultiplayerPlayCount,
   markWinWithPair,
 } from '../dailyChallenges/dailyChallenge.service.js'
+import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js'
+import { buildHiddenBetResolutionPayload } from '../poker/hiddenBets/hiddenBetSnapshot.js'
+import { resolveHiddenBetsForHand } from '../poker/hiddenBets/resolver/hiddenBetResolver.js'
+import {
+  applyRepaymentOnPokerSettlement,
+  type RepaymentSocketPayload,
+} from '../services/friendLoan.service.js'
+import { emitToUsers, FRIEND_LOAN_SOCKET } from '../services/friendLoan.emit.js'
 
 // 👇 B4 : IMPORT DU SERVICE ANTI-TRICHE 👇
 import { AntiCheatService } from '../services/antiCheat.service.js'
@@ -233,7 +253,7 @@ export class GameGateway {
         }
       )
 
-      socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string }) => {
+      socket.on('JOIN_GAME', async (data: { gameId: string; playerId: string; avatarUrl?: string }) => {
         try {
           const { gameId, playerId } = data
 
@@ -264,7 +284,20 @@ export class GameGateway {
           
           const game = await activeGames.get(gameId);
           if (game) {
-            socket.emit('GAME_UPDATE', game.getSanitizedState(playerId))
+            if (game instanceof CashGameController) {
+              game.setOnLiveBetWindowClosed(() => {
+                void this.broadcastCashGameSnapshot(gameId)
+              })
+              const url = sanitizePublicAvatarUrl(data.avatarUrl)
+              if (url) game.setSeatAvatar(playerId, url)
+              const socketsInRoom = await this.io.in(gameId).fetchSockets()
+              for (const s of socketsInRoom) {
+                const uid = (s as unknown as AuthenticatedSocket).userId
+                s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+              }
+            } else {
+              socket.emit('GAME_UPDATE', game.getSanitizedState(playerId))
+            }
             console.log(`✅ Joueur ${playerId} a rejoint la partie ${gameId}`)
           } else {
             logSuspiciousAction('GAME_NOT_FOUND', {
@@ -296,6 +329,11 @@ export class GameGateway {
 
           const game = await activeGames.get(gameId)
           if (game) {
+            if (game instanceof CashGameController) {
+              game.setOnLiveBetWindowClosed(() => {
+                void this.broadcastCashGameSnapshot(gameId)
+              })
+            }
             socket.emit('GAME_UPDATE', game.getSanitizedState())
             console.log(`👁️ Spectateur a rejoint la partie ${gameId}`)
           } else {
@@ -332,6 +370,50 @@ export class GameGateway {
               exists: false,
             },
           })
+          if (runtimeAssessment.status === 'TABLE_STATE_STALE' && room) {
+            try {
+              const didReset = await withBlackjackTableLock(
+                blackjackStateStore,
+                `room:${room.id}`,
+                async (): Promise<boolean> => {
+                  const r = await prisma.blackjackRoom.findFirst({
+                    where: { gameId },
+                    select: { id: true, status: true },
+                  })
+                  if (!r || r.status !== 'PLAYING') return false
+                  const rt = await blackjackStateStore.getTable(gameId)
+                  if (!rt) return false
+                  const ms = Date.parse(rt.updatedAt)
+                  if (
+                    !Number.isFinite(ms) ||
+                    Date.now() - ms <= BLACKJACK_RUNTIME_STALE_MS
+                  ) {
+                    return false
+                  }
+                  await resetStaleBlackjackPlaySession({ roomId: r.id, gameId })
+                  return true
+                }
+              )
+              if (didReset) {
+                socket.emit('ERROR', {
+                  code: 'TABLE_SESSION_RESET',
+                  message:
+                    'La partie inactive a été fermée. Rouvrez la salle depuis le lobby.',
+                  roomId: room.id,
+                })
+                return
+              }
+            } catch (bjLockErr) {
+              if (bjLockErr instanceof BlackjackTableLockedError) {
+                socket.emit('ERROR', {
+                  code: 'TABLE_LOCKED',
+                  message: 'Table verrouillée, réessaie.',
+                })
+                return
+              }
+              console.error('Erreur reset stale blackjack (JOIN):', bjLockErr)
+            }
+          }
           if (!runtimeAssessment.canServeState) {
             socket.emit('ERROR', {
               code: runtimeAssessment.status,
@@ -371,6 +453,21 @@ export class GameGateway {
           }
         })()
       })
+
+      // 👇 NOUVEAU : LE NETTOYAGE DU BLACKJACK 👇
+      socket.on('LEAVE_BLACKJACK_TABLE', (data: { gameId?: string }) => {
+        const gameId = data?.gameId;
+        if (!gameId) return;
+
+        socket.leave(gameId);
+        socket.leave(`blackjack:${gameId}`);
+        if (socket.gameId === gameId) {
+          socket.gameId = undefined;
+        }
+        
+        console.log(`👋 Socket ${socket.id} a quitté proprement la table blackjack ${gameId}`);
+      });
+      // 👆 FIN DU NOUVEAU BLOC 👆
 
       socket.on('SPECTATOR_QUEUE_JOIN', async (data: { gameId: string }) => {
         try {
@@ -535,35 +632,19 @@ export class GameGateway {
             }
             if (freshGame instanceof CashGameController) {
               const cashGame = freshGame as CashGameController
-              cashGame.onHandComplete()
-              await cashGame.processRejoinQueue(async (uid) => {
-                const u = await prisma.user.findUnique({
-                  where: { id: uid },
-                  select: { username: true, chips: true }
-                })
-                return u ? { username: u.username, chips: Math.max(100, u.chips ?? 1000) } : null
-              })
-              const socketsInRoom2 = await this.io.in(gameId).fetchSockets()
-              for (const s of socketsInRoom2) {
-                const uid = (s as unknown as AuthenticatedSocket).userId
-                s.emit('GAME_UPDATE', freshGame.getSanitizedState(uid))
-              }
-              this.io.to(gameId).emit('SHOWDOWN_RESULT', {
-                gameId,
-                handId: freshGame.state.handId,
-                winnerId: freshGame.state.showdownWinnerId,
-                winnerIds: freshGame.state.showdownWinnerIds ?? [],
+              const showdownSnapshot = {
+                handId: freshGame.state.handId ?? '',
                 handEndReason: freshGame.state.handEndReason,
-              })
-              this.io.to(gameId).emit('POT_DISTRIBUTED', {
+                showdownWinnerId: freshGame.state.showdownWinnerId,
+                showdownWinnerIds: freshGame.state.showdownWinnerIds,
+                showdownPot: freshGame.state.showdownPot,
+              }
+              await this.completeCashHandAndBroadcast(
                 gameId,
-                handId: freshGame.state.handId,
-                pot: freshGame.state.showdownPot ?? 0,
-              })
-              this.io.to(gameId).emit('NEXT_HAND_COUNTDOWN', {
-                gameId,
-                countdownEndsAt: freshGame.state.cashCountdownEndsAt,
-              })
+                cashGame,
+                cashGame.roomId,
+                showdownSnapshot
+              )
             }
           } else {
             this.startTurnTimer(gameId)
@@ -596,7 +677,7 @@ export class GameGateway {
         socket.broadcast.to(gameId).emit('GAME_CHAT', { playerId, playerName, content, type })
       })
 
-      socket.on('CASH_SIT', async (data: { gameId: string; seatIndex: number; buyIn: number }) => {
+      socket.on('CASH_SIT', async (data: { gameId: string; seatIndex: number; buyIn: number; avatarUrl?: string }) => {
         try {
           const { gameId, seatIndex, buyIn } = data
           if (!socket.userId || !gameId || socket.gameId !== gameId) return
@@ -606,7 +687,8 @@ export class GameGateway {
             where: { id: socket.userId },
             select: { username: true }
           })
-          const result = game.sit(socket.userId, user?.username ?? 'Joueur', seatIndex, buyIn ?? 100)
+          const avatarUrl = sanitizePublicAvatarUrl(data.avatarUrl)
+          const result = game.sit(socket.userId, user?.username ?? 'Joueur', seatIndex, buyIn ?? 100, avatarUrl)
           if (!result.ok) {
             socket.emit('ERROR', { code: 'CASH_SIT_FAILED', message: result.error })
             return
@@ -626,56 +708,137 @@ export class GameGateway {
       socket.on('CASH_LEAVE', async (data: { gameId: string }) => {
         try {
           const { gameId } = data
-          if (!socket.userId || !gameId || socket.gameId !== gameId) return
-          const game = await activeGames.get(gameId)
-          if (!(game instanceof CashGameController)) return
-          const roomId = game.roomId
-          const result = game.leave(socket.userId)
-          if (!result.ok) {
-            socket.emit('ERROR', { code: 'CASH_LEAVE_FAILED', message: result.error })
+          const userId = socket.userId
+          if (!userId || !gameId || socket.gameId !== gameId) return
+          await withPokerTableLock(gameId, `cashleave:${userId}`, async () => {
+            const game = await activeGames.get(gameId)
+            if (!(game instanceof CashGameController)) return
+            const roomId = game.roomId
+            const leaverId = userId
+
+            if (game.isInHand()) {
+              const r = game.quitVoluntaryDuringHand(leaverId)
+              if (!r.ok) {
+                socket.emit('ERROR', { code: 'CASH_LEAVE_FAILED', message: r.error })
+                return
+              }
+
+              this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: leaverId, scope: 'GAME' })
+              this.resetTimer(gameId)
+
+              const freshGame = await activeGames.get(gameId)
+              if (!freshGame) return
+
+              const socketsInRoom = await this.io.in(gameId).fetchSockets()
+              for (const s of socketsInRoom) {
+                const uid = (s as unknown as AuthenticatedSocket).userId
+                const isSpectator = !freshGame.getPlayerState(uid ?? '')
+                const snapshot = freshGame.getSanitizedState(isSpectator ? undefined : uid)
+                s.emit('GAME_UPDATE', snapshot)
+                s.emit('GAME_STATE_UPDATED', snapshot)
+              }
+              this.io.to(gameId).emit('HAND_STATE_CHANGED', {
+                gameId,
+                phase: freshGame.state.phase,
+                handRuntimePhase: freshGame.state.handRuntimePhase,
+                handEndReason: freshGame.state.handEndReason,
+                handId: freshGame.state.handId,
+              })
+
+              if (r.showdown && freshGame instanceof CashGameController) {
+                const cashGame = freshGame as CashGameController
+                this.io.to(gameId).emit('SHOWDOWN_REVEAL', {
+                  gameId,
+                  handId: freshGame.state.handId,
+                  handEndReason: freshGame.state.handEndReason,
+                })
+                const innerGame = cashGame.getGameTable()
+                if (innerGame && freshGame.state.showdownWinnerId) {
+                  this.recordMultiPlayerStats(innerGame as GameTable).catch((err) =>
+                    console.error('[Stats] Erreur enregistrement stats multi:', err)
+                  )
+                }
+                const showdownSnapshot = {
+                  handId: freshGame.state.handId ?? '',
+                  handEndReason: freshGame.state.handEndReason,
+                  showdownWinnerId: freshGame.state.showdownWinnerId,
+                  showdownWinnerIds: freshGame.state.showdownWinnerIds,
+                  showdownPot: freshGame.state.showdownPot,
+                }
+                await this.completeCashHandAndBroadcast(
+                  gameId,
+                  cashGame,
+                  roomId,
+                  showdownSnapshot
+                )
+              } else {
+                this.startTurnTimer(gameId)
+              }
+              return
+            }
+
+            const result = game.leave(leaverId)
+            if (!result.ok) {
+              socket.emit('ERROR', { code: 'CASH_LEAVE_FAILED', message: result.error })
+              return
+            }
+
+            let dissolveReason: 'all_players_left' | 'heads_up_peer_left' | null = null
+
+            this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: leaverId, scope: 'GAME' })
+
+            if (game.getOccupiedCount() === 1) {
+              const remaining = game.getOccupiedSeats()[0]?.userId
+              if (remaining) {
+                game.cancelInterHandCountdown()
+                game.leave(remaining)
+                dissolveReason = 'heads_up_peer_left'
+              }
+            }
+
+            if (game.getOccupiedCount() > 0) {
+              const socketsInRoom = await this.io.in(gameId).fetchSockets()
+              for (const s of socketsInRoom) {
+                const uid = (s as unknown as AuthenticatedSocket).userId
+                const snapshot = game.getSanitizedState(uid)
+                s.emit('GAME_UPDATE', snapshot)
+                s.emit('GAME_STATE_UPDATED', snapshot)
+              }
+            }
+
+            if (game.getOccupiedCount() === 0) {
+              if (!dissolveReason) dissolveReason = 'all_players_left'
+              await activeGames.delete(gameId)
+              try {
+                await prisma.waitingRoom.updateMany({
+                  where: { id: roomId },
+                  data: { status: 'WAITING', gameId: null },
+                })
+              } catch (err) {
+                // Some CI test databases do not include waiting room tables.
+                // Game teardown must still complete and emit GAME_ENDED.
+                rootLogger.warn({
+                  msg: 'cash_leave_waiting_room_update_failed',
+                  gameId,
+                  roomId,
+                  detail: err instanceof Error ? err.message : String(err),
+                })
+              }
+              this.io.to(gameId).emit('GAME_ENDED', {
+                gameId,
+                reason: dissolveReason,
+                roomId,
+              })
+            }
+          })
+        } catch (err) {
+          if (err instanceof PokerTableLockedError) {
+            socket.emit('ERROR', {
+              code: 'TABLE_LOCKED',
+              message: 'Une action est déjà en cours sur cette table.',
+            })
             return
           }
-
-          const leaverId = socket.userId
-          let dissolveReason: 'all_players_left' | 'heads_up_peer_left' | null = null
-
-          this.io.to(gameId).emit('PLAYER_LEFT', { gameId, playerId: leaverId, scope: 'GAME' })
-
-          // Heads-up : s’il ne reste qu’un joueur entre deux mains, on dissout la table (retour salle d’attente).
-          // 3+ joueurs : la partie continue avec les sièges restants.
-          if (game.getOccupiedCount() === 1) {
-            const remaining = game.getOccupiedSeats()[0]?.userId
-            if (remaining) {
-              game.cancelInterHandCountdown()
-              game.leave(remaining)
-              dissolveReason = 'heads_up_peer_left'
-            }
-          }
-
-          if (game.getOccupiedCount() > 0) {
-            const socketsInRoom = await this.io.in(gameId).fetchSockets()
-            for (const s of socketsInRoom) {
-              const uid = (s as unknown as AuthenticatedSocket).userId
-              const snapshot = game.getSanitizedState(uid)
-              s.emit('GAME_UPDATE', snapshot)
-              s.emit('GAME_STATE_UPDATED', snapshot)
-            }
-          }
-
-          if (game.getOccupiedCount() === 0) {
-            if (!dissolveReason) dissolveReason = 'all_players_left'
-            await activeGames.delete(gameId)
-            await prisma.waitingRoom.updateMany({
-              where: { id: roomId },
-              data: { status: 'WAITING', gameId: null },
-            })
-            this.io.to(gameId).emit('GAME_ENDED', {
-              gameId,
-              reason: dissolveReason,
-              roomId,
-            })
-          }
-        } catch (err) {
           console.error('Erreur CASH_LEAVE:', err)
         }
       })
@@ -701,7 +864,39 @@ export class GameGateway {
         }
       })
 
-      socket.on('RECONNECT_GAME', async (data: { gameId: string }) => {
+      socket.on('CASH_NEXT_HAND_READY', async (data: { gameId: string; ready: boolean }) => {
+        try {
+          const { gameId, ready } = data
+          if (!socket.userId || !gameId || socket.gameId !== gameId) return
+
+          const game = await activeGames.get(gameId)
+          if (!(game instanceof CashGameController)) return
+
+          const result = game.setNextHandReady(socket.userId, Boolean(ready))
+
+          this.io.to(gameId).emit('CASH_NEXT_HAND_READY_UPDATED', {
+            readyUserIds: result.readyUserIds,
+            allReady: result.allReady,
+          })
+
+          if (result.allReady) {
+            game.startHand()
+            await this.broadcastCashGameSnapshot(gameId)
+            this.io.to(gameId).emit('HAND_STATE_CHANGED', {
+              gameId,
+              phase: game.state.phase,
+              handRuntimePhase: game.state.handRuntimePhase,
+              handEndReason: game.state.handEndReason,
+              handId: game.state.handId,
+            })
+            this.resetTimer(gameId)
+          }
+        } catch (err) {
+          console.error('Erreur CASH_NEXT_HAND_READY:', err)
+        }
+      })
+
+      socket.on('RECONNECT_GAME', async (data: { gameId: string; avatarUrl?: string }) => {
         try {
           const { gameId } = data
 
@@ -725,7 +920,17 @@ export class GameGateway {
               player.isConnected = true
             }
 
-            socket.emit('GAME_UPDATE', game.getSanitizedState(socket.userId))
+            if (game instanceof CashGameController) {
+              const url = sanitizePublicAvatarUrl(data.avatarUrl)
+              if (url) game.setSeatAvatar(socket.userId, url)
+              const socketsInRoom = await this.io.in(gameId).fetchSockets()
+              for (const s of socketsInRoom) {
+                const uid = (s as unknown as AuthenticatedSocket).userId
+                s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+              }
+            } else {
+              socket.emit('GAME_UPDATE', game.getSanitizedState(socket.userId))
+            }
             this.io.to(gameId).emit('PLAYER_RECONNECTED', {
               playerId: socket.userId,
               gameId
@@ -847,15 +1052,21 @@ export class GameGateway {
                   }
                   if (game.getOccupiedCount() === 0) {
                     await activeGames.delete(gameId)
-                    await prisma.waitingRoom.updateMany({
-                      where: { id: game.roomId },
-                      data: { status: 'WAITING', gameId: null },
-                    })
+                    
+                    // 1. 🚀 ON PRÉVIENT LE FRONTEND IMMÉDIATEMENT
                     this.io.to(gameId).emit('GAME_ENDED', {
                       gameId,
                       reason: 'all_players_left',
                       roomId: game.roomId,
                     })
+
+                    // 2. 💾 ON SAUVEGARDE EN BDD APRÈS (avec un .catch pour le CI GitLab)
+                    await prisma.waitingRoom.updateMany({
+                      where: { id: game.roomId },
+                      data: { status: 'WAITING', gameId: null },
+                    }).catch(err => {
+                      console.error("[Test/BDD] Erreur update waitingRoom ignorée :", err.message);
+                    });
                   }
                 }
               }
@@ -936,6 +1147,198 @@ export class GameGateway {
       }
     }
     console.log(`[Stats] Stats multi enregistrées pour la partie ${game.id} (gagnant: ${winnerId})`)
+  }
+
+  /**
+   * Après une main cash : HU → s’il ne reste qu’un joueur, retour lobby (GAME_ENDED).
+   */
+  private async maybeDissolveCashAfterHand(
+    cashGame: CashGameController,
+    gameId: string,
+    roomId: string
+  ): Promise<boolean> {
+    let dissolveReason: 'all_players_left' | 'heads_up_peer_left' | null = null
+    if (cashGame.getOccupiedCount() === 1) {
+      const remaining = cashGame.getOccupiedSeats()[0]?.userId
+      if (remaining) {
+        cashGame.cancelInterHandCountdown()
+        cashGame.leave(remaining)
+        dissolveReason = 'heads_up_peer_left'
+      }
+    }
+    if (cashGame.getOccupiedCount() === 0) {
+      if (!dissolveReason) dissolveReason = 'all_players_left'
+      await activeGames.delete(gameId)
+      await prisma.waitingRoom.updateMany({
+        where: { id: roomId },
+        data: { status: 'WAITING', gameId: null },
+      })
+      this.io.to(gameId).emit('GAME_ENDED', {
+        gameId,
+        reason: dissolveReason,
+        roomId,
+      })
+      return true
+    }
+    return false
+  }
+
+  private async broadcastCashGameSnapshot(gameId: string): Promise<void> {
+    const game = await activeGames.get(gameId)
+    if (!game || !(game instanceof CashGameController)) return
+    const socketsInRoom = await this.io.in(gameId).fetchSockets()
+    for (const s of socketsInRoom) {
+      const uid = (s as unknown as AuthenticatedSocket).userId
+      const isSpectator = !game.getPlayerState(uid ?? '')
+      const snapshot = game.getSanitizedState(isSpectator ? undefined : uid)
+      s.emit('GAME_UPDATE', snapshot)
+      s.emit('GAME_STATE_UPDATED', snapshot)
+    }
+  }
+
+  private async completeCashHandAndBroadcast(
+    gameId: string,
+    cashGame: CashGameController,
+    roomId: string,
+    showdownSnapshot: {
+      handId: string
+      handEndReason?: string
+      showdownWinnerId?: string
+      showdownWinnerIds?: string[]
+      showdownPot?: number
+    }
+  ): Promise<void> {
+    const hiddenBetSnap = buildHiddenBetResolutionPayload(gameId, cashGame)
+    const balanceSnapshot = cashGame.onHandComplete()
+    if (balanceSnapshot.length > 0) {
+      try {
+        const loanEmits: {
+          socketRepayment?: RepaymentSocketPayload
+          socketCompleted?: RepaymentSocketPayload
+        }[] = []
+        await prisma.$transaction(async (tx) => {
+          const userIds = [...new Set(balanceSnapshot.map((b) => b.userId))]
+          const dbRows = await tx.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, chips: true },
+          })
+          const dbMap = new Map(dbRows.map((r) => [r.id, intChips(r.chips)]))
+          async function chipsFromDb(uid: string): Promise<number> {
+            if (!dbMap.has(uid)) {
+              const r = await tx.user.findUnique({
+                where: { id: uid },
+                select: { chips: true },
+              })
+              dbMap.set(uid, intChips(r?.chips ?? 0))
+            }
+            return dbMap.get(uid)!
+          }
+
+          const finalChips = new Map<string, number>()
+          for (const { userId, chips } of balanceSnapshot) {
+            finalChips.set(userId, intChips(chips))
+          }
+
+          for (const { userId, chips: snapRaw } of balanceSnapshot) {
+            const snap = intChips(snapRaw)
+            const db = dbMap.get(userId) ?? snap
+            const delta = snap - db
+            if (delta <= 0) continue
+            const r = await applyRepaymentOnPokerSettlement(tx, {
+              borrowerId: userId,
+              grossWinDelta: delta,
+              borrowerBalanceAfterFullWin: snap,
+              gameId,
+              handId: showdownSnapshot.handId,
+            })
+            if (r.repayment > 0 && r.lenderId) {
+              finalChips.set(userId, snap - r.repayment)
+              const lenderPrev = finalChips.has(r.lenderId)
+                ? finalChips.get(r.lenderId)!
+                : await chipsFromDb(r.lenderId)
+              finalChips.set(r.lenderId, lenderPrev + r.repayment)
+            }
+            if (r.socketRepayment || r.socketCompleted) {
+              loanEmits.push({
+                socketRepayment: r.socketRepayment,
+                socketCompleted: r.socketCompleted,
+              })
+            }
+          }
+
+          for (const [uid, chips] of finalChips) {
+            await tx.user.update({
+              where: { id: uid },
+              data: { chips: intChips(chips) },
+            })
+          }
+        })
+        for (const ev of loanEmits) {
+          if (ev.socketRepayment) {
+            emitToUsers(
+              this.io,
+              [ev.socketRepayment.borrowerId, ev.socketRepayment.lenderId],
+              FRIEND_LOAN_SOCKET.LOAN_REPAYMENT_PROGRESS,
+              ev.socketRepayment
+            )
+          }
+          if (ev.socketCompleted) {
+            emitToUsers(
+              this.io,
+              [ev.socketCompleted.borrowerId, ev.socketCompleted.lenderId],
+              FRIEND_LOAN_SOCKET.LOAN_COMPLETED,
+              ev.socketCompleted
+            )
+          }
+        }
+      } catch (err) {
+        console.error('[CashGame] Erreur persistance soldes showdown:', err)
+      }
+    }
+    if (hiddenBetSnap) {
+      try {
+        await resolveHiddenBetsForHand(hiddenBetSnap, this.io)
+      } catch (err) {
+        rootLogger.error({ msg: 'hidden_bet_resolve_hand_failed', gameId, handId: hiddenBetSnap.handId, err: String(err) })
+      }
+    }
+    await cashGame.processRejoinQueue(async (uid) => {
+      const u = await prisma.user.findUnique({
+        where: { id: uid },
+        select: { username: true, chips: true },
+      })
+      return u ? { username: u.username, chips: Math.max(100, u.chips ?? 1000) } : null
+    })
+    const socketsInRoom2 = await this.io.in(gameId).fetchSockets()
+    for (const s of socketsInRoom2) {
+      const uid = (s as unknown as AuthenticatedSocket).userId
+      const snapshot = cashGame.getSanitizedState(uid)
+      s.emit('GAME_UPDATE', snapshot)
+      s.emit('GAME_STATE_UPDATED', snapshot)
+    }
+    this.io.to(gameId).emit('SHOWDOWN_RESULT', {
+      gameId,
+      handId: showdownSnapshot.handId,
+      winnerId: showdownSnapshot.showdownWinnerId,
+      winnerIds: showdownSnapshot.showdownWinnerIds ?? [],
+      handEndReason: showdownSnapshot.handEndReason,
+    })
+    this.io.to(gameId).emit('POT_DISTRIBUTED', {
+      gameId,
+      handId: showdownSnapshot.handId,
+      pot: showdownSnapshot.showdownPot ?? 0,
+    })
+    const dissolved = await this.maybeDissolveCashAfterHand(cashGame, gameId, roomId)
+    if (!dissolved) {
+      const snap = cashGame.getSanitizedState()
+      this.io.to(gameId).emit('CASH_WAITING_PLAYERS', {
+        cashSeats: snap.cashSeats,
+      })
+      this.io.to(gameId).emit('CASH_NEXT_HAND_READY_UPDATED', {
+        readyUserIds: cashGame.getNextHandReadyUserIds(),
+        allReady: cashGame.isAllNextHandPlayersReady(),
+      })
+    }
   }
 
   private bumpTurnTimerEpoch(gameId: string): number {

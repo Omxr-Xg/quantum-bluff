@@ -67,7 +67,66 @@ describe('Evaluator - getHandInfo', () => {
     ];
     const info = getHandInfo(cards);
     expect(info.handName).toBe('Quinte flush');
-    expect(info.category).toBe(8);
+    expect(info.category).toBe(9);
+  });
+
+  test('Quantum Combi : au moins un 3,5,6,7,10 sur 7 cartes', () => {
+    const cards = [
+      card('A', 'HEARTS'),
+      card('K', 'DIAMONDS'),
+      card('10', 'CLUBS'),
+      card('7', 'SPADES'),
+      card('6', 'HEARTS'),
+      card('5', 'DIAMONDS'),
+      card('3', 'CLUBS'),
+    ];
+    const info = getHandInfo(cards);
+    expect(info.handName).toBe('Quantum Combi');
+    expect(info.category).toBe(6);
+  });
+
+  test('Full bat Quantum Combi', () => {
+    const full = [
+      card('A', 'HEARTS'),
+      card('A', 'DIAMONDS'),
+      card('K', 'CLUBS'),
+      card('K', 'SPADES'),
+      card('K', 'HEARTS'),
+    ];
+    const quantum = [
+      card('A', 'HEARTS'),
+      card('K', 'DIAMONDS'),
+      card('10', 'CLUBS'),
+      card('7', 'SPADES'),
+      card('6', 'HEARTS'),
+      card('5', 'DIAMONDS'),
+      card('3', 'CLUBS'),
+    ];
+    expect(getHandValue(full)).toBeGreaterThan(getHandValue(quantum));
+  });
+
+  test('Quantum Combi bat Couleur', () => {
+    const flush7 = [
+      card('2', 'HEARTS'),
+      card('4', 'HEARTS'),
+      card('6', 'HEARTS'),
+      card('8', 'HEARTS'),
+      card('9', 'HEARTS'),
+      card('J', 'HEARTS'),
+      card('A', 'HEARTS'),
+    ];
+    const quantum7 = [
+      card('A', 'HEARTS'),
+      card('K', 'DIAMONDS'),
+      card('10', 'CLUBS'),
+      card('7', 'SPADES'),
+      card('6', 'HEARTS'),
+      card('5', 'DIAMONDS'),
+      card('3', 'CLUBS'),
+    ];
+    expect(getHandInfo(quantum7).category).toBe(6);
+    expect(getHandInfo(flush7).category).toBe(5);
+    expect(getHandValue(quantum7)).toBeGreaterThan(getHandValue(flush7));
   });
 
   test('fonctionne avec moins de 5 cartes (haute carte)', () => {

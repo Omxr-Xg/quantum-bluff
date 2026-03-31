@@ -80,7 +80,7 @@ export function Auth() {
     try {
       const { exists } = await checkEmail({ email: email.trim() }).unwrap();
       setStep(exists ? "login" : "register");
-    } catch (err) {
+    } catch {
       // Error handled by checkError
     }
   };
@@ -103,7 +103,7 @@ export function Auth() {
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
       window.dispatchEvent(new Event("auth-changed"));
       navigate(from, { replace: true });
-    } catch (err) {
+    } catch {
       // Error handled by loginError
     }
   };
@@ -131,7 +131,7 @@ export function Auth() {
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
       window.dispatchEvent(new Event("auth-changed"));
       navigate("/lobby", { replace: true });
-    } catch (err) {
+    } catch {
       // Error handled by registerError
     }
   };
@@ -177,8 +177,8 @@ export function Auth() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- déclenche une seule fois au passage à l’étape « oubli »
   }, [step, email]);
+
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();

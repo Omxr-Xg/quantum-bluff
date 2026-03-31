@@ -20,8 +20,23 @@ export class GameTable {
   private readonly bigBlindAmount: number
   private minRaiseIncrement: number
   private handParticipantIds: Set<string>
+  private readonly liveBetWindowMs: number
+  /** Si true, pas de pause paris live (tests / outils). */
+  private readonly liveBetWindowDisabled: boolean
+  /** Premier joueur à agir après fermeture fenêtre paris live (entre streets). */
+  private pendingFirstToActAfterLiveWindow: string | null = null
 
-  constructor(id: string, players: Player[], options?: { smallBlind?: number; bigBlind?: number }) {
+  constructor(
+    id: string,
+    players: Player[],
+    options?: {
+      smallBlind?: number
+      bigBlind?: number
+      liveBetWindowMs?: number
+      /** Désactive les fenêtres gelées (comportement historique immédiat). */
+      liveBetWindowDisabled?: boolean
+    }
+  ) {
     this.id = id
     this.deck = new Deck()
     this.dealerIndex = 0
@@ -33,6 +48,8 @@ export class GameTable {
     this.bigBlindAmount = intChips(options?.bigBlind ?? 20)
     this.minRaiseIncrement = this.bigBlindAmount
     this.handParticipantIds = new Set()
+    this.liveBetWindowMs = typeof options?.liveBetWindowMs === 'number' && options.liveBetWindowMs >= 1000 ? options.liveBetWindowMs : 5000
+    this.liveBetWindowDisabled = options?.liveBetWindowDisabled === true
 
     this.state = {
       id,
@@ -297,6 +314,7 @@ export class GameTable {
     this.state.handEndReason = this.computeHandEndReason() ?? 'WIN_BY_FOLD'
     this.state.handRuntimePhase = 'HAND_COMPLETE'
     this.state.currentTurn = ''
+    this.sweepBustedPlayers()
   }
 
   /**
@@ -324,6 +342,48 @@ export class GameTable {
     if (this.getActivePlayers().length === 1) {
       this.awardPotToSingleRemainingPlayer()
     }
+  }
+
+  /**
+   * Fold forcé à la sortie volontaire (quit) : même effet qu'un FOLD, même hors de son tour.
+   */
+  forceFoldQuit(playerId: string): void {
+    const player = this.getPlayerState(playerId)
+    if (!player) {
+      throw new Error('Joueur introuvable')
+    }
+    if (!this.handStarted) {
+      throw new Error('La main n’a pas commencé')
+    }
+    if (!this.handParticipantIds.has(playerId)) {
+      throw new Error('Joueur non participant sur cette main')
+    }
+    if (!player.isActive) {
+      return
+    }
+
+    const streetForLog = this.state.phase
+    const wasTheirTurn = this.state.currentTurn === playerId
+
+    player.isActive = false
+    this.actedPlayerIds.add(player.id)
+
+    if (this.getActivePlayers().length === 1) {
+      this.awardPotToSingleRemainingPlayer()
+      this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
+      return
+    }
+
+    if (this.canCloseCurrentBettingRound()) {
+      this.moveToNextPhase()
+      this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
+      return
+    }
+
+    if (wasTheirTurn) {
+      this.advanceTurn()
+    }
+    this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
   }
 
   /**
@@ -387,27 +447,34 @@ export class GameTable {
     if (nextPhase === 'FLOP') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(...this.deck.dealFlop())
+      this.runOutBoardIfAllIn()
+      if (this.state.phase === 'SHOWDOWN') return
+      // LIVE bets are open at any moment during this street; no "frozen window" pause.
+      this.state.hiddenBetLiveWindow = undefined
       this.state.currentTurn = firstToActId
       this.state.handRuntimePhase = 'BETTING_ACTIVE'
-      this.runOutBoardIfAllIn()
       return
     }
 
     if (nextPhase === 'TURN') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealTurn())
+      this.runOutBoardIfAllIn()
+      if (this.state.phase === 'SHOWDOWN') return
+      this.state.hiddenBetLiveWindow = undefined
       this.state.currentTurn = firstToActId
       this.state.handRuntimePhase = 'BETTING_ACTIVE'
-      this.runOutBoardIfAllIn()
       return
     }
 
     if (nextPhase === 'RIVER') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealRiver())
+      this.runOutBoardIfAllIn()
+      if (this.state.phase === 'SHOWDOWN') return
+      this.state.hiddenBetLiveWindow = undefined
       this.state.currentTurn = firstToActId
       this.state.handRuntimePhase = 'BETTING_ACTIVE'
-      this.runOutBoardIfAllIn()
       return
     }
 
@@ -420,6 +487,27 @@ export class GameTable {
 
     // Defensive fallback for inconsistent states.
     this.awardPotToSingleRemainingPlayer()
+  }
+
+  private beginLiveBetWindow(
+    windowType: 'LIVE_FLOP' | 'LIVE_TURN' | 'LIVE_RIVER',
+    firstToActId: string
+  ): void {
+    this.pendingFirstToActAfterLiveWindow = firstToActId
+    const closesAt = Date.now() + this.liveBetWindowMs
+    this.state.hiddenBetLiveWindow = { windowType, closesAt }
+    this.state.currentTurn = ''
+    this.state.handRuntimePhase = 'LIVE_BET_WINDOW'
+  }
+
+  /** Fermeture timer fenêtre paris live — reprend le tour d’enchères. */
+  resumeAfterHiddenBetLiveWindow(): void {
+    if (!this.state.hiddenBetLiveWindow) return
+    this.state.hiddenBetLiveWindow = undefined
+    const first = this.pendingFirstToActAfterLiveWindow ?? this.getFirstToActOnNewStreet()
+    this.pendingFirstToActAfterLiveWindow = null
+    this.state.currentTurn = first
+    this.state.handRuntimePhase = 'BETTING_ACTIVE'
   }
 
   /** Premier à jouer sur une nouvelle rue : ordre poker postflop standard. */
@@ -530,13 +618,28 @@ export class GameTable {
    * Vigilance : le bouton ne tourne qu'à la fin complète d'une main, au tout début de la suivante.
    * L'affichage du jeton "D" (isDealer) est dérivé de dealerIndex via assignPositionsAndRoles.
    */
-  startHand(forcedHoleCards?: Record<string, Card[]>): void {
+  startHand(
+    forcedHoleCards?: Record<string, Card[]>,
+    opts?: { forcedBigBlindUserId?: string; handId?: string }
+  ): void {
     if (this.getConnectedPlayers().length < 2) {
       throw new Error('Il faut au moins 2 joueurs pour démarrer')
     }
 
     if (this.handStarted) {
       this.dealerIndex = this.getNextLivingPlayerIndex(this.dealerIndex)
+    }
+
+    if (opts?.forcedBigBlindUserId) {
+      const bbIdx = this.state.players.findIndex((p) => p.id === opts.forcedBigBlindUserId)
+      if (bbIdx >= 0) {
+        const n = this.state.players.length
+        if (n === 2) {
+          this.dealerIndex = (bbIdx + 1) % 2
+        } else if (n > 2) {
+          this.dealerIndex = (bbIdx - 2 + n) % n
+        }
+      }
     }
 
     this.handStarted = true
@@ -606,10 +709,8 @@ export class GameTable {
 
     this.setBlinds()
     this.state.currentTurn = this.getPreflopFirstPlayerId()
-    this.state.handId = `${this.id}:${Date.now()}`
+    this.state.handId = opts?.handId ?? `${this.id}:${Date.now()}`
     this.state.lastHandAction = undefined
-    this.state.actionVersion = 0
-    this.state.streetVersion = 0
     this.state.handParticipantIds = Array.from(this.handParticipantIds)
     this.state.handEndReason = undefined
     this.state.handRuntimePhase = 'BETTING_ACTIVE'
@@ -899,6 +1000,7 @@ export class GameTable {
     this.state.handEndReason = this.state.handEndReason ?? 'SHOWDOWN'
     this.state.handRuntimePhase = 'HAND_COMPLETE'
     this.bumpVersion()
+    this.sweepBustedPlayers()
   }
 
   private bumpVersion(): void {
@@ -960,6 +1062,34 @@ export class GameTable {
     }
   }
 
+  /**
+   * 💀 LA FAUCHEUSE (Mode Tournoi)
+   * Vérifie tous les joueurs après la distribution du pot.
+   * Si un joueur a 0 jeton, il est désactivé et marqué comme "Buste" (éliminé).
+   */
+  public sweepBustedPlayers(): void {
+    let playersEliminated = false;
+
+    for (const player of this.state.players) {
+      if (player.chips <= 0) {
+        // Le joueur est officiellement éliminé
+        player.isActive = false;
+        player.isConnected = false; // On le déconnecte virtuellement de la table
+        
+        // Optionnel: tu peux ajouter un flag isBusted dans le type Player si tu veux l'afficher côté Frontend
+        // player.isBusted = true; 
+
+        console.log(`💀 [GameTable] Le joueur ${player.name} (${player.id}) a été éliminé du tournoi (0 jeton) !`);
+        playersEliminated = true;
+      }
+    }
+
+    // Si on a éliminé des gens, on met à jour la version pour forcer le rafraîchissement du frontend
+    if (playersEliminated) {
+      this.bumpVersion();
+    }
+  }
+
   getState(): GameState & { id: string } {
     return {
       id: this.id,
@@ -1006,6 +1136,7 @@ export class GameTable {
       handParticipantIds: this.state.handParticipantIds,
       handEndReason: this.state.handEndReason,
       handRuntimePhase: this.state.handRuntimePhase,
+      hiddenBetLiveWindow: this.state.hiddenBetLiveWindow,
       players: this.state.players.map((player) => ({
         id: player.id,
         name: player.name,
@@ -1016,6 +1147,7 @@ export class GameTable {
         isActive: player.isActive,
         isDealer: player.isDealer || false,
         isConnected: player.isConnected !== false,
+        ...(player.avatar ? { avatar: player.avatar } : {}),
         // Règles de révélation des cartes :
         // - Avant showdown : chaque joueur voit uniquement ses propres cartes
         // - Au showdown réel (plusieurs joueurs) : tous voient les cartes des joueurs encore en lice (isActive)

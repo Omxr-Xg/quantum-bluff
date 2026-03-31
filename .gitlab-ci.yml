@@ -44,7 +44,7 @@ backend:lint:
 backend:test:
   stage: test
   services:
-    - postgres:15
+    - $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
   variables:
     POSTGRES_DB: quantum_test
     POSTGRES_USER: test_user
@@ -142,9 +142,9 @@ frontend:build:
 
 database:test:
   stage: test
-  image: postgres:15
+  image: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
   services:
-    - postgres:15
+    - $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
   variables:
     POSTGRES_DB: quantum_test
     POSTGRES_USER: test_user
@@ -160,9 +160,9 @@ database:test:
 
 database:migrations:
   stage: build
-  image: postgres:15
+  image: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
   services:
-    - postgres:15
+    - $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
   variables:
     POSTGRES_DB: quantum_test
     POSTGRES_USER: test_user

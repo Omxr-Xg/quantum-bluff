@@ -44,7 +44,7 @@ export function Profile() {
   const winRate = stats?.winRate ?? 0;
   const biggestWin = stats?.biggestWin ?? 0;
   const totalChipsWon = stats?.totalChipsWon ?? 0;
-  const totalChipsLost = stats?.totalChipsLost ?? 0;
+  const _totalChipsLost = stats?.totalChipsLost ?? 0;
   // Total winnings = somme des gains bruts (sans soustraire les pertes)
   const totalGains = totalChipsWon;
   const currentStreak = stats?.totalWins ?? 0; // approximation faute de champ dédié

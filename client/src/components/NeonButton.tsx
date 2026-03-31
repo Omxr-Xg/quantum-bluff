@@ -7,6 +7,10 @@ interface NeonButtonProps {
   variant?: "red" | "blue" | "green" | "brightGreen" | "gold" | "amber";
   className?: string;
   icon?: ReactNode;
+  type?: "button" | "submit" | "reset";
+  title?: string;
+  ariaExpanded?: boolean;
+  ariaControls?: string;
 }
 
 export function NeonButton({
@@ -16,6 +20,10 @@ export function NeonButton({
   variant = "green",
   className = "",
   icon,
+  type = "button",
+  title,
+  ariaExpanded,
+  ariaControls,
 }: NeonButtonProps) {
   // Couleurs par variante
   const variantStyles = {
@@ -55,6 +63,10 @@ export function NeonButton({
 
   return (
     <button
+      type={type}
+      title={title}
+      aria-expanded={ariaExpanded}
+      aria-controls={ariaControls}
       onClick={onClick}
       disabled={disabled}
       // On ajoute le nom de la variante dans la classe pour la rendre unique !

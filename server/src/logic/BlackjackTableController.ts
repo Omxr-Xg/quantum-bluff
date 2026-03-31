@@ -56,6 +56,13 @@ export interface BJSeatPublic {
   handTotal?: number
 }
 
+export type BjPayoutSummaryRow = {
+  userId: string
+  username: string
+  payout: number
+  reason: string
+}
+
 export interface BlackjackTablePublicState {
   gameId: string
   roomId: string
@@ -67,6 +74,8 @@ export interface BlackjackTablePublicState {
   dealerHoleHidden: boolean
   seats: BJSeatPublic[]
   currentSeatUserId: string | null
+  /** Phase `payout` uniquement : résultats (même source que le WebSocket `roundSummary`). */
+  payoutSummary?: BjPayoutSummaryRow[]
 }
 
 function maskDealerPublic(dealerHand: Card[], hideHole: boolean): BJPublicCard[] {
@@ -144,6 +153,12 @@ export class BlackjackTableController {
 
   canDeal(): boolean {
     return this.phase === 'betting' && this.seats.some((s) => s.playState === 'bet_placed')
+  }
+
+  /** Tous les sièges occupés ont misé : distribution possible sans action hôte. */
+  allSeatsReadyForDeal(): boolean {
+    if (this.phase !== 'betting' || this.seats.length === 0) return false
+    return this.seats.every((s) => s.playState === 'bet_placed')
   }
 
   deal(): { ok: true } | { ok: false; code: string } {
@@ -236,6 +251,9 @@ export class BlackjackTableController {
       const v = handValue(seat.hand)
       if (v.bust) {
         seat.playState = 'bust'
+        this.advanceFromSeat(this.currentSeatIndex)
+      } else if (v.total === 21) {
+        seat.playState = 'standing'
         this.advanceFromSeat(this.currentSeatIndex)
       }
       return { ok: true }
@@ -349,6 +367,16 @@ export class BlackjackTableController {
         ? this.seats[this.currentSeatIndex]?.userId ?? null
         : null
 
+    let payoutSummary: BjPayoutSummaryRow[] | undefined
+    if (this.phase === 'payout') {
+      payoutSummary = this.computeSettlements().map((r) => ({
+        userId: r.userId,
+        username: r.username,
+        payout: r.payout,
+        reason: String(r.reason),
+      }))
+    }
+
     return {
       gameId: this.gameId,
       roomId: this.roomId,
@@ -359,6 +387,7 @@ export class BlackjackTableController {
       dealerHoleHidden: hideHole,
       seats,
       currentSeatUserId: current,
+      ...(payoutSummary?.length ? { payoutSummary } : {}),
     }
   }
 }

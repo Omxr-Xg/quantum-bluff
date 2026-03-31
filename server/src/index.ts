@@ -6,6 +6,12 @@ import helmet from 'helmet'
 import swaggerUi from 'swagger-ui-express'
 import { swaggerSpec } from './config/swagger.config.js'
 import { initCleanupJobs } from './utils/cleanup.job.js'
+
+import { TournamentService } from './services/tournament.service.js';
+
+import './cron/tournament.cron.js'; // On importe juste le fichier pour lancer le cron
+import tournamentRoutes from './routes/tournament.routes.js';
+
 import {
   requestIdMiddleware,
   httpAccessLogMiddleware,
@@ -20,6 +26,7 @@ import gameRoutes from './routes/game.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import twofaRoutes from './routes/twofa.routes.js'
 import friendsRoutes from './routes/friends.routes.js'
+import friendLoanRoutes from './routes/friendLoan.routes.js'
 import waitingRoomRoutes from './routes/waitingRoom.routes.js'
 import gameApiRoutes from './routes/game.api.routes.js'
 import botRoutes from './routes/bot.routes.js'
@@ -32,6 +39,7 @@ import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
 import dailyChallengesRoutes from './dailyChallenges/dailyChallenge.routes.js'
+import hiddenBetsRoutes from './routes/hiddenBets.routes.js'
 
 // ==========================================
 // 🛡️ B4 : IMPORTS ANTI-TRICHE & ADMIN
@@ -152,6 +160,16 @@ const blackjackMultiApiLimiter = rateLimitWithMetrics({
   legacyHeaders: false,
 })
 
+const hiddenBetsApiLimiter = rateLimitWithMetrics({
+  windowMs: 60 * 1000,
+  limit: process.env.NODE_ENV === 'production' ? 180 : 3000,
+  message: { error: 'Trop de requêtes hidden-bets, réessaie dans une minute' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+app.get('/test-me', (req, res) => res.send("Le serveur me voit !"));
+
 app.use(express.json({ limit: '10kb' }))
 
 // ==========================================
@@ -164,6 +182,7 @@ app.use('/api', gameRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/auth/2fa', twofaRoutes)
 app.use('/api/friends', friendsRoutes)
+app.use('/api/friends', friendLoanRoutes)
 app.use('/api/friends', invitationRoutes)
 app.use('/api/waiting-room', waitingRoomRoutes)
 app.use('/api/game', gameApiRoutes)
@@ -171,6 +190,7 @@ app.use('/api/bot', botApiLimiter, botRoutes)
 app.use('/api/slot', slotApiLimiter, slotRoutes)
 app.use('/api/roulette', rouletteApiLimiter, rouletteRoutes)
 app.use('/api/blackjack', blackjackApiLimiter, blackjackRoutes)
+app.use('/api/hidden-bets', hiddenBetsApiLimiter, hiddenBetsRoutes)
 app.use(
   '/api/blackjack-tables',
   blackjackMultiApiLimiter,
@@ -180,6 +200,8 @@ app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
 app.use('/api/daily-challenges', dailyChallengesRoutes)
+
+app.use('/api/tournaments', tournamentRoutes);
 
 // ==========================================
 // 🛡️ B4 : ROUTE ADMIN POUR VOIR LES TRICHEURS
@@ -253,8 +275,7 @@ app.use((err: unknown, req: express.Request, res: express.Response, _next: expre
   const msg = err instanceof Error ? err.message : String(err)
   const stack = err instanceof Error ? err.stack : undefined
   
-  // Utilisation de req as any temporairement pour éviter les erreurs TypeScript avec custom req fields
-  const requestId = (req as any).requestId;
+  const requestId = req.requestId
   
   rootLogger.error({
     msg: 'http_unhandled_error',
@@ -280,6 +301,7 @@ const io = new Server(httpServer, {
 })
 
 // sécurité websocket (JWT)
+TournamentService.setIo(io);
 io.use(socketAuth)
 app.set('io', io)
 
@@ -299,5 +321,8 @@ const PORT = parseInt(process.env.PORT || '3000', 10)
       port: PORT,
       detail: 'Quantum Bluff API démarrée',
     })
+    
+    // 🚀 ON ALLUME LE VEILLEUR DE TOURNOIS ICI 👇
+    TournamentService.startTournamentWatcher(io);
   })
 })()

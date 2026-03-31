@@ -75,6 +75,12 @@ model User {
   userBadges        UserBadge[]
   walletEntries     WalletLedgerEntry[] // AJOUT: Relation pour la comptabilité du casino
   dailyChallengeProgresses DailyChallengeProgress[]
+  hiddenBetTickets  HiddenBetTicket[]
+
+  loanRequestsAsBorrower LoanRequest[] @relation("LoanRequestsBorrower")
+  loanRequestsAsLender   LoanRequest[] @relation("LoanRequestsLender")
+  loansAsBorrower        Loan[]        @relation("LoansBorrower")
+  loansAsLender          Loan[]        @relation("LoansLender")
 
   blackjackHostedRooms BlackjackRoom[] @relation("BlackjackRoomHost")
   blackjackRoomSeats   BlackjackRoomSeat[]
@@ -152,6 +158,130 @@ model Friendship {
   @@index([user2Id])
 }
 
+// ============================================
+// PRÊTS ENTRE AMIS (V1)
+// ============================================
+
+enum LoanRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+enum LoanStatus {
+  ACTIVE
+  COMPLETED
+  DEFAULTED
+  CANCELLED
+}
+
+enum LoanLedgerEventType {
+  REQUEST_CREATED
+  REQUEST_ACCEPTED
+  REQUEST_REJECTED
+  REQUEST_CANCELLED
+  FUNDED
+  REPAYMENT_APPLIED
+  COMPLETED
+}
+
+enum LoanSourceGameType {
+  SLOT
+  ROULETTE
+  BLACKJACK_SOLO
+  BLACKJACK_MULTI
+  POKER_CASH
+}
+
+model LoanRequest {
+  id             String            @id @default(uuid())
+  borrowerId     String
+  lenderId       String
+  amount         Int
+  repaymentRate  Int
+  interestRate   Int
+  totalDue       Int
+  status         LoanRequestStatus @default(PENDING)
+  createdAt      DateTime          @default(now())
+  respondedAt    DateTime?
+  expiresAt      DateTime
+
+  borrower User  @relation("LoanRequestsBorrower", fields: [borrowerId], references: [id], onDelete: Cascade)
+  lender   User  @relation("LoanRequestsLender", fields: [lenderId], references: [id], onDelete: Cascade)
+  loan     Loan?
+  ledgerEvents LoanLedgerEvent[]
+
+  @@index([borrowerId, status])
+  @@index([lenderId, status])
+  @@map("loan_requests")
+}
+
+model Loan {
+  id               String      @id @default(uuid())
+  requestId        String      @unique
+  borrowerId       String
+  lenderId         String
+  principalAmount  Int
+  interestRate    Int
+  totalDue         Int
+  repaidAmount     Int         @default(0)
+  remainingAmount  Int
+  repaymentRate   Int
+  status           LoanStatus  @default(ACTIVE)
+  createdAt        DateTime    @default(now())
+  completedAt      DateTime?
+  lastRepaymentAt  DateTime?
+
+  request LoanRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  borrower User       @relation("LoansBorrower", fields: [borrowerId], references: [id], onDelete: Cascade)
+  lender   User       @relation("LoansLender", fields: [lenderId], references: [id], onDelete: Cascade)
+
+  repayments    LoanRepayment[]
+  ledgerEvents LoanLedgerEvent[]
+
+  @@index([borrowerId, status])
+  @@map("loans")
+}
+
+model LoanRepayment {
+  id                 String             @id @default(uuid())
+  loanId             String
+  borrowerId         String
+  lenderId           String
+  sourceGameType     LoanSourceGameType
+  sourceReferenceId  String
+  grossWinAmount     Int
+  repaymentAmount    Int
+  borrowerNetReceived Int
+  createdAt          DateTime           @default(now())
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@index([loanId])
+  @@index([borrowerId])
+  @@map("loan_repayments")
+}
+
+model LoanLedgerEvent {
+  id           String              @id @default(uuid())
+  loanId       String?
+  requestId    String?
+  type         LoanLedgerEventType
+  amount       Int
+  metadataJson Json?
+  createdAt    DateTime            @default(now())
+
+  loan    Loan?       @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  request LoanRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([loanId])
+  @@index([requestId])
+  @@index([createdAt])
+  @@map("loan_ledger_events")
+}
+
 model FriendMessage {
   id         String   @id @default(uuid())
   senderId   String
@@ -219,6 +349,8 @@ model RoomPlayer {
   isReady      Boolean  @default(false)
   joinedAt     DateTime @default(now())
   position     Int?     // Position à la table (optionnel)
+  /// URL d’avatar publique (client), validée par le serveur — partagée avec tous les joueurs de la salle
+  avatarUrl    String?
 
   room         WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user         User        @relation(fields: [userId], references: [id])
@@ -462,6 +594,94 @@ model WalletLedgerEntry {
   @@index([createdAt])
   @@index([roundId])
   @@map("wallet_ledger_entries")
+}
+
+// ============================================
+// PARIS CACHÉS POKER (cash game)
+// ============================================
+
+enum HiddenBetTicketStatus {
+  PENDING
+  SETTLING
+  WON
+  LOST
+  VOID
+  CANCELED
+}
+
+enum HiddenBetCombinator {
+  SINGLE
+  AND
+}
+
+enum HiddenBetMarketPhase {
+  PRE_HAND
+  LIVE_FLOP
+  LIVE_TURN
+  LIVE_RIVER
+}
+
+model HiddenBetTicket {
+  id                    String                 @id @default(uuid())
+  userId                String
+  gameId                String
+  handId                String
+  marketPhase           HiddenBetMarketPhase   @default(PRE_HAND)
+  status                HiddenBetTicketStatus  @default(PENDING)
+  stake                 Int
+  quotedOdds            Float
+  potentialPayout       Int
+  currency              String                 @default("CHIPS")
+  combinator            HiddenBetCombinator    @default(SINGLE)
+  placedAt              DateTime               @default(now())
+  resolvedAt            DateTime?
+  resolutionStartedAt   DateTime?
+  quoteExpiresAt        DateTime?
+  actionId              String
+  pricingVersion        String
+  resolutionVersion     String                 @default("hidden-bets-resolve-v1")
+  resultSummaryJson     String?
+  stateSnapshotJson     String?
+  ticketHash            String?
+  quoteHash             String?
+  quotedProbability     Float?
+  houseEdgeVersion      String?
+
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selections HiddenBetSelection[]
+
+  @@unique([userId, actionId])
+  @@index([userId, gameId, handId])
+  @@index([gameId, handId, status])
+  @@index([userId, status])
+  @@index([gameId, handId, marketPhase])
+  @@map("hidden_bet_tickets")
+}
+
+model HiddenBetSelection {
+  id             String          @id @default(uuid())
+  ticketId       String
+  marketType     String
+  marketKey      String
+  paramSignature String
+  paramsJson     String
+  displayLabel   String?
+  sequenceOrder  Int             @default(0)
+
+  ticket HiddenBetTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("hidden_bet_selections")
+}
+
+/// Verrou idempotence : une seule résolution réussie par (gameId, handId).
+model HiddenBetHandResolution {
+  gameId     String
+  handId     String
+  resolvedAt DateTime @default(now())
+
+  @@id([gameId, handId])
+  @@map("hidden_bet_hand_resolutions")
 }
 
 // ============================================

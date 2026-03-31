@@ -3,6 +3,9 @@ import i18n from '../i18n/config'
 import { io, Socket } from 'socket.io-client'
 import { useUser } from '../hooks/useUser'
 import { useToast } from './ToastContext'
+import { store } from '../store'
+import { api } from '../services/api'
+import { fetchBalanceFromServer } from '../utils/userProfile'
 
 export interface GameInvitationNotification {
   invitationId: string
@@ -27,11 +30,29 @@ interface SocketContextType {
 export const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
 const socketUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || undefined;
+
+/** Base URL Socket.IO : env > dev localhost via Vite (proxy → :3000) > prod / réseau. */
+function resolveSocketBaseUrl(): string {
+  if (socketUrl) return socketUrl
+  if (typeof window === 'undefined') return 'http://localhost:3000'
+  const host = window.location.hostname
+  const isLocal = host === 'localhost' || host === '127.0.0.1'
+  // En `vite dev`, la page est sur :5175 : utiliser la même origine pour que /socket.io soit proxifié vers le backend.
+  // Sinon le client tape directement :3000 → ERR_CONNECTION_REFUSED si l’API n’écoute pas encore ou autre souci réseau local.
+  if (import.meta.env.DEV && isLocal) {
+    return window.location.origin
+  }
+  if (isLocal) {
+    return 'http://localhost:3000'
+  }
+  return window.location.origin
+}
+
+let URL = resolveSocketBaseUrl()
+
 const isLocalhost =
   typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-let URL = socketUrl || (import.meta.env.DEV || isLocalhost ? 'http://localhost:3000' : window.location.origin);
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
 
 // NOUVEAU : Blocage strict du Mixed Content
 // Si le site est chargé en HTTPS, on force l'URL à utiliser l'origine sécurisée.
@@ -179,6 +200,34 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       socket.off('JOIN_REQUEST_REJECTED')
     }
   }, [socket, addToast])
+
+  useEffect(() => {
+    if (!socket) return
+
+    const invalidateLoanList = () => {
+      store.dispatch(api.util.invalidateTags(['FriendLoan']))
+    }
+
+    const invalidateLoanListAndSyncBalance = () => {
+      invalidateLoanList()
+      void fetchBalanceFromServer({ authoritative: true })
+    }
+
+    const notifyOnly = [
+      'LOAN_REQUEST_RECEIVED',
+      'LOAN_REQUEST_ACCEPTED',
+      'LOAN_REQUEST_REJECTED',
+    ] as const
+    const walletEvents = ['LOAN_CREATED', 'LOAN_REPAYMENT_PROGRESS', 'LOAN_COMPLETED'] as const
+
+    notifyOnly.forEach((ev) => socket.on(ev, invalidateLoanList))
+    walletEvents.forEach((ev) => socket.on(ev, invalidateLoanListAndSyncBalance))
+
+    return () => {
+      notifyOnly.forEach((ev) => socket.off(ev, invalidateLoanList))
+      walletEvents.forEach((ev) => socket.off(ev, invalidateLoanListAndSyncBalance))
+    }
+  }, [socket])
 
   const connect = useCallback(() => {
     if (socket && !socket.connected) {
