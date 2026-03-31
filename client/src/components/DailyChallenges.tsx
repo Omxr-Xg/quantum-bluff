@@ -1,29 +1,40 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { useUser } from "../hooks/useUser";
+import { apiUrl } from "../utils/apiBase";
+import { useTranslation } from "react-i18next";
 
 interface Challenge {
-  id: number;
+  code: string;
+  i18nKey: string;
   progress: number;
   goal: number;
   completed: boolean;
   claimed: boolean;
+  rewardTokens: number;
 }
 
 export function DailyChallenges() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
-  const { userId } = useUser(); 
+  const { userId } = useUser();
 
   // FETCH CHALLENGES
   const fetchChallenges = async () => {
-    if (!userId) return;
+    if (!userId) {
+      setChallenges([]);
+      setLoading(false);
+      return;
+    }
 
     try {
-      const res = await fetch(
-        `http://localhost:3000/api/daily-challenges/${userId}`
-      );
+      const res = await fetch(apiUrl("/api/daily-challenges/me"), {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
       const data = await res.json();
 
@@ -40,21 +51,15 @@ export function DailyChallenges() {
   }, [userId]); 
 
   // CLAIM REWARD
-  const handleClaim = async (challengeId: number) => {
+  const handleClaim = async (challengeCode: string) => {
     try {
-      const res = await fetch(
-        "http://localhost:3000/api/daily-challenges/claim",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId,
-            challengeId,
-          }),
-        }
-      );
+      const res = await fetch(apiUrl(`/api/daily-challenges/${challengeCode}/claim`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
       const data = await res.json();
 
@@ -96,7 +101,7 @@ export function DailyChallenges() {
 
           return (
             <div
-              key={c.id}
+              key={c.code}
               className={`p-3 rounded-lg border transition ${
                 c.completed
                   ? "bg-green-900/30 border-green-500"
@@ -109,7 +114,7 @@ export function DailyChallenges() {
                   {c.completed && (
                     <CheckCircle className="w-4 h-4 text-green-400" />
                   )}
-                  Challenge #{c.id}
+                  {t(c.i18nKey)}
                 </span>
 
                 <span className="text-gray-400">
@@ -126,14 +131,17 @@ export function DailyChallenges() {
                   style={{ width: `${percent}%` }}
                 />
               </div>
+              <div className="text-yellow-300 text-xs mt-2">
+                {t("dailyChallenges.reward")} {c.rewardTokens}
+              </div>
 
               {/* CLAIM BUTTON */}
               {c.completed && !c.claimed && (
                 <button
                   className="mt-3 w-full bg-green-500 py-2 rounded hover:bg-green-600 transition"
-                  onClick={() => handleClaim(c.id)}
+                  onClick={() => handleClaim(c.code)}
                 >
-                  Claim Reward
+                  {t("dailyChallenges.claimReward")}
                 </button>
               )}
 

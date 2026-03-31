@@ -98,19 +98,6 @@ export function Game() {
   const isSpectating = searchParams.get("spectate") === "1";
   const isBotMode = mode === "bot";
   const { userId } = useUser();
-  
-  const updateChallenge = useCallback((challengeId: number, value: number) => {
-    if (!userId) return;
-    fetch(`${apiUrl("/api/daily-challenges/update")}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId,
-        challengeId,
-        value,
-      }),
-    }).catch((err) => console.error("Erreur updateChallenge:", err));
-  }, [userId]);
 
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
   const difficultyParam = searchParams.get("difficulty") || "moyen";
@@ -150,7 +137,6 @@ export function Game() {
   const lastShowdownSnapshotAtRef = useRef<number>(0);
   const lastHandLogSocketDedupeRef = useRef<string>("");
   const [_timerActive, setTimerActive] = useState(false);
-  const bluffUsedRef = useRef(false);
   const currentBet = useMemo(() => Math.max(0, ...playersState.map((p) => p.bet ?? 0)), [playersState]);
   
   const [phase, setPhase] = useState<GamePhase>("init");
@@ -226,20 +212,6 @@ export function Game() {
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const flopAnimatedRef = useRef(false); 
 
-    // Challenge 1: Jouer une main (preflop)
-    useEffect(() => {
-      if (phase === "preflop" && !hasSetStartOfHandThisHandRef.current) {
-        updateChallenge(1, 1);
-      }
-    }, [phase, updateChallenge]);
-  
-    // Challenge 4: Jouer en ligne (gameIdParam)
-    useEffect(() => {
-      if (gameIdParam && !isBotMode) {
-        updateChallenge(4, 1);
-      }
-    }, [gameIdParam, isBotMode, updateChallenge]);
-  
     const appendLocalHandAction = useCallback(
       (actor: BasePlayer | BotPlayer | undefined, kind: "check" | "call" | "raise" | "fold", extra?: { amount?: number }) => {
         if (gameIdParam) return;
@@ -537,10 +509,6 @@ export function Game() {
       const key = String(playerId);
       handContributionsRef.current[key] = (handContributionsRef.current[key] ?? 0) + intChips(amount);
       
-      // Challenge 3: Miser des jetons (seulement pour le joueur humain)
-      if (playerId === userId || playerId === "human") {
-        updateChallenge(3, amount);
-      }
     };
   
     const resetBetsAndSetFirstToAct = (startIndex: number) => {
@@ -980,11 +948,7 @@ export function Game() {
   // Handler pour le bluff (HiddenBetsPanel) avec anti-spam
   const handleToggleBluff = useCallback(() => {
     setIsPanelOpen((prev) => !prev);
-    if (!bluffUsedRef.current) {
-      updateChallenge(5, 1);
-      bluffUsedRef.current = true;
-    }
-  }, [updateChallenge]);
+  }, []);
       
       const pots: { amount: number; eligibleIds: string[] }[] = [];
       let remainingPot = pot;
@@ -1440,12 +1404,6 @@ export function Game() {
           const winnerName = gameState.showdownIsSplit && winnerIds.length > 1
             ? t('game.tie')
             : (players.find((p) => String(p.id) === String(firstWinnerId))?.name ?? firstWinnerId);
-          
-          // Challenge 2: Gagner une main
-          const isWinner = String(firstWinnerId) === String(userId);
-          if (isWinner) {
-            updateChallenge(2, 1);
-          }
           
           const winnerPlayer = players.find((p) => String(p.id) === String(firstWinnerId));
           const totalPot = gameState.showdownPot ?? 0;
@@ -2100,11 +2058,6 @@ export function Game() {
               const winner = activeInHand.find((p) => String(p.id) === winnerIds[0]);
               if (winner?.cards) setShowdownWinnerCards(winner.cards);
               
-              // Challenge 2: Gagner une main (pour le mode bot)
-              const isWinner = String(winnerIds[0]) === String(userId);
-              if (isWinner) {
-                updateChallenge(2, 1);
-              }
             }
   
             const share = Math.floor(sp.amount / winnerIds.length);
