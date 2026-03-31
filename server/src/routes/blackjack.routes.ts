@@ -33,8 +33,31 @@ import {
 } from '../casino/services/idempotency.service.js'
 import { createCasinoRoundContext } from '../casino/services/roundContext.service.js'
 import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
+import type { CasinoRoundContext } from '../casino/domain/casinoRound.types.js'
+import { applyRepaymentOnPositiveWin } from '../services/friendLoan.service.js'
+import { emitToUsers, FRIEND_LOAN_SOCKET } from '../services/friendLoan.emit.js'
 
 const router = express.Router()
+
+function emitLoanSocketsIfNeeded(req: express.Request, loanPay?: Awaited<ReturnType<typeof applyRepaymentOnPositiveWin>>): void {
+  const io = req.app.get('io') as import('socket.io').Server | undefined
+  if (loanPay?.socketRepayment) {
+    emitToUsers(
+      io,
+      [loanPay.socketRepayment.borrowerId, loanPay.socketRepayment.lenderId],
+      FRIEND_LOAN_SOCKET.LOAN_REPAYMENT_PROGRESS,
+      loanPay.socketRepayment
+    )
+  }
+  if (loanPay?.socketCompleted) {
+    emitToUsers(
+      io,
+      [loanPay.socketCompleted.borrowerId, loanPay.socketCompleted.lenderId],
+      FRIEND_LOAN_SOCKET.LOAN_COMPLETED,
+      loanPay.socketCompleted
+    )
+  }
+}
 
 function publicCards(cards: Card[]) {
   return cards.map(cardToPublic)
@@ -45,7 +68,8 @@ async function finalizeHand(
   userId: string,
   player: Card[],
   dealer: Card[],
-  totalBet: number
+  totalBet: number,
+  casinoContext: CasinoRoundContext
 ): Promise<{
   payout: number
   reason: string
@@ -55,14 +79,57 @@ async function finalizeHand(
   xpToNext: number
   newBadges: string[]
   maxBetBlackjack: number
+  loanPay?: Awaited<ReturnType<typeof applyRepaymentOnPositiveWin>>
 }> {
   const { payout, reason } = settleRound(player, dealer, totalBet)
 
-  const updated = await tx.user.update({
+  const beforeRow = await tx.user.findUnique({
     where: { id: userId },
-    data: { chips: { increment: payout } },
     select: { chips: true, experience: true },
   })
+  if (!beforeRow) {
+    throw Object.assign(new Error('USER_NOT_FOUND'), { code: 'USER_NOT_FOUND' })
+  }
+  const balanceBeforePayout = intChips(beforeRow.chips)
+
+  let loanPay: Awaited<ReturnType<typeof applyRepaymentOnPositiveWin>> | undefined
+  let updated: { chips: number; experience: number }
+
+  if (payout > 0) {
+    loanPay = await applyRepaymentOnPositiveWin(tx, {
+      userId,
+      gameType: 'BLACKJACK_SOLO',
+      grossWinAmount: payout,
+      sourceReferenceId: casinoContext.actionId,
+      casinoContext,
+      balanceBeforeGrossPayout: balanceBeforePayout,
+      payoutLedgerReason: 'BLACKJACK_PAYOUT',
+    })
+    if (!loanPay.hadActiveLoan) {
+      updated = await tx.user.update({
+        where: { id: userId },
+        data: { chips: { increment: payout } },
+        select: { chips: true, experience: true },
+      })
+      await appendWalletLedgerEntry(
+        {
+          context: casinoContext,
+          reason: 'BLACKJACK_PAYOUT',
+          amount: payout,
+          balanceBefore: balanceBeforePayout,
+          balanceAfter: intChips(updated.chips),
+        },
+        tx
+      )
+    } else {
+      updated = await tx.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { chips: true, experience: true },
+      })
+    }
+  } else {
+    updated = beforeRow
+  }
 
   const prevCasino = await tx.casinoStats.findUnique({ where: { userId } })
   if (!prevCasino) {
@@ -97,6 +164,7 @@ async function finalizeHand(
     xpToNext: gamification.xpToNext,
     newBadges: gamification.newBadges,
     maxBetBlackjack,
+    ...(loanPay ? { loanPay } : {}),
   }
 }
 
@@ -183,16 +251,17 @@ router.post('/start', authMiddleware, async (req, res) => {
       const dealer: Card[] = [drawCard(shoe), drawCard(shoe)]
 
       if (isNaturalBlackjack(player)) {
-        const fin = await finalizeHand(tx, userId, player, dealer, bet)
+        const fin = await finalizeHand(tx, userId, player, dealer, bet, context)
+        const { loanPay, ...finClient } = fin
         return {
           type: 'complete' as const,
           player: publicCards(player),
           dealer: publicCards(dealer),
-          ...fin,
+          ...finClient,
           totalBet: bet,
-          maxBetBlackjack: fin.maxBetBlackjack,
           roundId: context.roundId,
           actionId: context.actionId,
+          loanPay,
         }
       }
 
@@ -209,13 +278,14 @@ router.post('/start', authMiddleware, async (req, res) => {
     })
 
     if (outcome.type === 'complete') {
-      const { type: _t, ...rest } = outcome
+      const { type: _t, loanPay, ...rest } = outcome
       await saveIdempotentResult(idemKey, rest)
       idemCommitted = true
+      emitLoanSocketsIfNeeded(req, loanPay)
       return res.json(rest)
     }
 
-    const { shoe, player, dealer, bet, maxBetEffective } = outcome
+    const { shoe, player, dealer, bet, maxBetEffective, roundId, actionId } = outcome
     setSession(userId, {
       shoe,
       player,
@@ -223,6 +293,8 @@ router.post('/start', authMiddleware, async (req, res) => {
       initialBet: bet,
       totalBet: bet,
       updatedAt: Date.now(),
+      roundId,
+      actionId,
     })
 
     const uAfter = await prisma.user.findUnique({
@@ -275,6 +347,13 @@ router.post('/action', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Aucune main en cours', code: 'NO_SESSION' })
     }
 
+    const bjCtx = createCasinoRoundContext({
+      userId,
+      gameType: 'blackjack',
+      roundId: session.roundId,
+      actionId: session.actionId,
+    })
+
     const action = typeof req.body?.action === 'string' ? req.body.action.toLowerCase() : ''
     if (!['hit', 'stand', 'double'].includes(action)) {
       return res.status(400).json({ error: 'Action invalide' })
@@ -300,6 +379,7 @@ router.post('/action', authMiddleware, async (req, res) => {
         newBadges: string[]
         maxBetBlackjack: number
         totalBet: number
+        loanPay?: Awaited<ReturnType<typeof applyRepaymentOnPositiveWin>>
       }
       try {
         result = await prisma.$transaction(async (tx) => {
@@ -319,21 +399,25 @@ router.post('/action', authMiddleware, async (req, res) => {
           session.player.push(drawCard(session.shoe))
           const pv = handValue(session.player)
           if (pv.bust) {
-            const fin = await finalizeHand(tx, userId, session.player, session.dealer, session.totalBet)
+            const fin = await finalizeHand(tx, userId, session.player, session.dealer, session.totalBet, bjCtx)
+            const { loanPay, ...finRest } = fin
             return {
               player: publicCards(session.player),
               dealer: publicCards(session.dealer),
-              ...fin,
+              ...finRest,
               totalBet: session.totalBet,
+              loanPay,
             }
           }
           playDealerHand(session.dealer, session.shoe)
-          const fin = await finalizeHand(tx, userId, session.player, session.dealer, session.totalBet)
+          const fin = await finalizeHand(tx, userId, session.player, session.dealer, session.totalBet, bjCtx)
+          const { loanPay, ...finRest } = fin
           return {
             player: publicCards(session.player),
             dealer: publicCards(session.dealer),
-            ...fin,
+            ...finRest,
             totalBet: session.totalBet,
+            loanPay,
           }
         })
       } catch (err) {
@@ -342,8 +426,10 @@ router.post('/action', authMiddleware, async (req, res) => {
         }
         throw err
       }
+      const { loanPay, ...restDouble } = result
       clearSession(userId)
-      return res.json({ phase: 'complete', ...result })
+      emitLoanSocketsIfNeeded(req, loanPay)
+      return res.json({ phase: 'complete', ...restDouble })
     }
 
     if (action === 'hit') {
@@ -351,14 +437,16 @@ router.post('/action', authMiddleware, async (req, res) => {
       const pv = handValue(session.player)
       if (pv.bust) {
         const result = await prisma.$transaction(async (tx) => {
-          return finalizeHand(tx, userId, session.player, session.dealer, session.totalBet)
+          return finalizeHand(tx, userId, session.player, session.dealer, session.totalBet, bjCtx)
         })
+        const { loanPay, ...r } = result
         clearSession(userId)
+        emitLoanSocketsIfNeeded(req, loanPay)
         return res.json({
           phase: 'complete',
           player: publicCards(session.player),
           dealer: publicCards(session.dealer),
-          ...result,
+          ...r,
           totalBet: session.totalBet,
         })
       }
@@ -380,15 +468,17 @@ router.post('/action', authMiddleware, async (req, res) => {
     // stand
     playDealerHand(session.dealer, session.shoe)
     const result = await prisma.$transaction(async (tx) => {
-      return finalizeHand(tx, userId, session.player, session.dealer, session.totalBet)
+      return finalizeHand(tx, userId, session.player, session.dealer, session.totalBet, bjCtx)
     })
+    const { loanPay, ...rStand } = result
     clearSession(userId)
+    emitLoanSocketsIfNeeded(req, loanPay)
 
     return res.json({
       phase: 'complete',
       player: publicCards(session.player),
       dealer: publicCards(session.dealer),
-      ...result,
+      ...rStand,
       totalBet: session.totalBet,
     })
   } catch (e) {
