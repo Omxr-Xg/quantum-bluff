@@ -197,6 +197,7 @@ async function payoutAndFinish(
           userId,
           gameType: 'BLACKJACK_MULTI',
           grossWinAmount: payout,
+          casinoStakeAmount: totalBet,
           sourceReferenceId: ctx.actionId,
           casinoContext: ctx,
           balanceBeforeGrossPayout: balBefore,

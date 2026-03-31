@@ -142,6 +142,7 @@ router.post('/spin', authMiddleware, async (req, res) => {
             userId,
             gameType: 'SLOT',
             grossWinAmount: payout,
+            casinoStakeAmount: bet,
             sourceReferenceId: context.actionId,
             casinoContext: context,
             balanceBeforeGrossPayout: afterDebit,
