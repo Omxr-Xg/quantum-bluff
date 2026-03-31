@@ -30,6 +30,10 @@ import {
 } from '../poker/services/pokerTableLock.service.js'
 import { rootLogger } from '../observability/logger.js'
 import { metrics as promMetrics } from '../observability/metrics.js'
+import {
+  incrementMultiplayerPlayCount,
+  markWinWithPair,
+} from '../dailyChallenges/dailyChallenge.service.js'
 import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js'
 import { buildHiddenBetResolutionPayload } from '../poker/hiddenBets/hiddenBetSnapshot.js'
 import { resolveHiddenBetsForHand } from '../poker/hiddenBets/resolver/hiddenBetResolver.js'
@@ -1094,13 +1098,19 @@ export class GameGateway {
 
   private async recordMultiPlayerStats(game: GameTable): Promise<void> {
     const winnerId = game.state.showdownWinnerId
+    const winnerIds = game.state.showdownWinnerIds ?? (winnerId ? [winnerId] : [])
     const pot = game.state.showdownPot ?? 0
     if (!winnerId) return
 
     for (const player of game.state.players) {
       const isWinner = player.id === winnerId
+      const isWinningPlayer = winnerIds.includes(player.id)
       const chipsWon = isWinner ? pot : 0
       const chipsLost = !isWinner ? (player.totalPutInThisHand ?? player.currentBet ?? 0) : 0
+      const participatedInHand =
+        (player.totalPutInThisHand ?? 0) > 0 ||
+        (player.currentBet ?? 0) > 0 ||
+        isWinningPlayer
 
       try {
         const xpAmount = isWinner ? XP_POKER_SHOWDOWN_WIN : XP_POKER_SHOWDOWN_LOSS
@@ -1125,6 +1135,12 @@ export class GameGateway {
             },
           })
           await awardXpInTransaction(tx, player.id, xpAmount)
+          if (participatedInHand) {
+            await incrementMultiplayerPlayCount(player.id, tx)
+          }
+          if (isWinningPlayer) {
+            await markWinWithPair(player.id, game.state.showdownHandName, true, tx)
+          }
         })
       } catch (err) {
         console.error('[Stats] Erreur upsert pour', player.id, err)

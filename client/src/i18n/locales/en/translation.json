@@ -1058,6 +1058,14 @@
       "unknown": "Unexpected runtime status. Please retry shortly."
     }
   },
+  "dailyChallenges": {
+    "winWithPair": "Win a hand with one pair",
+    "win200Roulette": "Win 200 tokens in roulette",
+    "play5Times": "Play 5 multiplayer hands",
+    "win200Slot": "Win 200 tokens in slot machine",
+    "claimReward": "Claim reward",
+    "reward": "Reward:"
+  },
   "filters": {
     "maxBet50": "Bets < $50",
     "maxBet100": "Bets < $100",

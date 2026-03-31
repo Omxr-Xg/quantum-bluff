@@ -38,6 +38,7 @@ import blackjackRoutes from './routes/blackjack.routes.js'
 import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
+import dailyChallengesRoutes from './dailyChallenges/dailyChallenge.routes.js'
 import hiddenBetsRoutes from './routes/hiddenBets.routes.js'
 
 // ==========================================
@@ -198,6 +199,7 @@ app.use(
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
+app.use('/api/daily-challenges', dailyChallengesRoutes)
 
 app.use('/api/tournaments', tournamentRoutes);
 
