@@ -58,6 +58,28 @@ const createRequestSchema = z
 
 router.use(authMiddleware)
 
+router.use('/loans', (_req, res, next) => {
+  const prismaCompat = prisma as unknown as {
+    loanRequest?: { findMany?: (args: unknown) => Promise<unknown[]> }
+    loan?: { findMany?: (args: unknown) => Promise<unknown[]> }
+    loanRepayment?: { create?: (args: unknown) => Promise<unknown> }
+    loanLedgerEvent?: { create?: (args: unknown) => Promise<unknown> }
+  }
+  const ready =
+    !!prismaCompat.loanRequest?.findMany &&
+    !!prismaCompat.loan?.findMany &&
+    !!prismaCompat.loanRepayment?.create &&
+    !!prismaCompat.loanLedgerEvent?.create
+
+  if (!ready) {
+    return res.status(503).json({
+      error: 'Fonctionnalité prêts temporairement indisponible sur ce nœud',
+      code: 'FRIEND_LOAN_UNAVAILABLE',
+    })
+  }
+  return next()
+})
+
 router.post('/loans/requests', loanWriteLimiter, async (req, res) => {
   const userId = req.userId!
   const parsed = createRequestSchema.safeParse(req.body)

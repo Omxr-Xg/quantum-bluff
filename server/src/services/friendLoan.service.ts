@@ -750,8 +750,33 @@ export async function applyRepaymentOnPokerSettlement(
 }
 
 export async function listLoansForUser(userId: string) {
+  const prismaCompat = prisma as unknown as {
+    loanRequest?: {
+      updateMany?: (args: unknown) => Promise<unknown>
+      findMany?: (args: unknown) => Promise<unknown[]>
+    }
+    loan?: {
+      findMany?: (args: unknown) => Promise<unknown[]>
+    }
+  }
+  const loanRequestDelegate = prismaCompat.loanRequest
+  const loanDelegate = prismaCompat.loan
+  if (
+    !loanRequestDelegate?.updateMany ||
+    !loanRequestDelegate.findMany ||
+    !loanDelegate?.findMany
+  ) {
+    console.warn('[friendLoan] list: missing Prisma loan delegates, returning empty payload')
+    return {
+      requestsSent: [],
+      requestsReceived: [],
+      activeLoans: [],
+      completedLoans: [],
+    }
+  }
+
   const now = new Date()
-  await prisma.loanRequest.updateMany({
+  await loanRequestDelegate.updateMany({
     where: {
       status: 'PENDING',
       expiresAt: { lt: now },
@@ -760,17 +785,17 @@ export async function listLoansForUser(userId: string) {
   })
 
   const [requestsSent, requestsReceived, activeLoans, completedLoans] = await Promise.all([
-    prisma.loanRequest.findMany({
+    loanRequestDelegate.findMany({
       where: { borrowerId: userId },
       orderBy: { createdAt: 'desc' },
       include: { lender: { select: { id: true, username: true } } },
     }),
-    prisma.loanRequest.findMany({
+    loanRequestDelegate.findMany({
       where: { lenderId: userId },
       orderBy: { createdAt: 'desc' },
       include: { borrower: { select: { id: true, username: true } } },
     }),
-    prisma.loan.findMany({
+    loanDelegate.findMany({
       where: { OR: [{ borrowerId: userId }, { lenderId: userId }], status: 'ACTIVE' },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -778,7 +803,7 @@ export async function listLoansForUser(userId: string) {
         lender: { select: { id: true, username: true } },
       },
     }),
-    prisma.loan.findMany({
+    loanDelegate.findMany({
       where: { OR: [{ borrowerId: userId }, { lenderId: userId }], status: 'COMPLETED' },
       orderBy: { completedAt: 'desc' },
       take: 50,
