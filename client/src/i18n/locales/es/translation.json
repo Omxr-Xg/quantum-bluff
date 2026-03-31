@@ -1049,5 +1049,13 @@
       "tableLocked": "Ya hay una accion en curso en esta mesa.",
       "unknown": "Estado de runtime inesperado. Intentalo de nuevo en unos instantes."
     }
+  },
+  "dailyChallenges": {
+    "winWithPair": "Ganar una mano con una pareja",
+    "win200Roulette": "Ganar 200 fichas en ruleta",
+    "play5Times": "Jugar 5 manos multijugador",
+    "win200Slot": "Ganar 200 fichas en tragamonedas",
+    "claimReward": "Reclamar recompensa",
+    "reward": "Recompensa:"
   }
 }

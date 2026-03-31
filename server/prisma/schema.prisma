@@ -74,6 +74,7 @@ model User {
   casinoStats       CasinoStats?
   userBadges        UserBadge[]
   walletEntries     WalletLedgerEntry[] // AJOUT: Relation pour la comptabilité du casino
+  dailyChallengeProgresses DailyChallengeProgress[]
   hiddenBetTickets  HiddenBetTicket[]
 
   loanRequestsAsBorrower LoanRequest[] @relation("LoanRequestsBorrower")
@@ -722,4 +723,26 @@ model TournamentPlayer {
 
   @@id([tournamentId, userId]) // Clé primaire composite
   @@map("tournament_players")
+}
+
+model DailyChallengeProgress {
+  id           String   @id @default(uuid())
+  userId       String
+  dayKey       String
+  challengeCode String
+  progress     Int      @default(0)
+  goal         Int
+  completed    Boolean  @default(false)
+  claimed      Boolean  @default(false)
+  rewardTokens Int
+  claimedAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayKey, challengeCode])
+  @@index([userId, dayKey])
+  @@index([dayKey, challengeCode])
+  @@map("daily_challenge_progress")
 }
