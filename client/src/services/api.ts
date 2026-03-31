@@ -215,6 +215,7 @@ export const api = createApi({
     >({
       query: () => '/friends/loans',
       providesTags: ['FriendLoan'],
+      refetchOnMountOrArgChange: true,
     }),
 
     getFriendLoan: builder.query<{ loan: Record<string, unknown> }, string>({
