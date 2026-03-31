@@ -9,6 +9,7 @@ import {
 } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
 import { getFriendLoanApiErrorMessage } from "../utils/friendLoanApiError";
+import { fetchBalanceFromServer } from "../utils/userProfile";
 
 type LoanUser = { id?: string; username?: string };
 
@@ -60,6 +61,7 @@ export function FriendLoansPanel({ userId }: { userId: string }) {
   const handleAccept = async (id: string) => {
     try {
       await acceptReq({ loanRequestId: id }).unwrap();
+      await fetchBalanceFromServer({ authoritative: true });
       addToast(t("friends.loans.loanRequestOk"), "success");
       void refetch();
     } catch (err) {
