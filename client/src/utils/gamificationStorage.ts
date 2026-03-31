@@ -125,3 +125,15 @@ export function clearGamificationStorage(): void {
   localStorage.removeItem(KEY);
   notifyGamificationChanged();
 }
+
+/** Plafond absolu par main, aligné sur `BLACKJACK_MAX_BET_CAP` serveur. */
+export const CLIENT_BLACKJACK_MAX_BET_CAP = 1000;
+
+/** Mise max blackjack affichée (profil joueur), ou 375 par défaut tant que le profil n’est pas chargé. */
+export function getDisplayedBlackjackMaxBet(): number {
+  const v = readGamification().maxBetBlackjack;
+  if (typeof v === "number" && Number.isFinite(v)) {
+    return Math.min(CLIENT_BLACKJACK_MAX_BET_CAP, Math.max(10, Math.floor(v)));
+  }
+  return 375;
+}
