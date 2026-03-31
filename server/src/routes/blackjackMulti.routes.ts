@@ -28,6 +28,7 @@ import {
   XP_BLACKJACK_HAND,
   XP_BLACKJACK_WIN_BONUS,
 } from '../logic/gamification.js'
+import { incrementMultiplayerPlayCount } from '../dailyChallenges/dailyChallenge.service.js'
 
 const router = express.Router()
 
@@ -161,6 +162,7 @@ async function payoutAndFinish(
         userId,
         XP_BLACKJACK_HAND + winBonus
       )
+      await incrementMultiplayerPlayCount(userId, tx)
       const lvl = levelFromExperience(updated.experience)
       settlements.push({
         userId,
