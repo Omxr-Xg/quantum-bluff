@@ -10,6 +10,7 @@ import {
   XP_SLOT_SPIN,
   XP_SLOT_WIN_BONUS,
 } from '../logic/gamification.js'
+import { addSlotNetWinProgress } from '../dailyChallenges/dailyChallenge.service.js'
 import {
   abortIdempotentAction,
   buildIdempotencyKey,
@@ -160,6 +161,10 @@ router.post('/spin', authMiddleware, async (req, res) => {
       }
 
       const netPositive = payout > bet
+      const netWin = Math.max(0, payout - bet)
+      if (netWin > 0) {
+        await addSlotNetWinProgress(userId, netWin, tx)
+      }
       const xpGain = XP_SLOT_SPIN + (netPositive ? XP_SLOT_WIN_BONUS : 0)
       const gamification = await awardXpInTransaction(tx, userId, xpGain)
       assertRoundTransition(roundState, 'SETTLED')
