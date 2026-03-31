@@ -29,6 +29,7 @@ import { useTopBar } from '../contexts/TopBarContext';
 import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { apiUrl } from "../utils/apiBase";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
+import { DailyChallenges } from "../components/DailyChallenges";
 
 function readLobbyTabFromUrl(): "poker" | "minigames" | "blackjack" {
   if (typeof window === "undefined") return "poker";
@@ -934,8 +935,10 @@ export function Lobby() {
           </div>
 
           {/* Colonne de droite (1/3) - Amis */}
-          <div ref={tourRefFriends} className="lg:col-span-1">
+          <div ref={tourRefFriends} className="lg:col-span-1 space-y-6">
+            <DailyChallenges />
             <FriendsList />
+            
           </div>
 
         </div>

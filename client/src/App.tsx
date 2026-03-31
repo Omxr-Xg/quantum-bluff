@@ -23,6 +23,7 @@ import { GameExample } from "./pages/GameExample";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { UserProvider } from "./contexts/UserContext";
 
 import { MiniGames } from './pages/MiniGames';
 
@@ -39,6 +40,7 @@ const basename = base && !isCapacitor ? base : undefined;
 function App() {
   return (
     <BrowserRouter basename={basename}>
+      <UserProvider>
       <AccessibilityProvider>
         <AccessibilityMenuOpenProvider>
         <ErrorBoundary>
@@ -77,6 +79,7 @@ function App() {
         </ErrorBoundary>
         </AccessibilityMenuOpenProvider>
       </AccessibilityProvider>
+      </UserProvider>
     </BrowserRouter>
   );
 }
