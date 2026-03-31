@@ -34,7 +34,7 @@ import {
 const router = express.Router()
 
 /** Révélation des cartes croupier + résultats (sync client animation). */
-const ROUND_REVEAL_MS = 3000
+const ROUND_REVEAL_MS = 2000
 
 type BjRoundSummaryRow = {
   userId: string
@@ -632,51 +632,6 @@ router.post('/:roomId/start', authMiddleware, async (req, res) => {
           members,
         })
 
-        // Auto-mise + deal immédiat (comme un vrai casino)
-        const defaultBet = table.minBet
-        const memberUserIds = members.map((m) => m.userId)
-        const dbUsers = await prisma.user.findMany({
-          where: { id: { in: memberUserIds } },
-          select: { id: true, chips: true, experience: true },
-        })
-
-        if (dbUsers.length !== memberUserIds.length) {
-          throw makeHttpError(500, 'Erreur serveur')
-        }
-
-        for (const m of members) {
-          const u = dbUsers.find((x) => x.id === m.userId)
-          if (!u) continue
-          const lvl = levelFromExperience(u.experience)
-          const maxBetEffective = Math.min(
-            BLACKJACK_MAX_BET_CAP,
-            getEffectiveBlackjackMaxBet(lvl)
-          )
-
-          const v = validateBlackjackBet(defaultBet, u.chips, maxBetEffective)
-          if (!v.ok) {
-            throw makeHttpError(400, v.code, { code: v.code })
-          }
-
-          const upd = await prisma.user.updateMany({
-            where: { id: u.id, chips: { gte: v.bet } },
-            data: { chips: { decrement: v.bet } },
-          })
-          if (upd.count === 0) {
-            throw makeHttpError(409, 'INSUFFICIENT_CHIPS', { code: 'INSUFFICIENT_CHIPS' })
-          }
-
-          const placed = table.placeBet(u.id, v.bet, u.chips, maxBetEffective)
-          if (!placed.ok) {
-            throw makeHttpError(500, 'Erreur serveur')
-          }
-        }
-
-        const d = table.deal()
-        if (!d.ok) {
-          throw makeHttpError(500, d.code, { code: d.code })
-        }
-
         activeBlackjackGames.set(gameId, table)
 
         await prisma.blackjackRoom.update({
@@ -856,7 +811,39 @@ router.post('/game/:gameId/bet', authMiddleware, async (req, res) => {
     activeBlackjackGames.sync(table.gameId)
 
     const io = getIo(req)
-    broadcastTable(table.gameId, table, io)
+    let autoDealResult: Awaited<ReturnType<typeof maybeRunDealerAndPayout>> = null
+
+    if (table.allSeatsReadyForDeal()) {
+      try {
+        autoDealResult = await withBlackjackTableLock(
+          blackjackStateStore,
+          `game:${table.gameId}`,
+          async () => {
+            const d = table.deal()
+            if (!d.ok) {
+              throw makeHttpError(400, d.code, { code: d.code })
+            }
+            activeBlackjackGames.sync(table.gameId)
+            const settled = await maybeRunDealerAndPayout(table, io)
+            if (!settled) {
+              broadcastTable(table.gameId, table, io)
+            }
+            return settled
+          }
+        )
+      } catch (e) {
+        if (e instanceof BlackjackTableLockedError) {
+          return res.status(409).json({ error: 'TABLE_LOCKED', code: 'TABLE_LOCKED' })
+        }
+        const he = e as RouteHttpError
+        if (he.httpStatus && he.httpBody) {
+          return res.status(he.httpStatus).json(he.httpBody)
+        }
+        throw e
+      }
+    } else {
+      broadcastTable(table.gameId, table, io)
+    }
 
     const fresh = await prisma.user.findUnique({
       where: { id: userId },
@@ -868,6 +855,12 @@ router.post('/game/:gameId/bet', authMiddleware, async (req, res) => {
       bet: preview.bet,
       chips: intChips(fresh?.chips ?? 0),
       state: table.toPublicState(userId),
+      ...(autoDealResult
+        ? {
+            settlements: autoDealResult.settlements,
+            roundSummary: autoDealResult.roundSummary,
+          }
+        : {}),
     })
   } catch (e) {
     console.error('blackjackMulti bet', e)
