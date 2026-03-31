@@ -100,6 +100,7 @@ async function finalizeHand(
       userId,
       gameType: 'BLACKJACK_SOLO',
       grossWinAmount: payout,
+      casinoStakeAmount: totalBet,
       sourceReferenceId: casinoContext.actionId,
       casinoContext,
       balanceBeforeGrossPayout: balanceBeforePayout,

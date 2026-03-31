@@ -387,7 +387,13 @@ export async function applyRepaymentOnPositiveWin(
   params: {
     userId: string
     gameType: LoanSourceGameType
+    /** Jetons crédités sur ce coup (paiement total roulette / slot / blackjack). */
     grossWinAmount: number
+    /**
+     * Mise déjà débitée pour ce coup (si renseigné) : le % de remboursement s’applique à
+     * max(0, grossWinAmount − casinoStakeAmount), pas au simple rendu de mise.
+     */
+    casinoStakeAmount?: number
     sourceReferenceId: string
     /** Contexte du tour de jeu (slot / roulette / BJ) pour le ledger payout + remboursement. */
     casinoContext: CasinoRoundContext
@@ -406,32 +412,37 @@ export async function applyRepaymentOnPositiveWin(
   socketRepayment?: RepaymentSocketPayload
   socketCompleted?: RepaymentSocketPayload
 }> {
-  const gross = intChips(params.grossWinAmount)
-  if (gross <= 0) {
+  const chipCredit = intChips(params.grossWinAmount)
+  if (chipCredit <= 0) {
     throw Object.assign(new Error('GROSS_WIN_NOT_POSITIVE'), { code: 'GROSS_WIN_NOT_POSITIVE' })
   }
+
+  const stake =
+    params.casinoStakeAmount != null ? intChips(params.casinoStakeAmount) : 0
+  const repaymentBasis =
+    params.casinoStakeAmount != null ? Math.max(0, chipCredit - stake) : chipCredit
 
   const loan = await findActiveLoanForBorrowerTx(tx, params.userId)
   if (!loan) {
     return {
       hadActiveLoan: false,
       applied: false,
-      borrowerCredit: gross,
+      borrowerCredit: chipCredit,
       repaymentToLender: 0,
       loanCompleted: false,
     }
   }
 
-  const repayment = computeRepaymentSlice(gross, loan.repaymentRate, loan.remainingAmount)
-  const borrowerNet = gross - repayment
-  const balanceMid = params.balanceBeforeGrossPayout + gross
+  const repayment = computeRepaymentSlice(repaymentBasis, loan.repaymentRate, loan.remainingAmount)
+  const borrowerNet = chipCredit - repayment
+  const balanceMid = params.balanceBeforeGrossPayout + chipCredit
   const balanceFinalBorrower = params.balanceBeforeGrossPayout + borrowerNet
 
   await appendWalletLedgerEntry(
     {
       context: params.casinoContext,
       reason: params.payoutLedgerReason,
-      amount: gross,
+      amount: chipCredit,
       balanceBefore: params.balanceBeforeGrossPayout,
       balanceAfter: balanceMid,
     },
@@ -492,7 +503,7 @@ export async function applyRepaymentOnPositiveWin(
         lenderId: loan.lenderId,
         sourceGameType: params.gameType,
         sourceReferenceId: params.sourceReferenceId,
-        grossWinAmount: gross,
+        grossWinAmount: chipCredit,
         repaymentAmount: repayment,
         borrowerNetReceived: borrowerNet,
       },
@@ -506,7 +517,8 @@ export async function applyRepaymentOnPositiveWin(
         metadataJson: {
           gameType: params.gameType,
           sourceReferenceId: params.sourceReferenceId,
-          grossWinAmount: gross,
+          grossWinAmount: chipCredit,
+          repaymentProfitBasis: repaymentBasis,
           borrowerNetReceived: borrowerNet,
         },
       },
@@ -563,13 +575,13 @@ export async function applyRepaymentOnPositiveWin(
 
   await tx.user.update({
     where: { id: params.userId },
-    data: { chips: { increment: gross } },
+    data: { chips: { increment: chipCredit } },
   })
 
   return {
     hadActiveLoan: true,
     applied: false,
-    borrowerCredit: gross,
+    borrowerCredit: chipCredit,
     repaymentToLender: 0,
     loanCompleted: false,
     loanId: loan.id,
