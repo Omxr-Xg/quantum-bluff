@@ -8,7 +8,7 @@ export const CASINO_PAYOUT_TABLE_VERSION = 'casino-payout-v1'
 
 export function createCasinoRoundContext(input: {
   userId: string
-  gameType: 'roulette' | 'slot' | 'blackjack' | 'poker_hidden_bet'
+  gameType: 'roulette' | 'slot' | 'blackjack' | 'poker_hidden_bet' | 'friend_loan'
   actionId?: string
   roundId?: string
 }): CasinoRoundContext {
@@ -24,5 +24,19 @@ export function createCasinoRoundContext(input: {
     payoutTableVersion: CASINO_PAYOUT_TABLE_VERSION,
     rngVersion: RNG_VERSION,
   }
+}
+
+/** Contexte ledger pour opérations prêt entre amis (hors moteur casino RNG). */
+export function createFriendLoanLedgerContext(input: {
+  userId: string
+  loanId: string
+  actionId?: string
+}): CasinoRoundContext {
+  return createCasinoRoundContext({
+    userId: input.userId,
+    gameType: 'friend_loan',
+    roundId: `loan:${input.loanId}`,
+    actionId: input.actionId,
+  })
 }
 

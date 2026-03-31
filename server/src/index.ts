@@ -26,6 +26,7 @@ import gameRoutes from './routes/game.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import twofaRoutes from './routes/twofa.routes.js'
 import friendsRoutes from './routes/friends.routes.js'
+import friendLoanRoutes from './routes/friendLoan.routes.js'
 import waitingRoomRoutes from './routes/waitingRoom.routes.js'
 import gameApiRoutes from './routes/game.api.routes.js'
 import botRoutes from './routes/bot.routes.js'
@@ -180,6 +181,7 @@ app.use('/api', gameRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/auth/2fa', twofaRoutes)
 app.use('/api/friends', friendsRoutes)
+app.use('/api/friends', friendLoanRoutes)
 app.use('/api/friends', invitationRoutes)
 app.use('/api/waiting-room', waitingRoomRoutes)
 app.use('/api/game', gameApiRoutes)
