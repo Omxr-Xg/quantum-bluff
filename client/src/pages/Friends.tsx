@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Search, MessageCircle, Users, X, Check, Loader2, Gamepad2, Home } from "lucide-react";
+import { useDispatch } from "react-redux";
+import { UserPlus, Search, MessageCircle, Users, X, Check, Loader2, Gamepad2, Home, Coins } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -15,13 +16,26 @@ import {
   useSendFriendRequestMutation,
   useRespondToFriendRequestMutation,
   useGetFriendMessagesQuery,
-  useSendFriendMessageMutation
+  useSendFriendMessageMutation,
+  useCreateFriendLoanRequestMutation,
+  api,
 } from "../services/api";
+import type { AppDispatch } from "../store/index";
 import { FriendSearch } from "../components/FriendSearch";
+import { FriendLoansPanel } from "../components/FriendLoansPanel";
+import {
+  ALLOWED_LOAN_REPAYMENT_RATES,
+  previewTotalDue,
+  interestPercentForRepaymentRate,
+} from "../utils/friendLoanPreview";
+import { getFriendLoanApiErrorMessage } from "../utils/friendLoanApiError";
+
+type FriendsTab = "friends" | "requests" | "messages" | "loans";
 
 export function Friends() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
   const { userId } = useUser();
   const { socket, isConnected, connect } = useSocket();
   const { addToast } = useToast();
@@ -34,6 +48,12 @@ export function Friends() {
   const [searchSuccess, setSearchSuccess] = useState(false);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
+  const [activeTab, setActiveTab] = useState<FriendsTab>("friends");
+  const [loanModal, setLoanModal] = useState<{ id: string; username: string } | null>(null);
+  const [loanAmount, setLoanAmount] = useState(500);
+  const [loanRate, setLoanRate] = useState<number>(30);
+
+  const [createLoanRequest, { isLoading: creatingLoan }] = useCreateFriendLoanRequestMutation();
 
   const {
     data: friends,
@@ -126,16 +146,31 @@ export function Friends() {
       refetchRequests();
     };
 
+    const invalidateLoans = () => {
+      dispatch(api.util.invalidateTags(["FriendLoan"]));
+    };
+
+    const loanEvents = [
+      "LOAN_REQUEST_RECEIVED",
+      "LOAN_REQUEST_ACCEPTED",
+      "LOAN_REQUEST_REJECTED",
+      "LOAN_CREATED",
+      "LOAN_REPAYMENT_PROGRESS",
+      "LOAN_COMPLETED",
+    ] as const;
+
     socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
     socket.on("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
     socket.on("FRIEND_LIST_UPDATED", handleFriendListUpdated);
+    loanEvents.forEach((ev) => socket.on(ev, invalidateLoans));
 
     return () => {
       socket.off("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
       socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
       socket.off("FRIEND_LIST_UPDATED", handleFriendListUpdated);
+      loanEvents.forEach((ev) => socket.off(ev, invalidateLoans));
     };
-  }, [socket, userId, refetchFriends, refetchRequests]);
+  }, [socket, userId, refetchFriends, refetchRequests, dispatch]);
 
   const handleSearchUser = () => {
     if (!friendUsername.trim() || friendUsername.trim().length < 2) {
@@ -319,7 +354,32 @@ export function Friends() {
           </button>
         </div>
 
-        {(loadingRequests || (requests && requests.length > 0)) && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {(
+            [
+              ["friends", t("friends.tabFriends"), Users],
+              ["requests", t("friends.tabRequests"), UserPlus],
+              ["messages", t("friends.tabMessages"), MessageCircle],
+              ["loans", t("friends.tabLoans"), Coins],
+            ] as const
+          ).map(([key, label, Icon]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveTab(key)}
+              className={`flex touch-manipulation items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all sm:text-base ${
+                activeTab === key
+                  ? "bg-green-600 text-white shadow-lg"
+                  : "bg-slate-700 text-gray-200 hover:bg-slate-600"
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "requests" && (
           <div className="mb-4 rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-5 shadow-2xl sm:mb-6 sm:rounded-2xl sm:p-8">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200 sm:text-xl">
               <UserPlus className="h-5 w-5 shrink-0 text-amber-400" />
@@ -330,9 +390,9 @@ export function Friends() {
               <div className="flex justify-center py-6">
                 <Loader2 className="h-6 w-6 animate-spin text-amber-300" />
               </div>
-            ) : (
+            ) : requests?.length ? (
               <div className="space-y-3">
-                {requests?.map((req) => (
+                {requests.map((req) => (
                   <div
                     key={req.id}
                     className="flex items-center justify-between rounded-lg border border-slate-600 bg-slate-800/50 p-3"
@@ -362,87 +422,206 @@ export function Friends() {
                   </div>
                 ))}
               </div>
+            ) : (
+              <p className="text-gray-400">{t("friends.noFriendsYet")}</p>
             )}
           </div>
         )}
 
-        <div className="mb-4 rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-5 shadow-2xl sm:mb-6 sm:rounded-2xl sm:p-8">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("friends.searchFriendPlaceholder")}
-              className="w-full rounded-xl border border-slate-600 bg-slate-900/50 py-3 pl-12 pr-4 text-white placeholder-gray-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <FriendSearch />
-        </div>
-
-        {loadingFriends ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-green-400" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {filteredFriends.map((friend) => (
-              <div
-                key={friend.id}
-                className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-5 shadow-2xl transition-all hover:border-slate-600 sm:rounded-2xl sm:p-8"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-yellow-400 bg-gradient-to-br from-green-600 to-green-800 shadow-lg sm:h-20 sm:w-20">
-                    {getPlayerAvatar(friend.username, friend.id) ? (
-                      <ImageWithFallback
-                        src={getPlayerAvatar(friend.username, friend.id)}
-                        alt={`${friend.username}'s avatar`}
-                        className="h-16 w-16 rounded-full object-cover sm:h-20 sm:w-20"
-                      />
-                    ) : (
-                      <span className="text-2xl font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      <h3 className="truncate text-xl font-bold text-white">{friend.username}</h3>
-                      <span className="shrink-0 text-sm font-semibold text-amber-200">
-                        {t("friends.level", { level: friend.level })}
-                      </span>
-                    </div>
-
-                    <div className="mb-4 text-sm text-gray-400">
-                      🏆 {friend.stats?.wins || 0} {t("profile.wins")}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => openChat(friend.id)}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-2.5 font-semibold text-white transition-all hover:bg-slate-600"
-                    >
-                      <MessageCircle className="h-4 w-4 shrink-0" />
-                      {t("friends.chat")}
-                    </button>
-                  </div>
-                </div>
+        {activeTab === "friends" && (
+          <>
+            <div className="mb-4 rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-5 shadow-2xl sm:mb-6 sm:rounded-2xl sm:p-8">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t("friends.searchFriendPlaceholder")}
+                  className="w-full rounded-xl border border-slate-600 bg-slate-900/50 py-3 pl-12 pr-4 text-white placeholder-gray-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
               </div>
-            ))}
+            </div>
+
+            <div className="mb-6">
+              <FriendSearch />
+            </div>
+
+            {loadingFriends ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-green-400" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {filteredFriends.map((friend) => (
+                  <div
+                    key={friend.id}
+                    className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-5 shadow-2xl transition-all hover:border-slate-600 sm:rounded-2xl sm:p-8"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-yellow-400 bg-gradient-to-br from-green-600 to-green-800 shadow-lg sm:h-20 sm:w-20">
+                        {getPlayerAvatar(friend.username, friend.id) ? (
+                          <ImageWithFallback
+                            src={getPlayerAvatar(friend.username, friend.id)}
+                            alt={`${friend.username}'s avatar`}
+                            className="h-16 w-16 rounded-full object-cover sm:h-20 sm:w-20"
+                          />
+                        ) : (
+                          <span className="text-2xl font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <h3 className="truncate text-xl font-bold text-white">{friend.username}</h3>
+                          <span className="shrink-0 text-sm font-semibold text-amber-200">
+                            {t("friends.level", { level: friend.level })}
+                          </span>
+                        </div>
+
+                        <div className="mb-4 text-sm text-gray-400">
+                          🏆 {friend.stats?.wins || 0} {t("profile.wins")}
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openChat(friend.id)}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-2.5 font-semibold text-white transition-all hover:bg-slate-600"
+                          >
+                            <MessageCircle className="h-4 w-4 shrink-0" />
+                            {t("friends.chat")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLoanModal({ id: friend.id, username: friend.username });
+                              setLoanAmount(500);
+                              setLoanRate(30);
+                            }}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/50 bg-amber-900/20 px-4 py-2.5 font-semibold text-amber-100 transition-all hover:bg-amber-900/40"
+                          >
+                            <Coins className="h-4 w-4 shrink-0" />
+                            {t("friends.loans.requestLoan")}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {filteredFriends.length === 0 && !loadingFriends && (
+              <div className="py-12 text-center">
+                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-slate-600 bg-slate-800/80">
+                  <Users className="h-10 w-10 text-gray-500" />
+                </div>
+                <p className="text-lg text-gray-400">{t("friends.noFriendsFound")}</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "messages" && userId && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {loadingFriends ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-green-400" />
+              </div>
+            ) : friends?.length ? (
+              friends.map((friend) => (
+                <button
+                  key={friend.id}
+                  type="button"
+                  onClick={() => openChat(friend.id)}
+                  className="flex items-center gap-4 rounded-xl border border-slate-700 bg-slate-800/80 p-4 text-left text-white transition hover:border-slate-600"
+                >
+                  <MessageCircle className="h-8 w-8 text-amber-300" />
+                  <span className="font-semibold">{friend.username}</span>
+                </button>
+              ))
+            ) : (
+              <p className="text-gray-400">{t("friends.noFriendsFound")}</p>
+            )}
           </div>
         )}
 
-        {filteredFriends.length === 0 && !loadingFriends && (
-          <div className="py-12 text-center">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-slate-600 bg-slate-800/80">
-              <Users className="h-10 w-10 text-gray-500" />
-            </div>
-            <p className="text-lg text-gray-400">{t("friends.noFriendsFound")}</p>
-          </div>
-        )}
+        {activeTab === "loans" && userId ? <FriendLoansPanel userId={userId} /> : null}
       </div>
+
+      {loanModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">
+                {t("friends.loans.requestLoan")} — {loanModal.username}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setLoanModal(null)}
+                className="rounded-lg bg-slate-700 p-2 text-white hover:bg-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <label className="mb-1 block text-sm text-gray-300">{t("friends.loans.amount")}</label>
+            <input
+              type="number"
+              min={100}
+              max={1000000}
+              value={loanAmount}
+              onChange={(e) => setLoanAmount(Number(e.target.value) || 0)}
+              className="mb-4 w-full rounded-xl border border-slate-600 bg-slate-900/60 px-4 py-3 text-white"
+            />
+            <label className="mb-1 block text-sm text-gray-300">{t("friends.loans.repaymentRate")}</label>
+            <select
+              value={loanRate}
+              onChange={(e) => setLoanRate(Number(e.target.value))}
+              className="mb-4 w-full rounded-xl border border-slate-600 bg-slate-900/60 px-4 py-3 text-white"
+            >
+              {ALLOWED_LOAN_REPAYMENT_RATES.map((r) => (
+                <option key={r} value={r}>
+                  {r}%
+                </option>
+              ))}
+            </select>
+            <div className="mb-4 space-y-1 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-sm text-amber-100">
+              <p>
+                {t("friends.loans.interestPreview", { rate: interestPercentForRepaymentRate(loanRate) })}
+              </p>
+              <p>{t("friends.loans.totalDue", { amount: previewTotalDue(loanAmount, loanRate) })}</p>
+              <p>
+                {t("friends.loans.winExample", {
+                  win: 100,
+                  slice: Math.floor((100 * loanRate) / 100),
+                })}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={creatingLoan || loanAmount < 100}
+              onClick={async () => {
+                try {
+                  await createLoanRequest({
+                    lenderId: loanModal.id,
+                    amount: loanAmount,
+                    repaymentRate: loanRate,
+                  }).unwrap();
+                  addToast(t("friends.loans.loanRequestOk"), "success");
+                  setLoanModal(null);
+                } catch (err) {
+                  addToast(getFriendLoanApiErrorMessage(err, t("friends.loans.loanError")), "error");
+                }
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-500 disabled:opacity-50"
+            >
+              {creatingLoan ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+              {t("friends.loans.sendRequest")}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {showAddFriend && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
