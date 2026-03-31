@@ -421,6 +421,15 @@ export class GameTable {
    * @param lastActorId - Si fourni, le premier à jouer sur la nouvelle rue est le joueur APRÈS lastActorId (évite qu'un joueur joue deux fois de suite)
    */
   private moveToNextPhase(): void {
+    console.log('[POKER][PHASE] moveToNextPhase_called', {
+  gameId: this.id,
+  fromPhase: this.state.phase,
+  handId: this.state.handId,
+  currentTurn: this.state.currentTurn,
+  pot: this.state.pot,
+  actionVersion: this.state.actionVersion,
+  streetVersion: this.state.streetVersion,
+})
     // Guardrail: if only one participant remains, always end by fold.
     const handEndReason = this.computeHandEndReason()
     if (handEndReason === 'WIN_BY_FOLD') {
@@ -447,6 +456,13 @@ export class GameTable {
     if (nextPhase === 'FLOP') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(...this.deck.dealFlop())
+      console.log('[POKER][PHASE] flop_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: firstToActId,
+})
       this.runOutBoardIfAllIn()
       if (this.state.phase === 'SHOWDOWN') return
       // LIVE bets are open at any moment during this street; no "frozen window" pause.
@@ -459,6 +475,13 @@ export class GameTable {
     if (nextPhase === 'TURN') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealTurn())
+      console.log('[POKER][PHASE] turn_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: firstToActId,
+})
       this.runOutBoardIfAllIn()
       if (this.state.phase === 'SHOWDOWN') return
       this.state.hiddenBetLiveWindow = undefined
@@ -470,6 +493,13 @@ export class GameTable {
     if (nextPhase === 'RIVER') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealRiver())
+      console.log('[POKER][PHASE] river_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: firstToActId,
+})
       this.runOutBoardIfAllIn()
       if (this.state.phase === 'SHOWDOWN') return
       this.state.hiddenBetLiveWindow = undefined
@@ -539,10 +569,31 @@ export class GameTable {
       if (nextPhase === 'FLOP') {
         this.resetBetsForNewRound()
         this.state.communityCards.push(...this.deck.dealFlop())
+        console.log('[POKER][PHASE] flop_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: firstToActId,
+})
       } else if (nextPhase === 'TURN') {
         this.state.communityCards.push(this.deck.dealTurn())
+        console.log('[POKER][PHASE] turn_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: firstToActId,
+})
       } else if (nextPhase === 'RIVER') {
         this.state.communityCards.push(this.deck.dealRiver())
+        console.log('[POKER][PHASE] river_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: firstToActId,
+})
       }
 
       this.state.phase = nextPhase
@@ -714,6 +765,23 @@ export class GameTable {
     this.state.handParticipantIds = Array.from(this.handParticipantIds)
     this.state.handEndReason = undefined
     this.state.handRuntimePhase = 'BETTING_ACTIVE'
+    console.log('[POKER][HAND] started', {
+  gameId: this.id,
+  handId: this.state.handId,
+  dealerIndex: this.dealerIndex,
+  currentTurn: this.state.currentTurn,
+  phase: this.state.phase,
+  players: this.state.players.map((p) => ({
+    id: p.id,
+    name: p.name,
+    chips: p.chips,
+    currentBet: p.currentBet,
+    role: p.role,
+    isDealer: p.isDealer,
+    isActive: p.isActive,
+    isConnected: p.isConnected,
+  })),
+})
     this.bumpVersion()
   }
 
@@ -818,6 +886,18 @@ export class GameTable {
     amount?: number
   ): void {
     const player = this.getPlayerState(playerId)
+
+    console.log('[POKER][ACTION] handlePlayerAction_called', {
+  gameId: this.id,
+  handId: this.state.handId,
+  playerId,
+  action,
+  amount,
+  phase: this.state.phase,
+  currentTurn: this.state.currentTurn,
+  highestBet: this.highestBet,
+  pot: this.state.pot,
+})
 
     if (!player) {
       throw new Error('Joueur introuvable')
@@ -982,6 +1062,15 @@ export class GameTable {
   }
 
   private resolveShowdown(): void {
+    console.log('[POKER][SHOWDOWN] resolve_done', {
+  gameId: this.id,
+  handId: this.state.handId,
+  showdownWinnerId: this.state.showdownWinnerId,
+  showdownWinnerIds: this.state.showdownWinnerIds,
+  showdownIsSplit: this.state.showdownIsSplit,
+  showdownHandName: this.state.showdownHandName,
+  showdownPot: this.state.showdownPot,
+})
     this.state.handRuntimePhase = 'SHOWDOWN_REVEAL'
     const settled = settlePots({
       players: this.state.players,
@@ -999,6 +1088,15 @@ export class GameTable {
     this.state.showdownPot = settled.showdownPot
     this.state.handEndReason = this.state.handEndReason ?? 'SHOWDOWN'
     this.state.handRuntimePhase = 'HAND_COMPLETE'
+    console.log('[POKER][SHOWDOWN] resolve_done', {
+  gameId: this.id,
+  handId: this.state.handId,
+  showdownWinnerId: this.state.showdownWinnerId,
+  showdownWinnerIds: this.state.showdownWinnerIds,
+  showdownIsSplit: this.state.showdownIsSplit,
+  showdownHandName: this.state.showdownHandName,
+  showdownPot: this.state.showdownPot,
+})
     this.bumpVersion()
     this.sweepBustedPlayers()
   }
@@ -1017,6 +1115,17 @@ export class GameTable {
     streetForLog: GamePhase,
     amount?: number
   ): void {
+    console.log('[POKER][ACTION] finishPlayerActionLedger', {
+  gameId: this.id,
+  handId: this.state.handId,
+  playerId: player.id,
+  action,
+  streetForLog,
+  amount,
+  phaseNow: this.state.phase,
+  currentTurnNow: this.state.currentTurn,
+  potNow: this.state.pot,
+})
     this.bumpVersion()
     this.state.lastHandAction = {
       playerId: player.id,

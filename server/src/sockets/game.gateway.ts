@@ -60,6 +60,17 @@ export class GameGateway {
   private userToSocket: Map<string, string> = new Map()
   private antiCheat = new AntiCheatMonitor(8, 3000)
   private disconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map()
+  private async logRoomState(room: string, label: string, extra: Record<string, unknown> = {}) {
+  const sockets = await this.io.in(room).fetchSockets()
+
+  console.log(`[SOCKET][${label}]`, {
+    room,
+    socketsCount: sockets.length,
+    socketIds: sockets.map((s) => s.id),
+    userIds: sockets.map((s) => (s as AuthenticatedSocket).userId ?? null),
+    ...extra,
+  })
+}
 
   constructor(io: Server) {
     this.io = io
@@ -277,6 +288,13 @@ export class GameGateway {
 
           socket.join(gameId);
           socket.gameId = gameId;
+
+          await this.logRoomState(gameId, 'joined_game_room', {
+  socketId: socket.id,
+  userId: socket.userId,
+  playerId,
+  gameId,
+})
           
           const game = await activeGames.get(gameId);
           if (game) {
@@ -286,6 +304,14 @@ export class GameGateway {
               })
               const url = sanitizePublicAvatarUrl(data.avatarUrl)
               if (url) game.setSeatAvatar(playerId, url)
+                console.log('[SOCKET][JOIN_GAME] broadcasting_initial_snapshot', {
+  gameId,
+  socketsCount: socketsInRoom.length,
+  playersCount: game.state.players?.length ?? undefined,
+  phase: game.state.phase,
+  currentTurn: game.state.currentTurn,
+  handId: game.state.handId,
+})
               const socketsInRoom = await this.io.in(gameId).fetchSockets()
               for (const s of socketsInRoom) {
                 const uid = (s as unknown as AuthenticatedSocket).userId
@@ -503,6 +529,17 @@ export class GameGateway {
         const startActionTime = Date.now()
         try {
           const { gameId, playerId, action, amount: rawAmount } = data
+          console.log('[GAME][ACTION] received', {
+  socketId: socket.id,
+  socketUserId: socket.userId,
+  gameId,
+  playerId,
+  action,
+  rawAmount,
+  handId: data.handId,
+  expectedStreet: data.expectedStreet,
+  actionId: data.actionId,
+})
           const amount = rawAmount !== undefined ? intChips(rawAmount) : undefined
 
           if (!socket.userId) {
@@ -572,6 +609,20 @@ export class GameGateway {
               action
             })
 
+            if (game) {
+  console.log('[GAME][ACTION] before_apply', {
+    gameId,
+    playerId,
+    action,
+    phase: game.state.phase,
+    currentTurn: game.state.currentTurn,
+    handId: game.state.handId,
+    actionVersion: game.state.actionVersion,
+    streetVersion: game.state.streetVersion,
+    pot: game.state.pot,
+  })
+}
+
             socket.emit('ERROR', {
               code: 'GAME_NOT_FOUND',
               message: 'Partie introuvable'
@@ -589,6 +640,24 @@ export class GameGateway {
             expectedStreet: data.expectedStreet,
           })
 
+          const freshGameAfterApply = await activeGames.get(gameId)
+
+if (freshGameAfterApply) {
+  console.log('[GAME][ACTION] after_apply', {
+    gameId,
+    playerId,
+    action,
+    phase: freshGameAfterApply.state.phase,
+    currentTurn: freshGameAfterApply.state.currentTurn,
+    handId: freshGameAfterApply.state.handId,
+    actionVersion: freshGameAfterApply.state.actionVersion,
+    streetVersion: freshGameAfterApply.state.streetVersion,
+    pot: freshGameAfterApply.state.pot,
+    handRuntimePhase: freshGameAfterApply.state.handRuntimePhase,
+    lastHandAction: freshGameAfterApply.state.lastHandAction,
+  })
+}
+
           this.resetTimer(gameId)
           const freshGame = await activeGames.get(gameId)
           if (!freshGame) {
@@ -599,7 +668,25 @@ export class GameGateway {
             return
           }
           const socketsInRoom = await this.io.in(gameId).fetchSockets()
+          await this.logRoomState(gameId, 'before_emit_after_player_action', {
+  gameId,
+  phase: freshGame?.state.phase,
+  currentTurn: freshGame?.state.currentTurn,
+  handId: freshGame?.state.handId,
+  actionVersion: freshGame?.state.actionVersion,
+  streetVersion: freshGame?.state.streetVersion,
+})
           for (const s of socketsInRoom) {
+            console.log('[SOCKET][EMIT] GAME_UPDATE', {
+  targetSocketId: s.id,
+  targetUserId: (s as AuthenticatedSocket).userId,
+  gameId,
+  phase: freshGame.state.phase,
+  currentTurn: freshGame.state.currentTurn,
+  handId: freshGame.state.handId,
+  actionVersion: freshGame.state.actionVersion,
+  streetVersion: freshGame.state.streetVersion,
+})
             const uid = (s as unknown as AuthenticatedSocket).userId
             const isSpectator = !freshGame.getPlayerState(uid ?? '')
             const snapshot = freshGame.getSanitizedState(isSpectator ? undefined : uid)
@@ -908,6 +995,12 @@ export class GameGateway {
 
           socket.join(gameId)
           socket.gameId = gameId
+
+          await this.logRoomState(gameId, 'reconnect_joined_game_room', {
+  socketId: socket.id,
+  userId: socket.userId,
+  gameId,
+})
 
           const game = await activeGames.get(gameId);
           if (game && socket.userId) {
