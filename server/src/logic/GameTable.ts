@@ -461,7 +461,7 @@ export class GameTable {
   handId: this.state.handId,
   phase: this.state.phase,
   communityCards: this.state.communityCards,
-  currentTurn: firstToActId,
+  currentTurn: this.state.currentTurn,
 })
       this.runOutBoardIfAllIn()
       if (this.state.phase === 'SHOWDOWN') return
@@ -480,7 +480,7 @@ export class GameTable {
   handId: this.state.handId,
   phase: this.state.phase,
   communityCards: this.state.communityCards,
-  currentTurn: firstToActId,
+  currentTurn: this.state.currentTurn,
 })
       this.runOutBoardIfAllIn()
       if (this.state.phase === 'SHOWDOWN') return
@@ -498,7 +498,7 @@ export class GameTable {
   handId: this.state.handId,
   phase: this.state.phase,
   communityCards: this.state.communityCards,
-  currentTurn: firstToActId,
+  currentTurn: this.state.currentTurn,
 })
       this.runOutBoardIfAllIn()
       if (this.state.phase === 'SHOWDOWN') return
@@ -574,7 +574,7 @@ export class GameTable {
   handId: this.state.handId,
   phase: this.state.phase,
   communityCards: this.state.communityCards,
-  currentTurn: firstToActId,
+  currentTurn: this.state.currentTurn,
 })
       } else if (nextPhase === 'TURN') {
         this.state.communityCards.push(this.deck.dealTurn())
@@ -583,7 +583,7 @@ export class GameTable {
   handId: this.state.handId,
   phase: this.state.phase,
   communityCards: this.state.communityCards,
-  currentTurn: firstToActId,
+  currentTurn: this.state.currentTurn,
 })
       } else if (nextPhase === 'RIVER') {
         this.state.communityCards.push(this.deck.dealRiver())
@@ -592,7 +592,7 @@ export class GameTable {
   handId: this.state.handId,
   phase: this.state.phase,
   communityCards: this.state.communityCards,
-  currentTurn: firstToActId,
+  currentTurn: this.state.currentTurn,
 })
       }
 

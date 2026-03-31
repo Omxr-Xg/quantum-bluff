@@ -4,9 +4,12 @@ services:
   postgres:
     image: postgres:16
     container_name: quantum_postgres
-    security_opt: [no-new-privileges:true]
+    security_opt:
+      - no-new-privileges:true
     read_only: true
-    tmpfs: [/tmp, /var/run/postgresql]
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
     environment:
       POSTGRES_USER: ${DB_USER:-admin}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-My027}
@@ -25,15 +28,18 @@ services:
   redis:
     image: redis:alpine
     container_name: quantum_redis
-    security_opt: [no-new-privileges:true]
+    security_opt:
+      - no-new-privileges:true
     read_only: true
-    tmpfs: [/data, /tmp]
+    tmpfs:
+      - /data
+      - /tmp
     restart: unless-stopped
     networks:
       - quantum_net
 
   backend:
-    build: 
+    build:
       context: ./server
       dockerfile: Dockerfile
     container_name: quantum_backend
@@ -58,7 +64,7 @@ services:
       context: ./client
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=/vmProjetIntegrateurgrp10-0
+        VITE_API_URL: /vmProjetIntegrateurgrp10-0
     container_name: quantum_frontend
     restart: unless-stopped
     networks:
@@ -67,16 +73,19 @@ services:
   nginx:
     image: nginx:alpine
     container_name: quantum_nginx
-    security_opt: [no-new-privileges:true]
+    security_opt:
+      - no-new-privileges:true
     read_only: true
-    tmpfs: [/var/cache/nginx, /var/run]
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-      - /var/www/certbot:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot
     depends_on:
       - backend
       - frontend

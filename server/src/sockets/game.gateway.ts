@@ -67,7 +67,7 @@ export class GameGateway {
     room,
     socketsCount: sockets.length,
     socketIds: sockets.map((s) => s.id),
-    userIds: sockets.map((s) => (s as AuthenticatedSocket).userId ?? null),
+    userIds: sockets.map((s) => ((s as unknown as AuthenticatedSocket).userId ?? null)),
     ...extra,
   })
 }
@@ -304,7 +304,9 @@ export class GameGateway {
               })
               const url = sanitizePublicAvatarUrl(data.avatarUrl)
               if (url) game.setSeatAvatar(playerId, url)
-                console.log('[SOCKET][JOIN_GAME] broadcasting_initial_snapshot', {
+                const socketsInRoom = await this.io.in(gameId).fetchSockets()
+
+console.log('[SOCKET][JOIN_GAME] broadcasting_initial_snapshot', {
   gameId,
   socketsCount: socketsInRoom.length,
   playersCount: game.state.players?.length ?? undefined,
@@ -312,7 +314,6 @@ export class GameGateway {
   currentTurn: game.state.currentTurn,
   handId: game.state.handId,
 })
-              const socketsInRoom = await this.io.in(gameId).fetchSockets()
               for (const s of socketsInRoom) {
                 const uid = (s as unknown as AuthenticatedSocket).userId
                 s.emit('GAME_UPDATE', game.getSanitizedState(uid))
@@ -602,33 +603,31 @@ export class GameGateway {
 
           const game = await activeGames.get(gameId)
           if (!game) {
-            logSuspiciousAction('GAME_NOT_FOUND', {
-              userId: socket.userId,
-              socketId: socket.id,
-              gameId,
-              action
-            })
-
-            if (game) {
-  console.log('[GAME][ACTION] before_apply', {
+  logSuspiciousAction('GAME_NOT_FOUND', {
+    userId: socket.userId,
+    socketId: socket.id,
     gameId,
-    playerId,
-    action,
-    phase: game.state.phase,
-    currentTurn: game.state.currentTurn,
-    handId: game.state.handId,
-    actionVersion: game.state.actionVersion,
-    streetVersion: game.state.streetVersion,
-    pot: game.state.pot,
+    action
   })
+
+  socket.emit('ERROR', {
+    code: 'GAME_NOT_FOUND',
+    message: 'Partie introuvable'
+  })
+  return
 }
 
-            socket.emit('ERROR', {
-              code: 'GAME_NOT_FOUND',
-              message: 'Partie introuvable'
-            })
-            return
-          }
+console.log('[GAME][ACTION] before_apply', {
+  gameId,
+  playerId,
+  action,
+  phase: game.state.phase,
+  currentTurn: game.state.currentTurn,
+  handId: game.state.handId,
+  actionVersion: game.state.actionVersion,
+  streetVersion: game.state.streetVersion,
+  pot: game.state.pot,
+})
 
           await applyPokerAction({
             gameId,
@@ -679,7 +678,7 @@ if (freshGameAfterApply) {
           for (const s of socketsInRoom) {
             console.log('[SOCKET][EMIT] GAME_UPDATE', {
   targetSocketId: s.id,
-  targetUserId: (s as AuthenticatedSocket).userId,
+  targetUserId: (s as unknown as AuthenticatedSocket).userId,
   gameId,
   phase: freshGame.state.phase,
   currentTurn: freshGame.state.currentTurn,
@@ -828,36 +827,41 @@ if (freshGameAfterApply) {
                 handId: freshGame.state.handId,
               })
 
-              if (r.showdown && freshGame instanceof CashGameController) {
-                const cashGame = freshGame as CashGameController
-                this.io.to(gameId).emit('SHOWDOWN_REVEAL', {
-                  gameId,
-                  handId: freshGame.state.handId,
-                  handEndReason: freshGame.state.handEndReason,
-                })
-                const innerGame = cashGame.getGameTable()
-                if (innerGame && freshGame.state.showdownWinnerId) {
-                  this.recordMultiPlayerStats(innerGame as GameTable).catch((err) =>
-                    console.error('[Stats] Erreur enregistrement stats multi:', err)
-                  )
-                }
-                const showdownSnapshot = {
-                  handId: freshGame.state.handId ?? '',
-                  handEndReason: freshGame.state.handEndReason,
-                  showdownWinnerId: freshGame.state.showdownWinnerId,
-                  showdownWinnerIds: freshGame.state.showdownWinnerIds,
-                  showdownPot: freshGame.state.showdownPot,
-                }
-                await this.completeCashHandAndBroadcast(
-                  gameId,
-                  cashGame,
-                  roomId,
-                  showdownSnapshot
-                )
-              } else {
-                this.startTurnTimer(gameId)
-              }
-              return
+              const cashGame = freshGame instanceof CashGameController ? freshGame : null
+
+if (r.showdown && cashGame) {
+  this.io.to(gameId).emit('SHOWDOWN_REVEAL', {
+    gameId,
+    handId: cashGame.state.handId,
+    handEndReason: cashGame.state.handEndReason,
+  })
+
+  const innerGame = cashGame.getGameTable()
+  if (innerGame && cashGame.state.showdownWinnerId) {
+    this.recordMultiPlayerStats(innerGame as GameTable).catch((err) =>
+      console.error('[Stats] Erreur enregistrement stats multi:', err)
+    )
+  }
+
+  const showdownSnapshot = {
+    handId: cashGame.state.handId ?? '',
+    handEndReason: cashGame.state.handEndReason,
+    showdownWinnerId: cashGame.state.showdownWinnerId,
+    showdownWinnerIds: cashGame.state.showdownWinnerIds,
+    showdownPot: cashGame.state.showdownPot,
+  }
+
+  await this.completeCashHandAndBroadcast(
+    gameId,
+    cashGame,
+    roomId,
+    showdownSnapshot
+  )
+} else {
+  this.startTurnTimer(gameId)
+}
+
+return
             }
 
             const result = game.leave(leaverId)
