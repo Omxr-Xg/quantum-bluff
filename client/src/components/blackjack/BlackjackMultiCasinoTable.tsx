@@ -1,8 +1,10 @@
 import { type CSSProperties, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-
-// ⚠️ AJUSTE CE CHEMIN SELON OÙ SE TROUVE TON FICHIER PokerCard.tsx
-import { PokerCard } from "../PokerCard"; 
+import { motion } from "motion/react";
+import { PokerCard } from "../PokerCard";
+import { ChipIcon } from "../ChipIcon";
+import { ImageWithFallback } from "../figma/ImageWithFallback";
+import { getPlayerAvatar } from "../../utils/avatars";
 
 export type BjCard = { rank: string; suit: string };
 
@@ -19,6 +21,15 @@ export interface BjSeatPublic {
   playState: string;
   isCurrentTurn: boolean;
   handTotal?: number;
+  /** URL d’avatar partagée (si le serveur l’injecte). Sinon le client déduit le tien via le profil. */
+  avatarUrl?: string | null;
+}
+
+export interface BjPayoutSummaryRow {
+  userId: string;
+  username: string;
+  payout: number;
+  reason: string;
 }
 
 export interface BjTableState {
@@ -31,16 +42,18 @@ export interface BjTableState {
   dealerHoleHidden: boolean;
   seats: BjSeatPublic[];
   currentSeatUserId: string | null;
+  /** Phase payout : aligné serveur `BlackjackTablePublicState.payoutSummary`. */
+  payoutSummary?: BjPayoutSummaryRow[];
 }
 
-// 🃏 TRADUCTEUR POUR LE POKERCARD (h -> hearts, etc.)
 function mapSuitToPokerCard(s: string): string {
   switch (s) {
     case "h": return "hearts";
     case "d": return "diamonds";
     case "c": return "clubs";
     case "s": return "spades";
-    default: return "spades"; // Fallback de sécurité
+    default:
+      return "spades";
   }
 }
 
@@ -82,9 +95,8 @@ function dealerDisplayTotal(
   return { text: v.soft ? `S${v.total}` : String(v.total) };
 }
 
-// ==========================================
-// LE NOUVEAU WRAPPER QUI UTILISE PokerCard
-// ==========================================
+const DEAL_STAGGER_SEC = 0.055;
+
 export function PlayingCard({
   card,
   hidden,
@@ -107,6 +119,7 @@ export function PlayingCard({
           value="A" 
           faceDown={true} 
           animated={true}
+          cardEnter="soft"
           className={responsiveClasses} 
         />
       </div>
@@ -120,6 +133,7 @@ export function PlayingCard({
         value={card.rank}
         faceDown={false}
         animated={true}
+        cardEnter="soft"
         className={responsiveClasses}
       />
     </div>
@@ -145,10 +159,16 @@ function ChipStack({ amount }: { amount: number }) {
 export function BlackjackMultiCasinoTable({
   state,
   userId,
+  playerBalance,
+  playerEffectiveMaxBet,
   children,
 }: {
   state: BjTableState;
   userId: string | null;
+  /** Jetons du joueur connecté (hors spectateurs) — affiché en tête de tapis. */
+  playerBalance?: number | null;
+  /** Plafond de mise par main pour le joueur connecté (profil / niveau). */
+  playerEffectiveMaxBet: number;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -186,21 +206,45 @@ export function BlackjackMultiCasinoTable({
 
           {/* Bandeau infos */}
           <div className="relative z-10 flex flex-col items-center gap-1 px-4 pt-5 text-center sm:pt-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#c9a227]/40 bg-black/35 px-4 py-1.5 shadow-lg backdrop-blur-sm">
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#d4af37]/90">
-                {t("bjMulti.tableBrand")}
-              </span>
-              <span className="h-3 w-px bg-[#c9a227]/40" />
-              <span className="font-mono text-xs text-emerald-100/90">
-                {t("bjMulti.handLabel", { n: state.handNumber })}
-              </span>
-              <span className="h-3 w-px bg-[#c9a227]/40" />
-              <span className="rounded-md bg-emerald-950/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-200">
-                {phaseLabel}
-              </span>
+            <div className="inline-flex flex-wrap items-center justify-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#c9a227]/40 bg-black/35 px-4 py-1.5 shadow-lg backdrop-blur-sm">
+                <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#d4af37]/90">
+                  {t("bjMulti.tableBrand")}
+                </span>
+                <span className="h-3 w-px bg-[#c9a227]/40" />
+                <span className="font-mono text-xs text-emerald-100/90">
+                  {t("bjMulti.handLabel", { n: state.handNumber })}
+                </span>
+                <span className="h-3 w-px bg-[#c9a227]/40" />
+                <span className="rounded-md bg-emerald-950/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-200">
+                  {phaseLabel}
+                </span>
+              </div>
+              {typeof playerBalance === "number" && userId ? (
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#c9a227]/40 bg-black/45 py-1.5 pl-1.5 pr-3 shadow-md backdrop-blur-sm">
+                  <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-emerald-500/50 bg-black/40">
+                    <ImageWithFallback
+                      src={getPlayerAvatar("Vous", userId, userId)}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200/85">
+                    {t("bjMulti.yourBalance")}
+                  </span>
+                  <span className="h-3 w-px bg-[#c9a227]/35" />
+                  <span className="font-mono text-sm font-bold tabular-nums text-amber-100">
+                    {playerBalance.toLocaleString()}
+                  </span>
+                  <ChipIcon size="sm" className="shrink-0 brightness-110" />
+                </div>
+              ) : null}
             </div>
             <p className="text-[11px] text-emerald-200/70">
-              {t("bjMulti.minBetLabel")} <span className="font-mono text-amber-200">{state.minBet}</span>
+              {t("bjMulti.betLimitsLine", {
+                min: state.minBet,
+                max: playerEffectiveMaxBet,
+              })}
             </p>
           </div>
 
@@ -219,20 +263,33 @@ export function BlackjackMultiCasinoTable({
             </div>
             <div className="flex justify-center pl-4">
               {state.dealerCards.map((c, i) => (
-                <div
-                  key={`d-${i}-${c.rank}-${c.suit}`}
-                  className="bj-card-reveal -ml-4 first:ml-0 sm:-ml-5"
-                  style={{
-                    transform: `rotate(${-8 + i * 6}deg) translateY(${i * 2}px)`,
-                    zIndex: i,
-                    animationDelay: `${i * 0.09}s`,
+                <motion.div
+                  key={`${state.handNumber}-d-${i}-${c.rank}-${c.suit}`}
+                  className="-ml-4 first:ml-0 sm:-ml-5"
+                  style={{ zIndex: i }}
+                  initial={{
+                    opacity: 0,
+                    y: -16,
+                    scale: 0.96,
+                    rotate: -3 + i * 2.5,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    y: i * 2,
+                    scale: 1,
+                    rotate: -3 + i * 2.5,
+                  }}
+                  transition={{
+                    delay: i * DEAL_STAGGER_SEC,
+                    duration: 0.28,
+                    ease: [0.25, 0.1, 0.25, 1],
                   }}
                 >
                   <PlayingCard
                     card={c}
                     hidden={state.dealerHoleHidden && i === 1}
                   />
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -241,6 +298,7 @@ export function BlackjackMultiCasinoTable({
           <div className="relative z-10 mx-auto mt-6 flex max-w-5xl flex-wrap items-end justify-center gap-3 px-2 pb-4 sm:mt-10 sm:gap-4 sm:px-4">
             {sortedSeats.map((s, idx) => {
               const isYou = s.userId === userId;
+              const seatAvatar = getPlayerAvatar(s.username, s.userId, userId, s.avatarUrl);
               const hv =
                 typeof s.handTotal === "number"
                   ? s.handTotal
@@ -255,7 +313,7 @@ export function BlackjackMultiCasinoTable({
                     turn ? "z-20" : "z-10 opacity-95"
                   }`}
                   style={{
-                    transform: `perspective(800px) rotateX(4deg) translateY(${Math.abs(idx - (sortedSeats.length - 1) / 2) * 3}px)`,
+                    transform: `perspective(800px) rotateX(2deg) translateY(${Math.abs(idx - (sortedSeats.length - 1) / 2) * 2}px)`,
                   }}
                 >
                   <div
@@ -270,32 +328,53 @@ export function BlackjackMultiCasinoTable({
                         {isYou ? t("bjMulti.turnYou") : t("bjMulti.turnPlayer")}
                       </div>
                     ) : null}
-                    <div className="mb-1 flex items-center justify-center gap-2 text-center">
-                      <span
-                        className={`max-w-[7rem] truncate text-xs font-bold sm:text-sm ${
-                          isYou ? "text-amber-200" : "text-white/95"
+                    <div className="mb-1 flex flex-col items-center gap-1.5">
+                      <div
+                        className={`h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 shadow-lg sm:h-10 sm:w-10 ${
+                          isYou
+                            ? "border-amber-300/90 ring-2 ring-amber-500/35"
+                            : "border-white/30"
                         }`}
                       >
-                        {s.username}
-                        {isYou ? (
-                          <span className="ml-1 text-[10px] font-normal text-amber-300/90">
-                            ({t("bjMulti.you")})
-                          </span>
-                        ) : null}
-                      </span>
+                        <ImageWithFallback
+                          src={seatAvatar}
+                          alt={s.username}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="flex items-center justify-center gap-2 text-center">
+                        <span
+                          className={`max-w-[7rem] truncate text-xs font-bold sm:text-sm ${
+                            isYou ? "text-amber-200" : "text-white/95"
+                          }`}
+                        >
+                          {s.username}
+                          {isYou ? (
+                            <span className="ml-1 text-[10px] font-normal text-amber-300/90">
+                              ({t("bjMulti.you")})
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex justify-center">
                       <ChipStack amount={s.totalBet > 0 ? s.totalBet : s.bet} />
                     </div>
                     <div className="mt-2 flex min-h-[4.5rem] justify-center pl-3 sm:min-h-[5rem] sm:pl-4">
                       {s.cards.map((c, ci) => (
-                        <div
-                          key={`${s.userId}-c-${ci}`}
-                          className="bj-card-reveal -ml-3 first:ml-0 sm:-ml-3.5"
-                          style={{ animationDelay: `${0.12 + ci * 0.08}s` }}
+                        <motion.div
+                          key={`${state.handNumber}-${s.userId}-c-${ci}-${c.rank}-${c.suit}`}
+                          className="-ml-3 first:ml-0 sm:-ml-3.5"
+                          initial={{ opacity: 0, y: 12, scale: 0.97, rotate: -1 }}
+                          animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
+                          transition={{
+                            delay: ci * DEAL_STAGGER_SEC + 0.03,
+                            duration: 0.26,
+                            ease: [0.25, 0.1, 0.25, 1],
+                          }}
                         >
                           <PlayingCard card={c} />
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                     {showTotal && s.playState !== "no_bet" ? (
