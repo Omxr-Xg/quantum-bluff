@@ -124,27 +124,6 @@ export function Game() {
   const quantumPinnedRef = useRef(quantumPinned);
 
   useEffect(() => {
-  console.log('[FRONT][RENDER] playersState_changed', {
-    phase,
-    pot,
-    gameId: gameIdParam,
-    handId: handIdRef.current,
-    currentActivePlayer: playersState.find((p) => p.isActive)?.id ?? null,
-    communityCards: communityCardsState.map((c) => (c ? `${c.value}-${c.suit}` : null)),
-    players: playersState.map((p) => ({
-      id: p.id,
-      name: p.name,
-      chips: p.chips,
-      bet: p.bet,
-      isActive: p.isActive,
-      hasFolded: p.hasFolded,
-      isConnected: p.isConnected,
-    })),
-  });
-}, [playersState, phase, pot, communityCardsState, gameIdParam]);
-
-
-  useEffect(() => {
     quantumPinnedRef.current = quantumPinned;
   }, [quantumPinned]);
   const quantumHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -403,6 +382,26 @@ export function Game() {
       setInterHandTableTicketsLoading(false);
     }
   }, [gameIdParam]);
+
+  useEffect(() => {
+  console.log('[FRONT][RENDER] playersState_changed', {
+    phase,
+    pot,
+    gameId: gameIdParam,
+    handId: handIdRef.current,
+    currentActivePlayer: playersState.find((p) => p.isActive)?.id ?? null,
+    communityCards: communityCardsState.map((c) => (c ? `${c.value}-${c.suit}` : null)),
+    players: playersState.map((p) => ({
+      id: p.id,
+      name: p.name,
+      chips: p.chips,
+      bet: p.bet,
+      isActive: p.isActive,
+      hasFolded: p.hasFolded,
+      isConnected: p.isConnected,
+    })),
+  });
+}, [playersState, phase, pot, communityCardsState, gameIdParam]);
 
   // Pendant l’attente “ready”, on recharge les tickets résolus pour que tout le monde voie les mêmes résultats.
   useEffect(() => {
