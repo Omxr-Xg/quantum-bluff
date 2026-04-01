@@ -7,14 +7,18 @@ const path = require('path');
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 
-// Configuration du serveur de mises à jour
-const serverUrl = process.env.NODE_ENV === 'development'
-  ? 'http://localhost:3000'
-  : 'https://mai-projet-integrateur.u-strasbg.fr/vmProjetIntegrateurgrp10-0';
+// Prod : surcharger avec QB_UPDATES_BASE_URL (ex. https://hôte/vm.../ sans /updates/)
+const defaultProdOrigin =
+  process.env.QB_PUBLIC_URL ||
+  'https://mai-projet-integrateur.u-strasbg.fr/vmProjetIntegrateurgrp10-0';
+const updatesBase =
+  process.env.NODE_ENV === 'development'
+    ? 'http://localhost:3000'
+    : process.env.QB_UPDATES_BASE_URL || defaultProdOrigin;
 
 autoUpdater.setFeedURL({
   provider: 'generic',
-  url: `${serverUrl}/updates/`
+  url: `${updatesBase.replace(/\/$/, '')}/updates/`,
 });
 
 // Ignorer les erreurs de certificat SSL (car le certificat du serveur de l'école est expiré)
@@ -31,8 +35,11 @@ function createWindow() {
     }
   });
 
-  // On charge le jeu hébergé sur la VM
-  win.loadURL('https://mai-projet-integrateur.u-strasbg.fr/vmProjetIntegrateurgrp10-0/');
+  const appUrl =
+    process.env.NODE_ENV === 'development'
+      ? (process.env.ELECTRON_DEV_URL || 'http://localhost:5175/vmProjetIntegrateurgrp10-0/')
+      : `${defaultProdOrigin.replace(/\/$/, '')}/`;
+  win.loadURL(appUrl);
 
   if (process.env.NODE_ENV === 'development') {
     win.webContents.openDevTools();

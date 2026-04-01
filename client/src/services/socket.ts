@@ -15,11 +15,23 @@ const resolveSocketUrl = (): string => {
 
 const URL = resolveSocketUrl()
 
-const path =
-  typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? '/socket.io'
-    : '/vmProjetIntegrateurgrp10-0/socket.io'
+/** Chemin Socket.IO côté serveur (Nginx prefix VM vs backend direct). */
+const resolveSocketPath = (): string => {
+  const explicit = (import.meta.env.VITE_SOCKET_PATH ?? '').toString().trim()
+  if (explicit) return explicit.startsWith('/') ? explicit : `/${explicit}`
+
+  const hasSocketEnv = Boolean((import.meta.env.VITE_SOCKET_URL ?? '').toString().trim())
+  // Backend direct (Capacitor / Electron / IP:3000) : chemin par défaut Socket.IO
+  if (hasSocketEnv) return '/socket.io'
+
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname
+    if (h === 'localhost' || h === '127.0.0.1') return '/socket.io'
+  }
+  return '/vmProjetIntegrateurgrp10-0/socket.io'
+}
+
+const path = resolveSocketPath()
 
 export const socket = io(URL, {
   autoConnect: true,

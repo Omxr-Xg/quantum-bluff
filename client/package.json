@@ -7,6 +7,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:web": "vite build",
+    "build:web:root": "VITE_BASE_PATH=/ vite build",
+    "build:cap": "vite build --mode capacitor",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
@@ -14,25 +17,28 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "electron": "electron electron.cjs",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5175 && electron electron.cjs\"",
+    "electron:dev": "cross-env NODE_ENV=development concurrently \"npm run dev\" \"wait-on http://localhost:5175 && electron electron.cjs\"",
     "electron:build": "npm run build && electron-builder",
     "electron:build:win": "npm run build && electron-builder --win",
     "electron:build:mac": "npm run build && electron-builder --mac",
     "electron:build:linux": "npm run build && electron-builder --linux",
+    "electron:build:all": "npm run build && electron-builder --linux --win --mac",
     "publish:win": "npm run build && electron-builder --win --publish always",
     "version:patch": "node ../scripts/version-bump.js patch",
     "version:minor": "node ../scripts/version-bump.js minor",
     "version:major": "node ../scripts/version-bump.js major",
     "cap:copy": "npx cap copy",
-    "cap:sync": "npx cap sync",
-    "cap:android": "npm run build && npx cap copy && npx cap open android",
-    "cap:ios": "npm run build && npx cap copy && npx cap open ios",
-    "build:cap": "VITE_BASE_PATH=/ VITE_API_URL=http://185.155.93.105:3000 VITE_SOCKET_URL=http://185.155.93.105:3000 vite build",
-    "cap:run:android": "npx cap run android -l --external --public-host=185.155.93.105"
+    "cap:sync": "npm run build:cap && npx cap sync",
+    "cap:android": "npm run cap:sync && npx cap open android",
+    "cap:ios": "npm run cap:sync && npx cap open ios",
+    "cap:run:android": "npx cap run android -l --external --public-host=192.168.1.1",
+    "cap:run:ios": "npx cap run ios -l --external"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",
     "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.2.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -98,6 +104,7 @@
     "@vitest/coverage-istanbul": "^4.1.0",
     "autoprefixer": "^10.4.27",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "^40.8.2",
     "electron-builder": "^26.8.1",
     "eslint": "^9.39.1",
@@ -148,7 +155,10 @@
     },
     "linux": {
       "icon": "src/assets/logo-personnel.png",
-      "target": "AppImage"
+      "target": [
+        "AppImage",
+        "deb"
+      ]
     }
   }
 }
