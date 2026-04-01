@@ -122,6 +122,7 @@ export function Game() {
   /** true = ouvert via clic ou menu ; le panneau reste si la souris quitte (sauf fermeture explicite) */
   const [quantumPinned, setQuantumPinned] = useState(false);
   const quantumPinnedRef = useRef(quantumPinned);
+
   useEffect(() => {
     quantumPinnedRef.current = quantumPinned;
   }, [quantumPinned]);
@@ -381,6 +382,26 @@ export function Game() {
       setInterHandTableTicketsLoading(false);
     }
   }, [gameIdParam]);
+
+  useEffect(() => {
+  console.log('[FRONT][RENDER] playersState_changed', {
+    phase,
+    pot,
+    gameId: gameIdParam,
+    handId: handIdRef.current,
+    currentActivePlayer: playersState.find((p) => p.isActive)?.id ?? null,
+    communityCards: communityCardsState.map((c) => (c ? `${c.value}-${c.suit}` : null)),
+    players: playersState.map((p) => ({
+      id: p.id,
+      name: p.name,
+      chips: p.chips,
+      bet: p.bet,
+      isActive: p.isActive,
+      hasFolded: p.hasFolded,
+      isConnected: p.isConnected,
+    })),
+  });
+}, [playersState, phase, pot, communityCardsState, gameIdParam]);
 
   // Pendant l’attente “ready”, on recharge les tickets résolus pour que tout le monde voie les mêmes résultats.
   useEffect(() => {
@@ -941,13 +962,32 @@ export function Game() {
   }, [gameIdParam, userId, navigate, isSpectating]);
 
   useEffect(() => {
-    if (!socket || !gameIdParam) return;
-    if (isSpectating) {
-      socket.emit("JOIN_SPECTATE", { gameId: gameIdParam });
-    } else {
-      if (!userId) return;
-      socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId, avatarUrl: getUserAvatar() });
-    }
+  if (!socket || !gameIdParam) return;
+
+  console.log('[FRONT][GAME] preparing_join', {
+    gameId: gameIdParam,
+    userId,
+    isSpectating,
+    socketId: socket.id,
+    connected: socket.connected,
+  });
+
+  if (isSpectating) {
+    console.log('[FRONT][GAME] emit_JOIN_SPECTATE', {
+      gameId: gameIdParam,
+      socketId: socket.id,
+    });
+    socket.emit("JOIN_SPECTATE", { gameId: gameIdParam });
+  } else {
+    if (!userId) return;
+    console.log('[FRONT][GAME] emit_JOIN_GAME', {
+      gameId: gameIdParam,
+      playerId: userId,
+      avatarUrl: getUserAvatar(),
+      socketId: socket.id,
+    });
+    socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId, avatarUrl: getUserAvatar() });
+  }
 
     const onChatMessage = (data: { playerId: string; playerName: string; content: string; type: "emoji" | "text" }) => {
       const id = Date.now();
@@ -998,14 +1038,35 @@ export function Game() {
       ENDED_OPPONENT_LEFT: "showdown",
     };
     const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashCountdownRemainingSec?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string; hiddenBetNextHandId?: string; hiddenBetWindowOpen?: boolean; hiddenBetState?: { currentHandId: string | null; nextHandId: string | null; windowOpen: boolean; windowType: "PRE_HAND" | "LIVE_FLOP" | "LIVE_TURN" | "LIVE_RIVER" | null; closesAt?: number } | null }) => {
+      console.log('[FRONT][GAME] socket_update_received', {
+  source: _source,
+  gameId: gameState?.id,
+  handId: gameState?.handId,
+  phase: gameState?.phase,
+  currentTurn: gameState?.currentTurn,
+  actionVersion: gameState?.actionVersion,
+  streetVersion: gameState?.streetVersion,
+  pot: gameState?.pot,
+  showdownWinnerId: gameState?.showdownWinnerId,
+  communityCount: Array.isArray(gameState?.communityCards)
+    ? gameState.communityCards.filter((c) => c != null).length
+    : 0,
+  playersCount: Array.isArray(gameState?.players) ? gameState.players.length : 0,
+  socketId: socket?.id,
+})
       gameStateFromSocketRef.current = true;
       setHiddenBetNextHandId(gameState.hiddenBetNextHandId ?? null);
       setHiddenBetWindowOpen(Boolean(gameState.hiddenBetWindowOpen));
       setHiddenBetState(gameState.hiddenBetState ?? null);
       const socketSnapshotSig = `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}`;
       if (socketSnapshotSig === lastAppliedSocketSnapshotSigRef.current) {
-        return;
-      }
+  console.log('[FRONT][GAME] socket_update_ignored_same_snapshot', {
+    socketSnapshotSig,
+    handId: gameState?.handId,
+    phase: gameState?.phase,
+  });
+  return;
+}
       lastAppliedSocketSnapshotSigRef.current = socketSnapshotSig;
       const incomingVersion = typeof gameState.actionVersion === "number" ? gameState.actionVersion : -1;
       const incomingHandId = gameState.handId ?? undefined;
@@ -1021,13 +1082,19 @@ export function Game() {
         setHandActionLog([]);
       }
       if (
-        incomingVersion >= 0 &&
-        incomingHandId &&
-        lastServerActionVersionHandRef.current === incomingHandId &&
-        incomingVersion < lastServerActionVersionRef.current
-      ) {
-        return;
-      }
+  incomingVersion >= 0 &&
+  incomingHandId &&
+  lastServerActionVersionHandRef.current === incomingHandId &&
+  incomingVersion < lastServerActionVersionRef.current
+) {
+  console.log('[FRONT][GAME] socket_update_ignored_older_version', {
+    incomingVersion,
+    lastKnownVersion: lastServerActionVersionRef.current,
+    incomingHandId,
+    trackedHandId: lastServerActionVersionHandRef.current,
+  });
+  return;
+}
       if (incomingVersion >= 0) {
         lastServerActionVersionRef.current = Math.max(lastServerActionVersionRef.current, incomingVersion);
         if (incomingHandId) {
@@ -2132,6 +2199,15 @@ export function Game() {
     if (gameIdParam && isHuman && !socket) return;
     if (gameIdParam && socket && isHuman) {
       actionSeqRef.current += 1;
+      console.log('[FRONT][ACTION] emit_PLAYER_ACTION', {
+  action: 'FOLD',
+  gameId: gameIdParam,
+  playerId: String(userId),
+  handId: handIdRef.current,
+  expectedStreet: String(phase).toUpperCase(),
+  socketId: socket.id,
+  connected: socket.connected,
+})
       socket.emit("PLAYER_ACTION", {
         gameId: gameIdParam,
         playerId: String(userId),
@@ -2234,6 +2310,15 @@ export function Game() {
     if (gameIdParam && isHumanActing && !socket) return;
     if (gameIdParam && socket && isHumanActing) {
       actionSeqRef.current += 1;
+      console.log('[FRONT][ACTION] emit_PLAYER_ACTION', {
+  action: 'CHECK',
+  gameId: gameIdParam,
+  playerId: String(userId),
+  handId: handIdRef.current,
+  expectedStreet: String(phase).toUpperCase(),
+  socketId: socket.id,
+  connected: socket.connected,
+})
       socket.emit("PLAYER_ACTION", {
         gameId: gameIdParam,
         playerId: String(userId),
@@ -2268,6 +2353,16 @@ export function Game() {
     if (gameIdParam && isHumanActing && !socket) return;
     if (gameIdParam && socket && isHumanActing) {
       actionSeqRef.current += 1;
+      console.log('[FRONT][ACTION] emit_PLAYER_ACTION', {
+  action: 'CALL',
+  amount,
+  gameId: gameIdParam,
+  playerId: String(userId),
+  handId: handIdRef.current,
+  expectedStreet: String(phase).toUpperCase(),
+  socketId: socket.id,
+  connected: socket.connected,
+})
       socket.emit("PLAYER_ACTION", {
         gameId: gameIdParam,
         playerId: String(userId),
@@ -2414,6 +2509,16 @@ export function Game() {
     if (gameIdParam && isHumanActing && !socket) return;
     if (gameIdParam && socket && isHumanActing) {
       actionSeqRef.current += 1;
+      console.log('[FRONT][ACTION] emit_PLAYER_ACTION', {
+  action: 'RAISE',
+  amount: raiseAmount,
+  gameId: gameIdParam,
+  playerId: String(userId),
+  handId: handIdRef.current,
+  expectedStreet: String(phase).toUpperCase(),
+  socketId: socket.id,
+  connected: socket.connected,
+})
       socket.emit("PLAYER_ACTION", {
         gameId: gameIdParam,
         playerId: String(userId),
