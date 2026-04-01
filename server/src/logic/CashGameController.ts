@@ -355,6 +355,14 @@ export class CashGameController implements IGameSession {
       ...(forcedBb ? { forcedBigBlindUserId: forcedBb } : {}),
       handId: handIdToUse
     })
+    console.log('[CASH][HAND] started', {
+  gameId: this.id,
+  roomId: this.roomId,
+  handId: this.gameTable.state.handId,
+  phase: this.gameTable.state.phase,
+  currentTurn: this.gameTable.state.currentTurn,
+  nextHandBigBlindUserId: forcedBb,
+})
     this.handNumber++
     this.runtimePhase = 'HAND_IN_PROGRESS'
     this.logRuntimeEvent('HAND_START')
@@ -606,9 +614,30 @@ export class CashGameController implements IGameSession {
   }
 
   handlePlayerAction(playerId: string, action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK', amount?: number): void {
+    console.log('[CASH][ACTION] controller_received', {
+  gameId: this.id,
+  roomId: this.roomId,
+  playerId,
+  action,
+  amount,
+  hasGameTable: Boolean(this.gameTable),
+  runtimePhase: this.runtimePhase,
+})
     if (!this.gameTable) throw new Error('Aucune main en cours')
     const phaseBefore = this.gameTable.state.phase
     this.gameTable.handlePlayerAction(playerId, action, amount)
+    console.log('[CASH][ACTION] controller_applied', {
+  gameId: this.id,
+  roomId: this.roomId,
+  playerId,
+  action,
+  amount,
+  phase: this.gameTable.state.phase,
+  currentTurn: this.gameTable.state.currentTurn,
+  handId: this.gameTable.state.handId,
+  actionVersion: this.gameTable.state.actionVersion,
+  streetVersion: this.gameTable.state.streetVersion,
+})
     this.logRuntimeEvent('PLAYER_ACTION', {
       playerId,
       action,
