@@ -1,4 +1,17 @@
-import 'dotenv/config'
+import dotenv from 'dotenv'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+const serverEnvPath = path.resolve(__dirname, '../../.env')
+const rootEnvPath = path.resolve(__dirname, '../../../.env')
+
+dotenv.config({
+  path: [serverEnvPath, rootEnvPath],
+  override: true,
+})
 
 type NodeEnv = 'development' | 'test' | 'production'
 
@@ -63,9 +76,7 @@ function parseCorsOrigins(raw?: string): string[] {
   try {
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed)) {
-      return parsed
-        .map((value) => String(value).trim())
-        .filter(Boolean)
+      return parsed.map((value) => String(value).trim()).filter(Boolean)
     }
   } catch {}
 

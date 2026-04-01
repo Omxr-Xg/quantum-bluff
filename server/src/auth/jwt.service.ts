@@ -1,12 +1,89 @@
-import jwt from 'jsonwebtoken'
+import jwt, {
+  type Algorithm,
+  type JwtPayload,
+  type SignOptions,
+  type VerifyOptions,
+} from 'jsonwebtoken'
+import { env } from '../config/env.js'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'quantum_bluff_secret'
-const JWT_EXPIRES = '7d'
+const ACCESS_TOKEN_ALGORITHM: Algorithm = 'HS256'
 
-export function generateToken(payload: { userId: string }) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES })
+export interface AccessTokenPayload extends JwtPayload {
+  userId: string
+  type: 'access'
+  sub: string
 }
 
-export function verifyToken(token: string) {
-  return jwt.verify(token, JWT_SECRET)
+function assertAccessTokenPayload(decoded: string | JwtPayload): asserts decoded is AccessTokenPayload {
+  if (typeof decoded === 'string') {
+    throw new Error('Invalid token payload')
+  }
+
+  if (typeof decoded.userId !== 'string' || decoded.userId.length === 0) {
+    throw new Error('Invalid token userId')
+  }
+
+  if (decoded.type !== 'access') {
+    throw new Error('Invalid token type')
+  }
+
+  if (typeof decoded.sub !== 'string' || decoded.sub !== decoded.userId) {
+    throw new Error('Invalid token subject')
+  }
+}
+
+export function extractBearerToken(raw: unknown): string | null {
+  if (Array.isArray(raw)) {
+    return extractBearerToken(raw[0])
+  }
+
+  if (typeof raw !== 'string') {
+    return null
+  }
+
+  const value = raw.trim()
+
+  if (!value) {
+    return null
+  }
+
+  if (/^Bearer\s+/i.test(value)) {
+    const token = value.replace(/^Bearer\s+/i, '').trim()
+    return token || null
+  }
+
+  return value
+}
+
+const signOptions: SignOptions = {
+  algorithm: ACCESS_TOKEN_ALGORITHM,
+  expiresIn: env.jwtExpiresIn as SignOptions['expiresIn'],
+  issuer: env.jwtIssuer,
+  audience: env.jwtAudience,
+}
+
+const verifyOptions: VerifyOptions = {
+  algorithms: [ACCESS_TOKEN_ALGORITHM],
+  issuer: env.jwtIssuer,
+  audience: env.jwtAudience,
+}
+
+export function generateToken(payload: { userId: string }): string {
+  return jwt.sign(
+    {
+      userId: payload.userId,
+      type: 'access',
+    },
+    env.jwtSecret,
+    {
+      ...signOptions,
+      subject: payload.userId,
+    }
+  )
+}
+
+export function verifyToken(token: string): AccessTokenPayload {
+  const decoded = jwt.verify(token, env.jwtSecret, verifyOptions)
+  assertAccessTokenPayload(decoded)
+  return decoded
 }
