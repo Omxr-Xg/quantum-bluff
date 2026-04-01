@@ -1,25 +1,31 @@
 import express from 'express'
-import { assessPokerRuntimeReadiness } from '../poker/recovery/pokerRuntimeHealth.service.js'
-import { getPokerRecoveryMetrics } from '../poker/recovery/pokerRecovery.service.js'
+import {
+  getBlackjackRecoveryMetrics,
+  getBlackjackRoomRuntimeDiagnostic,
+} from '../blackjack/recovery/blackjackRecovery.service.js'
+import { requireAdminAccess } from '../middleware/admin.middleware.js'
 
 const router = express.Router()
 
-function isAllowed(req: express.Request): boolean {
-  const configured = process.env.ADMIN_API_TOKEN
-  if (!configured) return false
-  return req.header('X-Admin-Token') === configured
-}
-
-router.get('/metrics', (req, res) => {
-  if (!isAllowed(req)) return res.status(404).json({ error: 'Not found' })
-  res.json(getPokerRecoveryMetrics())
+const requireBlackjackRuntimeAdmin = requireAdminAccess({
+  routeName: 'admin_blackjack_runtime',
 })
 
-router.get('/readiness/:gameId', async (req, res) => {
-  if (!isAllowed(req)) return res.status(404).json({ error: 'Not found' })
-  const assessment = await assessPokerRuntimeReadiness(req.params.gameId)
-  res.json(assessment)
+router.get('/metrics', requireBlackjackRuntimeAdmin, async (_req, res) => {
+  return res.json({
+    blackjackRecovery: getBlackjackRecoveryMetrics(),
+  })
+})
+
+router.get('/diagnostic/:roomId', requireBlackjackRuntimeAdmin, async (req, res) => {
+  const roomId = req.params.roomId?.trim()
+
+  if (!roomId) {
+    return res.status(400).json({ error: 'roomId requis' })
+  }
+
+  const diagnostic = await getBlackjackRoomRuntimeDiagnostic(roomId)
+  return res.json(diagnostic)
 })
 
 export default router
-
