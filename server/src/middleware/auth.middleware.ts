@@ -19,7 +19,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     req.userId = decoded.userId
 
     return next()
-  } catch {
+  } catch (error) {
     return res.status(401).json({ error: 'Token invalide' })
   }
 }

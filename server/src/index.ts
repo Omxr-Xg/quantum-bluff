@@ -44,8 +44,6 @@ import { socketAuth } from './middleware/socketAuth.middleware.js'
 import { connectDB } from './config/database.js'
 import { recoverBlackjackRuntimeAtBoot } from './blackjack/recovery/blackjackRecovery.service.js'
 
-console.log('DATABASE_URL_RUNTIME =', process.env.DATABASE_URL)
-
 const app = express()
 
 app.disable('x-powered-by')
@@ -173,6 +171,7 @@ app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
 app.use('/api/daily-challenges', dailyChallengesRoutes)
 app.use('/api/tournaments', tournamentRoutes)
 app.use('/api/admin', adminRoutes)
+
 app.use('/', updatesRouter)
 
 app.get('/', (_req, res) => {
@@ -277,11 +276,13 @@ const PORT = env.port
     await recoverBlackjackRuntimeAtBoot()
 
     httpServer.listen(PORT, () => {
-      rootLogger.info({
-        msg: 'server_listen',
-        port: PORT,
-        detail: 'Quantum Bluff API démarrée',
-      })
+  rootLogger.info({
+    msg: 'server_listen',
+    port: PORT,
+    detail: 'Quantum Bluff API démarrée',
+  })
+
+  console.log('SERVER_READY_ON_PORT =', PORT)
 
       TournamentService.startTournamentWatcher(io)
     })
