@@ -81,7 +81,6 @@ export function requireAdminAccess(options: AdminGuardOptions): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {
     const configuredToken = env.adminApiToken
 
-    console.log('ADMIN_TOKEN_LOADED_LENGTH =', configuredToken?.length ?? 0)
 
     if (!configuredToken) {
       rootLogger.error({
@@ -104,7 +103,6 @@ export function requireAdminAccess(options: AdminGuardOptions): RequestHandler {
 
     const providedToken = extractAdminToken(req)
 
-    console.log('ADMIN_TOKEN_PROVIDED_LENGTH =', providedToken?.length ?? 0)
 
     if (!providedToken) {
       return deny(req, res, options, 'missing_admin_token')
