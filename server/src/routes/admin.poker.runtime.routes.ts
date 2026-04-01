@@ -1,31 +1,29 @@
 import express from 'express'
-import {
-  getBlackjackRecoveryMetrics,
-  getBlackjackRoomRuntimeDiagnostic,
-} from '../blackjack/recovery/blackjackRecovery.service.js'
+import { assessPokerRuntimeReadiness } from '../poker/recovery/pokerRuntimeHealth.service.js'
+import { getPokerRecoveryMetrics } from '../poker/recovery/pokerRecovery.service.js'
 import { requireAdminAccess } from '../middleware/admin.middleware.js'
 
 const router = express.Router()
 
-const requireBlackjackRuntimeAdmin = requireAdminAccess({
-  routeName: 'admin_blackjack_runtime',
+const requirePokerRuntimeAdmin = requireAdminAccess({
+  routeName: 'admin_poker_runtime',
 })
 
-router.get('/metrics', requireBlackjackRuntimeAdmin, async (_req, res) => {
+router.get('/metrics', requirePokerRuntimeAdmin, (_req, res) => {
   return res.json({
-    blackjackRecovery: getBlackjackRecoveryMetrics(),
+    pokerRecovery: getPokerRecoveryMetrics(),
   })
 })
 
-router.get('/diagnostic/:roomId', requireBlackjackRuntimeAdmin, async (req, res) => {
-  const roomId = req.params.roomId?.trim()
+router.get('/readiness/:gameId', requirePokerRuntimeAdmin, async (req, res) => {
+  const gameId = req.params.gameId?.trim()
 
-  if (!roomId) {
-    return res.status(400).json({ error: 'roomId requis' })
+  if (!gameId) {
+    return res.status(400).json({ error: 'gameId requis' })
   }
 
-  const diagnostic = await getBlackjackRoomRuntimeDiagnostic(roomId)
-  return res.json(diagnostic)
+  const assessment = await assessPokerRuntimeReadiness(gameId)
+  return res.json(assessment)
 })
 
 export default router

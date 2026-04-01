@@ -169,10 +169,9 @@ app.use('/api/hidden-bets', hiddenBetsApiLimiter, hiddenBetsRoutes)
 app.use('/api/blackjack-tables', blackjackMultiApiLimiter, blackjackMultiRoutes)
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
-app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
 app.use('/api/daily-challenges', dailyChallengesRoutes)
 app.use('/api/tournaments', tournamentRoutes)
-app.use('/api/admin', adminRoutes)
+
 app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
 app.use('/api/admin/poker/runtime', adminPokerRuntimeRoutes)
 app.use('/api/admin/roulette/override', adminRouletteOverrideRoutes)
@@ -287,8 +286,6 @@ const PORT = env.port
     port: PORT,
     detail: 'Quantum Bluff API démarrée',
   })
-
-  console.log('SERVER_READY_ON_PORT =', PORT)
 
       TournamentService.startTournamentWatcher(io)
     })
