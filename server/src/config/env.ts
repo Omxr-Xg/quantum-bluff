@@ -15,6 +15,24 @@ dotenv.config({
 
 type NodeEnv = 'development' | 'test' | 'production'
 
+function parseBooleanEnv(name: string, fallback = false): boolean {
+  const raw = process.env[name]?.trim().toLowerCase()
+
+  if (!raw) {
+    return fallback
+  }
+
+  if (raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on') {
+    return true
+  }
+
+  if (raw === 'false' || raw === '0' || raw === 'no' || raw === 'off') {
+    return false
+  }
+
+  throw new Error(`${name} must be a boolean`)
+}
+
 function getRequiredEnv(name: string): string {
   const value = process.env[name]?.trim()
   if (!value) {
@@ -142,6 +160,13 @@ if (!redisUrl && !redisHost) {
   throw new Error('REDIS_URL or REDIS_HOST is required')
 }
 
+const adminApiToken =
+  getOptionalEnv('ADMIN_API_TOKEN') ?? getOptionalEnv('ADMIN_SECRET_TOKEN')
+
+if (adminApiToken && adminApiToken.length < 16) {
+  throw new Error('ADMIN_API_TOKEN must be at least 16 characters long')
+}
+
 export const env = {
   nodeEnv,
   isDevelopment,
@@ -163,4 +188,6 @@ export const env = {
   jwtAudience: getOptionalEnv('JWT_AUDIENCE', 'quantum-bluff-client') ?? 'quantum-bluff-client',
   corsOrigins,
   metricsBearerToken: getOptionalEnv('METRICS_BEARER_TOKEN'),
+  adminApiToken,
+enableAdminRouletteOverride: parseBooleanEnv('ENABLE_ADMIN_ROULETTE_OVERRIDE', false),
 } as const
