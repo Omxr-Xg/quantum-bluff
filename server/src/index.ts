@@ -43,6 +43,8 @@ import { GameGateway } from './sockets/game.gateway.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
 import { connectDB } from './config/database.js'
 import { recoverBlackjackRuntimeAtBoot } from './blackjack/recovery/blackjackRecovery.service.js'
+import adminPokerRuntimeRoutes from './routes/admin.poker.runtime.routes.js'
+import adminRouletteOverrideRoutes from './routes/admin.roulette.override.routes.js'
 
 const app = express()
 
@@ -167,9 +169,12 @@ app.use('/api/hidden-bets', hiddenBetsApiLimiter, hiddenBetsRoutes)
 app.use('/api/blackjack-tables', blackjackMultiApiLimiter, blackjackMultiRoutes)
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
-app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
 app.use('/api/daily-challenges', dailyChallengesRoutes)
 app.use('/api/tournaments', tournamentRoutes)
+
+app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
+app.use('/api/admin/poker/runtime', adminPokerRuntimeRoutes)
+app.use('/api/admin/roulette/override', adminRouletteOverrideRoutes)
 app.use('/api/admin', adminRoutes)
 
 app.use('/', updatesRouter)
@@ -281,8 +286,6 @@ const PORT = env.port
     port: PORT,
     detail: 'Quantum Bluff API démarrée',
   })
-
-  console.log('SERVER_READY_ON_PORT =', PORT)
 
       TournamentService.startTournamentWatcher(io)
     })
