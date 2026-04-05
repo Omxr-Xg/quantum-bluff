@@ -35,6 +35,7 @@ import { getWinMultiplierFromDifficultyParam } from "../utils/botModeReward";
 import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
+import { toPng } from "html-to-image";
 
 type Card = ClientCard;
 
@@ -51,7 +52,6 @@ interface ChatMessage {
 
 type GamePhase = "init" | "shuffle" | "deal" | "preflop" | "flop" | "turn" | "river" | "showdown";
 
-/** SB / BB / BTN dans le journal (aligné préflop vs postflop). */
 function actionLogRoleAbbrev(role: string | undefined, tr: (key: string) => string): string {
   if (!role || role === "PLAYER") return "";
   const keyMap: Record<string, string> = {
@@ -65,7 +65,6 @@ function actionLogRoleAbbrev(role: string | undefined, tr: (key: string) => stri
   return i18nKey ? tr(i18nKey) : "";
 }
 
-/** SB / BB tapis : mêmes rôles que `role` serveur / journal (SMALL_BLIND → SB, etc.). */
 function mapServerRoleToTableRole(serverRole: string | undefined): NonNullable<BasePlayer["role"]> {
   if (serverRole === "SMALL_BLIND") return "SB";
   if (serverRole === "BIG_BLIND") return "BB";
@@ -84,7 +83,6 @@ interface BasePlayer {
   isConnected?: boolean;
   hasFolded?: boolean;
   role?: "SB" | "BB" | "PLAYER";
-  /** URL d’avatar (cash multijoueur, renvoyée par l’API / socket). */
   avatar?: string;
 }
 
@@ -119,7 +117,6 @@ export function Game() {
     closesAt?: number;
   } | null>(null);
   const [isQuantumOpen, setIsQuantumOpen] = useState(false);
-  /** true = ouvert via clic ou menu ; le panneau reste si la souris quitte (sauf fermeture explicite) */
   const [quantumPinned, setQuantumPinned] = useState(false);
   const quantumPinnedRef = useRef(quantumPinned);
 
@@ -202,6 +199,7 @@ export function Game() {
     setIsQuantumOpen(false);
     setQuantumPinned(false);
   }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+  
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [_hasFolded, _setHasFolded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -259,7 +257,6 @@ export function Game() {
     handRank: number;
     pot: number;
     isSplit?: boolean;
-    /** Pas d’attente abattage (ex. adversaire parti) */
     skipRevealDelay?: boolean;
   } | null>(null);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
@@ -383,6 +380,7 @@ export function Game() {
     }
   }, [gameIdParam]);
 
+
   useEffect(() => {
   console.log('[FRONT][RENDER] playersState_changed', {
     phase,
@@ -404,6 +402,8 @@ export function Game() {
 }, [playersState, phase, pot, communityCardsState, gameIdParam]);
 
   // Pendant l’attente “ready”, on recharge les tickets résolus pour que tout le monde voie les mêmes résultats.
+
+
   useEffect(() => {
     if (!cashWaitingPlayers) return;
     void loadInterHandTableTickets();
@@ -433,6 +433,20 @@ export function Game() {
   const tourRefBoard = useRef<HTMLDivElement>(null);
   const tourRefActions = useRef<HTMLDivElement>(null);
   const menuContainerRef = useRef<HTMLDivElement>(null);
+  const tableCaptureRef = useRef<HTMLDivElement>(null);
+
+  const handleShare = async () => {
+    if (!tableCaptureRef.current) return;
+    try {
+      const dataUrl = await toPng(tableCaptureRef.current);
+      const link = document.createElement("a");
+      link.download = "poker-win.png";
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error("Capture failed:", error);
+    }
+  };
 
   const gameTourRefs = useMemo(
     () => ({
@@ -470,7 +484,6 @@ export function Game() {
   const SB = BOT_TABLE_DEFAULTS.SMALL_BLIND;
   const BB = BOT_TABLE_DEFAULTS.BIG_BLIND;
 
-  /** Après l’abattage, attendre avant d’afficher l’écran « gagnant » / transition (cartes visibles au tapis). */
   const SHOWDOWN_REVEAL_MS = 3000;
 
   const lastScheduledShowdownTransitionSigRef = useRef<string>("");
@@ -486,7 +499,6 @@ export function Game() {
         name: showdownResult.winnerName,
         amount: showdownResult.pot,
       });
-      // Cash multijoueur : pas de RoundTransition (overlay jaune + compte secondes).
       const isCashMultiplayer = Boolean(gameIdParam) && !isBotMode;
       if (!isCashMultiplayer) {
         setShowTransition(true);
@@ -584,8 +596,6 @@ export function Game() {
       const dealerIndex = Math.floor(Math.random() * totalPlayers);
       allPlayers[dealerIndex].isDealer = true;
 
-      // Même logique que le serveur (GameTable) : après le dealer → SB (auto), puis BB (auto), puis action.
-      // Heads-up : dealer = SB, l’autre = BB ; preflop commence par le SB (dealer).
       const sbIdx = totalPlayers === 2 ? dealerIndex : (dealerIndex + 1) % totalPlayers;
       const bbIdx = totalPlayers === 2 ? (dealerIndex + 1) % totalPlayers : (dealerIndex + 2) % totalPlayers;
 
@@ -631,13 +641,11 @@ export function Game() {
   const heroPlayer = activePlayers.find((p) => isHero(p));
   const heroDisplayName = heroPlayer?.name === "Vous" || heroPlayer?.name === "you" ? t('game.you') : (heroPlayer?.name ?? t('game.you'));
   const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
-  /** Même montant en-tête (haut) et dans PlayerDashboard (bas) : pile du héros sur la table. */
   const displayedHeroChips =
     heroPlayer != null && typeof heroPlayer.chips === "number" ? heroPlayer.chips : playerChips;
 
   playersStateRef.current = activePlayers;
 
-  /** Premier à parler post-flop : premier siège actif à gauche du bouton (SB en ring ; en HU = BB car le bouton est la SB) — aligné avec GameTable.getPostflopFirstPlayerId. */
   const getPostflopFirstActIndex = (): number => {
     const players = playersStateRef.current;
     if (!players || players.length < 2) return 0;
@@ -718,9 +726,10 @@ export function Game() {
     });
   };
 
-  const dealFlop = (runOutOnly?: boolean) => {
+  // ========== useCallback ile sarılmış deal fonksiyonları ==========
+  const dealFlop = useCallback((runOutOnly?: boolean) => {
     setPhase("flop");
-      if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
+    if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
     const newDeck = [...deckRef.current];
     newDeck.shift();
     const flopCards: Card[] = [];
@@ -741,11 +750,11 @@ export function Game() {
         });
       }, i * 800);
     });
-  };
+  }, []);
 
-  const dealTurn = (runOutOnly?: boolean) => {
+  const dealTurn = useCallback((runOutOnly?: boolean) => {
     setPhase("turn");
-      if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
+    if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
     const newDeck = [...deckRef.current];
     newDeck.shift();
     const card = newDeck.shift();
@@ -759,9 +768,9 @@ export function Game() {
         return next;
       });
     }
-  };
+  }, []);
 
-  const dealRiver = (runOutOnly?: boolean) => {
+  const dealRiver = useCallback((runOutOnly?: boolean) => {
     setPhase("river");
     if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
     const newDeck = [...deckRef.current];
@@ -777,8 +786,47 @@ export function Game() {
         return next;
       });
     }
+  }, []);
+
+  // ========== calculateSidePots fonksiyonu ==========
+  const calculateSidePots = (players: (BasePlayer | BotPlayer)[], contributions: Record<string, number>): { amount: number; eligibleIds: string[] }[] => {
+    const allInPlayers = players.filter(p => (p.chips ?? 0) === 0 && !(p.hasFolded ?? false));
+    if (allInPlayers.length === 0) {
+      return [{ amount: pot, eligibleIds: players.filter(p => !(p.hasFolded ?? false)).map(p => String(p.id)) }];
+    }
+    
+    const pots: { amount: number; eligibleIds: string[] }[] = [];
+    let remainingPot = pot;
+    const sortedAllIn = [...allInPlayers].sort((a, b) => (contributions[String(a.id)] || 0) - (contributions[String(b.id)] || 0));
+    
+    for (const allIn of sortedAllIn) {
+      const allInContribution = contributions[String(allIn.id)] || 0;
+      const sidePotAmount = Math.min(remainingPot, allInContribution * players.filter(p => !(p.hasFolded ?? false)).length);
+      if (sidePotAmount > 0) {
+        pots.push({
+          amount: sidePotAmount,
+          eligibleIds: players.filter(p => !(p.hasFolded ?? false) && (contributions[String(p.id)] || 0) >= allInContribution).map(p => String(p.id))
+        });
+        remainingPot -= sidePotAmount;
+      }
+    }
+    
+    if (remainingPot > 0) {
+      pots.push({
+        amount: remainingPot,
+        eligibleIds: players.filter(p => !(p.hasFolded ?? false)).map(p => String(p.id))
+      });
+    }
+    
+    return pots;
   };
 
+  // ========== handleToggleBluff fonksiyonu ==========
+  const handleToggleBluff = useCallback(() => {
+    setIsPanelOpen((prev) => !prev);
+  }, []);
+
+  // ========== Devam eden useEffect'ler ==========
   useEffect(() => {
     const runInit = () => {
       let initial: (BasePlayer | BotPlayer)[] = [];
@@ -3342,25 +3390,42 @@ export function Game() {
         </div>
       )}
 
-      <div ref={tourRefTable} className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}>
-        <PokerTable
-          players={tablePlayers}
-          communitySafeZone={230}
-          phase={phase}
-          burnedCardsCount={displayBurnedCardsCount}
-          colorblindMode={colorblindMode}
-          heroSeatId={isBotMode ? "human" : (userId ?? undefined)}
+      <div ref={tableCaptureRef} className="relative">
+  
+        {/* SHARE BUTTON */}
+        {showdownResult && (
+          <button
+          onClick={handleShare}
+          className="fixed top-20 right-4 z-[9999] bg-yellow-500 text-black px-4 py-2 rounded-lg shadow-lg hover:bg-yellow-400 transition"
+          >
+          Share win 📸
+          </button>
+          )}
+
+         {/* TABLE */}
+        <div
+        ref={tourRefTable}
+        className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}
         >
-          <CommunityCards
-            cards={communityCards}
-            pot={pot}
-            sidePots={sidePots.length > 1 ? sidePots : undefined}
-            colorblindMode={colorblindMode}
-            potRef={tourRefPot}
-            boardRef={tourRefBoard}
-          />
+        <PokerTable
+        players={tablePlayers}
+        communitySafeZone={230}
+        phase={phase}
+        burnedCardsCount={displayBurnedCardsCount}
+        colorblindMode={colorblindMode}
+        heroSeatId={isBotMode ? "human" : (userId ?? undefined)}
+        >
+        <CommunityCards
+        cards={communityCards}
+        pot={pot}
+        sidePots={sidePots.length > 1 ? sidePots : undefined}
+        colorblindMode={colorblindMode}
+        potRef={tourRefPot}
+        boardRef={tourRefBoard}
+        />
         </PokerTable>
-      </div>
+        </div>
+     </div>
 
       <HandActionLogPanel entries={handActionLog} />
       <QuantumHUD
@@ -3370,13 +3435,13 @@ export function Game() {
         onPanelPointerLeave={onQuantumPanelLeave}
       />
       <HiddenBetsPanel
-        isOpen={isPanelOpen}
-        onToggle={() => setIsPanelOpen(!isPanelOpen)}
-        players={activePlayers}
-        gameId={gameIdParam}
-        hiddenBetNextHandId={hiddenBetNextHandId}
-        hiddenBetWindowOpen={hiddenBetWindowOpen}
-        hiddenBetState={hiddenBetState}
+      isOpen={isPanelOpen}
+      onToggle={handleToggleBluff}
+      players={activePlayers}
+      gameId={gameIdParam}
+      hiddenBetNextHandId={hiddenBetNextHandId}
+      hiddenBetWindowOpen={hiddenBetWindowOpen}
+      hiddenBetState={hiddenBetState}
       />
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />
