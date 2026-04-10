@@ -102,6 +102,10 @@ export function Lobby() {
   const [lobbyMainTab, setLobbyMainTabState] = useState<"poker" | "minigames" | "blackjack">(readLobbyTabFromUrl);
   const { addToast } = useToast();
 
+  // Performance: memoize rooms for map operations
+  const roomsMemo = useMemo(() => rooms, [rooms]);
+  const gamesMemo = useMemo(() => gamesInProgress, [gamesInProgress]);
+
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (tab === "blackjack") setLobbyMainTabState("blackjack");
@@ -308,20 +312,18 @@ export function Lobby() {
         body: JSON.stringify({ userId }),
       });
       if (!res.ok) {
-        // On ne bloque pas l'UI, mais on peut afficher un message d'erreur minimal
         console.error("Erreur suppression salle:", await res.text().catch(() => ""));
       }
     } catch (e) {
       console.error("Erreur suppression salle:", e);
     } finally {
-      // Rafraîchir la liste localement sans attendre le prochain polling
       setRooms((prev) => prev.filter((r) => r.id !== roomId));
     }
   };
 
   return (
     <div
-      className={`relative w-full min-h-screen overflow-hidden p-6 transition-[background-color] duration-700 ease-in-out ${
+      className={`relative w-full min-h-screen overflow-hidden px-4 py-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
         lobbyMainTab === "poker"
           ? "bg-[#070912]"
           : lobbyMainTab === "minigames"
@@ -329,7 +331,7 @@ export function Lobby() {
             : "bg-[#14080d]"
       }`}
     >
-      {/* Fond Texas Hold’em — violet / cyan / magenta (inchangé) */}
+      {/* Fond Texas Hold'em — violet / cyan / magenta */}
       <div
         className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: lobbyMainTab === "poker" ? 1 : 0 }}
@@ -398,12 +400,11 @@ export function Lobby() {
 
       <div className="relative z-10 max-w-7xl mx-auto">
 
-        {/* HEADER */}
-        {/* 📱 FIX MOBILE : flex-col sur mobile (empilé), flex-row sur PC (aligné). overflow-visible pour que le dropdown langue ne soit pas coupé */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 w-full overflow-visible">
+        {/* HEADER - FIX MOBILE (sm breakpoint) */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-10 w-full overflow-visible">
 
           {/* Côté Gauche (Logo + Titre) */}
-          <div ref={tourRefHeader} className="flex w-full shrink-0 items-center gap-4 md:w-auto">
+          <div ref={tourRefHeader} className="flex w-full shrink-0 items-center gap-4 sm:w-auto">
             <QuantumBluffLogo className="w-12 h-12 md:w-16 md:h-16 shrink-0" />
             <div className="flex-1 min-w-0">
               <h1
@@ -431,18 +432,18 @@ export function Lobby() {
             </div>
           </div>
 
-          {/* Côté Droit : menu intégré (langue, argent, profil, amis, quitter) */}
+          {/* Côté Droit : menu intégré - SCROLL IMPROVED + SNAP */}
           <div
             ref={tourRefTopBar}
-            className="flex w-full max-w-full flex-nowrap items-center justify-end gap-1.5 overflow-x-auto py-1 [-webkit-overflow-scrolling:touch] sm:gap-2 md:min-w-0 md:flex-1 md:gap-3 [scrollbar-width:thin]"
+            className="flex w-full max-w-full flex-nowrap items-center justify-end gap-1.5 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-1 [-webkit-overflow-scrolling:touch] sm:gap-2 md:min-w-0 md:flex-1 md:gap-3"
           >
             {menuContent}
           </div>
         </div>
-        {/* FIN DU HEADER */}
 
+        {/* NAV TABS - SCROLLABLE ON MOBILE */}
         <nav
-          className={`mx-auto mb-10 flex max-w-3xl gap-1.5 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-md transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
+          className={`mx-auto mb-10 flex w-full max-w-3xl overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-md transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
             lobbyMainTab === "poker"
               ? "border-white/10 bg-slate-950/75"
               : lobbyMainTab === "minigames"
@@ -510,13 +511,13 @@ export function Lobby() {
           </button>
         </nav>
 
-        {/* Modal Créer un serveur */}
+        {/* Modal Créer un serveur - FIX MOBILE SCROLL */}
         {showCreateModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setShowCreateModal(false)}>
-            <div className="bg-slate-800 border border-green-500/50 rounded-2xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center overflow-y-auto p-4" onClick={() => setShowCreateModal(false)}>
+            <div className="bg-slate-800 border border-green-500/50 rounded-2xl shadow-xl max-w-md w-full mx-2 p-6 my-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-white">{t('lobby.createServerTitle')}</h3>
-                <button type="button" onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white p-1">
+                <button type="button" onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white p-1" aria-label={t('common.close')}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -533,6 +534,7 @@ export function Lobby() {
                         ? 'bg-green-600/20 border-green-500 text-green-400'
                         : 'bg-slate-700 border-slate-600 text-slate-300 hover:border-slate-500'
                     }`}
+                    aria-label={t('lobby.public')}
                   >
                     <Globe className="w-5 h-5" />
                     {t('lobby.public')}
@@ -545,6 +547,7 @@ export function Lobby() {
                         ? 'bg-purple-600/20 border-purple-500 text-purple-400'
                         : 'bg-slate-700 border-slate-600 text-slate-300 hover:border-slate-500'
                     }`}
+                    aria-label={t('lobby.private')}
                   >
                     <Lock className="w-5 h-5" />
                     {t('lobby.private')}
@@ -565,6 +568,7 @@ export function Lobby() {
                       ? "border-amber-500/80 bg-amber-600/15 text-amber-100"
                       : "border-slate-600 bg-slate-700/50 text-slate-300 hover:border-slate-500"
                   }`}
+                  aria-label={t("lobby.turboMode")}
                 >
                   <span className="flex items-center gap-2 font-semibold">
                     <Zap className={`h-5 w-5 shrink-0 ${createTurbo ? "text-amber-400" : "text-slate-400"}`} />
@@ -590,6 +594,7 @@ export function Lobby() {
                     onClick={() => setCreateMaxPlayers(p => Math.max(2, p - 1))}
                     disabled={createMaxPlayers <= 2}
                     className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold transition flex items-center justify-center"
+                    aria-label={t('common.decrease')}
                   >
                     <Minus className="w-4 h-4" />
                   </button>
@@ -604,6 +609,7 @@ export function Lobby() {
                             ? 'bg-green-600 text-white'
                             : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                         }`}
+                        aria-label={`${n} ${t('lobby.players')}`}
                       >
                         {n}
                       </button>
@@ -614,6 +620,7 @@ export function Lobby() {
                     onClick={() => setCreateMaxPlayers(p => Math.min(5, p + 1))}
                     disabled={createMaxPlayers >= 5}
                     className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold transition flex items-center justify-center"
+                    aria-label={t('common.increase')}
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -625,6 +632,7 @@ export function Lobby() {
                 type="button"
                 onClick={() => setShowCreateAdvanced(v => !v)}
                 className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-slate-300 text-sm font-medium py-2 mb-2 transition-colors"
+                aria-label={showCreateAdvanced ? t('lobby.hideOptions') : t('lobby.seeMore')}
               >
                 <Settings2 className="w-4 h-4" />
                 <span>{showCreateAdvanced ? t('lobby.hideOptions') : t('lobby.seeMore')}</span>
@@ -641,6 +649,7 @@ export function Lobby() {
                       value={createSmallBlind}
                       onChange={(e) => setCreateSmallBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
                       className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      aria-label={t('lobby.smallBlind')}
                     />
                   </div>
                   <div>
@@ -652,6 +661,7 @@ export function Lobby() {
                       value={createBigBlind}
                       onChange={(e) => setCreateBigBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 2)))}
                       className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      aria-label={t('lobby.minRaise')}
                     />
                     <p className="text-slate-500 text-xs mt-1">{t('lobby.minRaiseHint')}</p>
                   </div>
@@ -672,6 +682,7 @@ export function Lobby() {
                         className={`flex-1 bg-slate-700 border rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                           isMinBalanceInvalid ? "border-red-500" : "border-slate-600"
                         }`}
+                        aria-label={t('lobby.minBalance')}
                       />
                       {isMinBalanceInvalid && (
                         <div className="relative flex items-center gap-1">
@@ -692,7 +703,8 @@ export function Lobby() {
                 type="button"
                 onClick={handleCreateServer}
                 disabled={creating || isMinBalanceInvalid}
-                className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold text-lg transition flex items-center justify-center gap-2"
+                className="w-full py-3 md:py-4 rounded-xl bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold text-lg transition flex items-center justify-center gap-2"
+                aria-label={t('lobby.validateCreate')}
               >
                 {creating && <Loader2 className="w-5 h-5 animate-spin" />}
                 {t('lobby.validateCreate')}
@@ -701,246 +713,256 @@ export function Lobby() {
           </div>
         )}
 
-        {/* MAIN GRID — poker / minigames / blackjack (2 cols) + amis ; poker reste dans le DOM pour le tour guidé */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* MAIN GRID - IMPROVED GAP */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
           
-          {/* Colonne de gauche (2/3) - Texas Hold'em */}
-          <div className={`lg:col-span-2 space-y-6 ${lobbyMainTab !== "poker" ? "hidden" : ""}`} aria-hidden={lobbyMainTab !== "poker"}>
+          {/* Colonne de gauche - Texas Hold'em - CONDITIONAL RENDER (performance) */}
+          {lobbyMainTab === "poker" && (
+            <div className="md:col-span-2 lg:col-span-2 space-y-6">
+              {/* Section Jouer contre Bot */}
+              <div ref={tourRefBot} className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
+                <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
+                  <Bot className="w-8 h-8 text-purple-400"/>
+                  {t('lobby.playBot')}
+                </h2>
 
-            {/* Section Jouer contre Bot */}
-            <div ref={tourRefBot} className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
-              <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
-                <Bot className="w-8 h-8 text-purple-400"/>
-                {t('lobby.playBot')}
-              </h2>
-
-              <button
-                onClick={handlePlayBot}
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl transition"
-              >
-                {t('lobby.configureAndPlay')}
-              </button>
-            </div>
-
-            {/* Section Serveur Multi-joueurs */}
-            <div ref={tourRefMultiplayer} className="bg-slate-800 rounded-2xl p-6 border border-green-500">
-              <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
-                <Server className="w-8 h-8 text-green-400"/>
-                {t('lobby.multiplayerServers')}
-              </h2>
-
-              <div className="space-y-3">
                 <button
-                  onClick={openCreateModal}
-                  disabled={!userId || creating}
-                  className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2"
+                  onClick={handlePlayBot}
+                  className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 md:py-4 rounded-xl transition"
+                  aria-label={t('lobby.configureAndPlay')}
                 >
-                  {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                  {creating ? t('lobby.creating') : t('lobby.createNewServer')}
+                  {t('lobby.configureAndPlay')}
                 </button>
+              </div>
 
-                {/* Salles d'attente */}
-                <div ref={tourRefWaiting} className="bg-slate-700/50 p-4 rounded-xl mb-4">
-                  <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.waitingRooms')}</p>
-                  {roomsLoading && rooms.length === 0 ? (
-                    <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
-                    </p>
-                  ) : roomsError ? (
-                    <p className="text-red-400 text-center py-2 text-sm">{roomsError}</p>
-                  ) : rooms.length === 0 ? (
-                    <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {rooms.map((room) => {
-                        const isHost = userId && room.hostId === userId;
-                        const isFull = room.playerCount >= room.maxPlayers;
-                        const isPrivate = room.visibility === 'PRIVATE';
-                        return (
-                        <li
-                          key={room.id}
-                          className="flex items-center justify-between gap-3 bg-slate-800/70 rounded-lg px-3 py-2 border border-slate-600"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="text-white font-medium truncate">{room.name}</p>
-                              {isPrivate ? (
-                                <span className="flex items-center gap-1 bg-purple-600/30 text-purple-300 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-purple-500/40 shrink-0">
-                                  <Lock className="w-2.5 h-2.5" />
-                                  {t('lobby.private')}
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1 bg-green-600/30 text-green-300 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-green-500/40 shrink-0">
-                                  <Globe className="w-2.5 h-2.5" />
-                                  {t('lobby.public')}
-                                </span>
-                              )}
-                              {room.turbo ? (
-                                <span className="flex shrink-0 items-center gap-0.5 rounded-full border border-amber-500/50 bg-amber-600/25 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
-                                  <Zap className="h-2.5 w-2.5" />
-                                  {t("lobby.turboBadge")}
-                                </span>
-                              ) : null}
+              {/* Section Serveur Multi-joueurs */}
+              <div ref={tourRefMultiplayer} className="bg-slate-800 rounded-2xl p-6 border border-green-500">
+                <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
+                  <Server className="w-8 h-8 text-green-400"/>
+                  {t('lobby.multiplayerServers')}
+                </h2>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={openCreateModal}
+                    disabled={!userId || creating}
+                    className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 md:py-4 rounded-xl transition flex items-center justify-center gap-2"
+                    aria-label={t('lobby.createNewServer')}
+                  >
+                    {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                    {creating ? t('lobby.creating') : t('lobby.createNewServer')}
+                  </button>
+
+                  {/* Salles d'attente */}
+                  <div ref={tourRefWaiting} className="bg-slate-700/50 p-4 rounded-xl mb-4">
+                    <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.waitingRooms')}</p>
+                    {roomsLoading && roomsMemo.length === 0 ? (
+                      <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
+                      </p>
+                    ) : roomsError ? (
+                      <p className="text-red-400 text-center py-2 text-sm">{roomsError}</p>
+                    ) : roomsMemo.length === 0 ? (
+                      <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {roomsMemo.map((room) => {
+                          const isHost = userId && room.hostId === userId;
+                          const isFull = room.playerCount >= room.maxPlayers;
+                          const isPrivate = room.visibility === 'PRIVATE';
+                          return (
+                          <li
+                            key={room.id}
+                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 bg-slate-800/60 backdrop-blur-sm rounded-lg px-3 py-2.5 border border-slate-600"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-white font-medium truncate">{room.name}</p>
+                                {isPrivate ? (
+                                  <span className="flex items-center gap-1 bg-purple-600/30 text-purple-300 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-purple-500/40 shrink-0">
+                                    <Lock className="w-2.5 h-2.5" />
+                                    {t('lobby.private')}
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 bg-green-600/30 text-green-300 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-green-500/40 shrink-0">
+                                    <Globe className="w-2.5 h-2.5" />
+                                    {t('lobby.public')}
+                                  </span>
+                                )}
+                                {room.turbo ? (
+                                  <span className="flex shrink-0 items-center gap-0.5 rounded-full border border-amber-500/50 bg-amber-600/25 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
+                                    <Zap className="h-2.5 w-2.5" />
+                                    {t("lobby.turboBadge")}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="text-gray-400 text-xs">
+                                {t('lobby.playersCount', { count: room.playerCount, max: room.maxPlayers })}
+                              </p>
                             </div>
-                            <p className="text-gray-400 text-xs">
-                              {t('lobby.playersCount', { count: room.playerCount, max: room.maxPlayers })}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {isHost && (
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteRoom(room.id)}
-                                className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-lg transition flex items-center gap-1"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                                {t('lobby.deleteServer')}
-                              </button>
-                            )}
-                            {isFull ? (
-                              <span className="text-gray-500 text-xs font-semibold px-3 py-1.5 bg-slate-700 rounded-lg cursor-not-allowed">
-                                {t('lobby.roomFull')}
-                              </span>
-                            ) : isPrivate && !isHost ? (
-                              <button
-                                onClick={() => handleRequestJoin(room.id)}
-                                disabled={requestingRoom === room.id}
-                                className="shrink-0 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 disabled:cursor-not-allowed text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
-                              >
-                                {requestingRoom === room.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
-                                {t('lobby.requestJoin')}
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleJoinRoom(room.id)}
-                                className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
-                              >
-                                {t('lobby.join')}
-                              </button>
-                            )}
-                          </div>
-                        </li>
-                      )})}
-                    </ul>
-                  )}
-                </div>
+                            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
+                              {isHost && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRoom(room.id)}
+                                  className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-lg transition flex items-center gap-1"
+                                  aria-label={t('lobby.deleteServer')}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  {t('lobby.deleteServer')}
+                                </button>
+                              )}
+                              {isFull ? (
+                                <span className="text-gray-500 text-xs font-semibold px-3 py-1.5 bg-slate-700 rounded-lg cursor-not-allowed">
+                                  {t('lobby.roomFull')}
+                                </span>
+                              ) : isPrivate && !isHost ? (
+                                <button
+                                  onClick={() => handleRequestJoin(room.id)}
+                                  disabled={requestingRoom === room.id}
+                                  className="shrink-0 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 disabled:cursor-not-allowed text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
+                                  aria-label={t('lobby.requestJoin')}
+                                >
+                                  {requestingRoom === room.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                                  {t('lobby.requestJoin')}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleJoinRoom(room.id)}
+                                  className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                                  aria-label={t('lobby.join')}
+                                >
+                                  {t('lobby.join')}
+                                </button>
+                              )}
+                            </div>
+                          </li>
+                        )})}
+                      </ul>
+                    )}
+                  </div>
 
-                {/* Parties en cours */}
-                <div ref={tourRefGames} className="bg-slate-700/50 p-4 rounded-xl">
-                  <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.gamesInProgress')}</p>
-                  {gamesLoading && gamesInProgress.length === 0 ? (
-                    <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
-                    </p>
-                  ) : gamesInProgress.length === 0 ? (
-                    <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {gamesInProgress.map((g) => (
-                        <li
-                          key={g.gameId}
-                          className="flex items-center justify-between gap-3 bg-slate-800/70 rounded-lg px-3 py-2 border border-slate-600"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-white font-medium truncate">{g.roomName}</p>
-                            <p className="text-gray-400 text-xs">
-                              {t('lobby.playersCount', { count: g.playerCount, max: g.maxPlayers })} · {g.phase}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {g.canJoin && (
+                  {/* Parties en cours */}
+                  <div ref={tourRefGames} className="bg-slate-700/50 p-4 rounded-xl">
+                    <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.gamesInProgress')}</p>
+                    {gamesLoading && gamesMemo.length === 0 ? (
+                      <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
+                      </p>
+                    ) : gamesMemo.length === 0 ? (
+                      <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {gamesMemo.map((g) => (
+                          <li
+                            key={g.gameId}
+                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 bg-slate-800/60 backdrop-blur-sm rounded-lg px-3 py-2.5 border border-slate-600"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-white font-medium truncate">{g.roomName}</p>
+                              <p className="text-gray-400 text-xs">
+                                {t('lobby.playersCount', { count: g.playerCount, max: g.maxPlayers })} · {g.phase}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
+                              {g.canJoin && (
+                                <button
+                                  onClick={() => handleJoinGame(g.gameId)}
+                                  className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                                  aria-label={t('lobby.join')}
+                                >
+                                  {t('lobby.join')}
+                                </button>
+                              )}
                               <button
-                                onClick={() => handleJoinGame(g.gameId)}
-                                className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                                onClick={() => handleSpectateGame(g.gameId)}
+                                className="shrink-0 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
+                                aria-label={t('lobby.spectate')}
                               >
-                                {t('lobby.join')}
+                                <Eye className="w-3.5 h-3.5" />
+                                {t('lobby.spectate')}
                               </button>
-                            )}
-                            <button
-                              onClick={() => handleSpectateGame(g.gameId)}
-                              className="shrink-0 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              {t('lobby.spectate')}
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
               </div>
+              
+              {/* Arène des tournois */}
+              <TournamentWidget />
             </div>
-            
-            {/* Arène des tournois (en bas sous les serveurs multi-joueurs) */}
-            <TournamentWidget />
+          )}
 
-          </div>
-
-          {/* Onglet Mini-jeux — deux blocs : roulette et machine à sous */}
-          <div
-            className={`lg:col-span-2 grid grid-cols-1 gap-6 md:grid-cols-2 ${lobbyMainTab !== "minigames" ? "hidden" : ""}`}
-            aria-hidden={lobbyMainTab !== "minigames"}
-          >
-            <div className="rounded-2xl border border-green-500 bg-slate-800 p-6">
-              <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
-                <Disc className="h-8 w-8 shrink-0 text-green-400" strokeWidth={2.2} aria-hidden />
-                {t("minigames.rouletteTitle")}
-              </h2>
-              <p className="mb-4 text-sm leading-relaxed text-gray-400">
-                {t("minigames.rouletteBlurb")}
-              </p>
-              <button
-                type="button"
-                onClick={() => navigate("/minigames?game=roulette")}
-                className="w-full rounded-xl bg-green-600 py-4 text-base font-bold text-white transition hover:bg-green-500"
-              >
-                {t("minigames.play")}
-              </button>
+          {/* Onglet Mini-jeux - CONDITIONAL RENDER */}
+          {lobbyMainTab === "minigames" && (
+            <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 gap-3 md:gap-6 sm:grid-cols-2">
+              <div className="rounded-2xl border border-green-500 bg-slate-800 p-6">
+                <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
+                  <Disc className="h-8 w-8 shrink-0 text-green-400" strokeWidth={2.2} aria-hidden />
+                  {t("minigames.rouletteTitle")}
+                </h2>
+                <p className="mb-4 text-sm leading-relaxed text-gray-400">
+                  {t("minigames.rouletteBlurb")}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate("/minigames?game=roulette")}
+                  className="w-full rounded-xl bg-green-600 py-3 md:py-4 text-base font-bold text-white transition hover:bg-green-500"
+                  aria-label={t("minigames.play")}
+                >
+                  {t("minigames.play")}
+                </button>
+              </div>
+              <div className="rounded-2xl border border-blue-900/90 bg-gradient-to-br from-slate-900 via-[#0a1522] to-[#030910] p-6 shadow-[inset_0_1px_0_rgba(30,58,138,0.12)]">
+                <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
+                  <SquareStack className="h-8 w-8 shrink-0 text-blue-500" strokeWidth={2.2} aria-hidden />
+                  {t("minigames.slotTitle")}
+                </h2>
+                <p className="mb-4 text-sm leading-relaxed text-slate-500">
+                  {t("minigames.slotBlurb")}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate("/minigames?game=slots")}
+                  className="w-full rounded-xl bg-blue-800 py-3 md:py-4 text-base font-bold text-white transition hover:bg-blue-700"
+                  aria-label={t("minigames.play")}
+                >
+                  {t("minigames.play")}
+                </button>
+              </div>
             </div>
-            <div className="rounded-2xl border border-blue-900/90 bg-gradient-to-br from-slate-900 via-[#0a1522] to-[#030910] p-6 shadow-[inset_0_1px_0_rgba(30,58,138,0.12)]">
-              <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
-                <SquareStack className="h-8 w-8 shrink-0 text-blue-500" strokeWidth={2.2} aria-hidden />
-                {t("minigames.slotTitle")}
-              </h2>
-              <p className="mb-4 text-sm leading-relaxed text-slate-500">
-                {t("minigames.slotBlurb")}
-              </p>
-              <button
-                type="button"
-                onClick={() => navigate("/minigames?game=slots")}
-                className="w-full rounded-xl bg-blue-800 py-4 text-base font-bold text-white transition hover:bg-blue-700"
-              >
-                {t("minigames.play")}
-              </button>
-            </div>
-          </div>
+          )}
 
-          {/* Onglet Blackjack — solo + tables multijoueur intégrées */}
-          <div className={`lg:col-span-2 space-y-6 ${lobbyMainTab !== "blackjack" ? "hidden" : ""}`} aria-hidden={lobbyMainTab !== "blackjack"}>
-            <div className="rounded-2xl border border-rose-500/50 bg-slate-800 p-6">
-              <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
-                <Club className="h-8 w-8 text-rose-400" aria-hidden />
-                {t("lobby.blackjackTitle")}
-              </h2>
-              <p className="mb-4 max-w-xl text-sm leading-relaxed text-gray-400">{t("lobby.blackjackIntro")}</p>
-              <button
-                type="button"
-                onClick={() => navigate("/blackjack")}
-                className="w-full rounded-xl bg-rose-700 py-4 font-bold text-white transition hover:bg-rose-600"
-              >
-                {t("lobby.blackjackPlay")}
-              </button>
-              <p className="mt-3 text-center text-xs leading-relaxed text-gray-500">{t("lobby.blackjackSoloHint")}</p>
+          {/* Onglet Blackjack - CONDITIONAL RENDER */}
+          {lobbyMainTab === "blackjack" && (
+            <div className="md:col-span-2 lg:col-span-2 space-y-6">
+              <div className="rounded-2xl border border-rose-500/50 bg-slate-800 p-6">
+                <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
+                  <Club className="h-8 w-8 text-rose-400" aria-hidden />
+                  {t("lobby.blackjackTitle")}
+                </h2>
+                <p className="mb-4 max-w-xl text-sm leading-relaxed text-gray-400">{t("lobby.blackjackIntro")}</p>
+                <button
+                  type="button"
+                  onClick={() => navigate("/blackjack")}
+                  className="w-full rounded-xl bg-rose-700 py-3 md:py-4 font-bold text-white transition hover:bg-rose-600"
+                  aria-label={t("lobby.blackjackPlay")}
+                >
+                  {t("lobby.blackjackPlay")}
+                </button>
+                <p className="mt-3 text-center text-xs leading-relaxed text-gray-500">{t("lobby.blackjackSoloHint")}</p>
+              </div>
+              <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} onSwitchTab={setMainTab} />
             </div>
-            <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} onSwitchTab={setMainTab} />
-          </div>
+          )}
 
-          {/* Colonne de droite (1/3) - Amis */}
-          <div ref={tourRefFriends} className="lg:col-span-1 space-y-6">
+          {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
+          <div ref={tourRefFriends} className="md:col-span-2 lg:col-span-1 space-y-6">
             <DailyChallenges />
             <FriendsList />
-            
           </div>
 
         </div>
