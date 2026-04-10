@@ -1005,48 +1005,60 @@ return
           socket.gameId = gameId
 
           await this.logRoomState(gameId, 'reconnect_joined_game_room', {
-  socketId: socket.id,
-  userId: socket.userId,
-  gameId,
-})
+            socketId: socket.id,
+            userId: socket.userId,
+            gameId,
+          })
 
-          const game = await activeGames.get(gameId);
-          if (game && socket.userId) {
-            const player = game.getPlayerState(socket.userId)
-            if (player) {
-              player.isConnected = true
-            }
+          //  ON CHERCHE DANS LE POKER
+          const pokerGame = await activeGames.get(gameId);
+          if (pokerGame && socket.userId) {
+            const player = pokerGame.getPlayerState(socket.userId)
+            if (player) player.isConnected = true
 
-            if (game instanceof CashGameController) {
+            if (pokerGame instanceof CashGameController) {
               const url = sanitizePublicAvatarUrl(data.avatarUrl)
-              if (url) game.setSeatAvatar(socket.userId, url)
+              if (url) pokerGame.setSeatAvatar(socket.userId, url)
               const socketsInRoom = await this.io.in(gameId).fetchSockets()
               for (const s of socketsInRoom) {
                 const uid = (s as unknown as AuthenticatedSocket).userId
-                s.emit('GAME_UPDATE', game.getSanitizedState(uid))
+                s.emit('GAME_UPDATE', pokerGame.getSanitizedState(uid))
               }
             } else {
-              socket.emit('GAME_UPDATE', game.getSanitizedState(socket.userId))
+              socket.emit('GAME_UPDATE', pokerGame.getSanitizedState(socket.userId))
             }
-            this.io.to(gameId).emit('PLAYER_RECONNECTED', {
-              playerId: socket.userId,
-              gameId
-            })
-
-            console.log(`🔄 Joueur ${socket.userId} reconnecté à la partie ${gameId}`)
-          } else {
-            logSuspiciousAction('RECONNECT_ERROR', {
-              userId: socket.userId,
-              socketId: socket.id,
-              gameId,
-              action: 'RECONNECT_GAME'
-            })
-
-            socket.emit('ERROR', {
-              code: 'RECONNECT_ERROR',
-              message: 'Impossible de se reconnecter à la partie'
-            })
+            this.io.to(gameId).emit('PLAYER_RECONNECTED', { playerId: socket.userId, gameId })
+            console.log(` Joueur ${socket.userId} reconnecté au Poker ${gameId}`)
+            return; //  On s'arrête là, c'était bien du Poker
           }
+
+          //  ON CHERCHE DANS LE BLACKJACK
+          const blackjackTable = activeBlackjackGames.getSync(gameId);
+          if (blackjackTable && socket.userId) {
+            // On le rajoute à la room spécifique du Blackjack pour qu'il reçoive les cartes
+            socket.join(`blackjack:${gameId}`);
+            
+            socket.emit('BLACKJACK_TABLE_UPDATE', {
+              gameId,
+              state: blackjackTable.toPublicState(socket.userId),
+            });
+            console.log(` Joueur ${socket.userId} reconnecté au Blackjack ${gameId}`);
+            return; //  On s'arrête là, c'était du Blackjack
+          }
+
+          //  SI ON ARRIVE ICI, LA PARTIE N'EXISTE VRAIMENT PLUS
+          logSuspiciousAction('RECONNECT_ERROR', {
+            userId: socket.userId,
+            socketId: socket.id,
+            gameId,
+            action: 'RECONNECT_GAME'
+          })
+
+          socket.emit('ERROR', {
+            code: 'RECONNECT_ERROR',
+            message: 'Impossible de se reconnecter à la partie (elle est peut-être terminée)'
+          })
+          
         } catch (error) {
           console.error('Erreur RECONNECT_GAME:', error)
           socket.emit('ERROR', {
