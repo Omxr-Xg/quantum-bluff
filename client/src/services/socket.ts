@@ -1,14 +1,31 @@
 import { io } from 'socket.io-client'
 
+/**
+ * En `vite dev` sur localhost, ne pas utiliser l’origine Vite (ex. :5175) pour Socket.IO :
+ * le proxy HTTP de Vite gère mal la montée polling → WebSocket (400, WS fermée, « network connection was lost »).
+ * Même stratégie que le fallback API hors dev : parler directement au backend (CORS déjà ouvert pour 5173–5177).
+ */
 const resolveSocketUrl = (): string => {
   const envUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim()
   if (envUrl) return envUrl
 
+  const apiBase = (import.meta.env.VITE_API_URL ?? '').toString().replace(/\/$/, '').trim()
+
   if (typeof window !== 'undefined') {
+    const { hostname, protocol } = window.location
+    if (protocol === 'capacitor:' || protocol === 'ionic:' || protocol === 'file:') {
+      return apiBase || 'http://localhost:3000'
+    }
+    if (
+      import.meta.env.DEV &&
+      (hostname === 'localhost' || hostname === '127.0.0.1')
+    ) {
+      return apiBase || 'http://localhost:3000'
+    }
     return window.location.origin
   }
 
-  return 'http://localhost:3000'
+  return apiBase || 'http://localhost:3000'
 }
 
 const URL = resolveSocketUrl()

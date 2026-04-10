@@ -1,11 +1,15 @@
--- CreateEnum
-CREATE TYPE "TournamentStatus" AS ENUM ('PENDING', 'ACTIVE', 'COMPLETED', 'CANCELED');
+-- CreateEnum (idempotent: base déjà alignée via db push / tentative antérieure)
+DO $create_tournament_status$ BEGIN
+    CREATE TYPE "TournamentStatus" AS ENUM ('PENDING', 'ACTIVE', 'COMPLETED', 'CANCELED');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $create_tournament_status$;
 
 -- DropIndex
-DROP INDEX "wallet_ledger_entries_actionId_userId_reason_key";
+DROP INDEX IF EXISTS "wallet_ledger_entries_actionId_userId_reason_key";
 
 -- DropIndex
-DROP INDEX "wallet_ledger_entries_userId_createdAt_idx";
+DROP INDEX IF EXISTS "wallet_ledger_entries_userId_createdAt_idx";
 
 -- AlterTable
 ALTER TABLE "wallet_ledger_entries" ALTER COLUMN "roundId" DROP NOT NULL,
@@ -19,8 +23,8 @@ ALTER COLUMN "payoutTableVersion" DROP NOT NULL,
 ALTER COLUMN "rngVersion" DROP NOT NULL,
 ALTER COLUMN "integrityHash" DROP NOT NULL;
 
--- CreateTable
-CREATE TABLE "tournaments" (
+-- CreateTable (idempotent si schéma déjà poussé avec db push)
+CREATE TABLE IF NOT EXISTS "tournaments" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "buyIn" INTEGER NOT NULL,
@@ -34,8 +38,7 @@ CREATE TABLE "tournaments" (
     CONSTRAINT "tournaments_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "tournament_players" (
+CREATE TABLE IF NOT EXISTS "tournament_players" (
     "tournamentId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "eliminatedAt" TIMESTAMP(3),
@@ -44,16 +47,25 @@ CREATE TABLE "tournament_players" (
 );
 
 -- CreateIndex
-CREATE INDEX "wallet_ledger_entries_userId_idx" ON "wallet_ledger_entries"("userId");
+CREATE INDEX IF NOT EXISTS "wallet_ledger_entries_userId_idx" ON "wallet_ledger_entries"("userId");
 
--- CreateIndex
-CREATE INDEX "wallet_ledger_entries_createdAt_idx" ON "wallet_ledger_entries"("createdAt");
+CREATE INDEX IF NOT EXISTS "wallet_ledger_entries_createdAt_idx" ON "wallet_ledger_entries"("createdAt");
 
--- AddForeignKey
-ALTER TABLE "tournaments" ADD CONSTRAINT "tournaments_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey (idempotent)
+DO $tournaments_createdby_fk$ BEGIN
+    ALTER TABLE "tournaments" ADD CONSTRAINT "tournaments_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $tournaments_createdby_fk$;
 
--- AddForeignKey
-ALTER TABLE "tournament_players" ADD CONSTRAINT "tournament_players_tournamentId_fkey" FOREIGN KEY ("tournamentId") REFERENCES "tournaments"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $tournament_players_tid_fk$ BEGIN
+    ALTER TABLE "tournament_players" ADD CONSTRAINT "tournament_players_tournamentId_fkey" FOREIGN KEY ("tournamentId") REFERENCES "tournaments"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $tournament_players_tid_fk$;
 
--- AddForeignKey
-ALTER TABLE "tournament_players" ADD CONSTRAINT "tournament_players_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $tournament_players_uid_fk$ BEGIN
+    ALTER TABLE "tournament_players" ADD CONSTRAINT "tournament_players_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $tournament_players_uid_fk$;

@@ -29,10 +29,12 @@ const devApiProxy = {
   },
   '/socket.io': {
     target: 'http://localhost:3000',
+    changeOrigin: true,
     ws: true,
   },
   '/vmProjetIntegrateurgrp10-0/socket.io': {
     target: 'http://localhost:3000',
+    changeOrigin: true,
     ws: true,
     rewrite: (p: string) => p.replace(/^\/vmProjetIntegrateurgrp10-0/, ''),
   },
