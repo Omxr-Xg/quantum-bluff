@@ -31,7 +31,6 @@ import {
 } from "../components/blackjack/BlackjackRoundReveal";
 import { mapBlackjackRuntimeCodeToUi } from "../features/blackjack/runtimeStatus";
 
-/** Same duration as `ROUND_REVEAL_MS` on the server before `finishHandAfterPayout`. */
 const PAYOUT_TABLE_REVEAL_MS = 2000;
 
 function authHeaders(): HeadersInit {
@@ -40,6 +39,38 @@ function authHeaders(): HeadersInit {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+function RuntimeBanner({ message, severity, onRetry, className = "" }: { 
+  message: string | null; 
+  severity: "info" | "warning" | "error"; 
+  onRetry?: () => void; 
+  className?: string;
+}) {
+  if (!message) return null;
+
+  const classes = {
+    error: "border-rose-500/60 bg-rose-950/40 text-rose-100",
+    warning: "border-amber-500/60 bg-amber-950/40 text-amber-100",
+    info: "border-sky-500/50 bg-sky-950/40 text-sky-100",
+  };
+
+  return (
+    <div className={`rounded-lg border px-4 py-3 text-sm ${classes[severity]} ${className}`}>
+      <div className="flex items-center justify-between gap-3">
+        <span>{message}</span>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-md border border-white/20 bg-black/30 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-black/50"
+          >
+            Reessayer
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function BlackjackMultiTable() {
@@ -63,34 +94,19 @@ export function BlackjackMultiTable() {
   const [runtimeSeverity, setRuntimeSeverity] = useState<"info" | "warning" | "error">("info");
   const [runtimeDisableActions, setRuntimeDisableActions] = useState(false);
   const [showdownPhase, setShowdownPhase] = useState<"idle" | "table_reveal" | "results">("idle");
-  const showdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [playerChips, setPlayerChips] = useState(() => getUserBalance());
   const [bjMaxDisplay, setBjMaxDisplay] = useState(() => getDisplayedBlackjackMaxBet());
 
-  const applyRuntimeCode = useCallback(
-    (code?: string) => {
-      const mapped = mapBlackjackRuntimeCodeToUi(code);
-      if (!mapped) {
-        setRuntimeBanner(null);
-        setRuntimeDisableActions(false);
-        setRuntimeSeverity("info");
-        return;
-      }
-      const text = mapped.messageKey ? t(mapped.messageKey) : null;
-      setRuntimeBanner(text);
-      setRuntimeDisableActions(mapped.disableActions);
-      setRuntimeSeverity(mapped.severity);
-      if (code === "TABLE_LOCKED") {
-        addToast(text ?? t("bjMulti.runtime.tableLocked"), "info");
-      }
-    },
-    [addToast, t]
-  );
+  const showdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastOutcomeToastHandRef = useRef<number | null>(null);
 
-  const mySeat = useMemo(
-    () => state?.seats.find((s) => s.userId === userId) ?? null,
-    [state, userId]
-  );
+  const seatsByUserId = useMemo(() => {
+    const map = new Map();
+    state?.seats.forEach((s) => map.set(s.userId, s));
+    return map;
+  }, [state?.seats]);
+
+  const mySeat = seatsByUserId.get(userId);
 
   const myHandTotal = useMemo(() => {
     if (!mySeat?.cards.length) return null;
@@ -98,26 +114,86 @@ export function BlackjackMultiTable() {
     return handValueFromCards(mySeat.cards).total;
   }, [mySeat]);
 
-  /** Résumé manche : priorité à l’état serveur (`payoutSummary`) pour toujours avoir les gains/pertes. */
   const effectiveRoundSummary = useMemo(() => {
     if (state?.phase !== "payout") return [];
     if (state.payoutSummary?.length) return state.payoutSummary;
     return roundSummary ?? [];
   }, [state?.phase, state?.payoutSummary, roundSummary]);
 
-  const lastOutcomeToastHandRef = useRef<number | null>(null);
+  const isHost = hostId === userId;
+  const allSeatsHaveBet = state?.phase === "betting" && state.seats.length > 0 && state.seats.every((s) => s.playState === "bet_placed");
+  const canBet = !runtimeDisableActions && !isSpectator && state?.phase === "betting" && mySeat?.playState === "no_bet";
+  const canDeal = !runtimeDisableActions && !isSpectator && isHost && state?.phase === "betting" && state.seats.some((s) => s.playState === "bet_placed") && !allSeatsHaveBet;
+  const myTurn = !runtimeDisableActions && !isSpectator && state?.phase === "player_turn" && state.currentSeatUserId === userId && mySeat?.playState === "in_hand" && (myHandTotal == null || myHandTotal < 21);
+  const canDouble = myTurn && mySeat && mySeat.cards.length === 2 && !mySeat.doubled;
+
+  const applyRuntimeCode = useCallback((code?: string) => {
+    const mapped = mapBlackjackRuntimeCodeToUi(code);
+    if (!mapped) {
+      setRuntimeBanner(null);
+      setRuntimeDisableActions(false);
+      setRuntimeSeverity("info");
+      return;
+    }
+    const text = mapped.messageKey ? t(mapped.messageKey) : null;
+    setRuntimeBanner(text);
+    setRuntimeDisableActions(mapped.disableActions);
+    setRuntimeSeverity(mapped.severity);
+    if (code === "TABLE_LOCKED") {
+      addToast(text ?? t("bjMulti.runtime.tableLocked"), "info");
+    }
+  }, [addToast, t]);
+
+  const handleApiAction = useCallback(async (endpoint: string, body: any, errorKey: string) => {
+    if (!gameId) return null;
+    
+    const res = await fetch(apiUrl(`/api/blackjack-tables/game/${gameId}${endpoint}`), {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      applyRuntimeCode(data.code);
+      addToast(data.error ?? t(errorKey), "error");
+      return null;
+    }
+
+    applyRuntimeCode(undefined);
+    
+    if (data.state) setState(data.state);
+    if (data.roundSummary?.length) setRoundSummary(data.roundSummary);
+    if (typeof data.chips === "number") updateUserBalance(data.chips);
+    
+    if (data.settlements?.length) {
+      for (const row of data.settlements) {
+        mergeGamificationFromServerResponse(row);
+      }
+    }
+    
+    if (data.settlements?.length || typeof data.chips === "number") {
+      await fetchBalanceFromServer({ authoritative: true });
+    }
+    
+    return data;
+  }, [gameId, addToast, t, applyRuntimeCode]);
 
   const loadState = useCallback(async () => {
     if (!gameId) return;
+    
     const res = await fetch(apiUrl(`/api/blackjack-tables/game/${gameId}/state`), {
       headers: authHeaders(),
     });
+    
     if (res.status === 401) {
       navigate("/auth");
       return;
     }
+    
     if (res.status === 410) {
-      const body = (await res.json().catch(() => ({}))) as { code?: string };
+      const body = await res.json().catch(() => ({}));
       if (body.code === "TABLE_SESSION_RESET") {
         addToast(t("bjMulti.runtime.sessionReset"), "info");
       } else {
@@ -126,32 +202,84 @@ export function BlackjackMultiTable() {
       navigate("/lobby?tab=blackjack");
       return;
     }
+    
     if (!res.ok) {
-      const err = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
+      const err = await res.json().catch(() => ({}));
       applyRuntimeCode(err.code);
       if (err.error) addToast(err.error, "error");
       return;
     }
-    const data = (await res.json()) as {
-      state: BjTableState;
-      hostId: string;
-    };
+    
+    const data = await res.json();
     applyRuntimeCode(undefined);
     setState(data.state);
     setHostId(data.hostId);
     setPlayerChips(getUserBalance());
   }, [gameId, navigate, addToast, t, applyRuntimeCode]);
 
+  const postBet = useCallback(async () => {
+    if (!gameId || isSpectator || acting) return;
+    setActing(true);
+    try {
+      await handleApiAction("/bet", { bet: betInput }, "bjMulti.betFailed");
+    } finally {
+      setActing(false);
+    }
+  }, [gameId, isSpectator, betInput, handleApiAction, acting]);
+
+  const postDeal = useCallback(async () => {
+    if (!gameId || isSpectator || acting) return;
+    setActing(true);
+    try {
+      await handleApiAction("/deal", {}, "bjMulti.dealFailed");
+    } finally {
+      setActing(false);
+    }
+  }, [gameId, isSpectator, handleApiAction, acting]);
+
+  const postAction = useCallback(async (action: "hit" | "stand" | "double") => {
+    if (!gameId || isSpectator || acting) return;
+    setActing(true);
+    try {
+      await handleApiAction("/action", { action }, "bjMulti.actionFailed");
+    } finally {
+      setActing(false);
+    }
+  }, [gameId, isSpectator, handleApiAction, acting]);
+
+  const deleteTableAsHost = useCallback(async () => {
+    if (!state?.roomId || hostId !== userId) return;
+    if (!window.confirm(t("bjMulti.deleteTableConfirm"))) return;
+    
+    setDeletingTable(true);
+    try {
+      const res = await fetch(apiUrl(`/api/blackjack-tables/${state.roomId}`), {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      
+      const errBody = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        addToast(errBody.error ?? t("bjMulti.deleteTableFailed"), "error");
+        return;
+      }
+      
+      addToast(t("bjMulti.tableDeleted"), "success");
+      navigate("/lobby?tab=blackjack");
+    } finally {
+      setDeletingTable(false);
+    }
+  }, [state?.roomId, hostId, userId, t, addToast, navigate]);
+
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const fetchData = async () => {
       setLoading(true);
       await loadState();
       if (!cancelled) setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
     };
+    fetchData();
+    return () => { cancelled = true; };
   }, [loadState]);
 
   useEffect(() => {
@@ -174,6 +302,7 @@ export function BlackjackMultiTable() {
       }
       return;
     }
+    
     if (!effectiveRoundSummary.length) return;
 
     setShowdownPhase("table_reveal");
@@ -193,15 +322,22 @@ export function BlackjackMultiTable() {
 
   useEffect(() => {
     if (state?.phase !== "payout" || !userId || isSpectator || !effectiveRoundSummary.length) return;
+    
     const row = effectiveRoundSummary.find((r) => r.userId === userId);
     if (!row) return;
+    
     const h = state.handNumber;
     if (lastOutcomeToastHandRef.current === h) return;
     lastOutcomeToastHandRef.current = h;
+    
     const kind = bjOutcomeKind(row.reason);
-    if (kind === "win") addToast(t("bjMulti.toastYouWin", { chips: row.payout }), "success");
-    else if (kind === "push") addToast(t("bjMulti.toastYouPush", { chips: row.payout }), "info");
-    else addToast(t("bjMulti.toastYouLose"), "error");
+    if (kind === "win") {
+      addToast(t("bjMulti.toastYouWin", { chips: row.payout }), "success");
+    } else if (kind === "push") {
+      addToast(t("bjMulti.toastYouPush", { chips: row.payout }), "info");
+    } else {
+      addToast(t("bjMulti.toastYouLose"), "error");
+    }
   }, [state?.phase, state?.handNumber, effectiveRoundSummary, userId, isSpectator, addToast, t]);
 
   useEffect(() => {
@@ -211,7 +347,7 @@ export function BlackjackMultiTable() {
   }, []);
 
   useEffect(() => {
-    void refreshGamificationFromServer().then(() => setBjMaxDisplay(getDisplayedBlackjackMaxBet()));
+    refreshGamificationFromServer().then(() => setBjMaxDisplay(getDisplayedBlackjackMaxBet()));
   }, []);
 
   useEffect(() => {
@@ -222,12 +358,10 @@ export function BlackjackMultiTable() {
 
   useEffect(() => {
     if (!socket || !gameId) return;
+    
     socket.emit("JOIN_BLACKJACK_TABLE", { gameId });
-    const onUpdate = (payload: {
-      gameId: string;
-      state: BjTableState;
-      roundSummary?: BjRoundSummaryRow[];
-    }) => {
+    
+    const onUpdate = (payload: { gameId: string; state: BjTableState; roundSummary?: BjRoundSummaryRow[] }) => {
       if (payload.gameId !== gameId) return;
       applyRuntimeCode(undefined);
       setState(payload.state);
@@ -237,11 +371,8 @@ export function BlackjackMultiTable() {
         setRoundSummary(null);
       }
     };
-    const onSocketError = (payload: {
-      code?: string;
-      message?: string;
-      roomId?: string;
-    }) => {
+    
+    const onSocketError = (payload: { code?: string; message?: string; roomId?: string }) => {
       if (!payload?.code) return;
       if (payload.code === "TABLE_SESSION_RESET") {
         addToast(t("bjMulti.runtime.sessionReset"), "info");
@@ -253,231 +384,49 @@ export function BlackjackMultiTable() {
         addToast(payload.message, "error");
       }
     };
+    
     socket.on("BLACKJACK_TABLE_UPDATE", onUpdate);
     socket.on("ERROR", onSocketError);
+    
     return () => {
       socket.off("BLACKJACK_TABLE_UPDATE", onUpdate);
       socket.off("ERROR", onSocketError);
     };
-  }, [socket, gameId, addToast, applyRuntimeCode]);
+  }, [socket, gameId, addToast, applyRuntimeCode, navigate, t]);
 
-  const postBet = async () => {
-    if (!gameId || isSpectator) return;
-    setActing(true);
-    try {
-      const res = await fetch(apiUrl(`/api/blackjack-tables/game/${gameId}/bet`), {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ bet: betInput }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        chips?: number;
-        state?: BjTableState;
-        settlements?: Array<Record<string, unknown>>;
-        roundSummary?: BjRoundSummaryRow[];
-        error?: string;
-        code?: string;
-      };
-      if (!res.ok) {
-        applyRuntimeCode(data.code);
-        addToast(data.error ?? t("bjMulti.betFailed"), "error");
-        return;
-      }
-      applyRuntimeCode(undefined);
-      if (typeof data.chips === "number") updateUserBalance(data.chips);
-      if (data.state) setState(data.state);
-      if (data.roundSummary?.length) setRoundSummary(data.roundSummary);
-      if (data.settlements?.length) {
-        for (const row of data.settlements) {
-          mergeGamificationFromServerResponse(row);
-        }
-      }
-      await fetchBalanceFromServer({ authoritative: true });
-    } finally {
-      setActing(false);
+  const handleBetChange = (value: number) => {
+    if (!isNaN(value) && isFinite(value)) {
+      const min = state?.minBet || 1;
+      const max = bjMaxDisplay;
+      setBetInput(Math.min(Math.max(value, min), max));
     }
   };
 
-  const postDeal = async () => {
-    if (!gameId || isSpectator) return;
-    setActing(true);
-    try {
-      const res = await fetch(apiUrl(`/api/blackjack-tables/game/${gameId}/deal`), {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({}),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        state?: BjTableState;
-        settlements?: Array<Record<string, unknown>>;
-        roundSummary?: BjRoundSummaryRow[];
-        error?: string;
-        code?: string;
-      };
-      if (!res.ok) {
-        applyRuntimeCode(data.code);
-        addToast(data.error ?? t("bjMulti.dealFailed"), "error");
-        return;
-      }
-      applyRuntimeCode(undefined);
-      if (data.state) setState(data.state);
-      if (data.roundSummary?.length) setRoundSummary(data.roundSummary);
-      if (data.settlements?.length) {
-        for (const row of data.settlements) {
-          mergeGamificationFromServerResponse(row);
-        }
-        await fetchBalanceFromServer({ authoritative: true });
-      }
-    } finally {
-      setActing(false);
-    }
-  };
-
-  const deleteTableAsHost = async () => {
-    if (!state?.roomId || hostId !== userId) return;
-    if (!window.confirm(t("bjMulti.deleteTableConfirm"))) return;
-    setDeletingTable(true);
-    try {
-      const res = await fetch(apiUrl(`/api/blackjack-tables/${state.roomId}`), {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
-      const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        addToast(errBody.error ?? t("bjMulti.deleteTableFailed"), "error");
-        return;
-      }
-      addToast(t("bjMulti.tableDeleted"), "success");
-      navigate("/lobby?tab=blackjack");
-    } finally {
-      setDeletingTable(false);
-    }
-  };
-
-  const postAction = async (action: "hit" | "stand" | "double") => {
-    if (!gameId || isSpectator) return;
-    setActing(true);
-    try {
-      const res = await fetch(apiUrl(`/api/blackjack-tables/game/${gameId}/action`), {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ action }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        state?: BjTableState;
-        settlements?: Array<Record<string, unknown>>;
-        roundSummary?: BjRoundSummaryRow[];
-        chips?: number;
-        error?: string;
-        code?: string;
-      };
-      if (!res.ok) {
-        applyRuntimeCode(data.code);
-        addToast(data.error ?? t("bjMulti.actionFailed"), "error");
-        return;
-      }
-      applyRuntimeCode(undefined);
-      if (typeof data.chips === "number") updateUserBalance(data.chips);
-      if (data.state) setState(data.state);
-      if (data.roundSummary?.length) setRoundSummary(data.roundSummary);
-      if (data.settlements?.length) {
-        for (const row of data.settlements) {
-          mergeGamificationFromServerResponse(row);
-        }
-      }
-      await fetchBalanceFromServer({ authoritative: true });
-    } finally {
-      setActing(false);
-    }
+  const handleBetBlur = () => {
+    const min = state?.minBet || 1;
+    const max = bjMaxDisplay;
+    setBetInput(Math.min(Math.max(betInput, min), max));
   };
 
   if (loading || !state) {
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#14080d]">
         <BlackjackLobbyBackdrop />
-        {runtimeBanner ? (
-          <div
-            className={`absolute left-4 right-4 top-5 z-20 mx-auto max-w-3xl rounded-lg border px-4 py-3 text-sm ${
-              runtimeSeverity === "error"
-                ? "border-rose-500/60 bg-rose-950/40 text-rose-100"
-                : runtimeSeverity === "warning"
-                ? "border-amber-500/60 bg-amber-950/40 text-amber-100"
-                : "border-sky-500/50 bg-sky-950/40 text-sky-100"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span>{runtimeBanner}</span>
-              <button
-                type="button"
-                onClick={() => void loadState()}
-                className="rounded-md border border-white/20 bg-black/30 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-black/50"
-              >
-                Reessayer
-              </button>
-            </div>
-          </div>
-        ) : null}
+        <RuntimeBanner message={runtimeBanner} severity={runtimeSeverity} onRetry={loadState} />
         <Loader2 className="relative z-10 h-10 w-10 animate-spin text-rose-400" />
       </div>
     );
   }
 
-  const isHost = hostId === userId;
-  const allSeatsHaveBet =
-    state.phase === "betting" &&
-    state.seats.length > 0 &&
-    state.seats.every((s) => s.playState === "bet_placed");
-  const canBet =
-    !runtimeDisableActions &&
-    !isSpectator &&
-    state.phase === "betting" &&
-    mySeat?.playState === "no_bet";
-  /** Distribution manuelle seulement si une mise existe mais pas tout le monde encore (ex. joueur AFK). */
-  const canDeal =
-    !runtimeDisableActions &&
-    !isSpectator &&
-    isHost &&
-    state.phase === "betting" &&
-    state.seats.some((s) => s.playState === "bet_placed") &&
-    !allSeatsHaveBet;
-  const myTurn =
-    !runtimeDisableActions &&
-    !isSpectator &&
-    state.phase === "player_turn" &&
-    state.currentSeatUserId === userId &&
-    mySeat?.playState === "in_hand" &&
-    (myHandTotal == null || myHandTotal < 21);
-  const canDouble = myTurn && mySeat && mySeat.cards.length === 2 && !mySeat.doubled;
-
-  const btnBase =
-    "rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wide shadow-lg transition disabled:cursor-not-allowed disabled:opacity-45 sm:px-8 sm:text-base";
+  const btnBase = "rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wide shadow-lg transition disabled:cursor-not-allowed disabled:opacity-45 sm:px-8 sm:text-base";
 
   return (
     <div className="relative w-full min-h-screen overflow-hidden bg-[#0a0608] pb-10">
       <BlackjackLobbyBackdrop />
+      
       <div className="relative z-10 mx-auto max-w-6xl px-4 pt-5 sm:pt-6">
-        {runtimeBanner ? (
-          <div
-            className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
-              runtimeSeverity === "error"
-                ? "border-rose-500/60 bg-rose-950/40 text-rose-100"
-                : runtimeSeverity === "warning"
-                ? "border-amber-500/60 bg-amber-950/40 text-amber-100"
-                : "border-sky-500/50 bg-sky-950/40 text-sky-100"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span>{runtimeBanner}</span>
-              <button
-                type="button"
-                onClick={() => void loadState()}
-                className="rounded-md border border-white/20 bg-black/30 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-black/50"
-              >
-                Reessayer
-              </button>
-            </div>
-          </div>
-        ) : null}
+        <RuntimeBanner message={runtimeBanner} severity={runtimeSeverity} onRetry={loadState} className="mb-4" />
+        
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
@@ -487,23 +436,24 @@ export function BlackjackMultiTable() {
             <ArrowLeft className="h-4 w-4" />
             {t("bjMulti.backToLobby")}
           </button>
+          
           <div className="flex flex-wrap items-center gap-2">
-            {isHost && !isSpectator ? (
+            {isHost && !isSpectator && (
               <button
                 type="button"
                 disabled={deletingTable}
-                onClick={() => void deleteTableAsHost()}
+                onClick={deleteTableAsHost}
                 className="inline-flex items-center gap-2 rounded-lg border border-rose-600/50 bg-rose-950/60 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-900/70 disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" />
                 {t("bjMulti.deleteTable")}
               </button>
-            ) : null}
-            {isSpectator ? (
+            )}
+            {isSpectator && (
               <span className="rounded-full border border-amber-500/50 bg-amber-950/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-200 shadow-inner">
                 {t("bjMulti.spectatorBadge")}
               </span>
-            ) : null}
+            )}
           </div>
         </div>
       </div>
@@ -525,7 +475,8 @@ export function BlackjackMultiTable() {
                     min={state.minBet}
                     max={bjMaxDisplay}
                     value={betInput}
-                    onChange={(e) => setBetInput(Number(e.target.value))}
+                    onChange={(e) => handleBetChange(Number(e.target.value))}
+                    onBlur={handleBetBlur}
                     className="rounded-xl border-2 border-amber-700/50 bg-black/50 px-4 py-3 text-center font-mono text-lg text-white shadow-inner focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                   />
                 </label>
@@ -539,6 +490,7 @@ export function BlackjackMultiTable() {
                 </button>
               </div>
             )}
+            
             {canDeal && (
               <button
                 type="button"
@@ -549,6 +501,7 @@ export function BlackjackMultiTable() {
                 {t("bjMulti.dealCards")}
               </button>
             )}
+            
             {myTurn && (
               <div className="flex w-full max-w-lg flex-wrap justify-center gap-3">
                 <button
@@ -585,15 +538,15 @@ export function BlackjackMultiTable() {
         )}
       </BlackjackMultiCasinoTable>
 
-      {showdownPhase === "table_reveal" ? (
+      {showdownPhase === "table_reveal" && (
         <div className="pointer-events-none fixed bottom-6 left-1/2 z-[90] max-w-md -translate-x-1/2 rounded-full border border-amber-500/40 bg-black/75 px-6 py-3 text-center text-sm font-semibold text-amber-100 shadow-lg backdrop-blur-sm">
           {t("bjMulti.showdownRevealing")}
         </div>
-      ) : null}
+      )}
 
-      {state.phase === "payout" && showdownPhase === "results" ? (
+      {state.phase === "payout" && showdownPhase === "results" && (
         <BlackjackRoundReveal state={state} roundSummary={effectiveRoundSummary} userId={userId ?? null} />
-      ) : null}
+      )}
     </div>
   );
 }
