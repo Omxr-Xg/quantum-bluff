@@ -1109,8 +1109,14 @@ return
 
                 if (game.state.currentTurn === userId) {
                   try {
-                    console.log(`[Réseau] Auto-FOLD pour le joueur déconnecté ${userId}`)
-                    game.handlePlayerAction(userId, 'FOLD') 
+                    //  On ne force le FOLD que si on n'est pas en phase de Showdown
+                    if (game.state.phase !== 'SHOWDOWN') {
+                      console.log(`[Réseau] Auto-FOLD pour le joueur déconnecté ${userId}`)
+                      game.handlePlayerAction(userId, 'FOLD')
+                    } else {
+                      console.log(`[Réseau] Showdown en cours pour ${userId}, auto-fold ignoré.`)
+                    }
+
                     const socketsInRoom = await this.io.in(gameId).fetchSockets()
                     for (const s of socketsInRoom) {
                       const uid = (s as unknown as AuthenticatedSocket).userId
@@ -1118,13 +1124,22 @@ return
                       s.emit('GAME_UPDATE', snapshot)
                       s.emit('GAME_STATE_UPDATED', snapshot)
                     }
-                    this.startTurnTimer(gameId)
+
+                    // On ne relance le timer de tour que si on n'est pas au Showdown
+                    if (game.state.phase !== 'SHOWDOWN') {
+                      this.startTurnTimer(gameId)
+                    }
                   } catch (error) {
                     console.error('[Réseau] Erreur auto-fold timeout:', error)
                   }
                 } else {
                   player.isActive = false
-                  game.forceFoldForDisconnect(userId)
+                  
+                  // pas de force-fold pendant le Showdown
+                  if (game.state.phase !== 'SHOWDOWN') {
+                    game.forceFoldForDisconnect(userId)
+                  }
+
                   const socketsInRoom = await this.io.in(gameId).fetchSockets()
                   for (const s of socketsInRoom) {
                     const uid = (s as unknown as AuthenticatedSocket).userId
@@ -1132,6 +1147,7 @@ return
                     s.emit('GAME_UPDATE', snapshot)
                     s.emit('GAME_STATE_UPDATED', snapshot)
                   }
+
                   if (game.state.phase === 'SHOWDOWN') {
                     this.startTurnTimer(gameId)
                   }
