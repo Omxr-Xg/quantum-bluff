@@ -25,13 +25,13 @@ import { GameExample } from "./pages/GameExample";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { LoaderProvider } from "./contexts/LoaderContext";
 
 import { MiniGames } from './pages/MiniGames';
 import { TournamentLobby } from './pages/TournamentLobby';
 import { AdminTournaments } from './pages/AdminTournaments';
 
-// NOUVEAUX IMPORTS POUR LA TÉLÉPORTATION DU TOURNOI
-import { socket } from './services/socket'; // Vérifie que ce chemin pointe bien vers ton fichier socket.ts
+import { socket } from './services/socket';
 import { useUser } from './hooks/useUser';
 import { useToast } from './contexts/ToastContext';
 
@@ -49,24 +49,20 @@ socket.on("connect", () => {
   console.log("✅ SOCKET ENFIN CONNECTÉ ! ID :", socket.id);
 });
 
-
 socket.onAny((eventName, ...args) => {
   console.log(`🌐 [SOCKET GLOBAL] Événement reçu : ${eventName}`, args);
 });
 
-/** Force un remount propre lors de la navigation (ex: config bot → jeu) pour éviter les blocages */
 function GameWithKey() {
   const location = useLocation();
   return <Game key={location.pathname + location.search} />;
 }
 
-/** * 🚀 LE TÉLÉPORTEUR SECRET & L'ÉCRAN DE FIN DE TOURNOI */
 function TournamentTeleporter() {
   const navigate = useNavigate();
   const { userId } = useUser();
   const { addToast } = useToast();
   
-  // 🎬 NOUVEAU : On crée un état pour savoir quel écran afficher
   const [tournamentResult, setTournamentResult] = useState<'win' | 'lose' | null>(null);
 
   useEffect(() => {
@@ -91,10 +87,10 @@ function TournamentTeleporter() {
     const handleElimination = (data: { userId: string }) => {
       if (data.userId === userId) {
         console.log("💀 [SOCKET] Signal d'élimination reçu !");
-        setTournamentResult('lose'); // 🎬 On déclenche l'écran de défaite !
+        setTournamentResult('lose'); 
         
         setTimeout(() => { 
-          setTournamentResult(null); // On referme le rideau
+          setTournamentResult(null); 
           navigate('/tournaments'); 
         }, 7000); 
       }
@@ -103,10 +99,10 @@ function TournamentTeleporter() {
     const handleVictory = (data: { userId: string }) => {
       if (data.userId === userId) {
         console.log("🏆 [SOCKET] Signal de victoire reçu !");
-        setTournamentResult('win'); // 🎬 On déclenche l'écran de victoire !
+        setTournamentResult('win'); 
         
         setTimeout(() => { 
-          setTournamentResult(null); // On referme le rideau
+          setTournamentResult(null); 
           navigate('/tournaments'); 
         }, 7000); 
       }
@@ -123,7 +119,6 @@ function TournamentTeleporter() {
     };
   }, [userId, navigate, addToast]);
 
-  // 🎨 NOUVEAU : LE RENDU VISUEL MAGNIFIQUE (OVERLAY PIPLEIN ÉCRAN)
   if (tournamentResult) {
     const isWin = tournamentResult === 'win';
     
@@ -131,9 +126,9 @@ function TournamentTeleporter() {
       <div style={{
         position: 'fixed',
         top: 0, left: 0, width: '100vw', height: '100vh',
-        backgroundColor: isWin ? 'rgba(0, 0, 0, 0.85)' : 'rgba(30, 0, 0, 0.9)', // Fond sombre (légèrement rouge si perte)
-        backdropFilter: 'blur(8px)', // Floute la table de poker derrière !
-        zIndex: 99999, // Passe par-dessus TOUT (même le chronomètre)
+        backgroundColor: isWin ? 'rgba(0, 0, 0, 0.85)' : 'rgba(30, 0, 0, 0.9)',
+        backdropFilter: 'blur(8px)',
+        zIndex: 99999,
         display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
         color: 'white', fontFamily: 'sans-serif', textAlign: 'center',
         animation: 'fadeIn 0.5s ease-out'
@@ -160,7 +155,6 @@ function TournamentTeleporter() {
           </>
         )}
         
-        {/* Petit spinner de chargement pour faire patienter avant le retour au lobby */}
         <p style={{ marginTop: '50px', fontSize: '1rem', opacity: 0.5 }}>
           Retour au lobby dans quelques secondes...
         </p>
@@ -182,9 +176,9 @@ function App() {
         <AccessibilityMenuOpenProvider>
         <TableThemeProvider>
         <ErrorBoundary>
+        <LoaderProvider>
         <Layout>
           
-          {/* On place le téléporteur ici pour qu'il soit actif sur TOUTES les pages */}
           <TournamentTeleporter />
 
           <Routes>
@@ -214,12 +208,12 @@ function App() {
 
             <Route path="/tutorial-lobby" element={<ProtectedRoute><TutorialLobby /></ProtectedRoute>} />
 
-            {/* Note : J'ai mis ProtectedRoute pour le lobby des tournois, c'est mieux si ça coûte des jetons ! */}
             <Route path="/tournaments" element={<ProtectedRoute><TournamentLobby /></ProtectedRoute>} />
             <Route path="/admin/tournaments" element={<ProtectedRoute><AdminTournaments /></ProtectedRoute>} />
 
           </Routes>
         </Layout>
+        </LoaderProvider>
         </ErrorBoundary>
         </TableThemeProvider>
         </AccessibilityMenuOpenProvider>
