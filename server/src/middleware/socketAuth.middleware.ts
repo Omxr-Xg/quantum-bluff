@@ -20,7 +20,7 @@ export async function socketAuth(socket: Socket, next: (err?: Error) => void) {
     socket.data.userId = decoded.userId
 
     return next()
-  } catch {
+  } catch (error) {
     return next(new Error('Invalid token'))
   }
 }

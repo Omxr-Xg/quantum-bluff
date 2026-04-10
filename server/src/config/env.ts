@@ -96,9 +96,7 @@ function parseCorsOrigins(raw?: string): string[] {
     if (Array.isArray(parsed)) {
       return parsed.map((value) => String(value).trim()).filter(Boolean)
     }
-  } catch {
-    /* JSON invalide : on retombe sur le split par virgules ci-dessous */
-  }
+  } catch {}
 
   return raw
     .split(',')
