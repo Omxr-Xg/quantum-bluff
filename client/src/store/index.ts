@@ -1,8 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { api } from '../services/api'
 
+import networkReducer from './slices/networkSlice' 
+
 export const store = configureStore({
   reducer: {
+    network: networkReducer, 
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) =>
