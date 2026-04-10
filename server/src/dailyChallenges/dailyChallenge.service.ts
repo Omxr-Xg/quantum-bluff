@@ -1,9 +1,6 @@
 import { prisma } from '../config/database.js'
 import type { DailyChallengeProgress, Prisma } from '../generated/prisma/index.js'
-import {
-  DAILY_CHALLENGE_DEFINITIONS,
-  DAILY_CHALLENGE_DEFINITION_BY_CODE,
-} from './dailyChallengeDefinitions.js'
+import { DAILY_CHALLENGE_DEFINITIONS } from './dailyChallengeDefinitions.js'
 import { DAILY_CHALLENGE_CODES, type DailyChallengeCode } from './dailyChallenge.types.js'
 import { dailyChallengeOrder, mapProgressRowToDto } from './dailyChallenge.mapper.js'
 
