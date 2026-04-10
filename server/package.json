@@ -60,7 +60,8 @@
     "typescript": "^5.3.3"
   },
   "overrides": {
-    "effect": "^3.20.0"
+    "effect": "^3.20.0",
+    "defu": "^6.1.5"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.2",
@@ -73,7 +74,6 @@
     "helmet": "^8.1.0",
     "ioredis": "^5.10.0",
     "jsonwebtoken": "^9.0.2",
-    "lint": "^0.8.19",
     "mongoose": "^8.2.0",
     "node-cron": "^4.2.1",
     "pg": "^8.20.0",

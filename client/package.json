@@ -124,6 +124,9 @@
     "vitest": "^4.0.18",
     "wait-on": "^9.0.4"
   },
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.12"
+  },
   "build": {
     "appId": "com.quantumbluff.app",
     "productName": "Quantum Bluff",
