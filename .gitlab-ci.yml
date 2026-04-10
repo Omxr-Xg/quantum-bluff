@@ -52,6 +52,9 @@ backend:test:
     - name: $POSTGRES_IMAGE
       alias: postgres
   variables:
+    NODE_ENV: test
+    # Pas de .env en CI : env.ts exige JWT_SECRET (≥32) et DATABASE_URL au chargement des modules.
+    JWT_SECRET: "quantum-bluff-ci-jest-secret-32chars-min!!"
     POSTGRES_DB: quantum_test
     POSTGRES_USER: test_user
     POSTGRES_PASSWORD: test_password
