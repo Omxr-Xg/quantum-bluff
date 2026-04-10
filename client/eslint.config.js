@@ -12,11 +12,6 @@ export default tseslint.config(
   {
     ignores: [
       "dist/**",
-      "android/**",
-      "ios/**",
-      "playwright-report/**",
-      "test-results/**",
-      "coverage/**",
       "preload.js",
       "electron.js",
       "electron.cjs",
@@ -26,7 +21,7 @@ export default tseslint.config(
       "**/*.test.tsx",
       "src/__tests__/**",
       "src/test/**",
-      "example.test.tsx",
+      "example.test.tsx"
     ]
   },
   js.configs.recommended,
