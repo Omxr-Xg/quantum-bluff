@@ -8,6 +8,9 @@ import { QuantumBluffLogo } from "../assets/logo";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
+
+import { RefreshCw } from "lucide-react"
+
 import {
   useGetFriendsQuery,
   useGetFriendRequestsQuery,
@@ -54,7 +57,8 @@ export function Friends() {
   const {
     data: friends,
     refetch: refetchFriends,
-    isLoading: loadingFriends
+    isLoading: loadingFriends,
+    isFetching: fetchingFriends
   } = useGetFriendsQuery(userId!, {
     skip: !userId
   });
@@ -62,7 +66,8 @@ export function Friends() {
   const {
     data: requests,
     refetch: refetchRequests,
-    isLoading: loadingRequests
+    isLoading: loadingRequests,
+    isFetching: fetchingRequests 
   } = useGetFriendRequestsQuery(userId!, {
     skip: !userId
   });
@@ -280,6 +285,8 @@ export function Friends() {
   };
 
   return (
+    
+
     <div className="size-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
       <div className="mx-auto max-w-6xl p-3 sm:p-6">
         {/* En-tête — même structure que Profile */}
@@ -313,6 +320,17 @@ export function Friends() {
             <QuantumBluffLogo className="h-10 w-10 drop-shadow-2xl sm:h-12 sm:w-12" />
             <span className="text-xl font-bold text-white sm:text-2xl">{t("lobby.title")}</span>
           </div>
+        </div>
+
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => refetchFriends()}
+            disabled={fetchingFriends}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-lg text-sm text-gray-300 hover:bg-slate-700 transition-all"
+          >
+            <RefreshCw className={`w-4 h-4 ${fetchingFriends ? 'animate-spin text-green-400' : ''}`} />
+            {fetchingFriends ? "Mise à jour..." : "Actualiser la liste"}
+          </button>
         </div>
 
         <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
@@ -365,6 +383,10 @@ export function Friends() {
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200 sm:text-xl">
               <UserPlus className="h-5 w-5 shrink-0 text-amber-400" />
               {t("friends.friendRequestsCount", { count: requests?.length || 0 })}
+              {/* Le spinner  qui apparaît pendant les Retry */}
+              {fetchingRequests && !loadingRequests && (
+                <Loader2 className="h-4 w-4 animate-spin text-amber-400/50 ml-2" />
+              )}
             </h2>
 
             {loadingRequests ? (
@@ -427,6 +449,12 @@ export function Friends() {
             <div className="mb-6">
               <FriendSearch />
             </div>
+            {fetchingFriends && !loadingFriends && (
+              <div className="flex items-center justify-end mb-2 gap-2 text-sm text-green-400/70 animate-pulse">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Synchronisation...
+              </div>
+            )}
 
             {loadingFriends ? (
               <div className="flex justify-center py-12">

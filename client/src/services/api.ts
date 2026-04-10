@@ -1,21 +1,7 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+import { createApi, fetchBaseQuery, retry } from '@reduxjs/toolkit/query/react'
 import { getApiBaseUrl } from '../utils/apiBase'
 
-const fetchWithRetry = async (
-  input: RequestInfo | URL,
-  init?: RequestInit,
-  retries = 3
-): Promise<Response> => {
-  for (let i = 0; i < retries; i++) {
-    const res = await fetch(input, init)
-    if (res.status === 429 && i < retries - 1) {
-      await new Promise((r) => setTimeout(r, 2000 * (i + 1)))
-      continue
-    }
-    return res
-  }
-  return fetch(input, init!)
-}
+
 
 interface User {
   id: string
@@ -56,24 +42,31 @@ interface FriendRequest {
   sender: User
 }
 
+// On configure l'URL et les Headers de base
+const baseQuery = fetchBaseQuery({
+  baseUrl: (() => {
+    const base = getApiBaseUrl()
+    if (base) return `${base}/api`
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    return `${origin}/api`
+  })(),
+  prepareHeaders: (headers) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+    return headers
+  },
+});
+
+//  LE BOUCLIER RETRY EST LÀ : On enveloppe notre baseQuery
+const staggeredBaseQuery = retry(baseQuery, {
+  maxRetries: 3, // On retente 3 fois maximum
+});
+
 export const api = createApi({
   reducerPath: 'api',
-  baseQuery: fetchBaseQuery({
-    baseUrl: (() => {
-      const base = getApiBaseUrl()
-      if (base) return `${base}/api`
-      const origin = typeof window !== 'undefined' ? window.location.origin : ''
-      return `${origin}/api`
-    })(),
-    fetchFn: fetchWithRetry,
-    prepareHeaders: (headers) => {
-      const token = localStorage.getItem('token')
-      if (token) {
-        headers.set('authorization', `Bearer ${token}`)
-      }
-      return headers
-    },
-  }),
+  baseQuery: staggeredBaseQuery,
   tagTypes: ['User', 'Game', 'Friend', 'FriendRequest', 'FriendMessage', 'FriendLoan'],
   endpoints: (builder) => ({
     login: builder.mutation({

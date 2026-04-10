@@ -4,8 +4,9 @@ const resolveSocketUrl = (): string => {
   const envUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim()
   if (envUrl) return envUrl
 
+  
   if (typeof window !== 'undefined' && import.meta.env.DEV) {
-    return window.location.origin
+    return 'http://localhost:3000'
   }
 
   return 'http://localhost:3000'
@@ -19,7 +20,7 @@ const resolveSocketPath = (): string => {
   if (explicit) return explicit.startsWith('/') ? explicit : `/${explicit}`
 
   const hasSocketEnv = Boolean((import.meta.env.VITE_SOCKET_URL ?? '').toString().trim())
-  // Backend direct (Capacitor / Electron / IP:3000) : chemin par défaut Socket.IO
+  
   if (hasSocketEnv) return '/socket.io'
 
   if (typeof window !== 'undefined') {
@@ -32,13 +33,10 @@ const resolveSocketPath = (): string => {
 const path = resolveSocketPath()
 
 export const socket = io(URL, {
-  autoConnect: true,
+  autoConnect: false,
   withCredentials: true,
   path,
   transports: ['polling', 'websocket'],
-  auth: {
-    token: localStorage.getItem('token'),
-  },
   reconnection: true,
   reconnectionAttempts: 15,
   reconnectionDelay: 500,

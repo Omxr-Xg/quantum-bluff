@@ -26,6 +26,7 @@ import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LoaderProvider } from "./contexts/LoaderContext";
+import { NetworkOverlay } from "./components/NetworkOverlay";
 
 import { MiniGames } from './pages/MiniGames';
 import { TournamentLobby } from './pages/TournamentLobby';
@@ -37,11 +38,17 @@ import { useToast } from './contexts/ToastContext';
 
 socket.on("connect_error", (err) => {
   console.error("❌ ERREUR DE CONNEXION SOCKET :", err.message);
+  
   if (err.message === "xhr poll error") {
     console.log("👉 Cause probable : Le serveur est éteint ou l'URL est mauvaise.");
   }
-  if (err.message === "Not authorized") {
-    console.log("👉 Cause probable : Ton token JWT est absent ou invalide.");
+  
+  if (err.message === "Not authorized" || err.message === "Invalid token") {
+    console.warn("⚠️ Le Socket a rejeté le token. On tente de forcer la déconnexion du socket uniquement.");
+    // On ne vide PLUS le localStorage ici pour éviter les boucles infinies.
+    // On se contente de couper le socket pour qu'il arrête de spammer les erreurs.
+    // La vérification de la validité du token sera gérée par les appels API (401).
+    socket.disconnect();
   }
 });
 
@@ -67,11 +74,17 @@ function TournamentTeleporter() {
 
   useEffect(() => {
     const currentToken = localStorage.getItem('token');
-    if (currentToken) {
-      socket.auth = { token: currentToken }; 
-      if (!socket.connected) {
-        socket.connect();
-      }
+
+    if (!currentToken) {
+      console.warn('⛔ No token → skip socket');
+      return;
+    }
+
+    // 🔥 important : éviter état cassé
+    if (!socket.connected) {
+      socket.auth = { token: `Bearer ${currentToken}` };
+      console.log('🔐 Inject token in socket');
+      socket.connect();
     }
 
     const handleTournamentStart = (data: { playersToTeleport?: string[]; playerToGameMap?: Record<string, string> }) => {
@@ -180,6 +193,8 @@ function App() {
         <Layout>
           
           <TournamentTeleporter />
+
+          <NetworkOverlay />
 
           <Routes>
             <Route path="/" element={<StartScreen />} />

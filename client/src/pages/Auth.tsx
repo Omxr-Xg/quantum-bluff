@@ -14,6 +14,7 @@ import { persistGamificationFromAuthUser } from "../utils/gamificationStorage";
 
 // 👇 IMPORT DU HOOK LOADER
 import { useLoader } from "../contexts/LoaderContext";
+import { socket } from "../services/socket";
 
 type Step = "email" | "login" | "register" | "forgotPassword";
 
@@ -99,26 +100,47 @@ export function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoginFormValid) return;
+
     setResetSuccessBanner(false);
+
     try {
-      showLoader(t("auth.loggingIn") || "Connexion en cours..."); // 🟢 ON AFFICHE LE LOADER
+      showLoader(t("auth.loggingIn") || "Connexion en cours...");
+
       const response = await login({ email: email.trim(), password }).unwrap();
+
+      console.log("🟢 RÉPONSE DU BACKEND :", response);
+
+      const token = response.token;
+
+      // ✅ STOCKAGE
       localStorage.removeItem("userid");
-      localStorage.setItem("token", response.token);
+      localStorage.setItem("token", token);
       localStorage.setItem("userId", String(response.user.id));
       localStorage.setItem("username", response.user.username);
       localStorage.setItem("quantum_bluff_username", response.user.username);
       localStorage.setItem("quantum_bluff_email", response.user.email);
+
       if (typeof response.user.chips === "number") {
         localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
       }
+
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
+
+      // 🔥🔥🔥 FIX SOCKET ICI
+      socket.disconnect(); // clean ancien état
+      socket.auth = { token }; // inject token
+      socket.connect(); // reconnect propre
+
+      console.log("🔌 Socket connecté après login");
+
       window.dispatchEvent(new Event("auth-changed"));
-      navigate(from, { replace: true });
+
+      window.location.href = typeof from === 'string' ? from : '/lobby';
+
     } catch {
-      // Error handled by loginError
+      // handled
     } finally {
-      hideLoader(); // 🔴 ON CACHE LE LOADER
+      hideLoader();
     }
   };
 
@@ -144,8 +166,18 @@ export function Auth() {
         localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
       }
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
+      
+      
+      socket.disconnect(); 
+      socket.auth = { token: `Bearer ${response.token}` }; 
+      socket.connect(); 
+      console.log("🔌 Socket connecté après l'inscription !");
+
+
+
+
       window.dispatchEvent(new Event("auth-changed"));
-      navigate("/lobby", { replace: true });
+      window.location.href = typeof from === 'string' ? from : '/lobby';
     } catch {
       // Error handled by registerError
     } finally {

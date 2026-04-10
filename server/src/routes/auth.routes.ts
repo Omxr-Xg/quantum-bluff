@@ -11,6 +11,7 @@ import { authMiddleware } from '../middleware/auth.middleware.js'
 import { addToBlacklist } from '../auth/tokenBlacklist.js'
 import { verifyTotpToken } from '../auth/totp.service.js'
 import { getGamificationBundle } from '../logic/gamification.js'
+import { generateToken } from '../auth/jwt.service.js'
 
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -73,12 +74,7 @@ const recoveryLimiter = rateLimit({
 
 const router = express.Router()
 
-const JWT_SECRET = process.env.JWT_SECRET || 'quantum_bluff_secret'
-const TOKEN_EXPIRATION = '7d'
 
-function generateToken(userId: string) {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRATION })
-}
 
 // Regex format email: xxx@yyy.zzz
 const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -158,7 +154,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       }
     }
 
-    const token = generateToken(user.id)
+    const token = generateToken({ userId: user.id })
     const g = await getGamificationBundle(prisma, user.id)
 
     res.status(201).json({
@@ -292,7 +288,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
     }
 
-    const token = generateToken(user.id)
+    const token = generateToken({ userId: user.id })
     const g = await getGamificationBundle(prisma, user.id)
 
     res.json({
