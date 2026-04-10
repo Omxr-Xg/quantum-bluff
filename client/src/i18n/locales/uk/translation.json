@@ -3,6 +3,15 @@
     "seeMore": "Показати більше",
     "chooseLanguage": "Змінити мову"
   },
+  "networkOverlay": {
+    "serverUnreachableTitle": "Немає з'єднання з сервером",
+    "serverUnreachableHint": "Перевір інтернет або чи запущений бекенд.",
+    "reconnectAuto": "Автоматичний повтор…",
+    "reconnectWithAttempt": "Автоматичний повтор · спроба {{count}}…",
+    "closeLabel": "Закрити сповіщення",
+    "reconnectedTitle": "З'єднання відновлено",
+    "reconnectedHint": "Зв'язок із ігровим сервером знову активний."
+  },
   "lobby": {
     "title": "Quantum Bluff",
     "welcome": "Вітаємо, {{username}}",

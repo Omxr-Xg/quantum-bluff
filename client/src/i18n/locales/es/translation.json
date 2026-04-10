@@ -3,6 +3,15 @@
     "seeMore": "Ver más",
     "chooseLanguage": "Cambiar idioma"
   },
+  "networkOverlay": {
+    "serverUnreachableTitle": "Sin conexión al servidor",
+    "serverUnreachableHint": "Comprueba tu conexión a internet o que el backend esté en marcha.",
+    "reconnectAuto": "Reintentando automáticamente…",
+    "reconnectWithAttempt": "Reintentando automáticamente · intento {{count}}…",
+    "closeLabel": "Cerrar alerta",
+    "reconnectedTitle": "Conexión restablecida",
+    "reconnectedHint": "El enlace con el servidor de juego vuelve a estar activo."
+  },
   "lobby": {
     "title": "Quantum Bluff",
     "welcome": "Bienvenido, {{username}}",
