@@ -25,6 +25,16 @@ jest.mock('../config/database.js', () => ({
   prisma: {
     loanRequest: {
       findUnique: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    loan: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    loanRepayment: {
+      create: jest.fn().mockResolvedValue({}),
+    },
+    loanLedgerEvent: {
+      create: jest.fn().mockResolvedValue({}),
     },
   },
 }))

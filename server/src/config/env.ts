@@ -2,11 +2,12 @@ import dotenv from 'dotenv'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+// Éviter `const __filename = …` : le plugin Babel de test injecte aussi `__filename` (TDZ).
+const envModuleFile = fileURLToPath(import.meta.url)
+const envModuleDir = path.dirname(envModuleFile)
 
-const serverEnvPath = path.resolve(__dirname, '../../.env')
-const rootEnvPath = path.resolve(__dirname, '../../../.env')
+const serverEnvPath = path.resolve(envModuleDir, '../../.env')
+const rootEnvPath = path.resolve(envModuleDir, '../../../.env')
 
 dotenv.config({
   path: [serverEnvPath, rootEnvPath],

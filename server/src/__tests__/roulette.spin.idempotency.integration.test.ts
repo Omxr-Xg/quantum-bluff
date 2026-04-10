@@ -40,6 +40,10 @@ jest.mock('../logic/gamification.js', () => ({
   XP_ROULETTE_WIN_BONUS: 1,
 }))
 
+jest.mock('../dailyChallenges/dailyChallenge.service.js', () => ({
+  addRouletteNetWinProgress: jest.fn().mockResolvedValue(undefined),
+}))
+
 import { __resetIdempotencyMemoryStoreForTests } from '../casino/services/idempotency.service.js'
 import rouletteRoutes from '../routes/roulette.routes.js'
 
@@ -62,6 +66,9 @@ describe('POST /api/roulette/spin idempotency', () => {
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
           update: jest.fn().mockResolvedValue({ chips: 990 }),
           findUniqueOrThrow: jest.fn().mockResolvedValue({ experience: 10, level: 1 }),
+        },
+        loan: {
+          findFirst: jest.fn().mockResolvedValue(null),
         },
         casinoStats: {
           findUnique: jest.fn().mockResolvedValue(null),
