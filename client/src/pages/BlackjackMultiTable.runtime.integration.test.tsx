@@ -35,10 +35,15 @@ vi.mock("../utils/apiBase", () => ({
 vi.mock("../utils/userProfile", () => ({
   updateUserBalance: vi.fn(),
   fetchBalanceFromServer: vi.fn().mockResolvedValue(undefined),
+  getUserBalance: vi.fn(() => 1000),
+  BALANCE_CHANGED_EVENT: "quantum-bluff-balance-changed",
 }));
 
 vi.mock("../utils/gamificationStorage", () => ({
   mergeGamificationFromServerResponse: vi.fn(),
+  getDisplayedBlackjackMaxBet: vi.fn(() => 500),
+  refreshGamificationFromServer: vi.fn().mockResolvedValue(undefined),
+  GAMIFICATION_CHANGED_EVENT: "quantum-bluff-gamification-changed",
 }));
 
 vi.mock("../components/blackjack/BlackjackLobbyBackdrop", () => ({
