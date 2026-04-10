@@ -58,8 +58,15 @@ const isLocalhost =
 // Si le site est chargé en HTTPS, on force l'URL à utiliser l'origine sécurisée.
 // Nginx prendra automatiquement le relais (en WSS) sur le port 443.
 if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-  if (URL.startsWith('ws://') || URL.startsWith('http://') || URL.includes(':3000')) {
-    URL = window.location.origin;
+  try {
+    const parsed = new URL(URL)
+    const insecureForHttpsPage =
+      parsed.protocol === 'http:' || parsed.protocol === 'ws:' || parsed.port === '3000'
+    if (insecureForHttpsPage) {
+      URL = window.location.origin
+    }
+  } catch {
+    /* URL absolue attendue depuis resolveSocketBaseUrl */
   }
 }
 

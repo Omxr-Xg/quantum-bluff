@@ -88,7 +88,9 @@ async function finalizeHand(
     select: { chips: true, experience: true },
   })
   if (!beforeRow) {
-    throw Object.assign(new Error('USER_NOT_FOUND'), { code: 'USER_NOT_FOUND' })
+    const e = new Error('USER_NOT_FOUND') as Error & { code: string }
+    e.code = 'USER_NOT_FOUND'
+    throw e
   }
   const balanceBeforePayout = intChips(beforeRow.chips)
 
@@ -213,7 +215,9 @@ router.post('/start', authMiddleware, async (req, res) => {
         select: { chips: true, experience: true },
       })
       if (!user) {
-        throw Object.assign(new Error('USER_NOT_FOUND'), { code: 'USER_NOT_FOUND' })
+        const e = new Error('USER_NOT_FOUND') as Error & { code: string }
+        e.code = 'USER_NOT_FOUND'
+        throw e
       }
 
       const lvl = levelFromExperience(user.experience)
@@ -221,10 +225,13 @@ router.post('/start', authMiddleware, async (req, res) => {
       const chipsBefore = intChips(user.chips)
       const validation = validateBlackjackBet(rawBet, chipsBefore, maxBetEffective)
       if (!validation.ok) {
-        throw Object.assign(new Error(validation.code), {
-          code: validation.code,
-          maxBetEffective,
-        })
+        const e = new Error(validation.code) as Error & {
+          code: string
+          maxBetEffective: number
+        }
+        e.code = validation.code
+        e.maxBetEffective = maxBetEffective
+        throw e
       }
       const bet = validation.bet
 
@@ -233,7 +240,9 @@ router.post('/start', authMiddleware, async (req, res) => {
         data: { chips: { decrement: bet } },
       })
       if (debit.count === 0) {
-        throw Object.assign(new Error('INSUFFICIENT_CHIPS'), { code: 'INSUFFICIENT_CHIPS' })
+        const e = new Error('INSUFFICIENT_CHIPS') as Error & { code: string }
+        e.code = 'INSUFFICIENT_CHIPS'
+        throw e
       }
       await appendWalletLedgerEntry(
         {
@@ -390,7 +399,9 @@ router.post('/action', authMiddleware, async (req, res) => {
           })
           if (!user) throw new Error('USER_NOT_FOUND')
           if (intChips(user.chips) < session.initialBet) {
-            throw Object.assign(new Error('INSUFFICIENT_CHIPS'), { code: 'INSUFFICIENT_CHIPS' })
+            const e = new Error('INSUFFICIENT_CHIPS') as Error & { code: string }
+            e.code = 'INSUFFICIENT_CHIPS'
+            throw e
           }
           await tx.user.update({
             where: { id: userId },

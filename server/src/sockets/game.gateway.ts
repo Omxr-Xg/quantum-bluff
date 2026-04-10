@@ -65,16 +65,16 @@ export class GameGateway {
   private antiCheat = new AntiCheatMonitor(8, 3000)
   private disconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map()
   private async logRoomState(room: string, label: string, extra: Record<string, unknown> = {}) {
-  const sockets = await this.io.in(room).fetchSockets()
+    const sockets = await this.io.in(room).fetchSockets()
 
-  console.log(`[SOCKET][${label}]`, {
-    room,
-    socketsCount: sockets.length,
-    socketIds: sockets.map((s) => s.id),
-    userIds: sockets.map((s) => ((s as unknown as AuthenticatedSocket).userId ?? null)),
-    ...extra,
-  })
-}
+    console.log('[SOCKET]', label, {
+      room,
+      socketsCount: sockets.length,
+      socketIds: sockets.map((s) => s.id),
+      userIds: sockets.map((s) => ((s as unknown as AuthenticatedSocket).userId ?? null)),
+      ...extra,
+    })
+  }
 
   constructor(io: Server) {
     this.io = io

@@ -63,7 +63,7 @@ socket.on("connect", () => {
 
 if (isDev) {
   socket.onAny((eventName, ...args) => {
-    console.log(`🌐 [SOCKET] ${eventName}`, args);
+    console.log("🌐 [SOCKET]", eventName, args);
   });
 }
 

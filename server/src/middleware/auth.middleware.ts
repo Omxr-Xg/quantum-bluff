@@ -5,8 +5,8 @@ import { env } from '../config/env.js'
 
 function debugAuth(message: string, details?: Record<string, unknown>) {
   if (!env.isDevelopment) return
-  if (details) console.log(`[AUTH] ${message}`, details)
-  else console.log(`[AUTH] ${message}`)
+  if (details) console.log('[AUTH]', message, details)
+  else console.log('[AUTH]', message)
 }
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {

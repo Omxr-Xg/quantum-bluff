@@ -105,7 +105,9 @@ router.post('/spin', authMiddleware, async (req, res) => {
         select: { chips: true, experience: true },
       })
       if (!user) {
-        throw Object.assign(new Error('USER_NOT_FOUND'), { code: 'USER_NOT_FOUND' })
+        const e0 = new Error('USER_NOT_FOUND') as Error & { code: string }
+        e0.code = 'USER_NOT_FOUND'
+        throw e0
       }
 
       const lvl = levelFromExperience(user.experience)
@@ -118,11 +120,15 @@ router.post('/spin', authMiddleware, async (req, res) => {
         maxTotalStake: maxTotal,
       })
       if (!validation.ok) {
-        throw Object.assign(new Error(validation.code), {
-          code: validation.code,
-          maxPerLine,
-          maxTotalStake: maxTotal,
-        })
+        const e = new Error(validation.code) as Error & {
+          code: string
+          maxPerLine: number
+          maxTotalStake: number
+        }
+        e.code = validation.code
+        e.maxPerLine = maxPerLine
+        e.maxTotalStake = maxTotal
+        throw e
       }
 
       const { bets, totalStake } = validation
@@ -142,7 +148,9 @@ router.post('/spin', authMiddleware, async (req, res) => {
         data: { chips: { decrement: totalStake } },
       })
       if (debitResult.count === 0) {
-        throw Object.assign(new Error('INSUFFICIENT_CHIPS'), { code: 'INSUFFICIENT_CHIPS' })
+        const e1 = new Error('INSUFFICIENT_CHIPS') as Error & { code: string }
+        e1.code = 'INSUFFICIENT_CHIPS'
+        throw e1
       }
       const afterDebit = chipsBefore - totalStake
       await appendWalletLedgerEntry(
