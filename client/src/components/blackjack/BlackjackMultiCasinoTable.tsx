@@ -170,10 +170,10 @@ export function BlackjackMultiCasinoTable({
   const [containerStyle, setContainerStyle] = useState<CSSProperties>({});
 
   useEffect(() => {
-    let timeout: any;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
 
     const updateScale = () => {
-      clearTimeout(timeout);
+      if (timeout !== undefined) clearTimeout(timeout);
       timeout = setTimeout(() => {
         const width = window.innerWidth;
         let newScale = 1;
@@ -184,9 +184,11 @@ export function BlackjackMultiCasinoTable({
         } else {
           newScale = 1;
         }
-        
-        const supportsZoom = typeof document !== "undefined" && 
-          (document.body.style as any).zoom !== undefined;
+
+        const supportsZoom =
+          typeof document !== "undefined" &&
+          (document.body.style as CSSStyleDeclaration & { zoom?: string }).zoom !==
+            undefined;
         
         if (supportsZoom) {
           setContainerStyle({ zoom: newScale });
@@ -204,7 +206,7 @@ export function BlackjackMultiCasinoTable({
 
     return () => {
       window.removeEventListener("resize", updateScale);
-      clearTimeout(timeout);
+      if (timeout !== undefined) clearTimeout(timeout);
     };
   }, []);
 
