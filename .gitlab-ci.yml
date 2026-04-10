@@ -3,10 +3,11 @@
 # Configuration complète : Frontend, Backend, DB, Sécurité, Infrastructure
 # ============================================
 
-# Node : miroir ECR public (copie des images library Docker Hub) pour éviter
-# l’échec CI « toomanyrequests » sur les runners K8s sans auth Docker Hub.
+# Miroirs ECR public (images library Docker Hub) : évite le rate limit Docker Hub
+# et les échecs de pull du Dependency Proxy GitLab (ex. backend:test, database:*).
 variables:
   NODE_IMAGE: public.ecr.aws/docker/library/node:20
+  POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:15
 
 default:
   image: $NODE_IMAGE
@@ -48,7 +49,8 @@ backend:lint:
 backend:test:
   stage: test
   services:
-    - $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
+    - name: $POSTGRES_IMAGE
+      alias: postgres
   variables:
     POSTGRES_DB: quantum_test
     POSTGRES_USER: test_user
@@ -146,9 +148,10 @@ frontend:build:
 
 database:test:
   stage: test
-  image: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
+  image: $POSTGRES_IMAGE
   services:
-    - $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
+    - name: $POSTGRES_IMAGE
+      alias: postgres
   variables:
     POSTGRES_DB: quantum_test
     POSTGRES_USER: test_user
@@ -164,9 +167,10 @@ database:test:
 
 database:migrations:
   stage: build
-  image: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
+  image: $POSTGRES_IMAGE
   services:
-    - $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/postgres:15
+    - name: $POSTGRES_IMAGE
+      alias: postgres
   variables:
     POSTGRES_DB: quantum_test
     POSTGRES_USER: test_user
