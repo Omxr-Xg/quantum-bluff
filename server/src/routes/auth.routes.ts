@@ -1,6 +1,5 @@
 import express from 'express'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
 import { registerSchema, loginSchema, resetPasswordSchema } from '../validation/auth.validation.js'
