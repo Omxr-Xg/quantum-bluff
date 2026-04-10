@@ -36,29 +36,36 @@ import { socket } from './services/socket';
 import { useUser } from './hooks/useUser';
 import { useToast } from './contexts/ToastContext';
 
+const isDev = import.meta.env.DEV;
+
 socket.on("connect_error", (err) => {
-  console.error("❌ ERREUR DE CONNEXION SOCKET :", err.message);
-  
-  if (err.message === "xhr poll error") {
-    console.log("👉 Cause probable : Le serveur est éteint ou l'URL est mauvaise.");
+  if (isDev) {
+    console.error("❌ ERREUR DE CONNEXION SOCKET :", err.message);
+    if (err.message === "xhr poll error") {
+      console.log("👉 Cause probable : Le serveur est éteint ou l'URL est mauvaise.");
+    }
+    if (err.message === "Not authorized" || err.message === "Invalid token") {
+      console.warn(
+        "⚠️ Le Socket a rejeté le token. Déconnexion du socket uniquement (pas de vidage localStorage).",
+      );
+    }
   }
-  
   if (err.message === "Not authorized" || err.message === "Invalid token") {
-    console.warn("⚠️ Le Socket a rejeté le token. On tente de forcer la déconnexion du socket uniquement.");
-    // On ne vide PLUS le localStorage ici pour éviter les boucles infinies.
-    // On se contente de couper le socket pour qu'il arrête de spammer les erreurs.
-    // La vérification de la validité du token sera gérée par les appels API (401).
     socket.disconnect();
   }
 });
 
 socket.on("connect", () => {
-  console.log("✅ SOCKET ENFIN CONNECTÉ ! ID :", socket.id);
+  if (isDev) {
+    console.log("✅ SOCKET CONNECTÉ — id :", socket.id);
+  }
 });
 
-socket.onAny((eventName, ...args) => {
-  console.log(`🌐 [SOCKET GLOBAL] Événement reçu : ${eventName}`, args);
-});
+if (isDev) {
+  socket.onAny((eventName, ...args) => {
+    console.log(`🌐 [SOCKET] ${eventName}`, args);
+  });
+}
 
 function GameWithKey() {
   const location = useLocation();
@@ -76,14 +83,13 @@ function TournamentTeleporter() {
     const currentToken = localStorage.getItem('token');
 
     if (!currentToken) {
-      console.warn('⛔ No token → skip socket');
+      if (isDev) console.warn("⛔ Pas de token — socket non connecté");
       return;
     }
 
-    // 🔥 important : éviter état cassé
     if (!socket.connected) {
-      socket.auth = { token: `Bearer ${currentToken}` };
-      console.log('🔐 Inject token in socket');
+      socket.auth = { token: currentToken };
+      if (isDev) console.log("🔐 Token socket injecté");
       socket.connect();
     }
 
@@ -99,7 +105,7 @@ function TournamentTeleporter() {
 
     const handleElimination = (data: { userId: string }) => {
       if (data.userId === userId) {
-        console.log("💀 [SOCKET] Signal d'élimination reçu !");
+        if (isDev) console.log("💀 [SOCKET] Élimination tournoi");
         setTournamentResult('lose'); 
         
         setTimeout(() => { 
@@ -111,7 +117,7 @@ function TournamentTeleporter() {
 
     const handleVictory = (data: { userId: string }) => {
       if (data.userId === userId) {
-        console.log("🏆 [SOCKET] Signal de victoire reçu !");
+        if (isDev) console.log("🏆 [SOCKET] Victoire tournoi");
         setTournamentResult('win'); 
         
         setTimeout(() => { 
