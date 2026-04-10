@@ -3,9 +3,13 @@
 # Configuration complète : Frontend, Backend, DB, Sécurité, Infrastructure
 # ============================================
 
-# Image par défaut
+# Node : miroir ECR public (copie des images library Docker Hub) pour éviter
+# l’échec CI « toomanyrequests » sur les runners K8s sans auth Docker Hub.
+variables:
+  NODE_IMAGE: public.ecr.aws/docker/library/node:20
+
 default:
-  image: node:20
+  image: $NODE_IMAGE
 
 # Définition des stages
 stages:
@@ -218,7 +222,7 @@ security:trivy-scan:
 
 security:secret-detection:
   stage: test-security
-  image: node:20
+  image: $NODE_IMAGE
   script:
     - echo "🔍 Recherche de secrets exposés..."
     - npx trufflehog --no-update file://. || true
@@ -302,7 +306,7 @@ infra:docker-compose:
 
 docs:markdown-lint:
   stage: lint
-  image: node:20
+  image: $NODE_IMAGE
   script:
     - npm install -g markdownlint-cli
     - markdownlint 'Docs/**/*.md' || echo "⚠️ Documentation non vérifiée"
