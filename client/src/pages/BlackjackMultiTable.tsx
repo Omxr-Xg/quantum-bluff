@@ -144,7 +144,7 @@ export function BlackjackMultiTable() {
     }
   }, [addToast, t]);
 
-  const handleApiAction = useCallback(async (endpoint: string, body: unknown, errorKey: string) => {
+  const handleApiAction = useCallback(async (endpoint: string, body: any, errorKey: string) => {
     if (!gameId) return null;
     
     const res = await fetch(apiUrl(`/api/blackjack-tables/game/${gameId}${endpoint}`), {
