@@ -1067,18 +1067,33 @@ return
         })
 
         const userId = socket.userId
-        if (userId) {
-          this.socketToUser.delete(socket.id)
-          this.userToSocket.delete(userId)
-          this.antiCheat.clearUser(userId)
 
-          this.io.emit('FRIEND_STATUS_CHANGED', {
-            userId,
-            status: 'offline'
-          })
-        } else {
-          this.socketToUser.delete(socket.id)
+        // On nettoie ce socket spécifique de l'annuaire
+        this.socketToUser.delete(socket.id)
+
+        if (userId) {
+          //  On regarde s'il reste d'autres sockets actifs pour ce joueur (multi-onglets ou reconnexion ultra-rapide)
+          const userRoom = this.io.sockets.adapter.rooms.get(`user:${userId}`)
+          const activeSocketsCount = userRoom ? userRoom.size : 0
+
+          if (activeSocketsCount === 0) {
+            // Le joueur est VRAIMENT hors ligne (plus aucun socket)
+            console.log(`[Réseau] Le joueur ${userId} n'a plus de sockets actifs.`)
+            this.userToSocket.delete(userId)
+            this.antiCheat.clearUser(userId)
+
+            this.io.emit('FRIEND_STATUS_CHANGED', {
+              userId,
+              status: 'offline'
+            })
+          } else {
+            console.log(`[Réseau] Socket ${socket.id} mort pour ${userId}, mais il reste ${activeSocketsCount} connexion(s) active(s).`)
+            // On s'arrête là, on ne lance PAS le timeout de 10s car il est encore là sur un autre onglet/socket !
+            return
+          }
         }
+
+       
 
         if (socket.gameId && userId && !process.env.JEST_WORKER_ID) {
           const gameId = socket.gameId
