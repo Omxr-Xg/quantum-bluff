@@ -8,6 +8,8 @@
 variables:
   NODE_IMAGE: public.ecr.aws/docker/library/node:20
   POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:15
+  # Trivy via ECR public (évite Back-off / rate limit Docker Hub sur le runner Kubernetes).
+  TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.58.1
 
 default:
   image: $NODE_IMAGE
@@ -218,7 +220,7 @@ security:scan-deps-frontend:
 
 security:trivy-scan:
   stage: test-security
-  image: aquasec/trivy:latest
+  image: $TRIVY_IMAGE
   script:
     - echo "🔐 Scan Trivy du code source..."
     - trivy fs --severity HIGH,CRITICAL --no-progress --exit-code 0 .
@@ -273,7 +275,7 @@ docker:build:
 
 docker:scan:
   stage: test-security
-  image: aquasec/trivy:0.58.1
+  image: $TRIVY_IMAGE
   script:
     - echo "🔐 Analyse statique du Dockerfile (Trivy)..."
     - trivy config --severity HIGH,CRITICAL --exit-code 0 server/Dockerfile
