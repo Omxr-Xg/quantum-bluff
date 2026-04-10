@@ -4,9 +4,8 @@ const resolveSocketUrl = (): string => {
   const envUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim()
   if (envUrl) return envUrl
 
-  
-  if (typeof window !== 'undefined' && import.meta.env.DEV) {
-    return 'http://localhost:3000'
+  if (typeof window !== 'undefined') {
+    return window.location.origin
   }
 
   return 'http://localhost:3000'
@@ -20,7 +19,7 @@ const resolveSocketPath = (): string => {
   if (explicit) return explicit.startsWith('/') ? explicit : `/${explicit}`
 
   const hasSocketEnv = Boolean((import.meta.env.VITE_SOCKET_URL ?? '').toString().trim())
-  
+
   if (hasSocketEnv) return '/socket.io'
 
   if (typeof window !== 'undefined') {
@@ -43,14 +42,18 @@ export const socket = io(URL, {
   reconnectionDelayMax: 3000,
 })
 
-console.log('[FRONT][SOCKET] init', {
+const socketDebug = (...args: unknown[]) => {
+  if (import.meta.env.DEV) console.log(...args)
+}
+
+socketDebug('[FRONT][SOCKET] init', {
   url: URL,
   path,
   tokenPresent: Boolean(localStorage.getItem('token')),
 })
 
 socket.on('connect', () => {
-  console.log('[FRONT][SOCKET] connect', {
+  socketDebug('[FRONT][SOCKET] connect', {
     socketId: socket.id,
     connected: socket.connected,
     ioUri: socket.io.uri,
@@ -58,28 +61,28 @@ socket.on('connect', () => {
 })
 
 socket.on('disconnect', (reason) => {
-  console.log('[FRONT][SOCKET] disconnect', {
+  socketDebug('[FRONT][SOCKET] disconnect', {
     socketId: socket.id,
     reason,
   })
 })
 
 socket.on('connect_error', (error) => {
-  console.log('[FRONT][SOCKET] connect_error', {
+  socketDebug('[FRONT][SOCKET] connect_error', {
     message: error.message,
     name: error.name,
   })
 })
 
 socket.io.on('reconnect', (attempt) => {
-  console.log('[FRONT][SOCKET] reconnect', {
+  socketDebug('[FRONT][SOCKET] reconnect', {
     attempt,
     socketId: socket.id,
   })
 })
 
 socket.io.on('reconnect_attempt', (attempt) => {
-  console.log('[FRONT][SOCKET] reconnect_attempt', {
+  socketDebug('[FRONT][SOCKET] reconnect_attempt', {
     attempt,
   })
 })

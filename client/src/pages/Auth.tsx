@@ -108,8 +108,6 @@ export function Auth() {
 
       const response = await login({ email: email.trim(), password }).unwrap();
 
-      console.log("🟢 RÉPONSE DU BACKEND :", response);
-
       const token = response.token;
 
       // ✅ STOCKAGE
@@ -131,11 +129,9 @@ export function Auth() {
       socket.auth = { token }; // inject token
       socket.connect(); // reconnect propre
 
-      console.log("🔌 Socket connecté après login");
-
       window.dispatchEvent(new Event("auth-changed"));
 
-      window.location.href = typeof from === 'string' ? from : '/lobby';
+      navigate(typeof from === "string" ? from : "/lobby", { replace: true });
 
     } catch {
       // handled
@@ -168,16 +164,12 @@ export function Auth() {
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
       
       
-      socket.disconnect(); 
-      socket.auth = { token: `Bearer ${response.token}` }; 
-      socket.connect(); 
-      console.log("🔌 Socket connecté après l'inscription !");
-
-
-
+      socket.disconnect();
+      socket.auth = { token: response.token };
+      socket.connect();
 
       window.dispatchEvent(new Event("auth-changed"));
-      window.location.href = typeof from === 'string' ? from : '/lobby';
+      navigate(typeof from === "string" ? from : "/lobby", { replace: true });
     } catch {
       // Error handled by registerError
     } finally {
