@@ -45,6 +45,8 @@ import { connectDB } from './config/database.js'
 import { recoverBlackjackRuntimeAtBoot } from './blackjack/recovery/blackjackRecovery.service.js'
 import adminPokerRuntimeRoutes from './routes/admin.poker.runtime.routes.js'
 import adminRouletteOverrideRoutes from './routes/admin.roulette.override.routes.js'
+import { timeoutMiddleware } from './middleware/timeout.middleware.js';
+import { idempotencyMiddleware } from './middleware/idempotency.middleware.js';
 
 const app = express()
 
@@ -152,6 +154,10 @@ const hiddenBetsApiLimiter = rateLimitWithMetrics({
 
 app.use(express.json({ limit: '10kb' }))
 app.use(antiCheatMiddleware)
+
+app.use(timeoutMiddleware)
+
+app.use(idempotencyMiddleware)
 
 app.use('/api', gameRoutes)
 app.use('/api/auth', authRoutes)
