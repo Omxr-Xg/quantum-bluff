@@ -93,7 +93,7 @@ app.use(httpAccessLogMiddleware)
 
 const limiter = rateLimitWithMetrics({
   windowMs: 15 * 60 * 1000,
-  limit: 1000,
+  limit: env.isProduction ? 100 : 1000, 
   message: { error: 'Trop de requêtes, réessaie plus tard' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -172,15 +172,21 @@ app.use('/api/invitations', invitationRoutes)
 app.use('/api/daily-challenges', dailyChallengesRoutes)
 app.use('/api/tournaments', tournamentRoutes)
 
-app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
-app.use('/api/admin/poker/runtime', adminPokerRuntimeRoutes)
-app.use('/api/admin/roulette/override', adminRouletteOverrideRoutes)
-app.use('/api/admin', adminRoutes)
+// PROD HARDENING : On ne charge les routes sensibles qu'en mode développement
+if (!env.isProduction) {
+  app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
+  app.use('/api/admin/poker/runtime', adminPokerRuntimeRoutes)
+  app.use('/api/admin/roulette/override', adminRouletteOverrideRoutes)
+  app.use('/api/admin', adminRoutes)
+  console.log(' [DEV] Routes Admin et Overrides ACTIVÉES');
+} else {
+  console.log(' [PROD] Routes Admin désactivées pour la sécurité.');
+}
 
 app.use('/', updatesRouter)
 
 app.get('/', (_req, res) => {
-  res.send('🚀 Quantum Bluff API - Le serveur répond !')
+  res.send(' Quantum Bluff API - Le serveur répond !')
 })
 
 app.get('/api/health/live', (_req, res) => {
