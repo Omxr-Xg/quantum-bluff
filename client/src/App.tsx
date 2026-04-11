@@ -36,6 +36,7 @@ import { socket } from './services/socket';
 import { useUser } from './hooks/useUser';
 import { useToast } from './contexts/ToastContext';
 
+
 const isDev = import.meta.env.DEV;
 
 socket.on("connect_error", (err) => {

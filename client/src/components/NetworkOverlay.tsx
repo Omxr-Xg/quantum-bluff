@@ -98,7 +98,7 @@ export function NetworkOverlay() {
     }
     return (
       <div
-        className="fixed top-4 left-1/2 z-[99999] w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 animate-in fade-in slide-in-from-top-2 duration-300"
+        className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300"
         role="status"
         aria-live="polite"
       >
@@ -139,7 +139,7 @@ export function NetworkOverlay() {
 
   return (
     <div
-      className="fixed top-4 left-1/2 z-[99999] w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 animate-in fade-in slide-in-from-top-2 duration-300"
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300"
       role="alert"
       aria-live="assertive"
     >
@@ -163,14 +163,6 @@ export function NetworkOverlay() {
           </div>
           <RefreshCw className="mt-1 h-4 w-4 shrink-0 animate-spin text-red-300/90" aria-hidden />
         </div>
-        <button
-          type="button"
-          onClick={() => setOfflineDismissed(true)}
-          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-red-200/80 transition-colors hover:bg-red-900/60 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80"
-          aria-label={t('networkOverlay.closeLabel')}
-        >
-          <X className="h-4 w-4" />
-        </button>
       </div>
     </div>
   );
