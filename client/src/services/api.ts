@@ -55,6 +55,8 @@ const baseQuery = fetchBaseQuery({
     if (token) {
       headers.set('Authorization', `Bearer ${token}`)
     }
+    headers.set('x-idempotency-key', crypto.randomUUID())
+    
     return headers
   },
 });
