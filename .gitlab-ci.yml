@@ -290,7 +290,7 @@ docker:scan:
 
 infra:nginx-config:
   stage: test
-  image: nginx:alpine
+  image: public.ecr.aws/nginx/nginx:alpine
   script:
     - echo "🔧 Validation de la configuration Nginx..."
     - nginx -t
