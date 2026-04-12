@@ -262,7 +262,7 @@ export function Layout({ children }: LayoutProps) {
       {showHamburgerMenu && (
         <>
           {/* Sur la page Game : bouton Paramètres (modal Esthétique / Accessibilité). Sinon : menu hamburger classique */}
-          <div className="fixed top-4 right-8 z-[250]">
+          <div className="fixed top-4 right-4 z-[250]">
             {isGamePage ? (
               <button
                 type="button"
