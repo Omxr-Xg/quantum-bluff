@@ -49,6 +49,8 @@ services:
       PORT: 3000
     ports:
       - "3000:3000"
+    volumes:
+      - ./server/.env:/app/.env
     depends_on:
       postgres:
         condition: service_healthy
