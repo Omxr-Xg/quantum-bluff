@@ -242,8 +242,10 @@ security:secret-detection:
 
 security:sast:
   stage: test-security
-  image: returntocorp/semgrep:latest
+  image: public.ecr.aws/docker/library/python:3.10-slim
   dependencies: []
+  before_script:
+    - pip install semgrep
   script:
     - semgrep --config auto --error --exclude server/coverage --exclude client/coverage .
   allow_failure: true
