@@ -36,8 +36,8 @@ const socketUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || u
 const URL = socketUrl ? window.location.origin : 'http://localhost:3000';
 
 // Le path permet à Nginx de diriger la connexion vers le backend
-// En prod: /vmProjetIntegrateurgrp10-0/socket.io/ | En local: /socket.io/
-const socketPath = socketUrl ? `${socketUrl}/socket.io/` : '/socket.io/';
+// En prod: /vmProjetIntegrateurgrp10-0/socket.io | En local: /socket.io
+const socketPath = socketUrl ? `${socketUrl}/socket.io` : '/socket.io';
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
