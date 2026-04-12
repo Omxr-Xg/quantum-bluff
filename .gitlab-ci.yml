@@ -330,9 +330,13 @@ docs:markdown-lint:
 # DÉPLOIEMENT - Staging et Production
 # ============================================
 
+# ============================================
+# DÉPLOIEMENT - Staging et Production
+# ============================================
+
 deploy:staging:
   stage: deploy
-  image: alpine:latest
+  image: public.ecr.aws/docker/library/alpine:latest
   script:
     - echo "🚀 Déploiement sur STAGING..."
     - apk add --no-cache curl
@@ -346,7 +350,7 @@ deploy:staging:
 
 deploy:production:
   stage: deploy
-  image: alpine:latest
+  image: public.ecr.aws/docker/library/alpine:latest
   script:
     - echo "🚀 Déploiement sur PRODUCTION..."
     - apk add --no-cache curl
