@@ -269,6 +269,7 @@ app.use((err: unknown, req: express.Request, res: express.Response, _next: expre
 const httpServer = createServer(app)
 
 const io = new Server(httpServer, {
+  path: '/socket.io',
   cors: {
     origin: env.corsOrigins,
     credentials: true,

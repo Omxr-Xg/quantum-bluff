@@ -73,7 +73,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       autoConnect: true,
       path: socketPath,
       auth: { token },
-      // Ne pas forcer WebSocket seul : polling puis upgrade évite beaucoup d’échecs en dev / réseaux stricts
       secure: typeof window !== 'undefined' && window.location.protocol === 'https:',
       transports: ['polling', 'websocket'],
       reconnection: true,
