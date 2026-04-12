@@ -31,13 +31,12 @@ export const SocketContext = createContext<SocketContextType | undefined>(undefi
 
 const socketUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || undefined;
 
-// Détection du domaine actuel (ex: https://mai-projet-integrateur.u-strasbg.fr)
-// En production, on utilise l'origine du navigateur, en dev on garde localhost:3000
-const URL = socketUrl ? window.location.origin : 'http://localhost:3000';
-
-// Le path permet à Nginx de diriger la connexion vers le backend
 // En prod: /vmProjetIntegrateurgrp10-0/socket.io | En local: /socket.io
 const socketPath = socketUrl ? `${socketUrl}/socket.io` : '/socket.io';
+
+// URL vide = Socket.io utilise automatiquement le domaine de la page (parfait pour la prod)
+// En dev (sans socketUrl), on force localhost:3000
+const URL = socketUrl ? '' : 'http://localhost:3000';
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)

@@ -269,6 +269,7 @@ app.use((err: unknown, req: express.Request, res: express.Response, _next: expre
 const httpServer = createServer(app)
 
 const io = new Server(httpServer, {
+  // Le backend écoute strictement sur /socket.io (Nginx se charge de retirer le préfixe VM)
   path: '/socket.io',
   cors: {
     origin: env.corsOrigins,
