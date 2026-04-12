@@ -1,26 +1,31 @@
 // client/src/utils/tablePositions.ts
-export function calculatePlayerPositions(count: number, isMobile = false, isTablet = false) {
-  const tableWidth = isMobile ? 320 : isTablet ? 650 : 950;
-  const tableHeight = isMobile ? 180 : isTablet ? 300 : 420;
-  const radiusX = tableWidth / 2;
-  const radiusY = tableHeight / 2;
-  
-  const startAngle = Math.PI / 2; 
-  const angleStep = (2 * Math.PI) / count; 
-  
-  const positions = [];
 
-  for (let position = 0; position < count; position++) {
-    const angle = startAngle + (position * angleStep);
-    const x = radiusX * Math.cos(angle);
-    let y = radiusY * Math.sin(angle);
-    
-    // Décalage pour le joueur principal (en bas)
-    if (position === 0) {
-      y = y + (isMobile ? 20 : isTablet ? 30 : 40);
-    }
-    positions.push({ x, y });
-  }
+/**
+ * Mesures DevTools mobile (430px, 5 joueurs) :
+ * - Bot Alpha  right=459 → dépasse 29px à droite
+ * - Bot Delta  left=-29  → dépasse 29px à gauche
+ * - Centre écran = 215px
+ * - Centre Bot Alpha = 459 - 44 = 415px → décalage = 200px
+ * - On veut décalage max = 200 - 29 = 171px
+ * - Facteur correction radiusX = 171/200 = 0.855
+ * - Nouveau radiusX = 528 * 0.855 = 451
+ */
+export function calculatePlayerPositions(
+  count: number,
+  _isMobile = false,
+  _isTablet = false
+) {
+  const radiusX = 451;
+  const radiusY = 294;
 
-  return positions;
+  const startAngle = Math.PI / 2;
+  const angleStep  = (2 * Math.PI) / count;
+
+  return Array.from({ length: count }, (_, position) => {
+    const angle = startAngle - position * angleStep;
+    return {
+      x: radiusX * Math.cos(angle),
+      y: radiusY * Math.sin(angle),
+    };
+  });
 }
