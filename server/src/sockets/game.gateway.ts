@@ -753,6 +753,15 @@ export class GameGateway {
 
             const game = await activeGames.get(gameId);
             if (!game) {
+              const existsInDb = await pokerStateStore.get(gameId);
+              if (existsInDb) {
+                socket.emit("ERROR", {
+                  code: "TABLE_NOT_LOADED_LOCALLY",
+                  message: "La table n'est pas chargée en mémoire",
+                });
+                return;
+              }
+
               logSuspiciousAction("GAME_NOT_FOUND", {
                 userId: socket.userId,
                 socketId: socket.id,
@@ -1116,6 +1125,13 @@ export class GameGateway {
 
             if (game.getOccupiedCount() === 0) {
               if (!dissolveReason) dissolveReason = "all_players_left";
+
+              this.io.to(gameId).emit("GAME_ENDED", {
+                gameId,
+                reason: dissolveReason,
+                roomId,
+              });
+
               await activeGames.delete(gameId);
               try {
                 await prisma.waitingRoom.updateMany({
@@ -1132,11 +1148,6 @@ export class GameGateway {
                   detail: err instanceof Error ? err.message : String(err),
                 });
               }
-              this.io.to(gameId).emit("GAME_ENDED", {
-                gameId,
-                reason: dissolveReason,
-                roomId,
-              });
             }
           });
         } catch (err) {
