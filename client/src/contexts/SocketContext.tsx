@@ -31,44 +31,13 @@ export const SocketContext = createContext<SocketContextType | undefined>(undefi
 
 const socketUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || undefined;
 
-/** Base URL Socket.IO : env > dev localhost via Vite (proxy → :3000) > prod / réseau. */
-function resolveSocketBaseUrl(): string {
-  if (socketUrl) return socketUrl
-  if (typeof window === 'undefined') return 'http://localhost:3000'
-  const host = window.location.hostname
-  const isLocal = host === 'localhost' || host === '127.0.0.1'
-  // En `vite dev`, la page est sur :5175 : utiliser la même origine pour que /socket.io soit proxifié vers le backend.
-  // Sinon le client tape directement :3000 → ERR_CONNECTION_REFUSED si l’API n’écoute pas encore ou autre souci réseau local.
-  if (import.meta.env.DEV && isLocal) {
-    return window.location.origin
-  }
-  if (isLocal) {
-    return 'http://localhost:3000'
-  }
-  return window.location.origin
-}
+// Détection du domaine actuel (ex: https://mai-projet-integrateur.u-strasbg.fr)
+// En production, on utilise l'origine du navigateur, en dev on garde localhost:3000
+const URL = socketUrl ? window.location.origin : 'http://localhost:3000';
 
-let URL = resolveSocketBaseUrl()
-
-const isLocalhost =
-  typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-
-// NOUVEAU : Blocage strict du Mixed Content
-// Si le site est chargé en HTTPS, on force l'URL à utiliser l'origine sécurisée.
-// Nginx prendra automatiquement le relais (en WSS) sur le port 443.
-if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-  try {
-    const parsed = new URL(URL)
-    const insecureForHttpsPage =
-      parsed.protocol === 'http:' || parsed.protocol === 'ws:' || parsed.port === '3000'
-    if (insecureForHttpsPage) {
-      URL = window.location.origin
-    }
-  } catch {
-    /* URL absolue attendue depuis resolveSocketBaseUrl */
-  }
-}
+// Le path permet à Nginx de diriger la connexion vers le backend
+// En prod: /vmProjetIntegrateurgrp10-0/socket.io/ | En local: /socket.io/
+const socketPath = socketUrl ? `${socketUrl}/socket.io/` : '/socket.io/';
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
@@ -102,11 +71,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     const socketInstance = io(URL, {
       autoConnect: true,
-      path: isLocalhost || URL.includes('localhost') || URL.includes('127.0.0.1')
-        ? '/socket.io'
-        : '/vmProjetIntegrateurgrp10-0/socket.io', // Toujours utiliser ce chemin en Prod/VM
+      path: socketPath,
       auth: { token },
       // Ne pas forcer WebSocket seul : polling puis upgrade évite beaucoup d’échecs en dev / réseaux stricts
+      secure: typeof window !== 'undefined' && window.location.protocol === 'https:',
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 15,
