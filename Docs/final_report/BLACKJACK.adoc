@@ -1,0 +1,105 @@
+= Blackjack (Quantum Bluff) — règles, probabilités et paiements
+:stem: latexmath
+:icons: font
+:toc: left
+:sectnums:
+
+== Vue d’ensemble
+Ce document décrit *les règles telles qu’implémentées côté serveur* dans `server/src/logic/blackjack.ts`, puis les relie aux notions de probabilités (cas du *blackjack naturel*) et aux lois des grands nombres.
+
+== 1. Règles côté serveur (MVP)
+* Sabot : *6 jeux mélangés* (6 × 52 cartes). Le sabot est recréé et mélangé au début de chaque main.
+* Valeurs des cartes :
+** As (`A`) vaut 11, puis ajustement si bust (réduction à 1 via l’algorithme « aces »).
+** `J`, `Q`, `K` valent 10.
+** `10` vaut 10.
+* Blackjack naturel :
+** le joueur fait `A` + (`10` ou `J/Q/K`) avec *exactement 2 cartes*.
+** le croupier suit une règle de dealer classique, *sans split* (v1).
+* Règle du croupier :
+** il tire tant que la valeur totale est *strictement* inférieure à 17.
+** donc il *s’arrête sur 17 même en “soft”* (soft 17 = A + 6).
+
+== 2. Actions joueur
+Les actions sont possibles pendant la phase `player_turn` :
+
+=== `hit`
+Le joueur tire une carte supplémentaire.
+
+* Si la main dépasse 21 (bust), il passe à l’état `bust` et son tour se termine.
+
+=== `stand`
+Le joueur arrête de tirer.
+
+=== `double`
+*Autorisé uniquement si la main contient exactement 2 cartes* :
+* la mise totale de la main passe à `totalBet = 2 × bet`
+* le joueur reçoit *une seule* carte supplémentaire
+* la main se termine ensuite.
+
+== 3. Paiements (côté serveur) : net vs brut
+Le serveur calcule un `payout` (versement total de jetons au joueur) puis l’incrémente au solde.
+Le code définit `totalBet` (mise initiale + éventuelle mise du double).
+
+On considère la mise *bet* = `totalBet`.
+
+=== Table de décision (résultat de la main)
+* `push` (égalité) :
+** `payout = bet`
+** gain net = `payout − bet = 0`
+
+* `player_blackjack` (joueur naturel, croupier non) :
+** `payout = bet + floor(bet × 1.5)`
+** gain net = `floor(bet × 1.5)`
+
+* `dealer_blackjack` (croupier naturel, joueur non) :
+** `payout = 0`
+** gain net = `−bet`
+
+* `player_win` ou `dealer_bust` :
+** `payout = 2 × bet`
+** gain net = `+bet`
+
+* `player_bust` :
+** `payout = 0`
+** gain net = `−bet`
+
+== 4. Probabilités clés : blackjack naturel au deal
+On suppose le sabot complet de 6 jeux, donc :
+* nombre total de cartes : stem:[6×52 = 312]
+* nombre d’As : stem:[6×4 = 24]
+* nombre de cartes valant 10 : `10 + J + Q + K`
+** par deck : 4×4 = 16 cartes
+** donc sur 6 decks : stem:[6×16 = 96]
+
+=== Probabilité d’obtenir un naturel sur les 2 premières cartes
+Le naturel arrive si :
+* carte 1 = As et carte 2 = (10 ou face), OU
+* carte 1 = (10 ou face) et carte 2 = As.
+
+stem:[
+P(\text{natural})=
+2\times\frac{24}{312}\times\frac{96}{311}
+]
+
+Valeur numérique (approx.) :
+* stem:[P(\text{natural}) \approx 0{,}0474] soit ≈ *4,74%*
+
+[NOTE]
+====
+Cette probabilité est « au départ du sabot ». En cours de main, elle devient conditionnelle (les cartes restantes changent).
+====
+
+== 5. Lois des probabilités à long terme
+Si vous jouez un grand nombre de mains indépendantes (même mise, stratégie identique), la *Loi des grands nombres* implique :
+* le gain net moyen par main converge vers l’espérance mathématique correspondante (dépendante des règles + stratégie).
+
+Donc :
+* même si certaines mains peuvent « gagner », l’espérance globale (sur très long terme) reflète l’avantage maison.
+
+En pratique, l’espérance exacte dépend de la stratégie (hit/stand/double), et ici les règles (dealer stand soft 17, absence de split, double limité) modifient la valeur du jeu.
+
+== 6. Paramètres économiques (server)
+* Mise minimale : `BLACKJACK_MIN_BET = 10`
+* Plafond absolu par main : `BLACKJACK_MAX_BET_CAP = 1000`
+

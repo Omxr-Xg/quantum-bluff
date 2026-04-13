@@ -54,6 +54,7 @@ VM
 | Variable | Rôle |
 |----------|------|
 | `JWT_SECRET` | Signature des tokens (obligatoire en prod, forte entropie) |
+| `ADMIN_SECRET_TOKEN` | Header `x-admin-token` pour `GET /api/admin/cheaters` (obligatoire si `NODE_ENV=production`) |
 | `DATABASE_URL` | PostgreSQL |
 | `REDIS_*` / URL Redis | Si utilisé (sessions, rate limit distribué) |
 | `CORS_ORIGIN` | JSON array des origines front autorisées |

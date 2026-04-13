@@ -19,6 +19,8 @@ interface PokerCardProps {
   highlight?: boolean;
   animated?: boolean;
   animationDelay?: number;
+  /** `flip` = retournement 3D (poker). `soft` = fade + léger glissement (ex. blackjack). */
+  cardEnter?: "flip" | "soft";
   className?: string;
   colorblindMode?: boolean;
 }
@@ -38,6 +40,7 @@ export function PokerCard({
   highlight = false,
   animated = false,
   animationDelay = 0,
+  cardEnter = "flip",
   className = "",
   colorblindMode = false,
 }: PokerCardProps) {
@@ -50,11 +53,17 @@ export function PokerCard({
   if (faceDown) {
     const Wrapper = animated ? motion.div : "div";
     const animProps = animated
-      ? {
-          initial: { scale: 0.8, opacity: 0 },
-          animate: { scale: 1, opacity: 1 },
-          transition: { delay: animationDelay, duration: 0.3 },
-        }
+      ? cardEnter === "soft"
+        ? {
+            initial: { scale: 0.96, opacity: 0 },
+            animate: { scale: 1, opacity: 1 },
+            transition: { delay: animationDelay, duration: 0.18, ease: [0.25, 0.1, 0.25, 1] },
+          }
+        : {
+            initial: { scale: 0.8, opacity: 0 },
+            animate: { scale: 1, opacity: 1 },
+            transition: { delay: animationDelay, duration: 0.3 },
+          }
       : {};
     return (
       <Wrapper
@@ -84,11 +93,17 @@ export function PokerCard({
   // ==========================================
   const Wrapper = animated ? motion.div : "div";
   const animProps = animated
-    ? {
-        initial: { rotateY: 180, opacity: 0 },
-        animate: { rotateY: 0, opacity: 1 },
-        transition: { delay: animationDelay, duration: 0.4, type: "spring", stiffness: 200 },
-      }
+    ? cardEnter === "soft"
+      ? {
+          initial: { opacity: 0, y: 5, scale: 0.98 },
+          animate: { opacity: 1, y: 0, scale: 1 },
+          transition: { delay: animationDelay, duration: 0.22, ease: [0.25, 0.1, 0.25, 1] },
+        }
+      : {
+          initial: { rotateY: 180, opacity: 0 },
+          animate: { rotateY: 0, opacity: 1 },
+          transition: { delay: animationDelay, duration: 0.4, type: "spring", stiffness: 200 },
+        }
     : {};
 
   // ⚠️ CHANGER ICI L'EXTENSION SI BESOIN (.png ou .svg)

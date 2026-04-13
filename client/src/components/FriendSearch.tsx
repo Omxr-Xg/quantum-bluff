@@ -37,10 +37,10 @@ export const FriendSearch = () => {
   };
 
   return (
-    <div className="bg-slate-800 rounded-xl p-6 border border-purple-500">
-      <h2 className="text-xl text-white font-bold mb-4 flex items-center gap-2">
-        <Search className="w-5 h-5 text-purple-400" />
-        {t('friends.searchPlayers')}
+    <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-5 shadow-2xl sm:rounded-2xl sm:p-8">
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+        <Search className="h-5 w-5 shrink-0 text-amber-400" />
+        {t("friends.searchPlayers")}
       </h2>
 
       <div className="relative mb-4">
@@ -48,22 +48,20 @@ export const FriendSearch = () => {
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder={t('friends.usernamePlaceholder')}
-          className="w-full bg-slate-700 text-white rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          placeholder={t("friends.usernamePlaceholder")}
+          className="w-full rounded-xl border border-slate-600 bg-slate-900/50 py-3 pl-10 pr-4 text-white placeholder-gray-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
         />
-        <Search className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
       </div>
 
       {isLoading && (
         <div className="flex justify-center py-4">
-          <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+          <Loader2 className="h-6 w-6 animate-spin text-green-400" />
         </div>
       )}
 
       {error && (
-        <div className="bg-red-900/50 text-red-200 p-3 rounded-lg text-sm">
-          {t('friends.searchError')}
-        </div>
+        <div className="rounded-lg bg-red-900/50 p-3 text-sm text-red-200">{t("friends.searchError")}</div>
       )}
 
       {results && results.length > 0 ? (
@@ -71,21 +69,23 @@ export const FriendSearch = () => {
           {results.map((user) => (
             <div
               key={user.id}
-              className="flex items-center justify-between bg-slate-700/50 p-3 rounded-lg"
+              className="flex items-center justify-between rounded-lg border border-slate-600 bg-slate-800/50 p-3"
             >
               <div>
-                <div className="text-white font-medium">{user.username}</div>
-                <div className="text-gray-400 text-xs">
-                  {t('friends.level', { level: user.level })} • {t('friends.gamesCount', { count: user.stats?.totalGames || 0 })}
+                <div className="font-medium text-white">{user.username}</div>
+                <div className="text-xs text-gray-400">
+                  {t("friends.level", { level: user.level })} •{" "}
+                  {t("friends.gamesCount", { count: user.stats?.totalGames || 0 })}
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => handleSendRequest(user.username)}
                 disabled={isSending}
-                className="bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white p-2 rounded-lg transition"
-                title={t('friends.addAsFriend')}
+                className="rounded-lg bg-slate-700 p-2 text-white transition hover:bg-slate-600 disabled:opacity-50"
+                title={t("friends.addAsFriend")}
               >
-                <UserPlus className="w-5 h-5" />
+                <UserPlus className="h-5 w-5" />
               </button>
             </div>
           ))}

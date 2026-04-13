@@ -1,21 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, ChevronDown, ChevronUp, TestTube } from "lucide-react";
+import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, ChevronDown, ChevronUp, TestTube, Zap } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
-import { fetchBalanceFromServer } from "../utils/userProfile";
+import { fetchBalanceFromServer, getUserAvatar } from "../utils/userProfile";
 import { useGetFriendsQuery } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
-
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+import { apiUrl } from "../utils/apiBase";
+import { getPlayerAvatar } from "../utils/avatars";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
 interface Player {
   id: string;
   name: string;
-  avatar: string;
   level: number;
   isReady: boolean;
+  avatarUrl?: string | null;
 }
 
 export function WaitingRoom() {
@@ -33,6 +34,7 @@ export function WaitingRoom() {
   const [isCreator, setIsCreator] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [roomVisibility, setRoomVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
+  const [roomTurbo, setRoomTurbo] = useState(false);
   const [roomLoading, setRoomLoading] = useState(true);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -50,13 +52,40 @@ export function WaitingRoom() {
   /** Host: section "Voir plus" pour forcer des cartes (tests) */
   const [showTestCards, setShowTestCards] = useState(false);
   const [forceCards, setForceCards] = useState<Record<string, [{ suit: string; rank: string } | null, { suit: string; rank: string } | null]>>({});
+  const roomPollInFlightRef = useRef(false);
+
+  const applyRoomSnapshot = useCallback((room: {
+    name?: string;
+    visibility?: 'PUBLIC' | 'PRIVATE';
+    turbo?: boolean;
+    hostId?: string;
+    players?: Array<{ id: string; username: string; level?: number; isReady?: boolean; avatarUrl?: string | null }>;
+  }) => {
+    setRoomName(room.name || "");
+    setRoomVisibility(room.visibility || 'PUBLIC');
+    setRoomTurbo(!!room.turbo);
+    setIsCreator(room.hostId === userId);
+    const me = room.players?.find((p) => p.id === userId);
+    setMyIsReady(me?.isReady ?? false);
+    setPlayers(
+      (room.players || [])
+        .filter((p) => p.id !== userId)
+        .map((p) => ({
+          id: p.id,
+          name: p.username,
+          level: p.level ?? 0,
+          isReady: p.isReady ?? false,
+          avatarUrl: p.avatarUrl ?? null,
+        }))
+    );
+  }, [userId]);
 
   const SUITS = ["HEARTS", "DIAMONDS", "CLUBS", "SPADES"] as const;
   const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"] as const;
 
   /** Tous les joueurs (host + autres) pour l'association des cartes forcées */
   const allPlayersForCards = userId
-    ? [{ id: userId, name: username || "Vous", avatar: (username || "?")[0] }, ...players]
+    ? [{ id: userId, name: username || "Vous" }, ...players]
     : [...players];
 
   const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
@@ -64,7 +93,7 @@ export function WaitingRoom() {
 
   const fetchRoom = useCallback(
     async (id: string) => {
-      const url = API_BASE ? `${API_BASE}/api/waiting-room/${id}` : `/api/waiting-room/${id}`;
+      const url = apiUrl(`/api/waiting-room/${id}`);
       const res = await fetch(url);
       if (!res.ok) return null;
       return res.json();
@@ -85,7 +114,7 @@ export function WaitingRoom() {
       setRoomError(null);
       try {
         if (!rawRoomId || rawRoomId.startsWith("room_")) {
-          const createUrl = API_BASE ? `${API_BASE}/api/waiting-room/create` : "/api/waiting-room/create";
+          const createUrl = apiUrl("/api/waiting-room/create");
           const res = await fetch(createUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -93,6 +122,7 @@ export function WaitingRoom() {
               hostId: userId,
               roomName: `Salle de ${username || "Joueur"}`,
               maxPlayers: 5,
+              avatarUrl: getUserAvatar(),
             }),
           });
           if (cancelled) return;
@@ -121,38 +151,25 @@ export function WaitingRoom() {
         }
 
         const inRoom = room.players?.some((p: { id: string }) => p.id === userId);
-        if (!inRoom) {
-          const joinUrl = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/join` : `/api/waiting-room/${rawRoomId}/join`;
-          const joinRes = await fetch(joinUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId }),
-          });
-          if (cancelled) return;
-          if (!joinRes.ok) {
+        const joinUrl = apiUrl(`/api/waiting-room/${rawRoomId}/join`);
+        const joinRes = await fetch(joinUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, avatarUrl: getUserAvatar() }),
+        });
+        if (cancelled) return;
+        if (!joinRes.ok) {
+          if (!inRoom) {
             const err = await joinRes.json().catch(() => ({}));
             setRoomError(err?.error || t('waitingRoom.cannotJoin'));
             setRoomLoading(false);
             return;
           }
+          applyRoomSnapshot(room);
+        } else {
+          const payload = await joinRes.json();
+          applyRoomSnapshot(payload);
         }
-
-        setRoomName(room.name || "");
-        setRoomVisibility(room.visibility || 'PUBLIC');
-        setIsCreator(room.hostId === userId);
-        const me = room.players?.find((p: { id: string }) => p.id === userId);
-        setMyIsReady(me?.isReady ?? false);
-        setPlayers(
-          (room.players || [])
-            .filter((p: { id: string }) => p.id !== userId)
-            .map((p: { id: string; username: string; level?: number; isReady?: boolean }) => ({
-              id: p.id,
-              name: p.username,
-              avatar: (p.username || "?").charAt(0),
-              level: p.level ?? 0,
-              isReady: p.isReady ?? false,
-            }))
-        );
         // Récupérer la balance serveur avant démarrage (le serveur utilise user.chips en DB)
         fetchBalanceFromServer().catch(() => {});
       } catch (e) {
@@ -166,13 +183,12 @@ export function WaitingRoom() {
     return () => {
       cancelled = true;
     };
-  }, [userId, username, rawRoomId, navigate, fetchRoom]);
+  }, [userId, username, rawRoomId, navigate, fetchRoom, applyRoomSnapshot]);
 
   useEffect(() => {
     if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;
     joinRoom(rawRoomId);
     return () => leaveRoom(rawRoomId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, rawRoomId, roomLoading]);
 
   useEffect(() => {
@@ -189,7 +205,6 @@ export function WaitingRoom() {
     };
     socket.on("GAME_STARTED", onGameStarted);
     return () => socket.off("GAME_STARTED", onGameStarted);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, navigate, rawRoomId]);
 
   useEffect(() => {
@@ -202,40 +217,47 @@ export function WaitingRoom() {
       }
     };
     socket.on("HOST_REQUESTED_START", onHostRequestedStart);
-    return () => socket.off("HOST_REQUESTED_START", onHostRequestedStart);
-  }, [socket, userId, addToast]);
+    const onWaitingRoomUpdated = (room: {
+      id?: string;
+      status?: string;
+      name?: string;
+      visibility?: 'PUBLIC' | 'PRIVATE';
+      turbo?: boolean;
+      hostId?: string;
+      players?: Array<{ id: string; username: string; level?: number; isReady?: boolean; avatarUrl?: string | null }>;
+    } | null) => {
+      if (!room || room.status !== "WAITING") return;
+      applyRoomSnapshot(room);
+    };
+    socket.on("WAITING_ROOM_UPDATED", onWaitingRoomUpdated);
+    return () => {
+      socket.off("HOST_REQUESTED_START", onHostRequestedStart);
+      socket.off("WAITING_ROOM_UPDATED", onWaitingRoomUpdated);
+    };
+  }, [socket, userId, addToast, applyRoomSnapshot]);
 
   useEffect(() => {
     if (!rawRoomId || rawRoomId.startsWith("room_")) return;
     const interval = setInterval(async () => {
-      const room = await fetchRoom(rawRoomId);
+      if (roomPollInFlightRef.current) return;
+      roomPollInFlightRef.current = true;
+      let room: Awaited<ReturnType<typeof fetchRoom>> = null;
+      try {
+        room = await fetchRoom(rawRoomId);
+      } finally {
+        roomPollInFlightRef.current = false;
+      }
       if (!room || room.status !== "WAITING") return;
-      setIsCreator(room.hostId === userId);
-      setRoomVisibility(room.visibility || 'PUBLIC');
-      const me = room.players?.find((p: { id: string }) => p.id === userId);
-      setMyIsReady(me?.isReady ?? false);
-      setPlayers(
-        (room.players || [])
-          .filter((p: { id: string }) => p.id !== userId)
-          .map((p: { id: string; username: string; level?: number; isReady?: boolean }) => ({
-            id: p.id,
-            name: p.username,
-            avatar: (p.username || "?").charAt(0),
-            level: p.level ?? 0,
-            isReady: p.isReady ?? false,
-          }))
-      );
-    }, 3000);
+      applyRoomSnapshot(room);
+    }, 5000);
     return () => clearInterval(interval);
-  }, [rawRoomId, userId, fetchRoom]);
+  }, [rawRoomId, fetchRoom, applyRoomSnapshot]);
 
   // Polling join requests for private rooms (host only)
   const fetchJoinRequests = useCallback(async () => {
     if (!rawRoomId || !userId || !isCreator || roomVisibility !== 'PRIVATE') return;
     try {
-      const url = API_BASE
-        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests?hostId=${userId}`
-        : `/api/waiting-room/${rawRoomId}/join-requests?hostId=${userId}`;
+      const url = `${apiUrl(`/api/waiting-room/${rawRoomId}/join-requests`)}?hostId=${userId}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -263,9 +285,7 @@ export function WaitingRoom() {
     if (!rawRoomId || !userId) return;
     setProcessingRequest(requestId);
     try {
-      const url = API_BASE
-        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`
-        : `/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`;
+      const url = apiUrl(`/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`);
       await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -280,9 +300,7 @@ export function WaitingRoom() {
     if (!rawRoomId || !userId) return;
     setProcessingRequest(requestId);
     try {
-      const url = API_BASE
-        ? `${API_BASE}/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`
-        : `/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`;
+      const url = apiUrl(`/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`);
       await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -305,7 +323,6 @@ export function WaitingRoom() {
     setInvitedPlayers(prev => [...prev, {
       id: friend.id,
       name: friend.username,
-      avatar: friend.username.charAt(0),
       level: friend.level ?? 0,
       isReady: false
     }]);
@@ -323,7 +340,7 @@ export function WaitingRoom() {
     socket?.emit("player-ready", { roomId, userId });
     setMyIsReady(true); // Optimistic update
     if (rawRoomId && !rawRoomId.startsWith("room_")) {
-      const url = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/ready` : `/api/waiting-room/${rawRoomId}/ready`;
+      const url = apiUrl(`/api/waiting-room/${rawRoomId}/ready`);
       fetch(url, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -337,7 +354,7 @@ export function WaitingRoom() {
     setStartError(null);
     setStarting(true);
     try {
-      const url = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/start` : `/api/waiting-room/${rawRoomId}/start`;
+      const url = apiUrl(`/api/waiting-room/${rawRoomId}/start`);
       const forceCardsPayload: Record<string, Array<{ suit: string; rank: string }>> = {};
       for (const [pid, cards] of Object.entries(forceCards)) {
         if (cards?.[0]?.suit && cards?.[0]?.rank && cards?.[1]?.suit && cards?.[1]?.rank) {
@@ -380,7 +397,7 @@ export function WaitingRoom() {
   const handleLeaveRoom = async () => {
     if (rawRoomId && !rawRoomId.startsWith("room_") && userId) {
       try {
-        const url = API_BASE ? `${API_BASE}/api/waiting-room/${rawRoomId}/leave` : `/api/waiting-room/${rawRoomId}/leave`;
+        const url = apiUrl(`/api/waiting-room/${rawRoomId}/leave`);
         await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -430,9 +447,20 @@ export function WaitingRoom() {
             <LogOut className="w-5 h-5" />
             <span>{t('waitingRoom.leave')}</span>
           </button>
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
-            <span className="text-gray-400 text-sm">{isConnected ? t('waitingRoom.connected') : t('waitingRoom.disconnected')}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+              <span className="text-gray-400 text-sm">{isConnected ? t('waitingRoom.connected') : t('waitingRoom.disconnected')}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleLeaveRoom}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-600 bg-slate-800 text-slate-300 transition hover:border-slate-500 hover:bg-slate-700 hover:text-white"
+              aria-label={t("common.close")}
+              title={t("common.close")}
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
         </div>
 
@@ -454,6 +482,12 @@ export function WaitingRoom() {
                   {t('lobby.public')}
                 </span>
               )}
+              {roomTurbo ? (
+                <span className="flex items-center gap-1 border border-amber-500/50 bg-amber-600/25 text-amber-200 text-xs font-semibold px-2 py-1 rounded-full">
+                  <Zap className="w-3 h-3" />
+                  {t("waitingRoom.turboMode")}
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
@@ -471,10 +505,12 @@ export function WaitingRoom() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white flex items-center justify-center shadow-lg">
-                      <span className="text-white text-lg font-bold">
-                        {username?.charAt(0) || '?'}
-                      </span>
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
+                      <ImageWithFallback
+                        src={getPlayerAvatar(username || "Vous", userId, userId)}
+                        alt={`${username || "Vous"} avatar`}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
                     </div>
                     <div className={`absolute bottom-0 right-0 w-5 h-5 ${myIsReady ? 'bg-green-500' : isCreator ? 'bg-amber-500' : 'bg-yellow-500'} rounded-full border-2 border-slate-800`} title={myIsReady ? t('waitingRoom.ready') : t('game.waiting')}></div>
                   </div>
@@ -503,8 +539,12 @@ export function WaitingRoom() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 border-2 border-white flex items-center justify-center shadow-lg">
-                        <span className="text-white text-lg font-bold">{player.avatar}</span>
+                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
+                        <ImageWithFallback
+                          src={getPlayerAvatar(player.name, player.id, userId, player.avatarUrl)}
+                          alt={`${player.name} avatar`}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
                       </div>
                       <div className={`absolute bottom-0 right-0 w-5 h-5 ${player.isReady ? 'bg-green-500' : 'bg-yellow-500'} rounded-full border-2 border-slate-800`}></div>
                     </div>
@@ -542,10 +582,12 @@ export function WaitingRoom() {
                   <div key={friend.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white flex items-center justify-center shadow-lg">
-                          <span className="text-white text-lg font-bold">
-                            {friend.username.charAt(0)}
-                          </span>
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
+                          <ImageWithFallback
+                            src={getPlayerAvatar(friend.username, friend.id, userId)}
+                            alt={`${friend.username} avatar`}
+                            className="w-12 h-12 rounded-full object-cover"
+                          />
                         </div>
                         <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-slate-800"></div>
                       </div>
@@ -594,8 +636,12 @@ export function WaitingRoom() {
                     {joinRequests.map((req) => (
                       <div key={req.id} className="flex items-center justify-between bg-slate-800/70 rounded-lg px-3 py-2 border border-slate-600">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
-                            <span className="text-white text-sm font-bold">{req.username.charAt(0)}</span>
+                          <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
+                            <ImageWithFallback
+                              src={getPlayerAvatar(req.username, req.userId, userId)}
+                              alt={`${req.username} avatar`}
+                              className="w-9 h-9 rounded-full object-cover"
+                            />
                           </div>
                           <div>
                             <p className="text-white font-medium text-sm">{req.username}</p>

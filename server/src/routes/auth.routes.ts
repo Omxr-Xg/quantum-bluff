@@ -1,6 +1,5 @@
 import express from 'express'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
 import { registerSchema, loginSchema, resetPasswordSchema } from '../validation/auth.validation.js'
@@ -10,6 +9,8 @@ import { logSuspiciousAction } from '../utils/securityLogger.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
 import { addToBlacklist } from '../auth/tokenBlacklist.js'
 import { verifyTotpToken } from '../auth/totp.service.js'
+import { getGamificationBundle } from '../logic/gamification.js'
+import { generateToken } from '../auth/jwt.service.js'
 
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -72,12 +73,7 @@ const recoveryLimiter = rateLimit({
 
 const router = express.Router()
 
-const JWT_SECRET = process.env.JWT_SECRET || 'quantum_bluff_secret'
-const TOKEN_EXPIRATION = '7d'
 
-function generateToken(userId: string) {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRATION })
-}
 
 // Regex format email: xxx@yyy.zzz
 const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -157,7 +153,8 @@ router.post('/register', registerLimiter, async (req, res) => {
       }
     }
 
-    const token = generateToken(user.id)
+    const token = generateToken({ userId: user.id })
+    const g = await getGamificationBundle(prisma, user.id)
 
     res.status(201).json({
       token,
@@ -166,7 +163,14 @@ router.post('/register', registerLimiter, async (req, res) => {
         email: user.email,
         username: user.username,
         chips: user.chips,
-        level: user.level,
+        level: g?.level ?? user.level,
+        experience: g?.experience ?? user.experience,
+        xpToNext: g?.xpToNext ?? 0,
+        badges: g?.badges ?? [],
+        maxBetSlot: g?.maxBetSlot,
+        maxBetRouletteLine: g?.maxBetRouletteLine,
+        maxRouletteTotalStake: g?.maxRouletteTotalStake,
+        maxBetBlackjack: g?.maxBetBlackjack,
         playerStats: playerStats ?? null
       }
     })
@@ -283,7 +287,8 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
     }
 
-    const token = generateToken(user.id)
+    const token = generateToken({ userId: user.id })
+    const g = await getGamificationBundle(prisma, user.id)
 
     res.json({
       token,
@@ -292,8 +297,15 @@ router.post('/login', loginLimiter, async (req, res) => {
         email: user.email,
         username: user.username,
         chips: user.chips,
-        level: user.level,
-        playerStats: user.playerStats // ✅ Corrigé ici
+        level: g?.level ?? user.level,
+        experience: g?.experience ?? user.experience,
+        xpToNext: g?.xpToNext ?? 0,
+        badges: g?.badges ?? [],
+        maxBetSlot: g?.maxBetSlot,
+        maxBetRouletteLine: g?.maxBetRouletteLine,
+        maxRouletteTotalStake: g?.maxRouletteTotalStake,
+        maxBetBlackjack: g?.maxBetBlackjack,
+        playerStats: user.playerStats
       }
     })
 
@@ -305,6 +317,20 @@ router.post('/login', loginLimiter, async (req, res) => {
     res.status(500).json({ error: message })
   }
 
+})
+
+// GET /api/auth/gamification — XP, niveau, badges, plafonds slot/roulette
+router.get('/gamification', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const g = await getGamificationBundle(prisma, userId)
+    if (!g) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    res.json(g)
+  } catch (error) {
+    console.error('[AUTH] gamification error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
 })
 
 // GET /api/auth/balance - Récupère la balance serveur (source de vérité, jamais le client)
@@ -326,6 +352,10 @@ router.get('/balance', authMiddleware, async (req, res) => {
 
 // POST /api/auth/add-dev-money - Ajoute des jetons (validation "dev" côté serveur, pas de confiance client)
 router.post('/add-dev-money', authMiddleware, async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: "Bien essayé !  L'ajout d'argent gratuit est désactivé en production." })
+  }
+
   try {
     const userId = (req as express.Request & { userId?: string }).userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })

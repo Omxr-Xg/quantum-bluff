@@ -10,6 +10,11 @@ import {
   useRecoveryQuestionMutation,
   useResetPasswordMutation,
 } from "../services/api";
+import { persistGamificationFromAuthUser } from "../utils/gamificationStorage";
+
+// 👇 IMPORT DU HOOK LOADER
+import { useLoader } from "../contexts/LoaderContext";
+import { socket } from "../services/socket";
 
 type Step = "email" | "login" | "register" | "forgotPassword";
 
@@ -17,6 +22,10 @@ const SECRET_QUESTION_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 export function Auth() {
   const { t } = useTranslation();
+  
+  // 👇 INITIALISATION DU LOADER
+  const { showLoader, hideLoader } = useLoader();
+
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,11 +42,13 @@ export function Auth() {
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
   const [resetSuccessBanner, setResetSuccessBanner] = useState(false);
+  
   const [checkEmail, { isLoading: isCheckingEmail, error: checkError }] = useCheckEmailMutation();
   const [login, { isLoading: isLoggingIn, error: loginError }] = useLoginMutation();
   const [register, { isLoading: isRegistering, error: registerError }] = useRegisterMutation();
   const [recoveryQuestion, { isLoading: isLoadingRecovery }] = useRecoveryQuestionMutation();
   const [resetPassword, { isLoading: isResetting }] = useResetPasswordMutation();
+  
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/lobby";
@@ -49,7 +60,6 @@ export function Auth() {
     special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
   };
 
-  // Validation email: format type xxx@yyy.zzz
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const isEmailValid = EMAIL_REGEX.test(email.trim());
   const isLoginFormValid = email.length > 0 && password.length > 0;
@@ -77,32 +87,56 @@ export function Auth() {
     e.preventDefault();
     if (!isEmailValid) return;
     try {
+      showLoader("Vérification de l'email..."); // 🟢 ON AFFICHE LE LOADER
       const { exists } = await checkEmail({ email: email.trim() }).unwrap();
       setStep(exists ? "login" : "register");
-    } catch (err) {
+    } catch {
       // Error handled by checkError
+    } finally {
+      hideLoader(); // 🔴 ON CACHE LE LOADER
     }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoginFormValid) return;
+
     setResetSuccessBanner(false);
+
     try {
+      showLoader(t("auth.loggingIn") || "Connexion en cours...");
+
       const response = await login({ email: email.trim(), password }).unwrap();
+
+      const token = response.token;
+
+      // ✅ STOCKAGE
       localStorage.removeItem("userid");
-      localStorage.setItem("token", response.token);
+      localStorage.setItem("token", token);
       localStorage.setItem("userId", String(response.user.id));
       localStorage.setItem("username", response.user.username);
       localStorage.setItem("quantum_bluff_username", response.user.username);
       localStorage.setItem("quantum_bluff_email", response.user.email);
+
       if (typeof response.user.chips === "number") {
         localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
       }
+
+      persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
+
+      // 🔥🔥🔥 FIX SOCKET ICI
+      socket.disconnect(); // clean ancien état
+      socket.auth = { token }; // inject token
+      socket.connect(); // reconnect propre
+
       window.dispatchEvent(new Event("auth-changed"));
-      navigate(from, { replace: true });
-    } catch (err) {
-      // Error handled by loginError
+
+      navigate(typeof from === "string" ? from : "/lobby", { replace: true });
+
+    } catch {
+      // handled
+    } finally {
+      hideLoader();
     }
   };
 
@@ -110,6 +144,7 @@ export function Auth() {
     e.preventDefault();
     if (!isRegisterFormValid) return;
     try {
+      showLoader(t("auth.registering") || "Création de votre compte..."); // 🟢 ON AFFICHE LE LOADER
       const response = await register({
         username: username.trim(),
         email: email.trim(),
@@ -126,10 +161,19 @@ export function Auth() {
       if (typeof response.user.chips === "number") {
         localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
       }
+      persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
+      
+      
+      socket.disconnect();
+      socket.auth = { token: response.token };
+      socket.connect();
+
       window.dispatchEvent(new Event("auth-changed"));
-      navigate("/lobby", { replace: true });
-    } catch (err) {
+      navigate(typeof from === "string" ? from : "/lobby", { replace: true });
+    } catch {
       // Error handled by registerError
+    } finally {
+      hideLoader(); // 🔴 ON CACHE LE LOADER
     }
   };
 
@@ -174,7 +218,6 @@ export function Auth() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- déclenche une seule fois au passage à l’étape « oubli »
   }, [step, email]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -182,6 +225,7 @@ export function Auth() {
     if (!isForgotFormValid) return;
     setResetPasswordError(null);
     try {
+      showLoader("Réinitialisation du mot de passe..."); // 🟢 ON AFFICHE LE LOADER
       await resetPassword({
         email: email.trim(),
         secretAnswer: forgotSecretAnswer.trim(),
@@ -196,6 +240,8 @@ export function Auth() {
     } catch (err: unknown) {
       const data = err && typeof err === "object" && "data" in err ? (err as { data?: { error?: string } }).data : undefined;
       setResetPasswordError(data?.error ?? t("common.error"));
+    } finally {
+      hideLoader(); // 🔴 ON CACHE LE LOADER
     }
   };
 

@@ -1,20 +1,66 @@
 import express from 'express'
+import rateLimit from 'express-rate-limit'
+import { z } from 'zod'
 import { findWinners, getHandInfo } from '../logic/Evaluator.js'
 import type { Card, Player } from '../types/poker.js'
 import {
   decideBotAction,
   type BotActionRequest,
-  type BotActionResponse,
   type BotDifficulty,
 } from '../logic/botAI.js'
-import { intChips } from '../utils/chips.js'
-
-function sanitizeBotDecision(d: BotActionResponse): BotActionResponse {
-  if (d.amount === undefined) return d
-  return { ...d, amount: intChips(d.amount) }
-}
+import { logSuspiciousAction } from '../utils/securityLogger.js'
 
 const router = express.Router()
+
+const botActionLimiter = rateLimit({
+  windowMs: 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logSuspiciousAction('TOO_MANY_ACTIONS', {
+      details: {
+        route: '/api/bot/action',
+        ip: req.ip,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.status(429).json({
+      error: 'Trop de requêtes bot. Maximum 10 par seconde.'
+    })
+  }
+})
+
+const cardSchema = z.object({
+  suit: z.string().optional(),
+  rank: z.string().optional(),
+  value: z.union([z.string(), z.number()]).optional()
+})
+
+const botActionBodySchema = z.object({
+  playerCards: z.array(cardSchema).min(2),
+  communityCards: z.array(cardSchema).optional().default([]),
+  difficulty: z.enum(['easy', 'medium', 'hard', 'expert']),
+  currentBet: z.number().int().min(0),
+  playerChips: z.number().int().min(0),
+  callAmount: z.number().int().min(0),
+  minRaise: z.number().int().min(1),
+  potSize: z.number().int().min(0),
+  position: z.number().int().min(0),
+  playersCount: z.number().int().min(2)
+})
+
+const evaluateWinnerBodySchema = z.object({
+  players: z.array(
+    z.object({
+      id: z.string().min(1),
+      name: z.string().optional(),
+      cards: z.array(cardSchema).optional().default([])
+    })
+  ).min(1),
+  communityCards: z.array(cardSchema)
+})
 
 const SUIT_MAP: Record<string, Card['suit']> = {
   hearts: 'HEARTS',
@@ -82,8 +128,10 @@ const NUM_TO_RANK: Record<number, string> = {
 function normalizeCard(c: { suit?: string; rank?: string; value?: string | number }): Card {
   const suitStr = (c.suit ?? '').toLowerCase()
   const suit = SUIT_MAP[suitStr] ?? 'HEARTS'
+
   let rank: Card['rank']
   let value: number
+
   if (c.rank && RANK_MAP[String(c.rank)]) {
     rank = RANK_MAP[String(c.rank)]
     value = typeof c.value === 'number' ? c.value : RANK_VALUE[rank] ?? 2
@@ -94,37 +142,86 @@ function normalizeCard(c: { suit?: string; rank?: string; value?: string | numbe
     rank = (RANK_MAP[String(c.value)] ?? '2') as Card['rank']
     value = RANK_VALUE[rank] ?? 2
   }
+
   return { suit, rank, value }
 }
 
-const VALID_DIFFICULTIES: BotDifficulty[] = ['easy', 'medium', 'hard', 'expert']
+function sanitizeBotDecision(
+  decision: { action: 'FOLD' | 'CALL' | 'CHECK' | 'RAISE'; amount?: number; reasoning?: string },
+  req: BotActionRequest
+) {
+  const callAmount = Math.max(0, req.callAmount)
+  const chips = Math.max(0, req.playerChips)
+  const minRaise = Math.max(1, req.minRaise)
 
-router.post('/action', (req, res) => {
+  if (decision.action === 'CHECK') {
+    if (callAmount > 0) {
+      return chips >= callAmount
+        ? { action: 'CALL' as const, amount: callAmount, reasoning: 'sanitized: call instead of invalid check' }
+        : { action: 'FOLD' as const, reasoning: 'sanitized: fold instead of invalid check' }
+    }
+    return { action: 'CHECK' as const, reasoning: decision.reasoning }
+  }
+
+  if (decision.action === 'CALL') {
+    if (callAmount <= 0) {
+      return { action: 'CHECK' as const, reasoning: 'sanitized: check instead of useless call' }
+    }
+    if (chips < callAmount) {
+      return { action: 'FOLD' as const, reasoning: 'sanitized: fold instead of impossible call' }
+    }
+    return { action: 'CALL' as const, amount: callAmount, reasoning: decision.reasoning }
+  }
+
+  if (decision.action === 'RAISE') {
+    const proposed = typeof decision.amount === 'number' ? Math.floor(decision.amount) : 0
+
+    if (callAmount > chips) {
+      return { action: 'FOLD' as const, reasoning: 'sanitized: fold instead of impossible raise' }
+    }
+
+    if (proposed < minRaise || proposed > chips) {
+      if (callAmount === 0) {
+        return { action: 'CHECK' as const, reasoning: 'sanitized: check instead of invalid raise' }
+      }
+      return chips >= callAmount
+        ? { action: 'CALL' as const, amount: callAmount, reasoning: 'sanitized: call instead of invalid raise' }
+        : { action: 'FOLD' as const, reasoning: 'sanitized: fold instead of invalid raise' }
+    }
+
+    return {
+      action: 'RAISE' as const,
+      amount: proposed,
+      reasoning: decision.reasoning
+    }
+  }
+
+  return { action: 'FOLD' as const, reasoning: decision.reasoning }
+}
+
+router.post('/action', botActionLimiter, (req, res) => {
   const startBotTime = Date.now()
+
   try {
-    const raw = req.body as BotActionRequest & {
-      playerCards?: Array<{ suit?: string; rank?: string; value?: string | number }>
-    }
+    const parsed = botActionBodySchema.safeParse(req.body)
 
-    if (!raw.playerCards || !raw.difficulty) {
-      return res.status(400).json({ error: 'Missing required fields' })
-    }
-
-    if (!VALID_DIFFICULTIES.includes(raw.difficulty as BotDifficulty)) {
+    if (!parsed.success) {
       return res.status(400).json({
-        error: 'Invalid difficulty',
-        allowed: VALID_DIFFICULTIES,
+        error: parsed.error.issues.map(issue => issue.message).join(', ')
       })
     }
+
+    const raw = parsed.data
 
     const botRequest: BotActionRequest = {
       ...raw,
       difficulty: raw.difficulty as BotDifficulty,
-      playerCards: (raw.playerCards ?? []).map(normalizeCard),
-      communityCards: (raw.communityCards ?? []).map(normalizeCard),
+      playerCards: raw.playerCards.map(normalizeCard),
+      communityCards: raw.communityCards.map(normalizeCard),
     }
 
-    const decision = sanitizeBotDecision(decideBotAction(botRequest))
+    const rawDecision = decideBotAction(botRequest)
+    const decision = sanitizeBotDecision(rawDecision, botRequest)
 
     const duration = Date.now() - startBotTime
     console.log('[Monitoring QoS] 🤖 Décision bot calculée', {
@@ -146,19 +243,16 @@ router.post('/action', (req, res) => {
 
 router.post('/evaluate-winner', (req, res) => {
   try {
-    const raw = req.body as {
-      players?: Array<{
-        id: string
-        name?: string
-        cards?: Array<{ suit?: string; rank?: string; value?: string | number }>
-      }>
-      communityCards?: Array<{ suit?: string; rank?: string; value?: string | number }>
+    const parsed = evaluateWinnerBodySchema.safeParse(req.body)
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: parsed.error.issues.map(issue => issue.message).join(', ')
+      })
     }
-    if (!raw.players?.length || !raw.communityCards) {
-      return res
-        .status(400)
-        .json({ error: 'Body attendu: { players: [{ id, cards, name? }], communityCards }' })
-    }
+
+    const raw = parsed.data
+
     const players: Player[] = raw.players.map((p) => ({
       id: p.id,
       name: p.name ?? '',
@@ -167,14 +261,17 @@ router.post('/evaluate-winner', (req, res) => {
       role: 'PLAYER',
       isActive: false,
     }))
-    const board = (raw.communityCards ?? []).map(normalizeCard)
+
+    const board = raw.communityCards.map(normalizeCard)
     const winnerIds = findWinners(players, board)
     const isSplit = winnerIds.length > 1
     const winnerId = winnerIds[0]
     const firstWinner = players.find((p) => p.id === winnerId)
+
     const handInfo = firstWinner
       ? getHandInfo([...firstWinner.cards, ...board])
       : { category: 0, handName: 'Haute carte' }
+
     res.json({
       winnerId,
       winnerName: firstWinner?.name ?? winnerId,

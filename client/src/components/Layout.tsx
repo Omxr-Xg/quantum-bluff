@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X, User, Users, LogOut, Plus, Menu, Settings } from "lucide-react";
+import { Bell, X, User, Users, LogOut, Plus, Menu, Settings, Trophy } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
@@ -15,7 +15,8 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ChipIcon } from "./ChipIcon";
 import { TopBarProvider } from "../contexts/TopBarContext";
 import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
-import { AccessibilityMenu } from "./AccessibilityMenu";
+import { SettingsMenu } from "./SettingsMenu";
+import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
@@ -40,35 +41,38 @@ export function Layout({ children }: LayoutProps) {
   const [devValidation, setDevValidation] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showAccessibilityMenu, setShowAccessibilityMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("aesthetic");
   const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MENU_CLOSE_DELAY = 500;
-  const { registerOpener, openAccessibilityMenu } = useAccessibilityMenuOpen() ?? { registerOpener: () => {}, openAccessibilityMenu: () => {} };
+  const { registerOpener, openSettingsMenu } = useAccessibilityMenuOpen() ?? {
+    registerOpener: () => {},
+    openSettingsMenu: () => {},
+  };
 
   useEffect(() => {
-    registerOpener(() => setShowAccessibilityMenu(true));
+    registerOpener((tab) => {
+      setSettingsInitialTab(tab ?? "aesthetic");
+      setShowSettingsMenu(true);
+    });
     return () => registerOpener(null);
   }, [registerOpener]);
-
-  const handleMenuMouseEnter = () => {
-    if (closeMenuTimerRef.current) {
-      clearTimeout(closeMenuTimerRef.current);
-      closeMenuTimerRef.current = null;
-    }
-    setMenuOpen(true);
-  };
-
-  const handleMenuMouseLeave = () => {
-    closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
-  };
 
   useEffect(() => {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
     setBalance(getUserBalance());
     if (localStorage.getItem("token")) {
-      fetchBalanceFromServer().then(setBalance);
+      const blackjackMultiInLobby =
+        location.pathname === "/lobby" && location.search.includes("tab=blackjack");
+      const authoritative =
+        location.pathname === "/minigames" ||
+        location.pathname === "/blackjack" ||
+        location.pathname.startsWith("/blackjack/lobby") ||
+        location.pathname.startsWith("/blackjack/table") ||
+        blackjackMultiInLobby;
+      fetchBalanceFromServer({ authoritative }).then(setBalance);
     }
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   /** Mise à jour immédiate du solde affiché (ex. mode bot : `addToUserBalance` ne touche que le localStorage). */
   useEffect(() => {
@@ -76,17 +80,23 @@ export function Layout({ children }: LayoutProps) {
     window.addEventListener(BALANCE_CHANGED_EVENT, sync);
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, sync);
   }, []);
+  
   useEffect(() => {
     const onFocus = () => {
       if (localStorage.getItem("token")) {
-        fetchBalanceFromServer().then(setBalance);
+        const authoritative =
+          location.pathname === "/minigames" ||
+          location.pathname === "/blackjack" ||
+          location.pathname.startsWith("/blackjack/lobby") ||
+          location.pathname.startsWith("/blackjack/table");
+        fetchBalanceFromServer({ authoritative }).then(setBalance);
       } else {
         setBalance(getUserBalance());
       }
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, []);
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -170,51 +180,78 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
+  const isWaitingRoomPage = location.pathname === "/waiting-room";
   const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
   const showTopBar = !isAuthPage && localStorage.getItem("token");
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
+  const isCasinoFullBleed =
+    path === "/minigames" ||
+    path === "/blackjack" ||
+    path.startsWith("/blackjack/lobby") ||
+    path.startsWith("/blackjack/table");
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
     path.includes("waiting-room") ||
-    path.includes("tutorial-lobby");
-  const showHamburgerMenu = showTopBar && isGameConfigOrRoom && !isLobby;
+    path.includes("tutorial-lobby") ||
+    path === "/minigames" ||
+    path === "/blackjack" ||
+    path.startsWith("/blackjack/lobby") ||
+    path.startsWith("/blackjack/table");
+  /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
+  const showHamburgerMenu =
+    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames";
   const showLobbyIntegratedBar = showTopBar && isLobby;
+  /**
+   * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
+   * et seul un bouton paramètres est en coin ; éviter la « barre » vide / décalage en haut.
+   */
+  const topBarPaddingForHamburger =
+    showTopBar && !showLobbyIntegratedBar && showHamburgerMenu && !isGamePage && !isWaitingRoomPage;
 
   const menuContent = (
     <>
       <LanguageSwitcher />
-      <div className="flex h-10 md:h-12 items-stretch rounded-xl overflow-hidden shrink-0 shadow-lg ring-1 ring-slate-500/50">
-        <div className="px-4 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 flex items-center gap-2">
-          <ChipIcon size="sm" className="brightness-110" />
-          <span className="text-amber-50 font-bold text-sm whitespace-nowrap">{balance.toLocaleString()}</span>
-        </div>
+      <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
+        <button
+          type="button"
+          onClick={() => navigate("/minigames")}
+          className="flex items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left transition hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] sm:gap-2 sm:px-4"
+          title={t("lobby.balanceOpenSlot")}
+        >
+          <ChipIcon size="sm" className="brightness-110 shrink-0" />
+          <span className="whitespace-nowrap text-sm font-bold text-amber-50">{balance.toLocaleString()}</span>
+        </button>
         <button
           type="button"
           onClick={openAddMoney}
-          className="inline-flex items-center justify-center px-3 bg-amber-500/80 hover:bg-amber-400 text-slate-900 font-bold transition-colors hover:shadow-inner"
+          className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-500/80 font-bold text-slate-900 transition-colors hover:bg-amber-400 hover:shadow-inner sm:px-3"
           title={t("lobby.addMoney")}
         >
-          <Plus className="w-5 h-5" strokeWidth={2.5} />
+          <Plus className="h-5 w-5" strokeWidth={2.5} />
         </button>
       </div>
       <NotificationCenter />
-      <button type="button" onClick={() => navigate("/profile")} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-green-600/80 hover:bg-green-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.profile")}>
-        <User className="w-4 h-4 shrink-0" />
-        <span>{t("lobby.profile")}</span>
+      <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-green-600/80 px-2 text-sm text-white transition hover:bg-green-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.profile")}>
+        <User className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:inline">{t("lobby.profile")}</span>
       </button>
-      <button type="button" onClick={() => navigate("/friends")} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-blue-600/80 hover:bg-blue-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.manageFriends")}>
-        <Users className="w-4 h-4 shrink-0" />
-        <span>{t("lobby.manageFriends")}</span>
+      <button type="button" onClick={() => navigate("/friends")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-blue-600/80 px-2 text-sm text-white transition hover:bg-blue-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.manageFriends")}>
+        <Users className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:inline">{t("lobby.manageFriends")}</span>
       </button>
-      <button type="button" onClick={() => openAccessibilityMenu()} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-purple-600/80 hover:bg-purple-500 text-white transition shrink-0 whitespace-nowrap" title={t("accessibility.title", "Accessibilité")}>
-        <Settings className="w-4 h-4 shrink-0" />
-        <span>{t("accessibility.title", "Accessibilité")}</span>
+      <button type="button" onClick={() => navigate("/leaderboard")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600/80 px-2 text-sm text-white transition hover:bg-amber-500 sm:gap-2 sm:px-3 md:h-12" title={t("leaderboard.title")}>
+        <Trophy className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
       </button>
-      <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
-        <LogOut className="w-4 h-4 shrink-0" />
-        <span>{t("lobby.logout")}</span>
+      <button type="button" onClick={() => openSettingsMenu()} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
+        <Settings className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:inline">{t("settings.title")}</span>
+      </button>
+      <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-red-600/80 px-2 text-sm text-white transition hover:bg-red-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.logout")}>
+        <LogOut className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:inline">{t("lobby.logout")}</span>
       </button>
     </>
   );
@@ -224,14 +261,14 @@ export function Layout({ children }: LayoutProps) {
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
       {showHamburgerMenu && (
         <>
-          {/* Sur la page Game : bouton Paramètres (ouvre Accessibilité). Sinon : menu hamburger classique */}
-          <div className="fixed top-4 right-8 z-[250]">
+          {/* Sur la page Game : bouton Paramètres (modal Esthétique / Accessibilité). Sinon : menu hamburger classique */}
+          <div className="fixed top-4 right-4 z-[250]">
             {isGamePage ? (
               <button
                 type="button"
-                onClick={() => openAccessibilityMenu?.()}
+                onClick={() => openSettingsMenu?.()}
                 className="w-12 h-12 rounded-xl bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 text-white flex items-center justify-center transition shadow-lg"
-                title={t("accessibility.title", "Paramètres")}
+                title={t("settings.title")}
               >
                 <Settings className="w-6 h-6" />
               </button>
@@ -273,38 +310,50 @@ export function Layout({ children }: LayoutProps) {
                 closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
               }}
             >
-              <div className="flex items-center flex-wrap gap-6">
+              <div className="flex max-w-[min(100vw-6rem,28rem)] flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
                 <LanguageSwitcher />
-                <div className="flex h-10 md:h-12 items-stretch rounded-xl overflow-hidden shrink-0 shadow-lg ring-1 ring-slate-500/50">
-                  <div className="px-4 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 flex items-center gap-2">
-                    <ChipIcon size="sm" className="brightness-110" />
-                    <span className="text-amber-50 font-bold text-sm whitespace-nowrap">{balance.toLocaleString()}</span>
-                  </div>
+                <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/minigames");
+                    }}
+                    className="flex items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left transition hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] sm:gap-2 sm:px-4"
+                    title={t("lobby.balanceOpenSlot")}
+                  >
+                    <ChipIcon size="sm" className="brightness-110 shrink-0" />
+                    <span className="whitespace-nowrap text-sm font-bold text-amber-50">{balance.toLocaleString()}</span>
+                  </button>
                   <button
                     type="button"
                     onClick={openAddMoney}
-                    className="inline-flex items-center justify-center px-3 bg-amber-500/80 hover:bg-amber-400 text-slate-900 font-bold transition-colors hover:shadow-inner"
+                    className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-500/80 font-bold text-slate-900 transition-colors hover:bg-amber-400 hover:shadow-inner sm:px-3"
                     title={t("lobby.addMoney")}
                   >
-                    <Plus className="w-5 h-5" strokeWidth={2.5} />
+                    <Plus className="h-5 w-5" strokeWidth={2.5} />
                   </button>
                 </div>
                 <NotificationCenter />
-                <button type="button" onClick={() => navigate("/profile")} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-green-600/80 hover:bg-green-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.profile")}>
-                  <User className="w-4 h-4 shrink-0" />
-                  <span>{t("lobby.profile")}</span>
+                <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-green-600/80 px-2 text-sm text-white transition hover:bg-green-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.profile")}>
+                  <User className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{t("lobby.profile")}</span>
                 </button>
-                <button type="button" onClick={() => navigate("/friends")} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-blue-600/80 hover:bg-blue-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.manageFriends")}>
-                  <Users className="w-4 h-4 shrink-0" />
-                  <span>{t("lobby.manageFriends")}</span>
+                <button type="button" onClick={() => navigate("/friends")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-blue-600/80 px-2 text-sm text-white transition hover:bg-blue-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.manageFriends")}>
+                  <Users className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{t("lobby.manageFriends")}</span>
                 </button>
-                <button type="button" onClick={() => { setMenuOpen(false); openAccessibilityMenu(); }} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-purple-600/80 hover:bg-purple-500 text-white transition shrink-0 whitespace-nowrap" title={t("accessibility.title", "Accessibilité")}>
-                  <Settings className="w-4 h-4 shrink-0" />
-                  <span>{t("accessibility.title", "Accessibilité")}</span>
+                <button type="button" onClick={() => { setMenuOpen(false); navigate("/leaderboard"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600/80 px-2 text-sm text-white transition hover:bg-amber-500 sm:gap-2 sm:px-3 md:h-12" title={t("leaderboard.title")}>
+                  <Trophy className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
                 </button>
-                <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex items-center gap-2 px-3 rounded-lg h-10 md:h-12 text-sm bg-red-600/80 hover:bg-red-500 text-white transition shrink-0 whitespace-nowrap" title={t("lobby.logout")}>
-                  <LogOut className="w-4 h-4 shrink-0" />
-                  <span>{t("lobby.logout")}</span>
+                <button type="button" onClick={() => { setMenuOpen(false); openSettingsMenu(); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
+                  <Settings className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{t("settings.title")}</span>
+                </button>
+                <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-red-600/80 px-2 text-sm text-white transition hover:bg-red-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.logout")}>
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{t("lobby.logout")}</span>
                 </button>
               </div>
             </div>
@@ -312,10 +361,10 @@ export function Layout({ children }: LayoutProps) {
         </>
       )}
 
-      {/* Menu Accessibilité (rendu globalement pour Lobby et Game) */}
-      <AccessibilityMenu
-        isOpen={showAccessibilityMenu}
-        onClose={() => setShowAccessibilityMenu(false)}
+      <SettingsMenu
+        isOpen={showSettingsMenu}
+        onClose={() => setShowSettingsMenu(false)}
+        initialTab={settingsInitialTab}
       />
 
       {/* Modal Ajouter des jetons */}
@@ -418,7 +467,13 @@ export function Layout({ children }: LayoutProps) {
 
       <InvitationBanner />
 
-      <div className={`min-h-screen w-full ${showTopBar && !showLobbyIntegratedBar ? "pt-14 md:pt-16" : ""}`}>
+      <div
+        className={`w-full ${
+          isCasinoFullBleed
+            ? "flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden pt-0"
+            : `min-h-screen ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`
+        }`}
+      >
         {children}
       </div>
       </TopBarProvider>

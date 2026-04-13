@@ -1,20 +1,7 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+import { createApi, fetchBaseQuery, retry } from '@reduxjs/toolkit/query/react'
+import { getApiBaseUrl } from '../utils/apiBase'
 
-const fetchWithRetry = async (
-  input: RequestInfo | URL,
-  init?: RequestInit,
-  retries = 3
-): Promise<Response> => {
-  for (let i = 0; i < retries; i++) {
-    const res = await fetch(input, init)
-    if (res.status === 429 && i < retries - 1) {
-      await new Promise((r) => setTimeout(r, 2000 * (i + 1)))
-      continue
-    }
-    return res
-  }
-  return fetch(input, init!)
-}
+
 
 interface User {
   id: string
@@ -55,31 +42,34 @@ interface FriendRequest {
   sender: User
 }
 
+// On configure l'URL et les Headers de base
+const baseQuery = fetchBaseQuery({
+  baseUrl: (() => {
+    const base = getApiBaseUrl()
+    if (base) return `${base}/api`
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    return `${origin}/api`
+  })(),
+  prepareHeaders: (headers) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+    headers.set('x-idempotency-key', crypto.randomUUID())
+    
+    return headers
+  },
+});
+
+//  LE BOUCLIER RETRY EST LÀ : On enveloppe notre baseQuery
+const staggeredBaseQuery = retry(baseQuery, {
+  maxRetries: 3, // On retente 3 fois maximum
+});
+
 export const api = createApi({
   reducerPath: 'api',
-  baseQuery: fetchBaseQuery({
-    baseUrl: (() => {
-const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const apiUrl = (import.meta.env.VITE_API_URL ?? '').toString().replace(/\/$/, '');
-      
-      // En dev: proxy Vite sur /api
-      if (import.meta.env.DEV) return `${origin}/api`;
-      
-      // Capacitor/mobile: VITE_API_URL est l'URL complète du backend (ex: http://185.155.93.105:3000)
-      if (apiUrl.startsWith('http')) return `${apiUrl}/api`;
-      
-      return apiUrl ? `${origin}${apiUrl}/api` : `${origin}/api`;
-    })(),
-    fetchFn: fetchWithRetry,
-    prepareHeaders: (headers) => {
-      const token = localStorage.getItem('token')
-      if (token) {
-        headers.set('authorization', `Bearer ${token}`)
-      }
-      return headers
-    },
-  }),
-  tagTypes: ['User', 'Game', 'Friend', 'FriendRequest', 'FriendMessage'],
+  baseQuery: staggeredBaseQuery,
+  tagTypes: ['User', 'Game', 'Friend', 'FriendRequest', 'FriendMessage', 'FriendLoan'],
   endpoints: (builder) => ({
     login: builder.mutation({
       query: (credentials) => ({
@@ -208,6 +198,61 @@ const origin = typeof window !== 'undefined' ? window.location.origin : '';
     getPlayerStats: builder.query<PlayerStats, string>({
       query: (playerId) => `/game/stats/${playerId}`,
     }),
+
+    getFriendLoans: builder.query<
+      {
+        requestsSent: Record<string, unknown>[]
+        requestsReceived: Record<string, unknown>[]
+        activeLoans: Record<string, unknown>[]
+        completedLoans: Record<string, unknown>[]
+      },
+      void
+    >({
+      query: () => '/friends/loans',
+      providesTags: ['FriendLoan'],
+      refetchOnMountOrArgChange: true,
+    }),
+
+    getFriendLoan: builder.query<{ loan: Record<string, unknown> }, string>({
+      query: (loanId) => `/friends/loans/${loanId}`,
+      providesTags: (_r, _e, loanId) => [{ type: 'FriendLoan', id: loanId }],
+    }),
+
+    createFriendLoanRequest: builder.mutation<
+      { loanRequest: Record<string, unknown> },
+      { lenderId: string; amount: number; repaymentRate: number }
+    >({
+      query: (body) => ({
+        url: '/friends/loans/requests',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['FriendLoan'],
+    }),
+
+    acceptFriendLoanRequest: builder.mutation<{ loan: Record<string, unknown> }, { loanRequestId: string }>({
+      query: ({ loanRequestId }) => ({
+        url: `/friends/loans/requests/${loanRequestId}/accept`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['FriendLoan'],
+    }),
+
+    rejectFriendLoanRequest: builder.mutation<{ ok: boolean }, { loanRequestId: string }>({
+      query: ({ loanRequestId }) => ({
+        url: `/friends/loans/requests/${loanRequestId}/reject`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['FriendLoan'],
+    }),
+
+    cancelFriendLoanRequest: builder.mutation<{ ok: boolean }, { loanRequestId: string }>({
+      query: ({ loanRequestId }) => ({
+        url: `/friends/loans/requests/${loanRequestId}/cancel`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['FriendLoan'],
+    }),
   }),
 })
 
@@ -228,4 +273,11 @@ export const {
   useGetFriendMessagesQuery,
   useSendFriendMessageMutation,
   useGetPlayerStatsQuery,
+  useGetFriendLoansQuery,
+  useGetFriendLoanQuery,
+  useLazyGetFriendLoanQuery,
+  useCreateFriendLoanRequestMutation,
+  useAcceptFriendLoanRequestMutation,
+  useRejectFriendLoanRequestMutation,
+  useCancelFriendLoanRequestMutation,
 } = api

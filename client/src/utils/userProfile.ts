@@ -71,12 +71,13 @@ export function addToUserBalance(amount: number): number {
   return next;
 }
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+import { clearGamificationStorage } from "./gamificationStorage";
+import { apiUrl } from "./apiBase";
 
 /** Vide toutes les données d'authentification du localStorage (déconnexion). Appelle l'API logout pour invalider le token côté serveur. */
 export function clearAuthStorage(): void {
   const token = localStorage.getItem("token");
-  const url = API_BASE ? `${API_BASE}/api/auth/logout` : "/api/auth/logout";
+  const url = apiUrl("/api/auth/logout");
   if (token) {
     fetch(url, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
   }
@@ -88,25 +89,38 @@ export function clearAuthStorage(): void {
   localStorage.removeItem(STORAGE_KEYS.EMAIL);
   localStorage.removeItem(STORAGE_KEYS.AVATAR);
   localStorage.removeItem(STORAGE_KEYS.BALANCE);
+  clearGamificationStorage();
   localStorage.removeItem("gamePlayers");
   localStorage.removeItem("gameId");
   window.dispatchEvent(new Event("auth-changed"));
 }
+
+export type FetchBalanceOptions = {
+  /**
+   * Solde serveur tel quel (pas de fusion `max` avec le local).
+   * À utiliser sur `/slot` pour que gains/pertes du mini-jeu restent cohérents.
+   */
+  authoritative?: boolean;
+};
 
 /**
  * Récupère la balance serveur et la fusionne avec le localStorage.
  * `Math.max(local, serveur)` évite d’écraser les gains du **mode bot** (non encore persistés côté API)
  * quand on revient au lobby.
  */
-export async function fetchBalanceFromServer(): Promise<number> {
+export async function fetchBalanceFromServer(options?: FetchBalanceOptions): Promise<number> {
   const token = localStorage.getItem("token");
   if (!token) return getUserBalance();
-  const url = API_BASE ? `${API_BASE}/api/auth/balance` : "/api/auth/balance";
+  const url = apiUrl("/api/auth/balance");
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return getUserBalance();
     const data = await res.json();
     const serverChips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : getUserBalance();
+    if (options?.authoritative) {
+      updateUserBalance(serverChips);
+      return serverChips;
+    }
     const localChips = getUserBalance();
     const merged = Math.max(localChips, serverChips);
     updateUserBalance(merged);
@@ -120,7 +134,7 @@ export async function fetchBalanceFromServer(): Promise<number> {
 export async function addDevMoney(amount: number): Promise<number> {
   const token = localStorage.getItem("token");
   if (!token) return getUserBalance();
-  const url = API_BASE ? `${API_BASE}/api/auth/add-dev-money` : "/api/auth/add-dev-money";
+  const url = apiUrl("/api/auth/add-dev-money");
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

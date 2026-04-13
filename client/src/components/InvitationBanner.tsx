@@ -3,8 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Check, X, Gamepad2 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import type { GameInvitationNotification } from "../contexts/SocketContext";
-
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+import { apiUrl } from "../utils/apiBase";
 
 export function InvitationBanner() {
   const { t } = useTranslation();
@@ -14,9 +13,12 @@ export function InvitationBanner() {
   const handleAccept = async (inv: GameInvitationNotification) => {
     try {
       const token = localStorage.getItem("token");
-      const url = API_BASE
-        ? `${API_BASE}/api/invitations/${inv.invitationId}/accept`
-        : `/api/invitations/${inv.invitationId}/accept`;
+      const isBj = inv.game === "blackjack";
+      const url = apiUrl(
+        isBj
+          ? `/api/blackjack-tables/invitations/${inv.invitationId}/accept`
+          : `/api/invitations/${inv.invitationId}/accept`
+      );
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -26,7 +28,11 @@ export function InvitationBanner() {
       });
       if (res.ok) {
         dismissInvitation(inv.invitationId);
-        navigate(`/waiting-room?roomId=${inv.roomId}`);
+        if (isBj) {
+          navigate(`/lobby?tab=blackjack&bjRoom=${inv.roomId}`);
+        } else {
+          navigate(`/waiting-room?roomId=${inv.roomId}`);
+        }
       }
     } catch (err) {
       console.error("Erreur acceptation invitation:", err);
@@ -36,9 +42,12 @@ export function InvitationBanner() {
   const handleReject = async (inv: GameInvitationNotification) => {
     try {
       const token = localStorage.getItem("token");
-      const url = API_BASE
-        ? `${API_BASE}/api/invitations/${inv.invitationId}/reject`
-        : `/api/invitations/${inv.invitationId}/reject`;
+      const isBj = inv.game === "blackjack";
+      const url = apiUrl(
+        isBj
+          ? `/api/blackjack-tables/invitations/${inv.invitationId}/reject`
+          : `/api/invitations/${inv.invitationId}/reject`
+      );
       await fetch(url, {
         method: "POST",
         headers: {
@@ -69,7 +78,10 @@ export function InvitationBanner() {
               <p className="text-white font-bold text-sm">
                 {t("invitation.title", { username: inv.sender.username })}
               </p>
-              <p className="text-indigo-300 text-xs truncate">{inv.roomName}</p>
+              <p className="text-indigo-300 text-xs truncate">
+                {inv.game === "blackjack" ? `${t("bjMulti.inviteBannerGame")} · ` : ""}
+                {inv.roomName}
+              </p>
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={() => handleAccept(inv)}

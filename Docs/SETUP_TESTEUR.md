@@ -80,9 +80,9 @@ Cela démarre :
 
 - PostgreSQL + Redis (Docker)
 - Serveur backend (port 3000)
-- Client frontend (port 5173)
+- Client frontend (port **5175** par défaut dans `client/vite.config.ts`, ou celui affiché dans le terminal)
 
-Ouvrir **http://localhost:5173** (ou l’URL indiquée dans le terminal).
+Ouvrir l’URL du client (ex. **http://localhost:5175**). Le backend doit tourner sur le **port 3000** pour l’API et Socket.IO.
 
 ---
 
@@ -94,7 +94,8 @@ Ouvrir **http://localhost:5173** (ou l’URL indiquée dans le terminal).
 | Erreur 500 sur les messages entre amis | La table `FriendMessage` manque : exécuter `cd server && npx prisma migrate deploy`. |
 | La base ne démarre pas | Vérifier que Docker est lancé, puis `cd database && docker-compose up -d`. |
 | `DATABASE_URL` manquant | Copier `server/.env.example` vers `server/.env` et le configurer. |
-| Port déjà utilisé | Arrêter le processus qui utilise le port 3000 ou 5173. |
+| Port déjà utilisé | Arrêter le processus qui utilise le port 3000 ou le port Vite (ex. 5175). |
+| **404** sur `/api/.../start` (blackjack, etc.) ou WebSocket refusé | Le serveur Node n’est pas lancé, n’écoute pas sur **3000**, ou le client n’utilise pas la même URL d’API. Lancer `npm run dev` à la racine (backend + client), ou `cd server && npm run dev` en parallèle du client. Après un `git pull`, redémarrer le serveur pour charger les nouvelles routes. |
 
 ---
 

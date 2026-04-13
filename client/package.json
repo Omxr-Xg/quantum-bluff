@@ -7,32 +7,38 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint . || true",
+    "build:web": "vite build",
+    "build:web:root": "VITE_BASE_PATH=/ vite build",
+    "build:cap": "vite build --mode capacitor",
+    "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "electron": "electron electron.cjs",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5175 && electron electron.cjs\"",
+    "electron:dev": "cross-env NODE_ENV=development concurrently \"npm run dev\" \"wait-on http://localhost:5175 && electron electron.cjs\"",
     "electron:build": "npm run build && electron-builder",
     "electron:build:win": "npm run build && electron-builder --win",
     "electron:build:mac": "npm run build && electron-builder --mac",
     "electron:build:linux": "npm run build && electron-builder --linux",
+    "electron:build:all": "npm run build && electron-builder --linux --win --mac",
     "publish:win": "npm run build && electron-builder --win --publish always",
     "version:patch": "node ../scripts/version-bump.js patch",
     "version:minor": "node ../scripts/version-bump.js minor",
     "version:major": "node ../scripts/version-bump.js major",
     "cap:copy": "npx cap copy",
-    "cap:sync": "npx cap sync",
-    "cap:android": "npm run build && npx cap copy && npx cap open android",
-    "cap:ios": "npm run build && npx cap copy && npx cap open ios",
-    "build:cap": "VITE_BASE_PATH=/ VITE_API_URL=http://185.155.93.105:3000 VITE_SOCKET_URL=http://185.155.93.105:3000 vite build",
-    "cap:run:android": "npx cap run android -l --external --public-host=185.155.93.105"
+    "cap:sync": "npm run build:cap && npx cap sync",
+    "cap:android": "npm run cap:sync && npx cap open android",
+    "cap:ios": "npm run cap:sync && npx cap open ios",
+    "cap:run:android": "npx cap run android -l --external --public-host=192.168.1.1",
+    "cap:run:ios": "npx cap run ios -l --external"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",
     "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.2.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -66,6 +72,7 @@
     "electron-log": "^5.4.3",
     "electron-updater": "^6.8.3",
     "embla-carousel-react": "^8.6.0",
+    "html-to-image": "^1.11.13",
     "i18next": "^25.8.18",
     "i18next-browser-languagedetector": "^8.2.1",
     "input-otp": "^1.4.2",
@@ -75,6 +82,7 @@
     "react": "^19.2.0",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.0",
+    "react-error-boundary": "^6.1.1",
     "react-hook-form": "^7.71.2",
     "react-i18next": "^16.5.8",
     "react-resizable-panels": "^4.7.2",
@@ -98,6 +106,7 @@
     "@vitest/coverage-istanbul": "^4.1.0",
     "autoprefixer": "^10.4.27",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "^40.8.2",
     "electron-builder": "^26.8.1",
     "eslint": "^9.39.1",
@@ -114,6 +123,9 @@
     "vite-plugin-pwa": "^0.19.8",
     "vitest": "^4.0.18",
     "wait-on": "^9.0.4"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.12"
   },
   "build": {
     "appId": "com.quantumbluff.app",
@@ -148,7 +160,10 @@
     },
     "linux": {
       "icon": "src/assets/logo-personnel.png",
-      "target": "AppImage"
+      "target": [
+        "AppImage",
+        "deb"
+      ]
     }
   }
 }

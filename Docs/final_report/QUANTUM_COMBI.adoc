@@ -1,0 +1,108 @@
+= Quantum Combi — définition et probabilité (Texas Hold’em, 7 cartes)
+:toc: left
+:toclevels: 2
+:sectnums:
+:icons: font
+:stem: latexmath
+
+Ce document décrit la combinaison *Quantum Combi* telle qu’implémentée dans Quantum Bluff, puis calcule la probabilité exacte d’obtenir au moins une fois chacun des rangs requis dans une main de sept cartes issues d’un jeu de 52 cartes.
+
+== Définition officielle
+
+*Quantum Combi* :: Une main de *sept cartes* (deux cartes fermées + cinq cartes communes) contient *au moins* un 3, un 5, un 6, un 7 et un 10 (couleurs et ordre quelconques ; doublons autorisés sur les rangs).
+
+*Classement* :: Sous le *full house*, au-dessus de la *couleur* :
+
+....
+Quinte flush → Carré → Full house → Quantum Combi → Couleur → Suite → Brelan → Double paire → Paire → Hauteur
+....
+
+*Égalité* :: Les cinq rangs « structure » (3, 5, 6, 7, 10) sont communs ; on compare les *deux kickers* (les deux cartes restantes dans le meilleur jeu de sept), du plus fort au plus faible.
+
+== Modèle probabiliste
+
+On considère l’ensemble des mains de *7 cartes* distinctes tirées sans remise dans un jeu standard de *52* cartes (4 couleurs × 13 rangs).
+
+* Nombre total de mains possibles :
++
+[stem]
+++++
+\binom{52}{7} = 133\,784\,560
+++++
+
+* Événement étudié : la main contient *au moins une carte* de rang 3, *au moins une* de rang 5, *au moins une* de rang 6, *au moins une* de rang 7 et *au moins une* de rang 10.
+
+Pour chaque rang stem:[r \in \{3,5,6,7,10\}], notons stem:[A_r] l’ensemble des mains de 7 cartes qui ne contiennent *aucune* carte de rang stem:[r]. Il y a stem:[52 - 4 = 48] cartes hors rang stem:[r], donc :
++
+[stem]
+++++
+|A_r| = \binom{48}{7}
+++++
+
+L’événement « Quantum Combi impossible » est stem:[A_3 \cup A_5 \cup A_6 \cup A_7 \cup A_{10}]. On applique le *principe d’inclusion-exclusion* sur les cinq ensembles.
+
+Pour une intersection de stem:[k] rangs distincts exclus, on retire stem:[4k] cartes du paquet ; il reste stem:[52 - 4k] cartes, d’où :
++
+[stem]
+++++
+\left|\bigcap_{r \in S} A_r\right| = \binom{52 - 4k}{7}
+\quad\text{pour } |S| = k
+++++
+
+Donc :
++
+[stem]
+++++
+\left| \bigcup_r A_r \right| =
+\sum_{k=1}^{5} (-1)^{k+1} \binom{5}{k} \binom{52 - 4k}{7}
+++++
+
+Les termes successifs (stem:[k = 1] à stem:[5]) :
+
+[cols="1,3,3",options="header"]
+|===
+| stem:[k] | Contribution stem:[\binom{5}{k}\binom{52-4k}{7}] | Valeur
+
+| 1 | stem:[5 \times \binom{48}{7}] | stem:[5 \times 73\,629\,072 = 368\,145\,360]
+| 2 | stem:[10 \times \binom{44}{7}] | stem:[10 \times 38\,320\,568 = 383\,205\,680]
+| 3 | stem:[10 \times \binom{40}{7}] | stem:[10 \times 18\,643\,560 = 186\,435\,600]
+| 4 | stem:[5 \times \binom{36}{7}] | stem:[5 \times 8\,347\,680 = 41\,738\,400]
+| 5 | stem:[1 \times \binom{32}{7}] | stem:[1 \times 3\,365\,856 = 3\,365\,856]
+|===
+
+Somme alternée :
++
+....
+368 145 360 − 383 205 680 + 186 435 600 − 41 738 400 + 3 365 856 = 133 002 736
+....
+
+Nombre de mains *sans* Quantum (il manque au moins un des cinq rangs) : stem:[| \cup A_r | = 133\,002\,736].
+
+Nombre de mains *avec* Quantum Combi :
++
+....
+133 784 560 − 133 002 736 = 781 824
+....
+
+== Résultat
+
+[stem]
+++++
+P(\text{Quantum}) = \frac{781\,824}{133\,784\,560} \approx 0{,}00584 = 0{,}584\,\%
+++++
+
+Équivalent : *environ une fois sur 171* mains de 7 cartes (tirage uniforme parmi stem:[\binom{52}{7}]).
+
+[NOTE]
+====
+Une estimation parfois citée autour de *2,15 %* (≈ 1 sur 46) ne correspond *pas* à ce modèle « 7 cartes parmi 52 avec 4 exemplaires par rang ». Le calcul ci-dessus est *exact* pour cette hypothèse. L’équilibre de jeu (Full > Quantum > Flush) repose sur le classement voulu, pas sur un pourcentage arrondi arbitraire.
+====
+
+== Ordre de grandeur (autres mains, 7 cartes)
+
+Les fréquences des mains « classiques » sur 7 cartes (tables usuelles) donnent un *repère* : full house ~2,6 %, couleur ~3 %, suite ~4,6 %, brelan ~4,8 %, carré ~0,17 %, quinte flush ~0,028 % (ordres de grandeur littérature). Ici stem:[P(\text{Quantum}) \approx 0{,}59\,\%] : la main est *plus rare* qu’un full, qu’une couleur, qu’une suite ou qu’un brelan, et *beaucoup plus fréquente* qu’un carré ou une quinte flush. Le classement *Full > Quantum > Flush* respecte la hiérarchie « main plus rare = plus forte » entre ces trois catégories.
+
+== Références code
+
+* Évaluation serveur : `server/src/logic/Evaluator.ts`
+* Aide combinaisons (client) : `client/src/components/HandCombinationsHelpButton.tsx`

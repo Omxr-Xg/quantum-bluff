@@ -123,6 +123,18 @@ describe('CashGameController — startHand garde-fous', () => {
     expect(s.players).toHaveLength(2)
     expect(s.cashSeats).toBeDefined()
   })
+
+  test('runtime snapshot exposes hand end reason after fold-win', () => {
+    const c = make()
+    c.sit('u1', 'A', 0, 1000)
+    c.sit('u2', 'B', 1, 1000)
+    c.startHand()
+    const current = c.state.currentTurn
+    c.handlePlayerAction(current, 'FOLD')
+    const state = c.getSanitizedState('u1')
+    expect(state.phase).toBe('SHOWDOWN')
+    expect(state.handEndReason).toBe('WIN_BY_FOLD')
+  })
 })
 
 describe('CashGameController — matrice sièges multiples', () => {

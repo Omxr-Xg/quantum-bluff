@@ -3,6 +3,8 @@
 target/
 *.class
 .DS_Store
+.vite/
+.vite/deps/
 node_modules/
 .env
 dist/
@@ -18,3 +20,5 @@ server/junit.xml
 .cursor/**
 /Docs/SSH/
 temporaire/
+# Journaux de sauvegardes locales (cron / launchd)
+backups/*.log

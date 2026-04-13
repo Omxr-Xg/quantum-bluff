@@ -1,146 +1,181 @@
-import { Redis } from 'ioredis';
-import { GameTable } from '../logic/GameTable.js';
-import type { Card, GamePhase, Player } from '../types/poker.js';
+import { Redis } from 'ioredis'
+import { GameTable } from '../logic/GameTable.js'
+import { rootLogger } from '../observability/logger.js'
+import type { Card, GamePhase, Player } from '../types/poker.js'
+import { env } from './env.js'
 
 interface SerializedGameState {
-  pot: number;
-  communityCards: unknown[];
-  players: Omit<Player, 'cards'>[];
-  currentTurn: string;
-  phase: string;
+  pot: number
+  communityCards: unknown[]
+  players: Omit<Player, 'cards'>[]
+  currentTurn: string
+  phase: string
 }
 
-// Configuration Redis
-const redisOptions = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD || undefined,
-  retryStrategy: (times: number) => {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
-  }
-};
+const redisLiteClient = env.isJest || env.isCi
 
-const redisClient = process.env.REDIS_URL 
-  ? new Redis(process.env.REDIS_URL, { retryStrategy: redisOptions.retryStrategy })
-  : new Redis(redisOptions);
+const sharedRedisOptions = {
+  retryStrategy: (times: number) => Math.min(times * 50, 2000),
+  maxRetriesPerRequest: redisLiteClient ? 1 : 20,
+  connectTimeout: redisLiteClient ? 1000 : 5000,
+  username: env.redisUsername,
+  password: env.redisPassword,
+}
+
+const redisClient = env.redisUrl
+  ? new Redis(env.redisUrl, sharedRedisOptions)
+  : new Redis({
+      host: env.redisHost,
+      port: env.redisPort,
+      ...sharedRedisOptions,
+    })
 
 redisClient.on('connect', () => {
-  console.log('✅ Redis connecté');
-});
+  if (!env.isJest) {
+    rootLogger.info({ msg: 'redis_connected' })
+  }
+})
 
 redisClient.on('error', (err: Error) => {
-  console.error('❌ Erreur Redis:', err);
-});
+  if (redisLiteClient) {
+    if (err instanceof AggregateError) {
+      return
+    }
 
-/** Vérifie si Redis est opérationnel (pour fallback activeGames) */
+    const message = err?.message ?? String(err)
+
+    if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(message)) {
+      return
+    }
+  }
+
+  rootLogger.error({
+    msg: 'redis_client_error',
+    detail: err instanceof Error ? err.message : String(err),
+  })
+})
+
 export const isRedisHealthy = async (): Promise<boolean> => {
   try {
-    const pong = await redisClient.ping();
-    return pong === 'PONG';
+    const pong = await redisClient.ping()
+    return pong === 'PONG'
   } catch {
-    return false;
+    return false
   }
-};
+}
 
-// Préfixe pour les clés Redis
-const GAME_PREFIX = 'game:';
-// PLAYER_PREFIX supprimé car non utilisé
+const GAME_PREFIX = 'game:'
 
-// Fonctions de sérialisation/désérialisation
-export const serializeGame = (gameId: string, game: GameTable): string => {
-  const state = game.getState();
+export const serializeGame = (_gameId: string, game: GameTable): string => {
+  const state = game.getState()
+
   return JSON.stringify({
     id: game.id,
     state: {
       pot: state.pot,
       communityCards: state.communityCards,
-      players: state.players.map(p => ({
-        id: p.id,
-        name: p.name,
-        chips: p.chips,
-        currentBet: p.currentBet || 0,
-        position: p.position || 0,
-        role: p.role,
-        isActive: p.isActive,
-        isDealer: p.isDealer || false,
-        isConnected: p.isConnected !== false
+      players: state.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        chips: player.chips,
+        currentBet: player.currentBet || 0,
+        position: player.position || 0,
+        role: player.role,
+        isActive: player.isActive,
+        isDealer: player.isDealer || false,
+        isConnected: player.isConnected !== false,
       })),
       currentTurn: state.currentTurn,
-      phase: state.phase
-    }
-  });
-};
+      phase: state.phase,
+    },
+  })
+}
 
 export const deserializeGame = (gameId: string, data: string): GameTable | null => {
   try {
-    const parsed = JSON.parse(data) as { state: SerializedGameState };
-    const parsedState = parsed.state;
+    const parsed = JSON.parse(data) as { state: SerializedGameState }
+    const parsedState = parsed.state
 
-    const players: Player[] = parsedState.players.map((p) => ({
-      ...p,
-      cards: []
-    }));
+    const players: Player[] = parsedState.players.map((player) => ({
+      ...player,
+      cards: [],
+    }))
 
-    const game = new GameTable(gameId, players);
+    const game = new GameTable(gameId, players)
+
     game.state = {
       ...game.state,
       pot: parsedState.pot,
       communityCards: parsedState.communityCards as Card[],
       currentTurn: parsedState.currentTurn,
-      phase: parsedState.phase as GamePhase
-    };
-    return game;
+      phase: parsedState.phase as GamePhase,
+    }
+
+    return game
   } catch (err) {
-    console.error('Erreur désérialisation partie:', err);
-    return null;
+    rootLogger.error({
+      msg: 'redis_deserialize_game_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    })
+    return null
   }
-};
+}
 
-// Sauvegarder une partie
-export const saveGame = async (gameId: string, game: GameTable, ttl: number = 3600): Promise<void> => {
-  const key = `${GAME_PREFIX}${gameId}`;
-  const serialized = serializeGame(gameId, game);
-  await redisClient.setex(key, ttl, serialized);
-};
+export const saveGame = async (gameId: string, game: GameTable, ttl = 3600): Promise<void> => {
+  const key = `${GAME_PREFIX}${gameId}`
+  const serialized = serializeGame(gameId, game)
+  await redisClient.setex(key, ttl, serialized)
+}
 
-// Récupérer une partie
 export const getGame = async (gameId: string): Promise<GameTable | null> => {
-  const key = `${GAME_PREFIX}${gameId}`;
-  const data = await redisClient.get(key);
-  if (!data) return null;
-  return deserializeGame(gameId, data);
-};
+  const key = `${GAME_PREFIX}${gameId}`
+  const data = await redisClient.get(key)
 
-// Supprimer une partie
+  if (!data) {
+    return null
+  }
+
+  return deserializeGame(gameId, data)
+}
+
 export const deleteGame = async (gameId: string): Promise<void> => {
-  const key = `${GAME_PREFIX}${gameId}`;
-  await redisClient.del(key);
-};
+  const key = `${GAME_PREFIX}${gameId}`
+  await redisClient.del(key)
+}
 
-// Récupérer toutes les parties actives
 export const getAllGames = async (): Promise<Map<string, GameTable>> => {
-  const keys = await redisClient.keys(`${GAME_PREFIX}*`);
-  const games = new Map<string, GameTable>();
-  
+  const keys = await redisClient.keys(`${GAME_PREFIX}*`)
+  const games = new Map<string, GameTable>()
+
   for (const key of keys) {
-    const gameId = key.replace(GAME_PREFIX, '');
-    const data = await redisClient.get(key);
-    if (data) {
-      const game = deserializeGame(gameId, data);
-      if (game) games.set(gameId, game);
+    const gameId = key.replace(GAME_PREFIX, '')
+    const data = await redisClient.get(key)
+
+    if (!data) {
+      continue
+    }
+
+    const game = deserializeGame(gameId, data)
+    if (game) {
+      games.set(gameId, game)
     }
   }
-  
-  return games;
-};
 
-// Restaurer toutes les parties au démarrage
+  return games
+}
+
 export const restoreAllGames = async (): Promise<Map<string, GameTable>> => {
-  console.log('🔄 Restauration des parties en cours...');
-  const games = await getAllGames();
-  console.log(`✅ ${games.size} parties restaurées`);
-  return games;
-};
+  if (!env.isJest) {
+    rootLogger.info({ msg: 'redis_restore_games_start' })
+  }
 
-export default redisClient;
+  const games = await getAllGames()
+
+  if (!env.isJest) {
+    rootLogger.info({ msg: 'redis_restore_games_complete', count: games.size })
+  }
+
+  return games
+}
+
+export default redisClient

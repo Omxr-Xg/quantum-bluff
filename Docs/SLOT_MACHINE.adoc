@@ -1,0 +1,356 @@
+= Machine à sous (Quantum Bluff) — fonctionnement et statistiques
+:stem: latexmath
+:icons: font
+:toc: left
+:sectnums:
+:experimental:
+:idprefix:
+:idseparator: -
+
+Ce document décrit la logique *telle qu’implémentée* dans `server/src/logic/slotMachine.ts`, calcule les *probabilités* et le *retour théorique au joueur (RTP)*, puis relie cela aux *lois des grandes nombres* pour l’avantage casino / joueurs sur le long terme.
+
+[NOTE]
+====
+*Aperçu dans l’éditeur* : les blocs `[stem]` nécessitent un rendu AsciiDoctor avec extension math (ex. `asciidoctor -r asciidoctor-mathematical`, ou extension VS Code « AsciiDoc » avec STEM activé). Sous chaque formule importante, un bloc *Lecture directe* reprend la même relation en notation lisible partout.
+====
+
+== 1. Fonctionnement côté serveur
+
+. *Mise* : le client envoie `bet` ; le serveur valide (bornes, solde), *débite* la mise, puis calcule le résultat.
+. *Tirage* : trois symboles sont tirés *indépendamment* avec des *poids* (pas équiprobables). La fonction utilise `crypto.randomInt` (voir `pickSymbol` / `rollThreeReels`).
+. *Paiement* (`computeSlotWin`) :
+** *3 identiques* : versement total = `bet × multiplicateur` du symbole (table ci‑dessous).
+** *Exactement une paire* (2 identiques, le 3ᵉ différent) : versement = `bet × 1` (remboursement de la mise, gain net nul sur ce spin).
+** *Sinon* : versement = `0` (perte de la mise).
+
+Le solde est mis à jour par *débit de la mise* puis *crédit du versement* (équivalent à ajouter `winAmount − bet` au solde).
+
+=== Constantes (code)
+
+[cols="1,1,1",options="header"]
+|===
+| Symbole | Poids stem:[w_i] | Mult. brelan
+| cherry  | 32               | 5
+| lemon   | 24               | 8
+| bell    | 18               | 10
+| seven   | 14               | 15
+| diamond | 8                | 20
+|===
+
+Somme des poids :
+
+[stem]
+++++
+W = \sum_i w_i = 32 + 24 + 18 + 14 + 8 = 96
+++++
+
+[verse]
+----
+W = Σᵢ wᵢ = 32 + 24 + 18 + 14 + 8 = 96
+----
+
+Probabilité qu’un rouleau affiche le symbole stem:[i] :
+
+[stem]
+++++
+P(\text{rouleau} = i) = \frac{w_i}{W}
+++++
+
+[verse]
+----
+P(rouleau = i) = wᵢ / W
+----
+
+Les trois rouleaux étant *indépendants* :
+
+[stem]
+++++
+P(r_1=i,\, r_2=j,\, r_3=k) = \frac{w_i\, w_j\, w_k}{W^3}
+++++
+
+[verse]
+----
+P(r₁=i, r₂=j, r₃=k) = (wᵢ · wⱼ · wₖ) / W³
+----
+
+== 2. Probabilités d’un spin (événements)
+
+On note stem:[R_1,R_2,R_3] les trois symboles (i.i.d. avec la loi ci‑dessus).
+
+=== 2.1 Brelan (3 identiques)
+
+Pour un symbole stem:[s] fixé :
+
+[stem]
+++++
+P(\text{brelan } s) = \left(\frac{w_s}{W}\right)^3
+++++
+
+[verse]
+----
+P(brelan s) = (wₛ / W)³
+----
+
+[stem]
+++++
+P(\text{brelan quelconque}) = \sum_{s} \left(\frac{w_s}{W}\right)^3 = \frac{\sum_s w_s^3}{W^3}
+++++
+
+[verse]
+----
+P(brelan) = (Σₛ wₛ³) / W³
+----
+
+*Valeur numérique* (avec les poids actuels) :
+
+[stem]
+++++
+\sum_s w_s^3 = 32^3 + 24^3 + 18^3 + 14^3 + 8^3 = 55\,680,\quad W^3 = 96^3 = 884\,736
+++++
+
+[stem]
+++++
+P(\text{brelan}) = \frac{55\,680}{884\,736} \approx 6{,}29\,\%
+++++
+
+[verse]
+----
+Σ w³ = 55 680 ;  W³ = 884 736  →  P(brelan) = 55 680 / 884 736 ≈ 6,29 %
+----
+
+=== 2.2 Paire exacte (2 identiques, le troisième différent — pas un brelan)
+
+[stem]
+++++
+P(\text{paire avec } A \text{ doublé}) = 3 \cdot \frac{w_A^2\,(W - w_A)}{W^3}
+++++
+
+[verse]
+----
+P(paire, symbole A doublé) = 3 · wₐ² · (W − wₐ) / W³
+----
+
+En sommant sur stem:[A] :
+
+[stem]
+++++
+P(\text{paire}) = \sum_{A} \frac{3\, w_A^2\,(W - w_A)}{W^3}
+++++
+
+[verse]
+----
+P(paire) = Σₐ 3 · wₐ² · (W − wₐ) / W³
+----
+
+*Valeur numérique* :
+
+[stem]
+++++
+\sum_A 3 w_A^2 (W-w_A) = 461\,952,\quad P(\text{paire}) = \frac{461\,952}{884\,736} \approx 52{,}21\,\%
+++++
+
+[verse]
+----
+Σₐ 3 wₐ²(W−wₐ) = 461 952  →  P(paire) ≈ 52,21 %
+----
+
+=== 2.3 Perte (aucune paire)
+
+[stem]
+++++
+P(\text{perte}) = 1 - P(\text{brelan}) - P(\text{paire}) \approx 41{,}49\,\%
+++++
+
+[verse]
+----
+P(perte) = 1 − P(brelan) − P(paire) ≈ 41,49 %
+----
+
+_(Contrôle : les trois probabilités somment à 1.)_
+
+=== 2.4 Probabilités par type de brelan (optionnel)
+
+[stem]
+++++
+P(\text{3 cerises}) = \left(\frac{32}{96}\right)^3 = \frac{1}{27} \approx 3{,}70\,\%,\quad
+P(\text{3 diamants}) = \left(\frac{8}{96}\right)^3 = \frac{1}{1728} \approx 0{,}058\,\%
+++++
+
+[verse]
+----
+P(3 cerises) = (32/96)³ = 1/27 ≈ 3,70 %     P(3 diamants) = (8/96)³ ≈ 0,058 %
+----
+
+== 3. Espérance du versement et RTP (retour au joueur)
+
+Soit stem:[X] le *multiplicateur de versement* : stem:[X = \text{winAmount} / \text{bet}].
+
+* Si perte : stem:[X = 0].
+* Si paire : stem:[X = 1].
+* Si brelan sur stem:[s] : stem:[X = m_s].
+
+[stem]
+++++
+\mathbb{E}[X] = \sum_s P(\text{brelan } s)\cdot m_s + P(\text{paire})\cdot 1
+           = \frac{1}{W^3}\left(\sum_s m_s\, w_s^3\right) + P(\text{paire})
+++++
+
+[verse]
+----
+E[X] = Σₛ P(brelan s)·mₛ + P(paire)·1
+     = (Σₛ mₛ wₛ³) / W³ + P(paire)
+----
+
+Avec les multiplicateurs du code :
+
+[stem]
+++++
+\sum_s m_s\, w_s^3 = 5\cdot 32^3 + 8\cdot 24^3 + 10\cdot 18^3 + 15\cdot 14^3 + 20\cdot 8^3 = 384\,152
+++++
+
+[stem]
+++++
+\mathbb{E}[X] = \frac{384\,152 + 461\,952}{884\,736} = \frac{846\,104}{884\,736} \approx 0{,}9563
+++++
+
+[verse]
+----
+Σ mₛwₛ³ = 384 152 ;   E[X] = (384 152 + 461 952) / 884 736 = 846 104 / 884 736 ≈ 0,9563
+----
+
+*Interprétation* : en moyenne, pour *1 jeton misé*, le joueur récupère environ *0,956* jeton sous forme de versement machine.
+
+* *RTP* ≈ *95,63 %* du montant misé (en espérance).
+* *Avantage maison* :
+
+[stem]
+++++
+1 - \mathbb{E}[X] \approx 4{,}37\,\%
+++++
+
+[verse]
+----
+1 − E[X] ≈ 4,37 %   (avantage maison sur chaque mise, en espérance)
+----
+
+=== Gain net par spin (joueur)
+
+stem:[G = \text{winAmount} - \text{bet} = \text{bet}\,(X - 1)].
+
+[stem]
+++++
+\mathbb{E}[G] = \text{bet}\,(\mathbb{E}[X] - 1) \approx -0{,}0437 \times \text{bet}
+++++
+
+[verse]
+----
+E[G] = bet · (E[X] − 1) ≈ −0,0437 × bet
+----
+
+En moyenne, le joueur perd environ *4,37 %* de chaque mise sur un très grand nombre de spins identiques.
+
+== 4. Variance (dispersion)
+
+[stem]
+++++
+\mathrm{Var}(X) \approx 3{,}12,\qquad \sigma(X) \approx 1{,}77
+++++
+
+[verse]
+----
+Var(X) ≈ 3,12     écart-type σ(X) ≈ 1,77
+----
+
+Pour une mise fixe stem:[b] :
+
+[stem]
+++++
+\mathrm{Var}(G) = b^2\, \mathrm{Var}(X)
+++++
+
+[verse]
+----
+Var(G) = b² · Var(X)
+----
+
+Sur stem:[n] spins *indépendants* avec la même mise stem:[b] :
+
+[stem]
+++++
+\mathrm{Var}(G_1 + \cdots + G_n) = n\, b^2\, \mathrm{Var}(X)
+++++
+
+[verse]
+----
+Var(G₁ + … + Gₙ) = n · b² · Var(X)
+----
+
+== 5. Long terme : loi des grands nombres et limite centrale
+
+=== 5.1 Loi des grands nombres (LGN)
+
+[stem]
+++++
+\frac{G_1 + \cdots + G_n}{n} \xrightarrow[n\to\infty]{} \mathbb{E}[G] = b\,(\mathbb{E}[X]-1) < 0
+++++
+
+[verse]
+----
+(G₁ + … + Gₙ) / n  →  E[G] = b·(E[X]−1) < 0   (quand n → ∞, sous hypothèses usuelles)
+----
+
+*Conséquence* : sur un *très grand nombre* de parties à mise stem:[b] fixe, le gain net moyen par spin tend vers environ *−4,37 % × b*.
+
+Si stem:[M_n = \sum_{k=1}^n \text{bet}_k] est la *masse mise* totale (mise constante stem:[b] : stem:[M_n = n b]), le préjudice net cumulé *espéré* du joueur est environ stem:[0{,}0437\, M_n].
+
+=== 5.2 Théorème central limite (TCL)
+
+[stem]
+++++
+S_n = G_1 + \cdots + G_n \approx \mathcal{N}\bigl(n\,\mathbb{E}[G],\, n\,\mathrm{Var}(G)\bigr)
+++++
+
+[verse]
+----
+Sₙ = G₁+…+Gₙ ≈ loi normale N( n·E[G], n·Var(G) )   pour n grand
+----
+
+=== 5.3 Qui « gagne » à long terme ?
+
+* Avec RTP stem:[<] 100 %, l’*espérance* du solde du joueur *diminue* quand le nombre de spins augmente (sans autre source de jetons).
+* L’économie du jeu retient statistiquement la part stem:[1 - \mathbb{E}[X]] de chaque mise en espérance.
+
+Les planchers / plafonds et l’auto-spin *client* ne changent *pas* ces probabilités.
+
+== 6. Vérification empirique (optionnelle)
+
+On peut estimer stem:[\mathbb{E}[X]] par simulation Monte Carlo : la moyenne empirique doit se rapprocher de *≈ 0,9563*.
+
+Les tests dans `server/src/__tests__/slotMachine.test.ts` vérifient la paytable, pas le RTP global numérique.
+
+== 7. Synthèse des chiffres (configuration actuelle)
+
+[cols="2,1",options="header"]
+|===
+| Grandeur | Valeur (approx.)
+| stem:[P(\mathrm{brelan})] | 6,29 %
+| stem:[P(\mathrm{paire})] | 52,21 %
+| stem:[P(\mathrm{perte})] | 41,49 %
+| stem:[\mathbb{E}[X]] (RTP / mise) | 0,9563 (95,63 %)
+| Avantage maison sur la mise | 4,37 %
+|===
+
+_Lecture directe du tableau_ : P(brelan) ≈ 6,29 % ; P(paire) ≈ 52,21 % ; P(perte) ≈ 41,49 % ; E[X] ≈ 0,9563 ; avantage maison ≈ 4,37 %.
+
+_Toute modification des poids stem:[w_i] ou des multiplicateurs stem:[m_i] dans `slotMachine.ts` invalide ces nombres : recalculer avec les formules ci‑dessus._
+
+== Rendu des formules (développeurs)
+
+Pour générer HTML ou PDF avec formules LaTeX correctement rendues :
+
+....
+# Exemple (nécessite Ruby + asciidoctor-mathematical ou équivalent)
+asciidoctor -r asciidoctor-mathematical -a stem=latexmath Docs/SLOT_MACHINE.adoc
+....
+
+Sans extension, les blocs `[stem]` peuvent apparaître en source LaTeX ; les blocs *Lecture directe* (`[verse]`) restent lisibles partout.

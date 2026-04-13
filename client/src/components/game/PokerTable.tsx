@@ -7,18 +7,6 @@ import { Clock } from "lucide-react";
 import { useDeviceType } from "../ui/use-mobile";
 import { calculatePlayerPositions } from "../../utils/tablePositions";
 
-// Constantes (gardées)
-// const SUITS = {
-//   hearts: "♥",
-//   diamonds: "♦",
-//   clubs: "♣",
-//   spades: "♠",
-// };
-
-// Fonctions inutilisées - on les supprime
-// const getSuitSymbol = ... (supprimé)
-// const getSuitColor = ... (supprimé)
-
 const getPlayerCountryCode = (playerId: number): string => {
   const countryCodes = ["us", "gb", "ca", "de", "fr", "es", "it", "nl", "au", "br", "mx", "at"];
   return countryCodes[playerId % countryCodes.length];
@@ -37,16 +25,18 @@ interface Player {
   position: number;
   isActive: boolean;
   isDealer?: boolean;
-  cards?: Card[]; 
-  isConnected?: boolean; 
+  cards?: Card[];
+  isConnected?: boolean;
+  avatar?: string;
 }
 
 interface PokerTableProps {
   players: Player[];
   children?: ReactNode;
+  heroSeatId?: string | number | null;
 }
 
-export function PokerTable({ players, children }: PokerTableProps) {
+export function PokerTable({ players, children, heroSeatId = null }: PokerTableProps) {
   const { t } = useTranslation();
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
@@ -55,68 +45,78 @@ export function PokerTable({ players, children }: PokerTableProps) {
   const allPositions = calculatePlayerPositions(players.length > 0 ? players.length : 1, isMobile, isTablet);
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center" style={{ perspective: isMobile ? '800px' : isTablet ? '1000px' : '1200px' }}>
-      {/* Poker table with 3D effect */}
-      <div className="relative" style={{ transformStyle: 'preserve-3d' }}>
-        
-        {/* 1. Table base */}
-        <div 
-          className={`absolute ${isMobile ? 'w-[320px] h-[180px]' : isTablet ? 'w-[650px] h-[300px]' : 'w-[950px] h-[420px]'} rounded-full`}
-          style={{
-            background: '#0a0a0a',
-            transform: `rotateX(${isMobile ? '20deg' : isTablet ? '22deg' : '25deg'}) translateZ(-${isMobile ? '20px' : isTablet ? '30px' : '40px'})`,
-            boxShadow: isMobile 
-              ? '0 20px 40px -10px rgba(0, 0, 0, 0.9)' 
-              : '0 45px 80px -15px rgba(0, 0, 0, 0.95)',
-            zIndex: 1
-          }}
-        />
-
-        {/* 2. Outer leather cushion */}
-        <div 
-          className={`${isMobile ? 'w-[320px] h-[180px]' : isTablet ? 'w-[650px] h-[300px]' : 'w-[950px] h-[420px]'} rounded-full relative`}
-          style={{
-            background: 'linear-gradient(180deg, #2c2f33 0%, #111214 100%)',
-            transform: `rotateX(${isMobile ? '20deg' : isTablet ? '22deg' : '25deg'})`,
-            boxShadow: 'inset 0 4px 6px rgba(255,255,255,0.1), 0 10px 20px rgba(0,0,0,0.5)',
-            zIndex: 2
-          }}
+    <div className="w-full h-full flex items-center justify-center overflow-hidden">
+    
+      {/* SCALE WRAPPER */}
+      <div className={`${isMobile ? 'scale-[0.75]' : isTablet ? 'scale-[0.85]' : 'scale-100'} origin-top`}>
+      
+        <div
+          className="relative w-full h-full flex items-center justify-center"
+          style={{ perspective: isMobile ? '800px' : isTablet ? '1000px' : '1200px' }}
         >
-          {/* 3. Copper trim */}
-          <div 
-            className="absolute rounded-full"
-            style={{
-              inset: isMobile ? '12px' : isTablet ? '22px' : '30px',
-              background: 'linear-gradient(180deg, #d39364 0%, #7d441c 100%)',
-              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.8)'
-            }}
-          >
-            {/* 4. Green felt */}
+          {/* Poker table with 3D effect */}
+          <div className="relative" style={{ transformStyle: 'preserve-3d' }}>
+            
+            {/* 1. Table base */}
             <div 
-              className="absolute rounded-full overflow-hidden"
+              className={`absolute ${isMobile ? 'w-[320px] h-[180px]' : isTablet ? 'w-[650px] h-[300px]' : 'w-[950px] h-[420px]'} rounded-full`}
               style={{
-                inset: isMobile ? '3px' : isTablet ? '6px' : '8px',
-                background: 'radial-gradient(ellipse at center, #1b8c47 0%, #0b4522 100%)',
-                boxShadow: 'inset 0 6px 15px rgba(0,0,0,0.7)'
+                background: '#0a0a0a',
+                transform: `rotateX(${isMobile ? '20deg' : isTablet ? '22deg' : '25deg'}) translateZ(-${isMobile ? '20px' : isTablet ? '30px' : '40px'})`,
+                boxShadow: isMobile 
+                  ? '0 20px 40px -10px rgba(0, 0, 0, 0.9)' 
+                  : '0 45px 80px -15px rgba(0, 0, 0, 0.95)',
+                zIndex: 1
+              }}
+            />
+
+            {/* 2. Outer leather cushion */}
+            <div 
+              className={`${isMobile ? 'w-[320px] h-[180px]' : isTablet ? 'w-[650px] h-[300px]' : 'w-[950px] h-[420px]'} rounded-full relative`}
+              style={{
+                background: 'linear-gradient(180deg, #2c2f33 0%, #111214 100%)',
+                transform: `rotateX(${isMobile ? '20deg' : isTablet ? '22deg' : '25deg'})`,
+                boxShadow: 'inset 0 4px 6px rgba(255,255,255,0.1), 0 10px 20px rgba(0,0,0,0.5)',
+                zIndex: 2
               }}
             >
+              {/* 3. Copper trim */}
               <div 
-                className="absolute rounded-full border-[1.5px] border-white/20" 
-                style={{ inset: isMobile ? '15px' : isTablet ? '30px' : '45px' }}
-              />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_60%)] pointer-events-none" />
-
-              {/* Community cards */}
-              <div 
-                className={`absolute ${isMobile ? 'top-8' : isTablet ? 'top-12' : 'top-16'} left-1/2 -translate-x-1/2 w-full flex justify-center`} 
-                style={{ zIndex: 5 }}
+                className="absolute rounded-full"
+                style={{
+                  inset: isMobile ? '12px' : isTablet ? '22px' : '30px',
+                  background: 'linear-gradient(180deg, #d39364 0%, #7d441c 100%)',
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.8)'
+                }}
               >
-                {children}
+                {/* 4. Green felt */}
+                <div 
+                  className="absolute rounded-full overflow-hidden"
+                  style={{
+                    inset: isMobile ? '3px' : isTablet ? '6px' : '8px',
+                    background: 'radial-gradient(ellipse at center, #1b8c47 0%, #0b4522 100%)',
+                    boxShadow: 'inset 0 6px 15px rgba(0,0,0,0.7)'
+                  }}
+                >
+                  <div 
+                    className="absolute rounded-full border-[1.5px] border-white/20" 
+                    style={{ inset: isMobile ? '15px' : isTablet ? '30px' : '45px' }}
+                  />
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_60%)] pointer-events-none" />
+
+                  {/* Community cards */}
+                  <div 
+                    className={`absolute ${isMobile ? 'top-10' : isTablet ? 'top-12' : 'top-16'} left-1/2 -translate-x-1/2 w-full flex justify-center`} 
+                    style={{ zIndex: 5 }}
+                  >
+                    {children}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+          </div> {/* preserve-3d */}
+        </div> {/* perspective container */}
+      </div> {/* scale wrapper */}
 
       {/* Players around the table */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 50 }}>
@@ -125,8 +125,8 @@ export function PokerTable({ players, children }: PokerTableProps) {
         {players.map((player) => {
           if (player.bet <= 0) return null;
           
-          const betEllipseRadiusX = isMobile ? 100 : isTablet ? 190 : 280;
-          const betEllipseRadiusY = isMobile ? 50 : isTablet ? 90 : 130;
+          const betEllipseRadiusX = isMobile ? 80 : isTablet ? 190 : 280;
+          const betEllipseRadiusY = isMobile ? 40 : isTablet ? 90 : 130;
           
           const startAngle = Math.PI / 2; 
           const angleStep = (2 * Math.PI) / players.length;
@@ -189,9 +189,9 @@ export function PokerTable({ players, children }: PokerTableProps) {
                     } rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-xl transition-all ${
                       player.isActive ? "border-2 border-yellow-300 scale-105" : "border-2 border-white"
                     }`}>
-                      {getPlayerAvatar(player.name) ? (
+                      {getPlayerAvatar(player.name, player.id, heroSeatId, player.avatar) ? (
                         <ImageWithFallback
-                          src={getPlayerAvatar(player.name) || ''}
+                          src={getPlayerAvatar(player.name, player.id, heroSeatId, player.avatar) || ''}
                           alt={`${player.name}'s avatar`}
                           className="w-full h-full rounded-full object-cover"
                         />
@@ -217,10 +217,6 @@ export function PokerTable({ players, children }: PokerTableProps) {
                       </div>
                     )}
                   </div>
-
-                  {/* Player info - name and chips would go here */}
-                  {/* You can add the player name and chips display here */}
-                  
                 </div>
               </div>
             </div>

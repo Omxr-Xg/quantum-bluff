@@ -1,0 +1,15 @@
+= Documentation probabiliste des jeux (Quantum Bluff)
+
+== Jeux couverts
+* link:BLACKJACK.adoc[Blackjack]
+* link:ROULETTE.adoc[Roulette européenne]
+* link:SLOT_MACHINE.adoc[Machine à sous]
+
+== Poker (Texas Hold’em)
+* link:QUANTUM_COMBI.adoc[Quantum Combi — définition et probabilité]
+
+== Où sont les règles ?
+* Blackjack : `server/src/logic/blackjack.ts`
+* Roulette : `server/src/logic/roulette.ts`
+* Slot : `server/src/logic/slotMachine.ts`
+

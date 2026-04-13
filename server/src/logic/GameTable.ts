@@ -1,7 +1,7 @@
 import type { Card, GamePhase, GameState, Player } from '../types/poker.js'
 import { Deck } from './Deck.js'
-import { findWinnersWithHand } from './Evaluator.js'
 import { intChips } from '../utils/chips.js'
+import { settlePots } from './poker/potSettlement.js'
 
 type PlayerAction = 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
 
@@ -18,8 +18,25 @@ export class GameTable {
   private handStarted: boolean
   private readonly smallBlindAmount: number
   private readonly bigBlindAmount: number
+  private minRaiseIncrement: number
+  private handParticipantIds: Set<string>
+  private readonly liveBetWindowMs: number
+  /** Si true, pas de pause paris live (tests / outils). */
+  private readonly liveBetWindowDisabled: boolean
+  /** Premier joueur à agir après fermeture fenêtre paris live (entre streets). */
+  private pendingFirstToActAfterLiveWindow: string | null = null
 
-  constructor(id: string, players: Player[], options?: { smallBlind?: number; bigBlind?: number }) {
+  constructor(
+    id: string,
+    players: Player[],
+    options?: {
+      smallBlind?: number
+      bigBlind?: number
+      liveBetWindowMs?: number
+      /** Désactive les fenêtres gelées (comportement historique immédiat). */
+      liveBetWindowDisabled?: boolean
+    }
+  ) {
     this.id = id
     this.deck = new Deck()
     this.dealerIndex = 0
@@ -29,6 +46,10 @@ export class GameTable {
     this.handStarted = false
     this.smallBlindAmount = intChips(options?.smallBlind ?? 10)
     this.bigBlindAmount = intChips(options?.bigBlind ?? 20)
+    this.minRaiseIncrement = this.bigBlindAmount
+    this.handParticipantIds = new Set()
+    this.liveBetWindowMs = typeof options?.liveBetWindowMs === 'number' && options.liveBetWindowMs >= 1000 ? options.liveBetWindowMs : 5000
+    this.liveBetWindowDisabled = options?.liveBetWindowDisabled === true
 
     this.state = {
       id,
@@ -36,7 +57,13 @@ export class GameTable {
       communityCards: [],
       players,
       currentTurn: players[0]?.id || '',
-      phase: 'PREFLOP'
+      phase: 'PREFLOP',
+      handId: '',
+      actionVersion: 0,
+      streetVersion: 0,
+      updatedAt: new Date().toISOString(),
+      handParticipantIds: [],
+      handRuntimePhase: 'HAND_IN_PROGRESS',
     }
 
     this.normalizePlayers()
@@ -59,9 +86,47 @@ export class GameTable {
   }
 
   private getActivePlayers(): Player[] {
+    if (this.handStarted && this.handParticipantIds.size > 0) {
+      return this.getNonFoldedParticipants().filter(
+        (player) => player.isConnected !== false
+      )
+    }
     return this.state.players.filter(
       (player) => player.isActive && player.isConnected !== false
     )
+  }
+
+  private isHeadsUp(): boolean {
+    return this.handParticipantIds.size === 2
+  }
+
+  private getHandParticipants(): Player[] {
+    return this.state.players.filter((player) =>
+      this.handParticipantIds.has(player.id)
+    )
+  }
+
+  private getNonFoldedParticipants(): Player[] {
+    return this.getHandParticipants().filter((player) => player.isActive)
+  }
+
+  private getShowdownEligiblePlayers(): Player[] {
+    return this.getNonFoldedParticipants()
+  }
+
+  private computeHandEndReason():
+    | 'WIN_BY_FOLD'
+    | 'SHOWDOWN'
+    | 'ALL_IN_RUNOUT'
+    | null {
+    const nonFoldedCount = this.getNonFoldedParticipants().length
+    if (nonFoldedCount === 1) return 'WIN_BY_FOLD'
+    if (this.getShowdownEligiblePlayers().length > 1) return 'SHOWDOWN'
+    return null
+  }
+
+  private canCloseCurrentBettingRound(): boolean {
+    return this.isBettingRoundComplete()
   }
 
   private getPlayerIndexById(playerId: string): number {
@@ -77,7 +142,7 @@ export class GameTable {
       index = (index + 1) % this.state.players.length
       const player = this.state.players[index]
 
-      if (player.isActive && player.isConnected !== false) {
+      if (player.isActive && player.isConnected !== false && player.chips > 0) {
         return index
       }
     }
@@ -122,7 +187,7 @@ export class GameTable {
     const dealer = this.state.players[this.dealerIndex]
     dealer.isDealer = true
 
-    if (this.state.players.length === 2) {
+    if (this.isHeadsUp()) {
       dealer.role = 'SMALL_BLIND'
 
       const bigBlindIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
@@ -171,7 +236,7 @@ export class GameTable {
   }
 
   private getPreflopFirstPlayerId(): string {
-    if (this.state.players.length === 2) {
+    if (this.isHeadsUp()) {
       return this.state.players[this.dealerIndex]?.id || ''
     }
 
@@ -188,10 +253,10 @@ export class GameTable {
   }
 
   private getPostflopFirstPlayerId(): string {
-    if (this.state.players.length === 2) {
-      const dealer = this.state.players[this.dealerIndex]
-      if (dealer?.isActive && dealer?.isConnected !== false) {
-        return dealer.id
+    if (this.isHeadsUp()) {
+      const nonDealerIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
+      if (nonDealerIndex !== -1) {
+        return this.state.players[nonDealerIndex].id
       }
     }
     const firstIndex = this.getNextEligiblePlayerIndex(this.dealerIndex)
@@ -203,7 +268,9 @@ export class GameTable {
   private resetBetsForNewRound(): void {
     this.highestBet = 0
     this.lastRaiserId = null
+    this.minRaiseIncrement = this.bigBlindAmount
     this.actedPlayerIds.clear()
+    this.state.streetVersion = (this.state.streetVersion ?? 0) + 1
 
     for (const player of this.state.players) {
       player.currentBet = 0
@@ -212,24 +279,25 @@ export class GameTable {
   }
 
   private isBettingRoundComplete(): boolean {
-    const activePlayers = this.getActivePlayers()
+    const activePlayers = this.getNonFoldedParticipants()
 
     if (activePlayers.length <= 1) {
       return true
     }
 
     // All-in players (chips === 0) have no more actions; others must have acted and matched highestBet
-    return activePlayers.every((player) => {
+    const isComplete = activePlayers.every((player) => {
       if (player.chips === 0) return true // all-in: no action needed
       return (
         this.actedPlayerIds.has(player.id) &&
         (player.currentBet || 0) === this.highestBet
       )
     })
+    return isComplete
   }
 
   private awardPotToSingleRemainingPlayer(): void {
-    const activePlayers = this.getActivePlayers()
+    const activePlayers = this.getNonFoldedParticipants()
 
     if (activePlayers.length !== 1) return
 
@@ -243,7 +311,10 @@ export class GameTable {
 
     this.state.pot = 0
     this.state.phase = 'SHOWDOWN'
+    this.state.handEndReason = this.computeHandEndReason() ?? 'WIN_BY_FOLD'
+    this.state.handRuntimePhase = 'HAND_COMPLETE'
     this.state.currentTurn = ''
+    this.sweepBustedPlayers()
   }
 
   /**
@@ -271,6 +342,48 @@ export class GameTable {
     if (this.getActivePlayers().length === 1) {
       this.awardPotToSingleRemainingPlayer()
     }
+  }
+
+  /**
+   * Fold forcé à la sortie volontaire (quit) : même effet qu'un FOLD, même hors de son tour.
+   */
+  forceFoldQuit(playerId: string): void {
+    const player = this.getPlayerState(playerId)
+    if (!player) {
+      throw new Error('Joueur introuvable')
+    }
+    if (!this.handStarted) {
+      throw new Error('La main n’a pas commencé')
+    }
+    if (!this.handParticipantIds.has(playerId)) {
+      throw new Error('Joueur non participant sur cette main')
+    }
+    if (!player.isActive) {
+      return
+    }
+
+    const streetForLog = this.state.phase
+    const wasTheirTurn = this.state.currentTurn === playerId
+
+    player.isActive = false
+    this.actedPlayerIds.add(player.id)
+
+    if (this.getActivePlayers().length === 1) {
+      this.awardPotToSingleRemainingPlayer()
+      this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
+      return
+    }
+
+    if (this.canCloseCurrentBettingRound()) {
+      this.moveToNextPhase()
+      this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
+      return
+    }
+
+    if (wasTheirTurn) {
+      this.advanceTurn()
+    }
+    this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
   }
 
   /**
@@ -307,7 +420,23 @@ export class GameTable {
    * Passe à la phase suivante.
    * @param lastActorId - Si fourni, le premier à jouer sur la nouvelle rue est le joueur APRÈS lastActorId (évite qu'un joueur joue deux fois de suite)
    */
-  private moveToNextPhase(lastActorId?: string): void {
+  private moveToNextPhase(): void {
+    console.log('[POKER][PHASE] moveToNextPhase_called', {
+  gameId: this.id,
+  fromPhase: this.state.phase,
+  handId: this.state.handId,
+  currentTurn: this.state.currentTurn,
+  pot: this.state.pot,
+  actionVersion: this.state.actionVersion,
+  streetVersion: this.state.streetVersion,
+})
+    // Guardrail: if only one participant remains, always end by fold.
+    const handEndReason = this.computeHandEndReason()
+    if (handEndReason === 'WIN_BY_FOLD') {
+      this.awardPotToSingleRemainingPlayer()
+      return
+    }
+
     const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
     const currentIndex = phaseOrder.indexOf(this.state.phase)
 
@@ -317,51 +446,102 @@ export class GameTable {
 
     // Remboursement immédiat des mises non appelées avant de passer à la rue suivante
     this.processUncalledBetsRefund()
+    this.state.handRuntimePhase = 'BETTING_ROUND_CLOSED'
 
     const nextPhase = phaseOrder[currentIndex + 1]
     this.state.phase = nextPhase
 
-    const firstToActId = this.getFirstToActOnNewStreet(lastActorId)
+    const firstToActId = this.getFirstToActOnNewStreet()
 
     if (nextPhase === 'FLOP') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(...this.deck.dealFlop())
-      this.state.currentTurn = firstToActId
+      console.log('[POKER][PHASE] flop_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: this.state.currentTurn,
+})
       this.runOutBoardIfAllIn()
+      if (this.state.phase === 'SHOWDOWN') return
+      // LIVE bets are open at any moment during this street; no "frozen window" pause.
+      this.state.hiddenBetLiveWindow = undefined
+      this.state.currentTurn = firstToActId
+      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       return
     }
 
     if (nextPhase === 'TURN') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealTurn())
-      this.state.currentTurn = firstToActId
+      console.log('[POKER][PHASE] turn_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: this.state.currentTurn,
+})
       this.runOutBoardIfAllIn()
+      if (this.state.phase === 'SHOWDOWN') return
+      this.state.hiddenBetLiveWindow = undefined
+      this.state.currentTurn = firstToActId
+      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       return
     }
 
     if (nextPhase === 'RIVER') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealRiver())
-      this.state.currentTurn = firstToActId
+      console.log('[POKER][PHASE] river_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: this.state.currentTurn,
+})
       this.runOutBoardIfAllIn()
+      if (this.state.phase === 'SHOWDOWN') return
+      this.state.hiddenBetLiveWindow = undefined
+      this.state.currentTurn = firstToActId
+      this.state.handRuntimePhase = 'BETTING_ACTIVE'
       return
     }
 
-    this.resolveShowdown()
-    this.state.currentTurn = ''
+    if ((this.computeHandEndReason() ?? null) === 'SHOWDOWN') {
+      this.state.handRuntimePhase = 'SHOWDOWN_PENDING'
+      this.resolveShowdown()
+      this.state.currentTurn = ''
+      return
+    }
+
+    // Defensive fallback for inconsistent states.
+    this.awardPotToSingleRemainingPlayer()
   }
 
-  /** Premier à jouer sur une nouvelle rue : après lastActorId si fourni, sinon dealer/postflop standard */
-  private getFirstToActOnNewStreet(lastActorId?: string): string {
-    if (lastActorId) {
-      const lastIndex = this.getPlayerIndexById(lastActorId)
-      if (lastIndex !== -1) {
-        const nextIndex = this.getNextEligiblePlayerIndex(lastIndex)
-        if (nextIndex !== -1) {
-          return this.state.players[nextIndex].id
-        }
-      }
-    }
+  private beginLiveBetWindow(
+    windowType: 'LIVE_FLOP' | 'LIVE_TURN' | 'LIVE_RIVER',
+    firstToActId: string
+  ): void {
+    this.pendingFirstToActAfterLiveWindow = firstToActId
+    const closesAt = Date.now() + this.liveBetWindowMs
+    this.state.hiddenBetLiveWindow = { windowType, closesAt }
+    this.state.currentTurn = ''
+    this.state.handRuntimePhase = 'LIVE_BET_WINDOW'
+  }
+
+  /** Fermeture timer fenêtre paris live — reprend le tour d’enchères. */
+  resumeAfterHiddenBetLiveWindow(): void {
+    if (!this.state.hiddenBetLiveWindow) return
+    this.state.hiddenBetLiveWindow = undefined
+    const first = this.pendingFirstToActAfterLiveWindow ?? this.getFirstToActOnNewStreet()
+    this.pendingFirstToActAfterLiveWindow = null
+    this.state.currentTurn = first
+    this.state.handRuntimePhase = 'BETTING_ACTIVE'
+  }
+
+  /** Premier à jouer sur une nouvelle rue : ordre poker postflop standard. */
+  private getFirstToActOnNewStreet(): string {
     return this.getPostflopFirstPlayerId()
   }
 
@@ -370,11 +550,12 @@ export class GameTable {
    * deal all remaining community cards and go straight to showdown (no more betting).
    */
   private runOutBoardIfAllIn(): void {
-    const activePlayers = this.getActivePlayers()
-    const hasAllIn = activePlayers.some((p) => p.chips === 0)
+    const activePlayers = this.getNonFoldedParticipants()
+    const actingPlayers = activePlayers.filter((p) => p.chips > 0)
+    const hasNoMoreBetting = actingPlayers.length <= 1
     const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
     const currentPhase: GamePhase = this.state.phase
-    if (!hasAllIn || currentPhase === 'SHOWDOWN') return
+    if (!hasNoMoreBetting || currentPhase === 'SHOWDOWN') return
 
     const currentIndex = phaseOrder.indexOf(currentPhase)
     if (currentIndex === -1 || currentIndex >= phaseOrder.length - 1) return
@@ -388,10 +569,31 @@ export class GameTable {
       if (nextPhase === 'FLOP') {
         this.resetBetsForNewRound()
         this.state.communityCards.push(...this.deck.dealFlop())
+        console.log('[POKER][PHASE] flop_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: this.state.currentTurn,
+})
       } else if (nextPhase === 'TURN') {
         this.state.communityCards.push(this.deck.dealTurn())
+        console.log('[POKER][PHASE] turn_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: this.state.currentTurn,
+})
       } else if (nextPhase === 'RIVER') {
         this.state.communityCards.push(this.deck.dealRiver())
+        console.log('[POKER][PHASE] river_generated', {
+  gameId: this.id,
+  handId: this.state.handId,
+  phase: this.state.phase,
+  communityCards: this.state.communityCards,
+  currentTurn: this.state.currentTurn,
+})
       }
 
       this.state.phase = nextPhase
@@ -399,6 +601,8 @@ export class GameTable {
     }
 
     this.state.currentTurn = ''
+    this.state.handEndReason = 'ALL_IN_RUNOUT'
+    this.state.handRuntimePhase = 'SHOWDOWN_PENDING'
     this.resolveShowdown()
   }
 
@@ -465,13 +669,28 @@ export class GameTable {
    * Vigilance : le bouton ne tourne qu'à la fin complète d'une main, au tout début de la suivante.
    * L'affichage du jeton "D" (isDealer) est dérivé de dealerIndex via assignPositionsAndRoles.
    */
-  startHand(forcedHoleCards?: Record<string, Card[]>): void {
+  startHand(
+    forcedHoleCards?: Record<string, Card[]>,
+    opts?: { forcedBigBlindUserId?: string; handId?: string }
+  ): void {
     if (this.getConnectedPlayers().length < 2) {
       throw new Error('Il faut au moins 2 joueurs pour démarrer')
     }
 
     if (this.handStarted) {
       this.dealerIndex = this.getNextLivingPlayerIndex(this.dealerIndex)
+    }
+
+    if (opts?.forcedBigBlindUserId) {
+      const bbIdx = this.state.players.findIndex((p) => p.id === opts.forcedBigBlindUserId)
+      if (bbIdx >= 0) {
+        const n = this.state.players.length
+        if (n === 2) {
+          this.dealerIndex = (bbIdx + 1) % 2
+        } else if (n > 2) {
+          this.dealerIndex = (bbIdx - 2 + n) % n
+        }
+      }
     }
 
     this.handStarted = true
@@ -491,6 +710,8 @@ export class GameTable {
       player.isDealer = false
       player.role = 'PLAYER'
     }
+
+    this.handParticipantIds.clear()
 
     if (forcedHoleCards && Object.keys(forcedHoleCards).length > 0) {
       const allForced: Card[] = []
@@ -515,19 +736,62 @@ export class GameTable {
           const c2 = this.deck.draw(1)[0]
           player.cards = [c1, c2]
         }
+        if (player.isActive && player.isConnected !== false) {
+          this.handParticipantIds.add(player.id)
+        }
       }
     } else {
-      this.deck.dealInitialCards(this.state.players)
+      const eligiblePlayers = this.state.players.filter(
+        (player) => player.isActive && player.isConnected !== false
+      )
+      for (const player of eligiblePlayers) {
+        this.handParticipantIds.add(player.id)
+      }
+      this.deck.dealInitialCards(eligiblePlayers)
+    }
+
+    if (this.handParticipantIds.size === 0) {
+      for (const player of this.state.players) {
+        if (player.isActive && player.isConnected !== false) {
+          this.handParticipantIds.add(player.id)
+        }
+      }
     }
 
     this.setBlinds()
     this.state.currentTurn = this.getPreflopFirstPlayerId()
+    this.state.handId = opts?.handId ?? `${this.id}:${Date.now()}`
+    this.state.lastHandAction = undefined
+    this.state.handParticipantIds = Array.from(this.handParticipantIds)
+    this.state.handEndReason = undefined
+    this.state.handRuntimePhase = 'BETTING_ACTIVE'
+    console.log('[POKER][HAND] started', {
+  gameId: this.id,
+  handId: this.state.handId,
+  dealerIndex: this.dealerIndex,
+  currentTurn: this.state.currentTurn,
+  phase: this.state.phase,
+  players: this.state.players.map((p) => ({
+    id: p.id,
+    name: p.name,
+    chips: p.chips,
+    currentBet: p.currentBet,
+    role: p.role,
+    isDealer: p.isDealer,
+    isActive: p.isActive,
+    isConnected: p.isConnected,
+  })),
+})
+    this.bumpVersion()
   }
 
   addPlayer(player: Player): void {
     player.cards = Array.isArray(player.cards) ? player.cards : []
     player.currentBet = 0
-    player.isActive = player.isActive ?? true
+    player.isActive =
+      this.handStarted && this.state.phase !== 'SHOWDOWN'
+        ? false
+        : (player.isActive ?? true)
     player.position = this.state.players.length
     player.isDealer = false
     player.isConnected = player.isConnected ?? true
@@ -575,14 +839,21 @@ export class GameTable {
     return this.state.players.find((player) => player.id === playerId)
   }
 
-  /** Relance minimum = big blind (pour validation gateway) */
+  /** Relance minimum dynamique (last raise increment, floor = big blind). */
   getMinRaise(): number {
-    return this.bigBlindAmount
+    return Math.max(this.bigBlindAmount, this.minRaiseIncrement)
   }
 
   canPlayerAct(playerId: string): boolean {
     const player = this.getPlayerState(playerId)
-    return !!player && player.isActive && this.state.currentTurn === playerId
+    return (
+      !!player &&
+      this.handParticipantIds.has(playerId) &&
+      player.isActive &&
+      player.isConnected !== false &&
+      player.chips > 0 &&
+      this.state.currentTurn === playerId
+    )
   }
 
   calculateBet(playerId: string, amount: number): number {
@@ -616,12 +887,28 @@ export class GameTable {
   ): void {
     const player = this.getPlayerState(playerId)
 
+    console.log('[POKER][ACTION] handlePlayerAction_called', {
+  gameId: this.id,
+  handId: this.state.handId,
+  playerId,
+  action,
+  amount,
+  phase: this.state.phase,
+  currentTurn: this.state.currentTurn,
+  highestBet: this.highestBet,
+  pot: this.state.pot,
+})
+
     if (!player) {
       throw new Error('Joueur introuvable')
     }
 
     if (!this.handStarted) {
       throw new Error('La main n’a pas commencé')
+    }
+
+    if (!this.handParticipantIds.has(playerId)) {
+      throw new Error('Joueur non participant sur cette main')
     }
 
     if (this.state.phase === 'SHOWDOWN') {
@@ -642,6 +929,8 @@ export class GameTable {
       throw new Error('Impossible de check, une mise est à suivre')
     }
 
+    const streetForLog = this.state.phase
+
     if (action === 'CALL' && callAmount <= 0) {
       throw new Error('Rien à suivre')
     }
@@ -657,14 +946,17 @@ export class GameTable {
 
       amount = intChips(amount)
 
-      if (amount < this.bigBlindAmount) {
-        throw new Error(`La relance minimum est de ${this.bigBlindAmount}`)
-      }
-
       const totalToPut = callAmount + amount
+      const minRaise = this.getMinRaise()
+      const isAllIn = totalToPut === player.chips
+      const isShortAllInRaise = amount < minRaise && isAllIn
 
       if (totalToPut > player.chips) {
         throw new Error('Pas assez de jetons pour relancer')
+      }
+
+      if (amount < minRaise && !isShortAllInRaise) {
+        throw new Error(`La relance minimum est de ${minRaise}`)
       }
     }
 
@@ -674,27 +966,32 @@ export class GameTable {
 
       if (this.getActivePlayers().length === 1) {
         this.awardPotToSingleRemainingPlayer()
+        this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
         return
       }
 
-      if (this.isBettingRoundComplete()) {
-        this.moveToNextPhase(player.id) // premier à jouer = suivant du folder
+      if (this.canCloseCurrentBettingRound()) {
+        this.moveToNextPhase()
+        this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
         return
       }
 
       this.advanceTurn()
+      this.finishPlayerActionLedger(player, 'FOLD', streetForLog)
       return
     }
 
     if (action === 'CHECK') {
       this.actedPlayerIds.add(player.id)
 
-      if (this.isBettingRoundComplete()) {
-        this.moveToNextPhase(player.id) // évite que le même joueur joue deux fois de suite
+      if (this.canCloseCurrentBettingRound()) {
+        this.moveToNextPhase()
+        this.finishPlayerActionLedger(player, 'CHECK', streetForLog)
         return
       }
 
       this.advanceTurn()
+      this.finishPlayerActionLedger(player, 'CHECK', streetForLog)
       return
     }
 
@@ -706,34 +1003,50 @@ export class GameTable {
       this.state.pot += actualCallAmount
 
       this.actedPlayerIds.add(player.id)
-      // S'assurer que le relanceur et tous ceux qui ont matché sont dans acted (évite de redemander au raiser)
-      if (this.lastRaiserId) this.actedPlayerIds.add(this.lastRaiserId)
-      for (const p of this.getActivePlayers()) {
-        if ((p.currentBet || 0) === this.highestBet) this.actedPlayerIds.add(p.id)
-      }
 
-      if (this.isBettingRoundComplete()) {
-        this.moveToNextPhase(player.id) // A raise B call → premier sur nouvelle rue = B (qui vient de call)
+      if (this.canCloseCurrentBettingRound()) {
+        this.moveToNextPhase()
+        this.finishPlayerActionLedger(player, 'CALL', streetForLog, actualCallAmount)
         return
       }
 
       this.advanceTurn()
+      this.finishPlayerActionLedger(player, 'CALL', streetForLog, actualCallAmount)
       return
     }
 
     const raiseAmount = intChips(amount as number)
     const totalToPut = intChips(callAmount + raiseAmount)
+    const minRaise = this.getMinRaise()
+    const isShortAllInRaise =
+      totalToPut === player.chips && raiseAmount < minRaise
 
     player.chips -= totalToPut
     player.currentBet = (player.currentBet || 0) + totalToPut
     player.totalPutInThisHand = (player.totalPutInThisHand ?? 0) + totalToPut
     this.state.pot += totalToPut
+    const previousHighestBet = this.highestBet
     this.highestBet = player.currentBet || 0
-    this.lastRaiserId = player.id
-    this.actedPlayerIds.clear()
     this.actedPlayerIds.add(player.id)
 
+    if (!isShortAllInRaise) {
+      this.lastRaiserId = player.id
+      this.minRaiseIncrement = Math.max(
+        this.bigBlindAmount,
+        this.highestBet - previousHighestBet
+      )
+      this.actedPlayerIds.clear()
+      this.actedPlayerIds.add(player.id)
+    }
+
+    if (this.canCloseCurrentBettingRound()) {
+      this.moveToNextPhase()
+      this.finishPlayerActionLedger(player, 'RAISE', streetForLog, raiseAmount)
+      return
+    }
+
     this.advanceTurn()
+    this.finishPlayerActionLedger(player, 'RAISE', streetForLog, raiseAmount)
   }
 
   advancePhase(): void {
@@ -749,85 +1062,80 @@ export class GameTable {
   }
 
   private resolveShowdown(): void {
-    const activePlayers = this.getActivePlayers()
-    const playersToEvaluate =
-      activePlayers.length > 0 ? activePlayers : this.state.players
-    const allPlayers = this.state.players
-
-    if (playersToEvaluate.length === 0) {
-      this.state.pot = 0
-      return
+    console.log('[POKER][SHOWDOWN] resolve_done', {
+  gameId: this.id,
+  handId: this.state.handId,
+  showdownWinnerId: this.state.showdownWinnerId,
+  showdownWinnerIds: this.state.showdownWinnerIds,
+  showdownIsSplit: this.state.showdownIsSplit,
+  showdownHandName: this.state.showdownHandName,
+  showdownPot: this.state.showdownPot,
+})
+    this.state.handRuntimePhase = 'SHOWDOWN_REVEAL'
+    const settled = settlePots({
+      players: this.state.players,
+      communityCards: this.state.communityCards,
+    })
+    for (const [winnerId, payout] of settled.payouts.entries()) {
+      const winner = this.state.players.find((p) => p.id === winnerId)
+      if (winner) winner.chips += payout
     }
-
-    const totalPot = this.state.pot
-
-    // Get unique contribution levels from active (non-folded) players
-    const levels = [
-      ...new Set(
-        playersToEvaluate.map((p) => p.totalPutInThisHand ?? p.currentBet ?? 0)
-      ),
-    ].sort((a, b) => a - b)
-
-    let distributed = 0
-    let lastWinnerId = ''
-    let lastWinnerIds: string[] = []
-    let lastHandName = ''
-
-    for (let i = 0; i < levels.length; i++) {
-      const level = levels[i]
-      const prevLevel = i === 0 ? 0 : levels[i - 1]
-      const diff = level - prevLevel
-      if (diff <= 0) continue
-
-      // Eligible to WIN: only active (non-folded) players who contributed at least this level
-      const eligible = playersToEvaluate.filter(
-        (p) => (p.totalPutInThisHand ?? p.currentBet ?? 0) >= level
-      )
-      if (eligible.length === 0) continue
-
-      // Pot size: count contributions from ALL players (including folded) at this level
-      let potSize = 0
-      for (const p of allPlayers) {
-        const contrib = p.totalPutInThisHand ?? p.currentBet ?? 0
-        const contributionAtThisLevel = Math.min(Math.max(0, contrib - prevLevel), diff)
-        potSize += contributionAtThisLevel
-      }
-      if (potSize <= 0) continue
-
-      const { winnerIds, handName } = findWinnersWithHand(
-        eligible,
-        this.state.communityCards
-      )
-      const n = winnerIds.length
-      const share = n > 0 ? Math.floor(potSize / n) : 0
-      const remainderThisLevel = potSize - share * n
-      for (let j = 0; j < winnerIds.length; j++) {
-        const wid = winnerIds[j]
-        const winner = this.state.players.find((p) => p.id === wid)
-        if (winner) {
-          let amount = share
-          if (j === 0) amount += remainderThisLevel
-          winner.chips += amount
-          distributed += amount
-        }
-      }
-      lastWinnerId = winnerIds[0] ?? lastWinnerId
-      lastWinnerIds = winnerIds
-      lastHandName = handName
-    }
-
-    const remainder = totalPot - distributed
-    if (remainder > 0 && lastWinnerId) {
-      const winner = this.state.players.find((p) => p.id === lastWinnerId)
-      if (winner) winner.chips += remainder
-    }
-
     this.state.pot = 0
-    this.state.showdownWinnerId = lastWinnerId
-    this.state.showdownWinnerIds = lastWinnerIds
-    this.state.showdownIsSplit = lastWinnerIds.length > 1
-    this.state.showdownHandName = lastHandName
-    this.state.showdownPot = totalPot
+    this.state.showdownWinnerId = settled.showdownWinnerId
+    this.state.showdownWinnerIds = settled.showdownWinnerIds
+    this.state.showdownIsSplit = settled.showdownWinnerIds.length > 1
+    this.state.showdownHandName = settled.showdownHandName
+    this.state.showdownPot = settled.showdownPot
+    this.state.handEndReason = this.state.handEndReason ?? 'SHOWDOWN'
+    this.state.handRuntimePhase = 'HAND_COMPLETE'
+    console.log('[POKER][SHOWDOWN] resolve_done', {
+  gameId: this.id,
+  handId: this.state.handId,
+  showdownWinnerId: this.state.showdownWinnerId,
+  showdownWinnerIds: this.state.showdownWinnerIds,
+  showdownIsSplit: this.state.showdownIsSplit,
+  showdownHandName: this.state.showdownHandName,
+  showdownPot: this.state.showdownPot,
+})
+    this.bumpVersion()
+    this.sweepBustedPlayers()
+  }
+
+  private bumpVersion(): void {
+    this.state.actionVersion = (this.state.actionVersion ?? 0) + 1
+    this.state.updatedAt = new Date().toISOString()
+  }
+
+  /**
+   * Incrémente actionVersion et enregistre la dernière action pour le journal client (multijoueur).
+   */
+  private finishPlayerActionLedger(
+    player: Player,
+    action: PlayerAction,
+    streetForLog: GamePhase,
+    amount?: number
+  ): void {
+    console.log('[POKER][ACTION] finishPlayerActionLedger', {
+  gameId: this.id,
+  handId: this.state.handId,
+  playerId: player.id,
+  action,
+  streetForLog,
+  amount,
+  phaseNow: this.state.phase,
+  currentTurnNow: this.state.currentTurn,
+  potNow: this.state.pot,
+})
+    this.bumpVersion()
+    this.state.lastHandAction = {
+      playerId: player.id,
+      playerName: player.name,
+      action,
+      street: streetForLog,
+      amount: amount !== undefined ? intChips(amount) : undefined,
+      actionVersion: this.state.actionVersion ?? 0,
+      actorRole: player.role,
+    }
   }
 
     /**
@@ -863,6 +1171,34 @@ export class GameTable {
     }
   }
 
+  /**
+   * 💀 LA FAUCHEUSE (Mode Tournoi)
+   * Vérifie tous les joueurs après la distribution du pot.
+   * Si un joueur a 0 jeton, il est désactivé et marqué comme "Buste" (éliminé).
+   */
+  public sweepBustedPlayers(): void {
+    let playersEliminated = false;
+
+    for (const player of this.state.players) {
+      if (player.chips <= 0) {
+        // Le joueur est officiellement éliminé
+        player.isActive = false;
+        player.isConnected = false; // On le déconnecte virtuellement de la table
+        
+        // Optionnel: tu peux ajouter un flag isBusted dans le type Player si tu veux l'afficher côté Frontend
+        // player.isBusted = true; 
+
+        console.log(`💀 [GameTable] Le joueur ${player.name} (${player.id}) a été éliminé du tournoi (0 jeton) !`);
+        playersEliminated = true;
+      }
+    }
+
+    // Si on a éliminé des gens, on met à jour la version pour forcer le rafraîchissement du frontend
+    if (playersEliminated) {
+      this.bumpVersion();
+    }
+  }
+
   getState(): GameState & { id: string } {
     return {
       id: this.id,
@@ -871,12 +1207,20 @@ export class GameTable {
       players: this.state.players,
       currentTurn: this.state.currentTurn,
       phase: this.state.phase,
+      handId: this.state.handId,
+      actionVersion: this.state.actionVersion,
+      streetVersion: this.state.streetVersion,
+      updatedAt: this.state.updatedAt,
       showdownWinnerId: this.state.showdownWinnerId,
       showdownWinnerIds: this.state.showdownWinnerIds,
       showdownIsSplit: this.state.showdownIsSplit,
       showdownHandName: this.state.showdownHandName,
       showdownPot: this.state.showdownPot,
-      burnedCardsCount: this.deck.burnedCards.length
+      burnedCardsCount: this.deck.burnedCards.length,
+      handParticipantIds: this.state.handParticipantIds,
+      handEndReason: this.state.handEndReason,
+      handRuntimePhase: this.state.handRuntimePhase,
+      lastHandAction: this.state.lastHandAction,
     }
   }
 
@@ -887,12 +1231,21 @@ export class GameTable {
       communityCards: this.state.communityCards,
       currentTurn: this.state.currentTurn,
       phase: this.state.phase,
+      handId: this.state.handId,
+      lastHandAction: this.state.lastHandAction,
+      actionVersion: this.state.actionVersion,
+      streetVersion: this.state.streetVersion,
+      updatedAt: this.state.updatedAt,
       showdownWinnerId: this.state.showdownWinnerId,
       showdownWinnerIds: this.state.showdownWinnerIds,
       showdownIsSplit: this.state.showdownIsSplit,
       showdownHandName: this.state.showdownHandName,
       showdownPot: this.state.showdownPot,
       burnedCardsCount: this.deck.burnedCards.length,
+      handParticipantIds: this.state.handParticipantIds,
+      handEndReason: this.state.handEndReason,
+      handRuntimePhase: this.state.handRuntimePhase,
+      hiddenBetLiveWindow: this.state.hiddenBetLiveWindow,
       players: this.state.players.map((player) => ({
         id: player.id,
         name: player.name,
@@ -903,6 +1256,7 @@ export class GameTable {
         isActive: player.isActive,
         isDealer: player.isDealer || false,
         isConnected: player.isConnected !== false,
+        ...(player.avatar ? { avatar: player.avatar } : {}),
         // Règles de révélation des cartes :
         // - Avant showdown : chaque joueur voit uniquement ses propres cartes
         // - Au showdown réel (plusieurs joueurs) : tous voient les cartes des joueurs encore en lice (isActive)
