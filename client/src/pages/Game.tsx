@@ -2711,7 +2711,7 @@ export function Game() {
   }, [searchParams]);
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-hidden relative">
+    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col relative">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
@@ -2817,7 +2817,7 @@ export function Game() {
 
       {isBotThinking && mode === "bot" && (
         <div className={`absolute z-50 left-1/2 transform -translate-x-1/2 ${
-          isMobile ? 'bottom-32' : isTablet ? 'bottom-36' : 'bottom-40'
+          isMobile ? 'bottom-[320px]' : isTablet ? 'bottom-36' : 'bottom-40'
         }`}>
           <div className={`bg-slate-800/95 backdrop-blur-sm rounded-2xl ${isMobile ? 'p-4' : 'p-6'} border-2 border-blue-500 shadow-2xl`}>
             <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'}`}>
@@ -3011,7 +3011,7 @@ export function Game() {
 
           {!isMobile && <div className="w-px h-10 bg-slate-700"></div>}
 
-          <div className="flex items-center bg-slate-800/80 backdrop-blur-md border border-slate-700 rounded-full pl-3 pr-1 py-1 shadow-lg gap-3">
+          <div className={`flex items-center bg-slate-800/80 backdrop-blur-md border border-slate-700 rounded-full pl-3 pr-1 py-1 shadow-lg gap-3 ${isMobile ? 'mr-14' : ''}`}>
             <div className={`text-white font-bold flex items-center gap-1.5 ${isMobile ? 'text-sm' : 'text-base'}`}>
               <ChipIcon size="sm" />
               <span>{displayedHeroChips.toLocaleString()}</span>
@@ -3405,7 +3405,7 @@ export function Game() {
          {/* TABLE */}
         <div
         ref={tourRefTable}
-        className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-14' : 'px-6 pt-24'}`}
+        className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-2 pt-44 min-h-[440px]' : 'px-6 pt-32 min-h-[600px]'}`}
         >
         <PokerTable
         players={tablePlayers}

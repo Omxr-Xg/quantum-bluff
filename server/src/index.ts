@@ -69,7 +69,7 @@ const corsOptions: CorsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'x-idempotency-key'],
   optionsSuccessStatus: 200,
 }
 
@@ -275,7 +275,7 @@ const io = new Server(httpServer, {
     origin: env.corsOrigins,
     credentials: true,
     methods: ['GET', 'POST'],
-    allowedHeaders: ['Authorization', 'Content-Type', 'x-request-id'],
+    allowedHeaders: ['Authorization', 'Content-Type', 'x-request-id', 'x-idempotency-key'],
   },
 })
 
