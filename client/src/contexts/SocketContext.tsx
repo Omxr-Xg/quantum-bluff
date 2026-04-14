@@ -31,15 +31,23 @@ export const SocketContext = createContext<SocketContextType | undefined>(undefi
 
 // Auto-détection robuste du chemin (contourne les bugs de cache ou de fichier .env dans Docker)
 const getSocketConfig = () => {
-  let url = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || 'http://localhost:3000';
+  const envUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim();
+  let url = envUrl || 'http://localhost:3000';
   let path = '/socket.io';
 
   if (typeof window !== 'undefined') {
     url = window.location.origin; // ex: https://mai-projet-integrateur...
-    // Détection automatique du préfixe de la VM depuis la barre d'adresse !
-    const vmMatch = window.location.pathname.match(/^(\/vmProjetIntegrateurgrp\d+-\d+)/);
-    if (vmMatch) {
-      path = `${vmMatch[1]}/socket.io`;
+    
+    // 1. On priorise la variable d'environnement (qui marche pour l'API)
+    if (envUrl.startsWith('/')) {
+      path = `${envUrl}/socket.io`;
+    } 
+    // 2. Fallback avec l'URL (avec le flag "i" pour ignorer les majuscules)
+    else {
+      const vmMatch = window.location.pathname.match(/^(\/vmprojetintegrateurgrp\d+-\d+)/i);
+      if (vmMatch) {
+        path = `${vmMatch[1]}/socket.io`;
+      }
     }
   }
   return { URL: url, SOCKET_PATH: path };
