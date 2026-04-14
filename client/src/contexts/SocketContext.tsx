@@ -12,7 +12,6 @@ export interface GameInvitationNotification {
   roomId: string
   roomName: string
   sender: { id: string; username: string }
-  /** Absent ou `poker` : salle d’attente poker. `blackjack` : table blackjack multijoueur. */
   game?: 'poker' | 'blackjack'
 }
 
@@ -29,7 +28,7 @@ interface SocketContextType {
 
 export const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-// Auto-détection robuste du chemin (contourne les bugs de cache ou de fichier .env dans Docker)
+// 🚀 DÉTECTION INFAILLIBLE DU CHEMIN
 const getSocketConfig = () => {
   let url = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || 'http://localhost:3000';
   let path = '/socket.io';
@@ -38,13 +37,13 @@ const getSocketConfig = () => {
     const pathname = window.location.pathname;
     const pathParts = pathname.split('/');
     
-    // Méthode 1: Lecture directe depuis l'URL du navigateur (100% infaillible)
+    // Si on est sur la VM (ex: /vmProjetIntegrateurgrp10-0/)
     if (pathParts.length > 1 && pathParts[1].toLowerCase().startsWith('vmprojet')) {
       const vmPrefix = '/' + pathParts[1];
       url = window.location.origin;
       path = `${vmPrefix}/socket.io`;
     } 
-    // Méthode 2: Fallback classique (Localhost ou pas de VM)
+    // Fallback (Localhost)
     else if (url.startsWith('/')) {
       path = `${url}/socket.io`;
       url = window.location.origin;
@@ -85,6 +84,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       return
     }
 
+    // 🚀 INITIALISATION AVEC LE BON CHEMIN
     const socketInstance = io(URL, {
       autoConnect: true,
       path: SOCKET_PATH,
@@ -109,7 +109,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     socketInstance.on('connect_error', () => {})
 
-    // Safari/iOS : reconnecter quand l'onglet revient au premier plan (WebSocket "suspended")
     const tryReconnect = () => {
       if (!socketInstance.connected) socketInstance.connect()
     }
@@ -128,7 +127,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       socketInstance.off('connect')
       socketInstance.off('disconnect')
       socketInstance.off('connect_error')
-      // Ne disconnect que si connecté (évite "closed before established" en Strict Mode)
       const s = socketInstance
       setTimeout(() => {
         if (s.connected) s.disconnect()
