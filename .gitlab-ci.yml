@@ -242,8 +242,10 @@ security:secret-detection:
 
 security:sast:
   stage: test-security
-  image: returntocorp/semgrep:latest
+  image: public.ecr.aws/docker/library/python:3.10-slim
   dependencies: []
+  before_script:
+    - pip install semgrep
   script:
     - semgrep --config auto --error --exclude server/coverage --exclude client/coverage .
   allow_failure: true
@@ -290,7 +292,7 @@ docker:scan:
 
 infra:nginx-config:
   stage: test
-  image: nginx:alpine
+  image: public.ecr.aws/nginx/nginx:alpine
   script:
     - echo "🔧 Validation de la configuration Nginx..."
     - nginx -t
@@ -328,9 +330,13 @@ docs:markdown-lint:
 # DÉPLOIEMENT - Staging et Production
 # ============================================
 
+# ============================================
+# DÉPLOIEMENT - Staging et Production
+# ============================================
+
 deploy:staging:
   stage: deploy
-  image: alpine:latest
+  image: public.ecr.aws/docker/library/alpine:latest
   script:
     - echo "🚀 Déploiement sur STAGING..."
     - apk add --no-cache curl
@@ -344,7 +350,7 @@ deploy:staging:
 
 deploy:production:
   stage: deploy
-  image: alpine:latest
+  image: public.ecr.aws/docker/library/alpine:latest
   script:
     - echo "🚀 Déploiement sur PRODUCTION..."
     - apk add --no-cache curl
