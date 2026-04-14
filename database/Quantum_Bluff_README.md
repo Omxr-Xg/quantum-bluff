@@ -204,6 +204,21 @@ Toute la documentation technique se trouve dans `Docs/`.
 
 ------------------------------------------------------------------------
 
+# 🛠️ Maintenance de la Base de Données (Quantum Bluff)
+
+## 💾 Sauvegardes (D3)
+- **Script :** `./backup.sh` à la racine.
+- **Fréquence :** Quotidienne (Cron à 03:00).
+- **Rétention :** 7 jours.
+- **Restauration :** `cat backup_XXX.sql | docker exec -i postgres_db psql -U [user] -d [db]`
+
+## ⚡ Optimisation (D2)
+- Indexation sur `GameHistory(createdAt)`, `User(username)`, `GameAction(gameId)`.
+- Nettoyage automatique des logs de plus de 30 jours via `node-cron`.
+
+## 📊 Surveillance (D4)
+- Utiliser `./monitor_db.sh` pour voir les verrous (locks) en temps réel.
+
 ## 9. Contribution
 
 1.  Créer une branche depuis `develop`

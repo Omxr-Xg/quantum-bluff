@@ -262,6 +262,8 @@ model LoanRepayment {
   @@index([loanId])
   @@index([borrowerId])
   @@map("loan_repayments")
+  @@index([borrowerId, createdAt]) 
+  @@index([lenderId, createdAt])
 }
 
 model LoanLedgerEvent {
@@ -335,7 +337,7 @@ model JoinRequest {
   updatedAt  DateTime      @updatedAt
 
   room WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user User        @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([roomId, userId])
   @@index([roomId, status])
@@ -353,7 +355,7 @@ model RoomPlayer {
   avatarUrl    String?
 
   room         WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user         User        @relation(fields: [userId], references: [id])
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([roomId, userId])
   @@map("room_players")
@@ -481,6 +483,7 @@ model BlackjackRoom {
   @@index([hostId])
   @@index([status])
   @@map("blackjack_rooms")
+  @@index([visibility, status]) // Pour le lobby Blackjack
 }
 
 model BlackjackRoomSnapshot {
@@ -506,7 +509,7 @@ model BlackjackRoomSeat {
   joinedAt DateTime @default(now())
 
   room BlackjackRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user User          @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([roomId, userId])
   @@unique([roomId, position])
@@ -640,8 +643,8 @@ model HiddenBetTicket {
   actionId              String
   pricingVersion        String
   resolutionVersion     String                 @default("hidden-bets-resolve-v1")
-  resultSummaryJson     String?
-  stateSnapshotJson     String?
+  resultSummaryJson     Json?
+  stateSnapshotJson     Json?
   ticketHash            String?
   quoteHash             String?
   quotedProbability     Float?
@@ -711,6 +714,7 @@ model Tournament {
   players     TournamentPlayer[]
 
   @@map("tournaments")
+  @@index([status, startTime])
 }
 
 model TournamentPlayer {
