@@ -47,6 +47,7 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-super_secret_for_production_change_me}
       PORT: 3000
+      CORS_ORIGIN: "*"
     ports:
       - "3000:3000"
     depends_on:
