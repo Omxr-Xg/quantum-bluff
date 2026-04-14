@@ -29,13 +29,23 @@ interface SocketContextType {
 
 export const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-const envSocketUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim();
-const isRelative = envSocketUrl.startsWith('/');
+// Auto-détection robuste du chemin (contourne les bugs de cache ou de fichier .env dans Docker)
+const getSocketConfig = () => {
+  let url = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || 'http://localhost:3000';
+  let path = '/socket.io';
 
-// Serveur de connexion (domaine actuel si relatif, sinon URL locale/externe)
-const URL = isRelative ? window.location.origin : (envSocketUrl || 'http://localhost:3000');
-// Chemin spécifique pour le reverse proxy Nginx (ex: /vmProjetIntegrateurgrp10-0/socket.io)
-const SOCKET_PATH = isRelative ? `${envSocketUrl}/socket.io` : '/socket.io';
+  if (typeof window !== 'undefined') {
+    url = window.location.origin; // ex: https://mai-projet-integrateur...
+    // Détection automatique du préfixe de la VM depuis la barre d'adresse !
+    const vmMatch = window.location.pathname.match(/^(\/vmProjetIntegrateurgrp\d+-\d+)/);
+    if (vmMatch) {
+      path = `${vmMatch[1]}/socket.io`;
+    }
+  }
+  return { URL: url, SOCKET_PATH: path };
+};
+
+const { URL, SOCKET_PATH } = getSocketConfig();
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
