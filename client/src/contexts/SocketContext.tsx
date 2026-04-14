@@ -29,14 +29,13 @@ interface SocketContextType {
 
 export const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-const socketUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || undefined;
+const envSocketUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim();
+const isRelative = envSocketUrl.startsWith('/');
 
-// En prod: /vmProjetIntegrateurgrp10-0/socket.io | En local: /socket.io
-const socketPath = socketUrl ? `${socketUrl}/socket.io` : '/socket.io';
-
-// URL vide = Socket.io utilise automatiquement le domaine de la page (parfait pour la prod)
-// En dev (sans socketUrl), on force localhost:3000
-const URL = socketUrl ? '' : 'http://localhost:3000';
+// Serveur de connexion (domaine actuel si relatif, sinon URL locale/externe)
+const URL = isRelative ? window.location.origin : (envSocketUrl || 'http://localhost:3000');
+// Chemin spécifique pour le reverse proxy Nginx (ex: /vmProjetIntegrateurgrp10-0/socket.io)
+const SOCKET_PATH = isRelative ? `${envSocketUrl}/socket.io` : '/socket.io';
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
@@ -70,7 +69,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     const socketInstance = io(URL, {
       autoConnect: true,
-      path: socketPath,
+      path: SOCKET_PATH,
       auth: { token },
       secure: typeof window !== 'undefined' && window.location.protocol === 'https:',
       transports: ['polling', 'websocket'],
