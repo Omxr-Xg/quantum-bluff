@@ -30,12 +30,23 @@ export const SocketContext = createContext<SocketContextType | undefined>(undefi
 
 // 🚀 DÉTECTION INFAILLIBLE DU CHEMIN
 const getSocketConfig = () => {
-  // BRUTE FORCE POUR LA VM 0 (Pour casser le cache)
-  const url = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-  const path = '/vmProjetIntegrateurgrp10-0/socket.io';
+  let url = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || 'http://localhost:3000';
+  let path = '/socket.io';
 
-  console.log("🔥 LE NOUVEAU CODE EST BIEN ARRIVÉ DANS LE NAVIGATEUR 🔥", { url, path });
-  
+  if (typeof window !== 'undefined') {
+    const pathname = window.location.pathname;
+    const pathParts = pathname.split('/');
+    
+    // Auto-détection (marche pour VM 0 et VM 1)
+    if (pathParts.length > 1 && pathParts[1].toLowerCase().startsWith('vmprojet')) {
+      const vmPrefix = '/' + pathParts[1];
+      url = window.location.origin;
+      path = `${vmPrefix}/socket.io`;
+    } else if (url.startsWith('/')) {
+      path = `${url}/socket.io`;
+      url = window.location.origin;
+    }
+  }
   return { URL: url, SOCKET_PATH: path };
 };
 
@@ -73,6 +84,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     // 🚀 INITIALISATION AVEC LE BON CHEMIN
     const socketInstance = io(URL, {
+      forceNew: true, // <--- TUE LE CACHE DE SOCKET.IO !
       autoConnect: true,
       path: SOCKET_PATH,
       auth: { token },
