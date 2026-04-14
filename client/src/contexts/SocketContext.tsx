@@ -30,25 +30,12 @@ export const SocketContext = createContext<SocketContextType | undefined>(undefi
 
 // 🚀 DÉTECTION INFAILLIBLE DU CHEMIN
 const getSocketConfig = () => {
-  let url = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || 'http://localhost:3000';
-  let path = '/socket.io';
+  // BRUTE FORCE POUR LA VM 0 (Pour casser le cache)
+  const url = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+  const path = '/vmProjetIntegrateurgrp10-0/socket.io';
 
-  if (typeof window !== 'undefined') {
-    const pathname = window.location.pathname;
-    const pathParts = pathname.split('/');
-    
-    // Si on est sur la VM (ex: /vmProjetIntegrateurgrp10-0/)
-    if (pathParts.length > 1 && pathParts[1].toLowerCase().startsWith('vmprojet')) {
-      const vmPrefix = '/' + pathParts[1];
-      url = window.location.origin;
-      path = `${vmPrefix}/socket.io`;
-    } 
-    // Fallback (Localhost)
-    else if (url.startsWith('/')) {
-      path = `${url}/socket.io`;
-      url = window.location.origin;
-    }
-  }
+  console.log("🔥 LE NOUVEAU CODE EST BIEN ARRIVÉ DANS LE NAVIGATEUR 🔥", { url, path });
+  
   return { URL: url, SOCKET_PATH: path };
 };
 
