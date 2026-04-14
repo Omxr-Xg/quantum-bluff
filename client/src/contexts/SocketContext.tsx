@@ -31,23 +31,23 @@ export const SocketContext = createContext<SocketContextType | undefined>(undefi
 
 // Auto-détection robuste du chemin (contourne les bugs de cache ou de fichier .env dans Docker)
 const getSocketConfig = () => {
-  const envUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim();
-  let url = envUrl || 'http://localhost:3000';
+  let url = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || 'http://localhost:3000';
   let path = '/socket.io';
 
   if (typeof window !== 'undefined') {
-    url = window.location.origin; // ex: https://mai-projet-integrateur...
+    const pathname = window.location.pathname;
+    const pathParts = pathname.split('/');
     
-    // 1. On priorise la variable d'environnement (qui marche pour l'API)
-    if (envUrl.startsWith('/')) {
-      path = `${envUrl}/socket.io`;
+    // Méthode 1: Lecture directe depuis l'URL du navigateur (100% infaillible)
+    if (pathParts.length > 1 && pathParts[1].toLowerCase().startsWith('vmprojet')) {
+      const vmPrefix = '/' + pathParts[1];
+      url = window.location.origin;
+      path = `${vmPrefix}/socket.io`;
     } 
-    // 2. Fallback avec l'URL (avec le flag "i" pour ignorer les majuscules)
-    else {
-      const vmMatch = window.location.pathname.match(/^(\/vmprojetintegrateurgrp\d+-\d+)/i);
-      if (vmMatch) {
-        path = `${vmMatch[1]}/socket.io`;
-      }
+    // Méthode 2: Fallback classique (Localhost ou pas de VM)
+    else if (url.startsWith('/')) {
+      path = `${url}/socket.io`;
+      url = window.location.origin;
     }
   }
   return { URL: url, SOCKET_PATH: path };
