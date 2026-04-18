@@ -6,6 +6,7 @@ interface ToastProps {
   type: "success" | "error" | "info" | "warning";
   duration?: number;
   onClose: () => void;
+  onClick?: () => void;
 }
 
 export function Toast({
@@ -13,6 +14,7 @@ export function Toast({
   type,
   duration = 3000,
   onClose,
+  onClick,
 }: ToastProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -29,12 +31,19 @@ export function Toast({
     warning: "bg-yellow-600",
   }[type];
 
+  const handleClick = onClick
+    ? () => { onClick(); onClose(); }
+    : undefined;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -50 }}
-      className={`fixed top-20 right-5 z-[100] ${bgColor} text-white px-6 py-3 rounded-lg shadow-xl border border-white/20`}
+      onClick={handleClick}
+      className={`fixed top-20 right-5 z-[100] ${bgColor} text-white px-6 py-3 rounded-lg shadow-xl border border-white/20 ${
+        onClick ? "cursor-pointer hover:brightness-110 active:scale-[0.98] transition-[filter,transform]" : ""
+      }`}
     >
       {message}
     </motion.div>

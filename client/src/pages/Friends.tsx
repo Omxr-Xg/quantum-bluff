@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { UserPlus, Search, MessageCircle, Users, X, Check, Loader2, Gamepad2, Home, Coins } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
@@ -48,6 +48,12 @@ export function Friends() {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [activeTab, setActiveTab] = useState<FriendsTab>("friends");
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "requests") setActiveTab("requests");
+  }, [searchParams]);
+
   const [loanModal, setLoanModal] = useState<{ id: string; username: string } | null>(null);
   const [loanAmount, setLoanAmount] = useState(500);
   const [loanRate, setLoanRate] = useState<number>(30);

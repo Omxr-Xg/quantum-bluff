@@ -914,7 +914,8 @@
     "toastTitle": "Сповіщення",
     "empty": "Немає сповіщень",
     "gameInvitations": "Запрошення до гри",
-    "friendRequests": "Запити в друзі"
+    "friendRequests": "Запити в друзі",
+    "viewRequests": "Переглянути запити"
   },
   "filters": {
     "maxBet50": "Ставки < $50",

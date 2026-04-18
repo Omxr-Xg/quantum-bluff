@@ -913,7 +913,8 @@
     "toastTitle": "Notificación",
     "empty": "Sin notificaciones",
     "gameInvitations": "Invitaciones de partida",
-    "friendRequests": "Solicitudes de amistad"
+    "friendRequests": "Solicitudes de amistad",
+    "viewRequests": "Ver solicitudes"
   },
   "filters": {
     "maxBet50": "Apuestas < 50$",

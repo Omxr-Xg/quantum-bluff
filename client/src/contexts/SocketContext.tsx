@@ -137,12 +137,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     if (!socket || !addToast) return
 
     socket.on('FRIEND_REQUEST_RECEIVED', (data: { sender?: { username?: string } }) => {
-      addToast(i18n.t('toast.friendRequestFrom', { username: data.sender?.username ?? 'un joueur' }), 'info')
       window.dispatchEvent(new CustomEvent('refetch-requests'))
     })
 
     socket.on('FRIEND_REQUEST_ACCEPTED', (data: { username?: string }) => {
-      addToast(i18n.t('toast.friendRequestAccepted', { username: data.username ?? 'Un ami' }), 'success')
       if (window.location.pathname === '/friends') {
         window.dispatchEvent(new CustomEvent('refetch-friends'))
       }
@@ -155,15 +153,23 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     })
 
     socket.on('GAME_INVITATION_RECEIVED', (data: GameInvitationNotification) => {
-      addToast(i18n.t('invitation.title', { username: data.sender?.username ?? 'un joueur' }), 'info')
+      addToast(
+        i18n.t('invitation.title', { username: data.sender?.username ?? 'un joueur' }),
+        'info',
+        () => { window.dispatchEvent(new CustomEvent('open-notification-panel')) }
+      )
       setPendingInvitations((prev) => {
         if (prev.some((inv) => inv.invitationId === data.invitationId)) return prev
         return [...prev, data]
       })
     })
 
-    socket.on('JOIN_REQUEST_RECEIVED', (data: { user?: { username?: string } }) => {
-      addToast(i18n.t('toast.joinRequestFrom', { username: data.user?.username ?? 'un joueur' }), 'info')
+    socket.on('JOIN_REQUEST_RECEIVED', (data: { user?: { username?: string }; roomId?: string }) => {
+      addToast(
+        i18n.t('toast.joinRequestFrom', { username: data.user?.username ?? 'un joueur' }),
+        'info',
+        data.roomId ? () => window.dispatchEvent(new CustomEvent('navigate-to', { detail: `/waiting-room?roomId=${data.roomId}` })) : undefined
+      )
     })
 
     socket.on('JOIN_REQUEST_ACCEPTED', (data: { roomId?: string; roomName?: string }) => {

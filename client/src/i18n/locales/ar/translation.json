@@ -914,7 +914,8 @@
     "toastTitle": "إشعار",
     "empty": "لا توجد إشعارات",
     "gameInvitations": "دعوات اللعب",
-    "friendRequests": "طلبات الصداقة"
+    "friendRequests": "طلبات الصداقة",
+    "viewRequests": "عرض الطلبات"
   },
   "filters": {
     "maxBet50": "رهانات < 50$",
