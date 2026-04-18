@@ -136,11 +136,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!socket || !addToast) return
 
-    socket.on('FRIEND_REQUEST_RECEIVED', (data: { sender?: { username?: string } }) => {
+    socket.on('FRIEND_REQUEST_RECEIVED', (_data: { sender?: { username?: string } }) => {
       window.dispatchEvent(new CustomEvent('refetch-requests'))
     })
 
-    socket.on('FRIEND_REQUEST_ACCEPTED', (data: { username?: string }) => {
+    socket.on('FRIEND_REQUEST_ACCEPTED', (_data: { username?: string }) => {
       if (window.location.pathname === '/friends') {
         window.dispatchEvent(new CustomEvent('refetch-friends'))
       }
