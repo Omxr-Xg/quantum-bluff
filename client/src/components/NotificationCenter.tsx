@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bell, Gamepad2, UserPlus, Check, X } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
@@ -10,85 +10,90 @@ import { apiUrl } from "../utils/apiBase";
 export function NotificationCenter() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { userId } = useUser();
 
-  
   const { pendingInvitations, dismissInvitation, socket } = useSocket();
 
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  // Fixed position calculated from button rect to escape overflow:hidden ancestors
+  const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null);
 
-  const { data: friendRequests, refetch: refetchRequests } = useGetFriendRequestsQuery(userId ?? "", {
-    skip: !userId,
-  });
+  const { data: friendRequests, refetch: refetchRequests } = useGetFriendRequestsQuery(
+    userId ?? "",
+    {
+      skip: !userId,
+      // Ensures the query fires immediately when userId becomes available and on re-mount
+      refetchOnMountOrArgChange: true,
+    }
+  );
 
   const [respondRequest] = useRespondToFriendRequestMutation();
 
   const pendingFriendRequests = friendRequests?.filter((r) => r.status === "PENDING") ?? [];
-
   const totalCount = pendingInvitations.length + pendingFriendRequests.length;
 
-  
+  // Refetch triggered by other parts of the app
   useEffect(() => {
     const handler = () => refetchRequests();
     window.addEventListener("refetch-requests", handler);
     return () => window.removeEventListener("refetch-requests", handler);
   }, [refetchRequests]);
 
-  
+  // Refetch on incoming socket friend events
   useEffect(() => {
     if (!socket) return;
-
-    const handleFriendRequest = () => {
-      refetchRequests();
-    };
-
-    const handleFriendAccepted = () => {
-      refetchRequests();
-    };
-
-    const handlePlayerStatus = () => {
-      // future use (optionnel)
-    };
-
+    const handleFriendRequest = () => { refetchRequests(); };
+    const handleFriendAccepted = () => { refetchRequests(); };
     socket.on("friend_request", handleFriendRequest);
     socket.on("friend_request_received", handleFriendRequest);
     socket.on("friend_request_accepted", handleFriendAccepted);
-
-    socket.on("player_connected", handlePlayerStatus);
-    socket.on("player_disconnected", handlePlayerStatus);
-
     return () => {
       socket.off("friend_request", handleFriendRequest);
       socket.off("friend_request_received", handleFriendRequest);
       socket.off("friend_request_accepted", handleFriendAccepted);
-
-      socket.off("player_connected", handlePlayerStatus);
-      socket.off("player_disconnected", handlePlayerStatus);
     };
   }, [socket, refetchRequests]);
 
-  
+  // Close the panel on route change
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    setOpen(false);
+  }, [location.pathname]);
+
+  // Close when clicking outside — mousedown fires before click, avoiding same-event races
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
-    if (open) document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
+    if (open) document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
   }, [open]);
+
+  // Calculate fixed position from button rect so the panel escapes overflow:hidden containers
+  const handleToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPanelPos({
+        top: rect.bottom + 8,
+        // Clamp so the panel never goes off-screen on the right
+        right: Math.max(8, window.innerWidth - rect.right),
+      });
+    }
+    setOpen((o) => !o);
+  };
 
   const handleAcceptInvitation = async (inv: { invitationId: string; roomId: string }) => {
     try {
       const token = localStorage.getItem("token");
       const url = apiUrl(`/api/invitations/${inv.invitationId}/accept`);
-
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       });
-
       if (res.ok) {
         dismissInvitation(inv.invitationId);
         navigate(`/waiting-room?roomId=${inv.roomId}`);
@@ -103,7 +108,6 @@ export function NotificationCenter() {
     try {
       const token = localStorage.getItem("token");
       const url = apiUrl(`/api/invitations/${inv.invitationId}/reject`);
-
       await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -127,10 +131,12 @@ export function NotificationCenter() {
   if (!userId) return null;
 
   return (
+    // panelRef wraps both button and the fixed panel so that contains() checks work correctly
     <div className="relative" ref={panelRef}>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleToggle}
         className="relative inline-flex items-center justify-center bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition h-10 md:h-12 min-w-[2.5rem] md:min-w-[3rem] shrink-0 px-2"
         title={t("notifications.title")}
       >
@@ -143,8 +149,17 @@ export function NotificationCenter() {
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 max-h-[400px] overflow-y-auto bg-slate-800 border border-slate-600 rounded-xl shadow-2xl z-[300]">
+      {open && panelPos && (
+        <div
+          style={{
+            position: "fixed",
+            top: panelPos.top,
+            right: panelPos.right,
+            zIndex: 300,
+            width: "min(20rem, calc(100vw - 1rem))",
+          }}
+          className="max-h-[400px] overflow-y-auto bg-slate-800 border border-slate-600 rounded-xl shadow-2xl"
+        >
           <div className="sticky top-0 bg-slate-800 px-4 py-3 border-b border-slate-600">
             <h3 className="text-white font-bold text-sm flex items-center gap-2">
               <Bell className="w-4 h-4" />
