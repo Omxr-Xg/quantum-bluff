@@ -10,54 +10,48 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export const UserProvider = ({ children }: { children: ReactNode }) => {
-  // USER INFO
-  const rawUserId =
-    localStorage.getItem("userId") ?? localStorage.getItem("userid");
+function readFromStorage() {
+  const rawUserId = localStorage.getItem("userId") ?? localStorage.getItem("userid");
   const rawUsername = localStorage.getItem("username");
+  return {
+    userId: rawUserId && rawUserId !== "undefined" && rawUserId !== "null" ? rawUserId : null,
+    username: rawUsername && rawUsername !== "undefined" && rawUsername !== "null" ? rawUsername : null,
+  };
+}
 
-  const userId =
-    rawUserId && rawUserId !== "undefined" && rawUserId !== "null"
-      ? rawUserId
-      : null;
-
-  const username =
-    rawUsername && rawUsername !== "undefined" && rawUsername !== "null"
-      ? rawUsername
-      : null;
-
-  // CHIPS STATE (GLOBAL)
+export const UserProvider = ({ children }: { children: ReactNode }) => {
+  const [userId, setUserId] = useState<string | null>(() => readFromStorage().userId);
+  const [username, setUsername] = useState<string | null>(() => readFromStorage().username);
   const [chips, setChips] = useState<number>(() => {
     const stored = localStorage.getItem("chips");
     return stored ? Number(stored) : 1000;
   });
 
-  // PERSIST TO LOCALSTORAGE
+  useEffect(() => {
+    const handleAuthChanged = () => {
+      const { userId: newUserId, username: newUsername } = readFromStorage();
+      setUserId(newUserId);
+      setUsername(newUsername);
+    };
+    window.addEventListener("auth-changed", handleAuthChanged);
+    return () => window.removeEventListener("auth-changed", handleAuthChanged);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem("chips", String(chips));
   }, [chips]);
 
-  // SAFE ADD (IMPORTANT)
   const addChips = (amount: number) => {
     setChips((prev) => prev + amount);
   };
 
   return (
-    <UserContext.Provider
-      value={{
-        userId,
-        username,
-        chips,
-        setChips,
-        addChips,
-      }}
-    >
+    <UserContext.Provider value={{ userId, username, chips, setChips, addChips }}>
       {children}
     </UserContext.Provider>
   );
 };
 
-// CUSTOM HOOK
 export const useUser = () => {
   const context = useContext(UserContext);
   if (!context) {

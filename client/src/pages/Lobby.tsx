@@ -81,6 +81,13 @@ export function Lobby() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { userId, username } = useUser();
+  const authHeaders = useCallback(() => {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }, []);
   const { menuContent } = useTopBar();
   const [rooms, setRooms] = useState<WaitingRoomItem[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
@@ -161,7 +168,7 @@ export function Lobby() {
     try {
       const base = apiUrl("/api/waiting-room/games-in-progress");
       const url = userId ? `${base}?userId=${encodeURIComponent(userId)}` : base;
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       setGamesInProgress(Array.isArray(data) ? data : []);
@@ -194,7 +201,7 @@ export function Lobby() {
     try {
       const base = apiUrl("/api/waiting-room");
       const url = userId ? `${base}?userId=${encodeURIComponent(userId)}` : base;
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: authHeaders() });
       if (!res.ok) throw new Error(t('common.error'));
       const data = await res.json();
       setRooms(Array.isArray(data) ? data : []);
@@ -243,7 +250,7 @@ export function Lobby() {
       const url = apiUrl("/api/waiting-room/create");
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({
           hostId: userId,
           roomName: `Salle de ${username || "Joueur"}`,
@@ -275,7 +282,7 @@ export function Lobby() {
       const url = apiUrl(`/api/waiting-room/${roomId}/request-join`);
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ userId }),
       });
       if (!res.ok) {
