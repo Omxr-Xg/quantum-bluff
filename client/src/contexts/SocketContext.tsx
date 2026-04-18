@@ -12,7 +12,6 @@ export interface GameInvitationNotification {
   roomId: string
   roomName: string
   sender: { id: string; username: string }
-  /** Absent ou `poker` : salle d’attente poker. `blackjack` : table blackjack multijoueur. */
   game?: 'poker' | 'blackjack'
 }
 
@@ -29,46 +28,29 @@ interface SocketContextType {
 
 export const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-const socketUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || undefined;
+// 🚀 DÉTECTION INFAILLIBLE DU CHEMIN
+const getSocketConfig = () => {
+  let url = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || 'http://localhost:3000';
+  let path = '/socket.io';
 
-/** Base URL Socket.IO : env > dev localhost via Vite (proxy → :3000) > prod / réseau. */
-function resolveSocketBaseUrl(): string {
-  if (socketUrl) return socketUrl
-  if (typeof window === 'undefined') return 'http://localhost:3000'
-  const host = window.location.hostname
-  const isLocal = host === 'localhost' || host === '127.0.0.1'
-  // En `vite dev`, la page est sur :5175 : utiliser la même origine pour que /socket.io soit proxifié vers le backend.
-  // Sinon le client tape directement :3000 → ERR_CONNECTION_REFUSED si l’API n’écoute pas encore ou autre souci réseau local.
-  if (import.meta.env.DEV && isLocal) {
-    return window.location.origin
-  }
-  if (isLocal) {
-    return 'http://localhost:3000'
-  }
-  return window.location.origin
-}
-
-let URL = resolveSocketBaseUrl()
-
-const isLocalhost =
-  typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-
-// NOUVEAU : Blocage strict du Mixed Content
-// Si le site est chargé en HTTPS, on force l'URL à utiliser l'origine sécurisée.
-// Nginx prendra automatiquement le relais (en WSS) sur le port 443.
-if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-  try {
-    const parsed = new URL(URL)
-    const insecureForHttpsPage =
-      parsed.protocol === 'http:' || parsed.protocol === 'ws:' || parsed.port === '3000'
-    if (insecureForHttpsPage) {
-      URL = window.location.origin
+  if (typeof window !== 'undefined') {
+    const pathname = window.location.pathname;
+    const pathParts = pathname.split('/');
+    
+    // Auto-détection (marche pour VM 0 et VM 1)
+    if (pathParts.length > 1 && pathParts[1].toLowerCase().startsWith('vmprojet')) {
+      const vmPrefix = '/' + pathParts[1];
+      url = window.location.origin;
+      path = `${vmPrefix}/socket.io`;
+    } else if (url.startsWith('/')) {
+      path = `${url}/socket.io`;
+      url = window.location.origin;
     }
-  } catch {
-    /* URL absolue attendue depuis resolveSocketBaseUrl */
   }
-}
+  return { URL: url, SOCKET_PATH: path };
+};
+
+const { URL, SOCKET_PATH } = getSocketConfig();
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
@@ -100,13 +82,13 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       return
     }
 
+    // 🚀 INITIALISATION AVEC LE BON CHEMIN
     const socketInstance = io(URL, {
+      forceNew: true, // <--- TUE LE CACHE DE SOCKET.IO !
       autoConnect: true,
-      path: isLocalhost || URL.includes('localhost') || URL.includes('127.0.0.1')
-        ? '/socket.io'
-        : '/vmProjetIntegrateurgrp10-0/socket.io', // Toujours utiliser ce chemin en Prod/VM
+      path: SOCKET_PATH,
       auth: { token },
-      // Ne pas forcer WebSocket seul : polling puis upgrade évite beaucoup d’échecs en dev / réseaux stricts
+      secure: typeof window !== 'undefined' && window.location.protocol === 'https:',
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 15,
@@ -126,7 +108,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     socketInstance.on('connect_error', () => {})
 
-    // Safari/iOS : reconnecter quand l'onglet revient au premier plan (WebSocket "suspended")
     const tryReconnect = () => {
       if (!socketInstance.connected) socketInstance.connect()
     }
@@ -145,7 +126,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       socketInstance.off('connect')
       socketInstance.off('disconnect')
       socketInstance.off('connect_error')
-      // Ne disconnect que si connecté (évite "closed before established" en Strict Mode)
       const s = socketInstance
       setTimeout(() => {
         if (s.connected) s.disconnect()
