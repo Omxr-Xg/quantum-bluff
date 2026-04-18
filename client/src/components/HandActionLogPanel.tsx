@@ -35,8 +35,8 @@ export function HandActionLogPanel({ entries, collapseWhen }: HandActionLogPanel
     <div
       className={`pointer-events-auto fixed z-[115] rounded-xl border border-slate-600/50 bg-slate-900/92 shadow-lg backdrop-blur-sm ${
         isMobile
-          ? "bottom-[145px] left-2 w-[min(14rem,calc(50vw-1rem))]"
-          : "bottom-36 left-4 w-[min(18rem,calc(100vw-1.5rem))]"
+          ? "bottom-[145px] right-2 w-[min(14rem,calc(50vw-1rem))]"
+          : "bottom-36 right-4 w-[min(18rem,calc(100vw-1.5rem))]"
       }`}
     >
       <button
