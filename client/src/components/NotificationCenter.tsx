@@ -47,13 +47,11 @@ export function NotificationCenter() {
     if (!socket) return;
     const handleFriendRequest = () => { refetchRequests(); };
     const handleFriendAccepted = () => { refetchRequests(); };
-    socket.on("friend_request", handleFriendRequest);
-    socket.on("friend_request_received", handleFriendRequest);
-    socket.on("friend_request_accepted", handleFriendAccepted);
+    socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequest);
+    socket.on("FRIEND_REQUEST_ACCEPTED", handleFriendAccepted);
     return () => {
-      socket.off("friend_request", handleFriendRequest);
-      socket.off("friend_request_received", handleFriendRequest);
-      socket.off("friend_request_accepted", handleFriendAccepted);
+      socket.off("FRIEND_REQUEST_RECEIVED", handleFriendRequest);
+      socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendAccepted);
     };
   }, [socket, refetchRequests]);
 
