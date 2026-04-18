@@ -62,9 +62,11 @@ export function QuantumHUD({
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const m = 8;
+    // Reserve space for the relative PlayerDashboard at the bottom on desktop
+    const dashH = vw >= 768 ? 96 : 0;
     return {
       left: Math.min(Math.max(m, left), vw - w - m),
-      top: Math.min(Math.max(m, top), vh - h - m),
+      top: Math.min(Math.max(m, top), (vh - dashH) - h - m),
     };
   }, []);
 
@@ -133,7 +135,7 @@ export function QuantumHUD({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           style={{ left: pos.left, top: pos.top }}
-          className="fixed z-[55] w-auto max-w-[calc(100vw-1rem)] md:w-80 md:max-w-none bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-purple-500 shadow-2xl"
+          className="fixed z-[55] w-auto max-w-[calc(100vw-1rem)] md:w-80 md:max-w-none bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-purple-500 shadow-2xl flex flex-col max-h-[calc(100vh-10rem)]"
           onMouseEnter={onPanelPointerEnter}
           onMouseLeave={onPanelPointerLeave}
         >
@@ -194,7 +196,7 @@ export function QuantumHUD({
             </div>
           )}
 
-          <div className="p-4 max-h-96 overflow-y-auto">
+          <div className="p-4 overflow-y-auto flex-1 min-h-0">
             <div className="text-gray-400 text-sm mb-3 flex items-center gap-2">
               <BarChart2 className="w-4 h-4" />
               {t("quantumHUD.probabilityEvolution")}

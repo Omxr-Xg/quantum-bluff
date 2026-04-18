@@ -3441,7 +3441,7 @@ export function Game() {
         phase={phase}
         burnedCardsCount={displayBurnedCardsCount}
         colorblindMode={colorblindMode}
-        heroSeatId={isBotMode ? "human" : (userId ?? undefined)}
+        heroSeatId={heroPlayer?.id ?? null}
         >
         <CommunityCards
         cards={communityCards}
