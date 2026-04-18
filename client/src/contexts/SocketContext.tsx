@@ -140,7 +140,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       addToast(
         i18n.t('toast.friendRequestFrom', { username: data.sender?.username ?? 'un joueur' }),
         'info',
-        () => { window.location.href = '/friends' }
+        () => window.dispatchEvent(new CustomEvent('navigate-to', { detail: '/friends' }))
       )
       window.dispatchEvent(new CustomEvent('refetch-requests'))
     })
@@ -149,7 +149,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       addToast(
         i18n.t('toast.friendRequestAccepted', { username: data.username ?? 'Un ami' }),
         'success',
-        () => { window.location.href = '/friends' }
+        () => window.dispatchEvent(new CustomEvent('navigate-to', { detail: '/friends' }))
       )
       if (window.location.pathname === '/friends') {
         window.dispatchEvent(new CustomEvent('refetch-friends'))
@@ -178,7 +178,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       addToast(
         i18n.t('toast.joinRequestFrom', { username: data.user?.username ?? 'un joueur' }),
         'info',
-        data.roomId ? () => { window.location.href = `/waiting-room?roomId=${data.roomId}` } : undefined
+        data.roomId ? () => window.dispatchEvent(new CustomEvent('navigate-to', { detail: `/waiting-room?roomId=${data.roomId}` })) : undefined
       )
     })
 

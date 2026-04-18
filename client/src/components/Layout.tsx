@@ -105,6 +105,12 @@ export function Layout({ children }: LayoutProps) {
   }, [isConnected, connect]);
 
   useEffect(() => {
+    const handler = (e: Event) => navigate((e as CustomEvent<string>).detail);
+    window.addEventListener("navigate-to", handler);
+    return () => window.removeEventListener("navigate-to", handler);
+  }, [navigate]);
+
+  useEffect(() => {
     if (!socket) return;
 
     const handleFriendRequestReceived = (payload: unknown) => {
