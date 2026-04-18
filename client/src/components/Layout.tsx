@@ -446,7 +446,10 @@ export function Layout({ children }: LayoutProps) {
       </AnimatePresence>
       {notification && (
         <div className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100%-2rem)] sm:w-full">
-          <div className="bg-slate-900/95 border border-blue-500 shadow-2xl rounded-2xl px-4 py-4 backdrop-blur-md animate-in slide-in-from-right-5 duration-300">
+          <div
+            className="bg-slate-900/95 border border-blue-500 shadow-2xl rounded-2xl px-4 py-4 backdrop-blur-md animate-in slide-in-from-right-5 duration-300 cursor-pointer hover:border-blue-400 hover:bg-slate-800/95 transition-colors"
+            onClick={() => { navigate('/friends'); setNotification(null); }}
+          >
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center">
                 <Bell className="w-5 h-5 text-blue-300" />
@@ -459,10 +462,11 @@ export function Layout({ children }: LayoutProps) {
                 <p className="text-slate-200 text-sm">
                   {notification.message}
                 </p>
+                <p className="text-blue-400 text-xs mt-1">{t('notifications.viewRequests')} →</p>
               </div>
 
               <button
-                onClick={() => setNotification(null)}
+                onClick={(e) => { e.stopPropagation(); setNotification(null); }}
                 className="shrink-0 text-slate-400 hover:text-white transition-colors"
               >
                 <X className="w-4 h-4" />

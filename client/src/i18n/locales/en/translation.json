@@ -953,7 +953,8 @@
     "toastTitle": "Notification",
     "empty": "No notifications",
     "gameInvitations": "Game invitations",
-    "friendRequests": "Friend requests"
+    "friendRequests": "Friend requests",
+    "viewRequests": "View requests"
   },
   "bjMulti": {
     "lobbyTitle": "Multiplayer blackjack tables",
