@@ -3418,7 +3418,7 @@ export function Game() {
         </div>
       )}
 
-      <div ref={tableCaptureRef} className="relative">
+      <div ref={tableCaptureRef} className="relative flex-1 flex flex-col">
   
         {/* SHARE BUTTON */}
         {showdownResult && (
