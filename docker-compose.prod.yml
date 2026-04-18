@@ -64,7 +64,6 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: /vmProjetIntegrateurgrp10-0
-        VITE_SOCKET_URL: /vmProjetIntegrateurgrp10-0
     container_name: quantum_frontend
     restart: unless-stopped
     networks:
