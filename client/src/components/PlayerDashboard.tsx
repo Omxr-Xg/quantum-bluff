@@ -190,7 +190,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
       ref={ref}
       className={`fixed bottom-0 left-0 w-full md:relative shadow-2xl transition-all duration-300 ${
         raisePopoverOpen || combinationsHelpOpen ? "z-[120]" : "z-40"
-      } bg-slate-900 md:bg-transparent pb-safe`}
+      } bg-slate-900 md:bg-transparent pb-[env(safe-area-inset-bottom,0)] md:pb-0`}
     >
 
       {showSuccessPopup && (
@@ -216,7 +216,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
 
         {/* Waiting notification */}
         {!isMyTurn && !hasFolded && waitingForPlayer && (
-          <div className="absolute -top-12 md:static left-2 md:left-auto flex items-center mb-2 min-h-[40px]">
+          <div className="absolute -top-14 md:static left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0 flex items-center mb-2 min-h-[40px] z-50">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-blue-500/90 text-white rounded-full font-bold shadow-lg text-xs md:text-sm">
               <Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin shrink-0" />
               <span className="truncate max-w-[120px] md:max-w-none">{t('game.waitingFor', { name: waitingForPlayer })}</span>
@@ -228,7 +228,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
         <div className="flex flex-col md:flex-row items-center md:items-end justify-between gap-2 md:gap-4 relative">
 
           {/* Player cards + Timer next to avatar */}
-          <div className="absolute bottom-full left-2 -mb-2 md:static md:mb-0 flex items-end gap-2 drop-shadow-2xl">
+          <div className="absolute bottom-full left-2 mb-1 md:static md:mb-0 flex items-end gap-2 drop-shadow-2xl">
             {/* Timer - next to cards */}
             {isMyTurn && timeLeft !== undefined && (
               <div

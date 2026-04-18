@@ -415,7 +415,12 @@
       "tourDoneTitle": "تم",
       "tourDoneBody": "أعد فتح الجولة من القائمة → جولة إرشادية. بالتوفيق!",
       "spectatorPlaceholder": "منطقة المشاهد"
-    }
+    },
+    "victory": "انتصار!",
+    "allBotsEliminated": "لقد أقصيت جميع الروبوتات!",
+    "defeated": "تم إقصاؤك!",
+    "outOfChips": "نفدت رقائقك.",
+    "returningToLobby": "العودة إلى اللوبي خلال 5 ثوانٍ..."
   },
   "friends": {
     "title": "أصدقائي",

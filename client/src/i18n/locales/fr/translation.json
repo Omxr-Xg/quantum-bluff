@@ -414,7 +414,12 @@
       "tourDoneTitle": "C’est bon !",
       "tourDoneBody": "Rouvrez la visite quand vous voulez via Menu → Visite guidée. Bonne chance !",
       "spectatorPlaceholder": "Zone spectateur"
-    }
+    },
+    "victory": "Victoire !",
+    "allBotsEliminated": "Tu as éliminé tous les bots !",
+    "defeated": "Éliminé !",
+    "outOfChips": "Tu n'as plus de jetons.",
+    "returningToLobby": "Retour au lobby dans 5 secondes..."
   },
   "friends": {
     "title": "Mes Amis",

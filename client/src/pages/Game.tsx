@@ -213,6 +213,8 @@ export function Game() {
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [playersState, setPlayersState] = useState<(BasePlayer | BotPlayer)[]>([]);
+  const playersStateRef = useRef<(BasePlayer | BotPlayer)[]>([]);
+  useEffect(() => { playersStateRef.current = playersState; }, [playersState]);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [gameTourOpen, setGameTourOpen] = useState(false);
   const [gameTourStep, setGameTourStep] = useState(0);
@@ -266,7 +268,6 @@ export function Game() {
   phaseRef.current = phase;
   const gameStateFromSocketRef = useRef(false);
   const clearBotActionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const playersStateRef = useRef<(BasePlayer | BotPlayer)[]>([]);
   const roundPlayersActedRef = useRef<Set<number>>(new Set());
   roundPlayersActedRef.current = roundPlayersActed;
   const deckRef = useRef<Card[]>([]);
@@ -1563,16 +1564,17 @@ export function Game() {
   }, [isMyTurn, hasFoldedFromState, hasPlayerActed]);
 
   useEffect(() => {
-    if (!isBotMode || playersState.length < 2) return;
+    const ps = playersStateRef.current;
+    if (!isBotMode || ps.length < 2) return;
     if (phase !== "preflop" && phase !== "flop" && phase !== "turn" && phase !== "river") return;
-    const activeIdx = playersState.findIndex((p) => p.isActive);
+    const activeIdx = ps.findIndex((p) => p.isActive);
     if (activeIdx === -1) return;
     if (!roundPlayersActed.has(activeIdx)) return;
-    const activeInHand = playersState.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
+    const activeInHand = ps.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
     if (roundPlayersActed.size >= activeInHand.length) return;
-    let nextIdx = (activeIdx + 1) % playersState.length;
-    for (let i = 0; i < playersState.length; i++) {
-      const p = playersState[nextIdx];
+    let nextIdx = (activeIdx + 1) % ps.length;
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[nextIdx];
       if (p.isConnected !== false && !(p.hasFolded ?? false) && (p.chips ?? 0) > 0 && !roundPlayersActed.has(nextIdx)) {
         setPlayersState((prev) =>
           prev.map((pl, j) => ({ ...pl, isActive: j === nextIdx }))
@@ -1581,9 +1583,9 @@ export function Game() {
         setIsLoading(false);
         return;
       }
-      nextIdx = (nextIdx + 1) % playersState.length;
+      nextIdx = (nextIdx + 1) % ps.length;
     }
-  }, [isBotMode, playersState, phase, roundPlayersActed]);
+  }, [isBotMode, phase, roundPlayersActed]);
 
   useEffect(() => {
     if (!isBotMode || !isBotThinking) return;
@@ -1723,7 +1725,7 @@ export function Game() {
         }
       }
     }
-  }, [roundPlayersActed, phase, gameIdParam, userId, runOutPhase, playersState]);
+  }, [roundPlayersActed, phase, gameIdParam, userId, runOutPhase]);
 
   useEffect(() => {
     if (phase !== "preflop" || !gameInitialized || hasSetStartOfHandThisHandRef.current) return;
@@ -2103,6 +2105,12 @@ export function Game() {
       .every((p) => (p.chips ?? 0) <= 0);
     if (allBotsEliminated) setGameOverReason("bot_eliminated");
   }, [isBotMode, showdownResult, playerChips, playersState, userId, gameOverReason]);
+
+  useEffect(() => {
+    if (!gameOverReason) return;
+    const timer = setTimeout(() => { navigate("/lobby"); }, 5000);
+    return () => clearTimeout(timer);
+  }, [gameOverReason, navigate]);
 
   useEffect(() => {
     if (!isBotMode || playersState.length === 0) return;
@@ -2712,6 +2720,26 @@ export function Game() {
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col relative">
+      {gameOverReason && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-6 text-center p-8 rounded-2xl bg-slate-900/95 border border-slate-700 shadow-2xl">
+        {gameOverReason === "bot_eliminated" ? (
+          <>
+            <div className="text-6xl">🏆</div>
+            <h2 className="text-4xl font-bold text-yellow-400">{t('game.victory')}</h2>
+            <p className="text-slate-300">{t('game.allBotsEliminated')}</p>
+          </>
+        ) : (
+          <>
+            <div className="text-6xl">💥</div>
+            <h2 className="text-4xl font-bold text-red-400">{t('game.defeated')}</h2>
+            <p className="text-slate-300">{t('game.outOfChips')}</p>
+          </>
+        )}
+        <p className="text-slate-500 text-sm">{t('game.returningToLobby')}</p>
+      </div>
+    </div>
+  )}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
@@ -3390,7 +3418,7 @@ export function Game() {
         </div>
       )}
 
-      <div ref={tableCaptureRef} className="relative">
+      <div ref={tableCaptureRef} className="relative flex-1 flex flex-col">
   
         {/* SHARE BUTTON */}
         {showdownResult && (
@@ -3413,7 +3441,7 @@ export function Game() {
         phase={phase}
         burnedCardsCount={displayBurnedCardsCount}
         colorblindMode={colorblindMode}
-        heroSeatId={isBotMode ? "human" : (userId ?? undefined)}
+        heroSeatId={heroPlayer?.id ?? null}
         >
         <CommunityCards
         cards={communityCards}
@@ -3427,7 +3455,7 @@ export function Game() {
         </div>
      </div>
 
-      <HandActionLogPanel entries={handActionLog} />
+      <HandActionLogPanel entries={handActionLog} collapseWhen={isQuantumOpen} />
       <QuantumHUD
         isOpen={isQuantumOpen}
         onToggle={closeQuantumPanel}

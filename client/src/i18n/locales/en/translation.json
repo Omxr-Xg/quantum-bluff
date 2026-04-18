@@ -414,7 +414,12 @@
       "tourDoneTitle": "All set",
       "tourDoneBody": "Open the tour anytime: Menu → Guided tour. Good luck!",
       "spectatorPlaceholder": "Spectator area"
-    }
+    },
+    "victory": "Victory!",
+    "allBotsEliminated": "You eliminated all bots!",
+    "defeated": "Eliminated!",
+    "outOfChips": "You ran out of chips.",
+    "returningToLobby": "Returning to lobby in 5 seconds..."
   },
   "friends": {
     "title": "My Friends",
