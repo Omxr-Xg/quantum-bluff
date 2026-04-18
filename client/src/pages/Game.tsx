@@ -3455,7 +3455,7 @@ export function Game() {
         </div>
      </div>
 
-      <HandActionLogPanel entries={handActionLog} />
+      <HandActionLogPanel entries={handActionLog} collapseWhen={isQuantumOpen} />
       <QuantumHUD
         isOpen={isQuantumOpen}
         onToggle={closeQuantumPanel}

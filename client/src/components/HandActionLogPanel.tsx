@@ -10,14 +10,19 @@ export interface HandActionLogEntry {
 
 interface HandActionLogPanelProps {
   entries: HandActionLogEntry[];
+  collapseWhen?: boolean;
 }
 
-export function HandActionLogPanel({ entries }: HandActionLogPanelProps) {
+export function HandActionLogPanel({ entries, collapseWhen }: HandActionLogPanelProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(true);
   const listRef = useRef<HTMLDivElement>(null);
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
+
+  useEffect(() => {
+    if (collapseWhen) setOpen(false);
+  }, [collapseWhen]);
 
   useEffect(() => {
     const el = listRef.current;
