@@ -13,11 +13,12 @@ interface Toast {
   id: number;
   message: string;
   type: ToastType;
+  onClick?: () => void;
 }
 
 interface ToastContextType {
   toasts: Toast[];
-  addToast: (message: string, type?: ToastType) => void;
+  addToast: (message: string, type?: ToastType, onClick?: () => void) => void;
   removeToast: (id: number) => void;
 }
 
@@ -28,10 +29,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const toastSeqRef = useRef(0);
 
   const addToast = useCallback(
-    (message: string, type: ToastType = "info") => {
+    (message: string, type: ToastType = "info", onClick?: () => void) => {
       toastSeqRef.current += 1;
       const id = Date.now() * 1000 + toastSeqRef.current;
-      setToasts((prev) => [...prev, { id, message, type }]);
+      setToasts((prev) => [...prev, { id, message, type, onClick }]);
 
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));

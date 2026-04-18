@@ -434,6 +434,7 @@ export function Layout({ children }: LayoutProps) {
             message={toast.message}
             type={toast.type}
             onClose={() => removeToast(toast.id)}
+            onClick={toast.onClick}
           />
         ))}
       </AnimatePresence>

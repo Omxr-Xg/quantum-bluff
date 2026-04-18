@@ -60,6 +60,22 @@ export function NotificationCenter() {
     setOpen(false);
   }, [location.pathname]);
 
+  // Open panel when a toast's onClick fires the custom event
+  useEffect(() => {
+    const handler = () => {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        const panelW = Math.min(320, window.innerWidth - 16);
+        const rawRight = window.innerWidth - rect.right;
+        const right = Math.max(8, Math.min(window.innerWidth - 8 - panelW, rawRight));
+        setPanelPos({ top: rect.bottom + 8, right });
+      }
+      setOpen(true);
+    };
+    window.addEventListener("open-notification-panel", handler);
+    return () => window.removeEventListener("open-notification-panel", handler);
+  }, []);
+
   // Close when clicking outside both the button and the portaled dropdown
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
