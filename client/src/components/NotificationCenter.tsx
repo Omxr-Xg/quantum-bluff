@@ -77,11 +77,11 @@ export function NotificationCenter() {
   const handleToggle = () => {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setPanelPos({
-        top: rect.bottom + 8,
-        // Clamp so the panel never goes off-screen on the right
-        right: Math.max(8, window.innerWidth - rect.right),
-      });
+      const panelW = Math.min(320, window.innerWidth - 16);
+      const rawRight = window.innerWidth - rect.right;
+      // Clamp so panel left edge stays at least 8px from viewport left
+      const right = Math.max(8, Math.min(window.innerWidth - 8 - panelW, rawRight));
+      setPanelPos({ top: rect.bottom + 8, right });
     }
     setOpen((o) => !o);
   };

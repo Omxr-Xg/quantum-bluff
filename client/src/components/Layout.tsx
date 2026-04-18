@@ -241,7 +241,7 @@ export function Layout({ children }: LayoutProps) {
         <Users className="h-4 w-4 shrink-0" />
         <span className="hidden lg:inline">{t("lobby.manageFriends")}</span>
       </button>
-      <button type="button" onClick={() => navigate("/leaderboard")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600/80 px-2 text-sm text-white transition hover:bg-amber-500 sm:gap-2 sm:px-3 md:h-12" title={t("leaderboard.title")}>
+      <button type="button" onClick={() => navigate("/leaderboard")} className="hidden sm:inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600/80 px-2 text-sm text-white transition hover:bg-amber-500 sm:gap-2 sm:px-3 md:h-12" title={t("leaderboard.title")}>
         <Trophy className="h-4 w-4 shrink-0" />
         <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
       </button>
