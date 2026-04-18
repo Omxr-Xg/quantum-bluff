@@ -16,7 +16,7 @@ export function calculatePlayerPositions(
   _isTablet = false
 ) {
   const radiusX = 451;
-  const radiusY = 294;
+  const radiusY = 220;
 
   const startAngle = Math.PI / 2;
   const angleStep  = (2 * Math.PI) / count;

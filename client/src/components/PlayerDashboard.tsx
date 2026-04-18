@@ -216,7 +216,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
 
         {/* Waiting notification */}
         {!isMyTurn && !hasFolded && waitingForPlayer && (
-          <div className="absolute -top-12 md:static left-2 md:left-auto flex items-center mb-2 min-h-[40px]">
+          <div className="absolute -top-14 md:static left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0 flex items-center mb-2 min-h-[40px] z-50">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-blue-500/90 text-white rounded-full font-bold shadow-lg text-xs md:text-sm">
               <Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin shrink-0" />
               <span className="truncate max-w-[120px] md:max-w-none">{t('game.waitingFor', { name: waitingForPlayer })}</span>

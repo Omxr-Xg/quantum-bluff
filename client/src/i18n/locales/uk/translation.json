@@ -415,7 +415,12 @@
       "tourDoneTitle": "Готово",
       "tourDoneBody": "Знову: Меню → Екскурсія. Удачі!",
       "spectatorPlaceholder": "Зона глядача"
-    }
+    },
+    "victory": "Перемога!",
+    "allBotsEliminated": "Ви усунули всіх ботів!",
+    "defeated": "Усунено!",
+    "outOfChips": "У вас закінчились фішки.",
+    "returningToLobby": "Повернення до лобі через 5 секунд..."
   },
   "friends": {
     "title": "Мої друзі",

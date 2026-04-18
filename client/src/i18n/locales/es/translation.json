@@ -414,7 +414,12 @@
       "tourDoneTitle": "Listo",
       "tourDoneBody": "Vuelve a abrir: Menú → Visita guiada. ¡Suerte!",
       "spectatorPlaceholder": "Zona espectador"
-    }
+    },
+    "victory": "¡Victoria!",
+    "allBotsEliminated": "¡Eliminaste a todos los bots!",
+    "defeated": "¡Eliminado!",
+    "outOfChips": "Te quedaste sin fichas.",
+    "returningToLobby": "Volviendo al lobby en 5 segundos..."
   },
   "friends": {
     "title": "Mis Amigos",
