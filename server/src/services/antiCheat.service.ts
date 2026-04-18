@@ -6,9 +6,14 @@ const MULTI_ACCOUNT_MIN_OTHERS_ON_IP = 2;
 
 export class AntiCheatService {
   static async logIpAndCheckMultiAccount(userId: string, ip: string) {
-    if (ip === '::1' || ip === '127.0.0.1' || ip.includes('localhost')) {
+    if (
+      ip === '::1' ||
+      ip === '127.0.0.1' ||
+      ip.includes('localhost') ||
+      ip === '192.168.100.50'  // Proxy université - tous les users ont cette IP
+    ) {
       return;
-    }
+   }
 
     await prisma.user.update({
       where: { id: userId },
