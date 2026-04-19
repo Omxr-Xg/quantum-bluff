@@ -7,6 +7,7 @@ import {
   updateUserBalance,
   getUserBalance,
   BALANCE_CHANGED_EVENT,
+  fetchBalanceFromServer,
 } from "../utils/userProfile";
 import { apiUrl } from "../utils/apiBase";
 import { ChipIcon } from "../components/ChipIcon";
@@ -145,20 +146,8 @@ export function SlotMachine() {
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
-      const res = await fetch(apiUrl("/api/auth/balance"), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const raw: unknown = await res.json();
-        const chips =
-          raw !== null &&
-          typeof raw === "object" &&
-          "chips" in raw &&
-          typeof (raw as { chips: unknown }).chips === "number"
-            ? Math.max(0, Math.floor((raw as { chips: number }).chips))
-            : getUserBalance();
-        setBalance(chips);
-      }
+      const chips = await fetchBalanceFromServer({ authoritative: true });
+      setBalance(chips);
     } catch {
       addToast(t("slot.errorLoadBalance"), "error");
     }

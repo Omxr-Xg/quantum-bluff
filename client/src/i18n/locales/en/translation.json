@@ -1077,12 +1077,23 @@
     }
   },
   "dailyChallenges": {
+    "title": "Daily challenges",
+    "loading": "Loading…",
+    "empty": "No challenges available.",
     "winWithPair": "Win a hand with one pair",
     "win200Roulette": "Win 200 tokens in roulette",
     "play5Times": "Play 5 multiplayer hands",
     "win200Slot": "Win 200 tokens in slot machine",
     "claimReward": "Claim reward",
-    "reward": "Reward:"
+    "rewardWithChips": "Reward: {{amount}} chips",
+    "claimed": "Reward claimed",
+    "errors": {
+      "auth": "Sign in required.",
+      "network": "Connection error.",
+      "loadFailed": "Could not load challenges.",
+      "claimFailed": "Could not claim reward.",
+      "claimNetwork": "Network error while claiming."
+    }
   },
   "filters": {
     "maxBet50": "Bets < $50",

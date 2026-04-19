@@ -4,7 +4,7 @@ import { useTranslation, type TFunction } from "react-i18next";
 import { motion, useMotionValue, animate, type MotionValue } from "motion/react";
 import { ArrowLeft, Trash2, Undo2 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
-import { updateUserBalance } from "../utils/userProfile";
+import { updateUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 import {
   mergeGamificationFromServerResponse,
   readGamification,
@@ -603,13 +603,12 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
       navigate("/lobby");
       return;
     }
-    const url = apiUrl("/api/auth/balance");
     try {
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error("balance");
-      const data = await res.json();
-      const c = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : 0;
-      updateUserBalance(c);
+      const c = await fetchBalanceFromServer({ authoritative: true });
+      if (!localStorage.getItem("token")) {
+        navigate("/lobby");
+        return;
+      }
       setChips(c);
     } catch {
       addToast(t("roulette.errorLoadBalance"), "error");

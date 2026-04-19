@@ -1083,11 +1083,22 @@
     }
   },
   "dailyChallenges": {
+    "title": "Defis du jour",
+    "loading": "Chargement…",
+    "empty": "Aucun defi disponible.",
     "winWithPair": "Gagner une main avec une paire",
     "win200Roulette": "Gagner 200 jetons a la roulette",
     "play5Times": "Jouer 5 mains multijoueur",
     "win200Slot": "Gagner 200 jetons a la machine a sous",
     "claimReward": "Recuperer la recompense",
-    "reward": "Recompense :"
+    "rewardWithChips": "Recompense : {{amount}} jetons",
+    "claimed": "Recompense recuperee",
+    "errors": {
+      "auth": "Connexion requise.",
+      "network": "Erreur de connexion.",
+      "loadFailed": "Impossible de charger les defis.",
+      "claimFailed": "Impossible de recuperer la recompense.",
+      "claimNetwork": "Erreur reseau lors de la recuperation."
+    }
   }
 }

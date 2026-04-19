@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Target } from "lucide-react";
 import { useUser } from "../hooks/useUser";
 import { apiUrl } from "../utils/apiBase";
 import { useTranslation } from "react-i18next";
@@ -17,16 +17,16 @@ interface Challenge {
 export function DailyChallenges() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /** Clé i18n (dailyChallenges.errors.*) pour que le libellé suive la langue */
+  const [errorKey, setErrorKey] = useState<string | null>(null);
   const { t } = useTranslation();
 
   const { userId } = useUser();
 
-  // FETCH CHALLENGES
   const fetchChallenges = async () => {
     if (!userId) {
       setChallenges([]);
-      setError(null);
+      setErrorKey(null);
       setLoading(false);
       return;
     }
@@ -35,7 +35,8 @@ export function DailyChallenges() {
       const token = localStorage.getItem("token");
       if (!token) {
         setChallenges([]);
-        setError("Missing auth token");
+        setErrorKey("dailyChallenges.errors.auth");
+        setLoading(false);
         return;
       }
 
@@ -46,30 +47,29 @@ export function DailyChallenges() {
       const data = await res.json();
       if (!res.ok) {
         setChallenges([]);
-        setError(data?.error || `HTTP ${res.status}`);
+        setErrorKey("dailyChallenges.errors.loadFailed");
         return;
       }
 
-      setChallenges(data.challenges || []); 
-      setError(null);
+      setChallenges(data.challenges || []);
+      setErrorKey(null);
     } catch (err) {
       console.error("DailyChallenges error:", err);
-      setError("Network error");
+      setErrorKey("dailyChallenges.errors.network");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchChallenges();
-  }, [userId]); 
+    void fetchChallenges();
+  }, [userId]);
 
-  // CLAIM REWARD
   const handleClaim = async (challengeCode: string) => {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        setError("Missing auth token");
+        setErrorKey("dailyChallenges.errors.auth");
         return;
       }
 
@@ -84,40 +84,43 @@ export function DailyChallenges() {
       const data = await res.json();
 
       if (data.success) {
-        setError(null);
-        await fetchChallenges(); // refresh
+        setErrorKey(null);
+        await fetchChallenges();
       } else {
         console.error(data.error);
-        setError(data?.error || "Claim failed");
+        setErrorKey("dailyChallenges.errors.claimFailed");
       }
     } catch (err) {
       console.error("Claim error:", err);
-      setError("Claim network error");
+      setErrorKey("dailyChallenges.errors.claimNetwork");
     }
   };
+
+  const heading = (
+    <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+      <Target className="w-6 h-6 text-yellow-400 shrink-0" aria-hidden />
+      {t("dailyChallenges.title")}
+    </h2>
+  );
 
   if (loading) {
     return (
       <div className="bg-slate-800 rounded-2xl p-5 border border-yellow-500 shadow-lg">
-        <h2 className="text-xl font-bold text-white mb-4">
-          🎯 Daily Challenges
-        </h2>
-        <p className="text-gray-400 text-sm">Loading...</p>
+        {heading}
+        <p className="text-gray-400 text-sm">{t("dailyChallenges.loading")}</p>
       </div>
     );
   }
 
   return (
     <div className="bg-slate-800 rounded-2xl p-5 border border-yellow-500 shadow-lg">
-      <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-        🎯 Daily Challenges
-      </h2>
+      {heading}
 
       {challenges.length === 0 && (
-        <p className="text-gray-400 text-sm">No challenges available</p>
+        <p className="text-gray-400 text-sm">{t("dailyChallenges.empty")}</p>
       )}
-      {error && (
-        <p className="text-red-400 text-xs mt-2">{error}</p>
+      {errorKey && (
+        <p className="text-red-400 text-xs mt-2">{t(errorKey)}</p>
       )}
 
       <div className="space-y-3">
@@ -134,11 +137,10 @@ export function DailyChallenges() {
                   : "bg-slate-700 border-slate-600"
               }`}
             >
-              {/* TEXT */}
               <div className="flex justify-between items-center text-sm mb-1">
                 <span className="text-white flex items-center gap-2">
                   {c.completed && (
-                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <CheckCircle className="w-4 h-4 text-green-400 shrink-0" aria-hidden />
                   )}
                   {t(c.i18nKey)}
                 </span>
@@ -148,7 +150,6 @@ export function DailyChallenges() {
                 </span>
               </div>
 
-              {/* PROGRESS BAR */}
               <div className="w-full bg-slate-600 h-2 rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all ${
@@ -158,23 +159,25 @@ export function DailyChallenges() {
                 />
               </div>
               <div className="text-yellow-300 text-xs mt-2">
-                {t("dailyChallenges.reward")} {c.rewardTokens}
+                {t("dailyChallenges.rewardWithChips", {
+                  amount: c.rewardTokens,
+                })}
               </div>
 
-              {/* CLAIM BUTTON */}
               {c.completed && !c.claimed && (
                 <button
+                  type="button"
                   className="mt-3 w-full bg-green-500 py-2 rounded hover:bg-green-600 transition"
-                  onClick={() => handleClaim(c.code)}
+                  onClick={() => void handleClaim(c.code)}
                 >
                   {t("dailyChallenges.claimReward")}
                 </button>
               )}
 
-              {/* CLAIMED */}
               {c.claimed && (
-                <div className="text-green-400 text-xs mt-2">
-                  ✔ Reward claimed
+                <div className="text-green-400 text-xs mt-2 flex items-center gap-1.5">
+                  <CheckCircle className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                  {t("dailyChallenges.claimed")}
                 </div>
               )}
             </div>

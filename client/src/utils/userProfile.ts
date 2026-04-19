@@ -74,6 +74,38 @@ export function addToUserBalance(amount: number): number {
 import { clearGamificationStorage } from "./gamificationStorage";
 import { apiUrl } from "./apiBase";
 
+/** Si le JWT est expiré, inutile d'appeler l'API (sinon 401 dans la console réseau). */
+function accessTokenIsExpired(token: string): boolean {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    let b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    const json = atob(b64);
+    const payload = JSON.parse(json) as { exp?: number };
+    if (typeof payload.exp !== "number") return false;
+    return payload.exp * 1000 < Date.now() + 10_000;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Token expiré / révoqué : nettoyage local sans appel serveur (évite 401 en boucle sur /balance).
+ */
+export function invalidateStaleAuthSession(): void {
+  localStorage.removeItem("token");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("userid");
+  localStorage.removeItem("username");
+  localStorage.removeItem(STORAGE_KEYS.USERNAME);
+  localStorage.removeItem(STORAGE_KEYS.EMAIL);
+  clearGamificationStorage();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("auth-changed"));
+  }
+}
+
 /** Vide toutes les données d'authentification du localStorage (déconnexion). Appelle l'API logout pour invalider le token côté serveur. */
 export function clearAuthStorage(): void {
   const token = localStorage.getItem("token");
@@ -111,10 +143,19 @@ export type FetchBalanceOptions = {
 export async function fetchBalanceFromServer(options?: FetchBalanceOptions): Promise<number> {
   const token = localStorage.getItem("token");
   if (!token) return getUserBalance();
+  if (accessTokenIsExpired(token)) {
+    invalidateStaleAuthSession();
+    return getUserBalance();
+  }
   const url = apiUrl("/api/auth/balance");
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) return getUserBalance();
+    if (!res.ok) {
+      if (res.status === 401) {
+        invalidateStaleAuthSession();
+      }
+      return getUserBalance();
+    }
     const data = await res.json();
     const serverChips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : getUserBalance();
     if (options?.authoritative) {

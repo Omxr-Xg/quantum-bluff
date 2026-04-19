@@ -1069,11 +1069,22 @@
     }
   },
   "dailyChallenges": {
+    "title": "Desafios diarios",
+    "loading": "Cargando…",
+    "empty": "No hay desafios disponibles.",
     "winWithPair": "Ganar una mano con una pareja",
     "win200Roulette": "Ganar 200 fichas en ruleta",
     "play5Times": "Jugar 5 manos multijugador",
     "win200Slot": "Ganar 200 fichas en tragamonedas",
     "claimReward": "Reclamar recompensa",
-    "reward": "Recompensa:"
+    "rewardWithChips": "Recompensa: {{amount}} fichas",
+    "claimed": "Recompensa reclamada",
+    "errors": {
+      "auth": "Inicia sesion.",
+      "network": "Error de conexion.",
+      "loadFailed": "No se pudieron cargar los desafios.",
+      "claimFailed": "No se pudo reclamar la recompensa.",
+      "claimNetwork": "Error de red al reclamar."
+    }
   }
 }
