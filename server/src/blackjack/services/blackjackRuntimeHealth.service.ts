@@ -22,7 +22,8 @@ type SnapshotMeta = {
   version?: number
 }
 
-export const BLACKJACK_RUNTIME_STALE_MS = 30 * 60 * 1000
+/** Partie multijoueur sans mise à jour du runtime : reset session (inactivité). */
+export const BLACKJACK_RUNTIME_STALE_MS = 5 * 60 * 1000
 
 export function assessBlackjackRuntimeReadiness(input: {
   requestedGameId: string

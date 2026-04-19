@@ -12,8 +12,6 @@ import {
   Lock,
   Globe,
   UserPlus,
-  Link2,
-  Trash2,
   X,
 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
@@ -297,17 +295,6 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
     }
   };
 
-  const copyTableLink = async (roomId: string) => {
-    const path = `/lobby?tab=blackjack&bjRoom=${roomId}`;
-    const full = `${window.location.origin}${path}`;
-    try {
-      await navigator.clipboard.writeText(full);
-      addToast(t("bjMulti.linkCopied"), "success");
-    } catch {
-      addToast(t("bjMulti.linkCopyFailed"), "error");
-    }
-  };
-
   const inviteFriendToTable = (roomId: string, friendId: string) => {
     if (!socket?.connected || !userId) {
       addToast(t("bjMulti.inviteNeedConnection"), "error");
@@ -320,30 +307,6 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
     });
     setInvitedFriendIds((prev) => (prev.includes(friendId) ? prev : [...prev, friendId]));
     addToast(t("bjMulti.inviteSent"), "info");
-  };
-
-  const deleteTableAsHost = async (roomId: string) => {
-    if (!window.confirm(t("bjMulti.deleteTableConfirm"))) return;
-    setBusy(`delete-${roomId}`);
-    try {
-      const res = await fetch(apiUrl(`/api/blackjack-tables/${roomId}`), {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
-      const err = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        addToast(err.error ?? t("bjMulti.deleteTableFailed"), "error");
-        return;
-      }
-      addToast(t("bjMulti.tableDeleted"), "success");
-      if (roomIdParam === roomId) {
-        clearBjRoomInUrl();
-        setRoomDetail(null);
-      }
-      await loadList();
-    } finally {
-      setBusy(null);
-    }
   };
 
   const startGame = async (id: string) => {
@@ -397,17 +360,6 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
               {t("bjMulti.backToList")}
             </button>
             <div className="flex flex-wrap items-center gap-2">
-              {isHost && roomDetail.status === "WAITING" ? (
-                <button
-                  type="button"
-                  disabled={!!busy}
-                  onClick={() => deleteTableAsHost(roomDetail.id)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-rose-600/60 bg-rose-950/50 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-900/60 disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {t("bjMulti.deleteTable")}
-                </button>
-              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -532,17 +484,6 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
                   ))
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => copyTableLink(roomDetail.id)}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-500 bg-slate-800 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-700"
-              >
-                <Link2 className="h-4 w-4" />
-                {t("bjMulti.copyTableLink")}
-              </button>
-              {isPrivate ? (
-                <p className="mt-2 text-xs text-amber-200/80">{t("bjMulti.privateLinkHint")}</p>
-              ) : null}
             </div>
           )}
 
@@ -731,8 +672,6 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
               {rooms.map((r) => {
                 const isPrivate = r.visibility === "PRIVATE";
                 const isFull = r.seats.length >= r.maxSeats;
-                const isHost = r.hostId === userId;
-                const canDeleteFromList = isHost && r.status === "WAITING";
                 return (
                   <li
                     key={r.id}
@@ -770,18 +709,6 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
                       >
                         {t("bjMulti.open")}
                       </button>
-                      {canDeleteFromList ? (
-                        <button
-                          type="button"
-                          disabled={!!busy}
-                          onClick={() => void deleteTableAsHost(r.id)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-600/60 bg-rose-950/50 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-900/60 disabled:cursor-not-allowed disabled:opacity-50"
-                          title={t("bjMulti.deleteTable")}
-                        >
-                          <Trash2 className="h-4 w-4 shrink-0" />
-                          {t("bjMulti.deleteTable")}
-                        </button>
-                      ) : null}
                       {r.status === "WAITING" && !isFull && (
                         <button
                           type="button"

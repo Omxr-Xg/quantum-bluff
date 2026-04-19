@@ -128,6 +128,24 @@ export class BlackjackTableController {
     return this.seats.findIndex((s) => s.userId === userId)
   }
 
+  /**
+   * Retire un joueur pendant la phase de mise (départ lobby / sync avec Prisma).
+   * Retourne false si la phase ne le permet pas ou si le siège est introuvable.
+   */
+  removeSeatDuringBetting(userId: string): boolean {
+    if (this.phase !== 'betting') return false
+    const idx = this.seatIndexForUser(userId)
+    if (idx < 0) return false
+    this.seats.splice(idx, 1)
+    this.seats.forEach((s, i) => {
+      s.position = i
+    })
+    if (this.currentSeatIndex >= this.seats.length) {
+      this.currentSeatIndex = Math.max(0, this.seats.length - 1)
+    }
+    return true
+  }
+
   placeBet(
     userId: string,
     rawBet: unknown,

@@ -11,7 +11,8 @@ const ORPHAN_RUNTIME_GRACE_MS = 30 * 60 * 1000
 /** Runtime sans ligne `BlackjackRoom.gameId` correspondante : nettoyage rapide. */
 const ORPHAN_RUNTIME_NO_ROOM_MS = 2 * 60 * 1000
 const NON_PLAYING_RUNTIME_GRACE_MS = 10 * 60 * 1000
-const WAITING_ROOM_MAX_AGE_MS = 6 * 60 * 60 * 1000
+/** Salle d’attente sans activité (updatedAt) : suppression automatique. */
+const WAITING_ROOM_IDLE_MS = 5 * 60 * 1000
 const PLAYING_ROOM_STUCK_MAX_AGE_MS = 2 * 60 * 60 * 1000
 
 type RecoveryMetrics = {
@@ -329,7 +330,7 @@ export async function cleanupStaleBlackjackRooms(): Promise<void> {
     const ageMs = nowMs - lastActivityMs
 
     if (room.status === 'WAITING') {
-      if (ageMs <= WAITING_ROOM_MAX_AGE_MS) continue
+      if (ageMs <= WAITING_ROOM_IDLE_MS) continue
       await prisma.blackjackRoom.delete({ where: { id: room.id } })
       metrics.cleanupRoomDeleted += 1
       continue

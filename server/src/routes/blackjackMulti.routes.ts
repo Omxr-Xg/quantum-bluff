@@ -69,6 +69,14 @@ function getIo(req: express.Request): Server | undefined {
   return req.app.get('io') as Server | undefined
 }
 
+/** Rafraîchit `updatedAt` pour le nettoyage des salles WAITING inactives. */
+async function touchBlackjackRoom(roomId: string): Promise<void> {
+  await prisma.blackjackRoom.update({
+    where: { id: roomId },
+    data: { updatedAt: new Date() },
+  })
+}
+
 async function getRuntimeAssessment(gameId: string) {
   const room = await prisma.blackjackRoom.findFirst({
     where: { gameId },
@@ -363,6 +371,8 @@ router.post('/', authMiddleware, async (req, res) => {
       })
     })
 
+    await touchBlackjackRoom(room.id)
+
     return res.status(201).json({ room })
   } catch (e) {
     console.error('blackjackMulti POST /', e)
@@ -574,6 +584,8 @@ router.post('/:roomId/join', authMiddleware, async (req, res) => {
       data: { roomId: room.id, userId, position },
     })
 
+    await touchBlackjackRoom(room.id)
+
     return res.status(201).json({ seat, roomId: room.id })
   } catch (e) {
     console.error('blackjackMulti join', e)
@@ -603,6 +615,29 @@ router.post('/:roomId/leave', authMiddleware, async (req, res) => {
       where: { roomId: room.id, userId },
     })
 
+    const io = getIo(req)
+    if (room.status === 'PLAYING' && room.gameId) {
+      const table = activeBlackjackGames.get(room.gameId)
+      if (table && table.phase === 'betting') {
+        if (!table.removeSeatDuringBetting(userId)) {
+          const before = table.seats.length
+          table.seats = table.seats.filter((s) => s.userId !== userId)
+          table.seats.forEach((s, i) => {
+            s.position = i
+          })
+          if (table.seats.length !== before) {
+            activeBlackjackGames.sync(room.gameId)
+          }
+        } else {
+          activeBlackjackGames.sync(room.gameId)
+        }
+        const t2 = activeBlackjackGames.get(room.gameId)
+        if (t2) {
+          broadcastTable(room.gameId, t2, io)
+        }
+      }
+    }
+
     const remainingSeats = await prisma.blackjackRoomSeat.count({
       where: { roomId: room.id },
     })
@@ -624,6 +659,8 @@ router.post('/:roomId/leave', authMiddleware, async (req, res) => {
         })
       }
     }
+
+    await touchBlackjackRoom(room.id)
 
     return res.json({ left: true })
   } catch (e) {
@@ -647,6 +684,8 @@ router.patch('/:roomId/ready', authMiddleware, async (req, res) => {
     if (seat.count === 0) {
       return res.status(404).json({ error: 'Siège introuvable' })
     }
+
+    await touchBlackjackRoom(req.params.roomId)
 
     return res.json({ ok: true, ready })
   } catch (e) {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
@@ -88,7 +88,6 @@ export function BlackjackMultiTable() {
   const [loading, setLoading] = useState(true);
   const [betInput, setBetInput] = useState(10);
   const [acting, setActing] = useState(false);
-  const [deletingTable, setDeletingTable] = useState(false);
   const [roundSummary, setRoundSummary] = useState<BjRoundSummaryRow[] | null>(null);
   const [runtimeBanner, setRuntimeBanner] = useState<string | null>(null);
   const [runtimeSeverity, setRuntimeSeverity] = useState<"info" | "warning" | "error">("info");
@@ -99,6 +98,19 @@ export function BlackjackMultiTable() {
 
   const showdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastOutcomeToastHandRef = useRef<number | null>(null);
+  const roomIdRef = useRef<string | null>(null);
+  const gameIdRef = useRef<string | undefined>(gameId);
+  const isSpectatorRef = useRef(isSpectator);
+  const socketRef = useRef(socket);
+  useEffect(() => {
+    gameIdRef.current = gameId;
+  }, [gameId]);
+  useEffect(() => {
+    isSpectatorRef.current = isSpectator;
+  }, [isSpectator]);
+  useEffect(() => {
+    socketRef.current = socket;
+  }, [socket]);
 
   const seatsByUserId = useMemo(() => {
     const map = new Map();
@@ -214,6 +226,11 @@ export function BlackjackMultiTable() {
     applyRuntimeCode(undefined);
     setState(data.state);
     setHostId(data.hostId);
+    if (typeof data.roomId === "string") {
+      roomIdRef.current = data.roomId;
+    } else if (data.state?.roomId) {
+      roomIdRef.current = data.state.roomId;
+    }
     setPlayerChips(getUserBalance());
   }, [gameId, navigate, addToast, t, applyRuntimeCode]);
 
@@ -247,29 +264,28 @@ export function BlackjackMultiTable() {
     }
   }, [gameId, isSpectator, handleApiAction, acting]);
 
-  const deleteTableAsHost = useCallback(async () => {
-    if (!state?.roomId || hostId !== userId) return;
-    if (!window.confirm(t("bjMulti.deleteTableConfirm"))) return;
-    
-    setDeletingTable(true);
-    try {
-      const res = await fetch(apiUrl(`/api/blackjack-tables/${state.roomId}`), {
-        method: "DELETE",
+  useEffect(() => {
+    if (state?.roomId) roomIdRef.current = state.roomId;
+  }, [state?.roomId]);
+
+  /** Quitter la table côté API au démontage (navigation) pour retirer le joueur des sièges côté serveur. */
+  useEffect(() => {
+    return () => {
+      if (isSpectatorRef.current) return;
+      const rid = roomIdRef.current;
+      const gid = gameIdRef.current;
+      if (!rid || !gid) return;
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      void fetch(apiUrl(`/api/blackjack-tables/${rid}/leave`), {
+        method: "POST",
         headers: authHeaders(),
-      });
-      
-      const errBody = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        addToast(errBody.error ?? t("bjMulti.deleteTableFailed"), "error");
-        return;
-      }
-      
-      addToast(t("bjMulti.tableDeleted"), "success");
-      navigate("/lobby?tab=blackjack");
-    } finally {
-      setDeletingTable(false);
-    }
-  }, [state?.roomId, hostId, userId, t, addToast, navigate]);
+        body: JSON.stringify({}),
+        keepalive: true,
+      }).catch(() => {});
+      socketRef.current?.emit("LEAVE_BLACKJACK_TABLE", { gameId: gid });
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -438,17 +454,6 @@ export function BlackjackMultiTable() {
           </button>
           
           <div className="flex flex-wrap items-center gap-2">
-            {isHost && !isSpectator && (
-              <button
-                type="button"
-                disabled={deletingTable}
-                onClick={deleteTableAsHost}
-                className="inline-flex items-center gap-2 rounded-lg border border-rose-600/50 bg-rose-950/60 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-900/70 disabled:opacity-50"
-              >
-                <Trash2 className="h-4 w-4" />
-                {t("bjMulti.deleteTable")}
-              </button>
-            )}
             {isSpectator && (
               <span className="rounded-full border border-amber-500/50 bg-amber-950/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-200 shadow-inner">
                 {t("bjMulti.spectatorBadge")}
