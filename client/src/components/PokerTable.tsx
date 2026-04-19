@@ -100,7 +100,7 @@ export function PokerTable({
         style={isMobile ? {
           width: "100vw",
           maxWidth: "100vw",
-          height: "calc(100vh - 200px)",
+          aspectRatio: "950 / 560",
           overflow: "visible",
         } : isTablet ? {
           width: "clamp(400px, 80vw, 700px)",
@@ -196,22 +196,16 @@ export function PokerTable({
             const pos = allPositions[player.position];
             if (!pos) return null;
 
-            const mobileW = typeof window !== "undefined" ? window.innerWidth : 390;
-            const mobileH = typeof window !== "undefined" ? window.innerHeight - 200 : 600;
-            const xPct = isMobile
-              ? toPercent(pos.x, mobileW / 2)
-              : toPercent(pos.x, BASE_TABLE_WIDTH / 2);
-            const yPct = isMobile
-              ? toPercent(pos.y, mobileH / 2)
-              : toPercent(pos.y, BASE_TABLE_HEIGHT / 2);
+            const xPct = toPercent(pos.x, BASE_TABLE_WIDTH  / 2);
+            const yPct = toPercent(pos.y, BASE_TABLE_HEIGHT / 2);
 
             return (
               <div
                 key={player.id}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto ${isMobile ? "max-w-[80px]" : ""}`}
+                className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
                 style={{
-                  left: `clamp(10%, calc(50% + ${xPct}%), 90%)`,
-                  top:  `clamp(8%, calc(50% + ${yPct}%), 92%)`,
+                  left: `clamp(8%, calc(50% + ${xPct}%), 92%)`,
+                  top:  `clamp(5%, calc(50% + ${yPct}%), 95%)`,
                   zIndex: player.position === 0 ? 20 : 10,
                 }}
               >
@@ -348,9 +342,8 @@ export function PokerTable({
                     {player.chips.toLocaleString()}
                   </div>
 
-                  {/* Cartes adversaires (face cachée / showdown) — masquées sur mobile */}
-                  {!isMobile &&
-                    player.cards &&
+                  {/* Cartes adversaires (face cachée / showdown) */}
+                  {player.cards &&
                     player.cards.length > 0 &&
                     !player.hasFolded &&
                     player.position !== 0 &&
@@ -362,7 +355,7 @@ export function PokerTable({
                             key={index}
                             suit={card.suit}
                             value={card.value}
-                            size="sm"
+                            size={isMobile ? "xs" : "sm"}
                             faceDown={!isShowdown}
                             colorblindMode={colorblindMode}
                           />
