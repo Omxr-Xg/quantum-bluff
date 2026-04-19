@@ -343,7 +343,7 @@ export function PokerTable({
                   </div>
 
                   {/* Cartes adversaires (face cachée / showdown) */}
-                  {!isMobile && player.cards &&
+                  {player.cards &&
                     player.cards.length > 0 &&
                     !player.hasFolded &&
                     player.position !== 0 &&
