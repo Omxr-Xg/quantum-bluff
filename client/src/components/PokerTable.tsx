@@ -100,8 +100,9 @@ export function PokerTable({
         style={isMobile ? {
           // Sur mobile : on part de la largeur disponible mais on donne
           // plus de hauteur pour que les avatars haut/bas soient visibles
-          width: "clamp(280px, 92vw, 500px)",
-          aspectRatio: "950 / 480",
+          width: "100%",
+          maxWidth: "100%",
+          aspectRatio: "950 / 520",
           overflow: "visible",
         } : isTablet ? {
           width: "clamp(400px, 80vw, 700px)",
