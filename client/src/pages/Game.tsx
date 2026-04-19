@@ -71,6 +71,22 @@ function mapServerRoleToTableRole(serverRole: string | undefined): NonNullable<B
   return "PLAYER";
 }
 
+/** Libellé affiché sur la table — dérivé d’un identifiant pour suivre les changements de langue. */
+type BotTableActionKind = "fold" | "check" | "call" | "raise";
+
+function labelForBotTableAction(kind: BotTableActionKind, tr: (key: string) => string): string {
+  switch (kind) {
+    case "fold":
+      return tr("game.actionFolded");
+    case "check":
+      return tr("game.actionChecked");
+    case "call":
+      return tr("game.actionCalled");
+    default:
+      return tr("game.actionRaised");
+  }
+}
+
 interface BasePlayer {
   id: number | string;
   name: string;
@@ -261,7 +277,7 @@ export function Game() {
     isSplit?: boolean;
     skipRevealDelay?: boolean;
   } | null>(null);
-  const [lastBotAction, setLastBotAction] = useState<{ name: string; action: string } | null>(null);
+  const [lastBotAction, setLastBotAction] = useState<{ name: string; kind: BotTableActionKind } | null>(null);
   const [runOutPhase, setRunOutPhase] = useState<GamePhase | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseRef = useRef(phase);
@@ -630,7 +646,8 @@ export function Game() {
     return {
       ...base,
       hasFolded: player.hasFolded ?? false,
-      lastAction: lastBotAction?.name === player.name ? lastBotAction.action : undefined,
+      lastAction:
+        lastBotAction?.name === player.name ? labelForBotTableAction(lastBotAction.kind, t) : undefined,
     };
   });
   const isMyTurn = Boolean(
@@ -2168,16 +2185,16 @@ export function Game() {
               ? intChips(Math.min(decision.amount ?? callAmount, activePlayer.chips ?? 0))
               : 0;
 
-        const botActionLabel =
+        const actionKind: BotTableActionKind =
           decision.action === "FOLD"
-            ? t('game.actionFolded')
+            ? "fold"
             : decision.action === "CHECK" || (decision.action === "RAISE" && amountToPut <= 0)
-              ? t('game.actionChecked')
+              ? "check"
               : decision.action === "CALL" || (decision.action === "RAISE" && amountToPut <= callAmount)
-                ? t('game.actionCalled')
-                : t('game.actionRaised');
+                ? "call"
+                : "raise";
         if (clearBotActionRef.current) clearTimeout(clearBotActionRef.current);
-        setLastBotAction({ name: activePlayer.name, action: botActionLabel });
+        setLastBotAction({ name: activePlayer.name, kind: actionKind });
         clearBotActionRef.current = setTimeout(() => {
           setLastBotAction(null);
           clearBotActionRef.current = null;
