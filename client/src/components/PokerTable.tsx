@@ -114,7 +114,7 @@ export function PokerTable({
       >
         {/* ─── TABLE ───────────────────────────────────────────────────────── */}
         <div
-          className={`relative w-full h-full border-[clamp(3px,1vw,8px)] ${isMobile ? "rounded-[40%/25%]" : "rounded-[50%]"}`}
+          className={`relative w-full h-full border-[clamp(3px,1vw,8px)] ${isMobile ? "rounded-[40%/25%]" : "rounded-full"}`}
           style={{
             background: feltGradient,
             borderColor: feltBorder,
@@ -210,8 +210,12 @@ export function PokerTable({
                 key={player.id}
                 className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
                 style={{
-                  left: `clamp(2%, calc(50% + ${xPct}%), 98%)`,
-                  top:  `clamp(4%, calc(50% + ${yPct}%), 96%)`,
+                  left: isMobile
+                    ? `clamp(2%, calc(50% + ${xPct}%), 98%)`
+                    : `calc(50% + ${xPct}%)`,
+                  top: isMobile
+                    ? `clamp(4%, calc(50% + ${yPct}%), 96%)`
+                    : `calc(50% + ${yPct}%)`,
                   zIndex: player.position === 0 ? 20 : 10,
                 }}
               >
