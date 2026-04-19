@@ -915,7 +915,10 @@
     "empty": "Немає сповіщень",
     "gameInvitations": "Запрошення до гри",
     "friendRequests": "Запити в друзі",
-    "viewRequests": "Переглянути запити"
+    "viewRequests": "Переглянути запити",
+    "openConversation": "Відкрити розмову",
+    "messages": "Повідомлення",
+    "chat": "Написати"
   },
   "filters": {
     "maxBet50": "Ставки < $50",

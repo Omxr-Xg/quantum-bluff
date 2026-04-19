@@ -914,7 +914,10 @@
     "empty": "Sin notificaciones",
     "gameInvitations": "Invitaciones de partida",
     "friendRequests": "Solicitudes de amistad",
-    "viewRequests": "Ver solicitudes"
+    "viewRequests": "Ver solicitudes",
+    "openConversation": "Abrir conversación",
+    "messages": "Mensajes",
+    "chat": "Chatear"
   },
   "filters": {
     "maxBet50": "Apuestas < 50$",
