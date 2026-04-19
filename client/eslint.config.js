@@ -47,7 +47,8 @@ export default tseslint.config(
       "react-refresh": reactRefresh,
     },
     rules: {
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      // Contextes / UI partagent hooks + composants — avertissements permanents sans gain ici
+      "react-refresh/only-export-components": "off",
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "@typescript-eslint/no-require-imports": "off",
     },

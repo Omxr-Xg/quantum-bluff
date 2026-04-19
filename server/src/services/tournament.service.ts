@@ -1,20 +1,24 @@
+import type { Server } from 'socket.io';
 import { prisma } from '../config/database.js';
 import { rootLogger } from '../observability/index.js';
 import { activeGames } from '../shared/activeGames.js';
 import { GameTable } from '../logic/GameTable.js';
 
 export class TournamentService {
-  // Stockage du socket au niveau de la classe
-  private static io: any = null;
+  private static io: Server | null = null;
 
   private static alreadyEliminated = new Set<string>();
 
   /**
    * Initialise le socket pour tout le service
    */
-  static setIo(io: any) {
+  static setIo(io: Server) {
     this.io = io;
     console.log("✅ [TournamentService] Mégaphone Socket branché au service.");
+  }
+
+  static getIo(): Server | null {
+    return this.io;
   }
 
   static notifyElimination(userId: string) {
@@ -145,7 +149,7 @@ export class TournamentService {
   /**
    * Lancement effectif du tournoi
    */
-  static async startTournament(tournamentId: string, providedIo?: any) {
+  static async startTournament(tournamentId: string, providedIo?: Server) {
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       include: { 
@@ -242,7 +246,7 @@ export class TournamentService {
   /**
    * Veilleur
    */
-  static startTournamentWatcher(io: any) {
+  static startTournamentWatcher(io: Server) {
     this.setIo(io); // On en profite pour fixer le socket
     console.log("👁️ Veilleur de tournois activé.");
 
@@ -256,8 +260,9 @@ export class TournamentService {
         for (const t of pendingOnes) {
           await this.startTournament(t.id, io);
         }
-      } catch (error: any) {
-        console.error("❌ Erreur Veilleur:", error.message);
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error("❌ Erreur Veilleur:", msg);
       }
     }, 5000);
   }

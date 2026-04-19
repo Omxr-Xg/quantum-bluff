@@ -3,6 +3,17 @@ import js from "@eslint/js";
 import tsParser from "@typescript-eslint/parser";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 
+const tsRecommendedRules = {
+  ...tsPlugin.configs.recommended.rules,
+  "@typescript-eslint/no-unused-vars": ["error", {
+    argsIgnorePattern: "^_",
+    varsIgnorePattern: "^_"
+  }],
+  "@typescript-eslint/explicit-function-return-type": "off",
+  "@typescript-eslint/no-require-imports": "off",
+  "no-undef": "off"
+};
+
 export default [
   {
     ignores: [
@@ -33,15 +44,22 @@ export default [
       "@typescript-eslint": tsPlugin
     },
     rules: {
-      ...tsPlugin.configs.recommended.rules,
-      "@typescript-eslint/no-unused-vars": ["error", { 
-        argsIgnorePattern: "^_",
-        varsIgnorePattern: "^_" 
-      }],
-      "@typescript-eslint/explicit-function-return-type": "off",
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-require-imports": "off",
-      "no-undef": "off"
+      ...tsRecommendedRules,
+      "@typescript-eslint/no-explicit-any": "warn"
+    }
+  },
+  // Tests : mocks et fixtures utilisent souvent `any`
+  {
+    files: [
+      "**/__tests__/**/*.ts",
+      "**/*.integration.test.ts",
+      "**/*.test.ts"
+    ],
+    plugins: {
+      "@typescript-eslint": tsPlugin
+    },
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off"
     }
   }
 ];

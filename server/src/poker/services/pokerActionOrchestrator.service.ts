@@ -175,7 +175,7 @@ export async function applyPokerAction(
     // 2. 🔄 GESTION DE LA FIN DE MAIN ET RELANCE AUTOMATIQUE
     if (game.state.handRuntimePhase === "HAND_COMPLETE") {
       // 📡 On attrape le mégaphone global
-      const io = (TournamentService as any).io;
+      const io = TournamentService.getIo();
 
       // A. L'Élimination (La faucheuse) directe !
       if (payload.gameId.startsWith("game_tournoi_")) {
@@ -224,7 +224,7 @@ export async function applyPokerAction(
                       const sockets = await room.fetchSockets();
 
                       for (const s of sockets) {
-                        const uid = (s as any).userId;
+                        const uid = (s as unknown as { userId?: string }).userId;
                         const snapshot = currentGame.getSanitizedState(uid);
                         s.emit("GAME_UPDATE", snapshot);
                         s.emit("GAME_STATE_UPDATED", snapshot);
