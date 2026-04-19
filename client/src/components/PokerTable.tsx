@@ -153,7 +153,7 @@ export function PokerTable({
           {/* Cartes brûlées */}
           {burnedCardsCount > 0 && (
             <div
-              className="absolute right-[16%] top-[24%] pointer-events-none"
+              className="absolute right-[2%] top-[15%] pointer-events-none"
               title={t("game.burned")}
               aria-label={t("game.burnedCount", { count: burnedCardsCount })}
             >
