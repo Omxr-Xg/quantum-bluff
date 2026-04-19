@@ -915,7 +915,8 @@
     "empty": "لا توجد إشعارات",
     "gameInvitations": "دعوات اللعب",
     "friendRequests": "طلبات الصداقة",
-    "viewRequests": "عرض الطلبات"
+    "viewRequests": "عرض الطلبات",
+    "openConversation": "فتح المحادثة"
   },
   "filters": {
     "maxBet50": "رهانات < 50$",

@@ -34,6 +34,8 @@ export function Layout({ children }: LayoutProps) {
   const [notification, setNotification] = useState<{
     id: number;
     message: string;
+    hint?: string;
+    onClick?: () => void;
   } | null>(null);
   const [balance, setBalance] = useState(getUserBalance());
   const [showAddMoney, setShowAddMoney] = useState(false);
@@ -117,7 +119,9 @@ export function Layout({ children }: LayoutProps) {
       const username = (payload as { sender?: { username?: string } })?.sender?.username || "un joueur";
       setNotification({
         id: Date.now(),
-        message: t('toast.friendRequestFrom', { username })
+        message: t('toast.friendRequestFrom', { username }),
+        hint: t('notifications.viewRequests'),
+        onClick: () => navigate('/friends?tab=requests'),
       });
     };
 
@@ -125,16 +129,42 @@ export function Layout({ children }: LayoutProps) {
       const username = (payload as { username?: string })?.username || "Un ami";
       setNotification({
         id: Date.now(),
-        message: t('toast.friendRequestAccepted', { username })
+        message: t('toast.friendRequestAccepted', { username }),
+        hint: t('notifications.viewRequests'),
+        onClick: () => navigate('/friends'),
+      });
+    };
+
+    const handleFriendMessage = (payload: unknown) => {
+      const data = payload as { senderId: string; sender?: { username?: string }; content?: string };
+      const senderUsername = data.sender?.username ?? "un ami";
+      const content = data.content ?? "";
+      const preview = content.length > 50 ? content.slice(0, 50) + "…" : content;
+
+      // Suppress if already viewing this conversation
+      const params = new URLSearchParams(window.location.search);
+      const alreadyViewing =
+        window.location.pathname === "/friends" &&
+        params.get("tab") === "messages" &&
+        params.get("with") === data.senderId;
+      if (alreadyViewing) return;
+
+      setNotification({
+        id: Date.now(),
+        message: `💬 ${senderUsername}: ${preview}`,
+        hint: t('notifications.openConversation'),
+        onClick: () => navigate(`/friends?tab=messages&with=${data.senderId}`),
       });
     };
 
     socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
     socket.on("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
+    socket.on("FRIEND_MESSAGE", handleFriendMessage);
 
     return () => {
       socket.off("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
       socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
+      socket.off("FRIEND_MESSAGE", handleFriendMessage);
     };
   }, [socket, t]);
 
@@ -448,7 +478,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100%-2rem)] sm:w-full">
           <div
             className="bg-slate-900/95 border border-blue-500 shadow-2xl rounded-2xl px-4 py-4 backdrop-blur-md animate-in slide-in-from-right-5 duration-300 cursor-pointer hover:border-blue-400 hover:bg-slate-800/95 transition-colors"
-            onClick={() => { navigate('/friends?tab=requests'); setNotification(null); }}
+            onClick={() => { notification.onClick?.(); setNotification(null); }}
           >
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center">
@@ -462,7 +492,9 @@ export function Layout({ children }: LayoutProps) {
                 <p className="text-slate-200 text-sm">
                   {notification.message}
                 </p>
-                <p className="text-blue-400 text-xs mt-1">{t('notifications.viewRequests')} →</p>
+                {notification.hint && (
+                  <p className="text-blue-400 text-xs mt-1">{notification.hint} →</p>
+                )}
               </div>
 
               <button

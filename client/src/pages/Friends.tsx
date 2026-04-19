@@ -51,7 +51,13 @@ export function Friends() {
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab === "requests") setActiveTab("requests");
+    const withUserId = searchParams.get("with");
+    if (tab === "requests") {
+      setActiveTab("requests");
+    } else if (tab === "messages") {
+      setActiveTab("messages");
+      if (withUserId) setSelectedChat(withUserId);
+    }
   }, [searchParams]);
 
   const [loanModal, setLoanModal] = useState<{ id: string; username: string } | null>(null);

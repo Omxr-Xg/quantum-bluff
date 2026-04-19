@@ -960,7 +960,8 @@
     "empty": "Aucune notification",
     "gameInvitations": "Invitations à jouer",
     "friendRequests": "Demandes d'amis",
-    "viewRequests": "Voir les demandes"
+    "viewRequests": "Voir les demandes",
+    "openConversation": "Ouvrir la conversation"
   },
   "bjMulti": {
     "lobbyTitle": "Tables blackjack multijoueur",
