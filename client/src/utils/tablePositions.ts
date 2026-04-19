@@ -12,11 +12,11 @@
  */
 export function calculatePlayerPositions(
   count: number,
-  _isMobile = false,
+  isMobile = false,
   _isTablet = false
 ) {
-  const radiusX = 451;
-  const radiusY = 220;
+  const radiusX = isMobile ? 340 : 451;
+  const radiusY = isMobile ? 160 : 220;
 
   const startAngle = Math.PI / 2;
   const angleStep  = (2 * Math.PI) / count;
