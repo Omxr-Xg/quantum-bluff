@@ -916,7 +916,9 @@
     "gameInvitations": "دعوات اللعب",
     "friendRequests": "طلبات الصداقة",
     "viewRequests": "عرض الطلبات",
-    "openConversation": "فتح المحادثة"
+    "openConversation": "فتح المحادثة",
+    "messages": "رسائل",
+    "chat": "محادثة"
   },
   "filters": {
     "maxBet50": "رهانات < 50$",

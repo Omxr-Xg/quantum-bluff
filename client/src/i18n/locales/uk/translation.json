@@ -916,7 +916,9 @@
     "gameInvitations": "Запрошення до гри",
     "friendRequests": "Запити в друзі",
     "viewRequests": "Переглянути запити",
-    "openConversation": "Відкрити розмову"
+    "openConversation": "Відкрити розмову",
+    "messages": "Повідомлення",
+    "chat": "Написати"
   },
   "filters": {
     "maxBet50": "Ставки < $50",

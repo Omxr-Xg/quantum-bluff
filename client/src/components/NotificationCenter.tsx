@@ -2,11 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, Gamepad2, UserPlus, Check, X } from "lucide-react";
+import { Bell, Gamepad2, UserPlus, Check, X, MessageCircle } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
 import { useGetFriendRequestsQuery, useRespondToFriendRequestMutation } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
+
+interface UnreadMessage {
+  senderId: string;
+  senderUsername: string;
+  content: string;
+  timestamp: number;
+}
 
 export function NotificationCenter() {
   const { t } = useTranslation();
@@ -19,21 +26,18 @@ export function NotificationCenter() {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  // Fixed position calculated from button rect to escape overflow:hidden ancestors
   const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null);
+  const [unreadMessages, setUnreadMessages] = useState<UnreadMessage[]>([]);
 
   const { data: friendRequests, refetch: refetchRequests } = useGetFriendRequestsQuery(
     userId ?? "",
-    {
-      skip: !userId,
-      refetchOnMountOrArgChange: true,
-    }
+    { skip: !userId, refetchOnMountOrArgChange: true }
   );
 
   const [respondRequest] = useRespondToFriendRequestMutation();
 
   const pendingFriendRequests = friendRequests?.filter((r) => r.status === "PENDING") ?? [];
-  const totalCount = pendingInvitations.length + pendingFriendRequests.length;
+  const totalCount = pendingInvitations.length + pendingFriendRequests.length + unreadMessages.length;
 
   // Refetch triggered by other parts of the app
   useEffect(() => {
@@ -42,18 +46,60 @@ export function NotificationCenter() {
     return () => window.removeEventListener("refetch-requests", handler);
   }, [refetchRequests]);
 
-  // Refetch on incoming socket friend events
+  // Refetch on incoming socket friend events; collect unread messages
   useEffect(() => {
     if (!socket) return;
+
     const handleFriendRequest = () => { refetchRequests(); };
     const handleFriendAccepted = () => { refetchRequests(); };
+
+    const handleFriendMessage = (data: {
+      senderId: string;
+      sender?: { username?: string };
+      content?: string;
+    }) => {
+      // Suppress when already viewing that conversation
+      const params = new URLSearchParams(window.location.search);
+      const alreadyViewing =
+        window.location.pathname === "/friends" &&
+        params.get("tab") === "messages" &&
+        params.get("with") === data.senderId;
+      if (alreadyViewing) return;
+
+      setUnreadMessages((prev) => {
+        const filtered = prev.filter((m) => m.senderId !== data.senderId);
+        return [
+          ...filtered,
+          {
+            senderId: data.senderId,
+            senderUsername: data.sender?.username ?? "?",
+            content: data.content ?? "",
+            timestamp: Date.now(),
+          },
+        ];
+      });
+    };
+
     socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequest);
     socket.on("FRIEND_REQUEST_ACCEPTED", handleFriendAccepted);
+    socket.on("FRIEND_MESSAGE", handleFriendMessage);
     return () => {
       socket.off("FRIEND_REQUEST_RECEIVED", handleFriendRequest);
       socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendAccepted);
+      socket.off("FRIEND_MESSAGE", handleFriendMessage);
     };
   }, [socket, refetchRequests]);
+
+  // Clear unread messages for a sender when navigating to their conversation
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (location.pathname === "/friends" && params.get("tab") === "messages") {
+      const withId = params.get("with");
+      if (withId) {
+        setUnreadMessages((prev) => prev.filter((m) => m.senderId !== withId));
+      }
+    }
+  }, [location]);
 
   // Close the panel on route change
   useEffect(() => {
@@ -145,6 +191,12 @@ export function NotificationCenter() {
     refetchRequests();
   };
 
+  const handleOpenChat = (msg: UnreadMessage) => {
+    navigate(`/friends?tab=messages&with=${msg.senderId}`);
+    setUnreadMessages((prev) => prev.filter((m) => m.senderId !== msg.senderId));
+    setOpen(false);
+  };
+
   if (!userId) return null;
 
   const dropdown = open && panelPos && createPortal(
@@ -173,7 +225,7 @@ export function NotificationCenter() {
           </p>
         ) : (
           <>
-            {/* INVITATIONS */}
+            {/* GAME INVITATIONS */}
             {pendingInvitations.length > 0 && (
               <div className="mb-2">
                 <p className="text-slate-400 text-xs font-semibold uppercase mb-1 px-2 flex items-center gap-1">
@@ -220,7 +272,7 @@ export function NotificationCenter() {
 
             {/* FRIEND REQUESTS */}
             {pendingFriendRequests.length > 0 && (
-              <div>
+              <div className="mb-2">
                 <p className="text-slate-400 text-xs font-semibold uppercase mb-1 px-2 flex items-center gap-1">
                   <UserPlus className="w-3 h-3" />
                   {t("notifications.friendRequests")}
@@ -252,6 +304,38 @@ export function NotificationCenter() {
                         <X className="w-4 h-4" />
                       </button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* UNREAD MESSAGES */}
+            {unreadMessages.length > 0 && (
+              <div>
+                <p className="text-slate-400 text-xs font-semibold uppercase mb-1 px-2 flex items-center gap-1">
+                  <MessageCircle className="w-3 h-3" />
+                  {t("notifications.messages")}
+                </p>
+
+                {unreadMessages.map((msg) => (
+                  <div
+                    key={msg.senderId}
+                    className="flex items-center justify-between gap-2 p-3 mb-2 bg-slate-700/50 border border-slate-600 rounded-lg"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium truncate">{msg.senderUsername}</p>
+                      <p className="text-slate-400 text-xs truncate">
+                        {msg.content.length > 50 ? msg.content.slice(0, 50) + "…" : msg.content}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => handleOpenChat(msg)}
+                      className="shrink-0 flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded"
+                    >
+                      <MessageCircle className="w-3 h-3" />
+                      {t("notifications.chat")}
+                    </button>
                   </div>
                 ))}
               </div>
