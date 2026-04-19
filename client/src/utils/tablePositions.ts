@@ -1,25 +1,52 @@
 // client/src/utils/tablePositions.ts
 
-/**
- * Mesures DevTools mobile (430px, 5 joueurs) :
- * - Bot Alpha  right=459 → dépasse 29px à droite
- * - Bot Delta  left=-29  → dépasse 29px à gauche
- * - Centre écran = 215px
- * - Centre Bot Alpha = 459 - 44 = 415px → décalage = 200px
- * - On veut décalage max = 200 - 29 = 171px
- * - Facteur correction radiusX = 171/200 = 0.855
- * - Nouveau radiusX = 528 * 0.855 = 451
- */
 export function calculatePlayerPositions(
   count: number,
   isMobile = false,
   _isTablet = false
 ) {
-  const radiusX = isMobile ? 180 : 451;
-  const radiusY = isMobile ? 270 : 220;
+  if (isMobile) {
+    // Fixed symmetric positions for vertical table
+    // Coordinates relative to center (0,0)
+    const positions: { x: number; y: number }[] = [];
 
-  const startAngle = isMobile ? Math.PI / 2 + 0.2 : Math.PI / 2;
-  const angleStep  = (2 * Math.PI) / count;
+    if (count === 1) {
+      positions.push({ x: 0, y: -200 });
+    } else if (count === 2) {
+      positions.push({ x: 0, y: -200 });
+      positions.push({ x: 0, y: 200 });
+    } else if (count === 3) {
+      positions.push({ x: 0, y: -200 });
+      positions.push({ x: 160, y: 0 });
+      positions.push({ x: -160, y: 0 });
+    } else if (count === 4) {
+      positions.push({ x: 0, y: -200 });
+      positions.push({ x: 160, y: -60 });
+      positions.push({ x: 0, y: 200 });
+      positions.push({ x: -160, y: -60 });
+    } else if (count === 5) {
+      positions.push({ x: 0, y: -200 });
+      positions.push({ x: 160, y: -80 });
+      positions.push({ x: 160, y: 100 });
+      positions.push({ x: -160, y: 100 });
+      positions.push({ x: -160, y: -80 });
+    } else if (count === 6) {
+      positions.push({ x: 0, y: -200 });
+      positions.push({ x: 160, y: -100 });
+      positions.push({ x: 160, y: 80 });
+      positions.push({ x: 0, y: 200 });
+      positions.push({ x: -160, y: 80 });
+      positions.push({ x: -160, y: -100 });
+    }
+
+    return positions.map((pos, position) => ({ ...pos, position }));
+  }
+
+  // Desktop: original ellipse calculation unchanged
+  const radiusX = 451;
+  const radiusY = 220;
+  const startAngle = Math.PI / 2;
+  const angleStep = (2 * Math.PI) / count;
 
   return Array.from({ length: count }, (_, position) => {
     const angle = startAngle - position * angleStep;

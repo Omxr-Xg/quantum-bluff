@@ -196,14 +196,10 @@ export function PokerTable({
             const pos = allPositions[player.position];
             if (!pos) return null;
 
-            const MOBILE_TABLE_WIDTH  = 280;
-            const MOBILE_TABLE_HEIGHT = 420;
-            const xPct = isMobile
-              ? toPercent(pos.x, MOBILE_TABLE_WIDTH  / 2)
-              : toPercent(pos.x, BASE_TABLE_WIDTH  / 2);
-            const yPct = isMobile
-              ? toPercent(pos.y, MOBILE_TABLE_HEIGHT / 2)
-              : toPercent(pos.y, BASE_TABLE_HEIGHT / 2);
+            const effectiveHalfWidth  = isMobile ? 190 : BASE_TABLE_WIDTH  / 2;
+            const effectiveHalfHeight = isMobile ? 250 : BASE_TABLE_HEIGHT / 2;
+            const xPct = toPercent(pos.x, effectiveHalfWidth);
+            const yPct = toPercent(pos.y, effectiveHalfHeight);
 
             return (
               <div
