@@ -102,7 +102,7 @@ export function PokerTable({
           // plus de hauteur pour que les avatars haut/bas soient visibles
           width: "100%",
           maxWidth: "100%",
-          aspectRatio: "950 / 520",
+          aspectRatio: "3 / 2",
           overflow: "visible",
         } : isTablet ? {
           width: "clamp(400px, 80vw, 700px)",
