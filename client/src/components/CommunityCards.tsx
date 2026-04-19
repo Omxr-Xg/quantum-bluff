@@ -28,7 +28,7 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
   return (
     <div
       className={`absolute ${
-        isMobile ? "top-8" : isTablet ? "top-9" : "top-12"
+        isMobile ? "top-[38%]" : isTablet ? "top-9" : "top-12"
       } left-0 right-0 flex justify-center`}
     >
       <div
@@ -100,7 +100,7 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
           ref={boardRef}
           className={`flex flex-col items-center ${isMobile ? "gap-1" : isTablet ? "gap-1.5" : "gap-2"}`}
         >
-        <div className={`flex ${isMobile ? "gap-1" : isTablet ? "gap-1.5" : "gap-2"}`}>
+        <div className={`flex ${isMobile ? "gap-0.5" : isTablet ? "gap-1.5" : "gap-2"} items-center justify-center`}>
           {cards.map((card, index) => (
             <motion.div
               key={index}

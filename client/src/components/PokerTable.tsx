@@ -98,9 +98,9 @@ export function PokerTable({
       <div
         className="relative flex items-center justify-center"
         style={isMobile ? {
-          width: "100vw",
-          maxWidth: "100vw",
-          aspectRatio: "950 / 650",
+          width: "85vw",
+          maxWidth: "85vw",
+          aspectRatio: "2 / 3",
           overflow: "visible",
         } : isTablet ? {
           width: "clamp(400px, 80vw, 700px)",
@@ -114,7 +114,7 @@ export function PokerTable({
       >
         {/* ─── TABLE ───────────────────────────────────────────────────────── */}
         <div
-          className="relative w-full h-full rounded-full border-[clamp(3px,1vw,8px)]"
+          className={`relative w-full h-full border-[clamp(3px,1vw,8px)] ${isMobile ? "rounded-[40%/25%]" : "rounded-[50%]"}`}
           style={{
             background: feltGradient,
             borderColor: feltBorder,
@@ -196,16 +196,22 @@ export function PokerTable({
             const pos = allPositions[player.position];
             if (!pos) return null;
 
-            const xPct = toPercent(pos.x, BASE_TABLE_WIDTH  / 2);
-            const yPct = toPercent(pos.y, BASE_TABLE_HEIGHT / 2);
+            const MOBILE_TABLE_WIDTH  = 280;
+            const MOBILE_TABLE_HEIGHT = 420;
+            const xPct = isMobile
+              ? toPercent(pos.x, MOBILE_TABLE_WIDTH  / 2)
+              : toPercent(pos.x, BASE_TABLE_WIDTH  / 2);
+            const yPct = isMobile
+              ? toPercent(pos.y, MOBILE_TABLE_HEIGHT / 2)
+              : toPercent(pos.y, BASE_TABLE_HEIGHT / 2);
 
             return (
               <div
                 key={player.id}
                 className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
                 style={{
-                  left: `clamp(8%, calc(50% + ${xPct}%), 92%)`,
-                  top:  `clamp(5%, calc(50% + ${yPct}%), 95%)`,
+                  left: `clamp(2%, calc(50% + ${xPct}%), 98%)`,
+                  top:  `clamp(4%, calc(50% + ${yPct}%), 96%)`,
                   zIndex: player.position === 0 ? 20 : 10,
                 }}
               >
