@@ -98,11 +98,9 @@ export function PokerTable({
       <div
         className="relative flex items-center justify-center"
         style={isMobile ? {
-          // Sur mobile : on part de la largeur disponible mais on donne
-          // plus de hauteur pour que les avatars haut/bas soient visibles
-          width: "100%",
-          maxWidth: "100%",
-          aspectRatio: "3 / 2",
+          width: "100vw",
+          maxWidth: "100vw",
+          aspectRatio: "16 / 10",
           overflow: "visible",
         } : isTablet ? {
           width: "clamp(400px, 80vw, 700px)",
@@ -206,8 +204,8 @@ export function PokerTable({
                 key={player.id}
                 className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
                 style={{
-                  left: `calc(50% + ${xPct}%)`,
-                  top:  `calc(50% + ${yPct}%)`,
+                  left: `clamp(5%, calc(50% + ${xPct}%), 95%)`,
+                  top:  `clamp(5%, calc(50% + ${yPct}%), 95%)`,
                   zIndex: player.position === 0 ? 20 : 10,
                 }}
               >
@@ -257,7 +255,9 @@ export function PokerTable({
                       ${
                         player.position === 0
                           ? "w-[clamp(2.5rem,7vw,4.5rem)] h-[clamp(2.5rem,7vw,4.5rem)]"
-                          : "w-[clamp(2rem,5vw,3.5rem)]  h-[clamp(2rem,5vw,3.5rem)]"
+                          : isMobile
+                            ? "w-[clamp(1.4rem,4vw,2.2rem)] h-[clamp(1.4rem,4vw,2.2rem)]"
+                            : "w-[clamp(2rem,5vw,3.5rem)]  h-[clamp(2rem,5vw,3.5rem)]"
                       }
                       ${
                         player.hasFolded
@@ -323,7 +323,7 @@ export function PokerTable({
                         : "bg-black/90 text-white"
                     }`}
                   >
-                    {player.name}
+                    {isMobile ? player.name.slice(0, 7) : player.name}
                   </div>
 
                   {/* Dernière action */}
@@ -355,7 +355,7 @@ export function PokerTable({
                             key={index}
                             suit={card.suit}
                             value={card.value}
-                            size="sm"
+                            size={isMobile ? "xs" : "sm"}
                             faceDown={!isShowdown}
                             colorblindMode={colorblindMode}
                           />
