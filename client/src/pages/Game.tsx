@@ -3433,7 +3433,7 @@ export function Game() {
          {/* TABLE */}
         <div
         ref={tourRefTable}
-        className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-0 pt-0 w-full' : 'px-6 pt-32 min-h-[600px]'}`}
+        className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-0 pt-0 w-full -mt-16' : 'px-6 pt-32 min-h-[600px]'}`}
         >
         <PokerTable
         players={tablePlayers}

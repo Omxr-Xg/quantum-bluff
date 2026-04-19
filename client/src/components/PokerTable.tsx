@@ -100,7 +100,7 @@ export function PokerTable({
         style={isMobile ? {
           width: "100vw",
           maxWidth: "100vw",
-          aspectRatio: "950 / 560",
+          aspectRatio: "950 / 650",
           overflow: "visible",
         } : isTablet ? {
           width: "clamp(400px, 80vw, 700px)",
@@ -343,7 +343,7 @@ export function PokerTable({
                   </div>
 
                   {/* Cartes adversaires (face cachée / showdown) */}
-                  {player.cards &&
+                  {!isMobile && player.cards &&
                     player.cards.length > 0 &&
                     !player.hasFolded &&
                     player.position !== 0 &&
