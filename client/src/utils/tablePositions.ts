@@ -10,33 +10,35 @@ export function calculatePlayerPositions(
     // Coordinates relative to center (0,0)
     const positions: { x: number; y: number }[] = [];
 
+    // index 0 = hero (bottom center, hidden on table)
+    // index 1 = top center (first visible opponent)
     if (count === 1) {
-      positions.push({ x: 0, y: -200 });
+      positions.push({ x: 0, y: 200 });   // 0: hero
     } else if (count === 2) {
-      positions.push({ x: 0, y: -200 });
-      positions.push({ x: 0, y: 200 });
+      positions.push({ x: 0, y: 200 });   // 0: hero
+      positions.push({ x: 0, y: -200 });  // 1: top center
     } else if (count === 3) {
-      positions.push({ x: 0, y: -200 });
-      positions.push({ x: 160, y: 0 });
-      positions.push({ x: -160, y: 0 });
+      positions.push({ x: 0, y: 200 });   // 0: hero
+      positions.push({ x: 0, y: -200 });  // 1: top center
+      positions.push({ x: 160, y: 0 });   // 2: right
     } else if (count === 4) {
-      positions.push({ x: 0, y: -200 });
-      positions.push({ x: 160, y: -60 });
-      positions.push({ x: 0, y: 200 });
-      positions.push({ x: -160, y: -60 });
+      positions.push({ x: 0, y: 200 });    // 0: hero
+      positions.push({ x: 0, y: -200 });   // 1: top center
+      positions.push({ x: 160, y: -60 });  // 2: top right
+      positions.push({ x: -160, y: -60 }); // 3: top left
     } else if (count === 5) {
-      positions.push({ x: 0, y: -200 });
-      positions.push({ x: 160, y: -80 });
-      positions.push({ x: 160, y: 100 });
-      positions.push({ x: -160, y: 100 });
-      positions.push({ x: -160, y: -80 });
+      positions.push({ x: 0, y: 200 });    // 0: hero
+      positions.push({ x: 0, y: -200 });   // 1: top center
+      positions.push({ x: 160, y: -80 });  // 2: top right
+      positions.push({ x: 160, y: 100 });  // 3: bottom right
+      positions.push({ x: -160, y: 100 }); // 4: bottom left
     } else if (count === 6) {
-      positions.push({ x: 0, y: -200 });
-      positions.push({ x: 160, y: -100 });
-      positions.push({ x: 160, y: 80 });
-      positions.push({ x: 0, y: 200 });
-      positions.push({ x: -160, y: 80 });
-      positions.push({ x: -160, y: -100 });
+      positions.push({ x: 0, y: 200 });     // 0: hero
+      positions.push({ x: 0, y: -200 });    // 1: top center
+      positions.push({ x: 160, y: -100 });  // 2: top right
+      positions.push({ x: 160, y: 80 });    // 3: bottom right
+      positions.push({ x: -160, y: 80 });   // 4: bottom left
+      positions.push({ x: -160, y: -100 }); // 5: top left
     }
 
     return positions.map((pos, position) => ({ ...pos, position }));
