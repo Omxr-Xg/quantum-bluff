@@ -149,17 +149,26 @@ export function NotificationCenter() {
     setOpen((o) => !o);
   };
 
-  const handleAcceptInvitation = async (inv: { invitationId: string; roomId: string }) => {
+  const handleAcceptInvitation = async (inv: { invitationId: string; roomId: string; game?: string }) => {
     try {
       const token = localStorage.getItem("token");
-      const url = apiUrl(`/api/friends/${inv.invitationId}/accept`);
+      const isBj = inv.game === "blackjack";
+      const url = apiUrl(
+        isBj
+          ? `/api/blackjack-tables/invitations/${inv.invitationId}/accept`
+          : `/api/friends/${inv.invitationId}/accept`
+      );
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         dismissInvitation(inv.invitationId);
-        navigate(`/waiting-room?roomId=${inv.roomId}`);
+        if (isBj) {
+          navigate(`/lobby?tab=blackjack&bjRoom=${inv.roomId}`);
+        } else {
+          navigate(`/waiting-room?roomId=${inv.roomId}`);
+        }
         setOpen(false);
       }
     } catch (err) {
@@ -167,10 +176,15 @@ export function NotificationCenter() {
     }
   };
 
-  const handleRejectInvitation = async (inv: { invitationId: string }) => {
+  const handleRejectInvitation = async (inv: { invitationId: string; game?: string }) => {
     try {
       const token = localStorage.getItem("token");
-      const url = apiUrl(`/api/friends/${inv.invitationId}/reject`);
+      const isBj = inv.game === "blackjack";
+      const url = apiUrl(
+        isBj
+          ? `/api/blackjack-tables/invitations/${inv.invitationId}/reject`
+          : `/api/friends/${inv.invitationId}/reject`
+      );
       await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
