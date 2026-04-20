@@ -147,10 +147,10 @@
     ],
     "mac": {
       "category": "public.app-category.games",
-      "icon": "src/assets/logo-personnel.png"
+      "icon": "app-icon.png"
     },
     "win": {
-      "icon": "src/assets/logo-personnel.png",
+      "icon": "app-icon.png",
       "target": "nsis"
     },
     "nsis": {
@@ -159,7 +159,7 @@
       "createDesktopShortcut": true
     },
     "linux": {
-      "icon": "src/assets/logo-personnel.png",
+      "icon": "app-icon.png",
       "target": [
         "AppImage",
         "deb"
