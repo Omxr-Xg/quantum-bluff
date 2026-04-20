@@ -10,7 +10,8 @@
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "test:coverage": "jest --coverage",
-    "test:e2e:client": "cd client && npm run test:e2e"
+    "test:e2e:client": "cd client && npm run test:e2e",
+    "cap:open:android": "cd client && npx @capacitor/cli open android"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

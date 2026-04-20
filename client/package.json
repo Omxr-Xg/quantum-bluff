@@ -27,12 +27,12 @@
     "version:patch": "node ../scripts/version-bump.js patch",
     "version:minor": "node ../scripts/version-bump.js minor",
     "version:major": "node ../scripts/version-bump.js major",
-    "cap:copy": "npx cap copy",
-    "cap:sync": "npm run build:cap && npx cap sync",
-    "cap:android": "npm run cap:sync && npx cap open android",
-    "cap:ios": "npm run cap:sync && npx cap open ios",
-    "cap:run:android": "npx cap run android -l --external --public-host=192.168.1.1",
-    "cap:run:ios": "npx cap run ios -l --external"
+    "cap:copy": "npx @capacitor/cli copy",
+    "cap:sync": "npm run build:cap && npx @capacitor/cli sync",
+    "cap:android": "npm run cap:sync && npx @capacitor/cli open android",
+    "cap:ios": "npm run cap:sync && npx @capacitor/cli open ios",
+    "cap:run:android": "npx @capacitor/cli run android -l --external --public-host=192.168.1.1",
+    "cap:run:ios": "npx @capacitor/cli run ios -l --external"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",
