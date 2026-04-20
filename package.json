@@ -11,7 +11,9 @@
     "dev:client": "cd client && npm run dev",
     "test:coverage": "jest --coverage",
     "test:e2e:client": "cd client && npm run test:e2e",
-    "cap:open:android": "cd client && npx @capacitor/cli open android"
+    "cap:open:android": "cd client && npx @capacitor/cli open android",
+    "package:ios-rendu": "bash scripts/package-ios-rendu.sh",
+    "package:android-rendu": "bash scripts/package-android-rendu.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

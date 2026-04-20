@@ -22,3 +22,7 @@ server/junit.xml
 temporaire/
 # Journaux de sauvegardes locales (cron / launchd)
 backups/*.log
+
+# Game_Versions/ : uniquement installables (.exe, .dmg, .apk, .ipa, .zip d’archive…)
+Game_Versions/*.txt
+Game_Versions/*.md
