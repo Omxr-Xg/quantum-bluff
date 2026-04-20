@@ -72,14 +72,14 @@ describe('GameTable — BB forcée (rejoin prochaine main)', () => {
       { id: 'p3', name: 'C', cards: [], chips: 1000, role: 'PLAYER', isActive: true },
     ]
     const t = new GameTable('fg', trio, { smallBlind: 10, bigBlind: 20 })
-    t.startHand(undefined, { forcedBigBlindUserId: 'p3' })
+    t.startHand({ forcedBigBlindUserId: 'p3' })
     const bb = t.state.players.find((p) => p.role === 'BIG_BLIND')
     expect(bb?.id).toBe('p3')
   })
 
   it('2 joueurs (HU) : le joueur ciblé reçoit la grosse blind', () => {
     const t = new GameTable('fh', duo(), { smallBlind: 10, bigBlind: 20 })
-    t.startHand(undefined, { forcedBigBlindUserId: 'p2' })
+    t.startHand({ forcedBigBlindUserId: 'p2' })
     const bb = t.state.players.find((p) => p.role === 'BIG_BLIND')
     expect(bb?.id).toBe('p2')
   })

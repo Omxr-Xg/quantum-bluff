@@ -734,9 +734,7 @@
     "close": "Close",
     "startGameWithCount": "Start game ({{count}} players)",
     "joinRequests": "Join requests",
-    "noJoinRequests": "No pending requests",
-    "seeMoreTestCards": "See more — Test cards",
-    "testCardsDesc": "Choose each player's private cards to test (flop, split pot, etc.)."
+    "noJoinRequests": "No pending requests"
   },
   "botConfig": {
     "home": "Home",

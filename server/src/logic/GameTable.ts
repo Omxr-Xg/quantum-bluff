@@ -5,8 +5,6 @@ import { settlePots } from './poker/potSettlement.js'
 
 type PlayerAction = 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
 
-const RANK_VALUE: Record<string, number> = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, J: 11, Q: 12, K: 13, A: 14 }
-
 export class GameTable {
   public readonly id: string
   private deck: Deck
@@ -669,10 +667,7 @@ export class GameTable {
    * Vigilance : le bouton ne tourne qu'à la fin complète d'une main, au tout début de la suivante.
    * L'affichage du jeton "D" (isDealer) est dérivé de dealerIndex via assignPositionsAndRoles.
    */
-  startHand(
-    forcedHoleCards?: Record<string, Card[]>,
-    opts?: { forcedBigBlindUserId?: string; handId?: string }
-  ): void {
+  startHand(opts?: { forcedBigBlindUserId?: string; handId?: string }): void {
     if (this.getConnectedPlayers().length < 2) {
       throw new Error('Il faut au moins 2 joueurs pour démarrer')
     }
@@ -713,42 +708,13 @@ export class GameTable {
 
     this.handParticipantIds.clear()
 
-    if (forcedHoleCards && Object.keys(forcedHoleCards).length > 0) {
-      const allForced: Card[] = []
-      for (const pid of Object.keys(forcedHoleCards)) {
-        const cards = forcedHoleCards[pid]
-        if (Array.isArray(cards) && cards.length === 2) {
-          const player = this.state.players.find((p) => p.id === pid)
-          if (player) {
-            player.cards = cards.map((c) => ({
-              suit: c.suit,
-              rank: c.rank,
-              value: (c.value ?? RANK_VALUE[c.rank] ?? 2)
-            }));
-            allForced.push(...player.cards)
-          }
-        }
-      }
-      this.deck.removeCards(allForced)
-      for (const player of this.state.players) {
-        if (player.cards.length === 0) {
-          const c1 = this.deck.draw(1)[0]
-          const c2 = this.deck.draw(1)[0]
-          player.cards = [c1, c2]
-        }
-        if (player.isActive && player.isConnected !== false) {
-          this.handParticipantIds.add(player.id)
-        }
-      }
-    } else {
-      const eligiblePlayers = this.state.players.filter(
-        (player) => player.isActive && player.isConnected !== false
-      )
-      for (const player of eligiblePlayers) {
-        this.handParticipantIds.add(player.id)
-      }
-      this.deck.dealInitialCards(eligiblePlayers)
+    const eligiblePlayers = this.state.players.filter(
+      (player) => player.isActive && player.isConnected !== false
+    )
+    for (const player of eligiblePlayers) {
+      this.handParticipantIds.add(player.id)
     }
+    this.deck.dealInitialCards(eligiblePlayers)
 
     if (this.handParticipantIds.size === 0) {
       for (const player of this.state.players) {

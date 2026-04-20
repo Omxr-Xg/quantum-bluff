@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, ChevronDown, ChevronUp, TestTube, Zap } from "lucide-react";
+import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, Zap } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
 import { fetchBalanceFromServer, getUserAvatar } from "../utils/userProfile";
@@ -49,9 +49,6 @@ export function WaitingRoom() {
   }
   const [joinRequests, setJoinRequests] = useState<JoinRequestItem[]>([]);
   const [processingRequest, setProcessingRequest] = useState<string | null>(null);
-  /** Host: section "Voir plus" pour forcer des cartes (tests) */
-  const [showTestCards, setShowTestCards] = useState(false);
-  const [forceCards, setForceCards] = useState<Record<string, [{ suit: string; rank: string } | null, { suit: string; rank: string } | null]>>({});
   const roomPollInFlightRef = useRef(false);
 
   const applyRoomSnapshot = useCallback((room: {
@@ -79,14 +76,6 @@ export function WaitingRoom() {
         }))
     );
   }, [userId]);
-
-  const SUITS = ["HEARTS", "DIAMONDS", "CLUBS", "SPADES"] as const;
-  const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"] as const;
-
-  /** Tous les joueurs (host + autres) pour l'association des cartes forcées */
-  const allPlayersForCards = userId
-    ? [{ id: userId, name: username || "Vous" }, ...players]
-    : [...players];
 
   const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
   const { addToast } = useToast();
@@ -355,18 +344,10 @@ export function WaitingRoom() {
     setStarting(true);
     try {
       const url = apiUrl(`/api/waiting-room/${rawRoomId}/start`);
-      const forceCardsPayload: Record<string, Array<{ suit: string; rank: string }>> = {};
-      for (const [pid, cards] of Object.entries(forceCards)) {
-        if (cards?.[0]?.suit && cards?.[0]?.rank && cards?.[1]?.suit && cards?.[1]?.rank) {
-          forceCardsPayload[pid] = [{ suit: cards[0].suit, rank: cards[0].rank }, { suit: cards[1].suit, rank: cards[1].rank }];
-        }
-      }
-      const body: { userId: string; forceCards?: Record<string, Array<{ suit: string; rank: string }>> } = { userId };
-      if (Object.keys(forceCardsPayload).length > 0) body.forceCards = forceCardsPayload;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ userId }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -668,80 +649,6 @@ export function WaitingRoom() {
                         </div>
                       </div>
                     ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Voir plus : cartes forcées pour les tests (host only) */}
-            {isCreator && allPlayersForCards.length >= 2 && (
-              <div className="mt-4 border border-amber-500/40 rounded-xl bg-amber-950/30 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setShowTestCards((v) => !v)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-amber-200 hover:bg-amber-900/30 transition"
-                >
-                  <span className="flex items-center gap-2 font-medium">
-                    <TestTube className="w-4 h-4" />
-                    {t('waitingRoom.seeMoreTestCards')}
-                  </span>
-                  {showTestCards ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-                {showTestCards && (
-                  <div className="p-4 border-t border-amber-500/30 space-y-4">
-                    <p className="text-amber-200/80 text-sm">
-                      {t('waitingRoom.testCardsDesc')}
-                    </p>
-                    {allPlayersForCards.map((p) => {
-                      const cards = forceCards[p.id] ?? [null, null];
-                      return (
-                        <div key={p.id} className="bg-slate-800/60 rounded-lg p-3">
-                          <div className="text-white font-medium text-sm mb-2">{p.name}</div>
-                          <div className="flex gap-3 flex-wrap">
-                            {[0, 1].map((i) => (
-                              <div key={i} className="flex gap-1 items-center">
-                                <select
-                                  value={cards[i]?.suit ?? ""}
-                                  onChange={(e) => {
-                                    const s = e.target.value;
-                                    setForceCards((prev) => {
-                                      const c = prev[p.id] ?? [null, null];
-                                      const copy = [...c];
-                                      copy[i] = s ? { suit: s, rank: copy[i]?.rank ?? RANKS[0] } : null;
-                                      return { ...prev, [p.id]: copy };
-                                    });
-                                  }}
-                                  className="bg-slate-700 text-white rounded px-2 py-1 text-sm border border-slate-600"
-                                >
-                                  <option value="">—</option>
-                                  {SUITS.map((s) => (
-                                    <option key={s} value={s}>{s}</option>
-                                  ))}
-                                </select>
-                                <select
-                                  value={cards[i]?.rank ?? ""}
-                                  onChange={(e) => {
-                                    const r = e.target.value;
-                                    setForceCards((prev) => {
-                                      const c = prev[p.id] ?? [null, null];
-                                      const copy = [...c];
-                                      copy[i] = r ? { suit: copy[i]?.suit ?? SUITS[0], rank: r } : null;
-                                      return { ...prev, [p.id]: copy };
-                                    });
-                                  }}
-                                  className="bg-slate-700 text-white rounded px-2 py-1 text-sm border border-slate-600"
-                                >
-                                  <option value="">—</option>
-                                  {RANKS.map((r) => (
-                                    <option key={r} value={r}>{r}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
                   </div>
                 )}
               </div>

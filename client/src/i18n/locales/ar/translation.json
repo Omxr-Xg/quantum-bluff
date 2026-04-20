@@ -732,9 +732,7 @@
     "close": "إغلاق",
     "startGameWithCount": "بدء المباراة ({{count}} لاعبين)",
     "joinRequests": "طلبات الانضمام",
-    "noJoinRequests": "لا توجد طلبات معلقة",
-    "seeMoreTestCards": "عرض المزيد — بطاقات الاختبار",
-    "testCardsDesc": "اختر البطاقات الخاصة بكل لاعب للاختبار (فلوب، تقسيم البوت، إلخ)."
+    "noJoinRequests": "لا توجد طلبات معلقة"
   },
   "botConfig": {
     "home": "الرئيسية",

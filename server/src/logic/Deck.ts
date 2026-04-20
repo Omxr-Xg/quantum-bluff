@@ -96,16 +96,6 @@ export class Deck {
   }
 
   /**
-   * Retire les cartes spécifiées du deck (pour forcer des cartes lors des tests).
-   */
-  removeCards(cards: Card[]): void {
-    for (const c of cards) {
-      const idx = this.cards.findIndex((d) => d.suit === c.suit && d.rank === c.rank);
-      if (idx >= 0) this.cards.splice(idx, 1);
-    }
-  }
-
-  /**
    * Distribue les cartes initiales (2 par joueur, en 2 tours comme au casino)
    * Modifie les players.cards directement
    */

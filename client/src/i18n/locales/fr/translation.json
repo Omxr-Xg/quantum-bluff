@@ -734,9 +734,7 @@
     "close": "Fermer",
     "startGameWithCount": "Lancer la partie ({{count}} joueurs)",
     "joinRequests": "Demandes de rejoindre",
-    "noJoinRequests": "Aucune demande en attente",
-    "seeMoreTestCards": "Voir plus — Cartes de test",
-    "testCardsDesc": "Choisir les cartes privées de chaque joueur pour tester (flop, split pot, etc.)."
+    "noJoinRequests": "Aucune demande en attente"
   },
   "botConfig": {
     "home": "Accueil",

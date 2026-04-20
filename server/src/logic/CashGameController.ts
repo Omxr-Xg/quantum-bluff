@@ -351,7 +351,7 @@ export class CashGameController implements IGameSession {
     this.nextHandBigBlindUserId = null
     const handIdToUse = this.pendingNextHandId ?? randomUUID()
     this.pendingNextHandId = null
-    this.gameTable.startHand(undefined, {
+    this.gameTable.startHand({
       ...(forcedBb ? { forcedBigBlindUserId: forcedBb } : {}),
       handId: handIdToUse
     })
