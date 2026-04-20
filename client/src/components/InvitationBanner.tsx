@@ -4,6 +4,7 @@ import { Check, X, Gamepad2 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import type { GameInvitationNotification } from "../contexts/SocketContext";
 import { apiUrl } from "../utils/apiBase";
+import { useEffect } from "react";
 
 export function InvitationBanner() {
   const { t } = useTranslation();
@@ -60,6 +61,14 @@ export function InvitationBanner() {
     }
     dismissInvitation(inv.invitationId);
   };
+
+  useEffect(() => {
+    if (pendingInvitations.length === 0) return;
+    const timers = pendingInvitations.map((inv) =>
+      setTimeout(() => dismissInvitation(inv.invitationId), 10000)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [pendingInvitations.map((i) => i.invitationId).join(",")]);
 
   if (pendingInvitations.length === 0) return null;
 
