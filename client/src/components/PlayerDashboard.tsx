@@ -160,7 +160,8 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
     }
   }, [timeLeft, isMyTurn, visualAlerts]);
 
-  useDeviceType();
+  const deviceType = useDeviceType();
+  const isMobile = deviceType === "mobile";
 
   const handleRaiseClick = () => {
     const amount = clampRaise(raiseAmount);
@@ -263,7 +264,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                   transform: `rotate(${index === 0 ? -6 : 8}deg)`
                 }}
               >
-                <PokerCard suit={card.suit} value={card.value} size="lg" colorblindMode={colorblindMode} />
+                <PokerCard suit={card.suit} value={card.value} size={isMobile ? "md" : "lg"} colorblindMode={colorblindMode} />
               </div>
             ))}
           </div>
