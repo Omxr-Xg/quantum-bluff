@@ -56,7 +56,7 @@ export function HandActionLogPanel({ entries, collapseWhen }: HandActionLogPanel
       {open && (
         <div
           ref={listRef}
-          className={`overflow-y-auto px-3 py-2 ${isMobile ? "max-h-28" : "max-h-44"}`}
+          className={`overflow-y-auto px-3 py-2 ${isMobile ? "max-h-[60px] text-[10px]" : "max-h-44"}`}
           role="log"
           aria-live="polite"
           aria-relevant="additions"

@@ -98,10 +98,9 @@ export function PokerTable({
       <div
         className="relative flex items-center justify-center"
         style={isMobile ? {
-          // Sur mobile : on part de la largeur disponible mais on donne
-          // plus de hauteur pour que les avatars haut/bas soient visibles
-          width: "clamp(240px, 88vw, 480px)",
-          aspectRatio: "950 / 420",
+          width: "85vw",
+          maxWidth: "85vw",
+          aspectRatio: "2 / 3",
           overflow: "visible",
         } : isTablet ? {
           width: "clamp(400px, 80vw, 700px)",
@@ -115,7 +114,7 @@ export function PokerTable({
       >
         {/* ─── TABLE ───────────────────────────────────────────────────────── */}
         <div
-          className="relative w-full h-full rounded-full border-[clamp(3px,1vw,8px)]"
+          className={`relative w-full h-full border-[clamp(3px,1vw,8px)] ${isMobile ? "rounded-[40%/25%]" : "rounded-full"}`}
           style={{
             background: feltGradient,
             borderColor: feltBorder,
@@ -147,20 +146,20 @@ export function PokerTable({
           </div>
 
           {/* Community cards */}
-          <div className="absolute top-[18%] left-1/2 -translate-x-1/2 flex justify-center">
+          <div className={`absolute ${isMobile ? 'top-[38%]' : 'top-[18%]'} left-1/2 -translate-x-1/2 flex justify-center`}>
             {children}
           </div>
 
           {/* Cartes brûlées */}
           {burnedCardsCount > 0 && (
             <div
-              className="absolute right-[16%] top-[24%] pointer-events-none"
+              className={`absolute ${isMobile ? "right-[1%] top-[1%]" : "right-[2%] top-[15%]"} pointer-events-none`}
               title={t("game.burned")}
               aria-label={t("game.burnedCount", { count: burnedCardsCount })}
             >
               <div className="relative">
                 <div className="absolute -inset-2 rounded-xl bg-black/20 blur-md" />
-                <div className="relative flex -space-x-3">
+                <div className={`relative flex -space-x-3 ${isMobile ? 'scale-75 origin-top-right' : ''}`}>
                   {Array.from({ length: Math.min(burnedCardsCount, 4) }).map(
                     (_, i) => (
                       <PokerCard
@@ -197,16 +196,22 @@ export function PokerTable({
             const pos = allPositions[player.position];
             if (!pos) return null;
 
-            const xPct = toPercent(pos.x, BASE_TABLE_WIDTH  / 2);
-            const yPct = toPercent(pos.y, BASE_TABLE_HEIGHT / 2);
+            const effectiveHalfWidth  = isMobile ? 190 : BASE_TABLE_WIDTH  / 2;
+            const effectiveHalfHeight = isMobile ? 250 : BASE_TABLE_HEIGHT / 2;
+            const xPct = toPercent(pos.x, effectiveHalfWidth);
+            const yPct = toPercent(pos.y, effectiveHalfHeight);
 
             return (
               <div
                 key={player.id}
                 className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
                 style={{
-                  left: `calc(50% + ${xPct}%)`,
-                  top:  `calc(50% + ${yPct}%)`,
+                  left: isMobile
+                    ? `clamp(2%, calc(50% + ${xPct}%), 98%)`
+                    : `calc(50% + ${xPct}%)`,
+                  top: isMobile
+                    ? `clamp(4%, calc(50% + ${yPct}%), 96%)`
+                    : `calc(50% + ${yPct}%)`,
                   zIndex: player.position === 0 ? 20 : 10,
                 }}
               >
@@ -256,7 +261,9 @@ export function PokerTable({
                       ${
                         player.position === 0
                           ? "w-[clamp(2.5rem,7vw,4.5rem)] h-[clamp(2.5rem,7vw,4.5rem)]"
-                          : "w-[clamp(2rem,5vw,3.5rem)]  h-[clamp(2rem,5vw,3.5rem)]"
+                          : isMobile
+                            ? "w-[clamp(1.4rem,4vw,2.2rem)] h-[clamp(1.4rem,4vw,2.2rem)]"
+                            : "w-[clamp(2rem,5vw,3.5rem)]  h-[clamp(2rem,5vw,3.5rem)]"
                       }
                       ${
                         player.hasFolded
@@ -322,7 +329,7 @@ export function PokerTable({
                         : "bg-black/90 text-white"
                     }`}
                   >
-                    {player.name}
+                    {isMobile ? player.name.slice(0, 7) : player.name}
                   </div>
 
                   {/* Dernière action */}
@@ -354,7 +361,7 @@ export function PokerTable({
                             key={index}
                             suit={card.suit}
                             value={card.value}
-                            size="sm"
+                            size={isMobile ? "xs" : "sm"}
                             faceDown={!isShowdown}
                             colorblindMode={colorblindMode}
                           />
