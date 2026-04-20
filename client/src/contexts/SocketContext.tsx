@@ -6,6 +6,7 @@ import { useToast } from './ToastContext'
 import { store } from '../store'
 import { api } from '../services/api'
 import { fetchBalanceFromServer } from '../utils/userProfile'
+import { getApiBaseUrl } from '../utils/apiBase'
 
 export interface GameInvitationNotification {
   invitationId: string
@@ -34,9 +35,37 @@ const getSocketConfig = () => {
   let path = '/socket.io';
 
   if (typeof window !== 'undefined') {
-    const pathname = window.location.pathname;
+    const { protocol, pathname } = window.location;
     const pathParts = pathname.split('/');
-    
+
+    // Capacitor / WebView : pas de pathname /vm... — il faut la même base que l’API (déploiement ou URL absolue).
+    if (protocol === 'capacitor:' || protocol === 'ionic:' || protocol === 'file:') {
+      const explicitPath = (import.meta.env.VITE_SOCKET_PATH ?? '').toString().trim();
+      if (explicitPath) {
+        path = explicitPath.startsWith('/') ? explicitPath : `/${explicitPath}`;
+      } else {
+        const apiEnv = (import.meta.env.VITE_API_URL ?? '').toString().trim();
+        const vmRel = apiEnv.match(/^(\/vm[^/]+)/i);
+        if (vmRel) path = `${vmRel[1]}/socket.io`;
+        else if (apiEnv.startsWith('http')) {
+          try {
+            const u = new URL(apiEnv);
+            const first = u.pathname.replace(/\/$/, '').split('/').filter(Boolean)[0];
+            if (first?.toLowerCase().startsWith('vmprojet')) path = `/${first}/socket.io`;
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      const socketUrlEnv = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim();
+      if (socketUrlEnv) url = socketUrlEnv;
+      else {
+        const base = getApiBaseUrl();
+        if (base) url = base;
+      }
+      return { URL: url, SOCKET_PATH: path };
+    }
+
     // Auto-détection (marche pour VM 0 et VM 1)
     if (pathParts.length > 1 && pathParts[1].toLowerCase().startsWith('vmprojet')) {
       const vmPrefix = '/' + pathParts[1];

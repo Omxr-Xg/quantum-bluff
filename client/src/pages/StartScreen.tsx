@@ -3,37 +3,44 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles, Crown, Gem, Zap } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
+import i18n from "../i18n/config";
 
 export function StartScreen() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [loadingText, setLoadingText] = useState(t('startScreen.init'));
+  const [loadingText, setLoadingText] = useState(() => i18n.t("startScreen.init"));
 
   useEffect(() => {
-    const messages = [
-      { time: 0, text: t('startScreen.init'), progress: 0 },
-      { time: 500, text: t('startScreen.shuffling'), progress: 20 },
-      { time: 1200, text: t('startScreen.preparingTable'), progress: 40 },
-      { time: 2000, text: t('startScreen.loadingChips'), progress: 60 },
-      { time: 3000, text: t('startScreen.quantumCalc'), progress: 80 },
-      { time: 4000, text: t('startScreen.readyToPlay'), progress: 100 },
+    const keys = [
+      { time: 0, key: "startScreen.init" as const, progress: 0 },
+      { time: 500, key: "startScreen.shuffling" as const, progress: 20 },
+      { time: 1200, key: "startScreen.preparingTable" as const, progress: 40 },
+      { time: 2000, key: "startScreen.loadingChips" as const, progress: 60 },
+      { time: 3000, key: "startScreen.quantumCalc" as const, progress: 80 },
+      { time: 4000, key: "startScreen.readyToPlay" as const, progress: 100 },
     ];
-    messages.forEach(({ time, text, progress }) => {
-      setTimeout(() => {
-        setLoadingText(text);
-        setLoadingProgress(progress);
-      }, time);
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    keys.forEach(({ time, key, progress }) => {
+      timeouts.push(
+        setTimeout(() => {
+          setLoadingText(i18n.t(key));
+          setLoadingProgress(progress);
+        }, time),
+      );
     });
 
-    // Terminer le chargement après 5 secondes
-    const loadingTimer = setTimeout(() => {
-      setIsLoading(false);
-    }, 5000);
+    timeouts.push(
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 5000),
+    );
 
-    return () => clearTimeout(loadingTimer);
-  }, [t]);
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
+  }, []);
 
   const handleStart = () => {
     navigate("/auth");

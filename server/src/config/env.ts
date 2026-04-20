@@ -135,18 +135,28 @@ const defaultDevCorsOrigins = [
   'http://localhost',
 ]
 
+/**
+ * Schémas fixes des apps natives (Capacitor / Ionic) : l’en-tête Origin n’est jamais l’URL HTTPS du déploiement.
+ * Sans ces entrées, le login depuis iOS/Android échoue en prod si CORS_ORIGIN ne liste que le site web.
+ */
+const nativeWebViewOrigins = ['capacitor://localhost', 'ionic://localhost'] as const
+
+function mergeCorsOrigins(list: string[]): string[] {
+  return [...new Set([...list, ...nativeWebViewOrigins])]
+}
+
 const corsOrigins = (() => {
   const parsed = parseCorsOrigins(process.env.CORS_ORIGIN)
 
   if (parsed.length > 0) {
-    return parsed
+    return mergeCorsOrigins(parsed)
   }
 
   if (isProduction) {
     throw new Error('CORS_ORIGIN is required in production')
   }
 
-  return defaultDevCorsOrigins
+  return mergeCorsOrigins(defaultDevCorsOrigins)
 })()
 
 const jwtSecret = getRequiredEnv('JWT_SECRET')

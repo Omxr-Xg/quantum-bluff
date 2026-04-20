@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client'
+import { getApiBaseUrl } from '../utils/apiBase'
 
 /**
  * En `vite dev` sur localhost, ne pas utiliser l’origine Vite (ex. :5175) pour Socket.IO :
@@ -9,22 +10,23 @@ const resolveSocketUrl = (): string => {
   const envUrl = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim()
   if (envUrl) return envUrl
 
-  const apiBase = (import.meta.env.VITE_API_URL ?? '').toString().replace(/\/$/, '').trim()
-
   if (typeof window !== 'undefined') {
     const { hostname, protocol } = window.location
     if (protocol === 'capacitor:' || protocol === 'ionic:' || protocol === 'file:') {
+      const apiBase = getApiBaseUrl()
       return apiBase || 'http://localhost:3000'
     }
     if (
       import.meta.env.DEV &&
       (hostname === 'localhost' || hostname === '127.0.0.1')
     ) {
+      const apiBase = (import.meta.env.VITE_API_URL ?? '').toString().replace(/\/$/, '').trim()
       return apiBase || 'http://localhost:3000'
     }
     return window.location.origin
   }
 
+  const apiBase = (import.meta.env.VITE_API_URL ?? '').toString().replace(/\/$/, '').trim()
   return apiBase || 'http://localhost:3000'
 }
 
@@ -38,6 +40,19 @@ const resolveSocketPath = (): string => {
   const hasSocketEnv = Boolean((import.meta.env.VITE_SOCKET_URL ?? '').toString().trim())
 
   if (hasSocketEnv) return '/socket.io'
+
+  const apiEnv = (import.meta.env.VITE_API_URL ?? '').toString().trim()
+  const vmRel = apiEnv.match(/^(\/vm[^/]+)/i)
+  if (vmRel) return `${vmRel[1]}/socket.io`
+  try {
+    if (apiEnv.startsWith('http')) {
+      const u = new URL(apiEnv)
+      const first = u.pathname.replace(/\/$/, '').split('/').filter(Boolean)[0]
+      if (first?.toLowerCase().startsWith('vmprojet')) return `/${first}/socket.io`
+    }
+  } catch {
+    /* ignore */
+  }
 
   if (typeof window !== 'undefined') {
     const h = window.location.hostname
