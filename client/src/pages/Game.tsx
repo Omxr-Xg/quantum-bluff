@@ -454,9 +454,10 @@ export function Game() {
   const tableCaptureRef = useRef<HTMLDivElement>(null);
 
   const handleShare = async () => {
-    if (!tableCaptureRef.current) return;
+    const tableEl = tourRefTable.current as HTMLDivElement | null;
+    if (!tableEl) return;
     try {
-      const dataUrl = await toPng(tableCaptureRef.current);
+      const dataUrl = await toPng(tableEl);
       const link = document.createElement("a");
       link.download = "poker-win.png";
       link.href = dataUrl;
@@ -3449,7 +3450,7 @@ export function Game() {
           onClick={handleShare}
           className="fixed top-20 right-4 z-[9999] bg-yellow-500 text-black px-4 py-2 rounded-lg shadow-lg hover:bg-yellow-400 transition"
           >
-          Share win 📸
+          {t('game.shareWin', 'Share win')} 📸
           </button>
           )}
 

@@ -299,6 +299,7 @@
   },
   "game": {
     "yourTurn": "TU TURNO",
+    "shareWin": "Compartir victoria",
     "theirTurn": "SU TURNO",
     "burned": "Quemadas",
     "burnedCount": "{{count}} carta(s) quemada(s)",

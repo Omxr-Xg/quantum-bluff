@@ -300,6 +300,7 @@
   },
   "game": {
     "yourTurn": "دورك",
+    "shareWin": "مشاركة الفوز",
     "theirTurn": "دوره",
     "burned": "محروقة",
     "burnedCount": "{{count}} بطاقة محروقة",

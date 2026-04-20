@@ -300,6 +300,7 @@
   },
   "game": {
     "yourTurn": "ВАША ЧЕРГА",
+    "shareWin": "Поділитися перемогою",
     "theirTurn": "ЙОГО ЧЕРГА",
     "burned": "Спалені",
     "burnedCount": "{{count}} спалена карта",

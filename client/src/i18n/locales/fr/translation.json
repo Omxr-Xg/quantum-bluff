@@ -299,6 +299,7 @@
   },
   "game": {
     "yourTurn": "À VOTRE TOUR",
+    "shareWin": "Partager la victoire",
     "theirTurn": "SON TOUR",
     "burned": "Brûlées",
     "burnedCount": "{{count}} carte(s) brûlée(s)",
