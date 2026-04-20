@@ -4,12 +4,13 @@ import { Check, X, Gamepad2 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import type { GameInvitationNotification } from "../contexts/SocketContext";
 import { apiUrl } from "../utils/apiBase";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export function InvitationBanner() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { pendingInvitations, dismissInvitation } = useSocket();
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
 
   const handleAccept = async (inv: GameInvitationNotification) => {
     try {
@@ -65,16 +66,17 @@ export function InvitationBanner() {
   useEffect(() => {
     if (pendingInvitations.length === 0) return;
     const timers = pendingInvitations.map((inv) =>
-      setTimeout(() => dismissInvitation(inv.invitationId), 10000)
+      setTimeout(() => setHiddenIds((prev) => new Set([...prev, inv.invitationId])), 10000)
     );
     return () => timers.forEach(clearTimeout);
   }, [pendingInvitations.map((i) => i.invitationId).join(",")]);
 
-  if (pendingInvitations.length === 0) return null;
+  const visibleInvitations = pendingInvitations.filter((inv) => !hiddenIds.has(inv.invitationId));
+  if (visibleInvitations.length === 0) return null;
 
   return (
     <div className="fixed top-4 right-4 z-[200] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
-      {pendingInvitations.map((inv) => (
+      {visibleInvitations.map((inv) => (
         <div
           key={inv.invitationId}
           className="pointer-events-auto bg-gradient-to-r from-indigo-900 to-purple-900 border-2 border-indigo-500 rounded-xl shadow-2xl p-4 animate-slide-in"
