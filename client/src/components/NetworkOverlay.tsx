@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState, useContext, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { WifiOff, RefreshCw, Wifi, X, CheckCircle2 } from 'lucide-react';
 import { SocketContext } from '../contexts/SocketContext';
@@ -11,6 +11,7 @@ export function NetworkOverlay() {
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [offlineDismissed, setOfflineDismissed] = useState(false);
   const [reconnectedDismissed, setReconnectedDismissed] = useState(false);
+  const hasEverConnected = useRef(false);
 
   useEffect(() => {
     const handleBrowserOffline = () => {
@@ -37,6 +38,7 @@ export function NetworkOverlay() {
 
     const handleSocketDisconnect = (reason: string) => {
       if (reason === 'io client disconnect') return;
+      if (!hasEverConnected.current) return;
       setNetworkStatus((prev) => {
         if (prev === 'online' || prev === 'reconnected') setOfflineDismissed(false);
         return 'offline';
@@ -46,12 +48,16 @@ export function NetworkOverlay() {
       setReconnectAttempts(0);
       setOfflineDismissed(false);
       setNetworkStatus((prev) => {
-        if (prev === 'offline') return 'reconnected';
-        return prev;
+        if (prev === 'offline' && hasEverConnected.current) {
+          return 'reconnected';
+        }
+        hasEverConnected.current = true;
+        return 'online';
       });
       setTimeout(() => setNetworkStatus('online'), 3000);
     };
     const handleConnectError = () => {
+      if (!hasEverConnected.current) return;
       if (!socket.connected) {
         setNetworkStatus((prev) => {
           if (prev === 'online' || prev === 'reconnected') setOfflineDismissed(false);
