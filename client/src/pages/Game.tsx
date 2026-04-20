@@ -287,6 +287,7 @@ export function Game() {
   const roundPlayersActedRef = useRef<Set<number>>(new Set());
   roundPlayersActedRef.current = roundPlayersActed;
   const deckRef = useRef<Card[]>([]);
+  const dealerIndexRef = useRef<number>(-1);
   const communityCardsStateRef = useRef<(Card | null)[]>([]);
   const startOfHandChipsRef = useRef(0);
   const hasSetStartOfHandThisHandRef = useRef(false);
@@ -610,7 +611,12 @@ export function Game() {
         role: "PLAYER",
       });
 
-      const dealerIndex = Math.floor(Math.random() * totalPlayers);
+      const dealerIndex = isBotMode
+        ? dealerIndexRef.current === -1
+          ? Math.floor(Math.random() * totalPlayers)
+          : (dealerIndexRef.current + 1) % totalPlayers
+        : Math.floor(Math.random() * totalPlayers);
+      if (isBotMode) dealerIndexRef.current = dealerIndex;
       allPlayers[dealerIndex].isDealer = true;
 
       const sbIdx = totalPlayers === 2 ? dealerIndex : (dealerIndex + 1) % totalPlayers;
