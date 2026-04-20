@@ -299,6 +299,7 @@
   },
   "game": {
     "yourTurn": "YOUR TURN",
+    "shareWin": "Share win",
     "theirTurn": "THEIR TURN",
     "burned": "Burned",
     "burnedCount": "{{count}} burned card(s)",
