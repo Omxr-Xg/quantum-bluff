@@ -192,7 +192,7 @@ export function HandCombinationsHelpButton({
           id={panelId}
           role="region"
           aria-label={t("game.combinationsHelp.title")}
-          className="absolute bottom-full right-0 z-[130] mb-2 w-[min(calc(100vw-1rem),22rem)] translate-x-[min(0px,calc(100vw-100%-0.5rem))] max-h-[min(70vh,480px)] overflow-y-auto rounded-xl border-2 border-cyan-500/80 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-3 shadow-[0_0_20px_rgba(6,182,212,0.35)]"
+          className="fixed bottom-[130px] left-[0.5rem] right-[0.5rem] z-[130] w-auto max-h-[min(70vh,480px)] md:absolute md:bottom-full md:right-0 md:left-auto md:w-[min(calc(100vw-1rem),22rem)] md:mb-2 overflow-y-auto rounded-xl border-2 border-cyan-500/80 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-3 shadow-[0_0_20px_rgba(6,182,212,0.35)]"
           onMouseEnter={() => {
             if (isMobile) return;
             clearHideTimer();
