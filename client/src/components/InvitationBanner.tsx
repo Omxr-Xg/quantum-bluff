@@ -17,7 +17,7 @@ export function InvitationBanner() {
       const url = apiUrl(
         isBj
           ? `/api/blackjack-tables/invitations/${inv.invitationId}/accept`
-          : `/api/invitations/${inv.invitationId}/accept`
+          : `/api/friends/${inv.invitationId}/accept`
       );
       const res = await fetch(url, {
         method: "POST",
@@ -46,7 +46,7 @@ export function InvitationBanner() {
       const url = apiUrl(
         isBj
           ? `/api/blackjack-tables/invitations/${inv.invitationId}/reject`
-          : `/api/invitations/${inv.invitationId}/reject`
+          : `/api/friends/${inv.invitationId}/reject`
       );
       await fetch(url, {
         method: "POST",

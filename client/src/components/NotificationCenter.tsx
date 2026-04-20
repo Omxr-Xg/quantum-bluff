@@ -152,7 +152,7 @@ export function NotificationCenter() {
   const handleAcceptInvitation = async (inv: { invitationId: string; roomId: string }) => {
     try {
       const token = localStorage.getItem("token");
-      const url = apiUrl(`/api/invitations/${inv.invitationId}/accept`);
+      const url = apiUrl(`/api/friends/${inv.invitationId}/accept`);
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -170,7 +170,7 @@ export function NotificationCenter() {
   const handleRejectInvitation = async (inv: { invitationId: string }) => {
     try {
       const token = localStorage.getItem("token");
-      const url = apiUrl(`/api/invitations/${inv.invitationId}/reject`);
+      const url = apiUrl(`/api/friends/${inv.invitationId}/reject`);
       await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
