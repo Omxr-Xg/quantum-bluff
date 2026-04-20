@@ -252,7 +252,7 @@ export function Layout({ children }: LayoutProps) {
       <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
         <button
           type="button"
-          onClick={() => navigate("/minigames")}
+          onClick={openAddMoney}
           className="flex items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left transition hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] sm:gap-2 sm:px-4"
           title={t("lobby.balanceOpenSlot")}
         >
