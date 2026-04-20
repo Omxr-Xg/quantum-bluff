@@ -1085,49 +1085,85 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                     <p className="py-4 text-center text-xs text-slate-500">{t("roulette.historyEmpty")}</p>
                   ) : (
                     spinHistory.map((entry) => {
-                      const betsList = entry.lines.map((l) => t("roulette.historyBetChip", { stake: l.stake, label: l.label })).join(" · ");
-                      const payoutParts = entry.lines
-                        .map((l) =>
-                          l.payout === 0
-                            ? t("roulette.historyPayoutLose", { label: l.label })
-                            : t("roulette.historyPayoutWin", {
-                                label: l.label,
-                                stake: l.stake,
-                                mult: l.mult,
-                                payout: l.payout,
-                              })
-                        )
-                        .join(" + ");
+                      const winningLines = entry.lines.filter((l) => l.payout > 0);
                       return (
                         <div
                           key={entry.id}
-                          className="rounded-lg border border-slate-600/70 bg-slate-900/60 p-2.5 text-[11px] leading-snug text-slate-300 sm:text-xs"
+                          className="rounded-lg border border-slate-600/70 bg-slate-900/60 p-3 text-[11px] leading-snug text-slate-300 sm:text-xs"
                         >
-                          <p className="font-semibold text-purple-200">{t("roulette.historySpin", { n: entry.spinIndex })}</p>
-                          <p className="mt-1">
-                            <span className="text-slate-500">{t("roulette.historyBetsPrefix")}</span> {betsList}
-                          </p>
-                          <p className="mt-1">
-                            {t("roulette.historyResult", {
-                              n: entry.result,
-                              color: t(`roulette.color.${entry.resultColorKey}`),
-                            })}
-                          </p>
-                          <p className="mt-1.5 font-mono text-[10px] text-slate-400 sm:text-[11px]">
-                            {t("roulette.historyReturnsFormula", { parts: payoutParts, total: entry.totalPayout })}
-                          </p>
-                          <p
-                            className={`mt-1 font-semibold tabular-nums ${
-                              entry.net > 0 ? "text-green-400" : entry.net < 0 ? "text-rose-400" : "text-slate-300"
-                            }`}
-                          >
-                            {entry.net === 0
-                              ? t("roulette.historyNetZero")
-                              : t("roulette.historyNet", {
-                                  amount: Math.abs(entry.net),
-                                  sign: entry.net > 0 ? "+" : "−",
-                                })}
-                          </p>
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="font-semibold text-purple-200">{t("roulette.historySpin", { n: entry.spinIndex })}</p>
+                            <span className="rounded-full border border-slate-500/60 bg-slate-950/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                              {t("roulette.historyResult", {
+                                n: entry.result,
+                                color: t(`roulette.color.${entry.resultColorKey}`),
+                              })}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 grid grid-cols-3 gap-2">
+                            <div className="rounded-md border border-slate-700/80 bg-slate-950/40 px-2 py-1.5">
+                              <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("roulette.historyStakeLabel")}</p>
+                              <p className="mt-0.5 font-semibold tabular-nums text-slate-100">{entry.totalStake}</p>
+                            </div>
+                            <div className="rounded-md border border-slate-700/80 bg-slate-950/40 px-2 py-1.5">
+                              <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("roulette.historyReturnsLabel")}</p>
+                              <p className="mt-0.5 font-semibold tabular-nums text-slate-100">{entry.totalPayout}</p>
+                            </div>
+                            <div className="rounded-md border border-slate-700/80 bg-slate-950/40 px-2 py-1.5">
+                              <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("roulette.historyNetLabel")}</p>
+                              <p
+                                className={`mt-0.5 font-semibold tabular-nums ${
+                                  entry.net > 0 ? "text-green-400" : entry.net < 0 ? "text-rose-400" : "text-slate-100"
+                                }`}
+                              >
+                                {entry.net === 0
+                                  ? t("roulette.historyNetZero")
+                                  : t("roulette.historyNet", {
+                                      amount: Math.abs(entry.net),
+                                      sign: entry.net > 0 ? "+" : "−",
+                                    })}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-2 rounded-md border border-slate-700/70 bg-slate-950/30 px-2.5 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                              {t("roulette.historyBetsLabel")}
+                            </p>
+                            <div className="mt-1 flex flex-wrap gap-1.5">
+                              {entry.lines.map((l, index) => (
+                                <span
+                                  key={`${entry.id}-bet-${index}-${l.label}`}
+                                  className="rounded-full border border-slate-700/80 bg-slate-900/70 px-2 py-0.5 text-[10px] text-slate-200"
+                                >
+                                  {t("roulette.historyBetChip", { stake: l.stake, label: l.label })}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="mt-2 rounded-md border border-slate-700/70 bg-slate-950/30 px-2.5 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                              {t("roulette.historyPayoutsLabel")}
+                            </p>
+                            {winningLines.length === 0 ? (
+                              <p className="mt-1 text-[10px] text-slate-400">{t("roulette.historyNoPayout")}</p>
+                            ) : (
+                              <div className="mt-1 space-y-1">
+                                {winningLines.map((l, index) => (
+                                  <p key={`${entry.id}-payout-${index}-${l.label}`} className="text-[10px] text-slate-300 sm:text-[11px]">
+                                    {t("roulette.historyPayoutWin", {
+                                      label: l.label,
+                                      stake: l.stake,
+                                      mult: l.mult,
+                                      payout: l.payout,
+                                    })}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })
