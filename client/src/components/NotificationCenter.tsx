@@ -243,8 +243,8 @@ export function NotificationCenter() {
                         {t("invitation.title", { username: inv.sender.username })}
                       </p>
 
-                      <p className="text-indigo-300/80 text-xs truncate">
-                        {inv.roomName}
+                      <p className="text-indigo-300/80 text-xs truncate flex items-center gap-1">
+                        {inv.game === 'blackjack' ? '🃏 Blackjack' : '♠️ Texas Hold\'em'} — {inv.roomName}
                       </p>
 
                       <div className="flex gap-2 mt-2">
