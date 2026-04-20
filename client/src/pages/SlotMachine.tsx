@@ -142,6 +142,9 @@ export function SlotMachine() {
   const [showWin, setShowWin] = useState(false);
   const [spinningReels, setSpinningReels] = useState([false, false, false]);
 
+  const isRefund = result.isWin && result.winAmount === bet;
+  const isBigWin = result.isWin && result.winAmount! > bet;
+
   const loadBalance = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -290,6 +293,9 @@ export function SlotMachine() {
           setShowWin(true);
           setTimeout(() => setShowWin(false), 3000);
         }
+        if (isWin && data.winAmount === bet) {
+          addToast(t("slot.refundLine"), "info");
+        }
         setIsSpinning(false);
       }, 1500);
 
@@ -359,18 +365,29 @@ export function SlotMachine() {
             <div className="rounded-2xl border border-slate-600/80 bg-slate-900/55 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-6 lg:p-8">
               <div
                 className={`pointer-events-none absolute left-2 right-2 top-1/2 z-20 flex h-24 -translate-y-1/2 items-center justify-center transition-all duration-500 sm:left-8 sm:right-8 sm:h-32 ${
-                  result.isWin && !isSpinning && result.winAmount! > bet
+                  isBigWin && !isSpinning
                     ? "border-y-2 border-emerald-500/45 bg-gradient-to-r from-transparent via-emerald-600/20 to-transparent shadow-[0_0_28px_rgba(16,185,129,0.2)]"
+                    : isRefund && !isSpinning
+                    ? "border-y-2 border-amber-500/45 bg-gradient-to-r from-transparent via-amber-600/15 to-transparent"
                     : ""
                 }`}
               >
-                {result.isWin && !isSpinning && result.winAmount! > bet && (
+                {isBigWin && !isSpinning && (
                   <motion.div
                     className="text-base font-bold text-emerald-300 sm:text-2xl"
                     animate={{ scale: [1, 1.08, 1], opacity: [1, 0.88, 1] }}
                     transition={{ duration: 1.2, repeat: Infinity }}
                   >
                     {t("slot.winLine")}
+                  </motion.div>
+                )}
+                {isRefund && !isSpinning && (
+                  <motion.div
+                    className="text-base font-bold text-amber-300 sm:text-2xl"
+                    animate={{ scale: [1, 1.08, 1], opacity: [1, 0.88, 1] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                  >
+                    {t("slot.refundLine")}
                   </motion.div>
                 )}
               </div>
@@ -405,7 +422,7 @@ export function SlotMachine() {
                           {reel.map((symbol, symbolIndex) => {
                             const isCenterSymbol = symbolIndex === centerIndex;
                             const isResultSymbol = !isSpinning && isCenterSymbol;
-                            const shouldDim = !isSpinning && result.isWin && result.winAmount! > bet && !isCenterSymbol;
+                            const shouldDim = !isSpinning && isBigWin && !isCenterSymbol;
                             
                             const distanceFromCenter = Math.abs(symbolIndex - centerIndex);
                             const blurAmount = isSpinning ? 0 : Math.min(distanceFromCenter * 2, 8);
@@ -417,7 +434,7 @@ export function SlotMachine() {
                                 key={symbolIndex}
                                 className={`relative flex items-center justify-center text-5xl transition-all duration-500 sm:text-6xl md:text-7xl ${
                                   shouldDim ? "grayscale opacity-30 blur-sm" : ""
-                                } ${isResultSymbol && result.isWin && result.winAmount! > bet ? "animate-pulse" : ""}`}
+                                } ${isResultSymbol && isBigWin ? "animate-pulse" : ""}`}
                                 style={{ 
                                   height: "110px",
                                   filter: shouldDim ? undefined : `blur(${blurAmount}px)`,
@@ -425,7 +442,7 @@ export function SlotMachine() {
                                   transform: shouldDim ? undefined : `scale(${scaleAmount})`,
                                 }}
                               >
-                                {isResultSymbol && result.isWin && result.winAmount! > bet && (
+                                {isResultSymbol && isBigWin && (
                                   <div className="absolute inset-0 flex items-center justify-center">
                                     {[...Array(8)].map((_, i) => (
                                       <motion.div
