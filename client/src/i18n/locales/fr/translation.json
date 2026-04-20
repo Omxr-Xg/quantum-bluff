@@ -232,6 +232,8 @@
       "purple": "Ajouter {{value}} (jeton violet)"
     },
     "tableStake": "Total sur le tapis",
+    "limitsExplainer": "Jusqu'à {{perLine}} par case et {{total}} au total pour ce lancer.",
+    "betPartial": "{{placed}} jetons placés (pile {{requested}} ; plafond appliqué).",
     "undo": "Annuler",
     "clear": "Tout effacer",
     "spin": "Lancer la bille",

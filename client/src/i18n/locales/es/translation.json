@@ -232,6 +232,8 @@
       "purple": "Añadir {{value}} (ficha morada)"
     },
     "tableStake": "Total en la mesa",
+    "limitsExplainer": "Hasta {{perLine}} por casilla y {{total}} en total en este giro.",
+    "betPartial": "Colocadas {{placed}} fichas (apilaste {{requested}}; se aplicó el límite).",
     "undo": "Deshacer",
     "clear": "Borrar todo",
     "spin": "Girar",

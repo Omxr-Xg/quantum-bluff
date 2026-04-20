@@ -574,8 +574,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   const { addToast } = useToast();
   const [chips, setChips] = useState<number | null>(null);
   const [minBet, setMinBet] = useState(10);
-  const [maxBetPerLine, setMaxBetPerLine] = useState(1000);
-  const [maxTotalStake, setMaxTotalStake] = useState(5000);
+  /** Alignés sur le palier bas (niveau 1) jusqu’au chargement config + gamification. */
+  const [maxBetPerLine, setMaxBetPerLine] = useState(250);
+  const [maxTotalStake, setMaxTotalStake] = useState(1500);
+  const [limitsLoaded, setLimitsLoaded] = useState(false);
   const [wheelOrder, setWheelOrder] = useState<number[]>(DEFAULT_WHEEL);
   /** Somme des jetons tapés avant de poser sur le tapis. */
   const [pendingStake, setPendingStake] = useState(0);
@@ -583,6 +585,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   const [_betHistory, setBetHistory] = useState<{ key: BetKey; amt: number }[]>([]);
   const betsRef = useRef(bets);
   betsRef.current = bets;
+  const totalStakeRef = useRef(0);
   const historyInitRef = useRef(parseSpinHistoryFromStorage());
   const [spinHistory, setSpinHistory] = useState<SpinHistoryEntry[]>(() => historyInitRef.current.entries);
   const spinCounterRef = useRef(historyInitRef.current.counter);
@@ -620,8 +623,8 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
     try {
       const url = apiUrl("/api/roulette/config");
       const res = await fetch(url);
-      let lineCap = 1000;
-      let totalCap = 5000;
+      let lineCap = 250;
+      let totalCap = 1500;
       if (res.ok) {
         const data = await res.json();
         if (typeof data?.minBet === "number") setMinBet(Math.max(1, Math.floor(data.minBet)));
@@ -642,7 +645,9 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
       setMaxBetPerLine(lineCap);
       setMaxTotalStake(totalCap);
     } catch {
-      /* defaults */
+      /* defaults déjà cohérents (250 / 1500) */
+    } finally {
+      setLimitsLoaded(true);
     }
   }, []);
 
@@ -668,9 +673,13 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
     return s;
   }, [bets]);
 
+  useEffect(() => {
+    totalStakeRef.current = totalStake;
+  }, [totalStake]);
+
   const addToKey = useCallback(
     (key: BetKey, stake: number) => {
-      if (chips === null || spinning) return;
+      if (chips === null || spinning || !limitsLoaded) return;
       const s = Math.floor(stake);
       if (s <= 0) {
         addToast(t("roulette.addChipsFirst"), "error");
@@ -678,29 +687,32 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
       }
       const prev = betsRef.current;
       const cur = prev.get(key) ?? 0;
-      const nextLine = cur + s;
-      if (nextLine > maxBetPerLine) {
-        addToast(t("roulette.betCapLine"), "error");
-        return;
-      }
       let prevTotal = 0;
       for (const v of prev.values()) prevTotal += v;
-      const nextTotal = prevTotal - cur + nextLine;
-      if (nextTotal > maxTotalStake) {
-        addToast(t("roulette.betCapTotal"), "error");
+      const otherBets = prevTotal - cur;
+      const maxLineTotal = Math.min(
+        maxBetPerLine,
+        Math.max(0, maxTotalStake - otherBets),
+        Math.max(0, chips - otherBets)
+      );
+      const applied = Math.min(Math.floor(cur + s), Math.floor(maxLineTotal));
+      if (applied <= cur) {
+        if (cur >= maxBetPerLine) addToast(t("roulette.betCapLine"), "error");
+        else if (prevTotal >= maxTotalStake) addToast(t("roulette.betCapTotal"), "error");
+        else addToast(t("roulette.insufficient"), "error");
         return;
       }
-      if (nextTotal > chips) {
-        addToast(t("roulette.insufficient"), "error");
-        return;
+      const actualAdd = applied - cur;
+      if (actualAdd < s) {
+        addToast(t("roulette.betPartial", { placed: actualAdd, requested: s }), "info");
       }
       const m = new Map(prev);
-      m.set(key, nextLine);
+      m.set(key, applied);
       setBets(m);
-      setBetHistory((h) => [...h, { key, amt: s }]);
+      setBetHistory((h) => [...h, { key, amt: actualAdd }]);
       setPendingStake(0);
     },
-    [chips, maxBetPerLine, maxTotalStake, spinning, addToast, t]
+    [chips, maxBetPerLine, maxTotalStake, spinning, limitsLoaded, addToast, t]
   );
 
   const clearBets = () => {
@@ -888,6 +900,8 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
     return ROULETTE_CHIP_TOKENS.filter((tok) => tok.value >= minBet && tok.value <= maxBetPerLine);
   }, [minBet, maxBetPerLine]);
 
+  const bettingDisabled = spinning || !limitsLoaded || chips === null;
+
   const feltCellClass = (n: number) => {
     if (n === 0) {
       return "bg-gradient-to-b from-emerald-500 via-emerald-700 to-emerald-950 text-white border-green-300/65 shadow-[inset_0_2px_6px_rgba(255,255,255,0.2)]";
@@ -905,7 +919,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
       <button
         key={n}
         type="button"
-        disabled={spinning}
+        disabled={bettingDisabled}
         onClick={() => addToKey(key, pendingStake)}
         className={`${feltCellClass(
           n
@@ -1024,9 +1038,17 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                       <button
                         key={tok.value}
                         type="button"
-                        disabled={spinning}
+                        disabled={bettingDisabled}
                         title={t(`roulette.chipNames.${tok.labelKey}`, { value: tok.value })}
-                        onClick={() => setPendingStake((p) => p + tok.value)}
+                        onClick={() =>
+                          setPendingStake((p) => {
+                            if (chips === null || !limitsLoaded) return p;
+                            const tot = totalStakeRef.current;
+                            const rem = Math.max(0, chips - tot);
+                            const maxStack = Math.min(maxBetPerLine, rem);
+                            return Math.min(p + tok.value, maxStack);
+                          })
+                        }
                         className="group flex flex-col items-center gap-1 touch-manipulation disabled:opacity-40"
                       >
                         <span className="transition group-active:scale-95 group-hover:brightness-110">
@@ -1049,7 +1071,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                     </div>
                     <button
                       type="button"
-                      disabled={spinning || pendingStake === 0}
+                      disabled={bettingDisabled || pendingStake === 0}
                       onClick={() => setPendingStake(0)}
                       className="rounded-lg border border-slate-600 bg-slate-700/80 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-600 disabled:opacity-30"
                     >
@@ -1121,14 +1143,27 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   "radial-gradient(ellipse 85% 55% at 25% 15%, rgba(16,185,129,0.12) 0%, transparent 55%), radial-gradient(ellipse 100% 80% at 50% 100%, rgba(15,23,42,0.95) 0%, rgba(22,101,52,0.35) 55%, rgba(15,23,42,0.9) 100%), linear-gradient(180deg, rgb(15 23 42 / 0.9) 0%, rgb(15 118 110 / 0.15) 50%, rgb(15 23 42) 100%)",
               }}
             >
-              <div className="mb-2 flex items-center justify-between border-b border-slate-600/50 pb-2 text-sm text-slate-300">
-                <span>{t("roulette.tableStake")}</span>
-                <span className="text-lg font-bold tabular-nums text-green-400">{totalStake}</span>
+              <div className="mb-2 space-y-2 border-b border-slate-600/50 pb-2 text-sm text-slate-300">
+                <div className="flex items-center justify-between gap-2">
+                  <span>{t("roulette.tableStake")}</span>
+                  <span className="text-lg font-bold tabular-nums text-green-400">
+                    {totalStake} / {maxTotalStake}
+                  </span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-emerald-500/90 transition-[width]"
+                    style={{
+                      width: `${maxTotalStake > 0 ? Math.min(100, (totalStake / maxTotalStake) * 100) : 0}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[11px] leading-snug text-slate-500">{t("roulette.limitsExplainer", { perLine: maxBetPerLine, total: maxTotalStake })}</p>
               </div>
               <div className="mb-3 flex gap-2">
                 <button
                   type="button"
-                  disabled={spinning || bets.size === 0}
+                  disabled={bettingDisabled || bets.size === 0}
                   onClick={undoLast}
                   className="flex flex-1 items-center justify-center gap-1 rounded-md border border-slate-600 bg-slate-800/80 py-2 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-40"
                 >
@@ -1137,7 +1172,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 </button>
                 <button
                   type="button"
-                  disabled={spinning || bets.size === 0}
+                  disabled={bettingDisabled || bets.size === 0}
                   onClick={clearBets}
                   className="flex flex-1 items-center justify-center gap-1 rounded-md border border-red-800/60 bg-red-950/40 py-2 text-sm text-red-200 hover:bg-red-950/60 disabled:opacity-40"
                 >
@@ -1162,7 +1197,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                       {numCell(top)}
                       <button
                         type="button"
-                        disabled={spinning}
+                        disabled={bettingDisabled}
                         className="relative h-4 min-h-[14px] rounded-[1px] border border-emerald-800/40 bg-[#031910] hover:bg-[#0a3020]"
                         title={t("roulette.splitVertical")}
                         onClick={() => addToKey(`sp:${Math.min(top, mid)}-${Math.max(top, mid)}` as BetKey, pendingStake)}
@@ -1175,7 +1210,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                       {numCell(mid)}
                       <button
                         type="button"
-                        disabled={spinning}
+                        disabled={bettingDisabled}
                         className="relative h-4 min-h-[14px] rounded-[1px] border border-emerald-800/40 bg-[#031910] hover:bg-[#0a3020]"
                         title={t("roulette.splitVertical")}
                         onClick={() => addToKey(`sp:${Math.min(mid, bot)}-${Math.max(mid, bot)}` as BetKey, pendingStake)}
@@ -1194,7 +1229,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
               <div className="mb-2 grid grid-cols-3 gap-1">
                 <button
                   type="button"
-                  disabled={spinning}
+                  disabled={bettingDisabled}
                   onClick={() => addToKey("d:1", pendingStake)}
                   className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
                 >
@@ -1203,7 +1238,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 </button>
                 <button
                   type="button"
-                  disabled={spinning}
+                  disabled={bettingDisabled}
                   onClick={() => addToKey("d:2", pendingStake)}
                   className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
                 >
@@ -1212,7 +1247,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 </button>
                 <button
                   type="button"
-                  disabled={spinning}
+                  disabled={bettingDisabled}
                   onClick={() => addToKey("d:3", pendingStake)}
                   className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
                 >
@@ -1224,7 +1259,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
               <div className="mb-2 grid grid-cols-3 gap-1">
                 <button
                   type="button"
-                  disabled={spinning}
+                  disabled={bettingDisabled}
                   onClick={() => addToKey("col:1", pendingStake)}
                   className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
                 >
@@ -1233,7 +1268,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 </button>
                 <button
                   type="button"
-                  disabled={spinning}
+                  disabled={bettingDisabled}
                   onClick={() => addToKey("col:2", pendingStake)}
                   className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
                 >
@@ -1242,7 +1277,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 </button>
                 <button
                   type="button"
-                  disabled={spinning}
+                  disabled={bettingDisabled}
                   onClick={() => addToKey("col:3", pendingStake)}
                   className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
                 >
@@ -1256,7 +1291,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   <button
                     key={k}
                     type="button"
-                    disabled={spinning}
+                    disabled={bettingDisabled}
                     onClick={() => addToKey(k, pendingStake)}
                     className={`relative rounded-sm border-2 py-2 pl-2 pr-7 font-serif text-[11px] font-bold transition hover:brightness-110 sm:text-xs ${
                       k === "red"
@@ -1283,7 +1318,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                       <button
                         key={b}
                         type="button"
-                        disabled={spinning}
+                        disabled={bettingDisabled}
                         onClick={() => addToKey(`st:${b}` as BetKey, pendingStake)}
                         className="relative rounded border border-slate-600/70 bg-slate-800/60 py-1 pl-1.5 pr-5 text-[10px] text-slate-200 hover:bg-slate-700/70"
                       >
@@ -1298,7 +1333,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                       <button
                         key={b}
                         type="button"
-                        disabled={spinning}
+                        disabled={bettingDisabled}
                         onClick={() => addToKey(`6:${b}` as BetKey, pendingStake)}
                         className="relative rounded border border-slate-600/70 bg-slate-800/60 py-1 pl-1.5 pr-5 text-[10px] text-slate-200 hover:bg-slate-700/70"
                       >
@@ -1315,7 +1350,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                         <button
                           key={c.label}
                           type="button"
-                          disabled={spinning}
+                          disabled={bettingDisabled}
                           onClick={() => addToKey(ck, pendingStake)}
                           className="relative rounded border border-slate-600/70 bg-slate-800/60 py-0.5 pl-1 pr-4 text-[9px] text-slate-200 hover:bg-slate-700/70"
                         >
@@ -1333,7 +1368,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                         <button
                           key={s.label}
                           type="button"
-                          disabled={spinning}
+                          disabled={bettingDisabled}
                           onClick={() => addToKey(sk, pendingStake)}
                           className="relative rounded border border-purple-500/35 bg-purple-950/40 py-0.5 pl-1 pr-4 text-[9px] text-purple-100 hover:bg-purple-950/60"
                         >
@@ -1349,7 +1384,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
 
             <button
               type="button"
-              disabled={spinning || bets.size === 0 || chips === null}
+              disabled={bettingDisabled || bets.size === 0}
               onClick={() => void spin()}
               className="w-full rounded-xl border-2 border-green-400/45 bg-gradient-to-b from-green-600 to-green-800 py-4 text-lg font-bold tracking-wide text-white shadow-[0_4px_0_rgb(21_128_61),0_14px_36px_rgba(0,0,0,0.45)] transition hover:from-green-500 hover:to-green-700 active:translate-y-0.5 active:shadow-[0_2px_0_rgb(21_128_61)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:active:translate-y-0"
             >

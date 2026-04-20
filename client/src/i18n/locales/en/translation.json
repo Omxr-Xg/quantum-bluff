@@ -232,6 +232,8 @@
       "purple": "Add {{value}} (purple chip)"
     },
     "tableStake": "Total on table",
+    "limitsExplainer": "Up to {{perLine}} per betting spot and {{total}} total staked this spin.",
+    "betPartial": "Placed {{placed}} chips (you stacked {{requested}}; limit applied).",
     "undo": "Undo",
     "clear": "Clear all",
     "spin": "Spin",

@@ -233,6 +233,8 @@
       "purple": "إضافة {{value}} (قطعة بنفسجية)"
     },
     "tableStake": "الإجمالي على الطاولة",
+    "limitsExplainer": "حد أقصى {{perLine}} لكل خانة و{{total}} إجماليًا لهذه الدورة.",
+    "betPartial": "وُضعت {{placed}} رقائق (الرصيد {{requested}}؛ تم تطبيق السقف).",
     "undo": "تراجع",
     "clear": "مسح الكل",
     "spin": "تدوير",
