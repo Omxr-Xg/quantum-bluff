@@ -1,4 +1,4 @@
-import type { Card, GamePhase, GameState, Player } from '../types/poker.js'
+import type { GamePhase, GameState, Player } from '../types/poker.js'
 import { Deck } from './Deck.js'
 import { intChips } from '../utils/chips.js'
 import { settlePots } from './poker/potSettlement.js'
