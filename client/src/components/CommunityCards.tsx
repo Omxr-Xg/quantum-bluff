@@ -28,7 +28,7 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
   return (
     <div
       className={`absolute ${
-        isMobile ? "top-1/2 -translate-y-1/2" : isTablet ? "top-9" : "top-12"
+        isMobile ? "top-[45%] -translate-y-1/2" : isTablet ? "top-9" : "top-12"
       } left-0 right-0 flex justify-center`}
     >
       <div
