@@ -120,4 +120,4 @@ npm run install:all
 npm run dev
 ```
 
-Puis ouvrir http://localhost:5173 dans le navigateur.
+Puis ouvrir http://localhost:5175 dans le navigateur (port défini dans `client/vite.config.ts`).

@@ -1,6 +1,6 @@
 # Quantum Bluff
 
-Plateforme de poker Texas Hold'em en temps réel — multi-joueur, mode bot, et interface analytique augmentée.
+Plateforme de jeu en ligne — **poker Texas Hold’em** temps réel, **blackjack** (solo et multijoueur), **mini-jeux** (casino), **tournois**, avec client **web**, **Electron** (Windows, macOS, Linux) et apps **mobiles** (Capacitor : iOS / Android).
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -12,32 +12,43 @@ Plateforme de poker Texas Hold'em en temps réel — multi-joueur, mode bot, et 
 
 ## Table des matières
 
-- [Vue d'ensemble](#vue-densemble)
-- [Fonctionnalités](#fonctionnalités)
-- [Stack technique](#stack-technique)
-- [Architecture](#architecture)
-- [Prérequis](#prérequis)
-- [Installation](#installation)
-- [Développement](#développement)
-- [Tests](#tests)
-- [Déploiement](#déploiement)
-- [Structure du projet](#structure-du-projet)
-- [Contribution](#contribution)
-- [Licence](#licence)
+1. [Vue d’ensemble](#vue-densemble)
+2. [Fonctionnalités](#fonctionnalités)
+3. [Stack technique](#stack-technique)
+4. [Architecture](#architecture)
+5. [Arborescence du dépôt](#arborescence-du-dépôt)
+6. [Prérequis](#prérequis)
+7. [Installation rapide](#installation-rapide)
+8. [Variables d’environnement](#variables-denvironnement)
+9. [Développement](#développement)
+10. [Client Electron (bureau)](#client-electron-bureau)
+11. [Applications mobiles (Capacitor)](#applications-mobiles-capacitor)
+12. [Livrables installables (`Game_Versions/`)](#livrables-installables-game_versions)
+13. [Tests](#tests)
+14. [Lint](#lint)
+15. [Déploiement](#déploiement)
+16. [Documentation](#documentation)
+17. [Contribution](#contribution)
+18. [Licence](#licence)
 
-> **Pour les testeurs** : un [guide de démarrage rapide](./SETUP_TESTEUR.md) décrit les étapes pour lancer l'app localement (base de données, migrations, etc.).
+> **Guide testeur pas à pas** : [Docs/SETUP_TESTEUR.md](./Docs/SETUP_TESTEUR.md)
 
 ---
 
-## Vue d'ensemble
+## Vue d’ensemble
 
-**Quantum Bluff** est une application de poker Texas Hold'em haute fidélité, développée en monorepo, avec :
+**Quantum Bluff** est un monorepo **TypeScript** :
 
-- **Parties multi-joueur** : salles publiques/privées, invitations amis, WebSocket temps réel
-- **Mode bot** : entraînement en solo avec IA configurable
-- **Quantum HUD** : probabilités et statistiques en temps réel pour la prise de décision
-- **Accessibilité** : mode daltonien, contraste étendu, alertes visuelles
-- **Client desktop** : application Electron (Windows, macOS, Linux) avec mises à jour automatiques
+| Domaine | Contenu |
+|--------|---------|
+| **Poker** | Salles, attente, Texas Hold’em (preflop → showdown), bots, Quantum HUD, mises cachées |
+| **Blackjack** | Table solo, lobby / tables multijoueur |
+| **Casino** | Mini-jeux intégrés au hub |
+| **Social** | Comptes, amis, invitations, prêts entre joueurs (selon routes) |
+| **Tournois** | Lobby et flux tournoi côté client + backend |
+| **Clients** | Navigateur (PWA), **Electron**, **iOS** et **Android** (Capacitor) |
+
+Temps réel via **Socket.IO** ; persistance via **PostgreSQL** (Prisma) et **Redis** selon les fonctionnalités.
 
 ---
 
@@ -45,214 +56,282 @@ Plateforme de poker Texas Hold'em en temps réel — multi-joueur, mode bot, et 
 
 | Module | Description |
 |--------|-------------|
-| **Authentification** | Inscription, connexion, JWT, gestion de profil |
-| **Lobby** | Création/rejoindre des salles, mode bot ou serveur |
-| **Salles d'attente** | Rôles (hôte, joueur), salles publiques/privées, demandes de rejoindre |
-| **Partie** | Texas Hold'em complet (preflop → river → showdown), split pot, timer de tour |
-| **Quantum HUD** | Probabilités, odds, feedback visuel pour l’aide à la décision |
-| **Amis** | Demandes, listes d’amis, statut en ligne |
-| **Historique** | Actions de jeu, résultats, statistiques par joueur |
-| **Hidden Bets** | Mode de mises cachées avec révélation à la fin |
-| **Tutoriels** | Parcours Lobby + partie pour les nouveaux joueurs |
-| **i18n** | Interface en français (extensible) |
-| **Client desktop** | Electron avec auto-update (Windows, macOS, Linux) |
+| **Auth** | Inscription, connexion JWT, profil, récupération de compte |
+| **Lobby & salles** | Création / rejoindre, public / privé, file d’attente |
+| **Poker** | Moteur de table, timers, split pot, historique |
+| **Quantum HUD** | Indicateurs et probabilités pour l’aide à la décision |
+| **Blackjack** | Mode classique et multijoueur avec synchronisation |
+| **Mini-jeux** | Hub casino (roulette, slots, etc. selon pages) |
+| **Amis & social** | Demandes, messages, présence |
+| **Tournois** | Parcours tournoi (UI + événements socket) |
+| **Accessibilité** | Thèmes, contraste, options d’affichage |
+| **i18n** | FR, EN, ES, AR, UK (détection + changement de langue) |
+| **Bureau** | Electron avec mises à jour (Windows / macOS / Linux) |
+| **Mobile** | Capacitor (même base web embarquée) |
 
 ---
 
 ## Stack technique
 
-### Frontend
+### Frontend (`client/`)
 
-- **React 19** + **TypeScript**
-- **Vite 7**
-- **React Router v7**
-- **Tailwind CSS 4**
-- **Motion** (Framer Motion)
-- **Socket.io-client**
-- **Radix UI**, **Lucide React**
+- **React 19** · **TypeScript** · **Vite 7**
+- **React Router 7** (`react-router-dom`)
+- **Tailwind CSS** 3 + plugin Vite Tailwind 4
+- **Motion** (animations)
+- **Redux Toolkit** + RTK Query
+- **Socket.IO client**
 - **i18next**
-- **Electron** (client bureau)
+- **Electron** + **electron-builder**
+- **Capacitor** 8 (Android / iOS)
+- **Vitest** · **Playwright** (e2e)
 
-### Backend
+### Backend (`server/`)
 
-- **Node.js** + **Express**
-- **TypeScript** (ESM)
-- **Socket.io**
+- **Node.js** · **Express** · **TypeScript** (ESM)
+- **Socket.IO**
 - **Prisma** + **PostgreSQL**
 - **Redis** (ioredis)
-- **JWT**, **bcryptjs**
-- **Zod** (validation)
+- **JWT** · **bcrypt**
+- **Zod** · **Jest**
 
 ### Infrastructure
 
-- **Docker** / Docker Compose (PostgreSQL, Redis, backend, frontend, nginx)
-- **PM2** pour le déploiement
+- **Docker Compose** (`database/`) — PostgreSQL 16 + Redis
+- **Nginx** (ex. préfixe VM `/vmProjet…/`) — voir déploiement
+- **PM2** — option courante sur VM
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│    Client       │────▶│     Backend       │────▶│   PostgreSQL    │
-│ React / Vite    │◀────│ Node.js / Express │     │   Prisma ORM    │
-└────────┬────────┘     └────────┬──────────┘     └─────────────────┘
-         │                      │
-         │ Socket.io             │ Redis
-         │                      │
-         ▼                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Logique métier (GameTable)                     │
-│  Deck • Evaluator • Texas Hold'em (preflop→river→showdown)       │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────┐     HTTP / WS      ┌─────────────────┐     ┌──────────────┐
+│   Client     │ ◄──────────────► │    API Express   │ ◄─► │  PostgreSQL  │
+│ React / Vite │                    │   + Socket.IO    │     │   (Prisma)   │
+└──────────────┘                    └────────┬──────────┘     └──────────────┘
+       │                                    │
+       │                                    ▼
+       │                           ┌──────────────┐
+       └──────────────────────────►│    Redis     │
+                                   └──────────────┘
+```
+
+- **API REST** sous `/api` (auth, jeux, amis, etc.)
+- **WebSocket** Socket.IO (`/socket.io` ou préfixe derrière reverse proxy)
+- **Logique métier** : tables poker, blackjack, tournois, etc. dans `server/src/`
+
+---
+
+## Arborescence du dépôt
+
+```
+quantum-bluff/
+├── client/                    # Frontend + Electron + Capacitor
+│   ├── android/               # Projet Gradle (généré / sync Capacitor)
+│   ├── ios/                   # Projet Xcode (Capacitor)
+│   ├── src/                   # App React (pages, composants, contexts…)
+│   ├── electron.cjs           # Point d’entrée Electron
+│   ├── vite.config.ts
+│   └── package.json
+├── server/                    # Backend
+│   ├── prisma/                # Schéma + migrations
+│   ├── src/
+│   │   ├── routes/
+│   │   ├── sockets/
+│   │   ├── logic/             # Moteurs de jeu
+│   │   └── …
+│   └── package.json
+├── database/                  # docker-compose.yml (Postgres + Redis)
+├── nginx/                     # Exemples de config reverse proxy
+├── scripts/                   # Scripts utilitaires (packaging mobile, etc.)
+├── Game_Versions/             # Livrables binaires (installateurs) — voir section dédiée
+├── Docs/                      # Guides (déploiement, tests, testeurs…)
+├── CONTRIBUTING.md
+├── LICENSE
+└── README.md
 ```
 
 ---
 
 ## Prérequis
 
-- **Node.js** ≥ 18
-- **Docker** et **Docker Compose** (base de données)
-- **PostgreSQL** 16 (ou via Docker)
-- **Redis** (pour les sessions / cache)
-- **npm** ou **pnpm**
+| Outil | Version / note |
+|-------|----------------|
+| **Node.js** | ≥ 18 |
+| **npm** | (fourni avec Node) |
+| **Docker Desktop** | Recommandé pour Postgres + Redis en local |
+| **Android** (APK) | Android Studio + SDK (script d’empaquetage optionnel) |
+| **iOS** (archive) | Xcode (macOS), compte Apple pour signature / IPA |
 
 ---
 
-## Installation
+## Installation rapide
 
-1. **Cloner le dépôt**
-   ```bash
-   git clone <url-du-repo>
-   cd quantum-bluff
-   ```
+```bash
+git clone <url-du-dépôt>
+cd quantum-bluff
 
-2. **Variables d'environnement**
-   ```bash
-   cp server/.env.example server/.env
-   # Éditer server/.env : DATABASE_URL, REDIS_URL, JWT_SECRET
-   ```
+# 1. Environnement serveur
+cp server/.env.example server/.env
+# Éditer server/.env — avec Docker du repo, utiliser le port Postgres **hôte** 5433 :
+# DATABASE_URL="postgresql://admin:My027@localhost:5433/quantum_bluff?schema=public"
+# (aligner user/mot de passe avec database/docker-compose.yml)
 
-3. **Base de données**
-   ```bash
-   npm run dev:db
-   cd server && npx prisma migrate deploy
-   ```
+# 2. Base de données
+cd database && docker-compose up -d && cd ..
 
-4. **Dépendances**
-   ```bash
-   npm run install:all
-   ```
+# 3. Migrations
+cd server && npx prisma migrate deploy && cd ..
+
+# 4. Dépendances
+npm run install:all
+
+# 5. Lancer tout (DB déjà up)
+npm run dev
+```
+
+Ouvrir le client : **http://localhost:5175** (port défini dans `client/vite.config.ts`).  
+API + Socket.IO : **http://localhost:3000**.
+
+---
+
+## Variables d’environnement
+
+### Backend — `server/.env`
+
+| Variable | Rôle |
+|----------|------|
+| `DATABASE_URL` | Connexion PostgreSQL |
+| `JWT_SECRET` | Signature des tokens (≥ 32 caractères) |
+| `REDIS_HOST` / `REDIS_PORT` ou `REDIS_URL` | Redis |
+| `PORT` | Port HTTP (défaut `3000`) |
+| `NODE_ENV` | `development` / `production` |
+| `CORS_ORIGIN` | En prod : origines autorisées (JSON ou liste). Le serveur ajoute aussi `capacitor://localhost` pour les apps natives. |
+
+Voir **`server/.env.example`**.
+
+### Frontend web — build production
+
+- **`client/.env.production`** (exemple dans le dépôt) : `VITE_API_URL` en chemin relatif type `/vmProjetIntegrateurgrp10-0` quand le site est servi derrière le même hôte HTTPS.
+
+### Mobile — `client/.env.capacitor` (à créer, non versionné)
+
+Copier **`client/.env.capacitor.example`**. Sur **iOS / Android**, l’origine n’est pas le site HTTPS : il faut une **URL absolue** ou `VITE_DEPLOY_ORIGIN` + chemin relatif — voir commentaires dans l’exemple.
+
+| Variable | Rôle |
+|----------|------|
+| `VITE_BASE_PATH` | Souvent `/` pour Capacitor |
+| `VITE_API_URL` | URL du backend (HTTPS ou IP selon cas) |
+| `VITE_SOCKET_URL` / `VITE_SOCKET_PATH` | Socket.IO si différent du défaut |
 
 ---
 
 ## Développement
 
-Lancer l’environnement complet :
-
-```bash
-npm run dev
-```
-
-Cela démarre :
-
-- **PostgreSQL** et **Redis** (Docker)
-- **Serveur** (port 3000)
-- **Client** (port 5173 par défaut)
-
-Scripts utiles :
-
-| Commande | Description |
-|----------|-------------|
-| `npm run dev` | Lancer DB, serveur et client |
-| `npm run dev:db` | Démarrer PostgreSQL + Redis (Docker) |
+| Commande (racine) | Description |
+|-------------------|-------------|
+| `npm run dev` | Docker DB + serveur `:3000` + client Vite `:5175` |
+| `npm run dev:db` | Démarre uniquement Postgres + Redis (Docker) |
 | `npm run dev:server` | Backend seul |
 | `npm run dev:client` | Frontend seul |
+| `npm run install:all` | `npm install` à la racine, `server/`, `client/` |
+
+| Commande (`client/`) | Description |
+|---------------------|-------------|
+| `npm run dev` | Vite (port **5175**) |
+| `npm run build` | Build web prod (base path VM par défaut) |
+| `npm run build:cap` | Build mode `capacitor` |
+| `npm run cap:sync` | `build:cap` + `cap sync` (Android + iOS) |
+| `npm run electron:dev` | Vite + fenêtre Electron |
+
+---
+
+## Client Electron (bureau)
+
+- **Développement** : `cd client && npm run electron:dev` (attend `http://localhost:5175`).
+- **Build installateurs** : `cd client && npm run electron:build` (ou `:win`, `:mac`, `:linux`).
+- **URL de prod chargée par Electron** : configurable via `QB_PUBLIC_URL` / défaut dans `electron.cjs` (déploiement école / VM).
+
+Sortie typique : `client/dist-electron/` (souvent ignoré par Git — volumineux).
+
+---
+
+## Applications mobiles (Capacitor)
+
+1. Configurer **`client/.env.capacitor`** (URL API / Socket complètes ou `VITE_DEPLOY_ORIGIN`).
+2. Sync web → natif :
+   ```bash
+   cd client && npm run build:cap && npx cap sync
+   ```
+3. Ouvrir les projets natifs :
+   - **Android** : `npm run cap:android` ou Android Studio → dossier `client/android`
+   - **iOS** (Mac) : `npm run cap:ios` ou Xcode → `client/ios/App/App.xcodeproj`
+
+### Scripts de packaging (racine ou `client/`)
+
+| Commande | Résultat |
+|----------|----------|
+| `npm run package:android-rendu` | Build Capacitor + APK release (signé clé debug démo) → `Game_Versions/Quantum-Bluff-Android-<version>.apk` |
+| `npm run package:ios-rendu` | Build Capacitor + archive Xcode → `Game_Versions/Quantum-Bluff-iOS-<version>.xcarchive.zip` |
+
+Prérequis machine : **JDK** + **Android SDK** pour Android ; **Xcode** pour iOS. Le script Android configure `JAVA_HOME` (JBR Android Studio) et `local.properties` si besoin.
+
+---
+
+## Livrables installables (`Game_Versions/`)
+
+Dossier prévu pour **uniquement** les binaires / archives **installables** (`.exe`, `.dmg`, `.apk`, `.zip` d’archive iOS, etc.).  
+Les fichiers `.txt` / `.md` y sont ignorés par Git (voir `.gitignore`) pour éviter les guides mélangés aux livrables.
 
 ---
 
 ## Tests
 
+| Portée | Commande |
+|--------|----------|
+| **Racine** (serveur + client) | `npm run test:coverage` |
+| **Serveur uniquement** | `cd server && npm test` ou `npm run test:coverage` |
+| **Client uniquement** | `cd client && npm test` ou `npm run test:coverage` |
+| **E2E (Playwright)** | `cd client && npm run test:e2e` (serveur / client doivent être disponibles selon config) |
+
+Références : [Docs/RAPPORT_TESTS.md](./Docs/RAPPORT_TESTS.md), [Docs/POKER_SCENARIOS.md](./Docs/POKER_SCENARIOS.md).
+
+---
+
+## Lint
+
 ```bash
-# Tous les tests (depuis la racine)
-npm run test:coverage
-
-# Tests serveur uniquement
-cd server && npm test
-
-# Tests client uniquement
-cd client && npm test
+cd server && npm run lint
+cd ../client && npm run lint
 ```
-
-Documentation : **[`Docs/RAPPORT_TESTS.md`](Docs/RAPPORT_TESTS.md)** (inventaire Jest/Vitest) · **[`Docs/POKER_SCENARIOS.md`](Docs/POKER_SCENARIOS.md)** (tous les scénarios produit / poker / validation).
 
 ---
 
 ## Déploiement
 
-Le projet est conçu pour un déploiement sur machine virtuelle avec PM2 ou Docker. Voir [DEPLOY.md](./DEPLOY.md) pour :
-
-- **Connexion SSH** : config dans `ssh.config.example` pour `ssh vmProjetIntegrateurgrp10-0`
-- Configuration `.env` production
-- Script `server/deploy.sh`
-- Déploiement Docker (`docker-compose.prod.yml`)
-- Gestion des mises à jour du client Electron
-- Vérification des services
+Guide principal : **[Docs/DEPLOY.md](./Docs/DEPLOY.md)** (VM, PM2, mises à jour Electron, nginx).
 
 ---
 
-## Structure du projet
+## Documentation
 
-```
-quantum-bluff/
-├── client/                 # Frontend React
-│   ├── src/
-│   │   ├── components/      # Composants réutilisables, UI
-│   │   ├── contexts/        # Accessibilité, Socket, Auth, Toast
-│   │   ├── hooks/
-│   │   ├── i18n/
-│   │   ├── pages/           # Lobby, Game, Friends, Profile, etc.
-│   │   ├── services/
-│   │   ├── utils/
-│   │   └── App.tsx
-│   ├── electron.cjs
-│   └── package.json
-│
-├── server/                  # Backend Node.js
-│   ├── prisma/
-│   │   ├── migrations/
-│   │   └── schema.prisma
-│   ├── src/
-│   │   ├── config/
-│   │   ├── logic/           # Deck, Evaluator, GameTable
-│   │   ├── middleware/
-│   │   ├── routes/          # auth, friends, game, waitingRoom, bot
-│   │   ├── sockets/         # game.gateway.ts
-│   │   ├── services/
-│   │   └── validation/
-│   └── package.json
-│
-├── database/                # Docker Compose PostgreSQL + Redis
-├── nginx/                   # Configuration reverse proxy
-├── scripts/
-├── Docs/
-├── CONTRIBUTING.md
-├── DEPLOY.md
-└── README.md
-```
+| Fichier | Contenu |
+|---------|---------|
+| [Docs/SETUP_TESTEUR.md](./Docs/SETUP_TESTEUR.md) | Installation locale pour testeurs |
+| [Docs/DEPLOY.md](./Docs/DEPLOY.md) | Déploiement VM / prod |
+| [Docs/RAPPORT_TESTS.md](./Docs/RAPPORT_TESTS.md) | Inventaire tests |
+| [Docs/POKER_SCENARIOS.md](./Docs/POKER_SCENARIOS.md) | Scénarios poker |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Workflow Git & MR |
 
 ---
 
 ## Contribution
 
-Les contributions sont bienvenues. Voir [CONTRIBUTING.md](./CONTRIBUTING.md) pour :
-
-- Workflow Git (branches `main`, `develop`, `feature/*`)
-- Standards de code (TypeScript, structure des dossiers)
-- Processus de Merge Request
+Voir **[CONTRIBUTING.md](./CONTRIBUTING.md)** (branches, conventions, merge requests).
 
 ---
 
 ## Licence
 
-MIT — voir le fichier [LICENSE](./LICENSE) pour les détails.
+**MIT** — voir [LICENSE](./LICENSE).

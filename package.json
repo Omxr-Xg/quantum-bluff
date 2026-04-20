@@ -9,7 +9,7 @@
     "dev:db": "cd database && docker-compose up -d",
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
-    "test:coverage": "jest --coverage",
+    "test:coverage": "npm run test:coverage --prefix server && npm run test:coverage --prefix client",
     "test:e2e:client": "cd client && npm run test:e2e",
     "cap:open:android": "cd client && npx @capacitor/cli open android",
     "package:ios-rendu": "bash scripts/package-ios-rendu.sh",
