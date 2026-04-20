@@ -17,9 +17,12 @@ android {
         }
     }
     buildTypes {
+        // Release « démo / rendu » : signé avec la clé debug (pas besoin de keystore perso).
+        // Pour le Play Store : remplacer par un signingConfigs.release + keystore dédié.
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug
         }
     }
 }

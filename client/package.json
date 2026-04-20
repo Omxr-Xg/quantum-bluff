@@ -32,7 +32,9 @@
     "cap:android": "npm run cap:sync && npx @capacitor/cli open android",
     "cap:ios": "npm run cap:sync && npx @capacitor/cli open ios",
     "cap:run:android": "npx @capacitor/cli run android -l --external --public-host=192.168.1.1",
-    "cap:run:ios": "npx @capacitor/cli run ios -l --external"
+    "cap:run:ios": "npx @capacitor/cli run ios -l --external",
+    "package:android-rendu": "bash ../scripts/package-android-rendu.sh",
+    "package:ios-rendu": "bash ../scripts/package-ios-rendu.sh"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",
