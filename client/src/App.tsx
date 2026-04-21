@@ -169,8 +169,24 @@ function TournamentTeleporter() {
       }, 12000);
     };
 
+    const handleCountdown = (data: { tournamentName: string; minutesLeft: number; message: string }) => {
+      const type = data.minutesLeft <= 5 ? 'warning' : 'info';
+      addToast(data.message, type);
+    };
+
+    const handleCancelled = (data: { tournamentName: string; message: string }) => {
+      addToast(data.message, 'error');
+    };
+
+    const handlePlayerJoined = (data: { message: string }) => {
+      addToast(data.message, 'info');
+    };
+
     socket.on('tournament-started', handleTournamentStart);
     socket.on('tournament-won', handleTournamentWon);
+    socket.on('tournament-countdown', handleCountdown);
+    socket.on('tournament-cancelled', handleCancelled);
+    socket.on('tournament-player-joined', handlePlayerJoined);
     socket.on('tournament-waiting-final', handleWaitingFinal);
     socket.on('tournament-final-table', handleFinalTable);
     socket.on('tournament-eliminated', handleElimination);
@@ -180,6 +196,9 @@ function TournamentTeleporter() {
     return () => {
       socket.off('tournament-started', handleTournamentStart);
       socket.off('tournament-won', handleTournamentWon);
+      socket.off('tournament-countdown', handleCountdown);
+      socket.off('tournament-cancelled', handleCancelled);
+      socket.off('tournament-player-joined', handlePlayerJoined);
       socket.off('tournament-waiting-final', handleWaitingFinal);
       socket.off('tournament-final-table', handleFinalTable);
       socket.off('tournament-eliminated', handleElimination);

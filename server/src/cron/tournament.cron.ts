@@ -1,48 +1,54 @@
 import cron from 'node-cron';
 import { prisma } from '../config/database.js';
-import { TournamentService } from '../services/tournament.service.js';
 import { rootLogger } from '../observability/index.js';
+import { TournamentService } from '../services/tournament.service.js';
 
-/**
- * Job planifié : s'exécute toutes les minutes (* * * * *)
- */
+const NOTIFY_MINUTES = [30, 15, 10, 5, 1];
+
 cron.schedule('* * * * *', async () => {
-  const now = new Date();
-
   try {
-    // 1. Chercher les tournois PENDING qui devraient déjà avoir commencé
+    const now = new Date();
+
+    // 1. Start tournaments that are due
     const tournamentsToStart = await prisma.tournament.findMany({
-      where: {
-        status: 'PENDING',
-        startTime: { lte: now } // lte = Less Than or Equal (inférieur ou égal à maintenant)
-      }
+      where: { status: 'PENDING', startTime: { lte: now } },
+      include: { players: { include: { user: { select: { id: true, username: true } } } } }
     });
 
-    if (tournamentsToStart.length > 0) {
-      rootLogger.info({ msg: 'cron_checking_tournaments', count: tournamentsToStart.length });
-
-      for (const tournament of tournamentsToStart) {
-        try {
-          // 2. Lancer le tournoi via le service
-          await TournamentService.startTournament(tournament.id);
-          
-          rootLogger.info({ 
-            msg: 'cron_tournament_started_success', 
-            tournamentId: tournament.id,
-            name: tournament.name 
-          });
-        } catch (startError) {
-          const msg = startError instanceof Error ? startError.message : String(startError);
-          rootLogger.error({ 
-            msg: 'cron_tournament_start_error', 
-            tournamentId: tournament.id, 
-            error: msg 
-          });
+    for (const t of tournamentsToStart) {
+      try {
+        await TournamentService.startTournament(t.id);
+        rootLogger.info({ msg: 'cron_tournament_started_success', tournamentId: t.id });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const updated = await prisma.tournament.findUnique({ where: { id: t.id } });
+        if (updated?.status === 'CANCELED') {
+          TournamentService.notifyCancellation(t.id, t.name, t.players.map(p => p.userId));
         }
+        rootLogger.error({ msg: 'cron_tournament_start_error', tournamentId: t.id, error: msg });
       }
     }
-  } catch (dbError) {
-    const msg = dbError instanceof Error ? dbError.message : String(dbError);
+
+    // 2. Send countdown notifications
+    for (const minutes of NOTIFY_MINUTES) {
+      const windowStart = new Date(now.getTime() + minutes * 60 * 1000 - 30 * 1000);
+      const windowEnd = new Date(now.getTime() + minutes * 60 * 1000 + 30 * 1000);
+
+      const upcoming = await prisma.tournament.findMany({
+        where: {
+          status: 'PENDING',
+          startTime: { gte: windowStart, lte: windowEnd }
+        },
+        include: { players: true }
+      });
+
+      for (const t of upcoming) {
+        TournamentService.notifyCountdown(t.id, t.name, minutes, t.players.map(p => p.userId));
+      }
+    }
+
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
     rootLogger.error({ msg: 'cron_db_error', error: msg });
   }
 });

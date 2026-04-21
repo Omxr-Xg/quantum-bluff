@@ -34,6 +34,33 @@ export class TournamentService {
     }
   }
 
+  static notifyCountdown(tournamentId: string, tournamentName: string, minutesLeft: number, playerIds: string[]) {
+    if (!this.io) return;
+    playerIds.forEach(userId => {
+      this.io!.to(`user:${userId}`).emit('tournament-countdown', {
+        tournamentId,
+        tournamentName,
+        minutesLeft,
+        message: minutesLeft === 1
+          ? `⏰ Le tournoi "${tournamentName}" commence dans 1 minute !`
+          : `⏰ Le tournoi "${tournamentName}" commence dans ${minutesLeft} minutes !`,
+      });
+    });
+    console.log(`[TOURNOI] Countdown ${minutesLeft}min envoyé pour ${tournamentName}`);
+  }
+
+  static notifyCancellation(tournamentId: string, tournamentName: string, playerIds: string[]) {
+    if (!this.io) return;
+    playerIds.forEach(userId => {
+      this.io!.to(`user:${userId}`).emit('tournament-cancelled', {
+        tournamentId,
+        tournamentName,
+        message: `❌ Le tournoi "${tournamentName}" a été annulé faute de joueurs suffisants. Votre buy-in a été remboursé.`,
+      });
+    });
+    console.log(`[TOURNOI] Annulation notifiée pour ${tournamentName}`);
+  }
+
   static recordElimination(tournamentId: string, userId: string) {
     const order = this.eliminationOrder.get(tournamentId);
     if (order && !order.includes(userId)) {
@@ -82,6 +109,29 @@ export class TournamentService {
 
       if (alreadyJoined) throw new Error("Déjà inscrit !");
 
+      const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+      const tournamentStart = new Date(tournament.startTime).getTime();
+
+      const overlappingRegistration = await tx.tournamentPlayer.findFirst({
+        where: {
+          userId,
+          tournament: {
+            status: 'PENDING',
+            id: { not: tournamentId },
+            startTime: {
+              gte: new Date(tournamentStart - TWO_HOURS_MS),
+              lte: new Date(tournamentStart + TWO_HOURS_MS),
+            }
+          }
+        },
+        include: { tournament: { select: { name: true, startTime: true } } }
+      });
+
+      if (overlappingRegistration) {
+        const otherStart = new Date(overlappingRegistration.tournament.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        throw new Error(`Vous êtes déjà inscrit au tournoi "${overlappingRegistration.tournament.name}" à ${otherStart}. Un écart minimum de 2 heures est requis entre deux tournois.`);
+      }
+
       if (tournament._count.players >= tournament.maxPlayers) {
         throw new Error("Tournoi complet.");
       }
@@ -105,9 +155,33 @@ export class TournamentService {
         this.io.emit('tournament-updated');
       }
 
-      return await tx.tournamentPlayer.create({
+      const created = await tx.tournamentPlayer.create({
         data: { tournamentId, userId }
       });
+
+      const allPlayers = await tx.tournamentPlayer.findMany({
+        where: { tournamentId },
+        include: { user: { select: { id: true, username: true } } }
+      });
+      const newPlayer = await tx.user.findUnique({
+        where: { id: userId },
+        select: { username: true }
+      });
+      if (this.io && newPlayer) {
+        allPlayers.forEach(p => {
+          if (p.userId !== userId) {
+            this.io!.to(`user:${p.userId}`).emit('tournament-player-joined', {
+              tournamentId,
+              username: newPlayer.username,
+              playerCount: allPlayers.length,
+              maxPlayers: tournament.maxPlayers,
+              message: `👤 ${newPlayer.username} a rejoint le tournoi ! (${allPlayers.length}/${tournament.maxPlayers})`,
+            });
+          }
+        });
+      }
+
+      return created;
     });
   }
 
