@@ -27,8 +27,6 @@ import {
 
 type BjVisibility = "PUBLIC" | "PRIVATE";
 
-type MainTab = "poker" | "minigames" | "blackjack";
-
 interface BjSeat {
   id: string;
   userId: string;
@@ -59,14 +57,13 @@ function authHeaders(): HeadersInit {
 
 export type LobbyBlackjackMultiSectionProps = {
   active: boolean;
-  onSwitchTab: (tab: MainTab) => void;
 };
 
 /**
  * Tables blackjack multijoueur intégrées dans le lobby (onglet Blackjack).
  * `bjRoom` dans l’URL ouvre la salle d’attente ; `tab=blackjack` est conservé.
  */
-export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackjackMultiSectionProps) {
+export function LobbyBlackjackMultiSection({ active }: LobbyBlackjackMultiSectionProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -639,15 +636,7 @@ export function LobbyBlackjackMultiSection({ active, onSwitchTab }: LobbyBlackja
         </h2>
         <p className="mb-4 max-w-2xl text-sm leading-relaxed text-rose-200/85">{t("bjMulti.lobbySubtitle")}</p>
 
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            onClick={() => onSwitchTab("poker")}
-            className="inline-flex w-fit items-center gap-2 text-sm font-medium text-slate-400 transition hover:text-rose-200"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {t("bjMulti.backToPokerTab")}
-          </button>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
           <button
             type="button"
             onClick={() => setShowCreate(true)}

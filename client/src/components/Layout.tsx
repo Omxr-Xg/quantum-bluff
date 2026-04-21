@@ -272,6 +272,9 @@ export function Layout({ children }: LayoutProps) {
   if (isAdminShell) {
     return (
       <div className="min-h-screen w-full bg-slate-900 text-white">
+        <div className="fixed start-4 top-4 z-[200] flex items-center gap-2">
+          <LanguageSwitcher />
+        </div>
         <AnimatePresence>
           {toasts.map((toast) => (
             <Toast
@@ -290,7 +293,6 @@ export function Layout({ children }: LayoutProps) {
 
   const menuContent = (
     <>
-      <LanguageSwitcher />
       <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
         <button
           type="button"
@@ -339,20 +341,23 @@ export function Layout({ children }: LayoutProps) {
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
       {showHamburgerMenu && (
         <>
-          {/* Sur la page Game : bouton Paramètres (modal Esthétique / Accessibilité). Sinon : menu hamburger classique */}
-          <div className="fixed top-4 right-4 z-[250]">
+          {/* Page Game : langue + paramètres. Hors jeu : menu hamburger */}
+          <div className="fixed top-4 right-4 z-[250] flex items-center gap-2">
             {isGamePage ? (
-              <button
-                type="button"
-                onClick={() => {
-                  playSfx("uiClick");
-                  openSettingsMenu?.();
-                }}
-                className="w-12 h-12 rounded-xl bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 text-white flex items-center justify-center transition shadow-lg"
-                title={t("settings.title")}
-              >
-                <Settings className="w-6 h-6" />
-              </button>
+              <>
+                <LanguageSwitcher />
+                <button
+                  type="button"
+                  onClick={() => {
+                    playSfx("uiClick");
+                    openSettingsMenu?.();
+                  }}
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600"
+                  title={t("settings.title")}
+                >
+                  <Settings className="h-6 w-6" />
+                </button>
+              </>
             ) : (
               <div
                 onMouseEnter={() => {
@@ -393,7 +398,6 @@ export function Layout({ children }: LayoutProps) {
               }}
             >
               <div className="flex max-w-[min(100vw-6rem,28rem)] flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-                <LanguageSwitcher />
                 <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
                   <button
                     type="button"

@@ -11,6 +11,7 @@ import {
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 import { Slider } from "./ui/slider";
 import { Switch } from "./ui/switch";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 interface SettingsMenuProps {
   isOpen: boolean;
@@ -106,14 +107,17 @@ export function SettingsMenu({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={close}
-            className="w-10 h-10 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center justify-center transition-all"
-            aria-label={t("settings.close")}
-          >
-            <X className="w-5 h-5 text-white" />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <LanguageSwitcher />
+            <button
+              type="button"
+              onClick={close}
+              className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 transition-all hover:bg-slate-600"
+              aria-label={t("settings.close")}
+            >
+              <X className="h-5 w-5 text-white" />
+            </button>
+          </div>
         </div>
 
         <div className="px-6 pt-4 flex gap-2 border-b border-slate-700/80">
