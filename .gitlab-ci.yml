@@ -16,14 +16,16 @@ variables:
   # Trivy via ECR public (évite Back-off / rate limit Docker Hub sur le runner Kubernetes).
   TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.58.1
 
-default:
-  # ENTRYPOINT des images officielles (node, etc.) → « shell not found » (#28129).
-  # Nom d’image en dur : certains runners n’expandent pas $NODE_IMAGE dans default.image.
+# Image Node : entrypoint vidé pour le détecteur de shell du runner Docker (#28129).
+# Utiliser extends (et pas seulement default.image) : le merge vers le runner est fiable.
+.node_docker_ci:
   image:
     name: public.ecr.aws/docker/library/node:20
-    entrypoint: ['']
+    entrypoint:
+      - ""
+
+default:
   # git.unistra.fr : sans tag = pending. services: (Postgres) → job tag kubernetes.
-  # Sinon node18 (#1088). Si pending : essayer kubernetes ou js selon Runners.
   tags:
     - node18
 
@@ -55,6 +57,7 @@ cache:
 # ============================================
 
 backend:lint:
+  extends: .node_docker_ci
   stage: lint
   variables:
     # Évite les échecs ESLint / TypeScript sur runners peu de RAM
@@ -71,6 +74,7 @@ backend:lint:
     - /^fix\/.*$/
 
 backend:test:
+  extends: .node_docker_ci
   stage: test
   # Services Docker (PostgreSQL) : préférer le runner cluster Kubernetes.
   tags:
@@ -107,6 +111,7 @@ backend:test:
     - /^fix\/.*$/
 
 backend:build:
+  extends: .node_docker_ci
   stage: build
   script:
     - cd server
@@ -127,6 +132,7 @@ backend:build:
 # ============================================
 
 frontend:lint:
+  extends: .node_docker_ci
   stage: lint
   variables:
     NODE_OPTIONS: --max-old-space-size=4096
@@ -141,6 +147,7 @@ frontend:lint:
     - /^feature\/.*$/
 
 frontend:test:
+  extends: .node_docker_ci
   stage: test
   script:
     - cd client
@@ -162,6 +169,7 @@ frontend:test:
     - /^feature\/.*$/
 
 frontend:build:
+  extends: .node_docker_ci
   stage: build
   script:
     - cd client
@@ -232,6 +240,7 @@ database:migrations:
 # ============================================
 
 security:scan-deps-backend:
+  extends: .node_docker_ci
   stage: test-security
   script:
     - cd server
@@ -244,6 +253,7 @@ security:scan-deps-backend:
     - /^feature\/.*$/
 
 security:scan-deps-frontend:
+  extends: .node_docker_ci
   stage: test-security
   script:
     - cd client
@@ -269,10 +279,8 @@ security:trivy-scan:
     - develop
 
 security:secret-detection:
+  extends: .node_docker_ci
   stage: test-security
-  image:
-    name: public.ecr.aws/docker/library/node:20
-    entrypoint: ['']
   script:
     - echo "🔍 Recherche de secrets exposés..."
     - npx trufflehog --no-update file://. || true
@@ -367,10 +375,8 @@ infra:docker-compose:
 # ============================================
 
 docs:markdown-lint:
+  extends: .node_docker_ci
   stage: lint
-  image:
-    name: public.ecr.aws/docker/library/node:20
-    entrypoint: ['']
   script:
     - npm install -g markdownlint-cli
     # Utilise .markdownlint.json à la racine (règles assouplies pour la doc existante).
@@ -426,6 +432,7 @@ deploy:production:
 # ============================================
 
 coverage:
+  extends: .node_docker_ci
   stage: test
   # Attend explicitement les deux jobs de test (DAG) : évite une course aux artefacts
   # dans le même stage ; les autres jobs du stage test tournent en parallèle.
