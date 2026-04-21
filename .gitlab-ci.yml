@@ -17,7 +17,11 @@ variables:
   TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.58.1
 
 default:
-  image: $NODE_IMAGE
+  # ENTRYPOINT des images officielles (node, postgres, etc.) empêche la détection du
+  # shell par GitLab Runner → « shell not found » (#28129). Vider l’entrypoint corrige.
+  image:
+    name: $NODE_IMAGE
+    entrypoint: [""]
   # git.unistra.fr : sans tag = pending. services: (Postgres) → job tag kubernetes.
   # Sinon node18 (#1088). Si pending : essayer kubernetes ou js selon Runners.
   tags:
@@ -52,8 +56,6 @@ cache:
 
 backend:lint:
   stage: lint
-  # Pas de volume de cache GitLab : évite « no space left on device » sur le runner.
-  cache: []
   variables:
     # Évite les échecs ESLint / TypeScript sur runners peu de RAM
     NODE_OPTIONS: --max-old-space-size=4096
@@ -126,7 +128,6 @@ backend:build:
 
 frontend:lint:
   stage: lint
-  cache: []
   variables:
     NODE_OPTIONS: --max-old-space-size=4096
   script:
@@ -183,7 +184,9 @@ database:test:
   stage: test
   tags:
     - kubernetes
-  image: $POSTGRES_IMAGE
+  image:
+    name: $POSTGRES_IMAGE
+    entrypoint: [""]
   services:
     - name: $POSTGRES_IMAGE
       alias: postgres
@@ -204,7 +207,9 @@ database:migrations:
   stage: build
   tags:
     - kubernetes
-  image: $POSTGRES_IMAGE
+  image:
+    name: $POSTGRES_IMAGE
+    entrypoint: [""]
   services:
     - name: $POSTGRES_IMAGE
       alias: postgres
@@ -252,7 +257,9 @@ security:scan-deps-frontend:
 
 security:trivy-scan:
   stage: test-security
-  image: $TRIVY_IMAGE
+  image:
+    name: $TRIVY_IMAGE
+    entrypoint: [""]
   script:
     - echo "🔐 Scan Trivy du code source..."
     - trivy fs --severity HIGH,CRITICAL --no-progress --exit-code 0 .
@@ -263,7 +270,9 @@ security:trivy-scan:
 
 security:secret-detection:
   stage: test-security
-  image: $NODE_IMAGE
+  image:
+    name: $NODE_IMAGE
+    entrypoint: [""]
   script:
     - echo "🔍 Recherche de secrets exposés..."
     - npx trufflehog --no-update file://. || true
@@ -274,7 +283,9 @@ security:secret-detection:
 
 security:sast:
   stage: test-security
-  image: public.ecr.aws/docker/library/python:3.10-slim
+  image:
+    name: public.ecr.aws/docker/library/python:3.10-slim
+    entrypoint: [""]
   dependencies: []
   before_script:
     - pip install semgrep
@@ -311,7 +322,9 @@ docker:build:
 
 docker:scan:
   stage: test-security
-  image: $TRIVY_IMAGE
+  image:
+    name: $TRIVY_IMAGE
+    entrypoint: [""]
   script:
     - echo "🔐 Analyse statique du Dockerfile (Trivy)..."
     - trivy config --severity HIGH,CRITICAL --exit-code 0 server/Dockerfile
@@ -326,7 +339,9 @@ docker:scan:
 
 infra:nginx-config:
   stage: test
-  image: public.ecr.aws/nginx/nginx:alpine
+  image:
+    name: public.ecr.aws/nginx/nginx:alpine
+    entrypoint: [""]
   script:
     - echo "🔧 Validation de la configuration Nginx..."
     - nginx -t
@@ -337,7 +352,9 @@ infra:nginx-config:
 infra:docker-compose:
   stage: test
   # docker-compose config ne nécessite pas le daemon Docker (validation du fichier uniquement).
-  image: docker/compose:1.29.2
+  image:
+    name: docker/compose:1.29.2
+    entrypoint: [""]
   script:
     - echo "🔧 Validation du docker-compose..."
     - docker-compose -f database/docker-compose.yml config
@@ -351,8 +368,9 @@ infra:docker-compose:
 
 docs:markdown-lint:
   stage: lint
-  cache: []
-  image: $NODE_IMAGE
+  image:
+    name: $NODE_IMAGE
+    entrypoint: [""]
   script:
     - npm install -g markdownlint-cli
     # Utilise .markdownlint.json à la racine (règles assouplies pour la doc existante).
@@ -373,7 +391,9 @@ docs:markdown-lint:
 
 deploy:staging:
   stage: deploy
-  image: public.ecr.aws/docker/library/alpine:latest
+  image:
+    name: public.ecr.aws/docker/library/alpine:latest
+    entrypoint: [""]
   script:
     - echo "🚀 Déploiement sur STAGING..."
     - apk add --no-cache curl
@@ -387,7 +407,9 @@ deploy:staging:
 
 deploy:production:
   stage: deploy
-  image: public.ecr.aws/docker/library/alpine:latest
+  image:
+    name: public.ecr.aws/docker/library/alpine:latest
+    entrypoint: [""]
   script:
     - echo "🚀 Déploiement sur PRODUCTION..."
     - apk add --no-cache curl
