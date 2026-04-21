@@ -20,16 +20,17 @@ Plateforme de jeu en ligne — **poker Texas Hold’em** temps réel, **blackjac
 6. [Prérequis](#prérequis)
 7. [Installation rapide](#installation-rapide)
 8. [Variables d’environnement](#variables-denvironnement)
-9. [Développement](#développement)
-10. [Client Electron (bureau)](#client-electron-bureau)
-11. [Applications mobiles (Capacitor)](#applications-mobiles-capacitor)
-12. [Livrables installables (`Game_Versions/`)](#livrables-installables-game_versions)
-13. [Tests](#tests)
-14. [Lint](#lint)
-15. [Déploiement](#déploiement)
-16. [Documentation](#documentation)
-17. [Contribution](#contribution)
-18. [Licence](#licence)
+9. [Console administrateur (web)](#console-administrateur-web)
+10. [Développement](#développement)
+11. [Client Electron (bureau)](#client-electron-bureau)
+12. [Applications mobiles (Capacitor)](#applications-mobiles-capacitor)
+13. [Livrables installables (`Game_Versions/`)](#livrables-installables-game_versions)
+14. [Tests](#tests)
+15. [Lint](#lint)
+16. [Déploiement](#déploiement)
+17. [Documentation](#documentation)
+18. [Contribution](#contribution)
+19. [Licence](#licence)
 
 > **Guide testeur pas à pas** : [Docs/SETUP_TESTEUR.md](./Docs/SETUP_TESTEUR.md)
 
@@ -64,6 +65,7 @@ Temps réel via **Socket.IO** ; persistance via **PostgreSQL** (Prisma) et **Red
 | **Mini-jeux** | Hub casino (roulette, slots, etc. selon pages) |
 | **Amis & social** | Demandes, messages, présence |
 | **Tournois** | Parcours tournoi (UI + événements socket) |
+| **Console admin (web)** | Comptes, parties poker en direct, salles blackjack, historique, avis ; filtres et fermeture de tables (voir [section dédiée](#console-administrateur-web)) |
 | **Accessibilité** | Thèmes, contraste, options d’affichage |
 | **i18n** | FR, EN, ES, AR, UK (détection + changement de langue) |
 | **Bureau** | Electron avec mises à jour (Windows / macOS / Linux) |
@@ -208,6 +210,7 @@ API + Socket.IO : **http://localhost:3000**.
 | `PORT` | Port HTTP (défaut `3000`) |
 | `NODE_ENV` | `development` / `production` |
 | `CORS_ORIGIN` | En prod : origines autorisées (JSON ou liste). Le serveur ajoute aussi `capacitor://localhost` pour les apps natives. |
+| `ADMIN_CONSOLE_USERNAME` + `ADMIN_CONSOLE_PASSWORD_HASH` | Console administrateur web (optionnel) : identifiant + **hash bcrypt** du mot de passe — [détails](#console-administrateur-web) |
 
 Voir **`server/.env.example`**.
 
@@ -224,6 +227,59 @@ Copier **`client/.env.capacitor.example`**. Sur **iOS / Android**, l’origine n
 | `VITE_BASE_PATH` | Souvent `/` pour Capacitor |
 | `VITE_API_URL` | URL du backend (HTTPS ou IP selon cas) |
 | `VITE_SOCKET_URL` / `VITE_SOCKET_PATH` | Socket.IO si différent du défaut |
+
+---
+
+## Console administrateur (web)
+
+Interface d’**exploitation** distincte du compte joueur : pas d’utilisateur admin en base ; les identifiants sont dans **`server/.env`**.
+
+### Accès client
+
+| URL | Rôle |
+|-----|------|
+| **`/auth/admin`** | Formulaire de connexion (nom d’utilisateur + mot de passe) |
+| **`/admin/console`** | Tableau de bord (protégé par jeton « rôle admin ») |
+
+Ne pas utiliser la page **`/auth`** (joueurs) pour l’admin : celle-ci demande un **e-mail**. Un lien « Console admin » peut être proposé depuis l’écran d’auth.
+
+Sur les routes admin, la **musique de fond** du client est coupée automatiquement.
+
+### Configuration serveur (`server/.env`)
+
+| Variable | Obligatoire | Description |
+|----------|-------------|-------------|
+| `ADMIN_CONSOLE_USERNAME` | Oui* | Nom d’utilisateur attendu à la connexion |
+| `ADMIN_CONSOLE_PASSWORD_HASH` | Oui* | Mot de passe **déjà hashé** avec bcrypt (jamais en clair) |
+| `ADMIN_CONSOLE_JWT_USER_ID` | Non | UUID utilisé dans le payload JWT (défaut documenté dans `.env.example`) |
+
+\* Les **deux** premières doivent être renseignées ensemble ; sinon la route `POST /api/auth/admin/login` répond **503** (« console non configurée »).
+
+Générer un hash (exemple, depuis le dossier `server/` où `bcryptjs` est disponible) :
+
+```bash
+cd server && node -e "require('bcryptjs').hash('VotreMotDePasse', 10).then(console.log)"
+```
+
+Copier la chaîne `$2a$10$…` dans `ADMIN_CONSOLE_PASSWORD_HASH`, redémarrer l’API.
+
+### Authentification et API
+
+- Connexion : **`POST /api/auth/admin/login`** → JWT avec `role: 'admin'` (et `userId` fixe).
+- Ce jeton **ne** doit **pas** être utilisé sur les routes joueur classiques (`authMiddleware` le refuse).
+- Routes console : préfixe **`/api/admin/console`** (middleware `adminConsoleAuthMiddleware`), par ex. :
+  - **GET** `/users`, `/games/history`, `/games/active-poker`, `/games/blackjack-rooms`, `/ratings` — pagination `take` / `skip`, filtre optionnel **`q`** (recherche).
+  - **PATCH** `/users/:id` — suspendre / bannir / réactiver (sauf l’UUID admin technique).
+  - **DELETE** `/games/active-poker/:gameId` — fermer une table poker en mémoire / Redis (les clients reçoivent `GAME_ENDED`).
+  - **DELETE** `/games/blackjack-rooms/:roomId` — supprimer une salle blackjack (runtime + BDD).
+
+En **production**, d’autres routes sous `/api/admin/*` (métriques, overrides dev, etc.) peuvent être **désactivées** — voir `server/src/index.ts`. La console web reste montée si les variables `ADMIN_CONSOLE_*` sont présentes.
+
+### Fonctions de l’interface (`client/src/pages/AdminConsole.tsx`)
+
+- Onglets : **Poker (direct)** — tables actives, phase, pot, **participants** (pseudo, jetons, présence) ; **Blackjack** — salles, hôte, statut, sièges ; **Comptes** ; **Historique poker (BDD)** ; **Avis**.
+- **Recherche / filtre** (champ avec debounce) + **pagination** sur les listes paginées côté API.
+- Actions : **fermer** une partie poker ou **supprimer** une salle blackjack (avec confirmation) ; modération des comptes (suspendre / bannir / réactiver).
 
 ---
 
