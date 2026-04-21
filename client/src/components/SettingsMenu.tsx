@@ -1,13 +1,16 @@
-import { Eye, Bell, X, Palette, Volume2, ChevronDown, Sparkles } from "lucide-react";
+import { Eye, Bell, X, Palette, Volume2, ChevronDown, Sparkles, Music2, Waves } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAccessibility } from "../contexts/AccessibilityContext";
+import { useAudio } from "../contexts/MusicContext";
 import {
   type TableThemeId,
   TABLE_FELT_GRADIENTS,
   useTableTheme,
 } from "../contexts/TableThemeContext";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
+import { Slider } from "./ui/slider";
+import { Switch } from "./ui/switch";
 
 interface SettingsMenuProps {
   isOpen: boolean;
@@ -39,13 +42,51 @@ export function SettingsMenu({
     setColorblindType,
   } = useAccessibility();
   const { tableTheme, setTableTheme } = useTableTheme();
+  const {
+    bgmEnabled,
+    bgmVolume,
+    sfxEnabled,
+    sfxVolume,
+    toggleBgm,
+    toggleSfx,
+    setBgmVolume,
+    setSfxVolume,
+    playSfx,
+  } = useAudio();
   const [tab, setTab] = useState<SettingsTab>(initialTab);
 
   useEffect(() => {
-    if (isOpen) setTab(initialTab);
-  }, [isOpen, initialTab]);
+    if (isOpen) {
+      setTab(initialTab);
+      playSfx("modalOpen");
+    }
+  }, [isOpen, initialTab, playSfx]);
 
   if (!isOpen) return null;
+
+  const selectTab = (nextTab: SettingsTab) => {
+    setTab(nextTab);
+    playSfx("uiSelect");
+  };
+
+  const close = () => {
+    playSfx("modalClose");
+    onClose();
+  };
+
+  const renderTabButton = (id: SettingsTab, label: string) => (
+    <button
+      type="button"
+      onClick={() => selectTab(id)}
+      className={`px-4 py-2.5 rounded-t-lg text-sm font-semibold transition ${
+        tab === id
+          ? "bg-slate-700 text-white border border-b-0 border-slate-600"
+          : "text-slate-400 hover:text-white"
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -65,7 +106,7 @@ export function SettingsMenu({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="w-10 h-10 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center justify-center transition-all"
             aria-label={t("settings.close")}
           >
@@ -74,28 +115,9 @@ export function SettingsMenu({
         </div>
 
         <div className="px-6 pt-4 flex gap-2 border-b border-slate-700/80">
-          <button
-            type="button"
-            onClick={() => setTab("aesthetic")}
-            className={`px-4 py-2.5 rounded-t-lg text-sm font-semibold transition ${
-              tab === "aesthetic"
-                ? "bg-slate-700 text-white border border-b-0 border-slate-600"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            {t("settings.tabAesthetic")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("accessibility")}
-            className={`px-4 py-2.5 rounded-t-lg text-sm font-semibold transition ${
-              tab === "accessibility"
-                ? "bg-slate-700 text-white border border-b-0 border-slate-600"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            {t("settings.tabAccessibility")}
-          </button>
+          {renderTabButton("aesthetic", t("settings.tabAesthetic"))}
+          {renderTabButton("audio", t("settings.tabAudio"))}
+          {renderTabButton("accessibility", t("settings.tabAccessibility"))}
         </div>
 
         <div className="p-6 space-y-6">
@@ -107,7 +129,10 @@ export function SettingsMenu({
                   <button
                     key={id}
                     type="button"
-                    onClick={() => setTableTheme(id)}
+                    onClick={() => {
+                      setTableTheme(id);
+                      playSfx("uiSelect");
+                    }}
                     className={`rounded-xl border-2 p-4 text-left transition flex flex-col gap-2 ${
                       tableTheme === id
                         ? "border-amber-400 bg-slate-800/80 ring-2 ring-amber-500/30"
@@ -123,6 +148,88 @@ export function SettingsMenu({
                     </span>
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {tab === "audio" && (
+            <div className="space-y-4">
+              <p className="text-slate-300 text-sm">{t("settings.audioHint")}</p>
+
+              <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-amber-600 rounded-full flex items-center justify-center">
+                      <Music2 className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white">{t("settings.musicTitle")}</h3>
+                      <p className="text-gray-400 text-sm">{t("settings.musicHint")}</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={bgmEnabled}
+                    onCheckedChange={(checked) => {
+                      toggleBgm(checked);
+                      playSfx("uiClick");
+                    }}
+                    className="mt-1 data-[state=checked]:bg-amber-500 data-[state=unchecked]:bg-slate-600"
+                    aria-label={t("settings.musicTitle")}
+                  />
+                </div>
+                <div className="mt-5 flex items-center gap-4">
+                  <Slider
+                    value={[Math.round(bgmVolume * 100)]}
+                    min={0}
+                    max={100}
+                    step={1}
+                    onValueChange={([value]) => setBgmVolume(value / 100)}
+                    onValueCommit={() => playSfx("uiSelect")}
+                    className="[&_[data-slot=slider-track]]:h-2 [&_[data-slot=slider-track]]:bg-slate-700 [&_[data-slot=slider-range]]:bg-amber-400 [&_[data-slot=slider-thumb]]:border-amber-300"
+                    aria-label={t("settings.musicVolume")}
+                  />
+                  <span className="w-12 text-right text-sm tabular-nums text-amber-100">
+                    {Math.round(bgmVolume * 100)}%
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-cyan-700 rounded-full flex items-center justify-center">
+                      <Waves className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white">{t("settings.sfxTitle")}</h3>
+                      <p className="text-gray-400 text-sm">{t("settings.sfxHint")}</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={sfxEnabled}
+                    onCheckedChange={(checked) => {
+                      toggleSfx(checked);
+                      if (checked) playSfx("success");
+                    }}
+                    className="mt-1 data-[state=checked]:bg-cyan-500 data-[state=unchecked]:bg-slate-600"
+                    aria-label={t("settings.sfxTitle")}
+                  />
+                </div>
+                <div className="mt-5 flex items-center gap-4">
+                  <Slider
+                    value={[Math.round(sfxVolume * 100)]}
+                    min={0}
+                    max={100}
+                    step={1}
+                    onValueChange={([value]) => setSfxVolume(value / 100)}
+                    onValueCommit={() => playSfx("uiSelect")}
+                    className="[&_[data-slot=slider-track]]:h-2 [&_[data-slot=slider-track]]:bg-slate-700 [&_[data-slot=slider-range]]:bg-cyan-400 [&_[data-slot=slider-thumb]]:border-cyan-300"
+                    aria-label={t("settings.sfxVolume")}
+                  />
+                  <span className="w-12 text-right text-sm tabular-nums text-cyan-100">
+                    {Math.round(sfxVolume * 100)}%
+                  </span>
+                </div>
               </div>
             </div>
           )}

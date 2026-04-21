@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react';
-import { useMusic } from '../contexts/MusicContext';
+import { useAudio } from '../contexts/MusicContext';
 import { Volume2, VolumeX, Music } from 'lucide-react';
 
 const HOVER_CLOSE_DELAY_MS = 250;
 
 export const MusicPlayer = () => {
-  const { isPlaying, volume, isMuted, toggleMute, setVolume } = useMusic();
+  const { bgmPlaying, bgmVolume, bgmEnabled, toggleBgm, setBgmVolume, playSfx } = useAudio();
   const [showVolume, setShowVolume] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -21,8 +21,12 @@ export const MusicPlayer = () => {
     hideTimerRef.current = setTimeout(() => setShowVolume(false), HOVER_CLOSE_DELAY_MS);
   };
 
-  const displayVolume = isMuted ? 0 : volume;
-  const volumeForSlider = isMuted ? 0 : volume;
+  const displayVolume = bgmEnabled ? bgmVolume : 0;
+  const volumeForSlider = bgmEnabled ? bgmVolume : 0;
+  const toggleMusic = () => {
+    toggleBgm();
+    playSfx("uiClick");
+  };
 
   return (
     <div
@@ -30,7 +34,6 @@ export const MusicPlayer = () => {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Contrôle du volume (popup au survol, se ferme 0.25s après sortie) */}
       {showVolume && (
         <div
           className="bg-slate-800 rounded-lg p-2 shadow-xl border border-slate-700"
@@ -40,11 +43,11 @@ export const MusicPlayer = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={toggleMute}
+              onClick={toggleMusic}
               className="p-1 hover:bg-slate-700 rounded transition"
-              aria-label={isMuted ? 'Réactiver le son' : 'Muet'}
+              aria-label={bgmEnabled ? 'Couper la musique' : 'Activer la musique'}
             >
-              {isMuted || volume === 0 ? (
+              {!bgmEnabled || bgmVolume === 0 ? (
                 <VolumeX className="w-4 h-4 text-gray-400" />
               ) : (
                 <Volume2 className="w-4 h-4 text-gray-400" />
@@ -56,10 +59,10 @@ export const MusicPlayer = () => {
               max="1"
               step="0.01"
               value={volumeForSlider}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
-              className="w-24 h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              onChange={(e) => setBgmVolume(parseFloat(e.target.value))}
+              className="w-24 h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-amber-500"
               style={{
-                background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${displayVolume * 100}%, #4a5568 ${displayVolume * 100}%, #4a5568 100%)`,
+                background: `linear-gradient(to right, #f59e0b 0%, #f59e0b ${displayVolume * 100}%, #4a5568 ${displayVolume * 100}%, #4a5568 100%)`,
               }}
             />
             <span className="text-white text-xs w-8 tabular-nums">{Math.round(displayVolume * 100)}%</span>
@@ -67,17 +70,16 @@ export const MusicPlayer = () => {
         </div>
       )}
 
-      {/* Bouton principal : clic = mute/unmute */}
       <button
         type="button"
-        onClick={toggleMute}
+        onClick={toggleMusic}
         className={`p-4 rounded-full shadow-xl transition-all transform hover:scale-105 ${
-          isPlaying && !isMuted ? 'bg-purple-600 hover:bg-purple-500' : 'bg-slate-700 hover:bg-slate-600'
+          bgmPlaying && bgmEnabled ? 'bg-amber-600 hover:bg-amber-500' : 'bg-slate-700 hover:bg-slate-600'
         }`}
-        title={isMuted ? 'Réactiver le son' : 'Muet'}
-        aria-label={isMuted ? 'Réactiver le son' : 'Muet'}
+        title={bgmEnabled ? 'Couper la musique' : 'Activer la musique'}
+        aria-label={bgmEnabled ? 'Couper la musique' : 'Activer la musique'}
       >
-        <Music className={`w-6 h-6 ${isPlaying && !isMuted ? 'text-white' : 'text-gray-300'}`} />
+        <Music className={`w-6 h-6 ${bgmPlaying && bgmEnabled ? 'text-white' : 'text-gray-300'}`} />
       </button>
     </div>
   );

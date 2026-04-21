@@ -5,7 +5,7 @@ import { Bell, X, User, Users, LogOut, Plus, Menu, Settings, Trophy } from "luci
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { useMusic } from "../contexts/MusicContext";
+import { useAudio } from "../contexts/MusicContext";
 import { getUserBalance, addDevMoney, fetchBalanceFromServer, clearAuthStorage, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
 import { Toast } from "./Toast";
 import { MusicPlayer } from "./MusicPlayer";
@@ -30,7 +30,7 @@ export function Layout({ children }: LayoutProps) {
   const { t } = useTranslation();
   const { socket, isConnected, connect } = useSocket();
   const { toasts, removeToast } = useToast();
-  const { playMusic } = useMusic();
+  const { unlockAudio, playSfx } = useAudio();
   const [notification, setNotification] = useState<{
     id: number;
     message: string;
@@ -123,6 +123,7 @@ export function Layout({ children }: LayoutProps) {
         hint: t('notifications.viewRequests'),
         onClick: () => navigate('/friends?tab=requests'),
       });
+      playSfx("notification");
     };
 
     const handleFriendRequestAccepted = (payload: unknown) => {
@@ -133,6 +134,7 @@ export function Layout({ children }: LayoutProps) {
         hint: t('notifications.viewRequests'),
         onClick: () => navigate('/friends'),
       });
+      playSfx("notification");
     };
 
     const handleFriendMessage = (payload: unknown) => {
@@ -155,6 +157,7 @@ export function Layout({ children }: LayoutProps) {
         hint: t('notifications.openConversation'),
         onClick: () => navigate(`/friends?tab=messages&with=${data.senderId}`),
       });
+      playSfx("notification");
     };
 
     socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
@@ -166,11 +169,11 @@ export function Layout({ children }: LayoutProps) {
       socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
       socket.off("FRIEND_MESSAGE", handleFriendMessage);
     };
-  }, [socket, t]);
+  }, [socket, t, navigate, playSfx]);
 
   useEffect(() => {
     const handleFirstInteraction = () => {
-      playMusic();
+      unlockAudio();
       document.removeEventListener('click', handleFirstInteraction);
       document.removeEventListener('keydown', handleFirstInteraction);
     };
@@ -180,7 +183,7 @@ export function Layout({ children }: LayoutProps) {
       document.removeEventListener('click', handleFirstInteraction);
       document.removeEventListener('keydown', handleFirstInteraction);
     };
-  }, [playMusic]);
+  }, [unlockAudio]);
 
   useEffect(() => {
     if (!notification) return;
@@ -193,12 +196,14 @@ export function Layout({ children }: LayoutProps) {
   }, [notification]);
 
   const openAddMoney = () => {
+    playSfx("modalOpen");
     setShowAddMoney(true);
     setAddMoneyAmount(null);
     setDevValidation("");
     setAddSuccess(false);
   };
   const closeAddMoney = () => {
+    playSfx("modalClose");
     setShowAddMoney(false);
     if (localStorage.getItem("token")) {
       fetchBalanceFromServer().then(setBalance);
@@ -212,6 +217,7 @@ export function Layout({ children }: LayoutProps) {
     const newBalance = await addDevMoney(addMoneyAmount);
     setBalance(newBalance);
     setAddSuccess(true);
+    playSfx("success");
     setTimeout(closeAddMoney, 800);
   };
 
@@ -281,7 +287,7 @@ export function Layout({ children }: LayoutProps) {
         <Trophy className="h-4 w-4 shrink-0" />
         <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
       </button>
-      <button type="button" onClick={() => openSettingsMenu()} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
+      <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
         <Settings className="h-4 w-4 shrink-0" />
         <span className="hidden lg:inline">{t("settings.title")}</span>
       </button>
@@ -302,7 +308,10 @@ export function Layout({ children }: LayoutProps) {
             {isGamePage ? (
               <button
                 type="button"
-                onClick={() => openSettingsMenu?.()}
+                onClick={() => {
+                  playSfx("uiClick");
+                  openSettingsMenu?.();
+                }}
                 className="w-12 h-12 rounded-xl bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 text-white flex items-center justify-center transition shadow-lg"
                 title={t("settings.title")}
               >
@@ -322,6 +331,7 @@ export function Layout({ children }: LayoutProps) {
                 <button
                   type="button"
                   onClick={() => {
+                    playSfx("uiClick");
                     if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
                     closeMenuTimerRef.current = null;
                     setMenuOpen((o) => !o);
@@ -352,6 +362,7 @@ export function Layout({ children }: LayoutProps) {
                   <button
                     type="button"
                     onClick={() => {
+                      playSfx("uiSelect");
                       setMenuOpen(false);
                       navigate("/minigames");
                     }}
@@ -379,11 +390,11 @@ export function Layout({ children }: LayoutProps) {
                   <Users className="h-4 w-4 shrink-0" />
                   <span className="hidden lg:inline">{t("lobby.manageFriends")}</span>
                 </button>
-                <button type="button" onClick={() => { setMenuOpen(false); navigate("/leaderboard"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600/80 px-2 text-sm text-white transition hover:bg-amber-500 sm:gap-2 sm:px-3 md:h-12" title={t("leaderboard.title")}>
+                <button type="button" onClick={() => { playSfx("uiSelect"); setMenuOpen(false); navigate("/leaderboard"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600/80 px-2 text-sm text-white transition hover:bg-amber-500 sm:gap-2 sm:px-3 md:h-12" title={t("leaderboard.title")}>
                   <Trophy className="h-4 w-4 shrink-0" />
                   <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
                 </button>
-                <button type="button" onClick={() => { setMenuOpen(false); openSettingsMenu(); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
+                <button type="button" onClick={() => { playSfx("uiClick"); setMenuOpen(false); openSettingsMenu(); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
                   <Settings className="h-4 w-4 shrink-0" />
                   <span className="hidden lg:inline">{t("settings.title")}</span>
                 </button>
@@ -478,7 +489,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100%-2rem)] sm:w-full">
           <div
             className="bg-slate-900/95 border border-blue-500 shadow-2xl rounded-2xl px-4 py-4 backdrop-blur-md animate-in slide-in-from-right-5 duration-300 cursor-pointer hover:border-blue-400 hover:bg-slate-800/95 transition-colors"
-            onClick={() => { notification.onClick?.(); setNotification(null); }}
+            onClick={() => { playSfx("uiSelect"); notification.onClick?.(); setNotification(null); }}
           >
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center">
