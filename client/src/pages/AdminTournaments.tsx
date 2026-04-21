@@ -103,15 +103,16 @@ export function AdminTournaments() {
               <label className="text-slate-300 text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
                 <Users className="w-4 h-4 text-amber-500" /> Joueurs Max
               </label>
-              <input 
-                type="number" 
-                min="2"
-                max="1000"
+              <input
+                type="number"
+                min="7"
+                max="36"
                 required
                 value={formData.maxPlayers}
                 onChange={(e) => setFormData({...formData, maxPlayers: Number(e.target.value)})}
                 className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all outline-none"
               />
+              <p className="text-slate-400 text-xs mt-1">Minimum 7 joueurs, maximum 36 joueurs</p>
             </div>
           </div>
 
