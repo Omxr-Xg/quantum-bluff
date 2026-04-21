@@ -35,15 +35,15 @@ stages:
 # ============================================
 # CACHE PARTAGÉ
 # ============================================
-# Clé liée aux lockfiles : évite node_modules incohérents avec npm ci sur le runner.
+# Ne PAS mettre server/client node_modules en cache : volumes Docker énormes et
+# échecs « no space left on device » sur les runners partagés (git.unistra.fr).
+# Seul le cache npm (tarballs) est conservé — npm ci reste correct.
 cache:
   key:
     files:
       - server/package-lock.json
       - client/package-lock.json
   paths:
-    - server/node_modules/
-    - client/node_modules/
     - .npm/
 
 # ============================================
@@ -52,6 +52,8 @@ cache:
 
 backend:lint:
   stage: lint
+  # Pas de volume de cache GitLab : évite « no space left on device » sur le runner.
+  cache: []
   variables:
     # Évite les échecs ESLint / TypeScript sur runners peu de RAM
     NODE_OPTIONS: --max-old-space-size=4096
@@ -124,6 +126,7 @@ backend:build:
 
 frontend:lint:
   stage: lint
+  cache: []
   variables:
     NODE_OPTIONS: --max-old-space-size=4096
   script:
@@ -348,6 +351,7 @@ infra:docker-compose:
 
 docs:markdown-lint:
   stage: lint
+  cache: []
   image: $NODE_IMAGE
   script:
     - npm install -g markdownlint-cli
