@@ -8,7 +8,6 @@ import { useToast } from "../contexts/ToastContext";
 import { useAudio } from "../contexts/MusicContext";
 import { getUserBalance, addDevMoney, fetchBalanceFromServer, clearAuthStorage, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
 import { Toast } from "./Toast";
-import { MusicPlayer } from "./MusicPlayer";
 import { InvitationBanner } from "./InvitationBanner";
 import { NotificationCenter } from "./NotificationCenter";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -519,7 +518,6 @@ export function Layout({ children }: LayoutProps) {
         </div>
       )}
 
-      {!isGamePage && <MusicPlayer />}
       <AnimatePresence>
         {toasts.map((toast) => (
           <Toast
