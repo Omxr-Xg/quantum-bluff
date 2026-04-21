@@ -17,11 +17,11 @@ variables:
   TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.58.1
 
 default:
-  # ENTRYPOINT des images officielles (node, postgres, etc.) empêche la détection du
-  # shell par GitLab Runner → « shell not found » (#28129). Vider l’entrypoint corrige.
+  # ENTRYPOINT des images officielles (node, etc.) → « shell not found » (#28129).
+  # Nom d’image en dur : certains runners n’expandent pas $NODE_IMAGE dans default.image.
   image:
-    name: $NODE_IMAGE
-    entrypoint: [""]
+    name: public.ecr.aws/docker/library/node:20
+    entrypoint: ['']
   # git.unistra.fr : sans tag = pending. services: (Postgres) → job tag kubernetes.
   # Sinon node18 (#1088). Si pending : essayer kubernetes ou js selon Runners.
   tags:
@@ -76,7 +76,7 @@ backend:test:
   tags:
     - kubernetes
   services:
-    - name: $POSTGRES_IMAGE
+    - name: public.ecr.aws/docker/library/postgres:15
       alias: postgres
   variables:
     NODE_ENV: test
@@ -185,10 +185,10 @@ database:test:
   tags:
     - kubernetes
   image:
-    name: $POSTGRES_IMAGE
-    entrypoint: [""]
+    name: public.ecr.aws/docker/library/postgres:15
+    entrypoint: ['']
   services:
-    - name: $POSTGRES_IMAGE
+    - name: public.ecr.aws/docker/library/postgres:15
       alias: postgres
   variables:
     POSTGRES_DB: quantum_test
@@ -208,10 +208,10 @@ database:migrations:
   tags:
     - kubernetes
   image:
-    name: $POSTGRES_IMAGE
-    entrypoint: [""]
+    name: public.ecr.aws/docker/library/postgres:15
+    entrypoint: ['']
   services:
-    - name: $POSTGRES_IMAGE
+    - name: public.ecr.aws/docker/library/postgres:15
       alias: postgres
   variables:
     POSTGRES_DB: quantum_test
@@ -258,8 +258,8 @@ security:scan-deps-frontend:
 security:trivy-scan:
   stage: test-security
   image:
-    name: $TRIVY_IMAGE
-    entrypoint: [""]
+    name: public.ecr.aws/aquasecurity/trivy:0.58.1
+    entrypoint: ['']
   script:
     - echo "🔐 Scan Trivy du code source..."
     - trivy fs --severity HIGH,CRITICAL --no-progress --exit-code 0 .
@@ -271,8 +271,8 @@ security:trivy-scan:
 security:secret-detection:
   stage: test-security
   image:
-    name: $NODE_IMAGE
-    entrypoint: [""]
+    name: public.ecr.aws/docker/library/node:20
+    entrypoint: ['']
   script:
     - echo "🔍 Recherche de secrets exposés..."
     - npx trufflehog --no-update file://. || true
@@ -285,7 +285,7 @@ security:sast:
   stage: test-security
   image:
     name: public.ecr.aws/docker/library/python:3.10-slim
-    entrypoint: [""]
+    entrypoint: ['']
   dependencies: []
   before_script:
     - pip install semgrep
@@ -323,8 +323,8 @@ docker:build:
 docker:scan:
   stage: test-security
   image:
-    name: $TRIVY_IMAGE
-    entrypoint: [""]
+    name: public.ecr.aws/aquasecurity/trivy:0.58.1
+    entrypoint: ['']
   script:
     - echo "🔐 Analyse statique du Dockerfile (Trivy)..."
     - trivy config --severity HIGH,CRITICAL --exit-code 0 server/Dockerfile
@@ -341,7 +341,7 @@ infra:nginx-config:
   stage: test
   image:
     name: public.ecr.aws/nginx/nginx:alpine
-    entrypoint: [""]
+    entrypoint: ['']
   script:
     - echo "🔧 Validation de la configuration Nginx..."
     - nginx -t
@@ -354,7 +354,7 @@ infra:docker-compose:
   # docker-compose config ne nécessite pas le daemon Docker (validation du fichier uniquement).
   image:
     name: docker/compose:1.29.2
-    entrypoint: [""]
+    entrypoint: ['']
   script:
     - echo "🔧 Validation du docker-compose..."
     - docker-compose -f database/docker-compose.yml config
@@ -369,8 +369,8 @@ infra:docker-compose:
 docs:markdown-lint:
   stage: lint
   image:
-    name: $NODE_IMAGE
-    entrypoint: [""]
+    name: public.ecr.aws/docker/library/node:20
+    entrypoint: ['']
   script:
     - npm install -g markdownlint-cli
     # Utilise .markdownlint.json à la racine (règles assouplies pour la doc existante).
@@ -393,7 +393,7 @@ deploy:staging:
   stage: deploy
   image:
     name: public.ecr.aws/docker/library/alpine:latest
-    entrypoint: [""]
+    entrypoint: ['']
   script:
     - echo "🚀 Déploiement sur STAGING..."
     - apk add --no-cache curl
@@ -409,7 +409,7 @@ deploy:production:
   stage: deploy
   image:
     name: public.ecr.aws/docker/library/alpine:latest
-    entrypoint: [""]
+    entrypoint: ['']
   script:
     - echo "🚀 Déploiement sur PRODUCTION..."
     - apk add --no-cache curl
