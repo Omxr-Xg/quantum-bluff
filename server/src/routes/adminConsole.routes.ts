@@ -1,4 +1,6 @@
+import { randomInt } from 'node:crypto'
 import { Router } from 'express'
+import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '../config/database.js'
 import { env } from '../config/env.js'
@@ -18,6 +20,13 @@ const listQuery = z.object({
   skip: z.coerce.number().int().min(0).optional().default(0),
   q: z.string().max(200).optional(),
 })
+
+function generateAdminTempPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+  let out = ''
+  for (let i = 0; i < 16; i++) out += chars[randomInt(chars.length)]
+  return out
+}
 
 function summarizeActiveGame(gameId: string, game: ActiveGame): Record<string, unknown> {
   let phase: string | undefined
@@ -108,7 +117,7 @@ router.get('/users', async (req, res) => {
         }
       : undefined
 
-  const [items, total] = await Promise.all([
+  const [rows, total] = await Promise.all([
     prisma.user.findMany({
       where,
       take,
@@ -128,7 +137,7 @@ router.get('/users', async (req, res) => {
     }),
     prisma.user.count({ where }),
   ])
-  return res.json({ items, total, take, skip })
+  return res.json({ items: rows, total, take, skip })
 })
 
 const patchUserSchema = z.object({
@@ -149,16 +158,12 @@ router.patch('/users/:id', async (req, res) => {
 
   const { action, suspendDays } = parsed.data
   const now = Date.now()
-  let bannedUntil: Date | null = null
-
-  if (action === 'suspend') {
-    const days = suspendDays ?? 7
-    bannedUntil = new Date(now + days * 24 * 60 * 60 * 1000)
-  } else if (action === 'ban') {
-    bannedUntil = new Date('2099-12-31T23:59:59.999Z')
-  } else {
-    bannedUntil = null
-  }
+  const bannedUntil: Date | null =
+    action === 'suspend'
+      ? new Date(now + (suspendDays ?? 7) * 24 * 60 * 60 * 1000)
+      : action === 'ban'
+        ? new Date('2099-12-31T23:59:59.999Z')
+        : null
 
   try {
     await prisma.user.update({
@@ -170,6 +175,38 @@ router.patch('/users/:id', async (req, res) => {
   }
 
   return res.json({ ok: true, bannedUntil })
+})
+
+const setUserPasswordBody = z.object({
+  newPassword: z.string().min(8).max(100).optional(),
+})
+
+/** Définit un nouveau mot de passe joueur ; le clair est renvoyé une seule fois (l’ancien hash n’est pas réversible). */
+router.post('/users/:id/password', async (req, res) => {
+  const id = req.params.id
+  if (!id || id === env.adminConsoleJwtUserId) {
+    return res.status(400).json({ error: 'Cible invalide' })
+  }
+
+  const parsed = setUserPasswordBody.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Mot de passe invalide (8–100 caractères) ou corps invalide' })
+  }
+
+  const raw = parsed.data.newPassword?.trim()
+  const plain = raw && raw.length > 0 ? raw : generateAdminTempPassword()
+
+  try {
+    const hashed = await bcrypt.hash(plain, 10)
+    await prisma.user.update({
+      where: { id },
+      data: { password: hashed },
+    })
+  } catch {
+    return res.status(404).json({ error: 'Utilisateur introuvable' })
+  }
+
+  return res.json({ ok: true, plainPassword: plain })
 })
 
 router.get('/games/history', async (req, res) => {
@@ -350,6 +387,91 @@ router.delete('/games/blackjack-rooms/:roomId', async (req, res) => {
     return res.status(500).json({
       error: e instanceof Error ? e.message : 'Suppression impossible',
     })
+  }
+})
+
+router.get('/player-reports/unread-count', async (_req, res) => {
+  try {
+    const count = await prisma.playerReport.count({
+      where: { reviewedAt: null },
+    })
+    return res.json({ count })
+  } catch (e) {
+    console.error('[adminConsole] player-reports unread', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+router.get('/player-reports', async (req, res) => {
+  const parsed = listQuery.safeParse(req.query)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Pagination invalide' })
+  }
+  const { take, skip, q: searchRaw } = parsed.data
+  const search = searchRaw?.trim()
+  const where =
+    search && search.length > 0
+      ? {
+          OR: [
+            { reporter: { username: { contains: search, mode: 'insensitive' as const } } },
+            { reported: { username: { contains: search, mode: 'insensitive' as const } } },
+            { gameId: { contains: search, mode: 'insensitive' as const } },
+            { id: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : undefined
+
+  try {
+    const [rows, total] = await Promise.all([
+      prisma.playerReport.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          reporter: { select: { id: true, username: true, email: true } },
+          reported: { select: { id: true, username: true, email: true } },
+        },
+      }),
+      prisma.playerReport.count({ where }),
+    ])
+    const items = rows.map((row) => ({
+      ...row,
+      reporter:
+        row.reporter ??
+        ({
+          id: row.reporterId,
+          username: '(?)',
+          email: '',
+        } as const),
+      reported:
+        row.reported ??
+        ({
+          id: row.reportedUserId,
+          username: '(?)',
+          email: '',
+        } as const),
+    }))
+    return res.json({ items, total, take, skip })
+  } catch (e) {
+    console.error('[adminConsole] player-reports list', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+router.patch('/player-reports/:id/read', async (req, res) => {
+  const id = req.params.id
+  if (!id || id.length > 64) {
+    return res.status(400).json({ error: 'Identifiant invalide' })
+  }
+  try {
+    await prisma.playerReport.update({
+      where: { id },
+      data: { reviewedAt: new Date() },
+    })
+    return res.json({ ok: true })
+  } catch {
+    return res.status(404).json({ error: 'Signalement introuvable' })
   }
 })
 

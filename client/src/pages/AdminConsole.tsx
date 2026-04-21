@@ -2,9 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
+  Bell,
   ChevronLeft,
   ChevronRight,
   Circle,
+  Copy,
+  KeyRound,
   LogOut,
   RefreshCw,
   Search,
@@ -14,7 +17,7 @@ import {
 import { apiUrl } from "../utils/apiBase";
 import { clearAuthStorage } from "../utils/userProfile";
 
-type Tab = "users" | "history" | "poker" | "bj" | "ratings";
+type Tab = "users" | "history" | "poker" | "bj" | "ratings" | "reports";
 
 const PAGE_SIZE = 25;
 
@@ -74,7 +77,18 @@ type RatingRow = {
   stars: number;
   message: string | null;
   createdAt: string;
-  user: { username: string; email: string };
+  user?: { username: string; email: string };
+};
+
+type ReportRow = {
+  id: string;
+  gameId: string | null;
+  reason: string;
+  detail: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+  reporter?: { id: string; username: string; email: string };
+  reported?: { id: string; username: string; email: string };
 };
 
 export function AdminConsole() {
@@ -88,6 +102,25 @@ export function AdminConsole() {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [skip, setSkip] = useState(0);
+  const [reportUnread, setReportUnread] = useState(0);
+
+  const [pwdModal, setPwdModal] = useState<{ id: string; username: string } | null>(null);
+  const [pwdInput, setPwdInput] = useState("");
+  const [pwdResult, setPwdResult] = useState<string | null>(null);
+  const [pwdLoading, setPwdLoading] = useState(false);
+
+  const fetchReportUnread = useCallback(async () => {
+    try {
+      const res = await fetch(apiUrl("/api/admin/console/player-reports/unread-count"), {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return;
+      const d = (await res.json()) as { count?: number };
+      setReportUnread(typeof d.count === "number" ? d.count : 0);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 320);
@@ -121,6 +154,7 @@ export function AdminConsole() {
         if (debouncedSearch) p.set("q", debouncedSearch);
         path = `/api/admin/console/games/active-poker?${p.toString()}`;
       } else if (tab === "bj") path = `/api/admin/console/games/blackjack-rooms?${listParams}`;
+      else if (tab === "reports") path = `/api/admin/console/player-reports?${listParams}`;
       else path = `/api/admin/console/ratings?${listParams}`;
 
       const res = await fetch(apiUrl(path), { headers: authHeaders() });
@@ -142,6 +176,12 @@ export function AdminConsole() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void fetchReportUnread();
+    const id = window.setInterval(() => void fetchReportUnread(), 15000);
+    return () => window.clearInterval(id);
+  }, [fetchReportUnread]);
 
   const patchUser = async (userId: string, action: "suspend" | "ban" | "reactivate") => {
     setError(null);
@@ -183,6 +223,25 @@ export function AdminConsole() {
     }
   };
 
+  const markReportRead = async (reportId: string) => {
+    setError(null);
+    try {
+      const res = await fetch(
+        apiUrl(`/api/admin/console/player-reports/${encodeURIComponent(reportId)}/read`),
+        { method: "PATCH", headers: authHeaders() },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data as { error?: string }).error ?? t("adminConsole.actionError"));
+        return;
+      }
+      await load();
+      await fetchReportUnread();
+    } catch {
+      setError(t("adminConsole.networkError"));
+    }
+  };
+
   const closeBlackjackRoom = async (roomId: string) => {
     if (!window.confirm(t("adminConsole.blackjackCloseConfirm"))) return;
     setError(null);
@@ -207,13 +266,76 @@ export function AdminConsole() {
     navigate("/auth/admin", { replace: true });
   };
 
+  const openPasswordModal = (u: UserRow) => {
+    setPwdModal({ id: u.id, username: u.username });
+    setPwdInput("");
+    setPwdResult(null);
+  };
+
+  const closePasswordModal = () => {
+    setPwdModal(null);
+    setPwdInput("");
+    setPwdResult(null);
+  };
+
+  const submitAdminPassword = async (opts?: { generateOnly?: boolean }) => {
+    if (!pwdModal) return;
+    setPwdLoading(true);
+    setError(null);
+    try {
+      const body: { newPassword?: string } = {};
+      if (opts?.generateOnly) {
+        /* corps vide → le serveur génère un mot de passe */
+      } else {
+        const trimmed = pwdInput.trim();
+        if (trimmed.length > 0) {
+          if (trimmed.length < 8) {
+            setError(t("adminConsole.passwordTooShort"));
+            setPwdLoading(false);
+            return;
+          }
+          body.newPassword = trimmed;
+        }
+      }
+      const res = await fetch(apiUrl(`/api/admin/console/users/${encodeURIComponent(pwdModal.id)}/password`), {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data as { error?: string }).error ?? t("adminConsole.actionError"));
+        return;
+      }
+      const plain = (data as { plainPassword?: string }).plainPassword;
+      if (plain) setPwdResult(plain);
+    } catch {
+      setError(t("adminConsole.networkError"));
+    } finally {
+      setPwdLoading(false);
+    }
+  };
+
+  const copyPlainPassword = async () => {
+    if (!pwdResult) return;
+    try {
+      await navigator.clipboard.writeText(pwdResult);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "poker", label: t("adminConsole.tabPokerActive") },
     { id: "bj", label: t("adminConsole.tabBlackjack") },
-    { id: "users", label: t("adminConsole.tabUsers") },
+    { id: "users", label: t("adminConsole.tabPlayers") },
     { id: "history", label: t("adminConsole.tabHistory") },
     { id: "ratings", label: t("adminConsole.tabRatings") },
+    { id: "reports", label: t("adminConsole.tabReports") },
   ];
+
+  const reportReasonLabel = (reason: string) =>
+    t(`adminConsole.reportReason.${reason}`, { defaultValue: reason });
 
   const totalPages =
     json && typeof json === "object" && "total" in json && typeof (json as { total: number }).total === "number"
@@ -245,7 +367,24 @@ export function AdminConsole() {
               <p className="text-sm text-slate-400">{t("adminConsole.subtitle")}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setTab("reports");
+                void fetchReportUnread();
+              }}
+              className="relative inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800/80 px-3 py-2.5 text-sm text-white transition hover:bg-slate-700"
+              title={t("adminConsole.reportsBellTitle")}
+              aria-label={t("adminConsole.reportsBellTitle")}
+            >
+              <Bell className="h-5 w-5 text-amber-300" />
+              {reportUnread > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+                  {reportUnread > 99 ? "99+" : reportUnread}
+                </span>
+              )}
+            </button>
             <button
               type="button"
               onClick={() => void load()}
@@ -427,7 +566,7 @@ export function AdminConsole() {
                 {(listPayload.items as BjRoom[]).map((room) => (
                   <tr key={room.id} className="text-slate-200">
                     <td className="px-3 py-2 font-medium">{room.name}</td>
-                    <td className="px-3 py-2">{room.host.username}</td>
+                    <td className="px-3 py-2">{room.host?.username ?? "—"}</td>
                     <td className="px-3 py-2">
                       <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs">{room.status}</span>
                     </td>
@@ -464,11 +603,13 @@ export function AdminConsole() {
                 </>
               ) : null}
             </p>
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <p className="px-3 pb-2 text-xs text-amber-200/80">{t("adminConsole.playersPasswordHint")}</p>
+            <table className="w-full min-w-[960px] text-left text-sm">
               <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-3 py-3">{t("adminConsole.colUsername")}</th>
                   <th className="px-3 py-3">{t("adminConsole.colEmail")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.colPassword")}</th>
                   <th className="px-3 py-3">{t("adminConsole.colChips")}</th>
                   <th className="px-3 py-3">{t("adminConsole.colBanned")}</th>
                   <th className="px-3 py-3">{t("adminConsole.colActions")}</th>
@@ -479,6 +620,16 @@ export function AdminConsole() {
                   <tr key={u.id} className="text-slate-200">
                     <td className="px-3 py-2 font-medium text-white">{u.username}</td>
                     <td className="px-3 py-2 font-mono text-xs">{u.email}</td>
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => openPasswordModal(u)}
+                        className="inline-flex max-w-full items-center gap-2 rounded-lg border border-slate-600 bg-slate-900/80 px-2 py-1.5 text-left font-mono text-[11px] text-amber-200/90 hover:border-amber-500/50 hover:bg-slate-800"
+                      >
+                        <KeyRound className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        <span className="truncate">{t("adminConsole.passwordRevealCta")}</span>
+                      </button>
+                    </td>
                     <td className="px-3 py-2">{u.chips}</td>
                     <td className="px-3 py-2 text-xs">
                       {u.bannedUntil ? new Date(u.bannedUntil).toLocaleString() : "—"}
@@ -562,7 +713,7 @@ export function AdminConsole() {
               <tbody className="divide-y divide-slate-700/80">
                 {(listPayload.items as RatingRow[]).map((r) => (
                   <tr key={r.id} className="text-slate-200">
-                    <td className="px-3 py-2">{r.user.username}</td>
+                    <td className="px-3 py-2">{r.user?.username ?? "—"}</td>
                     <td className="px-3 py-2">{r.stars}</td>
                     <td className="px-3 py-2 max-w-xs truncate text-slate-300" title={r.message ?? ""}>
                       {r.message ?? "—"}
@@ -580,8 +731,71 @@ export function AdminConsole() {
           </div>
         )}
 
+        {tab === "reports" && json && listPayload?.items && (
+          <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
+            <table className="w-full min-w-[960px] text-left text-sm">
+              <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="px-3 py-3">{t("adminConsole.reportsColDate")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.reportsColReporter")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.reportsColReported")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.reportsColReason")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.reportsColGame")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.reportsColDetail")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.colActions")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/80">
+                {(listPayload.items as ReportRow[]).map((r) => (
+                  <tr
+                    key={r.id}
+                    className={`text-slate-200 ${!r.reviewedAt ? "bg-amber-950/20" : ""}`}
+                  >
+                    <td className="px-3 py-2 text-xs text-slate-400">
+                      {new Date(r.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2">
+                      {r.reporter?.username ?? "—"}
+                      <div className="font-mono text-[10px] text-slate-500">{r.reporter?.id ?? "—"}</div>
+                    </td>
+                    <td className="px-3 py-2">
+                      {r.reported?.username ?? "—"}
+                      <div className="font-mono text-[10px] text-slate-500">{r.reported?.id ?? "—"}</div>
+                    </td>
+                    <td className="px-3 py-2">{reportReasonLabel(r.reason)}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-slate-400">
+                      {r.gameId ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 max-w-[200px] truncate text-slate-300" title={r.detail ?? ""}>
+                      {r.detail ?? "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      {!r.reviewedAt ? (
+                        <button
+                          type="button"
+                          onClick={() => void markReportRead(r.id)}
+                          className="rounded-lg bg-slate-600 px-2 py-1 text-xs hover:bg-slate-500"
+                        >
+                          {t("adminConsole.reportsMarkRead")}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-500">
+                          {new Date(r.reviewedAt).toLocaleString()}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {listPayload.items.length === 0 && (
+              <p className="py-12 text-center text-slate-500">{t("adminConsole.reportsEmpty")}</p>
+            )}
+          </div>
+        )}
+
         {tab !== "poker" &&
-          ["users", "history", "bj", "ratings"].includes(tab) &&
+          ["users", "history", "bj", "ratings", "reports"].includes(tab) &&
           json &&
           totalCount != null &&
           totalCount > PAGE_SIZE && (
@@ -615,6 +829,86 @@ export function AdminConsole() {
             </div>
           )}
       </div>
+
+      {pwdModal && (
+        <div
+          className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-pwd-modal-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-slate-600 bg-slate-900 p-6 shadow-2xl">
+            <h2 id="admin-pwd-modal-title" className="mb-2 text-lg font-bold text-white">
+              {t("adminConsole.setPasswordTitle")}
+            </h2>
+            <p className="mb-4 text-sm text-slate-400">
+              {t("adminConsole.setPasswordIntro", { username: pwdModal.username })}
+            </p>
+            {!pwdResult ? (
+              <>
+                <label className="mb-1 block text-xs font-medium text-slate-500">
+                  {t("adminConsole.newPasswordOptional")}
+                </label>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  value={pwdInput}
+                  onChange={(e) => setPwdInput(e.target.value)}
+                  placeholder={t("adminConsole.newPasswordPlaceholder")}
+                  className="mb-4 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 font-mono text-sm text-white placeholder:text-slate-600 focus:border-amber-500 focus:outline-none"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={pwdLoading}
+                    onClick={() => void submitAdminPassword()}
+                    className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
+                  >
+                    {pwdLoading ? t("common.loading") : t("adminConsole.applyAndShow")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pwdLoading}
+                    onClick={() => void submitAdminPassword({ generateOnly: true })}
+                    className="rounded-xl border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {t("adminConsole.generatePassword")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closePasswordModal}
+                    className="rounded-xl px-4 py-2 text-sm text-slate-400 hover:text-white"
+                  >
+                    {t("common.cancel")}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mb-2 text-xs font-medium text-emerald-400/90">{t("adminConsole.plainPasswordOnce")}</p>
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-emerald-600/40 bg-slate-950 px-3 py-2 font-mono text-sm text-emerald-100">
+                  <span className="min-w-0 flex-1 break-all">{pwdResult}</span>
+                  <button
+                    type="button"
+                    onClick={() => void copyPlainPassword()}
+                    className="shrink-0 rounded-lg p-2 text-emerald-300 hover:bg-slate-800"
+                    title={t("adminConsole.copyPassword")}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={closePasswordModal}
+                  className="w-full rounded-xl bg-slate-700 py-2 text-sm text-white hover:bg-slate-600"
+                >
+                  {t("common.close")}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

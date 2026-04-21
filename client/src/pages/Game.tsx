@@ -25,6 +25,7 @@ import { RoundTransition } from "../components/RoundTransition";
 import { GameInteractiveTour } from "../components/GameInteractiveTour";
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
 import { HandActionLogPanel } from "../components/HandActionLogPanel";
+import { PlayerGameMenuModal } from "../components/PlayerGameMenuModal";
 
 import { fetchHiddenBetTableHistory } from "../api/hiddenBetsApi";
 
@@ -217,6 +218,7 @@ export function Game() {
   }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
   
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [playerMenuTarget, setPlayerMenuTarget] = useState<{ id: string; name: string } | null>(null);
   const [_hasFolded, _setHasFolded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [pot, setPot] = useState(150);
@@ -3466,6 +3468,10 @@ export function Game() {
         burnedCardsCount={displayBurnedCardsCount}
         colorblindMode={colorblindMode}
         heroSeatId={heroPlayer?.id ?? null}
+        enableAvatarInteractions={Boolean(!isBotMode && gameIdParam && userId)}
+        onOpponentAvatarClick={(p) =>
+          setPlayerMenuTarget({ id: String(p.id), name: p.name })
+        }
         >
         <CommunityCards
         cards={communityCards}
@@ -3497,6 +3503,15 @@ export function Game() {
       />
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />
+      {userId ? (
+        <PlayerGameMenuModal
+          open={playerMenuTarget != null}
+          onClose={() => setPlayerMenuTarget(null)}
+          player={playerMenuTarget}
+          gameId={gameIdParam}
+          currentUserId={userId}
+        />
+      ) : null}
 
       {isSpectating && gameIdParam && !isBotMode && cashSeats.length > 0 && (
         <div ref={tourRefActions} className="fixed bottom-6 left-1/2 z-30 flex min-h-[48px] min-w-[200px] -translate-x-1/2 items-center justify-center">
