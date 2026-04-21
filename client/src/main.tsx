@@ -11,7 +11,7 @@ import { SocketProvider } from './contexts/SocketContext'
 import { UserProvider } from './contexts/UserContext'
 import { QuantumHUDProvider } from './contexts/QuantumHUDContext'
 import { HiddenBetsProvider } from './contexts/HiddenBetsContext'
-import { MusicProvider } from './contexts/MusicContext'
+import { AudioProvider } from './contexts/MusicContext'
 
 // 1. T'oublies pas les imports !
 import { ErrorBoundary } from './components/ErrorBoundary' // Adapte le chemin si besoin
@@ -34,9 +34,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <SocketProvider>
                 <QuantumHUDProvider>
                   <HiddenBetsProvider>
-                    <MusicProvider>
+                    <AudioProvider>
                       <App />
-                    </MusicProvider>
+                    </AudioProvider>
                   </HiddenBetsProvider>
                 </QuantumHUDProvider>
               </SocketProvider>

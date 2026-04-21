@@ -6,6 +6,7 @@ import { useAccessibility } from "../contexts/AccessibilityContext";
 import { NeonButton } from "./NeonButton";
 import { PokerCard } from "./PokerCard";
 import { HandCombinationsHelpButton } from "./HandCombinationsHelpButton";
+import { useAudio } from "../contexts/MusicContext";
 
 interface Card {
   suit: string;
@@ -71,6 +72,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
 ) {
   const { t } = useTranslation();
   const { visualAlerts } = useAccessibility();
+  const { playSfx } = useAudio();
   const effectiveMinRaise = Math.min(minRaise, maxRaise);
   const clampRaise = (v: number) => {
     const vi = Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
@@ -135,30 +137,10 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
           /* vibrate non supporté */
         }
       } else {
-        try {
-          const ctx = new AudioContext();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          if (timeLeft === 0) {
-            osc.type = "square";
-            osc.frequency.value = 440;
-            gain.gain.value = 0.2;
-            osc.connect(gain).connect(ctx.destination);
-            osc.start();
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-            osc.stop(ctx.currentTime + 0.4);
-          } else {
-            osc.type = "sine";
-            osc.frequency.value = 660 + (5 - timeLeft) * 80;
-            gain.gain.value = 0.12 + (5 - timeLeft) * 0.03;
-            osc.connect(gain).connect(ctx.destination);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.1);
-          }
-        } catch { /* audio blocked */ }
+        playSfx(timeLeft === 0 ? "timerEnd" : "timerTick");
       }
     }
-  }, [timeLeft, isMyTurn, visualAlerts]);
+  }, [timeLeft, isMyTurn, visualAlerts, playSfx]);
 
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";

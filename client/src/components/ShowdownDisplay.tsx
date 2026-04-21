@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from "motion/react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import victorySound from "../assets/sounds/victory.mp3";
 import { PokerCard } from "./PokerCard";
 import { ChipIcon } from "./ChipIcon";
 import { useAccessibility } from "../contexts/AccessibilityContext";
+import { useAudio } from "../contexts/MusicContext";
 
 interface CardData {
   suit: string;
@@ -39,6 +39,7 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
   const { t } = useTranslation();
   const hasPlayedSoundRef = useRef(false);
   const { visualAlerts, colorblindMode } = useAccessibility();
+  const { playSfx } = useAudio();
 
   useEffect(() => {
     if (winner && !hasPlayedSoundRef.current) {
@@ -51,13 +52,11 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
           /* vibrate non supporté */
         }
       } else {
-        const audio = new Audio(victorySound);
-        audio.volume = 0.6;
-        audio.play().catch(() => {});
+        playSfx("victory");
       }
     }
     if (!winner) hasPlayedSoundRef.current = false; // Reset pour le prochain showdown
-  }, [winner, visualAlerts]);
+  }, [winner, visualAlerts, playSfx]);
 
   useEffect(() => {
     if (!winner || !onClose) return;

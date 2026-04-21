@@ -6,7 +6,7 @@ import {
   ReactNode,
 } from "react";
 
-export type SettingsTab = "aesthetic" | "accessibility";
+export type SettingsTab = "aesthetic" | "audio" | "accessibility";
 
 interface AccessibilityMenuOpenContextType {
   registerOpener: (open: ((tab?: SettingsTab) => void) | null) => void;
