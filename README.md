@@ -1,5 +1,5 @@
 # Quantum Bluff
-
+   **Not final**
 Plateforme de jeu en ligne — **poker Texas Hold’em** temps réel, **blackjack** (solo et multijoueur), **mini-jeux** (casino), **tournois**, avec client **web**, **Electron** (Windows, macOS, Linux) et apps **mobiles** (Capacitor : iOS / Android).
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
