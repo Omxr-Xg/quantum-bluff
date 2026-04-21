@@ -39,7 +39,7 @@ export function BlackjackRoundReveal({
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" aria-hidden />
       <div
-        className="relative z-10 w-full max-w-md rounded-2xl border border-[#c9a227]/45 bg-gradient-to-b from-[#1a120e] to-[#0a0608] shadow-[0_12px_48px_rgba(0,0,0,0.65),0_0_40px_rgba(201,162,39,0.12)] animate-[bj-overlay-in_0.4s_ease-out_0.05s_both]"
+        className="relative z-10 w-full max-w-md rounded-2xl border border-[#c9a227]/45 bg-gradient-to-b from-[#1a120e] to-slate-950 shadow-[0_12px_48px_rgba(0,0,0,0.65),0_0_40px_rgba(201,162,39,0.12)] animate-[bj-overlay-in_0.4s_ease-out_0.05s_both]"
         style={{ animationFillMode: "both" }}
       >
         <div className="border-b border-[#c9a227]/20 px-4 py-3 text-center sm:px-5">
@@ -53,7 +53,7 @@ export function BlackjackRoundReveal({
                   ? "text-emerald-300"
                   : myKind === "push"
                     ? "text-amber-200"
-                    : "text-rose-300"
+                    : "text-red-300"
               }`}
             >
               {myKind === "win"
@@ -80,7 +80,7 @@ export function BlackjackRoundReveal({
                     ? "border-emerald-500/45 bg-emerald-950/35"
                     : kind === "push"
                       ? "border-amber-500/35 bg-amber-950/25"
-                      : "border-rose-800/45 bg-rose-950/30";
+                      : "border-red-800/45 bg-red-950/30";
                 const labelKey = `bjMulti.settle_${row.reason}` as const;
                 const reasonText = t(labelKey, { defaultValue: row.reason });
                 const amountLabel =
@@ -113,7 +113,7 @@ export function BlackjackRoundReveal({
                           ? "text-emerald-300"
                           : kind === "push"
                             ? "text-amber-200"
-                            : "text-rose-300"
+                            : "text-red-300"
                       }`}
                     >
                       {amountLabel}

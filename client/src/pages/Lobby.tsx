@@ -1016,16 +1016,16 @@ export function Lobby() {
           {/* Onglet Blackjack - CONDITIONAL RENDER */}
           {lobbyMainTab === "blackjack" && (
             <div className="space-y-6">
-              <div className="rounded-2xl border border-rose-500/50 bg-slate-800 p-6">
+              <div className="rounded-2xl border border-amber-500/25 bg-slate-800 p-6 shadow-lg shadow-black/20">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
-                  <Club className="h-8 w-8 text-rose-400" aria-hidden />
+                  <Club className="h-8 w-8 text-amber-400" aria-hidden />
                   {t("lobby.blackjackTitle")}
                 </h2>
                 <p className="mb-4 max-w-xl text-sm leading-relaxed text-gray-400">{t("lobby.blackjackIntro")}</p>
                 <button
                   type="button"
                   onClick={() => navigate("/blackjack")}
-                  className="w-full rounded-xl bg-rose-700 py-3 md:py-4 font-bold text-white transition hover:bg-rose-600"
+                  className="w-full rounded-xl bg-amber-600 py-3 md:py-4 font-bold text-white transition hover:bg-amber-500"
                   aria-label={t("lobby.blackjackPlay")}
                 >
                   {t("lobby.blackjackPlay")}

@@ -5,6 +5,7 @@ import { PokerCard } from "../PokerCard";
 import { ChipIcon } from "../ChipIcon";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { getPlayerAvatar } from "../../utils/avatars";
+import { useTableTheme } from "../../contexts/TableThemeContext";
 
 export type BjCard = { rank: string; suit: string };
 
@@ -141,7 +142,7 @@ function ChipStack({ amount }: { amount: number }) {
   if (amount <= 0) return null;
   return (
     <div className="relative flex h-8 w-12 items-end justify-center sm:h-9 sm:w-14">
-      <div className="absolute bottom-0 h-7 w-7 rounded-full border-2 border-amber-200/80 bg-gradient-to-br from-rose-500 via-rose-700 to-rose-950 shadow-[0_4px_8px_rgba(0,0,0,0.5)]" />
+      <div className="absolute bottom-0 h-7 w-7 rounded-full border-2 border-amber-200/80 bg-gradient-to-br from-amber-600 via-amber-800 to-amber-950 shadow-[0_4px_8px_rgba(0,0,0,0.5)]" />
       <div className="absolute bottom-1 h-7 w-7 rounded-full border-2 border-amber-200/60 bg-gradient-to-br from-slate-600 via-slate-800 to-slate-950 shadow-[0_4px_8px_rgba(0,0,0,0.45)]" />
       <div className="absolute bottom-2 flex h-7 w-7 items-center justify-center rounded-full border-2 border-amber-100 bg-gradient-to-br from-amber-600 via-yellow-700 to-amber-950 text-[10px] font-black text-amber-100 shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
         $
@@ -167,6 +168,7 @@ export function BlackjackMultiCasinoTable({
   children: ReactNode;
 }) {
   const { t } = useTranslation();
+  const { feltGradient, feltBorder } = useTableTheme();
   const [containerStyle, setContainerStyle] = useState<CSSProperties>({});
 
   useEffect(() => {
@@ -223,15 +225,23 @@ export function BlackjackMultiCasinoTable({
         className="mx-auto w-full max-w-6xl px-3 pb-6 sm:px-4"
         style={containerStyle}
       >
-        <div className="relative overflow-hidden rounded-[2rem] border-[10px] border-[#3d2914] bg-[#2a1810] p-2 shadow-[0_32px_80px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.06)] sm:rounded-[2.5rem] sm:border-[12px] sm:p-3">
+        <div
+          className="relative overflow-hidden rounded-[2rem] border-[10px] p-2 shadow-[0_32px_80px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.06)] sm:rounded-[2.5rem] sm:border-[12px] sm:p-3"
+          style={{
+            background: "linear-gradient(145deg, #2a1810 0%, #1a120c 100%)",
+            borderColor: "rgba(61, 41, 20, 0.95)",
+          }}
+        >
           <div
-            className="relative min-h-[60vh] overflow-hidden rounded-[1.35rem] shadow-[inset_0_0_100px_rgba(0,0,0,0.35)] sm:min-h-[70vh] lg:min-h-[640px] sm:rounded-[1.75rem]"
+            className="relative min-h-[60vh] overflow-hidden rounded-[1.35rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_100px_rgba(0,0,0,0.35)] sm:min-h-[70vh] lg:min-h-[640px] sm:rounded-[1.75rem]"
             style={{
               background: `
-                radial-gradient(ellipse 120% 80% at 50% 30%, rgba(30,120,85,0.45) 0%, transparent 55%),
-                radial-gradient(ellipse 90% 60% at 50% 100%, rgba(0,40,25,0.9) 0%, transparent 50%),
-                linear-gradient(180deg, #0f5132 0%, #0a3d28 35%, #062a1a 100%)
+                radial-gradient(ellipse 120% 80% at 50% 25%, rgba(255,255,255,0.07) 0%, transparent 52%),
+                radial-gradient(ellipse 90% 55% at 50% 100%, rgba(0,0,0,0.45) 0%, transparent 48%),
+                ${feltGradient}
               `,
+              borderColor: feltBorder,
+              borderStyle: "solid",
             }}
           >
             <div
@@ -417,7 +427,7 @@ export function BlackjackMultiCasinoTable({
                         <div className="mt-1 text-center font-mono text-[11px] font-bold text-emerald-200/95">
                           {hv}
                           {s.playState === "bust" ? (
-                            <span className="ml-1 text-rose-300">{t("bjMulti.bust")}</span>
+                            <span className="ml-1 text-red-300">{t("bjMulti.bust")}</span>
                           ) : null}
                           {s.playState === "blackjack_natural" ? (
                             <span className="ml-1 text-amber-300">{t("bjMulti.naturalBj")}</span>
@@ -434,7 +444,7 @@ export function BlackjackMultiCasinoTable({
           </div>
         </div>
 
-        <div className="relative z-20 -mt-2 mx-auto max-w-3xl rounded-b-2xl border border-[#3d2914]/80 border-t-0 bg-gradient-to-b from-[#1f1410] to-[#120c0a] px-4 py-5 shadow-[0_16px_40px_rgba(0,0,0,0.5)] sm:px-8">
+        <div className="relative z-20 -mt-2 mx-auto max-w-3xl rounded-b-2xl border border-slate-800/90 border-t-0 bg-gradient-to-b from-slate-900/95 to-slate-950 px-4 py-5 shadow-[0_16px_40px_rgba(0,0,0,0.5)] sm:px-8">
           {children}
         </div>
       </div>

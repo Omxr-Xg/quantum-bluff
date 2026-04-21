@@ -50,7 +50,7 @@ function RuntimeBanner({ message, severity, onRetry, className = "" }: {
   if (!message) return null;
 
   const classes = {
-    error: "border-rose-500/60 bg-rose-950/40 text-rose-100",
+    error: "border-red-500/50 bg-red-950/35 text-red-100",
     warning: "border-amber-500/60 bg-amber-950/40 text-amber-100",
     info: "border-sky-500/50 bg-sky-950/40 text-sky-100",
   };
@@ -426,10 +426,10 @@ export function BlackjackMultiTable() {
 
   if (loading || !state) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#14080d]">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <BlackjackLobbyBackdrop />
         <RuntimeBanner message={runtimeBanner} severity={runtimeSeverity} onRetry={loadState} />
-        <Loader2 className="relative z-10 h-10 w-10 animate-spin text-rose-400" />
+        <Loader2 className="relative z-10 h-10 w-10 animate-spin text-amber-400" />
       </div>
     );
   }
@@ -437,7 +437,7 @@ export function BlackjackMultiTable() {
   const btnBase = "rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wide shadow-lg transition disabled:cursor-not-allowed disabled:opacity-45 sm:px-8 sm:text-base";
 
   return (
-    <div className="relative w-full min-h-screen overflow-hidden bg-[#0a0608] pb-10">
+    <div className="relative w-full min-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pb-10">
       <BlackjackLobbyBackdrop />
       
       <div className="relative z-10 mx-auto max-w-6xl px-4 pt-5 sm:pt-6">

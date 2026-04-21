@@ -72,19 +72,19 @@ export function Blackjack() {
   }, [navigate, t, addToast]);
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#0a0608] p-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
       <BlackjackLobbyBackdrop />
       <div className="relative z-10 flex flex-col items-center gap-4 text-center">
         {!error ? (
           <>
-            <Loader2 className="h-12 w-12 animate-spin text-rose-400" />
-            <p className="max-w-sm text-sm text-rose-200/80">{t("bjMulti.soloStarting")}</p>
+            <Loader2 className="h-12 w-12 animate-spin text-amber-400" />
+            <p className="max-w-sm text-sm text-slate-300/90">{t("bjMulti.soloStarting")}</p>
           </>
         ) : (
           <button
             type="button"
             onClick={() => navigate("/lobby?tab=blackjack")}
-            className="rounded-xl bg-rose-700 px-6 py-3 font-bold text-white transition hover:bg-rose-600"
+            className="rounded-xl bg-amber-600 px-6 py-3 font-bold text-white transition hover:bg-amber-500"
           >
             {t("bjMulti.backToLobby")}
           </button>
