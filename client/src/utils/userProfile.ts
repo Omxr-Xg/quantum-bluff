@@ -114,6 +114,7 @@ export function clearAuthStorage(): void {
     fetch(url, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
   }
   localStorage.removeItem("token");
+  localStorage.removeItem("role");
   localStorage.removeItem("userId");
   localStorage.removeItem("userid");
   localStorage.removeItem("username");

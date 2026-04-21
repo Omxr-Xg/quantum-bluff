@@ -1,4 +1,4 @@
-import { Eye, Bell, X, Palette, Volume2, ChevronDown, Sparkles, Music2, Waves } from "lucide-react";
+import { Eye, Bell, X, Palette, Volume2, ChevronDown, Sparkles, Music2, Waves, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAccessibility } from "../contexts/AccessibilityContext";
@@ -16,6 +16,7 @@ interface SettingsMenuProps {
   isOpen: boolean;
   onClose: () => void;
   initialTab?: SettingsTab;
+  onRateGame?: () => void;
 }
 
 const THEME_IDS: TableThemeId[] = [
@@ -29,6 +30,7 @@ export function SettingsMenu({
   isOpen,
   onClose,
   initialTab = "aesthetic",
+  onRateGame,
 }: SettingsMenuProps) {
   const { t } = useTranslation();
   const {
@@ -388,6 +390,23 @@ export function SettingsMenu({
             </>
           )}
         </div>
+
+        {onRateGame && (
+          <div className="border-t border-slate-700/80 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => {
+                playSfx("uiClick");
+                onRateGame();
+                close();
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/50 bg-amber-950/40 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-900/50"
+            >
+              <Star className="h-5 w-5 shrink-0 fill-amber-400 text-amber-300" aria-hidden />
+              {t("settings.rateGameCta")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

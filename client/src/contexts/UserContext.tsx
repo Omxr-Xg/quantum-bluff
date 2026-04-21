@@ -4,6 +4,8 @@ interface UserContextType {
   userId: string | null;
   username: string | null;
   chips: number;
+  /** Jeton console admin (login /auth/admin). */
+  isAdmin: boolean;
   setChips: (value: number) => void;
   addChips: (amount: number) => void;
 }
@@ -16,12 +18,14 @@ function readFromStorage() {
   return {
     userId: rawUserId && rawUserId !== "undefined" && rawUserId !== "null" ? rawUserId : null,
     username: rawUsername && rawUsername !== "undefined" && rawUsername !== "null" ? rawUsername : null,
+    isAdmin: localStorage.getItem("role") === "admin",
   };
 }
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [userId, setUserId] = useState<string | null>(() => readFromStorage().userId);
   const [username, setUsername] = useState<string | null>(() => readFromStorage().username);
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => readFromStorage().isAdmin);
   const [chips, setChips] = useState<number>(() => {
     const stored = localStorage.getItem("chips");
     return stored ? Number(stored) : 1000;
@@ -29,9 +33,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const handleAuthChanged = () => {
-      const { userId: newUserId, username: newUsername } = readFromStorage();
+      const { userId: newUserId, username: newUsername, isAdmin: nextAdmin } = readFromStorage();
       setUserId(newUserId);
       setUsername(newUsername);
+      setIsAdmin(nextAdmin);
     };
     window.addEventListener("auth-changed", handleAuthChanged);
     return () => window.removeEventListener("auth-changed", handleAuthChanged);
@@ -46,7 +51,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <UserContext.Provider value={{ userId, username, chips, setChips, addChips }}>
+    <UserContext.Provider value={{ userId, username, chips, isAdmin, setChips, addChips }}>
       {children}
     </UserContext.Provider>
   );

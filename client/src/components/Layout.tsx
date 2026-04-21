@@ -16,6 +16,8 @@ import { ChipIcon } from "./ChipIcon";
 import { TopBarProvider } from "../contexts/TopBarContext";
 import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
 import { SettingsMenu } from "./SettingsMenu";
+import { RateGameModal } from "./RateGameModal";
+import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
@@ -30,7 +32,7 @@ export function Layout({ children }: LayoutProps) {
   const { t } = useTranslation();
   const { socket, isConnected, connect } = useSocket();
   const { toasts, removeToast } = useToast();
-  const { unlockAudio, playSfx } = useAudio();
+  const { unlockAudio, playSfx, stopBgm } = useAudio();
   const [notification, setNotification] = useState<{
     id: number;
     message: string;
@@ -44,6 +46,7 @@ export function Layout({ children }: LayoutProps) {
   const [addSuccess, setAddSuccess] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showRateGame, setShowRateGame] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("aesthetic");
   const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MENU_CLOSE_DELAY = 500;
@@ -59,6 +62,12 @@ export function Layout({ children }: LayoutProps) {
     });
     return () => registerOpener(null);
   }, [registerOpener]);
+
+  useEffect(() => {
+    const openRate = () => setShowRateGame(true);
+    window.addEventListener(OPEN_RATE_GAME_EVENT, openRate);
+    return () => window.removeEventListener(OPEN_RATE_GAME_EVENT, openRate);
+  }, []);
 
   useEffect(() => {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
@@ -224,6 +233,14 @@ export function Layout({ children }: LayoutProps) {
   const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
   const isWaitingRoomPage = location.pathname === "/waiting-room";
   const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
+  const isAdminShell =
+    location.pathname === "/auth/admin" || location.pathname.startsWith("/admin/");
+
+  useEffect(() => {
+    if (isAdminShell) {
+      stopBgm();
+    }
+  }, [isAdminShell, stopBgm]);
   const showTopBar = !isAuthPage && localStorage.getItem("token");
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
@@ -251,6 +268,25 @@ export function Layout({ children }: LayoutProps) {
    */
   const topBarPaddingForHamburger =
     showTopBar && !showLobbyIntegratedBar && showHamburgerMenu && !isGamePage && !isWaitingRoomPage;
+
+  if (isAdminShell) {
+    return (
+      <div className="min-h-screen w-full bg-slate-900 text-white">
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <Toast
+              key={toast.id}
+              message={toast.message}
+              type={toast.type}
+              onClose={() => removeToast(toast.id)}
+              onClick={toast.onClick}
+            />
+          ))}
+        </AnimatePresence>
+        {children}
+      </div>
+    );
+  }
 
   const menuContent = (
     <>
@@ -412,7 +448,10 @@ export function Layout({ children }: LayoutProps) {
         isOpen={showSettingsMenu}
         onClose={() => setShowSettingsMenu(false)}
         initialTab={settingsInitialTab}
+        onRateGame={() => setShowRateGame(true)}
       />
+
+      <RateGameModal open={showRateGame} onClose={() => setShowRateGame(false)} />
 
       {/* Modal Ajouter des jetons */}
       {showTopBar && showAddMoney && (

@@ -1,16 +1,18 @@
 import express from 'express'
 import bcrypt from 'bcryptjs'
 import sanitizeHtml from 'sanitize-html'
+import { z } from 'zod'
 import { prisma } from '../config/database.js'
+import { env } from '../config/env.js'
 import { registerSchema, loginSchema, resetPasswordSchema } from '../validation/auth.validation.js'
 import { normalizeSecretAnswer } from '../utils/secretAnswer.js'
 import rateLimit from 'express-rate-limit'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
-import { addToBlacklist } from '../auth/tokenBlacklist.js'
+import { addToBlacklist, isBlacklisted } from '../auth/tokenBlacklist.js'
 import { verifyTotpToken } from '../auth/totp.service.js'
 import { getGamificationBundle } from '../logic/gamification.js'
-import { generateToken } from '../auth/jwt.service.js'
+import { extractBearerToken, generateToken, verifyToken } from '../auth/jwt.service.js'
 
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -171,7 +173,8 @@ router.post('/register', registerLimiter, async (req, res) => {
         maxBetRouletteLine: g?.maxBetRouletteLine,
         maxRouletteTotalStake: g?.maxRouletteTotalStake,
         maxBetBlackjack: g?.maxBetBlackjack,
-        playerStats: playerStats ?? null
+        playerStats: playerStats ?? null,
+        lobbyTutorialCompleted: user.lobbyTutorialCompletedAt != null,
       }
     })
 
@@ -305,7 +308,8 @@ router.post('/login', loginLimiter, async (req, res) => {
         maxBetRouletteLine: g?.maxBetRouletteLine,
         maxRouletteTotalStake: g?.maxRouletteTotalStake,
         maxBetBlackjack: g?.maxBetBlackjack,
-        playerStats: user.playerStats
+        playerStats: user.playerStats,
+        lobbyTutorialCompleted: user.lobbyTutorialCompletedAt != null,
       }
     })
 
@@ -317,6 +321,39 @@ router.post('/login', loginLimiter, async (req, res) => {
     res.status(500).json({ error: message })
   }
 
+})
+
+/** État du tutoriel lobby (par compte, stocké en base). */
+router.get('/lobby-tutorial-status', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { lobbyTutorialCompletedAt: true },
+    })
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    return res.json({ completed: user.lobbyTutorialCompletedAt != null })
+  } catch (error) {
+    console.error('[AUTH] lobby-tutorial-status error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/** Marque le tutoriel lobby comme vu (terminer ou ignorer). Idempotent. */
+router.post('/lobby-tutorial/complete', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lobbyTutorialCompletedAt: new Date() },
+    })
+    return res.json({ ok: true })
+  } catch (error) {
+    console.error('[AUTH] lobby-tutorial/complete error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
 })
 
 // GET /api/auth/gamification — XP, niveau, badges, plafonds slot/roulette
@@ -381,17 +418,57 @@ router.post('/sync-balance', authMiddleware, async (_req, res) => {
   res.status(410).json({ error: 'Endpoint désactivé pour sécurité. Utilisez GET /api/auth/balance.' })
 })
 
-// POST /api/auth/logout - Invalide le token côté serveur (blacklist)
-router.post('/logout', authMiddleware, async (req, res) => {
-  const authHeader = req.headers.authorization
-  if (!authHeader) return res.status(401).json({ error: 'Token manquant' })
-  const token = authHeader.split(' ')[1]
+/** Connexion « console admin » web : identifiants dans ADMIN_CONSOLE_* (hash bcrypt). */
+const adminConsoleLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+const adminConsoleLoginSchema = z.object({
+  username: z.string().min(1).max(128),
+  password: z.string().min(1).max(256),
+})
+
+router.post('/admin/login', adminConsoleLoginLimiter, async (req, res) => {
+  if (!env.adminConsoleUsername || !env.adminConsolePasswordHash) {
+    return res.status(503).json({ error: 'Console administrateur non configurée.' })
+  }
+  const parsed = adminConsoleLoginSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Requête invalide' })
+  }
+  const { username, password } = parsed.data
+  const passwordOk = await bcrypt.compare(password, env.adminConsolePasswordHash)
+  if (username !== env.adminConsoleUsername || !passwordOk) {
+    return res.status(401).json({ error: 'Identifiants invalides' })
+  }
+  const token = generateToken({ userId: env.adminConsoleJwtUserId, role: 'admin' })
+  return res.json({
+    token,
+    user: {
+      id: env.adminConsoleJwtUserId,
+      username: 'admin',
+      role: 'admin' as const,
+    },
+  })
+})
+
+// POST /api/auth/logout - Invalide le token (joueur ou console admin)
+router.post('/logout', async (req, res) => {
+  const token = extractBearerToken(req.headers.authorization)
   if (!token) return res.status(401).json({ error: 'Token manquant' })
   try {
+    const blacklisted = await isBlacklisted(token)
+    if (blacklisted) {
+      return res.status(401).json({ error: 'Token révoqué' })
+    }
+    verifyToken(token)
     await addToBlacklist(token)
     res.json({ ok: true })
   } catch {
-    res.status(500).json({ error: 'Erreur serveur' })
+    res.status(401).json({ error: 'Token invalide' })
   }
 })
 

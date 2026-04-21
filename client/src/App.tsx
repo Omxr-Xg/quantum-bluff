@@ -31,6 +31,9 @@ import { NetworkOverlay } from "./components/NetworkOverlay";
 import { MiniGames } from './pages/MiniGames';
 import { TournamentLobby } from './pages/TournamentLobby';
 import { AdminTournaments } from './pages/AdminTournaments';
+import { AdminAuth } from "./pages/AdminAuth";
+import { AdminConsole } from "./pages/AdminConsole";
+import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 
 import { socket } from './services/socket';
 import { useUser } from './hooks/useUser';
@@ -206,6 +209,9 @@ function App() {
           <Routes>
             <Route path="/" element={<StartScreen />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/admin" element={<AdminAuth />} />
+
+            <Route path="/admin/console" element={<AdminProtectedRoute><AdminConsole /></AdminProtectedRoute>} />
 
             <Route path="/lobby" element={<ProtectedRoute><Lobby /></ProtectedRoute>} />
             <Route path="/bot-configuration" element={<ProtectedRoute><BotConfiguration /></ProtectedRoute>} />

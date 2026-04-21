@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -112,6 +113,7 @@ export function Auth() {
 
       // ✅ STOCKAGE
       localStorage.removeItem("userid");
+      localStorage.removeItem("role");
       localStorage.setItem("token", token);
       localStorage.setItem("userId", String(response.user.id));
       localStorage.setItem("username", response.user.username);
@@ -153,6 +155,7 @@ export function Auth() {
         secretAnswer: secretAnswer.trim(),
       }).unwrap();
       localStorage.removeItem("userid");
+      localStorage.removeItem("role");
       localStorage.setItem("token", response.token);
       localStorage.setItem("userId", String(response.user.id));
       localStorage.setItem("username", response.user.username);
@@ -394,6 +397,14 @@ export function Auth() {
                   <span>{t("auth.continue")}</span>
                 )}
               </button>
+              <p className="text-center text-sm text-gray-500 pt-2">
+                <Link
+                  to="/auth/admin"
+                  className="text-amber-400/90 hover:text-amber-300 underline underline-offset-2"
+                >
+                  {t("adminConsole.loginTitle")}
+                </Link>
+              </p>
             </form>
           )}
 

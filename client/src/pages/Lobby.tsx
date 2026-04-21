@@ -29,6 +29,7 @@ import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
 import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
+import { OPEN_RATE_GAME_EVENT, STORAGE_RATE_GAME_PROMPT_SHOWN } from "../constants/storageKeys";
 import { apiUrl } from "../utils/apiBase";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 import { DailyChallenges } from "../components/DailyChallenges";
@@ -106,6 +107,11 @@ export function Lobby() {
   const [gamesLoading, setGamesLoading] = useState(true);
   const [lobbyTourOpen, setLobbyTourOpen] = useState(false);
   const [lobbyTourStep, setLobbyTourStep] = useState(0);
+  const lobbyTourOpenRef = useRef(false);
+  /** `yes` = première connexion au compte : le tuto n’est pas encore enregistré côté serveur. */
+  const [lobbyTutorialFirstRun, setLobbyTutorialFirstRun] = useState<"loading" | "yes" | "no">(
+    "loading"
+  );
   const [lobbyMainTab, setLobbyMainTabState] = useState<"poker" | "minigames" | "blackjack">(readLobbyTabFromUrl);
   const { addToast } = useToast();
 
@@ -142,6 +148,71 @@ export function Lobby() {
     },
     [setSearchParams]
   );
+
+  useEffect(() => {
+    lobbyTourOpenRef.current = lobbyTourOpen;
+  }, [lobbyTourOpen]);
+
+  /** État du tuto : une fois par compte (champ serveur), pas par navigateur. */
+  useEffect(() => {
+    if (!userId) {
+      setLobbyTutorialFirstRun("no");
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(apiUrl("/api/auth/lobby-tutorial-status"), {
+          headers: authHeaders(),
+        });
+        const data = (await res.json().catch(() => ({}))) as { completed?: boolean };
+        if (cancelled) return;
+        if (!res.ok) {
+          setLobbyTutorialFirstRun("no");
+          return;
+        }
+        setLobbyTutorialFirstRun(data.completed === true ? "no" : "yes");
+      } catch {
+        if (!cancelled) setLobbyTutorialFirstRun("no");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, authHeaders]);
+
+  /** Première connexion au compte après inscription : lance le tutoriel une seule fois. */
+  useEffect(() => {
+    if (lobbyTutorialFirstRun !== "yes") return;
+    const id = window.setTimeout(() => {
+      if (lobbyTourOpenRef.current) return;
+      setMainTab("poker");
+      setLobbyTourStep(0);
+      setLobbyTourOpen(true);
+    }, 450);
+    return () => clearTimeout(id);
+  }, [lobbyTutorialFirstRun, setMainTab]);
+
+  const handleLobbyTourClose = useCallback(async () => {
+    try {
+      await fetch(apiUrl("/api/auth/lobby-tutorial/complete"), {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      setLobbyTutorialFirstRun("no");
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (!localStorage.getItem(STORAGE_RATE_GAME_PROMPT_SHOWN)) {
+        localStorage.setItem(STORAGE_RATE_GAME_PROMPT_SHOWN, "1");
+        window.dispatchEvent(new CustomEvent(OPEN_RATE_GAME_EVENT));
+      }
+    } catch {
+      /* ignore */
+    }
+    setLobbyTourOpen(false);
+  }, [authHeaders]);
 
   const tourRefHeader = useRef<HTMLDivElement>(null);
   const tourRefTopBar = useRef<HTMLDivElement>(null);
@@ -980,7 +1051,7 @@ export function Lobby() {
       <button
         type="button"
         onClick={() => {
-          if (lobbyTourOpen) setLobbyTourOpen(false);
+          if (lobbyTourOpen) handleLobbyTourClose();
           else {
             setMainTab("poker");
             setLobbyTourStep(0);
@@ -996,7 +1067,7 @@ export function Lobby() {
 
       <LobbyInteractiveTour
         open={lobbyTourOpen}
-        onClose={() => setLobbyTourOpen(false)}
+        onClose={handleLobbyTourClose}
         step={lobbyTourStep}
         onStepChange={setLobbyTourStep}
         refs={lobbyTourRefs}

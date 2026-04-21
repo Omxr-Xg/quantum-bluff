@@ -14,5 +14,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
   }
 
+  if (localStorage.getItem("role") === "admin") {
+    return <Navigate to="/admin/console" replace />;
+  }
+
   return <>{children}</>;
 }

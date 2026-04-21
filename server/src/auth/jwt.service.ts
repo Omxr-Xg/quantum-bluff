@@ -12,6 +12,8 @@ export interface AccessTokenPayload extends JwtPayload {
   userId: string
   type: 'access'
   sub: string
+  /** Présent uniquement pour le jeton « console admin » (login dédié). */
+  role?: 'admin'
 }
 
 function assertAccessTokenPayload(decoded: string | JwtPayload): asserts decoded is AccessTokenPayload {
@@ -29,6 +31,10 @@ function assertAccessTokenPayload(decoded: string | JwtPayload): asserts decoded
 
   if (typeof decoded.sub !== 'string' || decoded.sub !== decoded.userId) {
     throw new Error('Invalid token subject')
+  }
+
+  if (decoded.role !== undefined && decoded.role !== 'admin') {
+    throw new Error('Invalid token role')
   }
 }
 
@@ -68,11 +74,12 @@ const verifyOptions: VerifyOptions = {
   audience: env.jwtAudience,
 }
 
-export function generateToken(payload: { userId: string }): string {
+export function generateToken(payload: { userId: string; role?: 'admin' }): string {
   return jwt.sign(
     {
       userId: payload.userId,
       type: 'access',
+      ...(payload.role === 'admin' ? { role: 'admin' as const } : {}),
     },
     env.jwtSecret,
     {

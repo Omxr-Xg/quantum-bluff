@@ -180,6 +180,25 @@ if (adminApiToken && adminApiToken.length < 16) {
   throw new Error('ADMIN_API_TOKEN must be at least 16 characters long')
 }
 
+/** Console web admin (JWT dédié) : identifiant + hash bcrypt du mot de passe. Les deux ou aucun. */
+const adminConsoleUsername = getOptionalEnv('ADMIN_CONSOLE_USERNAME')
+const adminConsolePasswordHash = getOptionalEnv('ADMIN_CONSOLE_PASSWORD_HASH')
+const adminConsoleJwtUserId =
+  getOptionalEnv('ADMIN_CONSOLE_JWT_USER_ID') ?? '00000000-0000-4000-8000-000000000001'
+
+if (
+  (adminConsoleUsername && !adminConsolePasswordHash) ||
+  (!adminConsoleUsername && adminConsolePasswordHash)
+) {
+  throw new Error(
+    'ADMIN_CONSOLE_USERNAME and ADMIN_CONSOLE_PASSWORD_HASH must both be set, or both omitted (admin web console disabled).'
+  )
+}
+
+if (adminConsolePasswordHash && adminConsolePasswordHash.length < 20) {
+  throw new Error('ADMIN_CONSOLE_PASSWORD_HASH is too short or invalid')
+}
+
 export const env = {
   nodeEnv,
   isDevelopment,
@@ -202,5 +221,8 @@ export const env = {
   corsOrigins,
   metricsBearerToken: getOptionalEnv('METRICS_BEARER_TOKEN'),
   adminApiToken,
-enableAdminRouletteOverride: parseBooleanEnv('ENABLE_ADMIN_ROULETTE_OVERRIDE', false),
+  adminConsoleUsername,
+  adminConsolePasswordHash,
+  adminConsoleJwtUserId,
+  enableAdminRouletteOverride: parseBooleanEnv('ENABLE_ADMIN_ROULETTE_OVERRIDE', false),
 } as const

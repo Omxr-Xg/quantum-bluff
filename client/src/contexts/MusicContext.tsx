@@ -53,6 +53,14 @@ const DEFAULT_SFX_VOLUME = 0.55;
 
 const clampVolume = (value: number) => Math.max(0, Math.min(1, value));
 
+/** Routes console / login admin : pas de musique de fond (même après unlock audio). */
+function isAdminRoutePath(): boolean {
+  const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
+  const full = window.location.pathname;
+  const path = base && full.startsWith(base) ? full.slice(base.length) || '/' : full;
+  return path === '/auth/admin' || path.startsWith('/admin/');
+}
+
 const readStoredBoolean = (key: string, fallback: boolean) => {
   const value = localStorage.getItem(key);
   if (value === 'true') return true;
@@ -148,6 +156,7 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const startBgm = useCallback(() => {
+    if (isAdminRoutePath()) return;
     const bgm = bgmAudioRef.current;
     if (!bgm || !bgmEnabledRef.current) return;
     if (!bgm.paused) {
@@ -238,6 +247,7 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
 
   const unlockAudio = useCallback(() => {
     getWebAudioContext()?.resume().catch(() => {});
+    if (isAdminRoutePath()) return;
     if (bgmEnabledRef.current) startBgm();
   }, [getWebAudioContext, startBgm]);
 

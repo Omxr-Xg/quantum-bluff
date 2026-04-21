@@ -31,6 +31,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     }
 
     const decoded = verifyToken(token)
+
+    if (decoded.role === 'admin') {
+      debugAuth('rejected: admin token on user route')
+      return res.status(403).json({
+        error: 'Ce jeton est réservé à la console administrateur.',
+      })
+    }
+
     debugAuth('ok', { userId: decoded.userId })
     req.userId = decoded.userId
 

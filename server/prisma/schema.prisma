@@ -39,6 +39,8 @@ model User {
   lastIp            String?   // Dernière IP connue pour détecter les multi-comptes
   antiCheatAlerts   Int       @default(0) // Compteur d'alertes (bot, spam...)
   bannedUntil       DateTime? // Si défini et dans le futur, le compte est bloqué
+  /// Tutoriel interactif du lobby terminé ou ignoré (une fois par compte).
+  lobbyTutorialCompletedAt DateTime?
 
   stats             UserStats?
   histories         GameHistory[] @relation("WinnerHistory")
@@ -87,6 +89,8 @@ model User {
   sentBlackjackInvitations     BlackjackRoomInvitation[] @relation("BjRoomInviteSender")
   receivedBlackjackInvitations BlackjackRoomInvitation[] @relation("BjRoomInviteReceiver")
 
+  gameRatings GameRating[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -95,6 +99,19 @@ model User {
   @@index([createdAt])
   @@index([chips])
   @@index([experience])
+}
+
+/// Avis joueur (étoiles + commentaire optionnel), collecté depuis le client.
+model GameRating {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stars     Int
+  message   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model UserStats {
