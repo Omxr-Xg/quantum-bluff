@@ -41,6 +41,8 @@ model User {
   bannedUntil       DateTime? // Si défini et dans le futur, le compte est bloqué
   /// Tutoriel interactif du lobby terminé ou ignoré (une fois par compte).
   lobbyTutorialCompletedAt DateTime?
+  /// URL d’avatar profil (même validation que RoomPlayer.avatarUrl), partagée avec la liste d’amis.
+  avatarUrl         String?
 
   stats             UserStats?
   histories         GameHistory[] @relation("WinnerHistory")
@@ -91,6 +93,9 @@ model User {
 
   gameRatings GameRating[]
 
+  playerReportsSent     PlayerReport[] @relation("PlayerReportsSent")
+  playerReportsReceived PlayerReport[] @relation("PlayerReportsReceived")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -112,6 +117,34 @@ model GameRating {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+/// Signalement en partie (langage, triche, etc.) — consultable par la console admin.
+enum PlayerReportReason {
+  INAPPROPRIATE_LANGUAGE
+  CHEATING
+  HARASSMENT
+  SPAM
+  OTHER
+}
+
+model PlayerReport {
+  id               String             @id @default(uuid())
+  reporterId     String
+  reportedUserId   String
+  gameId           String?
+  reason           PlayerReportReason
+  detail           String?
+  createdAt        DateTime           @default(now())
+  reviewedAt       DateTime?
+
+  reporter User @relation("PlayerReportsSent", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User @relation("PlayerReportsReceived", fields: [reportedUserId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([reviewedAt])
+  @@index([reportedUserId])
+  @@map("player_reports")
 }
 
 model UserStats {
