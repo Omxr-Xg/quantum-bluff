@@ -297,8 +297,8 @@ export function Friends() {
   };
 
   return (
-    <div className="size-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
-      <div className="mx-auto max-w-6xl p-3 sm:p-6">
+    <div className="size-full app-shell-bg overflow-auto">
+      <div className="w-full min-w-0 p-3 sm:p-6">
         {/* En-tête — même structure que Profile */}
         <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:mb-8 sm:flex-row sm:items-center">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">

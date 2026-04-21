@@ -747,7 +747,7 @@ export function HiddenBetsPanel({
         onClick={() => setPricingInfo(null)}
       >
         <div
-          className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border-2 border-yellow-500 shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+          className="app-shell-bg rounded-2xl border-2 border-yellow-500 shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-4 border-b border-slate-700 flex items-center justify-between gap-3">

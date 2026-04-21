@@ -296,7 +296,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
             >
               {canRaise && raisePopoverOpen && (
                 <div
-                  className="absolute bottom-full right-0 mb-2 z-50 w-[220px] md:w-[240px] p-2.5 rounded-lg bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-[rgb(7,221,0)] shadow-[0_0_12px_2px_rgba(7,221,0,0.5)] origin-bottom-right"
+                  className="absolute bottom-full right-0 mb-2 z-50 w-[220px] md:w-[240px] p-2.5 rounded-lg app-shell-bg border-2 border-[rgb(7,221,0)] shadow-[0_0_12px_2px_rgba(7,221,0,0.5)] origin-bottom-right"
                   onMouseEnter={handleRaiseMouseEnter}
                   onMouseLeave={handleRaiseMouseLeave}
                 >

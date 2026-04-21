@@ -51,7 +51,7 @@ export function StartScreen() {
       {/* Background sophistiqué */}
       <div className="absolute inset-0">
         {/* Gradient de base */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"></div>
+        <div className="absolute inset-0 app-shell-bg"></div>
         
         {/* Motif géométrique subtil - VIOLET NÉON */}
         <div 

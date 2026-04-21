@@ -354,7 +354,7 @@ export function AdminConsole() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-8">
+      <div className="w-full min-w-0 px-4 py-6 md:px-8">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-700/80 pb-6">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/15 ring-1 ring-amber-500/30">

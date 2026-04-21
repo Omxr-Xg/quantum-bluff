@@ -85,7 +85,7 @@ export function TournamentLobby() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="w-full min-w-0 p-4 sm:p-6">
       {/* Header */}
       <div className="flex justify-between items-start mb-10">
 

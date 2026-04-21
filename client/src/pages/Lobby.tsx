@@ -476,7 +476,7 @@ export function Lobby() {
         />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto">
+      <div className="relative z-10 w-full min-w-0">
 
         {/* HEADER - FIX MOBILE (sm breakpoint) */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-10 w-full overflow-visible">

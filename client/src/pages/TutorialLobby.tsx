@@ -91,7 +91,7 @@ export function TutorialLobby() {
   };
 
   return (
-    <div className="size-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 sm:p-8 overflow-y-auto relative">
+    <div className="size-full app-shell-bg p-4 sm:p-8 overflow-y-auto relative">
       {/* Fenêtre de dialogue */}
       <div className={`fixed ${getDialogPosition()} z-[70] max-w-md animate-bounce-in`}>
         <div className="bg-gradient-to-br from-blue-900 to-blue-950 rounded-2xl border-4 border-blue-400 shadow-2xl p-6 relative">
@@ -138,7 +138,7 @@ export function TutorialLobby() {
       </div>
 
       {/* Contenu du lobby (version simplifiée pour le tutoriel) */}
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="relative z-10 w-full min-w-0">
         <div className="flex flex-col gap-4 mb-8">
           {/* Ligne 1: Logo et titre + Navigation */}
           <div className="flex items-start justify-between gap-4">

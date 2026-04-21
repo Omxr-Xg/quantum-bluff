@@ -96,8 +96,8 @@ export function EditProfile() {
   };
 
   return (
-    <div className="size-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
-      <div className="max-w-4xl mx-auto p-6">
+    <div className="size-full app-shell-bg overflow-auto">
+      <div className="w-full min-w-0 p-4 sm:p-6">
         <div className="flex items-center justify-between mb-8">
           <button
             onClick={() => navigate("/profile")}

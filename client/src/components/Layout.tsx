@@ -250,6 +250,7 @@ export function Layout({ children }: LayoutProps) {
   const showTopBar = !isAuthPage && localStorage.getItem("token");
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
+  const isBotConfigPage = path.includes("bot-configuration");
   const isCasinoFullBleed =
     path === "/minigames" ||
     path === "/blackjack" ||
@@ -271,9 +272,15 @@ export function Layout({ children }: LayoutProps) {
   /**
    * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
    * et seul un bouton paramètres est en coin ; éviter la « barre » vide / décalage en haut.
+   * Pas sur /bot-configuration : le menu est en coin droit, la page gère son propre espacement.
    */
   const topBarPaddingForHamburger =
-    showTopBar && !showLobbyIntegratedBar && showHamburgerMenu && !isGamePage && !isWaitingRoomPage;
+    showTopBar &&
+    !showLobbyIntegratedBar &&
+    showHamburgerMenu &&
+    !isGamePage &&
+    !isWaitingRoomPage &&
+    !isBotConfigPage;
 
   if (isAdminShell) {
     return (
@@ -566,9 +573,9 @@ export function Layout({ children }: LayoutProps) {
       <InvitationBanner />
 
       <div
-        className={`w-full ${
+        className={`w-full min-w-0 overflow-x-hidden ${
           isCasinoFullBleed
-            ? "flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden pt-0"
+            ? "flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden pt-0 [&>*:last-child]:flex [&>*:last-child]:min-h-0 [&>*:last-child]:flex-1 [&>*:last-child]:flex-col"
             : `min-h-screen ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`
         }`}
       >

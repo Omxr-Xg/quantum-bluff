@@ -41,8 +41,8 @@ export function HiddenBetsResult() {
   }, []);
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border-4 border-yellow-500">
+    <div className="w-full min-h-screen app-shell-bg flex items-center justify-center p-4">
+      <div className="app-shell-bg rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border-4 border-yellow-500">
         <div className="bg-gradient-to-r from-yellow-600 to-yellow-500 p-6 relative">
           <button
             type="button"

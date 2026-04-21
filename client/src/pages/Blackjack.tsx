@@ -72,7 +72,7 @@ export function Blackjack() {
   }, [navigate, t, addToast]);
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col items-center justify-center overflow-hidden app-shell-bg p-6">
       <BlackjackLobbyBackdrop />
       <div className="relative z-10 flex flex-col items-center gap-4 text-center">
         {!error ? (

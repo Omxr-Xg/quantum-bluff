@@ -426,7 +426,7 @@ export function BlackjackMultiTable() {
 
   if (loading || !state) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="relative flex h-full min-h-0 flex-1 flex-col items-center justify-center overflow-hidden app-shell-bg">
         <BlackjackLobbyBackdrop />
         <RuntimeBanner message={runtimeBanner} severity={runtimeSeverity} onRetry={loadState} />
         <Loader2 className="relative z-10 h-10 w-10 animate-spin text-amber-400" />
@@ -437,13 +437,13 @@ export function BlackjackMultiTable() {
   const btnBase = "rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wide shadow-lg transition disabled:cursor-not-allowed disabled:opacity-45 sm:px-8 sm:text-base";
 
   return (
-    <div className="relative w-full min-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pb-10">
+    <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden app-shell-bg">
       <BlackjackLobbyBackdrop />
-      
-      <div className="relative z-10 mx-auto max-w-6xl px-4 pt-5 sm:pt-6">
+
+      <div className="relative z-10 w-full min-w-0 shrink-0 px-4 pt-4 sm:pt-5">
         <RuntimeBanner message={runtimeBanner} severity={runtimeSeverity} onRetry={loadState} className="mb-4" />
-        
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 sm:mb-4">
           <button
             type="button"
             onClick={() => navigate("/lobby?tab=blackjack")}
@@ -452,7 +452,7 @@ export function BlackjackMultiTable() {
             <ArrowLeft className="h-4 w-4" />
             {t("bjMulti.backToLobby")}
           </button>
-          
+
           <div className="flex flex-wrap items-center gap-2">
             {isSpectator && (
               <span className="rounded-full border border-amber-500/50 bg-amber-950/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-200 shadow-inner">
@@ -463,6 +463,7 @@ export function BlackjackMultiTable() {
         </div>
       </div>
 
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-0 sm:px-4">
       <BlackjackMultiCasinoTable
         state={state}
         userId={userId ?? null}
@@ -542,6 +543,7 @@ export function BlackjackMultiTable() {
           <p className="text-center text-sm text-amber-200/60">{t("bjMulti.spectatorHint")}</p>
         )}
       </BlackjackMultiCasinoTable>
+      </div>
 
       {showdownPhase === "table_reveal" && (
         <div className="pointer-events-none fixed bottom-6 left-1/2 z-[90] max-w-md -translate-x-1/2 rounded-full border border-amber-500/40 bg-black/75 px-6 py-3 text-center text-sm font-semibold text-amber-100 shadow-lg backdrop-blur-sm">

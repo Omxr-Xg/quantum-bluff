@@ -38,7 +38,7 @@ export function MiniGames() {
   }
 
   return (
-    <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden app-shell-bg">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
         <div className="absolute -top-28 left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-purple-600/18 blur-[100px]" />
         <div className="absolute -left-20 top-1/3 h-64 w-64 rounded-full bg-cyan-500/8 blur-[85px]" />
@@ -78,7 +78,7 @@ export function MiniGames() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
-              className="mx-auto w-full min-w-0 max-w-6xl"
+              className="mx-auto w-full min-w-0"
             >
               <SlotMachine />
             </motion.div>

@@ -48,7 +48,7 @@ export function HiddenBetsResultsModal({
       onClick={onClose}
     >
       <div
-        className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border-4 border-yellow-500"
+        className="app-shell-bg rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border-4 border-yellow-500"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

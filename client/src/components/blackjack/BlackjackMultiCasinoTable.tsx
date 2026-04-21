@@ -187,18 +187,22 @@ export function BlackjackMultiCasinoTable({
           newScale = 1;
         }
 
-        const supportsZoom =
-          typeof document !== "undefined" &&
-          (document.body.style as CSSStyleDeclaration & { zoom?: string }).zoom !==
-            undefined;
-        
-        if (supportsZoom) {
+        /** Chrome : zoom réduit la boîte ; Safari/WebKit : transform:scale() ne la réduit pas → débordement. */
+        const zoomSupported = (() => {
+          if (typeof document === "undefined") return false;
+          try {
+            const el = document.createElement("div");
+            el.style.setProperty("zoom", "0.5");
+            return el.style.zoom === "0.5";
+          } catch {
+            return false;
+          }
+        })();
+
+        if (zoomSupported) {
           setContainerStyle({ zoom: newScale });
         } else {
-          setContainerStyle({
-            transform: `scale(${newScale})`,
-            transformOrigin: "top center",
-          });
+          setContainerStyle({});
         }
       }, 100);
     };
@@ -222,7 +226,7 @@ export function BlackjackMultiCasinoTable({
   return (
     <div className="relative w-full overflow-x-hidden">
       <div 
-        className="mx-auto w-full max-w-6xl px-3 pb-6 sm:px-4"
+        className="mx-auto w-full min-w-0 px-3 pb-6 sm:px-4"
         style={containerStyle}
       >
         <div
@@ -233,7 +237,7 @@ export function BlackjackMultiCasinoTable({
           }}
         >
           <div
-            className="relative min-h-[60vh] overflow-hidden rounded-[1.35rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_100px_rgba(0,0,0,0.35)] sm:min-h-[70vh] lg:min-h-[640px] sm:rounded-[1.75rem]"
+            className="relative min-h-[min(14rem,42dvh)] overflow-hidden rounded-[1.35rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_100px_rgba(0,0,0,0.35)] sm:min-h-[min(18rem,48dvh)] lg:min-h-[min(24rem,52dvh)] sm:rounded-[1.75rem]"
             style={{
               background: `
                 radial-gradient(ellipse 120% 80% at 50% 25%, rgba(255,255,255,0.07) 0%, transparent 52%),
@@ -340,7 +344,7 @@ export function BlackjackMultiCasinoTable({
               </div>
             </div>
 
-            <div className="relative z-10 mx-auto mt-6 flex max-w-5xl flex-wrap md:flex-nowrap overflow-x-auto md:overflow-visible items-end justify-center gap-2 px-2 pb-4 sm:mt-10 sm:gap-4 sm:px-4 scroll-smooth snap-x snap-mandatory scrollbar-hide">
+            <div className="relative z-10 mx-auto mt-6 flex w-full min-w-0 max-w-full flex-wrap md:flex-nowrap overflow-x-auto md:overflow-visible items-end justify-center gap-2 px-2 pb-4 sm:mt-10 sm:gap-4 sm:px-4 scroll-smooth snap-x snap-mandatory scrollbar-hide">
               {sortedSeats.map((s, idx) => {
                 const isYou = s.userId === userId;
                 const seatAvatar = getPlayerAvatar(s.username, s.userId, userId, s.avatarUrl);

@@ -221,7 +221,7 @@ export function Leaderboard() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(180,140,40,0.07),transparent_55%)]" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl">
+      <div className="relative z-10 w-full min-w-0">
         <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:mb-8 sm:flex-row sm:items-center">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button

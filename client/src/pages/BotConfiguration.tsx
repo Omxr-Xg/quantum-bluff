@@ -41,10 +41,10 @@ export function BotConfiguration() {
   };
 
   return (
-    <div className="size-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
-      <div className="max-w-5xl mx-auto px-8 py-16">
+    <div className="size-full app-shell-bg overflow-auto">
+      <div className="w-full min-w-0 px-4 pb-12 pt-4 sm:px-8 sm:pb-16 sm:pt-5 lg:px-12">
         {/* Header */}
-        <div className="flex items-center justify-between mb-16">
+        <div className="mb-8 flex items-center justify-between sm:mb-10">
           <button
             onClick={() => navigate("/lobby")}
             className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl font-semibold transition-all"
@@ -55,7 +55,7 @@ export function BotConfiguration() {
         </div>
 
         {/* Titre */}
-        <div className="flex items-center gap-4 mb-16">
+        <div className="mb-10 flex items-center gap-4 sm:mb-12">
           <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center shadow-xl">
             <Bot className="w-8 h-8 text-white" />
           </div>

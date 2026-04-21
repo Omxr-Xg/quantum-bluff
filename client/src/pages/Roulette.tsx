@@ -932,7 +932,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden app-shell-bg text-slate-100">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
         <div className="absolute -top-24 left-1/2 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-purple-600/14 blur-[95px]" />
         <div className="absolute -right-20 top-1/4 h-72 w-72 rounded-full bg-cyan-500/8 blur-[80px]" />
@@ -978,7 +978,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
           {t("roulette.subtitle")}
         </p>
 
-        <div className="mx-auto grid max-w-5xl grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+        <div className="mx-auto grid w-full min-w-0 max-w-full grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
           <div
             ref={wheelSectionRef}
             className="flex flex-col items-center rounded-2xl border border-slate-600/80 bg-slate-800/40 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] scroll-mt-3 md:scroll-mt-4"

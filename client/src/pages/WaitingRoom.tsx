@@ -392,7 +392,7 @@ export function WaitingRoom() {
 
   if (roomLoading && !roomName) {
     return (
-      <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="w-full min-h-screen app-shell-bg flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-white">
           <Loader2 className="w-10 h-10 animate-spin text-green-400" />
           <p>{t('waitingRoom.loadingRoom')}</p>
@@ -403,7 +403,7 @@ export function WaitingRoom() {
 
   if (roomError) {
     return (
-      <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
+      <div className="w-full min-h-screen app-shell-bg flex items-center justify-center p-6">
         <div className="bg-slate-800 rounded-2xl p-8 border border-red-500/50 max-w-md w-full text-center">
           <p className="text-red-400 mb-4">{roomError}</p>
           <button
@@ -418,8 +418,8 @@ export function WaitingRoom() {
   }
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
-      <div className="max-w-6xl mx-auto p-6">
+    <div className="w-full min-h-screen app-shell-bg overflow-auto">
+      <div className="w-full min-w-0 p-4 sm:p-6">
         <div className="flex items-center justify-between mb-8">
           <button
             onClick={handleLeaveRoom}
