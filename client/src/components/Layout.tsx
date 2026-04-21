@@ -17,6 +17,7 @@ import { TopBarProvider } from "../contexts/TopBarContext";
 import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
 import { SettingsMenu } from "./SettingsMenu";
 import { RateGameModal } from "./RateGameModal";
+import { GlobalHoverTooltip } from "./GlobalHoverTooltip";
 import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 
@@ -278,6 +279,7 @@ export function Layout({ children }: LayoutProps) {
   if (isAdminShell) {
     return (
       <div className="min-h-screen w-full bg-slate-900 text-white">
+        <GlobalHoverTooltip />
         <div className="fixed start-4 top-4 z-[200] flex items-center gap-2">
           <LanguageSwitcher />
         </div>
@@ -344,14 +346,14 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <GlobalHoverTooltip />
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
       {showHamburgerMenu && (
         <>
-          {/* Page Game : langue + paramètres. Hors jeu : menu hamburger */}
+          {/* Page Game : notifications + paramètres (langue uniquement dans Paramètres). Hors jeu : menu hamburger */}
           <div className="fixed top-4 right-4 z-[250] flex items-center gap-2">
             {isGamePage ? (
               <>
-                <LanguageSwitcher />
                 <NotificationCenter />
                 <button
                   type="button"
