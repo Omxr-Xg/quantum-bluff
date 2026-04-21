@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
@@ -453,6 +454,7 @@ export function Game() {
   const tourRefBoard = useRef<HTMLDivElement>(null);
   const tourRefActions = useRef<HTMLDivElement>(null);
   const menuContainerRef = useRef<HTMLDivElement>(null);
+  const [gameMenuSlot, setGameMenuSlot] = useState<HTMLElement | null>(null);
   const tableCaptureRef = useRef<HTMLDivElement>(null);
 
   const handleShare = async () => {
@@ -495,6 +497,10 @@ export function Game() {
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [showMenu]);
+
+  useLayoutEffect(() => {
+    setGameMenuSlot(document.getElementById("game-top-menu-slot"));
+  }, []);
 
   const { colorblindMode } = useAccessibility();
   const { addToast } = useToast();
@@ -2931,114 +2937,6 @@ export function Game() {
               </p>
             </div>
           )}
-
-          <div className="relative" ref={menuContainerRef}>
-            <button
-              type="button"
-              onClick={() => setShowMenu(!showMenu)}
-              className={`bg-slate-800/90 hover:bg-slate-700/90 backdrop-blur-sm text-white ${isMobile ? 'p-2' : 'p-3'} rounded-lg border border-slate-700 transition-all shadow-lg`}
-              title={t("game.menuTitle")}
-              aria-expanded={showMenu}
-              aria-haspopup="true"
-            >
-              <Menu className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-            </button>
-
-            {showMenu && (
-              <div
-                className={`absolute ${isMobile ? 'top-12' : 'top-14'} left-0 bg-slate-900/98 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-600/80 overflow-hidden ${isMobile ? 'min-w-[min(92vw,280px)]' : 'min-w-[280px]'} z-[60] py-1`}
-                role="menu"
-              >
-                <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  {t("game.menuSectionGame")}
-                </p>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={startGameTour}
-                  className={`w-full flex items-start ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-left text-cyan-300 hover:bg-cyan-500/15 transition-all border-b border-slate-700/80`}
-                >
-                  <Sparkles className={`${isMobile ? 'w-5 h-5' : 'w-5 h-5'} shrink-0 mt-0.5 text-cyan-400`} />
-                  <span className="flex flex-col gap-0.5">
-                    <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-bold text-white`}>{t("game.menuGuidedTour")}</span>
-                    <span className="text-xs text-slate-400 font-normal leading-snug">{t("game.menuGuidedTourHint")}</span>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setIsQuantumOpen((o) => {
-                      const next = !o;
-                      setQuantumPinned(next);
-                      return next;
-                    });
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} ${isQuantumOpen ? 'text-amber-400 bg-amber-500/15' : 'text-white hover:bg-slate-700/80'} transition-all`}
-                >
-                  <Activity className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
-                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("game.menuQuantum")}</span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setIsPanelOpen((o) => !o);
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} ${isPanelOpen ? 'text-yellow-400 bg-yellow-500/15' : 'text-white hover:bg-slate-700/80'} transition-all`}
-                >
-                  <Trophy className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
-                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("hiddenBets.title")}</span>
-                </button>
-
-                <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  {t("game.menuSectionAccount")}
-                </p>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    navigate("/profile");
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-white hover:bg-slate-700/80 transition-all`}
-                >
-                  <User className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
-                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("lobby.profile")}</span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    navigate("/friends");
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-white hover:bg-slate-700/80 transition-all`}
-                >
-                  <Users className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
-                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("lobby.friends")}</span>
-                </button>
-
-                <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  {t("game.menuSectionDanger")}
-                </p>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setShowQuitConfirm(true);
-                    setShowMenu(false);
-                  }}
-                  className={`w-full flex items-center ${isMobile ? 'gap-3 px-4 py-3' : 'gap-3 px-4 py-3'} text-red-400 hover:bg-red-950/40 transition-all`}
-                >
-                  <LogOut className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
-                  <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-semibold`}>{t("nav.quitGame")}</span>
-                </button>
-              </div>
-            )}
-          </div>
         </div>
 
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-4'}`}>
@@ -3065,7 +2963,9 @@ export function Game() {
 
           {!isMobile && <div className="w-px h-10 bg-slate-700"></div>}
 
-          <div className={`flex items-center bg-slate-800/80 backdrop-blur-md border border-slate-700 rounded-full pl-3 pr-1 py-1 shadow-lg gap-3 ${isMobile ? 'mr-14' : ''}`}>
+          <div
+            className={`flex shrink items-center gap-3 rounded-full border border-slate-700 bg-slate-800/80 py-1 pl-3 pr-1 shadow-lg backdrop-blur-md ${isMobile ? "me-[13.5rem]" : ""}`}
+          >
             <div className={`text-white font-bold flex items-center gap-1.5 ${isMobile ? 'text-sm' : 'text-base'}`}>
               <ChipIcon size="sm" />
               <span>{displayedHeroChips.toLocaleString()}</span>
@@ -3086,7 +2986,7 @@ export function Game() {
             <button
               onClick={() => setIsChatOpen(!isChatOpen)}
               className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
-              title={t('game.openChat')}
+              title={t("game.openChat")}
             >
               <MessageCircle className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${isChatOpen ? "text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]" : "text-gray-200 hover:text-white"}`} />
             </button>
@@ -3571,6 +3471,117 @@ export function Game() {
           {t("game.help.spectatorPlaceholder")}
         </div>
       )}
+
+      {gameMenuSlot &&
+        createPortal(
+          <div className="relative" ref={menuContainerRef}>
+            <button
+              type="button"
+              onClick={() => setShowMenu(!showMenu)}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600"
+              title={t("game.menuTitle")}
+              aria-expanded={showMenu}
+              aria-haspopup="true"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            {showMenu && (
+              <div
+                className="absolute end-0 top-full z-[260] mt-2 min-w-[min(92vw,280px)] overflow-hidden rounded-2xl border border-slate-600/80 bg-slate-900/98 py-1 shadow-2xl backdrop-blur-md sm:min-w-[280px]"
+                role="menu"
+              >
+                <p className="px-4 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {t("game.menuSectionGame")}
+                </p>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={startGameTour}
+                  className="flex w-full items-start gap-3 border-b border-slate-700/80 px-4 py-3 text-left text-cyan-300 transition-all hover:bg-cyan-500/15"
+                >
+                  <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-cyan-400" />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-sm font-bold text-white">{t("game.menuGuidedTour")}</span>
+                    <span className="text-xs font-normal leading-snug text-slate-400">{t("game.menuGuidedTourHint")}</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsQuantumOpen((o) => {
+                      const next = !o;
+                      setQuantumPinned(next);
+                      return next;
+                    });
+                    setShowMenu(false);
+                  }}
+                  className={`flex w-full items-center gap-3 px-4 py-3 transition-all ${isQuantumOpen ? "bg-amber-500/15 text-amber-400" : "text-white hover:bg-slate-700/80"}`}
+                >
+                  <Activity className="h-5 w-5 shrink-0" />
+                  <span className="text-sm font-semibold">{t("game.menuQuantum")}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsPanelOpen((o) => !o);
+                    setShowMenu(false);
+                  }}
+                  className={`flex w-full items-center gap-3 px-4 py-3 transition-all ${isPanelOpen ? "bg-yellow-500/15 text-yellow-400" : "text-white hover:bg-slate-700/80"}`}
+                >
+                  <Trophy className="h-5 w-5 shrink-0" />
+                  <span className="text-sm font-semibold">{t("hiddenBets.title")}</span>
+                </button>
+
+                <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {t("game.menuSectionAccount")}
+                </p>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    navigate("/profile");
+                    setShowMenu(false);
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-white transition-all hover:bg-slate-700/80"
+                >
+                  <User className="h-5 w-5 shrink-0" />
+                  <span className="text-sm font-semibold">{t("lobby.profile")}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    navigate("/friends");
+                    setShowMenu(false);
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-white transition-all hover:bg-slate-700/80"
+                >
+                  <Users className="h-5 w-5 shrink-0" />
+                  <span className="text-sm font-semibold">{t("lobby.friends")}</span>
+                </button>
+
+                <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {t("game.menuSectionDanger")}
+                </p>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setShowQuitConfirm(true);
+                    setShowMenu(false);
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-red-400 transition-all hover:bg-red-950/40"
+                >
+                  <LogOut className="h-5 w-5 shrink-0" />
+                  <span className="text-sm font-semibold">{t("nav.quitGame")}</span>
+                </button>
+              </div>
+            )}
+          </div>,
+          gameMenuSlot
+        )}
 
       <GameInteractiveTour
         open={gameTourOpen}

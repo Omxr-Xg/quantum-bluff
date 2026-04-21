@@ -349,64 +349,64 @@ export function Layout({ children }: LayoutProps) {
       <GlobalHoverTooltip />
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
       {showHamburgerMenu && (
-        <>
-          {/* Page Game : notifications + paramètres (langue uniquement dans Paramètres). Hors jeu : menu hamburger */}
-          <div className="fixed top-4 right-4 z-[250] flex items-center gap-2">
-            {isGamePage ? (
-              <>
-                <NotificationCenter />
-                <button
-                  type="button"
-                  onClick={() => {
-                    playSfx("uiClick");
-                    openSettingsMenu?.();
-                  }}
-                  className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600"
-                  title={t("settings.title")}
-                >
-                  <Settings className="h-6 w-6" />
-                </button>
-              </>
-            ) : (
-              <div
-                onMouseEnter={() => {
-                  if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
-                  closeMenuTimerRef.current = null;
-                  setMenuOpen(true);
+        <div className="fixed end-4 top-4 z-[250] flex items-center gap-2">
+          {/* Partie : emplacement pour le menu ☰ (portail depuis Game.tsx) + notif + réglages — aligné à droite, même logique que le lobby */}
+          {isGamePage && (
+            <div id="game-top-menu-slot" className="relative shrink-0" />
+          )}
+          {isGamePage ? (
+            <>
+              <NotificationCenter />
+              <button
+                type="button"
+                onClick={() => {
+                  playSfx("uiClick");
+                  openSettingsMenu?.();
                 }}
-                onMouseLeave={() => {
-                  closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
-                }}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600"
+                title={t("settings.title")}
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    playSfx("uiClick");
-                    if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
-                    closeMenuTimerRef.current = null;
-                    setMenuOpen((o) => !o);
-                  }}
-                  className="w-12 h-12 rounded-xl bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 text-white flex items-center justify-center transition shadow-lg"
-                  title="Menu"
-                >
-                  <Menu className="w-6 h-6" />
-                </button>
-              </div>
-            )}
-          </div>
-          {/* Menu déroulant à gauche du bouton (uniquement hors Game) */}
-          {!isGamePage && menuOpen && (
+                <Settings className="h-6 w-6" />
+              </button>
+            </>
+          ) : (
             <div
-              className="fixed top-3 right-24 z-[249] flex items-center flex-wrap gap-6 px-4 py-2 bg-slate-800/98 border border-slate-600 rounded-xl shadow-2xl"
+              className="relative"
               onMouseEnter={() => {
                 if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
                 closeMenuTimerRef.current = null;
+                setMenuOpen(true);
               }}
               onMouseLeave={() => {
                 closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
               }}
             >
-              <div className="flex max-w-[min(100vw-6rem,28rem)] flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  playSfx("uiClick");
+                  if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
+                  closeMenuTimerRef.current = null;
+                  setMenuOpen((o) => !o);
+                }}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600"
+                title="Menu"
+                aria-expanded={menuOpen}
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+              {menuOpen && (
+                <div
+                  className="absolute end-0 top-full z-[260] mt-2 max-h-[min(70vh,28rem)] w-max max-w-[min(calc(100vw-2rem),28rem)] overflow-y-auto rounded-xl border border-slate-600 bg-slate-800/98 px-4 py-4 shadow-2xl"
+                  onMouseEnter={() => {
+                    if (closeMenuTimerRef.current) clearTimeout(closeMenuTimerRef.current);
+                    closeMenuTimerRef.current = null;
+                  }}
+                  onMouseLeave={() => {
+                    closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
+                  }}
+                >
+                  <div className="flex max-w-[min(100vw-6rem,28rem)] flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
                 <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
                   <button
                     type="button"
@@ -452,9 +452,11 @@ export function Layout({ children }: LayoutProps) {
                   <span className="hidden lg:inline">{t("lobby.logout")}</span>
                 </button>
               </div>
+                </div>
+              )}
             </div>
-          )}
-        </>
+          )
+        </div>
       )}
 
       <SettingsMenu
