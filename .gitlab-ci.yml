@@ -2,7 +2,12 @@
 # .gitlab-ci.yml - Quantum Bluff
 # Configuration complète : Frontend, Backend, DB, Sécurité, Infrastructure
 # ============================================
-
+#
+# Ordre GitLab : les STAGES sont séquentiels (lint → test → test-security → build → …).
+# Dans un même stage, les jobs partent en parallèle si des runners sont libres.
+# Si tout s’enchaîne un par un, augmenter la concurrence côté runner (ex. concurrent),
+# pas ici.
+#
 # Miroirs ECR public (images library Docker Hub) : évite le rate limit Docker Hub
 # et les échecs de pull du Dependency Proxy GitLab (ex. backend:test, database:*).
 variables:
@@ -30,7 +35,12 @@ stages:
 # ============================================
 # CACHE PARTAGÉ
 # ============================================
+# Clé liée aux lockfiles : évite node_modules incohérents avec npm ci sur le runner.
 cache:
+  key:
+    files:
+      - server/package-lock.json
+      - client/package-lock.json
   paths:
     - server/node_modules/
     - client/node_modules/
@@ -42,6 +52,9 @@ cache:
 
 backend:lint:
   stage: lint
+  variables:
+    # Évite les échecs ESLint / TypeScript sur runners peu de RAM
+    NODE_OPTIONS: --max-old-space-size=4096
   script:
     - cd server
     - npm ci
@@ -106,6 +119,8 @@ backend:build:
 
 frontend:lint:
   stage: lint
+  variables:
+    NODE_OPTIONS: --max-old-space-size=4096
   script:
     - cd client
     - npm ci --legacy-peer-deps
@@ -372,6 +387,11 @@ deploy:production:
 
 coverage:
   stage: test
+  # Attend explicitement les deux jobs de test (DAG) : évite une course aux artefacts
+  # dans le même stage ; les autres jobs du stage test tournent en parallèle.
+  needs:
+    - backend:test
+    - frontend:test
   script:
     - echo "📊 Génération des rapports de couverture"
   dependencies:
