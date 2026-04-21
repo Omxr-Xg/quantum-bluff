@@ -18,10 +18,10 @@ variables:
 
 default:
   image: $NODE_IMAGE
-  # Pas de tags par défaut : plus de runners peuvent prendre les jobs (évite pending
-  # si seuls les runners « kubernetes » sont libres). Si un job reste pending, vérifier
-  # Settings → CI/CD → Runners : instance runners activés + jobs sans tag autorisés.
-  # Sinon ajouter sur un job : tags: [js] ou [kubernetes] selon les tags listés.
+  # git.unistra.fr : sans tag = pending. services: (Postgres) → job tag kubernetes.
+  # Sinon node18 (#1088). Si pending : essayer kubernetes ou js selon Runners.
+  tags:
+    - node18
 
 # Définition des stages
 stages:
@@ -68,6 +68,9 @@ backend:lint:
 
 backend:test:
   stage: test
+  # Services Docker (PostgreSQL) : préférer le runner cluster Kubernetes.
+  tags:
+    - kubernetes
   services:
     - name: $POSTGRES_IMAGE
       alias: postgres
@@ -97,6 +100,7 @@ backend:test:
     - develop
     - main
     - /^feature\/.*$/
+    - /^fix\/.*$/
 
 backend:build:
   stage: build
@@ -174,6 +178,8 @@ frontend:build:
 
 database:test:
   stage: test
+  tags:
+    - kubernetes
   image: $POSTGRES_IMAGE
   services:
     - name: $POSTGRES_IMAGE
@@ -193,6 +199,8 @@ database:test:
 
 database:migrations:
   stage: build
+  tags:
+    - kubernetes
   image: $POSTGRES_IMAGE
   services:
     - name: $POSTGRES_IMAGE
@@ -282,6 +290,8 @@ security:sast:
 
 docker:build:
   stage: docker-build
+  tags:
+    - kubernetes
   image:
     name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: ['']
