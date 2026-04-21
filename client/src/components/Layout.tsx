@@ -302,15 +302,13 @@ export function Layout({ children }: LayoutProps) {
   const menuContent = (
     <>
       <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
-        <button
-          type="button"
-          onClick={openAddMoney}
-          className="flex items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left transition hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] sm:gap-2 sm:px-4"
-          title={t("lobby.balanceOpenSlot")}
+        <div
+          className="flex cursor-default items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left select-none sm:gap-2 sm:px-4"
+          aria-hidden
         >
           <ChipIcon size="sm" className="brightness-110 shrink-0" />
           <span className="whitespace-nowrap text-sm font-bold text-amber-50">{balance.toLocaleString()}</span>
-        </button>
+        </div>
         <button
           type="button"
           onClick={openAddMoney}
@@ -408,19 +406,13 @@ export function Layout({ children }: LayoutProps) {
                 >
                   <div className="flex max-w-[min(100vw-6rem,28rem)] flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
                 <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      playSfx("uiSelect");
-                      setMenuOpen(false);
-                      navigate("/minigames");
-                    }}
-                    className="flex items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left transition hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] sm:gap-2 sm:px-4"
-                    title={t("lobby.balanceOpenSlot")}
+                  <div
+                    className="flex cursor-default items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left select-none sm:gap-2 sm:px-4"
+                    aria-hidden
                   >
                     <ChipIcon size="sm" className="brightness-110 shrink-0" />
                     <span className="whitespace-nowrap text-sm font-bold text-amber-50">{balance.toLocaleString()}</span>
-                  </button>
+                  </div>
                   <button
                     type="button"
                     onClick={openAddMoney}
@@ -451,11 +443,11 @@ export function Layout({ children }: LayoutProps) {
                   <LogOut className="h-4 w-4 shrink-0" />
                   <span className="hidden lg:inline">{t("lobby.logout")}</span>
                 </button>
-              </div>
+                  </div>
                 </div>
               )}
             </div>
-          )
+          )}
         </div>
       )}
 
