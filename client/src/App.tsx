@@ -35,6 +35,7 @@ import { AdminAuth } from "./pages/AdminAuth";
 import { AdminConsole } from "./pages/AdminConsole";
 import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 
+import { InvitationAcceptProvider } from "./contexts/InvitationAcceptContext";
 import { socket } from './services/socket';
 import { useUser } from './hooks/useUser';
 import { useToast } from './contexts/ToastContext';
@@ -200,6 +201,7 @@ function App() {
         <TableThemeProvider>
         <ErrorBoundary>
         <LoaderProvider>
+        <InvitationAcceptProvider>
         <Layout>
           
           <TournamentTeleporter />
@@ -241,6 +243,7 @@ function App() {
 
           </Routes>
         </Layout>
+        </InvitationAcceptProvider>
         </LoaderProvider>
         </ErrorBoundary>
         </TableThemeProvider>

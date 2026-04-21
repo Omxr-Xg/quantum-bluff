@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bell, Gamepad2, UserPlus, Check, X, MessageCircle } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
+import { useInvitationAccept } from "../contexts/InvitationAcceptContext";
 import { useUser } from "../hooks/useUser";
 import { useGetFriendRequestsQuery, useRespondToFriendRequestMutation } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
@@ -22,6 +23,7 @@ export function NotificationCenter() {
   const { userId } = useUser();
 
   const { pendingInvitations, dismissInvitation, socket } = useSocket();
+  const { requestAccept } = useInvitationAccept();
 
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -149,31 +151,21 @@ export function NotificationCenter() {
     setOpen((o) => !o);
   };
 
-  const handleAcceptInvitation = async (inv: { invitationId: string; roomId: string; game?: string }) => {
-    try {
-      const token = localStorage.getItem("token");
-      const isBj = inv.game === "blackjack";
-      const url = apiUrl(
-        isBj
-          ? `/api/blackjack-tables/invitations/${inv.invitationId}/accept`
-          : `/api/friends/${inv.invitationId}/accept`
-      );
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        dismissInvitation(inv.invitationId);
-        if (isBj) {
-          navigate(`/lobby?tab=blackjack&bjRoom=${inv.roomId}`);
-        } else {
-          navigate(`/waiting-room?roomId=${inv.roomId}`);
-        }
-        setOpen(false);
-      }
-    } catch (err) {
-      console.error("Erreur acceptation invitation:", err);
-    }
+  const handleAcceptInvitation = (inv: {
+    invitationId: string;
+    roomId: string;
+    roomName: string;
+    sender: { id?: string; username: string };
+    game?: "blackjack" | "poker";
+  }) => {
+    requestAccept({
+      invitationId: inv.invitationId,
+      roomId: inv.roomId,
+      roomName: inv.roomName,
+      sender: { id: inv.sender.id ?? "", username: inv.sender.username },
+      game: inv.game,
+    });
+    setOpen(false);
   };
 
   const handleRejectInvitation = async (inv: { invitationId: string; game?: string }) => {

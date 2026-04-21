@@ -1083,7 +1083,12 @@
   "invitation": {
     "title": "{{username}} te ha invitado a jugar!",
     "accept": "Unirse",
-    "reject": "Rechazar"
+    "reject": "Rechazar",
+    "leaveGameTitle": "¿Salir de la partida actual?",
+    "leaveGameBody": "{{sender}} te invita a la sala de espera « {{room}} ». Primero saldrás de esta mesa (te retirarás si hay una mano en curso).",
+    "leaveGameHint": "Confirma solo si quieres unirte a esa sala.",
+    "leaveGameCancel": "Quedarme aquí",
+    "leaveGameConfirm": "Salir y unirme"
   },
   "bjMulti": {
     "lobbyTitle": "Mesas de blackjack multijugador",

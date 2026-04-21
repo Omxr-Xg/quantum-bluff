@@ -1,45 +1,20 @@
-import { useNavigate } from "react-router";
+import { useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Check, X, Gamepad2 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import type { GameInvitationNotification } from "../contexts/SocketContext";
 import { apiUrl } from "../utils/apiBase";
 import { useEffect, useState } from "react";
+import { useInvitationAccept } from "../contexts/InvitationAcceptContext";
 
 export function InvitationBanner() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const location = useLocation();
   const { pendingInvitations, dismissInvitation } = useSocket();
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const { requestAccept } = useInvitationAccept();
 
-  const handleAccept = async (inv: GameInvitationNotification) => {
-    try {
-      const token = localStorage.getItem("token");
-      const isBj = inv.game === "blackjack";
-      const url = apiUrl(
-        isBj
-          ? `/api/blackjack-tables/invitations/${inv.invitationId}/accept`
-          : `/api/friends/${inv.invitationId}/accept`
-      );
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (res.ok) {
-        dismissInvitation(inv.invitationId);
-        if (isBj) {
-          navigate(`/lobby?tab=blackjack&bjRoom=${inv.roomId}`);
-        } else {
-          navigate(`/waiting-room?roomId=${inv.roomId}`);
-        }
-      }
-    } catch (err) {
-      console.error("Erreur acceptation invitation:", err);
-    }
-  };
+  const isGamePage = location.pathname === "/game";
 
   const handleReject = async (inv: GameInvitationNotification) => {
     try {
@@ -48,7 +23,7 @@ export function InvitationBanner() {
       const url = apiUrl(
         isBj
           ? `/api/blackjack-tables/invitations/${inv.invitationId}/reject`
-          : `/api/friends/${inv.invitationId}/reject`
+          : `/api/friends/${inv.invitationId}/reject`,
       );
       await fetch(url, {
         method: "POST",
@@ -66,7 +41,7 @@ export function InvitationBanner() {
   useEffect(() => {
     if (pendingInvitations.length === 0) return;
     const timers = pendingInvitations.map((inv) =>
-      setTimeout(() => setHiddenIds((prev) => new Set([...prev, inv.invitationId])), 10000)
+      setTimeout(() => setHiddenIds((prev) => new Set([...prev, inv.invitationId])), 10000),
     );
     return () => timers.forEach(clearTimeout);
   }, [pendingInvitations.map((i) => i.invitationId).join(",")]);
@@ -75,44 +50,54 @@ export function InvitationBanner() {
   if (visibleInvitations.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-[200] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
-      {visibleInvitations.map((inv) => (
-        <div
-          key={inv.invitationId}
-          className="pointer-events-auto bg-gradient-to-r from-indigo-900 to-purple-900 border-2 border-indigo-500 rounded-xl shadow-2xl p-4 animate-slide-in"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center shrink-0">
-              <Gamepad2 className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-bold text-sm">
-                {t("invitation.title", { username: inv.sender.username })}
-              </p>
-              <p className="text-indigo-300 text-xs truncate">
-                {inv.game === "blackjack" ? `${t("bjMulti.inviteBannerGame")} · ` : ""}
-                {inv.roomName}
-              </p>
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={() => handleAccept(inv)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-lg transition-all"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  {t("invitation.accept")}
-                </button>
-                <button
-                  onClick={() => handleReject(inv)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/80 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-all"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  {t("invitation.reject")}
-                </button>
+    <>
+      <div
+        className={
+          isGamePage
+            ? "fixed top-3 left-1/2 z-[300] flex w-[min(100%-1rem,24rem)] -translate-x-1/2 flex-col gap-3 pointer-events-none"
+            : "pointer-events-none fixed right-4 top-4 z-[300] flex w-full max-w-sm flex-col gap-3"
+        }
+      >
+        {visibleInvitations.map((inv) => (
+          <div
+            key={inv.invitationId}
+            className="pointer-events-auto animate-slide-in rounded-xl border-2 border-indigo-500 bg-gradient-to-r from-indigo-900 to-purple-900 p-4 shadow-2xl"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600">
+                <Gamepad2 className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-white">
+                  {t("invitation.title", { username: inv.sender.username })}
+                </p>
+                <p className="truncate text-xs text-indigo-300">
+                  {inv.game === "blackjack" ? `${t("bjMulti.inviteBannerGame")} · ` : ""}
+                  {inv.roomName}
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => requestAccept(inv)}
+                    className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-green-500"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    {t("invitation.accept")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleReject(inv)}
+                    className="flex items-center gap-1.5 rounded-lg bg-red-600/80 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-red-500"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    {t("invitation.reject")}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </>
   );
 }

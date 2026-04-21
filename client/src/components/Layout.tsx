@@ -122,6 +122,12 @@ export function Layout({ children }: LayoutProps) {
   }, [navigate]);
 
   useEffect(() => {
+    const onInviteSfx = () => playSfx("notification");
+    window.addEventListener("play-notification-sfx", onInviteSfx);
+    return () => window.removeEventListener("play-notification-sfx", onInviteSfx);
+  }, [playSfx]);
+
+  useEffect(() => {
     if (!socket) return;
 
     const handleFriendRequestReceived = (payload: unknown) => {
@@ -346,6 +352,7 @@ export function Layout({ children }: LayoutProps) {
             {isGamePage ? (
               <>
                 <LanguageSwitcher />
+                <NotificationCenter />
                 <button
                   type="button"
                   onClick={() => {

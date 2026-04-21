@@ -1088,7 +1088,12 @@
   "invitation": {
     "title": "{{username}} invited you to play!",
     "accept": "Join",
-    "reject": "Decline"
+    "reject": "Decline",
+    "leaveGameTitle": "Leave the current game?",
+    "leaveGameBody": "{{sender}} invited you to the waiting room « {{room}} ». You will leave this table first (you will fold if a hand is in progress).",
+    "leaveGameHint": "Confirm only if you want to join that waiting room.",
+    "leaveGameCancel": "Stay here",
+    "leaveGameConfirm": "Leave and join"
   },
   "notifications": {
     "title": "Notifications",

@@ -1088,7 +1088,12 @@
   "invitation": {
     "title": "{{username}} vous invite à jouer !",
     "accept": "Rejoindre",
-    "reject": "Refuser"
+    "reject": "Refuser",
+    "leaveGameTitle": "Quitter la partie en cours ?",
+    "leaveGameBody": "{{sender}} vous invite dans la salle d’attente « {{room}} ». Vous quitterez d’abord cette table (se coucher automatiquement si une main est en cours).",
+    "leaveGameHint": "Confirmez seulement si vous voulez rejoindre cette salle.",
+    "leaveGameCancel": "Rester ici",
+    "leaveGameConfirm": "Quitter et rejoindre"
   },
   "filters": {
     "maxBet50": "Mises < 50$",

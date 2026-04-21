@@ -1084,7 +1084,12 @@
   "invitation": {
     "title": "{{username}} دعاك للعب!",
     "accept": "انضم",
-    "reject": "رفض"
+    "reject": "رفض",
+    "leaveGameTitle": "مغادرة الجولة الحالية؟",
+    "leaveGameBody": "{{sender}} يدعوك إلى غرفة الانتظار « {{room}} ». ستغادر أولاً هذه الطاولة (ستُفوّل تلقائياً إذا كانت هناك يد جارية).",
+    "leaveGameHint": "أكّد فقط إذا أردت الانضمام لتلك الغرفة.",
+    "leaveGameCancel": "البقاء هنا",
+    "leaveGameConfirm": "المغادرة والانضمام"
   },
   "bjMulti": {
     "lobbyTitle": "طاولات بلاك جاك متعددة",

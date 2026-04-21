@@ -6,7 +6,7 @@ import { useToast } from './ToastContext'
 import { store } from '../store'
 import { api } from '../services/api'
 import { fetchBalanceFromServer } from '../utils/userProfile'
-import { getApiBaseUrl } from '../utils/apiBase'
+import { apiUrl, getApiBaseUrl } from '../utils/apiBase'
 
 export interface GameInvitationNotification {
   invitationId: string
@@ -176,6 +176,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     })
 
     socket.on('GAME_INVITATION_RECEIVED', (data: GameInvitationNotification) => {
+      window.dispatchEvent(new CustomEvent('play-notification-sfx'))
       addToast(
         i18n.t('invitation.title', { username: data.sender?.username ?? 'un joueur' }),
         'info',
@@ -215,6 +216,53 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       socket.off('JOIN_REQUEST_REJECTED')
     }
   }, [socket, addToast])
+
+  /** Invitations salle d’attente déjà en base (reconnexion / onglet rechargé). */
+  useEffect(() => {
+    if (!socket || !userId) return
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    let cancelled = false
+    const load = async () => {
+      try {
+        const r = await fetch(apiUrl('/api/friends/received'), {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!r.ok || cancelled) return
+        const list = await r.json() as Array<{
+          id: string
+          roomId: string
+          room?: { name?: string; status?: string }
+          sender?: { id?: string; username?: string }
+        }>
+        const mapped: GameInvitationNotification[] = list
+          .filter((row) => row.room?.status === 'WAITING')
+          .map((row) => ({
+            invitationId: row.id,
+            roomId: row.roomId,
+            roomName: row.room?.name ?? '',
+            sender: {
+              id: String(row.sender?.id ?? ''),
+              username: row.sender?.username ?? '?',
+            },
+          }))
+        if (mapped.length === 0 || cancelled) return
+        setPendingInvitations((prev) => {
+          const seen = new Set(prev.map((p) => p.invitationId))
+          const extra = mapped.filter((m) => !seen.has(m.invitationId))
+          if (extra.length === 0) return prev
+          return [...prev, ...extra]
+        })
+      } catch {
+        /* ignore */
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [socket, userId])
 
   useEffect(() => {
     if (!socket) return

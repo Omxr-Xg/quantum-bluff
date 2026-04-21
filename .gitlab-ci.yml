@@ -16,13 +16,13 @@ variables:
   # Trivy via ECR public (évite Back-off / rate limit Docker Hub sur le runner Kubernetes).
   TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.58.1
 
-# Image Node : entrypoint vidé pour le détecteur de shell du runner Docker (#28129).
-# Utiliser extends (et pas seulement default.image) : le merge vers le runner est fiable.
+# Image Node : l’ENTRYPOINT officiel (docker-entrypoint.sh) empêche la détection de shell du
+# runner Docker → « shell not found » (#28129). Ni entrypoint vide ni [""] ne suffisent partout ;
+# la doc GitLab recommande un shell explicite pour exécuter le script du job.
 .node_docker_ci:
   image:
     name: public.ecr.aws/docker/library/node:20
-    entrypoint:
-      - ""
+    entrypoint: ["/bin/bash", "-c"]
 
 default:
   # git.unistra.fr : sans tag = pending. services: (Postgres) → job tag kubernetes.
