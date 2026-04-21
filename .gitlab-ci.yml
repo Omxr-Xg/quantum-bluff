@@ -13,6 +13,10 @@ variables:
 
 default:
   image: $NODE_IMAGE
+  # Instance runners git.unistra.fr : les jobs sans tags ne sont pas toujours pris ;
+  # le tag « js » est commun aux runners Node listés dans CI/CD → Runners.
+  tags:
+    - js
 
 # Définition des stages
 stages:
