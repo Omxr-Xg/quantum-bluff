@@ -5,6 +5,7 @@ import { useNavigate } from "react-router";
 import { QuantumBluffLogo, defaultAvatarUrl } from "../assets/logo";
 import { getUserProfile, saveUserProfile } from "../utils/userProfile";
 import { AvatarGallery } from "../components/AvatarGallery";
+import { useUpdateProfileAvatarMutation } from "../services/api";
 
 export function EditProfile() {
   const { t } = useTranslation();
@@ -32,6 +33,7 @@ export function EditProfile() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [updateProfileAvatar] = useUpdateProfileAvatarMutation();
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,7 +57,7 @@ export function EditProfile() {
     setImageFile(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
 
@@ -71,20 +73,26 @@ export function EditProfile() {
       return;
     }
 
-    setTimeout(() => {
+    try {
       saveUserProfile({
         username: formData.username,
         email: formData.email,
         avatar: profileImage,
       });
-
-      setIsSaving(false);
+      const token = localStorage.getItem("token");
+      if (token) {
+        await updateProfileAvatar({ avatarUrl: profileImage }).unwrap();
+      }
       setSuccessMessage(t("editProfile.profileUpdated"));
-
       setTimeout(() => {
         navigate("/profile");
       }, 1500);
-    }, 1000);
+    } catch {
+      setSuccessMessage("");
+      alert(t("common.error"));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

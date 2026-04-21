@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -124,6 +123,11 @@ export function Auth() {
         localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
       }
 
+      const avatarUrl = (response.user as { avatarUrl?: string | null }).avatarUrl;
+      if (typeof avatarUrl === "string" && avatarUrl.trim() !== "") {
+        localStorage.setItem("quantum_bluff_avatar", avatarUrl.trim());
+      }
+
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
 
       // 🔥🔥🔥 FIX SOCKET ICI
@@ -163,6 +167,10 @@ export function Auth() {
       localStorage.setItem("quantum_bluff_email", response.user.email);
       if (typeof response.user.chips === "number") {
         localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
+      }
+      const avatarUrlReg = (response.user as { avatarUrl?: string | null }).avatarUrl;
+      if (typeof avatarUrlReg === "string" && avatarUrlReg.trim() !== "") {
+        localStorage.setItem("quantum_bluff_avatar", avatarUrlReg.trim());
       }
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
       
@@ -397,14 +405,6 @@ export function Auth() {
                   <span>{t("auth.continue")}</span>
                 )}
               </button>
-              <p className="text-center text-sm text-gray-500 pt-2">
-                <Link
-                  to="/auth/admin"
-                  className="text-amber-400/90 hover:text-amber-300 underline underline-offset-2"
-                >
-                  {t("adminConsole.loginTitle")}
-                </Link>
-              </p>
             </form>
           )}
 

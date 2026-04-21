@@ -411,8 +411,16 @@ export function Friends() {
                     className="flex items-center justify-between rounded-lg border border-slate-600 bg-slate-800/50 p-3"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-600 to-amber-800">
-                        <span className="font-bold text-white">{req.sender.username.charAt(0).toUpperCase()}</span>
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-500/40 bg-gradient-to-br from-amber-600 to-amber-800">
+                        {getPlayerAvatar(req.sender.username, req.sender.id, userId, req.sender.avatarUrl) ? (
+                          <ImageWithFallback
+                            src={getPlayerAvatar(req.sender.username, req.sender.id, userId, req.sender.avatarUrl)}
+                            alt=""
+                            className="h-10 w-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="font-bold text-white">{req.sender.username.charAt(0).toUpperCase()}</span>
+                        )}
                       </div>
                       <span className="font-medium text-white">{req.sender.username}</span>
                     </div>
@@ -479,9 +487,9 @@ export function Friends() {
                   >
                     <div className="flex items-start gap-4">
                       <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-yellow-400 bg-gradient-to-br from-green-600 to-green-800 shadow-lg sm:h-20 sm:w-20">
-                        {getPlayerAvatar(friend.username, friend.id) ? (
+                        {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
                           <ImageWithFallback
-                            src={getPlayerAvatar(friend.username, friend.id)}
+                            src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
                             alt={`${friend.username}'s avatar`}
                             className="h-16 w-16 rounded-full object-cover sm:h-20 sm:w-20"
                           />
@@ -499,7 +507,9 @@ export function Friends() {
                         </div>
 
                         <div className="mb-4 text-sm text-gray-400">
-                          🏆 {friend.stats?.wins || 0} {t("profile.wins")}
+                          🏆{" "}
+                          {friend.stats?.wins ?? friend.playerStats?.totalWins ?? 0}{" "}
+                          {t("profile.wins")}
                         </div>
 
                         <div className="flex flex-col gap-2">
@@ -762,9 +772,9 @@ export function Friends() {
             <div className="flex items-center justify-between border-b border-slate-700 p-6">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-gradient-to-br from-green-600 to-green-800">
-                  {getPlayerAvatar(selectedFriend.username, selectedFriend.id) ? (
+                  {getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl) ? (
                     <ImageWithFallback
-                      src={getPlayerAvatar(selectedFriend.username, selectedFriend.id)}
+                      src={getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl)}
                       alt={`${selectedFriend.username}'s avatar`}
                       className="h-12 w-12 rounded-full object-cover"
                     />
