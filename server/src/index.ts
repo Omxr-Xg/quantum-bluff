@@ -38,6 +38,7 @@ import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes
 import dailyChallengesRoutes from './dailyChallenges/dailyChallenge.routes.js'
 import hiddenBetsRoutes from './routes/hiddenBets.routes.js'
 import feedbackRoutes from './routes/feedback.routes.js'
+import playerReportRoutes from './routes/playerReport.routes.js'
 import adminConsoleRoutes from './routes/adminConsole.routes.js'
 import { antiCheatMiddleware } from './middleware/antiCheat.middleware.js'
 import adminRoutes from './routes/admin.routes.js'
@@ -175,6 +176,7 @@ app.use('/api/roulette', rouletteApiLimiter, rouletteRoutes)
 app.use('/api/blackjack', blackjackApiLimiter, blackjackRoutes)
 app.use('/api/hidden-bets', hiddenBetsApiLimiter, hiddenBetsRoutes)
 app.use('/api/feedback', feedbackRoutes)
+app.use('/api/reports', playerReportRoutes)
 /** Console admin web (JWT role admin, identifiants ADMIN_CONSOLE_*). */
 app.use('/api/admin/console', adminConsoleRoutes)
 app.use('/api/blackjack-tables', blackjackMultiApiLimiter, blackjackMultiRoutes)
