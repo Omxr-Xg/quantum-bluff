@@ -9,9 +9,13 @@ export class TournamentService {
 
   private static alreadyEliminated = new Set<string>();
 
-  /**
-   * Initialise le socket pour tout le service
-   */
+  private static tournamentTables = new Map<string, {
+    survivors: { userId: string; username: string; chips: number }[];
+    expectedTables: number;
+  }>();
+
+  private static eliminationOrder = new Map<string, string[]>();
+
   static setIo(io: Server) {
     this.io = io;
     console.log("✅ [TournamentService] Mégaphone Socket branché au service.");
@@ -22,25 +26,54 @@ export class TournamentService {
   }
 
   static notifyElimination(userId: string) {
-    if (this.alreadyEliminated.has(userId)) return; // S'il est déjà mort, on le laisse en paix
-    
+    if (this.alreadyEliminated.has(userId)) return;
     this.alreadyEliminated.add(userId);
-    
     if (this.io) {
       console.log(`📣 [SOCKET] Éjection activée pour le joueur ${userId}`);
-      this.io.emit('tournament-eliminated', { userId });
+      this.io.to(`user:${userId}`).emit('tournament-eliminated', { userId });
     }
   }
 
-  /**
-   * Crée un nouveau tournoi en base
-   */
-  static async createTournament(data: { 
-    name: string; 
-    buyIn: number; 
-    maxPlayers: number; 
-    startTime: Date; 
-    createdById: string 
+  static notifyCountdown(tournamentId: string, tournamentName: string, minutesLeft: number, playerIds: string[]) {
+    if (!this.io) return;
+    playerIds.forEach(userId => {
+      this.io!.to(`user:${userId}`).emit('tournament-countdown', {
+        tournamentId,
+        tournamentName,
+        minutesLeft,
+        message: minutesLeft === 1
+          ? `⏰ Le tournoi "${tournamentName}" commence dans 1 minute !`
+          : `⏰ Le tournoi "${tournamentName}" commence dans ${minutesLeft} minutes !`,
+      });
+    });
+    console.log(`[TOURNOI] Countdown ${minutesLeft}min envoyé pour ${tournamentName}`);
+  }
+
+  static notifyCancellation(tournamentId: string, tournamentName: string, playerIds: string[]) {
+    if (!this.io) return;
+    playerIds.forEach(userId => {
+      this.io!.to(`user:${userId}`).emit('tournament-cancelled', {
+        tournamentId,
+        tournamentName,
+        message: `❌ Le tournoi "${tournamentName}" a été annulé faute de joueurs suffisants. Votre buy-in a été remboursé.`,
+      });
+    });
+    console.log(`[TOURNOI] Annulation notifiée pour ${tournamentName}`);
+  }
+
+  static recordElimination(tournamentId: string, userId: string) {
+    const order = this.eliminationOrder.get(tournamentId);
+    if (order && !order.includes(userId)) {
+      order.push(userId);
+    }
+  }
+
+  static async createTournament(data: {
+    name: string;
+    buyIn: number;
+    maxPlayers: number;
+    startTime: Date;
+    createdById: string;
   }) {
     const tournament = await prisma.tournament.create({
       data: {
@@ -50,18 +83,15 @@ export class TournamentService {
       }
     });
 
-    rootLogger.info({ 
-      msg: 'tournament_created', 
-      tournamentId: tournament.id, 
-      name: tournament.name 
+    rootLogger.info({
+      msg: 'tournament_created',
+      tournamentId: tournament.id,
+      name: tournament.name
     });
 
     return tournament;
   }
 
-  /**
-   * Inscription d'un joueur
-   */
   static async joinTournament(tournamentId: string, userId: string) {
     return await prisma.$transaction(async (tx) => {
       const tournament = await tx.tournament.findUnique({
@@ -78,6 +108,29 @@ export class TournamentService {
       });
 
       if (alreadyJoined) throw new Error("Déjà inscrit !");
+
+      const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+      const tournamentStart = new Date(tournament.startTime).getTime();
+
+      const overlappingRegistration = await tx.tournamentPlayer.findFirst({
+        where: {
+          userId,
+          tournament: {
+            status: 'PENDING',
+            id: { not: tournamentId },
+            startTime: {
+              gte: new Date(tournamentStart - TWO_HOURS_MS),
+              lte: new Date(tournamentStart + TWO_HOURS_MS),
+            }
+          }
+        },
+        include: { tournament: { select: { name: true, startTime: true } } }
+      });
+
+      if (overlappingRegistration) {
+        const otherStart = new Date(overlappingRegistration.tournament.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        throw new Error(`Vous êtes déjà inscrit au tournoi "${overlappingRegistration.tournament.name}" à ${otherStart}. Un écart minimum de 2 heures est requis entre deux tournois.`);
+      }
 
       if (tournament._count.players >= tournament.maxPlayers) {
         throw new Error("Tournoi complet.");
@@ -99,19 +152,39 @@ export class TournamentService {
       });
 
       if (this.io) {
-      // On crie à tout le monde "Hé, un tournoi a été mis à jour !"
-      this.io.emit('tournament-updated'); 
-    }
+        this.io.emit('tournament-updated');
+      }
 
-      return await tx.tournamentPlayer.create({
+      const created = await tx.tournamentPlayer.create({
         data: { tournamentId, userId }
       });
+
+      const allPlayers = await tx.tournamentPlayer.findMany({
+        where: { tournamentId },
+        include: { user: { select: { id: true, username: true } } }
+      });
+      const newPlayer = await tx.user.findUnique({
+        where: { id: userId },
+        select: { username: true }
+      });
+      if (this.io && newPlayer) {
+        allPlayers.forEach(p => {
+          if (p.userId !== userId) {
+            this.io!.to(`user:${p.userId}`).emit('tournament-player-joined', {
+              tournamentId,
+              username: newPlayer.username,
+              playerCount: allPlayers.length,
+              maxPlayers: tournament.maxPlayers,
+              message: `👤 ${newPlayer.username} a rejoint le tournoi ! (${allPlayers.length}/${tournament.maxPlayers})`,
+            });
+          }
+        });
+      }
+
+      return created;
     });
   }
 
-  /**
-   * Quitter un tournoi
-   */
   static async leaveTournament(tournamentId: string, userId: string) {
     return await prisma.$transaction(async (tx) => {
       const registration = await tx.tournamentPlayer.findUnique({
@@ -136,9 +209,8 @@ export class TournamentService {
       });
 
       if (this.io) {
-      // On crie à tout le monde "Hé, un tournoi a été mis à jour !"
-      this.io.emit('tournament-updated'); 
-    }
+        this.io.emit('tournament-updated');
+      }
 
       return await tx.tournamentPlayer.delete({
         where: { tournamentId_userId: { tournamentId, userId } }
@@ -146,23 +218,19 @@ export class TournamentService {
     });
   }
 
-  /**
-   * Lancement effectif du tournoi
-   */
   static async startTournament(tournamentId: string, providedIo?: Server) {
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
-      include: { 
-        players: { 
-          include: { user: { select: { id: true, username: true } } } 
-        } 
+      include: {
+        players: {
+          include: { user: { select: { id: true, username: true } } }
+        }
       }
     });
 
     if (!tournament) throw new Error("Tournoi introuvable");
     if (tournament.status !== 'PENDING') throw new Error("Tournoi déjà actif ou annulé");
 
-    // Sécurité minimum joueurs (Mets < 1 pour tester seul)
     if (tournament.players.length < 2) {
       await prisma.tournament.update({
         where: { id: tournamentId },
@@ -178,60 +246,73 @@ export class TournamentService {
 
     const players = [...tournament.players].sort(() => Math.random() - 0.5);
     const MAX_PER_TABLE = 6;
+    const totalPlayers = players.length;
+    const numTables = Math.ceil(totalPlayers / MAX_PER_TABLE);
+    const baseSize = Math.floor(totalPlayers / numTables);
+    const remainder = totalPlayers % numTables;
+
+    const tableSizes: number[] = [];
+    for (let i = 0; i < numTables; i++) {
+      tableSizes.push(i < remainder ? baseSize + 1 : baseSize);
+    }
+
+    let offset = 0;
+    const tableSlices = tableSizes.map(size => {
+      const slice = players.slice(offset, offset + size);
+      offset += size;
+      return slice;
+    });
+
     const tables = [];
     const playerToGameMap: Record<string, string> = {};
 
-    for (let i = 0; i < players.length; i += MAX_PER_TABLE) {
-      const slice = players.slice(i, i + MAX_PER_TABLE);
-      
-      // 1. On génère un ID de partie unique
+    for (let tableIdx = 0; tableIdx < tableSlices.length; tableIdx++) {
+      const slice = tableSlices[tableIdx];
       const realGameId = `game_tournoi_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 
-      // 2. On prépare les joueurs au bon format pour ton moteur
       const gamePlayers = slice.map((p, index) => ({
-        id: p.userId, // 👈 C'est ÇA qui manquait : l'UUID réel !
+        id: p.userId,
         name: p.user.username,
         cards: [],
-        chips: tournament.buyIn, // On leur donne les jetons du tournoi
+        chips: tournament.buyIn,
         role: 'PLAYER' as const,
         currentBet: 0,
         isActive: true,
-        position: index, // On les assoit dans l'ordre de la table
+        position: index,
         isDealer: false,
         isConnected: true
       }));
 
-      // 3. 🎰 ON CRÉE LA TABLE DIRECTEMENT (sans gameService)
       const newTable = new GameTable(realGameId, gamePlayers);
-      
-      // On lance la première main
       newTable.startHand();
-
-      // 4. 💽 L'ÉTAPE CRUCIALE : ON SAUVEGARDE DANS LE BON SALON (activeGames)
       await activeGames.set(realGameId, newTable);
 
-      // 5. On enregistre qui va où pour la téléportation
-      slice.forEach(p => { 
-        playerToGameMap[p.userId] = realGameId; 
+      slice.forEach(p => {
+        playerToGameMap[p.userId] = realGameId;
       });
 
       tables.push({
-        tableNumber: Math.floor(i / MAX_PER_TABLE) + 1,
+        tableNumber: tableIdx + 1,
         roomId: realGameId,
         players: slice.map(p => ({ id: p.userId, username: p.user.username }))
       });
     }
 
+    TournamentService.tournamentTables.set(tournamentId, {
+      survivors: [],
+      expectedTables: numTables,
+    });
+    TournamentService.eliminationOrder.set(tournamentId, []);
+
     const playerIds = players.map(p => p.userId);
 
-    const result = { 
+    const result = {
       tournamentId,
-      playerToGameMap, 
+      playerToGameMap,
       playersToTeleport: playerIds,
       tables
     };
 
-    // Envoi Socket
     const socketToUse = providedIo || this.io;
     if (socketToUse) {
       console.log(`📣 [SOCKET] Signal de départ envoyé pour ${tournament.name}`);
@@ -243,11 +324,175 @@ export class TournamentService {
     return result;
   }
 
-  /**
-   * Veilleur
-   */
+  static async handleTableFinished(
+    tournamentId: string,
+    winnerId: string,
+    winnerUsername: string,
+    winnerChips: number
+  ) {
+    const tracking = this.tournamentTables.get(tournamentId);
+    if (!tracking) return;
+
+    tracking.survivors.push({ userId: winnerId, username: winnerUsername, chips: winnerChips });
+
+    if (tracking.survivors.length < tracking.expectedTables) {
+      if (this.io) {
+        this.io.to(`user:${winnerId}`).emit('tournament-waiting-final', {
+          survivorsCount: tracking.survivors.length,
+          expectedTables: tracking.expectedTables,
+        });
+      }
+      console.log(`[TOURNOI] Survivants: ${tracking.survivors.length}/${tracking.expectedTables}`);
+      return;
+    }
+
+    if (tracking.survivors.length === 1) {
+      const eliminated = this.eliminationOrder.get(tournamentId) ?? [];
+      const rankedIds = [winnerId, ...eliminated.slice().reverse()];
+      await this.processVictory(rankedIds, tournamentId);
+      return;
+    }
+
+    const finalGameId = `game_tournoi_final_${Date.now()}`;
+    const finalPlayers = tracking.survivors.map((s, index) => ({
+      id: s.userId,
+      name: s.username,
+      cards: [],
+      chips: s.chips,
+      role: 'PLAYER' as const,
+      currentBet: 0,
+      isActive: true,
+      position: index,
+      isDealer: false,
+      isConnected: true,
+    }));
+
+    const finalTable = new GameTable(finalGameId, finalPlayers);
+    finalTable.startHand();
+    await activeGames.set(finalGameId, finalTable);
+
+    const survivorsCopy = [...tracking.survivors];
+
+    this.tournamentTables.set(tournamentId, {
+      survivors: [],
+      expectedTables: 1,
+    });
+
+    if (this.io) {
+      survivorsCopy.forEach(s => {
+        this.io!.to(`user:${s.userId}`).emit('tournament-final-table', {
+          gameId: finalGameId,
+          players: survivorsCopy.map(p => ({
+            userId: p.userId,
+            username: p.username,
+            chips: p.chips,
+          })),
+        });
+      });
+
+      const eliminated = this.eliminationOrder.get(tournamentId) ?? [];
+      eliminated.forEach(userId => {
+        this.io!.to(`user:${userId}`).emit('tournament-spectate', {
+          gameId: finalGameId,
+        });
+      });
+    }
+
+    console.log(`[TOURNOI] TABLE FINALE créée: ${finalGameId} avec ${survivorsCopy.length} joueurs`);
+  }
+
+  static async processVictory(rankedPlayerIds: string[], tournamentId?: string) {
+    try {
+      const winnerId = rankedPlayerIds[0];
+      const playerRecord = await prisma.tournamentPlayer.findFirst({
+        where: { userId: winnerId, tournament: { status: 'ACTIVE' } },
+        include: { tournament: true }
+      });
+
+      if (!playerRecord) {
+        console.warn(`[TOURNOI] Aucun tournoi actif trouvé pour ${winnerId}`);
+        return;
+      }
+
+      const tournament = playerRecord.tournament;
+      const prizePool = tournament.prizePool;
+
+      const validIds = rankedPlayerIds.slice(0, 3);
+      const existingUsers = await prisma.user.findMany({
+        where: { id: { in: validIds } },
+        select: { id: true, username: true }
+      });
+      const existingIds = existingUsers.map(u => u.id);
+
+      let distribution: { userId: string; amount: number; position: number }[] = [];
+      const validRanked = validIds.filter(id => existingIds.includes(id));
+
+      if (validRanked.length === 1) {
+        distribution = [{ userId: validRanked[0], amount: prizePool, position: 1 }];
+      } else if (validRanked.length === 2) {
+        distribution = [
+          { userId: validRanked[0], amount: Math.floor(prizePool * 0.70), position: 1 },
+          { userId: validRanked[1], amount: Math.floor(prizePool * 0.30), position: 2 },
+        ];
+      } else {
+        distribution = [
+          { userId: validRanked[0], amount: Math.floor(prizePool * 0.60), position: 1 },
+          { userId: validRanked[1], amount: Math.floor(prizePool * 0.30), position: 2 },
+          { userId: validRanked[2], amount: Math.floor(prizePool * 0.10), position: 3 },
+        ];
+      }
+
+      await prisma.$transaction([
+        ...distribution.map(d =>
+          prisma.user.update({
+            where: { id: d.userId },
+            data: { chips: { increment: d.amount } }
+          })
+        ),
+        prisma.tournament.update({
+          where: { id: tournament.id },
+          data: { status: 'COMPLETED' }
+        })
+      ]);
+
+      const fullRanking = rankedPlayerIds.map((uid, index) => ({
+        userId: uid,
+        username: existingUsers.find(u => u.id === uid)?.username ?? 'Joueur',
+        position: index + 1,
+        amount: distribution.find(d => d.userId === uid)?.amount ?? 0,
+      }));
+
+      if (this.io) {
+        const allPlayers = await prisma.tournamentPlayer.findMany({
+          where: { tournamentId: tournament.id },
+          select: { userId: true }
+        });
+
+        allPlayers.forEach(p => {
+          this.io!.to(`user:${p.userId}`).emit('tournament-result', {
+            tournamentName: tournament.name,
+            prizePool,
+            ranking: fullRanking,
+            myPosition: fullRanking.find(r => r.userId === p.userId)?.position ?? null,
+            myAmount: fullRanking.find(r => r.userId === p.userId)?.amount ?? 0,
+          });
+        });
+      }
+
+      if (tournamentId) {
+        this.tournamentTables.delete(tournamentId);
+        this.eliminationOrder.delete(tournamentId);
+      }
+
+      console.log(`[TOURNOI] ${tournament.name} CLÔTURÉ.`, fullRanking);
+
+    } catch (error) {
+      console.error('[TOURNOI] Erreur processVictory:', error);
+    }
+  }
+
   static startTournamentWatcher(io: Server) {
-    this.setIo(io); // On en profite pour fixer le socket
+    this.setIo(io);
     console.log("👁️ Veilleur de tournois activé.");
 
     setInterval(async () => {
@@ -266,46 +511,4 @@ export class TournamentService {
       }
     }, 5000);
   }
-
-  // 💰 NOUVEAU : La distribution des gains et la clôture
-  static async processVictory(winnerId: string) {
-    try {
-      // 1. On cherche le tournoi ACTIF de ce joueur
-      const playerRecord = await prisma.tournamentPlayer.findFirst({
-        where: { 
-          userId: winnerId, 
-          tournament: { status: 'ACTIVE' } 
-        },
-        include: { tournament: true }
-      });
-
-      if (!playerRecord) {
-        console.log(`⚠️ [TOURNOI] Impossible de trouver le tournoi actif pour le gagnant ${winnerId}.`);
-        return;
-      }
-
-      const tournament = playerRecord.tournament;
-
-      // 2. On fait une TRANSACTION (soit tout réussit, soit rien, pour éviter les bugs d'argent)
-      await prisma.$transaction([
-        // A. On donne le Prize Pool au gagnant
-        prisma.user.update({
-          where: { id: winnerId },
-          data: { chips: { increment: tournament.prizePool } }
-        }),
-        // B. On marque le tournoi comme terminé
-        prisma.tournament.update({
-          where: { id: tournament.id },
-          data: { status: 'COMPLETED' }
-        })
-      ]);
-
-      console.log(`🏦 [TOURNOI] Tournoi ${tournament.id} CLÔTURÉ !`);
-      console.log(`💸 [TOURNOI] Le pactole de ${tournament.prizePool} jetons a été versé au joueur ${winnerId} !`);
-      
-    } catch (error) {
-      console.error("❌ [TOURNOI] Erreur lors du versement des gains :", error);
-    }
-  }
-
 }
