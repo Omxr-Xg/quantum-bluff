@@ -7,10 +7,16 @@ interface User {
   id: string
   username: string
   level: number
-  stats: {
+  /** @deprecated API renvoie playerStats ; conservé pour compat. */
+  stats?: {
     wins: number
     totalGames: number
   }
+  avatarUrl?: string | null
+  playerStats?: {
+    totalWins: number
+    totalGames: number
+  } | null
 }
 
 export interface PlayerStats {
@@ -114,6 +120,15 @@ export const api = createApi({
         method: 'POST',
         body,
       }),
+    }),
+
+    updateProfileAvatar: builder.mutation<{ avatarUrl: string | null }, { avatarUrl: string | null }>({
+      query: (body) => ({
+        url: '/auth/profile',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['User', 'Friend', 'FriendRequest'],
     }),
 
     getGames: builder.query({
@@ -262,6 +277,7 @@ export const {
   useCheckEmailMutation,
   useRecoveryQuestionMutation,
   useResetPasswordMutation,
+  useUpdateProfileAvatarMutation,
   useGetGamesQuery,
   useCreateGameMutation,
   useJoinGameMutation,

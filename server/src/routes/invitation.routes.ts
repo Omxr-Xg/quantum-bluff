@@ -260,6 +260,7 @@ router.get('/search', friendSearchLimiter, async (req, res) => {
         id: true,
         username: true,
         level: true,
+        avatarUrl: true,
         playerStats: {
           select: {
             totalWins: true,
@@ -339,7 +340,8 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
           select: {
             id: true,
             username: true,
-            level: true
+            level: true,
+            avatarUrl: true
           }
         }
       }
@@ -358,7 +360,8 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
             select: {
               id: true,
               username: true,
-              level: true
+              level: true,
+              avatarUrl: true
             }
           }
         }
@@ -375,7 +378,8 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
             select: {
               id: true,
               username: true,
-              level: true
+              level: true,
+              avatarUrl: true
             }
           }
         }
@@ -398,7 +402,8 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
           sender: {
             id: request.sender.id,
             username: request.sender.username,
-            level: request.sender.level
+            level: request.sender.level,
+            avatarUrl: request.sender.avatarUrl ?? null
           }
         })
       }
@@ -436,6 +441,7 @@ router.get('/requests/:userId', async (req, res) => {
             id: true,
             username: true,
             level: true,
+            avatarUrl: true,
             playerStats: {
               select: {
                 totalWins: true,
@@ -574,6 +580,7 @@ router.get('/:userId', async (req, res) => {
             id: true,
             username: true,
             level: true,
+            avatarUrl: true,
             playerStats: {
               select: {
                 totalWins: true,
@@ -587,6 +594,7 @@ router.get('/:userId', async (req, res) => {
             id: true,
             username: true,
             level: true,
+            avatarUrl: true,
             playerStats: {
               select: {
                 totalWins: true,

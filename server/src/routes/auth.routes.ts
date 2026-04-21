@@ -13,6 +13,7 @@ import { addToBlacklist, isBlacklisted } from '../auth/tokenBlacklist.js'
 import { verifyTotpToken } from '../auth/totp.service.js'
 import { getGamificationBundle } from '../logic/gamification.js'
 import { extractBearerToken, generateToken, verifyToken } from '../auth/jwt.service.js'
+import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js'
 
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -175,6 +176,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         maxBetBlackjack: g?.maxBetBlackjack,
         playerStats: playerStats ?? null,
         lobbyTutorialCompleted: user.lobbyTutorialCompletedAt != null,
+        avatarUrl: user.avatarUrl ?? null,
       }
     })
 
@@ -310,6 +312,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         maxBetBlackjack: g?.maxBetBlackjack,
         playerStats: user.playerStats,
         lobbyTutorialCompleted: user.lobbyTutorialCompletedAt != null,
+        avatarUrl: user.avatarUrl ?? null,
       }
     })
 
@@ -336,6 +339,34 @@ router.get('/lobby-tutorial-status', authMiddleware, async (req, res) => {
     return res.json({ completed: user.lobbyTutorialCompletedAt != null })
   } catch (error) {
     console.error('[AUTH] lobby-tutorial-status error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/** Met à jour l’URL d’avatar profil (même règles que les avatars salle / cash). */
+router.patch('/profile', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const raw = req.body?.avatarUrl
+    let next: string | null
+    if (raw === null || raw === undefined || raw === '') {
+      next = null
+    } else {
+      const sanitized = sanitizePublicAvatarUrl(raw)
+      if (sanitized == null) {
+        return res.status(400).json({ error: 'URL d’avatar invalide' })
+      }
+      next = sanitized
+    }
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: next },
+      select: { avatarUrl: true },
+    })
+    return res.json({ avatarUrl: user.avatarUrl })
+  } catch (error) {
+    console.error('[AUTH] profile PATCH error:', error)
     return res.status(500).json({ error: 'Erreur serveur' })
   }
 })
