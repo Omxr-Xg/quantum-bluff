@@ -39,23 +39,21 @@ router.get('/', async (req: Request, res: Response) => {
     // 2. Récupération des tournois
     const tournaments = await prisma.tournament.findMany({
       where: { status: 'PENDING' },
-      include: { 
+      include: {
         _count: { select: { players: true } },
-        // On n'inclut la relation "players" que si on a un ID à chercher
-        players: currentUserId ? { 
-          where: { userId: currentUserId },
-          select: { userId: true } // On récupère juste l'ID pour vérifier la présence
-        } : false 
+        players: {
+          include: {
+            user: { select: { id: true, username: true, experience: true } }
+          }
+        }
       },
       orderBy: { startTime: 'asc' }
     });
 
     // 3. Formatage de la réponse
     const result = tournaments.map(t => {
-      // On vérifie si le tableau "players" contient quelque chose
-      // (Si oui, c'est que l'utilisateur actuel est dedans)
-      const isJoined = Array.isArray(t.players) && t.players.length > 0;
-      
+      const isJoined = currentUserId ? t.players.some(p => p.userId === currentUserId) : false;
+
       return {
         id: t.id,
         name: t.name,
@@ -65,7 +63,8 @@ router.get('/', async (req: Request, res: Response) => {
         startTime: t.startTime,
         status: t.status,
         _count: t._count,
-        isJoined: isJoined // C'est cette valeur qui pilote ton bouton !
+        isJoined,
+        players: t.players,
       };
     });
 
@@ -90,6 +89,10 @@ router.post('/create', authMiddleware, async (req: Request, res: Response) => {
 
     if (!name || buyIn === undefined || !maxPlayers || !startTime) {
       return res.status(400).json({ error: "Données manquantes" });
+    }
+
+    if (maxPlayers < 7 || maxPlayers > 36) {
+      return res.status(400).json({ error: 'Le nombre de joueurs doit être entre 7 et 36.' });
     }
 
     const tournament = await TournamentService.createTournament({

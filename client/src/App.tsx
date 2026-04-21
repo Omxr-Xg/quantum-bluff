@@ -30,6 +30,7 @@ import { NetworkOverlay } from "./components/NetworkOverlay";
 
 import { MiniGames } from './pages/MiniGames';
 import { TournamentLobby } from './pages/TournamentLobby';
+import { TournamentWaiting } from './pages/TournamentWaiting';
 import { AdminTournaments } from './pages/AdminTournaments';
 import { AdminAuth } from "./pages/AdminAuth";
 import { AdminConsole } from "./pages/AdminConsole";
@@ -82,7 +83,13 @@ function TournamentTeleporter() {
   const { userId } = useUser();
   const { addToast } = useToast();
   
-  const [tournamentResult, setTournamentResult] = useState<'win' | 'lose' | null>(null);
+  const [tournamentResult, setTournamentResult] = useState<{
+    type: 'win' | 'lose' | 'finalist' | 'result';
+    myPosition?: number | null;
+    myAmount?: number;
+    tournamentName?: string;
+    ranking?: { userId: string; username: string; position: number; amount: number }[];
+  } | null>(null);
 
   useEffect(() => {
     const currentToken = localStorage.getItem('token');
@@ -108,82 +115,190 @@ function TournamentTeleporter() {
       }
     };
 
-    const handleElimination = (data: { userId: string }) => {
+    const handleTournamentWon = (data: { userId: string }) => {
       if (data.userId === userId) {
-        if (isDev) console.log("💀 [SOCKET] Élimination tournoi");
-        setTournamentResult('lose'); 
-        
-        setTimeout(() => { 
-          setTournamentResult(null); 
-          navigate('/tournaments'); 
-        }, 7000); 
+        setTournamentResult({ type: 'finalist' });
+        setTimeout(() => {
+          setTournamentResult(null);
+          navigate('/tournament-waiting');
+        }, 3000);
       }
     };
 
-    const handleVictory = (data: { userId: string }) => {
+    const handleWaitingFinal = (_data: { survivorsCount: number; expectedTables: number }) => {
+      // Handled by TournamentWaiting page directly via socket
+    };
+
+    const handleFinalTable = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
+      setTournamentResult(null);
+      navigate(`/game?gameId=${data.gameId}`, {
+        state: { tournamentPlayers: data.players }
+      });
+    };
+
+    const handleElimination = (data: { userId: string }) => {
       if (data.userId === userId) {
-        if (isDev) console.log("🏆 [SOCKET] Victoire tournoi");
-        setTournamentResult('win'); 
-        
-        setTimeout(() => { 
-          setTournamentResult(null); 
-          navigate('/tournaments'); 
-        }, 7000); 
+        setTournamentResult({ type: 'lose' });
       }
+    };
+
+    const handleSpectate = (data: { gameId: string }) => {
+      setTimeout(() => {
+        setTournamentResult(null);
+        navigate(`/game?gameId=${data.gameId}&spectate=1`);
+      }, 5000);
+    };
+
+    const handleTournamentResult = (data: {
+      tournamentName: string;
+      prizePool: number;
+      ranking: { userId: string; username: string; position: number; amount: number }[];
+      myPosition: number | null;
+      myAmount: number;
+    }) => {
+      setTournamentResult({
+        type: 'result',
+        myPosition: data.myPosition,
+        myAmount: data.myAmount,
+        tournamentName: data.tournamentName,
+        ranking: data.ranking,
+      });
+      setTimeout(() => {
+        setTournamentResult(null);
+        navigate('/tournaments');
+      }, 12000);
     };
 
     socket.on('tournament-started', handleTournamentStart);
+    socket.on('tournament-won', handleTournamentWon);
+    socket.on('tournament-waiting-final', handleWaitingFinal);
+    socket.on('tournament-final-table', handleFinalTable);
     socket.on('tournament-eliminated', handleElimination);
-    socket.on('tournament-won', handleVictory);
+    socket.on('tournament-spectate', handleSpectate);
+    socket.on('tournament-result', handleTournamentResult);
 
     return () => {
       socket.off('tournament-started', handleTournamentStart);
+      socket.off('tournament-won', handleTournamentWon);
+      socket.off('tournament-waiting-final', handleWaitingFinal);
+      socket.off('tournament-final-table', handleFinalTable);
       socket.off('tournament-eliminated', handleElimination);
-      socket.off('tournament-won', handleVictory);
+      socket.off('tournament-spectate', handleSpectate);
+      socket.off('tournament-result', handleTournamentResult);
     };
   }, [userId, navigate, addToast]);
 
   if (tournamentResult) {
-    const isWin = tournamentResult === 'win';
-    
-    return (
-      <div style={{
-        position: 'fixed',
-        top: 0, left: 0, width: '100vw', height: '100vh',
-        backgroundColor: isWin ? 'rgba(0, 0, 0, 0.85)' : 'rgba(30, 0, 0, 0.9)',
-        backdropFilter: 'blur(8px)',
-        zIndex: 99999,
-        display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
-        color: 'white', fontFamily: 'sans-serif', textAlign: 'center',
-        animation: 'fadeIn 0.5s ease-out'
-      }}>
-        {isWin ? (
-          <>
-            <div style={{ fontSize: '6rem', marginBottom: '20px' }}>🏆</div>
-            <h1 style={{ fontSize: '4rem', margin: 0, color: '#FFD700', textShadow: '0 0 20px #FFD700' }}>
-              VICTOIRE !
-            </h1>
-            <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
-              Félicitations, tu es le grand gagnant du tournoi !
+    const medals = ['🥇', '🥈', '🥉'];
+    const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
+
+    if (tournamentResult.type === 'finalist') {
+      return (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          zIndex: 99999, display: 'flex', flexDirection: 'column',
+          justifyContent: 'center', alignItems: 'center',
+          color: 'white', fontFamily: 'sans-serif', textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '5rem', marginBottom: '20px' }}>🏆</div>
+          <h1 style={{ fontSize: '3rem', margin: 0, color: '#FFD700', textShadow: '0 0 20px #FFD700' }}>
+            Félicitations !
+          </h1>
+          <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
+            Vous êtes qualifié pour la finale !
+          </p>
+          <p style={{ marginTop: '10px', fontSize: '1rem', opacity: 0.6 }}>
+            Redirection dans quelques secondes...
+          </p>
+        </div>
+      );
+    }
+
+    if (tournamentResult.type === 'lose') {
+      return (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(30,0,0,0.9)', backdropFilter: 'blur(8px)',
+          zIndex: 99999, display: 'flex', flexDirection: 'column',
+          justifyContent: 'center', alignItems: 'center',
+          color: 'white', fontFamily: 'sans-serif', textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '6rem', marginBottom: '20px' }}>💥</div>
+          <h1 style={{ fontSize: '4rem', margin: 0, color: '#FF4444', textShadow: '0 0 20px #FF0000' }}>
+            ÉLIMINÉ
+          </h1>
+          <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
+            Tu n'as plus de jetons. Fin de la partie...
+          </p>
+          <p style={{ marginTop: '20px', fontSize: '1rem', opacity: 0.5 }}>
+            Redirection vers la table finale en mode spectateur...
+          </p>
+        </div>
+      );
+    }
+
+    if (tournamentResult.type === 'result' || tournamentResult.type === 'win') {
+      const myPos = tournamentResult.myPosition;
+      return (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)',
+          zIndex: 99999, display: 'flex', flexDirection: 'column',
+          justifyContent: 'center', alignItems: 'center',
+          color: 'white', fontFamily: 'sans-serif', textAlign: 'center',
+          padding: '20px', overflowY: 'auto'
+        }}>
+          <div style={{ fontSize: '5rem', marginBottom: '10px' }}>
+            {myPos && myPos <= 3 ? medals[myPos - 1] : '🎮'}
+          </div>
+          <h1 style={{
+            fontSize: '3rem', margin: 0,
+            color: myPos && myPos <= 3 ? medalColors[myPos - 1] : '#ffffff',
+            textShadow: myPos && myPos <= 3 ? `0 0 20px ${medalColors[myPos - 1]}` : 'none'
+          }}>
+            {myPos === 1 ? 'VICTOIRE !' : myPos === 2 ? '2ème PLACE' : myPos === 3 ? '3ème PLACE' : `${myPos}ème PLACE`}
+          </h1>
+          {tournamentResult.myAmount && tournamentResult.myAmount > 0 && (
+            <p style={{ fontSize: '1.5rem', marginTop: '10px', color: '#4ade80' }}>
+              +{tournamentResult.myAmount.toLocaleString()} jetons
             </p>
-          </>
-        ) : (
-          <>
-            <div style={{ fontSize: '6rem', marginBottom: '20px' }}>💥</div>
-            <h1 style={{ fontSize: '4rem', margin: 0, color: '#FF4444', textShadow: '0 0 20px #FF0000' }}>
-              ÉLIMINÉ
-            </h1>
-            <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
-              Tu n'as plus de jetons. Fin de la partie...
-            </p>
-          </>
-        )}
-        
-        <p style={{ marginTop: '50px', fontSize: '1rem', opacity: 0.5 }}>
-          Retour au lobby dans quelques secondes...
-        </p>
-      </div>
-    );
+          )}
+          {tournamentResult.ranking && tournamentResult.ranking.length > 0 && (
+            <div style={{
+              marginTop: '24px', background: 'rgba(255,255,255,0.08)',
+              borderRadius: '12px', padding: '16px',
+              minWidth: '300px', maxWidth: '400px', width: '100%'
+            }}>
+              <p style={{ fontSize: '0.9rem', opacity: 0.6, marginBottom: '12px' }}>
+                {tournamentResult.tournamentName}
+              </p>
+              {tournamentResult.ranking.map((r) => (
+                <div key={r.userId} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.1)',
+                  color: r.position <= 3 ? medalColors[r.position - 1] : 'rgba(255,255,255,0.6)'
+                }}>
+                  <span>
+                    {r.position <= 3 ? medals[r.position - 1] : `#${r.position}`} {r.username}
+                  </span>
+                  {r.amount > 0 && (
+                    <span style={{ color: '#4ade80', fontSize: '0.9rem' }}>
+                      +{r.amount.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          <p style={{ marginTop: '24px', fontSize: '0.9rem', opacity: 0.4 }}>
+            Retour aux tournois dans quelques secondes...
+          </p>
+        </div>
+      );
+    }
+
+    return null;
   }
 
   return null;
@@ -239,6 +354,7 @@ function App() {
             <Route path="/tutorial-lobby" element={<ProtectedRoute><TutorialLobby /></ProtectedRoute>} />
 
             <Route path="/tournaments" element={<ProtectedRoute><TournamentLobby /></ProtectedRoute>} />
+            <Route path="/tournament-waiting" element={<ProtectedRoute><TournamentWaiting /></ProtectedRoute>} />
             <Route path="/admin/tournaments" element={<ProtectedRoute><AdminTournaments /></ProtectedRoute>} />
 
           </Routes>

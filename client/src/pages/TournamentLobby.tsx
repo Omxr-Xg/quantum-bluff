@@ -171,7 +171,32 @@ export function TournamentLobby() {
                     </div>
                   </div>
 
-                  {t.isJoined ? (
+                  {t.status === 'PENDING' && t.players && t.players.length > 0 && (
+                  <div className="mt-4 bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-700 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-indigo-400" />
+                      <span className="text-white font-semibold text-sm">
+                        Joueurs inscrits ({t.players.length}/{t.maxPlayers})
+                      </span>
+                    </div>
+                    {t.players.map((player, index) => (
+                      <div
+                        key={player.user.id}
+                        className="flex items-center justify-between px-4 py-2 border-b border-slate-700/50 last:border-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-500 text-xs w-5">#{index + 1}</span>
+                          <span className="text-white text-sm">{player.user.username}</span>
+                        </div>
+                        <span className="text-xs text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full">
+                          Niv. {Math.floor((player.user.experience ?? 0) / 1000) + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {t.isJoined ? (
                     <div className="flex gap-2">
                         <div className="flex-1 bg-green-500/10 border border-green-500/30 text-green-400 font-black py-4 rounded-2xl flex items-center justify-center gap-3 tracking-widest uppercase italic text-sm">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-ping" />

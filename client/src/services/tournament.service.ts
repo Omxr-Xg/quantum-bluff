@@ -9,7 +9,8 @@ export interface Tournament {
   startTime: string;
   status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'CANCELED';
   _count: { players: number };
-  isJoined: boolean; 
+  isJoined: boolean;
+  players?: { userId: string; user: { id: string; username: string; experience: number } }[];
 }
 
 export const TournamentService = {

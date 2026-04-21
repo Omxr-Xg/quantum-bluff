@@ -17,6 +17,7 @@ import { metrics } from "../../observability/metrics.js";
 import { rootLogger } from "../../observability/logger.js";
 import { TournamentService } from "../../services/tournament.service.js";
 import { CashGameController } from "../../logic/CashGameController.js";
+import { prisma } from "../../config/database.js";
 
 type ActionTarget = {
   getStateContext: () => {
@@ -184,7 +185,14 @@ export async function applyPokerAction(
           console.log(
             `📣 [SOCKET] Envoi du signal d'élimination à ${busted.name}`,
           );
-          if (io) io.emit("tournament-eliminated", { userId: busted.id });
+          if (io) io.to(`user:${busted.id}`).emit("tournament-eliminated", { userId: busted.id });
+        }
+        // Record elimination order for tournament prize ranking
+        for (const busted of bustedPlayers) {
+          const tp = await prisma.tournamentPlayer.findFirst({
+            where: { userId: String(busted.id), tournament: { status: 'ACTIVE' } }
+          });
+          if (tp) TournamentService.recordElimination(tp.tournamentId, String(busted.id));
         }
       }
 
@@ -253,13 +261,22 @@ export async function applyPokerAction(
         // 🏆 C. LE GRAND GAGNANT !
         console.log(`🏆 [TOURNOI] VICTOIRE DE ${survivors[0].name} !`);
 
-        // 1. On affiche le bel écran de victoire sur le front
-        if (io) io.emit("tournament-won", { userId: survivors[0].id });
+        if (io) io.to(`user:${survivors[0].id}`).emit("tournament-won", { userId: survivors[0].id });
 
-        // 2. 💰 ON APPELLE LE BANQUIER POUR PAYER LE JOUEUR
-        TournamentService.processVictory(survivors[0].id);
+        const tp = await prisma.tournamentPlayer.findFirst({
+          where: { userId: String(survivors[0].id), tournament: { status: 'ACTIVE' } },
+        });
+        if (tp) {
+          await TournamentService.handleTableFinished(
+            tp.tournamentId,
+            String(survivors[0].id),
+            survivors[0].name,
+            survivors[0].chips,
+          );
+        } else {
+          await TournamentService.processVictory([String(survivors[0].id)]);
+        }
 
-        // 3. On nettoie la mémoire du serveur (on supprime la table)
         activeGames.delete(payload.gameId);
       }
     }
