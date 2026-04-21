@@ -519,76 +519,6 @@ export function Lobby() {
           </div>
         </div>
 
-        {/* NAV TABS - SCROLLABLE ON MOBILE */}
-        <nav
-          className={`mx-auto mb-10 flex w-full max-w-3xl overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-md transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
-            lobbyMainTab === "poker"
-              ? "border-white/10 bg-slate-950/75"
-              : lobbyMainTab === "minigames"
-                ? "border-amber-500/25 bg-emerald-950/70"
-                : "border-rose-500/35 bg-rose-950/75"
-          }`}
-          role="tablist"
-          aria-label={t("lobby.tabListAria")}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={lobbyMainTab === "poker"}
-            onClick={() => setMainTab("poker")}
-            className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
-              lobbyMainTab === "poker"
-                ? "bg-gradient-to-br from-green-500/40 via-emerald-600/25 to-slate-900/60 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_24px_rgba(34,197,94,0.15)] ring-1 ring-green-400/45"
-                : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
-            }`}
-          >
-            <Spade
-              className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "poker" ? "text-green-200 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]" : ""}`}
-              strokeWidth={2.2}
-              aria-hidden
-            />
-            <span className="font-serif text-xs font-bold tracking-wide md:text-sm">{t("lobby.tabPoker")}</span>
-          </button>
-          <div className="hidden w-px self-stretch bg-slate-600/40 md:block" aria-hidden />
-          <button
-            type="button"
-            role="tab"
-            aria-selected={lobbyMainTab === "minigames"}
-            onClick={() => setMainTab("minigames")}
-            className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
-              lobbyMainTab === "minigames"
-                ? "bg-gradient-to-br from-amber-500/35 via-amber-900/30 to-emerald-950/70 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_0_28px_rgba(245,158,11,0.18)] ring-1 ring-amber-400/50"
-                : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
-            }`}
-          >
-            <Sparkles
-              className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "minigames" ? "text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.45)]" : ""}`}
-              strokeWidth={2.2}
-              aria-hidden
-            />
-            <span className="font-serif text-xs font-bold tracking-wide md:text-sm">{t("lobby.tabMinigames")}</span>
-          </button>
-          <div className="hidden w-px self-stretch bg-slate-600/40 md:block" aria-hidden />
-          <button
-            type="button"
-            role="tab"
-            aria-selected={lobbyMainTab === "blackjack"}
-            onClick={() => setMainTab("blackjack")}
-            className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
-              lobbyMainTab === "blackjack"
-                ? "bg-gradient-to-br from-rose-600/40 via-rose-950/50 to-slate-950/80 text-rose-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_26px_rgba(244,63,94,0.2)] ring-1 ring-rose-400/45"
-                : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
-            }`}
-          >
-            <Club
-              className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "blackjack" ? "text-rose-200 drop-shadow-[0_0_10px_rgba(251,113,133,0.45)]" : ""}`}
-              strokeWidth={2.2}
-              aria-hidden
-            />
-            <span className="font-serif text-xs font-bold tracking-wide md:text-sm">{t("lobby.tabBlackjack")}</span>
-          </button>
-        </nav>
-
         {/* Modal Créer un serveur - FIX MOBILE SCROLL */}
         {showCreateModal && (
           <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center overflow-y-auto p-4" onClick={() => setShowCreateModal(false)}>
@@ -792,11 +722,80 @@ export function Lobby() {
         )}
 
         {/* MAIN GRID - IMPROVED GAP */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
-          
-          {/* Colonne de gauche - Texas Hold'em - CONDITIONAL RENDER (performance) */}
+        <div className="grid grid-cols-1 items-start md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
+          {/* Colonne jeux : onglets au-dessus du contenu uniquement (pas au-dessus défis / amis) */}
+          <div className="md:col-span-2 lg:col-span-2 space-y-6">
+            <nav
+              className={`flex w-full overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-md transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
+                lobbyMainTab === "poker"
+                  ? "border-white/10 bg-slate-950/75"
+                  : lobbyMainTab === "minigames"
+                    ? "border-amber-500/25 bg-emerald-950/70"
+                    : "border-rose-500/35 bg-rose-950/75"
+              }`}
+              role="tablist"
+              aria-label="Game sections"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={lobbyMainTab === "poker"}
+                onClick={() => setMainTab("poker")}
+                className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
+                  lobbyMainTab === "poker"
+                    ? "bg-gradient-to-br from-green-500/40 via-emerald-600/25 to-slate-900/60 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_24px_rgba(34,197,94,0.15)] ring-1 ring-green-400/45"
+                    : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
+                }`}
+              >
+                <Spade
+                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "poker" ? "text-green-200 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]" : ""}`}
+                  strokeWidth={2.2}
+                  aria-hidden
+                />
+                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">Poker</span>
+              </button>
+              <div className="hidden w-px self-stretch bg-slate-600/40 md:block" aria-hidden />
+              <button
+                type="button"
+                role="tab"
+                aria-selected={lobbyMainTab === "minigames"}
+                onClick={() => setMainTab("minigames")}
+                className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
+                  lobbyMainTab === "minigames"
+                    ? "bg-gradient-to-br from-amber-500/35 via-amber-900/30 to-emerald-950/70 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_0_28px_rgba(245,158,11,0.18)] ring-1 ring-amber-400/50"
+                    : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
+                }`}
+              >
+                <Sparkles
+                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "minigames" ? "text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.45)]" : ""}`}
+                  strokeWidth={2.2}
+                  aria-hidden
+                />
+                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">Mini-games</span>
+              </button>
+              <div className="hidden w-px self-stretch bg-slate-600/40 md:block" aria-hidden />
+              <button
+                type="button"
+                role="tab"
+                aria-selected={lobbyMainTab === "blackjack"}
+                onClick={() => setMainTab("blackjack")}
+                className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
+                  lobbyMainTab === "blackjack"
+                    ? "bg-gradient-to-br from-rose-600/40 via-rose-950/50 to-slate-950/80 text-rose-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_26px_rgba(244,63,94,0.2)] ring-1 ring-rose-400/45"
+                    : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
+                }`}
+              >
+                <Club
+                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "blackjack" ? "text-rose-200 drop-shadow-[0_0_10px_rgba(251,113,133,0.45)]" : ""}`}
+                  strokeWidth={2.2}
+                  aria-hidden
+                />
+                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">Blackjack</span>
+              </button>
+            </nav>
+
           {lobbyMainTab === "poker" && (
-            <div className="md:col-span-2 lg:col-span-2 space-y-6">
+            <div className="space-y-6">
               {/* Section Jouer contre Bot */}
               <div ref={tourRefBot} className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
                 <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
@@ -976,7 +975,7 @@ export function Lobby() {
 
           {/* Onglet Mini-jeux - CONDITIONAL RENDER */}
           {lobbyMainTab === "minigames" && (
-            <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 gap-3 md:gap-6 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 md:gap-6 sm:grid-cols-2">
               <div className="rounded-2xl border border-green-500 bg-slate-800 p-6">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
                   <Disc className="h-8 w-8 shrink-0 text-green-400" strokeWidth={2.2} aria-hidden />
@@ -1016,7 +1015,7 @@ export function Lobby() {
 
           {/* Onglet Blackjack - CONDITIONAL RENDER */}
           {lobbyMainTab === "blackjack" && (
-            <div className="md:col-span-2 lg:col-span-2 space-y-6">
+            <div className="space-y-6">
               <div className="rounded-2xl border border-rose-500/50 bg-slate-800 p-6">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
                   <Club className="h-8 w-8 text-rose-400" aria-hidden />
@@ -1033,12 +1032,17 @@ export function Lobby() {
                 </button>
                 <p className="mt-3 text-center text-xs leading-relaxed text-gray-500">{t("lobby.blackjackSoloHint")}</p>
               </div>
-              <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} onSwitchTab={setMainTab} />
+              <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} />
             </div>
           )}
 
+          </div>
+
           {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
-          <div ref={tourRefFriends} className="md:col-span-2 lg:col-span-1 space-y-6">
+          <div
+            ref={tourRefFriends}
+            className="md:col-span-2 lg:col-span-1 space-y-6 self-start -mt-3 md:-mt-4 lg:-mt-6"
+          >
             <DailyChallenges />
             <FriendsList />
           </div>

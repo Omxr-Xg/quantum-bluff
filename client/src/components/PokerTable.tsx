@@ -39,6 +39,9 @@ interface PokerTableProps {
   burnedCardsCount?: number;
   colorblindMode?: boolean;
   heroSeatId?: string | number | null;
+  /** Clic sur l’avatar d’un adversaire (multijoueur) : menu invitation / message / signalement */
+  onOpponentAvatarClick?: (player: Player) => void;
+  enableAvatarInteractions?: boolean;
 }
 
 // Dimensions de référence — doivent correspondre à tablePositions.ts
@@ -53,6 +56,8 @@ export function PokerTable({
   burnedCardsCount = 0,
   colorblindMode = false,
   heroSeatId = null,
+  onOpponentAvatarClick,
+  enableAvatarInteractions = false,
 }: PokerTableProps) {
   const { t } = useTranslation();
   const { feltGradient, feltBorder } = useTableTheme();
@@ -256,8 +261,60 @@ export function PokerTable({
                   )}
 
                   {/* Avatar */}
-                  <div
-                    className={`rounded-full overflow-hidden border-2 transition relative
+                  {(() => {
+                    const avatarInner = (
+                      <>
+                        {getPlayerAvatar(player.name, player.id, heroSeatId, player.avatar) ? (
+                          <ImageWithFallback
+                            src={
+                              getPlayerAvatar(
+                                player.name,
+                                player.id,
+                                heroSeatId,
+                                player.avatar
+                              ) || ""
+                            }
+                            alt={player.name}
+                            className={`w-full h-full object-cover ${
+                              player.hasFolded
+                                ? "blur-[2px] opacity-40 brightness-50"
+                                : ""
+                            }`}
+                          />
+                        ) : (
+                          <div
+                            className={`flex items-center justify-center h-full font-bold ${
+                              player.hasFolded
+                                ? "text-red-300 blur-[1px] opacity-50"
+                                : "text-white"
+                            }`}
+                          >
+                            {player.name.charAt(0)}
+                          </div>
+                        )}
+
+                        {player.hasFolded && (
+                          <div className="absolute inset-0 bg-red-600/30 rounded-full" />
+                        )}
+
+                        {/* Indicateur connexion */}
+                        <div
+                          className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-800 ${
+                            player.isConnected !== false
+                              ? "bg-green-500 animate-pulse"
+                              : "bg-red-500"
+                          }`}
+                          title={
+                            player.isConnected !== false
+                              ? t("friends.online")
+                              : t("friends.offline")
+                          }
+                          aria-hidden="true"
+                        />
+                      </>
+                    );
+
+                    const shellClass = `rounded-full overflow-hidden border-2 transition relative
                       ${
                         player.position === 0
                           ? "w-[clamp(2.5rem,7vw,4.5rem)] h-[clamp(2.5rem,7vw,4.5rem)]"
@@ -270,56 +327,35 @@ export function PokerTable({
                           ? "bg-red-900/60 border-red-500 grayscale"
                           : "bg-blue-500 border-white"
                       }
-                      ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`}
-                  >
-                    {getPlayerAvatar(player.name, player.id, heroSeatId, player.avatar) ? (
-                      <ImageWithFallback
-                        src={
-                          getPlayerAvatar(
-                            player.name,
-                            player.id,
-                            heroSeatId,
-                            player.avatar
-                          ) || ""
-                        }
-                        alt={player.name}
-                        className={`w-full h-full object-cover ${
-                          player.hasFolded
-                            ? "blur-[2px] opacity-40 brightness-50"
-                            : ""
-                        }`}
-                      />
-                    ) : (
-                      <div
-                        className={`flex items-center justify-center h-full font-bold ${
-                          player.hasFolded
-                            ? "text-red-300 blur-[1px] opacity-50"
-                            : "text-white"
-                        }`}
-                      >
-                        {player.name.charAt(0)}
-                      </div>
-                    )}
+                      ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`;
 
-                    {player.hasFolded && (
-                      <div className="absolute inset-0 bg-red-600/30 rounded-full" />
-                    )}
+                    const clickable =
+                      enableAvatarInteractions &&
+                      onOpponentAvatarClick &&
+                      typeof player.id === "string" &&
+                      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+                        player.id
+                      );
 
-                    {/* Indicateur connexion */}
-                    <div
-                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-800 ${
-                        player.isConnected !== false
-                          ? "bg-green-500 animate-pulse"
-                          : "bg-red-500"
-                      }`}
-                      title={
-                        player.isConnected !== false
-                          ? t("friends.online")
-                          : t("friends.offline")
-                      }
-                      aria-hidden="true"
-                    />
-                  </div>
+                    if (clickable) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpponentAvatarClick(player);
+                          }}
+                          className={`${shellClass} cursor-pointer hover:ring-2 hover:ring-amber-400/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400`}
+                          title={t("game.playerMenu.openMenu")}
+                          aria-label={t("game.playerMenu.openMenu")}
+                        >
+                          {avatarInner}
+                        </button>
+                      );
+                    }
+
+                    return <div className={shellClass}>{avatarInner}</div>;
+                  })()}
 
                   {/* Nom */}
                   <div
