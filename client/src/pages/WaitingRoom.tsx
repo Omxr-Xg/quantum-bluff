@@ -565,7 +565,7 @@ export function WaitingRoom() {
                       <div className="relative">
                         <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
                           <ImageWithFallback
-                            src={getPlayerAvatar(friend.username, friend.id, userId)}
+                            src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
                             alt={`${friend.username} avatar`}
                             className="w-12 h-12 rounded-full object-cover"
                           />

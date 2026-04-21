@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useUser } from '../hooks/useUser';
 import { useSearchUsersQuery, useSendFriendRequestMutation } from '../services/api';
 import { Search, UserPlus, Loader2 } from 'lucide-react';
+import { getPlayerAvatar } from '../utils/avatars';
+import { ImageWithFallback } from './figma/ImageWithFallback';
 
 export const FriendSearch = () => {
   const { t } = useTranslation();
@@ -69,13 +71,28 @@ export const FriendSearch = () => {
           {results.map((user) => (
             <div
               key={user.id}
-              className="flex items-center justify-between rounded-lg border border-slate-600 bg-slate-800/50 p-3"
+              className="flex items-center justify-between gap-3 rounded-lg border border-slate-600 bg-slate-800/50 p-3"
             >
-              <div>
-                <div className="font-medium text-white">{user.username}</div>
-                <div className="text-xs text-gray-400">
-                  {t("friends.level", { level: user.level })} •{" "}
-                  {t("friends.gamesCount", { count: user.stats?.totalGames || 0 })}
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-600 bg-slate-700">
+                  {getPlayerAvatar(user.username, user.id, userId, user.avatarUrl) ? (
+                    <ImageWithFallback
+                      src={getPlayerAvatar(user.username, user.id, userId, user.avatarUrl)}
+                      alt=""
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm font-bold text-white">{user.username.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="font-medium text-white">{user.username}</div>
+                  <div className="text-xs text-gray-400">
+                    {t("friends.level", { level: user.level })} •{" "}
+                    {t("friends.gamesCount", {
+                      count: user.playerStats?.totalGames ?? user.stats?.totalGames ?? 0,
+                    })}
+                  </div>
                 </div>
               </div>
               <button

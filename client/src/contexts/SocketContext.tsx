@@ -175,12 +175,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       }
     })
 
-    socket.on('FRIEND_STATUS_CHANGED', (data: { userId?: string; status?: string; username?: string }) => {
-      const name = data.username ?? data.userId ?? 'Un ami'
-      const key = data.status === 'online' ? 'toast.friendIsOnline' : 'toast.friendIsOffline'
-      addToast(i18n.t(key, { name }), 'info')
-    })
-
     socket.on('GAME_INVITATION_RECEIVED', (data: GameInvitationNotification) => {
       addToast(
         i18n.t('invitation.title', { username: data.sender?.username ?? 'un joueur' }),
@@ -215,7 +209,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       socket.off('FRIEND_REQUEST_RECEIVED')
       socket.off('FRIEND_REQUEST_ACCEPTED')
-      socket.off('FRIEND_STATUS_CHANGED')
       socket.off('GAME_INVITATION_RECEIVED')
       socket.off('JOIN_REQUEST_RECEIVED')
       socket.off('JOIN_REQUEST_ACCEPTED')
