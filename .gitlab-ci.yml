@@ -18,10 +18,10 @@ variables:
 
 default:
   image: $NODE_IMAGE
-  # Instance runners git.unistra.fr : les jobs sans tags ne sont pas toujours pris ;
-  # le tag « js » est commun aux runners Node listés dans CI/CD → Runners.
-  tags:
-    - js
+  # Pas de tags par défaut : plus de runners peuvent prendre les jobs (évite pending
+  # si seuls les runners « kubernetes » sont libres). Si un job reste pending, vérifier
+  # Settings → CI/CD → Runners : instance runners activés + jobs sans tag autorisés.
+  # Sinon ajouter sur un job : tags: [js] ou [kubernetes] selon les tags listés.
 
 # Définition des stages
 stages:
@@ -57,6 +57,7 @@ backend:lint:
     NODE_OPTIONS: --max-old-space-size=4096
   script:
     - cd server
+    - rm -rf node_modules
     - npm ci
     - npm run lint
   only:
@@ -123,6 +124,7 @@ frontend:lint:
     NODE_OPTIONS: --max-old-space-size=4096
   script:
     - cd client
+    - rm -rf node_modules
     - npm ci --legacy-peer-deps
     - npm run lint
   only:
@@ -339,11 +341,13 @@ docs:markdown-lint:
   image: $NODE_IMAGE
   script:
     - npm install -g markdownlint-cli
-    - markdownlint 'Docs/**/*.md' || echo "⚠️ Documentation non vérifiée"
-  allow_failure: true
+    # Utilise .markdownlint.json à la racine (règles assouplies pour la doc existante).
+    - markdownlint 'Docs/**/*.md'
   only:
     - develop
     - main
+    - /^feature\/.*$/
+    - /^fix\/.*$/
 
 # ============================================
 # DÉPLOIEMENT - Staging et Production

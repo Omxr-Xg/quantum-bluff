@@ -9,7 +9,7 @@
     "dev": "nodemon --exec tsx src/index.ts",
     "postinstall": "prisma generate",
     "build": "prisma generate && tsc && cp -r src/generated dist/",
-    "lint": "eslint .",
+    "lint": "eslint . --no-cache",
     "test": "jest",
     "test:coverage": "jest --coverage"
   },
