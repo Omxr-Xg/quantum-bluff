@@ -231,7 +231,7 @@ export class TournamentService {
     if (!tournament) throw new Error("Tournoi introuvable");
     if (tournament.status !== 'PENDING') throw new Error("Tournoi déjà actif ou annulé");
 
-    if (tournament.players.length < 2) {
+    if (tournament.players.length < 7) {
       await prisma.tournament.update({
         where: { id: tournamentId },
         data: { status: 'CANCELED' }
