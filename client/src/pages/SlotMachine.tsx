@@ -145,6 +145,9 @@ export function SlotMachine() {
   const isRefund = result.isWin && result.winAmount === bet;
   const isBigWin = result.isWin && result.winAmount! > bet;
 
+  const MAX_BET = 250;
+  const maxBet = Math.min(MAX_BET, balance);
+
   const loadBalance = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -339,7 +342,7 @@ export function SlotMachine() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setBet(Math.max(10, bet - 10))}
+                  onClick={() => setBet(Math.max(10, bet - 25))}
                   disabled={isSpinning}
                   className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600 bg-slate-700/90 text-sm font-bold text-slate-100 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -351,13 +354,29 @@ export function SlotMachine() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setBet(Math.min(balance, bet + 10))}
-                  disabled={isSpinning || balance < bet + 10}
+                  onClick={() => setBet(Math.min(maxBet, bet + 25))}
+                  disabled={isSpinning || bet >= maxBet}
                   className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600 bg-slate-700/90 text-sm font-bold text-slate-100 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   +
                 </button>
               </div>
+              <div className="mt-2 flex gap-1">
+                {[10, 50, 100, 250].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setBet(Math.min(maxBet, Math.min(balance, preset)))}
+                    disabled={isSpinning || balance < preset}
+                    className="flex-1 py-1 text-xs font-bold rounded-lg border border-slate-600 bg-slate-700/90 text-slate-100 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    {preset === 250 ? 'MAX' : preset}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-center text-xs text-slate-500">
+                Max : 250 <ChipIcon size="sm" className="inline" />
+              </p>
             </div>
           </div>
 
