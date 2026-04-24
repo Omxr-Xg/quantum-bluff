@@ -230,6 +230,7 @@ export function Game() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [handActionLog, setHandActionLog] = useState<{ id: string; line: string }[]>([]);
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
+  const hasPlayerActedRef = useRef(false);
   const [isLoading, setIsLoading] = useState(false);
   const [playersState, setPlayersState] = useState<(BasePlayer | BotPlayer)[]>([]);
   const playersStateRef = useRef<(BasePlayer | BotPlayer)[]>([]);
@@ -257,6 +258,14 @@ export function Game() {
   const [phase, setPhase] = useState<GamePhase>("init");
   const [communityCardsState, setCommunityCardsState] = useState<(Card | null)[]>([null, null, null, null, null]);
   const [burnedCardsCount, setBurnedCardsCount] = useState(0);
+  const [minRaise, setMinRaise] = useState(100);
+  const effectiveMinRaise = useMemo(() => {
+    if (!isBotMode) return minRaise;
+    const maxBet = Math.max(0, ...playersState.map(p => p.bet ?? 0));
+    const prevMaxBet = Math.max(0, ...playersState.map(p => p.currentBet ?? 0));
+    const lastRaiseIncrement = maxBet - prevMaxBet;
+    return Math.max(BOT_TABLE_DEFAULTS.BIG_BLIND, lastRaiseIncrement || BOT_TABLE_DEFAULTS.BIG_BLIND);
+  }, [isBotMode, playersState, minRaise]);
   const [deck, setDeck] = useState<Card[]>([]);
   const [shuffleCount, setShuffleCount] = useState(0);
   const [, _setDealingCard] = useState<number | null>(null);
@@ -1015,6 +1024,7 @@ export function Game() {
         }
         setPhase(phase as GamePhase);
         setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
+        setMinRaise((gameState as { minRaise?: number }).minRaise ?? 100);
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
@@ -1097,6 +1107,7 @@ export function Game() {
           addToast(payload?.message || t('common.error'), "error");
           setIsLoading(false);
           setHasPlayerActed(false);
+          hasPlayerActedRef.current = false;
         }
     };
     socket.on("ERROR", onError);
@@ -1261,6 +1272,7 @@ export function Game() {
         return mapped;
       });
       setPot(gameState.pot ?? 0);
+      setMinRaise((gameState as { minRaise?: number }).minRaise ?? 100);
       const phase = incomingPhase;
       if (phase === "showdown") {
         lastShowdownSnapshotAtRef.current = Date.now();
@@ -1315,6 +1327,7 @@ export function Game() {
       }
       setGameInitialized(phase !== "init");
       setHasPlayerActed(false);
+      hasPlayerActedRef.current = false;
       setIsLoading(false);
       setRoundPlayersActed(new Set());
 
@@ -1560,10 +1573,12 @@ export function Game() {
             timerIntervalRef.current = null;
           }
           setTimerActive(false);
-          if (callAmount === 0) {
-            handleCheck();
-          } else {
-            handleFold();
+          if (!hasPlayerActedRef.current) {
+            if (callAmount === 0) {
+              handleCheck();
+            } else {
+              handleFold();
+            }
           }
           return 0;
         }
@@ -1577,7 +1592,7 @@ export function Game() {
         timerIntervalRef.current = null;
       }
     };
-  }, [isMyTurn, gameInitialized, phase, callAmount]);
+  }, [isMyTurn, gameInitialized, phase, callAmount, hasPlayerActed]);
 
   useEffect(() => {
     const hero = playersState.find((p) => p.id === userId || p.id === "human");
@@ -1612,6 +1627,7 @@ export function Game() {
           prev.map((pl, j) => ({ ...pl, isActive: j === nextIdx }))
         );
         setHasPlayerActed(false);
+        hasPlayerActedRef.current = false;
         setIsLoading(false);
         return;
       }
@@ -1710,6 +1726,7 @@ export function Game() {
     });
 
     setHasPlayerActed(false);
+    hasPlayerActedRef.current = false;
     setIsLoading(false);
   };
 
@@ -2174,7 +2191,7 @@ export function Game() {
             currentBet: currentBet,
             playerChips: activePlayer.chips,
             callAmount,
-            minRaise: BOT_TABLE_DEFAULTS.MIN_RAISE_FOR_BOT_API,
+            minRaise: effectiveMinRaise,
             potSize: pot,
             position: activePlayer.position,
             playersCount: playersState.filter((p) => p.isConnected !== false).length,
@@ -2305,6 +2322,7 @@ export function Game() {
         actionId: `act-${Date.now()}-${actionSeqRef.current}`,
       });
       setHasPlayerActed(true);
+      hasPlayerActedRef.current = true;
       setIsLoading(true);
       return;
     }
@@ -2416,6 +2434,7 @@ export function Game() {
         actionId: `act-${Date.now()}-${actionSeqRef.current}`,
       });
       setHasPlayerActed(true);
+      hasPlayerActedRef.current = true;
       setIsLoading(true);
       return;
     }
@@ -2425,6 +2444,7 @@ export function Game() {
         : playersState.findIndex((p) => p.id === userId || p.id === "human");
     if (isHumanActing) {
       setHasPlayerActed(true);
+      hasPlayerActedRef.current = true;
       setIsLoading(true);
     }
     if (!gameIdParam) {
@@ -2461,6 +2481,7 @@ export function Game() {
         actionId: `act-${Date.now()}-${actionSeqRef.current}`,
       });
       setHasPlayerActed(true);
+      hasPlayerActedRef.current = true;
       setIsLoading(true);
       return;
     }
@@ -2557,6 +2578,7 @@ export function Game() {
       if (isBotAllInCall) setTimeout(() => setRunOutPhase(phase), 50);
       appendLocalHandAction(playersState.find((p) => p.id === playerId), "call", { amount });
       setHasPlayerActed(false);
+      hasPlayerActedRef.current = false;
       setIsLoading(false);
       return;
     } else {
@@ -2580,6 +2602,7 @@ export function Game() {
         : playersState.findIndex((p) => p.id === userId || p.id === "human");
     if (isHumanActing) {
       setHasPlayerActed(true);
+      hasPlayerActedRef.current = true;
       setIsLoading(true);
     }
     if (!gameIdParam) {
@@ -2617,6 +2640,7 @@ export function Game() {
         actionId: `act-${Date.now()}-${actionSeqRef.current}`,
       });
       setHasPlayerActed(true);
+      hasPlayerActedRef.current = true;
       setIsLoading(true);
       return;
     }
@@ -2654,6 +2678,7 @@ export function Game() {
     }
     if (isHumanActing) {
       setHasPlayerActed(true);
+      hasPlayerActedRef.current = true;
       setIsLoading(true);
     }
     const justActedIndex =
@@ -3443,7 +3468,7 @@ export function Game() {
           onRaise={(amount) => handleRaise(amount)}
           onCheck={() => handleCheck()}
           callAmount={callAmount}
-          minRaise={50}
+          minRaise={effectiveMinRaise}
           maxRaise={Math.max(0, displayedHeroChips - callAmount)}
           isMyTurn={handResult === null && isMyTurn}
           isLoading={isLoading}
