@@ -257,6 +257,7 @@ export function Game() {
   const [phase, setPhase] = useState<GamePhase>("init");
   const [communityCardsState, setCommunityCardsState] = useState<(Card | null)[]>([null, null, null, null, null]);
   const [burnedCardsCount, setBurnedCardsCount] = useState(0);
+  const [minRaise, setMinRaise] = useState(100);
   const [deck, setDeck] = useState<Card[]>([]);
   const [shuffleCount, setShuffleCount] = useState(0);
   const [, _setDealingCard] = useState<number | null>(null);
@@ -1015,6 +1016,7 @@ export function Game() {
         }
         setPhase(phase as GamePhase);
         setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
+        setMinRaise((gameState as { minRaise?: number }).minRaise ?? 100);
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
@@ -1261,6 +1263,7 @@ export function Game() {
         return mapped;
       });
       setPot(gameState.pot ?? 0);
+      setMinRaise((gameState as { minRaise?: number }).minRaise ?? 100);
       const phase = incomingPhase;
       if (phase === "showdown") {
         lastShowdownSnapshotAtRef.current = Date.now();
@@ -3443,7 +3446,7 @@ export function Game() {
           onRaise={(amount) => handleRaise(amount)}
           onCheck={() => handleCheck()}
           callAmount={callAmount}
-          minRaise={50}
+          minRaise={minRaise}
           maxRaise={Math.max(0, displayedHeroChips - callAmount)}
           isMyTurn={handResult === null && isMyTurn}
           isLoading={isLoading}

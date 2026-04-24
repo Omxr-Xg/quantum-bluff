@@ -1183,6 +1183,7 @@ export class GameTable {
       showdownHandName: this.state.showdownHandName,
       showdownPot: this.state.showdownPot,
       burnedCardsCount: this.deck.burnedCards.length,
+      minRaise: this.getMinRaise(),
       handParticipantIds: this.state.handParticipantIds,
       handEndReason: this.state.handEndReason,
       handRuntimePhase: this.state.handRuntimePhase,
