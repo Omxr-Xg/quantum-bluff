@@ -148,7 +148,10 @@ router.get('/', waitingRoomListLimiter, async (req, res) => {
         isReady: p.isReady,
         position: p.position
       })),
-      playerCount: room.players.length
+      playerCount: room.players.length,
+      minBalance: room.minBalance ?? null,
+      smallBlind: room.smallBlind ?? null,
+      bigBlind: room.bigBlind ?? null,
     }));
 
     res.json(formattedRooms);
@@ -423,6 +426,9 @@ router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
       visibility: room.visibility,
       status: room.status,
       turbo: room.turbo,
+      minBalance: room.minBalance ?? null,
+      smallBlind: room.smallBlind ?? null,
+      bigBlind: room.bigBlind ?? null,
       players: room.players.map(p => ({
         id: p.user.id,
         username: p.user.username,
@@ -501,6 +507,22 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
       });
       if (!approved) {
         return res.status(403).json({ error: 'Cette salle est privée. Envoyez une demande.' });
+      }
+    }
+
+    if (room.minBalance != null && room.minBalance > 0) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { chips: true }
+      });
+      const userChips = Math.floor(Number(user?.chips ?? 0));
+      if (userChips < room.minBalance) {
+        return res.status(400).json({
+          error: `Jetons insuffisants. Il faut au moins ${room.minBalance} jetons pour rejoindre cette salle.`,
+          code: 'INSUFFICIENT_CHIPS',
+          required: room.minBalance,
+          current: userChips
+        });
       }
     }
 
