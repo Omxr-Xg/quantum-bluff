@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, Zap } from "lucide-react";
+import { ChipIcon } from "../components/ChipIcon";
 import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
 import { fetchBalanceFromServer, getUserAvatar } from "../utils/userProfile";
@@ -35,6 +36,7 @@ export function WaitingRoom() {
   const [roomName, setRoomName] = useState("");
   const [roomVisibility, setRoomVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [roomTurbo, setRoomTurbo] = useState(false);
+  const [roomMinBalance, setRoomMinBalance] = useState<number | null>(null);
   const [roomLoading, setRoomLoading] = useState(true);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -56,11 +58,13 @@ export function WaitingRoom() {
     visibility?: 'PUBLIC' | 'PRIVATE';
     turbo?: boolean;
     hostId?: string;
+    minBalance?: number | null;
     players?: Array<{ id: string; username: string; level?: number; isReady?: boolean; avatarUrl?: string | null }>;
   }) => {
     setRoomName(room.name || "");
     setRoomVisibility(room.visibility || 'PUBLIC');
     setRoomTurbo(!!room.turbo);
+    setRoomMinBalance(room.minBalance ?? null);
     setIsCreator(room.hostId === userId);
     const me = room.players?.find((p) => p.id === userId);
     setMyIsReady(me?.isReady ?? false);
@@ -470,6 +474,12 @@ export function WaitingRoom() {
                 </span>
               ) : null}
             </div>
+            {roomMinBalance && roomMinBalance > 0 && (
+              <div className="flex items-center gap-2 text-sm text-slate-400 mt-1">
+                <ChipIcon size="sm" />
+                <span>Mise minimale requise : <span className="text-amber-400 font-bold">{roomMinBalance.toLocaleString()}</span> jetons</span>
+              </div>
+            )}
           </div>
         </div>
 

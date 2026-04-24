@@ -31,6 +31,8 @@ import { useTopBar } from '../contexts/TopBarContext';
 import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { OPEN_RATE_GAME_EVENT, STORAGE_RATE_GAME_PROMPT_SHOWN } from "../constants/storageKeys";
 import { apiUrl } from "../utils/apiBase";
+import { getUserBalance, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
+import { ChipIcon } from "../components/ChipIcon";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 import { DailyChallenges } from "../components/DailyChallenges";
 import { TournamentWidget } from '../components/TournamentWidget';
@@ -65,6 +67,9 @@ interface WaitingRoomItem {
   turbo?: boolean;
   players: RoomPlayer[];
   playerCount: number;
+  minBalance?: number | null;
+  smallBlind?: number | null;
+  bigBlind?: number | null;
 }
 
 interface GameInProgressItem {
@@ -114,6 +119,13 @@ export function Lobby() {
   );
   const [lobbyMainTab, setLobbyMainTabState] = useState<"poker" | "minigames" | "blackjack">(readLobbyTabFromUrl);
   const { addToast } = useToast();
+  const [balance, setBalance] = useState<number>(getUserBalance());
+
+  useEffect(() => {
+    const sync = () => setBalance(getUserBalance());
+    window.addEventListener(BALANCE_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(BALANCE_CHANGED_EVENT, sync);
+  }, []);
 
   // Performance: memoize rooms for map operations
   const roomsMemo = useMemo(() => rooms, [rooms]);
@@ -368,7 +380,11 @@ export function Lobby() {
     }
   };
 
-  const handleJoinRoom = (roomId: string) => {
+  const handleJoinRoom = (roomId: string, room?: WaitingRoomItem) => {
+    if (room?.minBalance && room.minBalance > 0 && balance < room.minBalance) {
+      addToast(`Jetons insuffisants — il faut au moins ${room.minBalance} jetons pour cette salle.`, 'error');
+      return;
+    }
     navigate(`/waiting-room?roomId=${roomId}`);
   };
 
@@ -847,6 +863,7 @@ export function Lobby() {
                           const isHost = userId && room.hostId === userId;
                           const isFull = room.playerCount >= room.maxPlayers;
                           const isPrivate = room.visibility === 'PRIVATE';
+                          const hasEnoughChips = !room.minBalance || room.minBalance === 0 || balance >= room.minBalance;
                           return (
                           <li
                             key={room.id}
@@ -876,6 +893,11 @@ export function Lobby() {
                               <p className="text-gray-400 text-xs">
                                 {t('lobby.playersCount', { count: room.playerCount, max: room.maxPlayers })}
                               </p>
+                              {room.minBalance && room.minBalance > 0 && (
+                                <span className="text-xs text-amber-400">
+                                  Min. {room.minBalance.toLocaleString()}
+                                </span>
+                              )}
                             </div>
                             <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
                               {isHost && (
@@ -905,11 +927,17 @@ export function Lobby() {
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => handleJoinRoom(room.id)}
-                                  className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                                  onClick={() => handleJoinRoom(room.id, room)}
+                                  disabled={!hasEnoughChips}
+                                  className={`shrink-0 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition ${
+                                    hasEnoughChips
+                                      ? 'bg-blue-600 hover:bg-blue-500'
+                                      : 'bg-slate-600 cursor-not-allowed opacity-50'
+                                  }`}
                                   aria-label={t('lobby.join')}
+                                  title={!hasEnoughChips ? `Il faut au moins ${room.minBalance} jetons` : undefined}
                                 >
-                                  {t('lobby.join')}
+                                  {!hasEnoughChips ? `Min. ${room.minBalance}` : t('lobby.join')}
                                 </button>
                               )}
                             </div>
