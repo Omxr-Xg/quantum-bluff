@@ -2764,15 +2764,6 @@ export function Game() {
   useEffect(() => {
     const currentPath = `/game${window.location.search}`;
     sessionStorage.setItem("currentGame", currentPath);
-
-    return () => {
-      const isNavigatingToProfile = window.location.pathname === "/profile";
-      const isNavigatingToFriends = window.location.pathname === "/friends";
-      
-      if (!isNavigatingToProfile && !isNavigatingToFriends) {
-        sessionStorage.removeItem("currentGame");
-      }
-    };
   }, [searchParams]);
 
   return (
