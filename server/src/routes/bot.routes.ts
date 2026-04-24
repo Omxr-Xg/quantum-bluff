@@ -180,7 +180,12 @@ function sanitizeBotDecision(
       return { action: 'FOLD' as const, reasoning: 'sanitized: fold instead of impossible raise' }
     }
 
-    if (proposed < minRaise || proposed > chips) {
+    if (proposed < minRaise) {
+      // Au lieu de checker/caller, relancer au minimum si possible
+      if (minRaise <= chips) {
+        return { action: 'RAISE' as const, amount: minRaise, reasoning: 'sanitized: clamped to minRaise' }
+      }
+      // Si pas assez de chips pour le mi n raise, call ou check
       if (callAmount === 0) {
         return { action: 'CHECK' as const, reasoning: 'sanitized: check instead of invalid raise' }
       }
