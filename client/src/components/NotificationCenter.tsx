@@ -17,9 +17,9 @@ interface UnreadMessage {
   timestamp: number;
 }
 
-/** Même gabarit que Profil / Amis / Classement (Layout `menuContent`) */
+/** Icône seule — aligné sur les boutons du `menuContent` (Layout) */
 const NAV_BTN =
-  "relative inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-slate-600/80 px-2 text-sm font-medium text-white transition hover:bg-slate-500 sm:gap-2 sm:px-3 md:h-12";
+  "relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-600/80 text-white transition hover:bg-slate-500 md:h-12 md:w-12";
 /** À côté du bouton Réglages en partie (coin fixe) */
 const GAME_HUD_BTN =
   "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600";
@@ -377,12 +377,9 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
         title={t("notifications.title")}
       >
         <Bell
-          className={cn("shrink-0", isGameHud ? "h-6 w-6" : "h-4 w-4")}
+          className={cn("shrink-0", isGameHud ? "h-6 w-6" : "h-5 w-5")}
           strokeWidth={2.25}
         />
-        {!isGameHud ? (
-          <span className="hidden lg:inline">{t("notifications.title")}</span>
-        ) : null}
 
         {totalCount > 0 && (
           <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">

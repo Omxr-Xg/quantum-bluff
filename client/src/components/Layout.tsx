@@ -325,25 +325,20 @@ export function Layout({ children }: LayoutProps) {
         </button>
       </div>
       <NotificationCenter />
-      <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-green-600/80 px-2 text-sm text-white transition hover:bg-green-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.profile")}>
-        <User className="h-4 w-4 shrink-0" />
-        <span className="hidden lg:inline">{t("lobby.profile")}</span>
+      <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-600/80 text-white transition hover:bg-green-500 md:h-12 md:w-12" title={t("lobby.profile")}>
+        <User className="h-5 w-5 shrink-0" aria-hidden />
       </button>
-      <button type="button" onClick={() => navigate("/friends")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-blue-600/80 px-2 text-sm text-white transition hover:bg-blue-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.manageFriends")}>
-        <Users className="h-4 w-4 shrink-0" />
-        <span className="hidden lg:inline">{t("lobby.manageFriends")}</span>
+      <button type="button" onClick={() => navigate("/friends")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600/80 text-white transition hover:bg-blue-500 md:h-12 md:w-12" title={t("lobby.manageFriends")}>
+        <Users className="h-5 w-5 shrink-0" aria-hidden />
       </button>
-      <button type="button" onClick={() => navigate("/leaderboard")} className="hidden sm:inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600/80 px-2 text-sm text-white transition hover:bg-amber-500 sm:gap-2 sm:px-3 md:h-12" title={t("leaderboard.title")}>
-        <Trophy className="h-4 w-4 shrink-0" />
-        <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
+      <button type="button" onClick={() => navigate("/leaderboard")} className="hidden sm:inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-600/80 text-white transition hover:bg-amber-500 md:h-12 md:w-12" title={t("leaderboard.title")}>
+        <Trophy className="h-5 w-5 shrink-0" aria-hidden />
       </button>
-      <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
-        <Settings className="h-4 w-4 shrink-0" />
-        <span className="hidden lg:inline">{t("settings.title")}</span>
+      <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-600/80 text-white transition hover:bg-purple-500 md:h-12 md:w-12" title={t("settings.title")}>
+        <Settings className="h-5 w-5 shrink-0" aria-hidden />
       </button>
-      <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-red-600/80 px-2 text-sm text-white transition hover:bg-red-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.logout")}>
-        <LogOut className="h-4 w-4 shrink-0" />
-        <span className="hidden lg:inline">{t("lobby.logout")}</span>
+      <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-600/80 text-white transition hover:bg-red-500 md:h-12 md:w-12" title={t("lobby.logout")}>
+        <LogOut className="h-5 w-5 shrink-0" aria-hidden />
       </button>
     </>
   );
@@ -429,25 +424,20 @@ export function Layout({ children }: LayoutProps) {
                   </button>
                 </div>
                 <NotificationCenter />
-                <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-green-600/80 px-2 text-sm text-white transition hover:bg-green-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.profile")}>
-                  <User className="h-4 w-4 shrink-0" />
-                  <span className="hidden lg:inline">{t("lobby.profile")}</span>
+                <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-600/80 text-white transition hover:bg-green-500 md:h-12 md:w-12" title={t("lobby.profile")}>
+                  <User className="h-5 w-5 shrink-0" aria-hidden />
                 </button>
-                <button type="button" onClick={() => navigate("/friends")} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-blue-600/80 px-2 text-sm text-white transition hover:bg-blue-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.manageFriends")}>
-                  <Users className="h-4 w-4 shrink-0" />
-                  <span className="hidden lg:inline">{t("lobby.manageFriends")}</span>
+                <button type="button" onClick={() => navigate("/friends")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600/80 text-white transition hover:bg-blue-500 md:h-12 md:w-12" title={t("lobby.manageFriends")}>
+                  <Users className="h-5 w-5 shrink-0" aria-hidden />
                 </button>
-                <button type="button" onClick={() => { playSfx("uiSelect"); setMenuOpen(false); navigate("/leaderboard"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600/80 px-2 text-sm text-white transition hover:bg-amber-500 sm:gap-2 sm:px-3 md:h-12" title={t("leaderboard.title")}>
-                  <Trophy className="h-4 w-4 shrink-0" />
-                  <span className="hidden lg:inline">{t("leaderboard.shortTitle")}</span>
+                <button type="button" onClick={() => { playSfx("uiSelect"); setMenuOpen(false); navigate("/leaderboard"); }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-600/80 text-white transition hover:bg-amber-500 md:h-12 md:w-12" title={t("leaderboard.title")}>
+                  <Trophy className="h-5 w-5 shrink-0" aria-hidden />
                 </button>
-                <button type="button" onClick={() => { playSfx("uiClick"); setMenuOpen(false); openSettingsMenu(); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-purple-600/80 px-2 text-sm text-white transition hover:bg-purple-500 sm:gap-2 sm:px-3 md:h-12" title={t("settings.title")}>
-                  <Settings className="h-4 w-4 shrink-0" />
-                  <span className="hidden lg:inline">{t("settings.title")}</span>
+                <button type="button" onClick={() => { playSfx("uiClick"); setMenuOpen(false); openSettingsMenu(); }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-600/80 text-white transition hover:bg-purple-500 md:h-12 md:w-12" title={t("settings.title")}>
+                  <Settings className="h-5 w-5 shrink-0" aria-hidden />
                 </button>
-                <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-red-600/80 px-2 text-sm text-white transition hover:bg-red-500 sm:gap-2 sm:px-3 md:h-12" title={t("lobby.logout")}>
-                  <LogOut className="h-4 w-4 shrink-0" />
-                  <span className="hidden lg:inline">{t("lobby.logout")}</span>
+                <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-600/80 text-white transition hover:bg-red-500 md:h-12 md:w-12" title={t("lobby.logout")}>
+                  <LogOut className="h-5 w-5 shrink-0" aria-hidden />
                 </button>
                   </div>
                 </div>
