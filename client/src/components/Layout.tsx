@@ -360,7 +360,7 @@ export function Layout({ children }: LayoutProps) {
           )}
           {isGamePage ? (
             <>
-              <NotificationCenter />
+              <NotificationCenter variant="gameHud" />
               <button
                 type="button"
                 onClick={() => {

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bell, Gamepad2, UserPlus, Check, X, MessageCircle } from "lucide-react";
+import { cn } from "./ui/utils";
 import { useSocket } from "../hooks/useSocket";
 import { useInvitationAccept } from "../contexts/InvitationAcceptContext";
 import { useUser } from "../hooks/useUser";
@@ -16,7 +17,18 @@ interface UnreadMessage {
   timestamp: number;
 }
 
-export function NotificationCenter() {
+/** Même gabarit que Profil / Amis / Classement (Layout `menuContent`) */
+const NAV_BTN =
+  "relative inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-slate-600/80 px-2 text-sm font-medium text-white transition hover:bg-slate-500 sm:gap-2 sm:px-3 md:h-12";
+/** À côté du bouton Réglages en partie (coin fixe) */
+const GAME_HUD_BTN =
+  "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600";
+
+type NotificationCenterProps = {
+  variant?: "nav" | "gameHud";
+};
+
+export function NotificationCenter({ variant = "nav" }: NotificationCenterProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -353,19 +365,27 @@ export function NotificationCenter() {
     document.body
   );
 
+  const isGameHud = variant === "gameHud";
+
   return (
     <>
       <button
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className="relative inline-flex items-center justify-center bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition h-10 md:h-12 min-w-[2.5rem] md:min-w-[3rem] shrink-0 px-2"
+        className={isGameHud ? GAME_HUD_BTN : NAV_BTN}
         title={t("notifications.title")}
       >
-        <Bell className="w-5 h-5 shrink-0" strokeWidth={2.25} />
+        <Bell
+          className={cn("shrink-0", isGameHud ? "h-6 w-6" : "h-4 w-4")}
+          strokeWidth={2.25}
+        />
+        {!isGameHud ? (
+          <span className="hidden lg:inline">{t("notifications.title")}</span>
+        ) : null}
 
         {totalCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full px-1">
+          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
             {totalCount > 99 ? "99+" : totalCount}
           </span>
         )}
