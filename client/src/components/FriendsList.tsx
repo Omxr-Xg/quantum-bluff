@@ -73,7 +73,7 @@ export function FriendsList() {
   const friendsCount = friends?.length || 0;
 
   return (
-    <div className="bg-slate-800 rounded-2xl p-6 border border-blue-500 h-full">
+    <div className="bg-slate-800 rounded-2xl p-6 border border-blue-500 min-h-full">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl text-white font-bold flex items-center gap-3">
           <Users className="w-8 h-8 text-blue-400" />

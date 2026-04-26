@@ -57,13 +57,14 @@ function authHeaders(): HeadersInit {
 
 export type LobbyBlackjackMultiSectionProps = {
   active: boolean;
+  className?: string;
 };
 
 /**
  * Tables blackjack multijoueur intégrées dans le lobby (onglet Blackjack).
  * `bjRoom` dans l’URL ouvre la salle d’attente ; `tab=blackjack` est conservé.
  */
-export function LobbyBlackjackMultiSection({ active }: LobbyBlackjackMultiSectionProps) {
+export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlackjackMultiSectionProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -342,8 +343,8 @@ export function LobbyBlackjackMultiSection({ active }: LobbyBlackjackMultiSectio
       friends?.filter((f) => f.id !== userId && !seatedIds.has(f.id)) ?? [];
 
     return (
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-amber-500/25 bg-slate-800 p-6 shadow-lg shadow-black/20">
+      <div className={`space-y-4 lg:flex lg:flex-col lg:space-y-0 ${className}`}>
+        <div className="rounded-2xl border border-amber-500/25 bg-slate-800 p-6 shadow-lg shadow-black/20 lg:flex-1">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
@@ -538,7 +539,7 @@ export function LobbyBlackjackMultiSection({ active }: LobbyBlackjackMultiSectio
 
   if (roomIdParam && !roomDetail) {
     return (
-      <div className="flex min-h-[12rem] items-center justify-center rounded-2xl border border-amber-500/25 bg-slate-800/80 py-12">
+      <div className={`flex min-h-[12rem] items-center justify-center rounded-2xl border border-amber-500/25 bg-slate-800/80 py-12 ${className}`}>
         <Loader2 className="h-10 w-10 animate-spin text-amber-400" />
       </div>
     );
@@ -628,8 +629,8 @@ export function LobbyBlackjackMultiSection({ active }: LobbyBlackjackMultiSectio
   );
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-amber-500/25 bg-slate-800 p-6 shadow-lg shadow-black/20">
+    <div className={`space-y-4 lg:flex lg:flex-col lg:space-y-0 ${className}`}>
+      <div className="rounded-2xl border border-amber-500/25 bg-slate-800 p-6 shadow-lg shadow-black/20 lg:flex lg:flex-1 lg:flex-col">
         <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
           <Users className="h-8 w-8 text-amber-400" aria-hidden />
           {t("bjMulti.lobbyTitle")}
@@ -647,17 +648,17 @@ export function LobbyBlackjackMultiSection({ active }: LobbyBlackjackMultiSectio
           </button>
         </div>
 
-        <div className="rounded-xl bg-slate-700/50 p-4">
+        <div className="rounded-xl bg-slate-700/50 p-4 lg:flex lg:flex-1 lg:flex-col">
           <p className="mb-3 text-sm font-semibold text-gray-300">{t("lobby.waitingRooms")}</p>
           {loading ? (
-            <p className="flex items-center justify-center gap-2 py-8 text-gray-500">
+            <p className="flex items-center justify-center gap-2 py-8 text-gray-500 lg:flex-1">
               <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
               {t("common.loading")}
             </p>
           ) : rooms.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-500">{t("bjMulti.noRooms")}</p>
+            <p className="flex items-center justify-center py-6 text-center text-sm text-gray-500 lg:flex-1">{t("bjMulti.noRooms")}</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-2 lg:flex-1">
               {rooms.map((r) => {
                 const isPrivate = r.visibility === "PRIVATE";
                 const isFull = r.seats.length >= r.maxSeats;
