@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, type CSSProperties } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -233,6 +233,40 @@ export function Lobby() {
   const tourRefWaiting = useRef<HTMLDivElement>(null);
   const tourRefGames = useRef<HTMLDivElement>(null);
   const tourRefFriends = useRef<HTMLDivElement>(null);
+  const lobbyTabsRef = useRef<HTMLElement>(null);
+  const [alignedContentMinHeight, setAlignedContentMinHeight] = useState(0);
+
+  useEffect(() => {
+    const sideColumn = tourRefFriends.current;
+    const tabs = lobbyTabsRef.current;
+    if (!sideColumn || !tabs) return;
+
+    let frame = 0;
+    const measure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const sideHeight = Math.max(sideColumn.getBoundingClientRect().height, sideColumn.scrollHeight);
+        const tabsHeight = tabs.getBoundingClientRect().height;
+        setAlignedContentMinHeight(Math.max(0, Math.ceil(sideHeight - tabsHeight - 24)));
+      });
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(sideColumn);
+    observer.observe(tabs);
+    window.addEventListener("resize", measure);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [lobbyMainTab]);
+
+  const lobbyAlignmentStyle = {
+    "--lobby-content-min-height": `${alignedContentMinHeight}px`,
+  } as CSSProperties;
 
   const lobbyTourRefs = useMemo(
     () => ({
@@ -738,10 +772,11 @@ export function Lobby() {
         )}
 
         {/* MAIN GRID - IMPROVED GAP */}
-        <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:items-stretch">
           {/* Colonne jeux : onglets au-dessus du contenu uniquement (pas au-dessus défis / amis) */}
-          <div className="md:col-span-2 lg:col-span-2 space-y-6">
+          <div className="md:col-span-2 lg:col-span-2 space-y-6 lg:flex lg:h-full lg:self-stretch lg:flex-col lg:space-y-0 lg:gap-6">
             <nav
+              ref={lobbyTabsRef}
               className={`flex w-full overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-md transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
                 lobbyMainTab === "poker"
                   ? "border-white/10 bg-slate-950/75"
@@ -811,7 +846,7 @@ export function Lobby() {
             </nav>
 
           {lobbyMainTab === "poker" && (
-            <div className="space-y-6">
+            <div className="space-y-6 lg:flex lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-6">
               {/* Section Jouer contre Bot */}
               <div ref={tourRefBot} className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
                 <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
@@ -997,42 +1032,44 @@ export function Lobby() {
               </div>
               
               {/* Arène des tournois */}
-              <TournamentWidget />
+              <div className="lg:mt-auto">
+                <TournamentWidget />
+              </div>
             </div>
           )}
 
           {/* Onglet Mini-jeux - CONDITIONAL RENDER */}
           {lobbyMainTab === "minigames" && (
-            <div className="grid grid-cols-1 gap-3 md:gap-6 sm:grid-cols-2">
-              <div className="rounded-2xl border border-green-500 bg-slate-800 p-6">
+            <div className="grid grid-cols-1 gap-3 md:gap-6 lg:flex-1">
+              <div className="flex flex-col rounded-2xl border border-green-500 bg-slate-800 p-6">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
                   <Disc className="h-8 w-8 shrink-0 text-green-400" strokeWidth={2.2} aria-hidden />
                   {t("minigames.rouletteTitle")}
                 </h2>
-                <p className="mb-4 text-sm leading-relaxed text-gray-400">
+                <p className="mb-6 text-sm leading-relaxed text-gray-400">
                   {t("minigames.rouletteBlurb")}
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=roulette")}
-                  className="w-full rounded-xl bg-green-600 py-3 md:py-4 text-base font-bold text-white transition hover:bg-green-500"
+                  className="mt-auto w-full rounded-xl bg-green-600 py-3 md:py-4 text-base font-bold text-white transition hover:bg-green-500"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}
                 </button>
               </div>
-              <div className="rounded-2xl border border-blue-900/90 bg-gradient-to-br from-slate-900 via-[#0a1522] to-[#030910] p-6 shadow-[inset_0_1px_0_rgba(30,58,138,0.12)]">
+              <div className="flex flex-col rounded-2xl border border-blue-900/90 bg-gradient-to-br from-slate-900 via-[#0a1522] to-[#030910] p-6 shadow-[inset_0_1px_0_rgba(30,58,138,0.12)]">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
                   <SquareStack className="h-8 w-8 shrink-0 text-blue-500" strokeWidth={2.2} aria-hidden />
                   {t("minigames.slotTitle")}
                 </h2>
-                <p className="mb-4 text-sm leading-relaxed text-slate-500">
+                <p className="mb-6 text-sm leading-relaxed text-slate-500">
                   {t("minigames.slotBlurb")}
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=slots")}
-                  className="w-full rounded-xl bg-blue-800 py-3 md:py-4 text-base font-bold text-white transition hover:bg-blue-700"
+                  className="mt-auto w-full rounded-xl bg-blue-800 py-3 md:py-4 text-base font-bold text-white transition hover:bg-blue-700"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}
@@ -1043,8 +1080,11 @@ export function Lobby() {
 
           {/* Onglet Blackjack - CONDITIONAL RENDER */}
           {lobbyMainTab === "blackjack" && (
-            <div className="space-y-6">
-              <div className="rounded-2xl border border-amber-500/25 bg-slate-800 p-6 shadow-lg shadow-black/20">
+            <div
+              className="space-y-6 lg:flex lg:min-h-[var(--lobby-content-min-height)] lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-6"
+              style={lobbyAlignmentStyle}
+            >
+              <div className="rounded-2xl border border-amber-500/25 bg-slate-800 p-6 shadow-lg shadow-black/20 lg:flex lg:min-h-[20rem] lg:flex-col">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
                   <Club className="h-8 w-8 text-amber-400" aria-hidden />
                   {t("lobby.blackjackTitle")}
@@ -1053,14 +1093,16 @@ export function Lobby() {
                 <button
                   type="button"
                   onClick={() => navigate("/blackjack")}
-                  className="w-full rounded-xl bg-amber-600 py-3 md:py-4 font-bold text-white transition hover:bg-amber-500"
+                  className="w-full rounded-xl bg-amber-600 py-3 md:py-4 font-bold text-white transition hover:bg-amber-500 lg:mt-auto"
                   aria-label={t("lobby.blackjackPlay")}
                 >
                   {t("lobby.blackjackPlay")}
                 </button>
                 <p className="mt-3 text-center text-xs leading-relaxed text-gray-500">{t("lobby.blackjackSoloHint")}</p>
               </div>
-              <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} />
+              <div className="lg:flex lg:flex-1">
+                <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} className="lg:flex-1" />
+              </div>
             </div>
           )}
 
@@ -1069,10 +1111,12 @@ export function Lobby() {
           {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
           <div
             ref={tourRefFriends}
-            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:-mt-6 lg:pt-0"
+            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:flex lg:h-full lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-6 lg:pt-0"
           >
             <DailyChallenges />
-            <FriendsList />
+            <div className="lg:flex-1">
+              <FriendsList />
+            </div>
           </div>
 
         </div>
