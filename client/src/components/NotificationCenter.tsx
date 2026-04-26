@@ -19,8 +19,8 @@ interface UnreadMessage {
 
 /** Même échelle que `Layout` (topNavBtn) : compact sur mobile */
 const NAV_BTN =
-  "relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-600/80 text-white transition hover:bg-slate-500 sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9";
-const NAV_BELL = "h-3.5 w-3.5 sm:h-4 sm:w-4";
+  "relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:w-11";
+const NAV_BELL = "h-[1.05rem] w-[1.05rem] md:h-[1.15rem] md:w-[1.15rem]";
 const GAME_HUD_BTN =
   "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9";
 
