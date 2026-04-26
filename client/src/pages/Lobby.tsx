@@ -1069,7 +1069,7 @@ export function Lobby() {
           {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
           <div
             ref={tourRefFriends}
-            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:-mt-6 lg:pt-0"
+            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:pt-0"
           >
             <DailyChallenges />
             <FriendsList />
