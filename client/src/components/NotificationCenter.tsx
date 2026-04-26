@@ -17,12 +17,12 @@ interface UnreadMessage {
   timestamp: number;
 }
 
-/** Icône seule — aligné sur les boutons du `menuContent` (Layout) */
+/** Même échelle que `Layout` (topNavBtn) : compact sur mobile */
 const NAV_BTN =
-  "relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-600/80 text-white transition hover:bg-slate-500 md:h-12 md:w-12";
-/** À côté du bouton Réglages en partie (coin fixe) */
+  "relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-600/80 text-white transition hover:bg-slate-500 sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9";
+const NAV_BELL = "h-3.5 w-3.5 sm:h-4 sm:w-4";
 const GAME_HUD_BTN =
-  "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600";
+  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9";
 
 type NotificationCenterProps = {
   variant?: "nav" | "gameHud";
@@ -376,10 +376,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
         className={isGameHud ? GAME_HUD_BTN : NAV_BTN}
         title={t("notifications.title")}
       >
-        <Bell
-          className={cn("shrink-0", isGameHud ? "h-6 w-6" : "h-5 w-5")}
-          strokeWidth={2.25}
-        />
+        <Bell className={cn("shrink-0", NAV_BELL)} strokeWidth={2.25} />
 
         {totalCount > 0 && (
           <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">

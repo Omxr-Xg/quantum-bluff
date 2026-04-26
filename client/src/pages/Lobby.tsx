@@ -417,7 +417,7 @@ export function Lobby() {
 
   return (
     <div
-      className={`relative w-full min-h-screen overflow-hidden px-4 py-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
+      className={`relative w-full min-h-screen overflow-hidden px-2 py-4 sm:px-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
         lobbyMainTab === "poker"
           ? "bg-[#070912]"
           : lobbyMainTab === "minigames"
@@ -495,11 +495,11 @@ export function Lobby() {
       <div className="relative z-10 w-full min-w-0">
 
         {/* HEADER - FIX MOBILE (sm breakpoint) */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-10 w-full overflow-visible">
+        <div className="mb-10 flex w-full flex-col items-center justify-between gap-4 overflow-visible sm:flex-row sm:gap-6">
 
           {/* Côté Gauche (Logo + Titre) */}
-          <div ref={tourRefHeader} className="flex w-full shrink-0 items-center gap-4 sm:w-auto">
-            <QuantumBluffLogo className="w-12 h-12 md:w-16 md:h-16 shrink-0" />
+          <div ref={tourRefHeader} className="flex w-full shrink-0 items-center gap-3 sm:gap-4 sm:w-auto">
+            <QuantumBluffLogo className="h-10 w-10 shrink-0 sm:h-12 sm:w-12 md:h-16 md:w-16" />
             <div className="flex-1 min-w-0">
               <h1
                 className={`truncate text-2xl font-bold transition-colors duration-700 md:text-4xl ${
@@ -526,10 +526,10 @@ export function Lobby() {
             </div>
           </div>
 
-          {/* Côté Droit : menu intégré - SCROLL IMPROVED + SNAP */}
+          {/* Côté Droit : pleine largeur sur mobile (bleed sur px page), ni débordement ni bande inutile */}
           <div
             ref={tourRefTopBar}
-            className="flex w-full max-w-full flex-nowrap items-center justify-end gap-1.5 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-1 [-webkit-overflow-scrolling:touch] sm:gap-2 md:min-w-0 md:flex-1 md:gap-3"
+            className="flex h-7 w-full min-w-0 max-w-full flex-nowrap max-sm:box-border max-sm:-mx-2 max-sm:w-[calc(100%+1rem)] max-sm:max-w-none max-sm:self-stretch max-sm:overflow-x-hidden max-sm:px-2 sm:h-8 sm:min-w-0 sm:flex-1 sm:items-center sm:justify-end md:h-9"
           >
             {menuContent}
           </div>
@@ -738,7 +738,7 @@ export function Lobby() {
         )}
 
         {/* MAIN GRID - IMPROVED GAP */}
-        <div className="grid grid-cols-1 items-start md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
+        <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
           {/* Colonne jeux : onglets au-dessus du contenu uniquement (pas au-dessus défis / amis) */}
           <div className="md:col-span-2 lg:col-span-2 space-y-6">
             <nav
@@ -1069,7 +1069,7 @@ export function Lobby() {
           {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
           <div
             ref={tourRefFriends}
-            className="md:col-span-2 lg:col-span-1 space-y-6 self-start -mt-3 md:-mt-4 lg:-mt-6"
+            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:-mt-6 lg:pt-0"
           >
             <DailyChallenges />
             <FriendsList />

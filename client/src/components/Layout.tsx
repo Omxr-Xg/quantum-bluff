@@ -305,42 +305,53 @@ export function Layout({ children }: LayoutProps) {
     );
   }
 
+  /** Téléphone : h-7 / icônes 3.5 — tablette+ : h-8 — md+ : h-9. Scroll horizontal côté Lobby. */
+  const topNavBtn =
+    "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white transition sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9";
+  const topNavIcon = "h-3.5 w-3.5 shrink-0 [stroke-width:2.1] sm:h-4 sm:w-4";
+
   const menuContent = (
-    <>
-      <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
+    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end sm:gap-1 md:gap-2">
+      <div className="flex h-7 shrink-0 items-center overflow-hidden rounded-md shadow-lg ring-1 ring-slate-500/50 sm:h-8 sm:rounded-lg md:h-9">
         <div
-          className="flex cursor-default items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left select-none sm:gap-2 sm:px-4"
+          className="flex h-7 min-h-0 max-w-[min(100%,5.5rem)] cursor-default items-center gap-0.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-1 text-left select-none sm:h-8 sm:max-w-[9.5rem] sm:gap-1 sm:px-2 md:h-9 md:max-w-[11rem] md:gap-1.5 md:px-3"
           aria-hidden
         >
-          <ChipIcon size="sm" className="brightness-110 shrink-0" />
-          <span className="whitespace-nowrap text-sm font-bold text-amber-50">{balance.toLocaleString()}</span>
+          <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0 brightness-110 sm:h-4 sm:w-4" />
+          <span className="min-w-0 truncate whitespace-nowrap text-[10px] font-bold leading-none tabular-nums text-amber-50 sm:text-xs md:text-sm">
+            {balance.toLocaleString()}
+          </span>
         </div>
         <button
           type="button"
           onClick={openAddMoney}
-          className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-500/80 font-bold text-slate-900 transition-colors hover:bg-amber-400 hover:shadow-inner sm:px-3"
+          className="m-0 box-border flex h-7 w-7 shrink-0 items-center justify-center border-l border-amber-900/25 bg-amber-500/80 p-0 font-sans text-slate-900 transition-colors [tap-highlight-color:transparent] [webkit-tap-highlight-color:transparent] appearance-none hover:bg-amber-400 hover:shadow-inner sm:h-8 sm:w-8 md:h-9 md:w-9"
           title={t("lobby.addMoney")}
         >
-          <Plus className="h-5 w-5" strokeWidth={2.5} />
+          <Plus className="block h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2.5} aria-hidden />
         </button>
       </div>
-      <NotificationCenter />
-      <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-600/80 text-white transition hover:bg-green-500 md:h-12 md:w-12" title={t("lobby.profile")}>
-        <User className="h-5 w-5 shrink-0" aria-hidden />
-      </button>
-      <button type="button" onClick={() => navigate("/friends")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600/80 text-white transition hover:bg-blue-500 md:h-12 md:w-12" title={t("lobby.manageFriends")}>
-        <Users className="h-5 w-5 shrink-0" aria-hidden />
-      </button>
-      <button type="button" onClick={() => navigate("/leaderboard")} className="hidden sm:inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-600/80 text-white transition hover:bg-amber-500 md:h-12 md:w-12" title={t("leaderboard.title")}>
-        <Trophy className="h-5 w-5 shrink-0" aria-hidden />
-      </button>
-      <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-600/80 text-white transition hover:bg-purple-500 md:h-12 md:w-12" title={t("settings.title")}>
-        <Settings className="h-5 w-5 shrink-0" aria-hidden />
-      </button>
-      <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-600/80 text-white transition hover:bg-red-500 md:h-12 md:w-12" title={t("lobby.logout")}>
-        <LogOut className="h-5 w-5 shrink-0" aria-hidden />
-      </button>
-    </>
+      <div
+        className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-0.5 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:scroll-smooth max-sm:py-0 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1 md:gap-2"
+      >
+        <NotificationCenter />
+        <button type="button" onClick={() => navigate("/profile")} className={`${topNavBtn} bg-green-600/80 hover:bg-green-500`} title={t("lobby.profile")}>
+          <User className={topNavIcon} aria-hidden />
+        </button>
+        <button type="button" onClick={() => navigate("/friends")} className={`${topNavBtn} bg-blue-600/80 hover:bg-blue-500`} title={t("lobby.manageFriends")}>
+          <Users className={topNavIcon} aria-hidden />
+        </button>
+        <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden bg-amber-600/80 hover:bg-amber-500 sm:inline-flex`} title={t("leaderboard.title")}>
+          <Trophy className={topNavIcon} aria-hidden />
+        </button>
+        <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={`${topNavBtn} bg-purple-600/80 hover:bg-purple-500`} title={t("settings.title")}>
+          <Settings className={topNavIcon} aria-hidden />
+        </button>
+        <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} bg-red-600/80 hover:bg-red-500`} title={t("lobby.logout")}>
+          <LogOut className={topNavIcon} aria-hidden />
+        </button>
+      </div>
+    </div>
   );
 
   return (
@@ -348,7 +359,7 @@ export function Layout({ children }: LayoutProps) {
       <GlobalHoverTooltip />
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
       {showHamburgerMenu && (
-        <div className="fixed end-4 top-4 z-[250] flex items-center gap-2">
+        <div className="fixed end-2 top-2 z-[250] flex items-center gap-1 sm:end-4 sm:top-4 sm:gap-2">
           {/* Partie : emplacement pour le menu ☰ (portail depuis Game.tsx) + notif + réglages — aligné à droite, même logique que le lobby */}
           {isGamePage && (
             <div id="game-top-menu-slot" className="relative shrink-0" />
@@ -362,10 +373,10 @@ export function Layout({ children }: LayoutProps) {
                   playSfx("uiClick");
                   openSettingsMenu?.();
                 }}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9"
                 title={t("settings.title")}
               >
-                <Settings className="h-6 w-6" />
+                <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             </>
           ) : (
@@ -388,11 +399,11 @@ export function Layout({ children }: LayoutProps) {
                   closeMenuTimerRef.current = null;
                   setMenuOpen((o) => !o);
                 }}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9"
                 title="Menu"
                 aria-expanded={menuOpen}
               >
-                <Menu className="h-6 w-6" />
+                <Menu className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
               {menuOpen && (
                 <div
@@ -405,39 +416,41 @@ export function Layout({ children }: LayoutProps) {
                     closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
                   }}
                 >
-                  <div className="flex max-w-[min(100vw-6rem,28rem)] flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-                <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-500/50 md:h-12">
+                  <div className="flex min-w-0 max-w-[min(100vw-2rem,28rem)] flex-row flex-nowrap items-center gap-0.5 overflow-x-auto scroll-smooth py-0.5 [touch-action:pan-x] scrollbar-hide sm:max-w-none sm:gap-2">
+                <div className="flex h-7 shrink-0 items-center overflow-hidden rounded-md shadow-lg ring-1 ring-slate-500/50 sm:h-8 sm:rounded-lg md:h-9">
                   <div
-                    className="flex cursor-default items-center gap-1.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-2 text-left select-none sm:gap-2 sm:px-4"
+                    className="flex h-7 min-h-0 max-w-[min(100%,5.5rem)] cursor-default items-center gap-0.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-1 text-left select-none sm:h-8 sm:max-w-[9.5rem] sm:gap-1 sm:px-2 md:h-9 md:max-w-[11rem] md:gap-1.5 md:px-3"
                     aria-hidden
                   >
-                    <ChipIcon size="sm" className="brightness-110 shrink-0" />
-                    <span className="whitespace-nowrap text-sm font-bold text-amber-50">{balance.toLocaleString()}</span>
+                    <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0 brightness-110 sm:h-4 sm:w-4" />
+                    <span className="min-w-0 truncate whitespace-nowrap text-[10px] font-bold leading-none tabular-nums text-amber-50 sm:text-xs md:text-sm">
+                      {balance.toLocaleString()}
+                    </span>
                   </div>
                   <button
                     type="button"
                     onClick={openAddMoney}
-                    className="inline-flex items-center justify-center border-l border-amber-900/25 px-2.5 bg-amber-500/80 font-bold text-slate-900 transition-colors hover:bg-amber-400 hover:shadow-inner sm:px-3"
+                    className="m-0 box-border flex h-7 w-7 shrink-0 items-center justify-center border-l border-amber-900/25 bg-amber-500/80 p-0 font-sans text-slate-900 transition-colors [tap-highlight-color:transparent] [webkit-tap-highlight-color:transparent] appearance-none hover:bg-amber-400 hover:shadow-inner sm:h-8 sm:w-8 md:h-9 md:w-9"
                     title={t("lobby.addMoney")}
                   >
-                    <Plus className="h-5 w-5" strokeWidth={2.5} />
+                    <Plus className="block h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2.5} aria-hidden />
                   </button>
                 </div>
                 <NotificationCenter />
-                <button type="button" onClick={() => navigate("/profile")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-600/80 text-white transition hover:bg-green-500 md:h-12 md:w-12" title={t("lobby.profile")}>
-                  <User className="h-5 w-5 shrink-0" aria-hidden />
+                <button type="button" onClick={() => navigate("/profile")} className={`${topNavBtn} bg-green-600/80 hover:bg-green-500`} title={t("lobby.profile")}>
+                  <User className={topNavIcon} aria-hidden />
                 </button>
-                <button type="button" onClick={() => navigate("/friends")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600/80 text-white transition hover:bg-blue-500 md:h-12 md:w-12" title={t("lobby.manageFriends")}>
-                  <Users className="h-5 w-5 shrink-0" aria-hidden />
+                <button type="button" onClick={() => navigate("/friends")} className={`${topNavBtn} bg-blue-600/80 hover:bg-blue-500`} title={t("lobby.manageFriends")}>
+                  <Users className={topNavIcon} aria-hidden />
                 </button>
-                <button type="button" onClick={() => { playSfx("uiSelect"); setMenuOpen(false); navigate("/leaderboard"); }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-600/80 text-white transition hover:bg-amber-500 md:h-12 md:w-12" title={t("leaderboard.title")}>
-                  <Trophy className="h-5 w-5 shrink-0" aria-hidden />
+                <button type="button" onClick={() => { playSfx("uiSelect"); setMenuOpen(false); navigate("/leaderboard"); }} className={`${topNavBtn} bg-amber-600/80 hover:bg-amber-500`} title={t("leaderboard.title")}>
+                  <Trophy className={topNavIcon} aria-hidden />
                 </button>
-                <button type="button" onClick={() => { playSfx("uiClick"); setMenuOpen(false); openSettingsMenu(); }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-600/80 text-white transition hover:bg-purple-500 md:h-12 md:w-12" title={t("settings.title")}>
-                  <Settings className="h-5 w-5 shrink-0" aria-hidden />
+                <button type="button" onClick={() => { playSfx("uiClick"); setMenuOpen(false); openSettingsMenu(); }} className={`${topNavBtn} bg-purple-600/80 hover:bg-purple-500`} title={t("settings.title")}>
+                  <Settings className={topNavIcon} aria-hidden />
                 </button>
-                <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-600/80 text-white transition hover:bg-red-500 md:h-12 md:w-12" title={t("lobby.logout")}>
-                  <LogOut className="h-5 w-5 shrink-0" aria-hidden />
+                <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} bg-red-600/80 hover:bg-red-500`} title={t("lobby.logout")}>
+                  <LogOut className={topNavIcon} aria-hidden />
                 </button>
                   </div>
                 </div>
