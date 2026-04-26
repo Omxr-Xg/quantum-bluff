@@ -738,9 +738,9 @@ export function Lobby() {
         )}
 
         {/* MAIN GRID - IMPROVED GAP */}
-        <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:items-stretch">
           {/* Colonne jeux : onglets au-dessus du contenu uniquement (pas au-dessus défis / amis) */}
-          <div className="md:col-span-2 lg:col-span-2 space-y-6">
+          <div className="md:col-span-2 lg:col-span-2 space-y-6 lg:flex lg:h-full lg:flex-col">
             <nav
               className={`flex w-full overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-md transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
                 lobbyMainTab === "poker"
@@ -811,7 +811,7 @@ export function Lobby() {
             </nav>
 
           {lobbyMainTab === "poker" && (
-            <div className="space-y-6">
+            <div className="space-y-6 lg:flex lg:flex-1 lg:flex-col">
               {/* Section Jouer contre Bot */}
               <div ref={tourRefBot} className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
                 <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
@@ -997,42 +997,44 @@ export function Lobby() {
               </div>
               
               {/* Arène des tournois */}
-              <TournamentWidget />
+              <div className="lg:mt-auto">
+                <TournamentWidget />
+              </div>
             </div>
           )}
 
           {/* Onglet Mini-jeux - CONDITIONAL RENDER */}
           {lobbyMainTab === "minigames" && (
-            <div className="grid grid-cols-1 gap-3 md:gap-6 sm:grid-cols-2">
-              <div className="rounded-2xl border border-green-500 bg-slate-800 p-6">
+            <div className="grid grid-cols-1 gap-3 md:gap-6 lg:flex-1">
+              <div className="flex flex-col rounded-2xl border border-green-500 bg-slate-800 p-6">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
                   <Disc className="h-8 w-8 shrink-0 text-green-400" strokeWidth={2.2} aria-hidden />
                   {t("minigames.rouletteTitle")}
                 </h2>
-                <p className="mb-4 text-sm leading-relaxed text-gray-400">
+                <p className="mb-6 text-sm leading-relaxed text-gray-400">
                   {t("minigames.rouletteBlurb")}
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=roulette")}
-                  className="w-full rounded-xl bg-green-600 py-3 md:py-4 text-base font-bold text-white transition hover:bg-green-500"
+                  className="mt-auto w-full rounded-xl bg-green-600 py-3 md:py-4 text-base font-bold text-white transition hover:bg-green-500"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}
                 </button>
               </div>
-              <div className="rounded-2xl border border-blue-900/90 bg-gradient-to-br from-slate-900 via-[#0a1522] to-[#030910] p-6 shadow-[inset_0_1px_0_rgba(30,58,138,0.12)]">
+              <div className="flex flex-col rounded-2xl border border-blue-900/90 bg-gradient-to-br from-slate-900 via-[#0a1522] to-[#030910] p-6 shadow-[inset_0_1px_0_rgba(30,58,138,0.12)]">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
                   <SquareStack className="h-8 w-8 shrink-0 text-blue-500" strokeWidth={2.2} aria-hidden />
                   {t("minigames.slotTitle")}
                 </h2>
-                <p className="mb-4 text-sm leading-relaxed text-slate-500">
+                <p className="mb-6 text-sm leading-relaxed text-slate-500">
                   {t("minigames.slotBlurb")}
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=slots")}
-                  className="w-full rounded-xl bg-blue-800 py-3 md:py-4 text-base font-bold text-white transition hover:bg-blue-700"
+                  className="mt-auto w-full rounded-xl bg-blue-800 py-3 md:py-4 text-base font-bold text-white transition hover:bg-blue-700"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}
@@ -1069,10 +1071,12 @@ export function Lobby() {
           {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
           <div
             ref={tourRefFriends}
-            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:pt-0"
+            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:flex lg:h-full lg:flex-col lg:pt-0"
           >
             <DailyChallenges />
-            <FriendsList />
+            <div className="lg:flex-1">
+              <FriendsList />
+            </div>
           </div>
 
         </div>
