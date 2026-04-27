@@ -344,7 +344,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
 
     return (
       <div className={`space-y-4 lg:flex lg:flex-col lg:space-y-0 ${className}`}>
-        <div className="rounded-2xl border border-amber-500/25 bg-slate-800 p-6 shadow-lg shadow-black/20 lg:flex-1">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:flex-1">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
@@ -352,7 +352,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                 clearBjRoomInUrl();
                 setRoomDetail(null);
               }}
-              className="inline-flex items-center gap-2 text-sm font-medium text-amber-200/90 transition hover:text-amber-100"
+              className="inline-flex items-center gap-2 text-sm font-medium text-rose-200/90 transition hover:text-rose-100"
             >
               <ArrowLeft className="h-4 w-4" />
               {t("bjMulti.backToList")}
@@ -364,7 +364,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                   clearBjRoomInUrl();
                   setRoomDetail(null);
                 }}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-600/80 bg-slate-900/80 text-slate-300 transition hover:border-amber-500/25 hover:bg-slate-800 hover:text-white"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.045] text-slate-300 backdrop-blur-md transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
                 aria-label={t("common.close")}
                 title={t("common.close")}
               >
@@ -375,7 +375,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
 
           <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-3">
-              <Club className="h-9 w-9 shrink-0 text-amber-400" aria-hidden />
+              <Club className="h-9 w-9 shrink-0 text-rose-300" aria-hidden />
               <div className="min-w-0">
                 <h2 className="text-2xl font-bold text-white">{roomDetail.name}</h2>
                 <p className="mt-1 text-sm leading-relaxed text-gray-400">{t("lobby.blackjackIntro")}</p>
@@ -400,7 +400,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
             </div>
           </div>
 
-          <div className="rounded-xl bg-slate-700/50 p-4">
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-semibold text-gray-300">{t("lobby.waitingRooms")}</p>
               {roomDetail.seats.length > 0 ? (
@@ -422,13 +422,13 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                   .map((s) => (
                     <li
                       key={s.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-slate-600 bg-slate-800/70 px-3 py-2.5"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2.5 backdrop-blur-md"
                     >
                       <div className="min-w-0">
                         <p className="truncate font-medium text-white">
                           {s.user.username}
                           {s.userId === roomDetail.hostId ? (
-                            <span className="ml-2 text-xs font-normal text-amber-300/80">
+                            <span className="ml-2 text-xs font-normal text-rose-200/80">
                               ({t("bjMulti.host")})
                             </span>
                           ) : null}
@@ -439,7 +439,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                         className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold ${
                           s.isReady
                             ? "border border-emerald-500/40 bg-emerald-600/25 text-emerald-200"
-                            : "border border-amber-500/40 bg-amber-600/20 text-amber-200"
+                            : "border border-rose-300/25 bg-rose-600/15 text-rose-200"
                         }`}
                       >
                         {s.isReady ? t("bjMulti.ready") : t("bjMulti.notReady")}
@@ -451,7 +451,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
           </div>
 
           {isHost && (
-            <div className="mt-4 rounded-xl border border-slate-600/80 bg-slate-900/40 p-4">
+            <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md">
               <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-200">
                 <UserPlus className="h-4 w-4 shrink-0" />
                 {t("bjMulti.inviteFriends")}
@@ -463,7 +463,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                   friendsToInvite.map((friend) => (
                     <div
                       key={friend.id}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-slate-600/80 bg-slate-800/60 px-3 py-2"
+                      className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 backdrop-blur-md"
                     >
                       <span className="min-w-0 truncate text-sm text-white">{friend.username}</span>
                       <button
@@ -473,7 +473,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                         className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                           invitedFriendIds.includes(friend.id)
                             ? "cursor-not-allowed bg-emerald-800/50 text-emerald-200"
-                            : "bg-amber-600 text-white hover:bg-amber-500"
+                            : "bg-rose-900 text-white hover:bg-rose-800"
                         }`}
                       >
                         {invitedFriendIds.includes(friend.id) ? t("bjMulti.invited") : t("bjMulti.invite")}
@@ -495,7 +495,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                 type="button"
                 disabled={!!busy}
                 onClick={() => joinSeat(roomDetail.id)}
-                className="w-full rounded-xl bg-amber-600 py-3.5 font-bold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-6"
+                className="w-full rounded-xl border border-rose-300/15 bg-rose-950/70 py-3.5 font-bold text-white transition hover:border-rose-200/25 hover:bg-rose-900/80 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-6"
               >
                 {t("bjMulti.takeSeat")}
               </button>
@@ -506,7 +506,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                   type="button"
                   disabled={!!busy}
                   onClick={() => setReady(roomDetail.id, !mySeat.isReady)}
-                  className="w-full rounded-xl bg-amber-600 py-3.5 font-bold text-white transition hover:bg-amber-500 disabled:opacity-50 sm:w-auto sm:px-6"
+                  className="w-full rounded-xl border border-rose-300/15 bg-rose-950/70 py-3.5 font-bold text-white transition hover:border-rose-200/25 hover:bg-rose-900/80 disabled:opacity-50 sm:w-auto sm:px-6"
                 >
                   {mySeat.isReady ? t("bjMulti.unready") : t("bjMulti.imReady")}
                 </button>
@@ -514,7 +514,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                   type="button"
                   disabled={!!busy}
                   onClick={() => leaveSeat(roomDetail.id)}
-                  className="w-full rounded-xl border-2 border-slate-500/80 bg-slate-800 py-3.5 font-bold text-slate-200 transition hover:bg-slate-700 disabled:opacity-50 sm:w-auto sm:px-6"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.045] py-3.5 font-bold text-slate-200 backdrop-blur-md transition hover:bg-white/[0.08] disabled:opacity-50 sm:w-auto sm:px-6"
                 >
                   {t("bjMulti.leaveTable")}
                 </button>
@@ -539,8 +539,8 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
 
   if (roomIdParam && !roomDetail) {
     return (
-      <div className={`flex min-h-[12rem] items-center justify-center rounded-2xl border border-amber-500/25 bg-slate-800/80 py-12 ${className}`}>
-        <Loader2 className="h-10 w-10 animate-spin text-amber-400" />
+      <div className={`flex min-h-[12rem] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] py-12 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl ${className}`}>
+        <Loader2 className="h-10 w-10 animate-spin text-rose-300" />
       </div>
     );
   }
@@ -548,21 +548,21 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
   const createModal = showCreate && (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
       <div
-        className="relative w-full max-w-md rounded-2xl border border-amber-500/25 bg-slate-900 p-6 pt-12 shadow-2xl shadow-black/30 sm:pt-6"
+        className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/70 p-6 pt-12 shadow-2xl shadow-black/40 backdrop-blur-xl sm:pt-6"
         role="dialog"
         aria-modal="true"
       >
         <button
           type="button"
           onClick={() => setShowCreate(false)}
-          className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600/80 bg-slate-800/80 text-slate-300 transition hover:border-amber-500/25 hover:bg-slate-800 hover:text-white"
+          className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.045] text-slate-300 backdrop-blur-md transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
           aria-label={t("common.close")}
           title={t("common.close")}
         >
           <X className="h-5 w-5" />
         </button>
         <h3 className="flex items-center gap-2 text-lg font-bold text-white">
-          <Club className="h-6 w-6 text-amber-400" />
+          <Club className="h-6 w-6 text-rose-300" />
           {t("bjMulti.createTable")}
         </h3>
         <label className="mt-4 block text-sm text-slate-300">
@@ -570,7 +570,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-white backdrop-blur-md"
             placeholder={t("bjMulti.roomNamePlaceholder")}
           />
         </label>
@@ -582,7 +582,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
             max={7}
             value={newMax}
             onChange={(e) => setNewMax(Number(e.target.value))}
-            className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-white backdrop-blur-md"
           />
         </label>
         <label className="mt-3 block text-sm text-slate-300">
@@ -592,7 +592,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
             min={10}
             value={newMinBet}
             onChange={(e) => setNewMinBet(Number(e.target.value))}
-            className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-white backdrop-blur-md"
           />
         </label>
         <label className="mt-3 block text-sm text-slate-300">
@@ -600,7 +600,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
           <select
             value={newVis}
             onChange={(e) => setNewVis(e.target.value as BjVisibility)}
-            className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-white backdrop-blur-md"
           >
             <option value="PUBLIC">{t("bjMulti.public")}</option>
             <option value="PRIVATE">{t("bjMulti.private")}</option>
@@ -610,7 +610,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
           <button
             type="button"
             onClick={() => setShowCreate(false)}
-            className="rounded-lg px-4 py-2 text-slate-300 hover:bg-slate-800"
+            className="rounded-lg px-4 py-2 text-slate-300 hover:bg-white/[0.08]"
           >
             {t("bjMulti.cancel")}
           </button>
@@ -618,7 +618,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
             type="button"
             disabled={creating}
             onClick={createRoom}
-            className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 font-bold text-white hover:bg-amber-500 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-rose-300/15 bg-rose-950/70 px-5 py-2.5 font-bold text-white hover:border-rose-200/25 hover:bg-rose-900/80 disabled:opacity-50"
           >
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             {t("bjMulti.confirmCreate")}
@@ -630,9 +630,9 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
 
   return (
     <div className={`space-y-4 lg:flex lg:flex-col lg:space-y-0 ${className}`}>
-      <div className="rounded-2xl border border-amber-500/25 bg-slate-800 p-6 shadow-lg shadow-black/20 lg:flex lg:flex-1 lg:flex-col">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:flex lg:flex-1 lg:flex-col">
         <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
-          <Users className="h-8 w-8 text-amber-400" aria-hidden />
+          <Users className="h-8 w-8 text-rose-300" aria-hidden />
           {t("bjMulti.lobbyTitle")}
         </h2>
         <p className="mb-4 max-w-2xl text-sm leading-relaxed text-slate-300/90">{t("bjMulti.lobbySubtitle")}</p>
@@ -641,18 +641,18 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
           <button
             type="button"
             onClick={() => setShowCreate(true)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 py-4 font-bold text-white shadow-lg shadow-black/25 transition hover:bg-amber-500 sm:w-auto sm:px-8"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300/15 bg-rose-950/70 py-4 font-bold text-white shadow-lg shadow-black/25 transition hover:border-rose-200/25 hover:bg-rose-900/80 sm:w-auto sm:px-8"
           >
             <Plus className="h-5 w-5" />
             {t("bjMulti.createTable")}
           </button>
         </div>
 
-        <div className="rounded-xl bg-slate-700/50 p-4 lg:flex lg:flex-1 lg:flex-col">
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md lg:flex lg:flex-1 lg:flex-col">
           <p className="mb-3 text-sm font-semibold text-gray-300">{t("lobby.waitingRooms")}</p>
           {loading ? (
             <p className="flex items-center justify-center gap-2 py-8 text-gray-500 lg:flex-1">
-              <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
+              <Loader2 className="h-5 w-5 animate-spin text-rose-300" />
               {t("common.loading")}
             </p>
           ) : rooms.length === 0 ? (
@@ -665,7 +665,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                 return (
                   <li
                     key={r.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-600 bg-slate-800/70 px-3 py-2.5"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2.5 backdrop-blur-md"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -687,7 +687,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                         {t("lobby.playersCount", { count: r.seats.length, max: r.maxSeats })} ·{" "}
                         {t("bjMulti.betLimitsLine", { min: r.minBet, max: bjMaxDisplay })}
                         {isFull ? (
-                          <span className="ml-1 text-amber-200/90">· {t("lobby.roomFull")}</span>
+                          <span className="ml-1 text-rose-200/90">· {t("lobby.roomFull")}</span>
                         ) : null}
                       </p>
                     </div>
@@ -695,7 +695,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                       <button
                         type="button"
                         onClick={() => openRoom(r.id)}
-                        className="rounded-lg border border-slate-500 bg-slate-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-600"
+                        className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-white/[0.09]"
                       >
                         {t("bjMulti.open")}
                       </button>
@@ -704,7 +704,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                           type="button"
                           disabled={!!busy}
                           onClick={() => joinSeat(r.id)}
-                          className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-amber-500 disabled:opacity-50"
+                          className="rounded-lg bg-rose-900 px-3 py-2 text-sm font-bold text-white transition hover:bg-rose-800 disabled:opacity-50"
                         >
                           {t("bjMulti.join")}
                         </button>

@@ -275,20 +275,19 @@ export function Layout({ children }: LayoutProps) {
     path.startsWith("/blackjack/table");
   /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
   const showHamburgerMenu =
-    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames";
+    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage;
   const showLobbyIntegratedBar = showTopBar && isLobby;
+  const showStandaloneTopBar = showTopBar && isBotConfigPage;
   /**
    * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
    * et seul un bouton paramètres est en coin ; éviter la « barre » vide / décalage en haut.
-   * Pas sur /bot-configuration : le menu est en coin droit, la page gère son propre espacement.
    */
   const topBarPaddingForHamburger =
     showTopBar &&
     !showLobbyIntegratedBar &&
     showHamburgerMenu &&
     !isGamePage &&
-    !isWaitingRoomPage &&
-    !isBotConfigPage;
+    !isWaitingRoomPage;
 
   if (isAdminShell) {
     return (
@@ -373,6 +372,11 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <GlobalHoverTooltip />
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
+      {showStandaloneTopBar && (
+        <div className="fixed inset-x-2 top-2 z-[250] flex min-w-0 justify-end overflow-x-auto overflow-y-hidden scrollbar-hide sm:inset-x-auto sm:end-4 sm:top-4 sm:max-w-[calc(100vw-2rem)]">
+          {menuContent}
+        </div>
+      )}
       {showHamburgerMenu && (
         <div className="fixed end-2 top-2 z-[250] flex items-center gap-1 sm:end-4 sm:top-4 sm:gap-2">
           {/* Partie : emplacement pour le menu ☰ (portail depuis Game.tsx) + notif + réglages — aligné à droite, même logique que le lobby */}

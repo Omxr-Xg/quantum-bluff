@@ -28,20 +28,20 @@ export function TournamentWidget() {
 
   if (loading) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 animate-pulse flex items-center justify-center h-48">
-        <Trophy className="w-8 h-8 text-amber-500/50" />
+      <div className="flex h-48 animate-pulse items-center justify-center rounded-3xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+        <Trophy className="w-8 h-8 text-blue-200/50" />
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 rounded-3xl p-6 relative overflow-hidden group hover:border-amber-500/50 transition-all duration-500 shadow-xl">
+    <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all duration-500 hover:border-white/20">
       {/* Effet de brillance en fond */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all duration-500" />
+      <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-blue-500/10 blur-3xl transition-all duration-500 group-hover:bg-blue-500/16" />
 
       <div className="flex justify-between items-start mb-6 relative z-10">
         <div>
-          <div className="flex items-center gap-2 text-amber-500 font-bold uppercase tracking-widest text-xs mb-1">
+          <div className="flex items-center gap-2 text-blue-200 font-bold uppercase tracking-widest text-xs mb-1">
             <Swords className="w-4 h-4" />
             <span>Arène des Tournois</span>
           </div>
@@ -49,14 +49,14 @@ export function TournamentWidget() {
             {nextTournament ? nextTournament.name : "Aucun Tournoi"}
           </h2>
         </div>
-        <div className="bg-amber-500/10 p-3 rounded-2xl border border-amber-500/20">
-          <Trophy className="w-6 h-6 text-amber-500" />
+        <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 backdrop-blur-md">
+          <Trophy className="w-6 h-6 text-blue-200" />
         </div>
       </div>
 
       {nextTournament ? (
         <div className="space-y-4 relative z-10">
-          <div className="flex items-center justify-between bg-slate-950/50 p-3 rounded-xl border border-slate-700/50">
+          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.045] p-3 backdrop-blur-md">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-slate-400" />
               <span className="text-slate-300 text-sm">
@@ -68,7 +68,7 @@ export function TournamentWidget() {
           
           <button 
             onClick={() => navigate('/tournaments')}
-            className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl transition-all flex items-center justify-center gap-2 group/btn"
+            className="w-full rounded-xl border border-blue-300/15 bg-blue-950/75 py-3 font-black text-white transition-all hover:border-blue-200/25 hover:bg-blue-900/80 flex items-center justify-center gap-2 group/btn"
           >
             REJOINDRE LE LOBBY
             <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
@@ -79,7 +79,7 @@ export function TournamentWidget() {
           <p className="text-slate-400 text-sm">Les organisateurs préparent la prochaine bataille. Revenez bientôt !</p>
           <button 
             onClick={() => navigate('/tournaments')}
-            className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-all"
+            className="w-full rounded-xl border border-white/10 bg-white/[0.06] py-3 font-bold text-white transition-all hover:bg-white/[0.10]"
           >
             Visiter le Lobby
           </button>

@@ -18,10 +18,54 @@ export function BotConfiguration() {
   const [botChips, setBotChips] = useState<number[]>([1000, 1000, 1000, 1000, 1000]);
 
   const difficulties = [
-    { id: "facile" as const, icon: Target, color: "from-green-600 to-green-800", borderColor: "border-green-500", descKey: "easyDesc", traitKeys: ["traitPredictable", "traitErrors", "traitPassive"] },
-    { id: "moyen" as const, icon: Brain, color: "from-blue-600 to-blue-800", borderColor: "border-blue-500", descKey: "mediumDesc", traitKeys: ["traitBalanced", "traitSomeBluffs", "traitBasic"] },
-    { id: "difficile" as const, icon: Zap, color: "from-orange-600 to-orange-800", borderColor: "border-orange-500", descKey: "hardDesc", traitKeys: ["traitCalculated", "traitBluffs", "traitAdapt"] },
-    { id: "expert" as const, icon: Trophy, color: "from-red-600 to-red-800", borderColor: "border-red-500", descKey: "expertDesc", traitKeys: ["traitUnpredictable", "traitAdvanced", "traitAggressive"] }
+    {
+      id: "facile" as const,
+      icon: Target,
+      selectedCard: "border-emerald-300/30 bg-emerald-950/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_44px_rgba(6,78,59,0.26)] ring-1 ring-emerald-300/15",
+      idleCard: "hover:border-emerald-300/25 hover:bg-emerald-950/18",
+      selectedIconWrap: "border-emerald-300/25 bg-emerald-400/10",
+      selectedIcon: "text-emerald-200",
+      selectedTitle: "text-emerald-100",
+      selectedDot: "bg-emerald-300",
+      descKey: "easyDesc",
+      traitKeys: ["traitPredictable", "traitErrors", "traitPassive"],
+    },
+    {
+      id: "moyen" as const,
+      icon: Brain,
+      selectedCard: "border-blue-300/30 bg-blue-950/42 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_44px_rgba(30,64,175,0.25)] ring-1 ring-blue-300/15",
+      idleCard: "hover:border-blue-300/25 hover:bg-blue-950/20",
+      selectedIconWrap: "border-blue-300/25 bg-blue-400/10",
+      selectedIcon: "text-blue-200",
+      selectedTitle: "text-blue-100",
+      selectedDot: "bg-blue-300",
+      descKey: "mediumDesc",
+      traitKeys: ["traitBalanced", "traitSomeBluffs", "traitBasic"],
+    },
+    {
+      id: "difficile" as const,
+      icon: Zap,
+      selectedCard: "border-orange-300/30 bg-orange-950/32 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_44px_rgba(154,52,18,0.24)] ring-1 ring-orange-300/15",
+      idleCard: "hover:border-orange-300/25 hover:bg-orange-950/16",
+      selectedIconWrap: "border-orange-300/25 bg-orange-400/10",
+      selectedIcon: "text-orange-200",
+      selectedTitle: "text-orange-100",
+      selectedDot: "bg-orange-300",
+      descKey: "hardDesc",
+      traitKeys: ["traitCalculated", "traitBluffs", "traitAdapt"],
+    },
+    {
+      id: "expert" as const,
+      icon: Trophy,
+      selectedCard: "border-rose-300/30 bg-rose-950/36 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_44px_rgba(136,19,55,0.25)] ring-1 ring-rose-300/15",
+      idleCard: "hover:border-rose-300/25 hover:bg-rose-950/18",
+      selectedIconWrap: "border-rose-300/25 bg-rose-400/10",
+      selectedIcon: "text-rose-200",
+      selectedTitle: "text-rose-100",
+      selectedDot: "bg-rose-300",
+      descKey: "expertDesc",
+      traitKeys: ["traitUnpredictable", "traitAdvanced", "traitAggressive"],
+    }
   ];
 
   const MIN_CHIPS = 100;
@@ -41,13 +85,27 @@ export function BotConfiguration() {
   };
 
   return (
-    <div className="size-full app-shell-bg overflow-auto">
-      <div className="w-full min-w-0 px-4 pb-12 pt-4 sm:px-8 sm:pb-16 sm:pt-5 lg:px-12">
+    <div className="relative min-h-screen w-full overflow-auto bg-[#020716] text-white">
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.24),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_40%,rgba(14,116,144,0.10),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
+        <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/40 blur-[120px]" />
+        <div className="absolute -left-20 top-1/3 h-80 w-80 rounded-full bg-cyan-700/10 blur-[90px]" />
+        <div className="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-indigo-950/28 blur-[110px]" />
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.26) 1px, transparent 0)",
+            backgroundSize: "22px 22px",
+          }}
+        />
+      </div>
+      <div className="relative z-10 w-full min-w-0 px-4 pb-12 pt-20 sm:px-8 sm:pb-16 sm:pt-24 lg:px-12">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between sm:mb-10">
           <button
             onClick={() => navigate("/lobby")}
-            className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl font-semibold transition-all"
+            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-4 py-2 font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_34px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:border-white/20 hover:bg-white/[0.08]"
           >
             <Home className="w-5 h-5" />
             <span>{t('botConfig.home')}</span>
@@ -56,11 +114,11 @@ export function BotConfiguration() {
 
         {/* Titre */}
         <div className="mb-10 flex items-center gap-4 sm:mb-12">
-          <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center shadow-xl">
-            <Bot className="w-8 h-8 text-white" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-blue-950/65 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_18px_44px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <Bot className="w-8 h-8 text-blue-200" />
           </div>
           <div>
-            <h1 className="text-4xl font-bold text-white mb-1">{t('botConfig.title')}</h1>
+            <h1 className="mb-1 bg-gradient-to-r from-slate-100 via-blue-200 to-cyan-200 bg-clip-text text-4xl font-bold text-transparent">{t('botConfig.title')}</h1>
             <p className="text-gray-400">
               {t('botConfig.subtitle')}
             </p>
@@ -69,9 +127,9 @@ export function BotConfiguration() {
 
         <div className="space-y-12">
           {/* Nombre de bots */}
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-10">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
             <div className="flex items-center gap-3 mb-10">
-              <Users className="w-6 h-6 text-purple-400" />
+              <Users className="w-6 h-6 text-blue-200" />
               <h2 className="text-2xl font-bold text-white">{t('botConfig.numberOfBots')}</h2>
             </div>
 
@@ -80,10 +138,10 @@ export function BotConfiguration() {
                 <button
                   key={num}
                   onClick={() => setNumberOfBots(num)}
-                  className={`relative p-6 sm:p-8 md:p-10 rounded-xl border-2 transition-all transform hover:scale-105 ${
+                  className={`relative rounded-xl border p-6 transition-all hover:-translate-y-0.5 sm:p-8 md:p-10 ${
                     numberOfBots === num
-                      ? "bg-gradient-to-br from-purple-600 to-purple-800 border-purple-400 shadow-lg shadow-purple-600/50"
-                      : "bg-slate-800/50 border-slate-700 hover:border-slate-600"
+                      ? "border-blue-300/25 bg-blue-950/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_44px_rgba(15,23,42,0.34)] ring-1 ring-blue-300/15"
+                      : "border-white/10 bg-white/[0.045] backdrop-blur-md hover:border-white/20 hover:bg-white/[0.075]"
                   }`}
                 >
                   <div className="text-center">
@@ -93,21 +151,16 @@ export function BotConfiguration() {
                       {num}
                     </div>
                     <div className={`text-sm font-semibold ${
-                      numberOfBots === num ? "text-purple-200" : "text-gray-500"
+                      numberOfBots === num ? "text-blue-200" : "text-gray-500"
                     }`}>
                       {num} {num > 1 ? "Bots" : "Bot"}
                     </div>
                   </div>
-                  {numberOfBots === num && (
-                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">✓</span>
-                    </div>
-                  )}
                 </button>
               ))}
             </div>
 
-            <div className="mt-8 p-6 bg-slate-900/50 rounded-xl border border-slate-700">
+            <div className="mt-8 rounded-xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
               <p className="text-gray-400 text-sm">
                 <span className="font-semibold text-white">{t('botConfig.playersAtTable')}</span> {t('botConfig.youAndBots', { count: numberOfBots, total: numberOfBots + 1 })}
               </p>
@@ -115,9 +168,9 @@ export function BotConfiguration() {
           </div>
 
           {/* Niveau de difficulté */}
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-10">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
             <div className="flex items-center gap-3 mb-10">
-              <Brain className="w-6 h-6 text-purple-400" />
+              <Brain className="w-6 h-6 text-blue-200" />
               <h2 className="text-2xl font-bold text-white">{t('botConfig.difficulty')}</h2>
             </div>
 
@@ -130,22 +183,22 @@ export function BotConfiguration() {
                   <button
                     key={diff.id}
                     onClick={() => setDifficulty(diff.id)}
-                    className={`relative p-10 rounded-xl border-2 transition-all transform hover:scale-105 text-left ${
+                    className={`relative rounded-xl border p-10 text-left transition-all hover:-translate-y-0.5 ${
                       isSelected
-                        ? `bg-gradient-to-br ${diff.color} ${diff.borderColor} shadow-lg`
-                        : "bg-slate-800/50 border-slate-700 hover:border-slate-600"
+                        ? diff.selectedCard
+                        : `border-white/10 bg-white/[0.045] backdrop-blur-md ${diff.idleCard}`
                     }`}
                   >
                     <div className="flex items-start gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        isSelected ? "bg-white/20" : "bg-slate-700"
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-full border ${
+                        isSelected ? diff.selectedIconWrap : "border-white/10 bg-white/[0.05]"
                       }`}>
-                        <Icon className={`w-6 h-6 ${isSelected ? "text-white" : "text-gray-400"}`} />
+                        <Icon className={`w-6 h-6 ${isSelected ? diff.selectedIcon : "text-gray-400"}`} />
                       </div>
 
                       <div className="flex-1">
                         <h3 className={`text-xl font-bold mb-1 ${
-                          isSelected ? "text-white" : "text-gray-300"
+                          isSelected ? diff.selectedTitle : "text-gray-300"
                         }`}>
                           {t(`botConfig.${labelKey}`)}
                         </h3>
@@ -159,7 +212,7 @@ export function BotConfiguration() {
                           {diff.traitKeys.map((traitKey, index) => (
                             <div key={index} className="flex items-center gap-2">
                               <div className={`w-1.5 h-1.5 rounded-full ${
-                                isSelected ? "bg-white" : "bg-gray-600"
+                                isSelected ? diff.selectedDot : "bg-gray-600"
                               }`}></div>
                               <span className={`text-xs ${
                                 isSelected ? "text-white/70" : "text-gray-600"
@@ -171,12 +224,6 @@ export function BotConfiguration() {
                         </div>
                       </div>
                     </div>
-
-                    {isSelected && (
-                      <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-2 border-slate-900 flex items-center justify-center shadow-lg">
-                        <span className="text-white text-sm font-bold">✓</span>
-                      </div>
-                    )}
                   </button>
                 );
               })}
@@ -186,7 +233,7 @@ export function BotConfiguration() {
           {/* Bouton Commencer */}
           <button
             onClick={handleStartGame}
-            className="w-full bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700 text-white font-bold text-xl py-10 rounded-2xl shadow-2xl transition-all transform hover:scale-105 border-2 border-purple-400"
+            className="w-full rounded-2xl border border-blue-300/20 bg-blue-950/75 py-10 text-xl font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-blue-200/30 hover:bg-blue-900/80"
           >
             <div className="flex items-center justify-center gap-3">
               <Bot className="w-8 h-8" />
@@ -205,9 +252,9 @@ export function BotConfiguration() {
           </button>
 
           {showAdvanced && (
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-8 space-y-4">
+            <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.055] p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
               <div className="flex items-center gap-3 mb-4">
-                <Settings2 className="w-5 h-5 text-gray-400" />
+                <Settings2 className="w-5 h-5 text-blue-200" />
                 <h3 className="text-lg font-bold text-white">{t('botConfig.chipsPerBot')}</h3>
                 <span className="text-xs text-gray-500 ml-auto">{t('botConfig.defaultChips')}</span>
               </div>
@@ -217,7 +264,7 @@ export function BotConfiguration() {
                 return (
                   <div key={i} className="flex items-center gap-4">
                     <div className="flex items-center gap-2 min-w-[120px]">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center text-white text-xs font-bold">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-blue-300/15 bg-blue-950/70 text-xs font-bold text-blue-100">
                         {BOT_NAMES[i]?.[0]}
                       </div>
                       <span className="text-gray-300 text-sm font-medium">Bot {BOT_NAMES[i]}</span>
@@ -238,14 +285,14 @@ export function BotConfiguration() {
                             return next;
                           });
                         }}
-                        className={`flex-1 bg-slate-700/50 border rounded-lg px-4 py-2 text-white text-sm focus:outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
-                          isInvalid ? "border-red-500 focus:border-red-500" : "border-slate-600 focus:border-purple-500"
+                        className={`flex-1 rounded-lg border bg-white/[0.055] px-4 py-2 text-sm text-white transition-colors [appearance:textfield] backdrop-blur-md focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                          isInvalid ? "border-red-500 focus:border-red-500" : "border-white/10 focus:border-blue-300/40"
                         }`}
                       />
                       {isInvalid && (
                         <div className="relative flex items-center gap-1">
                           <XCircle className="w-6 h-6 text-red-500 shrink-0" aria-hidden />
-                          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-1 z-10 px-3 py-2 bg-slate-800 border border-red-500 rounded-lg shadow-xl text-red-400 text-sm font-medium whitespace-nowrap">
+                          <div className="absolute left-full top-1/2 z-10 ml-1 -translate-y-1/2 whitespace-nowrap rounded-lg border border-red-500 bg-slate-950/90 px-3 py-2 text-sm font-medium text-red-400 shadow-xl backdrop-blur-md">
                             {t("botConfig.minAmount100")}
                           </div>
                         </div>
@@ -259,7 +306,7 @@ export function BotConfiguration() {
           )}
 
           {/* Résumé */}
-          <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-xl border border-slate-700 p-10 mb-16">
+          <div className="mb-16 rounded-xl border border-white/10 bg-white/[0.045] p-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_48px_rgba(0,0,0,0.24)] backdrop-blur-xl">
             <h3 className="text-white font-bold text-lg mb-6">{t('botConfig.configSummary')}</h3>
             <div className="grid grid-cols-2 gap-8 text-sm">
               <div>

@@ -73,10 +73,10 @@ export function FriendsList() {
   const friendsCount = friends?.length || 0;
 
   return (
-    <div className="bg-slate-800 rounded-2xl p-6 border border-blue-500 min-h-full">
+    <div className="min-h-full rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl text-white font-bold flex items-center gap-3">
-          <Users className="w-8 h-8 text-blue-400" />
+          <Users className="w-8 h-8 text-blue-200" />
           {t('lobby.friends')}
         </h2>
 
@@ -90,20 +90,20 @@ export function FriendsList() {
       </div>
 
       <div className="space-y-4">
-        <div className="bg-slate-700/50 rounded-xl p-4">
+        <div className="rounded-xl border border-white/10 bg-white/[0.045] p-4 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <span className="text-gray-300">{t('lobby.friends')}</span>
             <span className="text-white font-bold">{friendsCount}</span>
           </div>
         </div>
 
-        <div className="bg-slate-700/50 rounded-xl p-4">
+        <div className="rounded-xl border border-white/10 bg-white/[0.045] p-4 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <span className="text-gray-300 flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-yellow-400" />
+              <UserPlus className="w-4 h-4 text-blue-200" />
               {t('friends.pendingRequests')}
             </span>
-            <span className="text-yellow-300 font-bold">{pendingCount}</span>
+            <span className="text-blue-200 font-bold">{pendingCount}</span>
           </div>
         </div>
 
@@ -116,7 +116,7 @@ export function FriendsList() {
             {friends!.slice(0, 5).map((friend) => (
               <div
                 key={friend.id}
-                className="bg-slate-700/40 rounded-xl p-3 flex items-center justify-between"
+                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.045] p-3 backdrop-blur-md"
               >
                 <div>
                   <p className="text-white font-medium">{friend.username}</p>
@@ -130,7 +130,7 @@ export function FriendsList() {
 
             <button
               onClick={() => navigate("/friends")}
-              className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition"
+              className="w-full mt-2 rounded-xl border border-blue-300/15 bg-blue-950/75 py-3 font-semibold text-white transition hover:border-blue-200/25 hover:bg-blue-900/80"
             >
               {t('lobby.manageFriends')}
             </button>
@@ -140,7 +140,7 @@ export function FriendsList() {
             <p className="text-gray-400 mb-4">{t('friends.noFriendsYet')}</p>
             <button
               onClick={() => navigate("/friends")}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition"
+              className="w-full rounded-xl border border-blue-300/15 bg-blue-950/75 py-3 font-semibold text-white transition hover:border-blue-200/25 hover:bg-blue-900/80"
             >
               {t('friends.addFriends')}
             </button>
