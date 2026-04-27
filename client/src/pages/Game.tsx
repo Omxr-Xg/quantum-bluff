@@ -13,15 +13,15 @@ import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, Plus, MessageCircle, X, LogOut, Sparkles, Trophy, Activity, Info } from "lucide-react";
-import { getPlayerAvatar } from "../utils/avatars";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-import { QuantumBluffLogo } from "../assets/logo";
+import { User, Users, Menu, Loader2, MessageCircle, X, LogOut, Sparkles, Trophy, Activity, Info, Plus } from "lucide-react";
 import { useDeviceType } from "../components/ui/use-mobile";
-import { ChipIcon } from "../components/ChipIcon";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
 import { addToUserBalance, addDevMoney, getUserBalance, getUserAvatar } from "../utils/userProfile";
+import { getPlayerAvatar } from "../utils/avatars";
+import { QuantumBluffLogo } from "../assets/logo";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { ChipIcon } from "../components/ChipIcon";
 import { RoundTransition } from "../components/RoundTransition";
 import { GameInteractiveTour } from "../components/GameInteractiveTour";
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
@@ -237,6 +237,12 @@ export function Game() {
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [gameTourOpen, setGameTourOpen] = useState(false);
   const [gameTourStep, setGameTourStep] = useState(0);
+
+  useEffect(() => {
+    const handleRequestQuit = () => setShowQuitConfirm(true);
+    window.addEventListener("request-game-quit", handleRequestQuit);
+    return () => window.removeEventListener("request-game-quit", handleRequestQuit);
+  }, []);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [devValidation, setDevValidation] = useState("");
@@ -488,6 +494,12 @@ export function Game() {
     setGameTourStep(0);
     setGameTourOpen(true);
   }, []);
+
+  useEffect(() => {
+    const handleRequestTour = () => startGameTour();
+    window.addEventListener("request-game-tour", handleRequestTour);
+    return () => window.removeEventListener("request-game-tour", handleRequestTour);
+  }, [startGameTour]);
 
   useEffect(() => {
     if (!showMenu) return;
@@ -3175,9 +3187,15 @@ export function Game() {
       </AnimatePresence>
 
       {isBotThinking && mode === "bot" && !gameIdParam && (
-        <div className={`absolute z-50 left-1/2 transform -translate-x-1/2 ${
-          isMobile ? 'bottom-[320px]' : isTablet ? 'bottom-36' : 'bottom-40'
-        }`}>
+        <div
+          className={`fixed z-50 ${
+            isMobile
+              ? "bottom-[320px] left-1/2 -translate-x-1/2"
+              : isTablet
+                ? "bottom-36 left-1/2 -translate-x-1/2"
+                : "left-10 top-28"
+          }`}
+        >
           <div className={`bg-slate-800/95 backdrop-blur-sm rounded-2xl ${isMobile ? 'p-4' : 'p-6'} border-2 border-blue-500 shadow-2xl`}>
             <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'}`}>
               <Loader2 className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} text-blue-400 animate-spin`} />
@@ -3222,7 +3240,10 @@ export function Game() {
         )}
       </AnimatePresence>
 
-      <div ref={tourRefHeader} className={`absolute ${isMobile ? 'top-2 left-2 right-2' : 'top-4 left-8 right-8'} z-50 flex items-center justify-between`}>
+      <div
+        ref={tourRefHeader}
+        className={`absolute ${isMobile ? "top-2 left-2 right-2" : "top-4 left-8 right-8"} z-50 flex items-center justify-between`}
+      >
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
           <QuantumBluffLogo className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} drop-shadow-2xl`} />
 
@@ -3641,7 +3662,7 @@ export function Game() {
          {/* TABLE */}
         <div
         ref={tourRefTable}
-        className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-4 pt-0 w-full -mt-8' : 'px-6 pt-32 min-h-[600px]'}`}
+        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 w-full -mt-8' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-20'}`}
         >
         <PokerTable
         players={tablePlayers}
@@ -3683,6 +3704,20 @@ export function Game() {
       hiddenBetWindowOpen={hiddenBetWindowOpen}
       hiddenBetState={hiddenBetState}
       />
+      <button
+        type="button"
+        onClick={() => setIsChatOpen((open) => !open)}
+        className={`fixed right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full border text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_14px_34px_rgba(0,0,0,0.36)] backdrop-blur-md transition hover:scale-105 md:right-6 bottom-[calc(env(safe-area-inset-bottom,0px)+8.5rem)] md:bottom-28 ${
+          isChatOpen
+            ? "border-cyan-200/70 bg-blue-700/85 shadow-[0_0_26px_rgba(59,130,246,0.42)]"
+            : "border-white/10 bg-slate-950/70 hover:border-blue-200/35 hover:bg-blue-950/70"
+        }`}
+        aria-pressed={isChatOpen}
+        aria-label={t("game.openChat")}
+        data-no-global-tooltip
+      >
+        <MessageCircle className="h-5 w-5" aria-hidden />
+      </button>
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />
       {userId ? (

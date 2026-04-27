@@ -248,7 +248,7 @@ export function HandCombinationsHelpButton({
         ariaExpanded={open}
         ariaControls={open ? panelId : undefined}
         title={t("game.combinationsHelp.buttonTitle")}
-        className="min-w-0 px-2 py-2 text-[10px] sm:text-xs md:px-3"
+        className="min-w-0 px-4 py-3 text-xs md:px-5 md:py-3.5"
       >
         <span className="hidden sm:inline">{t("game.combinationsHelp.buttonShort")}</span>
       </NeonButton>

@@ -80,23 +80,23 @@ export function Register() {
       
       {/* FONDS IMMERSIF (identique au Login) */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 app-shell-bg"></div>
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 60px, rgba(139, 92, 246, 0.2) 60px, rgba(139, 92, 246, 0.2) 61px)` }} />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_70%_at_50%_-10%,rgba(30,64,175,0.24),transparent_55%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]"></div>
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 60px, rgba(37, 99, 235, 0.24) 60px, rgba(37, 99, 235, 0.24) 61px)` }} />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(15,23,42,0.8)_100%)]"></div>
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[100px] animate-pulse-slow"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: "1s" }}></div>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-700/14 rounded-full blur-[100px] animate-pulse-slow"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-700/14 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: "1s" }}></div>
       </div>
 
       {/* Cartes animées (optionnel, peut rester) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
         <div className="absolute top-[15%] left-[8%] animate-float-card">
-          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-purple-500/30 rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-6xl text-purple-400/40 font-bold">♠</div>
+          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 rotate-12 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-6xl text-blue-300/40 font-bold">♠</div>
           </div>
         </div>
         <div className="absolute top-[55%] right-[12%] animate-float-card-delayed" style={{ animationDelay: "1s" }}>
-          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-purple-500/30 -rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-6xl text-purple-400/40 font-bold">♥</div>
+          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 -rotate-12 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-6xl text-blue-300/40 font-bold">♥</div>
           </div>
         </div>
       </div>
@@ -110,9 +110,10 @@ export function Register() {
           <p className="text-sm text-gray-400">{t('auth.createYourAccount')}</p>
         </div>
 
-        <div className="rounded-2xl p-6 sm:p-8 transition-all duration-300" style={{
-            background: 'linear-gradient(#151b2b, #151b2b) padding-box, linear-gradient(145deg, transparent 35%, #e81cff, #40c9ff) border-box',
-            border: '2px solid transparent'
+        <div className="rounded-2xl p-6 sm:p-8 transition-all duration-300 backdrop-blur-xl" style={{
+            background: 'linear-gradient(145deg, rgba(7,16,34,0.88), rgba(10,24,48,0.76)) padding-box, linear-gradient(145deg, rgba(96,165,250,0.18), rgba(103,232,249,0.62), rgba(37,99,235,0.28)) border-box',
+            border: '1px solid transparent',
+            boxShadow: '0 24px 80px rgba(2,6,23,0.48), 0 0 34px rgba(37,99,235,0.16), inset 0 1px 0 rgba(255,255,255,0.08)'
           }}>
           <form onSubmit={handleSubmit} className="space-y-5">
             
@@ -120,13 +121,13 @@ export function Register() {
             <div>
               <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">{t('auth.username')}</label>
               <div className="relative group">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-cyan-300" />
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="PokerMaster"
-                  className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
+                  className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-blue-400/20 focus:border-blue-400"
                   required
                   minLength={3}
                 />
@@ -137,13 +138,13 @@ export function Register() {
             <div>
               <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">{t('auth.email')}</label>
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-cyan-300" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="joueur@quantum.com"
-                  className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
+                  className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-blue-400/20 focus:border-blue-400"
                   required
                 />
               </div>
@@ -153,13 +154,13 @@ export function Register() {
             <div>
               <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">{t('auth.password')}</label>
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-[#e81cff]" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-cyan-300" />
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-12 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
+                  className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-12 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-blue-400/20 focus:border-blue-400"
                   required
                 />
                 <button
@@ -189,7 +190,7 @@ export function Register() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className={`w-full bg-transparent border rounded-lg pl-12 pr-12 py-3.5 text-white transition-all focus:outline-none focus:ring-1 ${confirmPassword ? (password === confirmPassword ? 'border-green-400' : 'border-red-500') : 'border-[#414141] focus:border-[#e81cff]'}`}
+                  className={`w-full bg-transparent border rounded-lg pl-12 pr-12 py-3.5 text-white transition-all focus:outline-none focus:ring-1 ${confirmPassword ? (password === confirmPassword ? 'border-green-400' : 'border-red-500') : 'border-[#414141] focus:border-blue-400'}`}
                   required
                 />
                 <button
@@ -212,7 +213,7 @@ export function Register() {
               <select
                 value={secretQuestionId}
                 onChange={(e) => setSecretQuestionId(Number(e.target.value))}
-                className="w-full bg-slate-800/80 border border-[#414141] rounded-lg px-4 py-3.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
+                className="w-full bg-slate-800/80 border border-[#414141] rounded-lg px-4 py-3.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-400/20 focus:border-blue-400"
               >
                 {SECRET_QUESTION_IDS.map((id) => (
                   <option key={id} value={id} className="bg-slate-900">
@@ -232,7 +233,7 @@ export function Register() {
                 value={secretAnswer}
                 onChange={(e) => setSecretAnswer(e.target.value)}
                 placeholder={t("auth.secretAnswerPlaceholder")}
-                className="w-full bg-transparent border border-[#414141] rounded-lg px-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-[#e81cff]/20 focus:border-[#e81cff]"
+                className="w-full bg-transparent border border-[#414141] rounded-lg px-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-blue-400/20 focus:border-blue-400"
               />
             </div>
 
@@ -247,7 +248,7 @@ export function Register() {
             <button
               type="submit"
               disabled={isLoading || !isFormValid}
-              className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${isFormValid ? 'bg-[#e81cff] text-white font-semibold shadow-[0_0_30px_5px_rgba(232,28,255,0.6)] border-[#e81cff] before:animate-[sh02_0.5s_linear_infinite]' : 'bg-transparent text-white/50 font-normal shadow-[0_0_11px_2px_rgba(232,28,255,0.3)] border-[#e81cff] opacity-80 cursor-not-allowed'} before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
+              className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${isFormValid ? 'bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_0.5s_linear_infinite]' : 'bg-slate-950/20 text-white/45 font-normal shadow-[0_0_11px_2px_rgba(59,130,246,0.18)] border-blue-300/40 opacity-80 cursor-not-allowed'} before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
             >
               {isLoading ? (
                 <>
@@ -263,7 +264,7 @@ export function Register() {
           <div className="text-center mt-6">
             <p className="text-sm text-gray-400">
               {t('auth.alreadyHaveAccount')}{" "}
-              <button onClick={() => navigate("/login")} className="text-[#e81cff] font-semibold hover:underline">
+              <button onClick={() => navigate("/login")} className="text-blue-300 font-semibold hover:underline">
                 {t('auth.login')}
               </button>
             </p>
@@ -282,3 +283,5 @@ export function Register() {
     </div>
   );
 }
+
+

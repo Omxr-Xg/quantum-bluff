@@ -74,6 +74,7 @@ export function NeonButton({
       style={{
         position: "relative",
         border: `2px solid ${style.border}`,
+        borderRadius: "9999px",
         background: "transparent",
         color: disabled ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.9)",
         overflow: "hidden",

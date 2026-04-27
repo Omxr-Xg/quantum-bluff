@@ -68,9 +68,9 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
   if (!isOpen) return null; // Ne rien rendre si c'est fermé
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] flex flex-col items-center p-2 sm:p-4 pb-[env(safe-area-inset-bottom,0)] animate-in fade-in slide-in-from-bottom-4 duration-300">
-      <div className={`bg-gradient-to-br from-slate-900/98 to-slate-800/98 backdrop-blur-md rounded-t-2xl border-2 border-t border-x border-blue-500 shadow-2xl flex flex-col max-h-[70vh] sm:max-h-[65vh] ${
-        isMobile ? "w-full max-w-full" : "w-full max-w-md"
+    <div className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+12.75rem)] z-[100] flex justify-end animate-in fade-in slide-in-from-bottom-4 duration-300 md:inset-x-auto md:right-6 md:bottom-44">
+      <div className={`pointer-events-auto flex flex-col overflow-hidden rounded-2xl border border-blue-300/45 bg-gradient-to-br from-slate-950/96 via-slate-900/96 to-blue-950/92 shadow-[0_24px_70px_rgba(2,6,23,0.58),0_0_34px_rgba(59,130,246,0.20)] backdrop-blur-xl max-h-[min(56vh,28rem)] ${
+        isMobile ? "w-[calc(100vw-1.5rem)]" : "w-[min(24rem,calc(100vw-2rem))]"
       }`}>
         {/* Header */}
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-slate-700 shrink-0">
@@ -156,7 +156,7 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
         </div>
 
         {/* Footer - En bas, facilement accessible */}
-        <div className="p-2 sm:p-3 border-t border-slate-700 bg-slate-800/50 rounded-b-2xl shrink-0 flex items-center justify-between gap-2">
+        <div className="p-2 sm:p-3 border-t border-slate-700 bg-slate-800/50 shrink-0 flex items-center justify-between gap-2">
           <span className="text-[10px] sm:text-xs text-gray-400 truncate">Envoyez des messages instantanés</span>
           <div className="flex items-center gap-1 shrink-0">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
