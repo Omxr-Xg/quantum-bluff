@@ -64,7 +64,6 @@ export async function placeHiddenBet(
 
   const occupied = cash.getOccupiedSeats().filter((s) => s.userId && s.chips > 0)
   const seatedIds = new Set(occupied.map((s) => s.userId!))
-  if (!seatedIds.has(userId)) throw new Error('Vous devez être assis à cette table')
 
   const odds = computeQuotedOdds(v.selections, input.combinator, occupied.length, marketPhase)
   if (odds <= 0) throw new Error('cote invalide')

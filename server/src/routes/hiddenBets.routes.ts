@@ -102,10 +102,6 @@ router.get('/history', authMiddleware, async (req, res) => {
     if (!game || !(game instanceof CashGameController)) {
       return res.status(404).json({ error: 'Partie cash introuvable' })
     }
-    const state = game.getSanitizedState(userId)
-    const hasSeat = state.cashSeats?.some((s) => s.userId === userId)
-    if (!hasSeat) return res.status(403).json({ error: 'Accès refusé' })
-
     const tickets = await prisma.hiddenBetTicket.findMany({
       where: { gameId: gameIdQ, resolvedAt: { not: null } },
       orderBy: { resolvedAt: 'desc' },

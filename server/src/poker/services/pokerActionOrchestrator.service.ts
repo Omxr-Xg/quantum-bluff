@@ -258,6 +258,23 @@ export async function applyPokerAction(
                         handId: currentGame.state.handId,
                       });
                     }
+                  } else if (isPracticeBotGameId(payload.gameId)) {
+                    const ioRel = TournamentService.getIo() ?? io;
+                    if (ioRel) {
+                      let reason:
+                        | "human_won"
+                        | "human_busted"
+                        | "session_over" = "session_over";
+                      if (currentSurvivors.length === 1) {
+                        reason = currentSurvivors[0].id.startsWith("qb-bot-")
+                          ? "human_busted"
+                          : "human_won";
+                      }
+                      ioRel.to(payload.gameId).emit("PRACTICE_SESSION_END", {
+                        gameId: payload.gameId,
+                        reason,
+                      });
+                    }
                   }
                 }
               },
@@ -272,6 +289,13 @@ export async function applyPokerAction(
             }
           } catch (error) {
             console.error("❌ Erreur relance auto :", error);
+            const ioErr = TournamentService.getIo();
+            if (ioErr && isPracticeBotGameId(payload.gameId)) {
+              ioErr.to(payload.gameId).emit("PRACTICE_SESSION_END", {
+                gameId: payload.gameId,
+                reason: "stuck",
+              });
+            }
           }
         }, nextHandDelayMs);
       } else if (
@@ -298,6 +322,18 @@ export async function applyPokerAction(
         }
 
         activeGames.delete(payload.gameId);
+      } else if (isPracticeBotGameId(payload.gameId) && io) {
+        let reason: "human_won" | "human_busted" | "session_over" =
+          "session_over";
+        if (survivors.length === 1) {
+          reason = survivors[0].id.startsWith("qb-bot-")
+            ? "human_busted"
+            : "human_won";
+        }
+        io.to(payload.gameId).emit("PRACTICE_SESSION_END", {
+          gameId: payload.gameId,
+          reason,
+        });
       }
     }
   });

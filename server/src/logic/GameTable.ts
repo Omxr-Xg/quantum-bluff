@@ -731,6 +731,11 @@ export class GameTable {
     this.state.handParticipantIds = Array.from(this.handParticipantIds)
     this.state.handEndReason = undefined
     this.state.handRuntimePhase = 'BETTING_ACTIVE'
+    this.state.showdownWinnerId = undefined
+    this.state.showdownWinnerIds = undefined
+    this.state.showdownIsSplit = undefined
+    this.state.showdownHandName = undefined
+    this.state.showdownPot = undefined
     console.log('[POKER][HAND] started', {
   gameId: this.id,
   handId: this.state.handId,

@@ -37,7 +37,6 @@ import { getWinMultiplierFromDifficultyParam } from "../utils/botModeReward";
 import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
-import { toPng } from "html-to-image";
 
 type Card = ClientCard;
 
@@ -278,7 +277,15 @@ export function Game() {
   const [roundCount, setRoundCount] = useState(1);
   const [lastWinnerData, setLastWinnerData] = useState<{name: string, amount: number} | undefined>(undefined);
 
-  const [gameOverReason, setGameOverReason] = useState<"human_eliminated" | "bot_eliminated" | null>(null);
+  const [gameOverReason, setGameOverReason] = useState<
+    "human_eliminated" | "bot_eliminated" | "practice_stuck" | null
+  >(null);
+  const gameOverReasonRef = useRef(gameOverReason);
+  gameOverReasonRef.current = gameOverReason;
+  /** Practice réseau : snapshot PREFLOP reçu pendant l’écran de fin de main — appliqué au clic « Rejouer ». */
+  const pendingBotHandSocketStateRef = useRef<Record<string, unknown> | null>(null);
+  const applySocketGameUpdateRef = useRef<(state: Record<string, unknown>) => void>(() => {});
+  const [serverHandRuntimePhase, setServerHandRuntimePhase] = useState<string | undefined>(undefined);
   const [showdownResult, setShowdownResult] = useState<{
     winnerId: string;
     winnerIds?: string[];
@@ -464,21 +471,6 @@ export function Game() {
   const tourRefActions = useRef<HTMLDivElement>(null);
   const menuContainerRef = useRef<HTMLDivElement>(null);
   const [gameMenuSlot, setGameMenuSlot] = useState<HTMLElement | null>(null);
-  const tableCaptureRef = useRef<HTMLDivElement>(null);
-
-  const handleShare = async () => {
-    const tableEl = tourRefTable.current as HTMLDivElement | null;
-    if (!tableEl) return;
-    try {
-      const dataUrl = await toPng(tableEl);
-      const link = document.createElement("a");
-      link.download = "poker-win.png";
-      link.href = dataUrl;
-      link.click();
-    } catch (error) {
-      console.error("Capture failed:", error);
-    }
-  };
 
   const gameTourRefs = useMemo(
     () => ({
@@ -525,7 +517,7 @@ export function Game() {
   const lastScheduledShowdownTransitionSigRef = useRef<string>("");
 
   useEffect(() => {
-    if (!showdownResult || showTransition) return;
+    if (!showdownResult || showTransition || isBotMode) return;
     const sig = `${showdownResult.winnerId}:${showdownResult.winnerName}:${showdownResult.hand}:${showdownResult.pot}:${showdownResult.isSplit ? 1 : 0}:${showdownResult.skipRevealDelay ? 1 : 0}`;
     if (lastScheduledShowdownTransitionSigRef.current === sig) return;
     lastScheduledShowdownTransitionSigRef.current = sig;
@@ -938,8 +930,11 @@ export function Game() {
       clearTimeout(streetTransitionTimeoutRef.current);
       streetTransitionTimeoutRef.current = null;
     }
+    setIsLoading(false);
+    hasPlayerActedRef.current = false;
+    setHasPlayerActed(false);
     navigate(location.pathname + location.search, { replace: true, state: {} });
-  }, [location.state, isBotMode]);
+  }, [location.state, isBotMode, navigate, location.pathname, location.search]);
 
   useEffect(() => {
     if (!gameIdParam || isSpectating || !userId) return;
@@ -1114,6 +1109,21 @@ export function Game() {
   });
   return;
 }
+      const incomingHandIdEarly = gameState.handId ?? undefined;
+      const previousHandIdEarly = handIdRef.current;
+      const handChangedEarly =
+        Boolean(incomingHandIdEarly && previousHandIdEarly && incomingHandIdEarly !== previousHandIdEarly);
+      if (
+        handChangedEarly &&
+        isBotMode &&
+        gameIdParam &&
+        showdownResultRef.current &&
+        !gameOverReasonRef.current
+      ) {
+        pendingBotHandSocketStateRef.current = gameState as Record<string, unknown>;
+        lastAppliedSocketSnapshotSigRef.current = socketSnapshotSig;
+        return;
+      }
       lastAppliedSocketSnapshotSigRef.current = socketSnapshotSig;
       const incomingVersion = typeof gameState.actionVersion === "number" ? gameState.actionVersion : -1;
       const incomingHandId = gameState.handId ?? undefined;
@@ -1156,6 +1166,12 @@ export function Game() {
         setCashWaitingPlayers(false);
         setCashCountdownEndsAt(null);
       }
+      if (gameState.phase === "WAITING") {
+        setShowdownResult(null);
+        showdownResultRef.current = null;
+        setShowTransition(false);
+        lastScheduledShowdownTransitionSigRef.current = "";
+      }
       /** Garde AVANT toute mutation : évite d'appliquer WAITING (tous isActive false) juste après SHOWDOWN. */
       const previousHandIdBeforeUpdate = handIdRef.current;
       if (
@@ -1170,6 +1186,18 @@ export function Game() {
         turnTimeLimitSecRef.current = gameState.turnTimeLimitSec;
       }
       handIdRef.current = gameState.handId;
+      if (
+        incomingHandId &&
+        previousHandIdBeforeUpdate &&
+        incomingHandId !== previousHandIdBeforeUpdate
+      ) {
+        setShowdownResult(null);
+        showdownResultRef.current = null;
+        setHandResult(null);
+        setShowTransition(false);
+        lastScheduledShowdownTransitionSigRef.current = "";
+        showdownStartedRef.current = false;
+      }
       if (typeof gameState.cashCountdownRemainingSec === "number") {
         setCashCountdownEndsAt(Date.now() + Math.max(0, gameState.cashCountdownRemainingSec) * 1000);
       } else if (gameState.cashCountdownEndsAt != null) {
@@ -1231,13 +1259,16 @@ export function Game() {
       });
       setPot(gameState.pot ?? 0);
       setMinRaise((gameState as { minRaise?: number }).minRaise ?? 100);
+      setServerHandRuntimePhase(
+        typeof (gameState as { handRuntimePhase?: string }).handRuntimePhase === "string"
+          ? (gameState as { handRuntimePhase?: string }).handRuntimePhase
+          : undefined,
+      );
       const phase = incomingPhase;
       if (phase === "showdown") {
         lastShowdownSnapshotAtRef.current = Date.now();
       }
-      if (!(phase === "init" && phaseRef.current === "showdown" && showdownResultRef.current)) {
-        setPhase(phase as GamePhase);
-      }
+      setPhase(phase as GamePhase);
       setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
@@ -1297,9 +1328,11 @@ export function Game() {
       const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
       if (phase === "showdown" && !isSpectating) {
         setTimerActive(false);
-      } else if (currentTurnId === String(userId)) {
+      } else if (currentTurnId && currentTurnId === String(userId)) {
         setTimerActive(true);
         setTimeLeft(turnTimeLimitSecRef.current);
+      } else {
+        setTimerActive(false);
       }
       const hasShowdownWinner = gameState.showdownWinnerId || (gameState.showdownWinnerIds && gameState.showdownWinnerIds.length > 0);
       if (phase === "showdown" && hasShowdownWinner) {
@@ -1375,6 +1408,9 @@ export function Game() {
         }
       }
     };
+    applySocketGameUpdateRef.current = (st) => {
+      onGameUpdate("GAME_UPDATE", st as Parameters<typeof onGameUpdate>[1]);
+    };
     const onGameUpdateMain = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_UPDATE", state);
     const onGameStateUpdated = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_STATE_UPDATED", state);
     socket.on("GAME_UPDATE", onGameUpdateMain);
@@ -1413,6 +1449,15 @@ export function Game() {
       }
     };
     socket.on("GAME_ENDED", onGameEnded);
+    const onPracticeSessionEnd = (data: { gameId?: string; reason?: string }) => {
+      if (String(data.gameId) !== String(gameIdParam)) return;
+      if (!isBotMode) return;
+      const r = data.reason;
+      if (r === "human_won") setGameOverReason("bot_eliminated");
+      else if (r === "human_busted") setGameOverReason("human_eliminated");
+      else setGameOverReason("practice_stuck");
+    };
+    socket.on("PRACTICE_SESSION_END", onPracticeSessionEnd);
     const onCashWaiting = (state: { cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[] }) => {
       setCashWaitingPlayers(true);
       setShowTransition(false); // jamais l’overlay jaune « prochaine manche » entre deux mains cash
@@ -1459,11 +1504,12 @@ export function Game() {
       socket.off("GAME_UPDATE", onGameUpdateMain);
       socket.off("GAME_STATE_UPDATED", onGameStateUpdated);
       socket.off("GAME_ENDED", onGameEnded);
+      socket.off("PRACTICE_SESSION_END", onPracticeSessionEnd);
       socket.off("CASH_WAITING_PLAYERS", onCashWaiting);
       socket.off("CASH_NEXT_HAND_READY_UPDATED", onNextHandReadyUpdated);
       socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     };
-  }, [socket, gameIdParam, userId, isSpectating, navigate, t]);
+  }, [socket, gameIdParam, userId, isSpectating, navigate, t, isBotMode]);
 
   useEffect(() => {
     if (!handResult || !gameIdParam || isBotMode || !userId) return;
@@ -2140,9 +2186,157 @@ export function Game() {
 
   useEffect(() => {
     if (!gameOverReason) return;
+    if (isBotMode) return;
     const timer = setTimeout(() => { navigate("/lobby"); }, 5000);
     return () => clearTimeout(timer);
-  }, [gameOverReason, navigate]);
+  }, [gameOverReason, navigate, isBotMode]);
+
+  useEffect(() => {
+    if (!gameIdParam || !isBotMode || gameOverReason) return;
+    if (serverHandRuntimePhase !== "HAND_COMPLETE") return;
+    const timer = window.setTimeout(() => {
+      setGameOverReason((prev) => prev ?? "practice_stuck");
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, [gameIdParam, isBotMode, serverHandRuntimePhase, gameOverReason]);
+
+  useEffect(() => {
+    if (!gameOverReason) return;
+    pendingBotHandSocketStateRef.current = null;
+  }, [gameOverReason]);
+
+  /** Fin de manche (bot) : appliquer l’état serveur mis en attente ou relancer localement. */
+  const handleHandEndContinue = useCallback(() => {
+    const pending = pendingBotHandSocketStateRef.current;
+    pendingBotHandSocketStateRef.current = null;
+    setShowdownResult(null);
+    showdownResultRef.current = null;
+    setShowTransition(false);
+    lastScheduledShowdownTransitionSigRef.current = "";
+    setRoundCount((c) => c + 1);
+    setHandResultData(null);
+    setHandResult(null);
+    setIsLoading(false);
+    setHasPlayerActed(false);
+    hasPlayerActedRef.current = false;
+    setIsBotThinking(false);
+    botIsFetchingRef.current = false;
+    showdownStartedRef.current = false;
+
+    const refreshPracticeFromApi = () => {
+      if (!gameIdParam || !userId || isSpectating) return;
+      void fetch(
+        `${apiUrl(`/api/game/${encodeURIComponent(gameIdParam)}`)}?playerId=${encodeURIComponent(userId)}`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` } },
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .then((st) => {
+          if (st) {
+            lastAppliedSocketSnapshotSigRef.current = "";
+            applySocketGameUpdateRef.current(st as Record<string, unknown>);
+          }
+        });
+    };
+
+    if (gameIdParam && pending) {
+      lastAppliedSocketSnapshotSigRef.current = "";
+      applySocketGameUpdateRef.current(pending);
+      /* Le serveur a pu avancer (bots) pendant le panneau : resync immédiate. */
+      window.setTimeout(() => {
+        refreshPracticeFromApi();
+      }, 0);
+      return;
+    }
+    if (gameIdParam && userId && !isSpectating) {
+      lastAppliedSocketSnapshotSigRef.current = "";
+      refreshPracticeFromApi();
+      return;
+    }
+    if (!gameIdParam && isBotMode) {
+      navigate(`${location.pathname}${location.search}`, { state: { replay: true } });
+    }
+  }, [gameIdParam, isBotMode, isSpectating, navigate, location.pathname, location.search, userId]);
+
+  const handleHandEndToLobby = useCallback(() => {
+    pendingBotHandSocketStateRef.current = null;
+    setShowdownResult(null);
+    showdownResultRef.current = null;
+    setShowTransition(false);
+    lastScheduledShowdownTransitionSigRef.current = "";
+    setIsLoading(false);
+    setHasPlayerActed(false);
+    hasPlayerActedRef.current = false;
+    navigate("/lobby");
+  }, [navigate]);
+
+  const handlePracticeBackToLobby = useCallback(() => {
+    navigate("/lobby");
+  }, [navigate]);
+
+  /** Bot local (sans gameId) : même flux que RoundTransition — relance la table avec les params d’URL. */
+  const handleLocalBotPlayAgain = useCallback(() => {
+    navigate(`${location.pathname}${location.search}`, { state: { replay: true } });
+  }, [navigate, location.pathname, location.search]);
+
+  const handlePracticePlayAgain = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/lobby");
+      return;
+    }
+    const raw = sessionStorage.getItem("qb_last_practice_bot_config");
+    if (!raw) {
+      addToast(
+        t("game.practiceReplayNoConfig", "Paramètres introuvables — ouvre la configuration des bots."),
+        "error",
+      );
+      navigate("/bot-configuration");
+      return;
+    }
+    let cfg: {
+      botCount: number;
+      difficulty: string;
+      difficultyUi: string;
+      botChips: number[];
+    };
+    try {
+      cfg = JSON.parse(raw) as typeof cfg;
+    } catch {
+      addToast(t("errors.generic", "Erreur serveur"), "error");
+      navigate("/bot-configuration");
+      return;
+    }
+    try {
+      const res = await fetch(apiUrl("/api/game/bot/start"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          botCount: cfg.botCount,
+          difficulty: cfg.difficulty,
+          botChips: cfg.botChips,
+          humanChips: getUserBalance(),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { gameId?: string; error?: string };
+      if (!res.ok) {
+        addToast(data.error ?? t("errors.generic", "Erreur serveur"), "error");
+        return;
+      }
+      if (!data.gameId) {
+        addToast(t("errors.generic", "Réponse invalide"), "error");
+        return;
+      }
+      navigate(
+        `/game?gameId=${encodeURIComponent(data.gameId)}&mode=bot&difficulty=${encodeURIComponent(cfg.difficultyUi)}`,
+      );
+    } catch (e) {
+      console.error(e);
+      addToast(t("errors.network", "Erreur réseau"), "error");
+    }
+  }, [addToast, navigate, t]);
 
   useEffect(() => {
     if (!isBotMode || gameIdParam || playersState.length === 0) return;
@@ -2751,26 +2945,132 @@ export function Game() {
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col relative">
+      <AnimatePresence>
+      {isBotMode && showdownResult && !gameOverReason && (
+        <motion.div
+          key="bot-hand-end"
+          className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <motion.div
+            className="flex flex-col items-center gap-5 text-center p-8 rounded-2xl bg-slate-900/95 border border-amber-500/30 shadow-2xl max-w-md w-full"
+            initial={{ opacity: 0, y: 20, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            transition={{ type: "spring", damping: 24, stiffness: 320 }}
+          >
+            <div className="text-5xl" aria-hidden>
+              🃏
+            </div>
+            <h2 className="text-xl font-bold uppercase tracking-wide text-amber-400/90">
+              {t("game.handFinished", "Manche terminée")}
+            </h2>
+            <div className="w-full rounded-xl bg-slate-800/80 border border-slate-600/60 px-5 py-4 space-y-2">
+              <p className="text-xs font-semibold text-amber-200/80 uppercase tracking-wider">
+                {t("game.winnerLabel", "Gagnant")}
+              </p>
+              <p className="text-2xl font-bold text-yellow-300 drop-shadow-[0_0_12px_rgba(251,191,36,0.2)]">
+                {showdownResult.winnerName}
+              </p>
+              <p className="text-sm text-slate-300">
+                {t("game.winningHandLabel", "Combinaison")}:{" "}
+                <span className="text-amber-200 font-semibold">{showdownResult.hand}</span>
+              </p>
+              <p className="text-sm text-slate-200">
+                +{(showdownResult.pot ?? 0).toLocaleString()} {t("game.jets", "jetons")}
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
+              <button
+                type="button"
+                onClick={handleHandEndContinue}
+                className="rounded-xl px-5 py-3 font-semibold bg-amber-500 text-slate-900 hover:bg-amber-400 transition-colors"
+              >
+                {t("game.playAgainSameSettings", "Rejouer")}
+              </button>
+              <button
+                type="button"
+                onClick={handleHandEndToLobby}
+                className="rounded-xl px-5 py-3 font-semibold border border-slate-500 text-slate-200 hover:bg-slate-800 transition-colors"
+              >
+                {t("game.backToLobby", "Lobby")}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+      </AnimatePresence>
+
+      <AnimatePresence>
       {gameOverReason && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm">
-        <div className="flex flex-col items-center gap-6 text-center p-8 rounded-2xl bg-slate-900/95 border border-slate-700 shadow-2xl">
+        <motion.div
+          key="bot-game-over"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.35 }}
+        >
+        <motion.div
+          className="flex flex-col items-center gap-6 text-center p-8 rounded-2xl bg-slate-900/95 border border-slate-700 shadow-2xl max-w-md w-full"
+          initial={{ opacity: 0, y: 24, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 12, scale: 0.98 }}
+          transition={{ type: "spring", damping: 22, stiffness: 320 }}
+        >
         {gameOverReason === "bot_eliminated" ? (
           <>
             <div className="text-6xl">🏆</div>
             <h2 className="text-4xl font-bold text-yellow-400">{t('game.victory')}</h2>
             <p className="text-slate-300">{t('game.allBotsEliminated')}</p>
           </>
-        ) : (
+        ) : gameOverReason === "human_eliminated" ? (
           <>
             <div className="text-6xl">💥</div>
             <h2 className="text-4xl font-bold text-red-400">{t('game.defeated')}</h2>
             <p className="text-slate-300">{t('game.outOfChips')}</p>
           </>
+        ) : (
+          <>
+            <div className="text-6xl">⏸️</div>
+            <h2 className="text-2xl font-bold text-amber-300">
+              {t("game.practiceStuckTitle", "Partie interrompue")}
+            </h2>
+            <p className="text-slate-300 text-sm">
+              {t(
+                "game.practiceStuckBody",
+                "Reviens au lobby ou relance une table avec les mêmes réglages.",
+              )}
+            </p>
+          </>
         )}
-        <p className="text-slate-500 text-sm">{t('game.returningToLobby')}</p>
-      </div>
-    </div>
+        {isBotMode ? (
+          <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
+            <button
+              type="button"
+              onClick={() => (gameIdParam ? void handlePracticePlayAgain() : handleLocalBotPlayAgain())}
+              className="rounded-xl px-5 py-3 font-semibold bg-amber-500 text-slate-900 hover:bg-amber-400 transition-colors"
+            >
+              {t("game.playAgainSameSettings", "Rejouer (même config)")}
+            </button>
+            <button
+              type="button"
+              onClick={handlePracticeBackToLobby}
+              className="rounded-xl px-5 py-3 font-semibold border border-slate-500 text-slate-200 hover:bg-slate-800 transition-colors"
+            >
+              {t("game.backToLobby", "Lobby")}
+            </button>
+          </div>
+        ) : (
+          <p className="text-slate-500 text-sm">{t('game.returningToLobby')}</p>
+        )}
+      </motion.div>
+    </motion.div>
   )}
+      </AnimatePresence>
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
@@ -2892,18 +3192,21 @@ export function Game() {
 
       {/* TA NOUVELLE TRANSITION FIGMA UNIQUE */}
       <AnimatePresence>
-        {showTransition && !(gameIdParam && !isBotMode && cashWaitingPlayers) && (
+        {showTransition && !isBotMode && !(gameIdParam && !isBotMode && cashWaitingPlayers) && (
           <RoundTransition 
             roundNumber={roundCount} 
             winner={lastWinnerData} 
             duration={3}
             onComplete={() => {
               setShowTransition(false);
-              setRoundCount(prev => prev + 1);
-              
+              setRoundCount((prev) => prev + 1);
               setHandResultData(null);
-              setPhase("init");
-              
+              setShowdownResult(null);
+              lastScheduledShowdownTransitionSigRef.current = "";
+              // Partie réseau : la phase vient du serveur (souvent déjà PREFLOP) — ne pas forcer « init ».
+              if (!gameIdParam) {
+                setPhase("init");
+              }
               if (isBotMode && !gameIdParam) {
                 navigate(location.pathname + location.search, { state: { replay: true } });
               }
@@ -3267,22 +3570,13 @@ export function Game() {
                 </button>
               )
             ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => socket?.emit("CASH_LEAVE", { gameId: gameIdParam })}
-                  className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
-                >
-                  {t("game.cashStandUp")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => socket?.emit("CASH_REBUY", { gameId: gameIdParam, amount: 100 })}
-                  className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
-                >
-                  {t("game.cashRebuy", { amount: 100 })}
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={() => socket?.emit("CASH_LEAVE", { gameId: gameIdParam })}
+                className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
+              >
+                {t("game.cashStandUp")}
+              </button>
             )}
             <button
               type="button"
@@ -3343,18 +3637,7 @@ export function Game() {
         </div>
       )}
 
-      <div ref={tableCaptureRef} className="relative flex-1 flex flex-col">
-  
-        {/* SHARE BUTTON */}
-        {showdownResult && (
-          <button
-          onClick={handleShare}
-          className="fixed top-20 right-4 z-[9999] bg-yellow-500 text-black px-4 py-2 rounded-lg shadow-lg hover:bg-yellow-400 transition"
-          >
-          {t('game.shareWin', 'Share win')} 📸
-          </button>
-          )}
-
+      <div className="relative flex-1 flex flex-col">
          {/* TABLE */}
         <div
         ref={tourRefTable}
@@ -3413,7 +3696,16 @@ export function Game() {
       ) : null}
 
       {isSpectating && gameIdParam && !isBotMode && cashSeats.length > 0 && (
-        <div ref={tourRefActions} className="fixed bottom-6 left-1/2 z-30 flex min-h-[48px] min-w-[200px] -translate-x-1/2 items-center justify-center">
+        <div ref={tourRefActions} className="fixed bottom-6 left-1/2 z-30 flex min-h-[48px] min-w-[200px] -translate-x-1/2 flex-wrap items-center justify-center gap-2">
+          {userId ? (
+            <button
+              type="button"
+              onClick={() => setIsPanelOpen((o) => !o)}
+              className={`px-5 py-2.5 rounded-xl border-2 border-violet-500/80 bg-violet-950/90 font-semibold text-sm text-violet-100 shadow-lg transition-all hover:bg-violet-900/90 ${isPanelOpen ? "ring-2 ring-violet-400" : ""}`}
+            >
+              {t("hiddenBets.title")}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => {

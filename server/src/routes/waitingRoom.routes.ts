@@ -2,6 +2,7 @@ import express from 'express';
 import { prisma } from '../config/database.js';
 import { CashGameController, TURBO_TURN_TIMEOUT_MS } from '../logic/CashGameController.js';
 import { activeGames } from '../shared/activeGames.js';
+import { intChips } from '../utils/chips.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js';
 import sanitizeHtml from 'sanitize-html';
@@ -719,7 +720,22 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
     // 🔥 CRÉATION DE LA PARTIE (cash game pour permettre spectateurs + rejoindre à la prochaine manche)
     const sb = room.smallBlind ?? 1;
     const bb = room.bigBlind ?? sb * 2;
-    const minBal = room.minBalance ?? 100;
+    const minBal =
+      room.minBalance != null && room.minBalance > 0 ? intChips(room.minBalance) : 100;
+
+    for (const rp of room.players) {
+      const w = intChips(rp.user.chips ?? 0);
+      if (w < minBal) {
+        return res.status(400).json({
+          error: `Impossible de démarrer : ${rp.user.username} n'a que ${w} jetons en poche (minimum requis : ${minBal}).`,
+          code: 'START_INSUFFICIENT_CHIPS',
+          playerId: rp.user.id,
+          required: minBal,
+          current: w,
+        });
+      }
+    }
+
     const gameId = `game_${Date.now()}`;
     const cashGame = new CashGameController({
       id: gameId,
@@ -739,7 +755,7 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
       room.players.map((rp) => ({
         userId: rp.user.id,
         username: rp.user.username,
-        chips: Math.max(minBal, rp.user.chips ?? Math.max(1000, minBal)),
+        chips: Math.max(minBal, intChips(rp.user.chips ?? 0)),
         avatarUrl: rp.avatarUrl ?? null,
       }))
     );

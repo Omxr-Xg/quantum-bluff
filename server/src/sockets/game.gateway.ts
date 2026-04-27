@@ -997,8 +997,9 @@ export class GameGateway {
             if (!(game instanceof CashGameController)) return;
             const user = await prisma.user.findUnique({
               where: { id: socket.userId },
-              select: { username: true },
+              select: { username: true, chips: true },
             });
+            const wallet = intChips(user?.chips ?? 0);
             const avatarUrl = sanitizePublicAvatarUrl(data.avatarUrl);
             const result = game.sit(
               socket.userId,
@@ -1006,6 +1007,7 @@ export class GameGateway {
               seatIndex,
               buyIn ?? 100,
               avatarUrl,
+              wallet,
             );
             if (!result.ok) {
               socket.emit("ERROR", {

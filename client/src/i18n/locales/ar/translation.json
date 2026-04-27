@@ -1051,6 +1051,9 @@
     "friendRequests": "طلبات الصداقة",
     "viewRequests": "عرض الطلبات",
     "openConversation": "فتح المحادثة",
+    "messageFrom": "رسالة من {{name}}",
+    "quickReplyPlaceholder": "رد…",
+    "quickReplySend": "إرسال",
     "messages": "رسائل",
     "chat": "محادثة"
   },

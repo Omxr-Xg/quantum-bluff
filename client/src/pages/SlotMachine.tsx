@@ -145,7 +145,7 @@ export function SlotMachine() {
   const isRefund = result.isWin && result.winAmount === bet;
   const isBigWin = result.isWin && result.winAmount! > bet;
 
-  const MAX_BET = 250;
+  const MAX_BET = 500;
   const maxBet = Math.min(MAX_BET, balance);
 
   const loadBalance = useCallback(async () => {
@@ -361,21 +361,21 @@ export function SlotMachine() {
                   +
                 </button>
               </div>
-              <div className="mt-2 flex gap-1">
-                {[10, 50, 100, 250].map((preset) => (
+              <div className="mt-2 flex flex-wrap gap-1 justify-center sm:flex-nowrap">
+                {[10, 50, 100, 250, 500].map((preset) => (
                   <button
                     key={preset}
                     type="button"
                     onClick={() => setBet(Math.min(maxBet, Math.min(balance, preset)))}
                     disabled={isSpinning || balance < preset}
-                    className="flex-1 py-1 text-xs font-bold rounded-lg border border-slate-600 bg-slate-700/90 text-slate-100 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    className="min-w-[3rem] flex-1 py-1 text-xs font-bold rounded-lg border border-slate-600 bg-slate-700/90 text-slate-100 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition"
                   >
-                    {preset === 250 ? 'MAX' : preset}
+                    {preset === 500 ? 'MAX' : preset}
                   </button>
                 ))}
               </div>
               <p className="mt-1 text-center text-xs text-slate-500">
-                Max : 250 <ChipIcon size="sm" className="inline" />
+                Max : 500 <ChipIcon size="sm" className="inline" />
               </p>
             </div>
           </div>

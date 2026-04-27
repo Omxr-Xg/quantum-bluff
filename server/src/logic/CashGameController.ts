@@ -451,12 +451,28 @@ export class CashGameController implements IGameSession {
     }, countdownMs)
   }
 
-  /** S'asseoir à un siège (entre les mains uniquement) */
-  sit(userId: string, username: string, seatIndex: number, buyIn: number, avatarUrl?: string | null): { ok: boolean; error?: string } {
+  /**
+   * S'asseoir à un siège (entre les mains uniquement).
+   * Si `walletChips` est fourni, le joueur doit avoir au moins le montant effectivement mis (`amount`).
+   */
+  sit(
+    userId: string,
+    username: string,
+    seatIndex: number,
+    buyIn: number,
+    avatarUrl?: string | null,
+    walletChips?: number
+  ): { ok: boolean; error?: string } {
     if (this.gameTable != null) return { ok: false, error: 'Une main est en cours' }
     if (seatIndex < 0 || seatIndex >= this.maxSeats) return { ok: false, error: 'Siège invalide' }
     if (this.seats[seatIndex].userId != null) return { ok: false, error: 'Siège occupé' }
     const amount = intChips(Math.max(this.defaultBuyIn, Math.min(buyIn, 10000)))
+    if (typeof walletChips === 'number' && intChips(walletChips) < amount) {
+      return {
+        ok: false,
+        error: `Solde insuffisant : il faut au moins ${amount} jetons pour s'asseoir (buy-in min. ${this.defaultBuyIn}).`,
+      }
+    }
     this.seats[seatIndex] = { seatIndex, userId, username, chips: amount, avatarUrl: avatarUrl ?? null }
     return { ok: true }
   }
@@ -711,10 +727,17 @@ export class CashGameController implements IGameSession {
     for (const userId of toProcess) {
       const user = await getUser(userId)
       if (!user) continue
+      const wallet = intChips(user.chips)
+      if (wallet < this.defaultBuyIn) {
+        this.spectatorRejoinQueue.add(userId)
+        continue
+      }
       const free = this.seats.findIndex((s) => s.userId == null)
       if (free >= 0) {
-        this.sit(userId, user.username, free, Math.max(this.defaultBuyIn, user.chips))
-        if (!firstSeated) firstSeated = userId
+        const buyIn = Math.min(wallet, 10_000)
+        const r = this.sit(userId, user.username, free, buyIn, null, wallet)
+        if (r.ok && !firstSeated) firstSeated = userId
+        else if (!r.ok) this.spectatorRejoinQueue.add(userId)
       } else {
         this.spectatorRejoinQueue.add(userId) // pas de place, reste en file
       }

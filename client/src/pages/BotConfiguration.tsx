@@ -117,6 +117,19 @@ export function BotConfiguration() {
         addToast(t("errors.generic", "Réponse invalide"), "error");
         return;
       }
+      try {
+        sessionStorage.setItem(
+          "qb_last_practice_bot_config",
+          JSON.stringify({
+            botCount: numberOfBots,
+            difficulty: diffApi,
+            difficultyUi: difficulty,
+            botChips: botChips.slice(0, numberOfBots),
+          }),
+        );
+      } catch {
+        /* ignore quota / private mode */
+      }
       navigate(`/game?gameId=${encodeURIComponent(data.gameId)}&mode=bot&difficulty=${difficulty}`);
     } catch (e) {
       console.error(e);

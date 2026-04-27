@@ -51,6 +51,21 @@ describe('CashGameController — sit / leave / rebuy', () => {
     expect(c.sit('u2', 'B', 2, 500).ok).toBe(false)
   })
 
+  test('sit refusé si portefeuille < buy-in effectif (contrôle serveur)', () => {
+    const c = make()
+    const r = c.sit('u', 'P', 0, 1000, null, 400)
+    expect(r.ok).toBe(false)
+    expect(r.error).toBeDefined()
+    expect(c.getOccupiedCount()).toBe(0)
+  })
+
+  test('sit ok si portefeuille fourni et suffisant', () => {
+    const c = make()
+    const r = c.sit('u', 'P', 0, 1000, null, 5000)
+    expect(r.ok).toBe(true)
+    expect(c.getOccupiedSeats()[0]!.chips).toBe(1000)
+  })
+
   test.each([
     [100, 100],
     [500, 500],

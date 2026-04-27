@@ -16,6 +16,13 @@ import { getPracticeBotDifficulty } from '../../shared/practiceBotGames.js'
 import { rootLogger } from '../../observability/logger.js'
 const QB_BOT_PREFIX = 'qb-bot-'
 
+/** Délai avant chaque action bot (affordance « réflexion » côté joueur humain). */
+const PRACTICE_BOT_THINK_MS = 3000
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 /** File par `gameId` : évite deux chaînes bot concurrentes (JOIN + relance auto). */
 const practiceBotChainTail = new Map<string, Promise<void>>()
 
@@ -130,6 +137,8 @@ async function runPracticeBotTurnsChainBody(
     const actionType = decision.action
     const amount =
       actionType === 'CALL' || actionType === 'RAISE' ? decision.amount : undefined
+
+    await sleep(PRACTICE_BOT_THINK_MS)
 
     try {
       await applyPokerAction({

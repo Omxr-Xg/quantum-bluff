@@ -1,7 +1,7 @@
-import { ReactNode, useEffect, useState, useRef } from "react";
+import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X, LogOut, Plus, Menu, Settings, Trophy, Home } from "lucide-react";
+import { Bell, X, LogOut, Plus, Menu, Settings, Trophy, Home, MessageCircle, Loader2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
@@ -27,8 +27,25 @@ import { RateGameModal } from "./RateGameModal";
 import { GlobalHoverTooltip } from "./GlobalHoverTooltip";
 import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
+import { useSendFriendMessageMutation } from "../services/api";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
+
+type LayoutNotification =
+  | {
+      id: number;
+      kind: "default";
+      message: string;
+      hint?: string;
+      onClick?: () => void;
+    }
+  | {
+      id: number;
+      kind: "friend_message";
+      senderId: string;
+      senderUsername: string;
+      preview: string;
+    };
 
 interface LayoutProps {
   children: ReactNode;
@@ -39,14 +56,11 @@ export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { socket, isConnected, connect } = useSocket();
-  const { toasts, removeToast } = useToast();
+  const { toasts, removeToast, addToast } = useToast();
   const { unlockAudio, playSfx, stopBgm } = useAudio();
-  const [notification, setNotification] = useState<{
-    id: number;
-    message: string;
-    hint?: string;
-    onClick?: () => void;
-  } | null>(null);
+  const [notification, setNotification] = useState<LayoutNotification | null>(null);
+  const [friendQuickReply, setFriendQuickReply] = useState("");
+  const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
   const [balance, setBalance] = useState(getUserBalance());
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
@@ -142,6 +156,7 @@ export function Layout({ children }: LayoutProps) {
       const username = (payload as { sender?: { username?: string } })?.sender?.username || "un joueur";
       setNotification({
         id: Date.now(),
+        kind: "default",
         message: t('toast.friendRequestFrom', { username }),
         hint: t('notifications.viewRequests'),
         onClick: () => navigate('/friends?tab=requests'),
@@ -153,6 +168,7 @@ export function Layout({ children }: LayoutProps) {
       const username = (payload as { username?: string })?.username || "Un ami";
       setNotification({
         id: Date.now(),
+        kind: "default",
         message: t('toast.friendRequestAccepted', { username }),
         hint: t('notifications.viewRequests'),
         onClick: () => navigate('/friends'),
@@ -164,7 +180,7 @@ export function Layout({ children }: LayoutProps) {
       const data = payload as { senderId: string; sender?: { username?: string }; content?: string };
       const senderUsername = data.sender?.username ?? "un ami";
       const content = data.content ?? "";
-      const preview = content.length > 50 ? content.slice(0, 50) + "…" : content;
+      const preview = content.length > 80 ? content.slice(0, 80) + "…" : content;
 
       // Suppress if already viewing this conversation
       const params = new URLSearchParams(window.location.search);
@@ -176,9 +192,10 @@ export function Layout({ children }: LayoutProps) {
 
       setNotification({
         id: Date.now(),
-        message: `💬 ${senderUsername}: ${preview}`,
-        hint: t('notifications.openConversation'),
-        onClick: () => navigate(`/friends?tab=messages&with=${data.senderId}`),
+        kind: "friend_message",
+        senderId: data.senderId,
+        senderUsername,
+        preview: preview || "…",
       });
       playSfx("notification");
     };
@@ -209,14 +226,49 @@ export function Layout({ children }: LayoutProps) {
   }, [unlockAudio]);
 
   useEffect(() => {
+    setFriendQuickReply("");
+  }, [notification?.id]);
+
+  useEffect(() => {
     if (!notification) return;
 
+    const delayMs = notification.kind === "friend_message" ? 60_000 : 5000;
     const timer = setTimeout(() => {
       setNotification(null);
-    }, 5000);
+    }, delayMs);
 
     return () => clearTimeout(timer);
   }, [notification]);
+
+  const submitFriendQuickReply = useCallback(async () => {
+    if (!notification || notification.kind !== "friend_message") return;
+    const text = friendQuickReply.trim();
+    if (!text || sendingFriendReply) return;
+    try {
+      await sendFriendMessage({
+        receiverId: notification.senderId,
+        content: text,
+      }).unwrap();
+      playSfx("uiSelect");
+      setNotification(null);
+      setFriendQuickReply("");
+    } catch (err: unknown) {
+      const e = err as { data?: { error?: string } | string; status?: number };
+      const serverMsg = typeof e?.data === "object" && e?.data?.error ? e.data.error : null;
+      const msg =
+        serverMsg ??
+        (e?.status === 403 ? t("friends.chatOnlyWithFriends") : t("friends.sendMessageError"));
+      addToast(msg, "error");
+    }
+  }, [
+    notification,
+    friendQuickReply,
+    sendingFriendReply,
+    sendFriendMessage,
+    playSfx,
+    addToast,
+    t,
+  ]);
 
   const openAddMoney = () => {
     playSfx("modalOpen");
@@ -549,35 +601,108 @@ export function Layout({ children }: LayoutProps) {
       </AnimatePresence>
       {notification && (
         <div className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100%-2rem)] sm:w-full">
-          <div
-            className="bg-slate-900/95 border border-blue-500 shadow-2xl rounded-2xl px-4 py-4 backdrop-blur-md animate-in slide-in-from-right-5 duration-300 cursor-pointer hover:border-blue-400 hover:bg-slate-800/95 transition-colors"
-            onClick={() => { playSfx("uiSelect"); notification.onClick?.(); setNotification(null); }}
-          >
-            <div className="flex items-start gap-3">
-              <div className="shrink-0 w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center">
-                <Bell className="w-5 h-5 text-blue-300" />
-              </div>
+          {notification.kind === "friend_message" ? (
+            <div className="bg-slate-900/95 border border-cyan-500/80 shadow-2xl rounded-2xl px-4 py-4 backdrop-blur-md animate-in slide-in-from-right-5 duration-300">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 w-10 h-10 rounded-full bg-cyan-600/25 flex items-center justify-center">
+                  <MessageCircle className="w-5 h-5 text-cyan-300" />
+                </div>
 
-              <div className="flex-1">
-                <p className="text-white font-semibold text-sm mb-1">
-                  {t('notifications.toastTitle')}
-                </p>
-                <p className="text-slate-200 text-sm">
-                  {notification.message}
-                </p>
-                {notification.hint && (
-                  <p className="text-blue-400 text-xs mt-1">{notification.hint} →</p>
-                )}
-              </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold text-sm mb-1">
+                    {t("notifications.messageFrom", { name: notification.senderUsername })}
+                  </p>
+                  <p className="text-slate-200 text-sm break-words">{notification.preview}</p>
 
-              <button
-                onClick={(e) => { e.stopPropagation(); setNotification(null); }}
-                className="shrink-0 text-slate-400 hover:text-white transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      type="text"
+                      value={friendQuickReply}
+                      onChange={(e) => setFriendQuickReply(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          void submitFriendQuickReply();
+                        }
+                      }}
+                      placeholder={t("notifications.quickReplyPlaceholder")}
+                      className="min-w-0 flex-1 rounded-lg border border-slate-600 bg-slate-800/90 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                      autoComplete="off"
+                      aria-label={t("notifications.quickReplyPlaceholder")}
+                    />
+                    <button
+                      type="button"
+                      disabled={!friendQuickReply.trim() || sendingFriendReply}
+                      onClick={() => void submitFriendQuickReply()}
+                      className="shrink-0 inline-flex items-center justify-center gap-1 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {sendingFriendReply ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      ) : null}
+                      {t("notifications.quickReplySend")}
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="mt-2 text-left text-cyan-400/95 text-xs font-medium hover:text-cyan-300"
+                    onClick={() => {
+                      playSfx("uiSelect");
+                      navigate(`/friends?tab=messages&with=${encodeURIComponent(notification.senderId)}`);
+                      setNotification(null);
+                    }}
+                  >
+                    {t("notifications.openConversation")} →
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setNotification(null)}
+                  className="shrink-0 text-slate-400 hover:text-white transition-colors"
+                  aria-label={t("networkOverlay.closeLabel")}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div
+              className="bg-slate-900/95 border border-blue-500 shadow-2xl rounded-2xl px-4 py-4 backdrop-blur-md animate-in slide-in-from-right-5 duration-300 cursor-pointer hover:border-blue-400 hover:bg-slate-800/95 transition-colors"
+              onClick={() => {
+                playSfx("uiSelect");
+                notification.onClick?.();
+                setNotification(null);
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-blue-300" />
+                </div>
+
+                <div className="flex-1">
+                  <p className="text-white font-semibold text-sm mb-1">
+                    {t("notifications.toastTitle")}
+                  </p>
+                  <p className="text-slate-200 text-sm">{notification.message}</p>
+                  {notification.hint && (
+                    <p className="text-blue-400 text-xs mt-1">{notification.hint} →</p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setNotification(null);
+                  }}
+                  className="shrink-0 text-slate-400 hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
