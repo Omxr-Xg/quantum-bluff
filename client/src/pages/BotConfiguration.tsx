@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Bot, Users, Zap, Brain, Trophy, Target, ChevronDown, ChevronUp, Settings2, XCircle } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { getUserBalance } from "../utils/userProfile";
+import { apiUrl } from "../utils/apiBase";
 
 const DIFF_LABEL_KEYS: Record<string, string> = { facile: "easy", moyen: "medium", difficile: "hard", expert: "expert" };
 const BOT_NAMES = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
@@ -75,7 +76,7 @@ export function BotConfiguration() {
   const invalidBotChips = numberOfBots !== null && botChips.slice(0, numberOfBots).some((c) => c < MIN_CHIPS);
   const canStartGame = hasCompleteSelection && !invalidBotChips;
 
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
     if (!hasCompleteSelection || numberOfBots === null || difficulty === null) {
       return;
     }
@@ -87,8 +88,40 @@ export function BotConfiguration() {
       addToast(t("botConfig.minAmount100") || "Montant minimal 100 chips par bot.", "error");
       return;
     }
-    const chipsParam = botChips.slice(0, numberOfBots).join(",");
-    navigate(`/game?mode=bot&bots=${numberOfBots}&difficulty=${difficulty}&botChips=${chipsParam}`);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      addToast(t("auth.loginRequired", "Connectez-vous pour jouer."), "error");
+      return;
+    }
+    const diffApi = (DIFF_LABEL_KEYS[difficulty] ?? "medium") as "easy" | "medium" | "hard" | "expert";
+    try {
+      const res = await fetch(apiUrl("/api/game/bot/start"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          botCount: numberOfBots,
+          difficulty: diffApi,
+          botChips: botChips.slice(0, numberOfBots),
+          humanChips: getUserBalance(),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { gameId?: string; error?: string };
+      if (!res.ok) {
+        addToast(data.error ?? t("errors.generic", "Erreur serveur"), "error");
+        return;
+      }
+      if (!data.gameId) {
+        addToast(t("errors.generic", "Réponse invalide"), "error");
+        return;
+      }
+      navigate(`/game?gameId=${encodeURIComponent(data.gameId)}&mode=bot&difficulty=${difficulty}`);
+    } catch (e) {
+      console.error(e);
+      addToast(t("errors.network", "Erreur réseau"), "error");
+    }
   };
 
   return (

@@ -592,6 +592,7 @@ export function Game() {
     const botChipsList = botChipsParam ? botChipsParam.split(",").map((v) => Math.max(100, parseInt(v, 10) || 1000)) : [];
 
     if (mode === "bot") {
+      if (gameIdParam) return [];
       const botNames = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
       const allPlayers: (BasePlayer | BotPlayer)[] = [];
       const totalPlayers = count + 1;
@@ -1011,7 +1012,7 @@ export function Game() {
             cards: isMe ? serverCards : (serverCards.length > 0 ? serverCards : hiddenOpponentCards),
             isConnected: p.isConnected !== false,
             hasFolded: false,
-            isBot: false,
+            isBot: String(p.id).startsWith("qb-bot-"),
             role: mapServerRoleToTableRole(p.role),
             avatar: (p as { avatar?: string }).avatar,
           };
@@ -1264,7 +1265,7 @@ export function Game() {
             cards: myCards,
             isConnected: p.isConnected !== false,
             hasFolded: gameState.phase === "WAITING" ? false : !serverInHand,
-            isBot: false,
+            isBot: String(p.id).startsWith("qb-bot-"),
             role: mapServerRoleToTableRole(p.role),
             avatar: (p as { avatar?: string }).avatar,
           };
@@ -1612,7 +1613,7 @@ export function Game() {
 
   useEffect(() => {
     const ps = playersStateRef.current;
-    if (!isBotMode || ps.length < 2) return;
+    if (!isBotMode || gameIdParam || ps.length < 2) return;
     if (phase !== "preflop" && phase !== "flop" && phase !== "turn" && phase !== "river") return;
     const activeIdx = ps.findIndex((p) => p.isActive);
     if (activeIdx === -1) return;
@@ -1633,10 +1634,10 @@ export function Game() {
       }
       nextIdx = (nextIdx + 1) % ps.length;
     }
-  }, [isBotMode, phase, roundPlayersActed]);
+  }, [isBotMode, gameIdParam, phase, roundPlayersActed]);
 
   useEffect(() => {
-    if (!isBotMode || !isBotThinking) return;
+    if (!isBotMode || gameIdParam || !isBotThinking) return;
     const stuck = setTimeout(() => {
       if (botIsFetchingRef.current || isBotThinking) {
         console.warn("[QB] Bot stuck detected, forcing action");
@@ -1650,7 +1651,7 @@ export function Game() {
       }
     }, 15000);
     return () => clearTimeout(stuck);
-  }, [isBotThinking, isBotMode]);
+  }, [isBotThinking, isBotMode, gameIdParam]);
 
   const nextTurn = (justActedIndex?: number) => {
     const idx =
@@ -1919,6 +1920,7 @@ export function Game() {
   }, [cashWaitingPlayers, showInterHandPanel]);
 
   useEffect(() => {
+    if (gameIdParam) return;
     if (phase !== "showdown" || showdownResult !== null || handResult !== null || !isBotMode || playersState.length < 2) return;
     if (showdownStartedRef.current) return;
     const activeInHand = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
@@ -2088,10 +2090,11 @@ export function Game() {
       }
     };
     runComplete();
-  }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId]);
+  }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId, gameIdParam]);
 
   showdownResultRef.current = showdownResult;
   useEffect(() => {
+    if (gameIdParam) return;
     if (!isBotMode || phase !== "showdown" || showdownResult !== null || handResult !== null) return;
     const safety = setTimeout(async () => {
       if (showdownResultRef.current !== null) return;
@@ -2139,7 +2142,7 @@ export function Game() {
       toAddLastRef.current = toAddSafety;
     }, 12000);
     return () => clearTimeout(safety);
-  }, [phase, showdownResult, handResult, isBotMode, playersState, pot, userId, winMultiplier]);
+  }, [phase, showdownResult, handResult, isBotMode, playersState, pot, userId, winMultiplier, gameIdParam]);
 
   useEffect(() => {
     if (!isBotMode || !showdownResult || gameOverReason) return;
@@ -2162,7 +2165,7 @@ export function Game() {
   }, [gameOverReason, navigate]);
 
   useEffect(() => {
-    if (!isBotMode || playersState.length === 0) return;
+    if (!isBotMode || gameIdParam || playersState.length === 0) return;
     if (phase === "init" || phase === "shuffle" || phase === "deal") return;
     if (handResult !== null) return;
 
@@ -2274,7 +2277,7 @@ export function Game() {
     };
 
     fetchBotDecision();
-  }, [isBotMode, playersState, isBotThinking, phase, communityCardsState, pot, callAmount, addToast, handResult]);
+  }, [isBotMode, gameIdParam, playersState, isBotThinking, phase, communityCardsState, pot, callAmount, addToast, handResult]);
 
   useEffect(() => {
     if (handResult === null || !isBotMode) return;
@@ -2891,7 +2894,7 @@ export function Game() {
         )}
       </AnimatePresence>
 
-      {isBotThinking && mode === "bot" && (
+      {isBotThinking && mode === "bot" && !gameIdParam && (
         <div className={`absolute z-50 left-1/2 transform -translate-x-1/2 ${
           isMobile ? 'bottom-[320px]' : isTablet ? 'bottom-36' : 'bottom-40'
         }`}>
@@ -2921,7 +2924,7 @@ export function Game() {
               setHandResultData(null);
               setPhase("init");
               
-              if (isBotMode) {
+              if (isBotMode && !gameIdParam) {
                 navigate(location.pathname + location.search, { state: { replay: true } });
               }
             }}
@@ -2958,9 +2961,9 @@ export function Game() {
         <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-4'}`}>
           {!isMobile && (
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-xl border-2 border-white">
-              {getPlayerAvatar(heroPlayer?.name ?? "Vous", heroPlayer?.id, isBotMode ? "human" : userId) ? (
+              {getPlayerAvatar(heroPlayer?.name ?? "Vous", heroPlayer?.id, isBotMode && !gameIdParam ? "human" : userId) ? (
                 <ImageWithFallback
-                  src={getPlayerAvatar(heroPlayer?.name ?? "Vous", heroPlayer?.id, isBotMode ? "human" : userId)}
+                  src={getPlayerAvatar(heroPlayer?.name ?? "Vous", heroPlayer?.id, isBotMode && !gameIdParam ? "human" : userId)}
                   alt="Avatar du joueur"
                   className="w-full h-full rounded-full object-cover"
                 />

@@ -25,6 +25,8 @@ import {
   withBlackjackTableLock,
 } from "../blackjack/services/blackjackTableLock.service.js";
 import { applyPokerAction } from "../poker/services/pokerActionOrchestrator.service.js";
+import { runPracticeBotTurnsChain } from "../poker/services/practiceBotTurns.service.js";
+import { isPracticeBotGameId } from "../shared/practiceBotGames.js";
 import {
   PokerTableLockedError,
   withPokerTableLock,
@@ -426,6 +428,11 @@ export class GameGateway {
                 const snapshot = game.getSanitizedState(playerId);
                 socket.emit("GAME_UPDATE", snapshot);
                 socket.emit("GAME_STATE_UPDATED", snapshot);
+                if (isPracticeBotGameId(gameId)) {
+                  void runPracticeBotTurnsChain(this.io, gameId).catch((err) =>
+                    console.error("[practice-bot] JOIN_GAME chain", err),
+                  );
+                }
               }
 
               console.log(
@@ -817,7 +824,7 @@ export class GameGateway {
             }
 
             this.resetTimer(gameId);
-            const freshGame = await activeGames.get(gameId);
+            let freshGame = await activeGames.get(gameId);
             if (!freshGame) {
               socket.emit("ERROR", {
                 code: "GAME_NOT_FOUND",
@@ -860,6 +867,31 @@ export class GameGateway {
               handEndReason: freshGame.state.handEndReason,
               handId: freshGame.state.handId,
             });
+
+            if (isPracticeBotGameId(gameId)) {
+              await runPracticeBotTurnsChain(this.io, gameId);
+              const afterBots = await activeGames.get(gameId);
+              if (afterBots) {
+                freshGame = afterBots;
+                const room = await this.io.in(gameId).fetchSockets();
+                for (const s of room) {
+                  const uid = (s as unknown as AuthenticatedSocket).userId;
+                  const isSpectator = !freshGame.getPlayerState(uid ?? "");
+                  const snapshot = freshGame.getSanitizedState(
+                    isSpectator ? undefined : uid,
+                  );
+                  s.emit("GAME_UPDATE", snapshot);
+                  s.emit("GAME_STATE_UPDATED", snapshot);
+                }
+                this.io.to(gameId).emit("HAND_STATE_CHANGED", {
+                  gameId,
+                  phase: freshGame.state.phase,
+                  handRuntimePhase: freshGame.state.handRuntimePhase,
+                  handEndReason: freshGame.state.handEndReason,
+                  handId: freshGame.state.handId,
+                });
+              }
+            }
 
             if (freshGame.state.phase === "SHOWDOWN") {
               this.io.to(gameId).emit("SHOWDOWN_REVEAL", {
