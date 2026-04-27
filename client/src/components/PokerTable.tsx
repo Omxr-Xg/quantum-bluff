@@ -207,8 +207,10 @@ export function PokerTable({
               heroSeatId !== "" &&
               String(player.id) === String(heroSeatId);
             const isHeroName = player.name === "Vous" || player.name === "you";
+            const isHeroDisplay =
+              isHeroSeat || isHeroName || player.position === 0;
             const shouldReserveOpponentCards =
-              !isHeroSeat && !isHeroName && player.position !== 0;
+              !isHeroDisplay && player.position !== 0;
 
             return (
               <div

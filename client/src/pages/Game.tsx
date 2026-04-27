@@ -2900,8 +2900,12 @@ export function Game() {
       </AnimatePresence>
 
       {isBotThinking && mode === "bot" && (
-        <div className={`absolute z-50 left-1/2 transform -translate-x-1/2 ${
-          isMobile ? 'bottom-[320px]' : isTablet ? 'bottom-36' : 'bottom-40'
+        <div className={`fixed z-50 ${
+          isMobile
+            ? 'bottom-[320px] left-1/2 -translate-x-1/2'
+            : isTablet
+              ? 'bottom-36 left-1/2 -translate-x-1/2'
+              : 'left-10 top-28'
         }`}>
           <div className={`bg-slate-800/95 backdrop-blur-sm rounded-2xl ${isMobile ? 'p-4' : 'p-6'} border-2 border-blue-500 shadow-2xl`}>
             <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'}`}>
@@ -3303,7 +3307,7 @@ export function Game() {
          {/* TABLE */}
         <div
         ref={tourRefTable}
-        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 w-full -mt-8' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-16'}`}
+        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 w-full -mt-8' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-20'}`}
         >
         <PokerTable
         players={tablePlayers}

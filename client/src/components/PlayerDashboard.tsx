@@ -73,6 +73,8 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   const { t } = useTranslation();
   const { visualAlerts } = useAccessibility();
   const { playSfx } = useAudio();
+  const deviceType = useDeviceType();
+  const isMobile = deviceType === "mobile";
   const effectiveMinRaise = Math.min(minRaise, maxRaise);
   const clampRaise = (v: number) => {
     const vi = Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
@@ -142,9 +144,6 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
     }
   }, [timeLeft, isMyTurn, visualAlerts, playSfx]);
 
-  const deviceType = useDeviceType();
-  const isMobile = deviceType === "mobile";
-
   const handleRaiseClick = () => {
     const amount = clampRaise(raiseAmount);
     setRaisePopoverOpen(false);
@@ -185,6 +184,28 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
         </div>
       )}
 
+      {!hasFolded && cards.length > 0 && (
+        <div className="pointer-events-none fixed left-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+8rem)] z-[45] flex -translate-x-1/2 items-start justify-center drop-shadow-2xl md:bottom-[8.5rem]">
+          {cards.map((card, index) => (
+            <div
+              key={index}
+              className="relative origin-top transition-all duration-300"
+              style={{
+                marginLeft: index > 0 ? (isMobile ? "4px" : "8px") : "0",
+                transform: `rotate(${index === 0 ? -5 : 6}deg)`,
+              }}
+            >
+              <PokerCard
+                suit={card.suit}
+                value={card.value}
+                size={isMobile ? "sm" : "md"}
+                colorblindMode={colorblindMode}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="pointer-events-auto mx-auto w-full max-w-[min(1200px,calc(100vw-2rem))]">
 
         {hasFolded && (
@@ -206,11 +227,10 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
           </div>
         )}
 
-        <div className="grid grid-cols-1 items-end gap-3 xl:grid-cols-[minmax(11rem,1fr)_auto_auto] xl:gap-5">
+        <div className="grid grid-cols-1 items-end gap-3 xl:grid-cols-[minmax(8rem,1fr)_auto_minmax(26rem,1fr)] xl:gap-5">
 
-          {/* Player cards + Timer next to avatar */}
+          {/* Turn timer */}
           <div className="flex items-end justify-center gap-2 drop-shadow-2xl xl:justify-self-center">
-            {/* Timer - next to cards */}
             {isMyTurn && timeLeft !== undefined && (
               <div
                 className={`relative flex items-center justify-center rounded-full bg-slate-800/90 border-[2px] md:border-[3px] shadow-lg ring-2 w-9 h-9 md:w-[3.25rem] md:h-[3.25rem] shrink-0 mb-1 ${
@@ -235,18 +255,6 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 </svg>
               </div>
             )}
-            {!hasFolded && cards.map((card, index) => (
-              <div
-                key={index}
-                className="relative origin-bottom transition-all duration-300"
-                style={{
-                  marginLeft: index > 0 ? "-20px" : "0",
-                  transform: `rotate(${index === 0 ? -6 : 8}deg)`
-                }}
-              >
-                <PokerCard suit={card.suit} value={card.value} size={isMobile ? "md" : "lg"} colorblindMode={colorblindMode} />
-              </div>
-            ))}
           </div>
 
           {/* ACTION BUTTONS - Adaptés à l'écran */}
