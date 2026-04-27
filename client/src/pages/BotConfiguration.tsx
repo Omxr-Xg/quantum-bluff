@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bot, Users, Zap, Brain, Trophy, Target, Home, ChevronDown, ChevronUp, Settings2, XCircle } from "lucide-react";
+import { Bot, Users, Zap, Brain, Trophy, Target, ChevronDown, ChevronUp, Settings2, XCircle } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { getUserBalance } from "../utils/userProfile";
 
 const DIFF_LABEL_KEYS: Record<string, string> = { facile: "easy", moyen: "medium", difficile: "hard", expert: "expert" };
 const BOT_NAMES = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
+type Difficulty = "facile" | "moyen" | "difficile" | "expert";
 
 export function BotConfiguration() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const [numberOfBots, setNumberOfBots] = useState(1);
-  const [difficulty, setDifficulty] = useState<"facile" | "moyen" | "difficile" | "expert">("moyen");
+  const [numberOfBots, setNumberOfBots] = useState<number | null>(null);
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [botChips, setBotChips] = useState<number[]>([1000, 1000, 1000, 1000, 1000]);
 
@@ -21,9 +22,9 @@ export function BotConfiguration() {
     {
       id: "facile" as const,
       icon: Target,
-      selectedCard: "border-emerald-300/30 bg-emerald-950/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_44px_rgba(6,78,59,0.26)] ring-1 ring-emerald-300/15",
-      idleCard: "hover:border-emerald-300/25 hover:bg-emerald-950/18",
-      selectedIconWrap: "border-emerald-300/25 bg-emerald-400/10",
+      selectedCard: "border-emerald-200/45 bg-emerald-950/42 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_0_34px_rgba(52,211,153,0.20),0_20px_54px_rgba(6,78,59,0.32)] ring-1 ring-emerald-300/30",
+      idleCard: "hover:border-emerald-300/35 hover:bg-emerald-950/20 hover:shadow-[0_0_24px_rgba(52,211,153,0.10)]",
+      selectedIconWrap: "border-emerald-200/45 bg-emerald-400/14 shadow-[0_0_18px_rgba(52,211,153,0.16)]",
       selectedIcon: "text-emerald-200",
       selectedTitle: "text-emerald-100",
       selectedDot: "bg-emerald-300",
@@ -33,9 +34,9 @@ export function BotConfiguration() {
     {
       id: "moyen" as const,
       icon: Brain,
-      selectedCard: "border-blue-300/30 bg-blue-950/42 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_44px_rgba(30,64,175,0.25)] ring-1 ring-blue-300/15",
-      idleCard: "hover:border-blue-300/25 hover:bg-blue-950/20",
-      selectedIconWrap: "border-blue-300/25 bg-blue-400/10",
+      selectedCard: "border-blue-200/45 bg-blue-950/48 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_0_36px_rgba(96,165,250,0.22),0_20px_54px_rgba(30,64,175,0.32)] ring-1 ring-blue-300/30",
+      idleCard: "hover:border-blue-300/35 hover:bg-blue-950/22 hover:shadow-[0_0_24px_rgba(96,165,250,0.12)]",
+      selectedIconWrap: "border-blue-200/45 bg-blue-400/14 shadow-[0_0_18px_rgba(96,165,250,0.18)]",
       selectedIcon: "text-blue-200",
       selectedTitle: "text-blue-100",
       selectedDot: "bg-blue-300",
@@ -45,9 +46,9 @@ export function BotConfiguration() {
     {
       id: "difficile" as const,
       icon: Zap,
-      selectedCard: "border-orange-300/30 bg-orange-950/32 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_44px_rgba(154,52,18,0.24)] ring-1 ring-orange-300/15",
-      idleCard: "hover:border-orange-300/25 hover:bg-orange-950/16",
-      selectedIconWrap: "border-orange-300/25 bg-orange-400/10",
+      selectedCard: "border-orange-200/45 bg-orange-950/38 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_0_34px_rgba(251,146,60,0.20),0_20px_54px_rgba(154,52,18,0.30)] ring-1 ring-orange-300/30",
+      idleCard: "hover:border-orange-300/35 hover:bg-orange-950/18 hover:shadow-[0_0_24px_rgba(251,146,60,0.11)]",
+      selectedIconWrap: "border-orange-200/45 bg-orange-400/14 shadow-[0_0_18px_rgba(251,146,60,0.16)]",
       selectedIcon: "text-orange-200",
       selectedTitle: "text-orange-100",
       selectedDot: "bg-orange-300",
@@ -57,9 +58,9 @@ export function BotConfiguration() {
     {
       id: "expert" as const,
       icon: Trophy,
-      selectedCard: "border-rose-300/30 bg-rose-950/36 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_44px_rgba(136,19,55,0.25)] ring-1 ring-rose-300/15",
-      idleCard: "hover:border-rose-300/25 hover:bg-rose-950/18",
-      selectedIconWrap: "border-rose-300/25 bg-rose-400/10",
+      selectedCard: "border-rose-200/45 bg-rose-950/42 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_0_36px_rgba(251,113,133,0.22),0_20px_54px_rgba(136,19,55,0.32)] ring-1 ring-rose-300/30",
+      idleCard: "hover:border-rose-300/35 hover:bg-rose-950/20 hover:shadow-[0_0_24px_rgba(251,113,133,0.12)]",
+      selectedIconWrap: "border-rose-200/45 bg-rose-400/14 shadow-[0_0_18px_rgba(251,113,133,0.18)]",
       selectedIcon: "text-rose-200",
       selectedTitle: "text-rose-100",
       selectedDot: "bg-rose-300",
@@ -69,9 +70,15 @@ export function BotConfiguration() {
   ];
 
   const MIN_CHIPS = 100;
-  const invalidBotChips = botChips.slice(0, numberOfBots).some((c) => c < MIN_CHIPS);
+  const selectedBotCount = numberOfBots ?? 0;
+  const hasCompleteSelection = numberOfBots !== null && difficulty !== null;
+  const invalidBotChips = numberOfBots !== null && botChips.slice(0, numberOfBots).some((c) => c < MIN_CHIPS);
+  const canStartGame = hasCompleteSelection && !invalidBotChips;
 
   const handleStartGame = () => {
+    if (!hasCompleteSelection || numberOfBots === null || difficulty === null) {
+      return;
+    }
     if (getUserBalance() <= 0) {
       addToast(t("botConfig.balanceRequired") || "Alimentez votre balance pour jouer.", "error");
       return;
@@ -85,8 +92,8 @@ export function BotConfiguration() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-auto bg-[#020716] text-white">
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
+    <div className="relative min-h-screen w-full overflow-x-hidden overflow-y-auto text-white">
+      <div className="pointer-events-none fixed inset-0 z-0" aria-hidden>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.24),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_40%,rgba(14,116,144,0.10),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
         <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/40 blur-[120px]" />
         <div className="absolute -left-20 top-1/3 h-80 w-80 rounded-full bg-cyan-700/10 blur-[90px]" />
@@ -100,21 +107,10 @@ export function BotConfiguration() {
           }}
         />
       </div>
-      <div className="relative z-10 w-full min-w-0 px-4 pb-12 pt-20 sm:px-8 sm:pb-16 sm:pt-24 lg:px-12">
-        {/* Header */}
-        <div className="mb-8 flex items-center justify-between sm:mb-10">
-          <button
-            onClick={() => navigate("/lobby")}
-            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-4 py-2 font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_34px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:border-white/20 hover:bg-white/[0.08]"
-          >
-            <Home className="w-5 h-5" />
-            <span>{t('botConfig.home')}</span>
-          </button>
-        </div>
-
+      <div className="relative z-10 mx-auto w-full max-w-7xl min-w-0 px-4 pb-12 pt-6 sm:px-8 sm:pb-16 sm:pt-8 lg:px-10">
         {/* Titre */}
         <div className="mb-10 flex items-center gap-4 sm:mb-12">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-blue-950/65 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_18px_44px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-blue-200/25 bg-blue-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_34px_rgba(96,165,250,0.18),0_18px_44px_rgba(0,0,0,0.35)] backdrop-blur-xl">
             <Bot className="w-8 h-8 text-blue-200" />
           </div>
           <div>
@@ -127,7 +123,7 @@ export function BotConfiguration() {
 
         <div className="space-y-12">
           {/* Nombre de bots */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-8 lg:p-10">
             <div className="flex items-center gap-3 mb-10">
               <Users className="w-6 h-6 text-blue-200" />
               <h2 className="text-2xl font-bold text-white">{t('botConfig.numberOfBots')}</h2>
@@ -140,8 +136,8 @@ export function BotConfiguration() {
                   onClick={() => setNumberOfBots(num)}
                   className={`relative rounded-xl border p-6 transition-all hover:-translate-y-0.5 sm:p-8 md:p-10 ${
                     numberOfBots === num
-                      ? "border-blue-300/25 bg-blue-950/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_44px_rgba(15,23,42,0.34)] ring-1 ring-blue-300/15"
-                      : "border-white/10 bg-white/[0.045] backdrop-blur-md hover:border-white/20 hover:bg-white/[0.075]"
+                      ? "border-blue-200/45 bg-blue-950/64 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_0_34px_rgba(96,165,250,0.22),0_18px_44px_rgba(15,23,42,0.38)] ring-1 ring-blue-300/30"
+                      : "border-white/10 bg-white/[0.045] backdrop-blur-md hover:border-blue-300/30 hover:bg-blue-950/20 hover:shadow-[0_0_24px_rgba(96,165,250,0.10)]"
                   }`}
                 >
                   <div className="text-center">
@@ -160,15 +156,19 @@ export function BotConfiguration() {
               ))}
             </div>
 
-            <div className="mt-8 rounded-xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
-              <p className="text-gray-400 text-sm">
-                <span className="font-semibold text-white">{t('botConfig.playersAtTable')}</span> {t('botConfig.youAndBots', { count: numberOfBots, total: numberOfBots + 1 })}
-              </p>
+            <div className="mt-8 rounded-xl bg-white/[0.028] p-6 backdrop-blur-md">
+              {numberOfBots === null ? (
+                <p className="text-sm text-gray-500">{t('botConfig.numberOfBots')}</p>
+              ) : (
+                <p className="text-gray-400 text-sm">
+                  <span className="font-semibold text-white">{t('botConfig.playersAtTable')}</span> {t('botConfig.youAndBots', { count: numberOfBots, total: numberOfBots + 1 })}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Niveau de difficulté */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-8 lg:p-10">
             <div className="flex items-center gap-3 mb-10">
               <Brain className="w-6 h-6 text-blue-200" />
               <h2 className="text-2xl font-bold text-white">{t('botConfig.difficulty')}</h2>
@@ -233,7 +233,12 @@ export function BotConfiguration() {
           {/* Bouton Commencer */}
           <button
             onClick={handleStartGame}
-            className="w-full rounded-2xl border border-blue-300/20 bg-blue-950/75 py-10 text-xl font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_22px_60px_rgba(0,0,0,0.34)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-blue-200/30 hover:bg-blue-900/80"
+            disabled={!canStartGame}
+            className={`w-full rounded-2xl py-10 text-xl font-bold backdrop-blur-xl transition-all ${
+              canStartGame
+                ? "border border-blue-200/55 bg-blue-950/82 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_0_54px_rgba(96,165,250,0.30),0_24px_66px_rgba(0,0,0,0.40)] hover:-translate-y-0.5 hover:border-cyan-100/60 hover:bg-blue-900/86 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_0_68px_rgba(96,165,250,0.38),0_26px_70px_rgba(0,0,0,0.44)]"
+                : "cursor-not-allowed border border-white/10 bg-white/[0.035] text-slate-500 shadow-none"
+            }`}
           >
             <div className="flex items-center justify-center gap-3">
               <Bot className="w-8 h-8" />
@@ -252,13 +257,13 @@ export function BotConfiguration() {
           </button>
 
           {showAdvanced && (
-            <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.055] p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+            <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-8">
               <div className="flex items-center gap-3 mb-4">
                 <Settings2 className="w-5 h-5 text-blue-200" />
                 <h3 className="text-lg font-bold text-white">{t('botConfig.chipsPerBot')}</h3>
                 <span className="text-xs text-gray-500 ml-auto">{t('botConfig.defaultChips')}</span>
               </div>
-              {Array.from({ length: numberOfBots }, (_, i) => {
+              {Array.from({ length: selectedBotCount }, (_, i) => {
                 const val = botChips[i];
                 const isInvalid = val < MIN_CHIPS;
                 return (
@@ -306,16 +311,20 @@ export function BotConfiguration() {
           )}
 
           {/* Résumé */}
-          <div className="mb-16 rounded-xl border border-white/10 bg-white/[0.045] p-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_48px_rgba(0,0,0,0.24)] backdrop-blur-xl">
+          <div className="mb-16 rounded-xl bg-white/[0.028] p-6 backdrop-blur-xl sm:p-10">
             <h3 className="text-white font-bold text-lg mb-6">{t('botConfig.configSummary')}</h3>
             <div className="grid grid-cols-2 gap-8 text-sm">
               <div>
                 <span className="text-gray-400">{t('botConfig.opponents')}</span>
-                <span className="text-white font-bold ml-2">{numberOfBots} {numberOfBots > 1 ? "bots" : "bot"}</span>
+                <span className="text-white font-bold ml-2">
+                  {numberOfBots === null ? "-" : `${numberOfBots} ${numberOfBots > 1 ? "bots" : "bot"}`}
+                </span>
               </div>
               <div>
                 <span className="text-gray-400">{t('botConfig.difficultyLabel')}</span>
-                <span className="text-white font-bold ml-2">{t(`botConfig.${DIFF_LABEL_KEYS[difficulty] ?? difficulty}`)}</span>
+                <span className="text-white font-bold ml-2">
+                  {difficulty === null ? "-" : t(`botConfig.${DIFF_LABEL_KEYS[difficulty] ?? difficulty}`)}
+                </span>
               </div>
             </div>
           </div>

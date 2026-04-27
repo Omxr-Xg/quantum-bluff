@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X, LogOut, Plus, Menu, Settings, Trophy } from "lucide-react";
+import { Bell, X, LogOut, Plus, Menu, Settings, Trophy, Home } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
@@ -369,12 +369,24 @@ export function Layout({ children }: LayoutProps) {
   );
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className={`min-h-screen w-full ${showStandaloneTopBar ? "bg-transparent" : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"}`}>
       <GlobalHoverTooltip />
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
       {showStandaloneTopBar && (
-        <div className="fixed inset-x-2 top-2 z-[250] flex min-w-0 justify-end overflow-x-auto overflow-y-hidden scrollbar-hide sm:inset-x-auto sm:end-4 sm:top-4 sm:max-w-[calc(100vw-2rem)]">
-          {menuContent}
+        <div className="sticky top-0 z-[250] w-full bg-transparent">
+          <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-8 lg:px-10">
+            <button
+              type="button"
+              onClick={() => navigate("/lobby")}
+              className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/55 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md transition hover:border-blue-200/25 hover:bg-blue-950/60 md:h-11 md:px-4"
+            >
+              <Home className="h-[1.05rem] w-[1.05rem] shrink-0" aria-hidden />
+              <span>{t("botConfig.home")}</span>
+            </button>
+            <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide">
+              {menuContent}
+            </div>
+          </div>
         </div>
       )}
       {showHamburgerMenu && (
