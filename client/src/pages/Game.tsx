@@ -3285,7 +3285,10 @@ export function Game() {
         </div>
       )}
 
-      <div ref={tableCaptureRef} className="relative flex-1 flex flex-col">
+      <div
+        ref={tableCaptureRef}
+        className={isMobile ? "relative flex-1 flex flex-col" : "pointer-events-none fixed inset-0 z-0"}
+      >
   
         {/* SHARE BUTTON */}
         {showdownResult && (
@@ -3300,7 +3303,7 @@ export function Game() {
          {/* TABLE */}
         <div
         ref={tourRefTable}
-        className={`flex-1 flex items-center justify-center relative ${isMobile ? 'px-4 pt-0 w-full -mt-8' : 'px-6 pt-0 min-h-[600px] -translate-y-8'}`}
+        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 w-full -mt-8' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-16'}`}
         >
         <PokerTable
         players={tablePlayers}
