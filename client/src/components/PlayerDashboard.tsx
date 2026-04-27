@@ -168,12 +168,11 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   })();
 
   return (
-    // 📱 FIX MOBILE : Ajout de fixed bottom-0 left-0 w-full md:relative pour "coller" au bas de l'écran sur mobile
     <div
       ref={ref}
-      className={`fixed bottom-0 left-0 w-full md:relative shadow-2xl transition-all duration-300 ${
+      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+2.25rem)] left-0 right-0 w-full transition-all duration-300 md:bottom-12 ${
         raisePopoverOpen || combinationsHelpOpen ? "z-[120]" : "z-40"
-      } bg-slate-900 md:bg-transparent pb-[env(safe-area-inset-bottom,0)] md:pb-0`}
+      } pointer-events-none`}
     >
 
       {showSuccessPopup && (
@@ -186,7 +185,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
         </div>
       )}
 
-      <div className="w-full px-2 py-2 md:px-4 md:py-2">
+      <div className="pointer-events-auto mx-auto w-full max-w-[min(1200px,calc(100vw-2rem))]">
 
         {hasFolded && (
           <div className="text-center mb-1 md:mb-2">
@@ -207,11 +206,10 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
           </div>
         )}
 
-        {/* 📱 FIX MOBILE : flex-col sur mobile, flex-row sur desktop */}
-        <div className="flex flex-col md:flex-row items-center md:items-end justify-between gap-2 md:gap-4 relative">
+        <div className="grid grid-cols-1 items-end gap-3 xl:grid-cols-[minmax(11rem,1fr)_auto_auto] xl:gap-5">
 
           {/* Player cards + Timer next to avatar */}
-          <div className="absolute bottom-full left-2 mb-1 md:static md:mb-0 flex items-end gap-2 drop-shadow-2xl">
+          <div className="flex items-end justify-center gap-2 drop-shadow-2xl xl:justify-self-center">
             {/* Timer - next to cards */}
             {isMyTurn && timeLeft !== undefined && (
               <div
@@ -240,7 +238,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
             {!hasFolded && cards.map((card, index) => (
               <div
                 key={index}
-                className="relative transition-all duration-300 origin-bottom-left"
+                className="relative origin-bottom transition-all duration-300"
                 style={{
                   marginLeft: index > 0 ? "-20px" : "0",
                   transform: `rotate(${index === 0 ? -6 : 8}deg)`
@@ -252,13 +250,12 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
           </div>
 
           {/* ACTION BUTTONS - Adaptés à l'écran */}
-          <div className="flex w-full md:w-auto gap-2 md:gap-3 pl-[80px] md:pl-0">
-            {/* 📱 FIX MOBILE : flex-1 px-2 py-2 text-xs sur mobile */}
+          <div className="flex w-full justify-center gap-2 md:w-auto xl:justify-self-center md:gap-3">
             <NeonButton
               onClick={onFold}
               disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
               variant="red"
-              className="flex-1 md:flex-none px-2 py-3 md:px-8 md:py-4 text-xs md:text-lg min-w-0 md:min-w-[125px]"
+              className="min-w-0 flex-1 px-4 py-3 text-xs md:flex-none md:min-w-[160px] md:px-8 md:py-4 md:text-base"
             >
               {t('game.fold')}
             </NeonButton>
@@ -268,7 +265,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 onClick={onCheck}
                 disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
                 variant="blue"
-                className="flex-1 md:flex-none px-2 py-3 md:px-8 md:py-4 text-xs md:text-lg min-w-0 md:min-w-[125px]"
+                className="min-w-0 flex-1 px-4 py-3 text-xs md:flex-none md:min-w-[160px] md:px-8 md:py-4 md:text-base"
               >
                 {t('game.check')}
               </NeonButton>
@@ -281,7 +278,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                     onClick={() => onCall(effectiveCall)}
                     disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || chips <= 0 || callAmount <= 0}
                     variant="blue"
-                    className="flex-1 md:flex-none px-2 py-3 md:px-8 md:py-4 text-xs md:text-lg min-w-0 md:min-w-[125px] whitespace-nowrap"
+                    className="min-w-0 flex-1 whitespace-nowrap px-4 py-3 text-xs md:flex-none md:min-w-[160px] md:px-8 md:py-4 md:text-base"
                   >
                     {isCallAllIn ? t('game.allIn') : `${t('game.callLabel')} ${callAmount > 0 ? callAmount : ""}`}
                   </NeonButton>
@@ -296,7 +293,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
             >
               {canRaise && raisePopoverOpen && (
                 <div
-                  className="absolute bottom-full right-0 mb-2 z-50 w-[220px] md:w-[240px] p-2.5 rounded-lg app-shell-bg border-2 border-[rgb(7,221,0)] shadow-[0_0_12px_2px_rgba(7,221,0,0.5)] origin-bottom-right"
+                  className="absolute bottom-full right-0 z-50 mb-3 w-[220px] origin-bottom-right rounded-2xl border-2 border-[rgb(7,221,0)] app-shell-bg p-3 shadow-[0_0_12px_2px_rgba(7,221,0,0.5)] md:w-[240px]"
                   onMouseEnter={handleRaiseMouseEnter}
                   onMouseLeave={handleRaiseMouseLeave}
                 >
@@ -305,7 +302,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                     <button
                       type="button"
                       onClick={() => { setRaiseAmount(maxRaise); }}
-                      className={`w-full mb-1.5 py-1.5 rounded border-2 text-xs font-bold uppercase tracking-wide transition-all ${
+                      className={`mb-1.5 w-full rounded-full border-2 py-1.5 text-xs font-bold uppercase tracking-wide transition-all ${
                         raiseAmount >= maxRaise
                           ? "bg-amber-500 border-amber-400 text-slate-900 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
                           : "bg-slate-700/80 border-amber-500/60 text-amber-300 hover:bg-amber-500/20"
@@ -320,7 +317,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                         key={preset}
                         type="button"
                         onClick={() => setRaiseAmount(clampRaise(preset))}
-                        className={`px-2 py-1 rounded text-[10px] md:text-xs font-bold tabular-nums transition-all ${
+                        className={`rounded-full px-2 py-1 text-[10px] font-bold tabular-nums transition-all md:text-xs ${
                           raiseAmount === preset
                             ? "bg-[rgb(7,221,0)] text-slate-900 shadow-[0_0_8px_rgba(7,221,0,0.7)]"
                             : "bg-slate-700/80 text-slate-200 hover:bg-[rgba(7,221,0,0.25)] border border-slate-600"
@@ -346,14 +343,14 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                       max={maxRaise}
                       value={raiseAmount}
                       onChange={(e) => setRaiseAmount(clampRaise(Number(e.target.value) || effectiveMinRaise))}
-                      className="w-14 py-0.5 px-1 rounded bg-slate-800 border border-slate-600 text-slate-200 text-[10px] md:text-xs text-right tabular-nums focus:border-[rgb(7,221,0)] focus:ring-1 focus:ring-[rgb(7,221,0)]"
+                      className="w-14 rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 text-right text-[10px] tabular-nums text-slate-200 focus:border-[rgb(7,221,0)] focus:ring-1 focus:ring-[rgb(7,221,0)] md:text-xs"
                       disabled={maxRaise <= 0}
                     />
                   </div>
                   <button
                     type="button"
                     onClick={handleRaiseClick}
-                    className="mt-1.5 w-full py-1.5 rounded border-2 border-[rgb(7,221,0)] bg-transparent text-[rgb(7,221,0)] text-[10px] md:text-xs font-bold uppercase tracking-wide hover:bg-[rgb(7,221,0)] hover:text-slate-900 transition-all shadow-[0_0_8px_rgba(7,221,0,0.4)]"
+                    className="mt-1.5 w-full rounded-full border-2 border-[rgb(7,221,0)] bg-transparent py-1.5 text-[10px] font-bold uppercase tracking-wide text-[rgb(7,221,0)] shadow-[0_0_8px_rgba(7,221,0,0.4)] transition-all hover:bg-[rgb(7,221,0)] hover:text-slate-900 md:text-xs"
                   >
                     {isAllIn ? t('game.allIn') : `${t('game.raise')} ${raiseAmount}`}
                   </button>
@@ -364,7 +361,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || maxRaise <= 0}
                 variant="green"
                 icon={<TrendingUp className="w-4 h-4 md:w-6 md:h-6 hidden md:block" />}
-                className="w-full flex justify-center px-2 py-3 md:px-8 md:py-4 text-xs md:text-lg min-w-0 md:min-w-[125px]"
+                className="flex w-full min-w-0 justify-center px-4 py-3 text-xs md:min-w-[160px] md:px-8 md:py-4 md:text-base"
               >
                 {isAllIn ? t('game.allIn') : t('game.raise')}
               </NeonButton>
@@ -372,9 +369,9 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
           </div>
 
           {/* UTIL BUTTONS - Visibles sur tous les écrans */}
-          <div className="flex gap-1.5 md:gap-2 shrink-0">
+          <div className="flex shrink-0 flex-wrap justify-center gap-2 xl:justify-self-end">
             {onToggleHiddenBets && (
-              <NeonButton onClick={onToggleHiddenBets} variant="gold" icon={<Eye className="w-4 h-4" />}>
+              <NeonButton onClick={onToggleHiddenBets} variant="gold" icon={<Eye className="w-4 h-4" />} className="px-4 py-3 text-xs md:px-5 md:py-3.5">
                 {t('game.bets')}
               </NeonButton>
             )}
@@ -388,7 +385,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 onMouseEnter={onQuantumHoverEnter}
                 onMouseLeave={onQuantumHoverLeave}
               >
-                <NeonButton onClick={onToggleQuantum} variant="amber" icon={<Activity className="w-4 h-4" />}>
+                <NeonButton onClick={onToggleQuantum} variant="amber" icon={<Activity className="w-4 h-4" />} className="px-4 py-3 text-xs md:px-5 md:py-3.5">
                   {t("game.probabilitiesShort")}
                 </NeonButton>
               </div>

@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X, LogOut, Plus, Menu, Settings, Trophy, Home } from "lucide-react";
+import { Bell, X, LogOut, Plus, Menu, Settings, Trophy, Home, Sparkles } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
@@ -275,9 +275,9 @@ export function Layout({ children }: LayoutProps) {
     path.startsWith("/blackjack/table");
   /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
   const showHamburgerMenu =
-    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage;
+    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage && !isGamePage;
   const showLobbyIntegratedBar = showTopBar && isLobby;
-  const showStandaloneTopBar = showTopBar && isBotConfigPage;
+  const showStandaloneTopBar = showTopBar && (isBotConfigPage || isGamePage);
   /**
    * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
    * et seul un bouton paramètres est en coin ; éviter la « barre » vide / décalage en haut.
@@ -354,10 +354,24 @@ export function Layout({ children }: LayoutProps) {
       <div
         className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:scroll-smooth max-sm:py-0 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
       >
-        <NotificationCenter />
-        <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden sm:inline-flex`} title={t("leaderboard.title")}>
-          <Trophy className={topNavIcon} aria-hidden />
-        </button>
+        {!isGamePage && <NotificationCenter />}
+        {isGamePage ? (
+          <button
+            type="button"
+            onClick={() => {
+              playSfx("uiClick");
+              window.dispatchEvent(new Event("request-game-tour"));
+            }}
+            className={topNavBtn}
+            title={t("game.menuGuidedTour")}
+          >
+            <Sparkles className={topNavIcon} aria-hidden />
+          </button>
+        ) : (
+          <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden sm:inline-flex`} title={t("leaderboard.title")}>
+            <Trophy className={topNavIcon} aria-hidden />
+          </button>
+        )}
         <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={topNavBtn} title={t("settings.title")}>
           <Settings className={topNavIcon} aria-hidden />
         </button>
@@ -367,21 +381,29 @@ export function Layout({ children }: LayoutProps) {
       </div>
     </div>
   );
+  const handleStandaloneHomeClick = () => {
+    playSfx("uiClick");
+    if (isGamePage) {
+      window.dispatchEvent(new Event("request-game-quit"));
+      return;
+    }
+    navigate("/lobby");
+  };
 
   return (
     <div className={`min-h-screen w-full ${showStandaloneTopBar ? "bg-transparent" : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"}`}>
       <GlobalHoverTooltip />
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
       {showStandaloneTopBar && (
-        <div className="sticky top-0 z-[250] w-full bg-transparent">
+        <div className={`${isGamePage ? "fixed left-0 right-0 top-0" : "sticky top-0"} z-[250] w-full bg-transparent`}>
           <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-8 lg:px-10">
             <button
               type="button"
-              onClick={() => navigate("/lobby")}
+              onClick={handleStandaloneHomeClick}
               className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/55 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md transition hover:border-blue-200/25 hover:bg-blue-950/60 md:h-11 md:px-4"
             >
               <Home className="h-[1.05rem] w-[1.05rem] shrink-0" aria-hidden />
-              <span>{t("botConfig.home")}</span>
+              <span>{isGamePage ? t("nav.home") : t("botConfig.home")}</span>
             </button>
             <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide">
               {menuContent}
