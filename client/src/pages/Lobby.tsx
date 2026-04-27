@@ -100,8 +100,8 @@ export function Lobby() {
   const [creating, setCreating] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createVisibility, setCreateVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
-  const [createMaxPlayers, setCreateMaxPlayers] = useState(5);
+  const [createVisibility, setCreateVisibility] = useState<'PUBLIC' | 'PRIVATE' | null>(null);
+  const [createMaxPlayers, setCreateMaxPlayers] = useState<number | null>(null);
   const [showCreateAdvanced, setShowCreateAdvanced] = useState(false);
   const [createSmallBlind, setCreateSmallBlind] = useState(5);
   const [createBigBlind, setCreateBigBlind] = useState(10);
@@ -343,8 +343,8 @@ export function Lobby() {
 
   const openCreateModal = () => {
     setShowCreateModal(true);
-    setCreateVisibility('PUBLIC');
-    setCreateMaxPlayers(5);
+    setCreateVisibility(null);
+    setCreateMaxPlayers(null);
     setShowCreateAdvanced(false);
     setCreateSmallBlind(5);
     setCreateBigBlind(10);
@@ -354,9 +354,15 @@ export function Lobby() {
 
   const MIN_BALANCE = 100;
   const isMinBalanceInvalid = createMinBalance < MIN_BALANCE;
+  const canCreateServer =
+    createVisibility !== null &&
+    createMaxPlayers !== null &&
+    !creating &&
+    !isMinBalanceInvalid;
 
   const handleCreateServer = async () => {
     if (!userId) return;
+    if (!createVisibility || createMaxPlayers == null) return;
     if (isMinBalanceInvalid) {
       addToast(t('lobby.minAmount100'), 'error');
       return;
@@ -603,7 +609,7 @@ export function Lobby() {
                     onClick={() => setCreateVisibility('PRIVATE')}
                     className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all border-2 ${
                       createVisibility === 'PRIVATE'
-                        ? 'bg-purple-600/20 border-purple-500 text-purple-400'
+                        ? 'bg-red-600/20 border-red-400/80 text-red-200 shadow-[0_0_24px_rgba(248,113,113,0.18)]'
                         : 'border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20'
                     }`}
                     aria-label={t('lobby.private')}
@@ -612,9 +618,11 @@ export function Lobby() {
                     {t('lobby.private')}
                   </button>
                 </div>
-                <p className="text-xs text-slate-500 mt-2">
-                  {createVisibility === 'PUBLIC' ? t('lobby.publicDesc') : t('lobby.privateDesc')}
-                </p>
+                {createVisibility && (
+                  <p className="text-xs text-slate-500 mt-2">
+                    {createVisibility === 'PUBLIC' ? t('lobby.publicDesc') : t('lobby.privateDesc')}
+                  </p>
+                )}
               </div>
 
               {/* Mode turbo */}
@@ -624,17 +632,17 @@ export function Lobby() {
                   onClick={() => setCreateTurbo((v) => !v)}
                   className={`flex w-full items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left transition-all ${
                     createTurbo
-                      ? "border-blue-300/25 bg-blue-950/45 text-blue-100"
+                      ? "border-yellow-300/45 bg-yellow-500/12 text-yellow-100 shadow-[0_0_24px_rgba(250,204,21,0.16)]"
                       : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
                   }`}
                   aria-label={t("lobby.turboMode")}
                 >
                   <span className="flex items-center gap-2 font-semibold">
-                    <Zap className={`h-5 w-5 shrink-0 ${createTurbo ? "text-blue-200" : "text-slate-400"}`} />
+                    <Zap className={`h-5 w-5 shrink-0 ${createTurbo ? "text-yellow-300" : "text-slate-400"}`} />
                     {t("lobby.turboMode")}
                   </span>
                   <span
-                    className={`text-xs font-bold uppercase ${createTurbo ? "text-blue-200" : "text-slate-500"}`}
+                    className={`text-xs font-bold uppercase ${createTurbo ? "text-yellow-200" : "text-slate-500"}`}
                   >
                     {createTurbo ? t("lobby.turboOn") : t("lobby.turboOff")}
                   </span>
@@ -645,13 +653,13 @@ export function Lobby() {
               {/* Max players */}
               <div className="mb-6">
                 <label className="text-slate-300 text-sm font-medium block mb-3">
-                  {t('lobby.maxPlayersLabel')} : <span className="text-white font-bold">{createMaxPlayers}</span>
+                  {t('lobby.maxPlayersLabel')} : <span className="text-white font-bold">{createMaxPlayers ?? "-"}</span>
                 </label>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setCreateMaxPlayers(p => Math.max(2, p - 1))}
-                    disabled={createMaxPlayers <= 2}
+                    onClick={() => setCreateMaxPlayers(p => Math.max(2, (p ?? 2) - 1))}
+                    disabled={createMaxPlayers == null || createMaxPlayers <= 2}
                     className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.045] font-bold text-white transition hover:bg-white/[0.08] disabled:bg-white/[0.02] disabled:text-slate-600"
                     aria-label={t('common.decrease')}
                   >
@@ -665,7 +673,7 @@ export function Lobby() {
                         onClick={() => setCreateMaxPlayers(n)}
                         className={`flex-1 py-2 rounded-lg font-bold transition-all ${
                           createMaxPlayers === n
-                            ? 'bg-green-600 text-white'
+                            ? 'border border-blue-200/45 bg-blue-950/70 text-blue-100 shadow-[0_0_22px_rgba(96,165,250,0.18)]'
                             : 'bg-white/[0.045] text-slate-300 hover:bg-white/[0.08]'
                         }`}
                         aria-label={`${n} ${t('lobby.players')}`}
@@ -676,8 +684,8 @@ export function Lobby() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setCreateMaxPlayers(p => Math.min(5, p + 1))}
-                    disabled={createMaxPlayers >= 5}
+                    onClick={() => setCreateMaxPlayers(p => Math.min(5, (p ?? 2) + 1))}
+                    disabled={createMaxPlayers == null || createMaxPlayers >= 5}
                     className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.045] font-bold text-white transition hover:bg-white/[0.08] disabled:bg-white/[0.02] disabled:text-slate-600"
                     aria-label={t('common.increase')}
                   >
@@ -761,8 +769,12 @@ export function Lobby() {
               <button
                 type="button"
                 onClick={handleCreateServer}
-                disabled={creating || isMinBalanceInvalid}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300/15 bg-blue-950/75 py-3 text-lg font-bold text-white transition hover:border-blue-200/25 hover:bg-blue-900/80 disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-4"
+                disabled={!canCreateServer}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-lg font-bold transition md:py-4 ${
+                  canCreateServer
+                    ? "border border-blue-200/45 bg-blue-950/80 text-white shadow-[0_0_34px_rgba(96,165,250,0.22)] hover:border-cyan-200/55 hover:bg-blue-900/85"
+                    : "cursor-not-allowed border border-white/10 bg-white/[0.035] text-slate-500"
+                }`}
                 aria-label={t('lobby.validateCreate')}
               >
                 {creating && <Loader2 className="w-5 h-5 animate-spin" />}

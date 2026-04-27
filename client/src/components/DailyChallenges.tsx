@@ -98,22 +98,29 @@ export function DailyChallenges() {
 
   const heading = (
     <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-      <Target className="w-6 h-6 text-blue-200 shrink-0" aria-hidden />
+      <Target className="w-6 h-6 text-amber-200/90 shrink-0" aria-hidden />
       {t("dailyChallenges.title")}
     </h2>
   );
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+      <div className="relative overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl">
+        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.07] via-blue-950/[0.12] to-transparent" />
+        <div className="relative z-10">
         {heading}
         <p className="text-gray-400 text-sm">{t("dailyChallenges.loading")}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+    <div className="relative overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl">
+      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.07] via-blue-950/[0.12] to-transparent" />
+      <div className="relative z-10">
       {heading}
 
       {challenges.length === 0 && (
@@ -158,7 +165,7 @@ export function DailyChallenges() {
                   style={{ width: `${percent}%` }}
                 />
               </div>
-              <div className="text-blue-200 text-xs mt-2">
+              <div className="text-amber-100/85 text-xs mt-2">
                 {t("dailyChallenges.rewardWithChips", {
                   amount: c.rewardTokens,
                 })}
@@ -183,6 +190,7 @@ export function DailyChallenges() {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

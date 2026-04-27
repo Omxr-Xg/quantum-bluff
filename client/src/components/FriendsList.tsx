@@ -73,16 +73,19 @@ export function FriendsList() {
   const friendsCount = friends?.length || 0;
 
   return (
-    <div className="min-h-full rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+    <div className="relative min-h-full overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl">
+      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/40 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.06] via-blue-950/[0.12] to-transparent" />
+      <div className="relative z-10">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl text-white font-bold flex items-center gap-3">
-          <Users className="w-8 h-8 text-blue-200" />
+          <Users className="w-8 h-8 text-amber-100/85" />
           {t('lobby.friends')}
         </h2>
 
         <button
           onClick={() => navigate("/friends")}
-          className="text-blue-400 hover:text-blue-300 transition"
+          className="text-amber-100/70 transition hover:text-amber-100"
           title={t('friends.seeAll')}
         >
           <ChevronRight className="w-6 h-6" />
@@ -100,10 +103,10 @@ export function FriendsList() {
         <div className="rounded-xl border border-white/10 bg-white/[0.045] p-4 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <span className="text-gray-300 flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-blue-200" />
+              <UserPlus className="w-4 h-4 text-amber-100/80" />
               {t('friends.pendingRequests')}
             </span>
-            <span className="text-blue-200 font-bold">{pendingCount}</span>
+            <span className="text-amber-100/90 font-bold">{pendingCount}</span>
           </div>
         </div>
 
@@ -146,6 +149,7 @@ export function FriendsList() {
             </button>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
