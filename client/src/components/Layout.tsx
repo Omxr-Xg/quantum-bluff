@@ -1,12 +1,20 @@
 import { ReactNode, useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, X, User, Users, LogOut, Plus, Menu, Settings, Trophy } from "lucide-react";
+import { Bell, X, LogOut, Plus, Menu, Settings, Trophy, Home } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { useAudio } from "../contexts/MusicContext";
-import { getUserBalance, addDevMoney, fetchBalanceFromServer, clearAuthStorage, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
+import {
+  getUserAvatar,
+  getUserBalance,
+  getUsername,
+  addDevMoney,
+  fetchBalanceFromServer,
+  clearAuthStorage,
+  BALANCE_CHANGED_EVENT,
+} from "../utils/userProfile";
 import { Toast } from "./Toast";
 import { InvitationBanner } from "./InvitationBanner";
 import { NotificationCenter } from "./NotificationCenter";
@@ -267,20 +275,19 @@ export function Layout({ children }: LayoutProps) {
     path.startsWith("/blackjack/table");
   /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
   const showHamburgerMenu =
-    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames";
+    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage;
   const showLobbyIntegratedBar = showTopBar && isLobby;
+  const showStandaloneTopBar = showTopBar && isBotConfigPage;
   /**
    * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
    * et seul un bouton paramètres est en coin ; éviter la « barre » vide / décalage en haut.
-   * Pas sur /bot-configuration : le menu est en coin droit, la page gère son propre espacement.
    */
   const topBarPaddingForHamburger =
     showTopBar &&
     !showLobbyIntegratedBar &&
     showHamburgerMenu &&
     !isGamePage &&
-    !isWaitingRoomPage &&
-    !isBotConfigPage;
+    !isWaitingRoomPage;
 
   if (isAdminShell) {
     return (
@@ -305,49 +312,56 @@ export function Layout({ children }: LayoutProps) {
     );
   }
 
-  /** Téléphone : h-7 / icônes 3.5 — tablette+ : h-8 — md+ : h-9. Scroll horizontal côté Lobby. */
+  /** Téléphone : h-9 / icônes 4.5 — md+ : h-11. Scroll horizontal côté Lobby. */
   const topNavBtn =
-    "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white transition sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9";
-  const topNavIcon = "h-3.5 w-3.5 shrink-0 [stroke-width:2.1] sm:h-4 sm:w-4";
+    "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:w-11";
+  const topNavIcon = "h-[1.05rem] w-[1.05rem] shrink-0 [stroke-width:2.15] md:h-[1.15rem] md:w-[1.15rem]";
+  const userAvatar = getUserAvatar();
+  const username = getUsername();
+  const languageButtonClass =
+    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 md:h-11 md:w-11";
+  const accountPill = (
+    <div className="flex h-9 shrink-0 items-center overflow-hidden rounded-full border border-white/10 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-md md:h-11">
+      <button
+        type="button"
+        onClick={openAddMoney}
+        className="flex h-full min-w-0 items-center gap-2 px-3 text-left transition hover:bg-white/[0.06] md:gap-2.5 md:px-4"
+        title={t("lobby.addMoney")}
+      >
+        <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.1rem] md:w-[1.1rem]" />
+        <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
+          {balance.toLocaleString()}
+        </span>
+        <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate("/profile")}
+        className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 transition hover:border-emerald-300/60 md:h-8 md:w-8"
+        title={t("lobby.profile")}
+        aria-label={t("lobby.profile")}
+      >
+        <img src={userAvatar} alt="" className="h-full w-full object-cover" draggable={false} />
+        <span className="sr-only">{username}</span>
+      </button>
+    </div>
+  );
 
   const menuContent = (
-    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end sm:gap-1 md:gap-2">
-      <div className="flex h-7 shrink-0 items-center overflow-hidden rounded-md shadow-lg ring-1 ring-slate-500/50 sm:h-8 sm:rounded-lg md:h-9">
-        <div
-          className="flex h-7 min-h-0 max-w-[min(100%,5.5rem)] cursor-default items-center gap-0.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-1 text-left select-none sm:h-8 sm:max-w-[9.5rem] sm:gap-1 sm:px-2 md:h-9 md:max-w-[11rem] md:gap-1.5 md:px-3"
-          aria-hidden
-        >
-          <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0 brightness-110 sm:h-4 sm:w-4" />
-          <span className="min-w-0 truncate whitespace-nowrap text-[10px] font-bold leading-none tabular-nums text-amber-50 sm:text-xs md:text-sm">
-            {balance.toLocaleString()}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={openAddMoney}
-          className="m-0 box-border flex h-7 w-7 shrink-0 items-center justify-center border-l border-amber-900/25 bg-amber-500/80 p-0 font-sans text-slate-900 transition-colors [tap-highlight-color:transparent] [webkit-tap-highlight-color:transparent] appearance-none hover:bg-amber-400 hover:shadow-inner sm:h-8 sm:w-8 md:h-9 md:w-9"
-          title={t("lobby.addMoney")}
-        >
-          <Plus className="block h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2.5} aria-hidden />
-        </button>
-      </div>
+    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end md:gap-2">
+      <LanguageSwitcher buttonClassName={languageButtonClass} />
+      {accountPill}
       <div
-        className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-0.5 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:scroll-smooth max-sm:py-0 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1 md:gap-2"
+        className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:scroll-smooth max-sm:py-0 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
       >
         <NotificationCenter />
-        <button type="button" onClick={() => navigate("/profile")} className={`${topNavBtn} bg-green-600/80 hover:bg-green-500`} title={t("lobby.profile")}>
-          <User className={topNavIcon} aria-hidden />
-        </button>
-        <button type="button" onClick={() => navigate("/friends")} className={`${topNavBtn} bg-blue-600/80 hover:bg-blue-500`} title={t("lobby.manageFriends")}>
-          <Users className={topNavIcon} aria-hidden />
-        </button>
-        <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden bg-amber-600/80 hover:bg-amber-500 sm:inline-flex`} title={t("leaderboard.title")}>
+        <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden sm:inline-flex`} title={t("leaderboard.title")}>
           <Trophy className={topNavIcon} aria-hidden />
         </button>
-        <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={`${topNavBtn} bg-purple-600/80 hover:bg-purple-500`} title={t("settings.title")}>
+        <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={topNavBtn} title={t("settings.title")}>
           <Settings className={topNavIcon} aria-hidden />
         </button>
-        <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} bg-red-600/80 hover:bg-red-500`} title={t("lobby.logout")}>
+        <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} hover:border-red-300/40 hover:bg-red-950/45`} title={t("lobby.logout")}>
           <LogOut className={topNavIcon} aria-hidden />
         </button>
       </div>
@@ -355,9 +369,26 @@ export function Layout({ children }: LayoutProps) {
   );
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className={`min-h-screen w-full ${showStandaloneTopBar ? "bg-transparent" : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"}`}>
       <GlobalHoverTooltip />
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
+      {showStandaloneTopBar && (
+        <div className="sticky top-0 z-[250] w-full bg-transparent">
+          <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-8 lg:px-10">
+            <button
+              type="button"
+              onClick={() => navigate("/lobby")}
+              className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/55 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md transition hover:border-blue-200/25 hover:bg-blue-950/60 md:h-11 md:px-4"
+            >
+              <Home className="h-[1.05rem] w-[1.05rem] shrink-0" aria-hidden />
+              <span>{t("botConfig.home")}</span>
+            </button>
+            <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide">
+              {menuContent}
+            </div>
+          </div>
+        </div>
+      )}
       {showHamburgerMenu && (
         <div className="fixed end-2 top-2 z-[250] flex items-center gap-1 sm:end-4 sm:top-4 sm:gap-2">
           {/* Partie : emplacement pour le menu ☰ (portail depuis Game.tsx) + notif + réglages — aligné à droite, même logique que le lobby */}
@@ -416,40 +447,17 @@ export function Layout({ children }: LayoutProps) {
                     closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
                   }}
                 >
-                  <div className="flex min-w-0 max-w-[min(100vw-2rem,28rem)] flex-row flex-nowrap items-center gap-0.5 overflow-x-auto scroll-smooth py-0.5 [touch-action:pan-x] scrollbar-hide sm:max-w-none sm:gap-2">
-                <div className="flex h-7 shrink-0 items-center overflow-hidden rounded-md shadow-lg ring-1 ring-slate-500/50 sm:h-8 sm:rounded-lg md:h-9">
-                  <div
-                    className="flex h-7 min-h-0 max-w-[min(100%,5.5rem)] cursor-default items-center gap-0.5 bg-gradient-to-br from-amber-600/90 to-yellow-600/90 px-1 text-left select-none sm:h-8 sm:max-w-[9.5rem] sm:gap-1 sm:px-2 md:h-9 md:max-w-[11rem] md:gap-1.5 md:px-3"
-                    aria-hidden
-                  >
-                    <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0 brightness-110 sm:h-4 sm:w-4" />
-                    <span className="min-w-0 truncate whitespace-nowrap text-[10px] font-bold leading-none tabular-nums text-amber-50 sm:text-xs md:text-sm">
-                      {balance.toLocaleString()}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={openAddMoney}
-                    className="m-0 box-border flex h-7 w-7 shrink-0 items-center justify-center border-l border-amber-900/25 bg-amber-500/80 p-0 font-sans text-slate-900 transition-colors [tap-highlight-color:transparent] [webkit-tap-highlight-color:transparent] appearance-none hover:bg-amber-400 hover:shadow-inner sm:h-8 sm:w-8 md:h-9 md:w-9"
-                    title={t("lobby.addMoney")}
-                  >
-                    <Plus className="block h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2.5} aria-hidden />
-                  </button>
-                </div>
+                  <div className="flex min-w-0 max-w-[min(100vw-2rem,28rem)] flex-row flex-nowrap items-center gap-1 overflow-x-auto scroll-smooth py-0.5 [touch-action:pan-x] scrollbar-hide sm:max-w-none sm:gap-2">
+                <LanguageSwitcher buttonClassName={languageButtonClass} />
+                {accountPill}
                 <NotificationCenter />
-                <button type="button" onClick={() => navigate("/profile")} className={`${topNavBtn} bg-green-600/80 hover:bg-green-500`} title={t("lobby.profile")}>
-                  <User className={topNavIcon} aria-hidden />
-                </button>
-                <button type="button" onClick={() => navigate("/friends")} className={`${topNavBtn} bg-blue-600/80 hover:bg-blue-500`} title={t("lobby.manageFriends")}>
-                  <Users className={topNavIcon} aria-hidden />
-                </button>
-                <button type="button" onClick={() => { playSfx("uiSelect"); setMenuOpen(false); navigate("/leaderboard"); }} className={`${topNavBtn} bg-amber-600/80 hover:bg-amber-500`} title={t("leaderboard.title")}>
+                <button type="button" onClick={() => { playSfx("uiSelect"); setMenuOpen(false); navigate("/leaderboard"); }} className={topNavBtn} title={t("leaderboard.title")}>
                   <Trophy className={topNavIcon} aria-hidden />
                 </button>
-                <button type="button" onClick={() => { playSfx("uiClick"); setMenuOpen(false); openSettingsMenu(); }} className={`${topNavBtn} bg-purple-600/80 hover:bg-purple-500`} title={t("settings.title")}>
+                <button type="button" onClick={() => { playSfx("uiClick"); setMenuOpen(false); openSettingsMenu(); }} className={topNavBtn} title={t("settings.title")}>
                   <Settings className={topNavIcon} aria-hidden />
                 </button>
-                <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} bg-red-600/80 hover:bg-red-500`} title={t("lobby.logout")}>
+                <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} hover:border-red-300/40 hover:bg-red-950/45`} title={t("lobby.logout")}>
                   <LogOut className={topNavIcon} aria-hidden />
                 </button>
                   </div>

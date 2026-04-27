@@ -100,8 +100,8 @@ export function Lobby() {
   const [creating, setCreating] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createVisibility, setCreateVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
-  const [createMaxPlayers, setCreateMaxPlayers] = useState(5);
+  const [createVisibility, setCreateVisibility] = useState<'PUBLIC' | 'PRIVATE' | null>(null);
+  const [createMaxPlayers, setCreateMaxPlayers] = useState<number | null>(null);
   const [showCreateAdvanced, setShowCreateAdvanced] = useState(false);
   const [createSmallBlind, setCreateSmallBlind] = useState(5);
   const [createBigBlind, setCreateBigBlind] = useState(10);
@@ -343,8 +343,8 @@ export function Lobby() {
 
   const openCreateModal = () => {
     setShowCreateModal(true);
-    setCreateVisibility('PUBLIC');
-    setCreateMaxPlayers(5);
+    setCreateVisibility(null);
+    setCreateMaxPlayers(null);
     setShowCreateAdvanced(false);
     setCreateSmallBlind(5);
     setCreateBigBlind(10);
@@ -354,9 +354,15 @@ export function Lobby() {
 
   const MIN_BALANCE = 100;
   const isMinBalanceInvalid = createMinBalance < MIN_BALANCE;
+  const canCreateServer =
+    createVisibility !== null &&
+    createMaxPlayers !== null &&
+    !creating &&
+    !isMinBalanceInvalid;
 
   const handleCreateServer = async () => {
     if (!userId) return;
+    if (!createVisibility || createMaxPlayers == null) return;
     if (isMinBalanceInvalid) {
       addToast(t('lobby.minAmount100'), 'error');
       return;
@@ -453,57 +459,58 @@ export function Lobby() {
     <div
       className={`relative w-full min-h-screen overflow-hidden px-2 py-4 sm:px-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
         lobbyMainTab === "poker"
-          ? "bg-[#070912]"
+          ? "bg-[#020716]"
           : lobbyMainTab === "minigames"
-            ? "bg-[#03150f]"
-            : "bg-[#14080d]"
+            ? "bg-[#02100c]"
+            : "bg-[#100409]"
       }`}
     >
-      {/* Fond Texas Hold'em — violet / cyan / magenta */}
+      {/* Fond Texas Hold'em */}
       <div
         className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: lobbyMainTab === "poker" ? 1 : 0 }}
         aria-hidden
       >
-        <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-purple-700/25 blur-[120px]" />
-        <div className="absolute -left-20 top-1/3 h-80 w-80 rounded-full bg-cyan-500/10 blur-[90px]" />
-        <div className="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-fuchsia-500/15 blur-[110px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.24),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_40%,rgba(14,116,144,0.10),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
+        <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/40 blur-[120px]" />
+        <div className="absolute -left-20 top-1/3 h-80 w-80 rounded-full bg-cyan-700/10 blur-[90px]" />
+        <div className="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-indigo-950/28 blur-[110px]" />
         <div
           className="absolute inset-0 opacity-[0.07]"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.6) 1px, transparent 0)",
+              "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.26) 1px, transparent 0)",
             backgroundSize: "22px 22px",
           }}
         />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(168,85,247,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(34,211,238,0.06),transparent_55%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.55),transparent_58%)]" />
       </div>
 
-      {/* Fond Mini-jeux — or, émeraude */}
+      {/* Fond Mini-jeux */}
       <div
         className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: lobbyMainTab === "minigames" ? 1 : 0 }}
         aria-hidden
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(5,80,55,0.55),transparent_50%),radial-gradient(ellipse_90%_70%_at_100%_50%,rgba(120,80,20,0.12),transparent_45%),linear-gradient(165deg,#031a14_0%,#041f18_40%,#020c09_100%)]" />
-        <div className="absolute -top-32 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-emerald-500/18 blur-[100px]" />
-        <div className="absolute -right-16 top-1/4 h-72 w-72 rounded-full bg-amber-500/12 blur-[90px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(6,78,59,0.42),transparent_50%),radial-gradient(ellipse_90%_70%_at_100%_50%,rgba(20,83,45,0.10),transparent_45%),linear-gradient(165deg,#02100c_0%,#031b14_40%,#020807_100%)]" />
+        <div className="absolute -top-32 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-emerald-800/22 blur-[100px]" />
+        <div className="absolute -right-16 top-1/4 h-72 w-72 rounded-full bg-teal-950/28 blur-[90px]" />
         <div className="absolute -bottom-20 left-0 h-96 w-96 rounded-full bg-teal-600/10 blur-[100px]" />
         <div
           className="absolute inset-0 opacity-[0.09]"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(212,175,55,0.35) 1px, transparent 0)",
+              "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.20) 1px, transparent 0)",
             backgroundSize: "20px 20px",
           }}
         />
         <div
           className="absolute left-1/2 top-1/2 h-[min(140vw,52rem)] w-[min(140vw,52rem)] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.04]"
           style={{
-            background: "conic-gradient(from 0deg, rgba(212,175,55,0.5), transparent 8%, transparent 92%, rgba(212,175,55,0.35))",
+            background: "conic-gradient(from 0deg, rgba(20,184,166,0.24), transparent 8%, transparent 92%, rgba(5,150,105,0.18))",
           }}
         />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(180,140,40,0.07),transparent_55%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(15,23,42,0.45),transparent_58%)]" />
       </div>
 
       {/* Fond Blackjack — bordeaux / rose / ardoise */}
@@ -538,9 +545,9 @@ export function Lobby() {
               <h1
                 className={`truncate text-2xl font-bold transition-colors duration-700 md:text-4xl ${
                   lobbyMainTab === "poker"
-                    ? "text-purple-400"
+                    ? "bg-gradient-to-r from-slate-100 via-blue-200 to-cyan-200 bg-clip-text text-transparent"
                     : lobbyMainTab === "minigames"
-                      ? "bg-gradient-to-r from-amber-100 via-amber-300 to-emerald-200 bg-clip-text text-transparent"
+                      ? "bg-gradient-to-r from-slate-100 via-emerald-200 to-teal-200 bg-clip-text text-transparent"
                       : "bg-gradient-to-r from-rose-200 via-fuchsia-200 to-slate-200 bg-clip-text text-transparent"
                 }`}
               >
@@ -549,7 +556,7 @@ export function Lobby() {
               <p
                 className={`truncate text-sm transition-colors duration-700 md:text-base ${
                   lobbyMainTab === "poker"
-                    ? "text-gray-400"
+                    ? "text-slate-300/75"
                     : lobbyMainTab === "minigames"
                       ? "text-emerald-200/65"
                       : "text-rose-200/65"
@@ -572,7 +579,7 @@ export function Lobby() {
         {/* Modal Créer un serveur - FIX MOBILE SCROLL */}
         {showCreateModal && (
           <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center overflow-y-auto p-4" onClick={() => setShowCreateModal(false)}>
-            <div className="bg-slate-800 border border-green-500/50 rounded-2xl shadow-xl max-w-md w-full mx-2 p-6 my-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="my-auto mx-2 w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-white">{t('lobby.createServerTitle')}</h3>
                 <button type="button" onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white p-1" aria-label={t('common.close')}>
@@ -590,7 +597,7 @@ export function Lobby() {
                     className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all border-2 ${
                       createVisibility === 'PUBLIC'
                         ? 'bg-green-600/20 border-green-500 text-green-400'
-                        : 'bg-slate-700 border-slate-600 text-slate-300 hover:border-slate-500'
+                        : 'border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20'
                     }`}
                     aria-label={t('lobby.public')}
                   >
@@ -602,8 +609,8 @@ export function Lobby() {
                     onClick={() => setCreateVisibility('PRIVATE')}
                     className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all border-2 ${
                       createVisibility === 'PRIVATE'
-                        ? 'bg-purple-600/20 border-purple-500 text-purple-400'
-                        : 'bg-slate-700 border-slate-600 text-slate-300 hover:border-slate-500'
+                        ? 'bg-red-600/20 border-red-400/80 text-red-200 shadow-[0_0_24px_rgba(248,113,113,0.18)]'
+                        : 'border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20'
                     }`}
                     aria-label={t('lobby.private')}
                   >
@@ -611,9 +618,11 @@ export function Lobby() {
                     {t('lobby.private')}
                   </button>
                 </div>
-                <p className="text-xs text-slate-500 mt-2">
-                  {createVisibility === 'PUBLIC' ? t('lobby.publicDesc') : t('lobby.privateDesc')}
-                </p>
+                {createVisibility && (
+                  <p className="text-xs text-slate-500 mt-2">
+                    {createVisibility === 'PUBLIC' ? t('lobby.publicDesc') : t('lobby.privateDesc')}
+                  </p>
+                )}
               </div>
 
               {/* Mode turbo */}
@@ -623,17 +632,17 @@ export function Lobby() {
                   onClick={() => setCreateTurbo((v) => !v)}
                   className={`flex w-full items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left transition-all ${
                     createTurbo
-                      ? "border-amber-500/80 bg-amber-600/15 text-amber-100"
-                      : "border-slate-600 bg-slate-700/50 text-slate-300 hover:border-slate-500"
+                      ? "border-yellow-300/45 bg-yellow-500/12 text-yellow-100 shadow-[0_0_24px_rgba(250,204,21,0.16)]"
+                      : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
                   }`}
                   aria-label={t("lobby.turboMode")}
                 >
                   <span className="flex items-center gap-2 font-semibold">
-                    <Zap className={`h-5 w-5 shrink-0 ${createTurbo ? "text-amber-400" : "text-slate-400"}`} />
+                    <Zap className={`h-5 w-5 shrink-0 ${createTurbo ? "text-yellow-300" : "text-slate-400"}`} />
                     {t("lobby.turboMode")}
                   </span>
                   <span
-                    className={`text-xs font-bold uppercase ${createTurbo ? "text-amber-300" : "text-slate-500"}`}
+                    className={`text-xs font-bold uppercase ${createTurbo ? "text-yellow-200" : "text-slate-500"}`}
                   >
                     {createTurbo ? t("lobby.turboOn") : t("lobby.turboOff")}
                   </span>
@@ -644,14 +653,14 @@ export function Lobby() {
               {/* Max players */}
               <div className="mb-6">
                 <label className="text-slate-300 text-sm font-medium block mb-3">
-                  {t('lobby.maxPlayersLabel')} : <span className="text-white font-bold">{createMaxPlayers}</span>
+                  {t('lobby.maxPlayersLabel')} : <span className="text-white font-bold">{createMaxPlayers ?? "-"}</span>
                 </label>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setCreateMaxPlayers(p => Math.max(2, p - 1))}
-                    disabled={createMaxPlayers <= 2}
-                    className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold transition flex items-center justify-center"
+                    onClick={() => setCreateMaxPlayers(p => Math.max(2, (p ?? 2) - 1))}
+                    disabled={createMaxPlayers == null || createMaxPlayers <= 2}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.045] font-bold text-white transition hover:bg-white/[0.08] disabled:bg-white/[0.02] disabled:text-slate-600"
                     aria-label={t('common.decrease')}
                   >
                     <Minus className="w-4 h-4" />
@@ -664,8 +673,8 @@ export function Lobby() {
                         onClick={() => setCreateMaxPlayers(n)}
                         className={`flex-1 py-2 rounded-lg font-bold transition-all ${
                           createMaxPlayers === n
-                            ? 'bg-green-600 text-white'
-                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                            ? 'border border-blue-200/45 bg-blue-950/70 text-blue-100 shadow-[0_0_22px_rgba(96,165,250,0.18)]'
+                            : 'bg-white/[0.045] text-slate-300 hover:bg-white/[0.08]'
                         }`}
                         aria-label={`${n} ${t('lobby.players')}`}
                       >
@@ -675,9 +684,9 @@ export function Lobby() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setCreateMaxPlayers(p => Math.min(5, p + 1))}
-                    disabled={createMaxPlayers >= 5}
-                    className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold transition flex items-center justify-center"
+                    onClick={() => setCreateMaxPlayers(p => Math.min(5, (p ?? 2) + 1))}
+                    disabled={createMaxPlayers == null || createMaxPlayers >= 5}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.045] font-bold text-white transition hover:bg-white/[0.08] disabled:bg-white/[0.02] disabled:text-slate-600"
                     aria-label={t('common.increase')}
                   >
                     <Plus className="w-4 h-4" />
@@ -697,7 +706,7 @@ export function Lobby() {
                 {showCreateAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
               {showCreateAdvanced && (
-                <div className="mb-6 p-4 bg-slate-900/50 rounded-xl border border-slate-600 space-y-4">
+                <div className="mb-6 space-y-4 rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md">
                   <div>
                     <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.smallBlind')}</label>
                     <input
@@ -706,7 +715,7 @@ export function Lobby() {
                       max={10000}
                       value={createSmallBlind}
                       onChange={(e) => setCreateSmallBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
-                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       aria-label={t('lobby.smallBlind')}
                     />
                   </div>
@@ -718,7 +727,7 @@ export function Lobby() {
                       max={10000}
                       value={createBigBlind}
                       onChange={(e) => setCreateBigBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 2)))}
-                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       aria-label={t('lobby.minRaise')}
                     />
                     <p className="text-slate-500 text-xs mt-1">{t('lobby.minRaiseHint')}</p>
@@ -737,15 +746,15 @@ export function Lobby() {
                           const val = Number.isNaN(raw) ? 0 : Math.min(1000000, Math.max(0, raw));
                           setCreateMinBalance(val);
                         }}
-                        className={`flex-1 bg-slate-700 border rounded-lg px-4 py-2 text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
-                          isMinBalanceInvalid ? "border-red-500" : "border-slate-600"
+                        className={`flex-1 rounded-lg border bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                          isMinBalanceInvalid ? "border-red-500" : "border-white/10"
                         }`}
                         aria-label={t('lobby.minBalance')}
                       />
                       {isMinBalanceInvalid && (
                         <div className="relative flex items-center gap-1">
                           <XCircle className="w-6 h-6 text-red-500 shrink-0" aria-hidden />
-                          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-1 z-10 px-3 py-2 bg-slate-800 border border-red-500 rounded-lg shadow-xl text-red-400 text-sm font-medium whitespace-nowrap">
+                          <div className="absolute left-full top-1/2 z-10 ml-1 -translate-y-1/2 whitespace-nowrap rounded-lg border border-red-500 bg-slate-950/90 px-3 py-2 text-sm font-medium text-red-400 shadow-xl backdrop-blur-md">
                             {t('lobby.minAmount100')}
                           </div>
                         </div>
@@ -760,8 +769,12 @@ export function Lobby() {
               <button
                 type="button"
                 onClick={handleCreateServer}
-                disabled={creating || isMinBalanceInvalid}
-                className="w-full py-3 md:py-4 rounded-xl bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold text-lg transition flex items-center justify-center gap-2"
+                disabled={!canCreateServer}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-lg font-bold transition md:py-4 ${
+                  canCreateServer
+                    ? "border border-blue-200/45 bg-blue-950/80 text-white shadow-[0_0_34px_rgba(96,165,250,0.22)] hover:border-cyan-200/55 hover:bg-blue-900/85"
+                    : "cursor-not-allowed border border-white/10 bg-white/[0.035] text-slate-500"
+                }`}
                 aria-label={t('lobby.validateCreate')}
               >
                 {creating && <Loader2 className="w-5 h-5 animate-spin" />}
@@ -777,12 +790,12 @@ export function Lobby() {
           <div className="md:col-span-2 lg:col-span-2 space-y-6 lg:flex lg:h-full lg:self-stretch lg:flex-col lg:space-y-0 lg:gap-6">
             <nav
               ref={lobbyTabsRef}
-              className={`flex w-full overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-md transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
+              className={`flex w-full overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
                 lobbyMainTab === "poker"
-                  ? "border-white/10 bg-slate-950/75"
+                  ? "border-white/10 bg-slate-950/55"
                   : lobbyMainTab === "minigames"
-                    ? "border-amber-500/25 bg-emerald-950/70"
-                    : "border-rose-500/35 bg-rose-950/75"
+                    ? "border-white/10 bg-emerald-950/40"
+                    : "border-white/10 bg-rose-950/45"
               }`}
               role="tablist"
               aria-label="Game sections"
@@ -794,12 +807,12 @@ export function Lobby() {
                 onClick={() => setMainTab("poker")}
                 className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
                   lobbyMainTab === "poker"
-                    ? "bg-gradient-to-br from-green-500/40 via-emerald-600/25 to-slate-900/60 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_24px_rgba(34,197,94,0.15)] ring-1 ring-green-400/45"
+                    ? "bg-gradient-to-br from-blue-950/90 via-slate-900/80 to-slate-950/80 text-blue-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_16px_36px_rgba(0,0,0,0.22)] ring-1 ring-blue-300/20"
                     : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
                 }`}
               >
                 <Spade
-                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "poker" ? "text-green-200 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]" : ""}`}
+                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "poker" ? "text-blue-200 drop-shadow-[0_0_8px_rgba(59,130,246,0.35)]" : ""}`}
                   strokeWidth={2.2}
                   aria-hidden
                 />
@@ -809,54 +822,54 @@ export function Lobby() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={lobbyMainTab === "minigames"}
-                onClick={() => setMainTab("minigames")}
+                aria-selected={lobbyMainTab === "blackjack"}
+                onClick={() => setMainTab("blackjack")}
                 className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
-                  lobbyMainTab === "minigames"
-                    ? "bg-gradient-to-br from-amber-500/35 via-amber-900/30 to-emerald-950/70 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_0_28px_rgba(245,158,11,0.18)] ring-1 ring-amber-400/50"
+                  lobbyMainTab === "blackjack"
+                    ? "bg-gradient-to-br from-rose-900/75 via-rose-950/55 to-slate-950/80 text-rose-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_16px_36px_rgba(0,0,0,0.22)] ring-1 ring-rose-300/20"
                     : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
                 }`}
               >
-                <Sparkles
-                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "minigames" ? "text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.45)]" : ""}`}
+                <Club
+                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "blackjack" ? "text-rose-200 drop-shadow-[0_0_10px_rgba(244,63,94,0.35)]" : ""}`}
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">Mini-games</span>
+                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">Blackjack</span>
               </button>
               <div className="hidden w-px self-stretch bg-slate-600/40 md:block" aria-hidden />
               <button
                 type="button"
                 role="tab"
-                aria-selected={lobbyMainTab === "blackjack"}
-                onClick={() => setMainTab("blackjack")}
+                aria-selected={lobbyMainTab === "minigames"}
+                onClick={() => setMainTab("minigames")}
                 className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
-                  lobbyMainTab === "blackjack"
-                    ? "bg-gradient-to-br from-rose-600/40 via-rose-950/50 to-slate-950/80 text-rose-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_26px_rgba(244,63,94,0.2)] ring-1 ring-rose-400/45"
+                  lobbyMainTab === "minigames"
+                    ? "bg-gradient-to-br from-emerald-800/45 via-emerald-950/45 to-slate-950/80 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_16px_36px_rgba(0,0,0,0.22)] ring-1 ring-emerald-300/20"
                     : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
                 }`}
               >
-                <Club
-                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "blackjack" ? "text-rose-200 drop-shadow-[0_0_10px_rgba(251,113,133,0.45)]" : ""}`}
+                <Sparkles
+                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "minigames" ? "text-emerald-200 drop-shadow-[0_0_10px_rgba(16,185,129,0.35)]" : ""}`}
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">Blackjack</span>
+                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">Mini-games</span>
               </button>
             </nav>
 
           {lobbyMainTab === "poker" && (
             <div className="space-y-6 lg:flex lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-6">
               {/* Section Jouer contre Bot */}
-              <div ref={tourRefBot} className="bg-slate-800 rounded-2xl p-6 border border-purple-500">
+              <div ref={tourRefBot} className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
-                  <Bot className="w-8 h-8 text-purple-400"/>
+                  <Bot className="w-8 h-8 text-blue-200"/>
                   {t('lobby.playBot')}
                 </h2>
 
                 <button
                   onClick={handlePlayBot}
-                  className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 md:py-4 rounded-xl transition"
+                  className="w-full rounded-xl border border-blue-300/15 bg-blue-950/75 py-3 font-bold text-white shadow-lg shadow-black/20 transition hover:border-blue-200/25 hover:bg-blue-900/80 md:py-4"
                   aria-label={t('lobby.configureAndPlay')}
                 >
                   {t('lobby.configureAndPlay')}
@@ -864,9 +877,9 @@ export function Lobby() {
               </div>
 
               {/* Section Serveur Multi-joueurs */}
-              <div ref={tourRefMultiplayer} className="bg-slate-800 rounded-2xl p-6 border border-green-500">
+              <div ref={tourRefMultiplayer} className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
-                  <Server className="w-8 h-8 text-green-400"/>
+                  <Server className="w-8 h-8 text-cyan-200"/>
                   {t('lobby.multiplayerServers')}
                 </h2>
 
@@ -874,7 +887,7 @@ export function Lobby() {
                   <button
                     onClick={openCreateModal}
                     disabled={!userId || creating}
-                    className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 md:py-4 rounded-xl transition flex items-center justify-center gap-2"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300/15 bg-blue-950/75 py-3 font-bold text-white shadow-lg shadow-black/20 transition hover:border-blue-200/25 hover:bg-blue-900/80 disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-4"
                     aria-label={t('lobby.createNewServer')}
                   >
                     {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
@@ -882,7 +895,7 @@ export function Lobby() {
                   </button>
 
                   {/* Salles d'attente */}
-                  <div ref={tourRefWaiting} className="bg-slate-700/50 p-4 rounded-xl mb-4">
+                  <div ref={tourRefWaiting} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
                     <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.waitingRooms')}</p>
                     {roomsLoading && roomsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
@@ -902,7 +915,7 @@ export function Lobby() {
                           return (
                           <li
                             key={room.id}
-                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 bg-slate-800/60 backdrop-blur-sm rounded-lg px-3 py-2.5 border border-slate-600"
+                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
                           >
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
@@ -919,7 +932,7 @@ export function Lobby() {
                                   </span>
                                 )}
                                 {room.turbo ? (
-                                  <span className="flex shrink-0 items-center gap-0.5 rounded-full border border-amber-500/50 bg-amber-600/25 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
+                                  <span className="flex shrink-0 items-center gap-0.5 rounded-full border border-orange-300/25 bg-orange-600/20 px-1.5 py-0.5 text-[10px] font-semibold text-orange-200">
                                     <Zap className="h-2.5 w-2.5" />
                                     {t("lobby.turboBadge")}
                                   </span>
@@ -929,7 +942,7 @@ export function Lobby() {
                                 {t('lobby.playersCount', { count: room.playerCount, max: room.maxPlayers })}
                               </p>
                               {room.minBalance && room.minBalance > 0 && (
-                                <span className="text-xs text-amber-400">
+                                <span className="text-xs text-blue-200">
                                   Min. {room.minBalance.toLocaleString()}
                                 </span>
                               )}
@@ -966,7 +979,7 @@ export function Lobby() {
                                   disabled={!hasEnoughChips}
                                   className={`shrink-0 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition ${
                                     hasEnoughChips
-                                      ? 'bg-blue-600 hover:bg-blue-500'
+                                      ? 'bg-blue-900 hover:bg-blue-800'
                                       : 'bg-slate-600 cursor-not-allowed opacity-50'
                                   }`}
                                   aria-label={t('lobby.join')}
@@ -983,7 +996,7 @@ export function Lobby() {
                   </div>
 
                   {/* Parties en cours */}
-                  <div ref={tourRefGames} className="bg-slate-700/50 p-4 rounded-xl">
+                  <div ref={tourRefGames} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
                     <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.gamesInProgress')}</p>
                     {gamesLoading && gamesMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
@@ -996,7 +1009,7 @@ export function Lobby() {
                         {gamesMemo.map((g) => (
                           <li
                             key={g.gameId}
-                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 bg-slate-800/60 backdrop-blur-sm rounded-lg px-3 py-2.5 border border-slate-600"
+                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
                           >
                             <div className="min-w-0 flex-1">
                               <p className="text-white font-medium truncate">{g.roomName}</p>
@@ -1008,7 +1021,7 @@ export function Lobby() {
                               {g.canJoin && (
                                 <button
                                   onClick={() => handleJoinGame(g.gameId)}
-                                  className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                                  className="shrink-0 bg-blue-900 hover:bg-blue-800 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
                                   aria-label={t('lobby.join')}
                                 >
                                   {t('lobby.join')}
@@ -1016,7 +1029,7 @@ export function Lobby() {
                               )}
                               <button
                                 onClick={() => handleSpectateGame(g.gameId)}
-                                className="shrink-0 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
+                                className="shrink-0 bg-slate-700/80 hover:bg-slate-600/90 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
                                 aria-label={t('lobby.spectate')}
                               >
                                 <Eye className="w-3.5 h-3.5" />
@@ -1041,9 +1054,9 @@ export function Lobby() {
           {/* Onglet Mini-jeux - CONDITIONAL RENDER */}
           {lobbyMainTab === "minigames" && (
             <div className="grid grid-cols-1 gap-3 md:gap-6 lg:flex-1">
-              <div className="flex flex-col rounded-2xl border border-green-500 bg-slate-800 p-6">
+              <div className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
-                  <Disc className="h-8 w-8 shrink-0 text-green-400" strokeWidth={2.2} aria-hidden />
+                  <Disc className="h-8 w-8 shrink-0 text-emerald-300" strokeWidth={2.2} aria-hidden />
                   {t("minigames.rouletteTitle")}
                 </h2>
                 <p className="mb-6 text-sm leading-relaxed text-gray-400">
@@ -1052,24 +1065,24 @@ export function Lobby() {
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=roulette")}
-                  className="mt-auto w-full rounded-xl bg-green-600 py-3 md:py-4 text-base font-bold text-white transition hover:bg-green-500"
+                  className="mt-auto w-full rounded-xl border border-emerald-300/15 bg-emerald-950/70 py-3 md:py-4 text-base font-bold text-white transition hover:border-emerald-200/25 hover:bg-emerald-900/80"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}
                 </button>
               </div>
-              <div className="flex flex-col rounded-2xl border border-blue-900/90 bg-gradient-to-br from-slate-900 via-[#0a1522] to-[#030910] p-6 shadow-[inset_0_1px_0_rgba(30,58,138,0.12)]">
+              <div className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
-                  <SquareStack className="h-8 w-8 shrink-0 text-blue-500" strokeWidth={2.2} aria-hidden />
+                  <SquareStack className="h-8 w-8 shrink-0 text-cyan-300" strokeWidth={2.2} aria-hidden />
                   {t("minigames.slotTitle")}
                 </h2>
-                <p className="mb-6 text-sm leading-relaxed text-slate-500">
+                <p className="mb-6 text-sm leading-relaxed text-gray-400">
                   {t("minigames.slotBlurb")}
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=slots")}
-                  className="mt-auto w-full rounded-xl bg-blue-800 py-3 md:py-4 text-base font-bold text-white transition hover:bg-blue-700"
+                  className="mt-auto w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 md:py-4 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}
@@ -1084,16 +1097,16 @@ export function Lobby() {
               className="space-y-6 lg:flex lg:min-h-[var(--lobby-content-min-height)] lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-6"
               style={lobbyAlignmentStyle}
             >
-              <div className="rounded-2xl border border-amber-500/25 bg-slate-800 p-6 shadow-lg shadow-black/20 lg:flex lg:min-h-[20rem] lg:flex-col">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:flex lg:min-h-[20rem] lg:flex-col">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
-                  <Club className="h-8 w-8 text-amber-400" aria-hidden />
+                  <Club className="h-8 w-8 text-rose-300" aria-hidden />
                   {t("lobby.blackjackTitle")}
                 </h2>
                 <p className="mb-4 max-w-xl text-sm leading-relaxed text-gray-400">{t("lobby.blackjackIntro")}</p>
                 <button
                   type="button"
                   onClick={() => navigate("/blackjack")}
-                  className="w-full rounded-xl bg-amber-600 py-3 md:py-4 font-bold text-white transition hover:bg-amber-500 lg:mt-auto"
+                  className="w-full rounded-xl border border-rose-300/15 bg-rose-950/70 py-3 md:py-4 font-bold text-white transition hover:border-rose-200/25 hover:bg-rose-900/80 lg:mt-auto"
                   aria-label={t("lobby.blackjackPlay")}
                 >
                   {t("lobby.blackjackPlay")}

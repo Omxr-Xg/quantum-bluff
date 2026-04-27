@@ -51,9 +51,9 @@ export function StartScreen() {
       {/* Background sophistiqué */}
       <div className="absolute inset-0">
         {/* Gradient de base */}
-        <div className="absolute inset-0 app-shell-bg"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_70%_at_50%_-10%,rgba(30,64,175,0.24),transparent_55%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]"></div>
         
-        {/* Motif géométrique subtil - VIOLET NÉON */}
+        {/* Motif géométrique subtil - BLEU NUIT */}
         <div 
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -62,15 +62,15 @@ export function StartScreen() {
                 45deg,
                 transparent,
                 transparent 60px,
-                rgba(139, 92, 246, 0.2) 60px,
-                rgba(139, 92, 246, 0.2) 61px
+                rgba(37, 99, 235, 0.24) 60px,
+                rgba(37, 99, 235, 0.24) 61px
               ),
               repeating-linear-gradient(
                 -45deg,
                 transparent,
                 transparent 60px,
-                rgba(139, 92, 246, 0.2) 60px,
-                rgba(139, 92, 246, 0.2) 61px
+                rgba(37, 99, 235, 0.24) 60px,
+                rgba(37, 99, 235, 0.24) 61px
               )
             `
           }}
@@ -79,12 +79,12 @@ export function StartScreen() {
         {/* Vignette sombre */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(15,23,42,0.8)_100%)]"></div>
 
-        {/* Lumières ambiantes - VIOLET NÉON */}
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[100px] animate-pulse-slow"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: "1s" }}></div>
+        {/* Lumières ambiantes - BLEU NUIT */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-700/14 rounded-full blur-[100px] animate-pulse-slow"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-700/14 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: "1s" }}></div>
       </div>
 
-      {/* Particules flottantes - VIOLET NÉON */}
+      {/* Particules flottantes - BLEU NUIT */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(30)].map((_, i) => (
           <div
@@ -98,68 +98,68 @@ export function StartScreen() {
             }}
           >
             <div 
-              className="w-1 h-1 rounded-full bg-gradient-to-r from-purple-400 to-purple-600 opacity-40"
+              className="w-1 h-1 rounded-full bg-gradient-to-r from-blue-300 to-cyan-300 opacity-40"
               style={{
-                boxShadow: '0 0 10px 2px rgba(168, 85, 247, 0.4)'
+                boxShadow: '0 0 10px 2px rgba(59, 130, 246, 0.38)'
               }}
             ></div>
           </div>
         ))}
       </div>
 
-      {/* Cartes de poker stylées - VIOLET NÉON */}
+      {/* Cartes de poker stylées - BLEU NUIT */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
         {/* Carte 1 */}
         <div className="absolute top-[15%] left-[8%] animate-float-card opacity-20">
-          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-purple-500/30 rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-5xl text-purple-400 font-bold">♠</div>
+          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 rotate-12 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-5xl text-blue-300 font-bold">♠</div>
           </div>
         </div>
         
         {/* Carte 2 */}
         <div className="absolute top-[55%] right-[12%] animate-float-card-delayed opacity-20" style={{ animationDelay: "1s" }}>
-          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-purple-500/30 -rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-5xl text-purple-400 font-bold">♥</div>
+          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 -rotate-12 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-5xl text-blue-300 font-bold">♥</div>
           </div>
         </div>
 
         {/* Carte 3 */}
         <div className="absolute bottom-[18%] left-[18%] animate-float-card opacity-20" style={{ animationDelay: "2s" }}>
-          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-purple-500/30 rotate-6 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-5xl text-purple-400 font-bold">♦</div>
+          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 rotate-6 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-5xl text-blue-300 font-bold">♦</div>
           </div>
         </div>
 
         {/* Carte 4 */}
         <div className="absolute top-[35%] right-[22%] animate-float-card-delayed opacity-20" style={{ animationDelay: "0.5s" }}>
-          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-purple-500/30 -rotate-6 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-5xl text-purple-400 font-bold">♣</div>
+          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 -rotate-6 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-5xl text-blue-300 font-bold">♣</div>
           </div>
         </div>
 
-        {/* Jetons élégants - VIOLET NÉON */}
+        {/* Jetons élégants - BLEU NUIT */}
         <div className="absolute top-[22%] left-[68%] animate-spin-elegant opacity-30">
           <div className="w-20 h-20 relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full"></div>
-            <div className="absolute inset-2 bg-slate-900 rounded-full border-4 border-purple-400/50"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-950 rounded-full"></div>
+            <div className="absolute inset-2 bg-slate-900 rounded-full border-4 border-blue-200/45"></div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <Crown className="w-8 h-8 text-purple-400" />
+              <Crown className="w-8 h-8 text-blue-300" />
             </div>
           </div>
         </div>
 
         <div className="absolute bottom-[32%] right-[8%] animate-spin-elegant opacity-30" style={{ animationDelay: "1.5s" }}>
           <div className="w-20 h-20 relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full"></div>
-            <div className="absolute inset-2 bg-slate-900 rounded-full border-4 border-purple-400/50"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-950 rounded-full"></div>
+            <div className="absolute inset-2 bg-slate-900 rounded-full border-4 border-blue-200/45"></div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <Gem className="w-8 h-8 text-purple-400" />
+              <Gem className="w-8 h-8 text-blue-300" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Sparkles scintillants - VIOLET NÉON */}
+      {/* Sparkles scintillants - BLEU NUIT */}
       <div className="absolute inset-0 pointer-events-none opacity-70">
         {[...Array(15)].map((_, i) => (
           <div
@@ -171,29 +171,29 @@ export function StartScreen() {
               animationDelay: `${Math.random() * 3}s`,
             }}
           >
-            <Sparkles className="w-5 h-5 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.7)]" />
+            <Sparkles className="w-5 h-5 text-blue-300 drop-shadow-[0_0_8px_rgba(96,165,250,0.62)]" />
           </div>
         ))}
       </div>
 
       {/* Contenu principal - centré verticalement et horizontalement */}
       <div className="relative z-10 min-h-screen w-full flex flex-col items-center justify-center p-8">
-        {/* Logo avec effets sophistiqués - VIOLET NÉON */}
+        {/* Logo avec effets sophistiqués - BLEU NUIT */}
         <div className="mb-12 relative">
           {/* Glow pulsant */}
           <div className="absolute inset-0 -m-8">
-            <div className="w-full h-full bg-gradient-to-r from-purple-500/20 via-purple-600/20 to-purple-500/20 rounded-full blur-3xl animate-pulse-glow"></div>
+            <div className="w-full h-full bg-gradient-to-r from-blue-500/18 via-cyan-500/10 to-blue-700/18 rounded-full blur-3xl animate-pulse-glow"></div>
           </div>
           
-          {/* Anneaux orbitaux - VIOLET NÉON */}
+          {/* Anneaux orbitaux - BLEU NUIT */}
           <div className="absolute inset-0 -m-10">
-            <div className="w-60 h-60 border-2 border-purple-500/20 rounded-full animate-spin-orbital"></div>
+            <div className="w-60 h-60 border-2 border-blue-300/20 rounded-full animate-spin-orbital"></div>
           </div>
           <div className="absolute inset-0 -m-14">
-            <div className="w-68 h-68 border-2 border-purple-500/15 rounded-full animate-spin-orbital-reverse"></div>
+            <div className="w-68 h-68 border-2 border-blue-300/15 rounded-full animate-spin-orbital-reverse"></div>
           </div>
           <div className="absolute inset-0 -m-18">
-            <div className="w-76 h-76 border border-purple-500/10 rounded-full animate-spin-orbital" style={{ animationDuration: "30s" }}></div>
+            <div className="w-76 h-76 border border-blue-300/10 rounded-full animate-spin-orbital" style={{ animationDuration: "30s" }}></div>
           </div>
 
           {/* Logo - FIXE */}
@@ -202,55 +202,55 @@ export function StartScreen() {
               alt="Quantum Bluff"
               className="relative w-44 h-44 brightness-110" // Légèrement plus lumineux
               style={{
-                filter: 'drop-shadow(0 0 30px rgba(168, 85, 247, 0.6))'
+                filter: 'drop-shadow(0 0 30px rgba(59, 130, 246, 0.42))'
               }}
             />
           </div>
         </div>
 
-        {/* Titre avec gradient animé - VIOLET NÉON */}
+        {/* Titre avec gradient animé - BLEU NUIT */}
         <div className="text-center mb-4">
           <h1 className="text-7xl font-bold mb-2">
             <span 
-              className="bg-gradient-to-r from-purple-400 via-purple-100 to-purple-400 bg-clip-text text-transparent animate-gradient-flow"
+              className="bg-gradient-to-r from-blue-200 via-cyan-100 to-blue-300 bg-clip-text text-transparent animate-gradient-flow"
               style={{ 
                 backgroundSize: '200% auto',
-                textShadow: '0 0 40px rgba(168, 85, 247, 0.5)'
+                textShadow: '0 0 40px rgba(59, 130, 246, 0.42)'
               }}
             >
               Quantum Bluff
             </span>
           </h1>
           <div className="flex items-center justify-center gap-2 text-slate-300"> {/* Texte plus clair */}
-            <Zap className="w-5 h-5 text-purple-400 animate-pulse" />
+            <Zap className="w-5 h-5 text-blue-300 animate-pulse" />
             <p className="text-xl tracking-wider font-light">{t('startScreen.tagline')}</p>
-            <Zap className="w-5 h-5 text-purple-400 animate-pulse" style={{ animationDelay: "0.5s" }} />
+            <Zap className="w-5 h-5 text-blue-300 animate-pulse" style={{ animationDelay: "0.5s" }} />
           </div>
         </div>
 
-        {/* Ligne décorative - VIOLET NÉON */}
+        {/* Ligne décorative - BLEU NUIT */}
         <div className="flex items-center gap-3 mb-12">
-          <div className="w-16 h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent"></div>
-          <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
-          <div className="w-16 h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent"></div>
+          <div className="w-16 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent"></div>
+          <Sparkles className="w-4 h-4 text-blue-300 animate-pulse" />
+          <div className="w-16 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent"></div>
         </div>
 
         {/* Zone de chargement / bouton Start */}
         {isLoading ? (
           <div className="flex flex-col items-center gap-8 w-full max-w-md">
-            {/* Barre de progression Élégante - MODIFIÉE : PLUS FINE ET VIOLET NÉON */}
+            {/* Barre de progression Élégante - MODIFIÉE : PLUS FINE ET BLEU NUIT */}
             <div className="w-full relative">
               {/* Glow de la barre */}
-              <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full"></div>
+              <div className="absolute inset-0 bg-blue-400/16 blur-xl rounded-full"></div>
               
               {/* Barre - MODIFIÉE : h-1 (au lieu de h-3) */}
-              <div className="relative w-full bg-slate-950/60 rounded-full h-1 overflow-hidden backdrop-blur-sm border border-purple-500/30">
+              <div className="relative w-full bg-slate-950/60 rounded-full h-1 overflow-hidden backdrop-blur-sm border border-blue-300/24">
                 <div
-                  className="h-full bg-gradient-to-r from-purple-600 via-purple-100 to-purple-600 transition-all duration-500 ease-out relative animate-gradient-flow"
+                  className="h-full bg-gradient-to-r from-blue-700 via-cyan-100 to-blue-700 transition-all duration-500 ease-out relative animate-gradient-flow"
                   style={{ 
                     width: `${loadingProgress}%`,
                     backgroundSize: '200% auto',
-                    boxShadow: '0 0 15px 1px rgba(168, 85, 247, 0.7)' // Effet Néon
+                    boxShadow: '0 0 15px 1px rgba(96,165,250,0.62)' // Effet Néon
                   }}
                 >
                   {/* Brillance mobile */}
@@ -260,24 +260,24 @@ export function StartScreen() {
             </div>
 
             {/* Texte de chargement */}
-            <div className="flex items-center gap-3 bg-slate-950/40 backdrop-blur-md px-6 py-3 rounded-full border border-purple-500/30">
-              <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+            <div className="flex items-center gap-3 bg-slate-950/40 backdrop-blur-md px-6 py-3 rounded-full border border-blue-300/24">
+              <Loader2 className="w-5 h-5 text-blue-300 animate-spin" />
               <span className="text-lg text-slate-100 font-medium tracking-wide"> {/* Texte clair */}
                 {loadingText}
               </span>
             </div>
           </div>
         ) : (
-          /* BOUTON ÉTIRÉ : rounded-full et VIOLET NÉON */
+          /* BOUTON ÉTIRÉ : rounded-full et BLEU NUIT */
           <button
             onClick={handleStart}
-            className="group relative overflow-hidden px-16 py-6 text-2xl font-bold text-white rounded-full transform transition-all duration-300 hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(168,85,247,0.5)] border-2 border-purple-400/50 hover:border-purple-300"
+            className="group relative overflow-hidden px-16 py-6 text-2xl font-bold text-white rounded-full transform transition-all duration-300 hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(59,130,246,0.42)] border-2 border-blue-200/45 hover:border-cyan-200"
           >
-            {/* Background avec effet glass - MODIFIÉ : VIOLET NÉON */}
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-700/90 via-purple-400/90 to-purple-700/90 backdrop-blur-sm animate-gradient-flow" style={{ backgroundSize: '200% auto' }}></div>
+            {/* Background avec effet glass - MODIFIÉ : BLEU NUIT */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-950/95 via-blue-600/85 to-cyan-950/90 backdrop-blur-sm animate-gradient-flow" style={{ backgroundSize: '200% auto' }}></div>
             
             {/* Glow externe */}
-            <div className="absolute inset-0 -m-1 bg-gradient-to-r from-purple-600 via-purple-300 to-purple-600 rounded-full blur-2xl opacity-50 group-hover:opacity-100 transition-opacity"></div>
+            <div className="absolute inset-0 -m-1 bg-gradient-to-r from-blue-700 via-cyan-200 to-blue-700 rounded-full blur-2xl opacity-50 group-hover:opacity-100 transition-opacity"></div>
             
             {/* Effet de brillance au survol */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
@@ -285,11 +285,11 @@ export function StartScreen() {
             {/* Inner shadow pour profondeur */}
             <div className="absolute inset-0 rounded-full shadow-[inset_0_2px_4px_rgba(255,255,255,0.2),inset_0_-2px_4px_rgba(0,0,0,0.2)]"></div>
             
-            {/* Texte - MODIFIÉ : BLANC ET VIOLET CLAIR */}
-            <span className="relative z-10 flex items-center gap-4 tracking-wider text-white group-hover:text-purple-50 transition-colors">
-              <Crown className="w-7 h-7 text-purple-100 animate-pulse" />
+            {/* Texte */}
+            <span className="relative z-10 flex items-center gap-4 tracking-wider text-white group-hover:text-blue-50 transition-colors">
+              <Crown className="w-7 h-7 text-cyan-100 animate-pulse" />
               {t('startScreen.startButton')}
-              <Sparkles className="w-7 h-7 text-purple-100 animate-pulse" style={{ animationDelay: "0.5s" }} />
+              <Sparkles className="w-7 h-7 text-cyan-100 animate-pulse" style={{ animationDelay: "0.5s" }} />
             </span>
           </button>
         )}

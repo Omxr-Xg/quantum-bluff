@@ -28,20 +28,20 @@ export function TournamentWidget() {
 
   if (loading) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 animate-pulse flex items-center justify-center h-48">
-        <Trophy className="w-8 h-8 text-amber-500/50" />
+      <div className="flex h-48 animate-pulse items-center justify-center rounded-3xl border border-amber-200/20 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_34px_rgba(251,191,36,0.10),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+        <Trophy className="w-8 h-8 text-amber-200/60" />
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 rounded-3xl p-6 relative overflow-hidden group hover:border-amber-500/50 transition-all duration-500 shadow-xl">
-      {/* Effet de brillance en fond */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all duration-500" />
+    <div className="group relative overflow-hidden rounded-3xl border border-amber-200/20 bg-[linear-gradient(135deg,rgba(251,191,36,0.09),rgba(255,255,255,0.055)_34%,rgba(15,23,42,0.08))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_0_38px_rgba(251,191,36,0.11),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl transition-all duration-500 hover:border-amber-200/35 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_48px_rgba(251,191,36,0.16),0_24px_66px_rgba(0,0,0,0.34)]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/70 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent" />
 
       <div className="flex justify-between items-start mb-6 relative z-10">
         <div>
-          <div className="flex items-center gap-2 text-amber-500 font-bold uppercase tracking-widest text-xs mb-1">
+          <div className="flex items-center gap-2 text-amber-200 font-bold uppercase tracking-widest text-xs mb-1">
             <Swords className="w-4 h-4" />
             <span>Arène des Tournois</span>
           </div>
@@ -49,26 +49,26 @@ export function TournamentWidget() {
             {nextTournament ? nextTournament.name : "Aucun Tournoi"}
           </h2>
         </div>
-        <div className="bg-amber-500/10 p-3 rounded-2xl border border-amber-500/20">
-          <Trophy className="w-6 h-6 text-amber-500" />
+        <div className="rounded-2xl border border-amber-200/25 bg-amber-300/10 p-3 shadow-[0_0_22px_rgba(251,191,36,0.14)] backdrop-blur-md">
+          <Trophy className="w-6 h-6 text-amber-200" />
         </div>
       </div>
 
       {nextTournament ? (
         <div className="space-y-4 relative z-10">
-          <div className="flex items-center justify-between bg-slate-950/50 p-3 rounded-xl border border-slate-700/50">
+          <div className="flex items-center justify-between rounded-xl border border-amber-200/14 bg-white/[0.045] p-3 backdrop-blur-md">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-slate-400" />
+              <Clock className="w-4 h-4 text-amber-100/70" />
               <span className="text-slate-300 text-sm">
                 Le {new Date(nextTournament.startTime).toLocaleDateString('fr-FR')} à {new Date(nextTournament.startTime).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}
               </span>
             </div>
-            <span className="text-green-400 font-black text-sm">{nextTournament.prizePool} 💰</span>
+            <span className="text-amber-200 font-black text-sm">{nextTournament.prizePool} 💰</span>
           </div>
           
           <button 
             onClick={() => navigate('/tournaments')}
-            className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl transition-all flex items-center justify-center gap-2 group/btn"
+            className="w-full rounded-xl border border-amber-200/30 bg-gradient-to-r from-amber-700/80 via-yellow-700/70 to-amber-900/80 py-3 font-black text-white shadow-[0_0_26px_rgba(251,191,36,0.16)] transition-all hover:border-amber-100/45 hover:from-amber-600/85 hover:via-yellow-600/75 hover:to-amber-800/85 flex items-center justify-center gap-2 group/btn"
           >
             REJOINDRE LE LOBBY
             <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
@@ -79,7 +79,7 @@ export function TournamentWidget() {
           <p className="text-slate-400 text-sm">Les organisateurs préparent la prochaine bataille. Revenez bientôt !</p>
           <button 
             onClick={() => navigate('/tournaments')}
-            className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-all"
+            className="w-full rounded-xl border border-amber-200/20 bg-amber-300/10 py-3 font-bold text-amber-100 transition-all hover:border-amber-200/35 hover:bg-amber-300/14"
           >
             Visiter le Lobby
           </button>

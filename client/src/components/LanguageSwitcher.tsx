@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Globe2 } from "lucide-react";
 
 const PANEL_W = 56; // w-14
 
@@ -12,7 +13,12 @@ const allLanguages = [
   { code: "uk", flag: "🇺🇦" },
 ] as const;
 
-export const LanguageSwitcher = () => {
+type LanguageSwitcherProps = {
+  className?: string;
+  buttonClassName?: string;
+};
+
+export const LanguageSwitcher = ({ className = "", buttonClassName = "" }: LanguageSwitcherProps) => {
   const { i18n, t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -115,7 +121,7 @@ export const LanguageSwitcher = () => {
       : null;
 
   return (
-    <div className="relative">
+    <div className={`relative ${className}`}>
       <button
         ref={buttonRef}
         type="button"
@@ -124,11 +130,12 @@ export const LanguageSwitcher = () => {
         aria-label={t("language.chooseLanguage")}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-white transition hover:bg-slate-700 md:h-12 md:w-12"
+        className={
+          buttonClassName ||
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-white transition hover:bg-slate-700 md:h-12 md:w-12"
+        }
       >
-        <span className="text-xl leading-none" aria-hidden>
-          {currentLang.flag}
-        </span>
+        <Globe2 className="h-4.5 w-4.5 md:h-5 md:w-5" strokeWidth={2.2} aria-hidden />
       </button>
       {panel}
     </div>

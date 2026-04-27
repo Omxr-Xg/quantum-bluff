@@ -98,22 +98,29 @@ export function DailyChallenges() {
 
   const heading = (
     <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-      <Target className="w-6 h-6 text-yellow-400 shrink-0" aria-hidden />
+      <Target className="w-6 h-6 text-amber-200/90 shrink-0" aria-hidden />
       {t("dailyChallenges.title")}
     </h2>
   );
 
   if (loading) {
     return (
-      <div className="bg-slate-800 rounded-2xl p-5 border border-yellow-500 shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl">
+        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.07] via-blue-950/[0.12] to-transparent" />
+        <div className="relative z-10">
         {heading}
         <p className="text-gray-400 text-sm">{t("dailyChallenges.loading")}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-800 rounded-2xl p-5 border border-yellow-500 shadow-lg">
+    <div className="relative overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl">
+      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.07] via-blue-950/[0.12] to-transparent" />
+      <div className="relative z-10">
       {heading}
 
       {challenges.length === 0 && (
@@ -133,8 +140,8 @@ export function DailyChallenges() {
               key={c.code}
               className={`p-3 rounded-lg border transition ${
                 c.completed
-                  ? "bg-green-900/30 border-green-500"
-                  : "bg-slate-700 border-slate-600"
+                  ? "border-emerald-400/25 bg-emerald-950/25"
+                  : "border-white/10 bg-white/[0.045] backdrop-blur-md"
               }`}
             >
               <div className="flex justify-between items-center text-sm mb-1">
@@ -150,15 +157,15 @@ export function DailyChallenges() {
                 </span>
               </div>
 
-              <div className="w-full bg-slate-600 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-950/55 h-2 rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all ${
-                    c.completed ? "bg-green-400" : "bg-yellow-400"
+                    c.completed ? "bg-green-400" : "bg-blue-300"
                   }`}
                   style={{ width: `${percent}%` }}
                 />
               </div>
-              <div className="text-yellow-300 text-xs mt-2">
+              <div className="text-amber-100/85 text-xs mt-2">
                 {t("dailyChallenges.rewardWithChips", {
                   amount: c.rewardTokens,
                 })}
@@ -183,6 +190,7 @@ export function DailyChallenges() {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
