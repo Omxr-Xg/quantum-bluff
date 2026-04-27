@@ -26,7 +26,6 @@ import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LoaderProvider } from "./contexts/LoaderContext";
-import { NetworkOverlay } from "./components/NetworkOverlay";
 
 import { MiniGames } from './pages/MiniGames';
 import { TournamentLobby } from './pages/TournamentLobby';
@@ -339,9 +338,6 @@ function App() {
         <Layout>
           
           <TournamentTeleporter />
-
-          <NetworkOverlay />
-
           <Routes>
             <Route path="/" element={<StartScreen />} />
             <Route path="/auth" element={<Auth />} />
