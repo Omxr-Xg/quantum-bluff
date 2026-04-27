@@ -1,4 +1,13 @@
+import { apiUrl } from './apiBase';
+
 const defaultAvatar = 'https://ui-avatars.com/api/?name=QB&background=10b981&color=fff&size=128';
+
+/** Avatar stocké en chemin API relatif après persistance serveur (BYTEA). */
+export function resolveStoredAvatarUrl(raw: string): string {
+  const t = raw.trim();
+  if (t.startsWith('/api/')) return apiUrl(t);
+  return raw;
+}
 
 const STORAGE_KEYS = {
   USERNAME: 'quantum_bluff_username',
@@ -26,7 +35,8 @@ export interface UserProfile {
 export function getUserProfile(): UserProfile {
   const username = localStorage.getItem(STORAGE_KEYS.USERNAME) || 'PokerKing47';
   const email = localStorage.getItem(STORAGE_KEYS.EMAIL) || 'support@QuantumBluff.sxb';
-  const avatar = localStorage.getItem(STORAGE_KEYS.AVATAR) || defaultAvatar;
+  const avatarRaw = localStorage.getItem(STORAGE_KEYS.AVATAR) || defaultAvatar;
+  const avatar = resolveStoredAvatarUrl(avatarRaw);
   const raw = parseInt(localStorage.getItem(STORAGE_KEYS.BALANCE) || '6340', 10);
   const balance = Number.isNaN(raw) ? 0 : Math.max(0, raw);
 
@@ -41,7 +51,8 @@ export function saveUserProfile(profile: Partial<UserProfile>): void {
 }
 
 export function getUserAvatar(): string {
-  return localStorage.getItem(STORAGE_KEYS.AVATAR) || defaultAvatar;
+  const raw = localStorage.getItem(STORAGE_KEYS.AVATAR) || defaultAvatar;
+  return resolveStoredAvatarUrl(raw);
 }
 
 export function saveUserAvatar(avatar: string): void {

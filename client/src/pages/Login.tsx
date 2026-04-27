@@ -35,6 +35,12 @@ export function Login() {
     if (typeof response.user.chips === 'number') {
       localStorage.setItem('quantum_bluff_balance', String(response.user.chips))
     }
+    const avatarUrl = (response.user as { avatarUrl?: string | null }).avatarUrl
+    if (typeof avatarUrl === 'string' && avatarUrl.trim() !== '') {
+      localStorage.setItem('quantum_bluff_avatar', avatarUrl.trim())
+    } else {
+      localStorage.removeItem('quantum_bluff_avatar')
+    }
 
     window.dispatchEvent(new Event('auth-changed'))
 

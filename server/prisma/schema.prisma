@@ -41,8 +41,13 @@ model User {
   bannedUntil       DateTime? // Si défini et dans le futur, le compte est bloqué
   /// Tutoriel interactif du lobby terminé ou ignoré (une fois par compte).
   lobbyTutorialCompletedAt DateTime?
-  /// URL d’avatar profil (même validation que RoomPlayer.avatarUrl), partagée avec la liste d’amis.
+  /// URL d’avatar profil (chemin `/api/auth/avatars/:id` après enregistrement binaire, ou URL externe legacy).
   avatarUrl         String?
+  /// Image d’avatar persistée en base (JPEG/PNG/SVG…), servie par GET /api/auth/avatars/:userId
+  avatarImage       Bytes?
+  avatarMime        String?
+  /// True si avatarImage est renseigné — évite de charger le BYTEA au login pour construire l’URL publique.
+  avatarHasBinary   Boolean  @default(false)
 
   stats             UserStats?
   histories         GameHistory[] @relation("WinnerHistory")

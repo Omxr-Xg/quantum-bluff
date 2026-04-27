@@ -14,6 +14,12 @@ import { verifyTotpToken } from '../auth/totp.service.js'
 import { getGamificationBundle } from '../logic/gamification.js'
 import { extractBearerToken, generateToken, verifyToken } from '../auth/jwt.service.js'
 import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js'
+import {
+  canonicalStoredAvatarPath,
+  ingestAvatarToBuffer,
+  isUuidParam,
+} from '../utils/userAvatarIngest.js'
+import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -76,7 +82,35 @@ const recoveryLimiter = rateLimit({
 
 const router = express.Router()
 
-
+/** Avatar binaire en base — lecture publique (UUID non devinable). */
+router.get('/avatars/:userId', async (req, res) => {
+  try {
+    const userId = typeof req.params.userId === 'string' ? req.params.userId : ''
+    if (!isUuidParam(userId)) {
+      return res.status(400).json({ error: 'Identifiant invalide' })
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarImage: true, avatarMime: true, avatarUrl: true },
+    })
+    if (!user) {
+      return res.status(404).end()
+    }
+    if (user.avatarImage != null && user.avatarImage.byteLength > 0 && user.avatarMime) {
+      res.setHeader('Content-Type', user.avatarMime)
+      res.setHeader('Cache-Control', 'public, max-age=86400')
+      return res.send(Buffer.from(user.avatarImage))
+    }
+    const legacy = user.avatarUrl?.trim() ?? ''
+    if (legacy.startsWith('http://') || legacy.startsWith('https://')) {
+      return res.redirect(302, legacy)
+    }
+    return res.status(404).end()
+  } catch (error) {
+    console.error('[AUTH] GET avatar error:', error)
+    return res.status(500).end()
+  }
+})
 
 // Regex format email: xxx@yyy.zzz
 const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -176,7 +210,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         maxBetBlackjack: g?.maxBetBlackjack,
         playerStats: playerStats ?? null,
         lobbyTutorialCompleted: user.lobbyTutorialCompletedAt != null,
-        avatarUrl: user.avatarUrl ?? null,
+        avatarUrl: clientAvatarUrlFromUser(user),
       }
     })
 
@@ -269,7 +303,23 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { playerStats: true } // ✅ Corrigé ici
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        password: true,
+        chips: true,
+        level: true,
+        experience: true,
+        totpSecret: true,
+        secretQuestionId: true,
+        secretAnswerHash: true,
+        lobbyTutorialCompletedAt: true,
+        avatarUrl: true,
+        avatarHasBinary: true,
+        bannedUntil: true,
+        playerStats: true,
+      },
     })
 
     if (!user) {
@@ -312,7 +362,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         maxBetBlackjack: g?.maxBetBlackjack,
         playerStats: user.playerStats,
         lobbyTutorialCompleted: user.lobbyTutorialCompletedAt != null,
-        avatarUrl: user.avatarUrl ?? null,
+        avatarUrl: clientAvatarUrlFromUser(user),
       }
     })
 
@@ -343,28 +393,57 @@ router.get('/lobby-tutorial-status', authMiddleware, async (req, res) => {
   }
 })
 
-/** Met à jour l’URL d’avatar profil (même règles que les avatars salle / cash). */
+/**
+ * Met à jour l’avatar profil : image ingérée en BYTEA + URL canonique `/api/auth/avatars/:id`,
+ * ou suppression (champs avatar effacés).
+ */
 router.patch('/profile', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
     const raw = req.body?.avatarUrl
-    let next: string | null
     if (raw === null || raw === undefined || raw === '') {
-      next = null
-    } else {
-      const sanitized = sanitizePublicAvatarUrl(raw)
-      if (sanitized == null) {
-        return res.status(400).json({ error: 'URL d’avatar invalide' })
-      }
-      next = sanitized
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          avatarUrl: null,
+          avatarImage: null,
+          avatarMime: null,
+          avatarHasBinary: false,
+        },
+        select: { avatarUrl: true, avatarHasBinary: true, id: true },
+      })
+      return res.json({ avatarUrl: clientAvatarUrlFromUser(user) })
     }
+    const sanitized = sanitizePublicAvatarUrl(raw)
+    if (sanitized == null) {
+      return res.status(400).json({ error: 'URL d’avatar invalide' })
+    }
+    if (sanitized === canonicalStoredAvatarPath(userId)) {
+      const row = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, avatarUrl: true, avatarHasBinary: true },
+      })
+      if (row?.avatarHasBinary) {
+        return res.json({ avatarUrl: clientAvatarUrlFromUser(row) })
+      }
+    }
+    const ingested = await ingestAvatarToBuffer(sanitized)
+    if (ingested == null) {
+      return res.status(400).json({ error: 'Impossible d’enregistrer cette image (format ou taille).' })
+    }
+    const canonical = canonicalStoredAvatarPath(userId)
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { avatarUrl: next },
-      select: { avatarUrl: true },
+      data: {
+        avatarImage: new Uint8Array(ingested.buffer),
+        avatarMime: ingested.mime,
+        avatarUrl: canonical,
+        avatarHasBinary: true,
+      },
+      select: { avatarUrl: true, avatarHasBinary: true, id: true },
     })
-    return res.json({ avatarUrl: user.avatarUrl })
+    return res.json({ avatarUrl: clientAvatarUrlFromUser(user) })
   } catch (error) {
     console.error('[AUTH] profile PATCH error:', error)
     return res.status(500).json({ error: 'Erreur serveur' })

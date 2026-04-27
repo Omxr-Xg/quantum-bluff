@@ -8,7 +8,7 @@ vi.mock("../../utils/userProfile", () => ({
   getUsername: () => "TestUser",
 }));
 
-import { getPlayerAvatar } from "../../utils/avatars";
+import { getPlayerAvatar, getPokerTableAvatar } from "../../utils/avatars";
 
 describe("getPlayerAvatar", () => {
   it("retourne l’avatar profil pour le joueur local (siège human, mode bot)", () => {
@@ -32,5 +32,20 @@ describe("getPlayerAvatar", () => {
   it("utilise l’URL serveur pour un adversaire multijoueur quand elle est fournie", () => {
     const remote = "https://cdn.example/peer-avatar.png";
     expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me", remote)).toBe(remote);
+  });
+});
+
+describe("getPokerTableAvatar", () => {
+  it("affiche l’avatar profil pour le joueur local", () => {
+    expect(getPokerTableAvatar("Vous", "human", "human", "https://ignore.test/x.png")).toBe(
+      "https://profile.example/me.png"
+    );
+  });
+
+  it("ignore l’URL serveur pour les adversaires (avatar générique)", () => {
+    const remote = "https://cdn.example/peer-avatar.png";
+    const url = getPokerTableAvatar("Alice", "uuid-a", "uuid-me", remote);
+    expect(url).toContain("api.dicebear.com");
+    expect(url).not.toBe(remote);
   });
 });

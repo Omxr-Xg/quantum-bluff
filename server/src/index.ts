@@ -84,7 +84,7 @@ app.use(
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-        imgSrc: ["'self'", 'data:', 'blob:'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
         connectSrc: ["'self'"],
         frameAncestors: ["'self'"],
       },
@@ -155,7 +155,8 @@ const hiddenBetsApiLimiter = rateLimitWithMetrics({
   legacyHeaders: false,
 })
 
-app.use(express.json({ limit: '10kb' }))
+/** 2.5mb : avatars profil en data URL (JPEG compressé) + marge ; le reste des routes reste léger. */
+app.use(express.json({ limit: '2.5mb' }))
 app.use(antiCheatMiddleware)
 
 app.use(timeoutMiddleware)

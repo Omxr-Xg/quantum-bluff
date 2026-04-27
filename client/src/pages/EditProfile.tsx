@@ -6,6 +6,7 @@ import { QuantumBluffLogo, defaultAvatarUrl } from "../assets/logo";
 import { getUserProfile, saveUserProfile } from "../utils/userProfile";
 import { AvatarGallery } from "../components/AvatarGallery";
 import { useUpdateProfileAvatarMutation } from "../services/api";
+import { fileToAvatarDataUrl } from "../utils/avatarUpload";
 
 export function EditProfile() {
   const { t } = useTranslation();
@@ -35,20 +36,19 @@ export function EditProfile() {
   const [successMessage, setSuccessMessage] = useState("");
   const [updateProfileAvatar] = useUpdateProfileAvatarMutation();
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert(t("editProfile.fileTooBig"));
-        return;
-      }
-
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert(t("editProfile.fileTooBig"));
+      return;
+    }
+    setImageFile(file);
+    try {
+      const dataUrl = await fileToAvatarDataUrl(file, 512, 0.88);
+      setProfileImage(dataUrl);
+    } catch {
+      alert(t("common.error"));
     }
   };
 
@@ -74,22 +74,31 @@ export function EditProfile() {
     }
 
     try {
+      const token = localStorage.getItem("token");
+      let avatarToPersist = profileImage;
+      if (token) {
+        const result = await updateProfileAvatar({ avatarUrl: profileImage }).unwrap();
+        if (typeof result?.avatarUrl === "string" && result.avatarUrl.trim() !== "") {
+          avatarToPersist = result.avatarUrl.trim();
+        }
+      }
       saveUserProfile({
         username: formData.username,
         email: formData.email,
-        avatar: profileImage,
+        avatar: avatarToPersist,
       });
-      const token = localStorage.getItem("token");
-      if (token) {
-        await updateProfileAvatar({ avatarUrl: profileImage }).unwrap();
-      }
       setSuccessMessage(t("editProfile.profileUpdated"));
       setTimeout(() => {
         navigate("/profile");
       }, 1500);
-    } catch {
+    } catch (err: unknown) {
       setSuccessMessage("");
-      alert(t("common.error"));
+      let message = t("common.error");
+      if (typeof err === "object" && err !== null && "data" in err) {
+        const d = (err as { data?: { error?: string } }).data;
+        if (typeof d?.error === "string" && d.error.trim() !== "") message = d.error;
+      }
+      alert(message);
     } finally {
       setIsSaving(false);
     }

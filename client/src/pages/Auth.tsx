@@ -126,6 +126,8 @@ export function Auth() {
       const avatarUrl = (response.user as { avatarUrl?: string | null }).avatarUrl;
       if (typeof avatarUrl === "string" && avatarUrl.trim() !== "") {
         localStorage.setItem("quantum_bluff_avatar", avatarUrl.trim());
+      } else {
+        localStorage.removeItem("quantum_bluff_avatar");
       }
 
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
@@ -171,6 +173,8 @@ export function Auth() {
       const avatarUrlReg = (response.user as { avatarUrl?: string | null }).avatarUrl;
       if (typeof avatarUrlReg === "string" && avatarUrlReg.trim() !== "") {
         localStorage.setItem("quantum_bluff_avatar", avatarUrlReg.trim());
+      } else {
+        localStorage.removeItem("quantum_bluff_avatar");
       }
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
       
