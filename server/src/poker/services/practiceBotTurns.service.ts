@@ -13,9 +13,11 @@ import {
 } from '../../logic/botAI.js'
 import { sanitizeBotDecision } from '../../logic/botDecisionSanitize.js'
 import { getPracticeBotDifficulty } from '../../shared/practiceBotGames.js'
+import { rootLogger } from '../../observability/logger.js'
 const QB_BOT_PREFIX = 'qb-bot-'
 
-const runningChains = new Set<string>()
+/** File par `gameId` : évite deux chaînes bot concurrentes (JOIN + relance auto). */
+const practiceBotChainTail = new Map<string, Promise<void>>()
 
 function isBotSeatId(playerId: string): boolean {
   return playerId.startsWith(QB_BOT_PREFIX)
@@ -57,6 +59,16 @@ function buildBotRequest(
   }
 }
 
+/** Diffuse l’état courant à toute la room (même logique que la gateway). */
+export async function broadcastPracticeTableState(
+  io: Server,
+  gameId: string,
+): Promise<void> {
+  const g = await activeGames.get(gameId)
+  if (!g || g instanceof CashGameController) return
+  await emitRoomAfterPracticeAction(io, gameId, g)
+}
+
 async function emitRoomAfterPracticeAction(
   io: Server,
   gameId: string,
@@ -86,60 +98,82 @@ async function emitRoomAfterPracticeAction(
   }
 }
 
+async function runPracticeBotTurnsChainBody(
+  io: Server,
+  gameId: string,
+): Promise<void> {
+  for (let step = 0; step < 48; step++) {
+    const game = await activeGames.get(gameId)
+    if (!game || game instanceof CashGameController) break
+
+    const turn = game.state.currentTurn
+    if (!turn || !isBotSeatId(turn)) break
+
+    if (game.state.handRuntimePhase === 'HAND_COMPLETE') break
+
+    const inner = game as GameTable
+    const difficulty = getPracticeBotDifficulty(gameId)
+    const req = buildBotRequest(inner, turn, difficulty)
+    if (!req) {
+      rootLogger.warn({
+        msg: 'practice_bot_skip_no_request',
+        gameId,
+        turn,
+        cardsLen: inner.state.players.find((p) => p.id === turn)?.cards?.length ?? -1,
+      })
+      break
+    }
+
+    const raw = decideBotAction(req)
+    const decision = sanitizeBotDecision(raw, req)
+
+    const actionType = decision.action
+    const amount =
+      actionType === 'CALL' || actionType === 'RAISE' ? decision.amount : undefined
+
+    try {
+      await applyPokerAction({
+        gameId,
+        playerId: turn,
+        actionType,
+        amount,
+        actionId: `bot-${randomUUID()}`,
+        handId: game.state.handId,
+        expectedStreet: game.state.phase,
+      })
+    } catch (err) {
+      rootLogger.error({
+        msg: 'practice_bot_action_failed',
+        gameId,
+        turn,
+        detail: err,
+      })
+      break
+    }
+
+    const fresh = await activeGames.get(gameId)
+    if (!fresh) break
+    await emitRoomAfterPracticeAction(io, gameId, fresh)
+
+    if (fresh.state.phase === 'SHOWDOWN') break
+    if (fresh.state.handRuntimePhase === 'HAND_COMPLETE') break
+  }
+}
+
 /**
  * Enchaîne les actions bot côté serveur jusqu’à ce que ce soit au tour d’un humain
  * ou que la main soit terminée (showdown / relance auto).
+ * Les appels sont sérialisés par `gameId` pour éviter blocages et états incohérents.
  */
 export async function runPracticeBotTurnsChain(io: Server, gameId: string): Promise<void> {
   if (!isPracticeBotGameId(gameId)) return
-  if (runningChains.has(gameId)) return
-  runningChains.add(gameId)
 
-  try {
-    for (let step = 0; step < 48; step++) {
-      const game = await activeGames.get(gameId)
-      if (!game || game instanceof CashGameController) break
-
-      const turn = game.state.currentTurn
-      if (!turn || !isBotSeatId(turn)) break
-
-      if (game.state.handRuntimePhase === 'HAND_COMPLETE') break
-
-      const inner = game as GameTable
-      const difficulty = getPracticeBotDifficulty(gameId)
-      const req = buildBotRequest(inner, turn, difficulty)
-      if (!req) break
-
-      const raw = decideBotAction(req)
-      const decision = sanitizeBotDecision(raw, req)
-
-      const actionType = decision.action
-      const amount =
-        actionType === 'CALL' || actionType === 'RAISE' ? decision.amount : undefined
-
-      try {
-        await applyPokerAction({
-          gameId,
-          playerId: turn,
-          actionType,
-          amount,
-          actionId: `bot-${randomUUID()}`,
-          handId: game.state.handId,
-          expectedStreet: game.state.phase,
-        })
-      } catch (err) {
-        console.error('[practice-bot] applyPokerAction bot failed', { gameId, turn, err })
-        break
-      }
-
-      const fresh = await activeGames.get(gameId)
-      if (!fresh) break
-      await emitRoomAfterPracticeAction(io, gameId, fresh)
-
-      if (fresh.state.phase === 'SHOWDOWN') break
-      if (fresh.state.handRuntimePhase === 'HAND_COMPLETE') break
-    }
-  } finally {
-    runningChains.delete(gameId)
-  }
+  const prev = practiceBotChainTail.get(gameId) ?? Promise.resolve()
+  const next = prev
+    .catch(() => {
+      /* continuer la file même si une étape a échoué */
+    })
+    .then(() => runPracticeBotTurnsChainBody(io, gameId))
+  practiceBotChainTail.set(gameId, next)
+  await next
 }

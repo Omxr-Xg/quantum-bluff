@@ -429,9 +429,11 @@ export class GameGateway {
                 socket.emit("GAME_UPDATE", snapshot);
                 socket.emit("GAME_STATE_UPDATED", snapshot);
                 if (isPracticeBotGameId(gameId)) {
-                  void runPracticeBotTurnsChain(this.io, gameId).catch((err) =>
-                    console.error("[practice-bot] JOIN_GAME chain", err),
-                  );
+                  try {
+                    await runPracticeBotTurnsChain(this.io, gameId);
+                  } catch (err) {
+                    console.error("[practice-bot] JOIN_GAME chain", err);
+                  }
                 }
               }
 

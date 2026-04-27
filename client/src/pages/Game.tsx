@@ -873,27 +873,7 @@ export function Game() {
   useEffect(() => {
     const runInit = () => {
       let initial: (BasePlayer | BotPlayer)[] = [];
-      if (gameIdParam && typeof window !== "undefined") {
-        const stored = localStorage.getItem("gamePlayers");
-        if (stored) {
-          try {
-            const parsed: { id: string; name: string }[] = JSON.parse(stored);
-            initial = parsed.map((p, i) => ({
-              id: String(p.id),
-              name: p.name,
-              chips: 1000,
-              bet: 0,
-              position: i,
-              isActive: i === 0,
-              isDealer: false,
-              cards: [],
-              isConnected: true,
-              hasFolded: false,
-              isBot: false,
-            }));
-          } catch { /* no-op */ }
-        }
-      }
+      // Avec `gameId`, l’état vient du serveur (fetch + socket) — pas de stub localStorage au refresh.
       if (initial.length === 0) initial = getPlayers();
       initial.forEach((p) => {
         p.cards = [];
@@ -902,7 +882,7 @@ export function Game() {
       if (!gameIdParam) {
         setDeck(generateDeck());
       }
-      if (mode === "bot") {
+      if (mode === "bot" && !gameIdParam) {
         setPot(SB + BB);
         setPlayerChips(getUserBalance());
         setPhase("init");
@@ -1056,31 +1036,6 @@ export function Game() {
   useEffect(() => {
   if (!socket || !gameIdParam) return;
 
-  console.log('[FRONT][GAME] preparing_join', {
-    gameId: gameIdParam,
-    userId,
-    isSpectating,
-    socketId: socket.id,
-    connected: socket.connected,
-  });
-
-  if (isSpectating) {
-    console.log('[FRONT][GAME] emit_JOIN_SPECTATE', {
-      gameId: gameIdParam,
-      socketId: socket.id,
-    });
-    socket.emit("JOIN_SPECTATE", { gameId: gameIdParam });
-  } else {
-    if (!userId) return;
-    console.log('[FRONT][GAME] emit_JOIN_GAME', {
-      gameId: gameIdParam,
-      playerId: userId,
-      avatarUrl: getUserAvatar(),
-      socketId: socket.id,
-    });
-    socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId, avatarUrl: getUserAvatar() });
-  }
-
     const onChatMessage = (data: { playerId: string; playerName: string; content: string; type: "emoji" | "text" }) => {
       const id = Date.now();
       const isMe = String(data.playerId) === String(userId);
@@ -1147,7 +1102,6 @@ export function Game() {
   playersCount: Array.isArray(gameState?.players) ? gameState.players.length : 0,
   socketId: socket?.id,
 })
-      gameStateFromSocketRef.current = true;
       setHiddenBetNextHandId(gameState.hiddenBetNextHandId ?? null);
       setHiddenBetWindowOpen(Boolean(gameState.hiddenBetWindowOpen));
       setHiddenBetState(gameState.hiddenBetState ?? null);
@@ -1239,6 +1193,9 @@ export function Game() {
         setSpectatorWantsToRejoin(gameState.spectatorRejoinQueue.includes(String(userId)));
       }
       const players = gameState.players ?? [];
+      if (players.length > 0) {
+        gameStateFromSocketRef.current = true;
+      }
       setPlayersState((prev) => {
         const myCardsFromPrev = isSpectating ? [] : (prev.find((p) => String(p.id) === String(userId))?.cards ?? []);
         const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
@@ -1475,7 +1432,30 @@ export function Game() {
     socket.on("CASH_NEXT_HAND_READY_UPDATED", onNextHandReadyUpdated);
     const onQueueStatus = (data: { queued: boolean }) => setSpectatorWantsToRejoin(data.queued);
     socket.on("SPECTATOR_QUEUE_STATUS", onQueueStatus);
+
+    const emitJoinRoom = () => {
+      if (!socket.connected || !gameIdParam) return;
+      lastAppliedSocketSnapshotSigRef.current = "";
+      console.log("[FRONT][GAME] emit_join_room", {
+        gameId: gameIdParam,
+        isSpectating,
+        socketId: socket.id,
+      });
+      if (isSpectating) {
+        socket.emit("JOIN_SPECTATE", { gameId: gameIdParam });
+      } else if (userId) {
+        socket.emit("JOIN_GAME", {
+          gameId: gameIdParam,
+          playerId: userId,
+          avatarUrl: getUserAvatar(),
+        });
+      }
+    };
+    socket.on("connect", emitJoinRoom);
+    emitJoinRoom();
+
     return () => {
+      socket.off("connect", emitJoinRoom);
       socket.off("GAME_UPDATE", onGameUpdateMain);
       socket.off("GAME_STATE_UPDATED", onGameStateUpdated);
       socket.off("GAME_ENDED", onGameEnded);
