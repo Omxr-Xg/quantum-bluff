@@ -21,9 +21,10 @@ import {
 } from '../utils/userAvatarIngest.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 
+/** Connexion : 5 requêtes / 10 min / IP. */
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 5,
+  limit: 5,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -44,7 +45,7 @@ const loginLimiter = rateLimit({
 
 const registerLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 5,
+  limit: 5,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {

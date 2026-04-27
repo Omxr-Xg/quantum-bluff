@@ -1051,6 +1051,9 @@
     "friendRequests": "Запити в друзі",
     "viewRequests": "Переглянути запити",
     "openConversation": "Відкрити розмову",
+    "messageFrom": "Повідомлення від {{name}}",
+    "quickReplyPlaceholder": "Відповісти…",
+    "quickReplySend": "Надіслати",
     "messages": "Повідомлення",
     "chat": "Написати"
   },

@@ -1,9 +1,18 @@
 import express from 'express'
+import { randomUUID } from 'node:crypto'
+import { z } from 'zod'
 import { prisma } from '../config/database.js'
 import { activeGames } from '../shared/activeGames.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
 import rateLimit from 'express-rate-limit'
 import { applyPokerAction } from '../poker/services/pokerActionOrchestrator.service.js'
+import { GameTable } from '../logic/GameTable.js'
+import type { Player } from '../types/poker.js'
+import {
+  PRACTICE_BOT_GAME_PREFIX,
+  registerPracticeBotGame,
+} from '../shared/practiceBotGames.js'
+import type { BotDifficulty } from '../logic/botAI.js'
 
 const router = express.Router()
 const gameReadLimiter = rateLimit({
@@ -23,6 +32,100 @@ const gameActionLimiter = rateLimit({
 
 // Démarrage de partie cash : utiliser uniquement POST /api/waiting-room/:roomId/start
 // (blinds / minBalance, tous prêts, gameId persisté — évite doublon et états incohérents)
+
+const PRACTICE_SB = 50
+const PRACTICE_BB = 100
+const BOT_TABLE_NAMES = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon'] as const
+
+const startPracticeBotBodySchema = z.object({
+  botCount: z.number().int().min(1).max(5),
+  difficulty: z.enum(['easy', 'medium', 'hard', 'expert']),
+  botChips: z.array(z.number().int().min(100)).min(1).max(5),
+  humanChips: z.number().int().min(100).optional(),
+})
+
+// POST /api/game/bot/start — Partie contre bots (moteur GameTable + IA serveur)
+router.post('/bot/start', authMiddleware, gameActionLimiter, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) {
+      return res.status(401).json({ error: 'Non authentifié', code: 'UNAUTHORIZED' })
+    }
+
+    const parsed = startPracticeBotBodySchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: parsed.error.issues.map((i) => i.message).join(', '),
+      })
+    }
+
+    const { botCount, difficulty, botChips } = parsed.data
+    const chipsSlice = botChips.slice(0, botCount)
+    if (chipsSlice.length < botCount) {
+      return res.status(400).json({ error: 'botChips doit couvrir chaque bot' })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true, chips: true },
+    })
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable' })
+    }
+    if (user.chips < PRACTICE_BB * 2) {
+      return res.status(400).json({ error: 'Solde insuffisant pour cette table' })
+    }
+
+    const wantHuman =
+      typeof parsed.data.humanChips === 'number'
+        ? parsed.data.humanChips
+        : user.chips
+    const humanStack = Math.min(Math.max(wantHuman, 100), user.chips)
+
+    const players: Player[] = []
+    for (let i = 0; i < botCount; i++) {
+      const stack = chipsSlice[i] ?? 1000
+      players.push({
+        id: `qb-bot-${i + 1}`,
+        name: `Bot ${BOT_TABLE_NAMES[i] ?? `Bot${i + 1}`}`,
+        cards: [],
+        chips: stack,
+        role: 'PLAYER',
+        isActive: true,
+        isConnected: true,
+      })
+    }
+    players.push({
+      id: userId,
+      name: user.username ?? 'Vous',
+      cards: [],
+      chips: humanStack,
+      role: 'PLAYER',
+      isActive: true,
+      isConnected: true,
+    })
+
+    const gameId = `${PRACTICE_BOT_GAME_PREFIX}${randomUUID()}`
+    const table = new GameTable(gameId, players, {
+      smallBlind: PRACTICE_SB,
+      bigBlind: PRACTICE_BB,
+      liveBetWindowDisabled: true,
+    })
+    table.startHand({ handId: randomUUID() })
+    await activeGames.set(gameId, table)
+    registerPracticeBotGame(gameId, difficulty as BotDifficulty)
+
+    res.json({
+      gameId,
+      difficulty,
+      smallBlind: PRACTICE_SB,
+      bigBlind: PRACTICE_BB,
+    })
+  } catch (error) {
+    console.error('Erreur bot/start:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
 
 // GET /api/game/:gameId/room-info - Infos salle/host pour rematch (partie multi)
 router.get('/:gameId/room-info', gameReadLimiter, async (req, res) => {

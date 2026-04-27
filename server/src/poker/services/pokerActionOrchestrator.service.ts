@@ -18,6 +18,7 @@ import { rootLogger } from "../../observability/logger.js";
 import { TournamentService } from "../../services/tournament.service.js";
 import { CashGameController } from "../../logic/CashGameController.js";
 import { prisma } from "../../config/database.js";
+import { isPracticeBotGameId } from "../../shared/practiceBotGames.js";
 
 type ActionTarget = {
   getStateContext: () => {
@@ -208,7 +209,12 @@ export async function applyPokerAction(
       );
 
       if (survivors.length > 1) {
-        console.log(`⏱️ [MOTEUR] Fin de main. Relance dans 6.5 secondes...`);
+        const nextHandDelayMs = isPracticeBotGameId(payload.gameId)
+          ? 900
+          : 6500;
+        console.log(
+          `⏱️ [MOTEUR] Fin de main. Relance dans ${nextHandDelayMs}ms...`,
+        );
 
         setTimeout(async () => {
           try {
@@ -227,18 +233,24 @@ export async function applyPokerAction(
                     currentGame.startHand();
                     await activeGames.set(payload.gameId, currentGame);
 
-                    if (io) {
-                      const room = io.in(payload.gameId);
+                    const ioRel = TournamentService.getIo() ?? io;
+                    if (ioRel) {
+                      const room = ioRel.in(payload.gameId);
                       const sockets = await room.fetchSockets();
 
                       for (const s of sockets) {
                         const uid = (s as unknown as { userId?: string }).userId;
-                        const snapshot = currentGame.getSanitizedState(uid);
+                        const isSpectator = !currentGame.getPlayerState(
+                          uid ?? "",
+                        );
+                        const snapshot = currentGame.getSanitizedState(
+                          isSpectator ? undefined : uid,
+                        );
                         s.emit("GAME_UPDATE", snapshot);
                         s.emit("GAME_STATE_UPDATED", snapshot);
                       }
 
-                      io.to(payload.gameId).emit("HAND_STATE_CHANGED", {
+                      ioRel.to(payload.gameId).emit("HAND_STATE_CHANGED", {
                         gameId: payload.gameId,
                         phase: currentGame.state.phase,
                         handRuntimePhase: currentGame.state.handRuntimePhase,
@@ -246,14 +258,46 @@ export async function applyPokerAction(
                         handId: currentGame.state.handId,
                       });
                     }
+                  } else if (isPracticeBotGameId(payload.gameId)) {
+                    const ioRel = TournamentService.getIo() ?? io;
+                    if (ioRel) {
+                      let reason:
+                        | "human_won"
+                        | "human_busted"
+                        | "session_over" = "session_over";
+                      if (currentSurvivors.length === 1) {
+                        reason = currentSurvivors[0].id.startsWith("qb-bot-")
+                          ? "human_busted"
+                          : "human_won";
+                      }
+                      ioRel.to(payload.gameId).emit("PRACTICE_SESSION_END", {
+                        gameId: payload.gameId,
+                        reason,
+                      });
+                    }
                   }
                 }
               },
             );
+
+            const ioAfter = TournamentService.getIo();
+            if (ioAfter && isPracticeBotGameId(payload.gameId)) {
+              const { runPracticeBotTurnsChain, broadcastPracticeTableState } =
+                await import("./practiceBotTurns.service.js");
+              await runPracticeBotTurnsChain(ioAfter, payload.gameId);
+              await broadcastPracticeTableState(ioAfter, payload.gameId);
+            }
           } catch (error) {
             console.error("❌ Erreur relance auto :", error);
+            const ioErr = TournamentService.getIo();
+            if (ioErr && isPracticeBotGameId(payload.gameId)) {
+              ioErr.to(payload.gameId).emit("PRACTICE_SESSION_END", {
+                gameId: payload.gameId,
+                reason: "stuck",
+              });
+            }
           }
-        }, 6500);
+        }, nextHandDelayMs);
       } else if (
         survivors.length === 1 &&
         payload.gameId.startsWith("game_tournoi_")
@@ -278,6 +322,18 @@ export async function applyPokerAction(
         }
 
         activeGames.delete(payload.gameId);
+      } else if (isPracticeBotGameId(payload.gameId) && io) {
+        let reason: "human_won" | "human_busted" | "session_over" =
+          "session_over";
+        if (survivors.length === 1) {
+          reason = survivors[0].id.startsWith("qb-bot-")
+            ? "human_busted"
+            : "human_won";
+        }
+        io.to(payload.gameId).emit("PRACTICE_SESSION_END", {
+          gameId: payload.gameId,
+          reason,
+        });
       }
     }
   });

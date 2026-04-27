@@ -94,6 +94,20 @@ function isRed(n: number): boolean {
   return n >= 1 && n <= 36 && RED_NUMBERS.has(n);
 }
 
+/** Libellé couleur sous la roue : rouge / noir lisibles sur fond sombre. */
+function rouletteResultColorWordClass(colorKey: string): string {
+  switch (colorKey) {
+    case "red":
+      return "font-semibold capitalize text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.35)]";
+    case "black":
+      return "font-semibold capitalize rounded-md bg-neutral-200 px-1.5 py-0.5 text-neutral-950";
+    case "green":
+      return "font-semibold capitalize text-emerald-400";
+    default:
+      return "font-semibold capitalize text-slate-300";
+  }
+}
+
 function buildStreetBases(): number[] {
   return Array.from({ length: 12 }, (_, i) => 1 + i * 3);
 }
@@ -989,7 +1003,12 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 <span>
                   {t("roulette.lastResult", { n: lastResult })}
                   {lastColor ? (
-                    <span className="text-purple-300"> · {t(`roulette.color.${lastColor}`)}</span>
+                    <>
+                      <span className="text-slate-500"> · </span>
+                      <span className={rouletteResultColorWordClass(lastColor)}>
+                        {t(`roulette.color.${lastColor}`)}
+                      </span>
+                    </>
                   ) : null}
                 </span>
               ) : (

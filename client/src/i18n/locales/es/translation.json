@@ -1050,6 +1050,9 @@
     "friendRequests": "Solicitudes de amistad",
     "viewRequests": "Ver solicitudes",
     "openConversation": "Abrir conversación",
+    "messageFrom": "Mensaje de {{name}}",
+    "quickReplyPlaceholder": "Responder…",
+    "quickReplySend": "Enviar",
     "messages": "Mensajes",
     "chat": "Chatear"
   },

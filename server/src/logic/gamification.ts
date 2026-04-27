@@ -30,10 +30,10 @@ export function xpToNextLevel(currentXp: number, currentLevel: number): number {
   return Math.max(0, nextThreshold - currentXp)
 }
 
-/** Mise max slot / ligne roulette : de ~250 au niveau 1 au plafond absolu vers le niveau 25. */
+/** Mise max slot / ligne roulette : 500 au niveau 1, jusqu’au plafond absolu vers le niveau 25. */
 export function getEffectiveSlotMaxBet(level: number): number {
   const L = Math.max(1, Math.min(level, MAX_LEVEL))
-  const baseCap = 250
+  const baseCap = 500
   const span = SLOT_MAX_BET_CAP - baseCap
   const t = Math.min(1, (L - 1) / 24)
   return Math.min(SLOT_MAX_BET_CAP, Math.max(SLOT_MIN_BET, Math.floor(baseCap + t * span)))

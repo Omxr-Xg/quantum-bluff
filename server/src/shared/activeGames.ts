@@ -9,6 +9,7 @@ import {
 } from "../config/redis.config.js";
 import { pokerStateStore } from "./pokerStateStore.js";
 import { serializePokerRuntimeSnapshot } from "../poker/services/pokerStateSync.service.js";
+import { isPracticeBotGameId } from "./practiceBotGames.js";
 
 export type ActiveGame = GameTable | CashGameController;
 
@@ -106,7 +107,11 @@ class ActiveGamesManager {
   async set(gameId: string, game: ActiveGame): Promise<void> {
     this.localCache.set(gameId, game);
     this.pushPokerSnapshot(gameId, game);
-    if (this.useRedis && game instanceof GameTable) {
+    if (
+      this.useRedis &&
+      game instanceof GameTable &&
+      !isPracticeBotGameId(gameId)
+    ) {
       saveGame(gameId, game).catch((err) => {
         console.error(
           "[activeGames] Erreur save Redis, jeu conservé en mémoire:",
@@ -177,7 +182,11 @@ class ActiveGamesManager {
   setSync(gameId: string, game: ActiveGame): void {
     this.localCache.set(gameId, game);
     this.pushPokerSnapshot(gameId, game);
-    if (this.useRedis && game instanceof GameTable) {
+    if (
+      this.useRedis &&
+      game instanceof GameTable &&
+      !isPracticeBotGameId(gameId)
+    ) {
       saveGame(gameId, game).catch((err) =>
         console.error("Erreur sauvegarde Redis:", err),
       );
