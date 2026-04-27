@@ -44,7 +44,7 @@ interface PlayerDashboardProps {
 
 export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(function PlayerDashboard(
   {
-  name: _name,
+  name,
   chips,
   cards,
   onFold,
@@ -184,25 +184,37 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
         </div>
       )}
 
-      {!hasFolded && cards.length > 0 && (
-        <div className="pointer-events-none fixed left-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+8rem)] z-[45] flex -translate-x-1/2 items-start justify-center drop-shadow-2xl md:bottom-[8.5rem]">
-          {cards.map((card, index) => (
-            <div
-              key={index}
-              className="relative origin-top transition-all duration-300"
-              style={{
-                marginLeft: index > 0 ? (isMobile ? "4px" : "8px") : "0",
-                transform: `rotate(${index === 0 ? -5 : 6}deg)`,
-              }}
-            >
-              <PokerCard
-                suit={card.suit}
-                value={card.value}
-                size={isMobile ? "sm" : "md"}
-                colorblindMode={colorblindMode}
-              />
+      {cards.length > 0 && (
+        <div className="pointer-events-none fixed left-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+7.1rem)] z-[45] flex -translate-x-1/2 flex-col items-center drop-shadow-2xl md:bottom-[7.75rem]">
+          {!hasFolded && (
+            <div className="flex items-start justify-center">
+              {cards.map((card, index) => (
+                <div
+                  key={index}
+                  className="relative origin-top transition-all duration-300"
+                  style={{
+                    marginLeft: index > 0 ? (isMobile ? "4px" : "8px") : "0",
+                    transform: `rotate(${index === 0 ? -5 : 6}deg)`,
+                  }}
+                >
+                  <PokerCard
+                    suit={card.suit}
+                    value={card.value}
+                    size={isMobile ? "sm" : "md"}
+                    colorblindMode={colorblindMode}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+          <div className="-mt-4 flex flex-col items-center gap-1.5">
+            <div className="rounded-md border border-white/15 bg-slate-950/90 px-3 py-1 text-xs font-bold leading-none text-white shadow-[0_8px_18px_rgba(0,0,0,0.45)] backdrop-blur-md md:text-sm">
+              {name}
+            </div>
+            <div className="rounded-md border border-amber-300/40 bg-amber-950/90 px-3 py-1 text-xs font-black leading-none tabular-nums text-amber-100 shadow-[0_8px_18px_rgba(0,0,0,0.45),0_0_18px_rgba(251,191,36,0.16)] backdrop-blur-md md:text-sm">
+              {chips.toLocaleString()}
+            </div>
+          </div>
         </div>
       )}
 

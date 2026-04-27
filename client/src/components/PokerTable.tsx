@@ -365,15 +365,17 @@ export function PokerTable({
                   })()}
 
                   {/* Nom */}
-                  <div
-                    className={`text-[clamp(9px,1.2vw,12px)] px-2 py-0.5 rounded font-medium whitespace-nowrap ${
-                      player.hasFolded
-                        ? "bg-red-900/80 text-red-300 line-through"
-                        : "bg-black/90 text-white"
-                    }`}
-                  >
-                    {isMobile ? player.name.slice(0, 7) : player.name}
-                  </div>
+                  {!isHeroDisplay && (
+                    <div
+                      className={`text-[clamp(9px,1.2vw,12px)] px-2 py-0.5 rounded font-medium whitespace-nowrap ${
+                        player.hasFolded
+                          ? "bg-red-900/80 text-red-300 line-through"
+                          : "bg-black/90 text-white"
+                      }`}
+                    >
+                      {isMobile ? player.name.slice(0, 7) : player.name}
+                    </div>
+                  )}
 
                   {/* Dernière action */}
                   {player.lastAction && (
@@ -386,10 +388,12 @@ export function PokerTable({
                   )}
 
                   {/* Chips */}
-                  <div className="flex items-center gap-1 text-white text-[clamp(9px,1.2vw,13px)] font-bold">
-                    <ChipIcon size="sm" />
-                    {player.chips.toLocaleString()}
-                  </div>
+                  {!isHeroDisplay && (
+                    <div className="flex items-center gap-1 text-white text-[clamp(9px,1.2vw,13px)] font-bold">
+                      <ChipIcon size="sm" />
+                      {player.chips.toLocaleString()}
+                    </div>
+                  )}
 
                   {/* Cartes adversaires (face cachée / showdown) */}
                   {shouldReserveOpponentCards && (
