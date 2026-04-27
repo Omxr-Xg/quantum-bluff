@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChipIcon } from "./ChipIcon";
 import logoSrc from "../assets/logo-personnel.png";
-import { getPlayerAvatar } from "../utils/avatars";
+import { getPokerTableAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { PokerCard } from "./PokerCard";
 import { Clock } from "lucide-react";
@@ -195,9 +195,6 @@ export function PokerTable({
         {/*  → les % sont relatifs aux mêmes dimensions, le scaling est cohérent */}
         <div className="absolute inset-0 pointer-events-none" style={{ overflow: "visible" }}>
           {players.map((player) => {
-            // Hero is already represented by PlayerDashboard — skip seat on table
-            if (heroSeatId !== null && heroSeatId !== undefined && String(player.id) === String(heroSeatId)) return null;
-
             const pos = allPositions[player.position];
             if (!pos) return null;
 
@@ -264,10 +261,10 @@ export function PokerTable({
                   {(() => {
                     const avatarInner = (
                       <>
-                        {getPlayerAvatar(player.name, player.id, heroSeatId, player.avatar) ? (
+                        {getPokerTableAvatar(player.name, player.id, heroSeatId, player.avatar) ? (
                           <ImageWithFallback
                             src={
-                              getPlayerAvatar(
+                              getPokerTableAvatar(
                                 player.name,
                                 player.id,
                                 heroSeatId,
@@ -329,7 +326,12 @@ export function PokerTable({
                       }
                       ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`;
 
+                    const isHeroSeat =
+                      heroSeatId != null &&
+                      heroSeatId !== "" &&
+                      String(player.id) === String(heroSeatId);
                     const clickable =
+                      !isHeroSeat &&
                       enableAvatarInteractions &&
                       onOpponentAvatarClick &&
                       typeof player.id === "string" &&
