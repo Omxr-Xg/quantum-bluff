@@ -202,6 +202,13 @@ export function PokerTable({
             const effectiveHalfHeight = isMobile ? 250 : BASE_TABLE_HEIGHT / 2;
             const xPct = toPercent(pos.x, effectiveHalfWidth);
             const yPct = toPercent(pos.y, effectiveHalfHeight);
+            const isHeroSeat =
+              heroSeatId != null &&
+              heroSeatId !== "" &&
+              String(player.id) === String(heroSeatId);
+            const isHeroName = player.name === "Vous" || player.name === "you";
+            const shouldReserveOpponentCards =
+              !isHeroSeat && !isHeroName && player.position !== 0;
 
             return (
               <div
@@ -326,10 +333,6 @@ export function PokerTable({
                       }
                       ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`;
 
-                    const isHeroSeat =
-                      heroSeatId != null &&
-                      heroSeatId !== "" &&
-                      String(player.id) === String(heroSeatId);
                     const clickable =
                       !isHeroSeat &&
                       enableAvatarInteractions &&
@@ -387,25 +390,24 @@ export function PokerTable({
                   </div>
 
                   {/* Cartes adversaires (face cachée / showdown) */}
-                  {player.cards &&
-                    player.cards.length > 0 &&
-                    !player.hasFolded &&
-                    player.position !== 0 &&
-                    player.name !== "Vous" &&
-                    player.name !== "you" && (
-                      <div className="flex gap-1">
-                        {player.cards.map((card, index) => (
-                          <PokerCard
-                            key={index}
-                            suit={card.suit}
-                            value={card.value}
-                            size={isMobile ? "xs" : "sm"}
-                            faceDown={!isShowdown}
-                            colorblindMode={colorblindMode}
-                          />
-                        ))}
-                      </div>
-                    )}
+                  {shouldReserveOpponentCards && (
+                    <div className={`flex items-start justify-center gap-1 ${isMobile ? "h-[56px]" : "h-[68px]"}`}>
+                      {player.cards && player.cards.length > 0 && !player.hasFolded && (
+                        <>
+                          {player.cards.map((card, index) => (
+                            <PokerCard
+                              key={index}
+                              suit={card.suit}
+                              value={card.value}
+                              size={isMobile ? "xs" : "sm"}
+                              faceDown={!isShowdown}
+                              colorblindMode={colorblindMode}
+                            />
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
 
                 </div>
               </div>
