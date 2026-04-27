@@ -11,17 +11,20 @@
       <style>
         .electron-boot-screen {
           position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-          background-color: #020617;
+          background:
+            radial-gradient(ellipse 70% 45% at 50% 35%, rgba(37, 99, 235, 0.22), transparent 60%),
+            linear-gradient(165deg, #020716 0%, #061326 48%, #02040c 100%);
           display: flex; flex-direction: column; align-items: center; justify-content: center;
           font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
         }
         .electron-spinner {
           width: 64px; height: 64px;
-          border: 4px solid #334155;
-          border-top-color: #a855f7;
+          border: 3px solid rgba(30, 64, 175, 0.45);
+          border-top-color: #67e8f9;
+          border-right-color: #60a5fa;
           border-radius: 50%;
           animation: spin 1s linear infinite;
-          box-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
+          box-shadow: 0 0 28px rgba(59, 130, 246, 0.24);
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       </style>

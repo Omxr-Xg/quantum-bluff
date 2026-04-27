@@ -31,11 +31,13 @@ export const LoaderProvider = ({ children }: { children: ReactNode }) => {
       
       {/* 3. L'INTERFACE VISUELLE DU LOADER (Tailwind) */}
       {isLoading && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm transition-opacity">
-          {/* Le Spinner */}
-          <div className="w-16 h-16 border-4 border-slate-700 border-t-purple-500 rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(168,85,247,0.5)]"></div>
-          {/* Le Message */}
-          <p className="text-purple-300 text-lg font-medium animate-pulse tracking-wide">
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[#020716]/92 backdrop-blur-md transition-opacity">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_45%_at_50%_35%,rgba(37,99,235,0.22),transparent_60%),linear-gradient(165deg,#020716_0%,#061326_48%,#02040c_100%)]" />
+          <div className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-full border border-blue-200/15 bg-white/[0.045] shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_0_34px_rgba(59,130,246,0.20)]">
+            <div className="absolute h-16 w-16 rounded-full border border-blue-200/15" />
+            <div className="h-14 w-14 rounded-full border-2 border-blue-950 border-t-cyan-200 border-r-blue-300 animate-spin" />
+          </div>
+          <p className="relative text-blue-100 text-lg font-medium animate-pulse tracking-wide">
             {message}
           </p>
         </div>

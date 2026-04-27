@@ -45,6 +45,41 @@ export default defineConfig(({ mode }) => {
   const basePath =
     env.VITE_BASE_PATH ??
     (mode === 'capacitor' ? '/' : '/vmProjetIntegrateurgrp10-0/');
+  const basePathWithoutTrailingSlash = basePath === '/' ? '' : basePath.replace(/\/$/, '');
+
+  const basePathRedirectPlugin = {
+    name: 'base-path-trailing-slash-redirect',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = req.url ?? '';
+        if (
+          basePathWithoutTrailingSlash &&
+          (url === basePathWithoutTrailingSlash || url.startsWith(`${basePathWithoutTrailingSlash}?`))
+        ) {
+          res.statusCode = 302;
+          res.setHeader('Location', `${basePath}${url.slice(basePathWithoutTrailingSlash.length)}`);
+          res.end();
+          return;
+        }
+        next();
+      });
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = req.url ?? '';
+        if (
+          basePathWithoutTrailingSlash &&
+          (url === basePathWithoutTrailingSlash || url.startsWith(`${basePathWithoutTrailingSlash}?`))
+        ) {
+          res.statusCode = 302;
+          res.setHeader('Location', `${basePath}${url.slice(basePathWithoutTrailingSlash.length)}`);
+          res.end();
+          return;
+        }
+        next();
+      });
+    },
+  };
 
   const pwaPlugin = VitePWA({
     registerType: 'autoUpdate',
@@ -77,6 +112,7 @@ export default defineConfig(({ mode }) => {
   return {
     base: basePath,
     plugins: [
+      basePathRedirectPlugin,
       react(),
       // Pas de service worker Capacitor (WebView) : évite conflits avec le natif.
       ...(mode === 'capacitor' ? [] : [pwaPlugin]),
