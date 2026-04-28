@@ -211,7 +211,6 @@ export function PokerTable({
               isHeroSeat || isHeroName || player.position === 0;
             const shouldReserveOpponentCards =
               !isHeroDisplay && player.position !== 0;
-            const isConnected = player.isConnected !== false;
             const displayName = isMobile ? player.name.slice(0, 10) : player.name;
             const actionLabel = player.hasFolded
               ? t("game.foldedLabel")
@@ -275,21 +274,6 @@ export function PokerTable({
                         {player.hasFolded && (
                           <div className="absolute inset-0 bg-red-600/30 rounded-full" />
                         )}
-
-                        {/* Indicateur connexion */}
-                        <div
-                          className={`absolute right-0 top-0 z-20 h-3.5 w-3.5 rounded-full border-[2.5px] border-slate-950 ${
-                            isConnected
-                              ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.85)]"
-                              : "bg-slate-500"
-                          }`}
-                          title={
-                            isConnected
-                              ? t("friends.online")
-                              : t("friends.offline")
-                          }
-                          aria-hidden="true"
-                        />
                       </>
                     );
 
@@ -349,14 +333,14 @@ export function PokerTable({
                                   <PokerCard
                                     suit={card.suit}
                                     value={card.value}
-                                    size={isMobile ? "sm" : "md"}
+                                    size={isMobile ? "md" : "lg"}
                                     colorblindMode={colorblindMode}
                                   />
                                 </div>
                               ))}
                             </div>
                           )}
-                          <div className="-mt-2 flex flex-col items-center gap-1">
+                          <div className="-mt-2 flex flex-col items-center gap-0">
                             <div className="relative z-40 min-w-[4.8rem] rounded-md border border-white/10 bg-slate-950/95 px-3 py-1 text-center text-xs font-bold leading-none text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.55)] md:text-sm">
                               {displayName}
                             </div>
@@ -391,7 +375,7 @@ export function PokerTable({
                   )}
 
                   {!isHeroDisplay && (
-                    <div className={`pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-[2px] ${hasVisibleSeatCards ? "top-[calc(100%+0.85rem)]" : "top-[calc(100%-0.35rem)]"}`}>
+                    <div className={`pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-0 ${hasVisibleSeatCards ? "top-[calc(100%+0.85rem)]" : "top-[calc(100%-0.35rem)]"}`}>
                       <div
                         className={`min-w-[4.3rem] max-w-[7rem] truncate rounded-md border px-2.5 py-1 text-center text-[clamp(9px,1vw,12px)] font-bold leading-none shadow-[0_8px_18px_rgba(0,0,0,0.45)] ${
                           player.hasFolded
