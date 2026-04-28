@@ -434,6 +434,8 @@ export function Layout({ children }: LayoutProps) {
   const showHamburgerMenu =
     showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage && !isGameHudPage;
   const showLobbyIntegratedBar = showTopBar && isLobby;
+  const showFriendsIntegratedBar = showTopBar && path === "/friends";
+  const showIntegratedTopBar = showLobbyIntegratedBar || showFriendsIntegratedBar;
   const showStandaloneTopBar = showTopBar && (isBotConfigPage || isGameHudPage);
   /**
    * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
@@ -441,7 +443,7 @@ export function Layout({ children }: LayoutProps) {
    */
   const topBarPaddingForHamburger =
     showTopBar &&
-    !showLobbyIntegratedBar &&
+    !showIntegratedTopBar &&
     showHamburgerMenu &&
     !isGameHudPage &&
     !isWaitingRoomPage;
@@ -774,7 +776,7 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className={`min-h-screen w-full ${showStandaloneTopBar ? "bg-transparent" : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"}`}>
       <GlobalHoverTooltip />
-      <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
+      <TopBarProvider menuContent={showIntegratedTopBar ? menuContent : null}>
       {showStandaloneTopBar && (
         <div className={`${isGameHudPage ? "fixed left-0 right-0 top-0" : "sticky top-0"} z-[250] w-full bg-transparent`}>
           <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-8 lg:px-10">

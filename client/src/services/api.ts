@@ -13,6 +13,7 @@ interface User {
     totalGames: number
   }
   avatarUrl?: string | null
+  isOnline?: boolean
   playerStats?: {
     totalWins: number
     totalGames: number

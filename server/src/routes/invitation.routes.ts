@@ -3,6 +3,7 @@ import type { Server } from 'socket.io'
 import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
+import { isUserOnline } from '../services/presence.service.js'
 import {
   searchUserSchema,
   friendRequestSchema,
@@ -614,6 +615,10 @@ router.get('/:userId', async (req, res) => {
           : friendship.user1
       )
       .filter((f) => String(f.id) !== userIdStr)
+      .map((friend) => ({
+        ...friend,
+        isOnline: isUserOnline(String(friend.id))
+      }))
 
     return res.json(friends)
   } catch (error) {

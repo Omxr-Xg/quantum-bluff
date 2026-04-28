@@ -1,14 +1,27 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Search, MessageCircle, Users, X, Check, Loader2, Home, Coins, Trophy } from "lucide-react";
+import {
+  Activity,
+  Check,
+  Coins,
+  Home,
+  Loader2,
+  MessageCircle,
+  RefreshCw,
+  Search,
+  Send,
+  Trophy,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-
-import { RefreshCw } from "lucide-react"
+import { useTopBar } from "../contexts/TopBarContext";
 
 import {
   useGetFriendsQuery,
@@ -20,7 +33,6 @@ import {
   useSendFriendMessageMutation,
   useCreateFriendLoanRequestMutation,
 } from "../services/api";
-import { FriendSearch } from "../components/FriendSearch";
 import { FriendLoansPanel } from "../components/FriendLoansPanel";
 import {
   ALLOWED_LOAN_REPAYMENT_RATES,
@@ -30,6 +42,7 @@ import {
 import { getFriendLoanApiErrorMessage } from "../utils/friendLoanApiError";
 
 type FriendsTab = "friends" | "requests" | "messages" | "loans";
+type FriendStatusFilter = "all" | "online" | "offline";
 
 const pokerGlassCard =
   "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
@@ -48,6 +61,7 @@ export function Friends() {
   const { userId } = useUser();
   const { socket, isConnected, connect } = useSocket();
   const { addToast } = useToast();
+  const { menuContent } = useTopBar();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddFriend, setShowAddFriend] = useState(false);
@@ -58,6 +72,7 @@ export function Friends() {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [activeTab, setActiveTab] = useState<FriendsTab>("friends");
+  const [friendStatusFilter, setFriendStatusFilter] = useState<FriendStatusFilter>("all");
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -102,9 +117,23 @@ export function Friends() {
   });
 
   const filteredFriends =
-    friends?.filter((friend) =>
-      friend.username.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+    friends?.filter((friend) => {
+      const matchesSearch = friend.username.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        friendStatusFilter === "all" ||
+        (friendStatusFilter === "online" ? friend.isOnline : !friend.isOnline);
+      return matchesSearch && matchesStatus;
+    }) || [];
+  const friendsCount = friends?.length ?? 0;
+  const onlineFriendsCount = friends?.filter((friend) => friend.isOnline).length ?? 0;
+  const offlineFriendsCount = Math.max(0, friendsCount - onlineFriendsCount);
+  const requestsCount = requests?.length ?? 0;
+  const tabItems = [
+    { key: "friends" as const, label: t("friends.tabFriends"), Icon: Users },
+    { key: "requests" as const, label: t("friends.tabRequests"), Icon: UserPlus },
+    { key: "messages" as const, label: t("friends.tabMessages"), Icon: MessageCircle },
+    { key: "loans" as const, label: t("friends.tabLoans"), Icon: Coins },
+  ];
 
   useEffect(() => {
     if (!isConnected) {
@@ -167,14 +196,20 @@ export function Friends() {
       refetchRequests();
     };
 
+    const handleFriendStatusChanged = () => {
+      refetchFriends();
+    };
+
     socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
     socket.on("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
     socket.on("FRIEND_LIST_UPDATED", handleFriendListUpdated);
+    socket.on("FRIEND_STATUS_CHANGED", handleFriendStatusChanged);
 
     return () => {
       socket.off("FRIEND_REQUEST_RECEIVED", handleFriendRequestReceived);
       socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendRequestAccepted);
       socket.off("FRIEND_LIST_UPDATED", handleFriendListUpdated);
+      socket.off("FRIEND_STATUS_CHANGED", handleFriendStatusChanged);
     };
   }, [socket, userId, refetchFriends, refetchRequests]);
 
@@ -323,80 +358,79 @@ export function Friends() {
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-6xl min-w-0 p-3 sm:p-6">
-        <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:mb-8 sm:flex-row sm:items-center">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 flex-col items-start gap-3">
             <button
               type="button"
               onClick={() => navigate("/lobby")}
-              className={`flex touch-manipulation items-center gap-1 px-3 py-2 text-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-base ${pokerMutedButton}`}
+              className={`flex w-fit touch-manipulation items-center justify-center gap-2 px-3 py-2 text-sm sm:px-4 ${pokerMutedButton}`}
             >
-              <Home className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Home className="h-4 w-4" />
               <span>{t("profile.home")}</span>
             </button>
-          </div>
-        </div>
-
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={() => refetchFriends()}
-            disabled={fetchingFriends}
-            className={`flex items-center gap-2 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${pokerMutedButton}`}
-          >
-            <RefreshCw className={`w-4 h-4 ${fetchingFriends ? 'animate-spin text-blue-300' : ''}`} />
-            {fetchingFriends ? "Mise à jour..." : "Actualiser la liste"}
-          </button>
-        </div>
-
-        <div className={`mb-6 flex flex-col gap-4 p-5 sm:mb-8 sm:flex-row sm:items-center sm:justify-between sm:p-6 ${pokerGlassCard}`}>
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-6">
-            <div className="mx-auto flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-blue-300/25 bg-blue-950/65 shadow-[0_0_36px_rgba(59,130,246,0.18)] sm:mx-0 sm:h-24 sm:w-24">
-              <Users className="h-10 w-10 text-blue-100 sm:h-12 sm:w-12" />
-            </div>
-            <div className="text-center sm:text-left">
-              <h1 className="mb-2 bg-gradient-to-r from-slate-100 via-blue-200 to-cyan-200 bg-clip-text text-2xl font-bold text-transparent sm:text-4xl">{t("friends.title")}</h1>
-              <p className="text-lg text-slate-300/75">{t("friends.friendsCount", { count: friends?.length || 0 })}</p>
+            <div className="min-w-0">
+              <h1 className="bg-gradient-to-r from-slate-100 via-blue-200 to-cyan-200 bg-clip-text text-3xl font-bold uppercase text-transparent sm:text-5xl">
+                {t("friends.title")}
+              </h1>
+              <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-cyan-300/15 bg-cyan-950/35 px-3 py-1 text-xs font-semibold text-cyan-100">
+                <Activity className="h-3.5 w-3.5" />
+                {isConnected ? t("friends.online") : t("friends.offline")}
+              </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowAddFriend(true)}
-            className={`flex w-full shrink-0 touch-manipulation items-center justify-center gap-2 px-6 py-3 sm:w-auto ${pokerButton}`}
-          >
-            <UserPlus className="h-5 w-5" />
-            {t("friends.addOneFriend")}
-          </button>
-        </div>
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          {(
-            [
-              ["friends", t("friends.tabFriends"), Users],
-              ["requests", t("friends.tabRequests"), UserPlus],
-              ["messages", t("friends.tabMessages"), MessageCircle],
-              ["loans", t("friends.tabLoans"), Coins],
-            ] as const
-          ).map(([key, label, Icon]) => (
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center lg:justify-end">
             <button
-              key={key}
               type="button"
-              onClick={() => setActiveTab(key)}
-              className={`flex touch-manipulation items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all sm:text-base ${
-                activeTab === key
-                  ? "bg-gradient-to-br from-blue-950/90 via-slate-900/80 to-slate-950/80 text-blue-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_16px_36px_rgba(0,0,0,0.22)] ring-1 ring-blue-300/20"
-                  : "border border-white/10 bg-white/[0.045] text-slate-300 hover:bg-white/[0.07] hover:text-white"
-              }`}
+              onClick={() => setShowAddFriend(true)}
+              className={`flex shrink-0 touch-manipulation items-center justify-center gap-2 px-5 py-2.5 ${pokerButton}`}
             >
-              <Icon className="h-4 w-4 shrink-0" />
-              {label}
+              <UserPlus className="h-5 w-5" />
+              {t("friends.addOneFriend")}
             </button>
-          ))}
-        </div>
+            <button
+              onClick={() => refetchFriends()}
+              disabled={fetchingFriends}
+              className={`flex shrink-0 items-center justify-center gap-2 px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${pokerMutedButton}`}
+            >
+              <RefreshCw className={`h-4 w-4 ${fetchingFriends ? "animate-spin text-blue-300" : ""}`} />
+              {fetchingFriends ? "Mise à jour..." : "Actualiser"}
+            </button>
+            {menuContent ? (
+              <div className="min-w-0 overflow-x-auto overflow-y-hidden scrollbar-hide">
+                {menuContent}
+              </div>
+            ) : null}
+          </div>
+        </header>
+
+        <nav className="mb-5 overflow-x-auto overflow-y-hidden scrollbar-hide" aria-label="Navigation amis">
+          <div className="flex w-max min-w-full items-center gap-1 rounded-full border border-white/10 bg-white/[0.045] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_45px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+            {tabItems.map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setActiveTab(key)}
+                className={`flex h-11 min-w-[8rem] flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition-all ${
+                  activeTab === key
+                    ? "bg-blue-500/25 text-blue-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_20px_rgba(59,130,246,0.12)]"
+                    : "text-slate-400 hover:bg-white/[0.06] hover:text-white"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        <main className="min-w-0">
 
         {activeTab === "requests" && (
           <div className={`mb-4 p-5 sm:mb-6 sm:p-8 ${pokerGlassCard}`}>
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-blue-100 sm:text-xl">
               <UserPlus className="h-5 w-5 shrink-0 text-blue-200" />
-              {t("friends.friendRequestsCount", { count: requests?.length || 0 })}
+              {t("friends.friendRequestsCount", { count: requestsCount })}
               {/* Le spinner  qui apparaît pendant les Retry */}
               {fetchingRequests && !loadingRequests && (
                 <Loader2 className="h-4 w-4 animate-spin text-blue-300/60 ml-2" />
@@ -454,133 +488,200 @@ export function Friends() {
         )}
 
         {activeTab === "friends" && (
-          <>
-            <div className={`mb-4 p-5 sm:mb-6 sm:p-8 ${pokerGlassCard}`}>
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <section className="space-y-5">
+            <div className="flex flex-col gap-2 rounded-[2rem] border border-white/10 bg-white/[0.045] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_45px_rgba(0,0,0,0.22)] backdrop-blur-xl md:flex-row md:items-center">
+              <div className="relative min-w-0 flex-1">
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t("friends.searchFriendPlaceholder")}
-                  className={`w-full py-3 pl-12 pr-4 ${pokerInput}`}
+                  className="h-12 w-full rounded-full border border-white/10 bg-slate-950/50 py-3 pl-12 pr-4 text-white placeholder-slate-500 transition-all focus:border-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-500/25"
                 />
               </div>
-            </div>
-
-            <div className="mb-6">
-              <FriendSearch />
-            </div>
-            {fetchingFriends && !loadingFriends && (
-              <div className="flex items-center justify-end mb-2 gap-2 text-sm text-blue-300/70 animate-pulse">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Synchronisation...
-              </div>
-            )}
-
-            {loadingFriends ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-300" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {filteredFriends.map((friend) => (
-                  <div
-                    key={friend.id}
-                    className={`p-5 transition-all hover:border-blue-300/20 sm:p-8 ${pokerGlassCard}`}
+              <div className="grid grid-cols-3 gap-1 rounded-full border border-white/10 bg-slate-950/45 p-1 md:w-auto md:min-w-[22rem]">
+                {[
+                  { key: "all" as const, label: "Tous", count: friendsCount },
+                  { key: "online" as const, label: t("friends.online"), count: onlineFriendsCount },
+                  { key: "offline" as const, label: t("friends.offline"), count: offlineFriendsCount },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setFriendStatusFilter(item.key)}
+                    className={`min-w-0 rounded-full px-3 py-2 text-xs font-bold transition sm:text-sm ${
+                      friendStatusFilter === item.key
+                        ? "bg-blue-500/25 text-blue-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_20px_rgba(59,130,246,0.12)]"
+                        : "text-slate-400 hover:bg-white/[0.06] hover:text-white"
+                    }`}
                   >
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60 shadow-[0_0_28px_rgba(59,130,246,0.16)] sm:h-20 sm:w-20">
-                        {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
-                          <ImageWithFallback
-                            src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
-                            alt={`${friend.username}'s avatar`}
-                            className="h-16 w-16 rounded-full object-cover sm:h-20 sm:w-20"
-                          />
-                        ) : (
-                          <span className="text-2xl font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-1 flex items-center justify-between gap-2">
-                          <h3 className="truncate text-xl font-bold text-white">{friend.username}</h3>
-                          <span className="shrink-0 text-sm font-semibold text-blue-200">
-                            {t("friends.level", { level: friend.level })}
-                          </span>
-                        </div>
-
-                        <div className="mb-4 flex items-center gap-1.5 text-sm text-slate-400">
-                          <Trophy className="h-4 w-4 text-cyan-200/80" />
-                          {friend.stats?.wins ?? friend.playerStats?.totalWins ?? 0}{" "}
-                          {t("profile.wins")}
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openChat(friend.id)}
-                            className={`flex w-full items-center justify-center gap-2 px-4 py-2.5 ${pokerMutedButton}`}
-                          >
-                            <MessageCircle className="h-4 w-4 shrink-0" />
-                            {t("friends.chat")}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setLoanModal({ id: friend.id, username: friend.username });
-                              setLoanAmount(500);
-                              setLoanRate(30);
-                            }}
-                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-950/45 px-4 py-2.5 font-semibold text-cyan-100 transition-all hover:border-cyan-200/35 hover:bg-cyan-900/45"
-                          >
-                            <Coins className="h-4 w-4 shrink-0" />
-                            {t("friends.loans.requestLoan")}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    <span className="truncate">{item.label}</span>
+                    <span className="ml-1 text-[0.68rem] opacity-80 sm:text-xs">{item.count}</span>
+                  </button>
                 ))}
               </div>
-            )}
+            </div>
 
-            {filteredFriends.length === 0 && !loadingFriends && (
-              <div className="py-12 text-center">
+            <div className="min-w-0">
+              <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-white">{t("friends.tabFriends")}</h2>
+                  <p className="text-sm text-slate-400">{t("friends.friendsCount", { count: friendsCount })}</p>
+                </div>
+                {fetchingFriends && !loadingFriends ? (
+                  <div className="flex items-center gap-2 rounded-full border border-blue-300/15 bg-blue-950/35 px-3 py-1.5 text-sm text-blue-200">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Synchronisation...
+                  </div>
+                ) : null}
+              </div>
+
+              {loadingFriends ? (
+                <div className="flex justify-center py-16">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-300" />
+                </div>
+              ) : filteredFriends.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+                  {filteredFriends.map((friend) => (
+                    <div
+                      key={friend.id}
+                      className={`group relative overflow-hidden p-4 transition-all hover:border-blue-300/25 ${pokerInnerCard}`}
+                    >
+                      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-200/40 to-transparent opacity-0 transition group-hover:opacity-100" />
+                      <div className="flex items-start gap-4">
+                        <div className="relative h-16 w-16 shrink-0">
+                          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60 shadow-[0_0_28px_rgba(59,130,246,0.16)]">
+                            {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
+                              <ImageWithFallback
+                                src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
+                                alt={`${friend.username}'s avatar`}
+                                className="h-16 w-16 rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-2xl font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <span
+                            className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-slate-950 ${
+                              friend.isOnline ? "bg-emerald-400" : "bg-slate-500"
+                            }`}
+                            aria-label={friend.isOnline ? t("friends.online") : t("friends.offline")}
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-2 flex items-start justify-between gap-2">
+                            <h3 className="truncate text-xl font-bold text-white">{friend.username}</h3>
+                            <span className="shrink-0 rounded-full border border-blue-300/15 bg-blue-950/45 px-2.5 py-1 text-xs font-semibold text-blue-200">
+                              {t("friends.level", { level: friend.level })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-sm text-slate-400">
+                            <Trophy className="h-4 w-4 text-cyan-200/80" />
+                            {friend.stats?.wins ?? friend.playerStats?.totalWins ?? 0}{" "}
+                            {t("profile.wins")}
+                          </div>
+                          <div className={`mt-1 text-xs font-semibold ${friend.isOnline ? "text-emerald-300" : "text-slate-500"}`}>
+                            {friend.isOnline ? t("friends.online") : t("friends.offline")}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => openChat(friend.id)}
+                          className={`flex items-center justify-center gap-2 px-4 py-2.5 ${pokerMutedButton}`}
+                        >
+                          <MessageCircle className="h-4 w-4 shrink-0" />
+                          {t("friends.chat")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLoanModal({ id: friend.id, username: friend.username });
+                            setLoanAmount(500);
+                            setLoanRate(30);
+                          }}
+                          className="flex items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-950/45 px-4 py-2.5 font-semibold text-cyan-100 transition-all hover:border-cyan-200/35 hover:bg-cyan-900/45"
+                        >
+                          <Coins className="h-4 w-4 shrink-0" />
+                          {t("friends.loans.requestLoan")}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-16 text-center">
                 <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-blue-300/20 bg-blue-950/40">
                   <Users className="h-10 w-10 text-slate-500" />
                 </div>
                 <p className="text-lg text-gray-400">{t("friends.noFriendsFound")}</p>
               </div>
-            )}
-          </>
+              )}
+            </div>
+          </section>
         )}
 
         {activeTab === "messages" && userId && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className={`p-5 sm:p-6 ${pokerGlassCard}`}>
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-blue-300/20 bg-blue-950/50">
+                <MessageCircle className="h-5 w-5 text-blue-200" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{t("friends.tabMessages")}</h2>
+                <p className="text-sm text-slate-400">{t("friends.friendsCount", { count: friendsCount })}</p>
+              </div>
+            </div>
             {loadingFriends ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-300" />
               </div>
             ) : friends?.length ? (
-              friends.map((friend) => (
-                <button
-                  key={friend.id}
-                  type="button"
-                  onClick={() => openChat(friend.id)}
-                  className={`flex items-center gap-4 p-4 text-left text-white transition hover:border-blue-300/20 ${pokerGlassCard}`}
-                >
-                  <MessageCircle className="h-8 w-8 text-blue-200" />
-                  <span className="font-semibold">{friend.username}</span>
-                </button>
-              ))
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {friends.map((friend) => (
+                  <button
+                    key={friend.id}
+                    type="button"
+                    onClick={() => openChat(friend.id)}
+                    className={`group flex items-center justify-between gap-4 p-4 text-left text-white transition hover:border-blue-300/20 ${pokerInnerCard}`}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
+                        {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
+                          <ImageWithFallback
+                            src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
+                            alt={`${friend.username}'s avatar`}
+                            className="h-12 w-12 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-lg font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-white">{friend.username}</p>
+                        <p className="text-xs text-slate-400">{t("friends.level", { level: friend.level })}</p>
+                      </div>
+                    </div>
+                    <Send className="h-4 w-4 shrink-0 text-blue-200 transition group-hover:translate-x-0.5" />
+                  </button>
+                ))}
+              </div>
             ) : (
               <p className="text-gray-400">{t("friends.noFriendsFound")}</p>
             )}
           </div>
         )}
 
-        {activeTab === "loans" && userId ? <FriendLoansPanel userId={userId} /> : null}
+        {activeTab === "loans" && userId ? (
+          <div className={`p-5 sm:p-6 ${pokerGlassCard}`}>
+            <FriendLoansPanel userId={userId} />
+          </div>
+        ) : null}
+        </main>
       </div>
 
       {loanModal ? (
