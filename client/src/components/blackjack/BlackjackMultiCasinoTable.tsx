@@ -299,36 +299,42 @@ export function BlackjackMultiCasinoTable({
                   ) : null}
                 </div>
               </div>
-              <div className="flex justify-center pl-4">
-                {state.dealerCards.map((c, i) => (
-                  <motion.div
-                    key={`${state.handNumber}-d-${i}-${c.rank}-${c.suit}`}
-                    className="-ml-4 first:ml-0 sm:-ml-5"
-                    style={{ zIndex: i }}
-                    initial={{
-                      opacity: 0,
-                      y: -16,
-                      scale: 0.96,
-                      rotate: -3 + i * 2.5,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      y: i * 2,
-                      scale: 1,
-                      rotate: -3 + i * 2.5,
-                    }}
-                    transition={{
-                      delay: i * DEAL_STAGGER_SEC,
-                      duration: 0.28,
-                      ease: [0.25, 0.1, 0.25, 1],
-                    }}
-                  >
-                    <PlayingCard
-                      card={c}
-                      hidden={state.dealerHoleHidden && i === 1}
-                    />
-                  </motion.div>
-                ))}
+              <div className="flex min-h-[5.75rem] items-center justify-center pl-4">
+                {state.dealerCards.length === 0 ? (
+                  <div className="pointer-events-none opacity-0" aria-hidden>
+                    <PlayingCard hidden />
+                  </div>
+                ) : (
+                  state.dealerCards.map((c, i) => (
+                    <motion.div
+                      key={`${state.handNumber}-d-${i}-${c.rank}-${c.suit}`}
+                      className="-ml-4 first:ml-0 sm:-ml-5"
+                      style={{ zIndex: i }}
+                      initial={{
+                        opacity: 0,
+                        y: -16,
+                        scale: 0.96,
+                        rotate: -3 + i * 2.5,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: i * 2,
+                        scale: 1,
+                        rotate: -3 + i * 2.5,
+                      }}
+                      transition={{
+                        delay: i * DEAL_STAGGER_SEC,
+                        duration: 0.28,
+                        ease: [0.25, 0.1, 0.25, 1],
+                      }}
+                    >
+                      <PlayingCard
+                        card={c}
+                        hidden={state.dealerHoleHidden && i === 1}
+                      />
+                    </motion.div>
+                  ))
+                )}
               </div>
             </div>
 
