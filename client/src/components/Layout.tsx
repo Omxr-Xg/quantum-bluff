@@ -606,19 +606,27 @@ export function Layout({ children }: LayoutProps) {
   );
 
   const gameAccountPill = (
-    <div
-      className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/65 px-2.5 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md md:h-11 md:px-3"
-      data-tooltip={t("lobby.balance", { balance: balance.toLocaleString() })}
-      aria-label={t("lobby.balance", { balance: balance.toLocaleString() })}
-    >
-      <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.05rem] md:w-[1.05rem]" />
-      <span className="min-w-0 whitespace-nowrap text-xs font-black leading-none tabular-nums text-amber-50 md:text-[0.9rem]">
-        {balance.toLocaleString()}
-      </span>
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 md:h-7 md:w-7">
+    <div className="flex h-9 shrink-0 items-center overflow-hidden rounded-full border border-white/10 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-md md:h-11">
+      <button
+        type="button"
+        onClick={openAddMoney}
+        className="flex h-full min-w-0 items-center gap-2 px-3 text-left transition hover:bg-white/[0.06] md:gap-2.5 md:px-4"
+        title={t("lobby.addMoney")}
+        aria-label={t("lobby.addMoney")}
+      >
+        <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.1rem] md:w-[1.1rem]" />
+        <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
+          {balance.toLocaleString()}
+        </span>
+        <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
+      </button>
+      <span
+        className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 md:h-8 md:w-8"
+        data-tooltip={username}
+        aria-label={username}
+      >
         <img src={userAvatar} alt="" className="h-full w-full object-cover" draggable={false} />
       </span>
-      <span className="sr-only">{username}</span>
     </div>
   );
 
