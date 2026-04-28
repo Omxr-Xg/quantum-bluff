@@ -14,7 +14,7 @@ import {
   Settings,
   Trophy,
   Home,
-  Sparkles,
+  CircleHelp,
   MessageCircle,
   Loader2,
   Radio,
@@ -642,7 +642,7 @@ export function Layout({ children }: LayoutProps) {
       aria-label={t("nav.quitGame")}
     >
       <DoorOpen className={topNavIcon} aria-hidden />
-      <span className="hidden sm:inline">{t("nav.quitGame")}</span>
+      <span className="hidden sm:inline">{t("nav.confirmQuit")}</span>
     </button>
   );
 
@@ -661,11 +661,11 @@ export function Layout({ children }: LayoutProps) {
           title={t("game.menuGuidedTour")}
           aria-label={t("game.menuGuidedTour")}
         >
-          <Sparkles className={topNavIcon} aria-hidden />
+          <CircleHelp className={topNavIcon} aria-hidden />
         </button>
         <LanguageSwitcher buttonClassName={languageButtonClass} />
-        <NotificationCenter />
         {gameAccountPill}
+        <NotificationCenter />
         {quitGameButton}
       </div>
     </div>
