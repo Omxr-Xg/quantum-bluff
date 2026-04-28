@@ -1938,7 +1938,16 @@ export class GameGateway {
               const uid = (s as unknown as AuthenticatedSocket).userId;
               s.emit("GAME_UPDATE", g.getSanitizedState(uid));
             }
-            if (g.state.currentTurn) {
+            if (g.state.phase === "SHOWDOWN" && g instanceof CashGameController) {
+              const showdownSnapshot = {
+                handId: g.state.handId ?? "",
+                handEndReason: g.state.handEndReason,
+                showdownWinnerId: g.state.showdownWinnerId,
+                showdownWinnerIds: g.state.showdownWinnerIds,
+                showdownPot: g.state.showdownPot,
+              };
+              await this.completeCashHandAndBroadcast(gameId, g, g.roomId, showdownSnapshot);
+            } else if (g.state.currentTurn) {
               this.startTurnTimer(gameId);
             }
           } catch (error) {
