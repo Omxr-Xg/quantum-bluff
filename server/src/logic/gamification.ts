@@ -139,6 +139,7 @@ export async function awardXpInTransaction(
   await tx.user.update({
     where: { id: userId },
     data: { experience: { increment: delta } },
+    select: { id: true },
   })
 
   const u = await tx.user.findUniqueOrThrow({
@@ -150,6 +151,7 @@ export async function awardXpInTransaction(
   await tx.user.update({
     where: { id: userId },
     data: { level: newLevel },
+    select: { id: true },
   })
 
   const newBadges = await unlockBadgesForLevel(tx, userId, newLevel)
