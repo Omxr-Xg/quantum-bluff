@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
+  DoorOpen,
   X,
   LogOut,
   Plus,
@@ -13,6 +14,7 @@ import {
   Sparkles,
   MessageCircle,
   Loader2,
+  Radio,
 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
@@ -379,6 +381,8 @@ export function Layout({ children }: LayoutProps) {
   /** Téléphone : h-9 / icônes 4.5 — md+ : h-11. Scroll horizontal côté Lobby. */
   const topNavBtn =
     "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:w-11";
+  const gameExitBtn =
+    "inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-red-300/25 bg-red-950/45 px-3 text-xs font-bold text-red-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_28px_rgba(127,29,29,0.24)] backdrop-blur-md transition hover:border-red-200/50 hover:bg-red-900/65 hover:text-white md:h-11 md:px-4 md:text-sm";
   const topNavIcon = "h-[1.05rem] w-[1.05rem] shrink-0 [stroke-width:2.15] md:h-[1.15rem] md:w-[1.15rem]";
   const userAvatar = getUserAvatar();
   const username = getUsername();
@@ -428,6 +432,7 @@ export function Layout({ children }: LayoutProps) {
             }}
             className={topNavBtn}
             title={t("game.menuGuidedTour")}
+            aria-label={t("game.menuGuidedTour")}
           >
             <Sparkles className={topNavIcon} aria-hidden />
           </button>
@@ -436,12 +441,28 @@ export function Layout({ children }: LayoutProps) {
             <Trophy className={topNavIcon} aria-hidden />
           </button>
         )}
-        <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={topNavBtn} title={t("settings.title")}>
+        <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={topNavBtn} title={t("settings.title")} aria-label={t("settings.title")}>
           <Settings className={topNavIcon} aria-hidden />
         </button>
-        <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} hover:border-red-300/40 hover:bg-red-950/45`} title={t("lobby.logout")}>
-          <LogOut className={topNavIcon} aria-hidden />
-        </button>
+        {isGamePage ? (
+          <button
+            type="button"
+            onClick={() => {
+              playSfx("uiClick");
+              window.dispatchEvent(new Event("request-game-quit"));
+            }}
+            className={gameExitBtn}
+            title={t("nav.quitGame")}
+            aria-label={t("nav.quitGame")}
+          >
+            <DoorOpen className={topNavIcon} aria-hidden />
+            <span className="hidden sm:inline">{t("nav.quitGame")}</span>
+          </button>
+        ) : (
+          <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} hover:border-red-300/40 hover:bg-red-950/45`} title={t("lobby.logout")} aria-label={t("lobby.logout")}>
+            <LogOut className={topNavIcon} aria-hidden />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -461,14 +482,24 @@ export function Layout({ children }: LayoutProps) {
       {showStandaloneTopBar && (
         <div className={`${isGamePage ? "fixed left-0 right-0 top-0" : "sticky top-0"} z-[250] w-full bg-transparent`}>
           <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-8 lg:px-10">
-            <button
-              type="button"
-              onClick={handleStandaloneHomeClick}
-              className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/55 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md transition hover:border-blue-200/25 hover:bg-blue-950/60 md:h-11 md:px-4"
-            >
-              <Home className="h-[1.05rem] w-[1.05rem] shrink-0" aria-hidden />
-              <span>{isGamePage ? t("nav.home") : t("botConfig.home")}</span>
-            </button>
+            {isGamePage ? (
+              <div
+                className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-emerald-300/20 bg-slate-950/45 px-3 text-xs font-semibold text-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-4 md:text-sm"
+                aria-label={t("game.liveTable", "Table en direct")}
+              >
+                <Radio className="h-[1.05rem] w-[1.05rem] shrink-0 text-emerald-300" aria-hidden />
+                <span className="whitespace-nowrap">{t("game.liveTable", "Table en direct")}</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStandaloneHomeClick}
+                className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/55 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md transition hover:border-blue-200/25 hover:bg-blue-950/60 md:h-11 md:px-4"
+              >
+                <Home className="h-[1.05rem] w-[1.05rem] shrink-0" aria-hidden />
+                <span>{t("botConfig.home")}</span>
+              </button>
+            )}
             <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide">
               {menuContent}
             </div>
