@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { User, TrendingUp, Trophy, Target, DollarSign, Gamepad2, Home, Award } from "lucide-react";
+import { User, TrendingUp, Trophy, Target, DollarSign, Home, Award } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
 import { QuantumBluffLogo } from "../assets/logo";
 import { getUserProfile, PROFILE_CHANGED_EVENT } from "../utils/userProfile";
@@ -24,9 +24,6 @@ export function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
   const { userId } = useUser();
-
-  // Vérifier si on vient d'une partie en cours
-  const isInGame = sessionStorage.getItem("currentGame");
 
   // Charger les données du profil depuis localStorage, puis écouter les mises à jour venant d'EditProfile.
   const [userProfile, setUserProfile] = useState(() => getUserProfile());
@@ -97,20 +94,6 @@ export function Profile() {
               <Home className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>{t('profile.home')}</span>
             </button>
-            {isInGame ? (
-              <button
-                onClick={() => {
-                  const gameData = sessionStorage.getItem("currentGame");
-                  if (gameData) {
-                    navigate(gameData);
-                  }
-                }}
-                className="flex items-center gap-1 sm:gap-2 bg-green-600 hover:bg-green-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold transition-all shadow-lg touch-manipulation"
-              >
-                <Gamepad2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>{t('profile.backToGame')}</span>
-              </button>
-            ) : null}
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <QuantumBluffLogo className="w-10 h-10 sm:w-12 sm:h-12 drop-shadow-2xl" />

@@ -13,7 +13,7 @@ import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, X, LogOut, Sparkles, Trophy, Activity, Info } from "lucide-react";
+import { DoorOpen, Menu, Loader2, X, Sparkles, Trophy, Activity, Info } from "lucide-react";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
@@ -714,6 +714,18 @@ export function Game() {
   const displayBurnedCardsCount = gameIdParam
     ? burnedCardsCount
     : (phase === "flop" ? 1 : phase === "turn" ? 2 : phase === "river" || phase === "showdown" ? 3 : 0);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("game-hud-state", {
+        detail: { phase, isMyTurn },
+      })
+    );
+  }, [phase, isMyTurn]);
+
+  useEffect(() => {
+    return () => window.dispatchEvent(new Event("game-hud-reset"));
+  }, []);
 
   const generateDeck = (): Card[] => {
     const suits: Array<"hearts" | "diamonds" | "clubs" | "spades"> = ["hearts", "diamonds", "clubs", "spades"];
@@ -3749,8 +3761,9 @@ export function Game() {
             <button
               type="button"
               onClick={() => setShowMenu(!showMenu)}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/70 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-md transition hover:border-cyan-200/30 hover:bg-slate-800/80"
               title={t("game.menuTitle")}
+              aria-label={t("game.menuTitle")}
               aria-expanded={showMenu}
               aria-haspopup="true"
             >
@@ -3768,7 +3781,7 @@ export function Game() {
                   type="button"
                   role="menuitem"
                   onClick={startGameTour}
-                  className="flex w-full items-start gap-3 border-b border-slate-700/80 px-4 py-3 text-left text-cyan-300 transition-all hover:bg-cyan-500/15"
+                  className="flex w-full items-start gap-3 border-b border-slate-700/70 px-4 py-3 text-left text-cyan-300 transition-all hover:bg-cyan-500/15"
                 >
                   <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-cyan-400" />
                   <span className="flex flex-col gap-0.5">
@@ -3806,35 +3819,7 @@ export function Game() {
                 </button>
 
                 <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  {t("game.menuSectionAccount")}
-                </p>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    navigate("/profile");
-                    setShowMenu(false);
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-white transition-all hover:bg-slate-700/80"
-                >
-                  <User className="h-5 w-5 shrink-0" />
-                  <span className="text-sm font-semibold">{t("lobby.profile")}</span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    navigate("/friends");
-                    setShowMenu(false);
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-white transition-all hover:bg-slate-700/80"
-                >
-                  <Users className="h-5 w-5 shrink-0" />
-                  <span className="text-sm font-semibold">{t("lobby.friends")}</span>
-                </button>
-
-                <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  {t("game.menuSectionDanger")}
+                  {t("game.menuSectionSession", "Session")}
                 </p>
                 <button
                   type="button"
@@ -3845,7 +3830,7 @@ export function Game() {
                   }}
                   className="flex w-full items-center gap-3 px-4 py-3 text-red-400 transition-all hover:bg-red-950/40"
                 >
-                  <LogOut className="h-5 w-5 shrink-0" />
+                  <DoorOpen className="h-5 w-5 shrink-0" />
                   <span className="text-sm font-semibold">{t("nav.quitGame")}</span>
                 </button>
               </div>

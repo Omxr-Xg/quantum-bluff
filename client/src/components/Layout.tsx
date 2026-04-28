@@ -3,16 +3,22 @@ import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
+  DoorOpen,
+  Eye,
   X,
   LogOut,
+  Music2,
+  Palette,
   Plus,
   Menu,
   Settings,
   Trophy,
   Home,
-  Sparkles,
+  CircleHelp,
   MessageCircle,
   Loader2,
+  Radio,
+  Waves,
 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
@@ -34,6 +40,7 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ChipIcon } from "./ChipIcon";
 import { TopBarProvider } from "../contexts/TopBarContext";
 import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
+import { useAccessibility } from "../contexts/AccessibilityContext";
 import { SettingsMenu } from "./SettingsMenu";
 import { RateGameModal } from "./RateGameModal";
 import { GlobalHoverTooltip } from "./GlobalHoverTooltip";
@@ -69,8 +76,29 @@ export function Layout({ children }: LayoutProps) {
   const { t } = useTranslation();
   const { socket, isConnected, connect } = useSocket();
   const { toasts, removeToast, addToast } = useToast();
-  const { unlockAudio, playSfx, stopBgm } = useAudio();
+  const {
+    unlockAudio,
+    playSfx,
+    stopBgm,
+    bgmEnabled,
+    bgmVolume,
+    sfxEnabled,
+    sfxVolume,
+    setBgmVolume,
+    setSfxVolume,
+    toggleBgm,
+    toggleSfx,
+  } = useAudio();
+  const {
+    highContrast,
+    toggleHighContrast,
+    visualAlerts,
+    toggleVisualAlerts,
+    colorblindMode,
+    toggleColorblindMode,
+  } = useAccessibility();
   const [notification, setNotification] = useState<LayoutNotification | null>(null);
+  const [gameHudState, setGameHudState] = useState<{ phase?: string; isMyTurn?: boolean } | null>(null);
   const [friendQuickReply, setFriendQuickReply] = useState("");
   const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
   const [balance, setBalance] = useState(getUserBalance());
@@ -353,6 +381,24 @@ export function Layout({ children }: LayoutProps) {
     !isGamePage &&
     !isWaitingRoomPage;
 
+  useEffect(() => {
+    const onHudState = (event: Event) => {
+      const detail = (event as CustomEvent<{ phase?: string; isMyTurn?: boolean } | null>).detail;
+      setGameHudState(detail ?? null);
+    };
+    const onHudReset = () => setGameHudState(null);
+    window.addEventListener("game-hud-state", onHudState as EventListener);
+    window.addEventListener("game-hud-reset", onHudReset);
+    return () => {
+      window.removeEventListener("game-hud-state", onHudState as EventListener);
+      window.removeEventListener("game-hud-reset", onHudReset);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isGamePage) setGameHudState(null);
+  }, [isGamePage]);
+
   if (isAdminShell) {
     return (
       <div className="min-h-screen w-full bg-slate-900 text-white">
@@ -379,7 +425,155 @@ export function Layout({ children }: LayoutProps) {
   /** Téléphone : h-9 / icônes 4.5 — md+ : h-11. Scroll horizontal côté Lobby. */
   const topNavBtn =
     "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:w-11";
+  const gameExitBtn =
+    "inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-red-300/25 bg-red-950/45 px-3 text-xs font-bold text-red-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_28px_rgba(127,29,29,0.24)] backdrop-blur-md transition hover:border-red-200/50 hover:bg-red-900/65 hover:text-white md:h-11 md:px-4 md:text-sm";
   const topNavIcon = "h-[1.05rem] w-[1.05rem] shrink-0 [stroke-width:2.15] md:h-[1.15rem] md:w-[1.15rem]";
+  const gameHudBtn =
+    "flex h-7 w-9 shrink-0 items-center justify-center rounded-full border transition md:h-8 md:w-10";
+  const gameHudBtnOff =
+    "border-white/10 bg-slate-950/25 text-slate-400 hover:border-white/25 hover:bg-slate-800/70 hover:text-white";
+  const gameHudIcon = "h-3.5 w-3.5 shrink-0 md:h-4 md:w-4";
+  const phase = gameHudState?.phase ?? "init";
+  const phaseLabel =
+    phase === "init" || phase === "shuffle" || phase === "deal"
+      ? t("game.waiting")
+      : t(`game.phaseBadge.${phase}`, { defaultValue: phase });
+  const bgmPct = bgmEnabled ? Math.round(bgmVolume * 100) : 0;
+  const sfxPct = sfxEnabled ? Math.round(sfxVolume * 100) : 0;
+  const updateBgmVolume = (value: number) => {
+    const next = Math.max(0, Math.min(100, value)) / 100;
+    setBgmVolume(next);
+    if (next <= 0 && bgmEnabled) toggleBgm(false);
+    if (next > 0 && !bgmEnabled) toggleBgm(true);
+  };
+  const updateSfxVolume = (value: number) => {
+    const next = Math.max(0, Math.min(100, value)) / 100;
+    setSfxVolume(next);
+    if (next <= 0 && sfxEnabled) toggleSfx(false);
+    if (next > 0 && !sfxEnabled) toggleSfx(true);
+  };
+  const gameHudControls = (
+    <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto overflow-y-hidden scrollbar-hide">
+      <div
+        className={`flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-4 md:text-sm ${
+          gameHudState?.isMyTurn
+            ? "border-amber-300/35 bg-amber-500/15 text-amber-100"
+            : "border-emerald-300/20 bg-slate-950/45 text-emerald-100"
+        }`}
+        title={`${t("game.phase")}: ${phaseLabel}${gameHudState?.isMyTurn ? ` · ${t("game.yourTurn")}` : ""}`}
+        aria-label={`${t("game.phase")}: ${phaseLabel}`}
+      >
+        <Radio className={`h-[1.05rem] w-[1.05rem] shrink-0 ${gameHudState?.isMyTurn ? "text-amber-300" : "text-emerald-300"}`} aria-hidden />
+        <span className="whitespace-nowrap">{phaseLabel}</span>
+        {gameHudState?.isMyTurn && (
+          <span className="hidden rounded-full bg-amber-300/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-100 lg:inline">
+            {t("game.yourTurn")}
+          </span>
+        )}
+      </div>
+
+      <div className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-slate-950/45 px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiClick");
+            toggleHighContrast();
+          }}
+          className={`${gameHudBtn} ${highContrast ? "border-yellow-300/45 bg-yellow-300/15 text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.18)]" : gameHudBtnOff}`}
+          title={t("accessibility.highContrastTitle")}
+          aria-label={t("accessibility.highContrastTitle")}
+          aria-pressed={highContrast}
+        >
+          <Eye className={gameHudIcon} aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiClick");
+            toggleVisualAlerts();
+          }}
+          className={`${gameHudBtn} ${visualAlerts ? "border-sky-300/45 bg-sky-400/15 text-sky-100 shadow-[0_0_18px_rgba(56,189,248,0.16)]" : gameHudBtnOff}`}
+          title={t("accessibility.visualAlertsTitle")}
+          aria-label={t("accessibility.visualAlertsTitle")}
+          aria-pressed={visualAlerts}
+        >
+          <Bell className={gameHudIcon} aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiClick");
+            toggleColorblindMode();
+          }}
+          className={`${gameHudBtn} ${colorblindMode ? "border-fuchsia-300/45 bg-fuchsia-400/15 text-fuchsia-100 shadow-[0_0_18px_rgba(217,70,239,0.16)]" : gameHudBtnOff}`}
+          title={t("accessibility.colorblindTitle")}
+          aria-label={t("accessibility.colorblindTitle")}
+          aria-pressed={colorblindMode}
+        >
+          <Palette className={gameHudIcon} aria-hidden />
+        </button>
+      </div>
+
+      <div className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-slate-950/45 px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-1.5">
+        <label
+          className={`relative flex h-7 w-[4.2rem] shrink-0 cursor-ew-resize items-center justify-center overflow-hidden rounded-full border transition md:h-8 md:w-[4.9rem] ${
+            bgmPct > 0 ? "border-emerald-300/45 bg-emerald-950/40 text-emerald-50" : gameHudBtnOff
+          }`}
+          data-tooltip={`${t("settings.musicTitle")} ${bgmPct}%`}
+          data-active={bgmPct > 0 ? "true" : undefined}
+        >
+          <span
+            aria-hidden
+            data-volume-fill
+            className="absolute inset-y-0 left-0 rounded-full bg-emerald-400/25 transition-[width]"
+            style={{ width: `${bgmPct}%` }}
+          />
+          <span className="pointer-events-none relative z-10 flex items-center gap-1 text-[0.68rem] font-black tabular-nums md:text-xs">
+            <Music2 className={gameHudIcon} aria-hidden />
+            {bgmPct}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={bgmPct}
+            onChange={(event) => updateBgmVolume(Number(event.target.value))}
+            className="absolute inset-0 z-20 h-full w-full cursor-ew-resize opacity-0"
+            aria-label={t("settings.musicVolume")}
+          />
+        </label>
+        <label
+          className={`relative flex h-7 w-[4.2rem] shrink-0 cursor-ew-resize items-center justify-center overflow-hidden rounded-full border transition md:h-8 md:w-[4.9rem] ${
+            sfxPct > 0 ? "border-cyan-300/45 bg-cyan-950/40 text-cyan-50" : gameHudBtnOff
+          }`}
+          data-tooltip={`${t("settings.sfxTitle")} ${sfxPct}%`}
+          data-active={sfxPct > 0 ? "true" : undefined}
+        >
+          <span
+            aria-hidden
+            data-volume-fill
+            className="absolute inset-y-0 left-0 rounded-full bg-cyan-400/25 transition-[width]"
+            style={{ width: `${sfxPct}%` }}
+          />
+          <span className="pointer-events-none relative z-10 flex items-center gap-1 text-[0.68rem] font-black tabular-nums md:text-xs">
+            <Waves className={gameHudIcon} aria-hidden />
+            {sfxPct}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={sfxPct}
+            onChange={(event) => updateSfxVolume(Number(event.target.value))}
+            className="absolute inset-0 z-20 h-full w-full cursor-ew-resize opacity-0"
+            aria-label={t("settings.sfxVolume")}
+          />
+        </label>
+      </div>
+    </div>
+  );
   const userAvatar = getUserAvatar();
   const username = getUsername();
   const languageButtonClass =
@@ -411,35 +605,87 @@ export function Layout({ children }: LayoutProps) {
     </div>
   );
 
-  const menuContent = (
+  const gameAccountPill = (
+    <div className="flex h-9 shrink-0 items-center overflow-hidden rounded-full border border-white/10 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-md md:h-11">
+      <button
+        type="button"
+        onClick={openAddMoney}
+        className="flex h-full min-w-0 items-center gap-2 px-3 text-left transition hover:bg-white/[0.06] md:gap-2.5 md:px-4"
+        title={t("lobby.addMoney")}
+        aria-label={t("lobby.addMoney")}
+      >
+        <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.1rem] md:w-[1.1rem]" />
+        <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
+          {balance.toLocaleString()}
+        </span>
+        <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
+      </button>
+      <span
+        className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 md:h-8 md:w-8"
+        data-tooltip={username}
+        aria-label={username}
+      >
+        <img src={userAvatar} alt="" className="h-full w-full object-cover" draggable={false} />
+      </span>
+    </div>
+  );
+
+  const quitGameButton = (
+    <button
+      type="button"
+      onClick={() => {
+        playSfx("uiClick");
+        window.dispatchEvent(new Event("request-game-quit"));
+      }}
+      className={gameExitBtn}
+      title={t("nav.quitGame")}
+      aria-label={t("nav.quitGame")}
+    >
+      <DoorOpen className={topNavIcon} aria-hidden />
+      <span className="hidden sm:inline">{t("nav.confirmQuit")}</span>
+    </button>
+  );
+
+  const gameMenuContent = (
+    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center justify-end gap-1.5 sm:w-auto sm:shrink-0 md:gap-2">
+      <div
+        className="flex min-w-0 items-center justify-end gap-1 overflow-x-auto overflow-y-hidden scroll-smooth scrollbar-hide [-webkit-overflow-scrolling:touch] [touch-action:pan-x] sm:gap-1.5 md:gap-2"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiClick");
+            window.dispatchEvent(new Event("request-game-tour"));
+          }}
+          className={topNavBtn}
+          title={t("game.menuGuidedTour")}
+          aria-label={t("game.menuGuidedTour")}
+        >
+          <CircleHelp className={topNavIcon} aria-hidden />
+        </button>
+        <LanguageSwitcher buttonClassName={languageButtonClass} />
+        {gameAccountPill}
+        <NotificationCenter />
+        {quitGameButton}
+      </div>
+    </div>
+  );
+
+  const menuContent = isGamePage ? gameMenuContent : (
     <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end md:gap-2">
       <LanguageSwitcher buttonClassName={languageButtonClass} />
       {accountPill}
       <div
         className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:scroll-smooth max-sm:py-0 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
       >
-        {!isGamePage && <NotificationCenter />}
-        {isGamePage ? (
-          <button
-            type="button"
-            onClick={() => {
-              playSfx("uiClick");
-              window.dispatchEvent(new Event("request-game-tour"));
-            }}
-            className={topNavBtn}
-            title={t("game.menuGuidedTour")}
-          >
-            <Sparkles className={topNavIcon} aria-hidden />
-          </button>
-        ) : (
-          <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden sm:inline-flex`} title={t("leaderboard.title")}>
-            <Trophy className={topNavIcon} aria-hidden />
-          </button>
-        )}
-        <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={topNavBtn} title={t("settings.title")}>
+        <NotificationCenter />
+        <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden sm:inline-flex`} title={t("leaderboard.title")}>
+          <Trophy className={topNavIcon} aria-hidden />
+        </button>
+        <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={topNavBtn} title={t("settings.title")} aria-label={t("settings.title")}>
           <Settings className={topNavIcon} aria-hidden />
         </button>
-        <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} hover:border-red-300/40 hover:bg-red-950/45`} title={t("lobby.logout")}>
+        <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} hover:border-red-300/40 hover:bg-red-950/45`} title={t("lobby.logout")} aria-label={t("lobby.logout")}>
           <LogOut className={topNavIcon} aria-hidden />
         </button>
       </div>
@@ -461,15 +707,19 @@ export function Layout({ children }: LayoutProps) {
       {showStandaloneTopBar && (
         <div className={`${isGamePage ? "fixed left-0 right-0 top-0" : "sticky top-0"} z-[250] w-full bg-transparent`}>
           <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-8 lg:px-10">
-            <button
-              type="button"
-              onClick={handleStandaloneHomeClick}
-              className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/55 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md transition hover:border-blue-200/25 hover:bg-blue-950/60 md:h-11 md:px-4"
-            >
-              <Home className="h-[1.05rem] w-[1.05rem] shrink-0" aria-hidden />
-              <span>{isGamePage ? t("nav.home") : t("botConfig.home")}</span>
-            </button>
-            <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide">
+            {isGamePage ? (
+              gameHudControls
+            ) : (
+              <button
+                type="button"
+                onClick={handleStandaloneHomeClick}
+                className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/55 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md transition hover:border-blue-200/25 hover:bg-blue-950/60 md:h-11 md:px-4"
+              >
+                <Home className="h-[1.05rem] w-[1.05rem] shrink-0" aria-hidden />
+                <span>{t("botConfig.home")}</span>
+              </button>
+            )}
+            <div className={`${isGamePage ? "min-w-0 shrink-0" : "min-w-0 flex-1"} overflow-x-auto overflow-y-hidden scrollbar-hide`}>
               {menuContent}
             </div>
           </div>
@@ -559,6 +809,7 @@ export function Layout({ children }: LayoutProps) {
         onClose={() => setShowSettingsMenu(false)}
         initialTab={settingsInitialTab}
         onRateGame={() => setShowRateGame(true)}
+        hideAestheticTab={isGamePage}
       />
 
       <RateGameModal open={showRateGame} onClose={() => setShowRateGame(false)} />
