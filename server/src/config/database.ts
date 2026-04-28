@@ -9,6 +9,8 @@ const pool = new pg.Pool({
   connectionString: env.databaseUrl,
 })
 
+export const pgPool = pool
+
 const adapter = new PrismaPg(pool as never)
 
 export const prisma = new PrismaClient({

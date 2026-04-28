@@ -2,7 +2,7 @@ import express from 'express'
 import bcrypt from 'bcryptjs'
 import sanitizeHtml from 'sanitize-html'
 import { z } from 'zod'
-import { prisma } from '../config/database.js'
+import { pgPool, prisma } from '../config/database.js'
 import { env } from '../config/env.js'
 import { registerSchema, loginSchema, resetPasswordSchema } from '../validation/auth.validation.js'
 import { normalizeSecretAnswer } from '../utils/secretAnswer.js'
@@ -90,17 +90,22 @@ router.get('/avatars/:userId', async (req, res) => {
     if (!isUuidParam(userId)) {
       return res.status(400).json({ error: 'Identifiant invalide' })
     }
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { avatarImage: true, avatarMime: true, avatarUrl: true },
-    })
+    const result = await pgPool.query<{
+      avatarImage: Buffer | null
+      avatarMime: string | null
+      avatarUrl: string | null
+    }>(
+      'SELECT "avatarImage", "avatarMime", "avatarUrl" FROM "User" WHERE "id" = $1 LIMIT 1',
+      [userId],
+    )
+    const user = result.rows[0]
     if (!user) {
       return res.status(404).end()
     }
-    if (user.avatarImage != null && user.avatarImage.byteLength > 0 && user.avatarMime) {
+    if (user.avatarImage != null && user.avatarImage.length > 0 && user.avatarMime) {
       res.setHeader('Content-Type', user.avatarMime)
-      res.setHeader('Cache-Control', 'public, max-age=86400')
-      return res.send(Buffer.from(user.avatarImage))
+      res.setHeader('Cache-Control', 'private, no-cache, max-age=0, must-revalidate')
+      return res.send(user.avatarImage)
     }
     const legacy = user.avatarUrl?.trim() ?? ''
     if (legacy.startsWith('http://') || legacy.startsWith('https://')) {
