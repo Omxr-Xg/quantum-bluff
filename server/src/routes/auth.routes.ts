@@ -575,6 +575,38 @@ router.get('/balance', authMiddleware, async (req, res) => {
   }
 })
 
+// GET /api/auth/balance-history - Historique des mouvements de solde (casino ledger)
+router.get('/balance-history', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const rawLimit = Number(req.query.limit)
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(100, Math.floor(rawLimit))) : 50
+
+    const entries = await prisma.walletLedgerEntry.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        createdAt: true,
+        reason: true,
+        gameType: true,
+        amount: true,
+        balanceBefore: true,
+        balanceAfter: true,
+        roundId: true,
+      },
+    })
+
+    res.json({ entries })
+  } catch (error) {
+    console.error('balance-history GET error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // POST /api/auth/add-dev-money - Ajoute des jetons (validation "dev" côté serveur, pas de confiance client)
 router.post('/add-dev-money', authMiddleware, async (req, res) => {
   if (process.env.NODE_ENV === 'production') {
@@ -589,10 +621,29 @@ router.post('/add-dev-money', authMiddleware, async (req, res) => {
     const rawAmount = typeof req.body?.amount === 'number' ? req.body.amount : Number(req.body?.amount)
     const amount = Math.min(999999, Math.max(1, Math.floor(Number(rawAmount))))
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Montant invalide' })
+    const before = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { chips: true },
+    })
+    if (!before) return res.status(404).json({ error: 'Utilisateur non trouvé' })
+
     const user = await prisma.user.update({
       where: { id: userId },
       data: { chips: { increment: amount } },
       select: { chips: true }
+    })
+
+    // Trace comptable explicite du rajout de solde (utile pour l'historique client).
+    await prisma.walletLedgerEntry.create({
+      data: {
+        userId,
+        amount,
+        reason: 'DEV_TOPUP',
+        gameType: 'wallet',
+        balanceBefore: before.chips,
+        balanceAfter: user.chips,
+        settlementState: 'SETTLED',
+      },
     })
     res.json({ ok: true, chips: user.chips })
   } catch (error) {

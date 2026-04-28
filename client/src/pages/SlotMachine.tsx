@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sparkles, TrendingUp, Zap } from "lucide-react";
+import { Coins, Landmark, TrendingUp, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "../contexts/ToastContext";
 import {
@@ -67,6 +67,17 @@ interface SlotResult {
   isWin: boolean;
   winAmount?: number;
 }
+
+type BalanceHistoryEntry = {
+  id: string;
+  createdAt: string;
+  reason: string;
+  gameType: string | null;
+  amount: number;
+  balanceBefore: number | null;
+  balanceAfter: number | null;
+  roundId: string | null;
+};
 
 const SYMBOLS: SlotSymbol[] = ["🍒", "🍊", "💎", "7️⃣", "🎰"];
 const MULTIPLIERS = {
@@ -141,6 +152,10 @@ export function SlotMachine() {
   });
   const [showWin, setShowWin] = useState(false);
   const [spinningReels, setSpinningReels] = useState([false, false, false]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<BalanceHistoryEntry[]>([]);
 
   const isRefund = result.isWin && result.winAmount === bet;
   const isBigWin = result.isWin && result.winAmount! > bet;
@@ -158,6 +173,30 @@ export function SlotMachine() {
       addToast(t("slot.errorLoadBalance"), "error");
     }
   }, [addToast, t]);
+
+  const loadBalanceHistory = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const res = await fetch(apiUrl("/api/auth/balance-history?limit=50"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const parsed = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        entries?: BalanceHistoryEntry[];
+      };
+      if (!res.ok) {
+        throw new Error(parsed?.error || "Impossible de charger l'historique du solde.");
+      }
+      setHistoryEntries(Array.isArray(parsed.entries) ? parsed.entries : []);
+    } catch (err) {
+      setHistoryError(errorMessage(err, "Impossible de charger l'historique du solde."));
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     void loadBalance();
@@ -311,33 +350,63 @@ export function SlotMachine() {
     }
   };
 
+  const reasonLabel = (reason: string): string => {
+    const labels: Record<string, string> = {
+      SLOT_STAKE: "Mise slot",
+      SLOT_PAYOUT: "Gain slot",
+      ROULETTE_STAKE: "Mise roulette",
+      ROULETTE_PAYOUT: "Gain roulette",
+      BLACKJACK_STAKE: "Mise blackjack",
+      BLACKJACK_PAYOUT: "Gain blackjack",
+      HIDDEN_BET_STAKE: "Mise pari caché",
+      HIDDEN_BET_PAYOUT: "Gain pari caché",
+      HIDDEN_BET_REFUND_VOID: "Remboursement pari annulé",
+      HIDDEN_BET_REFUND_CANCEL: "Remboursement pari annulé",
+      LOAN_FUNDED_IN: "Prêt reçu",
+      LOAN_FUNDED_OUT: "Prêt envoyé",
+      LOAN_REPAYMENT_IN: "Remboursement reçu",
+      LOAN_REPAYMENT_OUT: "Remboursement envoyé",
+      DEV_TOPUP: "Ajout de solde",
+    };
+    return labels[reason] || reason;
+  };
+
+
   return (
     <div className="relative z-10 flex w-full min-w-0 max-w-full flex-col items-stretch gap-4 text-slate-200 lg:flex-row lg:items-start lg:gap-6">
       <div className="relative min-w-0 w-full flex-1">
-        <div className="relative rounded-[1.35rem] border-2 border-slate-600/85 bg-gradient-to-b from-slate-900/95 via-slate-950 to-slate-900 p-4 pt-10 shadow-[0_20px_48px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.05)] sm:rounded-2xl sm:p-6 sm:pt-11 lg:p-8">
-          <div className="absolute -top-2.5 left-1/2 z-10 max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-full border border-slate-500/60 bg-slate-800/90 px-4 py-1.5 shadow-lg backdrop-blur-sm sm:-top-3 sm:px-6 sm:py-2">
-            <h3 className="bg-gradient-to-r from-purple-300 to-cyan-200 bg-clip-text text-center text-sm font-bold tracking-wide text-transparent sm:text-lg">
+        <div className="relative rounded-[1.35rem] border border-amber-700/35 bg-gradient-to-b from-[#17130f] via-[#120f0c] to-[#0f0d0b] p-4 pt-10 shadow-[0_24px_56px_rgba(0,0,0,0.52),inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-2xl sm:p-6 sm:pt-11 lg:p-8">
+          <div className="absolute -top-2.5 left-1/2 z-10 max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-full border border-amber-600/35 bg-[#1a1612]/95 px-4 py-1.5 shadow-lg backdrop-blur-sm sm:-top-3 sm:px-6 sm:py-2">
+            <h3 className="bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-center text-sm font-bold tracking-[0.08em] text-transparent sm:text-lg">
               {t("slot.brandTitle")}
             </h3>
           </div>
 
-          <div className="pointer-events-none absolute left-3 top-11 opacity-50 sm:left-5 sm:top-12">
-            <Sparkles className="h-5 w-5 text-purple-400/80 sm:h-6 sm:w-6" aria-hidden />
+          <div className="pointer-events-none absolute left-3 top-11 opacity-60 sm:left-5 sm:top-12">
+            <Landmark className="h-5 w-5 text-amber-300/75 sm:h-6 sm:w-6" aria-hidden />
           </div>
-          <div className="pointer-events-none absolute right-3 top-11 opacity-50 sm:right-5 sm:top-12">
-            <Sparkles className="h-5 w-5 text-cyan-400/75 sm:h-6 sm:w-6" aria-hidden />
+          <div className="pointer-events-none absolute right-3 top-11 opacity-60 sm:right-5 sm:top-12">
+            <Coins className="h-5 w-5 text-amber-300/70 sm:h-6 sm:w-6" aria-hidden />
           </div>
 
           <div className="mb-4 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="rounded-xl border border-slate-600/75 bg-slate-800/50 px-4 py-3 sm:px-6">
+            <button
+              type="button"
+              onClick={() => {
+                setHistoryOpen(true);
+                void loadBalanceHistory();
+              }}
+              className="rounded-xl border border-amber-700/30 bg-[#1a1713]/70 px-4 py-3 transition hover:border-amber-500/45 hover:bg-[#211b15]/80 sm:px-6"
+            >
               <p className="mb-1 text-xs font-semibold text-slate-400 sm:text-sm">{t("slot.balance")}</p>
-              <p className="flex items-center justify-center gap-2 text-2xl font-bold tabular-nums text-green-400 sm:text-3xl">
+              <p className="flex items-center justify-center gap-2 text-2xl font-bold tabular-nums text-amber-300 sm:text-3xl">
                 <span>{balance.toLocaleString()}</span>
                 <ChipIcon size="lg" className="brightness-110" />
               </p>
-            </div>
+              <p className="mt-1 text-[11px] text-slate-500">Appuyer pour voir l'historique</p>
+            </button>
 
-            <div className="rounded-xl border border-slate-600/75 bg-slate-800/50 px-4 py-3 sm:px-6">
+            <div className="rounded-xl border border-amber-700/30 bg-[#1a1713]/70 px-4 py-3 sm:px-6">
               <p className="mb-1 text-xs font-semibold text-slate-400 sm:text-sm">{t("slot.selectBet")}</p>
               <div className="flex items-center gap-2">
                 <button
@@ -348,7 +417,7 @@ export function SlotMachine() {
                 >
                   −
                 </button>
-                <p className="flex min-w-[80px] items-center justify-center gap-1.5 text-center text-2xl font-bold tabular-nums text-green-400">
+                <p className="flex min-w-[80px] items-center justify-center gap-1.5 text-center text-2xl font-bold tabular-nums text-amber-300">
                   <span>{bet}</span>
                   <ChipIcon size="md" className="brightness-110" />
                 </p>
@@ -381,19 +450,19 @@ export function SlotMachine() {
           </div>
 
           <div className="relative mb-4 sm:mb-8">
-            <div className="rounded-2xl border border-slate-600/80 bg-slate-900/55 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-6 lg:p-8">
+            <div className="rounded-2xl border border-amber-700/35 bg-[#14110e]/70 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6 lg:p-8">
               <div
                 className={`pointer-events-none absolute left-2 right-2 top-1/2 z-20 flex h-24 -translate-y-1/2 items-center justify-center transition-all duration-500 sm:left-8 sm:right-8 sm:h-32 ${
                   isBigWin && !isSpinning
-                    ? "border-y-2 border-emerald-500/45 bg-gradient-to-r from-transparent via-emerald-600/20 to-transparent shadow-[0_0_28px_rgba(16,185,129,0.2)]"
+                    ? "border-y-2 border-amber-400/35 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent shadow-[0_0_18px_rgba(217,119,6,0.16)]"
                     : isRefund && !isSpinning
-                    ? "border-y-2 border-amber-500/45 bg-gradient-to-r from-transparent via-amber-600/15 to-transparent"
+                    ? "border-y-2 border-slate-500/45 bg-gradient-to-r from-transparent via-slate-500/10 to-transparent"
                     : ""
                 }`}
               >
                 {isBigWin && !isSpinning && (
                   <motion.div
-                    className="text-base font-bold text-emerald-300 sm:text-2xl"
+                    className="text-base font-bold text-amber-300 sm:text-2xl"
                     animate={{ scale: [1, 1.08, 1], opacity: [1, 0.88, 1] }}
                     transition={{ duration: 1.2, repeat: Infinity }}
                   >
@@ -402,7 +471,7 @@ export function SlotMachine() {
                 )}
                 {isRefund && !isSpinning && (
                   <motion.div
-                    className="text-base font-bold text-amber-300 sm:text-2xl"
+                    className="text-base font-bold text-slate-300 sm:text-2xl"
                     animate={{ scale: [1, 1.08, 1], opacity: [1, 0.88, 1] }}
                     transition={{ duration: 1.2, repeat: Infinity }}
                   >
@@ -421,7 +490,7 @@ export function SlotMachine() {
                       key={reelIndex}
                       className="min-w-[100px] max-w-[200px] shrink-0 flex-1 basis-0 sm:min-w-0 sm:shrink"
                     >
-                      <div className="relative h-[350px] overflow-hidden rounded-xl border-2 border-slate-600/80 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 shadow-inner sm:rounded-2xl">
+                      <div className="relative h-[350px] overflow-hidden rounded-xl border border-amber-700/35 bg-gradient-to-b from-[#181410] via-[#13100d] to-[#100d0a] shadow-inner sm:rounded-2xl">
                         <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 h-32 bg-gradient-to-b from-slate-950 via-slate-950/90 to-transparent" />
                         <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-32 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent" />
 
@@ -466,7 +535,7 @@ export function SlotMachine() {
                                     {[...Array(8)].map((_, i) => (
                                       <motion.div
                                         key={i}
-                                        className="absolute h-2 w-2 rounded-full bg-cyan-300/90 shadow-[0_0_8px_rgba(103,232,249,0.45)]"
+                                        className="absolute h-2 w-2 rounded-full bg-amber-200/90 shadow-[0_0_8px_rgba(251,191,36,0.35)]"
                                         initial={{ x: 0, y: 0, opacity: 1 }}
                                         animate={{
                                           x: Math.cos((i * Math.PI * 2) / 8) * 72,
@@ -500,11 +569,11 @@ export function SlotMachine() {
                   exit={{ scale: 0.92, opacity: 0, y: -12 }}
                   className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center px-3"
                 >
-                  <div className="relative max-w-[min(100%,24rem)] overflow-hidden rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-b from-slate-900/98 via-emerald-950/85 to-slate-950 px-6 py-6 shadow-[0_24px_56px_rgba(0,0,0,0.55),0_0_40px_rgba(16,185,129,0.22)] ring-1 ring-emerald-400/20 sm:rounded-3xl sm:px-10 sm:py-8">
+                  <div className="relative max-w-[min(100%,24rem)] overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-b from-[#1a1510]/98 via-[#16120e]/96 to-[#100d0a] px-6 py-6 shadow-[0_24px_56px_rgba(0,0,0,0.55),0_0_28px_rgba(217,119,6,0.2)] ring-1 ring-amber-300/15 sm:rounded-3xl sm:px-10 sm:py-8">
                     {[...Array(8)].map((_, i) => (
                       <motion.div
                         key={i}
-                        className="absolute text-purple-300/50"
+                        className="absolute text-amber-200/40"
                         initial={{ scale: 0, x: "50%", y: "50%" }}
                         animate={{
                           scale: [0, 1, 0],
@@ -513,19 +582,19 @@ export function SlotMachine() {
                         }}
                         transition={{ duration: 1.1, ease: "easeOut" }}
                       >
-                        <Sparkles className="h-5 w-5 sm:h-6 sm:w-6" />
+                        <Coins className="h-5 w-5 sm:h-6 sm:w-6" />
                       </motion.div>
                     ))}
                     <div className="relative z-10">
                       <motion.p
-                        className="mb-2 bg-gradient-to-r from-purple-200 to-cyan-200 bg-clip-text text-center text-xl font-bold tracking-wide text-transparent sm:text-3xl"
+                        className="mb-2 bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-center text-xl font-bold tracking-wide text-transparent sm:text-3xl"
                         animate={{ scale: [1, 1.04, 1] }}
                         transition={{ duration: 0.55, repeat: Infinity }}
                       >
                         {t("slot.winBanner")}
                       </motion.p>
                       <motion.p
-                        className="flex items-center justify-center gap-2 text-center text-3xl font-bold tabular-nums text-emerald-300 drop-shadow-md sm:text-4xl"
+                        className="flex items-center justify-center gap-2 text-center text-3xl font-bold tabular-nums text-amber-200 drop-shadow-md sm:text-4xl"
                         animate={{ scale: [1, 1.06, 1] }}
                         transition={{ duration: 0.65, repeat: Infinity, delay: 0.15 }}
                       >
@@ -548,7 +617,7 @@ export function SlotMachine() {
             className={`relative w-full overflow-hidden rounded-xl border-2 py-4 text-lg font-bold tracking-wide shadow-[0_12px_28px_rgba(0,0,0,0.4)] transition-all sm:py-5 sm:text-xl ${
               isSpinning || balance < bet
                 ? "cursor-not-allowed border-slate-700 bg-slate-800/80 text-slate-500"
-                : "border-green-400/45 bg-gradient-to-b from-green-600 to-green-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_0_rgb(21_128_61)] hover:from-green-500 hover:to-green-700"
+                : "border-amber-500/45 bg-gradient-to-b from-amber-700 to-amber-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_0_rgb(120_53_15)] hover:from-amber-600 hover:to-amber-800"
             }`}
           >
             {!isSpinning && balance >= bet && (
@@ -561,14 +630,14 @@ export function SlotMachine() {
             <span className="relative z-10 flex items-center justify-center gap-2 sm:gap-3">
               {isSpinning ? (
                 <>
-                  <Zap className="h-7 w-7 shrink-0 animate-spin opacity-90" /> {t("slot.spinning")}
+                  <Zap className="h-7 w-7 shrink-0 animate-spin opacity-90 text-amber-200" /> {t("slot.spinning")}
                 </>
               ) : balance < bet ? (
                 <>{t("slot.insufficientFunds")}</>
               ) : (
                 <>
-                  <Sparkles className="h-6 w-6 shrink-0 text-cyan-200/90" /> {t("slot.spin")}{" "}
-                  <Sparkles className="h-6 w-6 shrink-0 text-cyan-200/90" />
+                  <Coins className="h-6 w-6 shrink-0 text-amber-200/90" /> {t("slot.spin")}{" "}
+                  <Coins className="h-6 w-6 shrink-0 text-amber-200/90" />
                 </>
               )}
             </span>
@@ -576,12 +645,12 @@ export function SlotMachine() {
         </div>
       </div>
 
-      <aside className="w-full min-w-0 shrink-0 rounded-2xl border-2 border-slate-600/80 bg-gradient-to-b from-slate-900/95 to-slate-950 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.4)] sm:p-6 lg:w-80 lg:max-w-sm xl:max-w-none">
+      <aside className="w-full min-w-0 shrink-0 rounded-2xl border border-amber-700/35 bg-gradient-to-b from-[#17130f]/95 to-[#0f0d0b] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.4)] sm:p-6 lg:w-80 lg:max-w-sm xl:max-w-none">
         <div className="mb-5 flex items-center gap-3 border-b border-slate-600/60 pb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-600 bg-slate-800/80">
-            <TrendingUp className="h-5 w-5 text-purple-300" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-amber-700/35 bg-[#1a1713]/80">
+            <TrendingUp className="h-5 w-5 text-amber-300" />
           </div>
-          <h3 className="bg-gradient-to-r from-purple-200 to-cyan-200 bg-clip-text text-lg font-bold text-transparent sm:text-xl">
+          <h3 className="bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-lg font-bold text-transparent sm:text-xl">
             {t("slot.paytableTitle")}
           </h3>
         </div>
@@ -598,7 +667,7 @@ export function SlotMachine() {
             return (
             <motion.div
               key={symbol}
-              className="rounded-xl border border-slate-600/60 bg-slate-800/40 p-3 transition-colors hover:border-slate-500 sm:p-4"
+              className="rounded-xl border border-amber-700/25 bg-[#191510]/55 p-3 transition-colors hover:border-amber-600/40 sm:p-4"
               whileHover={{ scale: 1.005 }}
             >
               <div className="flex items-center justify-between gap-2">
@@ -612,8 +681,8 @@ export function SlotMachine() {
                   </div>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-xl font-bold tabular-nums text-emerald-400 sm:text-2xl">×{multiplier}</p>
-                  <p className="text-xs text-emerald-300/60">{t("slot.multiplierLabel")}</p>
+                  <p className="text-xl font-bold tabular-nums text-amber-300 sm:text-2xl">×{multiplier}</p>
+                  <p className="text-xs text-amber-200/50">{t("slot.multiplierLabel")}</p>
                 </div>
               </div>
             </motion.div>
@@ -621,11 +690,11 @@ export function SlotMachine() {
           })}
         </div>
 
-        <div className="mt-5 rounded-xl border border-slate-600/60 bg-slate-800/35 p-4">
+        <div className="mt-5 rounded-xl border border-amber-700/30 bg-[#1a1713]/45 p-4">
           <div className="flex items-start gap-3">
-            <Zap className="mt-0.5 h-5 w-5 shrink-0 text-cyan-400" />
+            <Zap className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
             <div>
-              <p className="mb-1 font-semibold text-purple-200">{t("slot.quantumBoostTitle")}</p>
+              <p className="mb-1 font-semibold text-amber-200">{t("slot.quantumBoostTitle")}</p>
               <p className="text-sm leading-relaxed text-slate-400">{t("slot.quantumBoostBody")}</p>
             </div>
           </div>
@@ -645,6 +714,82 @@ export function SlotMachine() {
           </div>
         </div>
       </aside>
+
+      <AnimatePresence>
+        {historyOpen ? (
+          <motion.div
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-4 backdrop-blur-[2px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setHistoryOpen(false)}
+          >
+            <motion.div
+              className="w-full max-w-2xl rounded-2xl border border-amber-700/35 bg-[#13100d] p-4 shadow-2xl sm:p-6"
+              initial={{ scale: 0.96, y: 10, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.96, y: 10, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-4 flex items-center justify-between gap-3 border-b border-amber-700/25 pb-3">
+                <h3 className="text-lg font-bold text-amber-200 sm:text-xl">Historique du solde</h3>
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700"
+                  onClick={() => setHistoryOpen(false)}
+                >
+                  Fermer
+                </button>
+              </div>
+
+              {historyLoading ? <p className="py-8 text-center text-slate-400">Chargement…</p> : null}
+              {historyError ? <p className="py-6 text-center text-rose-300">{historyError}</p> : null}
+
+              {!historyLoading && !historyError ? (
+                <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+                  {historyEntries.length === 0 ? (
+                    <p className="py-8 text-center text-slate-400">Aucun mouvement enregistré.</p>
+                  ) : (
+                    historyEntries.map((entry) => {
+                      const before = typeof entry.balanceBefore === "number" ? entry.balanceBefore : null;
+                      const after = typeof entry.balanceAfter === "number" ? entry.balanceAfter : null;
+                      const delta = before !== null && after !== null ? after - before : entry.amount;
+                      const positive = delta >= 0;
+                      return (
+                        <div
+                          key={entry.id}
+                          className="rounded-xl border border-amber-700/20 bg-[#1a1511]/65 px-3 py-2.5 sm:px-4"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-100">{reasonLabel(entry.reason)}</p>
+                              <p className="mt-0.5 text-xs text-slate-400">
+                                {new Intl.DateTimeFormat("fr-CA", {
+                                  dateStyle: "medium",
+                                  timeStyle: "short",
+                                }).format(new Date(entry.createdAt))}
+                              </p>
+                            </div>
+                            <p className={`text-sm font-bold tabular-nums ${positive ? "text-emerald-300" : "text-rose-300"}`}>
+                              {positive ? "+" : ""}
+                              {delta.toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                            <span>Avant: {before !== null ? before.toLocaleString() : "—"}</span>
+                            <span>Apres: {after !== null ? after.toLocaleString() : "—"}</span>
+                            <span>Jeu: {entry.gameType || "global"}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              ) : null}
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
