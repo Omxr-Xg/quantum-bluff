@@ -787,7 +787,7 @@ export function Lobby() {
         {/* MAIN GRID - IMPROVED GAP */}
         <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:items-stretch">
           {/* Colonne jeux : onglets au-dessus du contenu uniquement (pas au-dessus défis / amis) */}
-          <div className="md:col-span-2 lg:col-span-2 space-y-6 lg:flex lg:h-full lg:self-stretch lg:flex-col lg:space-y-0 lg:gap-6">
+          <div className="md:col-span-2 lg:col-span-2 space-y-6 lg:flex lg:flex-col lg:space-y-0 lg:gap-6">
             <nav
               ref={lobbyTabsRef}
               className={`flex w-full overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
