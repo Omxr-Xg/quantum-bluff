@@ -1141,6 +1141,7 @@ router.post('/game/:gameId/action', authMiddleware, async (req, res) => {
             await prisma.user.update({
               where: { id: userId },
               data: { chips: { increment: doubleExtraDebited } },
+              select: { id: true },
             })
           }
           throw makeHttpError(400, r.code, { code: r.code })

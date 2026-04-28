@@ -128,7 +128,7 @@ router.post('/check-email', checkEmailLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Email invalide' })
   }
   try {
-    const user = await prisma.user.findUnique({ where: { email } })
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } })
     res.json({ exists: !!user })
   } catch (error) {
     console.error('[AUTH] check-email error:', error)
@@ -155,7 +155,8 @@ router.post('/register', registerLimiter, async (req, res) => {
   try {
 
     const existingEmail = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
+      select: { id: true },
     })
 
     if (existingEmail) {
@@ -163,7 +164,8 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     const existingUsername = await prisma.user.findUnique({
-      where: { username }
+      where: { username },
+      select: { id: true },
     })
 
     if (existingUsername) {
@@ -269,7 +271,10 @@ router.post('/reset-password', recoveryLimiter, async (req, res) => {
   let { email, secretAnswer, newPassword } = parsed.data
   email = email.trim().toLowerCase()
   try {
-    const user = await prisma.user.findUnique({ where: { email } })
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, secretQuestionId: true, secretAnswerHash: true },
+    })
     if (!user) {
       return res.status(404).json({ error: 'Aucun compte associé à cet email.' })
     }
@@ -284,6 +289,7 @@ router.post('/reset-password', recoveryLimiter, async (req, res) => {
     await prisma.user.update({
       where: { id: user.id },
       data: { password: hashedPassword },
+      select: { id: true },
     })
     res.json({ ok: true })
   } catch (error) {
@@ -529,6 +535,7 @@ router.post('/lobby-tutorial/complete', authMiddleware, async (req, res) => {
     await prisma.user.update({
       where: { id: userId },
       data: { lobbyTutorialCompletedAt: new Date() },
+      select: { id: true },
     })
     return res.json({ ok: true })
   } catch (error) {

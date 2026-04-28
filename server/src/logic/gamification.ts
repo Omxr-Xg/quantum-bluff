@@ -217,6 +217,7 @@ export async function getGamificationBundle(
     await prisma.user.update({
       where: { id: userId },
       data: { level: L },
+      select: { id: true },
     })
   }
   const badgeRows = await prisma.userBadge.findMany({

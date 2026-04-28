@@ -446,7 +446,8 @@ export class TournamentService {
         ...distribution.map(d =>
           prisma.user.update({
             where: { id: d.userId },
-            data: { chips: { increment: d.amount } }
+            data: { chips: { increment: d.amount } },
+            select: { id: true },
           })
         ),
         prisma.tournament.update({

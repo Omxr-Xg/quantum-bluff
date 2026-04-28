@@ -360,7 +360,7 @@ router.post('/rematch', waitingRoomHostLimiter, authMiddleware, async (req, res)
     if (!oldRoom) return res.status(404).json({ error: 'Partie introuvable' });
     if (oldRoom.hostId !== userId) return res.status(403).json({ error: 'Seul l\'hôte peut relancer avec les mêmes membres' });
 
-    const hostUser = await prisma.user.findUnique({ where: { id: userId } });
+    const hostUser = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
     if (!hostUser) return res.status(404).json({ error: 'Utilisateur non trouvé' });
 
     const newRoom = await prisma.waitingRoom.create({

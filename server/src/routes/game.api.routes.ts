@@ -292,6 +292,7 @@ router.post('/record-result', authMiddleware, async (req, res) => {
         data: {
           chips: { increment: chipsDelta },
         },
+        select: { id: true },
       })
     }
 
