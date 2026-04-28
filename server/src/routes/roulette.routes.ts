@@ -244,7 +244,25 @@ router.post('/spin', authMiddleware, async (req, res) => {
         await addRouletteNetWinProgress(userId, netWin, tx)
       }
       const xpGain = XP_ROULETTE_SPIN + (netPositive ? XP_ROULETTE_WIN_BONUS : 0)
-      const gamification = await awardXpInTransaction(tx, userId, xpGain)
+      let gamification: {
+        experience: number
+        level: number
+        xpToNext: number
+        newBadges: string[]
+      }
+      try {
+        gamification = await awardXpInTransaction(tx, userId, xpGain)
+      } catch (err) {
+        // Ne pas casser un spin roulette pour un incident gamification.
+        console.error('[roulette] gamification fallback:', err)
+        const fallbackLevel = levelFromExperience(user.experience)
+        gamification = {
+          experience: user.experience,
+          level: fallbackLevel,
+          xpToNext: 0,
+          newBadges: [] as string[],
+        }
+      }
       assertRoundTransition(roundState, 'SETTLED')
       logCasinoAuditEvent({
         event: 'round_closed',

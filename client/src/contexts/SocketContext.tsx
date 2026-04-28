@@ -35,8 +35,14 @@ const getSocketConfig = () => {
   let path = '/socket.io';
 
   if (typeof window !== 'undefined') {
-    const { protocol, pathname } = window.location;
+    const { protocol, pathname, hostname } = window.location;
     const pathParts = pathname.split('/');
+
+    // En dev local, forcer le backend direct pour éviter le passage par l'origine Vite
+    // avec un préfixe VM qui casse la montée WS.
+    if (import.meta.env.DEV && (hostname === 'localhost' || hostname === '127.0.0.1')) {
+      return { URL: 'http://localhost:3000', SOCKET_PATH: '/socket.io' };
+    }
 
     // Capacitor / WebView : pas de pathname /vm... — il faut la même base que l’API (déploiement ou URL absolue).
     if (protocol === 'capacitor:' || protocol === 'ionic:' || protocol === 'file:') {
