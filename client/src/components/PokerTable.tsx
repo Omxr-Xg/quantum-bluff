@@ -211,11 +211,23 @@ export function PokerTable({
               isHeroSeat || isHeroName || player.position === 0;
             const shouldReserveOpponentCards =
               !isHeroDisplay && player.position !== 0;
+            const isConnected = player.isConnected !== false;
+            const displayName = isMobile ? player.name.slice(0, 10) : player.name;
+            const actionLabel = player.hasFolded
+              ? t("game.foldedLabel")
+              : player.lastAction;
+            const hasVisibleSeatCards =
+              Boolean(player.cards && player.cards.length > 0 && !player.hasFolded);
+            const avatarSizeClass = player.position === 0
+              ? "w-[clamp(3.1rem,7vw,4.6rem)] h-[clamp(3.1rem,7vw,4.6rem)]"
+              : isMobile
+                ? "w-[clamp(2rem,5vw,2.8rem)] h-[clamp(2rem,5vw,2.8rem)]"
+                : "w-[clamp(2.6rem,5vw,3.75rem)] h-[clamp(2.6rem,5vw,3.75rem)]";
 
             return (
               <div
                 key={player.id}
-                className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
+                className="absolute h-0 w-0 pointer-events-auto"
                 style={{
                   left: isMobile
                     ? `clamp(2%, calc(50% + ${xPct}%), 98%)`
@@ -226,47 +238,8 @@ export function PokerTable({
                   zIndex: player.position === 0 ? 20 : 10,
                 }}
               >
-                <div className="flex flex-col items-center gap-1">
+                <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-visible">
 
-                  {/* Dealer / SB / BB */}
-                  {(player.isDealer || player.role === "SB" || player.role === "BB") && (
-                    <div className="flex flex-wrap items-center justify-center gap-1">
-                      {player.isDealer && (
-                        <div
-                          className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-full bg-white border-2 border-slate-300 text-slate-700 font-bold text-xs md:text-sm shadow-md"
-                          title={t("game.dealer")}
-                        >
-                          D
-                        </div>
-                      )}
-                      {player.role === "SB" && (
-                        <div
-                          className="flex h-7 min-w-[1.75rem] items-center justify-center rounded-full border-2 border-amber-800/40 bg-amber-100 px-1 text-[10px] font-bold text-amber-950 shadow-md md:h-8 md:text-xs"
-                          title={t("lobby.smallBlind")}
-                        >
-                          SB
-                        </div>
-                      )}
-                      {player.role === "BB" && (
-                        <div
-                          className="flex h-7 min-w-[1.75rem] items-center justify-center rounded-full border-2 border-amber-500/50 bg-slate-800 px-1 text-[10px] font-bold text-amber-100 shadow-md md:h-8 md:text-xs"
-                          title={t("lobby.bigBlind")}
-                        >
-                          BB
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Tour actif */}
-                  {player.isActive && (
-                    <div className="inline-flex items-center gap-1 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold animate-pulse">
-                      <Clock className="w-3 h-3 animate-pulse" />
-                      {t("game.theirTurn")}
-                    </div>
-                  )}
-
-                  {/* Avatar */}
                   {(() => {
                     const avatarInner = (
                       <>
@@ -305,13 +278,13 @@ export function PokerTable({
 
                         {/* Indicateur connexion */}
                         <div
-                          className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-800 ${
-                            player.isConnected !== false
-                              ? "bg-green-500 animate-pulse"
-                              : "bg-red-500"
+                          className={`absolute right-0 top-0 z-20 h-3.5 w-3.5 rounded-full border-[2.5px] border-slate-950 ${
+                            isConnected
+                              ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.85)]"
+                              : "bg-slate-500"
                           }`}
                           title={
-                            player.isConnected !== false
+                            isConnected
                               ? t("friends.online")
                               : t("friends.offline")
                           }
@@ -321,18 +294,13 @@ export function PokerTable({
                     );
 
                     const shellClass = `rounded-full overflow-hidden border-2 transition relative
-                      ${
-                        player.position === 0
-                          ? "w-[clamp(2.5rem,7vw,4.5rem)] h-[clamp(2.5rem,7vw,4.5rem)]"
-                          : isMobile
-                            ? "w-[clamp(1.4rem,4vw,2.2rem)] h-[clamp(1.4rem,4vw,2.2rem)]"
-                            : "w-[clamp(2rem,5vw,3.5rem)]  h-[clamp(2rem,5vw,3.5rem)]"
-                      }
+                      ${avatarSizeClass}
                       ${
                         player.hasFolded
                           ? "bg-red-900/60 border-red-500 grayscale"
-                          : "bg-blue-500 border-white"
+                          : "bg-slate-950 border-cyan-100/80"
                       }
+                      shadow-[0_10px_24px_rgba(0,0,0,0.45)]
                       ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`;
 
                     const clickable =
@@ -368,7 +336,7 @@ export function PokerTable({
                         {avatarNode}
                         <div className="pointer-events-none absolute left-1/2 top-[72%] z-30 flex -translate-x-1/2 flex-col items-center drop-shadow-2xl">
                           {player.cards && player.cards.length > 0 && !player.hasFolded && (
-                            <div className="flex items-start justify-center">
+                            <div className="relative z-10 flex items-start justify-center">
                               {player.cards.map((card, index) => (
                                 <div
                                   key={index}
@@ -388,11 +356,11 @@ export function PokerTable({
                               ))}
                             </div>
                           )}
-                          <div className="-mt-5 flex flex-col items-center gap-1">
-                            <div className="rounded-md border border-white/15 bg-slate-950 px-3 py-1 text-xs font-bold leading-none text-white shadow-[0_8px_18px_rgba(0,0,0,0.45)] md:text-sm">
-                              {isMobile ? player.name.slice(0, 10) : player.name}
+                          <div className="-mt-2 flex flex-col items-center gap-1">
+                            <div className="relative z-40 min-w-[4.8rem] rounded-md border border-white/10 bg-slate-950/95 px-3 py-1 text-center text-xs font-bold leading-none text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.55)] md:text-sm">
+                              {displayName}
                             </div>
-                            <div className="inline-flex items-center gap-1.5 rounded-md border border-slate-500/70 bg-slate-900 px-3 py-1 text-xs font-bold leading-none tabular-nums text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.45)] md:text-sm">
+                            <div className="inline-flex min-w-[4.8rem] items-center justify-center gap-1.5 rounded-md border border-slate-600/80 bg-slate-900/95 px-3 py-1 text-xs font-bold leading-none tabular-nums text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.45)] md:text-sm">
                               <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0" />
                               <span>{player.chips.toLocaleString()}</span>
                             </div>
@@ -402,53 +370,91 @@ export function PokerTable({
                     );
                   })()}
 
-                  {/* Nom */}
-                  {!isHeroDisplay && (
-                    <div
-                      className={`text-[clamp(9px,1.2vw,12px)] px-2 py-0.5 rounded font-medium whitespace-nowrap ${
-                        player.hasFolded
-                          ? "bg-red-900/80 text-red-300 line-through"
-                          : "bg-black/90 text-white"
-                      }`}
-                    >
-                      {isMobile ? player.name.slice(0, 7) : player.name}
-                    </div>
-                  )}
-
-                  {/* Dernière action */}
-                  {player.lastAction && (
-                    <div
-                      className="bg-emerald-600/95 text-white text-[clamp(8px,1vw,11px)] px-2 py-0.5 rounded border border-emerald-400/50 shadow-lg whitespace-nowrap max-w-[120px] truncate"
-                      title={player.lastAction}
-                    >
-                      {player.lastAction}
-                    </div>
-                  )}
-
-                  {/* Chips */}
-                  {!isHeroDisplay && (
-                    <div className="flex items-center gap-1 text-white text-[clamp(9px,1.2vw,13px)] font-bold">
-                      <ChipIcon size="sm" />
-                      {player.chips.toLocaleString()}
-                    </div>
-                  )}
-
-                  {/* Cartes adversaires (face cachée / showdown) */}
-                  {shouldReserveOpponentCards && (
-                    <div className={`flex items-start justify-center gap-1 ${isMobile ? "h-[56px]" : "h-[68px]"}`}>
-                      {player.cards && player.cards.length > 0 && !player.hasFolded && (
-                        <>
+                  {!isHeroDisplay && shouldReserveOpponentCards && (
+                    <div className="pointer-events-none absolute left-1/2 top-[68%] z-20 flex -translate-x-1/2 items-start justify-center">
+                      {hasVisibleSeatCards && (
+                        <div className="flex items-start justify-center -space-x-3 opacity-95">
                           {player.cards.map((card, index) => (
                             <PokerCard
                               key={index}
                               suit={card.suit}
                               value={card.value}
-                              size={isMobile ? "xs" : "sm"}
+                              size="xs"
                               faceDown={!isShowdown}
                               colorblindMode={colorblindMode}
+                              className={index === 0 ? "-rotate-6" : "rotate-6"}
                             />
                           ))}
-                        </>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!isHeroDisplay && (
+                    <div className={`pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-[2px] ${hasVisibleSeatCards ? "top-[calc(100%+0.85rem)]" : "top-[calc(100%-0.35rem)]"}`}>
+                      <div
+                        className={`min-w-[4.3rem] max-w-[7rem] truncate rounded-md border px-2.5 py-1 text-center text-[clamp(9px,1vw,12px)] font-bold leading-none shadow-[0_8px_18px_rgba(0,0,0,0.45)] ${
+                          player.hasFolded
+                            ? "border-red-400/35 bg-red-950/90 text-red-200 line-through"
+                            : "border-white/10 bg-slate-950/95 text-slate-100"
+                        }`}
+                      >
+                        {displayName}
+                      </div>
+                      <div className="inline-flex min-w-[4.3rem] items-center justify-center gap-1.5 rounded-md border border-slate-600/75 bg-slate-900/95 px-2.5 py-1 text-[clamp(9px,1vw,12px)] font-bold leading-none tabular-nums text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.45)]">
+                        <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0" />
+                        <span>{player.chips.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {(player.isActive || actionLabel || player.isDealer || player.role === "SB" || player.role === "BB") && (
+                    <div className="pointer-events-none absolute bottom-[calc(100%+0.35rem)] left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-1">
+                      {player.isActive && (
+                        <div className="inline-flex items-center gap-1 rounded-full border border-yellow-200/60 bg-yellow-300 px-2 py-1 text-[10px] font-black leading-none text-black shadow-[0_0_18px_rgba(250,204,21,0.45)] md:text-xs">
+                          <Clock className="h-3 w-3 animate-pulse" />
+                          {t("game.theirTurn")}
+                        </div>
+                      )}
+                      {actionLabel && (
+                        <div
+                          className={`max-w-[7.5rem] truncate rounded-full border px-2.5 py-1 text-[10px] font-black uppercase leading-none shadow-[0_8px_18px_rgba(0,0,0,0.42)] md:text-xs ${
+                            player.hasFolded
+                              ? "border-red-300/50 bg-red-950/90 text-red-200"
+                              : "border-emerald-300/35 bg-emerald-950/90 text-emerald-100"
+                          }`}
+                          title={actionLabel}
+                        >
+                          {actionLabel}
+                        </div>
+                      )}
+                      {(player.isDealer || player.role === "SB" || player.role === "BB") && (
+                        <div className="flex flex-wrap items-center justify-center gap-1">
+                          {player.isDealer && (
+                            <div
+                              className="flex h-6 w-6 items-center justify-center rounded-full border border-white/70 bg-white text-[10px] font-black text-slate-800 shadow-md md:h-7 md:w-7 md:text-xs"
+                              title={t("game.dealer")}
+                            >
+                              D
+                            </div>
+                          )}
+                          {player.role === "SB" && (
+                            <div
+                              className="flex h-6 min-w-[1.55rem] items-center justify-center rounded-full border border-amber-200/70 bg-amber-200 px-1 text-[9px] font-black text-amber-950 shadow-md md:h-7 md:text-[10px]"
+                              title={t("lobby.smallBlind")}
+                            >
+                              SB
+                            </div>
+                          )}
+                          {player.role === "BB" && (
+                            <div
+                              className="flex h-6 min-w-[1.55rem] items-center justify-center rounded-full border border-cyan-200/50 bg-slate-900 px-1 text-[9px] font-black text-cyan-100 shadow-md md:h-7 md:text-[10px]"
+                              title={t("lobby.bigBlind")}
+                            >
+                              BB
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}

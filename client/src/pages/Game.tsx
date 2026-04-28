@@ -269,6 +269,7 @@ export function Game() {
   }, [isBotMode, playersState, minRaise]);
   const [deck, setDeck] = useState<Card[]>([]);
   const [shuffleCount, setShuffleCount] = useState(0);
+  const [showOpeningShuffle, setShowOpeningShuffle] = useState(false);
   const [, _setDealingCard] = useState<number | null>(null);
   const [roundPlayersActed, setRoundPlayersActed] = useState<Set<number>>(new Set());
   const [gameInitialized, setGameInitialized] = useState(false);
@@ -664,12 +665,20 @@ export function Game() {
     return intChips(Math.max(0, highestBet - (activePlayer.bet ?? 0)));
   }, [activePlayers, activePlayer]);
   const isHero = (p: BasePlayer | BotPlayer) => p.id === userId || p.id === "human";
+  const isRoundInteractable =
+    gameInitialized &&
+    phase !== "init" &&
+    phase !== "shuffle" &&
+    phase !== "deal" &&
+    phase !== "showdown" &&
+    !showOpeningShuffle;
   const tablePlayers = activePlayers.map((player) => {
     const base = isHero(player)
       ? { ...player, position: 0, cards: player.cards || [] }
       : { ...player, position: activePlayers.filter((p) => !isHero(p)).indexOf(player) + 1 };
     return {
       ...base,
+      isActive: isRoundInteractable && base.isActive,
       hasFolded: player.hasFolded ?? false,
       lastAction:
         lastBotAction?.name === player.name ? labelForBotTableAction(lastBotAction.kind, t) : undefined,
@@ -1563,6 +1572,23 @@ export function Game() {
       clearTimeout(t);
     };
   }, [phase]);
+
+  useEffect(() => {
+    if (!gameIdParam || !isBotMode) return;
+    setShowOpeningShuffle(true);
+    setShuffleCount(0);
+    const shuffleInterval = setInterval(() => {
+      setShuffleCount((prev) => (prev >= 8 ? prev : prev + 1));
+    }, 150);
+    const t = setTimeout(() => {
+      clearInterval(shuffleInterval);
+      setShowOpeningShuffle(false);
+    }, 1500);
+    return () => {
+      clearInterval(shuffleInterval);
+      clearTimeout(t);
+    };
+  }, [gameIdParam, isBotMode]);
 
   useEffect(() => {
     if (!socket) return;
@@ -3102,7 +3128,7 @@ export function Game() {
       </div>
 
       <AnimatePresence>
-        {phase === "shuffle" && (
+        {(phase === "shuffle" || showOpeningShuffle) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -3667,7 +3693,7 @@ export function Game() {
         </div>
       )}
 
-      {!isSpectating && (
+      {!isSpectating && isRoundInteractable && (
         <PlayerDashboard
           ref={tourRefActions}
           name={heroDisplayName}
@@ -3681,12 +3707,12 @@ export function Game() {
           callAmount={callAmount}
           minRaise={effectiveMinRaise}
           maxRaise={Math.max(0, displayedHeroChips - callAmount)}
-          isMyTurn={handResult === null && isMyTurn}
+          isMyTurn={isRoundInteractable && handResult === null && isMyTurn}
           isLoading={isLoading}
           hasFolded={hasFoldedFromState}
           hasActed={hasPlayerActed}
-          actionsDisabled={Boolean(gameIdParam && !socket)}
-          waitingForPlayer={!isMyTurn && !hasFoldedFromState ? (activePlayer?.name === "Vous" || activePlayer?.name === "you" ? t('game.you') : activePlayer?.name) : undefined}
+          actionsDisabled={!isRoundInteractable || Boolean(gameIdParam && !socket)}
+          waitingForPlayer={isRoundInteractable && !isMyTurn && !hasFoldedFromState ? (activePlayer?.name === "Vous" || activePlayer?.name === "you" ? t('game.you') : activePlayer?.name) : undefined}
           timeLeft={timeLeft ?? 30}
           onToggleQuantum={onQuantumToggleClick}
           onQuantumHoverEnter={onQuantumProbasEnter}
