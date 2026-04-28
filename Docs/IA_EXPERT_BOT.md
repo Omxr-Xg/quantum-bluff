@@ -38,6 +38,8 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
+En développement, `npm run dev` à la racine lance aussi le service IA via `dev:ai`. Après modification de `server/.env`, il faut redémarrer `npm run dev` pour que le backend relise `AI_SERVICE_ENABLED` et `AI_SERVICE_URL`.
+
 Régénérer le modèle :
 
 ```bash

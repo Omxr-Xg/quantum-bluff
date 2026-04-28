@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .expert_rules import label_situation
 from .features import FEATURE_NAMES, FeatureContext, build_features, clamp
 
 
@@ -81,6 +82,24 @@ def _heuristic_scores(ctx: FeatureContext, to_call: float, bot_stack: float) -> 
         fold += 0.6
         raise_score -= 0.25
     return [fold, call, raise_score, all_in]
+
+
+def _teacher_scores(payload: dict[str, Any]) -> tuple[list[float], str, str]:
+    teacher = label_situation(payload)
+    scores = [-0.55, -0.55, -0.55, -0.55]
+    scores[teacher.index] = 1.45 + teacher.confidence
+
+    # Keep the expert difficult but not robotic: nearby acceptable actions retain small mass.
+    if teacher.label == "FOLD":
+        scores[1] += 0.12
+    elif teacher.label == "CHECK_CALL":
+        scores[2] += 0.18
+    elif teacher.label == "RAISE":
+        scores[1] += 0.16
+        scores[3] += 0.08
+    elif teacher.label == "ALL_IN":
+        scores[2] += 0.22
+    return scores, teacher.style, teacher.reason
 
 
 def _choose_action(probs: list[float], temperature: float) -> int:
@@ -176,15 +195,23 @@ def predict_decision(payload: dict[str, Any], model: PolicyModel | None = None) 
     model = model or PolicyModel.load()
     model_scores = model.scores(features)
     heuristic_scores = _heuristic_scores(ctx, float(payload.get("toCall", 0)), float(payload.get("botStack", 0)))
+    teacher_scores, teacher_style, teacher_reason = _teacher_scores(payload)
     logits = [
-        model_score * 0.55 + heuristic_score * 0.45 + random.uniform(-0.08, 0.08)
-        for model_score, heuristic_score in zip(model_scores, heuristic_scores)
+        model_score * 0.25 + heuristic_score * 0.25 + teacher_score * 0.5 + random.uniform(-0.04, 0.04)
+        for model_score, heuristic_score, teacher_score in zip(model_scores, heuristic_scores, teacher_scores)
     ]
     probs = _softmax(logits)
-    temperature = float(payload.get("temperature", 0.92 if ctx.street == "PREFLOP" else 0.78))
+    temperature = float(payload.get("temperature", 0.62 if ctx.street == "PREFLOP" else 0.5))
     temperature = max(0.35, min(1.5, temperature))
     action_idx = _choose_action(probs, temperature)
-    return _legalize(action_idx, payload, ctx, probs)
+    decision = _legalize(action_idx, payload, ctx, probs)
+    return BotDecision(
+        action=decision.action,
+        amount=decision.amount,
+        confidence=decision.confidence,
+        style=teacher_style if decision.style in {"bluff", "pot_control", "discipline"} else decision.style,
+        reason=f"{decision.reason}; teacher={teacher_reason}",
+    )
 
 
 LinearPolicyModel = PolicyModel
