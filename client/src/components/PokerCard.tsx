@@ -161,7 +161,7 @@ export function PokerCardSlot({ size = "md", className = "" }: { size?: CardSize
   const s = SIZE_MAP[size];
   return (
     <div
-      className={`${s.card} rounded-[10px] border-2 border-dashed border-white/20 bg-white/5 ${className}`}
+      className={`${s.card} rounded-[5px] border-2 border-dashed border-white/20 bg-white/5 ${className}`}
     />
   );
 }
