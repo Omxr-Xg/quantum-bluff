@@ -76,17 +76,31 @@ export function EditProfile() {
     try {
       const token = localStorage.getItem("token");
       let avatarToPersist = profileImage;
+      let usernameToPersist = formData.username.trim();
+      let emailToPersist = formData.email.trim();
       if (token) {
-        const result = await updateProfileAvatar({ avatarUrl: profileImage }).unwrap();
+        const result = await updateProfileAvatar({
+          avatarUrl: profileImage,
+          username: usernameToPersist,
+          email: emailToPersist,
+          currentPassword: formData.currentPassword || undefined,
+          newPassword: formData.newPassword || undefined,
+        }).unwrap();
         if (typeof result?.avatarUrl === "string" && result.avatarUrl.trim() !== "") {
           avatarToPersist = result.avatarUrl.trim();
         }
+        usernameToPersist = result.username;
+        emailToPersist = result.email;
       }
       saveUserProfile({
-        username: formData.username,
-        email: formData.email,
+        username: usernameToPersist,
+        email: emailToPersist,
         avatar: avatarToPersist,
       });
+      localStorage.setItem("username", usernameToPersist);
+      localStorage.setItem("quantum_bluff_username", usernameToPersist);
+      localStorage.setItem("quantum_bluff_email", emailToPersist);
+      window.dispatchEvent(new Event("auth-changed"));
       setSuccessMessage(t("editProfile.profileUpdated"));
       setTimeout(() => {
         navigate("/profile");
