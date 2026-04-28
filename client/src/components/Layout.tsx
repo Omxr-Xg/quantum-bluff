@@ -47,8 +47,18 @@ import { GlobalHoverTooltip } from "./GlobalHoverTooltip";
 import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 import { useSendFriendMessageMutation } from "../services/api";
+import { apiUrl } from "../utils/apiBase";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
+type BalanceHistoryEntry = {
+  id: string;
+  createdAt: string;
+  reason: string;
+  gameType?: string | null;
+  amount: number;
+  balanceBefore?: number | null;
+  balanceAfter?: number | null;
+};
 
 type LayoutNotification =
   | {
@@ -107,9 +117,13 @@ export function Layout({ children }: LayoutProps) {
   const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
   const [balance, setBalance] = useState(getUserBalance());
   const [showAddMoney, setShowAddMoney] = useState(false);
+  const [balanceModalTab, setBalanceModalTab] = useState<"history" | "topup">("history");
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [devValidation, setDevValidation] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<BalanceHistoryEntry[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showRateGame, setShowRateGame] = useState(false);
@@ -317,9 +331,53 @@ export function Layout({ children }: LayoutProps) {
   const openAddMoney = () => {
     playSfx("modalOpen");
     setShowAddMoney(true);
+    setBalanceModalTab("history");
+    void loadBalanceHistory();
     setAddMoneyAmount(null);
     setDevValidation("");
     setAddSuccess(false);
+  };
+  const loadBalanceHistory = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const res = await fetch(apiUrl("/api/auth/balance-history?limit=50"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const parsed = (await res.json().catch(() => ({}))) as {
+        entries?: BalanceHistoryEntry[];
+        error?: string;
+      };
+      if (!res.ok) throw new Error(parsed.error || "Impossible de charger l'historique.");
+      setHistoryEntries(Array.isArray(parsed.entries) ? parsed.entries : []);
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : "Impossible de charger l'historique.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  const reasonLabel = (reason: string): string => {
+    const labels: Record<string, string> = {
+      SLOT_STAKE: "Mise slot",
+      SLOT_PAYOUT: "Gain slot",
+      ROULETTE_STAKE: "Mise roulette",
+      ROULETTE_PAYOUT: "Gain roulette",
+      BLACKJACK_STAKE: "Mise blackjack",
+      BLACKJACK_PAYOUT: "Gain blackjack",
+      HIDDEN_BET_STAKE: "Mise pari caché",
+      HIDDEN_BET_PAYOUT: "Gain pari caché",
+      HIDDEN_BET_REFUND_VOID: "Remboursement pari annulé",
+      HIDDEN_BET_REFUND_CANCEL: "Remboursement pari annulé",
+      LOAN_FUNDED_IN: "Prêt reçu",
+      LOAN_FUNDED_OUT: "Prêt envoyé",
+      LOAN_REPAYMENT_IN: "Remboursement reçu",
+      LOAN_REPAYMENT_OUT: "Remboursement envoyé",
+      DEV_TOPUP: "Ajout de solde",
+    };
+    return labels[reason] || reason;
   };
   const closeAddMoney = () => {
     playSfx("modalClose");
@@ -335,6 +393,7 @@ export function Layout({ children }: LayoutProps) {
     if (devValidation.trim().toLowerCase() !== "dev") return;
     const newBalance = await addDevMoney(addMoneyAmount);
     setBalance(newBalance);
+    await loadBalanceHistory();
     setAddSuccess(true);
     playSfx("success");
     setTimeout(closeAddMoney, 800);
@@ -829,14 +888,84 @@ export function Layout({ children }: LayoutProps) {
       {/* Modal Ajouter des jetons */}
       {showTopBar && showAddMoney && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
-          <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-gradient-to-b from-[#17130f] via-[#120f0c] to-[#0f0d0b] border border-amber-500/40 rounded-2xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">{t("lobby.addMoneyTitle")}</h3>
+              <h3 className="bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-xl font-bold text-transparent">
+                {t("lobby.addMoneyTitle")}
+              </h3>
               <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            {addSuccess ? (
+            <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-amber-700/25 bg-[#1a1511]/55 p-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setBalanceModalTab("history");
+                  void loadBalanceHistory();
+                }}
+                className={`min-h-[2.6rem] rounded-lg border px-3 py-2 text-sm font-semibold tracking-wide transition ${
+                  balanceModalTab === "history"
+                    ? "border-amber-300/60 bg-gradient-to-b from-amber-700/35 to-amber-900/35 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_18px_rgba(0,0,0,0.22)]"
+                    : "border-slate-600/80 bg-slate-800/75 text-slate-300 hover:border-slate-500 hover:bg-slate-700/80"
+                }`}
+              >
+                Historique
+              </button>
+              <button
+                type="button"
+                onClick={() => setBalanceModalTab("topup")}
+                className={`min-h-[2.6rem] rounded-lg border px-3 py-2 text-sm font-semibold tracking-wide transition ${
+                  balanceModalTab === "topup"
+                    ? "border-amber-300/60 bg-gradient-to-b from-amber-700/35 to-amber-900/35 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_18px_rgba(0,0,0,0.22)]"
+                    : "border-slate-600/80 bg-slate-800/75 text-slate-300 hover:border-slate-500 hover:bg-slate-700/80"
+                }`}
+              >
+                Alimenter le compte
+              </button>
+            </div>
+            {balanceModalTab === "history" ? (
+              <>
+                {historyLoading ? <p className="text-slate-300 text-center py-4">Chargement...</p> : null}
+                {historyError ? <p className="text-rose-300 text-sm text-center py-3">{historyError}</p> : null}
+                {!historyLoading && !historyError ? (
+                  <div className="max-h-[50vh] space-y-2 overflow-y-auto pr-1">
+                    {historyEntries.length === 0 ? (
+                      <p className="text-slate-400 text-center py-6">Aucun mouvement.</p>
+                    ) : (
+                      historyEntries.map((entry) => {
+                        const before = typeof entry.balanceBefore === "number" ? entry.balanceBefore : null;
+                        const after = typeof entry.balanceAfter === "number" ? entry.balanceAfter : null;
+                        const delta = before !== null && after !== null ? after - before : entry.amount;
+                        return (
+                          <div key={entry.id} className="rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-semibold text-white">{reasonLabel(entry.reason)}</p>
+                                <p className="text-xs text-slate-400">
+                                  {new Intl.DateTimeFormat("fr-CA", {
+                                    dateStyle: "medium",
+                                    timeStyle: "short",
+                                  }).format(new Date(entry.createdAt))}
+                                </p>
+                              </div>
+                              <p className={`text-sm font-bold ${delta >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                                {delta >= 0 ? "+" : ""}
+                                {delta.toLocaleString()}
+                              </p>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-400">
+                              Avant: {before !== null ? before.toLocaleString() : "—"} · Apres:{" "}
+                              {after !== null ? after.toLocaleString() : "—"}
+                            </p>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                ) : null}
+              </>
+            ) : addSuccess ? (
               <p className="text-green-400 font-medium text-center py-4">{t("lobby.captchaSuccess")}</p>
             ) : (
               <>
@@ -849,7 +978,7 @@ export function Layout({ children }: LayoutProps) {
                       onClick={() => setAddMoneyAmount(amount)}
                       className={`px-4 py-2 rounded-lg font-bold transition ${
                         addMoneyAmount === amount
-                          ? "bg-yellow-500 text-slate-900"
+                          ? "bg-amber-500 text-slate-900"
                           : "bg-slate-700 text-slate-200 hover:bg-slate-600"
                       }`}
                     >
@@ -859,7 +988,9 @@ export function Layout({ children }: LayoutProps) {
                 </div>
                 {addMoneyAmount != null && (
                   <div className="space-y-2">
-                    <label className="text-slate-300 text-sm block">{t("lobby.devValidation") || 'Tapez "dev" pour valider'}</label>
+                    <label className="text-slate-300 text-sm block">
+                      {t("lobby.devValidation") || 'Tapez "dev" pour valider'}
+                    </label>
                     <input
                       type="text"
                       value={devValidation}
@@ -873,9 +1004,9 @@ export function Layout({ children }: LayoutProps) {
                       type="button"
                       onClick={submitAddMoney}
                       disabled={devValidation.trim().toLowerCase() !== "dev"}
-                      className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
+                      className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
                     >
-                      {t("lobby.validate")}
+                      Valider l'alimentation
                     </button>
                   </div>
                 )}

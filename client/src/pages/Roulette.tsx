@@ -344,15 +344,43 @@ function computeRouletteTargetRotation(
   currentRotation: number,
   segmentIndex: number,
   segmentCount: number,
-  fullTurns: number
+  fullTurns: number,
+  landingAngleDeg: number
 ): number {
   const stepDeg = 360 / segmentCount;
-  // RouletteWheelSvg : centre du segment i à (i+0.5)*step - 90°, repère haut = -90°
-  const targetRemainder = mod360(-(segmentIndex + 0.5) * stepDeg);
+  // RouletteWheelSvg : centre du segment i à (i+0.5)*step - 90°.
+  // On force ce centre à tomber à un angle absolu variable (landingAngleDeg),
+  // ce qui évite une chute toujours "en haut".
+  const targetRemainder = mod360(landingAngleDeg + 90 - (segmentIndex + 0.5) * stepDeg);
   const currentRem = mod360(currentRotation);
   let delta = targetRemainder - currentRem;
   if (delta > 0) delta -= 360;
   return currentRotation + delta - fullTurns * 360;
+}
+
+/**
+ * Cible d'orbite de bille qui:
+ * - respecte un mouvement "avant" (sens inverse de la roue ici),
+ * - et finit exactement sur la case gagnante.
+ */
+function computeBallOrbitTarget(
+  currentBallOrbit: number,
+  landingAngleDeg: number,
+  segmentCount: number,
+  minForwardTurns: number,
+  landingOffsetRatio: number
+): number {
+  const stepDeg = 360 / segmentCount;
+  // La bille démarre en haut (-90°). On veut qu'à la fin elle soit au centre du segment gagnant.
+  const clampedOffset = Math.max(-0.42, Math.min(0.42, landingOffsetRatio));
+  // angle bille = -90 + orbit; donc orbit = angleBille + 90.
+  const desiredOrbitRemainder = mod360(landingAngleDeg + 90 + clampedOffset * stepDeg);
+  const currentRem = mod360(currentBallOrbit);
+  let delta = desiredOrbitRemainder - currentRem;
+  if (delta < 0) delta += 360;
+  const minAdvance = minForwardTurns * 360;
+  while (delta < minAdvance) delta += 360;
+  return currentBallOrbit + delta;
 }
 
 /** Affiche pile de jetons + montant sur une case du tapis. */
@@ -411,7 +439,15 @@ function PlacedChipsBadge({
   );
 }
 
-function RouletteWheelSvg({ wheelOrder, rotation }: { wheelOrder: number[]; rotation: MotionValue<number> }) {
+function RouletteWheelSvg({
+  wheelOrder,
+  rotation,
+  ballOrbit,
+}: {
+  wheelOrder: number[];
+  rotation: MotionValue<number>;
+  ballOrbit: MotionValue<number>;
+}) {
   const uid = useId().replace(/:/g, "");
   const n = wheelOrder.length;
   const step = 360 / n;
@@ -470,16 +506,6 @@ function RouletteWheelSvg({ wheelOrder, rotation }: { wheelOrder: number[]; rota
 
   return (
     <div className="relative mx-auto w-[min(100%,380px)] aspect-square">
-      {/* Indicateur fixe type « flipper » */}
-      <div className="pointer-events-none absolute left-1/2 top-0 z-30 flex -translate-x-1/2 -translate-y-1 flex-col items-center">
-        <div
-          className="h-0 w-0 border-l-[12px] border-r-[12px] border-t-[20px] border-l-transparent border-r-transparent border-t-[#f5e6b8] drop-shadow-[0_3px_6px_rgba(0,0,0,0.85)]"
-          style={{ filter: "drop-shadow(0 0 4px rgba(212,175,55,0.8))" }}
-          aria-hidden
-        />
-        <div className="-mt-px h-2 w-4 rounded-b-sm bg-gradient-to-b from-amber-200 to-amber-700 shadow-md" />
-      </div>
-
       {/* Cuvette fixe (bois + laiton) */}
       <div
         className="absolute inset-[6px] rounded-full p-[9px] shadow-[0_24px_48px_rgba(0,0,0,0.75),inset_0_2px_8px_rgba(255,255,255,0.06)] ring-1 ring-black/60"
@@ -560,6 +586,9 @@ function RouletteWheelSvg({ wheelOrder, rotation }: { wheelOrder: number[]; rota
                   <circle cx="50" cy="50" r={rIn - 2.5} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth={0.2} />
                 </svg>
               </motion.div>
+              <motion.div className="pointer-events-none absolute inset-0 z-20" style={{ rotate: ballOrbit }} aria-hidden>
+                <div className="absolute left-1/2 top-[8%] h-3.5 w-3.5 -translate-x-1/2 rounded-full border border-slate-100/90 bg-gradient-to-b from-white via-slate-100 to-slate-300 shadow-[0_0_10px_rgba(255,255,255,0.7),0_3px_10px_rgba(0,0,0,0.5)]" />
+              </motion.div>
             </div>
           </div>
         </div>
@@ -589,8 +618,8 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   const [chips, setChips] = useState<number | null>(null);
   const [minBet, setMinBet] = useState(10);
   /** Alignés sur le palier bas (niveau 1) jusqu’au chargement config + gamification. */
-  const [maxBetPerLine, setMaxBetPerLine] = useState(250);
-  const [maxTotalStake, setMaxTotalStake] = useState(1500);
+  const [maxBetPerLine, setMaxBetPerLine] = useState(750);
+  const [maxTotalStake, setMaxTotalStake] = useState(5000);
   const [limitsLoaded, setLimitsLoaded] = useState(false);
   const [wheelOrder, setWheelOrder] = useState<number[]>(DEFAULT_WHEEL);
   /** Somme des jetons tapés avant de poser sur le tapis. */
@@ -609,6 +638,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   const [lastColor, setLastColor] = useState<string | null>(null);
   const wheelSectionRef = useRef<HTMLDivElement>(null);
   const rotation = useMotionValue(0);
+  const ballOrbit = useMotionValue(0);
   const streetBases = useMemo(() => buildStreetBases(), []);
   const sixBases = useMemo(() => buildSixLineBases(), []);
   const corners = useMemo(() => buildCornerDefs(), []);
@@ -637,8 +667,8 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
     try {
       const url = apiUrl("/api/roulette/config");
       const res = await fetch(url);
-      let lineCap = 250;
-      let totalCap = 1500;
+      let lineCap = 750;
+      let totalCap = 5000;
       if (res.ok) {
         const data = await res.json();
         if (typeof data?.minBet === "number") setMinBet(Math.max(1, Math.floor(data.minBet)));
@@ -654,10 +684,12 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         lineCap = Math.min(lineCap, g.maxBetRouletteLine);
       }
       if (typeof g.maxRouletteTotalStake === "number") {
-        totalCap = Math.min(totalCap, g.maxRouletteTotalStake);
+        // Ne jamais descendre sous la limite roulette métier (5000) à cause
+        // d'une valeur gamification obsolète en cache/session.
+        totalCap = Math.max(totalCap, g.maxRouletteTotalStake);
       }
       setMaxBetPerLine(lineCap);
-      setMaxTotalStake(totalCap);
+      setMaxTotalStake(Math.max(5000, totalCap));
     } catch {
       /* defaults déjà cohérents (250 / 1500) */
     } finally {
@@ -853,17 +885,36 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
       if (segmentIndex < 0) segmentIndex = 0;
 
       const fullTurns = 5;
+      // Angle absolu de chute de la bille (variable à chaque spin).
+      const landingAngleDeg = Math.random() * 360 - 180;
       const targetAngle = computeRouletteTargetRotation(
         rotation.get(),
         segmentIndex,
         wheelOrder.length,
-        fullTurns
+        fullTurns,
+        landingAngleDeg
       );
 
-      await animate(rotation, targetAngle, {
-        duration: 3.8,
-        ease: [0.2, 0.8, 0.2, 1],
-      });
+      // Effet réel: la roue tourne dans un sens, la bille dans l'autre,
+      // puis la bille termine précisément sur la case du résultat.
+      const landingOffsetRatio = (Math.random() * 2 - 1) * 0.32;
+      const ballTarget = computeBallOrbitTarget(
+        ballOrbit.get(),
+        landingAngleDeg,
+        wheelOrder.length,
+        fullTurns + 1,
+        landingOffsetRatio
+      );
+      await Promise.all([
+        animate(rotation, targetAngle, {
+          duration: 3.8,
+          ease: [0.2, 0.8, 0.2, 1],
+        }),
+        animate(ballOrbit, ballTarget, {
+          duration: 3.8,
+          ease: [0.12, 0.78, 0.22, 1],
+        }),
+      ]);
 
       setLastResult(result);
       setLastColor(typeof data.resultColor === "string" ? data.resultColor : null);
@@ -997,7 +1048,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
             ref={wheelSectionRef}
             className="flex flex-col items-center rounded-2xl border border-slate-600/80 bg-slate-800/40 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] scroll-mt-3 md:scroll-mt-4"
           >
-            <RouletteWheelSvg wheelOrder={wheelOrder} rotation={rotation} />
+            <RouletteWheelSvg wheelOrder={wheelOrder} rotation={rotation} ballOrbit={ballOrbit} />
             <div className="mt-5 min-h-[2.75rem] w-full max-w-xs rounded-lg border border-slate-600 bg-slate-900/60 px-4 py-2 text-center text-sm text-slate-200">
               {lastResult !== null ? (
                 <span>

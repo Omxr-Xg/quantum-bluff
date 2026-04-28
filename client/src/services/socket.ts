@@ -37,6 +37,12 @@ const resolveSocketPath = (): string => {
   const explicit = (import.meta.env.VITE_SOCKET_PATH ?? '').toString().trim()
   if (explicit) return explicit.startsWith('/') ? explicit : `/${explicit}`
 
+  // Dev local: toujours chemin backend direct, jamais préfixe VM.
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname
+    if (import.meta.env.DEV && (h === 'localhost' || h === '127.0.0.1')) return '/socket.io'
+  }
+
   const hasSocketEnv = Boolean((import.meta.env.VITE_SOCKET_URL ?? '').toString().trim())
 
   if (hasSocketEnv) return '/socket.io'

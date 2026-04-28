@@ -3,7 +3,7 @@
  */
 import type { PrismaClient } from '../generated/prisma/index.js'
 import { SLOT_MAX_BET_CAP, SLOT_MIN_BET } from './slotMachine.js'
-import { ROULETTE_MAX_TOTAL_STAKE } from './roulette.js'
+import { ROULETTE_MAX_BET_CAP, ROULETTE_MAX_TOTAL_STAKE } from './roulette.js'
 
 /** XP total requis pour atteindre le niveau L (L >= 1). T(1)=0, T(2)=100, T(3)=300, … formule 50*L*(L-1). */
 export function xpThresholdForLevel(level: number): number {
@@ -45,15 +45,13 @@ export function getEffectiveBlackjackMaxBet(level: number): number {
 }
 
 export function getEffectiveRouletteMaxPerLine(level: number): number {
-  return getEffectiveSlotMaxBet(level)
+  void level
+  return ROULETTE_MAX_BET_CAP
 }
 
 export function getEffectiveRouletteMaxTotalStake(level: number): number {
-  const L = Math.max(1, Math.min(level, MAX_LEVEL))
-  const minTotal = 1500
-  const span = ROULETTE_MAX_TOTAL_STAKE - minTotal
-  const t = Math.min(1, (L - 1) / 24)
-  return Math.min(ROULETTE_MAX_TOTAL_STAKE, Math.floor(minTotal + t * span))
+  void level
+  return ROULETTE_MAX_TOTAL_STAKE
 }
 
 export type BadgeDefinition = {
@@ -123,43 +121,41 @@ export async function awardXpInTransaction(
   amount: number
 ): Promise<AwardXpResult> {
   const delta = Math.max(0, Math.floor(amount))
-  if (delta === 0) {
-    const u = await tx.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { experience: true, level: true },
-    })
-    return {
-      experience: u.experience,
-      level: u.level,
-      xpToNext: xpToNextLevel(u.experience, levelFromExperience(u.experience)),
-      newBadges: [],
-    }
-  }
-
-  await tx.user.update({
-    where: { id: userId },
-    data: { experience: { increment: delta } },
-    select: { id: true },
-  })
-
   const u = await tx.user.findUniqueOrThrow({
     where: { id: userId },
     select: { experience: true, level: true },
   })
 
-  const newLevel = levelFromExperience(u.experience)
+  if (delta === 0) {
+    const levelFromXp = levelFromExperience(u.experience)
+    return {
+      experience: u.experience,
+      level: u.level,
+      xpToNext: xpToNextLevel(u.experience, levelFromXp),
+      newBadges: [],
+    }
+  }
+
+  // Avoid Prisma `increment` operator here: with some runtime adapters this update path
+  // intermittently throws `InvalidArg` in transactions. Setting the absolute value is stable.
+  const nextExperience = Math.max(0, Math.floor(u.experience + delta))
+  const newLevel = levelFromExperience(nextExperience)
+
   await tx.user.update({
     where: { id: userId },
-    data: { level: newLevel },
+    data: {
+      experience: nextExperience,
+      level: newLevel,
+    },
     select: { id: true },
   })
 
   const newBadges = await unlockBadgesForLevel(tx, userId, newLevel)
 
   return {
-    experience: u.experience,
+    experience: nextExperience,
     level: newLevel,
-    xpToNext: xpToNextLevel(u.experience, newLevel),
+    xpToNext: xpToNextLevel(nextExperience, newLevel),
     newBadges,
   }
 }
