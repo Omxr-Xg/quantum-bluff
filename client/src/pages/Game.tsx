@@ -309,6 +309,7 @@ export function Game() {
   const roundPlayersActedRef = useRef<Set<number>>(new Set());
   roundPlayersActedRef.current = roundPlayersActed;
   const deckRef = useRef<Card[]>([]);
+  const autoTimerActionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dealerIndexRef = useRef<number>(-1);
   const communityCardsStateRef = useRef<(Card | null)[]>([]);
   const startOfHandChipsRef = useRef(0);
@@ -678,7 +679,7 @@ export function Game() {
       : { ...player, position: activePlayers.filter((p) => !isHero(p)).indexOf(player) + 1 };
     return {
       ...base,
-      isActive: isRoundInteractable && base.isActive,
+      isActive: isRoundInteractable && base.isActive && !(isHero(player) && (hasPlayerActed || isLoading)),
       hasFolded: player.hasFolded ?? false,
       lastAction:
         lastBotAction?.name === player.name ? labelForBotTableAction(lastBotAction.kind, t) : undefined,
@@ -1594,7 +1595,7 @@ export function Game() {
     if (!socket) return;
     socket.on("TURN_TIMER", (data: { gameId: string; timeLeft: number }) => {
       if (phaseRef.current === "showdown") return;
-      if (typeof data.timeLeft === "number" && data.timeLeft > 0) {
+      if (typeof data.timeLeft === "number" && data.timeLeft > turnTimeLimitSecRef.current) {
         turnTimeLimitSecRef.current = data.timeLeft;
       }
       setTimeLeft(data.timeLeft);
@@ -1610,6 +1611,10 @@ export function Game() {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
+      if (autoTimerActionTimeoutRef.current) {
+        clearTimeout(autoTimerActionTimeoutRef.current);
+        autoTimerActionTimeoutRef.current = null;
+      }
       return;
     }
 
@@ -1620,6 +1625,10 @@ export function Game() {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
+      if (autoTimerActionTimeoutRef.current) {
+        clearTimeout(autoTimerActionTimeoutRef.current);
+        autoTimerActionTimeoutRef.current = null;
+      }
       return;
     }
 
@@ -1628,18 +1637,25 @@ export function Game() {
 
     timerIntervalRef.current = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
+        if (prev <= 2) {
           if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
             timerIntervalRef.current = null;
           }
-          setTimerActive(false);
-          if (!hasPlayerActedRef.current) {
-            if (callAmount === 0) {
-              handleCheck();
-            } else {
-              handleFold();
-            }
+          if (!gameIdParam && !autoTimerActionTimeoutRef.current) {
+            autoTimerActionTimeoutRef.current = setTimeout(() => {
+              autoTimerActionTimeoutRef.current = null;
+              setTimerActive(false);
+              if (!hasPlayerActedRef.current) {
+                if (callAmount === 0) {
+                  handleCheck();
+                } else {
+                  handleFold();
+                }
+              }
+            }, 1000);
+          } else if (gameIdParam) {
+            setTimerActive(false);
           }
           return 0;
         }
@@ -1652,8 +1668,12 @@ export function Game() {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
+      if (autoTimerActionTimeoutRef.current) {
+        clearTimeout(autoTimerActionTimeoutRef.current);
+        autoTimerActionTimeoutRef.current = null;
+      }
     };
-  }, [isMyTurn, gameInitialized, phase, callAmount, hasPlayerActed]);
+  }, [isMyTurn, gameInitialized, phase, callAmount, hasPlayerActed, gameIdParam]);
 
   useEffect(() => {
     const hero = playersState.find((p) => p.id === userId || p.id === "human");
@@ -3607,7 +3627,7 @@ export function Game() {
         burnedCardsCount={displayBurnedCardsCount}
         colorblindMode={colorblindMode}
         heroSeatId={heroPlayer?.id ?? null}
-        heroTimerActive={isRoundInteractable && handResult === null && isMyTurn && !hasFoldedFromState}
+        heroTimerActive={isRoundInteractable && handResult === null && isMyTurn && !hasFoldedFromState && !hasPlayerActed && !isLoading}
         heroTimerTimeLeft={timeLeft}
         heroTimerDuration={gameIdParam ? turnTimeLimitSecRef.current : 30}
         enableAvatarInteractions={Boolean(!isBotMode && gameIdParam && userId)}

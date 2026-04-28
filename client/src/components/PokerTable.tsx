@@ -228,7 +228,9 @@ export function PokerTable({
               0,
               Math.min(timerDuration, heroTimerTimeLeft ?? timerDuration)
             );
-            const timerProgress = Math.round((timerLeft / timerDuration) * 100);
+            const timerProgress = (timerLeft / timerDuration) * 100;
+            const timerArcLength = 100;
+            const timerArcOffset = timerArcLength - timerProgress;
             const showHeroTimer =
               isHeroDisplay && heroTimerActive && heroTimerTimeLeft != null;
             const avatarSizeClass = player.position === 0
@@ -299,7 +301,7 @@ export function PokerTable({
                           : "bg-slate-950 border-cyan-100/80"
                       }
                       shadow-[0_10px_24px_rgba(0,0,0,0.45)]
-                      ${player.isActive ? "ring-4 ring-yellow-400 animate-pulse" : ""}`;
+                      ${player.isActive && !isHeroDisplay ? "ring-2 ring-yellow-300/80" : ""}`;
 
                     const clickable =
                       !isHeroSeat &&
@@ -332,19 +334,33 @@ export function PokerTable({
                     return (
                       <div className="relative flex items-center justify-center">
                         {showHeroTimer && (
-                          <div
-                            className={`pointer-events-none absolute -inset-[0.42rem] rounded-full p-[3px] shadow-[0_0_20px_rgba(251,191,36,0.38)] ${
+                          <svg
+                            className={`pointer-events-none absolute -inset-[0.62rem] z-20 h-[calc(100%+1.24rem)] w-[calc(100%+1.24rem)] overflow-visible ${
                               timerLeft <= 5 ? "animate-pulse" : ""
                             }`}
-                            style={{
-                              background: `conic-gradient(${
-                                timerLeft <= 5 ? "#ef4444" : "#facc15"
-                              } ${timerProgress}%, rgba(15,23,42,0.55) 0)`,
-                            }}
+                            viewBox="0 0 100 100"
                             aria-hidden="true"
                           >
-                            <div className="h-full w-full rounded-full bg-slate-950/85" />
-                          </div>
+                            <path
+                              d="M 9 50 A 41 41 0 0 1 91 50"
+                              fill="none"
+                              stroke="rgba(15,23,42,0.45)"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                            />
+                            <path
+                              d="M 9 50 A 41 41 0 0 1 91 50"
+                              fill="none"
+                              stroke={timerLeft <= 5 ? "#ef4444" : "#facc15"}
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              pathLength={timerArcLength}
+                              strokeDasharray={timerArcLength}
+                              strokeDashoffset={timerArcOffset}
+                              className="drop-shadow-[0_0_6px_rgba(250,204,21,0.65)]"
+                              style={{ transition: "stroke-dashoffset 1s linear, stroke 0.2s ease" }}
+                            />
+                          </svg>
                         )}
                         <div className="relative z-10">{avatarNode}</div>
                         <div className="pointer-events-none absolute left-1/2 top-[72%] z-30 flex -translate-x-1/2 flex-col items-center drop-shadow-2xl">
@@ -426,7 +442,7 @@ export function PokerTable({
                       {player.isActive && (
                         <div className="inline-flex items-center gap-1 rounded-full border border-yellow-200/60 bg-yellow-300 px-2 py-1 text-[10px] font-black leading-none text-black shadow-[0_0_18px_rgba(250,204,21,0.45)] md:text-xs">
                           <Clock className="h-3 w-3 animate-pulse" />
-                          {t("game.theirTurn")}
+                          {isHeroDisplay ? t("game.yourTurn") : t("game.theirTurn")}
                         </div>
                       )}
                       {actionLabel && (
