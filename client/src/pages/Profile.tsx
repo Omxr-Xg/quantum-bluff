@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { User, TrendingUp, Trophy, Target, DollarSign, Gamepad2, Home, Award } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { QuantumBluffLogo } from "../assets/logo";
-import { getUserProfile } from "../utils/userProfile";
+import { getUserProfile, PROFILE_CHANGED_EVENT } from "../utils/userProfile";
 import { HelpButton } from "../components/HelpButton";
 import { useUser } from "../hooks/useUser";
 import { useGetPlayerStatsQuery } from "../services/api";
@@ -14,16 +14,37 @@ import {
   refreshGamificationFromServer,
 } from "../utils/gamificationStorage";
 
+function withAvatarVersion(url: string, version: number): string {
+  if (!url || url.startsWith("data:")) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}v=${version}`;
+}
+
 export function Profile() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { userId } = useUser();
 
   // Vérifier si on vient d'une partie en cours
   const isInGame = sessionStorage.getItem("currentGame");
 
-  // Charger les données du profil depuis localStorage
-  const userProfile = getUserProfile();
+  // Charger les données du profil depuis localStorage, puis écouter les mises à jour venant d'EditProfile.
+  const [userProfile, setUserProfile] = useState(() => getUserProfile());
+  const [avatarVersion, setAvatarVersion] = useState(() => Date.now());
+
+  useEffect(() => {
+    const syncProfile = () => {
+      setUserProfile(getUserProfile());
+      setAvatarVersion(Date.now());
+    };
+    syncProfile();
+    window.addEventListener(PROFILE_CHANGED_EVENT, syncProfile);
+    window.addEventListener("auth-changed", syncProfile);
+    return () => {
+      window.removeEventListener(PROFILE_CHANGED_EVENT, syncProfile);
+      window.removeEventListener("auth-changed", syncProfile);
+    };
+  }, [location.key]);
 
   const { data: stats } = useGetPlayerStatsQuery(userId ?? "", {
     skip: !userId,
@@ -52,7 +73,7 @@ export function Profile() {
   const profileData = {
     name: userProfile.username,
     email: userProfile.email,
-    avatar: userProfile.avatar,
+    avatar: withAvatarVersion(userProfile.avatar, avatarVersion),
     balance: userProfile.balance,
     totalGains,
     matchesPlayed: totalGames,
