@@ -715,6 +715,18 @@ export function Game() {
     ? burnedCardsCount
     : (phase === "flop" ? 1 : phase === "turn" ? 2 : phase === "river" || phase === "showdown" ? 3 : 0);
 
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("game-hud-state", {
+        detail: { phase, isMyTurn },
+      })
+    );
+  }, [phase, isMyTurn]);
+
+  useEffect(() => {
+    return () => window.dispatchEvent(new Event("game-hud-reset"));
+  }, []);
+
   const generateDeck = (): Card[] => {
     const suits: Array<"hearts" | "diamonds" | "clubs" | "spades"> = ["hearts", "diamonds", "clubs", "spades"];
     const values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];

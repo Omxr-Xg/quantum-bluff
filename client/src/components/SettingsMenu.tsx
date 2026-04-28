@@ -18,6 +18,7 @@ interface SettingsMenuProps {
   onClose: () => void;
   initialTab?: SettingsTab;
   onRateGame?: () => void;
+  hideAestheticTab?: boolean;
 }
 
 const THEME_IDS: TableThemeId[] = [
@@ -32,6 +33,7 @@ export function SettingsMenu({
   onClose,
   initialTab = "aesthetic",
   onRateGame,
+  hideAestheticTab = false,
 }: SettingsMenuProps) {
   const { t } = useTranslation();
   const {
@@ -56,14 +58,19 @@ export function SettingsMenu({
     setSfxVolume,
     playSfx,
   } = useAudio();
-  const [tab, setTab] = useState<SettingsTab>(initialTab);
+  const initialVisibleTab = hideAestheticTab && initialTab === "aesthetic" ? "audio" : initialTab;
+  const [tab, setTab] = useState<SettingsTab>(initialVisibleTab);
 
   useEffect(() => {
     if (isOpen) {
-      setTab(initialTab);
+      setTab(hideAestheticTab && initialTab === "aesthetic" ? "audio" : initialTab);
       playSfx("modalOpen");
     }
-  }, [isOpen, initialTab, playSfx]);
+  }, [isOpen, initialTab, hideAestheticTab, playSfx]);
+
+  useEffect(() => {
+    if (hideAestheticTab && tab === "aesthetic") setTab("audio");
+  }, [hideAestheticTab, tab]);
 
   if (!isOpen) return null;
 
@@ -121,13 +128,13 @@ export function SettingsMenu({
         </div>
 
         <div className="px-6 pt-4 flex gap-2 border-b border-slate-700/80">
-          {renderTabButton("aesthetic", t("settings.tabAesthetic"))}
+          {!hideAestheticTab && renderTabButton("aesthetic", t("settings.tabAesthetic"))}
           {renderTabButton("audio", t("settings.tabAudio"))}
           {renderTabButton("accessibility", t("settings.tabAccessibility"))}
         </div>
 
         <div className="p-6 space-y-6">
-          {tab === "aesthetic" && (
+          {!hideAestheticTab && tab === "aesthetic" && (
             <div className="space-y-4">
               <p className="text-slate-300 text-sm">{t("settings.tableThemeHint")}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
