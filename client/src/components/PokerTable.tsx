@@ -39,6 +39,9 @@ interface PokerTableProps {
   burnedCardsCount?: number;
   colorblindMode?: boolean;
   heroSeatId?: string | number | null;
+  heroTimerActive?: boolean;
+  heroTimerTimeLeft?: number;
+  heroTimerDuration?: number;
   /** Clic sur l’avatar d’un adversaire (multijoueur) : menu invitation / message / signalement */
   onOpponentAvatarClick?: (player: Player) => void;
   enableAvatarInteractions?: boolean;
@@ -56,6 +59,9 @@ export function PokerTable({
   burnedCardsCount = 0,
   colorblindMode = false,
   heroSeatId = null,
+  heroTimerActive = false,
+  heroTimerTimeLeft,
+  heroTimerDuration = 30,
   onOpponentAvatarClick,
   enableAvatarInteractions = false,
 }: PokerTableProps) {
@@ -217,6 +223,14 @@ export function PokerTable({
               : player.lastAction;
             const hasVisibleSeatCards =
               Boolean(player.cards && player.cards.length > 0 && !player.hasFolded);
+            const timerDuration = Math.max(1, heroTimerDuration);
+            const timerLeft = Math.max(
+              0,
+              Math.min(timerDuration, heroTimerTimeLeft ?? timerDuration)
+            );
+            const timerProgress = Math.round((timerLeft / timerDuration) * 100);
+            const showHeroTimer =
+              isHeroDisplay && heroTimerActive && heroTimerTimeLeft != null;
             const avatarSizeClass = player.position === 0
               ? "w-[clamp(3.1rem,7vw,4.6rem)] h-[clamp(3.1rem,7vw,4.6rem)]"
               : isMobile
@@ -317,7 +331,22 @@ export function PokerTable({
 
                     return (
                       <div className="relative flex items-center justify-center">
-                        {avatarNode}
+                        {showHeroTimer && (
+                          <div
+                            className={`pointer-events-none absolute -inset-[0.42rem] rounded-full p-[3px] shadow-[0_0_20px_rgba(251,191,36,0.38)] ${
+                              timerLeft <= 5 ? "animate-pulse" : ""
+                            }`}
+                            style={{
+                              background: `conic-gradient(${
+                                timerLeft <= 5 ? "#ef4444" : "#facc15"
+                              } ${timerProgress}%, rgba(15,23,42,0.55) 0)`,
+                            }}
+                            aria-hidden="true"
+                          >
+                            <div className="h-full w-full rounded-full bg-slate-950/85" />
+                          </div>
+                        )}
+                        <div className="relative z-10">{avatarNode}</div>
                         <div className="pointer-events-none absolute left-1/2 top-[72%] z-30 flex -translate-x-1/2 flex-col items-center drop-shadow-2xl">
                           {player.cards && player.cards.length > 0 && !player.hasFolded && (
                             <div className="relative z-10 flex items-start justify-center">
@@ -327,20 +356,20 @@ export function PokerTable({
                                   className="relative origin-top transition-all duration-300"
                                   style={{
                                     marginLeft: index > 0 ? (isMobile ? "4px" : "8px") : "0",
-                                    transform: `rotate(${index === 0 ? -5 : 6}deg)`,
+                                    transform: `rotate(${index === 0 ? -5 : 6}deg) scale(1.2)`,
                                   }}
                                 >
                                   <PokerCard
                                     suit={card.suit}
                                     value={card.value}
-                                    size={isMobile ? "md" : "lg"}
+                                    size="md"
                                     colorblindMode={colorblindMode}
                                   />
                                 </div>
                               ))}
                             </div>
                           )}
-                          <div className="-mt-2 flex flex-col items-center gap-0">
+                          <div className="mt-2 flex flex-col items-center gap-0">
                             <div className="relative z-40 min-w-[4.8rem] rounded-md border border-white/10 bg-slate-950/95 px-3 py-1 text-center text-xs font-bold leading-none text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.55)] md:text-sm">
                               {displayName}
                             </div>

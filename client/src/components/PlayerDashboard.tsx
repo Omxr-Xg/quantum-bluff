@@ -207,30 +207,6 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
 
           {/* LEFT TOOLS */}
           <div className="order-2 flex shrink-0 flex-wrap items-end justify-center gap-2 drop-shadow-2xl xl:order-none xl:justify-self-end">
-            {isMyTurn && timeLeft !== undefined && (
-              <div
-                className={`relative flex items-center justify-center rounded-full bg-slate-800/90 border-[2px] md:border-[3px] shadow-lg ring-2 w-9 h-9 md:w-[3.25rem] md:h-[3.25rem] shrink-0 mb-1 ${
-                  timeLeft <= 5
-                    ? "border-red-500/90 ring-red-400/30 animate-pulse"
-                    : "border-amber-500/70 ring-amber-400/20"
-                }`}
-                title={t('game.turnSeconds', { seconds: timeLeft })}
-              >
-                <span className={`tabular-nums font-bold text-xs md:text-base leading-none ${
-                  timeLeft <= 5 ? "text-red-400" : "text-amber-300"
-                }`}>
-                  {timeLeft}
-                </span>
-                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="15.9" fill="none" className={timeLeft <= 5 ? "stroke-red-500/30" : "stroke-amber-500/30"} strokeWidth="2" />
-                  <circle
-                    cx="18" cy="18" r="15.9" fill="none" className={timeLeft <= 5 ? "stroke-red-500" : "stroke-amber-400"} strokeWidth="2"
-                    strokeDasharray={`${(timeLeft / 30) * 100} 100`} strokeLinecap="round"
-                    style={{ transition: 'stroke-dasharray 0.5s linear' }}
-                  />
-                </svg>
-              </div>
-            )}
             {onToggleChat && (
               <NeonButton
                 onClick={onToggleChat}

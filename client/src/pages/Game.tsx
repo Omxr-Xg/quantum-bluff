@@ -3607,6 +3607,9 @@ export function Game() {
         burnedCardsCount={displayBurnedCardsCount}
         colorblindMode={colorblindMode}
         heroSeatId={heroPlayer?.id ?? null}
+        heroTimerActive={isRoundInteractable && handResult === null && isMyTurn && !hasFoldedFromState}
+        heroTimerTimeLeft={timeLeft}
+        heroTimerDuration={gameIdParam ? turnTimeLimitSecRef.current : 30}
         enableAvatarInteractions={Boolean(!isBotMode && gameIdParam && userId)}
         onOpponentAvatarClick={(p) =>
           setPlayerMenuTarget({ id: String(p.id), name: p.name })
