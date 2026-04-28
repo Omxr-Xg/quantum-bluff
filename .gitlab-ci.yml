@@ -1,13 +1,8 @@
-# ============================================
-# .gitlab-ci.yml - Quantum Bluff (FIXED)
-# ============================================
-
 variables:
   NODE_IMAGE: public.ecr.aws/docker/library/node:20
   POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:15
   TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.58.1
 
-# FIX SHELL (important)
 .node_docker_ci:
   image:
     name: public.ecr.aws/docker/library/node:20
@@ -31,10 +26,6 @@ cache:
       - client/package-lock.json
   paths:
     - .npm/
-
-# ============================================
-# BACKEND
-# ============================================
 
 backend:lint:
   extends: .node_docker_ci
@@ -83,10 +74,6 @@ backend:build:
     - main
     - /^release\/.*$/
 
-# ============================================
-# FRONTEND
-# ============================================
-
 frontend:lint:
   extends: .node_docker_ci
   stage: lint
@@ -120,10 +107,6 @@ frontend:build:
     - main
     - /^release\/.*$/
 
-# ============================================
-# DATABASE
-# ============================================
-
 database:test:
   stage: test
   tags: [kubernetes]
@@ -142,10 +125,6 @@ database:test:
   only:
     - develop
     - main
-
-# ============================================
-# SECURITY
-# ============================================
 
 security:npm:
   extends: .node_docker_ci
@@ -170,10 +149,6 @@ security:trivy:
     - develop
     - main
 
-# ============================================
-# DOCKER BUILD (FIXED 🔥)
-# ============================================
-
 docker:build:
   stage: docker-build
   tags: [kubernetes]
@@ -181,13 +156,8 @@ docker:build:
     name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: [""]
   script:
-    - echo "🐳 Build image..."
-
     - mkdir -p /kaniko/.docker
-
-    # 🔥 FIX QUOTING
     - AUTH=$(printf "%s:%s" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
-
     - |
       cat > /kaniko/.docker/config.json <<EOF
       {
@@ -198,20 +168,10 @@ docker:build:
         }
       }
       EOF
-
-    - /kaniko/executor \
-        --context "${CI_PROJECT_DIR}/server" \
-        --dockerfile "${CI_PROJECT_DIR}/server/Dockerfile" \
-        --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}" \
-        --destination "${CI_REGISTRY_IMAGE}:latest"
-
+    - /kaniko/executor --context "${CI_PROJECT_DIR}/server" --dockerfile "${CI_PROJECT_DIR}/server/Dockerfile" --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}" --destination "${CI_REGISTRY_IMAGE}:latest"
   only:
     - main
     - /^release\/.*$/
-
-# ============================================
-# DEPLOY
-# ============================================
 
 deploy:staging:
   stage: deploy
