@@ -14,6 +14,7 @@ interface User {
   }
   avatarUrl?: string | null
   isOnline?: boolean
+  friendshipCreatedAt?: string
   playerStats?: {
     totalWins: number
     totalGames: number

@@ -609,16 +609,18 @@ router.get('/:userId', async (req, res) => {
 
     const userIdStr = String(userId)
     const friends = friendships
-      .map((friendship) =>
-        String(friendship.user1Id) === userIdStr
-          ? friendship.user2
-          : friendship.user1
-      )
+      .map((friendship) => {
+        const friend =
+          String(friendship.user1Id) === userIdStr
+            ? friendship.user2
+            : friendship.user1
+        return {
+          ...friend,
+          friendshipCreatedAt: friendship.createdAt,
+          isOnline: isUserOnline(String(friend.id))
+        }
+      })
       .filter((f) => String(f.id) !== userIdStr)
-      .map((friend) => ({
-        ...friend,
-        isOnline: isUserOnline(String(friend.id))
-      }))
 
     return res.json(friends)
   } catch (error) {

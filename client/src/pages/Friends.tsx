@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
-  Activity,
+  ArrowUpDown,
   Check,
+  ChevronDown,
   Coins,
   Home,
   Loader2,
@@ -41,19 +42,84 @@ import {
 } from "../utils/friendLoanPreview";
 import { getFriendLoanApiErrorMessage } from "../utils/friendLoanApiError";
 
-type FriendsTab = "friends" | "requests" | "messages" | "loans";
+type FriendsTab = "friends" | "messages" | "loans";
 type FriendStatusFilter = "all" | "online" | "offline";
+type FriendSort = "recent" | "oldest" | "alpha";
+type RequestSort = "recent" | "oldest" | "alpha";
 
 const pokerGlassCard =
   "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
 const pokerInnerCard =
   "rounded-xl border border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md";
 const pokerButton =
-  "rounded-xl border border-blue-300/15 bg-blue-950/75 font-semibold text-white shadow-lg shadow-black/20 transition hover:border-blue-200/25 hover:bg-blue-900/80";
+  "rounded-full border border-blue-300/15 bg-blue-950/75 font-semibold text-white shadow-lg shadow-black/20 transition hover:border-blue-200/25 hover:bg-blue-900/80";
 const pokerMutedButton =
-  "rounded-xl border border-white/10 bg-white/[0.055] font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]";
+  "rounded-full border border-white/10 bg-white/[0.055] font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]";
 const pokerInput =
   "rounded-xl border border-white/10 bg-slate-950/55 text-white placeholder-slate-500 transition-all focus:border-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-500/25";
+
+type SortDropdownProps = {
+  ariaLabel: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+};
+
+function SortDropdown({ ariaLabel, value, options, onChange }: SortDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? "Trier";
+
+  return (
+    <div
+      className="relative shrink-0"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setOpen(false);
+        }
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-11 min-w-[10.5rem] items-center justify-between gap-3 rounded-full border border-white/10 bg-slate-950/55 px-3.5 text-sm font-bold text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-blue-200/25 hover:bg-slate-900/70"
+        aria-label={ariaLabel}
+        aria-expanded={open}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <ArrowUpDown className="h-4 w-4 shrink-0 text-blue-200" />
+          <span className="shrink-0">Trier</span>
+          <span className="hidden max-w-[8rem] truncate text-xs font-semibold text-slate-400 sm:block">
+            {selectedLabel}
+          </span>
+        </span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open ? (
+        <div className="absolute right-0 top-full z-40 mt-2 w-56 rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_22px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
+                value === option.value
+                  ? "bg-blue-500/20 text-blue-50"
+                  : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
+              }`}
+            >
+              <span>{option.label}</span>
+              {value === option.value ? <Check className="h-4 w-4 text-blue-200" /> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function Friends() {
   const { t } = useTranslation();
@@ -73,12 +139,14 @@ export function Friends() {
   const [messageInput, setMessageInput] = useState("");
   const [activeTab, setActiveTab] = useState<FriendsTab>("friends");
   const [friendStatusFilter, setFriendStatusFilter] = useState<FriendStatusFilter>("all");
+  const [friendSort, setFriendSort] = useState<FriendSort>("recent");
+  const [requestSort, setRequestSort] = useState<RequestSort>("recent");
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const tab = searchParams.get("tab");
     const withUserId = searchParams.get("with");
     if (tab === "requests") {
-      setActiveTab("requests");
+      setActiveTab("friends");
     } else if (tab === "messages") {
       setActiveTab("messages");
       if (withUserId) setSelectedChat(withUserId);
@@ -116,21 +184,36 @@ export function Friends() {
     skip: friendUsername.trim().length < 2 || !showAddFriend
   });
 
-  const filteredFriends =
-    friends?.filter((friend) => {
+  const filteredFriends = (friends ?? [])
+    .filter((friend) => {
       const matchesSearch = friend.username.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus =
         friendStatusFilter === "all" ||
         (friendStatusFilter === "online" ? friend.isOnline : !friend.isOnline);
       return matchesSearch && matchesStatus;
-    }) || [];
+    })
+    .sort((a, b) => {
+      if (friendSort === "alpha") {
+        return a.username.localeCompare(b.username, undefined, { sensitivity: "base" });
+      }
+      const aTime = a.friendshipCreatedAt ? new Date(a.friendshipCreatedAt).getTime() : 0;
+      const bTime = b.friendshipCreatedAt ? new Date(b.friendshipCreatedAt).getTime() : 0;
+      return friendSort === "recent" ? bTime - aTime : aTime - bTime;
+    });
+  const sortedRequests = (requests ?? []).slice().sort((a, b) => {
+    if (requestSort === "alpha") {
+      return a.sender.username.localeCompare(b.sender.username, undefined, { sensitivity: "base" });
+    }
+    const aTime = new Date(a.createdAt).getTime();
+    const bTime = new Date(b.createdAt).getTime();
+    return requestSort === "recent" ? bTime - aTime : aTime - bTime;
+  });
   const friendsCount = friends?.length ?? 0;
   const onlineFriendsCount = friends?.filter((friend) => friend.isOnline).length ?? 0;
   const offlineFriendsCount = Math.max(0, friendsCount - onlineFriendsCount);
   const requestsCount = requests?.length ?? 0;
   const tabItems = [
     { key: "friends" as const, label: t("friends.tabFriends"), Icon: Users },
-    { key: "requests" as const, label: t("friends.tabRequests"), Icon: UserPlus },
     { key: "messages" as const, label: t("friends.tabMessages"), Icon: MessageCircle },
     { key: "loans" as const, label: t("friends.tabLoans"), Icon: Coins },
   ];
@@ -369,38 +452,34 @@ export function Friends() {
               <span>{t("profile.home")}</span>
             </button>
             <div className="min-w-0">
-              <h1 className="bg-gradient-to-r from-slate-100 via-blue-200 to-cyan-200 bg-clip-text text-3xl font-bold uppercase text-transparent sm:text-5xl">
+              <h1 className="bg-gradient-to-r from-slate-100 via-blue-200 to-cyan-200 bg-clip-text text-3xl font-bold text-transparent sm:text-5xl">
                 {t("friends.title")}
               </h1>
-              <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-cyan-300/15 bg-cyan-950/35 px-3 py-1 text-xs font-semibold text-cyan-100">
-                <Activity className="h-3.5 w-3.5" />
-                {isConnected ? t("friends.online") : t("friends.offline")}
-              </div>
             </div>
           </div>
 
-          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center lg:justify-end">
-            <button
-              type="button"
-              onClick={() => setShowAddFriend(true)}
-              className={`flex shrink-0 touch-manipulation items-center justify-center gap-2 px-5 py-2.5 ${pokerButton}`}
-            >
-              <UserPlus className="h-5 w-5" />
-              {t("friends.addOneFriend")}
-            </button>
-            <button
-              onClick={() => refetchFriends()}
-              disabled={fetchingFriends}
-              className={`flex shrink-0 items-center justify-center gap-2 px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${pokerMutedButton}`}
-            >
-              <RefreshCw className={`h-4 w-4 ${fetchingFriends ? "animate-spin text-blue-300" : ""}`} />
-              {fetchingFriends ? "Mise à jour..." : "Actualiser"}
-            </button>
-            {menuContent ? (
-              <div className="min-w-0 overflow-x-auto overflow-y-hidden scrollbar-hide">
-                {menuContent}
-              </div>
-            ) : null}
+          <div className="flex min-w-0 flex-col gap-3 lg:items-end">
+            <div className="min-w-0 overflow-x-auto overflow-y-hidden scrollbar-hide lg:justify-end">
+              {menuContent ? menuContent : null}
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowAddFriend(true)}
+                className={`flex shrink-0 touch-manipulation items-center justify-center gap-2 px-4 py-2 text-sm ${pokerButton}`}
+              >
+                <UserPlus className="h-4 w-4" />
+                {t("friends.addOneFriend")}
+              </button>
+              <button
+                onClick={() => refetchFriends()}
+                disabled={fetchingFriends}
+                className={`flex shrink-0 items-center justify-center gap-2 px-3.5 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${pokerMutedButton}`}
+              >
+                <RefreshCw className={`h-4 w-4 ${fetchingFriends ? "animate-spin text-blue-300" : ""}`} />
+                {fetchingFriends ? "Mise à jour..." : "Actualiser"}
+              </button>
+            </div>
           </div>
         </header>
 
@@ -426,70 +505,86 @@ export function Friends() {
 
         <main className="min-w-0">
 
-        {activeTab === "requests" && (
-          <div className={`mb-4 p-5 sm:mb-6 sm:p-8 ${pokerGlassCard}`}>
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-blue-100 sm:text-xl">
-              <UserPlus className="h-5 w-5 shrink-0 text-blue-200" />
-              {t("friends.friendRequestsCount", { count: requestsCount })}
-              {/* Le spinner  qui apparaît pendant les Retry */}
-              {fetchingRequests && !loadingRequests && (
-                <Loader2 className="h-4 w-4 animate-spin text-blue-300/60 ml-2" />
-              )}
-            </h2>
-
-            {loadingRequests ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-300" />
-              </div>
-            ) : requests?.length ? (
-              <div className="space-y-3">
-                {requests.map((req) => (
-                  <div
-                    key={req.id}
-                    className={`flex items-center justify-between p-3 ${pokerInnerCard}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
-                        {getPlayerAvatar(req.sender.username, req.sender.id, userId, req.sender.avatarUrl) ? (
-                          <ImageWithFallback
-                            src={getPlayerAvatar(req.sender.username, req.sender.id, userId, req.sender.avatarUrl)}
-                            alt=""
-                            className="h-10 w-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <span className="font-bold text-white">{req.sender.username.charAt(0).toUpperCase()}</span>
-                        )}
-                      </div>
-                      <span className="font-medium text-white">{req.sender.username}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleRespond(req.id, "ACCEPTED")}
-                        className="rounded-lg border border-blue-300/25 bg-blue-950/75 p-2 text-white transition hover:bg-blue-900/80"
-                      >
-                        <Check className="h-5 w-5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRespond(req.id, "REJECTED")}
-                        className="rounded-lg bg-red-600 p-2 text-white transition hover:bg-red-500"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-400">{t("friends.noFriendsYet")}</p>
-            )}
-          </div>
-        )}
-
         {activeTab === "friends" && (
           <section className="space-y-5">
-            <div className="flex flex-col gap-2 rounded-[2rem] border border-white/10 bg-white/[0.045] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_45px_rgba(0,0,0,0.22)] backdrop-blur-xl md:flex-row md:items-center">
+            <div className={`p-4 sm:p-5 ${pokerGlassCard}`}>
+              <div className={`${loadingRequests || sortedRequests.length > 0 ? "mb-3" : ""} flex flex-col justify-between gap-3 sm:flex-row sm:items-center`}>
+                <div>
+                  <h2 className="flex items-center gap-2 text-base font-bold text-blue-100 sm:text-lg">
+                    <UserPlus className="h-5 w-5 shrink-0 text-blue-200" />
+                    {t("friends.friendRequestsCount", { count: requestsCount })}
+                    {fetchingRequests && !loadingRequests ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-300/60" />
+                    ) : null}
+                  </h2>
+                  {!loadingRequests && sortedRequests.length === 0 ? (
+                    <p className="mt-1 text-sm text-slate-400">Aucune demande en attente.</p>
+                  ) : null}
+                </div>
+                {sortedRequests.length > 0 ? (
+                  <SortDropdown
+                    ariaLabel="Trier les demandes"
+                    value={requestSort}
+                    onChange={(value) => setRequestSort(value as RequestSort)}
+                    options={[
+                      { value: "recent", label: "Plus récentes" },
+                      { value: "oldest", label: "Moins récentes" },
+                      { value: "alpha", label: "A-Z" },
+                    ]}
+                  />
+                ) : null}
+              </div>
+
+              {loadingRequests ? (
+                <div className="flex justify-center py-5">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-300" />
+                </div>
+              ) : sortedRequests.length > 0 ? (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {sortedRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className={`flex items-center justify-between gap-3 p-3 ${pokerInnerCard}`}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
+                          {getPlayerAvatar(req.sender.username, req.sender.id, userId, req.sender.avatarUrl) ? (
+                            <ImageWithFallback
+                              src={getPlayerAvatar(req.sender.username, req.sender.id, userId, req.sender.avatarUrl)}
+                              alt=""
+                              className="h-10 w-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <span className="font-bold text-white">{req.sender.username.charAt(0).toUpperCase()}</span>
+                          )}
+                        </div>
+                        <span className="truncate font-medium text-white">{req.sender.username}</span>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleRespond(req.id, "ACCEPTED")}
+                          className="rounded-full border border-blue-300/25 bg-blue-950/75 p-2 text-white transition hover:bg-blue-900/80"
+                          aria-label={t("friends.accept")}
+                        >
+                          <Check className="h-5 w-5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRespond(req.id, "REJECTED")}
+                          className="rounded-full bg-red-600 p-2 text-white transition hover:bg-red-500"
+                          aria-label={t("friends.reject")}
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <div className="relative min-w-0 flex-1">
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <input
@@ -521,6 +616,16 @@ export function Friends() {
                   </button>
                 ))}
               </div>
+              <SortDropdown
+                ariaLabel="Trier les amis"
+                value={friendSort}
+                onChange={(value) => setFriendSort(value as FriendSort)}
+                options={[
+                  { value: "recent", label: "Ajout le plus récent" },
+                  { value: "oldest", label: "Ajout le plus ancien" },
+                  { value: "alpha", label: "A-Z" },
+                ]}
+              />
             </div>
 
             <div className="min-w-0">
