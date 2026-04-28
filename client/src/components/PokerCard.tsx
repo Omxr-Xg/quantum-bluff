@@ -127,11 +127,9 @@ export function PokerCard({
   return (
     <Wrapper
       {...(animProps as Record<string, unknown>)}
-      className={`${s.card} rounded-[10px] overflow-hidden relative
-        bg-[#faf8f5] shadow-[0_4px_14px_rgba(0,0,0,0.15)]
-        ${highlight ? "ring-2 ring-amber-400 shadow-amber-400/40 scale-105" : ""}
-        border border-gray-300/80
-        transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 hover:scale-[1.02]
+      className={`${s.card} relative bg-transparent
+        ${highlight ? "scale-105 drop-shadow-[0_0_12px_rgba(251,191,36,0.45)]" : ""}
+        transition-transform duration-200 hover:-translate-y-0.5 hover:scale-[1.02]
         ${className}`}
     >
       {/* 1. L'image de la carte complète (en fond) */}
