@@ -718,7 +718,7 @@ export function Game() {
   useEffect(() => {
     window.dispatchEvent(
       new CustomEvent("game-hud-state", {
-        detail: { phase, isMyTurn },
+        detail: { game: "poker", phase, isMyTurn },
       })
     );
   }, [phase, isMyTurn]);
