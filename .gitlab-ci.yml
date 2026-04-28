@@ -11,7 +11,7 @@ variables:
 .node_docker_ci:
   image:
     name: public.ecr.aws/docker/library/node:20
-    entrypoint: [""]
+    entrypoint: ["/bin/sh", "-c"]
 
 default:
   tags:
