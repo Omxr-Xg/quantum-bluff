@@ -1,0 +1,15 @@
+{
+  "labels": ["FOLD", "CHECK_CALL", "RAISE", "ALL_IN"],
+  "final": {
+    "loss": null,
+    "accuracy": null,
+    "confusion_matrix": [
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0]
+    ],
+    "note": "Run `python -m poker.train --samples 100000 --epochs 8` to regenerate real metrics."
+  },
+  "history": []
+}

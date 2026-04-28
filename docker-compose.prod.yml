@@ -48,6 +48,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-super_secret_for_production_change_me}
       PORT: 3000
       CORS_ORIGIN: "https://mai-projet-integrateur.u-strasbg.fr"
+      AI_SERVICE_ENABLED: ${AI_SERVICE_ENABLED:-true}
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_TIMEOUT_MS: ${AI_SERVICE_TIMEOUT_MS:-450}
     ports:
       - "3000:3000"
     depends_on:
@@ -55,6 +58,19 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      ai-service:
+        condition: service_started
+    networks:
+      - quantum_net
+
+  ai-service:
+    build:
+      context: ./server/ai-service
+      dockerfile: Dockerfile
+    container_name: quantum_ai_service
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     networks:
       - quantum_net
 
