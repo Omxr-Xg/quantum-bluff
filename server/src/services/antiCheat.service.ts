@@ -18,6 +18,7 @@ export class AntiCheatService {
     await prisma.user.update({
       where: { id: userId },
       data: { lastIp: ip },
+      select: { id: true },
     });
 
     const othersOnSameIp = await prisma.user.findMany({
@@ -43,6 +44,7 @@ export class AntiCheatService {
     const user = await prisma.user.update({
       where: { id: userId },
       data: { antiCheatAlerts: { increment: 1 } },
+      select: { antiCheatAlerts: true },
     });
     rootLogger.warn({
       msg: 'anticheat_alert_incremented',
@@ -54,6 +56,7 @@ export class AntiCheatService {
       await prisma.user.update({
         where: { id: userId },
         data: { bannedUntil },
+        select: { id: true },
       });
       rootLogger.warn({
         msg: 'anticheat_auto_ban',

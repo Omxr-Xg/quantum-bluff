@@ -48,6 +48,20 @@ interface FriendRequest {
   sender: User
 }
 
+type UpdateProfilePayload = {
+  avatarUrl?: string | null
+  username?: string
+  email?: string
+  currentPassword?: string
+  newPassword?: string
+}
+
+type UpdateProfileResponse = {
+  avatarUrl: string | null
+  username: string
+  email: string
+}
+
 // On configure l'URL et les Headers de base
 const baseQuery = fetchBaseQuery({
   baseUrl: (() => {
@@ -122,7 +136,7 @@ export const api = createApi({
       }),
     }),
 
-    updateProfileAvatar: builder.mutation<{ avatarUrl: string | null }, { avatarUrl: string | null }>({
+    updateProfileAvatar: builder.mutation<UpdateProfileResponse, UpdateProfilePayload>({
       query: (body) => ({
         url: '/auth/profile',
         method: 'PATCH',

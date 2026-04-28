@@ -1,5 +1,6 @@
 import express from 'express'
 import { randomUUID } from 'node:crypto'
+import type { Server } from 'socket.io'
 import { z } from 'zod'
 import { prisma } from '../config/database.js'
 import { activeGames } from '../shared/activeGames.js'
@@ -12,6 +13,7 @@ import {
   PRACTICE_BOT_GAME_PREFIX,
   registerPracticeBotGame,
 } from '../shared/practiceBotGames.js'
+import { runPracticeBotTurnsChain } from '../poker/services/practiceBotTurns.service.js'
 import type { BotDifficulty } from '../logic/botAI.js'
 
 const router = express.Router()
@@ -114,6 +116,15 @@ router.post('/bot/start', authMiddleware, gameActionLimiter, async (req, res) =>
     table.startHand({ handId: randomUUID() })
     await activeGames.set(gameId, table)
     registerPracticeBotGame(gameId, difficulty as BotDifficulty)
+
+    const io = req.app.get('io') as Server | undefined
+    if (io) {
+      setTimeout(() => {
+        void runPracticeBotTurnsChain(io, gameId).catch((err) => {
+          console.error('[practice-bot] start chain failed:', err)
+        })
+      }, 0)
+    }
 
     res.json({
       gameId,
@@ -281,6 +292,7 @@ router.post('/record-result', authMiddleware, async (req, res) => {
         data: {
           chips: { increment: chipsDelta },
         },
+        select: { id: true },
       })
     }
 

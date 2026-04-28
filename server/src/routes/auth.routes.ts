@@ -2,7 +2,7 @@ import express from 'express'
 import bcrypt from 'bcryptjs'
 import sanitizeHtml from 'sanitize-html'
 import { z } from 'zod'
-import { prisma } from '../config/database.js'
+import { pgPool, prisma } from '../config/database.js'
 import { env } from '../config/env.js'
 import { registerSchema, loginSchema, resetPasswordSchema } from '../validation/auth.validation.js'
 import { normalizeSecretAnswer } from '../utils/secretAnswer.js'
@@ -90,17 +90,22 @@ router.get('/avatars/:userId', async (req, res) => {
     if (!isUuidParam(userId)) {
       return res.status(400).json({ error: 'Identifiant invalide' })
     }
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { avatarImage: true, avatarMime: true, avatarUrl: true },
-    })
+    const result = await pgPool.query<{
+      avatarImage: Buffer | null
+      avatarMime: string | null
+      avatarUrl: string | null
+    }>(
+      'SELECT "avatarImage", "avatarMime", "avatarUrl" FROM "User" WHERE "id" = $1 LIMIT 1',
+      [userId],
+    )
+    const user = result.rows[0]
     if (!user) {
       return res.status(404).end()
     }
-    if (user.avatarImage != null && user.avatarImage.byteLength > 0 && user.avatarMime) {
+    if (user.avatarImage != null && user.avatarImage.length > 0 && user.avatarMime) {
       res.setHeader('Content-Type', user.avatarMime)
-      res.setHeader('Cache-Control', 'public, max-age=86400')
-      return res.send(Buffer.from(user.avatarImage))
+      res.setHeader('Cache-Control', 'private, no-cache, max-age=0, must-revalidate')
+      return res.send(user.avatarImage)
     }
     const legacy = user.avatarUrl?.trim() ?? ''
     if (legacy.startsWith('http://') || legacy.startsWith('https://')) {
@@ -123,7 +128,7 @@ router.post('/check-email', checkEmailLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Email invalide' })
   }
   try {
-    const user = await prisma.user.findUnique({ where: { email } })
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } })
     res.json({ exists: !!user })
   } catch (error) {
     console.error('[AUTH] check-email error:', error)
@@ -150,7 +155,8 @@ router.post('/register', registerLimiter, async (req, res) => {
   try {
 
     const existingEmail = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
+      select: { id: true },
     })
 
     if (existingEmail) {
@@ -158,7 +164,8 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     const existingUsername = await prisma.user.findUnique({
-      where: { username }
+      where: { username },
+      select: { id: true },
     })
 
     if (existingUsername) {
@@ -264,7 +271,10 @@ router.post('/reset-password', recoveryLimiter, async (req, res) => {
   let { email, secretAnswer, newPassword } = parsed.data
   email = email.trim().toLowerCase()
   try {
-    const user = await prisma.user.findUnique({ where: { email } })
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, secretQuestionId: true, secretAnswerHash: true },
+    })
     if (!user) {
       return res.status(404).json({ error: 'Aucun compte associé à cet email.' })
     }
@@ -279,6 +289,7 @@ router.post('/reset-password', recoveryLimiter, async (req, res) => {
     await prisma.user.update({
       where: { id: user.id },
       data: { password: hashedPassword },
+      select: { id: true },
     })
     res.json({ ok: true })
   } catch (error) {
@@ -394,57 +405,122 @@ router.get('/lobby-tutorial-status', authMiddleware, async (req, res) => {
   }
 })
 
+const profileUpdateSchema = z.object({
+  avatarUrl: z.string().nullable().optional(),
+  username: z.string().trim().min(3).max(20).optional(),
+  email: z.string().trim().email().optional(),
+  currentPassword: z.string().optional(),
+  newPassword: z.string().min(6).max(100).optional(),
+})
+
 /**
- * Met à jour l’avatar profil : image ingérée en BYTEA + URL canonique `/api/auth/avatars/:id`,
- * ou suppression (champs avatar effacés).
+ * Met à jour le profil : username/email/password et avatar.
+ * L’avatar uploadé est ingéré en BYTEA + URL canonique `/api/auth/avatars/:id`.
  */
 router.patch('/profile', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
-    const raw = req.body?.avatarUrl
-    if (raw === null || raw === undefined || raw === '') {
-      const user = await prisma.user.update({
-        where: { id: userId },
-        data: {
-          avatarUrl: null,
-          avatarImage: null,
-          avatarMime: null,
-          avatarHasBinary: false,
-        },
-        select: { avatarUrl: true, avatarHasBinary: true, id: true },
+
+    const parsed = profileUpdateSchema.safeParse(req.body ?? {})
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: parsed.error.issues.map(issue => issue.message).join(', '),
       })
-      return res.json({ avatarUrl: clientAvatarUrlFromUser(user) })
     }
-    const sanitized = sanitizePublicAvatarUrl(raw)
-    if (sanitized == null) {
-      return res.status(400).json({ error: 'URL d’avatar invalide' })
-    }
-    if (sanitized === canonicalStoredAvatarPath(userId)) {
-      const row = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true, avatarUrl: true, avatarHasBinary: true },
-      })
-      if (row?.avatarHasBinary) {
-        return res.json({ avatarUrl: clientAvatarUrlFromUser(row) })
-      }
-    }
-    const ingested = await ingestAvatarToBuffer(sanitized)
-    if (ingested == null) {
-      return res.status(400).json({ error: 'Impossible d’enregistrer cette image (format ou taille).' })
-    }
-    const canonical = canonicalStoredAvatarPath(userId)
-    const user = await prisma.user.update({
+
+    const existing = await prisma.user.findUnique({
       where: { id: userId },
-      data: {
-        avatarImage: new Uint8Array(ingested.buffer),
-        avatarMime: ingested.mime,
-        avatarUrl: canonical,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        password: true,
+        avatarUrl: true,
         avatarHasBinary: true,
       },
-      select: { avatarUrl: true, avatarHasBinary: true, id: true },
     })
-    return res.json({ avatarUrl: clientAvatarUrlFromUser(user) })
+    if (!existing) return res.status(404).json({ error: 'Utilisateur introuvable' })
+
+    const data: Record<string, unknown> = {}
+    const nextUsername = parsed.data.username != null ? sanitizeHtml(parsed.data.username).trim() : undefined
+    const nextEmail = parsed.data.email != null ? sanitizeHtml(parsed.data.email).trim().toLowerCase() : undefined
+
+    if (parsed.data.username != null && (!nextUsername || nextUsername.length < 3 || nextUsername.length > 20)) {
+      return res.status(400).json({ error: 'Nom d’utilisateur invalide' })
+    }
+
+    if (parsed.data.email != null && (!nextEmail || !EMAIL_FORMAT.test(nextEmail))) {
+      return res.status(400).json({ error: 'Email invalide' })
+    }
+
+    if (nextUsername && nextUsername !== existing.username) {
+      const taken = await prisma.user.findUnique({ where: { username: nextUsername }, select: { id: true } })
+      if (taken && taken.id !== userId) {
+        return res.status(400).json({ error: 'Nom d’utilisateur déjà utilisé' })
+      }
+      data.username = nextUsername
+    }
+
+    if (nextEmail && nextEmail !== existing.email) {
+      const taken = await prisma.user.findUnique({ where: { email: nextEmail }, select: { id: true } })
+      if (taken && taken.id !== userId) {
+        return res.status(400).json({ error: 'Email déjà utilisé' })
+      }
+      data.email = nextEmail
+    }
+
+    if (parsed.data.newPassword) {
+      if (!parsed.data.currentPassword) {
+        return res.status(400).json({ error: 'Mot de passe actuel requis' })
+      }
+      const passwordOk = await bcrypt.compare(parsed.data.currentPassword, existing.password)
+      if (!passwordOk) {
+        return res.status(400).json({ error: 'Mot de passe actuel incorrect' })
+      }
+      data.password = await bcrypt.hash(parsed.data.newPassword, 10)
+    }
+
+    const avatarProvided = Object.prototype.hasOwnProperty.call(req.body ?? {}, 'avatarUrl')
+    if (avatarProvided) {
+      const raw = parsed.data.avatarUrl
+      if (raw === null || raw === undefined || raw === '') {
+        data.avatarUrl = null
+        data.avatarImage = null
+        data.avatarMime = null
+        data.avatarHasBinary = false
+      } else {
+        const sanitized = sanitizePublicAvatarUrl(raw)
+        if (sanitized == null) {
+          return res.status(400).json({ error: 'URL d’avatar invalide' })
+        }
+        const canonical = canonicalStoredAvatarPath(userId)
+        if (sanitized === canonical && existing.avatarHasBinary) {
+          data.avatarUrl = canonical
+          data.avatarHasBinary = true
+        } else {
+          const ingested = await ingestAvatarToBuffer(sanitized)
+          if (ingested == null) {
+            return res.status(400).json({ error: 'Impossible d’enregistrer cette image (format ou taille).' })
+          }
+          data.avatarImage = new Uint8Array(ingested.buffer)
+          data.avatarMime = ingested.mime
+          data.avatarUrl = canonical
+          data.avatarHasBinary = true
+        }
+      }
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data,
+      select: { id: true, username: true, email: true, avatarUrl: true, avatarHasBinary: true },
+    })
+    return res.json({
+      username: user.username,
+      email: user.email,
+      avatarUrl: clientAvatarUrlFromUser(user),
+    })
   } catch (error) {
     console.error('[AUTH] profile PATCH error:', error)
     return res.status(500).json({ error: 'Erreur serveur' })
@@ -459,6 +535,7 @@ router.post('/lobby-tutorial/complete', authMiddleware, async (req, res) => {
     await prisma.user.update({
       where: { id: userId },
       data: { lobbyTutorialCompletedAt: new Date() },
+      select: { id: true },
     })
     return res.json({ ok: true })
   } catch (error) {

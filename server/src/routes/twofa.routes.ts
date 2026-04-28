@@ -11,7 +11,10 @@ router.post('/enable', authMiddleware, async (req, res) => {
     const userId = (req as express.Request & { userId?: string }).userId;
     if (!userId) return res.status(401).json({ error: 'Non authentifié' });
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, totpSecret: true },
+    });
     if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
     if (user.totpSecret) return res.status(400).json({ error: '2FA déjà activé' });
 
@@ -38,7 +41,10 @@ router.post('/verify', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Code invalide (6 chiffres)' });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, totpSecret: true },
+    });
     if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
 
     const secret = typeof req.body?.secret === 'string' ? req.body.secret : user.totpSecret;
@@ -52,6 +58,7 @@ router.post('/verify', authMiddleware, async (req, res) => {
       await prisma.user.update({
         where: { id: userId },
         data: { totpSecret: secret },
+        select: { id: true },
       });
     }
 
@@ -70,7 +77,10 @@ router.post('/disable', authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Non authentifié' });
     if (!code || code.length !== 6) return res.status(400).json({ error: 'Code invalide' });
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, totpSecret: true },
+    });
     if (!user || !user.totpSecret) return res.status(400).json({ error: '2FA non activé' });
 
     if (!verifyTotpToken(user.totpSecret, code)) {
@@ -80,6 +90,7 @@ router.post('/disable', authMiddleware, async (req, res) => {
     await prisma.user.update({
       where: { id: userId },
       data: { totpSecret: null },
+      select: { id: true },
     });
 
     res.json({ ok: true, message: '2FA désactivé' });

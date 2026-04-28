@@ -169,6 +169,7 @@ router.patch('/users/:id', async (req, res) => {
     await prisma.user.update({
       where: { id },
       data: { bannedUntil },
+      select: { id: true },
     })
   } catch {
     return res.status(404).json({ error: 'Utilisateur introuvable' })
@@ -201,6 +202,7 @@ router.post('/users/:id/password', async (req, res) => {
     await prisma.user.update({
       where: { id },
       data: { password: hashed },
+      select: { id: true },
     })
   } catch {
     return res.status(404).json({ error: 'Utilisateur introuvable' })

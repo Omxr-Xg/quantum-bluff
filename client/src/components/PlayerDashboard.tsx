@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef, useCallback, forwardRef } from "react";
 import { useTranslation } from "react-i18next";
-import { X, TrendingUp, Loader2, Activity, Eye } from "lucide-react";
-import { useDeviceType } from "./ui/use-mobile";
+import { X, TrendingUp, Loader2, Activity, Eye, MessageCircle } from "lucide-react";
 import { useAccessibility } from "../contexts/AccessibilityContext";
 import { NeonButton } from "./NeonButton";
-import { PokerCard } from "./PokerCard";
 import { HandCombinationsHelpButton } from "./HandCombinationsHelpButton";
 import { useAudio } from "../contexts/MusicContext";
 
@@ -46,7 +44,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   {
   name: _name,
   chips,
-  cards,
+  cards: _cards,
   onFold,
   onCall,
   onRaise,
@@ -64,7 +62,9 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   onQuantumHoverEnter,
   onQuantumHoverLeave,
   onToggleHiddenBets,
+  onToggleChat,
   isHiddenBetsOpen: _isHiddenBetsOpen,
+  isChatOpen = false,
   timeLeft,
   colorblindMode = false,
   },
@@ -73,8 +73,6 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   const { t } = useTranslation();
   const { visualAlerts } = useAccessibility();
   const { playSfx } = useAudio();
-  const deviceType = useDeviceType();
-  const isMobile = deviceType === "mobile";
   const effectiveMinRaise = Math.min(minRaise, maxRaise);
   const clampRaise = (v: number) => {
     const vi = Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
@@ -184,28 +182,6 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
         </div>
       )}
 
-      {!hasFolded && cards.length > 0 && (
-        <div className="pointer-events-none fixed left-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+8rem)] z-[45] flex -translate-x-1/2 items-start justify-center drop-shadow-2xl md:bottom-[8.5rem]">
-          {cards.map((card, index) => (
-            <div
-              key={index}
-              className="relative origin-top transition-all duration-300"
-              style={{
-                marginLeft: index > 0 ? (isMobile ? "4px" : "8px") : "0",
-                transform: `rotate(${index === 0 ? -5 : 6}deg)`,
-              }}
-            >
-              <PokerCard
-                suit={card.suit}
-                value={card.value}
-                size={isMobile ? "sm" : "md"}
-                colorblindMode={colorblindMode}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className="pointer-events-auto mx-auto w-full max-w-[min(1200px,calc(100vw-2rem))]">
 
         {hasFolded && (
@@ -227,38 +203,30 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
           </div>
         )}
 
-        <div className="grid grid-cols-1 items-end gap-3 xl:grid-cols-[minmax(8rem,1fr)_auto_minmax(26rem,1fr)] xl:gap-5">
+        <div className="grid grid-cols-1 items-end gap-3 xl:grid-cols-[minmax(16rem,1fr)_auto_minmax(16rem,1fr)] xl:gap-5">
 
-          {/* Turn timer */}
-          <div className="flex items-end justify-center gap-2 drop-shadow-2xl xl:justify-self-center">
-            {isMyTurn && timeLeft !== undefined && (
-              <div
-                className={`relative flex items-center justify-center rounded-full bg-slate-800/90 border-[2px] md:border-[3px] shadow-lg ring-2 w-9 h-9 md:w-[3.25rem] md:h-[3.25rem] shrink-0 mb-1 ${
-                  timeLeft <= 5
-                    ? "border-red-500/90 ring-red-400/30 animate-pulse"
-                    : "border-amber-500/70 ring-amber-400/20"
+          {/* LEFT TOOLS */}
+          <div className="order-2 flex shrink-0 flex-wrap items-end justify-center gap-2 drop-shadow-2xl xl:order-none xl:justify-self-end">
+            {onToggleChat && (
+              <NeonButton
+                onClick={onToggleChat}
+                variant="blue"
+                icon={<MessageCircle className="h-4 w-4 shrink-0" />}
+                className={`px-4 py-3 text-xs md:px-5 md:py-3.5 ${
+                  isChatOpen ? "ring-2 ring-blue-300/60" : ""
                 }`}
-                title={t('game.turnSeconds', { seconds: timeLeft })}
               >
-                <span className={`tabular-nums font-bold text-xs md:text-base leading-none ${
-                  timeLeft <= 5 ? "text-red-400" : "text-amber-300"
-                }`}>
-                  {timeLeft}
-                </span>
-                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="15.9" fill="none" className={timeLeft <= 5 ? "stroke-red-500/30" : "stroke-amber-500/30"} strokeWidth="2" />
-                  <circle
-                    cx="18" cy="18" r="15.9" fill="none" className={timeLeft <= 5 ? "stroke-red-500" : "stroke-amber-400"} strokeWidth="2"
-                    strokeDasharray={`${(timeLeft / 30) * 100} 100`} strokeLinecap="round"
-                    style={{ transition: 'stroke-dasharray 0.5s linear' }}
-                  />
-                </svg>
-              </div>
+                Chat
+              </NeonButton>
             )}
+            <HandCombinationsHelpButton
+              colorblindMode={colorblindMode}
+              onOpenChange={setCombinationsHelpOpen}
+            />
           </div>
 
           {/* ACTION BUTTONS - Adaptés à l'écran */}
-          <div className="flex w-full justify-center gap-2 md:w-auto xl:justify-self-center md:gap-3">
+          <div className="order-1 flex w-full justify-center gap-2 md:w-auto xl:order-none xl:justify-self-center md:gap-3">
             <NeonButton
               onClick={onFold}
               disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
@@ -376,17 +344,13 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
             </div>
           </div>
 
-          {/* UTIL BUTTONS - Visibles sur tous les écrans */}
-          <div className="flex shrink-0 flex-wrap justify-center gap-2 xl:justify-self-end">
+          {/* RIGHT TOOLS */}
+          <div className="order-3 flex shrink-0 flex-wrap justify-center gap-2 xl:order-none xl:justify-self-start">
             {onToggleHiddenBets && (
               <NeonButton onClick={onToggleHiddenBets} variant="gold" icon={<Eye className="w-4 h-4" />} className="px-4 py-3 text-xs md:px-5 md:py-3.5">
                 {t('game.bets')}
               </NeonButton>
             )}
-            <HandCombinationsHelpButton
-              colorblindMode={colorblindMode}
-              onOpenChange={setCombinationsHelpOpen}
-            />
             {onToggleQuantum && (
               <div
                 className="shrink-0"

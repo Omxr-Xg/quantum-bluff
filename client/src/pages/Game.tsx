@@ -13,15 +13,11 @@ import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, MessageCircle, X, LogOut, Sparkles, Trophy, Activity, Info, Plus } from "lucide-react";
+import { User, Users, Menu, Loader2, X, LogOut, Sparkles, Trophy, Activity, Info } from "lucide-react";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
 import { addToUserBalance, addDevMoney, getUserBalance, getUserAvatar } from "../utils/userProfile";
-import { getPlayerAvatar } from "../utils/avatars";
-import { QuantumBluffLogo } from "../assets/logo";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-import { ChipIcon } from "../components/ChipIcon";
 import { RoundTransition } from "../components/RoundTransition";
 import { GameInteractiveTour } from "../components/GameInteractiveTour";
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
@@ -273,6 +269,7 @@ export function Game() {
   }, [isBotMode, playersState, minRaise]);
   const [deck, setDeck] = useState<Card[]>([]);
   const [shuffleCount, setShuffleCount] = useState(0);
+  const [showOpeningShuffle, setShowOpeningShuffle] = useState(false);
   const [, _setDealingCard] = useState<number | null>(null);
   const [roundPlayersActed, setRoundPlayersActed] = useState<Set<number>>(new Set());
   const [gameInitialized, setGameInitialized] = useState(false);
@@ -312,6 +309,7 @@ export function Game() {
   const roundPlayersActedRef = useRef<Set<number>>(new Set());
   roundPlayersActedRef.current = roundPlayersActed;
   const deckRef = useRef<Card[]>([]);
+  const autoTimerActionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dealerIndexRef = useRef<number>(-1);
   const communityCardsStateRef = useRef<(Card | null)[]>([]);
   const startOfHandChipsRef = useRef(0);
@@ -668,12 +666,20 @@ export function Game() {
     return intChips(Math.max(0, highestBet - (activePlayer.bet ?? 0)));
   }, [activePlayers, activePlayer]);
   const isHero = (p: BasePlayer | BotPlayer) => p.id === userId || p.id === "human";
+  const isRoundInteractable =
+    gameInitialized &&
+    phase !== "init" &&
+    phase !== "shuffle" &&
+    phase !== "deal" &&
+    phase !== "showdown" &&
+    !showOpeningShuffle;
   const tablePlayers = activePlayers.map((player) => {
     const base = isHero(player)
       ? { ...player, position: 0, cards: player.cards || [] }
       : { ...player, position: activePlayers.filter((p) => !isHero(p)).indexOf(player) + 1 };
     return {
       ...base,
+      isActive: isRoundInteractable && base.isActive && !(isHero(player) && (hasPlayerActed || isLoading)),
       hasFolded: player.hasFolded ?? false,
       lastAction:
         lastBotAction?.name === player.name ? labelForBotTableAction(lastBotAction.kind, t) : undefined,
@@ -1569,10 +1575,27 @@ export function Game() {
   }, [phase]);
 
   useEffect(() => {
+    if (!gameIdParam || !isBotMode) return;
+    setShowOpeningShuffle(true);
+    setShuffleCount(0);
+    const shuffleInterval = setInterval(() => {
+      setShuffleCount((prev) => (prev >= 8 ? prev : prev + 1));
+    }, 150);
+    const t = setTimeout(() => {
+      clearInterval(shuffleInterval);
+      setShowOpeningShuffle(false);
+    }, 1500);
+    return () => {
+      clearInterval(shuffleInterval);
+      clearTimeout(t);
+    };
+  }, [gameIdParam, isBotMode]);
+
+  useEffect(() => {
     if (!socket) return;
     socket.on("TURN_TIMER", (data: { gameId: string; timeLeft: number }) => {
       if (phaseRef.current === "showdown") return;
-      if (typeof data.timeLeft === "number" && data.timeLeft > 0) {
+      if (typeof data.timeLeft === "number" && data.timeLeft > turnTimeLimitSecRef.current) {
         turnTimeLimitSecRef.current = data.timeLeft;
       }
       setTimeLeft(data.timeLeft);
@@ -1588,6 +1611,10 @@ export function Game() {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
+      if (autoTimerActionTimeoutRef.current) {
+        clearTimeout(autoTimerActionTimeoutRef.current);
+        autoTimerActionTimeoutRef.current = null;
+      }
       return;
     }
 
@@ -1598,6 +1625,10 @@ export function Game() {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
+      if (autoTimerActionTimeoutRef.current) {
+        clearTimeout(autoTimerActionTimeoutRef.current);
+        autoTimerActionTimeoutRef.current = null;
+      }
       return;
     }
 
@@ -1606,18 +1637,25 @@ export function Game() {
 
     timerIntervalRef.current = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
+        if (prev <= 2) {
           if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
             timerIntervalRef.current = null;
           }
-          setTimerActive(false);
-          if (!hasPlayerActedRef.current) {
-            if (callAmount === 0) {
-              handleCheck();
-            } else {
-              handleFold();
-            }
+          if (!gameIdParam && !autoTimerActionTimeoutRef.current) {
+            autoTimerActionTimeoutRef.current = setTimeout(() => {
+              autoTimerActionTimeoutRef.current = null;
+              setTimerActive(false);
+              if (!hasPlayerActedRef.current) {
+                if (callAmount === 0) {
+                  handleCheck();
+                } else {
+                  handleFold();
+                }
+              }
+            }, 1000);
+          } else if (gameIdParam) {
+            setTimerActive(false);
           }
           return 0;
         }
@@ -1630,8 +1668,12 @@ export function Game() {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
+      if (autoTimerActionTimeoutRef.current) {
+        clearTimeout(autoTimerActionTimeoutRef.current);
+        autoTimerActionTimeoutRef.current = null;
+      }
     };
-  }, [isMyTurn, gameInitialized, phase, callAmount, hasPlayerActed]);
+  }, [isMyTurn, gameInitialized, phase, callAmount, hasPlayerActed, gameIdParam]);
 
   useEffect(() => {
     const hero = playersState.find((p) => p.id === userId || p.id === "human");
@@ -3106,7 +3148,7 @@ export function Game() {
       </div>
 
       <AnimatePresence>
-        {phase === "shuffle" && (
+        {(phase === "shuffle" || showOpeningShuffle) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -3240,93 +3282,7 @@ export function Game() {
         )}
       </AnimatePresence>
 
-      <div
-        ref={tourRefHeader}
-        className={`absolute ${isMobile ? "top-2 left-2 right-2" : "top-4 left-8 right-8"} z-50 flex items-center justify-between`}
-      >
-        <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
-          <QuantumBluffLogo className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} drop-shadow-2xl`} />
-
-          {!isMobile && phase !== "init" && phase !== "shuffle" && phase !== "deal" && (
-            <div className="bg-yellow-500/20 backdrop-blur-sm border border-yellow-500/40 rounded-lg px-3 py-1.5 shadow-lg">
-              <p className="text-yellow-400 font-bold text-sm tracking-wide uppercase">
-                {phase === "preflop" ||
-                phase === "flop" ||
-                phase === "turn" ||
-                phase === "river" ||
-                phase === "showdown"
-                  ? t(`game.phaseBadge.${phase}`)
-                  : null}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-4'}`}>
-          {!isMobile && (
-            <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-xl border-2 border-white">
-              {getPlayerAvatar(heroPlayer?.name ?? "Vous", heroPlayer?.id, isBotMode && !gameIdParam ? "human" : userId) ? (
-                <ImageWithFallback
-                  src={getPlayerAvatar(heroPlayer?.name ?? "Vous", heroPlayer?.id, isBotMode && !gameIdParam ? "human" : userId)}
-                  alt="Avatar du joueur"
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                <span className="text-white font-bold text-xl">{heroDisplayName.charAt(0)}</span>
-              )}
-            </div>
-          )}
-
-          {!isMobile && (
-            <div className="flex flex-col">
-              <div className="text-white font-bold text-lg leading-tight">{heroDisplayName}</div>
-              <div className="text-gray-400 text-xs font-medium">{userId ? `ID ${userId.slice(0, 8)}` : "—"}</div>
-            </div>
-          )}
-
-          {!isMobile && <div className="w-px h-10 bg-slate-700"></div>}
-
-          <div
-            className={`flex shrink items-center gap-3 rounded-full border border-slate-700 bg-slate-800/80 py-1 pl-3 pr-1 shadow-lg backdrop-blur-md ${isMobile ? "me-[13.5rem]" : ""}`}
-          >
-            <div className={`text-white font-bold flex items-center gap-1.5 ${isMobile ? 'text-sm' : 'text-base'}`}>
-              <ChipIcon size="sm" />
-              <span>{displayedHeroChips.toLocaleString()}</span>
-            </div>
-
-            <button
-              onClick={openAddMoney}
-              className={`bg-gradient-to-b from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white ${isMobile ? 'w-7 h-7' : 'w-8 h-8'} rounded-full flex items-center justify-center shadow-md transition-all transform hover:scale-105 border border-green-400`}
-              title={t("lobby.addMoney")}
-            >
-              <Plus className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-            </button>
-          </div>
-
-          {!isMobile && <div className="w-px h-10 bg-slate-700"></div>}
-
-          {!isMobile && (
-            <button
-              onClick={() => setIsChatOpen(!isChatOpen)}
-              className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
-              title={t("game.openChat")}
-            >
-              <MessageCircle className={`w-6 h-6 transition-all duration-300 group-hover:scale-110 ${isChatOpen ? "text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]" : "text-gray-200 hover:text-white"}`} />
-            </button>
-          )}
-
-          {!isMobile && (
-            <button
-              type="button"
-              onClick={startGameTour}
-              className="p-2 rounded-full transition-all duration-300 hover:bg-slate-700/50 group"
-              title={t("game.menuGuidedTour")}
-            >
-              <Sparkles className="w-6 h-6 transition-all duration-300 group-hover:scale-110 text-cyan-400 hover:text-cyan-300" />
-            </button>
-          )}
-        </div>
-      </div>
+      <div ref={tourRefHeader} className="pointer-events-none fixed left-4 top-4 h-11 w-28 opacity-0" aria-hidden />
 
       {showAddMoney && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
@@ -3658,7 +3614,7 @@ export function Game() {
         </div>
       )}
 
-      <div className="relative flex-1 flex flex-col">
+      <div className={isMobile ? "relative flex-1 flex flex-col" : "pointer-events-none fixed inset-0 z-0"}>
          {/* TABLE */}
         <div
         ref={tourRefTable}
@@ -3671,6 +3627,9 @@ export function Game() {
         burnedCardsCount={displayBurnedCardsCount}
         colorblindMode={colorblindMode}
         heroSeatId={heroPlayer?.id ?? null}
+        heroTimerActive={isRoundInteractable && handResult === null && isMyTurn && !hasFoldedFromState && !hasPlayerActed && !isLoading}
+        heroTimerTimeLeft={timeLeft}
+        heroTimerDuration={gameIdParam ? turnTimeLimitSecRef.current : 30}
         enableAvatarInteractions={Boolean(!isBotMode && gameIdParam && userId)}
         onOpponentAvatarClick={(p) =>
           setPlayerMenuTarget({ id: String(p.id), name: p.name })
@@ -3704,20 +3663,6 @@ export function Game() {
       hiddenBetWindowOpen={hiddenBetWindowOpen}
       hiddenBetState={hiddenBetState}
       />
-      <button
-        type="button"
-        onClick={() => setIsChatOpen((open) => !open)}
-        className={`fixed right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full border text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_14px_34px_rgba(0,0,0,0.36)] backdrop-blur-md transition hover:scale-105 md:right-6 bottom-[calc(env(safe-area-inset-bottom,0px)+8.5rem)] md:bottom-28 ${
-          isChatOpen
-            ? "border-cyan-200/70 bg-blue-700/85 shadow-[0_0_26px_rgba(59,130,246,0.42)]"
-            : "border-white/10 bg-slate-950/70 hover:border-blue-200/35 hover:bg-blue-950/70"
-        }`}
-        aria-pressed={isChatOpen}
-        aria-label={t("game.openChat")}
-        data-no-global-tooltip
-      >
-        <MessageCircle className="h-5 w-5" aria-hidden />
-      </button>
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />
       {userId ? (
@@ -3757,7 +3702,7 @@ export function Game() {
         </div>
       )}
 
-      {!isSpectating && (
+      {!isSpectating && isRoundInteractable && (
         <PlayerDashboard
           ref={tourRefActions}
           name={heroDisplayName}
@@ -3771,12 +3716,12 @@ export function Game() {
           callAmount={callAmount}
           minRaise={effectiveMinRaise}
           maxRaise={Math.max(0, displayedHeroChips - callAmount)}
-          isMyTurn={handResult === null && isMyTurn}
+          isMyTurn={isRoundInteractable && handResult === null && isMyTurn}
           isLoading={isLoading}
           hasFolded={hasFoldedFromState}
           hasActed={hasPlayerActed}
-          actionsDisabled={Boolean(gameIdParam && !socket)}
-          waitingForPlayer={!isMyTurn && !hasFoldedFromState ? (activePlayer?.name === "Vous" || activePlayer?.name === "you" ? t('game.you') : activePlayer?.name) : undefined}
+          actionsDisabled={!isRoundInteractable || Boolean(gameIdParam && !socket)}
+          waitingForPlayer={isRoundInteractable && !isMyTurn && !hasFoldedFromState ? (activePlayer?.name === "Vous" || activePlayer?.name === "you" ? t('game.you') : activePlayer?.name) : undefined}
           timeLeft={timeLeft ?? 30}
           onToggleQuantum={onQuantumToggleClick}
           onQuantumHoverEnter={onQuantumProbasEnter}

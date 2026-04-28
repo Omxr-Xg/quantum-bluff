@@ -24,6 +24,9 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
+  const boardCardWidth = isMobile ? 40 : isTablet ? 48 : 64;
+  const boardGap = isMobile ? 2 : isTablet ? 6 : 8;
+  const labelGap = isMobile ? 2 : isTablet ? 4 : 6;
   
   return (
     <div
@@ -98,12 +101,18 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
         {/* COMMUNITY CARDS + labels (board) */}
         <div
           ref={boardRef}
-          className={`flex flex-col items-center ${isMobile ? "gap-1" : isTablet ? "gap-1.5" : "gap-2"}`}
+          className="grid place-items-center"
+          style={{
+            gridTemplateColumns: `repeat(5, ${boardCardWidth}px)`,
+            columnGap: `${boardGap}px`,
+            rowGap: `${labelGap}px`,
+          }}
         >
-        <div className={`flex ${isMobile ? "gap-0.5" : isTablet ? "gap-1.5" : "gap-2"} items-center justify-center`}>
           {cards.map((card, index) => (
             <motion.div
               key={index}
+              className="flex items-center justify-center"
+              style={{ gridColumn: index + 1, gridRow: 1 }}
               initial={{ scale: 0, rotateY: 180, opacity: 0 }}
               animate={
                 card
@@ -130,22 +139,35 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
               )}
             </motion.div>
           ))}
-        </div>
 
-        {/* PHASE LABELS */}
-        <div
-          className={`flex ${
-            isMobile ? "gap-1" : isTablet ? "gap-1.5" : "gap-2"
-          } ${
-            isMobile ? "text-[8px]" : isTablet ? "text-[9px]" : "text-[10px]"
-          } text-white/70 font-semibold`}
-        >
-          <span className={`${isMobile ? "w-9" : isTablet ? "w-10" : "w-12"} text-center`}>FLOP</span>
-          <span className={`${isMobile ? "w-9" : isTablet ? "w-10" : "w-12"} text-center`}>FLOP</span>
-          <span className={`${isMobile ? "w-9" : isTablet ? "w-10" : "w-12"} text-center`}>FLOP</span>
-          <span className={`${isMobile ? "w-9" : isTablet ? "w-10" : "w-12"} text-center`}>TURN</span>
-          <span className={`${isMobile ? "w-9" : isTablet ? "w-10" : "w-12"} text-center`}>RIVER</span>
-        </div>
+          {/* PHASE LABELS */}
+          {[1, 2, 3].map((column) => (
+            <span
+              key={`flop-${column}`}
+              className={`text-center font-semibold text-white/70 ${
+                isMobile ? "text-[8px]" : isTablet ? "text-[9px]" : "text-[10px]"
+              }`}
+              style={{ gridColumn: column, gridRow: 2 }}
+            >
+              FLOP
+            </span>
+          ))}
+          <span
+            className={`text-center font-semibold text-white/70 ${
+              isMobile ? "text-[8px]" : isTablet ? "text-[9px]" : "text-[10px]"
+            }`}
+            style={{ gridColumn: 4, gridRow: 2 }}
+          >
+            TURN
+          </span>
+          <span
+            className={`text-center font-semibold text-white/70 ${
+              isMobile ? "text-[8px]" : isTablet ? "text-[9px]" : "text-[10px]"
+            }`}
+            style={{ gridColumn: 5, gridRow: 2 }}
+          >
+            RIVER
+          </span>
         </div>
       </div>
     </div>
