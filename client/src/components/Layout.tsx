@@ -876,24 +876,26 @@ export function Layout({ children }: LayoutProps) {
       {/* Modal Ajouter des jetons */}
       {showTopBar && showAddMoney && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
-          <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-gradient-to-b from-[#17130f] via-[#120f0c] to-[#0f0d0b] border border-amber-500/40 rounded-2xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">{t("lobby.addMoneyTitle")}</h3>
+              <h3 className="bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-xl font-bold text-transparent">
+                {t("lobby.addMoneyTitle")}
+              </h3>
               <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="mb-4 grid grid-cols-2 gap-2">
+            <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-amber-700/25 bg-[#1a1511]/55 p-1.5">
               <button
                 type="button"
                 onClick={() => {
                   setBalanceModalTab("history");
                   void loadBalanceHistory();
                 }}
-                className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                className={`min-h-[2.6rem] rounded-lg border px-3 py-2 text-sm font-semibold tracking-wide transition ${
                   balanceModalTab === "history"
-                    ? "border-yellow-300/65 bg-yellow-400/15 text-yellow-100"
-                    : "border-slate-600 bg-slate-700 text-slate-200 hover:bg-slate-600"
+                    ? "border-amber-300/60 bg-gradient-to-b from-amber-700/35 to-amber-900/35 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_18px_rgba(0,0,0,0.22)]"
+                    : "border-slate-600/80 bg-slate-800/75 text-slate-300 hover:border-slate-500 hover:bg-slate-700/80"
                 }`}
               >
                 Historique
@@ -901,13 +903,13 @@ export function Layout({ children }: LayoutProps) {
               <button
                 type="button"
                 onClick={() => setBalanceModalTab("topup")}
-                className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                className={`min-h-[2.6rem] rounded-lg border px-3 py-2 text-sm font-semibold tracking-wide transition ${
                   balanceModalTab === "topup"
-                    ? "border-yellow-300/65 bg-yellow-400/15 text-yellow-100"
-                    : "border-slate-600 bg-slate-700 text-slate-200 hover:bg-slate-600"
+                    ? "border-amber-300/60 bg-gradient-to-b from-amber-700/35 to-amber-900/35 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_18px_rgba(0,0,0,0.22)]"
+                    : "border-slate-600/80 bg-slate-800/75 text-slate-300 hover:border-slate-500 hover:bg-slate-700/80"
                 }`}
               >
-                Alimentation du compte
+                Alimenter le compte
               </button>
             </div>
             {balanceModalTab === "history" ? (
@@ -964,7 +966,7 @@ export function Layout({ children }: LayoutProps) {
                       onClick={() => setAddMoneyAmount(amount)}
                       className={`px-4 py-2 rounded-lg font-bold transition ${
                         addMoneyAmount === amount
-                          ? "bg-yellow-500 text-slate-900"
+                          ? "bg-amber-500 text-slate-900"
                           : "bg-slate-700 text-slate-200 hover:bg-slate-600"
                       }`}
                     >
@@ -974,7 +976,9 @@ export function Layout({ children }: LayoutProps) {
                 </div>
                 {addMoneyAmount != null && (
                   <div className="space-y-2">
-                    <label className="text-slate-300 text-sm block">{t("lobby.devValidation") || 'Tapez "dev" pour valider'}</label>
+                    <label className="text-slate-300 text-sm block">
+                      {t("lobby.devValidation") || 'Tapez "dev" pour valider'}
+                    </label>
                     <input
                       type="text"
                       value={devValidation}
@@ -988,9 +992,9 @@ export function Layout({ children }: LayoutProps) {
                       type="button"
                       onClick={submitAddMoney}
                       disabled={devValidation.trim().toLowerCase() !== "dev"}
-                      className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
+                      className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
                     >
-                      {t("lobby.validate")}
+                      Valider l'alimentation
                     </button>
                   </div>
                 )}
