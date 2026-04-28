@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
@@ -9,8 +9,6 @@ import { apiUrl } from "../utils/apiBase";
 import {
   updateUserBalance,
   fetchBalanceFromServer,
-  getUserBalance,
-  BALANCE_CHANGED_EVENT,
 } from "../utils/userProfile";
 import {
   mergeGamificationFromServerResponse,
@@ -30,6 +28,7 @@ import {
   type BjRoundSummaryRow,
 } from "../components/blackjack/BlackjackRoundReveal";
 import { mapBlackjackRuntimeCodeToUi } from "../features/blackjack/runtimeStatus";
+import { NeonButton } from "../components/NeonButton";
 
 const PAYOUT_TABLE_REVEAL_MS = 2000;
 
@@ -93,7 +92,6 @@ export function BlackjackMultiTable() {
   const [runtimeSeverity, setRuntimeSeverity] = useState<"info" | "warning" | "error">("info");
   const [runtimeDisableActions, setRuntimeDisableActions] = useState(false);
   const [showdownPhase, setShowdownPhase] = useState<"idle" | "table_reveal" | "results">("idle");
-  const [playerChips, setPlayerChips] = useState(() => getUserBalance());
   const [bjMaxDisplay, setBjMaxDisplay] = useState(() => getDisplayedBlackjackMaxBet());
 
   const showdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -231,7 +229,6 @@ export function BlackjackMultiTable() {
     } else if (data.state?.roomId) {
       roomIdRef.current = data.state.roomId;
     }
-    setPlayerChips(getUserBalance());
   }, [gameId, navigate, addToast, t, applyRuntimeCode]);
 
   const postBet = useCallback(async () => {
@@ -267,6 +264,38 @@ export function BlackjackMultiTable() {
   useEffect(() => {
     if (state?.roomId) roomIdRef.current = state.roomId;
   }, [state?.roomId]);
+
+  useEffect(() => {
+    const handleRequestQuit = () => navigate("/lobby?tab=blackjack");
+    window.addEventListener("request-blackjack-quit", handleRequestQuit);
+    return () => window.removeEventListener("request-blackjack-quit", handleRequestQuit);
+  }, [navigate]);
+
+  useEffect(() => {
+    const handleRequestTour = () => {
+      addToast(
+        t(
+          "bjMulti.helpQuick",
+          "Blackjack : misez, lancez la distribution, puis choisissez Tirer, Rester ou Doubler quand c'est votre tour."
+        ),
+        "info"
+      );
+    };
+    window.addEventListener("request-blackjack-tour", handleRequestTour);
+    return () => window.removeEventListener("request-blackjack-tour", handleRequestTour);
+  }, [addToast, t]);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("game-hud-state", {
+        detail: { game: "blackjack", phase: state?.phase ?? "betting", isMyTurn: myTurn },
+      })
+    );
+  }, [state?.phase, myTurn]);
+
+  useEffect(() => {
+    return () => window.dispatchEvent(new Event("game-hud-reset"));
+  }, []);
 
   /** Quitter la table côté API au démontage (navigation) pour retirer le joueur des sièges côté serveur. */
   useEffect(() => {
@@ -357,12 +386,6 @@ export function BlackjackMultiTable() {
   }, [state?.phase, state?.handNumber, effectiveRoundSummary, userId, isSpectator, addToast, t]);
 
   useEffect(() => {
-    const onBalance = () => setPlayerChips(getUserBalance());
-    window.addEventListener(BALANCE_CHANGED_EVENT, onBalance);
-    return () => window.removeEventListener(BALANCE_CHANGED_EVENT, onBalance);
-  }, []);
-
-  useEffect(() => {
     refreshGamificationFromServer().then(() => setBjMaxDisplay(getDisplayedBlackjackMaxBet()));
   }, []);
 
@@ -426,7 +449,7 @@ export function BlackjackMultiTable() {
 
   if (loading || !state) {
     return (
-      <div className="relative flex h-full min-h-0 flex-1 flex-col items-center justify-center overflow-hidden app-shell-bg">
+      <div className="relative flex h-full min-h-0 flex-1 flex-col items-center justify-center overflow-hidden app-shell-bg pt-[5.25rem]">
         <BlackjackLobbyBackdrop />
         <RuntimeBanner message={runtimeBanner} severity={runtimeSeverity} onRetry={loadState} />
         <Loader2 className="relative z-10 h-10 w-10 animate-spin text-amber-400" />
@@ -434,40 +457,27 @@ export function BlackjackMultiTable() {
     );
   }
 
-  const btnBase = "rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wide shadow-lg transition disabled:cursor-not-allowed disabled:opacity-45 sm:px-8 sm:text-base";
+  const btnBase = "px-6 py-3.5 text-xs md:px-8 md:py-4 md:text-base";
 
   return (
-    <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden app-shell-bg">
+    <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden app-shell-bg pt-[5.25rem]">
       <BlackjackLobbyBackdrop />
 
       <div className="relative z-10 w-full min-w-0 shrink-0 px-4 pt-4 sm:pt-5">
         <RuntimeBanner message={runtimeBanner} severity={runtimeSeverity} onRetry={loadState} className="mb-4" />
-
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 sm:mb-4">
-          <button
-            type="button"
-            onClick={() => navigate("/lobby?tab=blackjack")}
-            className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm font-medium text-amber-100/90 backdrop-blur-sm transition hover:border-amber-400/40 hover:bg-black/50 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {t("bjMulti.backToLobby")}
-          </button>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {isSpectator && (
-              <span className="rounded-full border border-amber-500/50 bg-amber-950/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-200 shadow-inner">
-                {t("bjMulti.spectatorBadge")}
-              </span>
-            )}
+        {isSpectator && (
+          <div className="mb-3 flex justify-end sm:mb-4">
+            <span className="rounded-full border border-amber-500/50 bg-amber-950/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-200 shadow-inner">
+              {t("bjMulti.spectatorBadge")}
+            </span>
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-0 sm:px-4">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4 sm:px-4 sm:pt-6">
       <BlackjackMultiCasinoTable
         state={state}
         userId={userId ?? null}
-        playerBalance={isSpectator ? null : playerChips}
         playerEffectiveMaxBet={bjMaxDisplay}
       >
         {!isSpectator ? (
@@ -486,55 +496,55 @@ export function BlackjackMultiTable() {
                     className="rounded-xl border-2 border-amber-700/50 bg-black/50 px-4 py-3 text-center font-mono text-lg text-white shadow-inner focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                   />
                 </label>
-                <button
-                  type="button"
+                <NeonButton
                   disabled={runtimeDisableActions || acting}
                   onClick={postBet}
-                  className={`${btnBase} w-full bg-gradient-to-b from-emerald-500 to-emerald-800 text-white shadow-emerald-950/50 hover:from-emerald-400 hover:to-emerald-700 sm:w-auto`}
+                  variant="green"
+                  className={`${btnBase} w-full sm:w-auto`}
                 >
                   {t("bjMulti.placeBet")}
-                </button>
+                </NeonButton>
               </div>
             )}
             
             {canDeal && (
-              <button
-                type="button"
+              <NeonButton
                 disabled={runtimeDisableActions || acting}
                 onClick={postDeal}
-                className={`${btnBase} w-full max-w-sm bg-gradient-to-b from-amber-400 via-amber-600 to-amber-900 text-slate-950 shadow-amber-950/40 hover:from-amber-300 hover:to-amber-800`}
+                variant="gold"
+                className={`${btnBase} w-full max-w-sm`}
               >
                 {t("bjMulti.dealCards")}
-              </button>
+              </NeonButton>
             )}
             
             {myTurn && (
               <div className="flex w-full max-w-lg flex-wrap justify-center gap-3">
-                <button
-                  type="button"
+                <NeonButton
                   disabled={runtimeDisableActions || acting}
                   onClick={() => postAction("hit")}
-                  className={`${btnBase} min-w-[7rem] bg-gradient-to-b from-sky-500 to-sky-900 text-white hover:from-sky-400`}
+                  variant="blue"
+                  className={`${btnBase} min-w-[7rem]`}
                 >
                   {t("bjMulti.hit")}
-                </button>
-                <button
-                  type="button"
+                </NeonButton>
+                <NeonButton
                   disabled={runtimeDisableActions || acting}
                   onClick={() => postAction("stand")}
-                  className={`${btnBase} min-w-[7rem] bg-gradient-to-b from-slate-600 to-slate-900 text-white hover:from-slate-500`}
+                  variant="red"
+                  className={`${btnBase} min-w-[7rem]`}
                 >
                   {t("bjMulti.stand")}
-                </button>
+                </NeonButton>
                 {canDouble && (
-                  <button
-                    type="button"
+                  <NeonButton
                     disabled={runtimeDisableActions || acting}
                     onClick={() => postAction("double")}
-                    className={`${btnBase} min-w-[7rem] bg-gradient-to-b from-violet-500 to-violet-950 text-white hover:from-violet-400`}
+                    variant="green"
+                    className={`${btnBase} min-w-[7rem]`}
                   >
                     {t("bjMulti.double")}
-                  </button>
+                  </NeonButton>
                 )}
               </div>
             )}

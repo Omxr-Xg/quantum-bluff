@@ -108,7 +108,11 @@ export function Layout({ children }: LayoutProps) {
     toggleColorblindMode,
   } = useAccessibility();
   const [notification, setNotification] = useState<LayoutNotification | null>(null);
-  const [gameHudState, setGameHudState] = useState<{ phase?: string; isMyTurn?: boolean } | null>(null);
+  const [gameHudState, setGameHudState] = useState<{
+    game?: "poker" | "blackjack";
+    phase?: string;
+    isMyTurn?: boolean;
+  } | null>(null);
   const [friendQuickReply, setFriendQuickReply] = useState("");
   const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
   const [balance, setBalance] = useState(getUserBalance());
@@ -396,6 +400,8 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
+  const isBlackjackGamePage = location.pathname.startsWith("/blackjack/table");
+  const isGameHudPage = isGamePage || isBlackjackGamePage;
   const isWaitingRoomPage = location.pathname === "/waiting-room";
   const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
   const isAdminShell =
@@ -426,9 +432,9 @@ export function Layout({ children }: LayoutProps) {
     path.startsWith("/blackjack/table");
   /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
   const showHamburgerMenu =
-    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage && !isGamePage;
+    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage && !isGameHudPage;
   const showLobbyIntegratedBar = showTopBar && isLobby;
-  const showStandaloneTopBar = showTopBar && (isBotConfigPage || isGamePage);
+  const showStandaloneTopBar = showTopBar && (isBotConfigPage || isGameHudPage);
   /**
    * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
    * et seul un bouton paramètres est en coin ; éviter la « barre » vide / décalage en haut.
@@ -437,12 +443,16 @@ export function Layout({ children }: LayoutProps) {
     showTopBar &&
     !showLobbyIntegratedBar &&
     showHamburgerMenu &&
-    !isGamePage &&
+    !isGameHudPage &&
     !isWaitingRoomPage;
 
   useEffect(() => {
     const onHudState = (event: Event) => {
-      const detail = (event as CustomEvent<{ phase?: string; isMyTurn?: boolean } | null>).detail;
+      const detail = (event as CustomEvent<{
+        game?: "poker" | "blackjack";
+        phase?: string;
+        isMyTurn?: boolean;
+      } | null>).detail;
       setGameHudState(detail ?? null);
     };
     const onHudReset = () => setGameHudState(null);
@@ -455,8 +465,8 @@ export function Layout({ children }: LayoutProps) {
   }, []);
 
   useEffect(() => {
-    if (!isGamePage) setGameHudState(null);
-  }, [isGamePage]);
+    if (!isGameHudPage) setGameHudState(null);
+  }, [isGameHudPage]);
 
   if (isAdminShell) {
     return (
@@ -494,7 +504,9 @@ export function Layout({ children }: LayoutProps) {
   const gameHudIcon = "h-3.5 w-3.5 shrink-0 md:h-4 md:w-4";
   const phase = gameHudState?.phase ?? "init";
   const phaseLabel =
-    phase === "init" || phase === "shuffle" || phase === "deal"
+    gameHudState?.game === "blackjack"
+      ? t(`bjMulti.phase_${phase}`, { defaultValue: phase })
+      : phase === "init" || phase === "shuffle" || phase === "deal"
       ? t("game.waiting")
       : t(`game.phaseBadge.${phase}`, { defaultValue: phase });
   const bgmPct = bgmEnabled ? Math.round(bgmVolume * 100) : 0;
@@ -694,7 +706,7 @@ export function Layout({ children }: LayoutProps) {
       type="button"
       onClick={() => {
         playSfx("uiClick");
-        window.dispatchEvent(new Event("request-game-quit"));
+        window.dispatchEvent(new Event(isBlackjackGamePage ? "request-blackjack-quit" : "request-game-quit"));
       }}
       className={gameExitBtn}
       title={t("nav.quitGame")}
@@ -714,7 +726,7 @@ export function Layout({ children }: LayoutProps) {
           type="button"
           onClick={() => {
             playSfx("uiClick");
-            window.dispatchEvent(new Event("request-game-tour"));
+            window.dispatchEvent(new Event(isBlackjackGamePage ? "request-blackjack-tour" : "request-game-tour"));
           }}
           className={topNavBtn}
           title={t("game.menuGuidedTour")}
@@ -730,7 +742,7 @@ export function Layout({ children }: LayoutProps) {
     </div>
   );
 
-  const menuContent = isGamePage ? gameMenuContent : (
+  const menuContent = isGameHudPage ? gameMenuContent : (
     <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end md:gap-2">
       <LanguageSwitcher buttonClassName={languageButtonClass} />
       {accountPill}
@@ -752,8 +764,8 @@ export function Layout({ children }: LayoutProps) {
   );
   const handleStandaloneHomeClick = () => {
     playSfx("uiClick");
-    if (isGamePage) {
-      window.dispatchEvent(new Event("request-game-quit"));
+    if (isGameHudPage) {
+      window.dispatchEvent(new Event(isBlackjackGamePage ? "request-blackjack-quit" : "request-game-quit"));
       return;
     }
     navigate("/lobby");
@@ -764,9 +776,9 @@ export function Layout({ children }: LayoutProps) {
       <GlobalHoverTooltip />
       <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
       {showStandaloneTopBar && (
-        <div className={`${isGamePage ? "fixed left-0 right-0 top-0" : "sticky top-0"} z-[250] w-full bg-transparent`}>
+        <div className={`${isGameHudPage ? "fixed left-0 right-0 top-0" : "sticky top-0"} z-[250] w-full bg-transparent`}>
           <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-8 lg:px-10">
-            {isGamePage ? (
+            {isGameHudPage ? (
               gameHudControls
             ) : (
               <button
@@ -778,7 +790,7 @@ export function Layout({ children }: LayoutProps) {
                 <span>{t("botConfig.home")}</span>
               </button>
             )}
-            <div className={`${isGamePage ? "min-w-0 shrink-0" : "min-w-0 flex-1"} overflow-x-auto overflow-y-hidden scrollbar-hide`}>
+            <div className={`${isGameHudPage ? "min-w-0 shrink-0" : "min-w-0 flex-1"} overflow-x-auto overflow-y-hidden scrollbar-hide`}>
               {menuContent}
             </div>
           </div>
@@ -868,7 +880,7 @@ export function Layout({ children }: LayoutProps) {
         onClose={() => setShowSettingsMenu(false)}
         initialTab={settingsInitialTab}
         onRateGame={() => setShowRateGame(true)}
-        hideAestheticTab={isGamePage}
+        hideAestheticTab={isGameHudPage}
       />
 
       <RateGameModal open={showRateGame} onClose={() => setShowRateGame(false)} />

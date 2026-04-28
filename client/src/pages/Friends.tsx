@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Search, MessageCircle, Users, X, Check, Loader2, Gamepad2, Home, Coins } from "lucide-react";
+import { UserPlus, Search, MessageCircle, Users, X, Check, Loader2, Home, Coins, Trophy } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-import { QuantumBluffLogo } from "../assets/logo";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
@@ -31,6 +30,17 @@ import {
 import { getFriendLoanApiErrorMessage } from "../utils/friendLoanApiError";
 
 type FriendsTab = "friends" | "requests" | "messages" | "loans";
+
+const pokerGlassCard =
+  "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
+const pokerInnerCard =
+  "rounded-xl border border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md";
+const pokerButton =
+  "rounded-xl border border-blue-300/15 bg-blue-950/75 font-semibold text-white shadow-lg shadow-black/20 transition hover:border-blue-200/25 hover:bg-blue-900/80";
+const pokerMutedButton =
+  "rounded-xl border border-white/10 bg-white/[0.055] font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]";
+const pokerInput =
+  "rounded-xl border border-white/10 bg-slate-950/55 text-white placeholder-slate-500 transition-all focus:border-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-500/25";
 
 export function Friends() {
   const { t } = useTranslation();
@@ -90,8 +100,6 @@ export function Friends() {
   const { data: searchData, isLoading: searching } = useSearchUsersQuery(friendUsername, {
     skip: friendUsername.trim().length < 2 || !showAddFriend
   });
-
-  const isInGame = sessionStorage.getItem("currentGame");
 
   const filteredFriends =
     friends?.filter((friend) =>
@@ -297,38 +305,34 @@ export function Friends() {
   };
 
   return (
-    <div className="size-full app-shell-bg overflow-auto">
-      <div className="w-full min-w-0 p-3 sm:p-6">
-        {/* En-tête — même structure que Profile */}
+    <div className="relative min-h-screen w-full overflow-x-hidden overflow-y-auto bg-[#020716]">
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.24),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_40%,rgba(14,116,144,0.10),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
+        <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/40 blur-[120px]" />
+        <div className="absolute -left-20 top-1/3 h-80 w-80 rounded-full bg-cyan-700/10 blur-[90px]" />
+        <div className="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-indigo-950/28 blur-[110px]" />
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.26) 1px, transparent 0)",
+            backgroundSize: "22px 22px",
+          }}
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.55),transparent_58%)]" />
+      </div>
+
+      <div className="relative z-10 mx-auto w-full max-w-6xl min-w-0 p-3 sm:p-6">
         <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:mb-8 sm:flex-row sm:items-center">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={() => navigate("/lobby")}
-              className="flex touch-manipulation items-center gap-1 rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white transition-all hover:bg-slate-600 sm:gap-2 sm:rounded-xl sm:px-4 sm:py-2 sm:text-base"
+              className={`flex touch-manipulation items-center gap-1 px-3 py-2 text-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-base ${pokerMutedButton}`}
             >
               <Home className="h-4 w-4 sm:h-5 sm:w-5" />
               <span>{t("profile.home")}</span>
             </button>
-            {isInGame ? (
-              <button
-                type="button"
-                onClick={() => {
-                  const gameData = sessionStorage.getItem("currentGame");
-                  if (gameData) {
-                    navigate(gameData);
-                  }
-                }}
-                className="flex touch-manipulation items-center gap-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-lg transition-all hover:bg-green-500 sm:gap-2 sm:rounded-xl sm:px-4 sm:py-2 sm:text-base"
-              >
-                <Gamepad2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span>{t("profile.backToGame")}</span>
-              </button>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <QuantumBluffLogo className="h-10 w-10 drop-shadow-2xl sm:h-12 sm:w-12" />
-            <span className="text-xl font-bold text-white sm:text-2xl">{t("lobby.title")}</span>
           </div>
         </div>
 
@@ -336,27 +340,27 @@ export function Friends() {
           <button
             onClick={() => refetchFriends()}
             disabled={fetchingFriends}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-lg text-sm text-gray-300 hover:bg-slate-700 transition-all"
+            className={`flex items-center gap-2 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${pokerMutedButton}`}
           >
-            <RefreshCw className={`w-4 h-4 ${fetchingFriends ? 'animate-spin text-green-400' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${fetchingFriends ? 'animate-spin text-blue-300' : ''}`} />
             {fetchingFriends ? "Mise à jour..." : "Actualiser la liste"}
           </button>
         </div>
 
-        <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`mb-6 flex flex-col gap-4 p-5 sm:mb-8 sm:flex-row sm:items-center sm:justify-between sm:p-6 ${pokerGlassCard}`}>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-6">
-            <div className="mx-auto flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-yellow-400 bg-gradient-to-br from-green-600 to-green-800 shadow-2xl sm:mx-0 sm:h-24 sm:w-24">
-              <Users className="h-10 w-10 text-white sm:h-12 sm:w-12" />
+            <div className="mx-auto flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-blue-300/25 bg-blue-950/65 shadow-[0_0_36px_rgba(59,130,246,0.18)] sm:mx-0 sm:h-24 sm:w-24">
+              <Users className="h-10 w-10 text-blue-100 sm:h-12 sm:w-12" />
             </div>
             <div className="text-center sm:text-left">
-              <h1 className="mb-2 text-2xl font-bold text-white sm:text-4xl">{t("friends.title")}</h1>
-              <p className="text-lg text-gray-400">{t("friends.friendsCount", { count: friends?.length || 0 })}</p>
+              <h1 className="mb-2 bg-gradient-to-r from-slate-100 via-blue-200 to-cyan-200 bg-clip-text text-2xl font-bold text-transparent sm:text-4xl">{t("friends.title")}</h1>
+              <p className="text-lg text-slate-300/75">{t("friends.friendsCount", { count: friends?.length || 0 })}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setShowAddFriend(true)}
-            className="flex w-full shrink-0 touch-manipulation items-center justify-center gap-2 rounded-xl bg-slate-700 px-6 py-3 font-semibold text-white transition-all hover:bg-slate-600 sm:w-auto"
+            className={`flex w-full shrink-0 touch-manipulation items-center justify-center gap-2 px-6 py-3 sm:w-auto ${pokerButton}`}
           >
             <UserPlus className="h-5 w-5" />
             {t("friends.addOneFriend")}
@@ -378,8 +382,8 @@ export function Friends() {
               onClick={() => setActiveTab(key)}
               className={`flex touch-manipulation items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all sm:text-base ${
                 activeTab === key
-                  ? "bg-green-600 text-white shadow-lg"
-                  : "bg-slate-700 text-gray-200 hover:bg-slate-600"
+                  ? "bg-gradient-to-br from-blue-950/90 via-slate-900/80 to-slate-950/80 text-blue-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_16px_36px_rgba(0,0,0,0.22)] ring-1 ring-blue-300/20"
+                  : "border border-white/10 bg-white/[0.045] text-slate-300 hover:bg-white/[0.07] hover:text-white"
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -389,29 +393,29 @@ export function Friends() {
         </div>
 
         {activeTab === "requests" && (
-          <div className="mb-4 rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-5 shadow-2xl sm:mb-6 sm:rounded-2xl sm:p-8">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200 sm:text-xl">
-              <UserPlus className="h-5 w-5 shrink-0 text-amber-400" />
+          <div className={`mb-4 p-5 sm:mb-6 sm:p-8 ${pokerGlassCard}`}>
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-blue-100 sm:text-xl">
+              <UserPlus className="h-5 w-5 shrink-0 text-blue-200" />
               {t("friends.friendRequestsCount", { count: requests?.length || 0 })}
               {/* Le spinner  qui apparaît pendant les Retry */}
               {fetchingRequests && !loadingRequests && (
-                <Loader2 className="h-4 w-4 animate-spin text-amber-400/50 ml-2" />
+                <Loader2 className="h-4 w-4 animate-spin text-blue-300/60 ml-2" />
               )}
             </h2>
 
             {loadingRequests ? (
               <div className="flex justify-center py-6">
-                <Loader2 className="h-6 w-6 animate-spin text-amber-300" />
+                <Loader2 className="h-6 w-6 animate-spin text-blue-300" />
               </div>
             ) : requests?.length ? (
               <div className="space-y-3">
                 {requests.map((req) => (
                   <div
                     key={req.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-600 bg-slate-800/50 p-3"
+                    className={`flex items-center justify-between p-3 ${pokerInnerCard}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-500/40 bg-gradient-to-br from-amber-600 to-amber-800">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
                         {getPlayerAvatar(req.sender.username, req.sender.id, userId, req.sender.avatarUrl) ? (
                           <ImageWithFallback
                             src={getPlayerAvatar(req.sender.username, req.sender.id, userId, req.sender.avatarUrl)}
@@ -428,7 +432,7 @@ export function Friends() {
                       <button
                         type="button"
                         onClick={() => handleRespond(req.id, "ACCEPTED")}
-                        className="rounded-lg bg-green-600 p-2 text-white transition hover:bg-green-500"
+                        className="rounded-lg border border-blue-300/25 bg-blue-950/75 p-2 text-white transition hover:bg-blue-900/80"
                       >
                         <Check className="h-5 w-5" />
                       </button>
@@ -451,7 +455,7 @@ export function Friends() {
 
         {activeTab === "friends" && (
           <>
-            <div className="mb-4 rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-5 shadow-2xl sm:mb-6 sm:rounded-2xl sm:p-8">
+            <div className={`mb-4 p-5 sm:mb-6 sm:p-8 ${pokerGlassCard}`}>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <input
@@ -459,7 +463,7 @@ export function Friends() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t("friends.searchFriendPlaceholder")}
-                  className="w-full rounded-xl border border-slate-600 bg-slate-900/50 py-3 pl-12 pr-4 text-white placeholder-gray-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={`w-full py-3 pl-12 pr-4 ${pokerInput}`}
                 />
               </div>
             </div>
@@ -468,7 +472,7 @@ export function Friends() {
               <FriendSearch />
             </div>
             {fetchingFriends && !loadingFriends && (
-              <div className="flex items-center justify-end mb-2 gap-2 text-sm text-green-400/70 animate-pulse">
+              <div className="flex items-center justify-end mb-2 gap-2 text-sm text-blue-300/70 animate-pulse">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Synchronisation...
               </div>
@@ -476,17 +480,17 @@ export function Friends() {
 
             {loadingFriends ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-green-400" />
+                <Loader2 className="h-8 w-8 animate-spin text-blue-300" />
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {filteredFriends.map((friend) => (
                   <div
                     key={friend.id}
-                    className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-5 shadow-2xl transition-all hover:border-slate-600 sm:rounded-2xl sm:p-8"
+                    className={`p-5 transition-all hover:border-blue-300/20 sm:p-8 ${pokerGlassCard}`}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-yellow-400 bg-gradient-to-br from-green-600 to-green-800 shadow-lg sm:h-20 sm:w-20">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60 shadow-[0_0_28px_rgba(59,130,246,0.16)] sm:h-20 sm:w-20">
                         {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
                           <ImageWithFallback
                             src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
@@ -501,13 +505,13 @@ export function Friends() {
                       <div className="min-w-0 flex-1">
                         <div className="mb-1 flex items-center justify-between gap-2">
                           <h3 className="truncate text-xl font-bold text-white">{friend.username}</h3>
-                          <span className="shrink-0 text-sm font-semibold text-amber-200">
+                          <span className="shrink-0 text-sm font-semibold text-blue-200">
                             {t("friends.level", { level: friend.level })}
                           </span>
                         </div>
 
-                        <div className="mb-4 text-sm text-gray-400">
-                          🏆{" "}
+                        <div className="mb-4 flex items-center gap-1.5 text-sm text-slate-400">
+                          <Trophy className="h-4 w-4 text-cyan-200/80" />
                           {friend.stats?.wins ?? friend.playerStats?.totalWins ?? 0}{" "}
                           {t("profile.wins")}
                         </div>
@@ -516,7 +520,7 @@ export function Friends() {
                           <button
                             type="button"
                             onClick={() => openChat(friend.id)}
-                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-2.5 font-semibold text-white transition-all hover:bg-slate-600"
+                            className={`flex w-full items-center justify-center gap-2 px-4 py-2.5 ${pokerMutedButton}`}
                           >
                             <MessageCircle className="h-4 w-4 shrink-0" />
                             {t("friends.chat")}
@@ -528,7 +532,7 @@ export function Friends() {
                               setLoanAmount(500);
                               setLoanRate(30);
                             }}
-                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/50 bg-amber-900/20 px-4 py-2.5 font-semibold text-amber-100 transition-all hover:bg-amber-900/40"
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-950/45 px-4 py-2.5 font-semibold text-cyan-100 transition-all hover:border-cyan-200/35 hover:bg-cyan-900/45"
                           >
                             <Coins className="h-4 w-4 shrink-0" />
                             {t("friends.loans.requestLoan")}
@@ -543,8 +547,8 @@ export function Friends() {
 
             {filteredFriends.length === 0 && !loadingFriends && (
               <div className="py-12 text-center">
-                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-slate-600 bg-slate-800/80">
-                  <Users className="h-10 w-10 text-gray-500" />
+                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-blue-300/20 bg-blue-950/40">
+                  <Users className="h-10 w-10 text-slate-500" />
                 </div>
                 <p className="text-lg text-gray-400">{t("friends.noFriendsFound")}</p>
               </div>
@@ -556,7 +560,7 @@ export function Friends() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {loadingFriends ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-green-400" />
+                <Loader2 className="h-8 w-8 animate-spin text-blue-300" />
               </div>
             ) : friends?.length ? (
               friends.map((friend) => (
@@ -564,9 +568,9 @@ export function Friends() {
                   key={friend.id}
                   type="button"
                   onClick={() => openChat(friend.id)}
-                  className="flex items-center gap-4 rounded-xl border border-slate-700 bg-slate-800/80 p-4 text-left text-white transition hover:border-slate-600"
+                  className={`flex items-center gap-4 p-4 text-left text-white transition hover:border-blue-300/20 ${pokerGlassCard}`}
                 >
-                  <MessageCircle className="h-8 w-8 text-amber-300" />
+                  <MessageCircle className="h-8 w-8 text-blue-200" />
                   <span className="font-semibold">{friend.username}</span>
                 </button>
               ))
@@ -581,7 +585,7 @@ export function Friends() {
 
       {loanModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-6 shadow-2xl">
+          <div className={`w-full max-w-md p-6 ${pokerGlassCard}`}>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-white">
                 {t("friends.loans.requestLoan")} — {loanModal.username}
@@ -589,7 +593,7 @@ export function Friends() {
               <button
                 type="button"
                 onClick={() => setLoanModal(null)}
-                className="rounded-lg bg-slate-700 p-2 text-white hover:bg-slate-600"
+                className="rounded-lg border border-white/10 bg-white/[0.06] p-2 text-white hover:bg-white/[0.1]"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -601,13 +605,13 @@ export function Friends() {
               max={1000000}
               value={loanAmount}
               onChange={(e) => setLoanAmount(Number(e.target.value) || 0)}
-              className="mb-4 w-full rounded-xl border border-slate-600 bg-slate-900/60 px-4 py-3 text-white"
+              className={`mb-4 w-full px-4 py-3 ${pokerInput}`}
             />
             <label className="mb-1 block text-sm text-gray-300">{t("friends.loans.repaymentRate")}</label>
             <select
               value={loanRate}
               onChange={(e) => setLoanRate(Number(e.target.value))}
-              className="mb-4 w-full rounded-xl border border-slate-600 bg-slate-900/60 px-4 py-3 text-white"
+              className={`mb-4 w-full px-4 py-3 ${pokerInput}`}
             >
               {ALLOWED_LOAN_REPAYMENT_RATES.map((r) => (
                 <option key={r} value={r}>
@@ -615,7 +619,7 @@ export function Friends() {
                 </option>
               ))}
             </select>
-            <div className="mb-4 space-y-1 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-sm text-amber-100">
+            <div className="mb-4 space-y-1 rounded-xl border border-cyan-300/20 bg-cyan-950/30 p-4 text-sm text-cyan-100">
               <p>
                 {t("friends.loans.interestPreview", { rate: interestPercentForRepaymentRate(loanRate) })}
               </p>
@@ -643,7 +647,7 @@ export function Friends() {
                   addToast(getFriendLoanApiErrorMessage(err, t("friends.loans.loanError")), "error");
                 }
               }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-500 disabled:opacity-50"
+              className={`flex w-full items-center justify-center gap-2 py-3 disabled:cursor-not-allowed disabled:opacity-50 ${pokerButton}`}
             >
               {creatingLoan ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
               {t("friends.loans.sendRequest")}
@@ -654,11 +658,11 @@ export function Friends() {
 
       {showAddFriend && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-700 p-6">
+          <div className={`w-full max-w-md overflow-hidden ${pokerGlassCard}`}>
+            <div className="flex items-center justify-between border-b border-white/10 p-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-yellow-400 bg-gradient-to-br from-green-600 to-green-800">
-                  <UserPlus className="h-6 w-6 text-white" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-blue-300/30 bg-blue-950/60">
+                  <UserPlus className="h-6 w-6 text-blue-100" />
                 </div>
                 <h2 className="text-2xl font-bold text-white">{t("friends.addOneFriend")}</h2>
               </div>
@@ -671,7 +675,7 @@ export function Friends() {
                   setSearchSuccess(false);
                   setSearchResults([]);
                 }}
-                className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 transition-all hover:bg-slate-600"
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] transition-all hover:bg-white/[0.1]"
               >
                 <X className="h-5 w-5 text-white" />
               </button>
@@ -696,14 +700,14 @@ export function Friends() {
                     }}
                     onKeyDown={(e) => e.key === "Enter" && handleSearchUser()}
                     placeholder={t("friends.playerNamePlaceholder")}
-                    className="w-full rounded-xl border border-slate-600 bg-slate-900/50 py-3 pl-12 pr-4 text-white placeholder-gray-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className={`w-full py-3 pl-12 pr-4 ${pokerInput}`}
                   />
                 </div>
               </div>
 
               {searching && (
                 <div className="flex justify-center py-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-green-400" />
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-300" />
                 </div>
               )}
 
@@ -713,14 +717,14 @@ export function Friends() {
                   {searchResults.map((user) => (
                     <div
                       key={user.id}
-                      className="mb-2 flex items-center justify-between rounded-lg border border-slate-600 bg-slate-800/50 p-3"
+                      className={`mb-2 flex items-center justify-between p-3 ${pokerInnerCard}`}
                     >
                       <span className="text-white">{user.username}</span>
                       <button
                         type="button"
                         onClick={() => handleSendRequest(user.username!)}
                         disabled={sendingRequest}
-                        className="rounded-lg bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-500 disabled:bg-green-800"
+                        className="rounded-lg border border-blue-300/20 bg-blue-900/80 px-3 py-1 text-sm text-white hover:bg-blue-800 disabled:opacity-50"
                       >
                         {t("friends.addFriend")}
                       </button>
@@ -737,7 +741,7 @@ export function Friends() {
               )}
 
               {searchSuccess && (
-                <p className="mt-2 flex items-center gap-2 text-sm text-green-400">
+                <p className="mt-2 flex items-center gap-2 text-sm text-blue-300">
                   <Check className="h-4 w-4 shrink-0" />
                   {t("friends.requestSent")}
                 </p>
@@ -747,7 +751,7 @@ export function Friends() {
                 type="button"
                 onClick={handleSearchUser}
                 disabled={searching || sendingRequest}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 px-6 py-3 font-semibold text-white transition-all hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`flex w-full items-center justify-center gap-2 px-6 py-3 disabled:cursor-not-allowed disabled:opacity-50 ${pokerButton}`}
               >
                 {searching || sendingRequest ? (
                   <>
@@ -768,10 +772,10 @@ export function Friends() {
 
       {selectedChat && selectedFriend && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="flex h-[600px] w-full max-w-2xl flex-col rounded-2xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-700 p-6">
+          <div className={`flex h-[600px] w-full max-w-2xl flex-col overflow-hidden ${pokerGlassCard}`}>
+            <div className="flex items-center justify-between border-b border-white/10 p-6">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-gradient-to-br from-green-600 to-green-800">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
                   {getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl) ? (
                     <ImageWithFallback
                       src={getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl)}
@@ -790,7 +794,7 @@ export function Friends() {
               <button
                 type="button"
                 onClick={closeChat}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-700 transition-all hover:bg-slate-600"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] transition-all hover:bg-white/[0.1]"
               >
                 <X className="h-5 w-5 text-white" />
               </button>
@@ -804,7 +808,7 @@ export function Friends() {
                   </p>
                   <button
                     onClick={() => refetchMessages()}
-                    className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg text-white"
+                    className="rounded-lg border border-white/10 bg-white/[0.07] px-4 py-2 text-white hover:bg-white/[0.12]"
                   >
                     {t('common.retry')}
                   </button>
@@ -819,13 +823,13 @@ export function Friends() {
                       <div
                         className={`rounded-2xl px-4 py-3 max-w-[70%] ${
                           isMe
-                            ? 'bg-green-600 rounded-tr-none'
-                            : 'bg-slate-700/50 rounded-tl-none'
+                            ? 'rounded-tr-none border border-blue-300/20 bg-blue-900/80'
+                            : 'rounded-tl-none border border-white/10 bg-white/[0.07]'
                         }`}
                       >
                         <p className="text-white whitespace-pre-wrap break-words">{msg.content}</p>
                         <span
-                          className={`text-xs mt-1 block ${isMe ? 'text-green-200' : 'text-gray-400'}`}
+                          className={`text-xs mt-1 block ${isMe ? 'text-blue-200' : 'text-gray-400'}`}
                         >
                           {formatMessageTime(msg.createdAt)}
                         </span>
@@ -836,7 +840,7 @@ export function Friends() {
               )}
             </div>
 
-            <div className="border-t border-slate-700 p-6">
+            <div className="border-t border-white/10 p-6">
               <div className="flex gap-3">
                 <input
                   type="text"
@@ -844,13 +848,13 @@ export function Friends() {
                   onChange={(e) => setMessageInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
                   placeholder={t("friends.writeMessage")}
-                  className="flex-1 rounded-xl border border-slate-600 bg-slate-900/50 px-4 py-3 text-white placeholder-gray-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={`flex-1 px-4 py-3 ${pokerInput}`}
                 />
                 <button
                   type="button"
                   onClick={handleSendMessage}
                   disabled={sendingMessage || !messageInput.trim()}
-                  className="flex shrink-0 items-center gap-2 rounded-xl bg-slate-700 px-6 py-3 font-semibold text-white transition-all hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={`flex shrink-0 items-center gap-2 px-6 py-3 disabled:cursor-not-allowed disabled:opacity-50 ${pokerButton}`}
                 >
                   {sendingMessage ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                   {t("friends.send")}
