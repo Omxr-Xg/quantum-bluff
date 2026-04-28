@@ -1053,36 +1053,36 @@ export function Lobby() {
 
           {/* Onglet Mini-jeux - CONDITIONAL RENDER */}
           {lobbyMainTab === "minigames" && (
-            <div className="grid grid-cols-1 gap-3 md:gap-6 lg:flex-1">
-              <div className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-                <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
+            <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-3 md:grid-cols-2 md:gap-5">
+              <div className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+                <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
                   <Disc className="h-8 w-8 shrink-0 text-emerald-300" strokeWidth={2.2} aria-hidden />
                   {t("minigames.rouletteTitle")}
                 </h2>
-                <p className="mb-6 text-sm leading-relaxed text-gray-400">
+                <p className="mb-4 text-sm leading-relaxed text-gray-400">
                   {t("minigames.rouletteBlurb")}
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=roulette")}
-                  className="mt-auto w-full rounded-xl border border-emerald-300/15 bg-emerald-950/70 py-3 md:py-4 text-base font-bold text-white transition hover:border-emerald-200/25 hover:bg-emerald-900/80"
+                  className="w-full rounded-xl border border-emerald-300/15 bg-emerald-950/70 py-3 text-base font-bold text-white transition hover:border-emerald-200/25 hover:bg-emerald-900/80"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}
                 </button>
               </div>
-              <div className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-                <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
+              <div className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+                <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
                   <SquareStack className="h-8 w-8 shrink-0 text-cyan-300" strokeWidth={2.2} aria-hidden />
                   {t("minigames.slotTitle")}
                 </h2>
-                <p className="mb-6 text-sm leading-relaxed text-gray-400">
+                <p className="mb-4 text-sm leading-relaxed text-gray-400">
                   {t("minigames.slotBlurb")}
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=slots")}
-                  className="mt-auto w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 md:py-4 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80"
+                  className="w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}
@@ -1094,10 +1094,10 @@ export function Lobby() {
           {/* Onglet Blackjack - CONDITIONAL RENDER */}
           {lobbyMainTab === "blackjack" && (
             <div
-              className="space-y-6 lg:flex lg:min-h-[var(--lobby-content-min-height)] lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-6"
+              className="space-y-6 lg:flex lg:flex-col lg:space-y-0 lg:gap-6"
               style={lobbyAlignmentStyle}
             >
-              <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:flex lg:min-h-[20rem] lg:flex-col">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
                   <Club className="h-8 w-8 text-rose-300" aria-hidden />
                   {t("lobby.blackjackTitle")}
@@ -1106,15 +1106,15 @@ export function Lobby() {
                 <button
                   type="button"
                   onClick={() => navigate("/blackjack")}
-                  className="w-full rounded-xl border border-rose-300/15 bg-rose-950/70 py-3 md:py-4 font-bold text-white transition hover:border-rose-200/25 hover:bg-rose-900/80 lg:mt-auto"
+                  className="w-full rounded-xl border border-rose-300/15 bg-rose-950/70 py-3 md:py-4 font-bold text-white transition hover:border-rose-200/25 hover:bg-rose-900/80"
                   aria-label={t("lobby.blackjackPlay")}
                 >
                   {t("lobby.blackjackPlay")}
                 </button>
                 <p className="mt-3 text-center text-xs leading-relaxed text-gray-500">{t("lobby.blackjackSoloHint")}</p>
               </div>
-              <div className="lg:flex lg:flex-1">
-                <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} className="lg:flex-1" />
+              <div>
+                <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} />
               </div>
             </div>
           )}

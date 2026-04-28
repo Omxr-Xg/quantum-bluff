@@ -14,8 +14,8 @@ export function BotConfiguration() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const [numberOfBots, setNumberOfBots] = useState<number | null>(null);
-  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
+  const [numberOfBots, setNumberOfBots] = useState<number | null>(1);
+  const [difficulty, setDifficulty] = useState<Difficulty | null>("moyen");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [botChips, setBotChips] = useState<number[]>([1000, 1000, 1000, 1000, 1000]);
 
@@ -167,112 +167,105 @@ export function BotConfiguration() {
           </div>
         </div>
 
-        <div className="space-y-12">
-          {/* Nombre de bots */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-8 lg:p-10">
-            <div className="flex items-center gap-3 mb-10">
-              <Users className="w-6 h-6 text-blue-200" />
-              <h2 className="text-2xl font-bold text-white">{t('botConfig.numberOfBots')}</h2>
+        <div className="space-y-8">
+          <div className="grid items-stretch gap-8 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
+            {/* Niveau de difficulté */}
+            <div className="h-full rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-7 lg:p-8">
+              <div className="mb-6 flex items-center gap-3">
+                <Brain className="h-6 w-6 text-blue-200" />
+                <h2 className="text-2xl font-bold text-white">{t('botConfig.difficulty')}</h2>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {difficulties.map((diff) => {
+                  const Icon = diff.icon;
+                  const isSelected = difficulty === diff.id;
+                  const labelKey = DIFF_LABEL_KEYS[diff.id] ?? diff.id;
+                  return (
+                    <button
+                      key={diff.id}
+                      onClick={() => setDifficulty(diff.id)}
+                      className={`relative rounded-xl border p-5 text-left transition-all hover:-translate-y-0.5 ${
+                        isSelected
+                          ? diff.selectedCard
+                          : `border-white/10 bg-white/[0.045] backdrop-blur-md ${diff.idleCard}`
+                      }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border ${
+                          isSelected ? diff.selectedIconWrap : "border-white/10 bg-white/[0.05]"
+                        }`}>
+                          <Icon className={`h-5 w-5 ${isSelected ? diff.selectedIcon : "text-gray-400"}`} />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <h3 className={`mb-1 text-lg font-bold ${
+                            isSelected ? diff.selectedTitle : "text-gray-300"
+                          }`}>
+                            {t(`botConfig.${labelKey}`)}
+                          </h3>
+                          <p className={`mb-2 text-sm ${
+                            isSelected ? "text-white/80" : "text-gray-500"
+                          }`}>
+                            {t(`botConfig.${diff.descKey}`)}
+                          </p>
+
+                          <div className="space-y-1">
+                            {diff.traitKeys.map((traitKey, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <div className={`h-1.5 w-1.5 rounded-full ${
+                                  isSelected ? diff.selectedDot : "bg-gray-600"
+                                }`}></div>
+                                <span className={`text-xs ${
+                                  isSelected ? "text-white/70" : "text-gray-600"
+                                }`}>
+                                  {t(`botConfig.${traitKey}`)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
-              {[1, 2, 3, 4, 5].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => setNumberOfBots(num)}
-                  className={`relative rounded-xl border p-6 transition-all hover:-translate-y-0.5 sm:p-8 md:p-10 ${
-                    numberOfBots === num
-                      ? "border-blue-200/45 bg-blue-950/64 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_0_34px_rgba(96,165,250,0.22),0_18px_44px_rgba(15,23,42,0.38)] ring-1 ring-blue-300/30"
-                      : "border-white/10 bg-white/[0.045] backdrop-blur-md hover:border-blue-300/30 hover:bg-blue-950/20 hover:shadow-[0_0_24px_rgba(96,165,250,0.10)]"
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className={`text-2xl sm:text-3xl md:text-4xl font-bold mb-2 ${
-                      numberOfBots === num ? "text-white" : "text-gray-400"
-                    }`}>
-                      {num}
-                    </div>
-                    <div className={`text-sm font-semibold ${
-                      numberOfBots === num ? "text-blue-200" : "text-gray-500"
-                    }`}>
-                      {num} {num > 1 ? "Bots" : "Bot"}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
+            {/* Nombre de bots */}
+            <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-7 lg:p-8">
+              <div className="mb-6 flex items-center gap-3">
+                <Users className="h-6 w-6 text-blue-200" />
+                <h2 className="text-2xl font-bold text-white">{t('botConfig.numberOfBots')}</h2>
+              </div>
 
-            <div className="mt-8 rounded-xl bg-white/[0.028] p-6 backdrop-blur-md">
-              {numberOfBots === null ? (
-                <p className="text-sm text-gray-500">{t('botConfig.numberOfBots')}</p>
-              ) : (
-                <p className="text-gray-400 text-sm">
-                  <span className="font-semibold text-white">{t('botConfig.playersAtTable')}</span> {t('botConfig.youAndBots', { count: numberOfBots, total: numberOfBots + 1 })}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Niveau de difficulté */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-8 lg:p-10">
-            <div className="flex items-center gap-3 mb-10">
-              <Brain className="w-6 h-6 text-blue-200" />
-              <h2 className="text-2xl font-bold text-white">{t('botConfig.difficulty')}</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {difficulties.map((diff) => {
-                const Icon = diff.icon;
-                const isSelected = difficulty === diff.id;
-                const labelKey = DIFF_LABEL_KEYS[diff.id] ?? diff.id;
-                return (
+              <div className="grid grid-cols-3 gap-3">
+                {[1, 2, 3, 4, 5].map((num) => (
                   <button
-                    key={diff.id}
-                    onClick={() => setDifficulty(diff.id)}
-                    className={`relative rounded-xl border p-10 text-left transition-all hover:-translate-y-0.5 ${
-                      isSelected
-                        ? diff.selectedCard
-                        : `border-white/10 bg-white/[0.045] backdrop-blur-md ${diff.idleCard}`
+                    key={num}
+                    onClick={() => setNumberOfBots(num)}
+                    className={`relative aspect-square rounded-xl border p-4 transition-all hover:-translate-y-0.5 ${
+                      numberOfBots === num
+                        ? "border-blue-200/45 bg-blue-950/64 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_0_34px_rgba(96,165,250,0.22),0_18px_44px_rgba(15,23,42,0.38)] ring-1 ring-blue-300/30"
+                        : "border-white/10 bg-white/[0.045] backdrop-blur-md hover:border-blue-300/30 hover:bg-blue-950/20 hover:shadow-[0_0_24px_rgba(96,165,250,0.10)]"
                     }`}
                   >
-                    <div className="flex items-start gap-4">
-                      <div className={`flex h-12 w-12 items-center justify-center rounded-full border ${
-                        isSelected ? diff.selectedIconWrap : "border-white/10 bg-white/[0.05]"
+                    <div className="flex h-full flex-col items-center justify-center text-center">
+                      <div className={`mb-1 text-3xl font-bold ${
+                        numberOfBots === num ? "text-white" : "text-gray-400"
                       }`}>
-                        <Icon className={`w-6 h-6 ${isSelected ? diff.selectedIcon : "text-gray-400"}`} />
+                        {num}
                       </div>
-
-                      <div className="flex-1">
-                        <h3 className={`text-xl font-bold mb-1 ${
-                          isSelected ? diff.selectedTitle : "text-gray-300"
-                        }`}>
-                          {t(`botConfig.${labelKey}`)}
-                        </h3>
-                        <p className={`text-sm mb-3 ${
-                          isSelected ? "text-white/80" : "text-gray-500"
-                        }`}>
-                          {t(`botConfig.${diff.descKey}`)}
-                        </p>
-
-                        <div className="space-y-1">
-                          {diff.traitKeys.map((traitKey, index) => (
-                            <div key={index} className="flex items-center gap-2">
-                              <div className={`w-1.5 h-1.5 rounded-full ${
-                                isSelected ? diff.selectedDot : "bg-gray-600"
-                              }`}></div>
-                              <span className={`text-xs ${
-                                isSelected ? "text-white/70" : "text-gray-600"
-                              }`}>
-                                {t(`botConfig.${traitKey}`)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                      <div className={`text-xs font-semibold ${
+                        numberOfBots === num ? "text-blue-200" : "text-gray-500"
+                      }`}>
+                        {num} {num > 1 ? "Bots" : "Bot"}
                       </div>
                     </div>
                   </button>
-                );
-              })}
+                ))}
+              </div>
+
             </div>
           </div>
 
@@ -282,7 +275,7 @@ export function BotConfiguration() {
             disabled={!canStartGame}
             className={`w-full rounded-2xl py-10 text-xl font-bold backdrop-blur-xl transition-all ${
               canStartGame
-                ? "border border-blue-200/55 bg-blue-950/82 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_0_54px_rgba(96,165,250,0.30),0_24px_66px_rgba(0,0,0,0.40)] hover:-translate-y-0.5 hover:border-cyan-100/60 hover:bg-blue-900/86 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_0_68px_rgba(96,165,250,0.38),0_26px_70px_rgba(0,0,0,0.44)]"
+                ? "border border-emerald-200/60 bg-gradient-to-r from-emerald-950/88 via-emerald-700/86 to-green-500/80 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_0_54px_rgba(52,211,153,0.34),0_24px_66px_rgba(0,0,0,0.40)] hover:-translate-y-0.5 hover:border-emerald-100/70 hover:from-emerald-900/92 hover:via-emerald-600/90 hover:to-green-400/86 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.20),0_0_76px_rgba(74,222,128,0.46),0_26px_70px_rgba(0,0,0,0.44)]"
                 : "cursor-not-allowed border border-white/10 bg-white/[0.035] text-slate-500 shadow-none"
             }`}
           >
