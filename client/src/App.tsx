@@ -252,6 +252,18 @@ function TournamentTeleporter() {
           <p style={{ marginTop: '20px', fontSize: '1rem', opacity: 0.5 }}>
             Redirection vers la table finale en mode spectateur...
           </p>
+          <button
+            type="button"
+            onClick={() => navigate('/lobby')}
+            style={{
+              marginTop: '24px', padding: '12px 32px',
+              border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              background: 'transparent', color: 'white',
+              fontSize: '1rem', cursor: 'pointer', fontFamily: 'sans-serif',
+            }}
+          >
+            Retourner
+          </button>
         </div>
       );
     }
