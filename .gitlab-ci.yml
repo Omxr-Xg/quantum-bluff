@@ -28,8 +28,8 @@ cache:
     - .npm/
 
 backend:lint:
-  extends: .node_docker_ci
   stage: lint
+  image: public.ecr.aws/docker/library/node:20
   script:
     - cd server
     - npm ci --legacy-peer-deps
