@@ -516,7 +516,7 @@ export function Layout({ children }: LayoutProps) {
 
       <div className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-slate-950/45 px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-1.5">
         <label
-          className={`relative flex h-7 w-[4.8rem] shrink-0 cursor-ew-resize items-center justify-center overflow-hidden rounded-full border transition md:h-8 md:w-[5.6rem] ${
+          className={`relative flex h-7 w-[4.2rem] shrink-0 cursor-ew-resize items-center justify-center overflow-hidden rounded-full border transition md:h-8 md:w-[4.9rem] ${
             bgmPct > 0 ? "border-emerald-300/45 bg-emerald-950/40 text-emerald-50" : gameHudBtnOff
           }`}
           data-tooltip={`${t("settings.musicTitle")} ${bgmPct}%`}
@@ -544,7 +544,7 @@ export function Layout({ children }: LayoutProps) {
           />
         </label>
         <label
-          className={`relative flex h-7 w-[4.8rem] shrink-0 cursor-ew-resize items-center justify-center overflow-hidden rounded-full border transition md:h-8 md:w-[5.6rem] ${
+          className={`relative flex h-7 w-[4.2rem] shrink-0 cursor-ew-resize items-center justify-center overflow-hidden rounded-full border transition md:h-8 md:w-[4.9rem] ${
             sfxPct > 0 ? "border-cyan-300/45 bg-cyan-950/40 text-cyan-50" : gameHudBtnOff
           }`}
           data-tooltip={`${t("settings.sfxTitle")} ${sfxPct}%`}
