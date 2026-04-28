@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import logoSrc from "../assets/logo-personnel.png";
+import cardBackSrc from "../assets/cards/back.png";
 
 /** Formes pour mode daltonien : ● Cœur, ◆ Carreau, ■ Trèfle, ▲ Pique */
 const SUIT_SHAPE: Record<string, string> = {
@@ -48,7 +48,7 @@ export function PokerCard({
   const shape = SUIT_SHAPE[suit.toLowerCase()] ?? "";
 
   // ==========================================
-  // 1. LE DOS DE LA CARTE (Design original gardé)
+  // 1. LE DOS DE LA CARTE
   // ==========================================
   if (faceDown) {
     const Wrapper = animated ? motion.div : "div";
@@ -68,22 +68,14 @@ export function PokerCard({
     return (
       <Wrapper
         {...(animProps as Record<string, unknown>)}
-        className={`${s.card} rounded-[10px] overflow-hidden shadow-xl
-          bg-gradient-to-br from-blue-800 via-blue-900 to-indigo-950
-          border-2 border-blue-700/60 relative
-          transition transform hover:scale-105 duration-200 ${className}`}
+        className={`${s.card} relative bg-transparent transition-transform duration-200 hover:scale-105 ${className}`}
       >
-        <div
-          className="absolute inset-0 opacity-30"
-          style={{
-            backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.03) 6px, rgba(255,255,255,0.03) 7px)`,
-          }}
+        <img
+          src={cardBackSrc}
+          alt="Dos de carte"
+          className="h-full w-full object-contain"
+          draggable={false}
         />
-        <div className="absolute inset-[4px] rounded-lg border border-white/10" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <img src={logoSrc} alt="Dos de carte" className="w-1/2 h-1/2 object-contain opacity-50" />
-        </div>
-        <div className="absolute inset-0 rounded-[8px] border border-blue-400/20" />
       </Wrapper>
     );
   }
@@ -173,4 +165,3 @@ export function PokerCardSlot({ size = "md", className = "" }: { size?: CardSize
     />
   );
 }
-

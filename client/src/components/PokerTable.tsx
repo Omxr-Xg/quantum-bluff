@@ -440,8 +440,8 @@ export function PokerTable({
                   {(player.isActive || actionLabel || player.isDealer || player.role === "SB" || player.role === "BB") && (
                     <div className="pointer-events-none absolute bottom-[calc(100%+0.35rem)] left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-1">
                       {player.isActive && (
-                        <div className="inline-flex items-center gap-1 rounded-full border border-yellow-200/60 bg-yellow-300 px-2 py-1 text-[10px] font-black leading-none text-black shadow-[0_0_18px_rgba(250,204,21,0.45)] md:text-xs">
-                          <Clock className="h-3 w-3 animate-pulse" />
+                        <div className="inline-flex items-center gap-0.5 whitespace-nowrap rounded-full border border-yellow-200/55 bg-yellow-300 px-1.5 py-0.5 text-[8px] font-black leading-none text-black shadow-[0_0_12px_rgba(250,204,21,0.35)] md:text-[9px]">
+                          <Clock className="h-2.5 w-2.5 animate-pulse" />
                           {isHeroDisplay ? t("game.yourTurn") : t("game.theirTurn")}
                         </div>
                       )}
