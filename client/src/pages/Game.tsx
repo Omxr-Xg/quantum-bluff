@@ -13,7 +13,7 @@ import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, MessageCircle, X, LogOut, Sparkles, Trophy, Activity, Info } from "lucide-react";
+import { User, Users, Menu, Loader2, X, LogOut, Sparkles, Trophy, Activity, Info } from "lucide-react";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
@@ -3640,20 +3640,6 @@ export function Game() {
       hiddenBetWindowOpen={hiddenBetWindowOpen}
       hiddenBetState={hiddenBetState}
       />
-      <button
-        type="button"
-        onClick={() => setIsChatOpen((open) => !open)}
-        className={`fixed left-4 z-50 flex h-12 w-12 items-center justify-center rounded-full border text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_14px_34px_rgba(0,0,0,0.36)] backdrop-blur-md transition hover:scale-105 md:left-6 bottom-[calc(env(safe-area-inset-bottom,0px)+8.5rem)] md:bottom-28 ${
-          isChatOpen
-            ? "border-cyan-200/70 bg-blue-700/85 shadow-[0_0_26px_rgba(59,130,246,0.42)]"
-            : "border-white/10 bg-slate-950/70 hover:border-blue-200/35 hover:bg-blue-950/70"
-        }`}
-        aria-pressed={isChatOpen}
-        aria-label={t("game.openChat")}
-        data-no-global-tooltip
-      >
-        <MessageCircle className="h-5 w-5" aria-hidden />
-      </button>
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />
       {userId ? (
