@@ -2,10 +2,10 @@ import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { PokerCard } from "../PokerCard";
-import { ChipIcon } from "../ChipIcon";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { getPlayerAvatar } from "../../utils/avatars";
 import { useTableTheme } from "../../contexts/TableThemeContext";
+import logoSrc from "../../assets/logo-personnel.png";
 
 export type BjCard = { rank: string; suit: string };
 
@@ -157,13 +157,11 @@ function ChipStack({ amount }: { amount: number }) {
 export function BlackjackMultiCasinoTable({
   state,
   userId,
-  playerBalance,
   playerEffectiveMaxBet,
   children,
 }: {
   state: BjTableState;
   userId: string | null;
-  playerBalance?: number | null;
   playerEffectiveMaxBet: number;
   children: ReactNode;
 }) {
@@ -226,22 +224,24 @@ export function BlackjackMultiCasinoTable({
   return (
     <div className="relative w-full overflow-x-hidden">
       <div 
-        className="mx-auto w-full min-w-0 px-3 pb-6 sm:px-4"
+        className="mx-auto w-[min(100%,54rem)] min-w-0 px-3 pb-6 sm:px-4"
         style={containerStyle}
       >
         <div
-          className="relative overflow-hidden rounded-[2rem] border-[10px] p-2 shadow-[0_32px_80px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.06)] sm:rounded-[2.5rem] sm:border-[12px] sm:p-3"
+          className="relative overflow-hidden rounded-[2.4rem] border-[10px] p-2 shadow-[0_32px_80px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.08)] sm:rounded-[3rem] sm:border-[12px] sm:p-3"
           style={{
-            background: "linear-gradient(145deg, #2a1810 0%, #1a120c 100%)",
-            borderColor: "rgba(61, 41, 20, 0.95)",
+            background:
+              "linear-gradient(145deg, rgba(2,6,23,0.98) 0%, rgba(12,18,32,0.98) 45%, rgba(50,35,15,0.94) 100%)",
+            borderColor: "rgba(212, 175, 55, 0.28)",
           }}
         >
           <div
-            className="relative min-h-[min(14rem,42dvh)] overflow-hidden rounded-[1.35rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_100px_rgba(0,0,0,0.35)] sm:min-h-[min(18rem,48dvh)] lg:min-h-[min(24rem,52dvh)] sm:rounded-[1.75rem]"
+            className="relative h-[clamp(22rem,58dvh,34rem)] overflow-hidden rounded-[2rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_110px_rgba(0,0,0,0.38),inset_0_12px_32px_rgba(255,255,255,0.045)] sm:rounded-[2.5rem]"
             style={{
               background: `
-                radial-gradient(ellipse 120% 80% at 50% 25%, rgba(255,255,255,0.07) 0%, transparent 52%),
-                radial-gradient(ellipse 90% 55% at 50% 100%, rgba(0,0,0,0.45) 0%, transparent 48%),
+                radial-gradient(ellipse 115% 78% at 50% 18%, rgba(255,255,255,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse 85% 55% at 50% 100%, rgba(0,0,0,0.48) 0%, transparent 52%),
+                linear-gradient(90deg, rgba(0,0,0,0.28), transparent 18%, transparent 82%, rgba(0,0,0,0.28)),
                 ${feltGradient}
               `,
               borderColor: feltBorder,
@@ -255,6 +255,13 @@ export function BlackjackMultiCasinoTable({
               }}
             />
             <div className="pointer-events-none absolute inset-3 rounded-[1rem] border border-[#c9a227]/25 shadow-[inset_0_0_40px_rgba(0,0,0,0.2)] sm:inset-4 sm:rounded-[1.35rem]" />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
+              <img
+                src={logoSrc}
+                alt=""
+                className="h-[34%] max-h-44 w-auto opacity-[0.075] saturate-0"
+              />
+            </div>
 
             <div className="relative z-10 flex flex-col items-center gap-1 px-4 pt-5 text-center sm:pt-6">
               <div className="inline-flex flex-wrap items-center justify-center gap-2">
@@ -271,25 +278,6 @@ export function BlackjackMultiCasinoTable({
                     {phaseLabel}
                   </span>
                 </div>
-                {typeof playerBalance === "number" && userId ? (
-                  <div className="inline-flex items-center gap-2 rounded-full border border-[#c9a227]/40 bg-black/45 py-1.5 pl-1.5 pr-3 shadow-md backdrop-blur-sm">
-                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-emerald-500/50 bg-black/40">
-                      <ImageWithFallback
-                        src={getPlayerAvatar("Vous", userId, userId)}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200/85">
-                      {t("bjMulti.yourBalance")}
-                    </span>
-                    <span className="h-3 w-px bg-[#c9a227]/35" />
-                    <span className="font-mono text-sm font-bold tabular-nums text-amber-100">
-                      {playerBalance.toLocaleString()}
-                    </span>
-                    <ChipIcon size="sm" className="shrink-0 brightness-110" />
-                  </div>
-                ) : null}
               </div>
               <p className="text-[11px] text-emerald-200/70">
                 {t("bjMulti.betLimitsLine", {
@@ -448,7 +436,7 @@ export function BlackjackMultiCasinoTable({
           </div>
         </div>
 
-        <div className="relative z-20 -mt-2 mx-auto max-w-3xl rounded-b-2xl border border-slate-800/90 border-t-0 bg-gradient-to-b from-slate-900/95 to-slate-950 px-4 py-5 shadow-[0_16px_40px_rgba(0,0,0,0.5)] sm:px-8">
+        <div className="relative z-20 mx-auto mt-6 max-w-3xl rounded-[2rem] border border-white/10 bg-slate-950/55 px-4 py-4 shadow-[0_16px_40px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md sm:px-8">
           {children}
         </div>
       </div>
