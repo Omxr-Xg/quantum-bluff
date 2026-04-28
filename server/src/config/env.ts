@@ -65,6 +65,21 @@ function getPositiveIntegerEnv(name: string, fallback: number): number {
   return value
 }
 
+function getNonNegativeIntegerEnv(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim()
+  if (!raw) {
+    return fallback
+  }
+
+  const value = Number.parseInt(raw, 10)
+
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer`)
+  }
+
+  return value
+}
+
 function parseTrustProxy(value?: string): boolean | number | string {
   const raw = value?.trim()
   if (!raw) {
@@ -180,6 +195,9 @@ if (adminApiToken && adminApiToken.length < 16) {
   throw new Error('ADMIN_API_TOKEN must be at least 16 characters long')
 }
 
+const aiServiceUrl = getOptionalEnv('AI_SERVICE_URL')
+const aiServiceEnabled = parseBooleanEnv('AI_SERVICE_ENABLED', Boolean(aiServiceUrl))
+
 /** Console web admin (JWT dédié) : identifiant + hash bcrypt du mot de passe. Les deux ou aucun. */
 const adminConsoleUsername = getOptionalEnv('ADMIN_CONSOLE_USERNAME')
 const adminConsolePasswordHash = getOptionalEnv('ADMIN_CONSOLE_PASSWORD_HASH')
@@ -221,6 +239,9 @@ export const env = {
   corsOrigins,
   metricsBearerToken: getOptionalEnv('METRICS_BEARER_TOKEN'),
   adminApiToken,
+  aiServiceUrl,
+  aiServiceTimeoutMs: getNonNegativeIntegerEnv('AI_SERVICE_TIMEOUT_MS', 450),
+  aiServiceEnabled,
   adminConsoleUsername,
   adminConsolePasswordHash,
   adminConsoleJwtUserId,

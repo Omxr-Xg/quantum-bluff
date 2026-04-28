@@ -7,13 +7,13 @@ import { CashGameController } from '../../logic/CashGameController.js'
 import type { GameTable } from '../../logic/GameTable.js'
 import type { ActiveGame } from '../../shared/activeGames.js'
 import {
-  decideBotAction,
   type BotActionRequest,
   type BotDifficulty,
 } from '../../logic/botAI.js'
 import { sanitizeBotDecision } from '../../logic/botDecisionSanitize.js'
 import { getPracticeBotDifficulty } from '../../shared/practiceBotGames.js'
 import { rootLogger } from '../../observability/logger.js'
+import { decideBotActionWithExpertAi } from '../../services/botAi.service.js'
 const QB_BOT_PREFIX = 'qb-bot-'
 
 /** Délai avant chaque action bot (affordance « réflexion » côté joueur humain). */
@@ -63,6 +63,22 @@ function buildBotRequest(
     potSize: game.state.pot,
     position: bot.position ?? 0,
     playersCount: Math.max(2, participants),
+  }
+}
+
+function buildExpertAiContext(game: GameTable, gameId: string, botId: string) {
+  const bot = game.state.players.find((p) => p.id === botId)
+  const opponentStack =
+    game.state.players
+      .filter((p) => p.id !== botId && p.isActive !== false)
+      .sort((a, b) => b.chips - a.chips)[0]?.chips ?? bot?.chips ?? 0
+
+  return {
+    gameId,
+    botId,
+    street: game.state.phase,
+    opponentStack,
+    actions: game.state.lastHandAction ? [game.state.lastHandAction] : [],
   }
 }
 
@@ -131,8 +147,20 @@ async function runPracticeBotTurnsChainBody(
       break
     }
 
-    const raw = decideBotAction(req)
+    const decisionStart = Date.now()
+    const raw = await decideBotActionWithExpertAi(req, buildExpertAiContext(inner, gameId, turn))
     const decision = sanitizeBotDecision(raw, req)
+    rootLogger.info({
+      msg: 'practice_bot_action_final',
+      gameId,
+      botId: turn,
+      difficulty,
+      aiAction: raw.action,
+      finalAction: decision.action,
+      finalAmount: decision.amount,
+      latencyMs: Date.now() - decisionStart,
+      reason: decision.reasoning ?? raw.reasoning,
+    })
 
     const actionType = decision.action
     const amount =
