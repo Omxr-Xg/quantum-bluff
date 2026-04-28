@@ -344,8 +344,7 @@ export function PokerTable({
                         player.id
                       );
 
-                    if (clickable) {
-                      return (
+                    const avatarNode = clickable ? (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -358,10 +357,49 @@ export function PokerTable({
                         >
                           {avatarInner}
                         </button>
-                      );
-                    }
+                    ) : (
+                      <div className={shellClass}>{avatarInner}</div>
+                    );
 
-                    return <div className={shellClass}>{avatarInner}</div>;
+                    if (!isHeroDisplay) return avatarNode;
+
+                    return (
+                      <div className="relative flex items-center justify-center">
+                        {avatarNode}
+                        <div className="pointer-events-none absolute left-1/2 top-[72%] z-30 flex -translate-x-1/2 flex-col items-center drop-shadow-2xl">
+                          {player.cards && player.cards.length > 0 && !player.hasFolded && (
+                            <div className="flex items-start justify-center">
+                              {player.cards.map((card, index) => (
+                                <div
+                                  key={index}
+                                  className="relative origin-top transition-all duration-300"
+                                  style={{
+                                    marginLeft: index > 0 ? (isMobile ? "4px" : "8px") : "0",
+                                    transform: `rotate(${index === 0 ? -5 : 6}deg)`,
+                                  }}
+                                >
+                                  <PokerCard
+                                    suit={card.suit}
+                                    value={card.value}
+                                    size={isMobile ? "sm" : "md"}
+                                    colorblindMode={colorblindMode}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="-mt-5 flex flex-col items-center gap-1">
+                            <div className="rounded-md border border-white/15 bg-slate-950 px-3 py-1 text-xs font-bold leading-none text-white shadow-[0_8px_18px_rgba(0,0,0,0.45)] md:text-sm">
+                              {isMobile ? player.name.slice(0, 10) : player.name}
+                            </div>
+                            <div className="inline-flex items-center gap-1.5 rounded-md border border-slate-500/70 bg-slate-900 px-3 py-1 text-xs font-bold leading-none tabular-nums text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.45)] md:text-sm">
+                              <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0" />
+                              <span>{player.chips.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
                   })()}
 
                   {/* Nom */}
