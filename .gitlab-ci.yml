@@ -11,7 +11,7 @@ variables:
 .node_docker_ci:
   image:
     name: public.ecr.aws/docker/library/node:20
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [""]
 
 default:
   tags:
@@ -42,7 +42,7 @@ backend:lint:
   stage: lint
   script:
     - cd server
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm run lint
   only:
     - develop
