@@ -167,8 +167,6 @@
     "paytableTriple": "3× {{symbol}}",
     "paytableThreeSame": "3 símbolos iguales",
     "multiplierLabel": "Multiplicador",
-    "quantumBoostTitle": "Quantum Boost",
-    "quantumBoostBody": "El servidor aplica aleatoriedad justa en cada tirada.",
     "sessionCurrent": "Sesión actual",
     "sessionWins": "Premios",
     "sessionSpins": "Tiradas",
