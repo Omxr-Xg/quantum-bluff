@@ -18,6 +18,7 @@ export function BotConfiguration() {
   const [difficulty, setDifficulty] = useState<Difficulty | null>("moyen");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [botChips, setBotChips] = useState<number[]>([1000, 1000, 1000, 1000, 1000]);
+  const DEFAULT_BOT_CHIPS = [1000, 1000, 1000, 1000, 1000];
 
   const difficulties = [
     {
@@ -72,8 +73,12 @@ export function BotConfiguration() {
 
   const MIN_CHIPS = 100;
   const selectedBotCount = numberOfBots ?? 0;
+  const isExpert = difficulty === "expert";
   const hasCompleteSelection = numberOfBots !== null && difficulty !== null;
-  const invalidBotChips = numberOfBots !== null && botChips.slice(0, numberOfBots).some((c) => c < MIN_CHIPS);
+  // En mode expert, l’utilisateur ne peut pas choisir les jetons des bots,
+  // donc on ignore la validation côté UI.
+  const invalidBotChips =
+    numberOfBots !== null && !isExpert && botChips.slice(0, numberOfBots).some((c) => c < MIN_CHIPS);
   const canStartGame = hasCompleteSelection && !invalidBotChips;
 
   const handleStartGame = async () => {
@@ -94,6 +99,13 @@ export function BotConfiguration() {
       return;
     }
     const diffApi = (DIFF_LABEL_KEYS[difficulty] ?? "medium") as "easy" | "medium" | "hard" | "expert";
+    const botChipsForApi =
+      difficulty === "expert" ? DEFAULT_BOT_CHIPS.slice(0, numberOfBots) : botChips.slice(0, numberOfBots);
+    const botChipsCustomized =
+      difficulty !== "expert" && botChips.slice(0, numberOfBots).some((c, i) => c !== DEFAULT_BOT_CHIPS[i]);
+    const humanChipsForApi = botChipsCustomized
+      ? Math.floor(botChipsForApi.reduce((sum, c) => sum + c, 0) / Math.max(1, numberOfBots))
+      : getUserBalance();
     try {
       const res = await fetch(apiUrl("/api/game/bot/start"), {
         method: "POST",
@@ -104,8 +116,8 @@ export function BotConfiguration() {
         body: JSON.stringify({
           botCount: numberOfBots,
           difficulty: diffApi,
-          botChips: botChips.slice(0, numberOfBots),
-          humanChips: getUserBalance(),
+          botChips: botChipsForApi,
+          humanChips: humanChipsForApi,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { gameId?: string; error?: string };
@@ -124,7 +136,7 @@ export function BotConfiguration() {
             botCount: numberOfBots,
             difficulty: diffApi,
             difficultyUi: difficulty,
-            botChips: botChips.slice(0, numberOfBots),
+            botChips: botChipsForApi,
           }),
         );
       } catch {
@@ -153,9 +165,9 @@ export function BotConfiguration() {
           }}
         />
       </div>
-      <div className="relative z-10 mx-auto w-full max-w-7xl min-w-0 px-4 pb-12 pt-6 sm:px-8 sm:pb-16 sm:pt-8 lg:px-10">
+      <div className="relative z-10 mx-auto w-full max-w-7xl min-w-0 px-4 pb-8 pt-4 sm:px-8 sm:pb-10 sm:pt-6 lg:px-10">
         {/* Titre */}
-        <div className="mb-10 flex items-center gap-4 sm:mb-12">
+        <div className="mb-8 flex items-center gap-4 sm:mb-10">
           <div className="flex h-16 w-16 items-center justify-center rounded-full border border-blue-200/25 bg-blue-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_34px_rgba(96,165,250,0.18),0_18px_44px_rgba(0,0,0,0.35)] backdrop-blur-xl">
             <Bot className="w-8 h-8 text-blue-200" />
           </div>
@@ -167,16 +179,16 @@ export function BotConfiguration() {
           </div>
         </div>
 
-        <div className="space-y-8">
-          <div className="grid items-stretch gap-8 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
+        <div className="space-y-6">
+          <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
             {/* Niveau de difficulté */}
-            <div className="h-full rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-7 lg:p-8">
-              <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-6 lg:p-7">
+              <div className="mb-5 flex items-center gap-3">
                 <Brain className="h-6 w-6 text-blue-200" />
                 <h2 className="text-2xl font-bold text-white">{t('botConfig.difficulty')}</h2>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="flex-1 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {difficulties.map((diff) => {
                   const Icon = diff.icon;
                   const isSelected = difficulty === diff.id;
@@ -185,14 +197,19 @@ export function BotConfiguration() {
                     <button
                       key={diff.id}
                       onClick={() => setDifficulty(diff.id)}
-                      className={`relative rounded-xl border p-5 text-left transition-all hover:-translate-y-0.5 ${
+                      className={`relative rounded-xl border p-4 text-left transition-all hover:-translate-y-0.5 ${
                         isSelected
                           ? diff.selectedCard
                           : `border-white/10 bg-white/[0.045] backdrop-blur-md ${diff.idleCard}`
                       }`}
                     >
+                      {diff.id === "expert" && (
+                        <div className="absolute -top-3 left-5 rounded-full border border-cyan-200/70 bg-cyan-950/95 px-3 py-1 text-[0.65rem] font-black uppercase tracking-[0.18em] text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.28)]">
+                          REAL AI
+                        </div>
+                      )}
                       <div className="flex items-start gap-4">
-                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border ${
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${
                           isSelected ? diff.selectedIconWrap : "border-white/10 bg-white/[0.05]"
                         }`}>
                           <Icon className={`h-5 w-5 ${isSelected ? diff.selectedIcon : "text-gray-400"}`} />
@@ -233,18 +250,18 @@ export function BotConfiguration() {
             </div>
 
             {/* Nombre de bots */}
-            <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-7 lg:p-8">
-              <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-6 lg:p-7">
+              <div className="mb-5 flex items-center gap-3">
                 <Users className="h-6 w-6 text-blue-200" />
                 <h2 className="text-2xl font-bold text-white">{t('botConfig.numberOfBots')}</h2>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="flex-1 grid grid-cols-3 gap-3">
                 {[1, 2, 3, 4, 5].map((num) => (
                   <button
                     key={num}
                     onClick={() => setNumberOfBots(num)}
-                    className={`relative aspect-square rounded-xl border p-4 transition-all hover:-translate-y-0.5 ${
+                    className={`relative aspect-square rounded-xl border p-3 transition-all hover:-translate-y-0.5 ${
                       numberOfBots === num
                         ? "border-blue-200/45 bg-blue-950/64 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_0_34px_rgba(96,165,250,0.22),0_18px_44px_rgba(15,23,42,0.38)] ring-1 ring-blue-300/30"
                         : "border-white/10 bg-white/[0.045] backdrop-blur-md hover:border-blue-300/30 hover:bg-blue-950/20 hover:shadow-[0_0_24px_rgba(96,165,250,0.10)]"
@@ -302,50 +319,56 @@ export function BotConfiguration() {
                 <h3 className="text-lg font-bold text-white">{t('botConfig.chipsPerBot')}</h3>
                 <span className="text-xs text-gray-500 ml-auto">{t('botConfig.defaultChips')}</span>
               </div>
-              {Array.from({ length: selectedBotCount }, (_, i) => {
-                const val = botChips[i];
-                const isInvalid = val < MIN_CHIPS;
-                return (
-                  <div key={i} className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 min-w-[120px]">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-blue-300/15 bg-blue-950/70 text-xs font-bold text-blue-100">
-                        {BOT_NAMES[i]?.[0]}
-                      </div>
-                      <span className="text-gray-300 text-sm font-medium">Bot {BOT_NAMES[i]}</span>
-                    </div>
-                    <div className="flex-1 flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={0}
-                        max={100000}
-                        step={100}
-                        value={val}
-                        onChange={(e) => {
-                          const raw = e.target.value === "" ? 0 : Number(e.target.value);
-                          const val = Number.isNaN(raw) ? 0 : Math.min(100000, Math.max(0, raw));
-                          setBotChips((prev) => {
-                            const next = [...prev];
-                            next[i] = val;
-                            return next;
-                          });
-                        }}
-                        className={`flex-1 rounded-lg border bg-white/[0.055] px-4 py-2 text-sm text-white transition-colors [appearance:textfield] backdrop-blur-md focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
-                          isInvalid ? "border-red-500 focus:border-red-500" : "border-white/10 focus:border-blue-300/40"
-                        }`}
-                      />
-                      {isInvalid && (
-                        <div className="relative flex items-center gap-1">
-                          <XCircle className="w-6 h-6 text-red-500 shrink-0" aria-hidden />
-                          <div className="absolute left-full top-1/2 z-10 ml-1 -translate-y-1/2 whitespace-nowrap rounded-lg border border-red-500 bg-slate-950/90 px-3 py-2 text-sm font-medium text-red-400 shadow-xl backdrop-blur-md">
-                            {t("botConfig.minAmount100")}
-                          </div>
+              {isExpert ? (
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-gray-400">
+                  {t("botConfig.chipsPerBotExpertLocked", "En mode expert, les jetons des bots sont prédéfinis.")}
+                </div>
+              ) : (
+                Array.from({ length: selectedBotCount }, (_, i) => {
+                  const val = botChips[i];
+                  const isInvalid = val < MIN_CHIPS;
+                  return (
+                    <div key={i} className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 min-w-[120px]">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-blue-300/15 bg-blue-950/70 text-xs font-bold text-blue-100">
+                          {BOT_NAMES[i]?.[0]}
                         </div>
-                      )}
+                        <span className="text-gray-300 text-sm font-medium">Bot {BOT_NAMES[i]}</span>
+                      </div>
+                      <div className="flex-1 flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100000}
+                          step={100}
+                          value={val}
+                          onChange={(e) => {
+                            const raw = e.target.value === "" ? 0 : Number(e.target.value);
+                            const val = Number.isNaN(raw) ? 0 : Math.min(100000, Math.max(0, raw));
+                            setBotChips((prev) => {
+                              const next = [...prev];
+                              next[i] = val;
+                              return next;
+                            });
+                          }}
+                          className={`flex-1 rounded-lg border bg-white/[0.055] px-4 py-2 text-sm text-white transition-colors [appearance:textfield] backdrop-blur-md focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                            isInvalid ? "border-red-500 focus:border-red-500" : "border-white/10 focus:border-blue-300/40"
+                          }`}
+                        />
+                        {isInvalid && (
+                          <div className="relative flex items-center gap-1">
+                            <XCircle className="w-6 h-6 text-red-500 shrink-0" aria-hidden />
+                            <div className="absolute left-full top-1/2 z-10 ml-1 -translate-y-1/2 whitespace-nowrap rounded-lg border border-red-500 bg-slate-950/90 px-3 py-2 text-sm font-medium text-red-400 shadow-xl backdrop-blur-md">
+                              {t("botConfig.minAmount100")}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-gray-500 text-xs min-w-[20px]">chips</span>
                     </div>
-                    <span className="text-gray-500 text-xs min-w-[20px]">chips</span>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           )}
 

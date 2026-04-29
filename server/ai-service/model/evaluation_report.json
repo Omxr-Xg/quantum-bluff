@@ -1,24 +1,24 @@
 {
-  "samples": 2000,
-  "teacher_agreement": 0.907,
-  "average_decision_latency_ms": 2.1167593609752657,
-  "max_decision_latency_ms": 5.198541999561712,
+  "samples": 5000,
+  "teacher_agreement": 0.816,
+  "average_decision_latency_ms": 2.145529910242476,
+  "max_decision_latency_ms": 10.7304999983171,
   "ai_action_distribution": {
-    "ALL_IN": 142,
-    "FOLD": 708,
-    "RAISE": 591,
-    "CHECK_CALL": 559
+    "FOLD": 1726,
+    "CHECK_CALL": 1050,
+    "ALL_IN": 626,
+    "RAISE": 1598
   },
   "baseline_action_distribution": {
-    "CHECK_CALL": 1267,
-    "FOLD": 543,
-    "RAISE": 190
+    "CHECK_CALL": 3205,
+    "FOLD": 1340,
+    "RAISE": 455
   },
   "teacher_label_distribution": {
-    "RAISE": 610,
-    "CHECK_CALL": 626,
-    "FOLD": 673,
-    "ALL_IN": 91
+    "FOLD": 1682,
+    "CHECK_CALL": 1521,
+    "ALL_IN": 261,
+    "RAISE": 1536
   },
-  "aggression_factor": 1.0125
+  "aggression_factor": 1.0996
 }

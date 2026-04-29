@@ -32,7 +32,6 @@ import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { OPEN_RATE_GAME_EVENT, STORAGE_RATE_GAME_PROMPT_SHOWN } from "../constants/storageKeys";
 import { apiUrl } from "../utils/apiBase";
 import { getUserBalance, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
-import { ChipIcon } from "../components/ChipIcon";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 import { DailyChallenges } from "../components/DailyChallenges";
 import { TournamentWidget } from '../components/TournamentWidget';

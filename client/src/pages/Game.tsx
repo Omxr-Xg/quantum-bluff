@@ -116,6 +116,9 @@ export function Game() {
   const { userId } = useUser();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
   const difficultyParam = searchParams.get("difficulty") || "moyen";
+  // En mode bot (practice), on veut que le "solde de compte" ne change pas
+  // sauf en difficulté "expert" (où l’utilisateur joue réellement).
+  const isExpertPracticeBot = isBotMode && difficultyParam === "expert";
   const winMultiplier = gameIdParam ? 1 : getWinMultiplierFromDifficultyParam(difficultyParam);
 
   const { socket } = useSocket();
@@ -558,7 +561,9 @@ export function Game() {
     return () => window.clearTimeout(id);
   }, [isBotMode, showdownResult, gameOverReason, SHOWDOWN_REVEAL_MS]);
 
-  const openAddMoney = () => {
+  // Note: gardé au cas où la modale "add money" serait réouverte via un handler futur.
+  // Pour éviter une erreur lint "unused", on préfixe par "_" tant que non utilisé.
+  const _openAddMoney = () => {
     setShowAddMoney(true);
     setAddMoneyAmount(null);
     setDevValidation("");
@@ -1390,7 +1395,9 @@ export function Game() {
         const potWon = winnerIds.length > 1 ? Math.floor(totalPot / winnerIds.length) : totalPot;
         const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
-        addToUserBalance(balanceChange);
+        if (!isBotMode || isExpertPracticeBot) {
+          addToUserBalance(balanceChange);
+        }
 
         // Multi : on déclenche la transition directe à la place du vieux ShowdownDisplay !
         setShowdownResult({
@@ -1467,7 +1474,9 @@ export function Game() {
     }) => {
       if (data.reason === "opponent_left" && data.winnerId != null && String(data.winnerId) === String(userId)) {
         const balanceChange = Math.round(data.pot ?? 0);
-        addToUserBalance(balanceChange);
+        if (!isBotMode || isExpertPracticeBot) {
+          addToUserBalance(balanceChange);
+        }
         setShowdownResult((prevResult) => {
           if (prevResult) return prevResult;
           return {
@@ -2100,7 +2109,9 @@ export function Game() {
         const endChips = humanWonFb ? stackBefore + currentPot : stackBefore;
         const balanceChange = endChips - startChips;
         const toAddFb = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-        addToUserBalance(toAddFb);
+        if (!isBotMode || isExpertPracticeBot) {
+          addToUserBalance(toAddFb);
+        }
         toAddLastRef.current = toAddFb;
       }
     };
@@ -2168,7 +2179,9 @@ export function Game() {
         const endChips = stackBeforePotAward + humanShare;
         const balanceChange = endChips - startChips;
         const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-        addToUserBalance(toAdd);
+        if (!isBotMode || isExpertPracticeBot) {
+          addToUserBalance(toAdd);
+        }
         toAddLastRef.current = toAdd;
         setPot(0);
         setShowdownResult({
@@ -2243,7 +2256,9 @@ export function Game() {
           ? Math.round(balanceChangeSafety * winMultiplier)
           : balanceChangeSafety
         : balanceChangeSafety;
-      addToUserBalance(toAddSafety);
+      if (!isBotMode || isExpertPracticeBot) {
+        addToUserBalance(toAddSafety);
+      }
       toAddLastRef.current = toAddSafety;
     }, 12000);
     return () => clearTimeout(safety);
@@ -2537,11 +2552,15 @@ export function Game() {
     const token = localStorage.getItem("token");
     const recordUrl = apiUrl("/api/game/record-result");
     
-    if (token) {
+    if (token && isExpertPracticeBot) {
       fetch(recordUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({ won: handResult === "win", delta: toAddLastRef.current }),
+        body: JSON.stringify({
+          won: handResult === "win",
+          delta: toAddLastRef.current,
+          persistChips: isExpertPracticeBot,
+        }),
       })
         .then((r) => r.json().catch(() => ({})))
         .then((data) => {
@@ -2551,7 +2570,7 @@ export function Game() {
         })
         .catch((err) => console.error("Erreur de sauvegarde d'argent :", err));
     }
-  }, [handResult, isBotMode]);
+  }, [handResult, isBotMode, isExpertPracticeBot]);
 
   const handleFold = (playerId?: number | string) => {
     if (handResult !== null) return;
@@ -2659,7 +2678,9 @@ export function Game() {
       const endChips = humanWon ? winnerChipsBefore + pot : (heroRowFold?.chips ?? playerChips);
       const balanceChange = endChips - startChips;
       const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-      addToUserBalance(toAdd);
+      if (!isBotMode || isExpertPracticeBot) {
+        addToUserBalance(toAdd);
+      }
       setPot(0);
     }
   };

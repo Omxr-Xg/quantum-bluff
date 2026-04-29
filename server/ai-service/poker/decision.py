@@ -103,6 +103,9 @@ def _teacher_scores(payload: dict[str, Any]) -> tuple[list[float], str, str]:
 
 
 def _choose_action(probs: list[float], temperature: float) -> int:
+    ranked = sorted(enumerate(probs), key=lambda item: item[1], reverse=True)
+    if ranked[0][1] >= 0.62 or ranked[0][1] - ranked[1][1] >= 0.18:
+        return ranked[0][0]
     adjusted = [pow(max(prob, 1e-6), 1 / temperature) for prob in probs]
     total = sum(adjusted)
     roll = random.random() * total
@@ -153,15 +156,20 @@ def _raise_amount(payload: dict[str, Any], ctx: FeatureContext, all_in: bool = F
 
     strength = ctx.hand_strength
     spr = ctx.effective_stack_to_pot_ratio
-    pressure_bonus = 0.14 if ctx.position_score >= 0.6 and ctx.passive_opponent > 0 else 0.0
-    if strength > 0.78:
-        fraction = 0.78 + random.random() * 0.32
-    elif strength > 0.55:
-        fraction = 0.52 + pressure_bonus + random.random() * 0.28
+    edge = ctx.showdown_edge - 0.5 if ctx.opponent_known > 0 else 0.0
+    pressure_bonus = 0.18 if ctx.position_score >= 0.6 else 0.0
+    pressure_bonus += 0.16 if ctx.passive_opponent > 0 else 0.0
+    pressure_bonus += 0.18 if ctx.opponent_known > 0 and ctx.opponent_strength < 0.38 else 0.0
+    if edge >= 0.18 or strength > 0.78:
+        fraction = 0.95 + random.random() * 0.38
+    elif edge >= 0.06 or strength > 0.55:
+        fraction = 0.62 + pressure_bonus + random.random() * 0.34
     else:
-        fraction = 0.34 + pressure_bonus + random.random() * 0.22
+        fraction = 0.42 + pressure_bonus + random.random() * 0.26
     if spr <= 2.2:
-        fraction += 0.18
+        fraction += 0.24
+    if ctx.street == "RIVER" and ctx.opponent_known > 0 and edge >= 0.12:
+        fraction += 0.22
     target = to_call + min_raise + int(pot * fraction)
     return max(min_raise, min(stack, target))
 
@@ -219,13 +227,15 @@ def _soul_read_override(payload: dict[str, Any], ctx: FeatureContext) -> int | N
     edge = ctx.showdown_edge - 0.5
     can_pressure = ctx.position_score >= 0.6 or ctx.passive_opponent > 0 or ctx.opponent_strength < 0.34
 
-    if edge >= 0.18:
-        return ACTIONS.index("ALL_IN") if ctx.effective_stack_to_pot_ratio <= 2.4 else ACTIONS.index("RAISE")
+    if edge >= 0.14:
+        return ACTIONS.index("ALL_IN") if ctx.effective_stack_to_pot_ratio <= 3.2 else ACTIONS.index("RAISE")
     if edge >= 0.04 and to_call == 0:
         return ACTIONS.index("RAISE")
     if edge <= -0.12 and to_call > 0 and pressure > 0.14:
         return ACTIONS.index("FOLD")
-    if edge <= -0.06 and to_call == 0 and can_pressure:
+    if edge <= -0.06 and to_call == 0 and can_pressure and ctx.opponent_strength < 0.42:
+        return ACTIONS.index("RAISE")
+    if ctx.opponent_strength < 0.3 and to_call == 0 and can_pressure:
         return ACTIONS.index("RAISE")
     return None
 
@@ -237,12 +247,12 @@ def predict_decision(payload: dict[str, Any], model: PolicyModel | None = None) 
     heuristic_scores = _heuristic_scores(ctx, float(payload.get("toCall", 0)), float(payload.get("botStack", 0)))
     teacher_scores, teacher_style, teacher_reason = _teacher_scores(payload)
     logits = [
-        model_score * 0.32 + heuristic_score * 0.2 + teacher_score * 0.48 + random.uniform(-0.025, 0.025)
+        model_score * 0.28 + heuristic_score * 0.22 + teacher_score * 0.5 + random.uniform(-0.01, 0.01)
         for model_score, heuristic_score, teacher_score in zip(model_scores, heuristic_scores, teacher_scores)
     ]
     probs = _softmax(logits)
-    temperature = float(payload.get("temperature", 0.5 if ctx.street == "PREFLOP" else 0.42))
-    temperature = max(0.35, min(1.5, temperature))
+    temperature = float(payload.get("temperature", 0.28 if ctx.street == "PREFLOP" else 0.22))
+    temperature = max(0.18, min(1.1, temperature))
     action_idx = _soul_read_override(payload, ctx)
     if action_idx is None:
         action_idx = _choose_action(probs, temperature)

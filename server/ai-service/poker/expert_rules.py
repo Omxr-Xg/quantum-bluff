@@ -81,20 +81,20 @@ def label_situation(payload: dict[str, Any]) -> ExpertLabel:
     if has_soul_read and ctx.street != "PREFLOP":
         edge = ctx.showdown_edge - 0.5
         opponent_weak = ctx.opponent_strength < 0.34
-        if edge >= 0.18:
-            if spr <= 2.8:
-                return _make("ALL_IN", 0.93, "value", "Soul-read: hero is far ahead, maximize pressure")
-            return _make("RAISE", 0.91, "value", "Soul-read: hero is ahead, value bet relentlessly")
+        if edge >= 0.14:
+            if spr <= 3.2 or ctx.street == "RIVER":
+                return _make("ALL_IN", 0.95, "value", "Soul-read: hero is far ahead, maximize pressure")
+            return _make("RAISE", 0.94, "value", "Soul-read: hero is ahead, value bet relentlessly")
         if edge >= 0.04 and to_call == 0:
-            return _make("RAISE", 0.78, "thin_value", "Soul-read: thin value against worse hand")
+            return _make("RAISE", 0.84, "thin_value", "Soul-read: thin value against worse hand")
         if edge <= -0.12 and to_call > 0:
             if strong_draw and pressure < 0.24:
                 return _make("CHECK_CALL", 0.66, "draw", "Soul-read: behind but drawing at acceptable price")
             return _make("FOLD", 0.9, "discipline", "Soul-read: dominated, refuse bad payoff")
         if edge <= -0.08 and to_call == 0 and opponent_weak and fold_equity >= 0.3:
-            return _make("RAISE", 0.72, "bluff", "Soul-read: weak showdown value turns into pressure bluff")
-        if opponent_weak and to_call == 0 and fold_equity >= 0.38:
-            return _make("RAISE", 0.7, "bluff", "Soul-read: opponent capped, attack the pot")
+            return _make("RAISE", 0.78, "bluff", "Soul-read: weak showdown value turns into pressure bluff")
+        if opponent_weak and to_call == 0 and fold_equity >= 0.32:
+            return _make("RAISE", 0.76, "bluff", "Soul-read: opponent capped, attack the pot")
 
     if ctx.street == "PREFLOP":
         tier, tier_name = _preflop_tier(payload)
