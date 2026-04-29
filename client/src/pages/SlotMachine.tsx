@@ -11,6 +11,7 @@ import {
 } from "../utils/userProfile";
 import { apiUrl } from "../utils/apiBase";
 import { ChipIcon } from "../components/ChipIcon";
+import { CustomScrollArea } from "../components/CustomScrollArea";
 import slotSevenLucky from "../assets/slot-seven-lucky.png";
 import slotLemon from "../assets/slot-lemon.png";
 import slotCherries from "../assets/slot-cherries.png";
@@ -375,8 +376,8 @@ export function SlotMachine() {
   return (
     <div className="relative z-10 flex w-full min-w-0 max-w-full flex-col items-stretch gap-4 text-slate-200 lg:flex-row lg:items-start lg:gap-6">
       <div className="relative min-w-0 w-full flex-1">
-        <div className="relative rounded-[1.35rem] border border-amber-700/35 bg-gradient-to-b from-[#17130f] via-[#120f0c] to-[#0f0d0b] p-4 pt-10 shadow-[0_24px_56px_rgba(0,0,0,0.52),inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-2xl sm:p-6 sm:pt-11 lg:p-8">
-          <div className="absolute -top-2.5 left-1/2 z-10 max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-full border border-amber-600/35 bg-[#1a1612]/95 px-4 py-1.5 shadow-lg backdrop-blur-sm sm:-top-3 sm:px-6 sm:py-2">
+        <div className="relative rounded-[1.35rem] border border-amber-200/16 bg-slate-900/58 p-4 pt-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:rounded-2xl sm:p-6 sm:pt-11 lg:p-8">
+          <div className="absolute -top-2.5 left-1/2 z-10 max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-full border border-amber-200/25 bg-slate-950/90 px-4 py-1.5 shadow-lg backdrop-blur-sm sm:-top-3 sm:px-6 sm:py-2">
             <h3 className="bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-center text-sm font-bold tracking-[0.08em] text-transparent sm:text-lg">
               {t("slot.brandTitle")}
             </h3>
@@ -396,7 +397,7 @@ export function SlotMachine() {
                 setHistoryOpen(true);
                 void loadBalanceHistory();
               }}
-              className="rounded-xl border border-amber-700/30 bg-[#1a1713]/70 px-4 py-3 transition hover:border-amber-500/45 hover:bg-[#211b15]/80 sm:px-6"
+              className="rounded-2xl border border-amber-200/16 bg-slate-950/45 px-4 py-3 transition hover:border-amber-200/30 hover:bg-white/[0.06] sm:px-6"
             >
               <p className="mb-1 text-xs font-semibold text-slate-400 sm:text-sm">{t("slot.balance")}</p>
               <p className="flex items-center justify-center gap-2 text-2xl font-bold tabular-nums text-amber-300 sm:text-3xl">
@@ -406,7 +407,7 @@ export function SlotMachine() {
               <p className="mt-1 text-[11px] text-slate-500">Appuyer pour voir l'historique</p>
             </button>
 
-            <div className="rounded-xl border border-amber-700/30 bg-[#1a1713]/70 px-4 py-3 sm:px-6">
+            <div className="rounded-2xl border border-amber-200/16 bg-slate-950/45 px-4 py-3 sm:px-6">
               <p className="mb-1 text-xs font-semibold text-slate-400 sm:text-sm">{t("slot.selectBet")}</p>
               <div className="flex items-center gap-2">
                 <button
@@ -450,7 +451,7 @@ export function SlotMachine() {
           </div>
 
           <div className="relative mb-4 sm:mb-8">
-            <div className="rounded-2xl border border-amber-700/35 bg-[#14110e]/70 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6 lg:p-8">
+            <div className="rounded-2xl border border-amber-200/16 bg-slate-950/45 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-6 lg:p-8">
               <div
                 className={`pointer-events-none absolute left-2 right-2 top-1/2 z-20 flex h-24 -translate-y-1/2 items-center justify-center transition-all duration-500 sm:left-8 sm:right-8 sm:h-32 ${
                   isBigWin && !isSpinning
@@ -645,7 +646,7 @@ export function SlotMachine() {
         </div>
       </div>
 
-      <aside className="w-full min-w-0 shrink-0 rounded-2xl border border-amber-700/35 bg-gradient-to-b from-[#17130f]/95 to-[#0f0d0b] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.4)] sm:p-6 lg:w-80 lg:max-w-sm xl:max-w-none">
+      <aside className="w-full min-w-0 shrink-0 rounded-2xl border border-amber-200/16 bg-slate-900/58 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_16px_40px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-6 lg:w-80 lg:max-w-sm xl:max-w-none">
         <div className="mb-5 flex items-center gap-3 border-b border-slate-600/60 pb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-amber-700/35 bg-[#1a1713]/80">
             <TrendingUp className="h-5 w-5 text-amber-300" />
@@ -690,7 +691,7 @@ export function SlotMachine() {
           })}
         </div>
 
-        <div className="mt-5 rounded-xl border border-amber-700/30 bg-[#1a1713]/45 p-4">
+        <div className="mt-5 rounded-xl border border-amber-200/16 bg-slate-950/40 p-4">
           <div className="flex items-start gap-3">
             <Zap className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
             <div>
@@ -746,7 +747,7 @@ export function SlotMachine() {
               {historyError ? <p className="py-6 text-center text-rose-300">{historyError}</p> : null}
 
               {!historyLoading && !historyError ? (
-                <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+              <CustomScrollArea className="h-[60vh] max-h-[26rem]" contentClassName="space-y-2 pr-2">
                   {historyEntries.length === 0 ? (
                     <p className="py-8 text-center text-slate-400">Aucun mouvement enregistré.</p>
                   ) : (
@@ -784,7 +785,7 @@ export function SlotMachine() {
                       );
                     })
                   )}
-                </div>
+                </CustomScrollArea>
               ) : null}
             </motion.div>
           </motion.div>
