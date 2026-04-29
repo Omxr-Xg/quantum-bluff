@@ -14,6 +14,7 @@ import {
 import { apiUrl } from "../utils/apiBase";
 import { ChipIcon } from "../components/ChipIcon";
 import logoSrc from "../assets/logo-personnel.png";
+import { CustomScrollArea } from "../components/CustomScrollArea";
 
 type RouletteChipToken = {
   value: number;
@@ -997,36 +998,38 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden app-shell-bg text-slate-100">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#020716] text-slate-100">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
-        <div className="absolute -top-24 left-1/2 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-purple-600/14 blur-[95px]" />
-        <div className="absolute -right-20 top-1/4 h-72 w-72 rounded-full bg-cyan-500/8 blur-[80px]" />
-        <div className="absolute -left-16 bottom-0 h-64 w-64 rounded-full bg-fuchsia-500/10 blur-[85px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.22),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_42%,rgba(245,158,11,0.08),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
+        <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/36 blur-[120px]" />
+        <div className="absolute -right-20 top-1/4 h-72 w-72 rounded-full bg-emerald-700/10 blur-[90px]" />
+        <div className="absolute -left-16 bottom-0 h-80 w-80 rounded-full bg-amber-700/8 blur-[95px]" />
         <div
           className="absolute inset-0 opacity-[0.07]"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.5) 1px, transparent 0)",
+              "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.26) 1px, transparent 0)",
             backgroundSize: "22px 22px",
           }}
         />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.55),transparent_58%)]" />
       </div>
 
-      <header className="relative z-10 shrink-0 flex items-center justify-between gap-2 border-b border-slate-700/90 bg-slate-900/95 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm md:px-5">
+      <header className="relative z-10 flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/55 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-xl md:px-5">
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-200 shadow-sm transition hover:bg-slate-700 hover:text-white"
+          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-slate-200 shadow-sm transition hover:border-blue-200/25 hover:bg-white/[0.08] hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           {backToMinigamesHub
             ? t("minigames.backToLobbyMinigamesTab")
             : t("roulette.back")}
         </button>
-        <h1 className="bg-gradient-to-r from-purple-300 via-purple-200 to-cyan-200 bg-clip-text text-center text-base font-bold tracking-wide text-transparent md:text-lg">
+        <h1 className="bg-gradient-to-r from-slate-100 via-blue-200 to-amber-100 bg-clip-text text-center text-base font-bold tracking-wide text-transparent md:text-lg">
           {t("roulette.title")}
         </h1>
-        <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 text-sm font-bold tabular-nums text-green-400 md:max-w-none md:text-base">
+        <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 rounded-full border border-amber-300/15 bg-slate-950/55 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-100 md:max-w-none md:text-base">
           {chips !== null ? (
             <>
               <span className="truncate">{chips.toLocaleString()}</span>
@@ -1038,7 +1041,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         </div>
       </header>
 
-      <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-5 pb-24 md:pb-8">
+      <CustomScrollArea className="relative z-10 min-h-0 flex-1" contentClassName="overflow-x-hidden p-3 pb-24 md:p-5 md:pb-8">
         <p className="mx-auto mb-5 max-w-lg text-center text-xs leading-relaxed text-slate-400 md:text-sm">
           {t("roulette.subtitle")}
         </p>
@@ -1046,7 +1049,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         <div className="mx-auto grid w-full min-w-0 max-w-full grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
           <div
             ref={wheelSectionRef}
-            className="flex flex-col items-center rounded-2xl border border-slate-600/80 bg-slate-800/40 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] scroll-mt-3 md:scroll-mt-4"
+            className="flex flex-col items-center rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl scroll-mt-3 md:scroll-mt-4"
           >
             <RouletteWheelSvg wheelOrder={wheelOrder} rotation={rotation} ballOrbit={ballOrbit} />
             <div className="mt-5 min-h-[2.75rem] w-full max-w-xs rounded-lg border border-slate-600 bg-slate-900/60 px-4 py-2 text-center text-sm text-slate-200">
@@ -1171,7 +1174,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
           </div>
 
           <div className="space-y-4">
-            <div className="space-y-3 rounded-2xl border border-slate-600/80 bg-slate-800/50 p-4 shadow-lg backdrop-blur-sm">
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.24)] backdrop-blur-xl">
               <div className="flex items-center justify-between gap-3 border-b border-slate-600/60 pb-2">
                 <h2 className="text-sm font-semibold text-slate-100">{t("roulette.tabChips")}</h2>
               </div>
@@ -1229,7 +1232,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
             </div>
 
             <div
-              className="rounded-xl border-2 border-slate-600/90 bg-slate-900/40 p-3 shadow-[inset_0_2px_12px_rgba(0,0,0,0.35)]"
+              className="rounded-2xl border border-amber-200/16 bg-slate-900/58 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_22px_60px_rgba(0,0,0,0.26)] backdrop-blur-xl"
               style={{
                 background:
                   "radial-gradient(ellipse 85% 55% at 25% 15%, rgba(16,185,129,0.12) 0%, transparent 55%), radial-gradient(ellipse 100% 80% at 50% 100%, rgba(15,23,42,0.95) 0%, rgba(22,101,52,0.35) 55%, rgba(15,23,42,0.9) 100%), linear-gradient(180deg, rgb(15 23 42 / 0.9) 0%, rgb(15 118 110 / 0.15) 50%, rgb(15 23 42) 100%)",
@@ -1484,7 +1487,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
             </button>
           </div>
         </div>
-      </div>
+      </CustomScrollArea>
     </div>
   );
 }
