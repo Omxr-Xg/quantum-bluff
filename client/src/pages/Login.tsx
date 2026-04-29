@@ -144,7 +144,7 @@ export function Login() {
             <button
               type="submit"
               disabled={isLoading || !isFormValid}
-              className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${isFormValid && !isLoading ? 'bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_0.5s_linear_infinite]' : 'bg-slate-950/20 text-white/45 font-normal shadow-[0_0_11px_2px_rgba(59,130,246,0.18)] border-blue-300/40 opacity-80 cursor-not-allowed'} before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
+              className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${isFormValid && !isLoading ? 'bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_2s_linear_infinite]' : 'bg-slate-950/20 text-white/45 font-normal shadow-[0_0_11px_2px_rgba(59,130,246,0.18)] border-blue-300/40 opacity-80 cursor-not-allowed'} before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
             >
               {isLoading ? (
                 <>
@@ -180,5 +180,4 @@ export function Login() {
     </div>
   );
 }
-
 
