@@ -22,6 +22,7 @@ class PokerPredictRequest(BaseModel):
     playersCount: int = Field(default=2, ge=2, le=9)
     actions: list[Any] = Field(default_factory=list)
     opponentStyle: str | None = None
+    opponentHoleCards: list[list[Any]] = Field(default_factory=list)
     minRaise: int = Field(default=1, ge=1)
 
     @field_validator("street")

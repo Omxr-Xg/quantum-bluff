@@ -41,28 +41,19 @@ export async function ensureDailyChallengesForUser(
   db: DailyChallengeDb = prisma,
   dayKey = getDayKey()
 ): Promise<DailyChallengeProgress[]> {
-  for (const def of DAILY_CHALLENGE_DEFINITIONS) {
-    await db.dailyChallengeProgress.upsert({
-      where: {
-        userId_dayKey_challengeCode: {
-          userId,
-          dayKey,
-          challengeCode: def.code,
-        },
-      },
-      update: {},
-      create: {
-        userId,
-        dayKey,
-        challengeCode: def.code,
-        progress: 0,
-        goal: def.goal,
-        completed: false,
-        claimed: false,
-        rewardTokens: def.rewardTokens,
-      },
-    })
-  }
+  await db.dailyChallengeProgress.createMany({
+    data: DAILY_CHALLENGE_DEFINITIONS.map((def) => ({
+      userId,
+      dayKey,
+      challengeCode: def.code,
+      progress: 0,
+      goal: def.goal,
+      completed: false,
+      claimed: false,
+      rewardTokens: def.rewardTokens,
+    })),
+    skipDuplicates: true,
+  })
 
   return getDailyRowsForUser(userId, db, dayKey)
 }

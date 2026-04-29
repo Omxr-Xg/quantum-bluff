@@ -24,24 +24,27 @@ function nowIsoDay(): string {
 function mockCreateTx() {
   return {
     dailyChallengeProgress: {
-      upsert: jest.fn(async ({ where, create }: any) => {
-        const key = where.userId_dayKey_challengeCode
-        const existing = mockProgressRows.find(
-          (r) =>
-            r.userId === key.userId &&
-            r.dayKey === key.dayKey &&
-            r.challengeCode === key.challengeCode
-        )
-        if (existing) return existing
-        const row: ProgressRow = {
-          id: `p_${mockProgressRows.length + 1}`,
-          claimedAt: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          ...create,
+      createMany: jest.fn(async ({ data }: any) => {
+        let count = 0
+        for (const create of data) {
+          const existing = mockProgressRows.find(
+            (r) =>
+              r.userId === create.userId &&
+              r.dayKey === create.dayKey &&
+              r.challengeCode === create.challengeCode
+          )
+          if (existing) continue
+          const row: ProgressRow = {
+            id: `p_${mockProgressRows.length + 1}`,
+            claimedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            ...create,
+          }
+          mockProgressRows.push(row)
+          count += 1
         }
-        mockProgressRows.push(row)
-        return row
+        return { count }
       }),
       findMany: jest.fn(async ({ where }: any) => {
         return mockProgressRows.filter((r) => r.userId === where.userId && r.dayKey === where.dayKey)

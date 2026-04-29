@@ -85,6 +85,8 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   const [combinationsHelpOpen, setCombinationsHelpOpen] = useState(false);
   const isAllIn = maxRaise > 0 && raiseAmount >= maxRaise;
   const canRaise = isMyTurn && !actionsDisabled && !isLoading && !hasFolded && !hasActed && maxRaise > 0;
+  const primaryActionButtonClass =
+    "min-w-0 flex-1 px-[1.1rem] py-[0.825rem] text-[0.825rem] md:flex-none md:min-w-[176px] md:px-[2.2rem] md:py-[1.1rem] md:text-[1.1rem]";
 
   useEffect(() => {
     setRaiseAmount((prev) => clampRaise(prev));
@@ -231,7 +233,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
               onClick={onFold}
               disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
               variant="red"
-              className="min-w-0 flex-1 px-4 py-3 text-xs md:flex-none md:min-w-[160px] md:px-8 md:py-4 md:text-base"
+              className={primaryActionButtonClass}
             >
               {t('game.fold')}
             </NeonButton>
@@ -241,7 +243,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 onClick={onCheck}
                 disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
                 variant="blue"
-                className="min-w-0 flex-1 px-4 py-3 text-xs md:flex-none md:min-w-[160px] md:px-8 md:py-4 md:text-base"
+                className={primaryActionButtonClass}
               >
                 {t('game.check')}
               </NeonButton>
@@ -254,7 +256,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                     onClick={() => onCall(effectiveCall)}
                     disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || chips <= 0 || callAmount <= 0}
                     variant="blue"
-                    className="min-w-0 flex-1 whitespace-nowrap px-4 py-3 text-xs md:flex-none md:min-w-[160px] md:px-8 md:py-4 md:text-base"
+                    className={`${primaryActionButtonClass} whitespace-nowrap`}
                   >
                     {isCallAllIn ? t('game.allIn') : `${t('game.callLabel')} ${callAmount > 0 ? callAmount : ""}`}
                   </NeonButton>
@@ -269,7 +271,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
             >
               {canRaise && raisePopoverOpen && (
                 <div
-                  className="absolute bottom-full right-0 z-50 mb-3 w-[220px] origin-bottom-right rounded-2xl border-2 border-[rgb(7,221,0)] app-shell-bg p-3 shadow-[0_0_12px_2px_rgba(7,221,0,0.5)] md:w-[240px]"
+                  className="absolute bottom-full right-0 z-50 mb-3 w-[220px] origin-bottom-right rounded-2xl border-2 border-[rgb(7,221,0)] bg-slate-950/92 p-3 shadow-[0_0_16px_2px_rgba(7,221,0,0.55),0_18px_56px_rgba(0,0,0,0.58)] backdrop-blur-xl md:w-[240px]"
                   onMouseEnter={handleRaiseMouseEnter}
                   onMouseLeave={handleRaiseMouseLeave}
                 >
@@ -337,7 +339,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || maxRaise <= 0}
                 variant="green"
                 icon={<TrendingUp className="w-4 h-4 md:w-6 md:h-6 hidden md:block" />}
-                className="flex w-full min-w-0 justify-center px-4 py-3 text-xs md:min-w-[160px] md:px-8 md:py-4 md:text-base"
+                className={`flex w-full justify-center ${primaryActionButtonClass}`}
               >
                 {isAllIn ? t('game.allIn') : t('game.raise')}
               </NeonButton>

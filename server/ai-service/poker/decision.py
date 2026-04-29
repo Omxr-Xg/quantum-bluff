@@ -126,6 +126,23 @@ def _style_for_action(action: str, ctx: FeatureContext) -> str:
     return "discipline"
 
 
+def _emoji_for_style(style: str, action: str) -> str:
+    if action == "ALL_IN":
+        return "🚀"
+    return {
+        "semi_bluff": "🎭",
+        "bluff": "😏",
+        "value": "💎",
+        "thin_value": "💎",
+        "pressure": "🔥",
+        "discipline": "🧊",
+        "pot_control": "🛡️",
+        "draw": "🎯",
+        "showdown_value": "👀",
+        "trap": "🪤",
+    }.get(style, "🃏")
+
+
 def _raise_amount(payload: dict[str, Any], ctx: FeatureContext, all_in: bool = False) -> int:
     pot = max(0, int(payload.get("pot", 0)))
     to_call = max(0, int(payload.get("toCall", 0)))
@@ -135,12 +152,16 @@ def _raise_amount(payload: dict[str, Any], ctx: FeatureContext, all_in: bool = F
         return stack
 
     strength = ctx.hand_strength
+    spr = ctx.effective_stack_to_pot_ratio
+    pressure_bonus = 0.14 if ctx.position_score >= 0.6 and ctx.passive_opponent > 0 else 0.0
     if strength > 0.78:
-        fraction = 0.72 + random.random() * 0.28
+        fraction = 0.78 + random.random() * 0.32
     elif strength > 0.55:
-        fraction = 0.45 + random.random() * 0.25
+        fraction = 0.52 + pressure_bonus + random.random() * 0.28
     else:
-        fraction = 0.28 + random.random() * 0.18
+        fraction = 0.34 + pressure_bonus + random.random() * 0.22
+    if spr <= 2.2:
+        fraction += 0.18
     target = to_call + min_raise + int(pot * fraction)
     return max(min_raise, min(stack, target))
 
@@ -190,6 +211,25 @@ def _legalize(
     return BotDecision("RAISE", amount, confidence, _style_for_action("RAISE", ctx), f"Aggressive expert line with position/range pressure ({equity_note})")
 
 
+def _soul_read_override(payload: dict[str, Any], ctx: FeatureContext) -> int | None:
+    if ctx.opponent_known <= 0 or ctx.street == "PREFLOP":
+        return None
+    to_call = max(0.0, float(payload.get("toCall", 0)))
+    pressure = clamp(to_call / max(float(payload.get("botStack", 1)), 1.0))
+    edge = ctx.showdown_edge - 0.5
+    can_pressure = ctx.position_score >= 0.6 or ctx.passive_opponent > 0 or ctx.opponent_strength < 0.34
+
+    if edge >= 0.18:
+        return ACTIONS.index("ALL_IN") if ctx.effective_stack_to_pot_ratio <= 2.4 else ACTIONS.index("RAISE")
+    if edge >= 0.04 and to_call == 0:
+        return ACTIONS.index("RAISE")
+    if edge <= -0.12 and to_call > 0 and pressure > 0.14:
+        return ACTIONS.index("FOLD")
+    if edge <= -0.06 and to_call == 0 and can_pressure:
+        return ACTIONS.index("RAISE")
+    return None
+
+
 def predict_decision(payload: dict[str, Any], model: PolicyModel | None = None) -> BotDecision:
     features, ctx = build_features(payload)
     model = model or PolicyModel.load()
@@ -197,20 +237,24 @@ def predict_decision(payload: dict[str, Any], model: PolicyModel | None = None) 
     heuristic_scores = _heuristic_scores(ctx, float(payload.get("toCall", 0)), float(payload.get("botStack", 0)))
     teacher_scores, teacher_style, teacher_reason = _teacher_scores(payload)
     logits = [
-        model_score * 0.25 + heuristic_score * 0.25 + teacher_score * 0.5 + random.uniform(-0.04, 0.04)
+        model_score * 0.32 + heuristic_score * 0.2 + teacher_score * 0.48 + random.uniform(-0.025, 0.025)
         for model_score, heuristic_score, teacher_score in zip(model_scores, heuristic_scores, teacher_scores)
     ]
     probs = _softmax(logits)
-    temperature = float(payload.get("temperature", 0.62 if ctx.street == "PREFLOP" else 0.5))
+    temperature = float(payload.get("temperature", 0.5 if ctx.street == "PREFLOP" else 0.42))
     temperature = max(0.35, min(1.5, temperature))
-    action_idx = _choose_action(probs, temperature)
+    action_idx = _soul_read_override(payload, ctx)
+    if action_idx is None:
+        action_idx = _choose_action(probs, temperature)
     decision = _legalize(action_idx, payload, ctx, probs)
+    final_style = teacher_style if decision.style in {"bluff", "pot_control", "discipline"} else decision.style
+    emoji = _emoji_for_style(final_style, decision.action)
     return BotDecision(
         action=decision.action,
         amount=decision.amount,
         confidence=decision.confidence,
-        style=teacher_style if decision.style in {"bluff", "pot_control", "discipline"} else decision.style,
-        reason=f"{decision.reason}; teacher={teacher_reason}",
+        style=final_style,
+        reason=f"{emoji} {decision.reason}; teacher={teacher_reason}",
     )
 
 

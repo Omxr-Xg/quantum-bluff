@@ -299,6 +299,7 @@ export function Game() {
     isSplit?: boolean;
     skipRevealDelay?: boolean;
   } | null>(null);
+  const [showBotHandEndPanel, setShowBotHandEndPanel] = useState(false);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; kind: BotTableActionKind } | null>(null);
   const [runOutPhase, setRunOutPhase] = useState<GamePhase | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -544,6 +545,18 @@ export function Game() {
     }, delayMs);
     return () => clearTimeout(id);
   }, [showdownResult, showTransition, gameIdParam, isBotMode]);
+
+  useEffect(() => {
+    if (!isBotMode || !showdownResult || gameOverReason) {
+      setShowBotHandEndPanel(false);
+      return;
+    }
+    const delayMs = showdownResult.skipRevealDelay ? 0 : SHOWDOWN_REVEAL_MS;
+    const id = window.setTimeout(() => {
+      setShowBotHandEndPanel(true);
+    }, delayMs);
+    return () => window.clearTimeout(id);
+  }, [isBotMode, showdownResult, gameOverReason, SHOWDOWN_REVEAL_MS]);
 
   const openAddMoney = () => {
     setShowAddMoney(true);
@@ -3012,7 +3025,7 @@ export function Game() {
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col relative">
       <AnimatePresence>
-      {isBotMode && showdownResult && !gameOverReason && (
+      {isBotMode && showdownResult && showBotHandEndPanel && !gameOverReason && (
         <motion.div
           key="bot-hand-end"
           className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4"
@@ -3630,7 +3643,7 @@ export function Game() {
          {/* TABLE */}
         <div
         ref={tourRefTable}
-        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 w-full -mt-8' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-20'}`}
+        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 pb-[9rem] w-full -mt-14 -translate-y-4' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-20'}`}
         >
         <PokerTable
         players={tablePlayers}

@@ -7,7 +7,7 @@
     "start": "npm run install:all && npm run dev",
     "dev": "concurrently -n \"DB,AI,SERVER,CLIENT\" -c \"blue,green,magenta,cyan\" \"npm:dev:db\" \"npm:dev:ai\" \"npm:dev:server\" \"npm:dev:client\"",
     "dev:db": "cd database && docker-compose up -d",
-    "dev:ai": "cd server/ai-service && python3 -m uvicorn main:app --host 0.0.0.0 --port 8000",
+    "dev:ai": "cd server/ai-service && python3 dev_server.py",
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "test:coverage": "npm run test:coverage --prefix server && npm run test:coverage --prefix client",

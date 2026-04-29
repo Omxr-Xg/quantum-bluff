@@ -19,12 +19,15 @@ class ExpertPolicy(nn.Module):
     def __init__(self, input_size: int) -> None:
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(input_size, 48),
+            nn.Linear(input_size, 96),
             nn.ReLU(),
-            nn.Dropout(0.08),
-            nn.Linear(48, 24),
+            nn.Dropout(0.06),
+            nn.Linear(96, 64),
             nn.ReLU(),
-            nn.Linear(24, 4),
+            nn.Dropout(0.04),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 4),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -78,17 +81,26 @@ def _linear_layer(layer: nn.Linear) -> dict:
     }
 
 
-def train(samples: int, epochs: int, output: Path, dataset: Path | None = None, metrics_output: Path | None = None) -> None:
+def _class_weights(labels: list[int]) -> torch.Tensor:
+    counts = [max(1, labels.count(idx)) for idx in range(len(LABELS))]
+    total = sum(counts)
+    weights = [total / (len(LABELS) * count) for count in counts]
+    return torch.tensor(weights, dtype=torch.float32)
+
+
+def train(samples: int, epochs: int, output: Path, dataset: Path | None = None, metrics_output: Path | None = None, seed: int = 1337) -> None:
+    random.seed(seed)
+    torch.manual_seed(seed)
     rows, labels = _load_dataset(dataset) if dataset else generate_dataset(samples)
-    train_rows, train_labels, validation_rows, validation_labels = _split(rows, labels, 0.2, 1337)
+    train_rows, train_labels, validation_rows, validation_labels = _split(rows, labels, 0.2, seed)
     train_x = torch.tensor(train_rows, dtype=torch.float32)
     train_y = torch.tensor(train_labels, dtype=torch.long)
     validation_x = torch.tensor(validation_rows, dtype=torch.float32)
     validation_y = torch.tensor(validation_labels, dtype=torch.long)
     loader = DataLoader(TensorDataset(train_x, train_y), batch_size=256, shuffle=True)
     model = ExpertPolicy(len(FEATURE_NAMES))
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.01, weight_decay=0.001)
-    loss_fn = nn.CrossEntropyLoss()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.004, weight_decay=0.0008)
+    loss_fn = nn.CrossEntropyLoss(weight=_class_weights(train_labels))
     history = []
 
     for epoch in range(epochs):
@@ -96,6 +108,7 @@ def train(samples: int, epochs: int, output: Path, dataset: Path | None = None, 
             optimizer.zero_grad()
             loss = loss_fn(model(batch_x), batch_y)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
         history.append({"epoch": epoch + 1, **_evaluate(model, validation_x, validation_y)})
 
@@ -111,6 +124,7 @@ def train(samples: int, epochs: int, output: Path, dataset: Path | None = None, 
             "train_samples": len(train_rows),
             "validation_samples": len(validation_rows),
             "epochs": epochs,
+            "seed": seed,
             "label_source": "simulated expert_rules.py",
         },
     }
@@ -132,8 +146,9 @@ def main() -> None:
     parser.add_argument("--dataset", type=Path)
     parser.add_argument("--output", type=Path, default=Path("model/expert_bot.pt"))
     parser.add_argument("--metrics-output", type=Path)
+    parser.add_argument("--seed", type=int, default=1337)
     args = parser.parse_args()
-    train(args.samples, args.epochs, args.output, args.dataset, args.metrics_output)
+    train(args.samples, args.epochs, args.output, args.dataset, args.metrics_output, args.seed)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .features import FeatureContext, build_features, clamp
+from .hand_evaluator import parse_card
 
 
 LABELS = ("FOLD", "CHECK_CALL", "RAISE", "ALL_IN")
@@ -27,6 +28,39 @@ def _effective_equity(ctx: FeatureContext) -> float:
     return clamp(ctx.hand_strength + draw_bonus + overcard_bonus + top_pair_bonus - texture_penalty)
 
 
+def _preflop_tier(payload: dict[str, Any]) -> tuple[float, str]:
+    cards = [parse_card(card) for card in payload.get("holeCards", [])]
+    if len(cards) < 2:
+        return 0.35, "unknown"
+    a, b = sorted(cards[:2], key=lambda card: card.value, reverse=True)
+    pair = a.value == b.value
+    suited = a.suit == b.suit
+    gap = abs(a.value - b.value)
+    high, low = a.value, b.value
+
+    if pair and high >= 11:
+        return 0.96, "premium_pair"
+    if pair and high >= 8:
+        return 0.82, "strong_pair"
+    if pair:
+        return 0.68, "small_pair"
+    if high == 14 and low >= 13:
+        return 0.9 if suited else 0.84, "premium_broadway"
+    if high == 14 and low >= 10:
+        return 0.78 if suited else 0.64, "ace_broadway"
+    if high >= 13 and low >= 10:
+        return 0.72 if suited else 0.58, "broadway"
+    if suited and high >= 11 and gap <= 2:
+        return 0.64, "suited_broadway_connector"
+    if suited and gap <= 1 and high >= 8:
+        return 0.55, "suited_connector"
+    if high == 14 and suited and low >= 5:
+        return 0.56, "suited_ace"
+    if high <= 9 and gap >= 4:
+        return 0.22, "trash"
+    return 0.4, "marginal"
+
+
 def label_situation(payload: dict[str, Any]) -> ExpertLabel:
     _, ctx = build_features(payload)
     to_call = max(0.0, float(payload.get("toCall", 0)))
@@ -39,32 +73,75 @@ def label_situation(payload: dict[str, Any]) -> ExpertLabel:
     in_position = ctx.position_score >= 0.6
     aggressive_villain = ctx.raises >= 2 or str(payload.get("opponentStyle", "")).upper() == "AGGRESSIVE"
     passive_villain = ctx.passive_opponent > 0.5
+    calling_station = str(payload.get("opponentStyle", "")).upper() == "CALLING_STATION"
     strong_draw = ctx.flush_draw > 0 or ctx.straight_draw > 0
+    fold_equity = 0.22 + (0.2 if in_position else 0.0) + (0.18 if passive_villain else 0.0) - (0.18 if calling_station else 0.0)
+    has_soul_read = ctx.opponent_known > 0
+
+    if has_soul_read and ctx.street != "PREFLOP":
+        edge = ctx.showdown_edge - 0.5
+        opponent_weak = ctx.opponent_strength < 0.34
+        if edge >= 0.18:
+            if spr <= 2.8:
+                return _make("ALL_IN", 0.93, "value", "Soul-read: hero is far ahead, maximize pressure")
+            return _make("RAISE", 0.91, "value", "Soul-read: hero is ahead, value bet relentlessly")
+        if edge >= 0.04 and to_call == 0:
+            return _make("RAISE", 0.78, "thin_value", "Soul-read: thin value against worse hand")
+        if edge <= -0.12 and to_call > 0:
+            if strong_draw and pressure < 0.24:
+                return _make("CHECK_CALL", 0.66, "draw", "Soul-read: behind but drawing at acceptable price")
+            return _make("FOLD", 0.9, "discipline", "Soul-read: dominated, refuse bad payoff")
+        if edge <= -0.08 and to_call == 0 and opponent_weak and fold_equity >= 0.3:
+            return _make("RAISE", 0.72, "bluff", "Soul-read: weak showdown value turns into pressure bluff")
+        if opponent_weak and to_call == 0 and fold_equity >= 0.38:
+            return _make("RAISE", 0.7, "bluff", "Soul-read: opponent capped, attack the pot")
+
+    if ctx.street == "PREFLOP":
+        tier, tier_name = _preflop_tier(payload)
+        if tier >= 0.88:
+            if spr <= 3.0 or pressure >= 0.22 or aggressive_villain:
+                return _make("ALL_IN", 0.88, "value", f"Premium preflop range applies maximum pressure ({tier_name})")
+            return _make("RAISE", 0.9, "value", f"Premium preflop range raises for value ({tier_name})")
+        if tier >= 0.7:
+            if pressure <= 0.18 or in_position:
+                return _make("RAISE", 0.78, "value", f"Strong preflop hand opens or 3-bets ({tier_name})")
+            return _make("CHECK_CALL", 0.68, "pot_odds", f"Strong preflop hand continues versus pressure ({tier_name})")
+        if tier >= 0.54:
+            if to_call == 0 and (in_position or passive_villain):
+                return _make("RAISE", 0.62, "steal", f"Playable preflop hand pressures blinds ({tier_name})")
+            if price_gap >= -0.03 and pressure < 0.14:
+                return _make("CHECK_CALL", 0.58, "speculative", f"Playable preflop hand takes fair price ({tier_name})")
+            return _make("FOLD", 0.66, "discipline", f"Playable hand not worth current preflop price ({tier_name})")
+        if to_call <= 0:
+            return _make("CHECK_CALL", 0.7, "pot_control", f"Marginal preflop hand checks option ({tier_name})")
+        return _make("FOLD", 0.82, "discipline", f"Weak preflop range folds versus pressure ({tier_name})")
 
     if (equity >= 0.88 or ctx.hand_category_rank >= 3) and spr <= 2.5:
         return _make("ALL_IN", 0.9, "value", "Very strong hand with short effective stack")
     if equity >= 0.76 or ctx.hand_category_rank >= 3:
+        if calling_station and ctx.hand_category_rank >= 2:
+            return _make("RAISE", 0.9, "value", "Made hand value bets heavily versus calling station")
         if to_call == 0 or in_position or passive_villain:
             return _make("RAISE", 0.86, "value", "Strong hand, value betting favorable spot")
         return _make("CHECK_CALL", 0.78, "trap", "Strong hand but facing pressure out of position")
 
     if equity >= 0.58:
-        if to_call == 0 and (in_position or passive_villain):
+        if to_call == 0 and (in_position or passive_villain) and not calling_station:
             return _make("RAISE", 0.74, "thin_value", "Medium-strong hand can pressure passive ranges")
         if price_gap >= -0.02 and pressure < 0.45:
             return _make("CHECK_CALL", 0.72, "pot_odds", "Medium hand has acceptable pot odds")
-        if strong_draw and in_position:
+        if strong_draw and fold_equity >= 0.35:
             return _make("RAISE", 0.64, "semi_bluff", "Strong draw can semi-bluff in position")
         return _make("FOLD", 0.62, "discipline", "Medium hand priced out by pressure")
 
     if strong_draw:
-        if price_gap >= -0.04 and pressure < 0.35:
-            return _make("CHECK_CALL", 0.68, "draw", "Draw has acceptable price")
-        if to_call == 0 and in_position and pot / stack > 0.12:
+        if to_call == 0 and fold_equity >= 0.35 and pot / stack > 0.12:
             return _make("RAISE", 0.55, "semi_bluff", "Free action plus fold equity enables semi-bluff")
+        if price_gap >= -0.06 and pressure < 0.35:
+            return _make("CHECK_CALL", 0.68, "draw", "Draw has acceptable price")
 
     if to_call <= 0:
-        if in_position and passive_villain and equity > 0.36:
+        if in_position and passive_villain and not calling_station and equity > 0.36:
             return _make("RAISE", 0.52, "bluff", "Controlled bluff against passive opponent")
         return _make("CHECK_CALL", 0.66, "pot_control", "Weak or marginal hand takes free card")
 

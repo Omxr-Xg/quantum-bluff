@@ -121,7 +121,7 @@ export const LanguageSwitcher = ({ className = "", buttonClassName = "" }: Langu
       : null;
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative shrink-0 overflow-visible ${className}`}>
       <button
         ref={buttonRef}
         type="button"

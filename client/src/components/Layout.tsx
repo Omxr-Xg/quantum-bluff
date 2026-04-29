@@ -47,6 +47,7 @@ import { RateGameModal } from "./RateGameModal";
 import { GlobalHoverTooltip } from "./GlobalHoverTooltip";
 import { GlobalCustomScrollbars } from "./GlobalCustomScrollbars";
 import { CustomScrollArea } from "./CustomScrollArea";
+import { useIsMobile } from "./ui/use-mobile";
 import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 import { useSendFriendMessageMutation } from "../services/api";
@@ -131,8 +132,10 @@ export function Layout({ children }: LayoutProps) {
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showRateGame, setShowRateGame] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("aesthetic");
+  const [gameHudToolsOpen, setGameHudToolsOpen] = useState(false);
   const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MENU_CLOSE_DELAY = 500;
+  const isMobile = useIsMobile();
   const { registerOpener, openSettingsMenu } = useAccessibilityMenuOpen() ?? {
     registerOpener: () => {},
     openSettingsMenu: () => {},
@@ -503,12 +506,12 @@ export function Layout({ children }: LayoutProps) {
 
   /** Téléphone : h-9 / icônes 4.5 — md+ : h-11. Scroll horizontal côté Lobby. */
   const topNavBtn =
-    "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:w-11";
+    "inline-flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:min-h-11 md:w-11 md:min-w-11";
   const gameExitBtn =
     "inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-red-300/25 bg-red-950/45 px-3 text-xs font-bold text-red-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_28px_rgba(127,29,29,0.24)] backdrop-blur-md transition hover:border-red-200/50 hover:bg-red-900/65 hover:text-white md:h-11 md:px-4 md:text-sm";
   const topNavIcon = "h-[1.05rem] w-[1.05rem] shrink-0 [stroke-width:2.15] md:h-[1.15rem] md:w-[1.15rem]";
   const gameHudBtn =
-    "flex h-7 w-9 shrink-0 items-center justify-center rounded-full border transition md:h-8 md:w-10";
+    "flex aspect-square h-7 min-h-7 w-7 min-w-7 shrink-0 items-center justify-center rounded-full border transition md:h-8 md:min-h-8 md:w-8 md:min-w-8";
   const gameHudBtnOff =
     "border-white/10 bg-slate-950/25 text-slate-400 hover:border-white/25 hover:bg-slate-800/70 hover:text-white";
   const gameHudIcon = "h-3.5 w-3.5 shrink-0 md:h-4 md:w-4";
@@ -533,27 +536,25 @@ export function Layout({ children }: LayoutProps) {
     if (next <= 0 && sfxEnabled) toggleSfx(false);
     if (next > 0 && !sfxEnabled) toggleSfx(true);
   };
-  const gameHudControls = (
-    <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto overflow-y-hidden scrollbar-hide">
-      <div
-        className={`flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-4 md:text-sm ${
-          gameHudState?.isMyTurn
-            ? "border-amber-300/35 bg-amber-500/15 text-amber-100"
-            : "border-emerald-300/20 bg-slate-950/45 text-emerald-100"
-        }`}
-        title={`${t("game.phase")}: ${phaseLabel}${gameHudState?.isMyTurn ? ` · ${t("game.yourTurn")}` : ""}`}
-        aria-label={`${t("game.phase")}: ${phaseLabel}`}
-      >
-        <Radio className={`h-[1.05rem] w-[1.05rem] shrink-0 ${gameHudState?.isMyTurn ? "text-amber-300" : "text-emerald-300"}`} aria-hidden />
-        <span className="whitespace-nowrap">{phaseLabel}</span>
-        {gameHudState?.isMyTurn && (
-          <span className="hidden rounded-full bg-amber-300/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-100 lg:inline">
-            {t("game.yourTurn")}
-          </span>
-        )}
-      </div>
-
-      <div className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-slate-950/45 px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-1.5">
+  const gameHudPhaseClasses = `flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-4 md:text-sm ${
+    gameHudState?.isMyTurn
+      ? "border-amber-300/35 bg-amber-500/15 text-amber-100"
+      : "border-emerald-300/20 bg-slate-950/45 text-emerald-100"
+  }`;
+  const gameHudPhaseContent = (
+    <>
+      <Radio className={`h-[1.05rem] w-[1.05rem] shrink-0 ${gameHudState?.isMyTurn ? "text-amber-300" : "text-emerald-300"}`} aria-hidden />
+      <span className="whitespace-nowrap">{phaseLabel}</span>
+      {gameHudState?.isMyTurn && (
+        <span className="hidden rounded-full bg-amber-300/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-100 lg:inline">
+          {t("game.yourTurn")}
+        </span>
+      )}
+      {isMobile && <Settings className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />}
+    </>
+  );
+  const gameHudAccessibilityControls = (
+    <div className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-slate-950/45 px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-1.5">
         <button
           type="button"
           onClick={() => {
@@ -594,8 +595,9 @@ export function Layout({ children }: LayoutProps) {
           <Palette className={gameHudIcon} aria-hidden />
         </button>
       </div>
-
-      <div className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-slate-950/45 px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-1.5">
+  );
+  const gameHudAudioControls = (
+    <div className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-slate-950/45 px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-1.5">
         <label
           className={`relative flex h-7 w-[4.2rem] shrink-0 cursor-ew-resize items-center justify-center overflow-hidden rounded-full border transition md:h-8 md:w-[4.9rem] ${
             bgmPct > 0 ? "border-emerald-300/45 bg-emerald-950/40 text-emerald-50" : gameHudBtnOff
@@ -653,12 +655,48 @@ export function Layout({ children }: LayoutProps) {
           />
         </label>
       </div>
+  );
+  const gameHudControls = (
+    <div className="relative flex min-w-0 flex-1 items-center gap-2 overflow-visible py-1">
+      {isMobile ? (
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiClick");
+            setGameHudToolsOpen((open) => !open);
+          }}
+          className={gameHudPhaseClasses}
+          title={`${t("game.phase")}: ${phaseLabel}${gameHudState?.isMyTurn ? ` · ${t("game.yourTurn")}` : ""}`}
+          aria-label={`${t("game.phase")}: ${phaseLabel}`}
+          aria-expanded={gameHudToolsOpen}
+        >
+          {gameHudPhaseContent}
+        </button>
+      ) : (
+        <>
+          <div
+            className={gameHudPhaseClasses}
+            title={`${t("game.phase")}: ${phaseLabel}${gameHudState?.isMyTurn ? ` · ${t("game.yourTurn")}` : ""}`}
+            aria-label={`${t("game.phase")}: ${phaseLabel}`}
+          >
+            {gameHudPhaseContent}
+          </div>
+          {gameHudAccessibilityControls}
+          {gameHudAudioControls}
+        </>
+      )}
+      {isMobile && gameHudToolsOpen && (
+        <div className="absolute left-0 top-full z-[270] mt-1.5 flex w-max max-w-[calc(100vw-1rem)] flex-col gap-1.5 rounded-2xl border border-white/10 bg-slate-950/90 p-2 shadow-2xl backdrop-blur-xl">
+          {gameHudAccessibilityControls}
+          {gameHudAudioControls}
+        </div>
+      )}
     </div>
   );
   const userAvatar = getUserAvatar();
   const username = getUsername();
   const languageButtonClass =
-    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 md:h-11 md:w-11";
+    "flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 md:h-11 md:min-h-11 md:w-11 md:min-w-11";
   const accountPill = (
     <div className="flex h-9 shrink-0 items-center overflow-hidden rounded-full border border-white/10 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-md md:h-11">
       <button
@@ -728,9 +766,9 @@ export function Layout({ children }: LayoutProps) {
   );
 
   const gameMenuContent = (
-    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center justify-end gap-1.5 sm:w-auto sm:shrink-0 md:gap-2">
+    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center justify-end gap-1.5 overflow-visible sm:w-auto sm:shrink-0 md:gap-2">
       <div
-        className="flex min-w-0 items-center justify-end gap-1 overflow-x-auto overflow-y-hidden scroll-smooth scrollbar-hide [-webkit-overflow-scrolling:touch] [touch-action:pan-x] sm:gap-1.5 md:gap-2"
+        className="flex min-w-0 items-center justify-end gap-1 overflow-x-auto overflow-y-visible py-1 scroll-smooth scrollbar-hide [-webkit-overflow-scrolling:touch] [touch-action:pan-x] sm:gap-1.5 md:gap-2"
       >
         <button
           type="button"
@@ -753,11 +791,11 @@ export function Layout({ children }: LayoutProps) {
   );
 
   const menuContent = isGameHudPage ? gameMenuContent : (
-    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end md:gap-2">
+    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-visible max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end md:gap-2">
       <LanguageSwitcher buttonClassName={languageButtonClass} />
       {accountPill}
       <div
-        className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:scroll-smooth max-sm:py-0 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
+        className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-visible max-sm:scroll-smooth max-sm:py-1 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
       >
         <NotificationCenter />
         <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden sm:inline-flex`} title={t("leaderboard.title")}>
@@ -801,7 +839,7 @@ export function Layout({ children }: LayoutProps) {
                 <span>{t("botConfig.home")}</span>
               </button>
             )}
-            <div className={`${isGameHudPage ? "min-w-0 shrink-0" : "min-w-0 flex-1"} overflow-x-auto overflow-y-hidden scrollbar-hide`}>
+            <div className={`${isGameHudPage ? "min-w-0 shrink-0" : "min-w-0 flex-1"} overflow-x-auto overflow-y-visible py-1 scrollbar-hide`}>
               {menuContent}
             </div>
           </div>
@@ -822,7 +860,7 @@ export function Layout({ children }: LayoutProps) {
                   playSfx("uiClick");
                   openSettingsMenu?.();
                 }}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9"
+                className="flex aspect-square h-7 min-h-7 w-7 min-w-7 shrink-0 items-center justify-center rounded-full border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:min-h-8 sm:w-8 sm:min-w-8 md:h-9 md:min-h-9 md:w-9 md:min-w-9"
                 title={t("settings.title")}
               >
                 <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -848,7 +886,7 @@ export function Layout({ children }: LayoutProps) {
                   closeMenuTimerRef.current = null;
                   setMenuOpen((o) => !o);
                 }}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9"
+                className="flex aspect-square h-7 min-h-7 w-7 min-w-7 shrink-0 items-center justify-center rounded-full border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:min-h-8 sm:w-8 sm:min-w-8 md:h-9 md:min-h-9 md:w-9 md:min-w-9"
                 title="Menu"
                 aria-expanded={menuOpen}
               >

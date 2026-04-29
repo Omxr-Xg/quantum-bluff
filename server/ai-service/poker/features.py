@@ -40,6 +40,9 @@ FEATURE_NAMES = (
     "folds_norm",
     "aggression_score",
     "passive_opponent",
+    "opponent_known",
+    "showdown_edge",
+    "opponent_strength",
 )
 
 
@@ -57,6 +60,9 @@ class FeatureContext:
     checks: int
     folds: int
     passive_opponent: float
+    opponent_known: float
+    showdown_edge: float
+    opponent_strength: float
     flush_draw: float
     straight_draw: float
     overcards: float
@@ -124,8 +130,16 @@ def build_features(payload: dict[str, Any]) -> tuple[list[float], FeatureContext
         passive_opponent = max(passive_opponent, 0.75)
 
     evaluation = evaluate_hand(hole, board)
+    opponent_evaluations = [
+        evaluate_hand([parse_card(card) for card in cards], board)
+        for cards in payload.get("opponentHoleCards", [])
+        if isinstance(cards, list) and len(cards) >= 2
+    ]
     pre_strength = preflop_strength(hole)
     hand_strength = pre_strength if street == "PREFLOP" else evaluation.normalized_score
+    opponent_strength = max((ev.normalized_score for ev in opponent_evaluations), default=0.0)
+    showdown_edge = clamp((hand_strength - opponent_strength + 1) / 2)
+    opponent_known = 1.0 if opponent_evaluations else 0.0
     flush_draw = 1.0 if evaluation.flush_draw else 0.0
     straight_draw = 1.0 if evaluation.straight_draw else 0.0
     board_pair = 1.0 if evaluation.board_pair else 0.0
@@ -173,6 +187,9 @@ def build_features(payload: dict[str, Any]) -> tuple[list[float], FeatureContext
         clamp(folds / 5),
         aggression,
         passive_opponent,
+        opponent_known,
+        showdown_edge,
+        opponent_strength,
     ]
     context = FeatureContext(
         street=street,
@@ -187,6 +204,9 @@ def build_features(payload: dict[str, Any]) -> tuple[list[float], FeatureContext
         checks=checks,
         folds=folds,
         passive_opponent=passive_opponent,
+        opponent_known=opponent_known,
+        showdown_edge=showdown_edge,
+        opponent_strength=opponent_strength,
         flush_draw=flush_draw,
         straight_draw=straight_draw,
         overcards=clamp(evaluation.overcards / 2),

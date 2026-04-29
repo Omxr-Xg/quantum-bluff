@@ -17,6 +17,7 @@ export interface ExpertAiContext {
   opponentStack?: number
   actions?: unknown[]
   opponentStyle?: string
+  opponentHoleCards?: Card[][]
 }
 
 const aiResponseSchema = z.object({
@@ -116,6 +117,7 @@ function buildAiPayload(req: BotActionRequest, context: ExpertAiContext = {}) {
     playersCount: req.playersCount,
     actions: context.actions ?? [],
     opponentStyle: context.opponentStyle,
+    opponentHoleCards: context.opponentHoleCards?.map((cards) => cards.map(cardToCompact)),
     minRaise: req.minRaise,
   }
 }

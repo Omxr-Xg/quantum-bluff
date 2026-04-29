@@ -68,9 +68,9 @@ function buildBotRequest(
 
 function buildExpertAiContext(game: GameTable, gameId: string, botId: string) {
   const bot = game.state.players.find((p) => p.id === botId)
+  const activeOpponents = game.state.players.filter((p) => p.id !== botId && p.isActive !== false)
   const opponentStack =
-    game.state.players
-      .filter((p) => p.id !== botId && p.isActive !== false)
+    activeOpponents
       .sort((a, b) => b.chips - a.chips)[0]?.chips ?? bot?.chips ?? 0
 
   return {
@@ -79,6 +79,9 @@ function buildExpertAiContext(game: GameTable, gameId: string, botId: string) {
     street: game.state.phase,
     opponentStack,
     actions: game.state.lastHandAction ? [game.state.lastHandAction] : [],
+    opponentHoleCards: activeOpponents
+      .map((p) => p.cards ?? [])
+      .filter((cards) => cards.length >= 2),
   }
 }
 
