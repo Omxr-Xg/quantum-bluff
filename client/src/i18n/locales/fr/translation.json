@@ -123,7 +123,7 @@
   },
   "slot": {
     "title": "Machine à sous",
-    "subtitle": "Misez des jetons pour tenter votre chance. Le résultat est calculé sur le serveur.",
+    "subtitle": "Misez des jetons pour tenter votre chance.",
     "balance": "Solde",
     "selectBet": "Mise",
     "betRange": "Entre {{min}} et {{max}} jetons",

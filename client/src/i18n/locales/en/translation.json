@@ -123,7 +123,7 @@
   },
   "slot": {
     "title": "Slot machine",
-    "subtitle": "Bet chips to try your luck. Outcomes are determined on the server.",
+    "subtitle": "Bet chips to try your luck.",
     "balance": "Balance",
     "selectBet": "Bet",
     "betRange": "Between {{min}} and {{max}} chips",

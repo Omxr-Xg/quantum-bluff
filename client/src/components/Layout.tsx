@@ -214,6 +214,43 @@ export function Layout({ children }: LayoutProps) {
   }, [playSfx]);
 
   useEffect(() => {
+    const interactiveSelector = [
+      "button",
+      "a[href]",
+      "[role='button']",
+      "summary",
+      "input[type='button']",
+      "input[type='submit']",
+      "input[type='reset']",
+    ].join(",");
+
+    const isDisabled = (element: HTMLElement) =>
+      element.hasAttribute("disabled") ||
+      element.getAttribute("aria-disabled") === "true" ||
+      ((element instanceof HTMLButtonElement || element instanceof HTMLInputElement) && element.disabled);
+
+    const handleGlobalClickSfx = (event: MouseEvent) => {
+      if (event.defaultPrevented) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const interactive = target.closest(interactiveSelector);
+      if (!(interactive instanceof HTMLElement)) return;
+      if (interactive.closest("[data-sfx-silent='true']")) return;
+      if (isDisabled(interactive)) return;
+
+      const sfxBeforeClick = window.__quantumBluffLastSfxAt ?? 0;
+      window.setTimeout(() => {
+        const latestSfx = window.__quantumBluffLastSfxAt ?? 0;
+        if (latestSfx !== sfxBeforeClick && performance.now() - latestSfx < 140) return;
+        playSfx("uiClick");
+      }, 35);
+    };
+
+    document.addEventListener("click", handleGlobalClickSfx, true);
+    return () => document.removeEventListener("click", handleGlobalClickSfx, true);
+  }, [playSfx]);
+
+  useEffect(() => {
     if (!socket) return;
 
     const handleFriendRequestReceived = (payload: unknown) => {
@@ -714,7 +751,7 @@ export function Layout({ children }: LayoutProps) {
       <button
         type="button"
         onClick={() => navigate("/profile")}
-        className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 transition hover:border-emerald-300/60 md:h-8 md:w-8"
+        className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 transition hover:border-emerald-300/60 md:h-8 md:w-8"
         title={t("lobby.profile")}
         aria-label={t("lobby.profile")}
       >
@@ -740,7 +777,7 @@ export function Layout({ children }: LayoutProps) {
         <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
       </button>
       <span
-        className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 md:h-8 md:w-8"
+        className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 md:h-8 md:w-8"
         data-tooltip={username}
         aria-label={username}
       >
@@ -768,7 +805,7 @@ export function Layout({ children }: LayoutProps) {
   const gameMenuContent = (
     <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center justify-end gap-1.5 overflow-visible sm:w-auto sm:shrink-0 md:gap-2">
       <div
-        className="flex min-w-0 items-center justify-end gap-1 overflow-x-auto overflow-y-visible py-1 scroll-smooth scrollbar-hide [-webkit-overflow-scrolling:touch] [touch-action:pan-x] sm:gap-1.5 md:gap-2"
+        className="flex min-w-0 items-center justify-end gap-1 overflow-x-auto overflow-y-visible py-2 scroll-smooth scrollbar-hide [-webkit-overflow-scrolling:touch] [touch-action:pan-x] sm:gap-1.5 md:gap-2"
       >
         <button
           type="button"
@@ -795,7 +832,7 @@ export function Layout({ children }: LayoutProps) {
       <LanguageSwitcher buttonClassName={languageButtonClass} />
       {accountPill}
       <div
-        className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-visible max-sm:scroll-smooth max-sm:py-1 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
+        className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-visible max-sm:scroll-smooth max-sm:py-2 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
       >
         <NotificationCenter />
         <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden sm:inline-flex`} title={t("leaderboard.title")}>
@@ -826,7 +863,7 @@ export function Layout({ children }: LayoutProps) {
       <TopBarProvider menuContent={showIntegratedTopBar ? menuContent : null}>
       {showStandaloneTopBar && (
         <div className={`${isGameHudPage ? "fixed left-0 right-0 top-0" : "sticky top-0"} z-[250] w-full bg-transparent`}>
-          <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-8 lg:px-10">
+          <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-8 lg:px-10">
             {isGameHudPage ? (
               gameHudControls
             ) : (
@@ -839,7 +876,7 @@ export function Layout({ children }: LayoutProps) {
                 <span>{t("botConfig.home")}</span>
               </button>
             )}
-            <div className={`${isGameHudPage ? "min-w-0 shrink-0" : "min-w-0 flex-1"} overflow-x-auto overflow-y-visible py-1 scrollbar-hide`}>
+            <div className={`${isGameHudPage ? "min-w-0 flex-1 sm:flex-none sm:shrink-0" : "min-w-0 flex-1"} overflow-x-auto overflow-y-visible py-2 scrollbar-hide`}>
               {menuContent}
             </div>
           </div>
@@ -903,7 +940,7 @@ export function Layout({ children }: LayoutProps) {
                     closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
                   }}
                 >
-                  <div className="flex min-w-0 max-w-[min(100vw-2rem,28rem)] flex-row flex-nowrap items-center gap-1 overflow-x-auto scroll-smooth py-0.5 [touch-action:pan-x] scrollbar-hide sm:max-w-none sm:gap-2">
+                  <div className="flex min-w-0 max-w-[min(100vw-2rem,28rem)] flex-row flex-nowrap items-center gap-1 overflow-x-auto overflow-y-visible scroll-smooth px-0.5 py-2 [touch-action:pan-x] scrollbar-hide sm:max-w-none sm:gap-2">
                 <LanguageSwitcher buttonClassName={languageButtonClass} />
                 {accountPill}
                 <NotificationCenter />

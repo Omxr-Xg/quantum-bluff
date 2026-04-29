@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type CSSProperties } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Bot,
   Server,
@@ -569,7 +570,7 @@ export function Lobby() {
           {/* Côté Droit : pleine largeur sur mobile (bleed sur px page), ni débordement ni bande inutile */}
           <div
             ref={tourRefTopBar}
-            className="flex h-7 w-full min-w-0 max-w-full flex-nowrap max-sm:box-border max-sm:-mx-2 max-sm:w-[calc(100%+1rem)] max-sm:max-w-none max-sm:self-stretch max-sm:overflow-x-hidden max-sm:px-2 sm:h-8 sm:min-w-0 sm:flex-1 sm:items-center sm:justify-end md:h-9"
+            className="flex min-h-11 w-full min-w-0 max-w-full flex-nowrap items-center overflow-visible py-1 max-sm:box-border max-sm:-mx-2 max-sm:w-[calc(100%+1rem)] max-sm:max-w-none max-sm:self-stretch max-sm:px-2 sm:min-h-12 sm:min-w-0 sm:flex-1 sm:justify-end md:min-h-14"
           >
             {menuContent}
           </div>
@@ -704,65 +705,81 @@ export function Lobby() {
                 <span>{showCreateAdvanced ? t('lobby.hideOptions') : t('lobby.seeMore')}</span>
                 {showCreateAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
-              {showCreateAdvanced && (
-                <div className="mb-6 space-y-4 rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md">
-                  <div>
-                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.smallBlind')}</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={10000}
-                      value={createSmallBlind}
-                      onChange={(e) => setCreateSmallBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
-                      className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      aria-label={t('lobby.smallBlind')}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minRaise')}</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={10000}
-                      value={createBigBlind}
-                      onChange={(e) => setCreateBigBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 2)))}
-                      className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      aria-label={t('lobby.minRaise')}
-                    />
-                    <p className="text-slate-500 text-xs mt-1">{t('lobby.minRaiseHint')}</p>
-                  </div>
-                  <div>
-                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minBalance')}</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={0}
-                        max={1000000}
-                        step={100}
-                        value={createMinBalance}
-                        onChange={(e) => {
-                          const raw = e.target.value === "" ? 0 : Number(e.target.value);
-                          const val = Number.isNaN(raw) ? 0 : Math.min(1000000, Math.max(0, raw));
-                          setCreateMinBalance(val);
-                        }}
-                        className={`flex-1 rounded-lg border bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
-                          isMinBalanceInvalid ? "border-red-500" : "border-white/10"
-                        }`}
-                        aria-label={t('lobby.minBalance')}
-                      />
-                      {isMinBalanceInvalid && (
-                        <div className="relative flex items-center gap-1">
-                          <XCircle className="w-6 h-6 text-red-500 shrink-0" aria-hidden />
-                          <div className="absolute left-full top-1/2 z-10 ml-1 -translate-y-1/2 whitespace-nowrap rounded-lg border border-red-500 bg-slate-950/90 px-3 py-2 text-sm font-medium text-red-400 shadow-xl backdrop-blur-md">
-                            {t('lobby.minAmount100')}
-                          </div>
+              <AnimatePresence initial={false}>
+                {showCreateAdvanced && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+                    animate={{ height: "auto", opacity: 1, marginBottom: 24 }}
+                    exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <motion.div
+                      initial={{ y: -8 }}
+                      animate={{ y: 0 }}
+                      exit={{ y: -8 }}
+                      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                      className="space-y-4 rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md"
+                    >
+                      <div>
+                        <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.smallBlind')}</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10000}
+                          value={createSmallBlind}
+                          onChange={(e) => setCreateSmallBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
+                          className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          aria-label={t('lobby.smallBlind')}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minRaise')}</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10000}
+                          value={createBigBlind}
+                          onChange={(e) => setCreateBigBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 2)))}
+                          className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          aria-label={t('lobby.minRaise')}
+                        />
+                        <p className="text-slate-500 text-xs mt-1">{t('lobby.minRaiseHint')}</p>
+                      </div>
+                      <div>
+                        <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minBalance')}</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            max={1000000}
+                            step={100}
+                            value={createMinBalance}
+                            onChange={(e) => {
+                              const raw = e.target.value === "" ? 0 : Number(e.target.value);
+                              const val = Number.isNaN(raw) ? 0 : Math.min(1000000, Math.max(0, raw));
+                              setCreateMinBalance(val);
+                            }}
+                            className={`flex-1 rounded-lg border bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                              isMinBalanceInvalid ? "border-red-500" : "border-white/10"
+                            }`}
+                            aria-label={t('lobby.minBalance')}
+                          />
+                          {isMinBalanceInvalid && (
+                            <div className="relative flex items-center gap-1">
+                              <XCircle className="w-6 h-6 text-red-500 shrink-0" aria-hidden />
+                              <div className="absolute left-full top-1/2 z-10 ml-1 -translate-y-1/2 whitespace-nowrap rounded-lg border border-red-500 bg-slate-950/90 px-3 py-2 text-sm font-medium text-red-400 shadow-xl backdrop-blur-md">
+                                {t('lobby.minAmount100')}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <p className="text-slate-500 text-xs mt-1">{t('lobby.minBalanceHint')}</p>
-                  </div>
-                </div>
-              )}
+                        <p className="text-slate-500 text-xs mt-1">{t('lobby.minBalanceHint')}</p>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Validate */}
               <button

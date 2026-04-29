@@ -219,6 +219,23 @@
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  :where(button, a[href], [role="button"], summary) {
+    transition-property: transform, filter, box-shadow, border-color, background-color, color, opacity;
+    transition-duration: 170ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  :where(button, a[href], [role="button"], summary):where(:not(:disabled):not([aria-disabled="true"])):hover {
+    filter: brightness(1.04);
+  }
+
+  :where(button, a[href], [role="button"], summary):where(:not(:disabled):not([aria-disabled="true"])):active {
+    transform: translateY(1px) scale(0.985);
+    filter: brightness(0.98);
+  }
+}
+
 .high-contrast {
   --background: #000000;
   --foreground: #ffffff;

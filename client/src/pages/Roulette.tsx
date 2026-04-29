@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router";
 import { useTranslation, type TFunction } from "react-i18next";
 import { motion, useMotionValue, animate, type MotionValue } from "motion/react";
-import { ArrowLeft, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, History, Trash2, Undo2 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { updateUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 import {
@@ -1026,8 +1026,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
             ? t("minigames.backToLobbyMinigamesTab")
             : t("roulette.back")}
         </button>
-        <h1 className="bg-gradient-to-r from-slate-100 via-blue-200 to-amber-100 bg-clip-text text-center text-base font-bold tracking-wide text-transparent md:text-lg">
-          {t("roulette.title")}
+        <h1 className="flex min-w-0 flex-1 items-center justify-center rounded-full border border-amber-200/16 bg-slate-950/45 px-4 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_rgba(245,158,11,0.06)]">
+          <span className="truncate bg-gradient-to-r from-slate-50 via-blue-100 to-amber-200 bg-clip-text text-lg font-black tracking-[0.12em] text-transparent md:text-2xl">
+            {t("roulette.title")}
+          </span>
         </h1>
         <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 rounded-full border border-amber-300/15 bg-slate-950/55 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-100 md:max-w-none md:text-base">
           {chips !== null ? (
@@ -1072,13 +1074,16 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
             <button
               type="button"
               onClick={() => setHistoryOpen((open) => !open)}
-              className={`mt-3 inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+              className={`mt-3 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition sm:text-sm ${
                 historyOpen
                   ? "border-cyan-400/60 bg-cyan-500/10 text-cyan-100"
                   : "border-slate-600 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
               }`}
+              title={t("roulette.tabHistory")}
+              aria-label={t("roulette.tabHistory")}
             >
-              {t("roulette.tabHistory")}
+              <History className="h-4 w-4 lg:hidden" aria-hidden />
+              <span className="hidden lg:inline">{t("roulette.tabHistory")}</span>
             </button>
             {historyOpen ? (
               <div className="mt-3 max-h-80 w-full max-w-xl space-y-2.5 overflow-y-auto rounded-xl border border-slate-600/80 bg-slate-900/45 p-3 text-left shadow-lg">
@@ -1481,7 +1486,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
               type="button"
               disabled={bettingDisabled || bets.size === 0}
               onClick={() => void spin()}
-              className="w-full rounded-xl border-2 border-green-400/45 bg-gradient-to-b from-green-600 to-green-800 py-4 text-lg font-bold tracking-wide text-white shadow-[0_4px_0_rgb(21_128_61),0_14px_36px_rgba(0,0,0,0.45)] transition hover:from-green-500 hover:to-green-700 active:translate-y-0.5 active:shadow-[0_2px_0_rgb(21_128_61)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:active:translate-y-0"
+              className="w-full rounded-full border border-amber-300/35 bg-amber-400/16 py-4 text-lg font-black tracking-[0.08em] text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_14px_34px_rgba(0,0,0,0.34),0_0_24px_rgba(245,158,11,0.10)] transition hover:border-amber-200/55 hover:bg-amber-400/24 hover:text-amber-50 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500 disabled:shadow-none"
             >
               {spinning ? t("roulette.spinning") : t("roulette.spin")}
             </button>
