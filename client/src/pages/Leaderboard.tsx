@@ -6,13 +6,11 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleDot,
-  Gamepad2,
   Home,
   Loader2,
   Spade,
   Trophy,
 } from "lucide-react";
-import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
 import { useUser } from "../hooks/useUser";
 import { apiUrl } from "../utils/apiBase";
 const PAGE_SIZE = 25;
@@ -57,7 +55,6 @@ export function Leaderboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { username: meName } = useUser();
-  const isInGame = sessionStorage.getItem("currentGame");
 
   const [mainTab, setMainTab] = useState<MainTab>("general");
   const [pokerMetric, setPokerMetric] = useState<"poker_wins" | "chips">("poker_wins");
@@ -222,56 +219,38 @@ export function Leaderboard() {
       </div>
 
       <div className="relative z-10 w-full min-w-0">
-        <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:mb-8 sm:flex-row sm:items-center">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={() => navigate("/lobby")}
-              className="flex touch-manipulation items-center gap-1 rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white transition-all hover:bg-slate-600 sm:gap-2 sm:rounded-xl sm:px-4 sm:py-2 sm:text-base"
+        <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:mb-8">
+          <button
+            type="button"
+            onClick={() => navigate("/lobby")}
+            className="flex touch-manipulation items-center gap-1 rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white transition-all hover:bg-slate-600 sm:gap-2 sm:rounded-xl sm:px-4 sm:py-2 sm:text-base"
+          >
+            <Home className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span>{t("profile.home")}</span>
+          </button>
+          <div className="min-w-0">
+            <h1
+              className={`text-2xl font-bold transition-colors duration-700 sm:text-4xl ${
+                mainTab === "poker"
+                  ? "text-purple-400"
+                  : mainTab === "casino"
+                    ? "bg-gradient-to-r from-amber-100 via-amber-300 to-emerald-200 bg-clip-text text-transparent"
+                    : "bg-gradient-to-r from-sky-200 via-indigo-200 to-slate-200 bg-clip-text text-transparent"
+              }`}
             >
-              <Home className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span>{t("profile.home")}</span>
-            </button>
-            {isInGame ? (
-              <button
-                type="button"
-                onClick={() => {
-                  const g = sessionStorage.getItem("currentGame");
-                  if (g) navigate(g);
-                }}
-                className="flex touch-manipulation items-center gap-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-lg transition-all hover:bg-green-500 sm:gap-2 sm:rounded-xl sm:px-4 sm:py-2 sm:text-base"
-              >
-                <Gamepad2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span>{t("profile.backToGame")}</span>
-              </button>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <QuantumBluffLogo className="h-10 w-10 drop-shadow-2xl sm:h-12 sm:w-12" />
-            <div className="min-w-0">
-              <h1
-                className={`text-xl font-bold transition-colors duration-700 sm:text-2xl ${
-                  mainTab === "poker"
-                    ? "text-purple-400"
-                    : mainTab === "casino"
-                      ? "bg-gradient-to-r from-amber-100 via-amber-300 to-emerald-200 bg-clip-text text-transparent"
-                      : "bg-gradient-to-r from-sky-200 via-indigo-200 to-slate-200 bg-clip-text text-transparent"
-                }`}
-              >
-                {t("leaderboard.title")}
-              </h1>
-              <p
-                className={`text-sm transition-colors duration-700 ${
-                  mainTab === "poker"
-                    ? "text-gray-400"
-                    : mainTab === "casino"
-                      ? "text-emerald-200/65"
-                      : "text-sky-200/55"
-                }`}
-              >
-                {t("leaderboard.subtitle")}
-              </p>
-            </div>
+              {t("leaderboard.title")}
+            </h1>
+            <p
+              className={`text-sm transition-colors duration-700 ${
+                mainTab === "poker"
+                  ? "text-gray-400"
+                  : mainTab === "casino"
+                    ? "text-emerald-200/65"
+                    : "text-sky-200/55"
+              }`}
+            >
+              {t("leaderboard.subtitle")}
+            </p>
           </div>
         </div>
 

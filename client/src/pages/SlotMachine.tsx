@@ -19,9 +19,9 @@ import slotCherries from "../assets/slot-cherries.png";
 type SlotSymbol = "🍒" | "🍊" | "💎" | "7️⃣" | "🎰";
 
 const SLOT_SYM_IMG_REEL_CLS =
-  "relative z-10 h-[4.25rem] w-auto max-w-[5.5rem] object-contain [filter:drop-shadow(0_2px_8px_rgba(0,0,0,0.45))] sm:h-[5rem] sm:max-w-[6.5rem] md:h-[5.85rem] md:max-w-[7.25rem]";
+  "relative z-10 h-[3rem] w-auto max-w-[4rem] object-contain [filter:drop-shadow(0_2px_8px_rgba(0,0,0,0.45))] sm:h-[3.5rem] sm:max-w-[4.5rem] md:h-[4rem] md:max-w-[5rem]";
 const SLOT_SYM_IMG_PAYTABLE_CLS =
-  "h-12 w-auto max-w-[4.25rem] object-contain [filter:drop-shadow(0_2px_6px_rgba(0,0,0,0.35))] sm:h-14 sm:max-w-[5rem]";
+  "h-9 w-auto max-w-[3rem] object-contain [filter:drop-shadow(0_2px_6px_rgba(0,0,0,0.35))] sm:h-10 sm:max-w-[3.5rem]";
 
 function SlotSymbolDisplay({
   symbol,
@@ -45,8 +45,8 @@ function SlotSymbolDisplay({
   }
   const emojiCls =
     variant === "reel"
-      ? "text-5xl sm:text-6xl md:text-7xl"
-      : "text-3xl sm:text-4xl";
+      ? "text-4xl sm:text-5xl md:text-6xl"
+      : "text-2xl sm:text-3xl";
   return (
     <span className={`relative z-10 ${emojiCls}`} aria-hidden>
       {symbol}
@@ -453,7 +453,7 @@ export function SlotMachine() {
           <div className="relative mb-4 sm:mb-8">
             <div className="rounded-2xl border border-amber-200/16 bg-slate-950/45 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-6 lg:p-8">
               <div
-                className={`pointer-events-none absolute left-2 right-2 top-1/2 z-20 flex h-24 -translate-y-1/2 items-center justify-center transition-all duration-500 sm:left-8 sm:right-8 sm:h-32 ${
+                className={`pointer-events-none absolute left-2 right-2 top-1/2 z-20 flex h-16 -translate-y-1/2 items-center justify-center transition-all duration-500 sm:left-8 sm:right-8 sm:h-20 ${
                   isBigWin && !isSpinning
                     ? "border-y-2 border-amber-400/35 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent shadow-[0_0_18px_rgba(217,119,6,0.16)]"
                     : isRefund && !isSpinning
@@ -463,7 +463,7 @@ export function SlotMachine() {
               >
                 {isBigWin && !isSpinning && (
                   <motion.div
-                    className="text-base font-bold text-amber-300 sm:text-2xl"
+                    className="text-sm font-bold text-amber-300 sm:text-lg"
                     animate={{ scale: [1, 1.08, 1], opacity: [1, 0.88, 1] }}
                     transition={{ duration: 1.2, repeat: Infinity }}
                   >
@@ -472,7 +472,7 @@ export function SlotMachine() {
                 )}
                 {isRefund && !isSpinning && (
                   <motion.div
-                    className="text-base font-bold text-slate-300 sm:text-2xl"
+                    className="text-sm font-bold text-slate-300 sm:text-lg"
                     animate={{ scale: [1, 1.08, 1], opacity: [1, 0.88, 1] }}
                     transition={{ duration: 1.2, repeat: Infinity }}
                   >
@@ -491,9 +491,9 @@ export function SlotMachine() {
                       key={reelIndex}
                       className="min-w-[100px] max-w-[200px] shrink-0 flex-1 basis-0 sm:min-w-0 sm:shrink"
                     >
-                      <div className="relative h-[350px] overflow-hidden rounded-xl border border-amber-700/35 bg-gradient-to-b from-[#181410] via-[#13100d] to-[#100d0a] shadow-inner sm:rounded-2xl">
-                        <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 h-32 bg-gradient-to-b from-slate-950 via-slate-950/90 to-transparent" />
-                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-32 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent" />
+                      <div className="relative h-[250px] overflow-hidden rounded-xl border border-amber-700/35 bg-gradient-to-b from-[#181410] via-[#13100d] to-[#100d0a] shadow-inner sm:rounded-2xl">
+                        <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 h-20 bg-gradient-to-b from-slate-950 via-slate-950/90 to-transparent" />
+                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-20 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent" />
 
                         <motion.div
                           className="flex flex-col items-center"
@@ -689,16 +689,6 @@ export function SlotMachine() {
             </motion.div>
             );
           })}
-        </div>
-
-        <div className="mt-5 rounded-xl border border-amber-200/16 bg-slate-950/40 p-4">
-          <div className="flex items-start gap-3">
-            <Zap className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
-            <div>
-              <p className="mb-1 font-semibold text-amber-200">{t("slot.quantumBoostTitle")}</p>
-              <p className="text-sm leading-relaxed text-slate-400">{t("slot.quantumBoostBody")}</p>
-            </div>
-          </div>
         </div>
 
         <div className="mt-5 border-t border-slate-600/50 pt-5">
