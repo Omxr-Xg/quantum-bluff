@@ -459,7 +459,7 @@ export function Friends() {
           </div>
 
           <div className="flex min-w-0 flex-col gap-3 lg:items-end">
-            <div className="min-w-0 overflow-x-auto overflow-y-hidden scrollbar-hide lg:justify-end">
+            <div className="min-w-0 overflow-x-auto overflow-y-visible py-1 scrollbar-hide lg:justify-end">
               {menuContent ? menuContent : null}
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">

@@ -123,7 +123,7 @@
   },
   "slot": {
     "title": "Tragaperras",
-    "subtitle": "Apuesta fichas para probar suerte. El resultado se calcula en el servidor.",
+    "subtitle": "Apuesta fichas para probar suerte.",
     "balance": "Saldo",
     "selectBet": "Apuesta",
     "betRange": "Entre {{min}} y {{max}} fichas",

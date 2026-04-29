@@ -569,7 +569,7 @@ export function Lobby() {
           {/* Côté Droit : pleine largeur sur mobile (bleed sur px page), ni débordement ni bande inutile */}
           <div
             ref={tourRefTopBar}
-            className="flex h-7 w-full min-w-0 max-w-full flex-nowrap max-sm:box-border max-sm:-mx-2 max-sm:w-[calc(100%+1rem)] max-sm:max-w-none max-sm:self-stretch max-sm:overflow-x-hidden max-sm:px-2 sm:h-8 sm:min-w-0 sm:flex-1 sm:items-center sm:justify-end md:h-9"
+            className="flex min-h-11 w-full min-w-0 max-w-full flex-nowrap items-center overflow-visible py-1 max-sm:box-border max-sm:-mx-2 max-sm:w-[calc(100%+1rem)] max-sm:max-w-none max-sm:self-stretch max-sm:px-2 sm:min-h-12 sm:min-w-0 sm:flex-1 sm:justify-end md:min-h-14"
           >
             {menuContent}
           </div>
