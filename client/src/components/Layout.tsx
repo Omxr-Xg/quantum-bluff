@@ -61,6 +61,12 @@ type BalanceHistoryEntry = {
   balanceAfter?: number | null;
 };
 
+type CustomScrollbarState = {
+  visible: boolean;
+  thumbTop: number;
+  thumbHeight: number;
+};
+
 type LayoutNotification =
   | {
       id: number;
@@ -125,16 +131,56 @@ export function Layout({ children }: LayoutProps) {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyEntries, setHistoryEntries] = useState<BalanceHistoryEntry[]>([]);
+  const [addMoneyScrollbar, setAddMoneyScrollbar] = useState<CustomScrollbarState>({
+    visible: false,
+    thumbTop: 0,
+    thumbHeight: 0,
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showRateGame, setShowRateGame] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("aesthetic");
+  const addMoneyScrollRef = useRef<HTMLDivElement | null>(null);
   const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MENU_CLOSE_DELAY = 500;
   const { registerOpener, openSettingsMenu } = useAccessibilityMenuOpen() ?? {
     registerOpener: () => {},
     openSettingsMenu: () => {},
   };
+
+  const updateAddMoneyScrollbar = useCallback(() => {
+    const el = addMoneyScrollRef.current;
+    if (!el) {
+      setAddMoneyScrollbar((previous) =>
+        previous.visible ? { visible: false, thumbTop: 0, thumbHeight: 0 } : previous,
+      );
+      return;
+    }
+
+    const { clientHeight, scrollHeight, scrollTop } = el;
+    const visible = scrollHeight > clientHeight + 1;
+    if (!visible) {
+      setAddMoneyScrollbar((previous) =>
+        previous.visible ? { visible: false, thumbTop: 0, thumbHeight: 0 } : previous,
+      );
+      return;
+    }
+
+    const minThumbHeight = 24;
+    const thumbHeight = Math.max(minThumbHeight, Math.round((clientHeight / scrollHeight) * clientHeight));
+    const maxThumbTop = Math.max(0, clientHeight - thumbHeight);
+    const maxScrollTop = Math.max(1, scrollHeight - clientHeight);
+    const thumbTop = Math.round((scrollTop / maxScrollTop) * maxThumbTop);
+    const next = { visible: true, thumbTop, thumbHeight };
+
+    setAddMoneyScrollbar((previous) =>
+      previous.visible === next.visible &&
+      previous.thumbTop === next.thumbTop &&
+      previous.thumbHeight === next.thumbHeight
+        ? previous
+        : next,
+    );
+  }, []);
 
   useEffect(() => {
     registerOpener((tab) => {
@@ -419,6 +465,42 @@ export function Layout({ children }: LayoutProps) {
       : addMoneyAmount != null || addSuccess
         ? "h-[22rem]"
         : "h-[17rem]";
+
+  useEffect(() => {
+    if (!showAddMoney) {
+      setAddMoneyScrollbar((previous) =>
+        previous.visible ? { visible: false, thumbTop: 0, thumbHeight: 0 } : previous,
+      );
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(updateAddMoneyScrollbar);
+    const afterHeightTransition = window.setTimeout(updateAddMoneyScrollbar, 340);
+    const el = addMoneyScrollRef.current;
+    const observer =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateAddMoneyScrollbar) : null;
+
+    if (el) observer?.observe(el);
+    window.addEventListener("resize", updateAddMoneyScrollbar);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(afterHeightTransition);
+      observer?.disconnect();
+      window.removeEventListener("resize", updateAddMoneyScrollbar);
+    };
+  }, [
+    addMoneyAmount,
+    addMoneyModalHeightClass,
+    addSuccess,
+    balanceModalTab,
+    historyEntries.length,
+    historyError,
+    historyLoading,
+    showAddMoney,
+    updateAddMoneyScrollbar,
+  ]);
+
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
   const isBotConfigPage = path.includes("bot-configuration");
@@ -940,7 +1022,12 @@ export function Layout({ children }: LayoutProps) {
                 <History className="h-4 w-4" aria-hidden />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            <div className="relative min-h-0 flex-1 pr-3">
+              <div
+                ref={addMoneyScrollRef}
+                onScroll={updateAddMoneyScrollbar}
+                className="scrollbar-none h-full overflow-y-auto pr-1"
+              >
             {balanceModalTab === "history" ? (
               <>
                 {historyLoading ? <p className="text-slate-300 text-center py-4">Chargement...</p> : null}
@@ -1029,6 +1116,18 @@ export function Layout({ children }: LayoutProps) {
                 )}
               </>
             )}
+              </div>
+              {addMoneyScrollbar.visible && (
+                <div className="pointer-events-none absolute bottom-0 right-0 top-0 w-px rounded-full bg-white/[0.035]">
+                  <div
+                    className="absolute right-0 w-[2px] rounded-full bg-gradient-to-b from-[#fff0bc] to-[#d4af37] shadow-[0_0_8px_rgba(246,213,132,0.28)] transition-[height,transform] duration-150 ease-out"
+                    style={{
+                      height: `${addMoneyScrollbar.thumbHeight}px`,
+                      transform: `translateY(${addMoneyScrollbar.thumbTop}px)`,
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
           </div>

@@ -407,6 +407,15 @@
   animation: flash-border 0.5s ease-in-out 3;
 }
 
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes slide-in-left {
   0% {
     transform: translateX(-100%);
