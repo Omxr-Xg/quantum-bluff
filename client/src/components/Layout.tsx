@@ -19,6 +19,7 @@ import {
   Loader2,
   Radio,
   Waves,
+  History,
 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
@@ -117,7 +118,7 @@ export function Layout({ children }: LayoutProps) {
   const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
   const [balance, setBalance] = useState(getUserBalance());
   const [showAddMoney, setShowAddMoney] = useState(false);
-  const [balanceModalTab, setBalanceModalTab] = useState<"history" | "topup">("history");
+  const [balanceModalTab, setBalanceModalTab] = useState<"history" | "topup">("topup");
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [devValidation, setDevValidation] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
@@ -331,8 +332,7 @@ export function Layout({ children }: LayoutProps) {
   const openAddMoney = () => {
     playSfx("modalOpen");
     setShowAddMoney(true);
-    setBalanceModalTab("history");
-    void loadBalanceHistory();
+    setBalanceModalTab("topup");
     setAddMoneyAmount(null);
     setDevValidation("");
     setAddSuccess(false);
@@ -413,6 +413,12 @@ export function Layout({ children }: LayoutProps) {
     }
   }, [isAdminShell, stopBgm]);
   const showTopBar = !isAuthPage && localStorage.getItem("token");
+  const addMoneyModalHeightClass =
+    balanceModalTab === "history"
+      ? "h-[23rem]"
+      : addMoneyAmount != null || addSuccess
+        ? "h-[22rem]"
+        : "h-[17rem]";
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
   const isBotConfigPage = path.includes("bot-configuration");
@@ -890,60 +896,69 @@ export function Layout({ children }: LayoutProps) {
       {/* Modal Ajouter des jetons */}
       {showTopBar && showAddMoney && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
-          <div className="bg-gradient-to-b from-[#17130f] via-[#120f0c] to-[#0f0d0b] border border-amber-500/40 rounded-2xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-xl font-bold text-transparent">
+          <div
+            className={`relative ${addMoneyModalHeightClass} max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-hidden rounded-3xl border border-amber-300/20 bg-[#070b12] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.62),0_0_24px_rgba(245,158,11,0.08)] transition-[height] duration-300 ease-out`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_28%_0%,rgba(245,158,11,0.11),transparent_36%),radial-gradient(circle_at_100%_35%,rgba(30,64,175,0.13),transparent_42%),linear-gradient(160deg,rgba(8,13,24,0.98)_0%,rgba(3,7,18,0.98)_58%,rgba(11,10,8,0.98)_100%)]" />
+            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
+            <div className="relative z-10 flex h-full min-h-0 flex-col">
+            <div className="flex shrink-0 items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-amber-100">
                 {t("lobby.addMoneyTitle")}
               </h3>
-              <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
+              <button type="button" onClick={closeAddMoney} className="p-1 text-amber-100/55 transition hover:text-amber-50">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-amber-700/25 bg-[#1a1511]/55 p-1.5">
+            <div className="mb-5 flex shrink-0 items-center gap-2 rounded-full border border-amber-400/16 bg-slate-950/42 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <button
+                type="button"
+                onClick={() => setBalanceModalTab("topup")}
+                className={`min-h-[2.75rem] flex-1 rounded-full border px-4 py-2 text-sm font-bold tracking-wide transition ${
+                  balanceModalTab === "topup"
+                    ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"
+                    : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-amber-300/24 hover:text-amber-100"
+                }`}
+              >
+                Alimenter le compte
+              </button>
               <button
                 type="button"
                 onClick={() => {
                   setBalanceModalTab("history");
                   void loadBalanceHistory();
                 }}
-                className={`min-h-[2.6rem] rounded-lg border px-3 py-2 text-sm font-semibold tracking-wide transition ${
+                aria-label="Historique"
+                title="Historique"
+                className={`group relative flex min-h-[2.75rem] w-14 shrink-0 items-center justify-center rounded-full border px-3 py-2 transition ${
                   balanceModalTab === "history"
-                    ? "border-amber-300/60 bg-gradient-to-b from-amber-700/35 to-amber-900/35 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_18px_rgba(0,0,0,0.22)]"
-                    : "border-slate-600/80 bg-slate-800/75 text-slate-300 hover:border-slate-500 hover:bg-slate-700/80"
+                    ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"
+                    : "border-white/8 bg-black/10 text-slate-400 hover:border-amber-300/24 hover:text-slate-100"
                 }`}
               >
-                Historique
-              </button>
-              <button
-                type="button"
-                onClick={() => setBalanceModalTab("topup")}
-                className={`min-h-[2.6rem] rounded-lg border px-3 py-2 text-sm font-semibold tracking-wide transition ${
-                  balanceModalTab === "topup"
-                    ? "border-amber-300/60 bg-gradient-to-b from-amber-700/35 to-amber-900/35 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_18px_rgba(0,0,0,0.22)]"
-                    : "border-slate-600/80 bg-slate-800/75 text-slate-300 hover:border-slate-500 hover:bg-slate-700/80"
-                }`}
-              >
-                Alimenter le compte
+                <History className="h-4 w-4" aria-hidden />
               </button>
             </div>
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             {balanceModalTab === "history" ? (
               <>
                 {historyLoading ? <p className="text-slate-300 text-center py-4">Chargement...</p> : null}
                 {historyError ? <p className="text-rose-300 text-sm text-center py-3">{historyError}</p> : null}
                 {!historyLoading && !historyError ? (
-                  <div className="max-h-[50vh] space-y-2 overflow-y-auto pr-1">
+                  <div className="space-y-2">
                     {historyEntries.length === 0 ? (
-                      <p className="text-slate-400 text-center py-6">Aucun mouvement.</p>
+                      <p className="text-amber-100/45 text-center py-6">Aucun mouvement.</p>
                     ) : (
                       historyEntries.map((entry) => {
                         const before = typeof entry.balanceBefore === "number" ? entry.balanceBefore : null;
                         const after = typeof entry.balanceAfter === "number" ? entry.balanceAfter : null;
                         const delta = before !== null && after !== null ? after - before : entry.amount;
                         return (
-                          <div key={entry.id} className="rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2">
+                          <div key={entry.id} className="rounded-xl border border-amber-300/12 bg-slate-950/34 px-3 py-2">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <p className="text-sm font-semibold text-white">{reasonLabel(entry.reason)}</p>
+                                <p className="text-sm font-semibold text-slate-100">{reasonLabel(entry.reason)}</p>
                                 <p className="text-xs text-slate-400">
                                   {new Intl.DateTimeFormat("fr-CA", {
                                     dateStyle: "medium",
@@ -968,20 +983,20 @@ export function Layout({ children }: LayoutProps) {
                 ) : null}
               </>
             ) : addSuccess ? (
-              <p className="text-green-400 font-medium text-center py-4">{t("lobby.captchaSuccess")}</p>
+              <p className="text-emerald-300 font-medium text-center py-4">{t("lobby.captchaSuccess")}</p>
             ) : (
               <>
                 <p className="text-slate-300 text-sm mb-3">{t("lobby.chooseAmount")}</p>
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="mb-4 grid grid-cols-5 gap-1.5 sm:gap-2">
                   {ADD_MONEY_PRESETS.map((amount) => (
                     <button
                       key={amount}
                       type="button"
                       onClick={() => setAddMoneyAmount(amount)}
-                      className={`px-4 py-2 rounded-lg font-bold transition ${
+                      className={`rounded-full border px-1.5 py-2 text-xs font-bold tabular-nums transition sm:px-3 sm:text-sm ${
                         addMoneyAmount === amount
-                          ? "bg-amber-500 text-slate-900"
-                          : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                          ? "border-amber-200/60 bg-amber-400/15 text-amber-100 shadow-[0_0_16px_rgba(245,158,11,0.14)]"
+                          : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-amber-300/28 hover:text-amber-100"
                       }`}
                     >
                       {amount.toLocaleString()}
@@ -999,14 +1014,14 @@ export function Layout({ children }: LayoutProps) {
                       onChange={(e) => setDevValidation(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
                       placeholder="dev"
-                      className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                      className="w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-slate-50 placeholder-slate-500 outline-none transition focus:border-amber-300/55 focus:ring-1 focus:ring-amber-300/35"
                       autoComplete="off"
                     />
                     <button
                       type="button"
                       onClick={submitAddMoney}
                       disabled={devValidation.trim().toLowerCase() !== "dev"}
-                      className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
+                      className="w-full rounded-full border border-amber-200/35 bg-amber-400/16 py-2 font-bold text-amber-100 transition hover:bg-amber-400/24 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500"
                     >
                       Valider l'alimentation
                     </button>
@@ -1014,6 +1029,8 @@ export function Layout({ children }: LayoutProps) {
                 )}
               </>
             )}
+            </div>
+          </div>
           </div>
         </div>
       )}

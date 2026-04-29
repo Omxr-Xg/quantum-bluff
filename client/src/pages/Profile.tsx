@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { User, TrendingUp, Trophy, Target, DollarSign, Home, Award } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
-import { QuantumBluffLogo } from "../assets/logo";
 import { getUserProfile, PROFILE_CHANGED_EVENT } from "../utils/userProfile";
 import { HelpButton } from "../components/HelpButton";
 import { useUser } from "../hooks/useUser";
@@ -156,10 +155,6 @@ export function Profile() {
               {t("nav.profile")}
             </h1>
           </div>
-          <div className="flex items-center gap-3">
-            <QuantumBluffLogo className="h-11 w-11 drop-shadow-2xl" />
-            <span className="text-xl font-bold text-white">{t("lobby.title")}</span>
-          </div>
         </header>
 
         <section className={`mb-5 overflow-hidden p-5 sm:p-7 ${profileGlassCard}`}>
@@ -173,8 +168,8 @@ export function Profile() {
                 />
               </div>
               {typeof gam.level === "number" ? (
-                <div className="absolute -bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-amber-300/25 bg-slate-950/90 px-3 py-1 text-xs font-bold text-amber-100 shadow-lg">
-                  <Trophy className="h-3.5 w-3.5" />
+                <div className="absolute -bottom-2 left-1/2 flex min-w-[5.25rem] -translate-x-1/2 items-center justify-center gap-1 whitespace-nowrap rounded-full border border-amber-300/25 bg-slate-950/90 px-3 py-1 text-[0.65rem] font-bold text-amber-100 shadow-lg">
+                  <Trophy className="h-3 w-3" />
                   {t("gamification.levelShort", { level: gam.level })}
                 </div>
               ) : null}
