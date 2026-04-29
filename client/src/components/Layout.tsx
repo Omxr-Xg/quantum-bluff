@@ -214,6 +214,43 @@ export function Layout({ children }: LayoutProps) {
   }, [playSfx]);
 
   useEffect(() => {
+    const interactiveSelector = [
+      "button",
+      "a[href]",
+      "[role='button']",
+      "summary",
+      "input[type='button']",
+      "input[type='submit']",
+      "input[type='reset']",
+    ].join(",");
+
+    const isDisabled = (element: HTMLElement) =>
+      element.hasAttribute("disabled") ||
+      element.getAttribute("aria-disabled") === "true" ||
+      ((element instanceof HTMLButtonElement || element instanceof HTMLInputElement) && element.disabled);
+
+    const handleGlobalClickSfx = (event: MouseEvent) => {
+      if (event.defaultPrevented) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const interactive = target.closest(interactiveSelector);
+      if (!(interactive instanceof HTMLElement)) return;
+      if (interactive.closest("[data-sfx-silent='true']")) return;
+      if (isDisabled(interactive)) return;
+
+      const sfxBeforeClick = window.__quantumBluffLastSfxAt ?? 0;
+      window.setTimeout(() => {
+        const latestSfx = window.__quantumBluffLastSfxAt ?? 0;
+        if (latestSfx !== sfxBeforeClick && performance.now() - latestSfx < 140) return;
+        playSfx("uiClick");
+      }, 35);
+    };
+
+    document.addEventListener("click", handleGlobalClickSfx, true);
+    return () => document.removeEventListener("click", handleGlobalClickSfx, true);
+  }, [playSfx]);
+
+  useEffect(() => {
     if (!socket) return;
 
     const handleFriendRequestReceived = (payload: unknown) => {
