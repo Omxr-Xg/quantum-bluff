@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Coins, Landmark, TrendingUp, Zap } from "lucide-react";
+import { Coins, History, TrendingUp, Trophy, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "../contexts/ToastContext";
 import {
@@ -45,8 +45,8 @@ function SlotSymbolDisplay({
   }
   const emojiCls =
     variant === "reel"
-      ? "text-4xl sm:text-5xl md:text-6xl"
-      : "text-2xl sm:text-3xl";
+      ? "text-4xl leading-none sm:text-5xl md:text-6xl"
+      : "text-2xl leading-none sm:text-3xl";
   return (
     <span className={`relative z-10 ${emojiCls}`} aria-hidden>
       {symbol}
@@ -372,53 +372,77 @@ export function SlotMachine() {
     return labels[reason] || reason;
   };
 
+  const slotStatus =
+    !isSpinning && isBigWin
+      ? t("slot.winLine")
+      : !isSpinning && isRefund
+        ? t("slot.refundLine")
+        : null;
 
   return (
-    <div className="relative z-10 flex w-full min-w-0 max-w-full flex-col items-stretch gap-4 text-slate-200 lg:flex-row lg:items-start lg:gap-6">
+    <div className="relative z-10 flex w-full min-w-0 max-w-full flex-col items-stretch gap-5 text-slate-200 lg:flex-row lg:items-start lg:gap-7 xl:gap-8">
       <div className="relative min-w-0 w-full flex-1">
-        <div className="relative rounded-[1.35rem] border border-amber-200/16 bg-slate-900/58 p-4 pt-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:rounded-2xl sm:p-6 sm:pt-11 lg:p-8">
-          <div className="absolute -top-2.5 left-1/2 z-10 max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-full border border-amber-200/25 bg-slate-950/90 px-4 py-1.5 shadow-lg backdrop-blur-sm sm:-top-3 sm:px-6 sm:py-2">
-            <h3 className="bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-center text-sm font-bold tracking-[0.08em] text-transparent sm:text-lg">
-              {t("slot.brandTitle")}
-            </h3>
-          </div>
+        <div className="relative overflow-hidden rounded-[1.7rem] border border-amber-200/18 bg-[radial-gradient(circle_at_50%_-12%,rgba(245,158,11,0.16),transparent_36%),linear-gradient(160deg,rgba(15,23,42,0.84),rgba(3,7,18,0.94)_52%,rgba(18,13,7,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_24px_70px_rgba(0,0,0,0.42),0_0_34px_rgba(245,158,11,0.08)] backdrop-blur-xl sm:rounded-[2rem] sm:p-6 lg:p-8">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/55 to-transparent" />
+          <div className="pointer-events-none absolute -left-24 top-12 h-56 w-56 rounded-full bg-amber-500/10 blur-[80px]" />
+          <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-blue-500/8 blur-[90px]" />
+          <div className="pointer-events-none absolute inset-0 opacity-[0.045]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(251,191,36,0.55) 1px, transparent 0)", backgroundSize: "18px 18px" }} />
 
-          <div className="pointer-events-none absolute left-3 top-11 opacity-60 sm:left-5 sm:top-12">
-            <Landmark className="h-5 w-5 text-amber-300/75 sm:h-6 sm:w-6" aria-hidden />
-          </div>
-          <div className="pointer-events-none absolute right-3 top-11 opacity-60 sm:right-5 sm:top-12">
-            <Coins className="h-5 w-5 text-amber-300/70 sm:h-6 sm:w-6" aria-hidden />
-          </div>
-
-          <div className="mb-4 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative z-10 mb-4 grid grid-cols-1 gap-3 sm:mb-6 sm:grid-cols-[minmax(12rem,18rem)_minmax(8rem,1fr)_minmax(16rem,20rem)] sm:items-center">
             <button
               type="button"
               onClick={() => {
                 setHistoryOpen(true);
                 void loadBalanceHistory();
               }}
-              className="rounded-2xl border border-amber-200/16 bg-slate-950/45 px-4 py-3 transition hover:border-amber-200/30 hover:bg-white/[0.06] sm:px-6"
+              className="group flex w-full items-center justify-between gap-4 rounded-2xl border border-amber-200/18 bg-slate-950/58 px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] transition hover:border-amber-200/34 hover:bg-white/[0.06] sm:px-5"
             >
-              <p className="mb-1 text-xs font-semibold text-slate-400 sm:text-sm">{t("slot.balance")}</p>
-              <p className="flex items-center justify-center gap-2 text-2xl font-bold tabular-nums text-amber-300 sm:text-3xl">
-                <span>{balance.toLocaleString()}</span>
-                <ChipIcon size="lg" className="brightness-110" />
-              </p>
-              <p className="mt-1 text-[11px] text-slate-500">Appuyer pour voir l'historique</p>
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{t("slot.balance")}</p>
+                <p className="flex items-center gap-2 text-2xl font-black tabular-nums text-amber-200 sm:text-3xl">
+                  <span>{balance.toLocaleString()}</span>
+                  <ChipIcon size="lg" className="brightness-110" />
+                </p>
+              </div>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-200/18 bg-amber-300/8 text-amber-100 transition group-hover:border-amber-200/36 group-hover:bg-amber-300/14">
+                <History className="h-4 w-4" aria-hidden />
+              </span>
             </button>
 
-            <div className="rounded-2xl border border-amber-200/16 bg-slate-950/45 px-4 py-3 sm:px-6">
-              <p className="mb-1 text-xs font-semibold text-slate-400 sm:text-sm">{t("slot.selectBet")}</p>
-              <div className="flex items-center gap-2">
+            <div className="flex min-h-10 items-center justify-center">
+              {slotStatus ? (
+                <motion.div
+                  className={`rounded-full border px-4 py-2 text-center text-sm font-black tracking-wide shadow-[0_0_18px_rgba(245,158,11,0.12)] ${
+                    isBigWin
+                      ? "border-amber-300/32 bg-amber-300/12 text-amber-100"
+                      : "border-slate-400/24 bg-slate-400/10 text-slate-200"
+                  }`}
+                  initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                >
+                  {slotStatus}
+                </motion.div>
+              ) : (
+                <span
+                  className="hidden h-px w-full max-w-[8rem] bg-gradient-to-r from-transparent via-amber-200/18 to-transparent sm:block"
+                  aria-hidden
+                />
+              )}
+            </div>
+
+            <div className="flex w-full flex-col items-center rounded-2xl border border-amber-200/18 bg-slate-950/58 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:px-5">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{t("slot.selectBet")}</p>
+              <div className="flex items-center justify-center gap-2">
                 <button
                   type="button"
                   onClick={() => setBet(Math.max(10, bet - 25))}
                   disabled={isSpinning}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600 bg-slate-700/90 text-sm font-bold text-slate-100 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-sm font-bold text-slate-100 transition hover:border-amber-200/25 hover:bg-white/[0.09] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   −
                 </button>
-                <p className="flex min-w-[80px] items-center justify-center gap-1.5 text-center text-2xl font-bold tabular-nums text-amber-300">
+                <p className="flex min-w-[88px] items-center justify-center gap-1.5 rounded-full border border-amber-200/14 bg-amber-300/[0.055] px-3 py-1.5 text-center text-2xl font-black tabular-nums text-amber-200">
                   <span>{bet}</span>
                   <ChipIcon size="md" className="brightness-110" />
                 </p>
@@ -426,62 +450,48 @@ export function SlotMachine() {
                   type="button"
                   onClick={() => setBet(Math.min(maxBet, bet + 25))}
                   disabled={isSpinning || bet >= maxBet}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600 bg-slate-700/90 text-sm font-bold text-slate-100 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-sm font-bold text-slate-100 transition hover:border-amber-200/25 hover:bg-white/[0.09] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   +
                 </button>
               </div>
-              <div className="mt-2 flex flex-wrap gap-1 justify-center sm:flex-nowrap">
+              <div className="mt-2 flex flex-wrap justify-center gap-1.5 sm:flex-nowrap">
                 {[10, 50, 100, 250, 500].map((preset) => (
                   <button
                     key={preset}
                     type="button"
                     onClick={() => setBet(Math.min(maxBet, Math.min(balance, preset)))}
                     disabled={isSpinning || balance < preset}
-                    className="min-w-[3rem] flex-1 py-1 text-xs font-bold rounded-lg border border-slate-600 bg-slate-700/90 text-slate-100 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    className="min-w-[3rem] flex-1 rounded-full border border-white/10 bg-white/[0.045] px-2 py-1.5 text-xs font-bold text-slate-200 transition hover:border-amber-200/24 hover:bg-amber-300/10 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {preset === 500 ? 'MAX' : preset}
                   </button>
                 ))}
               </div>
-              <p className="mt-1 text-center text-xs text-slate-500">
+              <p className="mt-1.5 text-center text-xs text-slate-500">
                 Max : 500 <ChipIcon size="sm" className="inline" />
               </p>
             </div>
           </div>
 
-          <div className="relative mb-4 sm:mb-8">
-            <div className="rounded-2xl border border-amber-200/16 bg-slate-950/45 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-6 lg:p-8">
+          <div className="relative z-10 mb-4 mt-14 sm:mb-8 sm:mt-20 lg:mt-24">
+            <div className="relative overflow-hidden rounded-[1.55rem] border border-amber-200/18 bg-[linear-gradient(160deg,rgba(2,6,23,0.86),rgba(19,15,10,0.92)_50%,rgba(2,6,23,0.86))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),inset_0_-18px_45px_rgba(0,0,0,0.25),0_18px_48px_rgba(0,0,0,0.34)] ring-1 ring-amber-200/8 sm:p-6 lg:p-8">
+              <div className="pointer-events-none absolute inset-x-8 top-3 h-px bg-gradient-to-r from-transparent via-amber-200/40 to-transparent" />
+              <div className="pointer-events-none absolute inset-x-8 bottom-3 h-px bg-gradient-to-r from-transparent via-amber-700/30 to-transparent" />
+              <div className="pointer-events-none absolute bottom-10 left-3 top-10 w-1 rounded-full bg-gradient-to-b from-transparent via-amber-300/24 to-transparent" />
+              <div className="pointer-events-none absolute bottom-10 right-3 top-10 w-1 rounded-full bg-gradient-to-b from-transparent via-amber-300/24 to-transparent" />
               <div
                 className={`pointer-events-none absolute left-2 right-2 top-1/2 z-20 flex h-16 -translate-y-1/2 items-center justify-center transition-all duration-500 sm:left-8 sm:right-8 sm:h-20 ${
                   isBigWin && !isSpinning
                     ? "border-y-2 border-amber-400/35 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent shadow-[0_0_18px_rgba(217,119,6,0.16)]"
                     : isRefund && !isSpinning
                     ? "border-y-2 border-slate-500/45 bg-gradient-to-r from-transparent via-slate-500/10 to-transparent"
-                    : ""
+                    : "border-y border-amber-200/10 bg-gradient-to-r from-transparent via-amber-200/[0.035] to-transparent"
                 }`}
               >
-                {isBigWin && !isSpinning && (
-                  <motion.div
-                    className="text-sm font-bold text-amber-300 sm:text-lg"
-                    animate={{ scale: [1, 1.08, 1], opacity: [1, 0.88, 1] }}
-                    transition={{ duration: 1.2, repeat: Infinity }}
-                  >
-                    {t("slot.winLine")}
-                  </motion.div>
-                )}
-                {isRefund && !isSpinning && (
-                  <motion.div
-                    className="text-sm font-bold text-slate-300 sm:text-lg"
-                    animate={{ scale: [1, 1.08, 1], opacity: [1, 0.88, 1] }}
-                    transition={{ duration: 1.2, repeat: Infinity }}
-                  >
-                    {t("slot.refundLine")}
-                  </motion.div>
-                )}
               </div>
 
-              <div className="-mx-1 flex min-w-0 justify-center gap-1.5 overflow-x-auto overflow-y-visible px-1 pb-1 sm:mx-0 sm:gap-4 sm:overflow-visible sm:px-0">
+              <div className="-mx-1 flex min-w-0 justify-center gap-2 overflow-x-auto overflow-y-visible px-1 pb-1 sm:mx-0 sm:gap-4 sm:overflow-visible sm:px-0">
                 {reels.map((reel, reelIndex) => {
                   const isReelSpinning = spinningReels[reelIndex];
                   const centerIndex = Math.floor(REEL_SYMBOLS_COUNT / 2);
@@ -491,16 +501,19 @@ export function SlotMachine() {
                       key={reelIndex}
                       className="min-w-[100px] max-w-[200px] shrink-0 flex-1 basis-0 sm:min-w-0 sm:shrink"
                     >
-                      <div className="relative h-[250px] overflow-hidden rounded-xl border border-amber-700/35 bg-gradient-to-b from-[#181410] via-[#13100d] to-[#100d0a] shadow-inner sm:rounded-2xl">
+                      <div className="relative h-[255px] overflow-hidden rounded-[1.15rem] border border-amber-200/18 bg-[radial-gradient(circle_at_50%_50%,rgba(245,158,11,0.08),transparent_45%),linear-gradient(180deg,#19140f_0%,#0b0f18_48%,#110d0a_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),inset_0_18px_34px_rgba(255,255,255,0.035),inset_0_-24px_42px_rgba(0,0,0,0.42),0_14px_28px_rgba(0,0,0,0.28)] sm:rounded-[1.35rem]">
+                        <div className="pointer-events-none absolute inset-x-2 top-2 z-10 h-10 rounded-full bg-gradient-to-b from-white/10 to-transparent blur-sm" />
                         <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 h-20 bg-gradient-to-b from-slate-950 via-slate-950/90 to-transparent" />
                         <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-20 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent" />
+                        <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-px bg-gradient-to-b from-transparent via-amber-200/28 to-transparent" />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-px bg-gradient-to-b from-transparent via-amber-200/28 to-transparent" />
 
                         <motion.div
                           className="flex flex-col items-center"
                           animate={
                             isReelSpinning
                               ? { y: [0, -110 * REEL_SYMBOLS_COUNT] }
-                              : { y: -(centerIndex * 110) + 175 - 55 }
+                              : { y: -(centerIndex * 110) + 73 }
                           }
                           transition={
                             isReelSpinning
@@ -613,17 +626,17 @@ export function SlotMachine() {
             type="button"
             onClick={handleSpin}
             disabled={isSpinning || balance < bet}
-            whileHover={!isSpinning && balance >= bet ? { scale: 1.02 } : {}}
-            whileTap={!isSpinning && balance >= bet ? { scale: 0.98 } : {}}
-            className={`relative w-full overflow-hidden rounded-xl border-2 py-4 text-lg font-bold tracking-wide shadow-[0_12px_28px_rgba(0,0,0,0.4)] transition-all sm:py-5 sm:text-xl ${
+            whileHover={!isSpinning && balance >= bet ? { scale: 1.012, y: -1 } : {}}
+            whileTap={!isSpinning && balance >= bet ? { scale: 0.985, y: 1 } : {}}
+            className={`relative z-10 w-full overflow-hidden rounded-full border py-4 text-lg font-black tracking-[0.08em] shadow-[0_16px_34px_rgba(0,0,0,0.42)] transition-all sm:py-5 sm:text-xl ${
               isSpinning || balance < bet
                 ? "cursor-not-allowed border-slate-700 bg-slate-800/80 text-slate-500"
-                : "border-amber-500/45 bg-gradient-to-b from-amber-700 to-amber-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_0_rgb(120_53_15)] hover:from-amber-600 hover:to-amber-800"
+                : "border-amber-300/35 bg-amber-400/16 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_14px_34px_rgba(0,0,0,0.34),0_0_24px_rgba(245,158,11,0.10)] hover:border-amber-200/55 hover:bg-amber-400/24 hover:text-amber-50"
             }`}
           >
             {!isSpinning && balance >= bet && (
               <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/12 to-transparent"
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/26 to-transparent"
                 animate={{ x: ["-100%", "200%"] }}
                 transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
               />
@@ -631,7 +644,7 @@ export function SlotMachine() {
             <span className="relative z-10 flex items-center justify-center gap-2 sm:gap-3">
               {isSpinning ? (
                 <>
-                  <Zap className="h-7 w-7 shrink-0 animate-spin opacity-90 text-amber-200" /> {t("slot.spinning")}
+                  <Zap className="h-7 w-7 shrink-0 animate-spin opacity-90 text-amber-100" /> {t("slot.spinning")}
                 </>
               ) : balance < bet ? (
                 <>{t("slot.insufficientFunds")}</>
@@ -646,9 +659,12 @@ export function SlotMachine() {
         </div>
       </div>
 
-      <aside className="w-full min-w-0 shrink-0 rounded-2xl border border-amber-200/16 bg-slate-900/58 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_16px_40px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-6 lg:w-80 lg:max-w-sm xl:max-w-none">
-        <div className="mb-5 flex items-center gap-3 border-b border-slate-600/60 pb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-amber-700/35 bg-[#1a1713]/80">
+      <aside className="relative w-full min-w-0 shrink-0 overflow-hidden rounded-[1.55rem] border border-amber-200/16 bg-[linear-gradient(155deg,rgba(15,23,42,0.78),rgba(11,15,25,0.9)_48%,rgba(22,16,9,0.84))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_18px_46px_rgba(0,0,0,0.34)] backdrop-blur-xl sm:p-6 lg:w-80 lg:max-w-sm xl:max-w-none">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-44 w-44 rounded-full bg-amber-400/10 blur-[70px]" />
+        <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/42 to-transparent" />
+
+        <div className="relative z-10 mb-5 flex items-center gap-3 border-b border-amber-200/12 pb-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-200/22 bg-amber-300/10 shadow-[0_0_18px_rgba(245,158,11,0.08)]">
             <TrendingUp className="h-5 w-5 text-amber-300" />
           </div>
           <h3 className="bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-lg font-bold text-transparent sm:text-xl">
@@ -656,7 +672,7 @@ export function SlotMachine() {
           </h3>
         </div>
 
-        <div className="space-y-3">
+        <div className="relative z-10 space-y-3">
           {Object.entries(MULTIPLIERS).map(([symbol, multiplier]) => {
             const sym = symbol as SlotSymbol;
             const paytableLabel =
@@ -668,12 +684,12 @@ export function SlotMachine() {
             return (
             <motion.div
               key={symbol}
-              className="rounded-xl border border-amber-700/25 bg-[#191510]/55 p-3 transition-colors hover:border-amber-600/40 sm:p-4"
-              whileHover={{ scale: 1.005 }}
+              className="group rounded-2xl border border-white/10 bg-slate-950/42 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors hover:border-amber-200/25 hover:bg-white/[0.055] sm:p-4"
+              whileHover={{ scale: 1.008, x: 1 }}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex shrink-0 items-center justify-center">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-200/10 bg-black/[0.22] transition group-hover:border-amber-200/20 group-hover:bg-amber-300/[0.035]">
                     <SlotSymbolDisplay symbol={sym} variant="paytable" />
                   </span>
                   <div className="min-w-0">
@@ -682,7 +698,7 @@ export function SlotMachine() {
                   </div>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-xl font-bold tabular-nums text-amber-300 sm:text-2xl">×{multiplier}</p>
+                  <p className="text-xl font-black tabular-nums text-amber-300 sm:text-2xl">×{multiplier}</p>
                   <p className="text-xs text-amber-200/50">{t("slot.multiplierLabel")}</p>
                 </div>
               </div>
@@ -691,15 +707,18 @@ export function SlotMachine() {
           })}
         </div>
 
-        <div className="mt-5 border-t border-slate-600/50 pt-5">
-          <p className="mb-3 text-sm font-semibold text-slate-400">{t("slot.sessionCurrent")}</p>
+        <div className="relative z-10 mt-5 border-t border-amber-200/12 pt-5">
+          <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-400">
+            <Trophy className="h-4 w-4 text-amber-300/80" aria-hidden />
+            {t("slot.sessionCurrent")}
+          </p>
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border border-slate-600/55 bg-slate-800/45 p-3 text-center">
-              <p className="text-xl font-bold tabular-nums text-emerald-400">{sessionStats.wins}</p>
+            <div className="rounded-2xl border border-emerald-300/14 bg-emerald-950/18 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+              <p className="text-xl font-black tabular-nums text-emerald-300">{sessionStats.wins}</p>
               <p className="text-xs text-slate-500">{t("slot.sessionWins")}</p>
             </div>
-            <div className="rounded-lg border border-slate-600/55 bg-slate-800/45 p-3 text-center">
-              <p className="text-xl font-bold tabular-nums text-green-400">{sessionStats.spins}</p>
+            <div className="rounded-2xl border border-blue-300/14 bg-blue-950/18 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+              <p className="text-xl font-black tabular-nums text-blue-200">{sessionStats.spins}</p>
               <p className="text-xs text-slate-500">{t("slot.sessionSpins")}</p>
             </div>
           </div>

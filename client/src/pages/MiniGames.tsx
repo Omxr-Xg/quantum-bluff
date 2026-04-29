@@ -67,8 +67,10 @@ export function MiniGames() {
               <ArrowLeft className="h-4 w-4" />
               {t("minigames.backToLobbyMinigamesTab")}
             </button>
-            <h1 className="hidden bg-gradient-to-r from-slate-100 via-blue-200 to-amber-100 bg-clip-text text-center text-sm font-bold tracking-wide text-transparent sm:block md:text-base">
-              {t("slot.brandTitle")}
+            <h1 className="hidden min-w-0 flex-1 items-center justify-center rounded-full border border-amber-200/16 bg-slate-950/45 px-4 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_rgba(245,158,11,0.06)] sm:flex">
+              <span className="truncate bg-gradient-to-r from-slate-50 via-blue-100 to-amber-200 bg-clip-text text-lg font-black tracking-[0.12em] text-transparent md:text-2xl">
+                {t("slot.brandTitle")}
+              </span>
             </h1>
             <div className="flex min-w-0 shrink-0 items-center justify-end gap-1.5 rounded-full border border-amber-300/15 bg-slate-950/55 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-100">
               <span className="truncate">{playerChips.toLocaleString()}</span>

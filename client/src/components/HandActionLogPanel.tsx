@@ -36,7 +36,7 @@ export function HandActionLogPanel({ entries, collapseWhen }: HandActionLogPanel
     <div
       className={`pointer-events-auto fixed z-[115] rounded-xl border border-slate-600/50 bg-slate-900/92 shadow-lg backdrop-blur-sm ${
         isMobile
-          ? "bottom-[215px] right-2 w-[min(10.75rem,calc(43vw-0.5rem))]"
+          ? "bottom-[215px] right-2 w-[min(8.5rem,calc(34vw-0.5rem))]"
           : "bottom-36 right-4 w-[min(18rem,calc(100vw-1.5rem))]"
       }`}
     >
@@ -59,7 +59,7 @@ export function HandActionLogPanel({ entries, collapseWhen }: HandActionLogPanel
       {open && (
         <div
           ref={listRef}
-          className={`overflow-y-auto ${isMobile ? "max-h-[44px] px-2 py-1.5 text-[10px]" : "max-h-44 px-3 py-2"}`}
+          className={`overflow-y-auto ${isMobile ? "max-h-[34px] px-1.5 py-1 text-[9px]" : "max-h-44 px-3 py-2"}`}
           role="log"
           aria-live="polite"
           aria-relevant="additions"
