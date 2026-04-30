@@ -106,6 +106,7 @@ export default defineConfig(({ mode }) => {
       globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       navigateFallback: `${basePath}index.html`,
       mode: 'development',
+      maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
     },
   });
 
