@@ -12,6 +12,19 @@ variables:
   image:
     name: public.ecr.aws/docker/library/node:20
 
+
+debug:shell:
+  image:
+    name: public.ecr.aws/docker/library/node:20
+  stage: lint
+  script:
+    - echo "shell ok"
+    - which bash
+    - which sh
+    - echo $0
+  tags:
+    - node18
+
 default:
   tags:
     - node18
