@@ -182,29 +182,17 @@ docker:build:
     name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: [""]
   script:
-    - echo "🐳 Build image..."
-
-    - mkdir -p /kaniko/.docker
-
-    # 🔥 FIX QUOTING
-    - AUTH=$(printf "%s:%s" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
-
-    - |
-      cat > /kaniko/.docker/config.json <<EOF
-      {
-        "auths": {
-          "$CI_REGISTRY": {
-            "auth": "$AUTH"
-          }
-        }
-      }
-      EOF
-
-    - /kaniko/executor \
-        --context "${CI_PROJECT_DIR}/server" \
-        --dockerfile "${CI_PROJECT_DIR}/server/Dockerfile" \
-        --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}" \
-        --destination "${CI_REGISTRY_IMAGE}:latest"
+  - echo "🐳 Build image..."
+  - mkdir -p /kaniko/.docker
+  - AUTH=$(printf "%s:%s" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
+  - |
+    printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$AUTH" \
+      > /kaniko/.docker/config.json
+  - /kaniko/executor
+      --context "${CI_PROJECT_DIR}/server"
+      --dockerfile "${CI_PROJECT_DIR}/server/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+      --destination "${CI_REGISTRY_IMAGE}:latest"
 
   only:
     - main
