@@ -10,7 +10,7 @@ variables:
 # FIX SHELL (important)
 .node_docker_ci:
   image:
-    name: public.ecr.aws/docker/library/node:20-bullseye
+    name: public.ecr.aws/docker/library/node:20
 
 default:
   tags:
