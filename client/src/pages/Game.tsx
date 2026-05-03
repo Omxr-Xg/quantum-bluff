@@ -290,6 +290,7 @@ export function Game() {
   gameOverReasonRef.current = gameOverReason;
   /** Practice réseau : snapshot PREFLOP reçu pendant l’écran de fin de main — appliqué au clic « Rejouer ». */
   const pendingBotHandSocketStateRef = useRef<Record<string, unknown> | null>(null);
+  const pendingBotHandAutoApplyTimerRef = useRef<number | null>(null);
   const applySocketGameUpdateRef = useRef<(state: Record<string, unknown>) => void>(() => {});
   const [serverHandRuntimePhase, setServerHandRuntimePhase] = useState<string | undefined>(undefined);
   const [showdownResult, setShowdownResult] = useState<{
@@ -1170,6 +1171,19 @@ export function Game() {
       ) {
         pendingBotHandSocketStateRef.current = gameState as Record<string, unknown>;
         lastAppliedSocketSnapshotSigRef.current = socketSnapshotSig;
+        if (pendingBotHandAutoApplyTimerRef.current) clearTimeout(pendingBotHandAutoApplyTimerRef.current);
+        pendingBotHandAutoApplyTimerRef.current = window.setTimeout(() => {
+          pendingBotHandAutoApplyTimerRef.current = null;
+          const pending = pendingBotHandSocketStateRef.current;
+          if (!pending) return;
+          pendingBotHandSocketStateRef.current = null;
+          setShowdownResult(null);
+          showdownResultRef.current = null;
+          setShowTransition(false);
+          lastScheduledShowdownTransitionSigRef.current = "";
+          lastAppliedSocketSnapshotSigRef.current = "";
+          applySocketGameUpdateRef.current?.(pending);
+        }, 3000);
         return;
       }
       lastAppliedSocketSnapshotSigRef.current = socketSnapshotSig;
@@ -2296,11 +2310,19 @@ export function Game() {
 
   useEffect(() => {
     if (!gameOverReason) return;
+    if (pendingBotHandAutoApplyTimerRef.current) {
+      clearTimeout(pendingBotHandAutoApplyTimerRef.current);
+      pendingBotHandAutoApplyTimerRef.current = null;
+    }
     pendingBotHandSocketStateRef.current = null;
   }, [gameOverReason]);
 
   /** Fin de manche (bot) : appliquer l’état serveur mis en attente ou relancer localement. */
   const handleHandEndContinue = useCallback(() => {
+    if (pendingBotHandAutoApplyTimerRef.current) {
+      clearTimeout(pendingBotHandAutoApplyTimerRef.current);
+      pendingBotHandAutoApplyTimerRef.current = null;
+    }
     const pending = pendingBotHandSocketStateRef.current;
     pendingBotHandSocketStateRef.current = null;
     setShowdownResult(null);
@@ -3165,7 +3187,16 @@ export function Game() {
             </button>
           </div>
         ) : (
-          <p className="text-slate-500 text-sm">{t('game.returningToLobby')}</p>
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-slate-500 text-sm">{t('game.returningToLobby')}</p>
+            <button
+              type="button"
+              onClick={handlePracticeBackToLobby}
+              className="rounded-xl px-5 py-3 font-semibold border border-slate-500 text-slate-200 hover:bg-slate-800 transition-colors"
+            >
+              {t("game.returnToLobby", "Retourner")}
+            </button>
+          </div>
         )}
       </motion.div>
     </motion.div>

@@ -1,7 +1,3 @@
-# ============================================
-# .gitlab-ci.yml - Quantum Bluff (FIXED)
-# ============================================
-
 variables:
   NODE_IMAGE: public.ecr.aws/docker/library/node:20
   POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:15
@@ -31,16 +27,12 @@ cache:
   paths:
     - .npm/
 
-# ============================================
-# BACKEND
-# ============================================
-
 backend:lint:
-  extends: .node_docker_ci
   stage: lint
+  image: public.ecr.aws/docker/library/node:20
   script:
     - cd server
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm run lint
   only:
     - develop
@@ -81,10 +73,6 @@ backend:build:
     - main
     - /^release\/.*$/
 
-# ============================================
-# FRONTEND
-# ============================================
-
 frontend:lint:
   extends: .node_docker_ci
   stage: lint
@@ -118,10 +106,6 @@ frontend:build:
     - main
     - /^release\/.*$/
 
-# ============================================
-# DATABASE
-# ============================================
-
 database:test:
   stage: test
   image:
@@ -139,10 +123,6 @@ database:test:
   only:
     - develop
     - main
-
-# ============================================
-# SECURITY
-# ============================================
 
 security:npm:
   extends: .node_docker_ci
@@ -167,10 +147,6 @@ security:trivy:
     - develop
     - main
 
-# ============================================
-# DOCKER BUILD
-# ============================================
-
 docker:build:
   stage: docker-build
   image:
@@ -191,10 +167,6 @@ docker:build:
   only:
     - main
     - /^release\/.*$/
-
-# ============================================
-# DEPLOY
-# ============================================
 
 deploy:staging:
   stage: deploy
