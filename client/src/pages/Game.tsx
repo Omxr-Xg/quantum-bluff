@@ -13,7 +13,7 @@ import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { User, Users, Menu, Loader2, X, LogOut, Sparkles, Trophy, Activity, Info } from "lucide-react";
+import { DoorOpen, Menu, Loader2, X, Sparkles, Trophy, Activity, Info } from "lucide-react";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
@@ -116,6 +116,9 @@ export function Game() {
   const { userId } = useUser();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
   const difficultyParam = searchParams.get("difficulty") || "moyen";
+  // En mode bot (practice), on veut que le "solde de compte" ne change pas
+  // sauf en difficulté "expert" (où l’utilisateur joue réellement).
+  const isExpertPracticeBot = isBotMode && difficultyParam === "expert";
   const winMultiplier = gameIdParam ? 1 : getWinMultiplierFromDifficultyParam(difficultyParam);
 
   const { socket } = useSocket();
@@ -300,6 +303,7 @@ export function Game() {
     isSplit?: boolean;
     skipRevealDelay?: boolean;
   } | null>(null);
+  const [showBotHandEndPanel, setShowBotHandEndPanel] = useState(false);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; kind: BotTableActionKind } | null>(null);
   const [runOutPhase, setRunOutPhase] = useState<GamePhase | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -546,7 +550,21 @@ export function Game() {
     return () => clearTimeout(id);
   }, [showdownResult, showTransition, gameIdParam, isBotMode]);
 
-  const openAddMoney = () => {
+  useEffect(() => {
+    if (!isBotMode || !showdownResult || gameOverReason) {
+      setShowBotHandEndPanel(false);
+      return;
+    }
+    const delayMs = showdownResult.skipRevealDelay ? 0 : SHOWDOWN_REVEAL_MS;
+    const id = window.setTimeout(() => {
+      setShowBotHandEndPanel(true);
+    }, delayMs);
+    return () => window.clearTimeout(id);
+  }, [isBotMode, showdownResult, gameOverReason, SHOWDOWN_REVEAL_MS]);
+
+  // Note: gardé au cas où la modale "add money" serait réouverte via un handler futur.
+  // Pour éviter une erreur lint "unused", on préfixe par "_" tant que non utilisé.
+  const _openAddMoney = () => {
     setShowAddMoney(true);
     setAddMoneyAmount(null);
     setDevValidation("");
@@ -715,6 +733,18 @@ export function Game() {
   const displayBurnedCardsCount = gameIdParam
     ? burnedCardsCount
     : (phase === "flop" ? 1 : phase === "turn" ? 2 : phase === "river" || phase === "showdown" ? 3 : 0);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("game-hud-state", {
+        detail: { game: "poker", phase, isMyTurn },
+      })
+    );
+  }, [phase, isMyTurn]);
+
+  useEffect(() => {
+    return () => window.dispatchEvent(new Event("game-hud-reset"));
+  }, []);
 
   const generateDeck = (): Card[] => {
     const suits: Array<"hearts" | "diamonds" | "clubs" | "spades"> = ["hearts", "diamonds", "clubs", "spades"];
@@ -1379,7 +1409,9 @@ export function Game() {
         const potWon = winnerIds.length > 1 ? Math.floor(totalPot / winnerIds.length) : totalPot;
         const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
-        addToUserBalance(balanceChange);
+        if (!isBotMode || isExpertPracticeBot) {
+          addToUserBalance(balanceChange);
+        }
 
         // Multi : on déclenche la transition directe à la place du vieux ShowdownDisplay !
         setShowdownResult({
@@ -1456,7 +1488,9 @@ export function Game() {
     }) => {
       if (data.reason === "opponent_left" && data.winnerId != null && String(data.winnerId) === String(userId)) {
         const balanceChange = Math.round(data.pot ?? 0);
-        addToUserBalance(balanceChange);
+        if (!isBotMode || isExpertPracticeBot) {
+          addToUserBalance(balanceChange);
+        }
         setShowdownResult((prevResult) => {
           if (prevResult) return prevResult;
           return {
@@ -2089,7 +2123,9 @@ export function Game() {
         const endChips = humanWonFb ? stackBefore + currentPot : stackBefore;
         const balanceChange = endChips - startChips;
         const toAddFb = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-        addToUserBalance(toAddFb);
+        if (!isBotMode || isExpertPracticeBot) {
+          addToUserBalance(toAddFb);
+        }
         toAddLastRef.current = toAddFb;
       }
     };
@@ -2157,7 +2193,9 @@ export function Game() {
         const endChips = stackBeforePotAward + humanShare;
         const balanceChange = endChips - startChips;
         const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-        addToUserBalance(toAdd);
+        if (!isBotMode || isExpertPracticeBot) {
+          addToUserBalance(toAdd);
+        }
         toAddLastRef.current = toAdd;
         setPot(0);
         setShowdownResult({
@@ -2232,7 +2270,9 @@ export function Game() {
           ? Math.round(balanceChangeSafety * winMultiplier)
           : balanceChangeSafety
         : balanceChangeSafety;
-      addToUserBalance(toAddSafety);
+      if (!isBotMode || isExpertPracticeBot) {
+        addToUserBalance(toAddSafety);
+      }
       toAddLastRef.current = toAddSafety;
     }, 12000);
     return () => clearTimeout(safety);
@@ -2534,11 +2574,15 @@ export function Game() {
     const token = localStorage.getItem("token");
     const recordUrl = apiUrl("/api/game/record-result");
     
-    if (token) {
+    if (token && isExpertPracticeBot) {
       fetch(recordUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({ won: handResult === "win", delta: toAddLastRef.current }),
+        body: JSON.stringify({
+          won: handResult === "win",
+          delta: toAddLastRef.current,
+          persistChips: isExpertPracticeBot,
+        }),
       })
         .then((r) => r.json().catch(() => ({})))
         .then((data) => {
@@ -2548,7 +2592,7 @@ export function Game() {
         })
         .catch((err) => console.error("Erreur de sauvegarde d'argent :", err));
     }
-  }, [handResult, isBotMode]);
+  }, [handResult, isBotMode, isExpertPracticeBot]);
 
   const handleFold = (playerId?: number | string) => {
     if (handResult !== null) return;
@@ -2656,7 +2700,9 @@ export function Game() {
       const endChips = humanWon ? winnerChipsBefore + pot : (heroRowFold?.chips ?? playerChips);
       const balanceChange = endChips - startChips;
       const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-      addToUserBalance(toAdd);
+      if (!isBotMode || isExpertPracticeBot) {
+        addToUserBalance(toAdd);
+      }
       setPot(0);
     }
   };
@@ -3022,7 +3068,7 @@ export function Game() {
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col relative">
       <AnimatePresence>
-      {isBotMode && showdownResult && !gameOverReason && (
+      {isBotMode && showdownResult && showBotHandEndPanel && !gameOverReason && (
         <motion.div
           key="bot-hand-end"
           className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4"
@@ -3649,7 +3695,7 @@ export function Game() {
          {/* TABLE */}
         <div
         ref={tourRefTable}
-        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 w-full -mt-8' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-20'}`}
+        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 pb-[9rem] w-full -mt-14 -translate-y-4' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-20'}`}
         >
         <PokerTable
         players={tablePlayers}
@@ -3780,8 +3826,9 @@ export function Game() {
             <button
               type="button"
               onClick={() => setShowMenu(!showMenu)}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/70 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-md transition hover:border-cyan-200/30 hover:bg-slate-800/80"
               title={t("game.menuTitle")}
+              aria-label={t("game.menuTitle")}
               aria-expanded={showMenu}
               aria-haspopup="true"
             >
@@ -3799,7 +3846,7 @@ export function Game() {
                   type="button"
                   role="menuitem"
                   onClick={startGameTour}
-                  className="flex w-full items-start gap-3 border-b border-slate-700/80 px-4 py-3 text-left text-cyan-300 transition-all hover:bg-cyan-500/15"
+                  className="flex w-full items-start gap-3 border-b border-slate-700/70 px-4 py-3 text-left text-cyan-300 transition-all hover:bg-cyan-500/15"
                 >
                   <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-cyan-400" />
                   <span className="flex flex-col gap-0.5">
@@ -3837,35 +3884,7 @@ export function Game() {
                 </button>
 
                 <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  {t("game.menuSectionAccount")}
-                </p>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    navigate("/profile");
-                    setShowMenu(false);
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-white transition-all hover:bg-slate-700/80"
-                >
-                  <User className="h-5 w-5 shrink-0" />
-                  <span className="text-sm font-semibold">{t("lobby.profile")}</span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    navigate("/friends");
-                    setShowMenu(false);
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-white transition-all hover:bg-slate-700/80"
-                >
-                  <Users className="h-5 w-5 shrink-0" />
-                  <span className="text-sm font-semibold">{t("lobby.friends")}</span>
-                </button>
-
-                <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  {t("game.menuSectionDanger")}
+                  {t("game.menuSectionSession", "Session")}
                 </p>
                 <button
                   type="button"
@@ -3876,7 +3895,7 @@ export function Game() {
                   }}
                   className="flex w-full items-center gap-3 px-4 py-3 text-red-400 transition-all hover:bg-red-950/40"
                 >
-                  <LogOut className="h-5 w-5 shrink-0" />
+                  <DoorOpen className="h-5 w-5 shrink-0" />
                   <span className="text-sm font-semibold">{t("nav.quitGame")}</span>
                 </button>
               </div>

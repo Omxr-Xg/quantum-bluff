@@ -35,6 +35,11 @@ type LoanApi = {
   borrower?: LoanUser;
 };
 
+const pokerInnerCard =
+  "rounded-xl border border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md";
+const pokerMutedButton =
+  "rounded-lg border border-white/10 bg-white/[0.065] text-white transition hover:border-white/20 hover:bg-white/[0.1] disabled:opacity-50";
+
 export function FriendLoansPanel({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const { addToast } = useToast();
@@ -46,7 +51,7 @@ export function FriendLoansPanel({ userId }: { userId: string }) {
   if (isLoading || !data) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-blue-300" />
       </div>
     );
   }
@@ -88,8 +93,8 @@ export function FriendLoansPanel({ userId }: { userId: string }) {
   };
 
   const Section = ({ title, children }: { title: string; children: ReactNode }) => (
-    <div className="mb-6 rounded-xl border border-slate-700 bg-slate-800/40 p-4 sm:p-6">
-      <h2 className="mb-3 text-lg font-bold text-amber-200">{title}</h2>
+    <div className={`mb-6 p-4 sm:p-6 ${pokerInnerCard}`}>
+      <h2 className="mb-3 text-lg font-bold text-blue-100">{title}</h2>
       {children}
     </div>
   );
@@ -104,7 +109,7 @@ export function FriendLoansPanel({ userId }: { userId: string }) {
         {sent.length === 0
           ? empty
           : sent.map((r) => (
-              <div key={r.id} className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-600 bg-slate-900/40 p-3">
+              <div key={r.id} className={`mb-2 flex flex-wrap items-center justify-between gap-2 p-3 ${pokerInnerCard}`}>
                 <div>
                   <p className="text-white">
                     {t("friends.loans.toUser", { username: r.lender?.username ?? "—" })}
@@ -118,7 +123,7 @@ export function FriendLoansPanel({ userId }: { userId: string }) {
                     type="button"
                     disabled={busy}
                     onClick={() => void handleCancel(r.id)}
-                    className="rounded-lg bg-slate-600 px-3 py-1.5 text-sm text-white hover:bg-slate-500 disabled:opacity-50"
+                    className={`px-3 py-1.5 text-sm ${pokerMutedButton}`}
                   >
                     {t("friends.loans.cancel")}
                   </button>
@@ -131,7 +136,7 @@ export function FriendLoansPanel({ userId }: { userId: string }) {
         {recv.length === 0
           ? empty
           : recv.map((r) => (
-              <div key={r.id} className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-600 bg-slate-900/40 p-3">
+              <div key={r.id} className={`mb-2 flex flex-wrap items-center justify-between gap-2 p-3 ${pokerInnerCard}`}>
                 <div>
                   <p className="text-white">
                     {t("friends.loans.fromUser", { username: r.borrower?.username ?? "—" })}
@@ -146,7 +151,7 @@ export function FriendLoansPanel({ userId }: { userId: string }) {
                       type="button"
                       disabled={busy}
                       onClick={() => void handleAccept(r.id)}
-                      className="rounded-lg bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-500 disabled:opacity-50"
+                      className="rounded-lg border border-blue-300/25 bg-blue-950/75 px-3 py-1.5 text-sm text-white hover:bg-blue-900/80 disabled:opacity-50"
                     >
                       {t("friends.loans.accept")}
                     </button>
@@ -168,13 +173,13 @@ export function FriendLoansPanel({ userId }: { userId: string }) {
         {active.length === 0
           ? empty
           : active.map((lo) => (
-              <div key={lo.id} className="mb-2 rounded-lg border border-slate-600 bg-slate-900/40 p-3">
+              <div key={lo.id} className={`mb-2 p-3 ${pokerInnerCard}`}>
                 <p className="text-white">
                   {lo.borrower?.id === userId
                     ? t("friends.loans.fromUser", { username: lo.lender?.username ?? "—" })
                     : t("friends.loans.toUser", { username: lo.borrower?.username ?? "—" })}
                 </p>
-                <p className="text-sm text-amber-100">
+                <p className="text-sm text-cyan-100">
                   {t("friends.loans.remaining", { amount: lo.remainingAmount })} ·{" "}
                   {t("friends.loans.repaid", { amount: lo.repaidAmount, total: lo.totalDue })}
                 </p>
@@ -186,7 +191,7 @@ export function FriendLoansPanel({ userId }: { userId: string }) {
         {done.length === 0
           ? empty
           : done.map((lo) => (
-              <div key={lo.id} className="mb-2 rounded-lg border border-slate-600 bg-slate-900/40 p-3 text-gray-300">
+              <div key={lo.id} className={`mb-2 p-3 text-gray-300 ${pokerInnerCard}`}>
                 <p>
                   {lo.borrower?.id === userId
                     ? t("friends.loans.fromUser", { username: lo.lender?.username ?? "—" })

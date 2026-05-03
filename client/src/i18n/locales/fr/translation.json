@@ -123,7 +123,7 @@
   },
   "slot": {
     "title": "Machine à sous",
-    "subtitle": "Misez des jetons pour tenter votre chance. Le résultat est calculé sur le serveur.",
+    "subtitle": "Misez des jetons pour tenter votre chance.",
     "balance": "Solde",
     "selectBet": "Mise",
     "betRange": "Entre {{min}} et {{max}} jetons",
@@ -167,8 +167,6 @@
     "paytableTriple": "3× {{symbol}}",
     "paytableThreeSame": "3 symboles identiques",
     "multiplierLabel": "Multiplicateur",
-    "quantumBoostTitle": "Quantum Boost",
-    "quantumBoostBody": "Le serveur garantit un tirage équitable à chaque tour.",
     "sessionCurrent": "Session actuelle",
     "sessionWins": "Victoires",
     "sessionSpins": "Tours joués",
@@ -325,7 +323,6 @@
     "pot": "Pot: {{amount}}",
     "timer": "{{seconds}}s",
     "goToHiddenBets": "Passer au hidden bets",
-    "backToLobby": "Retourner au lobby",
     "replaySameConfig": "Rejouer avec la même configuration",
     "rematchSameMembers": "Rejouer avec les mêmes membres",
     "rejoinNextHand": "Rejoindre à la prochaine manche",
@@ -787,7 +784,7 @@
     "easyDesc": "Parfait pour débuter",
     "mediumDesc": "Un défi équilibré",
     "hardDesc": "Pour joueurs expérimentés",
-    "expertDesc": "Le défi ultime",
+    "expertDesc": "Le défi ultime. En mode expert, gains et pertes affectent votre solde, et votre stack démarre avec la moyenne des jetons des bots (quand vous les configurez).",
     "traitPredictable": "Jeu prévisible",
     "traitErrors": "Erreurs fréquentes",
     "traitPassive": "Peu agressif",
@@ -799,7 +796,7 @@
     "traitAdapt": "Adaptabilité",
     "traitUnpredictable": "Jeu imprévisible",
     "traitAdvanced": "Stratégie avancée",
-    "traitAggressive": "Très agressif",
+    "traitAggressive": "Très agressif (gains et pertes : solde impacté en expert)",
     "configSummary": "Résumé de la configuration",
     "opponents": "Adversaires :",
     "difficultyLabel": "Difficulté :",
@@ -811,7 +808,8 @@
     "analyzingProbabilities": "Analyse des probabilités",
     "chipsPerBot": "Jetons par bot",
     "defaultChips": "Par défaut : 1 000",
-    "minAmount100": "Montant minimal 100"
+    "minAmount100": "Montant minimal 100",
+    "chipsPerBotExpertLocked": "En mode expert, les jetons des bots sont prédéfinis. Vous ne pouvez pas les modifier."
   },
   "gameDeal": {
     "readyToStart": "Prêt à commencer",

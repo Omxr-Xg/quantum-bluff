@@ -6,6 +6,13 @@ import { Search, UserPlus, Loader2 } from 'lucide-react';
 import { getPlayerAvatar } from '../utils/avatars';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
+const pokerGlassCard =
+  "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
+const pokerInnerCard =
+  "rounded-xl border border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md";
+const pokerInput =
+  "rounded-xl border border-white/10 bg-slate-950/55 text-white placeholder-slate-500 transition-all focus:border-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-500/25";
+
 export const FriendSearch = () => {
   const { t } = useTranslation();
   const { userId } = useUser();
@@ -39,9 +46,9 @@ export const FriendSearch = () => {
   };
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-5 shadow-2xl sm:rounded-2xl sm:p-8">
+    <div className={`p-5 sm:p-8 ${pokerGlassCard}`}>
       <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
-        <Search className="h-5 w-5 shrink-0 text-amber-400" />
+        <Search className="h-5 w-5 shrink-0 text-blue-200" />
         {t("friends.searchPlayers")}
       </h2>
 
@@ -51,14 +58,14 @@ export const FriendSearch = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder={t("friends.usernamePlaceholder")}
-          className="w-full rounded-xl border border-slate-600 bg-slate-900/50 py-3 pl-10 pr-4 text-white placeholder-gray-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
+          className={`w-full py-3 pl-10 pr-4 ${pokerInput}`}
         />
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
       </div>
 
       {isLoading && (
         <div className="flex justify-center py-4">
-          <Loader2 className="h-6 w-6 animate-spin text-green-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-blue-300" />
         </div>
       )}
 
@@ -71,10 +78,10 @@ export const FriendSearch = () => {
           {results.map((user) => (
             <div
               key={user.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-slate-600 bg-slate-800/50 p-3"
+              className={`flex items-center justify-between gap-3 p-3 ${pokerInnerCard}`}
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-600 bg-slate-700">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
                   {getPlayerAvatar(user.username, user.id, userId, user.avatarUrl) ? (
                     <ImageWithFallback
                       src={getPlayerAvatar(user.username, user.id, userId, user.avatarUrl)}
@@ -99,7 +106,7 @@ export const FriendSearch = () => {
                 type="button"
                 onClick={() => handleSendRequest(user.username)}
                 disabled={isSending}
-                className="rounded-lg bg-slate-700 p-2 text-white transition hover:bg-slate-600 disabled:opacity-50"
+                className="rounded-lg border border-blue-300/20 bg-blue-950/70 p-2 text-white transition hover:bg-blue-900/80 disabled:opacity-50"
                 title={t("friends.addAsFriend")}
               >
                 <UserPlus className="h-5 w-5" />

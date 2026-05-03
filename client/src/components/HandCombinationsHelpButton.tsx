@@ -192,7 +192,11 @@ export function HandCombinationsHelpButton({
           id={panelId}
           role="region"
           aria-label={t("game.combinationsHelp.title")}
-          className="fixed bottom-[130px] left-[0.5rem] right-[0.5rem] z-[130] w-auto max-h-[min(70vh,480px)] md:absolute md:bottom-full md:right-0 md:left-auto md:w-[min(calc(100vw-1rem),22rem)] md:mb-2 overflow-y-auto rounded-xl border-2 border-cyan-500/80 app-shell-bg p-3 shadow-[0_0_20px_rgba(6,182,212,0.35)]"
+          className="fixed bottom-[130px] left-[0.5rem] right-[0.5rem] z-[130] w-auto max-h-[min(70vh,480px)] overflow-hidden rounded-xl border-2 border-cyan-500/85 bg-slate-950/90 shadow-[0_0_26px_rgba(6,182,212,0.45),0_22px_70px_rgba(0,0,0,0.72)] md:absolute md:bottom-full md:right-0 md:left-auto md:mb-2 md:w-[min(calc(100vw-1rem),22rem)]"
+          style={{
+            backdropFilter: "blur(22px) saturate(0.85)",
+            WebkitBackdropFilter: "blur(22px) saturate(0.85)",
+          }}
           onMouseEnter={() => {
             if (isMobile) return;
             clearHideTimer();
@@ -206,38 +210,41 @@ export function HandCombinationsHelpButton({
             }, HIDE_DELAY_MS);
           }}
         >
-          <h3 className="text-sm font-bold text-cyan-100">{t("game.combinationsHelp.title")}</h3>
-          <p className="mt-1 text-[11px] leading-snug text-slate-400">{t("game.combinationsHelp.subtitle")}</p>
-          <ul className="mt-3 space-y-4">
-            {RANK_DISPLAY_ORDER.map((key) => (
-              <li key={key} className="border-b border-slate-700/80 pb-3 last:border-0 last:pb-0">
-                <div className="text-xs font-semibold text-white">
-                  {t(`quantumHUD.hand.${key}`)}
-                </div>
-                <p className="mt-1 text-[11px] leading-snug text-slate-400">
-                  {t(`game.combinationsHelp.desc.${key}`)}
-                </p>
-                <div
-                  className={
-                    EXAMPLES[key].length > 5
-                      ? "mt-2 flex flex-wrap justify-center gap-1 px-0.5"
-                      : "mt-2 flex justify-center pl-1 -space-x-2 sm:-space-x-1.5"
-                  }
-                >
-                  {EXAMPLES[key].map((c, i) => (
-                    <PokerCard
-                      key={`${key}-${i}`}
-                      suit={c.suit}
-                      value={c.value}
-                      size="xs"
-                      colorblindMode={colorblindMode}
-                      className="shrink-0"
-                    />
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="pointer-events-none absolute inset-0 bg-slate-950/88 backdrop-blur-2xl" aria-hidden />
+          <div className="relative z-10 max-h-[min(70vh,480px)] overflow-y-auto p-3">
+            <h3 className="text-sm font-bold text-cyan-50 drop-shadow">{t("game.combinationsHelp.title")}</h3>
+            <p className="mt-1 text-[11px] leading-snug text-slate-200">{t("game.combinationsHelp.subtitle")}</p>
+            <ul className="mt-3 space-y-2.5">
+              {RANK_DISPLAY_ORDER.map((key) => (
+                <li key={key} className="rounded-lg border border-slate-600/90 bg-black/52 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.25)]">
+                  <div className="text-xs font-semibold text-white">
+                    {t(`quantumHUD.hand.${key}`)}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-snug text-slate-200">
+                    {t(`game.combinationsHelp.desc.${key}`)}
+                  </p>
+                  <div
+                    className={
+                      EXAMPLES[key].length > 5
+                        ? "mt-2 flex flex-wrap justify-center gap-1 rounded-lg bg-slate-950/75 px-1 py-1"
+                        : "mt-2 flex justify-center rounded-lg bg-slate-950/75 px-1 py-1 pl-2 -space-x-2 sm:-space-x-1.5"
+                    }
+                  >
+                    {EXAMPLES[key].map((c, i) => (
+                      <PokerCard
+                        key={`${key}-${i}`}
+                        suit={c.suit}
+                        value={c.value}
+                        size="xs"
+                        colorblindMode={colorblindMode}
+                        className="shrink-0"
+                      />
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
 

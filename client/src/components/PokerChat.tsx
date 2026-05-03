@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AnimatePresence, motion } from "motion/react";
 import { MessageCircle, Send, X } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
 
@@ -65,10 +66,16 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
     onToggle();
   };
 
-  if (!isOpen) return null; // Ne rien rendre si c'est fermé
-
   return (
-    <div className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+12.75rem)] z-[100] flex justify-end animate-in fade-in slide-in-from-bottom-4 duration-300 md:inset-x-auto md:right-6 md:bottom-44">
+    <AnimatePresence>
+      {isOpen ? (
+        <motion.div
+          className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+12.75rem)] z-[100] flex justify-start md:inset-x-auto md:left-6 md:bottom-44"
+          initial={{ opacity: 0, y: 18, x: isMobile ? 0 : -18, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 12, x: isMobile ? 0 : -16, scale: 0.97 }}
+          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+        >
       <div className={`pointer-events-auto flex flex-col overflow-hidden rounded-2xl border border-blue-300/45 bg-gradient-to-br from-slate-950/96 via-slate-900/96 to-blue-950/92 shadow-[0_24px_70px_rgba(2,6,23,0.58),0_0_34px_rgba(59,130,246,0.20)] backdrop-blur-xl max-h-[min(56vh,28rem)] ${
         isMobile ? "w-[calc(100vw-1.5rem)]" : "w-[min(24rem,calc(100vw-2rem))]"
       }`}>
@@ -164,6 +171,8 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
           </div>
         </div>
       </div>
-    </div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }

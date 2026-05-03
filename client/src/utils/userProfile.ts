@@ -18,6 +18,7 @@ const STORAGE_KEYS = {
 
 /** Émis après chaque changement de balance locale (localStorage). Le Layout peut s’y abonner. */
 export const BALANCE_CHANGED_EVENT = 'quantum-bluff-balance-changed';
+export const PROFILE_CHANGED_EVENT = 'quantum-bluff-profile-changed';
 
 function notifyBalanceChanged(): void {
   if (typeof window !== 'undefined') {
@@ -48,6 +49,9 @@ export function saveUserProfile(profile: Partial<UserProfile>): void {
   if (profile.email) localStorage.setItem(STORAGE_KEYS.EMAIL, profile.email);
   if (profile.avatar) localStorage.setItem(STORAGE_KEYS.AVATAR, profile.avatar);
   if (profile.balance !== undefined) localStorage.setItem(STORAGE_KEYS.BALANCE, Math.max(0, profile.balance).toString());
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(PROFILE_CHANGED_EVENT));
+  }
 }
 
 export function getUserAvatar(): string {
@@ -57,6 +61,9 @@ export function getUserAvatar(): string {
 
 export function saveUserAvatar(avatar: string): void {
   localStorage.setItem(STORAGE_KEYS.AVATAR, avatar);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(PROFILE_CHANGED_EVENT));
+  }
 }
 
 export function getUsername(): string {

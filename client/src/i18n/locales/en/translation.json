@@ -123,7 +123,7 @@
   },
   "slot": {
     "title": "Slot machine",
-    "subtitle": "Bet chips to try your luck. Outcomes are determined on the server.",
+    "subtitle": "Bet chips to try your luck.",
     "balance": "Balance",
     "selectBet": "Bet",
     "betRange": "Between {{min}} and {{max}} chips",
@@ -167,8 +167,6 @@
     "paytableTriple": "3× {{symbol}}",
     "paytableThreeSame": "Three matching symbols",
     "multiplierLabel": "Multiplier",
-    "quantumBoostTitle": "Quantum Boost",
-    "quantumBoostBody": "The server applies fair randomness on every spin.",
     "sessionCurrent": "Current session",
     "sessionWins": "Wins",
     "sessionSpins": "Spins",
@@ -325,7 +323,6 @@
     "pot": "Pot: {{amount}}",
     "timer": "{{seconds}}s",
     "goToHiddenBets": "Go to hidden bets",
-    "backToLobby": "Back to lobby",
     "replaySameConfig": "Replay with same configuration",
     "rematchSameMembers": "Replay with same members",
     "rejoinNextHand": "Join next hand",
@@ -787,7 +784,7 @@
     "easyDesc": "Perfect for beginners",
     "mediumDesc": "A balanced challenge",
     "hardDesc": "For experienced players",
-    "expertDesc": "The ultimate challenge",
+    "expertDesc": "The ultimate challenge. In expert mode, wins and losses affect your balance, and your starting stack is the average of the bots’ chips (when you configure them).",
     "traitPredictable": "Predictable play",
     "traitErrors": "Frequent mistakes",
     "traitPassive": "Passive",
@@ -799,7 +796,7 @@
     "traitAdapt": "Adaptability",
     "traitUnpredictable": "Unpredictable play",
     "traitAdvanced": "Advanced strategy",
-    "traitAggressive": "Very aggressive",
+    "traitAggressive": "Very aggressive (wins and losses: balance affected in expert)",
     "configSummary": "Configuration summary",
     "opponents": "Opponents:",
     "difficultyLabel": "Difficulty:",
@@ -811,7 +808,8 @@
     "analyzingProbabilities": "Analyzing probabilities",
     "chipsPerBot": "Chips per bot",
     "defaultChips": "Default: 1,000",
-    "minAmount100": "Minimum amount 100"
+    "minAmount100": "Minimum amount 100",
+    "chipsPerBotExpertLocked": "In expert mode, bot chips are predefined. You can’t modify them."
   },
   "gameDeal": {
     "readyToStart": "Ready to start",

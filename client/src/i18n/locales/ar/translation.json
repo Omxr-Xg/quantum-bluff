@@ -124,7 +124,7 @@
   },
   "slot": {
     "title": "آلة سلوت",
-    "subtitle": "اراهن بالرقائق. النتيجة تُحسب على الخادم.",
+    "subtitle": "اراهن بالرقائق.",
     "balance": "الرصيد",
     "selectBet": "الرهان",
     "betRange": "بين {{min}} و {{max}} رقاقة",
@@ -168,8 +168,6 @@
     "paytableTriple": "3× {{symbol}}",
     "paytableThreeSame": "3 رموز متطابقة",
     "multiplierLabel": "المضاعف",
-    "quantumBoostTitle": "Quantum Boost",
-    "quantumBoostBody": "يضمن الخادم عشوائية عادلة في كل دورة.",
     "sessionCurrent": "الجلسة الحالية",
     "sessionWins": "مرات الفوز",
     "sessionSpins": "الدورات",

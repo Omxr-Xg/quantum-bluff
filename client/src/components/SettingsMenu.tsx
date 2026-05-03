@@ -12,12 +12,14 @@ import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 import { Slider } from "./ui/slider";
 import { Switch } from "./ui/switch";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { CustomScrollArea } from "./CustomScrollArea";
 
 interface SettingsMenuProps {
   isOpen: boolean;
   onClose: () => void;
   initialTab?: SettingsTab;
   onRateGame?: () => void;
+  hideAestheticTab?: boolean;
 }
 
 const THEME_IDS: TableThemeId[] = [
@@ -27,11 +29,15 @@ const THEME_IDS: TableThemeId[] = [
   "darkBlue",
 ];
 
+const settingsPanelClass =
+  "rounded-2xl border border-white/10 bg-white/[0.045] shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-md";
+
 export function SettingsMenu({
   isOpen,
   onClose,
   initialTab = "aesthetic",
   onRateGame,
+  hideAestheticTab = false,
 }: SettingsMenuProps) {
   const { t } = useTranslation();
   const {
@@ -56,14 +62,19 @@ export function SettingsMenu({
     setSfxVolume,
     playSfx,
   } = useAudio();
-  const [tab, setTab] = useState<SettingsTab>(initialTab);
+  const initialVisibleTab = hideAestheticTab && initialTab === "aesthetic" ? "audio" : initialTab;
+  const [tab, setTab] = useState<SettingsTab>(initialVisibleTab);
 
   useEffect(() => {
     if (isOpen) {
-      setTab(initialTab);
+      setTab(hideAestheticTab && initialTab === "aesthetic" ? "audio" : initialTab);
       playSfx("modalOpen");
     }
-  }, [isOpen, initialTab, playSfx]);
+  }, [isOpen, initialTab, hideAestheticTab, playSfx]);
+
+  useEffect(() => {
+    if (hideAestheticTab && tab === "aesthetic") setTab("audio");
+  }, [hideAestheticTab, tab]);
 
   if (!isOpen) return null;
 
@@ -81,10 +92,10 @@ export function SettingsMenu({
     <button
       type="button"
       onClick={() => selectTab(id)}
-      className={`px-4 py-2.5 rounded-t-lg text-sm font-semibold transition ${
+      className={`rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
         tab === id
-          ? "bg-slate-700 text-white border border-b-0 border-slate-600"
-          : "text-slate-400 hover:text-white"
+          ? "border-amber-200/50 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.22),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/15"
+          : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-blue-200/24 hover:text-white"
       }`}
     >
       {label}
@@ -92,18 +103,21 @@ export function SettingsMenu({
   );
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 max-w-2xl w-full max-h-[90vh] overflow-auto">
-        <div className="sticky top-0 bg-gradient-to-r from-slate-800 to-slate-900 border-b border-slate-700 p-6 flex items-center justify-between z-10">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="relative flex h-[42rem] max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-amber-300/20 bg-[#070b12] shadow-[0_24px_80px_rgba(0,0,0,0.62),0_0_24px_rgba(245,158,11,0.08)] transition-[height,max-height] duration-300 ease-out">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_28%_0%,rgba(245,158,11,0.10),transparent_36%),radial-gradient(circle_at_100%_35%,rgba(30,64,175,0.14),transparent_42%),linear-gradient(160deg,rgba(8,13,24,0.98)_0%,rgba(3,7,18,0.98)_58%,rgba(11,10,8,0.98)_100%)]" />
+        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
+
+        <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-white/10 p-5 sm:p-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-800 rounded-full flex items-center justify-center shadow-lg ring-2 ring-amber-500/40">
-              <Sparkles className="w-6 h-6 text-amber-200" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-amber-200/25 bg-amber-400/10 shadow-[0_0_24px_rgba(245,158,11,0.16)]">
+              <Sparkles className="h-6 w-6 text-amber-200" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-amber-50">
                 {t("settings.title")}
               </h2>
-              <p className="text-gray-400 text-sm">{t("settings.subtitle")}</p>
+              <p className="text-sm text-slate-400">{t("settings.subtitle")}</p>
             </div>
           </div>
 
@@ -112,22 +126,22 @@ export function SettingsMenu({
             <button
               type="button"
               onClick={close}
-              className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 transition-all hover:bg-slate-600"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
               aria-label={t("settings.close")}
             >
-              <X className="h-5 w-5 text-white" />
+              <X className="h-5 w-5" />
             </button>
           </div>
         </div>
 
-        <div className="px-6 pt-4 flex gap-2 border-b border-slate-700/80">
-          {renderTabButton("aesthetic", t("settings.tabAesthetic"))}
+        <div className="relative z-10 flex shrink-0 gap-2 border-b border-white/10 px-5 py-4 sm:px-6">
+          {!hideAestheticTab && renderTabButton("aesthetic", t("settings.tabAesthetic"))}
           {renderTabButton("audio", t("settings.tabAudio"))}
           {renderTabButton("accessibility", t("settings.tabAccessibility"))}
         </div>
 
-        <div className="p-6 space-y-6">
-          {tab === "aesthetic" && (
+        <CustomScrollArea className="relative z-10 min-h-0 flex-1" contentClassName="space-y-6 p-5 pr-7 sm:p-6 sm:pr-8">
+          {!hideAestheticTab && tab === "aesthetic" && (
             <div className="space-y-4">
               <p className="text-slate-300 text-sm">{t("settings.tableThemeHint")}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -141,8 +155,8 @@ export function SettingsMenu({
                     }}
                     className={`rounded-xl border-2 p-4 text-left transition flex flex-col gap-2 ${
                       tableTheme === id
-                        ? "border-amber-400 bg-slate-800/80 ring-2 ring-amber-500/30"
-                        : "border-slate-600 bg-slate-800/40 hover:border-slate-500"
+                        ? "border-amber-200/55 bg-amber-400/10 ring-1 ring-amber-200/20 shadow-[0_0_22px_rgba(245,158,11,0.14)]"
+                        : "border-white/10 bg-white/[0.04] hover:border-blue-200/24"
                     }`}
                   >
                     <div
@@ -162,10 +176,10 @@ export function SettingsMenu({
             <div className="space-y-4">
               <p className="text-slate-300 text-sm">{t("settings.audioHint")}</p>
 
-              <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
+              <div className={`p-5 ${settingsPanelClass}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-amber-600 rounded-full flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-200/25 bg-amber-400/12">
                       <Music2 className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -200,10 +214,10 @@ export function SettingsMenu({
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
+              <div className={`p-5 ${settingsPanelClass}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-cyan-700 rounded-full flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-200/25 bg-blue-400/12">
                       <Waves className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -242,10 +256,10 @@ export function SettingsMenu({
 
           {tab === "accessibility" && (
             <>
-              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+              <div className={`p-6 ${settingsPanelClass}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-yellow-200/30 bg-yellow-400/14">
                       <Eye className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -277,10 +291,10 @@ export function SettingsMenu({
                 </p>
               </div>
 
-              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+              <div className={`p-6 ${settingsPanelClass}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-200/30 bg-blue-400/14">
                       <Bell className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -315,13 +329,13 @@ export function SettingsMenu({
               <div
                 className={`rounded-xl p-6 border transition-all ${
                   colorblindMode
-                    ? "bg-slate-800 border-slate-600"
-                    : "bg-slate-800/50 border-slate-700"
+                    ? "border-blue-200/30 bg-blue-400/10"
+                    : "border-white/10 bg-white/[0.045]"
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-rose-200/30 bg-rose-400/14">
                       <Palette className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -376,7 +390,7 @@ export function SettingsMenu({
                 )}
               </div>
 
-              <div className="bg-green-600/10 border border-green-600/30 rounded-xl p-4">
+              <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
                     <Volume2 className="w-4 h-4 text-white" />
@@ -393,10 +407,10 @@ export function SettingsMenu({
               </div>
             </>
           )}
-        </div>
+        </CustomScrollArea>
 
         {onRateGame && (
-          <div className="border-t border-slate-700/80 px-6 py-4">
+          <div className="relative z-10 shrink-0 border-t border-white/10 px-6 py-4">
             <button
               type="button"
               onClick={() => {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router";
 import { useTranslation, type TFunction } from "react-i18next";
 import { motion, useMotionValue, animate, type MotionValue } from "motion/react";
-import { ArrowLeft, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, History, Trash2, Undo2 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { updateUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 import {
@@ -14,6 +14,7 @@ import {
 import { apiUrl } from "../utils/apiBase";
 import { ChipIcon } from "../components/ChipIcon";
 import logoSrc from "../assets/logo-personnel.png";
+import { CustomScrollArea } from "../components/CustomScrollArea";
 
 type RouletteChipToken = {
   value: number;
@@ -344,15 +345,43 @@ function computeRouletteTargetRotation(
   currentRotation: number,
   segmentIndex: number,
   segmentCount: number,
-  fullTurns: number
+  fullTurns: number,
+  landingAngleDeg: number
 ): number {
   const stepDeg = 360 / segmentCount;
-  // RouletteWheelSvg : centre du segment i à (i+0.5)*step - 90°, repère haut = -90°
-  const targetRemainder = mod360(-(segmentIndex + 0.5) * stepDeg);
+  // RouletteWheelSvg : centre du segment i à (i+0.5)*step - 90°.
+  // On force ce centre à tomber à un angle absolu variable (landingAngleDeg),
+  // ce qui évite une chute toujours "en haut".
+  const targetRemainder = mod360(landingAngleDeg + 90 - (segmentIndex + 0.5) * stepDeg);
   const currentRem = mod360(currentRotation);
   let delta = targetRemainder - currentRem;
   if (delta > 0) delta -= 360;
   return currentRotation + delta - fullTurns * 360;
+}
+
+/**
+ * Cible d'orbite de bille qui:
+ * - respecte un mouvement "avant" (sens inverse de la roue ici),
+ * - et finit exactement sur la case gagnante.
+ */
+function computeBallOrbitTarget(
+  currentBallOrbit: number,
+  landingAngleDeg: number,
+  segmentCount: number,
+  minForwardTurns: number,
+  landingOffsetRatio: number
+): number {
+  const stepDeg = 360 / segmentCount;
+  // La bille démarre en haut (-90°). On veut qu'à la fin elle soit au centre du segment gagnant.
+  const clampedOffset = Math.max(-0.42, Math.min(0.42, landingOffsetRatio));
+  // angle bille = -90 + orbit; donc orbit = angleBille + 90.
+  const desiredOrbitRemainder = mod360(landingAngleDeg + 90 + clampedOffset * stepDeg);
+  const currentRem = mod360(currentBallOrbit);
+  let delta = desiredOrbitRemainder - currentRem;
+  if (delta < 0) delta += 360;
+  const minAdvance = minForwardTurns * 360;
+  while (delta < minAdvance) delta += 360;
+  return currentBallOrbit + delta;
 }
 
 /** Affiche pile de jetons + montant sur une case du tapis. */
@@ -411,7 +440,15 @@ function PlacedChipsBadge({
   );
 }
 
-function RouletteWheelSvg({ wheelOrder, rotation }: { wheelOrder: number[]; rotation: MotionValue<number> }) {
+function RouletteWheelSvg({
+  wheelOrder,
+  rotation,
+  ballOrbit,
+}: {
+  wheelOrder: number[];
+  rotation: MotionValue<number>;
+  ballOrbit: MotionValue<number>;
+}) {
   const uid = useId().replace(/:/g, "");
   const n = wheelOrder.length;
   const step = 360 / n;
@@ -470,16 +507,6 @@ function RouletteWheelSvg({ wheelOrder, rotation }: { wheelOrder: number[]; rota
 
   return (
     <div className="relative mx-auto w-[min(100%,380px)] aspect-square">
-      {/* Indicateur fixe type « flipper » */}
-      <div className="pointer-events-none absolute left-1/2 top-0 z-30 flex -translate-x-1/2 -translate-y-1 flex-col items-center">
-        <div
-          className="h-0 w-0 border-l-[12px] border-r-[12px] border-t-[20px] border-l-transparent border-r-transparent border-t-[#f5e6b8] drop-shadow-[0_3px_6px_rgba(0,0,0,0.85)]"
-          style={{ filter: "drop-shadow(0 0 4px rgba(212,175,55,0.8))" }}
-          aria-hidden
-        />
-        <div className="-mt-px h-2 w-4 rounded-b-sm bg-gradient-to-b from-amber-200 to-amber-700 shadow-md" />
-      </div>
-
       {/* Cuvette fixe (bois + laiton) */}
       <div
         className="absolute inset-[6px] rounded-full p-[9px] shadow-[0_24px_48px_rgba(0,0,0,0.75),inset_0_2px_8px_rgba(255,255,255,0.06)] ring-1 ring-black/60"
@@ -560,6 +587,9 @@ function RouletteWheelSvg({ wheelOrder, rotation }: { wheelOrder: number[]; rota
                   <circle cx="50" cy="50" r={rIn - 2.5} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth={0.2} />
                 </svg>
               </motion.div>
+              <motion.div className="pointer-events-none absolute inset-0 z-20" style={{ rotate: ballOrbit }} aria-hidden>
+                <div className="absolute left-1/2 top-[8%] h-3.5 w-3.5 -translate-x-1/2 rounded-full border border-slate-100/90 bg-gradient-to-b from-white via-slate-100 to-slate-300 shadow-[0_0_10px_rgba(255,255,255,0.7),0_3px_10px_rgba(0,0,0,0.5)]" />
+              </motion.div>
             </div>
           </div>
         </div>
@@ -589,8 +619,8 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   const [chips, setChips] = useState<number | null>(null);
   const [minBet, setMinBet] = useState(10);
   /** Alignés sur le palier bas (niveau 1) jusqu’au chargement config + gamification. */
-  const [maxBetPerLine, setMaxBetPerLine] = useState(250);
-  const [maxTotalStake, setMaxTotalStake] = useState(1500);
+  const [maxBetPerLine, setMaxBetPerLine] = useState(750);
+  const [maxTotalStake, setMaxTotalStake] = useState(5000);
   const [limitsLoaded, setLimitsLoaded] = useState(false);
   const [wheelOrder, setWheelOrder] = useState<number[]>(DEFAULT_WHEEL);
   /** Somme des jetons tapés avant de poser sur le tapis. */
@@ -609,6 +639,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   const [lastColor, setLastColor] = useState<string | null>(null);
   const wheelSectionRef = useRef<HTMLDivElement>(null);
   const rotation = useMotionValue(0);
+  const ballOrbit = useMotionValue(0);
   const streetBases = useMemo(() => buildStreetBases(), []);
   const sixBases = useMemo(() => buildSixLineBases(), []);
   const corners = useMemo(() => buildCornerDefs(), []);
@@ -637,8 +668,8 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
     try {
       const url = apiUrl("/api/roulette/config");
       const res = await fetch(url);
-      let lineCap = 250;
-      let totalCap = 1500;
+      let lineCap = 750;
+      let totalCap = 5000;
       if (res.ok) {
         const data = await res.json();
         if (typeof data?.minBet === "number") setMinBet(Math.max(1, Math.floor(data.minBet)));
@@ -654,10 +685,12 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         lineCap = Math.min(lineCap, g.maxBetRouletteLine);
       }
       if (typeof g.maxRouletteTotalStake === "number") {
-        totalCap = Math.min(totalCap, g.maxRouletteTotalStake);
+        // Ne jamais descendre sous la limite roulette métier (5000) à cause
+        // d'une valeur gamification obsolète en cache/session.
+        totalCap = Math.max(totalCap, g.maxRouletteTotalStake);
       }
       setMaxBetPerLine(lineCap);
-      setMaxTotalStake(totalCap);
+      setMaxTotalStake(Math.max(5000, totalCap));
     } catch {
       /* defaults déjà cohérents (250 / 1500) */
     } finally {
@@ -853,17 +886,36 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
       if (segmentIndex < 0) segmentIndex = 0;
 
       const fullTurns = 5;
+      // Angle absolu de chute de la bille (variable à chaque spin).
+      const landingAngleDeg = Math.random() * 360 - 180;
       const targetAngle = computeRouletteTargetRotation(
         rotation.get(),
         segmentIndex,
         wheelOrder.length,
-        fullTurns
+        fullTurns,
+        landingAngleDeg
       );
 
-      await animate(rotation, targetAngle, {
-        duration: 3.8,
-        ease: [0.2, 0.8, 0.2, 1],
-      });
+      // Effet réel: la roue tourne dans un sens, la bille dans l'autre,
+      // puis la bille termine précisément sur la case du résultat.
+      const landingOffsetRatio = (Math.random() * 2 - 1) * 0.32;
+      const ballTarget = computeBallOrbitTarget(
+        ballOrbit.get(),
+        landingAngleDeg,
+        wheelOrder.length,
+        fullTurns + 1,
+        landingOffsetRatio
+      );
+      await Promise.all([
+        animate(rotation, targetAngle, {
+          duration: 3.8,
+          ease: [0.2, 0.8, 0.2, 1],
+        }),
+        animate(ballOrbit, ballTarget, {
+          duration: 3.8,
+          ease: [0.12, 0.78, 0.22, 1],
+        }),
+      ]);
 
       setLastResult(result);
       setLastColor(typeof data.resultColor === "string" ? data.resultColor : null);
@@ -946,36 +998,40 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden app-shell-bg text-slate-100">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#020716] text-slate-100">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
-        <div className="absolute -top-24 left-1/2 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-purple-600/14 blur-[95px]" />
-        <div className="absolute -right-20 top-1/4 h-72 w-72 rounded-full bg-cyan-500/8 blur-[80px]" />
-        <div className="absolute -left-16 bottom-0 h-64 w-64 rounded-full bg-fuchsia-500/10 blur-[85px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.22),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_42%,rgba(245,158,11,0.08),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
+        <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/36 blur-[120px]" />
+        <div className="absolute -right-20 top-1/4 h-72 w-72 rounded-full bg-emerald-700/10 blur-[90px]" />
+        <div className="absolute -left-16 bottom-0 h-80 w-80 rounded-full bg-amber-700/8 blur-[95px]" />
         <div
           className="absolute inset-0 opacity-[0.07]"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.5) 1px, transparent 0)",
+              "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.26) 1px, transparent 0)",
             backgroundSize: "22px 22px",
           }}
         />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.55),transparent_58%)]" />
       </div>
 
-      <header className="relative z-10 shrink-0 flex items-center justify-between gap-2 border-b border-slate-700/90 bg-slate-900/95 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm md:px-5">
+      <header className="relative z-10 flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/55 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-xl md:px-5">
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-200 shadow-sm transition hover:bg-slate-700 hover:text-white"
+          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-slate-200 shadow-sm transition hover:border-blue-200/25 hover:bg-white/[0.08] hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           {backToMinigamesHub
             ? t("minigames.backToLobbyMinigamesTab")
             : t("roulette.back")}
         </button>
-        <h1 className="bg-gradient-to-r from-purple-300 via-purple-200 to-cyan-200 bg-clip-text text-center text-base font-bold tracking-wide text-transparent md:text-lg">
-          {t("roulette.title")}
+        <h1 className="flex min-w-0 flex-1 items-center justify-center rounded-full border border-amber-200/16 bg-slate-950/45 px-4 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_rgba(245,158,11,0.06)]">
+          <span className="truncate bg-gradient-to-r from-slate-50 via-blue-100 to-amber-200 bg-clip-text text-lg font-black tracking-[0.12em] text-transparent md:text-2xl">
+            {t("roulette.title")}
+          </span>
         </h1>
-        <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 text-sm font-bold tabular-nums text-green-400 md:max-w-none md:text-base">
+        <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 rounded-full border border-amber-300/15 bg-slate-950/55 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-100 md:max-w-none md:text-base">
           {chips !== null ? (
             <>
               <span className="truncate">{chips.toLocaleString()}</span>
@@ -987,7 +1043,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         </div>
       </header>
 
-      <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-5 pb-24 md:pb-8">
+      <CustomScrollArea className="relative z-10 min-h-0 flex-1" contentClassName="overflow-x-hidden p-3 pb-24 md:p-5 md:pb-8">
         <p className="mx-auto mb-5 max-w-lg text-center text-xs leading-relaxed text-slate-400 md:text-sm">
           {t("roulette.subtitle")}
         </p>
@@ -995,9 +1051,9 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         <div className="mx-auto grid w-full min-w-0 max-w-full grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
           <div
             ref={wheelSectionRef}
-            className="flex flex-col items-center rounded-2xl border border-slate-600/80 bg-slate-800/40 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] scroll-mt-3 md:scroll-mt-4"
+            className="flex flex-col items-center rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl scroll-mt-3 md:scroll-mt-4"
           >
-            <RouletteWheelSvg wheelOrder={wheelOrder} rotation={rotation} />
+            <RouletteWheelSvg wheelOrder={wheelOrder} rotation={rotation} ballOrbit={ballOrbit} />
             <div className="mt-5 min-h-[2.75rem] w-full max-w-xs rounded-lg border border-slate-600 bg-slate-900/60 px-4 py-2 text-center text-sm text-slate-200">
               {lastResult !== null ? (
                 <span>
@@ -1018,13 +1074,16 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
             <button
               type="button"
               onClick={() => setHistoryOpen((open) => !open)}
-              className={`mt-3 inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+              className={`mt-3 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition sm:text-sm ${
                 historyOpen
                   ? "border-cyan-400/60 bg-cyan-500/10 text-cyan-100"
                   : "border-slate-600 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
               }`}
+              title={t("roulette.tabHistory")}
+              aria-label={t("roulette.tabHistory")}
             >
-              {t("roulette.tabHistory")}
+              <History className="h-4 w-4 lg:hidden" aria-hidden />
+              <span className="hidden lg:inline">{t("roulette.tabHistory")}</span>
             </button>
             {historyOpen ? (
               <div className="mt-3 max-h-80 w-full max-w-xl space-y-2.5 overflow-y-auto rounded-xl border border-slate-600/80 bg-slate-900/45 p-3 text-left shadow-lg">
@@ -1120,7 +1179,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
           </div>
 
           <div className="space-y-4">
-            <div className="space-y-3 rounded-2xl border border-slate-600/80 bg-slate-800/50 p-4 shadow-lg backdrop-blur-sm">
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.24)] backdrop-blur-xl">
               <div className="flex items-center justify-between gap-3 border-b border-slate-600/60 pb-2">
                 <h2 className="text-sm font-semibold text-slate-100">{t("roulette.tabChips")}</h2>
               </div>
@@ -1178,7 +1237,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
             </div>
 
             <div
-              className="rounded-xl border-2 border-slate-600/90 bg-slate-900/40 p-3 shadow-[inset_0_2px_12px_rgba(0,0,0,0.35)]"
+              className="rounded-2xl border border-amber-200/16 bg-slate-900/58 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_22px_60px_rgba(0,0,0,0.26)] backdrop-blur-xl"
               style={{
                 background:
                   "radial-gradient(ellipse 85% 55% at 25% 15%, rgba(16,185,129,0.12) 0%, transparent 55%), radial-gradient(ellipse 100% 80% at 50% 100%, rgba(15,23,42,0.95) 0%, rgba(22,101,52,0.35) 55%, rgba(15,23,42,0.9) 100%), linear-gradient(180deg, rgb(15 23 42 / 0.9) 0%, rgb(15 118 110 / 0.15) 50%, rgb(15 23 42) 100%)",
@@ -1427,13 +1486,13 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
               type="button"
               disabled={bettingDisabled || bets.size === 0}
               onClick={() => void spin()}
-              className="w-full rounded-xl border-2 border-green-400/45 bg-gradient-to-b from-green-600 to-green-800 py-4 text-lg font-bold tracking-wide text-white shadow-[0_4px_0_rgb(21_128_61),0_14px_36px_rgba(0,0,0,0.45)] transition hover:from-green-500 hover:to-green-700 active:translate-y-0.5 active:shadow-[0_2px_0_rgb(21_128_61)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:active:translate-y-0"
+              className="w-full rounded-full border border-amber-300/35 bg-amber-400/16 py-4 text-lg font-black tracking-[0.08em] text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_14px_34px_rgba(0,0,0,0.34),0_0_24px_rgba(245,158,11,0.10)] transition hover:border-amber-200/55 hover:bg-amber-400/24 hover:text-amber-50 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500 disabled:shadow-none"
             >
               {spinning ? t("roulette.spinning") : t("roulette.spin")}
             </button>
           </div>
         </div>
-      </div>
+      </CustomScrollArea>
     </div>
   );
 }

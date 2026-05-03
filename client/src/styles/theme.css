@@ -219,42 +219,180 @@
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  :where(button, a[href], [role="button"], summary) {
+    transition-property: transform, filter, box-shadow, border-color, background-color, color, opacity;
+    transition-duration: 170ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  :where(button, a[href], [role="button"], summary):where(:not(:disabled):not([aria-disabled="true"])):hover {
+    filter: brightness(1.04);
+  }
+
+  :where(button, a[href], [role="button"], summary):where(:not(:disabled):not([aria-disabled="true"])):active {
+    transform: translateY(1px) scale(0.985);
+    filter: brightness(0.98);
+  }
+}
+
 .high-contrast {
   --background: #000000;
   --foreground: #ffffff;
+  color-scheme: dark;
 }
 
-.high-contrast * {
-  border-width: 2px !important;
+.high-contrast body {
+  background-color: #000000;
+  color: #ffffff;
 }
 
-.high-contrast button,
-.high-contrast a,
-.high-contrast input,
-.high-contrast [role="button"] {
-  border: 3px solid white !important;
-  outline: 2px solid white !important;
+.high-contrast *,
+.high-contrast *::before,
+.high-contrast *::after {
+  background-image: none !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
-.high-contrast .bg-slate-800,
+.high-contrast [class*="bg-gradient"],
+.high-contrast [class*="from-"],
+.high-contrast [class*="via-"],
+.high-contrast [class*="to-"],
+.high-contrast [class*="bg-"],
+.high-contrast [style*="background"] {
+  background-color: #000000 !important;
+}
+
+.high-contrast .bg-slate-950,
 .high-contrast .bg-slate-900,
+.high-contrast .bg-slate-800,
 .high-contrast .bg-slate-700,
 .high-contrast .bg-slate-600 {
   background-color: #000000 !important;
-  border: 2px solid #ffffff !important;
 }
 
+.high-contrast h1,
+.high-contrast h2,
+.high-contrast h3,
+.high-contrast h4,
+.high-contrast strong,
+.high-contrast .font-bold,
+.high-contrast .font-black {
+  color: #ffff00 !important;
+}
+
+.high-contrast .text-gray-500,
 .high-contrast .text-gray-400,
 .high-contrast .text-gray-300,
+.high-contrast .text-slate-500,
 .high-contrast .text-slate-400,
 .high-contrast .text-slate-300 {
   color: #ffffff !important;
 }
 
+.high-contrast .border-white\/10,
+.high-contrast .border-white\/15,
+.high-contrast .border-slate-800,
 .high-contrast .border-slate-700,
 .high-contrast .border-slate-600,
 .high-contrast .border-slate-500 {
   border-color: #ffffff !important;
+}
+
+.high-contrast button,
+.high-contrast a,
+.high-contrast input,
+.high-contrast select,
+.high-contrast textarea,
+.high-contrast summary,
+.high-contrast label[data-tooltip],
+.high-contrast [role="button"] {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  outline: none;
+}
+
+.high-contrast button:hover,
+.high-contrast a:hover,
+.high-contrast summary:hover,
+.high-contrast label[data-tooltip]:hover,
+.high-contrast [role="button"]:hover {
+  border-color: #ffff00 !important;
+  color: #ffff00 !important;
+}
+
+.high-contrast button[aria-pressed="true"],
+.high-contrast label[data-active="true"],
+.high-contrast [role="button"][aria-pressed="true"] {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+.high-contrast [data-volume-fill] {
+  background-color: #ffffff !important;
+}
+
+.high-contrast label[data-active="true"] [data-volume-fill] {
+  background-color: #ffff00 !important;
+}
+
+.high-contrast input[type="range"] {
+  accent-color: #ffff00;
+}
+
+.high-contrast button:focus-visible,
+.high-contrast a:focus-visible,
+.high-contrast input:focus-visible,
+.high-contrast select:focus-visible,
+.high-contrast textarea:focus-visible,
+.high-contrast summary:focus-visible,
+.high-contrast label[data-tooltip]:focus-within,
+.high-contrast [role="button"]:focus-visible {
+  outline: 2px solid #fde047 !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px #000000, 0 0 0 4px rgba(255, 255, 0, 0.45) !important;
+}
+
+.high-contrast a {
+  color: #ffff00 !important;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.high-contrast img,
+.high-contrast video,
+.high-contrast canvas {
+  filter: contrast(1.12) saturate(0.85);
+}
+
+@media (forced-colors: active) {
+  .high-contrast {
+    forced-color-adjust: auto;
+  }
+
+  .high-contrast button,
+  .high-contrast input,
+  .high-contrast select,
+  .high-contrast textarea,
+  .high-contrast [role="button"] {
+    background: ButtonFace;
+    color: ButtonText;
+    border-color: ButtonText;
+  }
+
+  .high-contrast a {
+    color: LinkText;
+  }
+
+  .high-contrast :focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 3px;
+  }
 }
 
 .font-large {
@@ -284,6 +422,32 @@
 
 .visual-alert {
   animation: flash-border 0.5s ease-in-out 3;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+html,
+body,
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 @keyframes slide-in-left {

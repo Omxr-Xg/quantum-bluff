@@ -330,8 +330,18 @@ export class TournamentService {
     winnerUsername: string,
     winnerChips: number
   ) {
-    const tracking = this.tournamentTables.get(tournamentId);
-    if (!tracking) return;
+    let tracking = this.tournamentTables.get(tournamentId);
+    if (!tracking) {
+    // Reconstruct tracking from DB
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: { players: true }
+    });
+    if (!tournament) return;
+    const numTables = Math.ceil(tournament.players.length / 6);
+    tracking = { survivors: [], expectedTables: numTables };
+    this.tournamentTables.set(tournamentId, tracking);
+  }
 
     tracking.survivors.push({ userId: winnerId, username: winnerUsername, chips: winnerChips });
 

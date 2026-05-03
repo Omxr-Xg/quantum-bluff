@@ -4,12 +4,13 @@ import { z } from 'zod'
 import { findWinners, getHandInfo } from '../logic/Evaluator.js'
 import type { Card, Player } from '../types/poker.js'
 import {
-  decideBotAction,
   type BotActionRequest,
   type BotDifficulty,
 } from '../logic/botAI.js'
 import { sanitizeBotDecision } from '../logic/botDecisionSanitize.js'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
+import { decideBotActionWithExpertAi } from '../services/botAi.service.js'
+import { rootLogger } from '../observability/logger.js'
 
 const router = express.Router()
 
@@ -147,7 +148,7 @@ function normalizeCard(c: { suit?: string; rank?: string; value?: string | numbe
   return { suit, rank, value }
 }
 
-router.post('/action', botActionLimiter, (req, res) => {
+router.post('/action', botActionLimiter, async (req, res) => {
   const startBotTime = Date.now()
 
   try {
@@ -168,8 +169,17 @@ router.post('/action', botActionLimiter, (req, res) => {
       communityCards: raw.communityCards.map(normalizeCard),
     }
 
-    const rawDecision = decideBotAction(botRequest)
+    const rawDecision = await decideBotActionWithExpertAi(botRequest)
     const decision = sanitizeBotDecision(rawDecision, botRequest)
+    rootLogger.info({
+      msg: 'bot_action_final',
+      difficulty: botRequest.difficulty,
+      aiAction: rawDecision.action,
+      finalAction: decision.action,
+      finalAmount: decision.amount,
+      latencyMs: Date.now() - startBotTime,
+      reason: decision.reasoning ?? rawDecision.reasoning,
+    })
 
     const duration = Date.now() - startBotTime
     console.log('[Monitoring QoS] 🤖 Décision bot calculée', {

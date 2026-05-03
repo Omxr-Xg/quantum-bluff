@@ -6,7 +6,7 @@ import { drawInt } from '../rng/rng.service.js'
 
 export const ROULETTE_MIN_BET = 10
 /** Plafond par mise individuelle (comme le slot). */
-export const ROULETTE_MAX_BET_CAP = 1000
+export const ROULETTE_MAX_BET_CAP = 750
 /** Plafond total des mises par spin (toutes lignes confondues). */
 export const ROULETTE_MAX_TOTAL_STAKE = 5000
 export const ROULETTE_MAX_BETS_PER_SPIN = 40

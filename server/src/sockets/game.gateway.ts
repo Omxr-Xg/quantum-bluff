@@ -48,6 +48,10 @@ import {
   emitToUsers,
   FRIEND_LOAN_SOCKET,
 } from "../services/friendLoan.emit.js";
+import {
+  markUserOffline,
+  markUserOnline,
+} from "../services/presence.service.js";
 
 // 👇 B4 : IMPORT DU SERVICE ANTI-TRICHE 👇
 import { AntiCheatService } from "../services/antiCheat.service.js";
@@ -181,7 +185,12 @@ export class GameGateway {
       if (socket.userId) {
         this.socketToUser.set(socket.id, socket.userId);
         this.userToSocket.set(socket.userId, socket.id);
+        markUserOnline(socket.userId);
         socket.join(`user:${socket.userId}`);
+        this.io.emit("FRIEND_STATUS_CHANGED", {
+          userId: socket.userId,
+          status: "online",
+        });
         rootLogger.debug({
           msg: "socket_user_room_joined",
           userId: socket.userId,
@@ -1426,6 +1435,7 @@ export class GameGateway {
               `[Réseau] Le joueur ${userId} n'a plus de sockets actifs.`,
             );
             this.userToSocket.delete(userId);
+            markUserOffline(userId);
             this.antiCheat.clearUser(userId);
 
             this.io.emit("FRIEND_STATUS_CHANGED", {

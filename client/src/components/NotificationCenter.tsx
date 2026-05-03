@@ -19,10 +19,10 @@ interface UnreadMessage {
 
 /** Même échelle que `Layout` (topNavBtn) : compact sur mobile */
 const NAV_BTN =
-  "relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:w-11";
+  "relative inline-flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:min-h-11 md:w-11 md:min-w-11";
 const NAV_BELL = "h-[1.05rem] w-[1.05rem] md:h-[1.15rem] md:w-[1.15rem]";
 const GAME_HUD_BTN =
-  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9";
+  "relative flex aspect-square h-7 min-h-7 w-7 min-w-7 shrink-0 items-center justify-center rounded-full border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:min-h-8 sm:w-8 sm:min-w-8 md:h-9 md:min-h-9 md:w-9 md:min-w-9";
 
 type NotificationCenterProps = {
   variant?: "nav" | "gameHud";
@@ -379,7 +379,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
         <Bell className={cn("shrink-0", NAV_BELL)} strokeWidth={2.25} />
 
         {totalCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
+          <span className="absolute right-0 top-0 flex h-[18px] min-w-[18px] translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
             {totalCount > 99 ? "99+" : totalCount}
           </span>
         )}

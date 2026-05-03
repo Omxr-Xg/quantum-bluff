@@ -124,7 +124,7 @@
   },
   "slot": {
     "title": "Слот-машина",
-    "subtitle": "Робіть ставки фішками. Результат визначається на сервері.",
+    "subtitle": "Робіть ставки фішками.",
     "balance": "Баланс",
     "selectBet": "Ставка",
     "betRange": "Від {{min}} до {{max}} фішок",
@@ -168,8 +168,6 @@
     "paytableTriple": "3× {{symbol}}",
     "paytableThreeSame": "3 однакові символи",
     "multiplierLabel": "Множник",
-    "quantumBoostTitle": "Quantum Boost",
-    "quantumBoostBody": "Сервер застосовує чесну випадковість на кожному обертанні.",
     "sessionCurrent": "Поточна сесія",
     "sessionWins": "Виграші",
     "sessionSpins": "Обертання",

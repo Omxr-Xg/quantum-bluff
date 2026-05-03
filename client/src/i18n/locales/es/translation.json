@@ -123,7 +123,7 @@
   },
   "slot": {
     "title": "Tragaperras",
-    "subtitle": "Apuesta fichas para probar suerte. El resultado se calcula en el servidor.",
+    "subtitle": "Apuesta fichas para probar suerte.",
     "balance": "Saldo",
     "selectBet": "Apuesta",
     "betRange": "Entre {{min}} y {{max}} fichas",
@@ -167,8 +167,6 @@
     "paytableTriple": "3× {{symbol}}",
     "paytableThreeSame": "3 símbolos iguales",
     "multiplierLabel": "Multiplicador",
-    "quantumBoostTitle": "Quantum Boost",
-    "quantumBoostBody": "El servidor aplica aleatoriedad justa en cada tirada.",
     "sessionCurrent": "Sesión actual",
     "sessionWins": "Premios",
     "sessionSpins": "Tiradas",

@@ -256,7 +256,7 @@ router.post('/record-result', authMiddleware, async (req, res) => {
     const userId = (req as express.Request & { userId?: string }).userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const { won, delta } = req.body as { won?: boolean; delta?: number }
+    const { won, delta, persistChips } = req.body as { won?: boolean; delta?: number; persistChips?: boolean }
     if (typeof won !== 'boolean') {
       return res
         .status(400)
@@ -286,7 +286,9 @@ router.post('/record-result', authMiddleware, async (req, res) => {
       },
     })
 
-    if (chipsDelta !== 0) {
+    // En "practice bot", on peut choisir de ne pas persister le solde joueur
+    // (objectif: solde stable, sauf difficulté expert).
+    if (persistChips === true && chipsDelta !== 0) {
       await prisma.user.update({
         where: { id: userId },
         data: {

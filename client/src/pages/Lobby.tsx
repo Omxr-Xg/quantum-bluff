@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type CSSProperties } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Bot,
   Server,
@@ -32,7 +33,6 @@ import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { OPEN_RATE_GAME_EVENT, STORAGE_RATE_GAME_PROMPT_SHOWN } from "../constants/storageKeys";
 import { apiUrl } from "../utils/apiBase";
 import { getUserBalance, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
-import { ChipIcon } from "../components/ChipIcon";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 import { DailyChallenges } from "../components/DailyChallenges";
 import { TournamentWidget } from '../components/TournamentWidget';
@@ -570,7 +570,7 @@ export function Lobby() {
           {/* Côté Droit : pleine largeur sur mobile (bleed sur px page), ni débordement ni bande inutile */}
           <div
             ref={tourRefTopBar}
-            className="flex h-7 w-full min-w-0 max-w-full flex-nowrap max-sm:box-border max-sm:-mx-2 max-sm:w-[calc(100%+1rem)] max-sm:max-w-none max-sm:self-stretch max-sm:overflow-x-hidden max-sm:px-2 sm:h-8 sm:min-w-0 sm:flex-1 sm:items-center sm:justify-end md:h-9"
+            className="flex min-h-11 w-full min-w-0 max-w-full flex-nowrap items-center overflow-visible py-1 max-sm:box-border max-sm:-mx-2 max-sm:w-[calc(100%+1rem)] max-sm:max-w-none max-sm:self-stretch max-sm:px-2 sm:min-h-12 sm:min-w-0 sm:flex-1 sm:justify-end md:min-h-14"
           >
             {menuContent}
           </div>
@@ -705,65 +705,81 @@ export function Lobby() {
                 <span>{showCreateAdvanced ? t('lobby.hideOptions') : t('lobby.seeMore')}</span>
                 {showCreateAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
-              {showCreateAdvanced && (
-                <div className="mb-6 space-y-4 rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md">
-                  <div>
-                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.smallBlind')}</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={10000}
-                      value={createSmallBlind}
-                      onChange={(e) => setCreateSmallBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
-                      className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      aria-label={t('lobby.smallBlind')}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minRaise')}</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={10000}
-                      value={createBigBlind}
-                      onChange={(e) => setCreateBigBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 2)))}
-                      className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      aria-label={t('lobby.minRaise')}
-                    />
-                    <p className="text-slate-500 text-xs mt-1">{t('lobby.minRaiseHint')}</p>
-                  </div>
-                  <div>
-                    <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minBalance')}</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={0}
-                        max={1000000}
-                        step={100}
-                        value={createMinBalance}
-                        onChange={(e) => {
-                          const raw = e.target.value === "" ? 0 : Number(e.target.value);
-                          const val = Number.isNaN(raw) ? 0 : Math.min(1000000, Math.max(0, raw));
-                          setCreateMinBalance(val);
-                        }}
-                        className={`flex-1 rounded-lg border bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
-                          isMinBalanceInvalid ? "border-red-500" : "border-white/10"
-                        }`}
-                        aria-label={t('lobby.minBalance')}
-                      />
-                      {isMinBalanceInvalid && (
-                        <div className="relative flex items-center gap-1">
-                          <XCircle className="w-6 h-6 text-red-500 shrink-0" aria-hidden />
-                          <div className="absolute left-full top-1/2 z-10 ml-1 -translate-y-1/2 whitespace-nowrap rounded-lg border border-red-500 bg-slate-950/90 px-3 py-2 text-sm font-medium text-red-400 shadow-xl backdrop-blur-md">
-                            {t('lobby.minAmount100')}
-                          </div>
+              <AnimatePresence initial={false}>
+                {showCreateAdvanced && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+                    animate={{ height: "auto", opacity: 1, marginBottom: 24 }}
+                    exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <motion.div
+                      initial={{ y: -8 }}
+                      animate={{ y: 0 }}
+                      exit={{ y: -8 }}
+                      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                      className="space-y-4 rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md"
+                    >
+                      <div>
+                        <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.smallBlind')}</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10000}
+                          value={createSmallBlind}
+                          onChange={(e) => setCreateSmallBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
+                          className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          aria-label={t('lobby.smallBlind')}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minRaise')}</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10000}
+                          value={createBigBlind}
+                          onChange={(e) => setCreateBigBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 2)))}
+                          className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          aria-label={t('lobby.minRaise')}
+                        />
+                        <p className="text-slate-500 text-xs mt-1">{t('lobby.minRaiseHint')}</p>
+                      </div>
+                      <div>
+                        <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minBalance')}</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            max={1000000}
+                            step={100}
+                            value={createMinBalance}
+                            onChange={(e) => {
+                              const raw = e.target.value === "" ? 0 : Number(e.target.value);
+                              const val = Number.isNaN(raw) ? 0 : Math.min(1000000, Math.max(0, raw));
+                              setCreateMinBalance(val);
+                            }}
+                            className={`flex-1 rounded-lg border bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                              isMinBalanceInvalid ? "border-red-500" : "border-white/10"
+                            }`}
+                            aria-label={t('lobby.minBalance')}
+                          />
+                          {isMinBalanceInvalid && (
+                            <div className="relative flex items-center gap-1">
+                              <XCircle className="w-6 h-6 text-red-500 shrink-0" aria-hidden />
+                              <div className="absolute left-full top-1/2 z-10 ml-1 -translate-y-1/2 whitespace-nowrap rounded-lg border border-red-500 bg-slate-950/90 px-3 py-2 text-sm font-medium text-red-400 shadow-xl backdrop-blur-md">
+                                {t('lobby.minAmount100')}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <p className="text-slate-500 text-xs mt-1">{t('lobby.minBalanceHint')}</p>
-                  </div>
-                </div>
-              )}
+                        <p className="text-slate-500 text-xs mt-1">{t('lobby.minBalanceHint')}</p>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Validate */}
               <button
@@ -787,7 +803,7 @@ export function Lobby() {
         {/* MAIN GRID - IMPROVED GAP */}
         <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:items-stretch">
           {/* Colonne jeux : onglets au-dessus du contenu uniquement (pas au-dessus défis / amis) */}
-          <div className="md:col-span-2 lg:col-span-2 space-y-6 lg:flex lg:h-full lg:self-stretch lg:flex-col lg:space-y-0 lg:gap-6">
+          <div className="md:col-span-2 lg:col-span-2 space-y-6 lg:flex lg:flex-col lg:space-y-0 lg:gap-6">
             <nav
               ref={lobbyTabsRef}
               className={`flex w-full overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
@@ -1053,36 +1069,36 @@ export function Lobby() {
 
           {/* Onglet Mini-jeux - CONDITIONAL RENDER */}
           {lobbyMainTab === "minigames" && (
-            <div className="grid grid-cols-1 gap-3 md:gap-6 lg:flex-1">
-              <div className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-                <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
+            <div className="flex w-full flex-col gap-5">
+              <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+                <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
                   <Disc className="h-8 w-8 shrink-0 text-emerald-300" strokeWidth={2.2} aria-hidden />
                   {t("minigames.rouletteTitle")}
                 </h2>
-                <p className="mb-6 text-sm leading-relaxed text-gray-400">
+                <p className="mb-4 text-sm leading-relaxed text-gray-400">
                   {t("minigames.rouletteBlurb")}
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=roulette")}
-                  className="mt-auto w-full rounded-xl border border-emerald-300/15 bg-emerald-950/70 py-3 md:py-4 text-base font-bold text-white transition hover:border-emerald-200/25 hover:bg-emerald-900/80"
+                  className="w-full rounded-xl border border-emerald-300/15 bg-emerald-950/70 py-3 text-base font-bold text-white transition hover:border-emerald-200/25 hover:bg-emerald-900/80"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}
                 </button>
               </div>
-              <div className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-                <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
+              <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+                <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
                   <SquareStack className="h-8 w-8 shrink-0 text-cyan-300" strokeWidth={2.2} aria-hidden />
                   {t("minigames.slotTitle")}
                 </h2>
-                <p className="mb-6 text-sm leading-relaxed text-gray-400">
+                <p className="mb-4 text-sm leading-relaxed text-gray-400">
                   {t("minigames.slotBlurb")}
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=slots")}
-                  className="mt-auto w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 md:py-4 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80"
+                  className="w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}
@@ -1094,10 +1110,10 @@ export function Lobby() {
           {/* Onglet Blackjack - CONDITIONAL RENDER */}
           {lobbyMainTab === "blackjack" && (
             <div
-              className="space-y-6 lg:flex lg:min-h-[var(--lobby-content-min-height)] lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-6"
+              className="space-y-6 lg:flex lg:flex-col lg:space-y-0 lg:gap-6"
               style={lobbyAlignmentStyle}
             >
-              <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:flex lg:min-h-[20rem] lg:flex-col">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
                   <Club className="h-8 w-8 text-rose-300" aria-hidden />
                   {t("lobby.blackjackTitle")}
@@ -1106,15 +1122,15 @@ export function Lobby() {
                 <button
                   type="button"
                   onClick={() => navigate("/blackjack")}
-                  className="w-full rounded-xl border border-rose-300/15 bg-rose-950/70 py-3 md:py-4 font-bold text-white transition hover:border-rose-200/25 hover:bg-rose-900/80 lg:mt-auto"
+                  className="w-full rounded-xl border border-rose-300/15 bg-rose-950/70 py-3 md:py-4 font-bold text-white transition hover:border-rose-200/25 hover:bg-rose-900/80"
                   aria-label={t("lobby.blackjackPlay")}
                 >
                   {t("lobby.blackjackPlay")}
                 </button>
                 <p className="mt-3 text-center text-xs leading-relaxed text-gray-500">{t("lobby.blackjackSoloHint")}</p>
               </div>
-              <div className="lg:flex lg:flex-1">
-                <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} className="lg:flex-1" />
+              <div>
+                <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} />
               </div>
             </div>
           )}
