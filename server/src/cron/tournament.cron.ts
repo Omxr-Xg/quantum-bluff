@@ -2,10 +2,16 @@ import cron from 'node-cron';
 import { prisma } from '../config/database.js';
 import { rootLogger } from '../observability/index.js';
 import { TournamentService } from '../services/tournament.service.js';
+import { renewTournamentLeaderLock } from '../services/tournamentLeaderLock.service.js';
 
 const NOTIFY_MINUTES = [30, 15, 10, 5, 1];
 
 cron.schedule('* * * * *', async () => {
+  const leader = await renewTournamentLeaderLock();
+  if (!leader) {
+    return;
+  }
+
   try {
     const now = new Date();
 
