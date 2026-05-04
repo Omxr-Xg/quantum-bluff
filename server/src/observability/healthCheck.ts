@@ -2,10 +2,12 @@ import { prisma } from '../config/database.js'
 import { isRedisHealthy } from '../config/redis.config.js'
 import { metrics } from './metrics.js'
 import { rootLogger } from './logger.js'
+import { isDraining } from './readinessDrain.js'
 
 export type ReadyPayload = {
   ready: boolean
   degraded: boolean
+  draining?: boolean
   components: {
     database: 'up' | 'down'
     redis: 'up' | 'fallback_memory'
@@ -27,9 +29,12 @@ export async function getReadyState(): Promise<ReadyPayload> {
   const degraded = dbOk && !redisOk
   metrics.setDegraded('redis_unavailable', degraded)
 
+  const drain = isDraining()
+
   return {
-    ready: dbOk,
+    ready: dbOk && !drain,
     degraded,
+    draining: drain,
     components: {
       database: dbOk ? 'up' : 'down',
       redis: redisOk ? 'up' : 'fallback_memory',
