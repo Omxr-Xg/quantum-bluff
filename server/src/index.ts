@@ -1,6 +1,9 @@
+import './observability/otelEarly.js'
+
 import express from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
+import { createAdapter } from '@socket.io/redis-adapter'
 import cors, { type CorsOptions } from 'cors'
 import helmet from 'helmet'
 import swaggerUi from 'swagger-ui-express'
@@ -45,6 +48,10 @@ import adminRoutes from './routes/admin.routes.js'
 import { GameGateway } from './sockets/game.gateway.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
 import { connectDB } from './config/database.js'
+import { createSocketIoRedisClients, disconnectSocketIoRedisClients } from './config/socketIoRedis.js'
+import { shutdownOtel } from './observability/otel.js'
+import { setDraining } from './observability/readinessDrain.js'
+import { releaseTournamentLeaderLock } from './services/tournamentLeaderLock.service.js'
 import { recoverBlackjackRuntimeAtBoot } from './blackjack/recovery/blackjackRecovery.service.js'
 import adminPokerRuntimeRoutes from './routes/admin.poker.runtime.routes.js'
 import adminRouletteOverrideRoutes from './routes/admin.roulette.override.routes.js'
@@ -287,6 +294,27 @@ const io = new Server(httpServer, {
   },
 })
 
+if (!env.isJest) {
+  try {
+    const { pubClient, subClient } = createSocketIoRedisClients()
+    io.adapter(createAdapter(pubClient, subClient))
+    metrics.setRedisSocketIoAdapterUp(true)
+    const onDown = () => metrics.setRedisSocketIoAdapterUp(false)
+    pubClient.on('error', onDown)
+    subClient.on('error', onDown)
+    pubClient.on('end', onDown)
+    subClient.on('end', onDown)
+  } catch (err) {
+    rootLogger.warn({
+      msg: 'socket_io_redis_adapter_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    })
+    metrics.setRedisSocketIoAdapterUp(false)
+  }
+} else {
+  metrics.setRedisSocketIoAdapterUp(false)
+}
+
 TournamentService.setIo(io)
 io.use(socketAuth)
 app.set('io', io)
@@ -296,6 +324,42 @@ new GameGateway(io)
 
 const PORT = env.port
 
+let shuttingDown = false
+function registerGracefulShutdown(): void {
+  const drain = async (signal: string) => {
+    if (shuttingDown) return
+    shuttingDown = true
+    rootLogger.info({ msg: 'shutdown_begin', signal, instanceId: env.instanceId })
+    setDraining(true)
+    const drainMs = Number.parseInt(process.env.SHUTDOWN_DRAIN_MS ?? '30000', 10) || 30000
+    await new Promise((r) => setTimeout(r, Math.min(2000, drainMs)))
+
+    await new Promise<void>((resolve) => {
+      httpServer.close(() => resolve())
+    })
+
+    await new Promise<void>((resolve) => {
+      const t = setTimeout(resolve, drainMs)
+      io.close(() => {
+        clearTimeout(t)
+        resolve()
+      })
+    })
+
+    metrics.setRedisSocketIoAdapterUp(false)
+    await releaseTournamentLeaderLock()
+    await shutdownOtel()
+    await disconnectSocketIoRedisClients()
+    rootLogger.info({ msg: 'shutdown_complete', instanceId: env.instanceId })
+    process.exit(0)
+  }
+
+  process.on('SIGTERM', () => void drain('SIGTERM'))
+  process.on('SIGINT', () => void drain('SIGINT'))
+}
+
+registerGracefulShutdown()
+
 ;(async () => {
   try {
     await connectDB()
@@ -303,11 +367,12 @@ const PORT = env.port
     await recoverBlackjackRuntimeAtBoot()
 
     httpServer.listen(PORT, () => {
-  rootLogger.info({
-    msg: 'server_listen',
-    port: PORT,
-    detail: 'Quantum Bluff API démarrée',
-  })
+      rootLogger.info({
+        msg: 'server_listen',
+        port: PORT,
+        instanceId: env.instanceId,
+        detail: 'Quantum Bluff API démarrée',
+      })
 
       TournamentService.startTournamentWatcher(io)
     })
