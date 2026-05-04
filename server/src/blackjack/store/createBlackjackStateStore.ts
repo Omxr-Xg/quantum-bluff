@@ -1,4 +1,5 @@
 import { Redis } from 'ioredis'
+import { env } from '../../config/env.js'
 import type { BlackjackStateStore } from './blackjackStateStore.js'
 import { InMemoryBlackjackStateStore } from './inMemoryBlackjackStateStore.js'
 import { RedisBlackjackStateStore } from './redisBlackjackStateStore.js'
@@ -6,8 +7,14 @@ import { RedisBlackjackStateStore } from './redisBlackjackStateStore.js'
 type StoreMode = 'memory' | 'redis'
 
 function resolveStoreMode(): StoreMode {
-  const raw = (process.env.BLACKJACK_STATE_STORE ?? 'memory').trim().toLowerCase()
-  return raw === 'redis' ? 'redis' : 'memory'
+  const raw = (process.env.BLACKJACK_STATE_STORE ?? '').trim().toLowerCase()
+  if (raw === 'redis' || raw === 'memory') {
+    return raw
+  }
+  if (env.isJest || env.isCi) {
+    return 'memory'
+  }
+  return env.redisUrl || env.redisHost ? 'redis' : 'memory'
 }
 
 function createRedisClient(): Redis {

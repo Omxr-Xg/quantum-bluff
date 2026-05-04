@@ -1,6 +1,7 @@
 import type { Server } from 'socket.io';
 import { prisma } from '../config/database.js';
 import { rootLogger } from '../observability/index.js';
+import { renewTournamentLeaderLock } from './tournamentLeaderLock.service.js';
 import { activeGames } from '../shared/activeGames.js';
 import { GameTable } from '../logic/GameTable.js';
 
@@ -508,6 +509,11 @@ export class TournamentService {
 
     setInterval(async () => {
       try {
+        const leader = await renewTournamentLeaderLock();
+        if (!leader) {
+          return;
+        }
+
         const now = new Date();
         const pendingOnes = await prisma.tournament.findMany({
           where: { status: 'PENDING', startTime: { lte: now } }

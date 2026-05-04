@@ -40,19 +40,19 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: quantum_backend
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD:-My027}@postgres:5432/${DB_NAME:-quantum_bluff}?schema=public
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-super_secret_for_production_change_me}
       PORT: 3000
+      INSTANCE_ID: ${INSTANCE_ID:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-quantum-bluff-api}
       CORS_ORIGIN: "https://mai-projet-integrateur.u-strasbg.fr"
       AI_SERVICE_ENABLED: ${AI_SERVICE_ENABLED:-true}
       AI_SERVICE_URL: http://ai-service:8000
       AI_SERVICE_TIMEOUT_MS: ${AI_SERVICE_TIMEOUT_MS:-450}
-    ports:
-      - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy

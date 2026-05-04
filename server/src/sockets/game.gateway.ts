@@ -49,6 +49,7 @@ import {
   FRIEND_LOAN_SOCKET,
 } from "../services/friendLoan.emit.js";
 import {
+  isUserOnline,
   markUserOffline,
   markUserOnline,
 } from "../services/presence.service.js";
@@ -175,6 +176,7 @@ export class GameGateway {
         this.io as unknown as { engine: { clientsCount: number } }
       ).engine.clientsCount;
       promMetrics.incSocketEvent("connection");
+      promMetrics.setSocketIoConnectionsActive(clientsCount);
       rootLogger.debug({
         msg: "socket_client_connected",
         socketId: socket.id,
@@ -185,7 +187,13 @@ export class GameGateway {
       if (socket.userId) {
         this.socketToUser.set(socket.id, socket.userId);
         this.userToSocket.set(socket.userId, socket.id);
-        markUserOnline(socket.userId);
+        void markUserOnline(socket.userId, socket.id).catch((err) =>
+          rootLogger.warn({
+            msg: "presence_mark_online_failed",
+            userId: socket.userId,
+            detail: err instanceof Error ? err.message : String(err),
+          }),
+        );
         socket.join(`user:${socket.userId}`);
         this.io.emit("FRIEND_STATUS_CHANGED", {
           userId: socket.userId,
@@ -1412,6 +1420,7 @@ export class GameGateway {
           this.io as unknown as { engine: { clientsCount: number } }
         ).engine.clientsCount;
         promMetrics.incSocketEvent("disconnect");
+        promMetrics.setSocketIoConnectionsActive(currentCount);
         rootLogger.debug({
           msg: "socket_client_disconnected",
           socketId: socket.id,
@@ -1425,17 +1434,14 @@ export class GameGateway {
         this.socketToUser.delete(socket.id);
 
         if (userId) {
-          //  On regarde s'il reste d'autres sockets actifs pour ce joueur (multi-onglets ou reconnexion ultra-rapide)
-          const userRoom = this.io.sockets.adapter.rooms.get(`user:${userId}`);
-          const activeSocketsCount = userRoom ? userRoom.size : 0;
+          await markUserOffline(userId, socket.id);
+          const stillOnline = await isUserOnline(userId);
 
-          if (activeSocketsCount === 0) {
-            // Le joueur est VRAIMENT hors ligne (plus aucun socket)
+          if (!stillOnline) {
             console.log(
               `[Réseau] Le joueur ${userId} n'a plus de sockets actifs.`,
             );
             this.userToSocket.delete(userId);
-            markUserOffline(userId);
             this.antiCheat.clearUser(userId);
 
             this.io.emit("FRIEND_STATUS_CHANGED", {
@@ -1444,9 +1450,8 @@ export class GameGateway {
             });
           } else {
             console.log(
-              `[Réseau] Socket ${socket.id} mort pour ${userId}, mais il reste ${activeSocketsCount} connexion(s) active(s).`,
+              `[Réseau] Socket ${socket.id} mort pour ${userId}, mais d'autres connexions restent actives (Redis / cluster).`,
             );
-            // On s'arrête là, on ne lance PAS le timeout de 10s car il est encore là sur un autre onglet/socket !
             return;
           }
         }

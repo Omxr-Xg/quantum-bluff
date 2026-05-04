@@ -1,4 +1,5 @@
 import dotenv from 'dotenv'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -217,6 +218,12 @@ if (adminConsolePasswordHash && adminConsolePasswordHash.length < 20) {
   throw new Error('ADMIN_CONSOLE_PASSWORD_HASH is too short or invalid')
 }
 
+/** Identifiant d’instance pour logs / locks (horizontal scaling). */
+const instanceId =
+  getOptionalEnv('INSTANCE_ID')?.trim() ||
+  (typeof os.hostname === 'function' ? os.hostname() : 'unknown') ||
+  'unknown'
+
 export const env = {
   nodeEnv,
   isDevelopment,
@@ -224,6 +231,7 @@ export const env = {
   isTest,
   isCi,
   isJest,
+  instanceId,
   port: getPositiveIntegerEnv('PORT', 3000),
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
   databaseUrl,
