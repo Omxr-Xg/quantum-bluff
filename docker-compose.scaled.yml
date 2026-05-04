@@ -1,0 +1,30 @@
+# Merge avec la prod : healthchecks, OTel optionnel, hint de scale horizontal.
+# Démarrage typique :
+#   docker compose -f docker-compose.prod.yml -f docker-compose.scaled.yml up -d --scale backend=3
+#
+# Voir Docs/Architecture/SCALING.md (sticky Nginx, Redis AOF, triple backend nommé).
+
+services:
+  backend:
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:3000/api/health/live >/dev/null || exit 1',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 50s
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: quantum_otel_collector
+    command: ['--config=/etc/otel-collector-config.yaml']
+    volumes:
+      - ./server/observability/otel-collector.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - '4318:4318'
+    networks:
+      - quantum_net
+    profiles:
+      - otel
