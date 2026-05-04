@@ -1,6 +1,7 @@
 import { Redis } from 'ioredis'
 import { GameTable } from '../logic/GameTable.js'
 import { rootLogger } from '../observability/logger.js'
+import { metrics } from '../observability/metrics.js'
 import type { Card, GamePhase, Player } from '../types/poker.js'
 import { env } from './env.js'
 
@@ -35,6 +36,20 @@ redisClient.on('connect', () => {
     rootLogger.info({ msg: 'redis_connected' })
   }
 })
+
+if (!redisLiteClient) {
+  const origSend = redisClient.sendCommand.bind(redisClient) as (
+    ...args: unknown[]
+  ) => Promise<unknown>
+  redisClient.sendCommand = function sendCommandInstrumented(...args: unknown[]) {
+    const cmd = args[0] as { name?: string } | undefined
+    const name = (cmd?.name ?? 'unknown').toLowerCase()
+    const t0 = Date.now()
+    return origSend(...args).finally(() => {
+      metrics.observeRedisCommandDurationMs(name, Date.now() - t0)
+    })
+  }
+}
 
 redisClient.on('error', (err: Error) => {
   if (redisLiteClient) {
