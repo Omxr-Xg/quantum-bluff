@@ -2,6 +2,8 @@ variables:
   NODE_IMAGE: public.ecr.aws/docker/library/node:20
   POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:15
   TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.58.1
+  # Sans ça, le cache GitLab sur `.npm/` reste vide : chaque job retélécharge les paquets.
+  NPM_CONFIG_CACHE: "${CI_PROJECT_DIR}/.npm"
 
 .node_docker_ci:
   image:
@@ -12,8 +14,7 @@ default:
     - kubernetes
 
 stages:
-  - lint
-  - test
+  - verify
   - test-security
   - build
   - docker-build
@@ -27,22 +28,10 @@ cache:
   paths:
     - .npm/
 
-backend:lint:
-  stage: lint
-  image: public.ecr.aws/docker/library/node:20
-  script:
-    - cd server
-    - npm ci --legacy-peer-deps
-    - npm run lint
-  only:
-    - develop
-    - main
-    - /^feature\/.*$/
-    - /^fix\/.*$/
-
-backend:test:
+# --- develop / main : un seul npm ci + lint + tests (au lieu de 2 jobs séquentiels)
+backend:verify:
   extends: .node_docker_ci
-  stage: test
+  stage: verify
   services:
     - name: public.ecr.aws/docker/library/postgres:15
       alias: postgres
@@ -55,59 +44,39 @@ backend:test:
     DATABASE_URL: postgresql://test_user:test_password@postgres:5432/quantum_test
   script:
     - cd server
-    - npm ci
+    - npm ci --legacy-peer-deps
+    - npm run lint
     - npm run test:coverage
   only:
     - develop
     - main
 
-backend:build:
+frontend:verify:
   extends: .node_docker_ci
-  stage: build
-  script:
-    - cd server
-    - npm ci
-    - npx prisma generate
-    - npm run build
-  only:
-    - main
-    - /^release\/.*$/
-
-frontend:lint:
-  extends: .node_docker_ci
-  stage: lint
+  stage: verify
   script:
     - cd client
     - npm ci --legacy-peer-deps
     - npm run lint
-  only:
-    - develop
-    - main
-
-frontend:test:
-  extends: .node_docker_ci
-  stage: test
-  script:
-    - cd client
-    - npm ci --legacy-peer-deps
     - npm test
   only:
     - develop
     - main
 
-frontend:build:
-  extends: .node_docker_ci
-  stage: build
+# Branches feature/fix : lint backend seul (pas de BDD / tests unitaires serveur)
+backend:lint:
+  stage: verify
+  image: public.ecr.aws/docker/library/node:20
   script:
-    - cd client
+    - cd server
     - npm ci --legacy-peer-deps
-    - npm run build
+    - npm run lint
   only:
-    - main
-    - /^release\/.*$/
+    - /^feature\/.*$/
+    - /^fix\/.*$/
 
 database:test:
-  stage: test
+  stage: verify
   image:
     name: public.ecr.aws/docker/library/postgres:15
     entrypoint: [""]
@@ -124,12 +93,36 @@ database:test:
     - develop
     - main
 
+backend:build:
+  extends: .node_docker_ci
+  stage: build
+  script:
+    - cd server
+    - npm ci
+    - npx prisma generate
+    - npm run build
+  only:
+    - main
+    - /^release\/.*$/
+
+frontend:build:
+  extends: .node_docker_ci
+  stage: build
+  script:
+    - cd client
+    - npm ci --legacy-peer-deps
+    - npm run build
+  only:
+    - main
+    - /^release\/.*$/
+
+# Pas de npm ci : audit à partir des lockfiles uniquement (beaucoup plus rapide).
 security:npm:
   extends: .node_docker_ci
   stage: test-security
   script:
-    - cd server && npm ci && npm audit --omit=dev || true
-    - cd ../client && npm ci --legacy-peer-deps && npm audit --omit=dev || true
+    - cd server && npm audit --omit=dev --package-lock-only
+    - cd ../client && npm audit --omit=dev --package-lock-only
   allow_failure: true
   only:
     - develop
@@ -141,7 +134,7 @@ security:trivy:
     name: public.ecr.aws/aquasecurity/trivy:0.58.1
     entrypoint: [""]
   script:
-    - trivy fs --severity HIGH,CRITICAL --no-progress .
+    - trivy fs --severity HIGH,CRITICAL --no-progress --skip-dirs node_modules --skip-dirs dist --skip-dirs android --skip-dirs ios .
   allow_failure: true
   only:
     - develop
@@ -149,6 +142,14 @@ security:trivy:
 
 docker:build:
   stage: docker-build
+  needs:
+    # optional : branches release/* n’exécutent pas verify (historique du projet).
+    - job: backend:verify
+      optional: true
+    - job: frontend:verify
+      optional: true
+    - job: database:test
+      optional: true
   image:
     name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: [""]
@@ -172,6 +173,13 @@ docker:build:
 # Images pour déploiement VM sans « docker compose build » (pull uniquement).
 docker:build:client:
   stage: docker-build
+  needs:
+    - job: backend:verify
+      optional: true
+    - job: frontend:verify
+      optional: true
+    - job: database:test
+      optional: true
   image:
     name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: [""]
@@ -197,6 +205,13 @@ docker:build:client:
 
 docker:build:ai-service:
   stage: docker-build
+  needs:
+    - job: backend:verify
+      optional: true
+    - job: frontend:verify
+      optional: true
+    - job: database:test
+      optional: true
   image:
     name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: [""]
