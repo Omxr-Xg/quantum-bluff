@@ -42,6 +42,9 @@ import {
 } from "../utils/botTableChat";
 import { censorChatLinks, isChatContentEffectivelyEmpty } from "../utils/chatLinkCensor";
 
+/** Aligné sur `server/src/shared/practiceBotGames.ts` — parties bots via `/api/game/bot/start`. */
+const PRACTICE_BOT_GAME_ID_PREFIX = "practice-bot-";
+
 type Card = ClientCard;
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
@@ -123,9 +126,8 @@ export function Game() {
   const isBotMode = mode === "bot";
   const { userId } = useUser();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
-  const difficultyParam = searchParams.get("difficulty") || "moyen";
-  // En mode bot (practice), on veut que le "solde de compte" ne change pas
-  // sauf en difficulté "expert" (où l’utilisateur joue réellement).
+  const difficultyParam = (searchParams.get("difficulty") || "moyen").toLowerCase();
+  // Mode bot : le solde compte (header / DB) ne bouge pas sauf difficulté « expert » (URL: difficulty=expert).
   const isExpertPracticeBot = isBotMode && difficultyParam === "expert";
   const winMultiplier = gameIdParam ? 1 : getWinMultiplierFromDifficultyParam(difficultyParam);
 
@@ -336,8 +338,10 @@ export function Game() {
   const streetPhaseEnteredRef = useRef<number>(0);
   const bothActedNoTurnRef = useRef(false);
   const botIsFetchingRef = useRef(false);
-  /** Une seule synchro `/record-result` par manche (mode expert local). */
+  /** Une seule synchro `/record-result` par manche (mode expert local sans gameId réseau). */
   const expertRecordSentForGenRef = useRef<number | null>(null);
+  /** Dedupe solde + record-result pour une main practice-bot servie par le socket (gameId practice-bot-*). */
+  const expertPracticeSocketHandIdSyncedRef = useRef<string | null>(null);
   const [_showdownReveal, setShowdownReveal] = useState(false);
   const showdownStartedRef = useRef(false);
   const showdownResultRef = useRef<typeof showdownResult>(null);
@@ -960,10 +964,32 @@ export function Game() {
     setIsPanelOpen((prev) => !prev);
   }, [isBotMode]);
 
-  /** Solde compte + persistance serveur (stats / jetons DB) — uniquement practice bot « expert » sans gameId réseau. */
+  const postExpertPracticeRecordResult = useCallback((delta: number) => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    void fetch(apiUrl("/api/game/record-result"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        won: delta >= 0,
+        delta,
+        persistChips: true,
+      }),
+    })
+      .then((r) => r.json().catch(() => ({})))
+      .then((data) => {
+        if (data && typeof data === "object") {
+          mergeGamificationFromServerResponse(data as Record<string, unknown>);
+        }
+      })
+      .catch((err) => console.error("Erreur record-result:", err));
+  }, []);
+
+  /** Solde compte + persistance serveur — practice bot « expert » uniquement (local sans gameId, ou gameId practice-bot-* géré ailleurs). */
   const applyLocalExpertWalletDelta = useCallback(
     (delta: number) => {
-      if (gameIdParam) return;
+      // Partie cash / tournoi : le serveur porte le wallet ; pas de double comptage client.
+      if (gameIdParam && !String(gameIdParam).startsWith(PRACTICE_BOT_GAME_ID_PREFIX)) return;
       if (!isBotMode || !isExpertPracticeBot) return;
       if (delta !== 0) {
         addToUserBalance(delta);
@@ -971,26 +997,9 @@ export function Game() {
       const g = localHandGenerationRef.current;
       if (expertRecordSentForGenRef.current === g) return;
       expertRecordSentForGenRef.current = g;
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      void fetch(apiUrl("/api/game/record-result"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          won: delta >= 0,
-          delta,
-          persistChips: true,
-        }),
-      })
-        .then((r) => r.json().catch(() => ({})))
-        .then((data) => {
-          if (data && typeof data === "object") {
-            mergeGamificationFromServerResponse(data as Record<string, unknown>);
-          }
-        })
-        .catch((err) => console.error("Erreur record-result:", err));
+      postExpertPracticeRecordResult(delta);
     },
-    [gameIdParam, isBotMode, isExpertPracticeBot],
+    [gameIdParam, isBotMode, isExpertPracticeBot, postExpertPracticeRecordResult],
   );
 
   useEffect(() => {
@@ -1336,6 +1345,7 @@ export function Game() {
         previousHandIdBeforeUpdate &&
         incomingHandId !== previousHandIdBeforeUpdate
       ) {
+        expertPracticeSocketHandIdSyncedRef.current = null;
         setShowdownResult(null);
         showdownResultRef.current = null;
         setHandResult(null);
@@ -1496,9 +1506,28 @@ export function Game() {
         const potWon = winnerIds.length > 1 ? Math.floor(totalPot / winnerIds.length) : totalPot;
         const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
-        // Partie réseau : le portefeuille vient de la DB — ne pas ré-appliquer le delta en local (double comptage).
-        if (!gameIdParam && (!isBotMode || isExpertPracticeBot) && balanceChange !== 0) {
-          addToUserBalance(balanceChange);
+        const isPracticeBotServerGame = Boolean(
+          gameIdParam?.startsWith(PRACTICE_BOT_GAME_ID_PREFIX),
+        );
+        if (balanceChange !== 0) {
+          if (isPracticeBotServerGame) {
+            // Practice-bot via serveur : solde compte + DB seulement en expert.
+            if (isBotMode && isExpertPracticeBot) {
+              const hid =
+                typeof gameState.handId === "string" ? gameState.handId : "";
+              if (
+                hid &&
+                expertPracticeSocketHandIdSyncedRef.current !== hid
+              ) {
+                expertPracticeSocketHandIdSyncedRef.current = hid;
+                addToUserBalance(balanceChange);
+                postExpertPracticeRecordResult(balanceChange);
+              }
+            }
+          } else if (!gameIdParam && (!isBotMode || isExpertPracticeBot)) {
+            // Table locale sans gameId (legacy) : pas de double comptage avec une partie cash.
+            addToUserBalance(balanceChange);
+          }
         }
 
         // Multi : on déclenche la transition directe à la place du vieux ShowdownDisplay !
@@ -1576,8 +1605,18 @@ export function Game() {
     }) => {
       if (data.reason === "opponent_left" && data.winnerId != null && String(data.winnerId) === String(userId)) {
         const balanceChange = Math.round(data.pot ?? 0);
-        if (!gameIdParam && (!isBotMode || isExpertPracticeBot) && balanceChange !== 0) {
-          addToUserBalance(balanceChange);
+        const isPracticeBotServerGame = Boolean(
+          gameIdParam?.startsWith(PRACTICE_BOT_GAME_ID_PREFIX),
+        );
+        if (balanceChange !== 0) {
+          if (isPracticeBotServerGame) {
+            if (isBotMode && isExpertPracticeBot) {
+              addToUserBalance(balanceChange);
+              postExpertPracticeRecordResult(balanceChange);
+            }
+          } else if (!gameIdParam && (!isBotMode || isExpertPracticeBot)) {
+            addToUserBalance(balanceChange);
+          }
         }
         setShowdownResult((prevResult) => {
           if (prevResult) return prevResult;
@@ -1663,7 +1702,17 @@ export function Game() {
       socket.off("CASH_NEXT_HAND_READY_UPDATED", onNextHandReadyUpdated);
       socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
     };
-  }, [socket, gameIdParam, userId, isSpectating, navigate, t, isBotMode]);
+  }, [
+    socket,
+    gameIdParam,
+    userId,
+    isSpectating,
+    navigate,
+    t,
+    isBotMode,
+    isExpertPracticeBot,
+    postExpertPracticeRecordResult,
+  ]);
 
   useEffect(() => {
     if (!handResult || !gameIdParam || isBotMode || !userId) return;
