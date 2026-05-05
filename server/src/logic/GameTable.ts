@@ -1218,6 +1218,9 @@ export class GameTable {
       handEndReason: this.state.handEndReason,
       handRuntimePhase: this.state.handRuntimePhase,
       hiddenBetLiveWindow: this.state.hiddenBetLiveWindow,
+      minRaise: this.getMinRaise(),
+      bigBlind: this.bigBlindAmount,
+      smallBlind: this.smallBlindAmount,
       players: this.state.players.map((player) => ({
         id: player.id,
         name: player.name,

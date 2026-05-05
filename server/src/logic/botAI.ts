@@ -26,6 +26,8 @@ export interface BotActionResponse {
   action: BotAction
   amount?: number
   reasoning?: string
+  /** Présent quand l’IA expert Python renvoie un style (value / bluff / …). */
+  style?: string
 }
 
 /** Score max théorique (Evaluator — quinte flush royale, catégorie 9). */
@@ -235,12 +237,12 @@ export function hardBotDecision(req: BotActionRequest): BotActionResponse {
 export function expertBotDecision(req: BotActionRequest): BotActionResponse {
   return advancedPotOddsDecision(req, {
     name: 'expert',
-    preflopSteal: 0.3,
-    borderlineBluff: 0.52,
-    weakBluffCheck: 0.26,
-    potOddsTighten: 0.06,
-    valueRaiseMult: 3.5,
-    maxValueRaiseMult: 4.5,
+    preflopSteal: 0.28,
+    borderlineBluff: 0.46,
+    weakBluffCheck: 0.22,
+    potOddsTighten: 0.048,
+    valueRaiseMult: 3.85,
+    maxValueRaiseMult: 4.85,
   })
 }
 
@@ -349,7 +351,7 @@ function advancedPotOddsDecision(req: BotActionRequest, p: AdvancedProfile): Bot
     }
     return { action: 'CHECK', reasoning: `${p.name}: check weak` }
   }
-  if (headsUp && Math.random() < 0.24) {
+  if (headsUp && Math.random() < (p.name === 'expert' ? 0.18 : 0.24)) {
     return { action: 'CALL', amount: intChips(req.callAmount), reasoning: `${p.name}: hero call` }
   }
   return { action: 'FOLD', reasoning: `${p.name}: fold` }

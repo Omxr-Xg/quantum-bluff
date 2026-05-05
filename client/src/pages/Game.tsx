@@ -31,8 +31,16 @@ import { normalizeServerCard } from "../utils/cards";
 import { intChips } from "../utils/chips";
 import { getWinMultiplierFromDifficultyParam } from "../utils/botModeReward";
 import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
+import { DeckShuffleOverlay } from "../components/game/DeckShuffleOverlay";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
+import {
+  shouldBotReplyToHuman,
+  shouldBotTauntAfterAction,
+  pickBotReplyToHuman,
+  pickBotTauntAfterAction,
+} from "../utils/botTableChat";
+import { censorChatLinks, isChatContentEffectivelyEmpty } from "../utils/chatLinkCensor";
 
 type Card = ClientCard;
 
@@ -139,6 +147,7 @@ export function Game() {
   useEffect(() => {
     quantumPinnedRef.current = quantumPinned;
   }, [quantumPinned]);
+  const quantumDragSessionRef = useRef(false);
   const quantumHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const quantumLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -186,6 +195,7 @@ export function Game() {
   }, [clearQuantumLeaveTimer]);
 
   const onQuantumPanelLeave = useCallback(() => {
+    if (quantumDragSessionRef.current) return;
     clearQuantumLeaveTimer();
     quantumLeaveTimerRef.current = setTimeout(() => {
       if (!quantumPinnedRef.current) setIsQuantumOpen(false);
@@ -263,13 +273,13 @@ export function Game() {
   const [communityCardsState, setCommunityCardsState] = useState<(Card | null)[]>([null, null, null, null, null]);
   const [burnedCardsCount, setBurnedCardsCount] = useState(0);
   const [minRaise, setMinRaise] = useState(100);
+  const [tableBigBlind, setTableBigBlind] = useState<number>(BOT_TABLE_DEFAULTS.BIG_BLIND);
+  /** Mode bot local : incrément de relance min (dernière taille de raise), comme GameTable.getMinRaise — pas la mise max au pot. */
+  const [localMinRaiseIncrement, setLocalMinRaiseIncrement] = useState(BOT_TABLE_DEFAULTS.BIG_BLIND);
   const effectiveMinRaise = useMemo(() => {
-    if (!isBotMode) return minRaise;
-    const maxBet = Math.max(0, ...playersState.map(p => p.bet ?? 0));
-    const prevMaxBet = Math.max(0, ...playersState.map(p => p.currentBet ?? 0));
-    const lastRaiseIncrement = maxBet - prevMaxBet;
-    return Math.max(BOT_TABLE_DEFAULTS.BIG_BLIND, lastRaiseIncrement || BOT_TABLE_DEFAULTS.BIG_BLIND);
-  }, [isBotMode, playersState, minRaise]);
+    if (!isBotMode || gameIdParam) return minRaise;
+    return Math.max(BOT_TABLE_DEFAULTS.BIG_BLIND, localMinRaiseIncrement);
+  }, [isBotMode, gameIdParam, minRaise, localMinRaiseIncrement]);
   const [deck, setDeck] = useState<Card[]>([]);
   const [shuffleCount, setShuffleCount] = useState(0);
   const [showOpeningShuffle, setShowOpeningShuffle] = useState(false);
@@ -288,9 +298,8 @@ export function Game() {
   >(null);
   const gameOverReasonRef = useRef(gameOverReason);
   gameOverReasonRef.current = gameOverReason;
-  /** Practice réseau : snapshot PREFLOP reçu pendant l’écran de fin de main — appliqué au clic « Rejouer ». */
+  /** Practice réseau : snapshot reçu pendant l’écran de fin de main — appliqué au clic « Manche suivante ». */
   const pendingBotHandSocketStateRef = useRef<Record<string, unknown> | null>(null);
-  const pendingBotHandAutoApplyTimerRef = useRef<number | null>(null);
   const applySocketGameUpdateRef = useRef<(state: Record<string, unknown>) => void>(() => {});
   const [serverHandRuntimePhase, setServerHandRuntimePhase] = useState<string | undefined>(undefined);
   const [showdownResult, setShowdownResult] = useState<{
@@ -309,6 +318,8 @@ export function Game() {
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
+  /** Incrémenté à chaque reset / « manche suivante » — invalide les timeouts et fetch showdown retardés. */
+  const localHandGenerationRef = useRef(0);
   const gameStateFromSocketRef = useRef(false);
   const clearBotActionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const roundPlayersActedRef = useRef<Set<number>>(new Set());
@@ -324,8 +335,9 @@ export function Game() {
   const doStreetTransitionRef = useRef<(() => void) | null>(null);
   const streetPhaseEnteredRef = useRef<number>(0);
   const bothActedNoTurnRef = useRef(false);
-  const toAddLastRef = useRef(0);
   const botIsFetchingRef = useRef(false);
+  /** Une seule synchro `/record-result` par manche (mode expert local). */
+  const expertRecordSentForGenRef = useRef<number | null>(null);
   const [_showdownReveal, setShowdownReveal] = useState(false);
   const showdownStartedRef = useRef(false);
   const showdownResultRef = useRef<typeof showdownResult>(null);
@@ -378,6 +390,40 @@ export function Game() {
   } | null>(null);
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const flopAnimatedRef = useRef(false);
+
+  const pushFadingChatLine = useCallback(
+    (
+      player: string,
+      content: string,
+      msgType: "emoji" | "text",
+      opts?: { delayMs?: number; generation?: number },
+    ) => {
+      const delayMs = opts?.delayMs ?? 0;
+      const gen = opts?.generation ?? localHandGenerationRef.current;
+      window.setTimeout(() => {
+        if (gen !== localHandGenerationRef.current) return;
+        const id = Date.now() + Math.floor(Math.random() * 1000);
+        const newMessage: ChatMessage = {
+          id,
+          player,
+          content,
+          type: msgType,
+          timestamp: id,
+          isLeaving: false,
+        };
+        setChatMessages((prev) => [...prev, newMessage]);
+        window.setTimeout(() => {
+          if (gen !== localHandGenerationRef.current) return;
+          setChatMessages((prev) => prev.map((msg) => (msg.id === id ? { ...msg, isLeaving: true } : msg)));
+          window.setTimeout(() => {
+            if (gen !== localHandGenerationRef.current) return;
+            setChatMessages((prev) => prev.filter((msg) => msg.id !== id));
+          }, 500);
+        }, 4000);
+      }, delayMs);
+    },
+    [],
+  );
 
   const appendLocalHandAction = useCallback(
     (actor: BasePlayer | BotPlayer | undefined, kind: "check" | "call" | "raise" | "fold", extra?: { amount?: number }) => {
@@ -796,6 +842,9 @@ export function Game() {
 
   const resetBetsAndSetFirstToAct = (startIndex: number) => {
     setRoundPlayersActed(new Set());
+    if (!gameIdParam && isBotMode) {
+      setLocalMinRaiseIncrement(BOT_TABLE_DEFAULTS.BIG_BLIND);
+    }
     setPlayersState((prev) => {
       if (prev.length === 0) return prev;
       const firstIdx = startIndex % prev.length;
@@ -907,8 +956,46 @@ export function Game() {
 
   // ========== handleToggleBluff fonksiyonu ==========
   const handleToggleBluff = useCallback(() => {
+    if (isBotMode) return;
     setIsPanelOpen((prev) => !prev);
-  }, []);
+  }, [isBotMode]);
+
+  /** Solde compte + persistance serveur (stats / jetons DB) — uniquement practice bot « expert » sans gameId réseau. */
+  const applyLocalExpertWalletDelta = useCallback(
+    (delta: number) => {
+      if (gameIdParam) return;
+      if (!isBotMode || !isExpertPracticeBot) return;
+      if (delta !== 0) {
+        addToUserBalance(delta);
+      }
+      const g = localHandGenerationRef.current;
+      if (expertRecordSentForGenRef.current === g) return;
+      expertRecordSentForGenRef.current = g;
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      void fetch(apiUrl("/api/game/record-result"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          won: delta >= 0,
+          delta,
+          persistChips: true,
+        }),
+      })
+        .then((r) => r.json().catch(() => ({})))
+        .then((data) => {
+          if (data && typeof data === "object") {
+            mergeGamificationFromServerResponse(data as Record<string, unknown>);
+          }
+        })
+        .catch((err) => console.error("Erreur record-result:", err));
+    },
+    [gameIdParam, isBotMode, isExpertPracticeBot],
+  );
+
+  useEffect(() => {
+    if (isBotMode) setIsPanelOpen(false);
+  }, [isBotMode]);
 
   // ========== Devam eden useEffect'ler ==========
   useEffect(() => {
@@ -928,6 +1015,7 @@ export function Game() {
         setPlayerChips(getUserBalance());
         setPhase("init");
         setGameInitialized(false);
+        setLocalMinRaiseIncrement(BOT_TABLE_DEFAULTS.BIG_BLIND);
         setRoundPlayersActed(new Set());
         setSidePots([]);
         const contribs: Record<string, number> = {};
@@ -945,6 +1033,8 @@ export function Game() {
   useEffect(() => {
     const replay = (location.state as { replay?: boolean })?.replay;
     if (!replay || !isBotMode) return;
+    localHandGenerationRef.current += 1;
+    setLocalMinRaiseIncrement(BOT_TABLE_DEFAULTS.BIG_BLIND);
     const initial = getPlayers();
     initial.forEach((p) => {
       p.cards = [];
@@ -982,6 +1072,7 @@ export function Game() {
     setIsLoading(false);
     hasPlayerActedRef.current = false;
     setHasPlayerActed(false);
+    setShowBotHandEndPanel(false);
     navigate(location.pathname + location.search, { replace: true, state: {} });
   }, [location.state, isBotMode, navigate, location.pathname, location.search]);
 
@@ -1050,6 +1141,10 @@ export function Game() {
         setPhase(phase as GamePhase);
         setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
         setMinRaise((gameState as { minRaise?: number }).minRaise ?? 100);
+        setTableBigBlind((prev) => {
+          const bb = (gameState as { bigBlind?: number }).bigBlind;
+          return typeof bb === "number" && bb > 0 ? bb : prev;
+        });
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
@@ -1171,19 +1266,7 @@ export function Game() {
       ) {
         pendingBotHandSocketStateRef.current = gameState as Record<string, unknown>;
         lastAppliedSocketSnapshotSigRef.current = socketSnapshotSig;
-        if (pendingBotHandAutoApplyTimerRef.current) clearTimeout(pendingBotHandAutoApplyTimerRef.current);
-        pendingBotHandAutoApplyTimerRef.current = window.setTimeout(() => {
-          pendingBotHandAutoApplyTimerRef.current = null;
-          const pending = pendingBotHandSocketStateRef.current;
-          if (!pending) return;
-          pendingBotHandSocketStateRef.current = null;
-          setShowdownResult(null);
-          showdownResultRef.current = null;
-          setShowTransition(false);
-          lastScheduledShowdownTransitionSigRef.current = "";
-          lastAppliedSocketSnapshotSigRef.current = "";
-          applySocketGameUpdateRef.current?.(pending);
-        }, 3000);
+        /* La nouvelle main attend le bouton « Manche suivante » / Rejouer — pas d’application auto. */
         return;
       }
       lastAppliedSocketSnapshotSigRef.current = socketSnapshotSig;
@@ -1321,6 +1404,10 @@ export function Game() {
       });
       setPot(gameState.pot ?? 0);
       setMinRaise((gameState as { minRaise?: number }).minRaise ?? 100);
+      setTableBigBlind((prev) => {
+        const bb = (gameState as { bigBlind?: number }).bigBlind;
+        return typeof bb === "number" && bb > 0 ? bb : prev;
+      });
       setServerHandRuntimePhase(
         typeof (gameState as { handRuntimePhase?: string }).handRuntimePhase === "string"
           ? (gameState as { handRuntimePhase?: string }).handRuntimePhase
@@ -1409,7 +1496,8 @@ export function Game() {
         const potWon = winnerIds.length > 1 ? Math.floor(totalPot / winnerIds.length) : totalPot;
         const humanChipsAfter = humanServerChips ?? 0;
         const balanceChange = humanChipsAfter - startOfHandChipsRef.current;
-        if (!isBotMode || isExpertPracticeBot) {
+        // Partie réseau : le portefeuille vient de la DB — ne pas ré-appliquer le delta en local (double comptage).
+        if (!gameIdParam && (!isBotMode || isExpertPracticeBot) && balanceChange !== 0) {
           addToUserBalance(balanceChange);
         }
 
@@ -1488,7 +1576,7 @@ export function Game() {
     }) => {
       if (data.reason === "opponent_left" && data.winnerId != null && String(data.winnerId) === String(userId)) {
         const balanceChange = Math.round(data.pot ?? 0);
-        if (!isBotMode || isExpertPracticeBot) {
+        if (!gameIdParam && (!isBotMode || isExpertPracticeBot) && balanceChange !== 0) {
           addToUserBalance(balanceChange);
         }
         setShowdownResult((prevResult) => {
@@ -1764,6 +1852,37 @@ export function Game() {
     }
   }, [isBotMode, gameIdParam, phase, roundPlayersActed]);
 
+  /** Bot 100 % local : réattribuer le tour si aucun siège n’est actif alors qu’il reste des joueurs en main. */
+  useEffect(() => {
+    if (!isBotMode || gameIdParam) return;
+    if (phase !== "preflop" && phase !== "flop" && phase !== "turn" && phase !== "river") return;
+    const ps = playersStateRef.current;
+    if (ps.length < 2) return;
+    if (ps.some((p) => p.isActive)) return;
+    const eligible = ps.filter(
+      (p) => p.isConnected !== false && !(p.hasFolded ?? false) && (p.chips ?? 0) > 0,
+    );
+    if (eligible.length === 0) return;
+
+    let start = 0;
+    const dealerIdx = ps.findIndex((p) => p.isDealer);
+    if (phase === "preflop") {
+      const bbIdx = ps.findIndex((p) => p.role === "BB");
+      start =
+        bbIdx >= 0 ? (bbIdx + 1) % ps.length : dealerIdx >= 0 ? (dealerIdx + 3) % ps.length : 0;
+    } else {
+      start = dealerIdx >= 0 ? (dealerIdx + 1) % ps.length : 0;
+    }
+    for (let i = 0; i < ps.length; i++) {
+      const idx = (start + i) % ps.length;
+      const p = ps[idx];
+      if (p.isConnected !== false && !(p.hasFolded ?? false) && (p.chips ?? 0) > 0) {
+        setPlayersState((prev) => prev.map((pl, j) => ({ ...pl, isActive: j === idx })));
+        return;
+      }
+    }
+  }, [isBotMode, gameIdParam, phase, playersState]);
+
   useEffect(() => {
     if (!isBotMode || gameIdParam || !isBotThinking) return;
     const stuck = setTimeout(() => {
@@ -1875,7 +1994,11 @@ export function Game() {
       if (gameIdParam && activeIdx >= 0 && !("isBot" in players[activeIdx] && players[activeIdx].isBot) && !roundPlayersActed.has(activeIdx)) return;
 
       if (activeInHand.length === 1) {
-        const t = setTimeout(() => setPhase("showdown"), 1500);
+        const g = localHandGenerationRef.current;
+        const t = setTimeout(() => {
+          if (g !== localHandGenerationRef.current) return;
+          setPhase("showdown");
+        }, 1500);
         return () => clearTimeout(t);
       }
 
@@ -1969,7 +2092,9 @@ export function Game() {
 
   useEffect(() => {
     if (runOutPhase === null) return;
+    const g = localHandGenerationRef.current;
     const t = setTimeout(() => {
+      if (g !== localHandGenerationRef.current) return;
       const currentDeck = [...deckRef.current];
       const currentCommunity = [...communityCardsStateRef.current].slice(0, 5) as (Card | null)[];
       while (currentCommunity.length < 5) currentCommunity.push(null);
@@ -2058,6 +2183,8 @@ export function Game() {
     const community = validCommunity.length >= 5 ? validCommunity : fromRef.length >= 5 ? fromRef : validCommunity;
     if (community.length < 5) return;
 
+    const runGen = localHandGenerationRef.current;
+
     if (activeInHand.length === 1) {
       const sole = activeInHand[0];
       showdownStartedRef.current = true;
@@ -2077,8 +2204,16 @@ export function Game() {
             handName = data.handName ?? "Haute carte";
           }
         } catch { /* ignore */ }
+        if (runGen !== localHandGenerationRef.current) return;
         setPlayersState((prev) => prev.map((p) => (p.id === sole.id ? { ...p, chips: (p.chips ?? 0) + pot } : p)));
         if (sole.id === userId || sole.id === "human") setPlayerChips((prev) => prev + pot);
+        const heroSole = playersState.find((p) => p.id === userId || p.id === "human");
+        const stackBeforeSole = heroSole?.chips ?? playerChips;
+        const humanWonSole = sole.id === userId || sole.id === "human";
+        const endSole = humanWonSole ? stackBeforeSole + pot : stackBeforeSole;
+        const balSole = endSole - startOfHandChipsRef.current;
+        const toAddSole = isBotMode ? (balSole > 0 ? Math.round(balSole * winMultiplier) : balSole) : balSole;
+        applyLocalExpertWalletDelta(toAddSole);
         setPot(0);
         setShowdownResult({ winnerId: String(sole.id), winnerName: sole.name, hand: handName, handRank: 0, pot });
       };
@@ -2104,6 +2239,7 @@ export function Game() {
     const FETCH_TIMEOUT_MS = 8000;
 
     const applyFallback = (handNameOverride?: string) => {
+      if (runGen !== localHandGenerationRef.current) return;
       const fallbackWinner = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
       setPot(0);
       setShowdownResult({
@@ -2123,15 +2259,13 @@ export function Game() {
         const endChips = humanWonFb ? stackBefore + currentPot : stackBefore;
         const balanceChange = endChips - startChips;
         const toAddFb = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-        if (!isBotMode || isExpertPracticeBot) {
-          addToUserBalance(toAddFb);
-        }
-        toAddLastRef.current = toAddFb;
+        applyLocalExpertWalletDelta(toAddFb);
       }
     };
 
     const runComplete = async () => {
       try {
+        if (runGen !== localHandGenerationRef.current) return;
         const effectivePots = pots.length > 0 ? pots : [{ amount: currentPot, eligibleIds: activeInHand.map((p) => String(p.id)) }];
         const awards: Record<string, number> = {};
 
@@ -2159,6 +2293,7 @@ export function Game() {
           clearTimeout(to);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data: { winnerId?: string; winnerIds?: string[]; winnerName?: string; isSplit?: boolean; handName?: string; handRank?: number } = await res.json();
+          if (runGen !== localHandGenerationRef.current) return;
           const winnerIds = data.winnerIds ?? (data.winnerId ? [data.winnerId] : []);
           if (winnerIds.length === 0) continue;
 
@@ -2178,6 +2313,7 @@ export function Game() {
           });
         }
 
+        if (runGen !== localHandGenerationRef.current) return;
         setPlayersState((prev) =>
           prev.map((p) => {
             const award = awards[String(p.id)] ?? 0;
@@ -2193,10 +2329,7 @@ export function Game() {
         const endChips = stackBeforePotAward + humanShare;
         const balanceChange = endChips - startChips;
         const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-        if (!isBotMode || isExpertPracticeBot) {
-          addToUserBalance(toAdd);
-        }
-        toAddLastRef.current = toAdd;
+        applyLocalExpertWalletDelta(toAdd);
         setPot(0);
         setShowdownResult({
           winnerId: mainIsSplit ? "" : mainWinnerId,
@@ -2207,6 +2340,7 @@ export function Game() {
           isSplit: mainIsSplit,
         });
       } catch {
+        if (runGen !== localHandGenerationRef.current) return;
         let fallbackHand = "Haute carte";
         try {
           const fw = activeInHand.find((p) => String(p.id) !== humanId) ?? activeInHand[0];
@@ -2222,13 +2356,30 @@ export function Game() {
       }
     };
     runComplete();
-  }, [phase, showdownResult, handResult, isBotMode, playersState, communityCardsState, pot, winMultiplier, userId, gameIdParam]);
+  }, [
+    phase,
+    showdownResult,
+    handResult,
+    isBotMode,
+    playersState,
+    communityCardsState,
+    pot,
+    winMultiplier,
+    userId,
+    gameIdParam,
+    playerChips,
+    applyLocalExpertWalletDelta,
+    t,
+  ]);
 
   showdownResultRef.current = showdownResult;
   useEffect(() => {
     if (gameIdParam) return;
     if (!isBotMode || phase !== "showdown" || showdownResult !== null || handResult !== null) return;
+    const armedGen = localHandGenerationRef.current;
     const safety = setTimeout(async () => {
+      if (armedGen !== localHandGenerationRef.current) return;
+      if (phaseRef.current !== "showdown") return;
       if (showdownResultRef.current !== null) return;
       console.warn("[QB] Showdown safety: forcing completion after 12s");
       const active = playersState.filter((p) => !(p.hasFolded ?? false) && p.cards?.length === 2);
@@ -2245,6 +2396,9 @@ export function Game() {
           if (r.ok) { const d = await r.json(); safetyHand = d.handName ?? safetyHand; }
         } catch { /* ignore */ }
       }
+      if (armedGen !== localHandGenerationRef.current) return;
+      if (phaseRef.current !== "showdown") return;
+      if (showdownResultRef.current !== null) return;
       setPot(0);
       showdownStartedRef.current = true;
       if (winner) {
@@ -2270,13 +2424,22 @@ export function Game() {
           ? Math.round(balanceChangeSafety * winMultiplier)
           : balanceChangeSafety
         : balanceChangeSafety;
-      if (!isBotMode || isExpertPracticeBot) {
-        addToUserBalance(toAddSafety);
-      }
-      toAddLastRef.current = toAddSafety;
+      applyLocalExpertWalletDelta(toAddSafety);
     }, 12000);
     return () => clearTimeout(safety);
-  }, [phase, showdownResult, handResult, isBotMode, playersState, pot, userId, winMultiplier, gameIdParam]);
+  }, [
+    phase,
+    showdownResult,
+    handResult,
+    isBotMode,
+    playersState,
+    pot,
+    userId,
+    winMultiplier,
+    gameIdParam,
+    playerChips,
+    applyLocalExpertWalletDelta,
+  ]);
 
   useEffect(() => {
     if (!isBotMode || !showdownResult || gameOverReason) return;
@@ -2302,27 +2465,78 @@ export function Game() {
   useEffect(() => {
     if (!gameIdParam || !isBotMode || gameOverReason) return;
     if (serverHandRuntimePhase !== "HAND_COMPLETE") return;
-    const timer = window.setTimeout(() => {
-      setGameOverReason((prev) => prev ?? "practice_stuck");
+    const token = localStorage.getItem("token");
+    let cancelled = false;
+
+    const resyncTimer = window.setTimeout(() => {
+      if (cancelled || !userId || !token) return;
+      void fetch(
+        `${apiUrl(`/api/game/${encodeURIComponent(gameIdParam)}`)}?playerId=${encodeURIComponent(userId)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .then((st) => {
+          if (!st || cancelled) return;
+          lastAppliedSocketSnapshotSigRef.current = "";
+          applySocketGameUpdateRef.current(st as Record<string, unknown>);
+        })
+        .catch(() => {});
     }, 12000);
-    return () => clearTimeout(timer);
-  }, [gameIdParam, isBotMode, serverHandRuntimePhase, gameOverReason]);
+
+    const stuckTimer = window.setTimeout(() => {
+      if (cancelled) return;
+      setGameOverReason((prev) => prev ?? "practice_stuck");
+    }, 26000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(resyncTimer);
+      window.clearTimeout(stuckTimer);
+    };
+  }, [gameIdParam, isBotMode, serverHandRuntimePhase, gameOverReason, userId]);
+
+  /** Practice réseau : si le tour reste sur un bot trop longtemps, resync HTTP (file bot serveur lente ou socket manqué). */
+  const practiceBotTurnWatchId = useMemo(() => {
+    if (!gameIdParam || !isBotMode) return "";
+    const p = playersState.find((x) => x.isActive);
+    return p && String(p.id).startsWith("qb-bot-") ? String(p.id) : "";
+  }, [gameIdParam, isBotMode, playersState]);
+
+  useEffect(() => {
+    if (!gameIdParam || !isBotMode || !userId || gameOverReason) return;
+    if (phase !== "preflop" && phase !== "flop" && phase !== "turn" && phase !== "river") return;
+    if (!practiceBotTurnWatchId) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const t = window.setTimeout(() => {
+      const ap = playersStateRef.current.find((p) => p.isActive);
+      if (!ap || String(ap.id) !== practiceBotTurnWatchId) return;
+      if (gameOverReasonRef.current) return;
+      void fetch(
+        `${apiUrl(`/api/game/${encodeURIComponent(gameIdParam)}`)}?playerId=${encodeURIComponent(userId)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .then((st) => {
+          if (!st) return;
+          lastAppliedSocketSnapshotSigRef.current = "";
+          applySocketGameUpdateRef.current(st as Record<string, unknown>);
+        })
+        .catch(() => {});
+    }, 14000);
+
+    return () => window.clearTimeout(t);
+  }, [gameIdParam, isBotMode, userId, practiceBotTurnWatchId, phase, gameOverReason]);
 
   useEffect(() => {
     if (!gameOverReason) return;
-    if (pendingBotHandAutoApplyTimerRef.current) {
-      clearTimeout(pendingBotHandAutoApplyTimerRef.current);
-      pendingBotHandAutoApplyTimerRef.current = null;
-    }
     pendingBotHandSocketStateRef.current = null;
   }, [gameOverReason]);
 
   /** Fin de manche (bot) : appliquer l’état serveur mis en attente ou relancer localement. */
   const handleHandEndContinue = useCallback(() => {
-    if (pendingBotHandAutoApplyTimerRef.current) {
-      clearTimeout(pendingBotHandAutoApplyTimerRef.current);
-      pendingBotHandAutoApplyTimerRef.current = null;
-    }
+    localHandGenerationRef.current += 1;
     const pending = pendingBotHandSocketStateRef.current;
     pendingBotHandSocketStateRef.current = null;
     setShowdownResult(null);
@@ -2338,6 +2552,7 @@ export function Game() {
     setIsBotThinking(false);
     botIsFetchingRef.current = false;
     showdownStartedRef.current = false;
+    setShowBotHandEndPanel(false);
 
     const refreshPracticeFromApi = () => {
       if (!gameIdParam || !userId || isSpectating) return;
@@ -2374,6 +2589,7 @@ export function Game() {
   }, [gameIdParam, isBotMode, isSpectating, navigate, location.pathname, location.search, userId]);
 
   const handleHandEndToLobby = useCallback(() => {
+    localHandGenerationRef.current += 1;
     pendingBotHandSocketStateRef.current = null;
     setShowdownResult(null);
     showdownResultRef.current = null;
@@ -2465,6 +2681,7 @@ export function Game() {
     const isBotTurn = "isBot" in activePlayer && activePlayer.isBot;
     if (!isBotTurn || isBotThinking || botIsFetchingRef.current) return;
 
+    const botActionGen = localHandGenerationRef.current;
     setIsBotThinking(true);
     botIsFetchingRef.current = true;
 
@@ -2500,7 +2717,17 @@ export function Game() {
           return;
         }
 
-        const decision = await response.json();
+        const decision = await response.json() as {
+          action?: string;
+          amount?: number;
+          style?: string;
+        };
+        const expertStyle = typeof decision.style === "string" ? decision.style : undefined;
+        if (botActionGen !== localHandGenerationRef.current) {
+          setIsBotThinking(false);
+          botIsFetchingRef.current = false;
+          return;
+        }
         const botCurrentBet = activePlayer.bet ?? 0;
         const amountFromServer = intChips(decision.amount ?? 0);
         const amountToPut =
@@ -2526,6 +2753,7 @@ export function Game() {
         }, 5000);
 
         setTimeout(() => {
+          if (botActionGen !== localHandGenerationRef.current) return;
           switch (decision.action) {
             case "FOLD":
               handleFold(activePlayer.id);
@@ -2551,13 +2779,31 @@ export function Game() {
               break;
             }
           }
+          if (shouldBotTauntAfterAction(activePlayer.difficulty)) {
+            const taunt = pickBotTauntAfterAction({
+              difficulty: activePlayer.difficulty,
+              action: actionKind,
+              style: expertStyle,
+              pot,
+            });
+            pushFadingChatLine(activePlayer.name, taunt.content, taunt.type, {
+              generation: botActionGen,
+              delayMs: 380 + Math.floor(Math.random() * 520),
+            });
+          }
           setIsBotThinking(false);
           botIsFetchingRef.current = false;
         }, 3000);
       } catch (error) {
         console.error("Erreur API bot:", error);
         clearTimeout(timeoutId);
+        if (botActionGen !== localHandGenerationRef.current) {
+          setIsBotThinking(false);
+          botIsFetchingRef.current = false;
+          return;
+        }
         setTimeout(() => {
+          if (botActionGen !== localHandGenerationRef.current) return;
           if (callAmount === 0) handleCheck(activePlayer.id);
           else handleFold(activePlayer.id);
           setIsBotThinking(false);
@@ -2567,32 +2813,21 @@ export function Game() {
     };
 
     fetchBotDecision();
-  }, [isBotMode, gameIdParam, playersState, isBotThinking, phase, communityCardsState, pot, callAmount, addToast, handResult]);
-
-  useEffect(() => {
-    if (handResult === null || !isBotMode) return;
-    const token = localStorage.getItem("token");
-    const recordUrl = apiUrl("/api/game/record-result");
-    
-    if (token && isExpertPracticeBot) {
-      fetch(recordUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          won: handResult === "win",
-          delta: toAddLastRef.current,
-          persistChips: isExpertPracticeBot,
-        }),
-      })
-        .then((r) => r.json().catch(() => ({})))
-        .then((data) => {
-          if (data && typeof data === "object") {
-            mergeGamificationFromServerResponse(data as Record<string, unknown>);
-          }
-        })
-        .catch((err) => console.error("Erreur de sauvegarde d'argent :", err));
-    }
-  }, [handResult, isBotMode, isExpertPracticeBot]);
+  }, [
+    isBotMode,
+    gameIdParam,
+    playersState,
+    isBotThinking,
+    phase,
+    communityCardsState,
+    pot,
+    callAmount,
+    currentBet,
+    effectiveMinRaise,
+    addToast,
+    handResult,
+    pushFadingChatLine,
+  ]);
 
   const handleFold = (playerId?: number | string) => {
     if (handResult !== null) return;
@@ -2700,9 +2935,7 @@ export function Game() {
       const endChips = humanWon ? winnerChipsBefore + pot : (heroRowFold?.chips ?? playerChips);
       const balanceChange = endChips - startChips;
       const toAdd = isBotMode ? (balanceChange > 0 ? Math.round(balanceChange * winMultiplier) : balanceChange) : balanceChange;
-      if (!isBotMode || isExpertPracticeBot) {
-        addToUserBalance(toAdd);
-      }
+      applyLocalExpertWalletDelta(toAdd);
       setPot(0);
     }
   };
@@ -2985,18 +3218,46 @@ export function Game() {
         ? playersState.findIndex((p) => p.id === playerId)
         : playersState.findIndex((p) => p.id === userId || p.id === "human");
     if (!gameIdParam) {
+      if (isBotMode) {
+        const actingId = playerId ?? userId ?? "human";
+        const actorRow = playersState.find((p) => p.id === actingId);
+        const stackBefore = actorRow?.chips ?? 0;
+        const betBefore = actorRow?.bet ?? 0;
+        const prevHigh = Math.max(0, ...playersState.map((p) => p.bet ?? 0));
+        const actualPut =
+          playerId !== undefined && playerId !== hero?.id
+            ? Math.min(totalToPut, Math.max(0, stackBefore))
+            : totalToPut;
+        const betAfter = betBefore + actualPut;
+        const newHigh = Math.max(prevHigh, betAfter);
+        const increment = newHigh - prevHigh;
+        const isAllInRaise = stackBefore > 0 && actualPut >= stackBefore;
+        const isShortAllIn = isAllInRaise && raiseAmount < localMinRaiseIncrement;
+        if (increment > 0 && !isShortAllIn) {
+          setLocalMinRaiseIncrement(
+            Math.max(BOT_TABLE_DEFAULTS.BIG_BLIND, increment),
+          );
+        }
+      }
       appendLocalHandAction(justActedIndex >= 0 ? playersState[justActedIndex] : undefined, "raise", { amount: raiseAmount });
       nextTurn(justActedIndex);
     }
   };
 
   const handleSendMessage = (content: string, type: "emoji" | "text") => {
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    const outgoing = censorChatLinks(content);
+    if (isChatContentEffectivelyEmpty(outgoing)) {
+      addToast(t("game.chatLinkBlocked", "Les liens ne sont pas autorisés dans le chat."), "error");
+      return;
+    }
     const id = Date.now();
     const myName = playersState.find((p) => p.id === userId || p.id === "human")?.name ?? "Vous";
     const newMessage: ChatMessage = {
       id: id,
       player: "Vous",
-      content: content,
+      content: outgoing,
       type: type,
       timestamp: id,
       isLeaving: false,
@@ -3009,7 +3270,7 @@ export function Game() {
         gameId: gameIdParam,
         playerId: String(userId),
         playerName: myName,
-        content,
+        content: outgoing,
         type,
       });
     }
@@ -3026,37 +3287,19 @@ export function Game() {
       }, 500);
     }, 4000);
 
-    if (mode === "bot" && Math.random() > 0.5) {
-      setTimeout(() => {
-        const botId = Date.now();
-        const botEmojis = ["🔥", "😎", "💰", "🎯", "👑", "💪", "🎲"];
-        const botMessages = ["Bien joué !", "Intéressant", "On verra", "GG WP"];
-        const isEmoji = Math.random() > 0.5;
-
-        const botResponse: ChatMessage = {
-          id: botId,
-          player: "Bot Alpha",
-          content: isEmoji
-            ? botEmojis[Math.floor(Math.random() * botEmojis.length)]
-            : botMessages[Math.floor(Math.random() * botMessages.length)],
-          type: isEmoji ? "emoji" : "text",
-          timestamp: botId,
-          isLeaving: false,
-        };
-
-        setChatMessages((prev) => [...prev, botResponse]);
-
-        setTimeout(() => {
-          setChatMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === botId ? { ...msg, isLeaving: true } : msg
-            )
-          );
-          setTimeout(() => {
-            setChatMessages((prev) => prev.filter((msg) => msg.id !== botId));
-          }, 500);
-        }, 4000);
-      }, 2000);
+    if (mode === "bot") {
+      const chatGen = localHandGenerationRef.current;
+      const bots = playersStateRef.current.filter((p): p is BotPlayer => "isBot" in p && p.isBot);
+      if (bots.length > 0) {
+        const replier = bots[Math.floor(Math.random() * bots.length)]!;
+        if (shouldBotReplyToHuman(replier.difficulty)) {
+          const line = pickBotReplyToHuman(replier.difficulty, type, outgoing);
+          pushFadingChatLine(replier.name, line.content, line.type, {
+            generation: chatGen,
+            delayMs: 900 + Math.floor(Math.random() * 1400),
+          });
+        }
+      }
     }
   };
 
@@ -3111,7 +3354,7 @@ export function Game() {
                 onClick={handleHandEndContinue}
                 className="rounded-xl px-5 py-3 font-semibold bg-amber-500 text-slate-900 hover:bg-amber-400 transition-colors"
               >
-                {t("game.playAgainSameSettings", "Rejouer")}
+                {t("game.nextRoundButton")}
               </button>
               <button
                 type="button"
@@ -3226,82 +3469,7 @@ export function Game() {
 
       <AnimatePresence>
         {(phase === "shuffle" || showOpeningShuffle) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", damping: 20, stiffness: 300 }}
-              className="relative flex flex-col items-center gap-8"
-            >
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-80 bg-amber-500/15 rounded-full blur-[60px] -z-10 pointer-events-none" />
-              <div className="relative w-36 h-52" style={{ perspective: "1000px" }}>
-                {[...Array(12)].map((_, i) => {
-                  const isLeft = i % 2 === 0;
-                  const spread = shuffleCount % 2 === 0 ? 1 : -1;
-                  const angle = spread * (isLeft ? 12 : -12);
-                  const offsetX = spread * (isLeft ? -18 : 18);
-                  const offsetY = spread * (isLeft ? -8 : 8);
-                  const z = i * 2;
-                  return (
-                    <motion.div
-                      key={i}
-                      className="absolute inset-0 rounded-xl border-2 border-amber-400/60 shadow-2xl"
-                      style={{
-                        background: "linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1e3a5f 100%)",
-                        backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(234,179,8,0.08) 8px, rgba(234,179,8,0.08) 16px), repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(234,179,8,0.06) 8px, rgba(234,179,8,0.06) 16px)",
-                        boxShadow: "0 0 0 1px rgba(234,179,8,0.2), 0 10px 40px -10px rgba(0,0,0,0.5)",
-                        left: `${i * 2}px`,
-                        top: `${i * 1.5}px`,
-                        zIndex: z,
-                      }}
-                      animate={{
-                        rotate: angle,
-                        x: offsetX,
-                        y: offsetY,
-                        rotateY: shuffleCount % 2 === 0 ? 0 : (i % 2) * 10,
-                      }}
-                      transition={{
-                        type: "spring",
-                        damping: 18,
-                        stiffness: 200,
-                        delay: i * 0.02,
-                      }}
-                    >
-                      <div className="absolute inset-0 flex items-center justify-center rounded-xl overflow-hidden">
-                        <div className="w-12 h-16 rounded border border-amber-400/30 flex items-center justify-center">
-                          <span className="text-amber-400/40 text-2xl font-bold">♠</span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-
-              <motion.div
-                className="flex flex-col items-center gap-1"
-                animate={{ opacity: [1, 0.7, 1] }}
-                transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <p className="text-amber-300 font-bold text-2xl tracking-[0.3em] uppercase drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]">
-                  {t('startScreen.shuffling')}
-                </p>
-                <div className="h-1 w-28 rounded-full bg-slate-700/80 overflow-hidden mt-2">
-                  <motion.div
-                    className="h-full bg-amber-400 rounded-full"
-                    initial={{ width: "0%" }}
-                    animate={{ width: ["0%", "100%"] }}
-                    transition={{ duration: 1.4, ease: "easeInOut", repeat: Infinity, repeatDelay: 0.2 }}
-                  />
-                </div>
-              </motion.div>
-            </motion.div>
-          </motion.div>
+          <DeckShuffleOverlay key="deck-shuffle" shuffleCount={shuffleCount} title={t("startScreen.shuffling")} />
         )}
       </AnimatePresence>
 
@@ -3333,7 +3501,6 @@ export function Game() {
           <RoundTransition 
             roundNumber={roundCount} 
             winner={lastWinnerData} 
-            duration={3}
             onComplete={() => {
               setShowTransition(false);
               setRoundCount((prev) => prev + 1);
@@ -3730,9 +3897,13 @@ export function Game() {
         onToggle={closeQuantumPanel}
         onPanelPointerEnter={onQuantumPanelEnter}
         onPanelPointerLeave={onQuantumPanelLeave}
+        onDragSessionChange={(active) => {
+          quantumDragSessionRef.current = active;
+          if (active) clearQuantumLeaveTimer();
+        }}
       />
       <HiddenBetsPanel
-      isOpen={isPanelOpen}
+      isOpen={isPanelOpen && !isBotMode}
       onToggle={handleToggleBluff}
       players={activePlayers}
       gameId={gameIdParam}
@@ -3793,6 +3964,7 @@ export function Game() {
           callAmount={callAmount}
           minRaise={effectiveMinRaise}
           maxRaise={Math.max(0, displayedHeroChips - callAmount)}
+          raisePresetStep={isBotMode && !gameIdParam ? BOT_TABLE_DEFAULTS.BIG_BLIND : tableBigBlind}
           isMyTurn={isRoundInteractable && handResult === null && isMyTurn}
           isLoading={isLoading}
           hasFolded={hasFoldedFromState}
@@ -3803,7 +3975,10 @@ export function Game() {
           onToggleQuantum={onQuantumToggleClick}
           onQuantumHoverEnter={onQuantumProbasEnter}
           onQuantumHoverLeave={onQuantumProbasLeave}
-          onToggleHiddenBets={() => setIsPanelOpen(!isPanelOpen)}
+          onToggleHiddenBets={() => {
+            if (!isBotMode) setIsPanelOpen(!isPanelOpen);
+          }}
+          hiddenBetsDisabled={isBotMode}
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
           isHiddenBetsOpen={isPanelOpen}
           isChatOpen={isChatOpen}
@@ -3873,11 +4048,20 @@ export function Game() {
                 <button
                   type="button"
                   role="menuitem"
+                  aria-disabled={isBotMode}
+                  title={isBotMode ? t("game.hiddenBetsUnavailableBotMode") : undefined}
                   onClick={() => {
+                    if (isBotMode) return;
                     setIsPanelOpen((o) => !o);
                     setShowMenu(false);
                   }}
-                  className={`flex w-full items-center gap-3 px-4 py-3 transition-all ${isPanelOpen ? "bg-yellow-500/15 text-yellow-400" : "text-white hover:bg-slate-700/80"}`}
+                  className={`flex w-full items-center gap-3 px-4 py-3 transition-all ${
+                    isBotMode
+                      ? "cursor-not-allowed opacity-45 text-slate-500"
+                      : isPanelOpen
+                        ? "bg-yellow-500/15 text-yellow-400"
+                        : "text-white hover:bg-slate-700/80"
+                  }`}
                 >
                   <Trophy className="h-5 w-5 shrink-0" />
                   <span className="text-sm font-semibold">{t("hiddenBets.title")}</span>

@@ -165,7 +165,10 @@ async function callPythonExpertAi(
       reason: parsed.data.reason,
     })
     const reason = `python-expert(${parsed.data.confidence.toFixed(2)}, ${parsed.data.style}): ${parsed.data.reason}`
-    return convertAiAction(parsed.data.action, parsed.data.amount, req, reason)
+    return {
+      ...convertAiAction(parsed.data.action, parsed.data.amount, req, reason),
+      style: parsed.data.style,
+    }
   } finally {
     clearTimeout(timeout)
   }

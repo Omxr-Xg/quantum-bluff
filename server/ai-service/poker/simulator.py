@@ -59,7 +59,7 @@ def sample_situation() -> dict[str, Any]:
     random.shuffle(deck)
     scenario = random.choices(
         ["premium_preflop", "speculative", "draw_pressure", "value_spot", "trash", "balanced"],
-        weights=[0.14, 0.16, 0.2, 0.2, 0.12, 0.18],
+        weights=[0.12, 0.14, 0.26, 0.26, 0.09, 0.13],
         k=1,
     )[0]
     street_weights = [0.48, 0.24, 0.16, 0.12] if scenario in {"premium_preflop", "speculative", "trash"} else [0.18, 0.36, 0.25, 0.21]

@@ -10,6 +10,10 @@ import {
   updateRequestSchema
 } from '../validation/friends.validation.js'
 import rateLimit from 'express-rate-limit'
+import {
+  censorChatLinks,
+  isChatContentEffectivelyEmpty,
+} from '../utils/chatLinkCensor.js'
 
 const router = express.Router()
 
@@ -175,11 +179,16 @@ messagesRouter.post('/', friendMessageSendLimiter, async (req, res) => {
       allowedAttributes: {}
     })
 
+    const censoredContent = censorChatLinks(safeContent)
+    if (isChatContentEffectivelyEmpty(censoredContent)) {
+      return res.status(400).json({ error: 'MESSAGE_LINKS_NOT_ALLOWED' })
+    }
+
     const message = await prisma.friendMessage.create({
       data: {
         senderId,
         receiverId: receiverIdStr,
-        content: safeContent
+        content: censoredContent
       },
       include: {
         sender: { select: { id: true, username: true } },

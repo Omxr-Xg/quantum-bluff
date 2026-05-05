@@ -11,10 +11,15 @@ import { GameTable } from '../logic/GameTable.js'
 import type { Player } from '../types/poker.js'
 import {
   PRACTICE_BOT_GAME_PREFIX,
+  isPracticeBotGameId,
   registerPracticeBotGame,
 } from '../shared/practiceBotGames.js'
-import { runPracticeBotTurnsChain } from '../poker/services/practiceBotTurns.service.js'
+import {
+  broadcastPracticeTableState,
+  runPracticeBotTurnsChain,
+} from '../poker/services/practiceBotTurns.service.js'
 import type { BotDifficulty } from '../logic/botAI.js'
+import { intChips } from '../utils/chips.js'
 
 const router = express.Router()
 const gameReadLimiter = rateLimit({
@@ -228,7 +233,18 @@ router.post('/:gameId/action', authMiddleware, gameActionLimiter, async (req, re
       expectedStreet,
     })
 
-    res.json(game.getSanitizedState(playerId))
+    const io = req.app.get('io') as Server | undefined
+    if (io && isPracticeBotGameId(gameId)) {
+      await runPracticeBotTurnsChain(io, gameId)
+      await broadcastPracticeTableState(io, gameId)
+    }
+
+    const freshAfter = await activeGames.get(gameId)
+    res.json(
+      freshAfter
+        ? freshAfter.getSanitizedState(playerId)
+        : game.getSanitizedState(playerId),
+    )
   } catch (error) {
     const e = error as { code?: string; message?: string; httpStatus?: number }
     console.error('Erreur action:', error)
@@ -289,12 +305,17 @@ router.post('/record-result', authMiddleware, async (req, res) => {
     // En "practice bot", on peut choisir de ne pas persister le solde joueur
     // (objectif: solde stable, sauf difficulté expert).
     if (persistChips === true && chipsDelta !== 0) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          chips: { increment: chipsDelta },
-        },
-        select: { id: true },
+      await prisma.$transaction(async (tx) => {
+        const row = await tx.user.findUnique({
+          where: { id: userId },
+          select: { chips: true },
+        })
+        if (!row) return
+        const next = Math.max(0, intChips(row.chips) + chipsDelta)
+        await tx.user.update({
+          where: { id: userId },
+          data: { chips: next },
+        })
       })
     }
 

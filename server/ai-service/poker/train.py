@@ -97,9 +97,10 @@ def train(samples: int, epochs: int, output: Path, dataset: Path | None = None, 
     train_y = torch.tensor(train_labels, dtype=torch.long)
     validation_x = torch.tensor(validation_rows, dtype=torch.float32)
     validation_y = torch.tensor(validation_labels, dtype=torch.long)
-    loader = DataLoader(TensorDataset(train_x, train_y), batch_size=256, shuffle=True)
+    loader = DataLoader(TensorDataset(train_x, train_y), batch_size=288, shuffle=True)
     model = ExpertPolicy(len(FEATURE_NAMES))
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.004, weight_decay=0.0008)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.0032, weight_decay=0.00075)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=max(3, epochs // 4), gamma=0.88)
     loss_fn = nn.CrossEntropyLoss(weight=_class_weights(train_labels))
     history = []
 
@@ -108,8 +109,9 @@ def train(samples: int, epochs: int, output: Path, dataset: Path | None = None, 
             optimizer.zero_grad()
             loss = loss_fn(model(batch_x), batch_y)
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.95)
             optimizer.step()
+        scheduler.step()
         history.append({"epoch": epoch + 1, **_evaluate(model, validation_x, validation_y)})
 
     layers = [module for module in model.net if isinstance(module, nn.Linear)]
@@ -141,8 +143,8 @@ def train(samples: int, epochs: int, output: Path, dataset: Path | None = None, 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train the Quantum Bluff expert poker bot policy.")
-    parser.add_argument("--samples", type=int, default=50_000)
-    parser.add_argument("--epochs", type=int, default=8)
+    parser.add_argument("--samples", type=int, default=90_000)
+    parser.add_argument("--epochs", type=int, default=14)
     parser.add_argument("--dataset", type=Path)
     parser.add_argument("--output", type=Path, default=Path("model/expert_bot.pt"))
     parser.add_argument("--metrics-output", type=Path)

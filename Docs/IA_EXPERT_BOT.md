@@ -40,13 +40,15 @@ uvicorn main:app --reload --port 8000
 
 En développement, `npm run dev` à la racine lance aussi le service IA via `dev:ai`. Après modification de `server/.env`, il faut redémarrer `npm run dev` pour que le backend relise `AI_SERVICE_ENABLED` et `AI_SERVICE_URL`.
 
-Régénérer le modèle :
+Régénérer le modèle (professeur `expert_rules.py` + MLP) — **plus d’échantillons et d’époques par défaut** pour coller au professeur affiné :
 
 ```bash
 cd server/ai-service
-python -m poker.simulator --samples 100000 --output data/simulated_poker_dataset.csv
-python -m poker.train --dataset data/simulated_poker_dataset.csv --epochs 8 --output model/expert_bot.pt
+python -m poker.simulator --samples 120000 --output data/simulated_poker_dataset.csv
+python -m poker.train --dataset data/simulated_poker_dataset.csv --epochs 14 --output model/expert_bot.pt
 ```
+
+Sans dataset CSV, `train` génère en mémoire (`--samples 90000` par défaut, 14 époques, batch 288, StepLR). Pour pousser encore : `--samples 200000 --epochs 22`.
 
 Évaluer l’IA :
 

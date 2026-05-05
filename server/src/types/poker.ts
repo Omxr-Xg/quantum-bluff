@@ -69,6 +69,10 @@ export interface GameState {
   burnedCardsCount?: number
   /** Relance minimum côté serveur (cash / tournoi). */
   minRaise?: number
+  /** Grosse blind de la table (presets de relance côté client). */
+  bigBlind?: number
+  /** Petite blind de la table. */
+  smallBlind?: number
   /** Durée max d’un tour en secondes (cash game multi) */
   turnTimeLimitSec?: number
   /** Identifiant logique de la main courante (canonical runtime state). */

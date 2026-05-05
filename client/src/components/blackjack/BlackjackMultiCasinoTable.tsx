@@ -236,7 +236,7 @@ export function BlackjackMultiCasinoTable({
           }}
         >
           <div
-            className="relative h-[clamp(22rem,58dvh,34rem)] overflow-hidden rounded-[2rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_110px_rgba(0,0,0,0.38),inset_0_12px_32px_rgba(255,255,255,0.045)] sm:rounded-[2.5rem]"
+            className="relative h-[clamp(20rem,min(52dvh,70svh),34rem)] overflow-hidden rounded-[2rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_110px_rgba(0,0,0,0.38),inset_0_12px_32px_rgba(255,255,255,0.045)] sm:h-[clamp(22rem,58dvh,34rem)] sm:rounded-[2.5rem]"
             style={{
               background: `
                 radial-gradient(ellipse 115% 78% at 50% 18%, rgba(255,255,255,0.08) 0%, transparent 50%),
@@ -263,7 +263,7 @@ export function BlackjackMultiCasinoTable({
               />
             </div>
 
-            <div className="relative z-10 flex flex-col items-center gap-1 px-4 pt-5 text-center sm:pt-6">
+            <div className="relative z-10 flex flex-col items-center gap-0.5 px-4 pt-2 text-center sm:gap-1 sm:pt-6">
               <div className="inline-flex flex-wrap items-center justify-center gap-2">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#c9a227]/40 bg-black/35 px-4 py-1.5 shadow-lg backdrop-blur-sm">
                   <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#d4af37]/90">
@@ -287,8 +287,8 @@ export function BlackjackMultiCasinoTable({
               </p>
             </div>
 
-            <div className="relative z-10 mt-4 flex flex-col items-center sm:mt-6">
-              <div className="mb-2 flex items-center gap-2">
+            <div className="relative z-10 mt-2 flex flex-col items-center sm:mt-5 md:mt-6">
+              <div className="mb-1 flex items-center gap-2 sm:mb-2">
                 <span className="rounded-md border border-white/20 bg-black/30 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/90 shadow">
                   {t("bjMulti.dealer")}
                 </span>
@@ -299,7 +299,7 @@ export function BlackjackMultiCasinoTable({
                   ) : null}
                 </div>
               </div>
-              <div className="flex min-h-[5.75rem] items-center justify-center pl-4">
+              <div className="flex min-h-[4.25rem] items-center justify-center pl-3 sm:min-h-[5.75rem] sm:pl-4">
                 {state.dealerCards.length === 0 ? (
                   <div className="pointer-events-none opacity-0" aria-hidden>
                     <PlayingCard hidden />
@@ -338,7 +338,7 @@ export function BlackjackMultiCasinoTable({
               </div>
             </div>
 
-            <div className="relative z-10 mx-auto mt-6 flex w-full min-w-0 max-w-full flex-wrap md:flex-nowrap overflow-x-auto md:overflow-visible items-end justify-center gap-2 px-2 pb-4 sm:mt-10 sm:gap-4 sm:px-4 scroll-smooth snap-x snap-mandatory scrollbar-hide">
+            <div className="relative z-10 mx-auto mt-3 flex w-full min-w-0 max-w-full flex-wrap md:flex-nowrap overflow-x-auto md:overflow-visible items-end justify-center gap-2 px-2 pb-3 sm:mt-7 sm:gap-4 sm:pb-4 md:mt-9 lg:mt-10 scroll-smooth snap-x snap-mandatory scrollbar-hide">
               {sortedSeats.map((s, idx) => {
                 const isYou = s.userId === userId;
                 const seatAvatar = getPlayerAvatar(s.username, s.userId, userId, s.avatarUrl);
@@ -442,7 +442,7 @@ export function BlackjackMultiCasinoTable({
           </div>
         </div>
 
-        <div className="relative z-20 mx-auto mt-6 max-w-3xl rounded-[2rem] border border-white/10 bg-slate-950/55 px-4 py-4 shadow-[0_16px_40px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md sm:px-8">
+        <div className="relative z-20 mx-auto mt-4 max-w-3xl rounded-[2rem] border border-white/10 bg-slate-950/55 px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md sm:mt-6 sm:py-4 sm:px-8">
           {children}
         </div>
       </div>

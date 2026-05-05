@@ -12,7 +12,12 @@ const ORPHAN_RUNTIME_GRACE_MS = 30 * 60 * 1000
 const ORPHAN_RUNTIME_NO_ROOM_MS = 2 * 60 * 1000
 const NON_PLAYING_RUNTIME_GRACE_MS = 10 * 60 * 1000
 /** Salle d’attente sans activité (updatedAt) : suppression automatique. */
-const WAITING_ROOM_IDLE_MS = 5 * 60 * 1000
+const WAITING_ROOM_IDLE_MS = 10 * 60 * 1000
+/**
+ * Durée de vie max d’une salle WAITING (createdAt), même si updatedAt est rafraîchi.
+ * Supprime les salles fantômes affichées pendant plusieurs jours.
+ */
+const WAITING_ROOM_MAX_LIFETIME_MS = 3 * 24 * 60 * 60 * 1000
 const PLAYING_ROOM_STUCK_MAX_AGE_MS = 2 * 60 * 60 * 1000
 
 type RecoveryMetrics = {
@@ -304,8 +309,46 @@ export async function cleanupOrphanBlackjackRuntime(): Promise<void> {
   }
 }
 
+/**
+ * Supprime les salles blackjack WAITING :
+ * - aucun siège ;
+ * - inactives (updatedAt) depuis WAITING_ROOM_IDLE_MS ;
+ * - trop anciennes (createdAt) depuis WAITING_ROOM_MAX_LIFETIME_MS (filet contre updatedAt bloqué).
+ * Appelée à chaque GET lobby + cron.
+ */
+export async function pruneInactiveBlackjackWaitingRooms(): Promise<number> {
+  const idleCutoff = new Date(Date.now() - WAITING_ROOM_IDLE_MS)
+  const maxLifeCutoff = new Date(Date.now() - WAITING_ROOM_MAX_LIFETIME_MS)
+  try {
+    const res = await prisma.blackjackRoom.deleteMany({
+      where: {
+        status: 'WAITING',
+        OR: [
+          { seats: { none: {} } },
+          { updatedAt: { lt: idleCutoff } },
+          { createdAt: { lt: maxLifeCutoff } },
+        ],
+      },
+    })
+    return res.count
+  } catch (err) {
+    rootLogger.warn({
+      msg: 'bj_waiting_prune_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    })
+    return 0
+  }
+}
+
 export async function cleanupStaleBlackjackRooms(): Promise<void> {
+  const waitingPruned = await pruneInactiveBlackjackWaitingRooms()
+  if (waitingPruned > 0) {
+    metrics.cleanupRoomDeleted += waitingPruned
+    rootLogger.info({ msg: 'bj_waiting_rooms_pruned', count: waitingPruned })
+  }
+
   const rooms = await prisma.blackjackRoom.findMany({
+    where: { status: 'PLAYING' },
     select: {
       id: true,
       status: true,
@@ -329,36 +372,36 @@ export async function cleanupStaleBlackjackRooms(): Promise<void> {
     const lastActivityMs = room.updatedAt?.getTime?.() ?? room.createdAt.getTime()
     const ageMs = nowMs - lastActivityMs
 
-    if (room.status === 'WAITING') {
-      if (ageMs <= WAITING_ROOM_IDLE_MS) continue
-      await prisma.blackjackRoom.delete({ where: { id: room.id } })
-      metrics.cleanupRoomDeleted += 1
-      continue
-    }
-
-    if (room.status !== 'PLAYING') continue
     if (ageMs <= PLAYING_ROOM_STUCK_MAX_AGE_MS) continue
 
     const tableId = room.gameId
-    if (!tableId) {
+    try {
+      if (!tableId) {
+        await prisma.blackjackRoom.delete({ where: { id: room.id } })
+        metrics.cleanupRoomDeleted += 1
+        continue
+      }
+
+      const runtimeExists = await blackjackStateStore.exists(tableId)
+      if (runtimeExists) continue
+
+      const snapshotExists = Boolean(
+        await snapshotDelegate?.findUnique?.({
+          where: { roomId: room.id },
+          select: { roomId: true },
+        })
+      )
+      if (snapshotExists) continue
+
       await prisma.blackjackRoom.delete({ where: { id: room.id } })
       metrics.cleanupRoomDeleted += 1
-      continue
-    }
-
-    const runtimeExists = await blackjackStateStore.exists(tableId)
-    if (runtimeExists) continue
-
-    const snapshotExists = Boolean(
-      await snapshotDelegate?.findUnique?.({
-        where: { roomId: room.id },
-        select: { roomId: true },
+    } catch (err) {
+      rootLogger.warn({
+        msg: 'bj_playing_room_prune_failed',
+        roomId: room.id,
+        detail: err instanceof Error ? err.message : String(err),
       })
-    )
-    if (snapshotExists) continue
-
-    await prisma.blackjackRoom.delete({ where: { id: room.id } })
-    metrics.cleanupRoomDeleted += 1
+    }
   }
 }
 

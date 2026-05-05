@@ -171,12 +171,13 @@ router.post('/action', botActionLimiter, async (req, res) => {
 
     const rawDecision = await decideBotActionWithExpertAi(botRequest)
     const decision = sanitizeBotDecision(rawDecision, botRequest)
+    const finalAmount = 'amount' in decision ? decision.amount : undefined
     rootLogger.info({
       msg: 'bot_action_final',
       difficulty: botRequest.difficulty,
       aiAction: rawDecision.action,
       finalAction: decision.action,
-      finalAmount: decision.amount,
+      finalAmount,
       latencyMs: Date.now() - startBotTime,
       reason: decision.reasoning ?? rawDecision.reasoning,
     })

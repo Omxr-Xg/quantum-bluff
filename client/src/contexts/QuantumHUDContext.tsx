@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useSocket } from "../hooks/useSocket";
 import { getHandCategoryIndex } from "../utils/pokerHandCategory";
+import {
+  estimateEquityMonteCarlo,
+  MONTE_CARLO_DEFAULT_ITERATIONS,
+} from "../utils/pokerMonteCarloEquity";
 
 export interface HandProbability {
   handKey: string;
@@ -24,13 +28,6 @@ interface QuantumHUDContextType {
 
 const QuantumHUDContext = createContext<QuantumHUDContextType | undefined>(undefined);
 
-const RANK_ORDER = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
-
-function rankIndex(v: string): number {
-  const i = RANK_ORDER.indexOf(v);
-  return i === -1 ? 0 : i;
-}
-
 /** Indices = catégories serveur (0–9), du plus faible au plus fort. */
 const HAND_KEYS = [
   "highCard",
@@ -45,6 +42,7 @@ const HAND_KEYS = [
   "straightFlush",
 ];
 
+/** Monte Carlo : équité au showdown + distribution des catégories finales (évaluateur serveur). */
 function estimateWinProbability(
   playerCards: { suit: string; value: string }[],
   communityCards: ({ suit: string; value: string } | null)[],
@@ -54,46 +52,25 @@ function estimateWinProbability(
     return { winProb: 0, currentHand: "", probabilities: [] };
   }
 
-  const pCards = playerCards.map(c => ({ s: c.suit, v: rankIndex(c.value) + 2 }));
-  const cCards = communityCards
-    .filter((c): c is { suit: string; value: string } => c !== null)
-    .map(c => ({ s: c.suit, v: rankIndex(c.value) + 2 }));
-
   const cat = getHandCategoryIndex(playerCards, communityCards);
-
   const currentHand = HAND_KEYS[cat] ?? "highCard";
 
-  const communityCount = cCards.length;
-  const cardsTocome = 5 - communityCount;
-
-  let baseStrength = cat / 9;
-  const highCard = Math.max(...pCards.map(c => c.v));
-  baseStrength += (highCard / 14) * 0.15;
-  const hasPocket = pCards[0].v === pCards[1].v;
-  if (hasPocket) baseStrength += 0.1;
-
-  baseStrength += cardsTocome * 0.02;
-  const oppPenalty = (opponentCount - 1) * 0.08;
-  let winProb = Math.max(0.02, Math.min(0.98, baseStrength - oppPenalty));
-
-  if (communityCount === 0) {
-    if (hasPocket) winProb = Math.max(winProb, 0.55 + (pCards[0].v / 14) * 0.3);
-    else if (highCard >= 12) winProb = Math.max(winProb, 0.45);
-    else winProb = Math.min(winProb, 0.5);
-  }
+  const mc = estimateEquityMonteCarlo(
+    playerCards,
+    communityCards,
+    opponentCount,
+    MONTE_CARLO_DEFAULT_ITERATIONS,
+  );
+  const it = mc.iterations;
+  const winProb = it > 0 ? mc.equity : 0;
 
   const probabilities: HandProbability[] = HAND_KEYS.map((handKey, i) => {
-    let prob = 0;
-    if (i <= cat) prob = i === cat ? 1 : 0;
-    else {
-      const diff = i - cat;
-      prob = Math.max(0, (cardsTocome * 0.08) / (diff * diff));
-    }
+    const p = it > 0 ? mc.categoryCounts[i] / it : 0;
     return {
       handKey,
-      probability: Math.min(1, prob),
-      descriptionType: i <= cat ? 'acquired' : 'chance',
-      probPercent: i <= cat ? undefined : Math.round(prob * 100)
+      probability: p,
+      descriptionType: i === cat ? "acquired" : "chance",
+      probPercent: i === cat ? undefined : Math.round(p * 100),
     };
   });
 

@@ -10,6 +10,7 @@
     "build:web": "vite build",
     "build:web:root": "VITE_BASE_PATH=/ vite build",
     "build:cap": "vite build --mode capacitor",
+    "build:cap:sync": "npm run build:cap && npx @capacitor/cli sync",
     "lint": "eslint . --no-cache",
     "preview": "vite preview",
     "test": "vitest",

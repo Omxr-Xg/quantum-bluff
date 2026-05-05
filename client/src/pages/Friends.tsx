@@ -41,6 +41,7 @@ import {
   interestPercentForRepaymentRate,
 } from "../utils/friendLoanPreview";
 import { getFriendLoanApiErrorMessage } from "../utils/friendLoanApiError";
+import { censorChatLinks, isChatContentEffectivelyEmpty } from "../utils/chatLinkCensor";
 
 type FriendsTab = "friends" | "messages" | "loans";
 type FriendStatusFilter = "all" | "online" | "offline";
@@ -368,7 +369,10 @@ export function Friends() {
     if (!messagesError || !addToast) return;
     const e = messagesError as { data?: { error?: string } | string; status?: number };
     const serverMsg = typeof e?.data === 'object' && e?.data?.error ? e.data.error : null;
-    const msg = serverMsg ?? (e?.status === 403 ? t('friends.chatOnlyWithFriends') : t('friends.sendMessageError'));
+    const msg =
+      serverMsg === "MESSAGE_LINKS_NOT_ALLOWED"
+        ? t("friends.messageLinksNotAllowed")
+        : serverMsg ?? (e?.status === 403 ? t("friends.chatOnlyWithFriends") : t("friends.sendMessageError"));
     addToast(msg, 'error');
   }, [messagesError, addToast, t]);
 
@@ -393,17 +397,27 @@ export function Friends() {
   const handleSendMessage = async () => {
     if (!selectedChat || !userId || !messageInput.trim()) return;
 
+    const trimmed = messageInput.trim();
+    const censored = censorChatLinks(trimmed);
+    if (isChatContentEffectivelyEmpty(censored)) {
+      addToast(t("friends.messageLinksNotAllowed"), "error");
+      return;
+    }
+
     try {
       await sendMessage({
         receiverId: selectedChat,
-        content: messageInput.trim()
+        content: censored,
       }).unwrap();
       setMessageInput("");
     } catch (err: unknown) {
       const e = err as { data?: { error?: string } | string; status?: number };
       const serverMsg = typeof e?.data === 'object' && e?.data?.error ? e.data.error : null;
-      const msg = serverMsg ?? (e?.status === 403 ? t('friends.chatOnlyWithFriends') : t('friends.sendMessageError'));
-      addToast(msg, 'error');
+      const msg =
+        serverMsg === "MESSAGE_LINKS_NOT_ALLOWED"
+          ? t("friends.messageLinksNotAllowed")
+          : serverMsg ?? (e?.status === 403 ? t("friends.chatOnlyWithFriends") : t("friends.sendMessageError"));
+      addToast(msg, "error");
     }
   };
 

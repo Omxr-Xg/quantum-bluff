@@ -672,7 +672,10 @@ const adminConsoleLoginSchema = z.object({
 
 router.post('/admin/login', adminConsoleLoginLimiter, async (req, res) => {
   if (!env.adminConsoleUsername || !env.adminConsolePasswordHash) {
-    return res.status(503).json({ error: 'Console administrateur non configurée.' })
+    return res.status(503).json({
+      error: 'Console administrateur non configurée.',
+      code: 'ADMIN_CONSOLE_NOT_CONFIGURED',
+    })
   }
   const parsed = adminConsoleLoginSchema.safeParse(req.body)
   if (!parsed.success) {

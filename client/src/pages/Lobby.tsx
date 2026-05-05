@@ -233,6 +233,10 @@ export function Lobby() {
   const tourRefWaiting = useRef<HTMLDivElement>(null);
   const tourRefGames = useRef<HTMLDivElement>(null);
   const tourRefFriends = useRef<HTMLDivElement>(null);
+  const tourRefTournaments = useRef<HTMLDivElement>(null);
+  const tourRefMinigames = useRef<HTMLDivElement>(null);
+  const tourRefBlackjack = useRef<HTMLDivElement>(null);
+  const tourRefDaily = useRef<HTMLDivElement>(null);
   const lobbyTabsRef = useRef<HTMLElement>(null);
   const [alignedContentMinHeight, setAlignedContentMinHeight] = useState(0);
 
@@ -272,10 +276,15 @@ export function Lobby() {
     () => ({
       header: tourRefHeader,
       topBar: tourRefTopBar,
+      tabs: lobbyTabsRef,
       bot: tourRefBot,
       multiplayer: tourRefMultiplayer,
       waitingRooms: tourRefWaiting,
       gamesInProgress: tourRefGames,
+      tournaments: tourRefTournaments,
+      minigamesPanel: tourRefMinigames,
+      blackjackPanel: tourRefBlackjack,
+      dailyChallenges: tourRefDaily,
       friends: tourRefFriends,
     }),
     []
@@ -343,8 +352,8 @@ export function Lobby() {
 
   const openCreateModal = () => {
     setShowCreateModal(true);
-    setCreateVisibility(null);
-    setCreateMaxPlayers(null);
+    setCreateVisibility('PUBLIC');
+    setCreateMaxPlayers(5);
     setShowCreateAdvanced(false);
     setCreateSmallBlind(5);
     setCreateBigBlind(10);
@@ -692,6 +701,9 @@ export function Lobby() {
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  Réglage rapide conseillé: Public + 5 joueurs pour lancer vite une partie entre amis.
+                </p>
               </div>
 
               {/* Voir plus — options avancées */}
@@ -723,6 +735,22 @@ export function Lobby() {
                     >
                       <div>
                         <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.smallBlind')}</label>
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          {[5, 10, 25].map((v) => (
+                            <button
+                              key={`sb-${v}`}
+                              type="button"
+                              onClick={() => setCreateSmallBlind(v)}
+                              className={`rounded-md px-2 py-1 text-xs font-semibold transition ${
+                                createSmallBlind === v
+                                  ? 'bg-blue-700 text-white'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                            >
+                              SB {v}
+                            </button>
+                          ))}
+                        </div>
                         <input
                           type="number"
                           min={1}
@@ -735,6 +763,22 @@ export function Lobby() {
                       </div>
                       <div>
                         <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minRaise')}</label>
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          {[10, 20, 50].map((v) => (
+                            <button
+                              key={`bb-${v}`}
+                              type="button"
+                              onClick={() => setCreateBigBlind(v)}
+                              className={`rounded-md px-2 py-1 text-xs font-semibold transition ${
+                                createBigBlind === v
+                                  ? 'bg-blue-700 text-white'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                            >
+                              BB {v}
+                            </button>
+                          ))}
+                        </div>
                         <input
                           type="number"
                           min={1}
@@ -748,6 +792,22 @@ export function Lobby() {
                       </div>
                       <div>
                         <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minBalance')}</label>
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          {[100, 500, 1000].map((v) => (
+                            <button
+                              key={`mb-${v}`}
+                              type="button"
+                              onClick={() => setCreateMinBalance(v)}
+                              className={`rounded-md px-2 py-1 text-xs font-semibold transition ${
+                                createMinBalance === v
+                                  ? 'bg-blue-700 text-white'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                            >
+                              {v}
+                            </button>
+                          ))}
+                        </div>
                         <div className="flex items-center gap-2">
                           <input
                             type="number"
@@ -1061,7 +1121,7 @@ export function Lobby() {
               </div>
               
               {/* Arène des tournois */}
-              <div className="lg:mt-auto">
+              <div ref={tourRefTournaments} className="lg:mt-auto">
                 <TournamentWidget />
               </div>
             </div>
@@ -1069,7 +1129,7 @@ export function Lobby() {
 
           {/* Onglet Mini-jeux - CONDITIONAL RENDER */}
           {lobbyMainTab === "minigames" && (
-            <div className="flex w-full flex-col gap-5">
+            <div ref={tourRefMinigames} className="flex w-full flex-col gap-5">
               <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
                 <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
                   <Disc className="h-8 w-8 shrink-0 text-emerald-300" strokeWidth={2.2} aria-hidden />
@@ -1110,6 +1170,7 @@ export function Lobby() {
           {/* Onglet Blackjack - CONDITIONAL RENDER */}
           {lobbyMainTab === "blackjack" && (
             <div
+              ref={tourRefBlackjack}
               className="space-y-6 lg:flex lg:flex-col lg:space-y-0 lg:gap-6"
               style={lobbyAlignmentStyle}
             >
@@ -1142,7 +1203,9 @@ export function Lobby() {
             ref={tourRefFriends}
             className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:flex lg:h-full lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-6 lg:pt-0"
           >
-            <DailyChallenges />
+            <div ref={tourRefDaily}>
+              <DailyChallenges />
+            </div>
             <div className="lg:flex-1">
               <FriendsList />
             </div>
@@ -1176,6 +1239,8 @@ export function Lobby() {
         step={lobbyTourStep}
         onStepChange={setLobbyTourStep}
         refs={lobbyTourRefs}
+        setMainTab={setMainTab}
+        mainTabKey={lobbyMainTab}
       />
 
     </div>

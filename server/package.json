@@ -68,7 +68,7 @@
     "@opentelemetry/resources": "^2.7.1",
     "@opentelemetry/sdk-node": "^0.216.0",
     "@opentelemetry/semantic-conventions": "^1.40.0",
-    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/adapter-pg": "6.19.2",
     "@prisma/client": "^6.19.2",
     "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^2.4.3",
