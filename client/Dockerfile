@@ -1,12 +1,13 @@
 # Étape 1 : Build de l'application Vite / React
-FROM node:20-alpine AS build
+# Kaniko snapshotte après chaque RUN : un RUN npm ci seul fige un énorme node_modules
+# et fait souvent OOM sur des runners K8s peu dimensionnés. Une seule couche :
+# install → build → suppression de node_modules avant snapshot.
+FROM node:22-alpine AS build
 WORKDIR /app
-COPY package*.json ./
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
-RUN npm ci --legacy-peer-deps
 COPY . .
-RUN npm run build
+RUN npm ci --legacy-peer-deps && npm run build && rm -rf node_modules /root/.npm
 
 # Étape 2 : Serveur Nginx pour les fichiers statiques (avec support du React Router)
 FROM nginx:alpine
