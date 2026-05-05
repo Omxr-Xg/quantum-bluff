@@ -3,8 +3,10 @@ import type { CapacitorConfig } from '@capacitor/cli';
 /**
  * Config Capacitor (Android + iOS).
  *
- * Build web dédié : `npm run build:cap` (charge `.env.capacitor` via Vite `--mode capacitor`).
- * Live reload dev : `CAPACITOR_SERVER_URL=http://LAN:5175 npx cap run android` (voir package.json).
+ * Build web : `npm run build:cap` (mode Vite `capacitor` → `client/.env.capacitor` + repli URL prod dans vite.config).
+ * Puis : `npx cap sync` (déjà dans `npm run cap:sync`).
+ *
+ * Live reload dev : `CAPACITOR_SERVER_URL=http://LAN:5175 npx cap run android`
  */
 const config: CapacitorConfig = {
   appId: 'com.quantumbluff.app',

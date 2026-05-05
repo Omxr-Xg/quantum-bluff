@@ -343,8 +343,8 @@ export function Lobby() {
 
   const openCreateModal = () => {
     setShowCreateModal(true);
-    setCreateVisibility(null);
-    setCreateMaxPlayers(null);
+    setCreateVisibility('PUBLIC');
+    setCreateMaxPlayers(5);
     setShowCreateAdvanced(false);
     setCreateSmallBlind(5);
     setCreateBigBlind(10);
@@ -692,6 +692,9 @@ export function Lobby() {
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  Réglage rapide conseillé: Public + 5 joueurs pour lancer vite une partie entre amis.
+                </p>
               </div>
 
               {/* Voir plus — options avancées */}
@@ -723,6 +726,22 @@ export function Lobby() {
                     >
                       <div>
                         <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.smallBlind')}</label>
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          {[5, 10, 25].map((v) => (
+                            <button
+                              key={`sb-${v}`}
+                              type="button"
+                              onClick={() => setCreateSmallBlind(v)}
+                              className={`rounded-md px-2 py-1 text-xs font-semibold transition ${
+                                createSmallBlind === v
+                                  ? 'bg-blue-700 text-white'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                            >
+                              SB {v}
+                            </button>
+                          ))}
+                        </div>
                         <input
                           type="number"
                           min={1}
@@ -735,6 +754,22 @@ export function Lobby() {
                       </div>
                       <div>
                         <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minRaise')}</label>
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          {[10, 20, 50].map((v) => (
+                            <button
+                              key={`bb-${v}`}
+                              type="button"
+                              onClick={() => setCreateBigBlind(v)}
+                              className={`rounded-md px-2 py-1 text-xs font-semibold transition ${
+                                createBigBlind === v
+                                  ? 'bg-blue-700 text-white'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                            >
+                              BB {v}
+                            </button>
+                          ))}
+                        </div>
                         <input
                           type="number"
                           min={1}
@@ -748,6 +783,22 @@ export function Lobby() {
                       </div>
                       <div>
                         <label className="text-slate-300 text-sm font-medium block mb-2">{t('lobby.minBalance')}</label>
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          {[100, 500, 1000].map((v) => (
+                            <button
+                              key={`mb-${v}`}
+                              type="button"
+                              onClick={() => setCreateMinBalance(v)}
+                              className={`rounded-md px-2 py-1 text-xs font-semibold transition ${
+                                createMinBalance === v
+                                  ? 'bg-blue-700 text-white'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                            >
+                              {v}
+                            </button>
+                          ))}
+                        </div>
                         <div className="flex items-center gap-2">
                           <input
                             type="number"

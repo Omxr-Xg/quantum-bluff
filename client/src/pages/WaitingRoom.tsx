@@ -84,6 +84,20 @@ export function WaitingRoom() {
   const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
   const { addToast } = useToast();
 
+  const extractErrorMessage = useCallback(
+    async (res: Response, fallback: string) => {
+      try {
+        const raw = await res.text();
+        if (!raw) return fallback;
+        const parsed = JSON.parse(raw) as { error?: string };
+        return parsed?.error || fallback;
+      } catch {
+        return fallback;
+      }
+    },
+    []
+  );
+
   const fetchRoom = useCallback(
     async (id: string) => {
       const url = apiUrl(`/api/waiting-room/${id}`);
@@ -107,6 +121,11 @@ export function WaitingRoom() {
       setRoomError(null);
       try {
         if (!rawRoomId || rawRoomId.startsWith("room_")) {
+          if (!userId) {
+            setRoomError(t("waitingRoom.cannotCreateRoom"));
+            setRoomLoading(false);
+            return;
+          }
           const createUrl = apiUrl("/api/waiting-room/create");
           const res = await fetch(createUrl, {
             method: "POST",
@@ -120,8 +139,8 @@ export function WaitingRoom() {
           });
           if (cancelled) return;
           if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            setRoomError(err?.error || t('waitingRoom.cannotCreateRoom'));
+            const msg = await extractErrorMessage(res, t('waitingRoom.cannotCreateRoom'));
+            setRoomError(msg);
             setRoomLoading(false);
             return;
           }
@@ -153,8 +172,8 @@ export function WaitingRoom() {
         if (cancelled) return;
         if (!joinRes.ok) {
           if (!inRoom) {
-            const err = await joinRes.json().catch(() => ({}));
-            setRoomError(err?.error || t('waitingRoom.cannotJoin'));
+            const msg = await extractErrorMessage(joinRes, t('waitingRoom.cannotJoin'));
+            setRoomError(msg);
             setRoomLoading(false);
             return;
           }
@@ -176,7 +195,7 @@ export function WaitingRoom() {
     return () => {
       cancelled = true;
     };
-  }, [userId, username, rawRoomId, navigate, fetchRoom, applyRoomSnapshot]);
+  }, [userId, username, rawRoomId, navigate, fetchRoom, applyRoomSnapshot, extractErrorMessage, t]);
 
   useEffect(() => {
     if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;

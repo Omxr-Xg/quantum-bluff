@@ -149,13 +149,19 @@ const defaultDevCorsOrigins = [
   'http://127.0.0.1:5177',
   'capacitor://localhost',
   'http://localhost',
+  'https://localhost',
 ]
 
 /**
  * Schémas fixes des apps natives (Capacitor / Ionic) : l’en-tête Origin n’est jamais l’URL HTTPS du déploiement.
+ * Android (WebView récent) peut envoyer https://localhost au lieu de capacitor://localhost.
  * Sans ces entrées, le login depuis iOS/Android échoue en prod si CORS_ORIGIN ne liste que le site web.
  */
-const nativeWebViewOrigins = ['capacitor://localhost', 'ionic://localhost'] as const
+const nativeWebViewOrigins = [
+  'capacitor://localhost',
+  'ionic://localhost',
+  'https://localhost',
+] as const
 
 function mergeCorsOrigins(list: string[]): string[] {
   return [...new Set([...list, ...nativeWebViewOrigins])]

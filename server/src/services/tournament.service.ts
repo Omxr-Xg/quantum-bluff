@@ -35,6 +35,20 @@ export function getOpeningRoundTableSizes(totalPlayers: number): number[] {
 
 export class TournamentService {
   private static io: Server | null = null;
+  private static tournamentVisibility = new Map<string, 'PUBLIC' | 'PRIVATE'>();
+  private static privateJoinRequests = new Map<
+    string,
+    {
+      id: string;
+      tournamentId: string;
+      tournamentName: string;
+      hostId: string;
+      requesterId: string;
+      requesterUsername: string;
+      createdAt: number;
+      status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+    }
+  >();
 
   private static alreadyEliminated = new Set<string>();
 
@@ -104,6 +118,7 @@ export class TournamentService {
     maxPlayers: number;
     startTime: Date;
     createdById: string;
+    visibility?: 'PUBLIC' | 'PRIVATE';
   }) {
     const tournament = await prisma.tournament.create({
       data: {
@@ -122,8 +137,74 @@ export class TournamentService {
       tournamentId: tournament.id,
       name: tournament.name
     });
+    this.tournamentVisibility.set(tournament.id, data.visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC');
 
     return tournament;
+  }
+
+  static getTournamentVisibility(tournamentId: string): 'PUBLIC' | 'PRIVATE' {
+    return this.tournamentVisibility.get(tournamentId) ?? 'PUBLIC';
+  }
+
+  static async createPrivateJoinRequest(tournamentId: string, requesterId: string) {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { id: true, name: true, createdById: true, status: true },
+    });
+    if (!tournament || tournament.status !== 'PENDING') {
+      throw new Error("Ce tournoi n'est plus disponible.");
+    }
+    const visibility = this.getTournamentVisibility(tournamentId);
+    if (visibility !== 'PRIVATE') {
+      throw new Error('Ce tournoi est public. Inscription directe disponible.');
+    }
+    if (tournament.createdById === requesterId) {
+      throw new Error('Vous êtes déjà organisateur du tournoi.');
+    }
+    const requester = await prisma.user.findUnique({
+      where: { id: requesterId },
+      select: { username: true },
+    });
+    if (!requester) {
+      throw new Error('Utilisateur introuvable.');
+    }
+    const id = `${tournamentId}:${requesterId}`;
+    const existing = this.privateJoinRequests.get(id);
+    if (existing?.status === 'PENDING') {
+      return existing;
+    }
+    const req = {
+      id,
+      tournamentId,
+      tournamentName: tournament.name,
+      hostId: tournament.createdById,
+      requesterId,
+      requesterUsername: requester.username,
+      createdAt: Date.now(),
+      status: 'PENDING' as const,
+    };
+    this.privateJoinRequests.set(id, req);
+    return req;
+  }
+
+  static getPendingRequestsForHost(hostId: string) {
+    return Array.from(this.privateJoinRequests.values())
+      .filter((r) => r.hostId === hostId && r.status === 'PENDING')
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  static async acceptPrivateJoinRequest(requestId: string, hostId: string) {
+    const req = this.privateJoinRequests.get(requestId);
+    if (!req || req.status !== 'PENDING') {
+      throw new Error('Demande introuvable ou déjà traitée.');
+    }
+    if (req.hostId !== hostId) {
+      throw new Error('Non autorisé.');
+    }
+    await this.joinTournament(req.tournamentId, req.requesterId);
+    req.status = 'ACCEPTED';
+    this.privateJoinRequests.set(requestId, req);
+    return req;
   }
 
   static async joinTournament(tournamentId: string, userId: string) {

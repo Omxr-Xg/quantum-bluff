@@ -64,8 +64,8 @@ export const initCleanupJobs = () => {
     await performCleanup();
   });
 
-  // Nettoyage blackjack plus fréquent (rooms orphelines / bloquées)
-  cron.schedule('*/10 * * * *', async () => {
+  // Nettoyage blackjack plus fréquent (rooms orphelines / bloquées / WAITING trop vieilles)
+  cron.schedule('*/5 * * * *', async () => {
     try {
       await cleanupMemoryTables();
       await cleanupOrphanBlackjackRuntime();

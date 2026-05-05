@@ -10,6 +10,7 @@ export function AdminAuth() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [adminConsoleNotConfigured, setAdminConsoleNotConfigured] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -22,6 +23,7 @@ export function AdminAuth() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setAdminConsoleNotConfigured(false);
     setLoading(true);
     try {
       const res = await fetch(apiUrl("/api/auth/admin/login"), {
@@ -31,6 +33,13 @@ export function AdminAuth() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (
+          res.status === 503 &&
+          (data as { code?: string }).code === "ADMIN_CONSOLE_NOT_CONFIGURED"
+        ) {
+          setAdminConsoleNotConfigured(true);
+          return;
+        }
         setError((data as { error?: string }).error ?? t("adminConsole.loginError"));
         return;
       }
@@ -65,6 +74,19 @@ export function AdminAuth() {
             <p className="text-sm text-slate-400">{t("adminConsole.loginSubtitle")}</p>
           </div>
         </div>
+        {adminConsoleNotConfigured ? (
+          <div
+            className="mb-6 rounded-xl border border-amber-500/40 bg-amber-950/40 p-4 text-sm text-amber-100"
+            role="alert"
+          >
+            <p className="mb-2 font-semibold text-amber-200">
+              {t("adminConsole.notConfiguredTitle")}
+            </p>
+            <p className="mb-3 text-amber-100/90 whitespace-pre-line">
+              {t("adminConsole.notConfiguredHelp")}
+            </p>
+          </div>
+        ) : null}
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm text-slate-300" htmlFor="admin-user">

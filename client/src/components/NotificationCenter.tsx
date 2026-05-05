@@ -9,12 +9,20 @@ import { useInvitationAccept } from "../contexts/InvitationAcceptContext";
 import { useUser } from "../hooks/useUser";
 import { useGetFriendRequestsQuery, useRespondToFriendRequestMutation } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
+import { TournamentService } from "../services/tournament.service";
 
 interface UnreadMessage {
   senderId: string;
   senderUsername: string;
   content: string;
   timestamp: number;
+}
+interface TournamentJoinRequest {
+  id: string;
+  tournamentId: string;
+  tournamentName: string;
+  requesterId: string;
+  requesterUsername: string;
 }
 
 /** Même échelle que `Layout` (topNavBtn) : compact sur mobile */
@@ -42,6 +50,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null);
   const [unreadMessages, setUnreadMessages] = useState<UnreadMessage[]>([]);
+  const [tournamentRequests, setTournamentRequests] = useState<TournamentJoinRequest[]>([]);
 
   const { data: friendRequests, refetch: refetchRequests } = useGetFriendRequestsQuery(
     userId ?? "",
@@ -51,7 +60,16 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
   const [respondRequest] = useRespondToFriendRequestMutation();
 
   const pendingFriendRequests = friendRequests?.filter((r) => r.status === "PENDING") ?? [];
-  const totalCount = pendingInvitations.length + pendingFriendRequests.length + unreadMessages.length;
+  const totalCount = pendingInvitations.length + pendingFriendRequests.length + unreadMessages.length + tournamentRequests.length;
+
+  const loadTournamentRequests = async () => {
+    try {
+      const data = await TournamentService.getReceivedJoinRequests();
+      setTournamentRequests(Array.isArray(data) ? data : []);
+    } catch {
+      /* ignore */
+    }
+  };
 
   // Refetch triggered by other parts of the app
   useEffect(() => {
@@ -60,12 +78,20 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     return () => window.removeEventListener("refetch-requests", handler);
   }, [refetchRequests]);
 
+  useEffect(() => {
+    if (!userId) return;
+    loadTournamentRequests();
+    const iv = setInterval(loadTournamentRequests, 5000);
+    return () => clearInterval(iv);
+  }, [userId]);
+
   // Refetch on incoming socket friend events; collect unread messages
   useEffect(() => {
     if (!socket) return;
 
     const handleFriendRequest = () => { refetchRequests(); };
     const handleFriendAccepted = () => { refetchRequests(); };
+    const handleTournamentJoinRequest = () => { loadTournamentRequests(); };
 
     const handleFriendMessage = (data: {
       senderId: string;
@@ -96,10 +122,12 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
 
     socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequest);
     socket.on("FRIEND_REQUEST_ACCEPTED", handleFriendAccepted);
+    socket.on("TOURNAMENT_JOIN_REQUEST_RECEIVED", handleTournamentJoinRequest);
     socket.on("FRIEND_MESSAGE", handleFriendMessage);
     return () => {
       socket.off("FRIEND_REQUEST_RECEIVED", handleFriendRequest);
       socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendAccepted);
+      socket.off("TOURNAMENT_JOIN_REQUEST_RECEIVED", handleTournamentJoinRequest);
       socket.off("FRIEND_MESSAGE", handleFriendMessage);
     };
   }, [socket, refetchRequests]);
@@ -215,6 +243,15 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     setOpen(false);
   };
 
+  const handleAcceptTournamentRequest = async (requestId: string) => {
+    try {
+      await TournamentService.acceptJoinRequest(requestId);
+      setTournamentRequests((prev) => prev.filter((r) => r.id !== requestId));
+    } catch {
+      /* ignore */
+    }
+  };
+
   if (!userId) return null;
 
   const dropdown = open && panelPos && createPortal(
@@ -322,6 +359,31 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
                         <X className="w-4 h-4" />
                       </button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {tournamentRequests.length > 0 && (
+              <div className="mb-2">
+                <p className="text-slate-400 text-xs font-semibold uppercase mb-1 px-2 flex items-center gap-1">
+                  <UserPlus className="w-3 h-3" />
+                  Demandes tournoi privé
+                </p>
+                {tournamentRequests.map((req) => (
+                  <div
+                    key={req.id}
+                    className="flex items-center justify-between gap-2 p-3 mb-2 bg-purple-900/25 border border-purple-500/40 rounded-lg"
+                  >
+                    <p className="text-white text-sm truncate flex-1">
+                      {req.requesterUsername} veut rejoindre "{req.tournamentName}"
+                    </p>
+                    <button
+                      onClick={() => handleAcceptTournamentRequest(req.id)}
+                      className="p-1.5 bg-green-600 hover:bg-green-500 rounded text-white"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
                   </div>
                 ))}
               </div>

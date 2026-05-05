@@ -164,7 +164,7 @@ router.get('/', waitingRoomListLimiter, async (req, res) => {
 });
 
 // GET /api/waiting-room/active/games - Liste des parties actives (doit être avant /:roomId)
-router.get('/', waitingRoomListLimiter, async (req, res) => {
+router.get('/active/games', waitingRoomListLimiter, async (req, res) => {
   try {
     const allGames = await activeGames.getAll();
     const games = Array.from(allGames.entries()).map(([id, game]) => ({
@@ -263,8 +263,25 @@ router.post('/create', waitingRoomCreateLimiter, async (req, res) => {
     const { hostId, roomName, maxPlayers = 5, visibility = 'PUBLIC', smallBlind, bigBlind, minBalance, turbo, avatarUrl: hostAvatarRaw } = req.body;
     const hostAvatarUrl = sanitizePublicAvatarUrl(hostAvatarRaw)
 
-    const clampedMaxPlayers = Math.min(5, Math.max(2, Number(maxPlayers) || 5));
-    const roomVisibility = visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC';
+    if (typeof hostId !== 'string' || hostId.trim().length === 0) {
+      return res.status(400).json({ error: 'hostId invalide ou manquant' });
+    }
+
+    if (roomName != null && typeof roomName !== 'string') {
+      return res.status(400).json({ error: 'roomName doit être une chaîne de caractères' });
+    }
+
+    if (visibility !== 'PUBLIC' && visibility !== 'PRIVATE') {
+      return res.status(400).json({ error: 'visibility invalide (PUBLIC ou PRIVATE attendu)' });
+    }
+
+    const parsedMaxPlayers = Number(maxPlayers);
+    if (!Number.isFinite(parsedMaxPlayers) || parsedMaxPlayers < 2 || parsedMaxPlayers > 5) {
+      return res.status(400).json({ error: 'maxPlayers doit être un nombre entre 2 et 5' });
+    }
+
+    const clampedMaxPlayers = Math.min(5, Math.max(2, parsedMaxPlayers));
+    const roomVisibility = visibility;
 
     const sb = smallBlind != null ? Math.max(1, Math.min(10000, Number(smallBlind) || 1)) : null;
     const bb = bigBlind != null ? Math.max(1, Math.min(10000, Number(bigBlind) || 2)) : null;
@@ -330,8 +347,14 @@ router.post('/create', waitingRoomCreateLimiter, async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('Erreur création salle:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('[waiting-room/create] Erreur création salle', {
+      hostId: req.body?.hostId,
+      visibility: req.body?.visibility,
+      maxPlayers: req.body?.maxPlayers,
+      detail: msg,
+    });
+    res.status(500).json({ error: 'Erreur serveur', details: process.env.NODE_ENV === 'development' ? msg : undefined });
   }
 });
 

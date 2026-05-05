@@ -62,6 +62,7 @@ router.get('/', async (req: Request, res: Response) => {
         maxPlayers: t.maxPlayers,
         startTime: t.startTime,
         status: t.status,
+        visibility: TournamentService.getTournamentVisibility(t.id),
         _count: t._count,
         isJoined,
         players: t.players,
@@ -80,7 +81,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.post('/create', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { name, buyIn, maxPlayers, startTime } = req.body;
+    const { name, buyIn, maxPlayers, startTime, visibility } = req.body;
     const userId = req.userId; // Déjà typé via ton declare global
 
     if (!userId) {
@@ -100,12 +101,56 @@ router.post('/create', authMiddleware, async (req: Request, res: Response) => {
       buyIn: Number(buyIn), 
       maxPlayers: Number(maxPlayers), 
       startTime: new Date(startTime), 
-      createdById: userId
+      createdById: userId,
+      visibility: visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
     });
     
     res.status(201).json(tournament);
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erreur lors de la création";
+    res.status(400).json({ error: msg });
+  }
+});
+
+router.post('/:id/request-join', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Non autorisé' });
+    const request = await TournamentService.createPrivateJoinRequest(req.params.id, userId);
+    const io = TournamentService.getIo();
+    io?.to(`user:${request.hostId}`).emit('TOURNAMENT_JOIN_REQUEST_RECEIVED', {
+      requestId: request.id,
+      tournamentId: request.tournamentId,
+      tournamentName: request.tournamentName,
+      requesterId: request.requesterId,
+      requesterUsername: request.requesterUsername,
+    });
+    res.json({ message: 'Demande envoyée', requestId: request.id });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Erreur';
+    res.status(400).json({ error: msg });
+  }
+});
+
+router.get('/requests/received', authMiddleware, async (req: Request, res: Response) => {
+  const userId = req.userId;
+  if (!userId) return res.status(401).json({ error: 'Non autorisé' });
+  res.json(TournamentService.getPendingRequestsForHost(userId));
+});
+
+router.post('/requests/:requestId/accept', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Non autorisé' });
+    const accepted = await TournamentService.acceptPrivateJoinRequest(req.params.requestId, userId);
+    const io = TournamentService.getIo();
+    io?.to(`user:${accepted.requesterId}`).emit('TOURNAMENT_JOIN_REQUEST_ACCEPTED', {
+      tournamentId: accepted.tournamentId,
+      tournamentName: accepted.tournamentName,
+    });
+    res.json({ message: 'Demande acceptée' });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Erreur';
     res.status(400).json({ error: msg });
   }
 });

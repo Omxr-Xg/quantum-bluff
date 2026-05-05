@@ -40,12 +40,31 @@ const devApiProxy = {
   },
 };
 
+/** Déploiement web public (Capacitor : WebView = pas d’origine /vm… — URL absolue obligatoire si pas de .env). */
+const CAPACITOR_DEFAULT_API =
+  'https://mai-projet-integrateur.u-strasbg.fr/vmProjetIntegrateurgrp10-0';
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const basePath =
     env.VITE_BASE_PATH ??
     (mode === 'capacitor' ? '/' : '/vmProjetIntegrateurgrp10-0/');
   const basePathWithoutTrailingSlash = basePath === '/' ? '' : basePath.replace(/\/$/, '');
+
+  const capacitorEnvDefine =
+    mode === 'capacitor'
+      ? (() => {
+          const api = env.VITE_API_URL?.trim() || CAPACITOR_DEFAULT_API;
+          const socket = env.VITE_SOCKET_URL?.trim() || api;
+          const socketPath =
+            env.VITE_SOCKET_PATH?.trim() || '/vmProjetIntegrateurgrp10-0/socket.io';
+          return {
+            'import.meta.env.VITE_API_URL': JSON.stringify(api),
+            'import.meta.env.VITE_SOCKET_URL': JSON.stringify(socket),
+            'import.meta.env.VITE_SOCKET_PATH': JSON.stringify(socketPath),
+          } as Record<string, string>;
+        })()
+      : {};
 
   const basePathRedirectPlugin = {
     name: 'base-path-trailing-slash-redirect',
@@ -112,6 +131,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: basePath,
+    ...(Object.keys(capacitorEnvDefine).length > 0
+      ? { define: capacitorEnvDefine as Record<string, string> }
+      : {}),
     plugins: [
       basePathRedirectPlugin,
       react(),

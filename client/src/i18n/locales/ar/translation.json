@@ -892,6 +892,8 @@
     "password": "كلمة المرور",
     "signIn": "دخول",
     "loginError": "بيانات غير صالحة أو اللوحة غير مهيأة.",
+    "notConfiguredTitle": "لوحة الإدارة: الخادم غير مهيأ",
+    "notConfiguredHelp": "لن يسمح الخادم بتسجيل الدخول حتى تضبط ADMIN_CONSOLE_USERNAME و ADMIN_CONSOLE_PASSWORD_HASH (bcrypt). أنشئ الهاش من مجلد server: node -e \"require('bcryptjs').hash('YourPassword',10).then(console.log)\". أعد تشغيل الـ API. راجع server/.env.example.",
     "networkError": "خطأ في الشبكة.",
     "title": "الإدارة",
     "subtitle": "إدارة الطاولات المباشرة والغرف والحسابات والتقييمات.",

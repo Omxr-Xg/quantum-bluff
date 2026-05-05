@@ -10,6 +10,7 @@ import swaggerUi from 'swagger-ui-express'
 import { env } from './config/env.js'
 import { swaggerSpec } from './config/swagger.config.js'
 import { initCleanupJobs } from './utils/cleanup.job.js'
+import { pruneInactiveBlackjackWaitingRooms } from './blackjack/recovery/blackjackRecovery.service.js'
 import { TournamentService } from './services/tournament.service.js'
 import './cron/tournament.cron.js'
 import tournamentRoutes from './routes/tournament.routes.js'
@@ -320,6 +321,18 @@ io.use(socketAuth)
 app.set('io', io)
 
 initCleanupJobs()
+void pruneInactiveBlackjackWaitingRooms()
+  .then((deleted) => {
+    if (deleted > 0) {
+      rootLogger.info({ msg: 'bj_waiting_prune_at_boot', deleted })
+    }
+  })
+  .catch((err) => {
+    rootLogger.warn({
+      msg: 'bj_waiting_prune_at_boot_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    })
+  })
 new GameGateway(io)
 
 const PORT = env.port

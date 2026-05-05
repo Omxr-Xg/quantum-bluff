@@ -919,6 +919,8 @@
     "password": "Mot de passe",
     "signIn": "Connexion",
     "loginError": "Identifiants invalides ou console non configurée.",
+    "notConfiguredTitle": "Console admin : configuration serveur manquante",
+    "notConfiguredHelp": "L’API refuse la connexion tant que les identifiants ne sont pas définis sur le serveur (ce n’est pas un bug du navigateur).\n\n1. Ouvrez le fichier d’environnement du backend (ex. server/.env) et ajoutez les deux variables suivantes (les deux sont obligatoires) :\n   ADMIN_CONSOLE_USERNAME=\"votre_identifiant\"\n   ADMIN_CONSOLE_PASSWORD_HASH=\"$2a$10$...\"  (hash bcrypt du mot de passe, pas le mot de passe en clair)\n\n2. Pour générer le hash, depuis le dossier server :\n   node -e \"require('bcryptjs').hash('VotreMotDePasse',10).then(console.log)\"\n\n3. Redémarrez le serveur Node, puis réessayez la connexion.\n\nVoir aussi server/.env.example (section ADMIN_CONSOLE_*).",
     "networkError": "Erreur réseau.",
     "title": "Administration",
     "subtitle": "Gérer les tables en direct, les salles, les comptes et les avis.",

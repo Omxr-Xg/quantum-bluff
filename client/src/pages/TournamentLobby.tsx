@@ -216,11 +216,27 @@ export function TournamentLobby() {
                     </div>
                     ) : (
                     <button
-                        onClick={() => handleJoin(trn.id)}
+                        onClick={async () => {
+                          if (trn.visibility === 'PRIVATE') {
+                            try {
+                              await TournamentService.requestJoinTournament(trn.id);
+                              addToast('Demande envoyée au créateur du tournoi.', "success");
+                            } catch (err: unknown) {
+                              const message = err instanceof Error ? err.message : t('tournament.lobby.errorUnknown');
+                              addToast(message, "error");
+                            }
+                            return;
+                          }
+                          handleJoin(trn.id);
+                        }}
                         disabled={trn._count.players >= trn.maxPlayers}
                         className="w-full bg-amber-500 hover:bg-white text-slate-950 font-black py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 group-hover:scale-[1.02] shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {trn._count.players >= trn.maxPlayers ? t('tournament.lobby.full') : t('tournament.lobby.register')}
+                        {trn._count.players >= trn.maxPlayers
+                          ? t('tournament.lobby.full')
+                          : trn.visibility === 'PRIVATE'
+                            ? 'Demander accès'
+                            : t('tournament.lobby.register')}
                         <ChevronRight className="w-6 h-6" />
                     </button>
                     )}

@@ -23,7 +23,10 @@ import {
   BLACKJACK_RUNTIME_STALE_MS,
   runtimeReadinessToHttp,
 } from '../blackjack/services/blackjackRuntimeHealth.service.js'
-import { resetStaleBlackjackPlaySession } from '../blackjack/recovery/blackjackRecovery.service.js'
+import {
+  pruneInactiveBlackjackWaitingRooms,
+  resetStaleBlackjackPlaySession,
+} from '../blackjack/recovery/blackjackRecovery.service.js'
 import {
   awardXpInTransaction,
   getEffectiveBlackjackMaxBet,
@@ -391,6 +394,8 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    await pruneInactiveBlackjackWaitingRooms()
 
     const rooms = await prisma.blackjackRoom.findMany({
       where: {

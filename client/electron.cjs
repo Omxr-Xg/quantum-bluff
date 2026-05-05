@@ -21,8 +21,23 @@ autoUpdater.setFeedURL({
   url: `${updatesBase.replace(/\/$/, '')}/updates/`,
 });
 
+/**
+ * Mises à jour — deux niveaux :
+ * 1) Interface (React) : la fenêtre charge l’URL distante (QB_PUBLIC_URL) → un déploiement VM
+ *    du build Vite est visible au prochain lancement / rechargement (cache navigateur habituel).
+ * 2) Installateur Electron (.exe / .dmg) : electron-updater lit …/updates/latest.yml (et équivalent Mac).
+ *    Il faut publier de nouveaux artefacts + bumper client/package.json version (voir Docs/DEPLOY.md).
+ */
+if (app.isPackaged) {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+}
+
 // Ignorer les erreurs de certificat SSL (car le certificat du serveur de l'école est expiré)
 app.commandLine.appendSwitch('ignore-certificate-errors');
+
+/** Fenêtre principale (pour attacher les boîtes de dialogue de mise à jour). */
+let mainWindow = null;
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -45,8 +60,15 @@ function createWindow() {
     win.webContents.openDevTools();
   }
 
+  mainWindow = win;
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null;
+  });
+
   win.once('show', () => {
-    autoUpdater.checkForUpdatesAndNotify();
+    if (app.isPackaged) {
+      autoUpdater.checkForUpdates().catch((e) => log.error('checkForUpdates', e));
+    }
   });
 
   win.show();
@@ -57,14 +79,44 @@ autoUpdater.on('checking-for-update', () => {
   log.info('Vérification des mises à jour...');
 });
 
-autoUpdater.on('update-available', (info) => {
+autoUpdater.on('update-available', async (info) => {
   log.info('Mise à jour disponible:', info.version);
-  dialog.showMessageBox({
+  const parent =
+    mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+  const opts = {
     type: 'info',
-    title: 'Mise à jour disponible',
-    message: `Une nouvelle version (v${info.version}) est disponible. Téléchargement en cours...`,
-    buttons: ['OK']
-  });
+    title: 'Mise à jour de Quantum Bluff',
+    message: `Une nouvelle version (${info.version}) est disponible.`,
+    detail:
+      'L’application doit se mettre à jour pour profiter des dernières corrections et améliorations. ' +
+      'Souhaitez-vous télécharger et installer cette mise à jour maintenant ? ' +
+      'Vous pourrez choisir le moment du redémarrage une fois le téléchargement terminé.',
+    buttons: ['Mettre à jour', 'Plus tard'],
+    defaultId: 0,
+    cancelId: 1,
+  };
+  const { response } = parent
+    ? await dialog.showMessageBox(parent, opts)
+    : await dialog.showMessageBox(opts);
+
+  if (response !== 0) {
+    log.info('Utilisateur a reporté la mise à jour');
+    return;
+  }
+  try {
+    await autoUpdater.downloadUpdate();
+  } catch (err) {
+    log.error('downloadUpdate', err);
+    const errOpts = {
+      type: 'error',
+      title: 'Mise à jour',
+      message: 'Le téléchargement de la mise à jour a échoué.',
+      detail: 'Vérifiez votre connexion et réessayez plus tard (menu ou prochain lancement).',
+      buttons: ['OK'],
+    };
+    if (parent) await dialog.showMessageBox(parent, errOpts);
+    else await dialog.showMessageBox(errOpts);
+  }
 });
 
 autoUpdater.on('update-not-available', () => {
@@ -79,21 +131,39 @@ autoUpdater.on('download-progress', (progressObj) => {
   log.info(`Téléchargement: ${Math.round(progressObj.percent)}%`);
 });
 
-autoUpdater.on('update-downloaded', (info) => {
+autoUpdater.on('update-downloaded', async (info) => {
   log.info('Mise à jour téléchargée:', info.version);
-  dialog.showMessageBox({
+  const parent =
+    mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+  const opts = {
     type: 'info',
     title: 'Mise à jour prête',
-    message: 'La mise à jour a été téléchargée. Redémarrer pour appliquer les changements ?',
-    buttons: ['Redémarrer', 'Plus tard']
-  }).then(result => {
-    if (result.response === 0) {
-      autoUpdater.quitAndInstall();
-    }
-  });
+    message: `La version ${info.version} est prête à être installée.`,
+    detail:
+      'Pour terminer l’installation, l’application doit redémarrer. ' +
+      'Vous pouvez le faire maintenant ou plus tard au prochain lancement.',
+    buttons: ['Redémarrer maintenant', 'Plus tard'],
+    defaultId: 0,
+    cancelId: 1,
+  };
+  const { response } = parent
+    ? await dialog.showMessageBox(parent, opts)
+    : await dialog.showMessageBox(opts);
+  if (response === 0) {
+    autoUpdater.quitAndInstall();
+  }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  if (!app.isPackaged) return;
+  const CHECK_MS = 4 * 60 * 60 * 1000;
+  setInterval(() => {
+    autoUpdater.checkForUpdates().catch((err) => {
+      log.warn('Auto-update périodique échouée', err);
+    });
+  }, CHECK_MS);
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

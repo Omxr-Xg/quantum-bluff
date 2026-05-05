@@ -21,14 +21,22 @@
 
 ## Mises à jour client
 
+### Interface (site chargé dans Electron)
+
+L’app de bureau ouvre l’URL publique du jeu (`QB_PUBLIC_URL` / défaut VM). **Chaque déploiement du build Vite sur la VM** est donc pris en compte au prochain chargement (comme dans le navigateur). Aucun nouvel installateur n’est nécessaire pour changer le React / les assets web.
+
+### Installateur Windows / macOS (binaire Electron)
+
+Pour livrer une **nouvelle version de l’app** (Electron, preload, etc.) :
+
 1. Bumper la version et builder le client :
    ```bash
    cd client
    npm run version:patch   # ou version:minor / version:major
-   npm run publish:win
+   npm run publish:win     # Windows ; pour Mac : electron-builder --mac --publish always
    ```
-2. Uploader le `.exe` et `latest.yml` dans `server/updates/` sur la VM
-3. Le fichier `latest.yml` est généré automatiquement par electron-builder
+2. Uploader les artefacts dans `server/updates/` sur la VM : au minimum `latest.yml`, l’`.exe` (ou setup NSIS), et pour Mac `latest-mac.yml` + `.dmg` / zip selon la cible.
+3. Les fichiers `latest*.yml` sont générés par electron-builder. L’app vérifie les mises à jour au lancement puis **toutes les 4 h**. Le joueur doit **accepter** le téléchargement puis, une fois prêt, **choisir** de redémarrer (pas d’installation silencieuse).
 
 ## Vérification
 

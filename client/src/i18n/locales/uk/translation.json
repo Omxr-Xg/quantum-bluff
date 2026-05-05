@@ -892,6 +892,8 @@
     "password": "Пароль",
     "signIn": "Увійти",
     "loginError": "Невірні дані або консоль не налаштована.",
+    "notConfiguredTitle": "Адмін-консоль: сервер не налаштовано",
+    "notConfiguredHelp": "API не дозволить вхід, доки на сервері не задано ADMIN_CONSOLE_USERNAME та ADMIN_CONSOLE_PASSWORD_HASH (bcrypt). Згенеруйте хеш у папці server: node -e \"require('bcryptjs').hash('YourPassword',10).then(console.log)\". Перезапустіть API. Див. server/.env.example.",
     "networkError": "Помилка мережі.",
     "title": "Адміністрування",
     "subtitle": "Керування живими столами, кімнатами, обліковими записами та відгуками.",
