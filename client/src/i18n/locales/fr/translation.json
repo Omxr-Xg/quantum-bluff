@@ -1235,6 +1235,81 @@
       "unknown": "Etat runtime inattendu. Reessayez dans quelques instants."
     }
   },
+  "tournament": {
+    "admin": {
+      "playersRangeHint": "Minimum 4 joueurs, maximum 36 joueurs",
+      "backToTournaments": "Retour aux Tournois",
+      "pageTitle": "Créer un",
+      "pageTitleHighlight": "Tournoi",
+      "pageSubtitle": "Panneau d'administration - Réservé aux organisateurs",
+      "nameLabel": "Nom du Tournoi",
+      "namePlaceholder": "Ex: Sunday Million, Turbo Cup...",
+      "buyInLabel": "Buy-in (Jetons)",
+      "maxPlayersLabel": "Joueurs Max",
+      "startTimeLabel": "Date et Heure de lancement",
+      "submit": "GÉNÉRER LE TOURNOI",
+      "submitting": "CRÉATION EN COURS...",
+      "toastCreated": "Tournoi créé avec succès !",
+      "errorUnknown": "Erreur inconnue"
+    },
+    "lobby": {
+      "loading": "Initialisation du lobby...",
+      "backToCasino": "Retour au Casino",
+      "title": "Lobby",
+      "titleHighlight": "Tournois",
+      "subtitle": "Affrontez l'élite. Gagnez gros.",
+      "create": "Créer",
+      "empty": "La salle est vide... Revenez plus tard !",
+      "buyIn": "Buy-in",
+      "players": "Joueurs",
+      "launch": "Lancement : {{time}}",
+      "starting": "Démarrage...",
+      "prizePool": "Cagnotte",
+      "registeredTitle": "Joueurs inscrits ({{current}}/{{max}})",
+      "levelShort": "Niv. {{level}}",
+      "registered": "Inscrit",
+      "leave": "Quitter",
+      "register": "S'INSCRIRE",
+      "full": "TOURNOI COMPLET",
+      "toastJoin": "Inscription validée !",
+      "toastLeave": "Vous avez quitté le tournoi.",
+      "errorUnknown": "Erreur inconnue"
+    },
+    "widget": {
+      "arena": "Arène des Tournois",
+      "none": "Aucun Tournoi",
+      "scheduledAt": "Le {{date}} à {{time}}",
+      "joinLobby": "REJOINDRE LE LOBBY",
+      "emptyHint": "Les organisateurs préparent la prochaine bataille. Revenez bientôt !",
+      "visitLobby": "Visiter le Lobby"
+    },
+    "waiting": {
+      "title": "Vous êtes en finale !",
+      "subtitle": "En attente des autres tables...",
+      "tablesDone": "Tables terminées",
+      "preparing": "La table finale se prépare..."
+    },
+    "teleporter": {
+      "toastStarted": "Le tournoi commence !",
+      "countdownOne": "Le tournoi « {{name}} » commence dans 1 minute !",
+      "countdownMany": "Le tournoi « {{name}} » commence dans {{minutes}} minutes !",
+      "cancelled": "Le tournoi « {{name}} » a été annulé : pas assez de joueurs. Votre buy-in a été remboursé.",
+      "playerJoined": "{{username}} a rejoint le tournoi ! ({{current}}/{{max}})",
+      "finalistTitle": "Félicitations !",
+      "finalistSubtitle": "Vous êtes qualifié pour la finale !",
+      "redirecting": "Redirection dans quelques secondes...",
+      "eliminatedTitle": "ÉLIMINÉ",
+      "eliminatedSubtitle": "Tu n'as plus de jetons. Fin de la partie...",
+      "spectateHint": "Redirection vers la table finale en mode spectateur...",
+      "backButton": "Retourner",
+      "place1": "VICTOIRE !",
+      "place2": "2ème PLACE",
+      "place3": "3ème PLACE",
+      "placeN": "{{n}}ème PLACE",
+      "prizeChips": "+{{amount}} jetons",
+      "backTournamentsSoon": "Retour aux tournois dans quelques secondes..."
+    }
+  },
   "dailyChallenges": {
     "title": "Defis du jour",
     "loading": "Chargement…",

@@ -1208,6 +1208,81 @@
       "unknown": "Неочікуваний стан runtime. Спробуйте ще раз за мить."
     }
   },
+  "tournament": {
+    "admin": {
+      "playersRangeHint": "Від 4 до 36 гравців",
+      "backToTournaments": "Назад до турнірів",
+      "pageTitle": "Створити",
+      "pageTitleHighlight": "турнір",
+      "pageSubtitle": "Панель адміна — лише для організаторів",
+      "nameLabel": "Назва турніру",
+      "namePlaceholder": "Напр.: Sunday Million, Turbo Cup…",
+      "buyInLabel": "Бай-ін (жетони)",
+      "maxPlayersLabel": "Макс. гравців",
+      "startTimeLabel": "Дата й час старту",
+      "submit": "СТВОРИТИ ТУРНІР",
+      "submitting": "СТВОРЕННЯ…",
+      "toastCreated": "Турнір створено!",
+      "errorUnknown": "Невідома помилка"
+    },
+    "lobby": {
+      "loading": "Завантаження лобі…",
+      "backToCasino": "Назад у казино",
+      "title": "Лобі",
+      "titleHighlight": "Турніри",
+      "subtitle": "Спробуй силу проти еліти. Вигравай по-крупному.",
+      "create": "Створити",
+      "empty": "Турнірів немає. Заглянь пізніше!",
+      "buyIn": "Бай-ін",
+      "players": "Гравці",
+      "launch": "Старт через: {{time}}",
+      "starting": "Старт…",
+      "prizePool": "Призовий фонд",
+      "registeredTitle": "Зареєстровані ({{current}}/{{max}})",
+      "levelShort": "Рів. {{level}}",
+      "registered": "У грі",
+      "leave": "Вийти",
+      "register": "ЗАРЕЄСТРУВАТИСЯ",
+      "full": "ТУРНІР ПОВНИЙ",
+      "toastJoin": "Реєстрацію підтверджено!",
+      "toastLeave": "Ви вийшли з турніру.",
+      "errorUnknown": "Невідома помилка"
+    },
+    "widget": {
+      "arena": "Арена турнірів",
+      "none": "Немає турніру",
+      "scheduledAt": "{{date}} о {{time}}",
+      "joinLobby": "ДО ЛОБІ",
+      "emptyHint": "Організатори готують наступну битву. Завітай згодом!",
+      "visitLobby": "Відкрити лобі"
+    },
+    "waiting": {
+      "title": "Ви у фіналі!",
+      "subtitle": "Чекаємо на інші столи…",
+      "tablesDone": "Столи завершено",
+      "preparing": "Готуємо фінальний стіл…"
+    },
+    "teleporter": {
+      "toastStarted": "Турнір починається!",
+      "countdownOne": "Турнір «{{name}}» почнеться за 1 хвилину!",
+      "countdownMany": "Турнір «{{name}}» почнеться за {{minutes}} хв!",
+      "cancelled": "Турнір «{{name}}» скасовано: недостатньо гравців. Бай-ін повернуто.",
+      "playerJoined": "{{username}} приєднався до турніру! ({{current}}/{{max}})",
+      "finalistTitle": "Вітаємо!",
+      "finalistSubtitle": "Ви пройшли у фінал!",
+      "redirecting": "Перенаправлення за кілька секунд…",
+      "eliminatedTitle": "ВИБУВ",
+      "eliminatedSubtitle": "Жетонів більше немає. Кінець гри…",
+      "spectateHint": "Перехід на фінальний стіл як глядач…",
+      "backButton": "Назад",
+      "place1": "ПЕРЕМОГА!",
+      "place2": "2-е МІСЦЕ",
+      "place3": "3-є МІСЦЕ",
+      "placeN": "{{n}}-е МІСЦЕ",
+      "prizeChips": "+{{amount}} жетонів",
+      "backTournamentsSoon": "Повернення до турнірів за кілька секунд…"
+    }
+  },
   "dailyChallenges": {
     "title": "Щоденні завдання",
     "loading": "Завантаження…",

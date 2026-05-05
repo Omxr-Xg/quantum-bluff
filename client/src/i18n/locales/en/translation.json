@@ -1229,6 +1229,81 @@
       "unknown": "Unexpected runtime status. Please retry shortly."
     }
   },
+  "tournament": {
+    "admin": {
+      "playersRangeHint": "Minimum 4 players, maximum 36 players",
+      "backToTournaments": "Back to tournaments",
+      "pageTitle": "Create a",
+      "pageTitleHighlight": "Tournament",
+      "pageSubtitle": "Admin panel — organizers only",
+      "nameLabel": "Tournament name",
+      "namePlaceholder": "e.g. Sunday Million, Turbo Cup…",
+      "buyInLabel": "Buy-in (chips)",
+      "maxPlayersLabel": "Max players",
+      "startTimeLabel": "Start date & time",
+      "submit": "CREATE TOURNAMENT",
+      "submitting": "CREATING…",
+      "toastCreated": "Tournament created successfully!",
+      "errorUnknown": "Unknown error"
+    },
+    "lobby": {
+      "loading": "Loading lobby…",
+      "backToCasino": "Back to casino",
+      "title": "Lobby",
+      "titleHighlight": "Tournaments",
+      "subtitle": "Face the elite. Win big.",
+      "create": "Create",
+      "empty": "No tournaments right now. Check back later!",
+      "buyIn": "Buy-in",
+      "players": "Players",
+      "launch": "Starts in: {{time}}",
+      "starting": "Starting…",
+      "prizePool": "Prize pool",
+      "registeredTitle": "Registered players ({{current}}/{{max}})",
+      "levelShort": "Lv. {{level}}",
+      "registered": "Registered",
+      "leave": "Leave",
+      "register": "REGISTER",
+      "full": "TOURNAMENT FULL",
+      "toastJoin": "You’re registered!",
+      "toastLeave": "You left the tournament.",
+      "errorUnknown": "Unknown error"
+    },
+    "widget": {
+      "arena": "Tournament arena",
+      "none": "No tournament",
+      "scheduledAt": "{{date}} at {{time}}",
+      "joinLobby": "JOIN LOBBY",
+      "emptyHint": "Organizers are preparing the next battle. Come back soon!",
+      "visitLobby": "Open lobby"
+    },
+    "waiting": {
+      "title": "You’re in the final!",
+      "subtitle": "Waiting for other tables…",
+      "tablesDone": "Tables finished",
+      "preparing": "The final table is being set up…"
+    },
+    "teleporter": {
+      "toastStarted": "The tournament is starting!",
+      "countdownOne": "Tournament “{{name}}” starts in 1 minute!",
+      "countdownMany": "Tournament “{{name}}” starts in {{minutes}} minutes!",
+      "cancelled": "Tournament “{{name}}” was cancelled: not enough players. Your buy-in was refunded.",
+      "playerJoined": "{{username}} joined the tournament! ({{current}}/{{max}})",
+      "finalistTitle": "Congratulations!",
+      "finalistSubtitle": "You qualified for the final!",
+      "redirecting": "Redirecting in a few seconds…",
+      "eliminatedTitle": "ELIMINATED",
+      "eliminatedSubtitle": "You’re out of chips. End of the road…",
+      "spectateHint": "Redirecting to the final table as a spectator…",
+      "backButton": "Back",
+      "place1": "WINNER!",
+      "place2": "2nd PLACE",
+      "place3": "3rd PLACE",
+      "placeN": "{{n}}th PLACE",
+      "prizeChips": "+{{amount}} chips",
+      "backTournamentsSoon": "Back to tournaments in a few seconds…"
+    }
+  },
   "dailyChallenges": {
     "title": "Daily challenges",
     "loading": "Loading…",

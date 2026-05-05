@@ -1,9 +1,11 @@
 import { useLocation, useNavigate } from 'react-router';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSocket } from '../hooks/useSocket';
 import { Trophy, Clock, Users } from 'lucide-react';
 
 export function TournamentWaiting() {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { socket } = useSocket();
@@ -37,13 +39,13 @@ export function TournamentWaiting() {
         <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
           <Trophy className="w-8 h-8 text-yellow-400" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Vous êtes en finale !</h1>
-        <p className="text-slate-400 mb-6">En attente des autres tables...</p>
+        <h1 className="text-2xl font-bold text-white mb-2">{t('tournament.waiting.title')}</h1>
+        <p className="text-slate-400 mb-6">{t('tournament.waiting.subtitle')}</p>
         <div className="bg-slate-700 rounded-xl p-4 mb-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-slate-400 text-sm flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Tables terminées
+              {t('tournament.waiting.tablesDone')}
             </span>
             <span className="text-white font-bold">{survivorsCount}/{expectedTables}</span>
           </div>
@@ -56,7 +58,7 @@ export function TournamentWaiting() {
         </div>
         <div className="flex items-center justify-center gap-2 text-slate-400">
           <Clock className="w-4 h-4 animate-spin" />
-          <span className="text-sm">La table finale se prépare...</span>
+          <span className="text-sm">{t('tournament.waiting.preparing')}</span>
         </div>
       </div>
     </div>

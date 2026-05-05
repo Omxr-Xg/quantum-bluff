@@ -1208,6 +1208,81 @@
       "unknown": "حالة تشغيل غير متوقعة. حاول مرة أخرى بعد لحظات."
     }
   },
+  "tournament": {
+    "admin": {
+      "playersRangeHint": "من 4 إلى 36 لاعبًا",
+      "backToTournaments": "العودة إلى البطولات",
+      "pageTitle": "إنشاء",
+      "pageTitleHighlight": "بطولة",
+      "pageSubtitle": "لوحة الإدارة — للمنظمين فقط",
+      "nameLabel": "اسم البطولة",
+      "namePlaceholder": "مثال: Sunday Million، Turbo Cup",
+      "buyInLabel": "الشراء (رموز)",
+      "maxPlayersLabel": "الحد الأقصى للاعبين",
+      "startTimeLabel": "تاريخ ووقت البدء",
+      "submit": "إنشاء البطولة",
+      "submitting": "جاري الإنشاء…",
+      "toastCreated": "تم إنشاء البطولة!",
+      "errorUnknown": "خطأ غير معروف"
+    },
+    "lobby": {
+      "loading": "تحميل الردهة…",
+      "backToCasino": "العودة إلى الكازينو",
+      "title": "الردهة",
+      "titleHighlight": "البطولات",
+      "subtitle": "واجه النخبة. اربح الكثير.",
+      "create": "إنشاء",
+      "empty": "لا توجد بطولات حاليًا. عد لاحقًا!",
+      "buyIn": "الشراء",
+      "players": "اللاعبون",
+      "launch": "يبدأ خلال: {{time}}",
+      "starting": "جاري البدء…",
+      "prizePool": "الجوائز",
+      "registeredTitle": "المسجلون ({{current}}/{{max}})",
+      "levelShort": "م. {{level}}",
+      "registered": "مسجّل",
+      "leave": "مغادرة",
+      "register": "التسجيل",
+      "full": "البطولة ممتلئة",
+      "toastJoin": "تم التسجيل!",
+      "toastLeave": "غادرت البطولة.",
+      "errorUnknown": "خطأ غير معروف"
+    },
+    "widget": {
+      "arena": "ساحة البطولات",
+      "none": "لا بطولة",
+      "scheduledAt": "{{date}} · {{time}}",
+      "joinLobby": "الذهاب إلى الردهة",
+      "emptyHint": "المنظمون يجهزون الجولة القادمة. عد قريبًا!",
+      "visitLobby": "زيارة الردهة"
+    },
+    "waiting": {
+      "title": "أنت في النهائي!",
+      "subtitle": "في انتظار الطاولات الأخرى…",
+      "tablesDone": "طاولات منتهية",
+      "preparing": "جاري تجهيز الطاولة النهائية…"
+    },
+    "teleporter": {
+      "toastStarted": "تبدأ البطولة!",
+      "countdownOne": "البطولة «{{name}}» تبدأ خلال دقيقة!",
+      "countdownMany": "البطولة «{{name}}» تبدأ خلال {{minutes}} دقائق!",
+      "cancelled": "أُلغيت البطولة «{{name}}»: لا يوجد لاعبون كفاية. أُعيد شراؤك.",
+      "playerJoined": "{{username}} انضم إلى البطولة! ({{current}}/{{max}})",
+      "finalistTitle": "تهانينا!",
+      "finalistSubtitle": "تأهلت إلى النهائي!",
+      "redirecting": "إعادة توجيه خلال ثوانٍ…",
+      "eliminatedTitle": "خروج",
+      "eliminatedSubtitle": "لم يتبقَّ لديك رموز. انتهت المباراة…",
+      "spectateHint": "إعادة التوجيه للطاولة النهائية كمتفرج…",
+      "backButton": "رجوع",
+      "place1": "فوز!",
+      "place2": "المركز الثاني",
+      "place3": "المركز الثالث",
+      "placeN": "المركز {{n}}",
+      "prizeChips": "+{{amount}} رمز",
+      "backTournamentsSoon": "العودة للبطولات خلال ثوانٍ…"
+    }
+  },
   "dailyChallenges": {
     "title": "التحديات اليومية",
     "loading": "جاري التحميل…",

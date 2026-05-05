@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import { AccessibilityProvider } from "./contexts/AccessibilityContext";
 import { AccessibilityMenuOpenProvider } from "./contexts/AccessibilityMenuOpenContext";
@@ -81,6 +82,7 @@ function TournamentTeleporter() {
   const navigate = useNavigate();
   const { userId } = useUser();
   const { addToast } = useToast();
+  const { t, i18n } = useTranslation();
   
   const [tournamentResult, setTournamentResult] = useState<{
     type: 'win' | 'lose' | 'finalist' | 'result';
@@ -109,7 +111,7 @@ function TournamentTeleporter() {
       if (isIncluded) {
         const myTableId = data.playerToGameMap?.[userId];
         if (!myTableId) return;
-        addToast(`Le tournoi commence !`, "success");
+        addToast(t("tournament.teleporter.toastStarted"), "success");
         navigate(`/game?gameId=${myTableId}`);
       }
     };
@@ -168,17 +170,35 @@ function TournamentTeleporter() {
       }, 12000);
     };
 
-    const handleCountdown = (data: { tournamentName: string; minutesLeft: number; message: string }) => {
+    const handleCountdown = (data: { tournamentName: string; minutesLeft: number }) => {
       const type = data.minutesLeft <= 5 ? 'warning' : 'info';
-      addToast(data.message, type);
+      const msg =
+        data.minutesLeft === 1
+          ? t('tournament.teleporter.countdownOne', { name: data.tournamentName })
+          : t('tournament.teleporter.countdownMany', {
+              name: data.tournamentName,
+              minutes: String(data.minutesLeft),
+            });
+      addToast(msg, type);
     };
 
-    const handleCancelled = (data: { tournamentName: string; message: string }) => {
-      addToast(data.message, 'error');
+    const handleCancelled = (data: { tournamentName: string; reason?: string }) => {
+      addToast(t('tournament.teleporter.cancelled', { name: data.tournamentName }), 'error');
     };
 
-    const handlePlayerJoined = (data: { message: string }) => {
-      addToast(data.message, 'info');
+    const handlePlayerJoined = (data: {
+      username: string;
+      playerCount: number;
+      maxPlayers: number;
+    }) => {
+      addToast(
+        t('tournament.teleporter.playerJoined', {
+          username: data.username,
+          current: String(data.playerCount),
+          max: String(data.maxPlayers),
+        }),
+        'info',
+      );
     };
 
     socket.on('tournament-started', handleTournamentStart);
@@ -204,7 +224,7 @@ function TournamentTeleporter() {
       socket.off('tournament-spectate', handleSpectate);
       socket.off('tournament-result', handleTournamentResult);
     };
-  }, [userId, navigate, addToast]);
+  }, [userId, navigate, addToast, t, i18n.language]);
 
   if (tournamentResult) {
     const medals = ['🥇', '🥈', '🥉'];
@@ -221,13 +241,13 @@ function TournamentTeleporter() {
         }}>
           <div style={{ fontSize: '5rem', marginBottom: '20px' }}>🏆</div>
           <h1 style={{ fontSize: '3rem', margin: 0, color: '#FFD700', textShadow: '0 0 20px #FFD700' }}>
-            Félicitations !
+            {t('tournament.teleporter.finalistTitle')}
           </h1>
           <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
-            Vous êtes qualifié pour la finale !
+            {t('tournament.teleporter.finalistSubtitle')}
           </p>
           <p style={{ marginTop: '10px', fontSize: '1rem', opacity: 0.6 }}>
-            Redirection dans quelques secondes...
+            {t('tournament.teleporter.redirecting')}
           </p>
         </div>
       );
@@ -244,13 +264,13 @@ function TournamentTeleporter() {
         }}>
           <div style={{ fontSize: '6rem', marginBottom: '20px' }}>💥</div>
           <h1 style={{ fontSize: '4rem', margin: 0, color: '#FF4444', textShadow: '0 0 20px #FF0000' }}>
-            ÉLIMINÉ
+            {t('tournament.teleporter.eliminatedTitle')}
           </h1>
           <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
-            Tu n'as plus de jetons. Fin de la partie...
+            {t('tournament.teleporter.eliminatedSubtitle')}
           </p>
           <p style={{ marginTop: '20px', fontSize: '1rem', opacity: 0.5 }}>
-            Redirection vers la table finale en mode spectateur...
+            {t('tournament.teleporter.spectateHint')}
           </p>
           <button
             type="button"
@@ -262,7 +282,7 @@ function TournamentTeleporter() {
               fontSize: '1rem', cursor: 'pointer', fontFamily: 'sans-serif',
             }}
           >
-            Retourner
+            {t('tournament.teleporter.backButton')}
           </button>
         </div>
       );
@@ -287,11 +307,21 @@ function TournamentTeleporter() {
             color: myPos && myPos <= 3 ? medalColors[myPos - 1] : '#ffffff',
             textShadow: myPos && myPos <= 3 ? `0 0 20px ${medalColors[myPos - 1]}` : 'none'
           }}>
-            {myPos === 1 ? 'VICTOIRE !' : myPos === 2 ? '2ème PLACE' : myPos === 3 ? '3ème PLACE' : `${myPos}ème PLACE`}
+            {myPos === 1
+              ? t('tournament.teleporter.place1')
+              : myPos === 2
+                ? t('tournament.teleporter.place2')
+                : myPos === 3
+                  ? t('tournament.teleporter.place3')
+                  : myPos
+                    ? t('tournament.teleporter.placeN', { n: String(myPos) })
+                    : ''}
           </h1>
           {tournamentResult.myAmount && tournamentResult.myAmount > 0 && (
             <p style={{ fontSize: '1.5rem', marginTop: '10px', color: '#4ade80' }}>
-              +{tournamentResult.myAmount.toLocaleString()} jetons
+              {t('tournament.teleporter.prizeChips', {
+                amount: tournamentResult.myAmount.toLocaleString(i18n.language),
+              })}
             </p>
           )}
           {tournamentResult.ranking && tournamentResult.ranking.length > 0 && (
@@ -314,7 +344,9 @@ function TournamentTeleporter() {
                   </span>
                   {r.amount > 0 && (
                     <span style={{ color: '#4ade80', fontSize: '0.9rem' }}>
-                      +{r.amount.toLocaleString()}
+                      {t('tournament.teleporter.prizeChips', {
+                        amount: r.amount.toLocaleString(i18n.language),
+                      })}
                     </span>
                   )}
                 </div>
@@ -322,7 +354,7 @@ function TournamentTeleporter() {
             </div>
           )}
           <p style={{ marginTop: '24px', fontSize: '0.9rem', opacity: 0.4 }}>
-            Retour aux tournois dans quelques secondes...
+            {t('tournament.teleporter.backTournamentsSoon')}
           </p>
         </div>
       );
