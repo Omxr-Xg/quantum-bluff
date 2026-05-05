@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+.git
+.gitignore
+*.md
+.env
+.env.*
+**/__tests__
+**/*.test.ts
+**/*.integration.test.ts
+npm-debug.log*

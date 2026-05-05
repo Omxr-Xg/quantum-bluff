@@ -165,6 +165,54 @@ docker:build:
         --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
         --destination "${CI_REGISTRY_IMAGE}:latest"
   only:
+    - develop
+    - main
+    - /^release\/.*$/
+
+# Images pour déploiement VM sans « docker compose build » (pull uniquement).
+docker:build:client:
+  stage: docker-build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  variables:
+    # Surchargeable dans GitLab → Settings → CI/CD → Variables (ex. préfixe API derrière nginx).
+    VITE_API_URL: "/vmProjetIntegrateurgrp10-0"
+  script:
+    - mkdir -p /kaniko/.docker
+    - AUTH=$(printf "%s:%s" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
+    - |
+      printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$AUTH" \
+        > /kaniko/.docker/config.json
+    - /kaniko/executor
+        --context "${CI_PROJECT_DIR}/client"
+        --dockerfile "${CI_PROJECT_DIR}/client/Dockerfile"
+        --build-arg "VITE_API_URL=${VITE_API_URL}"
+        --destination "${CI_REGISTRY_IMAGE}:client-${CI_COMMIT_SHORT_SHA}"
+        --destination "${CI_REGISTRY_IMAGE}:client-latest"
+  only:
+    - develop
+    - main
+    - /^release\/.*$/
+
+docker:build:ai-service:
+  stage: docker-build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  script:
+    - mkdir -p /kaniko/.docker
+    - AUTH=$(printf "%s:%s" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
+    - |
+      printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$AUTH" \
+        > /kaniko/.docker/config.json
+    - /kaniko/executor
+        --context "${CI_PROJECT_DIR}/server/ai-service"
+        --dockerfile "${CI_PROJECT_DIR}/server/ai-service/Dockerfile"
+        --destination "${CI_REGISTRY_IMAGE}:ai-${CI_COMMIT_SHORT_SHA}"
+        --destination "${CI_REGISTRY_IMAGE}:ai-latest"
+  only:
+    - develop
     - main
     - /^release\/.*$/
 

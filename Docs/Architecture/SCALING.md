@@ -51,6 +51,15 @@ flowchart LR
 docker compose -f docker-compose.prod.yml up -d
 ```
 
+**VM sans build local** : la CI pousse le backend (`:latest`), le client (`:client-latest`) et l’IA (`:ai-latest`) vers le Container Registry GitLab. Sur la machine, définir `QUANTUM_REGISTRY_IMAGE` (identique à `CI_REGISTRY_IMAGE`), faire `docker login registry.gitlab.com`, puis :
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml pull
+docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml up -d
+```
+
+Détails dans les commentaires en tête de `docker-compose.vm-registry.yml`.
+
 **Plusieurs réplicas backend** (sans `container_name` sur le service `backend`) :
 
 ```bash
