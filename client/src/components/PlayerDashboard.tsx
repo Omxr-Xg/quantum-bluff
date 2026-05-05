@@ -5,6 +5,7 @@ import { useAccessibility } from "../contexts/AccessibilityContext";
 import { NeonButton } from "./NeonButton";
 import { HandCombinationsHelpButton } from "./HandCombinationsHelpButton";
 import { useAudio } from "../contexts/MusicContext";
+import { buildRaiseIncrementPresets } from "../utils/pokerRaisePresets";
 
 interface Card {
   suit: string;
@@ -22,6 +23,8 @@ interface PlayerDashboardProps {
   callAmount: number;
   minRaise: number;
   maxRaise: number;
+  /** Grosse blind (ou pas d’échelle) pour les montants rapides 50, 100, 150… */
+  raisePresetStep?: number;
   isMyTurn: boolean;
   isLoading?: boolean;
   hasFolded: boolean;
@@ -33,6 +36,8 @@ interface PlayerDashboardProps {
   onQuantumHoverEnter?: () => void;
   onQuantumHoverLeave?: () => void;
   onToggleHiddenBets?: () => void;
+  /** Mode contre bot : bouton Paris grisé, infobulle explicative. */
+  hiddenBetsDisabled?: boolean;
   onToggleChat?: () => void;
   isHiddenBetsOpen?: boolean;
   isChatOpen?: boolean;
@@ -52,6 +57,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   callAmount,
   minRaise,
   maxRaise,
+  raisePresetStep,
   isMyTurn,
   isLoading = false,
   hasFolded,
@@ -62,6 +68,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   onQuantumHoverEnter,
   onQuantumHoverLeave,
   onToggleHiddenBets,
+  hiddenBetsDisabled = false,
   onToggleChat,
   isHiddenBetsOpen: _isHiddenBetsOpen,
   isChatOpen = false,
@@ -153,18 +160,8 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
     setTimeout(() => setShowSuccessPopup(false), 2000);
   };
 
-  const raisePresets = (() => {
-    if (maxRaise <= 0) return [];
-    const range = maxRaise - effectiveMinRaise;
-    if (range <= 0) return [maxRaise];
-    return [
-      effectiveMinRaise,
-      effectiveMinRaise + Math.floor(range * 0.25),
-      effectiveMinRaise + Math.floor(range * 0.5),
-      effectiveMinRaise + Math.floor(range * 0.75),
-      maxRaise,
-    ].filter((v, i, a) => a.indexOf(v) === i);
-  })();
+  const stepForPresets = Math.max(1, Math.floor(raisePresetStep ?? minRaise));
+  const raisePresets = buildRaiseIncrementPresets(effectiveMinRaise, maxRaise, stepForPresets);
 
   return (
     <div
@@ -349,8 +346,15 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
           {/* RIGHT TOOLS */}
           <div className="order-3 flex shrink-0 flex-wrap justify-center gap-2 xl:order-none xl:justify-self-start">
             {onToggleHiddenBets && (
-              <NeonButton onClick={onToggleHiddenBets} variant="gold" icon={<Eye className="w-4 h-4" />} className="px-4 py-3 text-xs md:px-5 md:py-3.5">
-                {t('game.bets')}
+              <NeonButton
+                onClick={hiddenBetsDisabled ? undefined : onToggleHiddenBets}
+                disabled={hiddenBetsDisabled}
+                title={hiddenBetsDisabled ? t("game.hiddenBetsUnavailableBotMode") : undefined}
+                variant="gold"
+                icon={<Eye className="w-4 h-4" />}
+                className="px-4 py-3 text-xs md:px-5 md:py-3.5"
+              >
+                {t("game.bets")}
               </NeonButton>
             )}
             {onToggleQuantum && (

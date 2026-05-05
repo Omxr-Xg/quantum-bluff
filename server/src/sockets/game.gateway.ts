@@ -38,6 +38,10 @@ import {
   markWinWithPair,
 } from "../dailyChallenges/dailyChallenge.service.js";
 import { sanitizePublicAvatarUrl } from "../utils/avatarUrl.js";
+import {
+  censorChatLinks,
+  isChatContentEffectivelyEmpty,
+} from "../utils/chatLinkCensor.js";
 import { buildHiddenBetResolutionPayload } from "../poker/hiddenBets/hiddenBetSnapshot.js";
 import { resolveHiddenBetsForHand } from "../poker/hiddenBets/resolver/hiddenBetResolver.js";
 import {
@@ -993,9 +997,11 @@ export class GameGateway {
           )
             return;
           if (socket.userId !== playerId) return;
+          const censored = censorChatLinks(String(content));
+          if (isChatContentEffectivelyEmpty(censored)) return;
           socket.broadcast
             .to(gameId)
-            .emit("GAME_CHAT", { playerId, playerName, content, type });
+            .emit("GAME_CHAT", { playerId, playerName, content: censored, type });
         },
       );
 

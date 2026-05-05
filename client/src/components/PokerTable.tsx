@@ -363,7 +363,7 @@ export function PokerTable({
                           </svg>
                         )}
                         <div className="relative z-10">{avatarNode}</div>
-                        <div className="pointer-events-none absolute left-1/2 top-[72%] z-30 flex -translate-x-1/2 flex-col items-center drop-shadow-2xl">
+                        <div className="pointer-events-none absolute left-1/2 top-[62%] z-30 flex -translate-x-1/2 flex-col items-center drop-shadow-2xl md:top-[64%]">
                           {player.cards && player.cards.length > 0 && !player.hasFolded && (
                             <div className="relative z-10 flex items-start justify-center">
                               {player.cards.map((card, index) => (
@@ -385,7 +385,7 @@ export function PokerTable({
                               ))}
                             </div>
                           )}
-                          <div className="mt-2 flex flex-col items-center gap-0">
+                          <div className="mt-1 flex flex-col items-center gap-0 md:mt-1.5">
                             <div className="relative z-40 min-w-[4.8rem] rounded-md border border-white/10 bg-slate-950/95 px-3 py-1 text-center text-xs font-bold leading-none text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.55)] md:text-sm">
                               {displayName}
                             </div>

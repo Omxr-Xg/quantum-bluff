@@ -22,10 +22,15 @@ class ExpertLabel:
 
 def _effective_equity(ctx: FeatureContext) -> float:
     draw_bonus = max(ctx.flush_draw, ctx.straight_draw) * 0.1
+    if ctx.street == "RIVER":
+        draw_bonus *= 0.35
     overcard_bonus = ctx.overcards * 0.04 if ctx.street in {"FLOP", "TURN"} else 0.0
     top_pair_bonus = ctx.top_pair * 0.08
-    texture_penalty = ctx.board_suitedness * 0.04 + ctx.board_connectivity * 0.04
-    return clamp(ctx.hand_strength + draw_bonus + overcard_bonus + top_pair_bonus - texture_penalty)
+    kicker_bonus = ctx.kicker_strength * 0.05 if ctx.made_pair_or_better > 0 else 0.0
+    texture_penalty = ctx.board_suitedness * 0.05 + ctx.board_connectivity * 0.05
+    if ctx.board_pair > 0 and ctx.hand_category_rank <= 1:
+        texture_penalty += 0.03
+    return clamp(ctx.hand_strength + draw_bonus + overcard_bonus + top_pair_bonus + kicker_bonus - texture_penalty)
 
 
 def _preflop_tier(payload: dict[str, Any]) -> tuple[float, str]:
@@ -107,6 +112,8 @@ def label_situation(payload: dict[str, Any]) -> ExpertLabel:
                 return _make("RAISE", 0.78, "value", f"Strong preflop hand opens or 3-bets ({tier_name})")
             return _make("CHECK_CALL", 0.68, "pot_odds", f"Strong preflop hand continues versus pressure ({tier_name})")
         if tier >= 0.54:
+            if pressure >= 0.32 and not in_position:
+                return _make("FOLD", 0.74, "discipline", f"Playable hand folds to heavy OOP pressure ({tier_name})")
             if to_call == 0 and (in_position or passive_villain):
                 return _make("RAISE", 0.62, "steal", f"Playable preflop hand pressures blinds ({tier_name})")
             if price_gap >= -0.03 and pressure < 0.14:
@@ -115,6 +122,14 @@ def label_situation(payload: dict[str, Any]) -> ExpertLabel:
         if to_call <= 0:
             return _make("CHECK_CALL", 0.7, "pot_control", f"Marginal preflop hand checks option ({tier_name})")
         return _make("FOLD", 0.82, "discipline", f"Weak preflop range folds versus pressure ({tier_name})")
+
+    if ctx.street == "RIVER" and to_call > 0:
+        if equity < 0.36 and price_gap < -0.02:
+            return _make("FOLD", 0.9, "discipline", "River: deny bluffcatch without showdown value")
+        if equity < 0.5 and price_gap < -0.1 and ctx.hand_category_rank <= 1:
+            return _make("FOLD", 0.78, "discipline", "River: weak one-pair or worse vs large bet")
+        if equity >= 0.72 and price_gap >= 0.06:
+            return _make("RAISE", 0.88, "thin_value", "River: thin value or raise vs capped range")
 
     if (equity >= 0.88 or ctx.hand_category_rank >= 3) and spr <= 2.5:
         return _make("ALL_IN", 0.9, "value", "Very strong hand with short effective stack")
@@ -128,11 +143,11 @@ def label_situation(payload: dict[str, Any]) -> ExpertLabel:
     if equity >= 0.58:
         if to_call == 0 and (in_position or passive_villain) and not calling_station:
             return _make("RAISE", 0.74, "thin_value", "Medium-strong hand can pressure passive ranges")
-        if price_gap >= -0.02 and pressure < 0.45:
+        if price_gap >= -0.015 and pressure < 0.42:
             return _make("CHECK_CALL", 0.72, "pot_odds", "Medium hand has acceptable pot odds")
-        if strong_draw and fold_equity >= 0.35:
+        if strong_draw and fold_equity >= 0.35 and ctx.street != "RIVER":
             return _make("RAISE", 0.64, "semi_bluff", "Strong draw can semi-bluff in position")
-        return _make("FOLD", 0.62, "discipline", "Medium hand priced out by pressure")
+        return _make("FOLD", 0.64, "discipline", "Medium hand priced out by pressure")
 
     if strong_draw:
         if to_call == 0 and fold_equity >= 0.35 and pot / stack > 0.12:
@@ -145,7 +160,7 @@ def label_situation(payload: dict[str, Any]) -> ExpertLabel:
             return _make("RAISE", 0.52, "bluff", "Controlled bluff against passive opponent")
         return _make("CHECK_CALL", 0.66, "pot_control", "Weak or marginal hand takes free card")
 
-    if price_gap >= 0.04 and not aggressive_villain:
+    if price_gap >= 0.035 and not aggressive_villain and pressure < 0.22:
         return _make("CHECK_CALL", 0.62, "pot_odds", "Marginal call justified by price")
     if pressure > 0.25 or aggressive_villain:
         return _make("FOLD", 0.76, "discipline", "Weak hand facing costly or aggressive action")

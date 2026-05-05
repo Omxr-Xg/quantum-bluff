@@ -9,6 +9,7 @@ const SHOW_DELAY_MS = 400;
 const HIDE_DELAY_MS = 280;
 
 export type CombinationHandKey =
+  | "royalFlush"
   | "straightFlush"
   | "fourKind"
   | "fullHouse"
@@ -22,6 +23,7 @@ export type CombinationHandKey =
 
 /** Ordre affiché : du plus fort au plus faible */
 const RANK_DISPLAY_ORDER: CombinationHandKey[] = [
+  "royalFlush",
   "straightFlush",
   "fourKind",
   "fullHouse",
@@ -35,12 +37,20 @@ const RANK_DISPLAY_ORDER: CombinationHandKey[] = [
 ];
 
 const EXAMPLES: Record<CombinationHandKey, { suit: string; value: string }[]> = {
-  straightFlush: [
+  royalFlush: [
     { suit: "hearts", value: "10" },
     { suit: "hearts", value: "J" },
     { suit: "hearts", value: "Q" },
     { suit: "hearts", value: "K" },
     { suit: "hearts", value: "A" },
+  ],
+  /** Quinte flush non royale (la royale est listée au-dessus). */
+  straightFlush: [
+    { suit: "clubs", value: "5" },
+    { suit: "clubs", value: "6" },
+    { suit: "clubs", value: "7" },
+    { suit: "clubs", value: "8" },
+    { suit: "clubs", value: "9" },
   ],
   fourKind: [
     { suit: "spades", value: "8" },

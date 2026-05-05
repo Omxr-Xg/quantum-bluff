@@ -58,7 +58,7 @@ def _softmax(logits: list[float]) -> list[float]:
 
 
 def _heuristic_scores(ctx: FeatureContext, to_call: float, bot_stack: float) -> list[float]:
-    draw_bonus = max(ctx.flush_draw, ctx.straight_draw) * 0.12
+    draw_bonus = max(ctx.flush_draw, ctx.straight_draw) * (0.1 if ctx.street == "RIVER" else 0.12)
     equity = clamp(ctx.hand_strength + draw_bonus)
     price_gap = equity - ctx.pot_odds
     pressure = clamp(to_call / max(bot_stack, 1.0))
@@ -104,7 +104,7 @@ def _teacher_scores(payload: dict[str, Any]) -> tuple[list[float], str, str]:
 
 def _choose_action(probs: list[float], temperature: float) -> int:
     ranked = sorted(enumerate(probs), key=lambda item: item[1], reverse=True)
-    if ranked[0][1] >= 0.62 or ranked[0][1] - ranked[1][1] >= 0.18:
+    if ranked[0][1] >= 0.56 or ranked[0][1] - ranked[1][1] >= 0.14:
         return ranked[0][0]
     adjusted = [pow(max(prob, 1e-6), 1 / temperature) for prob in probs]
     total = sum(adjusted)
@@ -247,12 +247,19 @@ def predict_decision(payload: dict[str, Any], model: PolicyModel | None = None) 
     heuristic_scores = _heuristic_scores(ctx, float(payload.get("toCall", 0)), float(payload.get("botStack", 0)))
     teacher_scores, teacher_style, teacher_reason = _teacher_scores(payload)
     logits = [
-        model_score * 0.28 + heuristic_score * 0.22 + teacher_score * 0.5 + random.uniform(-0.01, 0.01)
+        model_score * 0.34 + heuristic_score * 0.24 + teacher_score * 0.42 + random.uniform(-0.004, 0.004)
         for model_score, heuristic_score, teacher_score in zip(model_scores, heuristic_scores, teacher_scores)
     ]
     probs = _softmax(logits)
-    temperature = float(payload.get("temperature", 0.28 if ctx.street == "PREFLOP" else 0.22))
-    temperature = max(0.18, min(1.1, temperature))
+    if "temperature" in payload:
+        temperature = float(payload["temperature"])
+    elif ctx.street == "PREFLOP":
+        temperature = 0.22
+    elif ctx.street == "RIVER":
+        temperature = 0.13
+    else:
+        temperature = 0.17
+    temperature = max(0.12, min(1.05, temperature))
     action_idx = _soul_read_override(payload, ctx)
     if action_idx is None:
         action_idx = _choose_action(probs, temperature)

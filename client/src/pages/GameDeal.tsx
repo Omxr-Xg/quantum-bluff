@@ -6,6 +6,7 @@ import { PokerTable } from "../components/PokerTable";
 import { ArrowRight } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { ChipIcon } from "../components/ChipIcon";
+import { DeckShuffleOverlay } from "../components/game/DeckShuffleOverlay";
 
 interface Card {
   suit: "hearts" | "diamonds" | "clubs" | "spades";
@@ -294,81 +295,7 @@ export function GameDeal() {
       {/* Animation du dealer au centre */}
       <AnimatePresence>
         {phase === "shuffle" && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", damping: 20, stiffness: 300 }}
-              className="relative flex flex-col items-center gap-8"
-            >
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-80 bg-amber-500/15 rounded-full blur-[60px] -z-10 pointer-events-none" />
-              <div className="relative w-36 h-52" style={{ perspective: "1000px" }}>
-                {[...Array(12)].map((_, i) => {
-                  const isLeft = i % 2 === 0;
-                  const spread = shuffleCount % 2 === 0 ? 1 : -1;
-                  const angle = spread * (isLeft ? 12 : -12);
-                  const offsetX = spread * (isLeft ? -18 : 18);
-                  const offsetY = spread * (isLeft ? -8 : 8);
-                  const z = i * 2;
-                  return (
-                    <motion.div
-                      key={i}
-                      className="absolute inset-0 rounded-xl border-2 border-amber-400/60 shadow-2xl"
-                      style={{
-                        background: "linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1e3a5f 100%)",
-                        backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(234,179,8,0.08) 8px, rgba(234,179,8,0.08) 16px), repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(234,179,8,0.06) 8px, rgba(234,179,8,0.06) 16px)",
-                        boxShadow: "0 0 0 1px rgba(234,179,8,0.2), 0 10px 40px -10px rgba(0,0,0,0.5)",
-                        left: `${i * 2}px`,
-                        top: `${i * 1.5}px`,
-                        zIndex: z,
-                      }}
-                      animate={{
-                        rotate: angle,
-                        x: offsetX,
-                        y: offsetY,
-                        rotateY: shuffleCount % 2 === 0 ? 0 : (i % 2) * 10,
-                      }}
-                      transition={{
-                        type: "spring",
-                        damping: 18,
-                        stiffness: 200,
-                        delay: i * 0.02,
-                      }}
-                    >
-                      <div className="absolute inset-0 flex items-center justify-center rounded-xl overflow-hidden">
-                        <div className="w-12 h-16 rounded border border-amber-400/30 flex items-center justify-center">
-                          <span className="text-amber-400/40 text-2xl font-bold">♠</span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-              <motion.div
-                className="flex flex-col items-center gap-1"
-                animate={{ opacity: [1, 0.7, 1] }}
-                transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <p className="text-amber-300 font-bold text-2xl tracking-[0.3em] uppercase drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]">
-                  {t('gameDeal.shuffling')}
-                </p>
-                <div className="h-1 w-28 rounded-full bg-slate-700/80 overflow-hidden mt-2">
-                  <motion.div
-                    className="h-full bg-amber-400 rounded-full"
-                    initial={{ width: "0%" }}
-                    animate={{ width: ["0%", "100%"] }}
-                    transition={{ duration: 1.4, ease: "easeInOut", repeat: Infinity, repeatDelay: 0.2 }}
-                  />
-                </div>
-              </motion.div>
-            </motion.div>
-          </motion.div>
+          <DeckShuffleOverlay key="deck-shuffle" shuffleCount={shuffleCount} title={t("gameDeal.shuffling")} />
         )}
       </AnimatePresence>
 

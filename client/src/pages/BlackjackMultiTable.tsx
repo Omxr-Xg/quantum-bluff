@@ -474,7 +474,7 @@ export function BlackjackMultiTable() {
         )}
       </div>
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4 sm:px-4 sm:pt-6">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 sm:pt-5 md:pt-6">
       <BlackjackMultiCasinoTable
         state={state}
         userId={userId ?? null}

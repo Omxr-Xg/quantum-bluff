@@ -9,57 +9,97 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
+export type LobbyMainTab = "poker" | "minigames" | "blackjack";
+
 export type LobbyTourRefs = {
   header: RefObject<HTMLElement | null>;
   topBar: RefObject<HTMLElement | null>;
+  tabs: RefObject<HTMLElement | null>;
   bot: RefObject<HTMLElement | null>;
   multiplayer: RefObject<HTMLElement | null>;
   waitingRooms: RefObject<HTMLElement | null>;
   gamesInProgress: RefObject<HTMLElement | null>;
+  tournaments: RefObject<HTMLElement | null>;
+  minigamesPanel: RefObject<HTMLElement | null>;
+  blackjackPanel: RefObject<HTMLElement | null>;
+  dailyChallenges: RefObject<HTMLElement | null>;
   friends: RefObject<HTMLElement | null>;
 };
 
-type StepDef =
-  | { highlight: null; titleKey: string; bodyKey: string }
-  | {
-      highlight: keyof LobbyTourRefs;
-      titleKey: string;
-      bodyKey: string;
-    };
+type StepDef = {
+  highlight: keyof LobbyTourRefs | null;
+  titleKey: string;
+  bodyKey: string;
+  mainTab: LobbyMainTab;
+};
 
 const STEP_DEFS: StepDef[] = [
   {
     highlight: null,
     titleKey: "tourWelcomeTitle",
     bodyKey: "tourWelcomeBody",
+    mainTab: "poker",
   },
-  { highlight: "header", titleKey: "headerTitle", bodyKey: "headerBody" },
-  { highlight: "topBar", titleKey: "topBarTitle", bodyKey: "topBarBody" },
-  { highlight: "bot", titleKey: "botTitle", bodyKey: "botBody" },
+  { highlight: "header", titleKey: "headerTitle", bodyKey: "headerBody", mainTab: "poker" },
+  { highlight: "topBar", titleKey: "topBarTitle", bodyKey: "topBarBody", mainTab: "poker" },
+  { highlight: "tabs", titleKey: "tabsTitle", bodyKey: "tabsBody", mainTab: "poker" },
+  { highlight: "bot", titleKey: "botTitle", bodyKey: "botBody", mainTab: "poker" },
   {
     highlight: "multiplayer",
     titleKey: "multiplayerTitle",
     bodyKey: "multiplayerBody",
+    mainTab: "poker",
   },
   {
     highlight: "waitingRooms",
     titleKey: "waitingTitle",
     bodyKey: "waitingBody",
+    mainTab: "poker",
   },
   {
     highlight: "gamesInProgress",
     titleKey: "gamesTitle",
     bodyKey: "gamesBody",
+    mainTab: "poker",
   },
-  { highlight: "friends", titleKey: "friendsTitle", bodyKey: "friendsBody" },
+  {
+    highlight: "tournaments",
+    titleKey: "tournamentsTitle",
+    bodyKey: "tournamentsBody",
+    mainTab: "poker",
+  },
+  {
+    highlight: "minigamesPanel",
+    titleKey: "minigamesTabTitle",
+    bodyKey: "minigamesTabBody",
+    mainTab: "minigames",
+  },
+  {
+    highlight: "blackjackPanel",
+    titleKey: "blackjackTabTitle",
+    bodyKey: "blackjackTabBody",
+    mainTab: "blackjack",
+  },
+  {
+    highlight: "dailyChallenges",
+    titleKey: "dailyTitle",
+    bodyKey: "dailyBody",
+    mainTab: "poker",
+  },
+  { highlight: "friends", titleKey: "friendsTitle", bodyKey: "friendsBody", mainTab: "poker" },
   {
     highlight: null,
     titleKey: "tourDoneTitle",
     bodyKey: "tourDoneBody",
+    mainTab: "poker",
   },
 ];
 
 const PAD = 10;
+
+function clampStep(step: number, total: number): number {
+  return Math.min(Math.max(0, step), total - 1);
+}
 
 function SpotlightRects({
   rect,
@@ -80,7 +120,6 @@ function SpotlightRects({
 
   return (
     <>
-      {/* top */}
       <button
         type="button"
         aria-label="overlay"
@@ -88,7 +127,6 @@ function SpotlightRects({
         style={{ left: 0, top: 0, width: "100%", height: t }}
         onClick={onBackdropClick}
       />
-      {/* bottom */}
       <button
         type="button"
         aria-label="overlay"
@@ -96,7 +134,6 @@ function SpotlightRects({
         style={{ left: 0, top: t + h, width: "100%", height: Math.max(0, vh - t - h) }}
         onClick={onBackdropClick}
       />
-      {/* left */}
       <button
         type="button"
         aria-label="overlay"
@@ -104,7 +141,6 @@ function SpotlightRects({
         style={{ left: 0, top: t, width: l, height: h }}
         onClick={onBackdropClick}
       />
-      {/* right */}
       <button
         type="button"
         aria-label="overlay"
@@ -112,7 +148,6 @@ function SpotlightRects({
         style={{ left: l + w, top: t, width: Math.max(0, vw - l - w), height: h }}
         onClick={onBackdropClick}
       />
-      {/* ring */}
       <div
         className="fixed z-[241] pointer-events-none rounded-xl border-2 border-purple-400 shadow-[0_0_24px_rgba(168,85,247,0.55)] animate-pulse"
         style={{ left: l, top: t, width: w, height: h }}
@@ -127,6 +162,9 @@ type Props = {
   step: number;
   onStepChange: (n: number) => void;
   refs: LobbyTourRefs;
+  setMainTab: (tab: LobbyMainTab) => void;
+  /** Onglet effectif du lobby — attendre qu’il corresponde à l’étape avant de mesurer le spotlight */
+  mainTabKey: LobbyMainTab;
 };
 
 export function LobbyInteractiveTour({
@@ -135,19 +173,31 @@ export function LobbyInteractiveTour({
   step,
   onStepChange,
   refs,
+  setMainTab,
+  mainTabKey,
 }: Props) {
   const { t } = useTranslation();
   const [rect, setRect] = useState<DOMRect | null>(null);
 
   const total = STEP_DEFS.length;
-  const stepDef = STEP_DEFS[Math.min(Math.max(0, step), total - 1)]!;
+  const stepSafe = clampStep(step, total);
+  const stepDef = STEP_DEFS[stepSafe]!;
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    setMainTab(stepDef.mainTab);
+  }, [open, stepSafe, stepDef.mainTab, setMainTab]);
 
   const measure = useCallback(() => {
     if (!open) {
       setRect(null);
       return;
     }
-    const current = STEP_DEFS[Math.min(Math.max(0, step), total - 1)]!;
+    const current = STEP_DEFS[stepSafe]!;
+    if (current.mainTab !== mainTabKey) {
+      setRect(null);
+      return;
+    }
     if (!current.highlight) {
       setRect(null);
       return;
@@ -161,15 +211,15 @@ export function LobbyInteractiveTour({
     const key = current.highlight;
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const node = key ? refs[key]?.current : null;
+        const node = refs[key]?.current;
         if (node) setRect(node.getBoundingClientRect());
       });
     });
-  }, [open, step, total, refs]);
+  }, [open, stepSafe, mainTabKey, refs]);
 
   useLayoutEffect(() => {
     measure();
-  }, [measure, step, open]);
+  }, [measure]);
 
   useEffect(() => {
     if (!open) return;
@@ -193,12 +243,12 @@ export function LobbyInteractiveTour({
   }, [open, measure]);
 
   const next = () => {
-    if (step < total - 1) onStepChange(step + 1);
+    if (stepSafe < total - 1) onStepChange(stepSafe + 1);
     else onClose();
   };
 
   const prev = () => {
-    if (step > 0) onStepChange(step - 1);
+    if (stepSafe > 0) onStepChange(stepSafe - 1);
   };
 
   const tooltipPos = (): { left: number; top: number } => {
@@ -236,7 +286,6 @@ export function LobbyInteractiveTour({
 
   return createPortal(
     <>
-      {/* Full dim when no spotlight (welcome / done) */}
       {!rect && (
         <button
           type="button"
@@ -257,7 +306,7 @@ export function LobbyInteractiveTour({
       >
         <div className="mb-3 flex items-start justify-between gap-2">
           <span className="rounded-full bg-purple-600/40 px-2.5 py-0.5 text-xs font-semibold text-purple-200">
-            {t("lobby.help.stepOf", { current: step + 1, total })}
+            {t("lobby.help.stepOf", { current: stepSafe + 1, total })}
           </span>
           <button
             type="button"
@@ -285,7 +334,7 @@ export function LobbyInteractiveTour({
           <div className="ml-auto flex gap-2">
             <button
               type="button"
-              disabled={step <= 0}
+              disabled={stepSafe <= 0}
               onClick={prev}
               className="flex items-center gap-1 rounded-xl border border-slate-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
@@ -297,8 +346,8 @@ export function LobbyInteractiveTour({
               onClick={next}
               className="flex items-center gap-1 rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-purple-500"
             >
-              {step >= total - 1 ? t("lobby.help.finish") : t("lobby.help.next")}
-              {step < total - 1 && <ChevronRight className="h-4 w-4" />}
+              {stepSafe >= total - 1 ? t("lobby.help.finish") : t("lobby.help.next")}
+              {stepSafe < total - 1 && <ChevronRight className="h-4 w-4" />}
             </button>
           </div>
         </div>
