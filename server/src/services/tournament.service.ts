@@ -5,6 +5,34 @@ import { renewTournamentLeaderLock } from './tournamentLeaderLock.service.js';
 import { activeGames } from '../shared/activeGames.js';
 import { GameTable } from '../logic/GameTable.js';
 
+/** Max joueurs par table au début du tournoi (n >= 7). */
+const TOURNAMENT_SEATS_PER_TABLE = 6;
+
+/** Nombre minimum d’inscrits pour lancer le tournoi à l’heure prévue. */
+export const TOURNAMENT_MIN_START_PLAYERS = 4;
+
+/**
+ * Répartition des tailles de tables pour le premier tour.
+ * 4 → 2+2 ; 5 → 2+3 ; 6 → 3+3 ; n ≥ 7 → équilibré avec max 6 par table.
+ */
+export function getOpeningRoundTableSizes(totalPlayers: number): number[] {
+  if (totalPlayers < TOURNAMENT_MIN_START_PLAYERS) {
+    throw new Error('Bracket: au moins 4 joueurs requis');
+  }
+  if (totalPlayers === 4) return [2, 2];
+  if (totalPlayers === 5) return [2, 3];
+  if (totalPlayers === 6) return [3, 3];
+
+  const numTables = Math.ceil(totalPlayers / TOURNAMENT_SEATS_PER_TABLE);
+  const baseSize = Math.floor(totalPlayers / numTables);
+  const remainder = totalPlayers % numTables;
+  const tableSizes: number[] = [];
+  for (let i = 0; i < numTables; i++) {
+    tableSizes.push(i < remainder ? baseSize + 1 : baseSize);
+  }
+  return tableSizes;
+}
+
 export class TournamentService {
   private static io: Server | null = null;
 
@@ -42,9 +70,6 @@ export class TournamentService {
         tournamentId,
         tournamentName,
         minutesLeft,
-        message: minutesLeft === 1
-          ? `⏰ Le tournoi "${tournamentName}" commence dans 1 minute !`
-          : `⏰ Le tournoi "${tournamentName}" commence dans ${minutesLeft} minutes !`,
       });
     });
     console.log(`[TOURNOI] Countdown ${minutesLeft}min envoyé pour ${tournamentName}`);
@@ -56,15 +81,19 @@ export class TournamentService {
       this.io!.to(`user:${userId}`).emit('tournament-cancelled', {
         tournamentId,
         tournamentName,
-        message: `❌ Le tournoi "${tournamentName}" a été annulé faute de joueurs suffisants. Votre buy-in a été remboursé.`,
+        reason: 'insufficient_players',
       });
     });
     console.log(`[TOURNOI] Annulation notifiée pour ${tournamentName}`);
   }
 
   static recordElimination(tournamentId: string, userId: string) {
-    const order = this.eliminationOrder.get(tournamentId);
-    if (order && !order.includes(userId)) {
+    let order = this.eliminationOrder.get(tournamentId);
+    if (!order) {
+      order = [];
+      this.eliminationOrder.set(tournamentId, order);
+    }
+    if (!order.includes(userId)) {
       order.push(userId);
     }
   }
@@ -78,10 +107,14 @@ export class TournamentService {
   }) {
     const tournament = await prisma.tournament.create({
       data: {
-        ...data,
+        name: data.name,
+        buyIn: data.buyIn,
+        maxPlayers: data.maxPlayers,
+        startTime: data.startTime,
+        createdById: data.createdById,
         status: 'PENDING',
         prizePool: 0,
-      }
+      },
     });
 
     rootLogger.info({
@@ -137,7 +170,10 @@ export class TournamentService {
         throw new Error("Tournoi complet.");
       }
 
-      const user = await tx.user.findUnique({ where: { id: userId } });
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { chips: true },
+      });
       if (!user || user.chips < tournament.buyIn) {
         throw new Error("Jetons insuffisants.");
       }
@@ -176,7 +212,6 @@ export class TournamentService {
               username: newPlayer.username,
               playerCount: allPlayers.length,
               maxPlayers: tournament.maxPlayers,
-              message: `👤 ${newPlayer.username} a rejoint le tournoi ! (${allPlayers.length}/${tournament.maxPlayers})`,
             });
           }
         });
@@ -219,6 +254,31 @@ export class TournamentService {
     });
   }
 
+  /**
+   * Rembourse tous les inscrits et passe le tournoi en CANCELED (buy-in rendu, prizePool à 0).
+   */
+  static async refundAllPlayersAndCancelTournament(tournamentId: string): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      const t = await tx.tournament.findUnique({
+        where: { id: tournamentId },
+        include: { players: true },
+      });
+      if (!t || t.status !== 'PENDING') {
+        return;
+      }
+      for (const p of t.players) {
+        await tx.user.update({
+          where: { id: p.userId },
+          data: { chips: { increment: t.buyIn } },
+        });
+      }
+      await tx.tournament.update({
+        where: { id: tournamentId },
+        data: { status: 'CANCELED', prizePool: 0 },
+      });
+    });
+  }
+
   static async startTournament(tournamentId: string, providedIo?: Server) {
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
@@ -232,30 +292,23 @@ export class TournamentService {
     if (!tournament) throw new Error("Tournoi introuvable");
     if (tournament.status !== 'PENDING') throw new Error("Tournoi déjà actif ou annulé");
 
-    if (tournament.players.length < 7) {
-      await prisma.tournament.update({
-        where: { id: tournamentId },
-        data: { status: 'CANCELED' }
-      });
+    if (tournament.players.length < TOURNAMENT_MIN_START_PLAYERS) {
+      await this.refundAllPlayersAndCancelTournament(tournamentId);
       throw new Error("Annulé : pas assez de joueurs.");
     }
 
-    await prisma.tournament.update({
-      where: { id: tournamentId },
-      data: { status: 'ACTIVE' }
+    const activated = await prisma.tournament.updateMany({
+      where: { id: tournamentId, status: 'PENDING' },
+      data: { status: 'ACTIVE' },
     });
+    if (activated.count === 0) {
+      throw new Error("Tournoi déjà actif ou annulé");
+    }
 
     const players = [...tournament.players].sort(() => Math.random() - 0.5);
-    const MAX_PER_TABLE = 6;
     const totalPlayers = players.length;
-    const numTables = Math.ceil(totalPlayers / MAX_PER_TABLE);
-    const baseSize = Math.floor(totalPlayers / numTables);
-    const remainder = totalPlayers % numTables;
-
-    const tableSizes: number[] = [];
-    for (let i = 0; i < numTables; i++) {
-      tableSizes.push(i < remainder ? baseSize + 1 : baseSize);
-    }
+    const tableSizes = getOpeningRoundTableSizes(totalPlayers);
+    const numTables = tableSizes.length;
 
     let offset = 0;
     const tableSlices = tableSizes.map(size => {
@@ -339,7 +392,7 @@ export class TournamentService {
       include: { players: true }
     });
     if (!tournament) return;
-    const numTables = Math.ceil(tournament.players.length / 6);
+    const numTables = getOpeningRoundTableSizes(tournament.players.length).length;
     tracking = { survivors: [], expectedTables: numTables };
     this.tournamentTables.set(tournamentId, tracking);
   }
@@ -503,29 +556,59 @@ export class TournamentService {
     }
   }
 
+  /**
+   * Branche Socket.IO pour les événements tournoi + démarrage automatique (leader Redis uniquement).
+   * Le cron ne lance plus les tournois pour éviter double déclenchement avec cet intervalle.
+   */
   static startTournamentWatcher(io: Server) {
     this.setIo(io);
-    console.log("👁️ Veilleur de tournois activé.");
+    rootLogger.info({ msg: 'tournament_watcher_started' });
 
-    setInterval(async () => {
-      try {
-        const leader = await renewTournamentLeaderLock();
-        if (!leader) {
-          return;
+    setInterval(() => {
+      void (async () => {
+        try {
+          const leader = await renewTournamentLeaderLock();
+          if (!leader) {
+            return;
+          }
+
+          const now = new Date();
+          const pendingOnes = await prisma.tournament.findMany({
+            where: { status: 'PENDING', startTime: { lte: now } },
+            select: { id: true },
+          });
+
+          for (const t of pendingOnes) {
+            try {
+              await this.startTournament(t.id, io);
+              rootLogger.info({ msg: 'tournament_started_by_watcher', tournamentId: t.id });
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              if (msg.includes('Annulé : pas assez de joueurs')) {
+                const full = await prisma.tournament.findUnique({
+                  where: { id: t.id },
+                  include: { players: true },
+                });
+                if (full?.status === 'CANCELED') {
+                  this.notifyCancellation(
+                    t.id,
+                    full.name,
+                    full.players.map((p) => p.userId),
+                  );
+                }
+              }
+              rootLogger.warn({
+                msg: 'tournament_start_skipped',
+                tournamentId: t.id,
+                detail: msg,
+              });
+            }
+          }
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : String(error);
+          rootLogger.error({ msg: 'tournament_watcher_error', detail: msg });
         }
-
-        const now = new Date();
-        const pendingOnes = await prisma.tournament.findMany({
-          where: { status: 'PENDING', startTime: { lte: now } }
-        });
-
-        for (const t of pendingOnes) {
-          await this.startTournament(t.id, io);
-        }
-      } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error("❌ Erreur Veilleur:", msg);
-      }
+      })();
     }, 5000);
   }
 }

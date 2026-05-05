@@ -20,6 +20,11 @@ import { CashGameController } from "../../logic/CashGameController.js";
 import { prisma } from "../../config/database.js";
 import { isPracticeBotGameId } from "../../shared/practiceBotGames.js";
 
+/** Tables poker tournoi (y compris table finale `game_tournoi_final_*`). */
+function isTournamentTableGameId(gameId: string): boolean {
+  return gameId.startsWith("game_tournoi_");
+}
+
 type ActionTarget = {
   getStateContext: () => {
     handId?: string;
@@ -180,7 +185,7 @@ export async function applyPokerAction(
       const io = TournamentService.getIo();
 
       // A. L'Élimination (La faucheuse) directe !
-      if (payload.gameId.startsWith("game_tournoi_")) {
+      if (isTournamentTableGameId(payload.gameId)) {
         const bustedPlayers = game.state.players.filter((p) => p.chips <= 0);
         for (const busted of bustedPlayers) {
           console.log(
@@ -203,10 +208,12 @@ export async function applyPokerAction(
         return;
       }
 
-      // B. On compte les survivants
-      const survivors = game.state.players.filter(
-        (p) => p.chips > 0 && p.isConnected !== false,
-      );
+      // B. On compte les survivants (tournoi : tout joueur avec jetons reste en lice même si déconnecté)
+      const survivors = isTournamentTableGameId(payload.gameId)
+        ? game.state.players.filter((p) => p.chips > 0)
+        : game.state.players.filter(
+            (p) => p.chips > 0 && p.isConnected !== false,
+          );
 
       if (survivors.length > 1) {
         const nextHandDelayMs = isPracticeBotGameId(payload.gameId)
@@ -225,9 +232,14 @@ export async function applyPokerAction(
                 const currentGame = await activeGames.get(payload.gameId);
 
                 if (currentGame && "startHand" in currentGame) {
-                  const currentSurvivors = currentGame.state.players.filter(
-                    (p) => p.chips > 0 && p.isConnected !== false,
-                  );
+                  const currentSurvivors = isTournamentTableGameId(
+                    payload.gameId,
+                  )
+                    ? currentGame.state.players.filter((p) => p.chips > 0)
+                    : currentGame.state.players.filter(
+                        (p) =>
+                          p.chips > 0 && p.isConnected !== false,
+                      );
 
                   if (currentSurvivors.length > 1) {
                     currentGame.startHand();
@@ -300,7 +312,7 @@ export async function applyPokerAction(
         }, nextHandDelayMs);
       } else if (
         survivors.length === 1 &&
-        payload.gameId.startsWith("game_tournoi_")
+        isTournamentTableGameId(payload.gameId)
       ) {
         // 🏆 C. LE GRAND GAGNANT !
         console.log(`🏆 [TOURNOI] VICTOIRE DE ${survivors[0].name} !`);
@@ -318,7 +330,17 @@ export async function applyPokerAction(
             survivors[0].chips,
           );
         } else {
-          await TournamentService.processVictory([String(survivors[0].id)]);
+          const fallbackTournament = await prisma.tournament.findFirst({
+            where: {
+              status: "ACTIVE",
+              players: { some: { userId: String(survivors[0].id) } },
+            },
+            select: { id: true },
+          });
+          await TournamentService.processVictory(
+            [String(survivors[0].id)],
+            fallbackTournament?.id,
+          );
         }
 
         activeGames.delete(payload.gameId);

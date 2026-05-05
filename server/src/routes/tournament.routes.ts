@@ -91,8 +91,8 @@ router.post('/create', authMiddleware, async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Données manquantes" });
     }
 
-    if (maxPlayers < 7 || maxPlayers > 36) {
-      return res.status(400).json({ error: 'Le nombre de joueurs doit être entre 7 et 36.' });
+    if (maxPlayers < 4 || maxPlayers > 36) {
+      return res.status(400).json({ error: 'Le nombre de joueurs doit être entre 4 et 36.' });
     }
 
     const tournament = await TournamentService.createTournament({

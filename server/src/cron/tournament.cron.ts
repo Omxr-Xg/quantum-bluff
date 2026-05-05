@@ -6,6 +6,11 @@ import { renewTournamentLeaderLock } from '../services/tournamentLeaderLock.serv
 
 const NOTIFY_MINUTES = [30, 15, 10, 5, 1];
 
+/**
+ * Décomptes avant l’heure de départ uniquement.
+ * Le lancement effectif des tournois mûrs est géré par `TournamentService.startTournamentWatcher`
+ * (évite double start + conditions de course avec ce cron).
+ */
 cron.schedule('* * * * *', async () => {
   const leader = await renewTournamentLeaderLock();
   if (!leader) {
@@ -15,27 +20,7 @@ cron.schedule('* * * * *', async () => {
   try {
     const now = new Date();
 
-    // 1. Start tournaments that are due
-    const tournamentsToStart = await prisma.tournament.findMany({
-      where: { status: 'PENDING', startTime: { lte: now } },
-      include: { players: { include: { user: { select: { id: true, username: true } } } } }
-    });
-
-    for (const t of tournamentsToStart) {
-      try {
-        await TournamentService.startTournament(t.id);
-        rootLogger.info({ msg: 'cron_tournament_started_success', tournamentId: t.id });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        const updated = await prisma.tournament.findUnique({ where: { id: t.id } });
-        if (updated?.status === 'CANCELED') {
-          TournamentService.notifyCancellation(t.id, t.name, t.players.map(p => p.userId));
-        }
-        rootLogger.error({ msg: 'cron_tournament_start_error', tournamentId: t.id, error: msg });
-      }
-    }
-
-    // 2. Send countdown notifications
+    // Send countdown notifications
     for (const minutes of NOTIFY_MINUTES) {
       const windowStart = new Date(now.getTime() + minutes * 60 * 1000 - 30 * 1000);
       const windowEnd = new Date(now.getTime() + minutes * 60 * 1000 + 30 * 1000);
