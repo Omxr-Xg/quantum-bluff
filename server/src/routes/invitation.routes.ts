@@ -14,6 +14,7 @@ import {
   censorChatLinks,
   isChatContentEffectivelyEmpty,
 } from '../utils/chatLinkCensor.js'
+import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 
 const router = express.Router()
 
@@ -271,6 +272,7 @@ router.get('/search', friendSearchLimiter, async (req, res) => {
         username: true,
         level: true,
         avatarUrl: true,
+        avatarHasBinary: true,
         playerStats: {
           select: {
             totalWins: true,
@@ -281,7 +283,12 @@ router.get('/search', friendSearchLimiter, async (req, res) => {
       take: 10
     })
 
-    return res.json(users)
+    return res.json(
+      users.map((u) => ({
+        ...u,
+        avatarUrl: clientAvatarUrlFromUser(u),
+      })),
+    )
   } catch (error) {
     console.error('GET /api/friends/search error:', error)
     return res.status(500).json({ error: 'Erreur serveur' })
@@ -351,7 +358,8 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
             id: true,
             username: true,
             level: true,
-            avatarUrl: true
+            avatarUrl: true,
+            avatarHasBinary: true
           }
         }
       }
@@ -371,7 +379,8 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
               id: true,
               username: true,
               level: true,
-              avatarUrl: true
+              avatarUrl: true,
+              avatarHasBinary: true
             }
           }
         }
@@ -389,7 +398,8 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
               id: true,
               username: true,
               level: true,
-              avatarUrl: true
+              avatarUrl: true,
+              avatarHasBinary: true
             }
           }
         }
@@ -413,7 +423,7 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
             id: request.sender.id,
             username: request.sender.username,
             level: request.sender.level,
-            avatarUrl: request.sender.avatarUrl ?? null
+            avatarUrl: clientAvatarUrlFromUser(request.sender)
           }
         })
       }
@@ -452,6 +462,7 @@ router.get('/requests/:userId', async (req, res) => {
             username: true,
             level: true,
             avatarUrl: true,
+            avatarHasBinary: true,
             playerStats: {
               select: {
                 totalWins: true,
@@ -466,7 +477,15 @@ router.get('/requests/:userId', async (req, res) => {
       }
     })
 
-    return res.json(requests)
+    return res.json(
+      requests.map((r) => ({
+        ...r,
+        sender: {
+          ...r.sender,
+          avatarUrl: clientAvatarUrlFromUser(r.sender),
+        },
+      })),
+    )
   } catch (error) {
     console.error('GET /api/friends/requests/:userId error:', error)
     const msg = error instanceof Error ? error.message : String(error)
@@ -591,6 +610,7 @@ router.get('/:userId', async (req, res) => {
             username: true,
             level: true,
             avatarUrl: true,
+            avatarHasBinary: true,
             playerStats: {
               select: {
                 totalWins: true,
@@ -605,6 +625,7 @@ router.get('/:userId', async (req, res) => {
             username: true,
             level: true,
             avatarUrl: true,
+            avatarHasBinary: true,
             playerStats: {
               select: {
                 totalWins: true,
@@ -626,6 +647,7 @@ router.get('/:userId', async (req, res) => {
               : friendship.user1
           return {
             ...friend,
+            avatarUrl: clientAvatarUrlFromUser(friend),
             friendshipCreatedAt: friendship.createdAt,
             isOnline: await isUserOnline(String(friend.id)),
           }

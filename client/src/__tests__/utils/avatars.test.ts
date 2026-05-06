@@ -33,6 +33,12 @@ describe("getPlayerAvatar", () => {
     const remote = "https://cdn.example/peer-avatar.png";
     expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me", remote)).toBe(remote);
   });
+
+  it("normalise un chemin avatar relatif /api/... en URL exploitable", () => {
+    const url = getPlayerAvatar("Alice", "uuid-a", "uuid-me", "/api/auth/avatars/abc");
+    expect(url).toContain("/api/auth/avatars/abc");
+    expect(url).not.toBe("/api/auth/avatars/abc");
+  });
 });
 
 describe("getPokerTableAvatar", () => {

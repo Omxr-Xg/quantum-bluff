@@ -1712,6 +1712,7 @@ export class GameGateway {
     gameId: string,
     roomId: string,
   ): Promise<boolean> {
+    const SHOWDOWN_RESULT_DISPLAY_MS = 3000;
     let dissolveReason: "all_players_left" | "heads_up_peer_left" | null = null;
     if (cashGame.getOccupiedCount() === 1) {
       const remaining = cashGame.getOccupiedSeats()[0]?.userId;
@@ -1728,11 +1729,15 @@ export class GameGateway {
         where: { id: roomId },
         data: { status: "WAITING", gameId: null },
       });
-      this.io.to(gameId).emit("GAME_ENDED", {
-        gameId,
-        reason: dissolveReason,
-        roomId,
-      });
+      // Laisse le temps au front d'afficher l'abattage + gagnant avant retour waiting room.
+      const endTimer = setTimeout(() => {
+        this.io.to(gameId).emit("GAME_ENDED", {
+          gameId,
+          reason: dissolveReason,
+          roomId,
+        });
+      }, SHOWDOWN_RESULT_DISPLAY_MS);
+      endTimer.unref?.();
       return true;
     }
     return false;
@@ -1765,6 +1770,17 @@ export class GameGateway {
   ): Promise<void> {
     const hiddenBetSnap = buildHiddenBetResolutionPayload(gameId, cashGame);
     const balanceSnapshot = cashGame.onHandComplete();
+    const bustedUserIds = balanceSnapshot
+      .filter((b) => intChips(b.chips) <= 0)
+      .map((b) => String(b.userId));
+    for (const bustedUserId of bustedUserIds) {
+      this.io.to(`user:${bustedUserId}`).emit("PLAYER_BUSTED", {
+        gameId,
+        userId: bustedUserId,
+        reason: "OUT_OF_CHIPS",
+        mode: "cash",
+      });
+    }
     if (balanceSnapshot.length > 0) {
       try {
         const loanEmits: {

@@ -48,6 +48,7 @@ export function WaitingRoom() {
     userId: string;
     username: string;
     level: number;
+    avatarUrl?: string | null;
   }
   const [joinRequests, setJoinRequests] = useState<JoinRequestItem[]>([]);
   const [processingRequest, setProcessingRequest] = useState<string | null>(null);
@@ -648,7 +649,7 @@ export function WaitingRoom() {
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
                             <ImageWithFallback
-                              src={getPlayerAvatar(req.username, req.userId, userId)}
+                              src={getPlayerAvatar(req.username, req.userId, userId, req.avatarUrl)}
                               alt={`${req.username} avatar`}
                               className="w-9 h-9 rounded-full object-cover"
                             />

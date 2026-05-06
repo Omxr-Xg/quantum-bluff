@@ -166,13 +166,20 @@ export function Game() {
       quantumLeaveTimerRef.current = null;
     }
   }, []);
+  const clearMultiBustPromptTimer = useCallback(() => {
+    if (multiBustPromptTimerRef.current) {
+      clearTimeout(multiBustPromptTimerRef.current);
+      multiBustPromptTimerRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     return () => {
       clearQuantumHoverTimer();
       clearQuantumLeaveTimer();
+      clearMultiBustPromptTimer();
     };
-  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer]);
+  }, [clearQuantumHoverTimer, clearQuantumLeaveTimer, clearMultiBustPromptTimer]);
 
   const onQuantumProbasEnter = useCallback(() => {
     clearQuantumLeaveTimer();
@@ -298,6 +305,9 @@ export function Game() {
   const [gameOverReason, setGameOverReason] = useState<
     "human_eliminated" | "bot_eliminated" | "practice_stuck" | null
   >(null);
+  const [showMultiBustPrompt, setShowMultiBustPrompt] = useState(false);
+  const multiBustGameIdRef = useRef<string | null>(null);
+  const multiBustPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gameOverReasonRef = useRef(gameOverReason);
   gameOverReasonRef.current = gameOverReason;
   /** Practice réseau : snapshot reçu pendant l’écran de fin de main — appliqué au clic « Manche suivante ». */
@@ -1651,6 +1661,24 @@ export function Game() {
       else setGameOverReason("practice_stuck");
     };
     socket.on("PRACTICE_SESSION_END", onPracticeSessionEnd);
+    const onPlayerBusted = (data: {
+      gameId?: string;
+      userId?: string;
+      reason?: string;
+      mode?: string;
+    }) => {
+      if (!data || String(data.userId) !== String(userId)) return;
+      if (!gameIdParam || String(data.gameId) !== String(gameIdParam)) return;
+      if (isBotMode || isSpectating) return;
+      multiBustGameIdRef.current = String(gameIdParam);
+      setShowMultiBustPrompt(false);
+      clearMultiBustPromptTimer();
+      multiBustPromptTimerRef.current = window.setTimeout(() => {
+        setShowMultiBustPrompt(true);
+        multiBustPromptTimerRef.current = null;
+      }, 3000);
+    };
+    socket.on("PLAYER_BUSTED", onPlayerBusted);
     const onCashWaiting = (state: { cashCountdownEndsAt?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[] }) => {
       setCashWaitingPlayers(true);
       setShowTransition(false); // jamais l’overlay jaune « prochaine manche » entre deux mains cash
@@ -1698,6 +1726,7 @@ export function Game() {
       socket.off("GAME_STATE_UPDATED", onGameStateUpdated);
       socket.off("GAME_ENDED", onGameEnded);
       socket.off("PRACTICE_SESSION_END", onPracticeSessionEnd);
+      socket.off("PLAYER_BUSTED", onPlayerBusted);
       socket.off("CASH_WAITING_PLAYERS", onCashWaiting);
       socket.off("CASH_NEXT_HAND_READY_UPDATED", onNextHandReadyUpdated);
       socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
@@ -1712,6 +1741,7 @@ export function Game() {
     isBotMode,
     isExpertPracticeBot,
     postExpertPracticeRecordResult,
+    clearMultiBustPromptTimer,
   ]);
 
   useEffect(() => {
@@ -2653,6 +2683,21 @@ export function Game() {
   const handlePracticeBackToLobby = useCallback(() => {
     navigate("/lobby");
   }, [navigate]);
+  const handleStaySpectatorAfterBust = useCallback(() => {
+    const targetGameId = multiBustGameIdRef.current ?? gameIdParam;
+    if (!targetGameId) {
+      navigate("/lobby");
+      return;
+    }
+    setShowMultiBustPrompt(false);
+    navigate(`/game?gameId=${encodeURIComponent(targetGameId)}&spectate=1`, {
+      replace: true,
+    });
+  }, [navigate, gameIdParam]);
+  const handleBackToLobbyAfterBust = useCallback(() => {
+    setShowMultiBustPrompt(false);
+    navigate("/lobby");
+  }, [navigate]);
 
   /** Bot local (sans gameId) : même flux que RoundTransition — relance la table avec les params d’URL. */
   const handleLocalBotPlayAgain = useCallback(() => {
@@ -3493,6 +3538,52 @@ export function Game() {
       </motion.div>
     </motion.div>
   )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showMultiBustPrompt && !isBotMode && !isSpectating && (
+          <motion.div
+            key="multi-bust-prompt"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <motion.div
+              className="flex flex-col items-center gap-5 text-center p-8 rounded-2xl bg-slate-900/95 border border-slate-700 shadow-2xl max-w-md w-full"
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            >
+              <div className="text-6xl">💸</div>
+              <h2 className="text-3xl font-bold text-rose-300">
+                {t("game.defeated", "Defaite")}
+              </h2>
+              <p className="text-slate-200">
+                {t(
+                  "game.outOfChipsMultiPrompt",
+                  "Vous n'avez plus de jetons sur cette table. Voulez-vous rester spectateur ou retourner au lobby ?",
+                )}
+              </p>
+              <div className="flex w-full flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={handleStaySpectatorAfterBust}
+                  className="flex-1 rounded-xl px-5 py-3 font-semibold bg-amber-500 text-slate-900 hover:bg-amber-400 transition-colors"
+                >
+                  {t("game.staySpectator", "Rester spectateur")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBackToLobbyAfterBust}
+                  className="flex-1 rounded-xl px-5 py-3 font-semibold border border-slate-500 text-slate-200 hover:bg-slate-800 transition-colors"
+                >
+                  {t("game.backToLobby", "Lobby")}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (

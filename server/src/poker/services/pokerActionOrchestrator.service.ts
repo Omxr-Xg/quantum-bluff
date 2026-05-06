@@ -192,6 +192,14 @@ export async function applyPokerAction(
             `📣 [SOCKET] Envoi du signal d'élimination à ${busted.name}`,
           );
           if (io) io.to(`user:${busted.id}`).emit("tournament-eliminated", { userId: busted.id });
+          if (io) {
+            io.to(`user:${busted.id}`).emit("PLAYER_BUSTED", {
+              gameId: payload.gameId,
+              userId: String(busted.id),
+              reason: "OUT_OF_CHIPS",
+              mode: "tournament",
+            });
+          }
         }
         // Record elimination order for tournament prize ranking
         for (const busted of bustedPlayers) {

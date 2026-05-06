@@ -1,4 +1,5 @@
 import { getUserAvatar, getUsername } from "./userProfile";
+import { apiUrl } from "./apiBase";
 
 /**
  * Style unique **luxe / caricature** : Dicebear 7.x `micah` partout (même trait graphique).
@@ -9,6 +10,13 @@ const LUXURY_MICAH_STYLE = "micah" as const;
 function luxuryMicahCaricature(seed: string, backgroundColor: string): string {
   const s = encodeURIComponent(seed);
   return `https://api.dicebear.com/7.x/${LUXURY_MICAH_STYLE}/svg?seed=${s}&backgroundColor=${backgroundColor}`;
+}
+
+function normalizeRemoteAvatarUrl(remoteAvatarUrl?: string | null): string {
+  const trimmed = typeof remoteAvatarUrl === "string" ? remoteAvatarUrl.trim() : "";
+  if (trimmed === "") return "";
+  if (trimmed.startsWith("/api/")) return apiUrl(trimmed);
+  return trimmed;
 }
 
 /** Fonds « luxe » (hex sans #) — rotation pour 20 presets distincts. */
@@ -100,7 +108,7 @@ export function getPlayerAvatar(
   if (isLocalPlayerSeat(playerName, playerId, heroSeatId)) {
     return getUserAvatar();
   }
-  const trimmed = typeof remoteAvatarUrl === "string" ? remoteAvatarUrl.trim() : "";
+  const trimmed = normalizeRemoteAvatarUrl(remoteAvatarUrl);
   if (trimmed !== "") {
     return trimmed;
   }
@@ -122,7 +130,7 @@ export function getPokerTableAvatar(
   if (isLocalPlayerSeat(playerName, playerId, heroSeatId)) {
     return getUserAvatar();
   }
-  const trimmed = typeof serverAvatarUrl === "string" ? serverAvatarUrl.trim() : "";
+  const trimmed = normalizeRemoteAvatarUrl(serverAvatarUrl);
   if (trimmed !== "") {
     return trimmed;
   }

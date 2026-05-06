@@ -5,6 +5,7 @@ import { activeGames } from '../shared/activeGames.js';
 import { intChips } from '../utils/chips.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js';
+import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js';
 import sanitizeHtml from 'sanitize-html';
 import rateLimit from 'express-rate-limit';
 
@@ -99,7 +100,9 @@ router.get('/', waitingRoomListLimiter, async (req, res) => {
               select: {
                 id: true,
                 username: true,
-                level: true
+                level: true,
+                avatarUrl: true,
+                avatarHasBinary: true,
               }
             }
           }
@@ -147,7 +150,8 @@ router.get('/', waitingRoomListLimiter, async (req, res) => {
         username: p.user.username,
         level: p.user.level,
         isReady: p.isReady,
-        position: p.position
+        position: p.position,
+        avatarUrl: p.avatarUrl ?? clientAvatarUrlFromUser(p.user),
       })),
       playerCount: room.players.length,
       minBalance: room.minBalance ?? null,
@@ -931,7 +935,15 @@ router.get('/:roomId/join-requests', waitingRoomHostLimiter, async (req, res) =>
     const requests = await prisma.joinRequest.findMany({
       where: { roomId, status: 'PENDING' },
       include: {
-        user: { select: { id: true, username: true, level: true } }
+        user: {
+          select: {
+            id: true,
+            username: true,
+            level: true,
+            avatarUrl: true,
+            avatarHasBinary: true,
+          },
+        }
       },
       orderBy: { createdAt: 'asc' }
     });
@@ -941,6 +953,7 @@ router.get('/:roomId/join-requests', waitingRoomHostLimiter, async (req, res) =>
       userId: r.user.id,
       username: r.user.username,
       level: r.user.level,
+      avatarUrl: clientAvatarUrlFromUser(r.user),
       createdAt: r.createdAt
     })));
   } catch (error) {
@@ -967,7 +980,16 @@ router.post('/:roomId/join-requests/:requestId/accept', waitingRoomHostLimiter, 
     const joinRequest = await prisma.joinRequest.update({
       where: { id: requestId },
       data: { status: 'ACCEPTED' },
-      include: { user: { select: { id: true, username: true } } }
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true,
+            avatarHasBinary: true,
+          },
+        },
+      }
     });
 
     // Auto-join the player
@@ -978,7 +1000,8 @@ router.post('/:roomId/join-requests/:requestId/accept', waitingRoomHostLimiter, 
           create: {
             userId: joinRequest.userId,
             isReady: false,
-            position: room.players.length
+            position: room.players.length,
+            avatarUrl: clientAvatarUrlFromUser(joinRequest.user),
           }
         }
       }
