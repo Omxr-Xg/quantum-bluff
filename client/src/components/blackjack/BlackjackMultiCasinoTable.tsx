@@ -348,7 +348,7 @@ export function BlackjackMultiCasinoTable({
             </div>
 
             <div className="relative z-10 mx-auto mt-2 flex w-full min-w-0 max-w-full flex-wrap md:flex-nowrap overflow-x-auto md:overflow-visible items-end justify-center gap-1.5 px-1.5 pb-10 sm:mt-7 sm:gap-4 sm:px-2 sm:pb-6 md:mt-9 lg:mt-10 scroll-smooth snap-x snap-mandatory scrollbar-hide">
-              {sortedSeats.map((s, idx) => {
+              {sortedSeats.map((s) => {
                 const isYou = s.userId === userId;
                 const seatAvatar = getPlayerAvatar(s.username, s.userId, userId, s.avatarUrl);
                 const hv =
