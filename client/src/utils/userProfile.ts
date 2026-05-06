@@ -192,19 +192,30 @@ export async function fetchBalanceFromServer(options?: FetchBalanceOptions): Pro
 
 /** Ajoute des jetons via l'API serveur (validation "dev" côté serveur). Retourne la nouvelle balance. */
 export async function addDevMoney(amount: number): Promise<number> {
+  const safeAmount = Math.max(0, Math.floor(amount));
+  if (safeAmount <= 0) return getUserBalance();
   const token = localStorage.getItem("token");
-  if (!token) return getUserBalance();
+  if (!token) {
+    return addToUserBalance(safeAmount);
+  }
   const url = apiUrl("/api/auth/add-dev-money");
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ amount: Math.max(0, Math.floor(amount)), secret: "dev" }),
-  });
-  if (!res.ok) return getUserBalance();
-  const data = await res.json();
-  const chips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : getUserBalance();
-  updateUserBalance(chips);
-  return chips;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ amount: safeAmount, secret: "dev" }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const chips = typeof data?.chips === "number" ? Math.max(0, Math.floor(data.chips)) : getUserBalance();
+      updateUserBalance(chips);
+      return chips;
+    }
+    // Rendu académique: fallback local si l'API est désactivée/non joignable.
+    return addToUserBalance(safeAmount);
+  } catch {
+    return addToUserBalance(safeAmount);
+  }
 }
 
 /** @deprecated Utiliser fetchBalanceFromServer. Ne plus pousser de balance client vers le serveur (sécurité). */

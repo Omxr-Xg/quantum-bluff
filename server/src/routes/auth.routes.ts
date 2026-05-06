@@ -609,7 +609,8 @@ router.get('/balance-history', authMiddleware, async (req, res) => {
 
 // POST /api/auth/add-dev-money - Ajoute des jetons (validation "dev" côté serveur, pas de confiance client)
 router.post('/add-dev-money', authMiddleware, async (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
+  const allowInProduction = String(process.env.ALLOW_DEV_TOPUP ?? '').toLowerCase() === 'true'
+  if (process.env.NODE_ENV === 'production' && !allowInProduction) {
     return res.status(403).json({ error: "Bien essayé !  L'ajout d'argent gratuit est désactivé en production." })
   }
 

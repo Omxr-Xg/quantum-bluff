@@ -42,10 +42,9 @@ describe("getPokerTableAvatar", () => {
     );
   });
 
-  it("ignore l’URL serveur pour les adversaires (avatar générique)", () => {
+  it("utilise l’URL serveur pour les adversaires quand elle est fournie", () => {
     const remote = "https://cdn.example/peer-avatar.png";
     const url = getPokerTableAvatar("Alice", "uuid-a", "uuid-me", remote);
-    expect(url).toContain("api.dicebear.com");
-    expect(url).not.toBe(remote);
+    expect(url).toBe(remote);
   });
 });

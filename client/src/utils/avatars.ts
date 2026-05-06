@@ -109,17 +109,22 @@ export function getPlayerAvatar(
 }
 
 /**
- * Avatars sur la table de poker : le joueur local voit son avatar profil ;
- * les adversaires voient uniquement un avatar générique (pas leur photo / URL serveur).
+ * Avatars sur la table de poker :
+ * - joueur local : avatar du profil ;
+ * - adversaire : URL serveur si fournie (photo uploadée), sinon fallback Dicebear.
  */
 export function getPokerTableAvatar(
   playerName: string,
   playerId?: string | number,
   heroSeatId?: string | number | null,
-  _serverAvatarIgnored?: string | null
+  serverAvatarUrl?: string | null
 ): string {
   if (isLocalPlayerSeat(playerName, playerId, heroSeatId)) {
     return getUserAvatar();
+  }
+  const trimmed = typeof serverAvatarUrl === "string" ? serverAvatarUrl.trim() : "";
+  if (trimmed !== "") {
+    return trimmed;
   }
   const seedKey = playerId != null ? String(playerId) : playerName;
   return luxuryMicahCaricature(`qb-opp-${seedKey}-${playerName}`, "1e1b4b");
