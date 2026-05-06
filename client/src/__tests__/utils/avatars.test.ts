@@ -7,6 +7,9 @@ vi.mock("../../utils/userProfile", () => ({
   getUserAvatar: () => "https://profile.example/me.png",
   getUsername: () => "TestUser",
 }));
+vi.mock("../../utils/apiBase", () => ({
+  apiUrl: (path: string) => `https://api.example.test${path}`,
+}));
 
 import { getPlayerAvatar, getPokerTableAvatar } from "../../utils/avatars";
 
