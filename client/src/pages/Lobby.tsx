@@ -466,7 +466,7 @@ export function Lobby() {
 
   return (
     <div
-      className={`relative w-full min-h-screen overflow-hidden px-2 py-4 sm:px-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
+      className={`relative w-full min-h-full overflow-x-hidden px-2 py-4 sm:px-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
         lobbyMainTab === "poker"
           ? "bg-[#020716]"
           : lobbyMainTab === "minigames"

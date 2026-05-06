@@ -13,16 +13,40 @@
  * Ne pas utiliser le fallback `localhost:3000` pour `capacitor:` / `file:` :
  * dans ce cas il faut obligatoirement une base résolue (URL absolue ou DEPLOY_ORIGIN + chemin).
  */
+/** WebView Capacitor : souvent `https://localhost` (pas seulement `capacitor://`). */
+export function isCapacitorWebViewShell(): boolean {
+  if (typeof window === "undefined") return false;
+  const { protocol, hostname } = window.location;
+  if (protocol === "capacitor:" || protocol === "ionic:" || protocol === "file:") return true;
+  // APK : pas en `vite dev`, origine factice https://localhost (Android récent).
+  if (
+    protocol === "https:" &&
+    (hostname === "localhost" || hostname === "127.0.0.1") &&
+    !import.meta.env.DEV
+  ) {
+    return true;
+  }
+  if (import.meta.env.MODE !== "capacitor") return false;
+  if (hostname !== "localhost" && hostname !== "127.0.0.1") return false;
+  return protocol === "https:" || protocol === "http:";
+}
+
+/** Première base `https://…` trouvée dans l’env (API ou socket), pour relier `/api/…` sous WebView. */
+function absoluteApiBaseFromEnvUrls(): string {
+  for (const key of ["VITE_API_URL", "VITE_SOCKET_URL"] as const) {
+    const v = (import.meta.env[key] ?? "").toString().replace(/\/$/, "").trim();
+    if (/^https?:\/\//i.test(v)) return v;
+  }
+  return "";
+}
+
 export function getApiBaseUrl(): string {
   const raw = (import.meta.env.VITE_API_URL ?? "").toString().replace(/\/$/, "").trim();
   let fromEnv = raw;
 
   if (raw.startsWith("/")) {
     const isNativeShell =
-      typeof window !== "undefined" &&
-      (window.location.protocol === "capacitor:" ||
-        window.location.protocol === "ionic:" ||
-        window.location.protocol === "file:");
+      typeof window !== "undefined" && isCapacitorWebViewShell();
     const deployOrigin = (import.meta.env.VITE_DEPLOY_ORIGIN ?? "")
       .toString()
       .replace(/\/$/, "")
@@ -31,13 +55,29 @@ export function getApiBaseUrl(): string {
       if (deployOrigin) {
         fromEnv = `${deployOrigin}${raw}`;
       } else {
-        fromEnv = "";
-        if (import.meta.env.MODE === "capacitor") {
-          console.warn(
-            `[Quantum Bluff] VITE_API_URL est relatif (${raw}). ` +
-              "Sur l’app native, les requêtes ne vont pas vers la VM : définis une URL https complète pour VITE_API_URL, " +
-              "ou VITE_DEPLOY_ORIGIN (origine du site web, comme pour Electron) + ce même chemin.",
-          );
+        const absSibling = absoluteApiBaseFromEnvUrls();
+        if (absSibling) {
+          try {
+            const u = new URL(absSibling);
+            const prefix = u.pathname.replace(/\/$/, "");
+            const rawNorm = raw.replace(/\/$/, "");
+            if (prefix === rawNorm) {
+              fromEnv = absSibling;
+            } else {
+              fromEnv = `${u.origin}${raw}`;
+            }
+          } catch {
+            fromEnv = `${absSibling}${raw}`;
+          }
+        } else {
+          fromEnv = "";
+          if (import.meta.env.MODE === "capacitor") {
+            console.warn(
+              `[Quantum Bluff] VITE_API_URL est relatif (${raw}). ` +
+                "Sur l’app native, les requêtes ne vont pas vers la VM : définis une URL https complète pour VITE_API_URL, " +
+                "ou VITE_DEPLOY_ORIGIN (origine du site web, comme pour Electron) + ce même chemin.",
+            );
+          }
         }
       }
     }
@@ -50,6 +90,7 @@ export function getApiBaseUrl(): string {
   if (hostname === "localhost" || hostname === "127.0.0.1") {
     // En `vite dev`, `/api` est proxifié vers le backend : utiliser l’origine évite les appels directs `:3000`.
     if (import.meta.env.DEV) return "";
+    if (isCapacitorWebViewShell()) return "";
     return "http://localhost:3000";
   }
   return "";
@@ -57,8 +98,15 @@ export function getApiBaseUrl(): string {
 
 /** Ex. `apiUrl("/api/auth/balance")` → `http://localhost:3000/api/auth/balance` en local sans env. */
 export function apiUrl(path: string): string {
-  const base = getApiBaseUrl();
   const p = path.startsWith("/") ? path : `/${path}`;
+  const base = getApiBaseUrl();
   if (base) return `${base}${p}`;
+  // WebView : `<img src>` vers `/api/…` viserait https://localhost — forcer la base absolue depuis l’env.
+  if (typeof window !== "undefined" && isCapacitorWebViewShell()) {
+    const abs = absoluteApiBaseFromEnvUrls();
+    if (abs) return `${abs}${p}`;
+    const d = (import.meta.env.VITE_DEPLOY_ORIGIN ?? "").toString().replace(/\/$/, "").trim();
+    if (d && /^\/vm[^/]+\/api\//i.test(p)) return `${d}${p}`;
+  }
   return p;
 }

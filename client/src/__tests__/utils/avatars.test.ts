@@ -42,6 +42,16 @@ describe("getPlayerAvatar", () => {
     expect(url).toContain("/api/auth/avatars/abc");
     expect(url).not.toBe("/api/auth/avatars/abc");
   });
+
+  it("normalise /vm…/api/… (déploiement avec préfixe) en URL via apiUrl", () => {
+    const url = getPlayerAvatar(
+      "Alice",
+      "uuid-a",
+      "uuid-me",
+      "/vmProjetIntegrateurgrp10-0/api/auth/avatars/abc",
+    );
+    expect(url).toBe("https://api.example.test/api/auth/avatars/abc");
+  });
 });
 
 describe("getPokerTableAvatar", () => {

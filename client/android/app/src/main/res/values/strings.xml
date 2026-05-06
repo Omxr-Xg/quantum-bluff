@@ -4,4 +4,6 @@
     <string name="title_activity_main">Quantum Bluff</string>
     <string name="package_name">com.quantumbluff.app</string>
     <string name="custom_url_scheme">com.quantumbluff.app</string>
+    <!-- Libellé pour la balise manifest <attribution> (audio WebView / Chromium). -->
+    <string name="attribution_media" translatable="false">Media playback</string>
 </resources>

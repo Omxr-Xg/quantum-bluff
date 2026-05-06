@@ -21,10 +21,31 @@ import {
 } from '../utils/userAvatarIngest.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 
+function normalizeRateLimitIdentity(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  return value.trim().toLowerCase()
+}
+
+function loginRateLimitKey(req: express.Request): string {
+  const email = normalizeRateLimitIdentity(req.body?.email)
+  if (email) return `${req.ip}:login:${email}`
+  return `${req.ip}:login`
+}
+
+function registerRateLimitKey(req: express.Request): string {
+  const email = normalizeRateLimitIdentity(req.body?.email)
+  const username = normalizeRateLimitIdentity(req.body?.username)
+  if (email) return `${req.ip}:register:${email}`
+  if (username) return `${req.ip}:register:${username}`
+  return `${req.ip}:register`
+}
+
 /** Connexion : 5 requêtes / 10 min / IP. */
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: loginRateLimitKey,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -46,6 +67,8 @@ const loginLimiter = rateLimit({
 const registerLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: registerRateLimitKey,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {

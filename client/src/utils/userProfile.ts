@@ -6,7 +6,9 @@ const defaultAvatar = 'https://ui-avatars.com/api/?name=QB&background=10b981&col
 export function resolveStoredAvatarUrl(raw: string): string {
   const t = raw.trim();
   if (t.startsWith('/api/')) return apiUrl(t);
-  return raw;
+  const vmApi = t.match(/^\/vm[^/]+(\/api\/.+)$/i);
+  if (vmApi?.[1]) return apiUrl(vmApi[1]);
+  return t;
 }
 
 const STORAGE_KEYS = {

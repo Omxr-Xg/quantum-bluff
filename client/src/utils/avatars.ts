@@ -16,6 +16,9 @@ function normalizeRemoteAvatarUrl(remoteAvatarUrl?: string | null): string {
   const trimmed = typeof remoteAvatarUrl === "string" ? remoteAvatarUrl.trim() : "";
   if (trimmed === "") return "";
   if (trimmed.startsWith("/api/")) return apiUrl(trimmed);
+  // Déploiement web avec préfixe /vm…/ dans l’URL (localStorage ou payload) : ne pas laisser relatif sous Capacitor.
+  const vmApi = trimmed.match(/^\/vm[^/]+(\/api\/.+)$/i);
+  if (vmApi?.[1]) return apiUrl(vmApi[1]);
   return trimmed;
 }
 

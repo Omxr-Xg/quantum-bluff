@@ -121,8 +121,8 @@ security:npm:
   extends: .node_docker_ci
   stage: test-security
   script:
-    - cd server && npm audit --omit=dev --package-lock-only
-    - cd ../client && npm audit --omit=dev --package-lock-only
+    - cd server && npm audit --omit=dev --package-lock-only --audit-level=high
+    - cd ../client && npm audit --omit=dev --package-lock-only --audit-level=high
   allow_failure: true
   only:
     - develop

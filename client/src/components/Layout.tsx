@@ -469,6 +469,8 @@ export function Layout({ children }: LayoutProps) {
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table");
+  /** Une seule zone de scroll (évite double scroll + contenu masqué avec CustomScrollArea + min-h-screen des pages). */
+  const useNativeMainScroll = isAuthPage || path === "/lobby";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
@@ -1242,6 +1244,12 @@ export function Layout({ children }: LayoutProps) {
       >
         {isCasinoFullBleed ? (
           children
+        ) : useNativeMainScroll ? (
+          <div
+            className={`h-full min-h-0 w-full overflow-x-hidden overflow-y-auto ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
+          >
+            {children}
+          </div>
         ) : (
           <CustomScrollArea
             className="h-full w-full"

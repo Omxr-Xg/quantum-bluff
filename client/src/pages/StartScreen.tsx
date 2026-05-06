@@ -47,7 +47,7 @@ export function StartScreen() {
   };
 
   return (
-    <div className="w-full min-h-screen relative overflow-hidden bg-slate-900"> {/* Fond Bleu Foncé conservé */}
+    <div className="relative w-full min-h-full overflow-x-hidden bg-slate-900">
       {/* Background sophistiqué */}
       <div className="absolute inset-0">
         {/* Gradient de base */}
@@ -177,7 +177,7 @@ export function StartScreen() {
       </div>
 
       {/* Contenu principal - centré verticalement et horizontalement */}
-      <div className="relative z-10 min-h-screen w-full flex flex-col items-center justify-center p-8">
+      <div className="relative z-10 flex min-h-full w-full flex-col items-center justify-center p-8 py-12">
         {/* Logo avec effets sophistiqués - BLEU NUIT */}
         <div className="mb-12 relative">
           {/* Glow pulsant */}

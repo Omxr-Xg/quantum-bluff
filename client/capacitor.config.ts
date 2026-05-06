@@ -12,6 +12,8 @@ const config: CapacitorConfig = {
   appId: 'com.quantumbluff.app',
   appName: 'Quantum Bluff',
   webDir: 'dist',
+  /** Fond WebView + zones hors contenu (safe areas) — défaut Capacitor #ffffff. */
+  backgroundColor: '#020716',
   server: {
     /** Dev uniquement : URL du `vite` sur le réseau local. */
     url: process.env.CAPACITOR_SERVER_URL || undefined,

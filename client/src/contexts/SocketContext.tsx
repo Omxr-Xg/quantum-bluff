@@ -6,7 +6,8 @@ import { useToast } from './ToastContext'
 import { store } from '../store'
 import { api } from '../services/api'
 import { fetchBalanceFromServer } from '../utils/userProfile'
-import { apiUrl, getApiBaseUrl } from '../utils/apiBase'
+import { apiUrl } from '../utils/apiBase'
+import { getSocketIoUrlAndPath } from '../utils/socketConnect'
 
 export interface GameInvitationNotification {
   invitationId: string
@@ -29,63 +30,7 @@ interface SocketContextType {
 
 export const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-// 🚀 DÉTECTION INFAILLIBLE DU CHEMIN
-const getSocketConfig = () => {
-  let url = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || 'http://localhost:3000';
-  let path = '/socket.io';
-
-  if (typeof window !== 'undefined') {
-    const { protocol, pathname, hostname } = window.location;
-    const pathParts = pathname.split('/');
-
-    // En dev local, forcer le backend direct pour éviter le passage par l'origine Vite
-    // avec un préfixe VM qui casse la montée WS.
-    if (import.meta.env.DEV && (hostname === 'localhost' || hostname === '127.0.0.1')) {
-      return { URL: 'http://localhost:3000', SOCKET_PATH: '/socket.io' };
-    }
-
-    // Capacitor / WebView : pas de pathname /vm... — il faut la même base que l’API (déploiement ou URL absolue).
-    if (protocol === 'capacitor:' || protocol === 'ionic:' || protocol === 'file:') {
-      const explicitPath = (import.meta.env.VITE_SOCKET_PATH ?? '').toString().trim();
-      if (explicitPath) {
-        path = explicitPath.startsWith('/') ? explicitPath : `/${explicitPath}`;
-      } else {
-        const apiEnv = (import.meta.env.VITE_API_URL ?? '').toString().trim();
-        const vmRel = apiEnv.match(/^(\/vm[^/]+)/i);
-        if (vmRel) path = `${vmRel[1]}/socket.io`;
-        else if (apiEnv.startsWith('http')) {
-          try {
-            const u = new URL(apiEnv);
-            const first = u.pathname.replace(/\/$/, '').split('/').filter(Boolean)[0];
-            if (first?.toLowerCase().startsWith('vmprojet')) path = `/${first}/socket.io`;
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-      const socketUrlEnv = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim();
-      if (socketUrlEnv) url = socketUrlEnv;
-      else {
-        const base = getApiBaseUrl();
-        if (base) url = base;
-      }
-      return { URL: url, SOCKET_PATH: path };
-    }
-
-    // Auto-détection (marche pour VM 0 et VM 1)
-    if (pathParts.length > 1 && pathParts[1].toLowerCase().startsWith('vmprojet')) {
-      const vmPrefix = '/' + pathParts[1];
-      url = window.location.origin;
-      path = `${vmPrefix}/socket.io`;
-    } else if (url.startsWith('/')) {
-      path = `${url}/socket.io`;
-      url = window.location.origin;
-    }
-  }
-  return { URL: url, SOCKET_PATH: path };
-};
-
-const { URL, SOCKET_PATH } = getSocketConfig();
+const { url: socketIoUrl, path: socketIoPath } = getSocketIoUrlAndPath()
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
@@ -117,11 +62,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       return
     }
 
-    // 🚀 INITIALISATION AVEC LE BON CHEMIN
-    const socketInstance = io(URL, {
+    const socketInstance = io(socketIoUrl, {
       forceNew: true, // <--- TUE LE CACHE DE SOCKET.IO !
       autoConnect: true,
-      path: SOCKET_PATH,
+      path: socketIoPath,
       auth: { token },
       secure: typeof window !== 'undefined' && window.location.protocol === 'https:',
       transports: ['polling', 'websocket'],
@@ -131,17 +75,28 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       reconnectionDelayMax: 3000,
     })
 
+    if (import.meta.env.MODE === 'capacitor') {
+      console.info('[QB] SocketContext Socket.IO', { url: socketIoUrl, path: socketIoPath })
+    }
+
     setSocket(socketInstance)
 
     socketInstance.on('connect', () => {
       setIsConnected(true)
+      if (import.meta.env.MODE === 'capacitor') {
+        console.info('[QB] SocketContext connected', { id: socketInstance.id })
+      }
       const uid = localStorage.getItem('userId')
       if (uid) socketInstance.emit('JOIN_USER_ROOM', { userId: uid })
     })
 
     socketInstance.on('disconnect', () => setIsConnected(false))
 
-    socketInstance.on('connect_error', () => {})
+    socketInstance.on('connect_error', (err) => {
+      if (import.meta.env.MODE === 'capacitor') {
+        console.warn('[QB] SocketContext connect_error', err?.message ?? err)
+      }
+    })
 
     const tryReconnect = () => {
       if (!socketInstance.connected) socketInstance.connect()

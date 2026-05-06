@@ -38,10 +38,10 @@
     "package:ios-rendu": "bash ../scripts/package-ios-rendu.sh"
   },
   "dependencies": {
-    "@capacitor/android": "^8.2.0",
-    "@capacitor/cli": "^8.2.0",
-    "@capacitor/core": "^8.2.0",
-    "@capacitor/ios": "^8.2.0",
+    "@capacitor/android": "8.3.0",
+    "@capacitor/cli": "8.3.0",
+    "@capacitor/core": "8.3.0",
+    "@capacitor/ios": "8.3.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",

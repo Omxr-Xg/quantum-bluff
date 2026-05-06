@@ -279,7 +279,7 @@ export function Auth() {
           : t("auth.createYourAccount");
 
   return (
-    <div className="w-full min-h-screen relative overflow-hidden bg-slate-900 flex items-center justify-center min-h-screen p-4 sm:p-6 font-sans">
+    <div className="relative flex w-full min-h-full items-center justify-center overflow-x-hidden bg-slate-900 p-4 py-10 sm:p-6 sm:py-12 font-sans">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_70%_at_50%_-10%,rgba(30,64,175,0.24),transparent_55%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]"></div>
         <div

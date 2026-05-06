@@ -506,7 +506,7 @@ function RouletteWheelSvg({
   const gidCone = `rw-cone-${uid}`;
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[min(100%,clamp(17rem,88vmin,36rem))] sm:max-w-[min(100%,clamp(18rem,82vmin,38rem))] lg:max-w-[min(100%,clamp(17rem,min(72vmin,46vw),36rem))]">
+    <div className="relative mx-auto aspect-square w-full max-w-[min(100%,clamp(15rem,min(88vmin,92vw),36rem))] sm:max-w-[min(100%,clamp(17rem,82vmin,38rem))] lg:max-w-[min(100%,clamp(17rem,min(72vmin,46vw),36rem))]">
       {/* Cuvette fixe (bois + laiton) */}
       <div
         className="absolute inset-[6px] rounded-full p-[9px] shadow-[0_24px_48px_rgba(0,0,0,0.75),inset_0_2px_8px_rgba(255,255,255,0.06)] ring-1 ring-black/60"
@@ -991,7 +991,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         onClick={() => addToKey(key, pendingStake)}
         className={`${feltCellClass(
           n
-        )} relative flex min-h-[3.15rem] w-full flex-col items-center justify-start overflow-visible rounded-sm border-2 pt-1 font-serif text-sm font-bold tracking-tight transition hover:brightness-110 hover:ring-1 hover:ring-green-400/35 active:scale-[0.96] disabled:opacity-45 disabled:hover:ring-0 pb-5 sm:min-h-[3.35rem] sm:text-base`}
+        )} relative flex min-h-[2.55rem] w-full flex-col items-center justify-start overflow-visible rounded-sm border-2 pt-0.5 font-serif text-[11px] font-bold tracking-tight transition hover:brightness-110 hover:ring-1 hover:ring-green-400/35 active:scale-[0.96] disabled:opacity-45 disabled:hover:ring-0 pb-4 sm:min-h-[3.15rem] sm:pb-5 sm:pt-1 sm:text-sm md:min-h-[3.35rem] md:text-base`}
       >
         <span className="relative z-0 leading-none">{n}</span>
         <PlacedChipsBadge amount={placed} layout="cell" />
@@ -1028,8 +1028,8 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
             ? t("minigames.backToLobbyMinigamesTab")
             : t("roulette.back")}
         </button>
-        <h1 className="flex min-w-0 flex-1 items-center justify-center rounded-full border border-amber-200/16 bg-slate-950/45 px-4 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_rgba(245,158,11,0.06)]">
-          <span className="truncate bg-gradient-to-r from-slate-50 via-blue-100 to-amber-200 bg-clip-text text-lg font-black tracking-[0.12em] text-transparent md:text-2xl">
+        <h1 className="flex min-w-0 flex-1 items-center justify-center rounded-full border border-amber-200/16 bg-slate-950/45 px-2 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_rgba(245,158,11,0.06)] sm:px-4">
+          <span className="truncate bg-gradient-to-r from-slate-50 via-blue-100 to-amber-200 bg-clip-text text-base font-black tracking-[0.08em] text-transparent sm:text-lg sm:tracking-[0.12em] md:text-2xl">
             {t("roulette.title")}
           </span>
         </h1>
@@ -1045,8 +1045,8 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         </div>
       </header>
 
-      <CustomScrollArea className="relative z-10 min-h-0 flex-1" contentClassName="overflow-x-hidden p-3 pb-24 md:p-5 md:pb-8">
-        <p className="mx-auto mb-5 max-w-lg text-center text-xs leading-relaxed text-slate-400 md:text-sm">
+      <CustomScrollArea className="relative z-10 min-h-0 flex-1" contentClassName="overflow-x-hidden p-2 pb-24 sm:p-3 md:p-5 md:pb-8">
+        <p className="mx-auto mb-4 max-w-lg text-center text-[10px] leading-relaxed text-slate-400 sm:mb-5 sm:text-xs md:text-sm">
           {t("roulette.subtitle")}
         </p>
 
@@ -1117,7 +1117,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
 
             <div className="order-2 min-w-0 flex-1 lg:order-1">
             <div
-              className="rounded-2xl border border-amber-200/16 bg-slate-900/58 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_22px_60px_rgba(0,0,0,0.26)] backdrop-blur-xl sm:p-3 md:p-4"
+              className="rounded-2xl border border-amber-200/16 bg-slate-900/58 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_22px_60px_rgba(0,0,0,0.26)] backdrop-blur-xl sm:p-2 md:p-4"
               style={{
                 background:
                   "radial-gradient(ellipse 85% 55% at 25% 15%, rgba(16,185,129,0.12) 0%, transparent 55%), radial-gradient(ellipse 100% 80% at 50% 100%, rgba(15,23,42,0.95) 0%, rgba(22,101,52,0.35) 55%, rgba(15,23,42,0.9) 100%), linear-gradient(180deg, rgb(15 23 42 / 0.9) 0%, rgb(15 118 110 / 0.15) 50%, rgb(15 23 42) 100%)",
@@ -1161,9 +1161,12 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 </button>
               </div>
 
+              {/* Tapis chiffré : min-width + défilement horizontal sur mobile pour garder des cases tapables. */}
+              <div className="mb-2 max-md:-mx-0.5 max-md:overflow-x-auto max-md:overscroll-x-contain max-md:px-0.5 max-md:pb-0.5 max-md:[-webkit-overflow-scrolling:touch] sm:mx-0 sm:overflow-visible">
+                <div className="w-full min-w-[320px] sm:min-w-0">
               {/* Zero — case « bande » sur le tapis */}
               <div className="mb-2 flex justify-center">
-                <div className="w-[min(100%,3.5rem)]">{numCell(0)}</div>
+                <div className="w-[min(100%,3.25rem)] sm:w-[min(100%,3.5rem)]">{numCell(0)}</div>
               </div>
 
               {/* 3×12 : pleine largeur comme grid-cols-12, + pistes fixes pour chevaux horizontaux */}
@@ -1171,7 +1174,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 className="mb-2 grid w-full rounded-sm bg-[#b8860b]/40 p-px shadow-inner"
                 style={{
                   gridTemplateColumns:
-                    "repeat(11, minmax(0, 1fr) clamp(0.35rem, 1.6vw, 0.75rem)) minmax(0, 1fr)",
+                    "repeat(11, minmax(0, 1fr) clamp(0.4rem, 2vw, 0.75rem)) minmax(0, 1fr)",
                 }}
               >
                 {Array.from({ length: 12 }, (_, c) => {
@@ -1192,7 +1195,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                         <button
                           type="button"
                           disabled={bettingDisabled}
-                          className="relative h-5 min-h-[1.15rem] rounded-[1px] border border-emerald-800/40 bg-[#031910] hover:bg-[#0a3020]"
+                          className="relative h-4 min-h-[1rem] rounded-[1px] border border-emerald-800/40 bg-[#031910] hover:bg-[#0a3020] sm:h-5 sm:min-h-[1.15rem]"
                             title={t("roulette.splitVertical")}
                             onClick={() => addToKey(`sp:${Math.min(top, mid)}-${Math.max(top, mid)}` as BetKey, pendingStake)}
                           >
@@ -1205,7 +1208,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                           <button
                             type="button"
                             disabled={bettingDisabled}
-                            className="relative h-5 min-h-[1.15rem] rounded-[1px] border border-emerald-800/40 bg-[#031910] hover:bg-[#0a3020]"
+                            className="relative h-4 min-h-[1rem] rounded-[1px] border border-emerald-800/40 bg-[#031910] hover:bg-[#0a3020] sm:h-5 sm:min-h-[1.15rem]"
                           title={t("roulette.splitVertical")}
                           onClick={() => addToKey(`sp:${Math.min(mid, bot)}-${Math.max(mid, bot)}` as BetKey, pendingStake)}
                         >
@@ -1221,27 +1224,27 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                           <button
                             type="button"
                             disabled={bettingDisabled}
-                            className="relative min-h-[3.15rem] w-full min-w-0 rounded-[2px] border border-amber-700/45 bg-[#031910] hover:bg-[#0a3020] sm:min-h-[3.35rem]"
+                            className="relative min-h-[2.55rem] w-full min-w-0 rounded-[2px] border border-amber-700/45 bg-[#031910] hover:bg-[#0a3020] sm:min-h-[3.15rem] md:min-h-[3.35rem]"
                             title={t("roulette.splitHorizontal")}
                             onClick={() => addToKey(hkTop, pendingStake)}
                           >
                             <PlacedChipsBadge amount={bets.get(hkTop) ?? 0} layout="thin" />
                           </button>
-                          <div className="h-5 min-h-[1.15rem] shrink-0" aria-hidden />
+                          <div className="h-4 min-h-[1rem] shrink-0 sm:h-5 sm:min-h-[1.15rem]" aria-hidden />
                           <button
                             type="button"
                             disabled={bettingDisabled}
-                            className="relative min-h-[3.15rem] w-full min-w-0 rounded-[2px] border border-amber-700/45 bg-[#031910] hover:bg-[#0a3020] sm:min-h-[3.35rem]"
+                            className="relative min-h-[2.55rem] w-full min-w-0 rounded-[2px] border border-amber-700/45 bg-[#031910] hover:bg-[#0a3020] sm:min-h-[3.15rem] md:min-h-[3.35rem]"
                             title={t("roulette.splitHorizontal")}
                             onClick={() => addToKey(hkMid, pendingStake)}
                           >
                             <PlacedChipsBadge amount={bets.get(hkMid) ?? 0} layout="thin" />
                           </button>
-                          <div className="h-5 min-h-[1.15rem] shrink-0" aria-hidden />
+                          <div className="h-4 min-h-[1rem] shrink-0 sm:h-5 sm:min-h-[1.15rem]" aria-hidden />
                           <button
                             type="button"
                             disabled={bettingDisabled}
-                            className="relative min-h-[3.15rem] w-full min-w-0 rounded-[2px] border border-amber-700/45 bg-[#031910] hover:bg-[#0a3020] sm:min-h-[3.35rem]"
+                            className="relative min-h-[2.55rem] w-full min-w-0 rounded-[2px] border border-amber-700/45 bg-[#031910] hover:bg-[#0a3020] sm:min-h-[3.15rem] md:min-h-[3.35rem]"
                             title={t("roulette.splitHorizontal")}
                             onClick={() => addToKey(hkBot, pendingStake)}
                           >
@@ -1253,13 +1256,15 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   );
                 })}
               </div>
+                </div>
+              </div>
 
               <div className="mb-2 grid grid-cols-3 gap-1">
                 <button
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("d:1", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.dozen1")}
                   <PlacedChipsBadge amount={bets.get("d:1") ?? 0} layout="corner" />
@@ -1268,7 +1273,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("d:2", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.dozen2")}
                   <PlacedChipsBadge amount={bets.get("d:2") ?? 0} layout="corner" />
@@ -1277,7 +1282,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("d:3", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.dozen3")}
                   <PlacedChipsBadge amount={bets.get("d:3") ?? 0} layout="corner" />
@@ -1289,7 +1294,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("col:1", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.col1")}
                   <PlacedChipsBadge amount={bets.get("col:1") ?? 0} layout="corner" />
@@ -1298,7 +1303,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("col:2", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.col2")}
                   <PlacedChipsBadge amount={bets.get("col:2") ?? 0} layout="corner" />
@@ -1307,7 +1312,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("col:3", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.col3")}
                   <PlacedChipsBadge amount={bets.get("col:3") ?? 0} layout="corner" />
@@ -1321,7 +1326,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                     type="button"
                     disabled={bettingDisabled}
                     onClick={() => addToKey(k, pendingStake)}
-                    className={`relative rounded-sm border-2 py-2 pl-2 pr-7 font-serif text-[11px] font-bold transition hover:brightness-110 sm:text-xs ${
+                    className={`relative rounded-sm border-2 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight transition hover:brightness-110 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs ${
                       k === "red"
                         ? "border-[#f87171]/60 bg-gradient-to-b from-[#b91c1c] to-[#7f1d1d] text-white"
                         : k === "black"
