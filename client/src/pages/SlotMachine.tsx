@@ -12,6 +12,7 @@ import {
 import { apiUrl } from "../utils/apiBase";
 import { ChipIcon } from "../components/ChipIcon";
 import { CustomScrollArea } from "../components/CustomScrollArea";
+import { getAuthItem } from "../utils/authStorage";
 import slotSevenLucky from "../assets/slot-seven-lucky.png";
 import slotLemon from "../assets/slot-lemon.png";
 import slotCherries from "../assets/slot-cherries.png";
@@ -165,7 +166,7 @@ export function SlotMachine() {
   const maxBet = Math.min(MAX_BET, balance);
 
   const loadBalance = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token) return;
     try {
       const chips = await fetchBalanceFromServer({ authoritative: true });
@@ -176,7 +177,7 @@ export function SlotMachine() {
   }, [addToast, t]);
 
   const loadBalanceHistory = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token) return;
     setHistoryLoading(true);
     setHistoryError(null);
@@ -217,7 +218,7 @@ export function SlotMachine() {
     const currentBalance = getUserBalance();
     if (isSpinning || currentBalance < bet) return;
 
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token) {
       addToast(t("slot.errorMustLogin"), "error");
       return;

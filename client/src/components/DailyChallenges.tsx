@@ -3,6 +3,7 @@ import { CheckCircle, Target } from "lucide-react";
 import { useUser } from "../hooks/useUser";
 import { apiUrl } from "../utils/apiBase";
 import { useTranslation } from "react-i18next";
+import { getAuthItem } from "../utils/authStorage";
 
 interface Challenge {
   code: string;
@@ -32,7 +33,7 @@ export function DailyChallenges() {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthItem("token");
       if (!token) {
         setChallenges([]);
         setErrorKey("dailyChallenges.errors.auth");
@@ -67,7 +68,7 @@ export function DailyChallenges() {
 
   const handleClaim = async (challengeCode: string) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthItem("token");
       if (!token) {
         setErrorKey("dailyChallenges.errors.auth");
         return;

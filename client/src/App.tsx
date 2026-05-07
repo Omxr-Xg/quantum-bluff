@@ -40,6 +40,7 @@ import { InvitationAcceptProvider } from "./contexts/InvitationAcceptContext";
 import { socket } from './services/socket';
 import { useUser } from './hooks/useUser';
 import { useToast } from './contexts/ToastContext';
+import { getAuthItem } from './utils/authStorage';
 
 
 const isDev = import.meta.env.DEV;
@@ -93,7 +94,7 @@ function TournamentTeleporter() {
   } | null>(null);
 
   useEffect(() => {
-    const currentToken = localStorage.getItem('token');
+    const currentToken = getAuthItem('token');
 
     if (!currentToken) {
       if (isDev) console.warn("⛔ Pas de token — socket non connecté");

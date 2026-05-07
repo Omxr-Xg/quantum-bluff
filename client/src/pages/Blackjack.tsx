@@ -5,9 +5,10 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { apiUrl } from "../utils/apiBase";
 import { BlackjackLobbyBackdrop } from "../components/blackjack/BlackjackLobbyBackdrop";
+import { getAuthItem } from "../utils/authStorage";
 
 function authHeaders(): HeadersInit {
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

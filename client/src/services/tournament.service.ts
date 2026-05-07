@@ -1,4 +1,5 @@
 import { apiUrl } from '../utils/apiBase';
+import { getAuthItem } from '../utils/authStorage';
 
 export interface Tournament {
   id: string;
@@ -16,7 +17,7 @@ export interface Tournament {
 
 export const TournamentService = {
   getTournaments: async (): Promise<Tournament[]> => {
-    const token = localStorage.getItem('token'); // 1. On récupère le token
+    const token = getAuthItem('token'); // 1. On récupère le token
     
     const res = await fetch(apiUrl('/api/tournaments'), {
       headers: {
@@ -33,7 +34,7 @@ export const TournamentService = {
     const res = await fetch(apiUrl('/api/tournaments/create'), {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${getAuthItem('token')}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(data)
@@ -49,7 +50,7 @@ export const TournamentService = {
     const res = await fetch(apiUrl(`/api/tournaments/${id}/join`), {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${getAuthItem('token')}`,
         'Content-Type': 'application/json'
       }
     });
@@ -62,7 +63,7 @@ export const TournamentService = {
     const res = await fetch(apiUrl(`/api/tournaments/${id}/request-join`), {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${getAuthItem('token')}`,
         'Content-Type': 'application/json'
       }
     });
@@ -74,7 +75,7 @@ export const TournamentService = {
   getReceivedJoinRequests: async () => {
     const res = await fetch(apiUrl('/api/tournaments/requests/received'), {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${getAuthItem('token')}`,
       }
     });
     const data = await res.json();
@@ -86,7 +87,7 @@ export const TournamentService = {
     const res = await fetch(apiUrl(`/api/tournaments/requests/${requestId}/accept`), {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${getAuthItem('token')}`,
         'Content-Type': 'application/json'
       }
     });
@@ -99,7 +100,7 @@ export const TournamentService = {
     const res = await fetch(apiUrl(`/api/tournaments/${id}/leave`), {
       method: 'POST',
       headers: { 
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${getAuthItem('token')}`,
         'Content-Type': 'application/json' 
       }
     });

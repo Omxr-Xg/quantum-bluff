@@ -11,6 +11,7 @@ import {
   useResetPasswordMutation,
 } from "../services/api";
 import { persistGamificationFromAuthUser } from "../utils/gamificationStorage";
+import { removeAuthItem, setAuthItem } from "../utils/authStorage";
 
 // 👇 IMPORT DU HOOK LOADER
 import { useLoader } from "../contexts/LoaderContext";
@@ -111,23 +112,23 @@ export function Auth() {
       const token = response.token;
 
       // ✅ STOCKAGE
-      localStorage.removeItem("userid");
-      localStorage.removeItem("role");
-      localStorage.setItem("token", token);
-      localStorage.setItem("userId", String(response.user.id));
-      localStorage.setItem("username", response.user.username);
-      localStorage.setItem("quantum_bluff_username", response.user.username);
-      localStorage.setItem("quantum_bluff_email", response.user.email);
+      removeAuthItem("userid");
+      removeAuthItem("role");
+      setAuthItem("token", token);
+      setAuthItem("userId", String(response.user.id));
+      setAuthItem("username", response.user.username);
+      setAuthItem("quantum_bluff_username", response.user.username);
+      setAuthItem("quantum_bluff_email", response.user.email);
 
       if (typeof response.user.chips === "number") {
-        localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
+        setAuthItem("quantum_bluff_balance", String(response.user.chips));
       }
 
       const avatarUrl = (response.user as { avatarUrl?: string | null }).avatarUrl;
       if (typeof avatarUrl === "string" && avatarUrl.trim() !== "") {
-        localStorage.setItem("quantum_bluff_avatar", avatarUrl.trim());
+        setAuthItem("quantum_bluff_avatar", avatarUrl.trim());
       } else {
-        localStorage.removeItem("quantum_bluff_avatar");
+        removeAuthItem("quantum_bluff_avatar");
       }
 
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
@@ -160,21 +161,21 @@ export function Auth() {
         secretQuestionId,
         secretAnswer: secretAnswer.trim(),
       }).unwrap();
-      localStorage.removeItem("userid");
-      localStorage.removeItem("role");
-      localStorage.setItem("token", response.token);
-      localStorage.setItem("userId", String(response.user.id));
-      localStorage.setItem("username", response.user.username);
-      localStorage.setItem("quantum_bluff_username", response.user.username);
-      localStorage.setItem("quantum_bluff_email", response.user.email);
+      removeAuthItem("userid");
+      removeAuthItem("role");
+      setAuthItem("token", response.token);
+      setAuthItem("userId", String(response.user.id));
+      setAuthItem("username", response.user.username);
+      setAuthItem("quantum_bluff_username", response.user.username);
+      setAuthItem("quantum_bluff_email", response.user.email);
       if (typeof response.user.chips === "number") {
-        localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
+        setAuthItem("quantum_bluff_balance", String(response.user.chips));
       }
       const avatarUrlReg = (response.user as { avatarUrl?: string | null }).avatarUrl;
       if (typeof avatarUrlReg === "string" && avatarUrlReg.trim() !== "") {
-        localStorage.setItem("quantum_bluff_avatar", avatarUrlReg.trim());
+        setAuthItem("quantum_bluff_avatar", avatarUrlReg.trim());
       } else {
-        localStorage.removeItem("quantum_bluff_avatar");
+        removeAuthItem("quantum_bluff_avatar");
       }
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
       

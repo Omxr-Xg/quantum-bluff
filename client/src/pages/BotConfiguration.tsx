@@ -5,6 +5,7 @@ import { Bot, Users, Zap, Brain, Trophy, Target, ChevronDown, ChevronUp, Setting
 import { useToast } from "../contexts/ToastContext";
 import { getUserBalance } from "../utils/userProfile";
 import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
 
 const DIFF_LABEL_KEYS: Record<string, string> = { facile: "easy", moyen: "medium", difficile: "hard", expert: "expert" };
 const BOT_NAMES = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
@@ -93,7 +94,7 @@ export function BotConfiguration() {
       addToast(t("botConfig.minAmount100") || "Montant minimal 100 chips par bot.", "error");
       return;
     }
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token) {
       addToast(t("auth.loginRequired", "Connectez-vous pour jouer."), "error");
       return;

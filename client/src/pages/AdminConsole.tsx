@@ -16,13 +16,14 @@ import {
 } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
 import { clearAuthStorage } from "../utils/userProfile";
+import { getAuthItem } from "../utils/authStorage";
 
 type Tab = "users" | "history" | "poker" | "bj" | "ratings" | "reports";
 
 const PAGE_SIZE = 25;
 
 function authHeaders(): HeadersInit {
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

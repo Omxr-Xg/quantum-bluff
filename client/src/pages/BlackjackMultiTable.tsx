@@ -29,11 +29,12 @@ import {
 } from "../components/blackjack/BlackjackRoundReveal";
 import { mapBlackjackRuntimeCodeToUi } from "../features/blackjack/runtimeStatus";
 import { NeonButton } from "../components/NeonButton";
+import { getAuthItem } from "../utils/authStorage";
 
 const PAYOUT_TABLE_REVEAL_MS = 2000;
 
 function authHeaders(): HeadersInit {
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -304,7 +305,7 @@ export function BlackjackMultiTable() {
       const rid = roomIdRef.current;
       const gid = gameIdRef.current;
       if (!rid || !gid) return;
-      const token = localStorage.getItem("token");
+      const token = getAuthItem("token");
       if (!token) return;
       void fetch(apiUrl(`/api/blackjack-tables/${rid}/leave`), {
         method: "POST",

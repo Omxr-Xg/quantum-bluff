@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Loader2, Shield } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
+import { getAuthItem, setAuthItem } from "../utils/authStorage";
 
 export function AdminAuth() {
   const { t } = useTranslation();
@@ -14,8 +15,8 @@ export function AdminAuth() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token && localStorage.getItem("role") === "admin") {
+    const token = getAuthItem("token");
+    if (token && getAuthItem("role") === "admin") {
       navigate("/admin/console", { replace: true });
     }
   }, [navigate]);
@@ -49,10 +50,10 @@ export function AdminAuth() {
         setError(t("adminConsole.loginError"));
         return;
       }
-      localStorage.setItem("token", token);
-      localStorage.setItem("role", "admin");
-      localStorage.setItem("userId", user.id);
-      localStorage.setItem("username", user.username);
+      setAuthItem("token", token);
+      setAuthItem("role", "admin");
+      setAuthItem("userId", user.id);
+      setAuthItem("username", user.username);
       window.dispatchEvent(new Event("auth-changed"));
       navigate("/admin/console", { replace: true });
     } catch {

@@ -52,6 +52,7 @@ import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 import { useSendFriendMessageMutation } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 type BalanceHistoryEntry = {
@@ -158,7 +159,7 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
     setBalance(getUserBalance());
-    if (localStorage.getItem("token")) {
+    if (getAuthItem("token")) {
       const blackjackMultiInLobby =
         location.pathname === "/lobby" && location.search.includes("tab=blackjack");
       const authoritative =
@@ -180,7 +181,7 @@ export function Layout({ children }: LayoutProps) {
   
   useEffect(() => {
     const onFocus = () => {
-      if (localStorage.getItem("token")) {
+      if (getAuthItem("token")) {
         const authoritative =
           location.pathname === "/minigames" ||
           location.pathname === "/blackjack" ||
@@ -380,7 +381,7 @@ export function Layout({ children }: LayoutProps) {
     setAddSuccess(false);
   };
   const loadBalanceHistory = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token) return;
     setHistoryLoading(true);
     setHistoryError(null);
@@ -424,7 +425,7 @@ export function Layout({ children }: LayoutProps) {
   const closeAddMoney = () => {
     playSfx("modalClose");
     setShowAddMoney(false);
-    if (localStorage.getItem("token")) {
+    if (getAuthItem("token")) {
       fetchBalanceFromServer().then(setBalance);
     } else {
       setBalance(getUserBalance());
@@ -454,7 +455,7 @@ export function Layout({ children }: LayoutProps) {
       stopBgm();
     }
   }, [isAdminShell, stopBgm]);
-  const showTopBar = !isAuthPage && localStorage.getItem("token");
+  const showTopBar = !isAuthPage && getAuthItem("token");
   const addMoneyModalHeightClass =
     balanceModalTab === "history"
       ? "h-[23rem]"

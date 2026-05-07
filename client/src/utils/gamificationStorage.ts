@@ -1,4 +1,5 @@
 import { apiUrl } from "./apiBase";
+import { getAuthItem } from "./authStorage";
 
 /** Aligné sur le catalogue serveur (badges débloqués par niveau). */
 export const BADGE_CATALOG: { id: string; minLevel: number }[] = [
@@ -98,7 +99,7 @@ export function mergeGamificationFromServerResponse(data: Record<string, unknown
 }
 
 export async function refreshGamificationFromServer(): Promise<Partial<StoredGamification>> {
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
   if (!token) return {};
   const url = apiUrl("/api/auth/gamification");
   try {

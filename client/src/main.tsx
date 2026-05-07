@@ -19,6 +19,9 @@ import { LoaderProvider } from './contexts/LoaderContext' // Adapte le chemin si
 
 import App from './App'
 import './index.css'
+import { migrateLegacyAuthOnStartup } from './utils/authStorage'
+
+migrateLegacyAuthOnStartup()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

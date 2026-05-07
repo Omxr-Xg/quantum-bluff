@@ -15,6 +15,7 @@ import { apiUrl } from "../utils/apiBase";
 import { ChipIcon } from "../components/ChipIcon";
 import logoSrc from "../assets/logo-personnel.png";
 import { CustomScrollArea } from "../components/CustomScrollArea";
+import { getAuthItem } from "../utils/authStorage";
 
 type RouletteChipToken = {
   value: number;
@@ -646,14 +647,14 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   const splits = useMemo(() => buildSplitPairs(), []);
 
   const loadBalance = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token) {
       navigate("/lobby");
       return;
     }
     try {
       const c = await fetchBalanceFromServer({ authoritative: true });
-      if (!localStorage.getItem("token")) {
+      if (!getAuthItem("token")) {
         navigate("/lobby");
         return;
       }
@@ -794,7 +795,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   }, [bets]);
 
   const spin = async () => {
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token || chips === null || spinning) return;
     if (bets.size === 0) {
       addToast(t("roulette.noBets"), "error");
