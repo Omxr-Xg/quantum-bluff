@@ -1969,7 +1969,10 @@ export function Game() {
         console.warn("[QB] Bot stuck detected, forcing action");
         const activePlayer = playersState.find((p) => p.isActive && "isBot" in p && p.isBot);
         if (activePlayer) {
+          const chips = activePlayer.chips ?? 0;
           if (callAmount === 0) handleCheck(activePlayer.id);
+          else if (chips >= callAmount) handleCall(callAmount, activePlayer.id);
+          else if (chips > 0) handleCall(chips, activePlayer.id);
           else handleFold(activePlayer.id);
         }
         setIsBotThinking(false);
@@ -2808,6 +2811,11 @@ export function Game() {
           addToast(`Erreur bot (${response.status})`, "error");
           setIsBotThinking(false);
           botIsFetchingRef.current = false;
+          const chips = activePlayer.chips ?? 0;
+          if (callAmount === 0) handleCheck(activePlayer.id);
+          else if (chips >= callAmount) handleCall(callAmount, activePlayer.id);
+          else if (chips > 0) handleCall(chips, activePlayer.id);
+          else handleFold(activePlayer.id);
           return;
         }
 
@@ -2898,7 +2906,10 @@ export function Game() {
         }
         setTimeout(() => {
           if (botActionGen !== localHandGenerationRef.current) return;
+          const chips = activePlayer.chips ?? 0;
           if (callAmount === 0) handleCheck(activePlayer.id);
+          else if (chips >= callAmount) handleCall(callAmount, activePlayer.id);
+          else if (chips > 0) handleCall(chips, activePlayer.id);
           else handleFold(activePlayer.id);
           setIsBotThinking(false);
           botIsFetchingRef.current = false;

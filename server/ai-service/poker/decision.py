@@ -66,21 +66,22 @@ def _heuristic_scores(ctx: FeatureContext, to_call: float, bot_stack: float) -> 
     passive_bonus = ctx.passive_opponent * 0.2
     made_bonus = ctx.made_pair_or_better * 0.12 + (ctx.hand_category_rank / 8) * 0.22
 
-    fold = 1.2 - equity * 2.1 + pressure * 1.4 + ctx.pot_odds * 0.9
-    call = 0.28 + price_gap * 2.2 - pressure * 0.45
-    raise_score = -0.35 + equity * 2.4 + position_bonus + passive_bonus + made_bonus - ctx.board_pair * 0.08
-    all_in = -1.4 + equity * 2.6 - clamp(ctx.effective_stack_to_pot_ratio / 6) + pressure * 0.45
+    # Moins de masse « fold » par défaut — se rapprocher d’un régulier humain.
+    fold = 1.05 - equity * 1.92 + pressure * 1.25 + ctx.pot_odds * 0.72
+    call = 0.38 + price_gap * 2.45 - pressure * 0.38
+    raise_score = -0.28 + equity * 2.45 + position_bonus + passive_bonus + made_bonus - ctx.board_pair * 0.08
+    all_in = -1.28 + equity * 2.55 - clamp(ctx.effective_stack_to_pot_ratio / 6) + pressure * 0.4
 
     if to_call <= 0:
         fold -= 2.0
-        call += 0.35
-        raise_score += 0.15 + position_bonus
+        call += 0.42
+        raise_score += 0.18 + position_bonus
     if ctx.street == "PREFLOP":
         raise_score += ctx.position_score * 0.2
         all_in += 0.35 if ctx.preflop_strength > 0.86 else -0.35
-    if price_gap < -0.16 and to_call > 0:
-        fold += 0.6
-        raise_score -= 0.25
+    if price_gap < -0.2 and to_call > 0:
+        fold += 0.45
+        raise_score -= 0.2
     return [fold, call, raise_score, all_in]
 
 
@@ -91,7 +92,8 @@ def _teacher_scores(payload: dict[str, Any]) -> tuple[list[float], str, str]:
 
     # Keep the expert difficult but not robotic: nearby acceptable actions retain small mass.
     if teacher.label == "FOLD":
-        scores[1] += 0.12
+        scores[1] += 0.28
+        scores[2] += 0.1
     elif teacher.label == "CHECK_CALL":
         scores[2] += 0.18
     elif teacher.label == "RAISE":
@@ -203,7 +205,7 @@ def _legalize(
         if stack <= 0:
             action = "CHECK" if to_call <= 0 else "FOLD"
             return BotDecision(action, 0, confidence, _style_for_action(action, ctx), "No chips available")
-        if ctx.hand_strength < 0.62 and ctx.pot_odds > ctx.hand_strength + 0.08:
+        if ctx.hand_strength < 0.52 and ctx.pot_odds > ctx.hand_strength + 0.14:
             return BotDecision("FOLD", 0, confidence, "discipline", f"All-in rejected by risk layer ({equity_note})")
         return BotDecision("ALL_IN", stack, confidence, _style_for_action("ALL_IN", ctx), f"High pressure expert shove ({equity_note})")
 
@@ -231,7 +233,7 @@ def _soul_read_override(payload: dict[str, Any], ctx: FeatureContext) -> int | N
         return ACTIONS.index("ALL_IN") if ctx.effective_stack_to_pot_ratio <= 3.2 else ACTIONS.index("RAISE")
     if edge >= 0.04 and to_call == 0:
         return ACTIONS.index("RAISE")
-    if edge <= -0.12 and to_call > 0 and pressure > 0.14:
+    if edge <= -0.16 and to_call > 0 and pressure > 0.18:
         return ACTIONS.index("FOLD")
     if edge <= -0.06 and to_call == 0 and can_pressure and ctx.opponent_strength < 0.42:
         return ACTIONS.index("RAISE")
@@ -247,19 +249,23 @@ def predict_decision(payload: dict[str, Any], model: PolicyModel | None = None) 
     heuristic_scores = _heuristic_scores(ctx, float(payload.get("toCall", 0)), float(payload.get("botStack", 0)))
     teacher_scores, teacher_style, teacher_reason = _teacher_scores(payload)
     logits = [
-        model_score * 0.34 + heuristic_score * 0.24 + teacher_score * 0.42 + random.uniform(-0.004, 0.004)
+        model_score * 0.36 + heuristic_score * 0.28 + teacher_score * 0.36 + random.uniform(-0.006, 0.006)
         for model_score, heuristic_score, teacher_score in zip(model_scores, heuristic_scores, teacher_scores)
     ]
+    # Légère correction post-logit : le professeur + MLP sur-apprenaient le fold.
+    logits[0] -= 0.11
+    logits[1] += 0.08
+    logits[2] += 0.05
     probs = _softmax(logits)
     if "temperature" in payload:
         temperature = float(payload["temperature"])
     elif ctx.street == "PREFLOP":
-        temperature = 0.22
+        temperature = 0.28
     elif ctx.street == "RIVER":
-        temperature = 0.13
+        temperature = 0.18
     else:
-        temperature = 0.17
-    temperature = max(0.12, min(1.05, temperature))
+        temperature = 0.23
+    temperature = max(0.14, min(1.12, temperature))
     action_idx = _soul_read_override(payload, ctx)
     if action_idx is None:
         action_idx = _choose_action(probs, temperature)

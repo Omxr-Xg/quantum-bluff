@@ -26,3 +26,5 @@ backups/*.log
 # Game_Versions/ : uniquement installables (.exe, .dmg, .apk, .ipa, .zip d’archive…)
 Game_Versions/*.txt
 Game_Versions/*.md
+# Copie locale avec ton Team ID (voir ExportOptions-*.plist.example)
+scripts/ios/ExportOptions.plist

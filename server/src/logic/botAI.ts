@@ -293,7 +293,8 @@ function advancedPotOddsDecision(req: BotActionRequest, p: AdvancedProfile): Bot
   const potOdds = req.callAmount / Math.max(req.potSize + req.callAmount, 1)
   let winProbability = strength
   const cardsToCome = 5 - req.communityCards.length
-  winProbability += (1 - strength) * (cardsToCome * 0.055)
+  /* Légère surestimation des tirages — évite un fold mécanique trop « robot ». */
+  winProbability += (1 - strength) * (cardsToCome * 0.068)
 
   const margin = p.potOddsTighten
 
@@ -351,8 +352,41 @@ function advancedPotOddsDecision(req: BotActionRequest, p: AdvancedProfile): Bot
     }
     return { action: 'CHECK', reasoning: `${p.name}: check weak` }
   }
-  if (headsUp && Math.random() < (p.name === 'expert' ? 0.18 : 0.24)) {
-    return { action: 'CALL', amount: intChips(req.callAmount), reasoning: `${p.name}: hero call` }
+  const heroRate = p.name === 'expert' ? 0.34 : 0.4
+  if (headsUp && Math.random() < heroRate) {
+    if (req.playerChips >= req.callAmount) {
+      return { action: 'CALL', amount: intChips(req.callAmount), reasoning: `${p.name}: hero call` }
+    }
+    if (req.playerChips > 0) {
+      return { action: 'CALL', amount: intChips(req.playerChips), reasoning: `${p.name}: hero all-in` }
+    }
+  }
+  if (
+    !headsUp &&
+    Math.random() < 0.1 &&
+    req.callAmount > 0 &&
+    req.callAmount <= req.potSize * 0.4 &&
+    strength > 0.15
+  ) {
+    if (req.playerChips >= req.callAmount) {
+      return { action: 'CALL', amount: intChips(req.callAmount), reasoning: `${p.name}: peel multiway` }
+    }
+    if (req.playerChips > 0) {
+      return { action: 'CALL', amount: intChips(req.playerChips), reasoning: `${p.name}: peel short` }
+    }
+  }
+  if (
+    Math.random() < 0.1 &&
+    req.callAmount > 0 &&
+    req.callAmount <= req.potSize * 0.48 &&
+    strength > 0.11
+  ) {
+    if (req.playerChips >= req.callAmount) {
+      return { action: 'CALL', amount: intChips(req.callAmount), reasoning: `${p.name}: stubborn call` }
+    }
+    if (req.playerChips > 0) {
+      return { action: 'CALL', amount: intChips(req.playerChips), reasoning: `${p.name}: stubborn short` }
+    }
   }
   return { action: 'FOLD', reasoning: `${p.name}: fold` }
 }
