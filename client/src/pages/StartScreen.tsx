@@ -177,9 +177,9 @@ export function StartScreen() {
       </div>
 
       {/* Contenu principal - centré verticalement et horizontalement */}
-      <div className="relative z-10 flex min-h-full w-full flex-col items-center justify-center p-8 py-12">
+      <div className="relative z-10 flex min-h-[100dvh] w-full flex-col items-center justify-center p-6 py-8 sm:min-h-full sm:p-8 sm:py-12">
         {/* Logo avec effets sophistiqués - BLEU NUIT */}
-        <div className="mb-12 relative">
+        <div className="relative mb-7 sm:mb-12">
           {/* Glow pulsant */}
           <div className="absolute inset-0 -m-8">
             <div className="w-full h-full bg-gradient-to-r from-blue-500/18 via-cyan-500/10 to-blue-700/18 rounded-full blur-3xl animate-pulse-glow"></div>
@@ -200,7 +200,7 @@ export function StartScreen() {
           <div className="relative">
             <QuantumBluffLogo
               alt="Quantum Bluff"
-              className="relative w-44 h-44 brightness-110" // Légèrement plus lumineux
+              className="relative h-36 w-36 brightness-110 sm:h-44 sm:w-44" // Légèrement plus lumineux
               style={{
                 filter: 'drop-shadow(0 0 30px rgba(59, 130, 246, 0.42))'
               }}
@@ -209,8 +209,8 @@ export function StartScreen() {
         </div>
 
         {/* Titre avec gradient animé - BLEU NUIT */}
-        <div className="text-center mb-4">
-          <h1 className="text-7xl font-bold mb-2">
+        <div className="mb-3 text-center sm:mb-4">
+          <h1 className="mb-2 text-5xl font-bold sm:text-7xl">
             <span 
               className="bg-gradient-to-r from-blue-200 via-cyan-100 to-blue-300 bg-clip-text text-transparent animate-gradient-flow"
               style={{ 
@@ -222,14 +222,14 @@ export function StartScreen() {
             </span>
           </h1>
           <div className="flex items-center justify-center gap-2 text-slate-300"> {/* Texte plus clair */}
-            <Zap className="w-5 h-5 text-blue-300 animate-pulse" />
-            <p className="text-xl tracking-wider font-light">{t('startScreen.tagline')}</p>
-            <Zap className="w-5 h-5 text-blue-300 animate-pulse" style={{ animationDelay: "0.5s" }} />
+            <Zap className="h-4 w-4 animate-pulse text-blue-300 sm:h-5 sm:w-5" />
+            <p className="text-base font-light tracking-wide sm:text-xl sm:tracking-wider">{t('startScreen.tagline')}</p>
+            <Zap className="h-4 w-4 animate-pulse text-blue-300 sm:h-5 sm:w-5" style={{ animationDelay: "0.5s" }} />
           </div>
         </div>
 
         {/* Ligne décorative - BLEU NUIT */}
-        <div className="flex items-center gap-3 mb-12">
+        <div className="mb-8 flex items-center gap-3 sm:mb-12">
           <div className="w-16 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent"></div>
           <Sparkles className="w-4 h-4 text-blue-300 animate-pulse" />
           <div className="w-16 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent"></div>
