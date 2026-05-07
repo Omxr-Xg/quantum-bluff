@@ -34,6 +34,7 @@ import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
 import { DeckShuffleOverlay } from "../components/game/DeckShuffleOverlay";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
 import {
   shouldBotReplyToHuman,
   shouldBotTauntAfterAction,
@@ -975,7 +976,7 @@ export function Game() {
   }, [isBotMode]);
 
   const postExpertPracticeRecordResult = useCallback((delta: number) => {
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token) return;
     void fetch(apiUrl("/api/game/record-result"), {
       method: "POST",
@@ -1100,7 +1101,7 @@ export function Game() {
     const url = `${apiUrl(`/api/game/${encodeURIComponent(gameIdParam)}`)}?playerId=${encodeURIComponent(userId)}`;
     let cancelled = false;
     fetch(url, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
+      headers: { Authorization: `Bearer ${getAuthItem("token") ?? ""}` },
     })
       .then((res) => {
         if (cancelled) return null;
@@ -2547,7 +2548,7 @@ export function Game() {
   useEffect(() => {
     if (!gameIdParam || !isBotMode || gameOverReason) return;
     if (serverHandRuntimePhase !== "HAND_COMPLETE") return;
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     let cancelled = false;
 
     const resyncTimer = window.setTimeout(() => {
@@ -2588,7 +2589,7 @@ export function Game() {
     if (!gameIdParam || !isBotMode || !userId || gameOverReason) return;
     if (phase !== "preflop" && phase !== "flop" && phase !== "turn" && phase !== "river") return;
     if (!practiceBotTurnWatchId) return;
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token) return;
 
     const t = window.setTimeout(() => {
@@ -2640,7 +2641,7 @@ export function Game() {
       if (!gameIdParam || !userId || isSpectating) return;
       void fetch(
         `${apiUrl(`/api/game/${encodeURIComponent(gameIdParam)}`)}?playerId=${encodeURIComponent(userId)}`,
-        { headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` } },
+        { headers: { Authorization: `Bearer ${getAuthItem("token") ?? ""}` } },
       )
         .then((r) => (r.ok ? r.json() : null))
         .then((st) => {
@@ -2708,7 +2709,7 @@ export function Game() {
   }, [navigate, location.pathname, location.search]);
 
   const handlePracticePlayAgain = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token) {
       navigate("/lobby");
       return;
