@@ -8,6 +8,7 @@ import { api } from '../services/api'
 import { fetchBalanceFromServer } from '../utils/userProfile'
 import { apiUrl } from '../utils/apiBase'
 import { getSocketIoUrlAndPath } from '../utils/socketConnect'
+import { getAuthItem } from '../utils/authStorage'
 
 export interface GameInvitationNotification {
   invitationId: string
@@ -54,7 +55,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token = getAuthItem('token')
 
     if (!token) {
       setSocket(null)
@@ -86,7 +87,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       if (import.meta.env.MODE === 'capacitor') {
         console.info('[QB] SocketContext connected', { id: socketInstance.id })
       }
-      const uid = localStorage.getItem('userId')
+      const uid = getAuthItem('userId')
       if (uid) socketInstance.emit('JOIN_USER_ROOM', { userId: uid })
     })
 
@@ -181,7 +182,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   /** Invitations salle d’attente déjà en base (reconnexion / onglet rechargé). */
   useEffect(() => {
     if (!socket || !userId) return
-    const token = localStorage.getItem('token')
+    const token = getAuthItem('token')
     if (!token) return
 
     let cancelled = false

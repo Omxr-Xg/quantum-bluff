@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { getAuthItem } from "../utils/authStorage";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -8,13 +9,13 @@ interface ProtectedRouteProps {
 /** Redirige vers /auth si non authentifié */
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
 
   if (!token) {
     return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
   }
 
-  if (localStorage.getItem("role") === "admin") {
+  if (getAuthItem("role") === "admin") {
     return <Navigate to="/admin/console" replace />;
   }
 

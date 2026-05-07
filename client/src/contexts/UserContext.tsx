@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getUserBalance, updateUserBalance, addToUserBalance, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
+import { getAuthItem } from "../utils/authStorage";
 
 interface UserContextType {
   userId: string | null;
@@ -14,12 +15,12 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 function readFromStorage() {
-  const rawUserId = localStorage.getItem("userId") ?? localStorage.getItem("userid");
-  const rawUsername = localStorage.getItem("username");
+  const rawUserId = getAuthItem("userId") ?? getAuthItem("userid");
+  const rawUsername = getAuthItem("username");
   return {
     userId: rawUserId && rawUserId !== "undefined" && rawUserId !== "null" ? rawUserId : null,
     username: rawUsername && rawUsername !== "undefined" && rawUsername !== "null" ? rawUsername : null,
-    isAdmin: localStorage.getItem("role") === "admin",
+    isAdmin: getAuthItem("role") === "admin",
   };
 }
 

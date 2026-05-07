@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { getAuthItem } from "../utils/authStorage";
 
 interface Props {
   children: ReactNode;
@@ -8,13 +9,13 @@ interface Props {
 /** Accès réservé au jeton émis par POST /api/auth/admin/login. */
 export function AdminProtectedRoute({ children }: Props) {
   const location = useLocation();
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
 
   if (!token) {
     return <Navigate to="/auth/admin" state={{ from: location.pathname }} replace />;
   }
 
-  if (localStorage.getItem("role") !== "admin") {
+  if (getAuthItem("role") !== "admin") {
     return <Navigate to="/auth/admin" replace />;
   }
 
