@@ -10,6 +10,7 @@ import { useUser } from "../hooks/useUser";
 import { useGetFriendRequestsQuery, useRespondToFriendRequestMutation } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
 import { TournamentService } from "../services/tournament.service";
+import { getAuthItem } from "../utils/authStorage";
 
 interface UnreadMessage {
   senderId: string;
@@ -210,7 +211,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
 
   const handleRejectInvitation = async (inv: { invitationId: string; game?: string }) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthItem("token");
       const isBj = inv.game === "blackjack";
       const url = apiUrl(
         isBj

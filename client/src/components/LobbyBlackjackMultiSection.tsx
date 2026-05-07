@@ -19,6 +19,7 @@ import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { useGetFriendsQuery } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
 import {
   getDisplayedBlackjackMaxBet,
   refreshGamificationFromServer,
@@ -48,7 +49,7 @@ interface BjRoom {
 }
 
 function authHeaders(): HeadersInit {
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
