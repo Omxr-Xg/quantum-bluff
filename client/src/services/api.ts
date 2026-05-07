@@ -1,5 +1,6 @@
 import { createApi, fetchBaseQuery, retry } from '@reduxjs/toolkit/query/react'
 import { getApiBaseUrl } from '../utils/apiBase'
+import { getAuthItem } from '../utils/authStorage'
 
 
 
@@ -73,7 +74,7 @@ const baseQuery = fetchBaseQuery({
     return `${origin}/api`
   })(),
   prepareHeaders: (headers) => {
-    const token = localStorage.getItem('token')
+    const token = getAuthItem('token')
     if (token) {
       headers.set('Authorization', `Bearer ${token}`)
     }

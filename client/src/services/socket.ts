@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client'
 import { getSocketIoUrlAndPath } from '../utils/socketConnect'
+import { getAuthItem } from '../utils/authStorage'
 
 const { url: socketUrl, path: socketPath } = getSocketIoUrlAndPath()
 
@@ -25,7 +26,7 @@ const socketDebug = (...args: unknown[]) => {
 socketDebug('[FRONT][SOCKET] init', {
   url: socketUrl,
   path: socketPath,
-  tokenPresent: Boolean(localStorage.getItem('token')),
+  tokenPresent: Boolean(getAuthItem('token')),
 })
 
 socket.on('connect', () => {
