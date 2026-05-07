@@ -2,7 +2,6 @@ import { apiUrl } from "./apiBase";
 import {
   clearAuthStorageEverywhere,
   getAuthItem,
-  removeAuthItem,
   setAuthItem,
 } from "./authStorage";
 import { clearGamificationStorage } from "./gamificationStorage";
