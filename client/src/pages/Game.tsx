@@ -3631,7 +3631,7 @@ export function Game() {
             isMobile
               ? "bottom-[320px] left-1/2 -translate-x-1/2"
               : isTablet
-                ? "bottom-36 left-1/2 -translate-x-1/2"
+                ? "left-4 top-24"
                 : "left-10 top-28"
           }`}
         >

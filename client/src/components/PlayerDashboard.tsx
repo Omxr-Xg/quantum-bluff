@@ -93,7 +93,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   const isAllIn = maxRaise > 0 && raiseAmount >= maxRaise;
   const canRaise = isMyTurn && !actionsDisabled && !isLoading && !hasFolded && !hasActed && maxRaise > 0;
   const primaryActionButtonClass =
-    "min-w-0 flex-1 px-[1.1rem] py-[0.825rem] text-[0.825rem] md:flex-none md:min-w-[176px] md:px-[2.2rem] md:py-[1.1rem] md:text-[1.1rem]";
+    "min-w-0 flex-1 px-[1.1rem] py-[0.825rem] text-[0.825rem] lg:flex-none lg:min-w-[176px] lg:px-[2.2rem] lg:py-[1.1rem] lg:text-[1.1rem]";
 
   useEffect(() => {
     setRaiseAmount((prev) => clampRaise(prev));
@@ -166,7 +166,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   return (
     <div
       ref={ref}
-      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+2.25rem)] left-0 right-0 w-full transition-all duration-300 md:bottom-12 ${
+      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.2rem)] left-0 right-0 w-full transition-all duration-300 lg:bottom-12 ${
         raisePopoverOpen || combinationsHelpOpen ? "z-[120]" : "z-40"
       } pointer-events-none`}
     >
@@ -181,7 +181,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
         </div>
       )}
 
-      <div className="pointer-events-auto mx-auto w-full max-w-[min(1200px,calc(100vw-2rem))]">
+      <div className="pointer-events-auto mx-auto w-full max-w-[min(1200px,calc(100vw-1rem))] lg:max-w-[min(1200px,calc(100vw-2rem))]">
 
         {hasFolded && (
           <div className="text-center mb-1 md:mb-2">
@@ -225,7 +225,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
           </div>
 
           {/* ACTION BUTTONS - Adaptés à l'écran */}
-          <div className="order-1 flex w-full justify-center gap-2 md:w-auto xl:order-none xl:justify-self-center md:gap-3">
+          <div className="order-1 flex w-full justify-center gap-2 lg:w-auto xl:order-none xl:justify-self-center lg:gap-3">
             <NeonButton
               onClick={onFold}
               disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
@@ -335,7 +335,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 onClick={() => (raisePopoverOpen ? handleRaiseClick() : setRaisePopoverOpen(true))}
                 disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || maxRaise <= 0}
                 variant="green"
-                icon={<TrendingUp className="w-4 h-4 md:w-6 md:h-6 hidden md:block" />}
+                icon={<TrendingUp className="hidden h-4 w-4 lg:block lg:h-6 lg:w-6" />}
                 className={`flex w-full justify-center ${primaryActionButtonClass}`}
               >
                 {isAllIn ? t('game.allIn') : t('game.raise')}
