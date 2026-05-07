@@ -1,4 +1,11 @@
-import { apiUrl } from './apiBase';
+import { apiUrl } from "./apiBase";
+import {
+  clearAuthStorageEverywhere,
+  getAuthItem,
+  removeAuthItem,
+  setAuthItem,
+} from "./authStorage";
+import { clearGamificationStorage } from "./gamificationStorage";
 
 const defaultAvatar = 'https://ui-avatars.com/api/?name=QB&background=10b981&color=fff&size=128';
 
@@ -36,50 +43,50 @@ export interface UserProfile {
 }
 
 export function getUserProfile(): UserProfile {
-  const username = localStorage.getItem(STORAGE_KEYS.USERNAME) || 'PokerKing47';
-  const email = localStorage.getItem(STORAGE_KEYS.EMAIL) || 'support@QuantumBluff.sxb';
-  const avatarRaw = localStorage.getItem(STORAGE_KEYS.AVATAR) || defaultAvatar;
+  const username = getAuthItem(STORAGE_KEYS.USERNAME) || "PokerKing47";
+  const email = getAuthItem(STORAGE_KEYS.EMAIL) || "support@QuantumBluff.sxb";
+  const avatarRaw = getAuthItem(STORAGE_KEYS.AVATAR) || defaultAvatar;
   const avatar = resolveStoredAvatarUrl(avatarRaw);
-  const raw = parseInt(localStorage.getItem(STORAGE_KEYS.BALANCE) || '6340', 10);
+  const raw = parseInt(getAuthItem(STORAGE_KEYS.BALANCE) || "6340", 10);
   const balance = Number.isNaN(raw) ? 0 : Math.max(0, raw);
 
   return { username, email, avatar, balance };
 }
 
 export function saveUserProfile(profile: Partial<UserProfile>): void {
-  if (profile.username) localStorage.setItem(STORAGE_KEYS.USERNAME, profile.username);
-  if (profile.email) localStorage.setItem(STORAGE_KEYS.EMAIL, profile.email);
-  if (profile.avatar) localStorage.setItem(STORAGE_KEYS.AVATAR, profile.avatar);
-  if (profile.balance !== undefined) localStorage.setItem(STORAGE_KEYS.BALANCE, Math.max(0, profile.balance).toString());
+  if (profile.username) setAuthItem(STORAGE_KEYS.USERNAME, profile.username);
+  if (profile.email) setAuthItem(STORAGE_KEYS.EMAIL, profile.email);
+  if (profile.avatar) setAuthItem(STORAGE_KEYS.AVATAR, profile.avatar);
+  if (profile.balance !== undefined) setAuthItem(STORAGE_KEYS.BALANCE, Math.max(0, profile.balance).toString());
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event(PROFILE_CHANGED_EVENT));
   }
 }
 
 export function getUserAvatar(): string {
-  const raw = localStorage.getItem(STORAGE_KEYS.AVATAR) || defaultAvatar;
+  const raw = getAuthItem(STORAGE_KEYS.AVATAR) || defaultAvatar;
   return resolveStoredAvatarUrl(raw);
 }
 
 export function saveUserAvatar(avatar: string): void {
-  localStorage.setItem(STORAGE_KEYS.AVATAR, avatar);
+  setAuthItem(STORAGE_KEYS.AVATAR, avatar);
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event(PROFILE_CHANGED_EVENT));
   }
 }
 
 export function getUsername(): string {
-  return localStorage.getItem(STORAGE_KEYS.USERNAME) || 'PokerKing47';
+  return getAuthItem(STORAGE_KEYS.USERNAME) || "PokerKing47";
 }
 
 export function getUserBalance(): number {
-  const n = parseInt(localStorage.getItem(STORAGE_KEYS.BALANCE) || '6340', 10);
+  const n = parseInt(getAuthItem(STORAGE_KEYS.BALANCE) || "6340", 10);
   return Number.isNaN(n) ? 0 : Math.max(0, n);
 }
 
 export function updateUserBalance(newBalance: number): void {
   const safe = Math.max(0, Math.floor(newBalance));
-  localStorage.setItem(STORAGE_KEYS.BALANCE, safe.toString());
+  setAuthItem(STORAGE_KEYS.BALANCE, safe.toString());
   notifyBalanceChanged();
 }
 
@@ -90,9 +97,6 @@ export function addToUserBalance(amount: number): number {
   updateUserBalance(next);
   return next;
 }
-
-import { clearGamificationStorage } from "./gamificationStorage";
-import { apiUrl } from "./apiBase";
 
 /** Si le JWT est expiré, inutile d'appeler l'API (sinon 401 dans la console réseau). */
 function accessTokenIsExpired(token: string): boolean {
@@ -114,12 +118,7 @@ function accessTokenIsExpired(token: string): boolean {
  * Token expiré / révoqué : nettoyage local sans appel serveur (évite 401 en boucle sur /balance).
  */
 export function invalidateStaleAuthSession(): void {
-  localStorage.removeItem("token");
-  localStorage.removeItem("userId");
-  localStorage.removeItem("userid");
-  localStorage.removeItem("username");
-  localStorage.removeItem(STORAGE_KEYS.USERNAME);
-  localStorage.removeItem(STORAGE_KEYS.EMAIL);
+  clearAuthStorageEverywhere();
   clearGamificationStorage();
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("auth-changed"));
@@ -128,23 +127,17 @@ export function invalidateStaleAuthSession(): void {
 
 /** Vide toutes les données d'authentification du localStorage (déconnexion). Appelle l'API logout pour invalider le token côté serveur. */
 export function clearAuthStorage(): void {
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
   const url = apiUrl("/api/auth/logout");
   if (token) {
     fetch(url, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
   }
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
-  localStorage.removeItem("userId");
-  localStorage.removeItem("userid");
-  localStorage.removeItem("username");
-  localStorage.removeItem(STORAGE_KEYS.USERNAME);
-  localStorage.removeItem(STORAGE_KEYS.EMAIL);
-  localStorage.removeItem(STORAGE_KEYS.AVATAR);
-  localStorage.removeItem(STORAGE_KEYS.BALANCE);
+  clearAuthStorageEverywhere(["gamePlayers", "gameId"]);
   clearGamificationStorage();
   localStorage.removeItem("gamePlayers");
   localStorage.removeItem("gameId");
+  sessionStorage.removeItem("gamePlayers");
+  sessionStorage.removeItem("gameId");
   window.dispatchEvent(new Event("auth-changed"));
 }
 
@@ -162,7 +155,7 @@ export type FetchBalanceOptions = {
  * quand on revient au lobby.
  */
 export async function fetchBalanceFromServer(options?: FetchBalanceOptions): Promise<number> {
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
   if (!token) return getUserBalance();
   if (accessTokenIsExpired(token)) {
     invalidateStaleAuthSession();
@@ -196,7 +189,7 @@ export async function fetchBalanceFromServer(options?: FetchBalanceOptions): Pro
 export async function addDevMoney(amount: number): Promise<number> {
   const safeAmount = Math.max(0, Math.floor(amount));
   if (safeAmount <= 0) return getUserBalance();
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
   if (!token) {
     return addToUserBalance(safeAmount);
   }
