@@ -5,6 +5,7 @@ import { Copy, MessageCircle, UserPlus, Flag, X, Loader2, ArrowLeft } from "luci
 import { useSendFriendRequestMutation } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
 import { useToast } from "../contexts/ToastContext";
+import { getAuthItem } from "../utils/authStorage";
 
 export type PlayerMenuTarget = {
   id: string;
@@ -22,7 +23,7 @@ interface Props {
 }
 
 function authHeaders(): HeadersInit {
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

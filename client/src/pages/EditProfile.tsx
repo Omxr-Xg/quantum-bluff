@@ -7,6 +7,7 @@ import { getUserProfile, saveUserProfile } from "../utils/userProfile";
 import { AvatarGallery } from "../components/AvatarGallery";
 import { useUpdateProfileAvatarMutation } from "../services/api";
 import { fileToAvatarDataUrl } from "../utils/avatarUpload";
+import { getAuthItem, setAuthItem } from "../utils/authStorage";
 
 const editGlassCard =
   "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
@@ -85,7 +86,7 @@ export function EditProfile() {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthItem("token");
       let avatarToPersist = profileImage;
       let usernameToPersist = formData.username.trim();
       let emailToPersist = formData.email.trim();
@@ -108,9 +109,9 @@ export function EditProfile() {
         email: emailToPersist,
         avatar: avatarToPersist,
       });
-      localStorage.setItem("username", usernameToPersist);
-      localStorage.setItem("quantum_bluff_username", usernameToPersist);
-      localStorage.setItem("quantum_bluff_email", emailToPersist);
+      setAuthItem("username", usernameToPersist);
+      setAuthItem("quantum_bluff_username", usernameToPersist);
+      setAuthItem("quantum_bluff_email", emailToPersist);
       window.dispatchEvent(new Event("auth-changed"));
       setSuccessMessage(t("editProfile.profileUpdated"));
       setTimeout(() => {
