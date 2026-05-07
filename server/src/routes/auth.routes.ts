@@ -20,6 +20,7 @@ import {
   isUuidParam,
 } from '../utils/userAvatarIngest.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
+import { ipKeyGenerator } from 'express-rate-limit'
 
 function normalizeRateLimitIdentity(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -28,16 +29,16 @@ function normalizeRateLimitIdentity(value: unknown): string {
 
 function loginRateLimitKey(req: express.Request): string {
   const email = normalizeRateLimitIdentity(req.body?.email)
-  if (email) return `${req.ip}:login:${email}`
-  return `${req.ip}:login`
+  if (email) return `${ipKeyGenerator(req.ip ?? '')}:login:${email}`  
+  return `${ipKeyGenerator(req.ip ?? '')}:login`
 }
 
 function registerRateLimitKey(req: express.Request): string {
   const email = normalizeRateLimitIdentity(req.body?.email)
   const username = normalizeRateLimitIdentity(req.body?.username)
-  if (email) return `${req.ip}:register:${email}`
-  if (username) return `${req.ip}:register:${username}`
-  return `${req.ip}:register`
+  if (email) return `${ipKeyGenerator(req.ip ?? '')}:register:${email}`
+  if (username) return `${ipKeyGenerator(req.ip ?? '')}:register:${username}`
+  return `${ipKeyGenerator(req.ip ?? '')}:register`
 }
 
 /** Connexion : 5 requêtes / 10 min / IP. */
