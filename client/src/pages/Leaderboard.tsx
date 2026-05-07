@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useUser } from "../hooks/useUser";
 import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
 const PAGE_SIZE = 25;
 
 type MainTab = "general" | "poker" | "casino";
@@ -78,7 +79,7 @@ export function Leaderboard() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     const params = new URLSearchParams({
       category,
       limit: String(PAGE_SIZE),

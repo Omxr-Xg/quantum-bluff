@@ -36,6 +36,7 @@ import { getUserBalance, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 import { DailyChallenges } from "../components/DailyChallenges";
 import { TournamentWidget } from '../components/TournamentWidget';
+import { getAuthItem } from "../utils/authStorage";
 
 function readLobbyTabFromUrl(): "poker" | "minigames" | "blackjack" {
   if (typeof window === "undefined") return "poker";
@@ -88,7 +89,7 @@ export function Lobby() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { userId, username } = useUser();
   const authHeaders = useCallback(() => {
-    const token = localStorage.getItem('token');
+    const token = getAuthItem('token');
     return {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
