@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useRegisterMutation } from "../services/api";
+import { removeAuthItem, setAuthItem } from "../utils/authStorage";
 
 const SECRET_QUESTION_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
@@ -49,15 +50,15 @@ export function Register() {
 
     console.log("✅ Inscription réussie:", response)
 
-    localStorage.removeItem('userid')
-    localStorage.setItem('token', response.token)
-    localStorage.setItem('userId', String(response.user.id))
-    localStorage.setItem('username', response.user.username)
+    removeAuthItem('userid')
+    setAuthItem('token', response.token)
+    setAuthItem('userId', String(response.user.id))
+    setAuthItem('username', response.user.username)
     // Mettre à jour le profil local pour l'écran Profile
-    localStorage.setItem('quantum_bluff_username', response.user.username)
-    localStorage.setItem('quantum_bluff_email', response.user.email)
+    setAuthItem('quantum_bluff_username', response.user.username)
+    setAuthItem('quantum_bluff_email', response.user.email)
     if (typeof response.user.chips === 'number') {
-      localStorage.setItem('quantum_bluff_balance', String(response.user.chips))
+      setAuthItem('quantum_bluff_balance', String(response.user.chips))
     }
 
     window.dispatchEvent(new Event('auth-changed'))
