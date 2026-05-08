@@ -109,27 +109,36 @@ export async function claimDailyLogin(userId: string): Promise<DailyLoginClaimRe
     }
 
     const dayKey = getDayKey()
-    if (user.lastLoginRewardDayKey === dayKey) {
-      throw new DailyLoginError(409, 'ALREADY_CLAIMED', 'Récompense déjà réclamée aujourd’hui')
-    }
-
     const { nextDayIndex, reset } = computeNextDayIndex({
       loginStreakCount: user.loginStreakCount,
       lastLoginRewardDayKey: user.lastLoginRewardDayKey,
       dayKey,
     })
     const rewardTokens = rewardForDay(nextDayIndex)
+    const rewardAt = new Date()
 
-    const updated = await tx.user.update({
-      where: { id: userId },
+    // Anti double-claim: l'update passe uniquement si l'utilisateur n'a pas déjà
+    // la clé du jour courant en base (compare-and-set atomique côté SQL).
+    const claimWrite = await tx.user.updateMany({
+      where: { id: userId, lastLoginRewardDayKey: { not: dayKey } },
       data: {
         chips: { increment: rewardTokens },
         loginStreakCount: nextDayIndex,
         lastLoginRewardDayKey: dayKey,
-        lastLoginRewardAt: new Date(),
+        lastLoginRewardAt: rewardAt,
       },
+    })
+    if (claimWrite.count === 0) {
+      throw new DailyLoginError(409, 'ALREADY_CLAIMED', 'Récompense déjà réclamée aujourd’hui')
+    }
+
+    const updated = await tx.user.findUnique({
+      where: { id: userId },
       select: { chips: true },
     })
+    if (!updated) {
+      throw new DailyLoginError(404, 'USER_NOT_FOUND', 'Utilisateur introuvable')
+    }
 
     // Trace comptable (utilisée par l'historique du portefeuille côté client).
     await tx.walletLedgerEntry.create({
