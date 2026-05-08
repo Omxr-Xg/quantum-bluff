@@ -908,9 +908,18 @@ export function Layout({ children }: LayoutProps) {
     navigate("/lobby");
   };
 
+  const lobbyShellBg = (() => {
+    if (!lobbyDocumentScroll || isCasinoFullBleed) return "bg-transparent";
+    const tab = new URLSearchParams(location.search).get("tab");
+    if (tab === "minigames" || tab === "roulette") return "bg-[#02100c]";
+    if (tab === "blackjack") return "bg-[#100409]";
+    return "bg-[#020716]";
+  })();
   const shellBg =
-    showStandaloneTopBar || (lobbyDocumentScroll && !isCasinoFullBleed)
-      ? "bg-transparent"
+    lobbyDocumentScroll && !isCasinoFullBleed
+      ? lobbyShellBg
+      : showStandaloneTopBar
+        ? "bg-transparent"
       : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900";
   const shellClass =
     lobbyDocumentScroll && !isCasinoFullBleed
