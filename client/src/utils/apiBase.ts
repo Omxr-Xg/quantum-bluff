@@ -26,8 +26,8 @@ export function isCapacitorWebViewShell(): boolean {
   ) {
     return true;
   }
+  // APK/IPA : origine parfois autre que localhost (IP machine, domaine custom).
   if (import.meta.env.MODE !== "capacitor") return false;
-  if (hostname !== "localhost" && hostname !== "127.0.0.1") return false;
   return protocol === "https:" || protocol === "http:";
 }
 

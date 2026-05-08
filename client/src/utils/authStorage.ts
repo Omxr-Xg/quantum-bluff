@@ -1,3 +1,4 @@
+import { isCapacitorWebViewShell } from "./apiBase";
 import { hasCapacitorBridgeObject, shouldPersistAuth } from "./platform";
 
 const AUTH_KEYS = [
@@ -12,8 +13,16 @@ const AUTH_KEYS = [
   "quantum_bluff_balance",
 ] as const;
 
+/** Même critères que la garde migration : lecture localStorage dès le cold start WebView. */
+function useLocalStorageForAuth(): boolean {
+  if (typeof window === "undefined") return false;
+  // Build `vite build --mode capacitor` : toujours persistant, même si hostname ≠ localhost (IP live reload, etc.).
+  if (import.meta.env.MODE === "capacitor") return true;
+  return shouldPersistAuth() || hasNativeRuntimeHint() || isCapacitorWebViewShell();
+}
+
 function getStorageForRuntime(): Storage {
-  return shouldPersistAuth() ? localStorage : sessionStorage;
+  return useLocalStorageForAuth() ? localStorage : sessionStorage;
 }
 
 export function getAuthItem(key: string): string | null {
@@ -58,8 +67,7 @@ function hasNativeRuntimeHint(): boolean {
  * évite de supprimer la session mobile avant que le bridge Capacitor soit fiable.
  */
 export function migrateLegacyAuthOnStartup(): void {
-  if (shouldPersistAuth()) return;
-  if (hasNativeRuntimeHint()) return;
+  if (useLocalStorageForAuth()) return;
 
   for (const key of AUTH_KEYS) {
     const currentSession = sessionStorage.getItem(key);
