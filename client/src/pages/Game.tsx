@@ -4233,6 +4233,8 @@ export function Game() {
       hiddenBetNextHandId={hiddenBetNextHandId}
       hiddenBetWindowOpen={hiddenBetWindowOpen}
       hiddenBetState={hiddenBetState}
+      tablePhase={phase}
+      betweenHands={Boolean(gameIdParam && !isBotMode && cashWaitingPlayers)}
       interHandShowdownSummary={
         gameIdParam && !isBotMode && cashWaitingPlayers && showdownResult
           ? {

@@ -887,6 +887,8 @@
     "marketType": "Marché",
     "tabNextHand": "Prochaine main",
     "tabLive": "Main en cours",
+    "betweenHandsOnlyNext": "Entre deux mains : paris uniquement sur la prochaine main.",
+    "liveTabDisabledPreflop": "Paris sur la main en cours : disponibles à partir du flop.",
     "live": "Live",
     "currentHandShort": "main",
     "livePhase": {
