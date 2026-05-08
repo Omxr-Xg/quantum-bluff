@@ -17,7 +17,14 @@ import { DoorOpen, Menu, Loader2, X, Sparkles, Trophy, Activity, Info } from "lu
 import { useDeviceType } from "../components/ui/use-mobile";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
-import { addToUserBalance, addDevMoney, getUserBalance, getUserAvatar } from "../utils/userProfile";
+import {
+  addToUserBalance,
+  addDevMoney,
+  getUserBalance,
+  getUserAvatar,
+  fetchBalanceFromServer,
+  POKER_WALLET_DISPLAY_EVENT,
+} from "../utils/userProfile";
 import { RoundTransition } from "../components/RoundTransition";
 import { GameInteractiveTour } from "../components/GameInteractiveTour";
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
@@ -111,6 +118,18 @@ interface BasePlayer {
   avatar?: string;
 }
 
+/** `hasFoldedThisHand` côté serveur ; sans champ, repli hors showdown uniquement (vieux API). */
+function serverPlayerHasFolded(
+  p: { isActive?: boolean; hasFoldedThisHand?: boolean },
+  opts: { phaseLower: GamePhase; serverPhaseUpper?: string },
+): boolean {
+  if (opts.serverPhaseUpper === "WAITING") return false;
+  if (p.hasFoldedThisHand === true) return true;
+  if (p.hasFoldedThisHand === false) return false;
+  if (opts.phaseLower === "showdown") return false;
+  return p.isActive === false;
+}
+
 interface BotPlayer extends BasePlayer {
   isBot: true;
   difficulty: "easy" | "medium" | "hard" | "expert";
@@ -124,6 +143,11 @@ export function Game() {
   const mode = searchParams.get("mode");
   const gameIdParam = searchParams.get("gameId");
   const isSpectating = searchParams.get("spectate") === "1";
+  const isTournamentTable =
+    searchParams.get("tournament") === "1" ||
+    Array.isArray(
+      (location.state as { tournamentPlayers?: unknown[] } | null | undefined)?.tournamentPlayers,
+    );
   const isBotMode = mode === "bot";
   const { userId } = useUser();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
@@ -382,6 +406,105 @@ export function Game() {
     userId && nextHandReadyUserIds.some((u) => String(u) === String(userId));
   const [spectatorWantsToRejoin, setSpectatorWantsToRejoin] = useState(false);
 
+  /** Solde hors table (API) pour l’affichage header en cash ; pas de fetch à chaque GAME_UPDATE. */
+  const cashLiquidOffTableRef = useRef<number | null>(null);
+  const cashSeatsRef = useRef(cashSeats);
+  useEffect(() => {
+    cashSeatsRef.current = cashSeats;
+  }, [cashSeats]);
+  const userIdRef = useRef(userId);
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
+
+  const emitPokerWalletDisplay = useCallback(() => {
+    const isCashMulti =
+      Boolean(gameIdParam) && !isBotMode && !isSpectating && Boolean(userIdRef.current);
+    if (!isCashMulti) {
+      window.dispatchEvent(
+        new CustomEvent(POKER_WALLET_DISPLAY_EVENT, { detail: { total: null } }),
+      );
+      return;
+    }
+    const liq = cashLiquidOffTableRef.current;
+    if (liq == null) return;
+    const uid = String(userIdRef.current);
+    const ps = playersStateRef.current;
+    const cs = cashSeatsRef.current;
+    const inHand = ps.find((p) => String(p.id) === uid);
+    const seated = cs.find((s) => s.userId && String(s.userId) === uid);
+    const stack = inHand ? intChips(inHand.chips) : seated ? intChips(seated.chips) : 0;
+    window.dispatchEvent(
+      new CustomEvent(POKER_WALLET_DISPLAY_EVENT, { detail: { total: liq + stack } }),
+    );
+  }, [gameIdParam, isBotMode, isSpectating]);
+
+  const cashBalanceSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cashBalanceFetchInFlightRef = useRef(false);
+
+  const scheduleCashBalanceServerSync = useCallback(() => {
+    if (!gameIdParam || isBotMode || isSpectating) return;
+    if (cashBalanceSyncTimerRef.current) clearTimeout(cashBalanceSyncTimerRef.current);
+    cashBalanceSyncTimerRef.current = window.setTimeout(() => {
+      cashBalanceSyncTimerRef.current = null;
+      if (cashBalanceFetchInFlightRef.current) return;
+      cashBalanceFetchInFlightRef.current = true;
+      void fetchBalanceFromServer({ authoritative: true })
+        .then((v) => {
+          cashLiquidOffTableRef.current = v;
+          emitPokerWalletDisplay();
+        })
+        .finally(() => {
+          cashBalanceFetchInFlightRef.current = false;
+        });
+    }, 2200);
+  }, [gameIdParam, isBotMode, isSpectating, emitPokerWalletDisplay]);
+
+  useEffect(() => {
+    const isCashMulti =
+      Boolean(gameIdParam) && !isBotMode && !isSpectating && Boolean(userId);
+    if (!isCashMulti) {
+      cashLiquidOffTableRef.current = null;
+      if (cashBalanceSyncTimerRef.current) clearTimeout(cashBalanceSyncTimerRef.current);
+      window.dispatchEvent(
+        new CustomEvent(POKER_WALLET_DISPLAY_EVENT, { detail: { total: null } }),
+      );
+      return;
+    }
+    let cancelled = false;
+    cashBalanceFetchInFlightRef.current = true;
+    void fetchBalanceFromServer({ authoritative: true })
+      .then((v) => {
+        if (cancelled) return;
+        cashLiquidOffTableRef.current = v;
+        emitPokerWalletDisplay();
+      })
+      .finally(() => {
+        if (!cancelled) cashBalanceFetchInFlightRef.current = false;
+      });
+    return () => {
+      cancelled = true;
+      if (cashBalanceSyncTimerRef.current) clearTimeout(cashBalanceSyncTimerRef.current);
+    };
+  }, [gameIdParam, isBotMode, isSpectating, userId, emitPokerWalletDisplay]);
+
+  useEffect(() => {
+    emitPokerWalletDisplay();
+  }, [playersState, cashSeats, emitPokerWalletDisplay]);
+
+  useEffect(() => {
+    if (!socket || !gameIdParam || isBotMode || isSpectating) return;
+    const onBurst = () => scheduleCashBalanceServerSync();
+    socket.on("GAME_UPDATE", onBurst);
+    socket.on("GAME_STATE_UPDATED", onBurst);
+    socket.on("POT_DISTRIBUTED", onBurst);
+    return () => {
+      socket.off("GAME_UPDATE", onBurst);
+      socket.off("GAME_STATE_UPDATED", onBurst);
+      socket.off("POT_DISTRIBUTED", onBurst);
+    };
+  }, [socket, gameIdParam, isBotMode, isSpectating, scheduleCashBalanceServerSync]);
+
   type TableTicketRow = {
     id: string;
     status: string;
@@ -588,16 +711,22 @@ export function Game() {
   const SB = BOT_TABLE_DEFAULTS.SMALL_BLIND;
   const BB = BOT_TABLE_DEFAULTS.BIG_BLIND;
 
-  const SHOWDOWN_REVEAL_MS = 3000;
+  const SHOWDOWN_REVEAL_MS = 5000;
 
   const lastScheduledShowdownTransitionSigRef = useRef<string>("");
+  const [showdownRevealSkipped, setShowdownRevealSkipped] = useState(false);
+
+  useEffect(() => {
+    setShowdownRevealSkipped(false);
+  }, [showdownResult?.winnerId, showdownResult?.hand, showdownResult?.pot, showdownResult?.isSplit]);
 
   useEffect(() => {
     if (!showdownResult || showTransition || isBotMode) return;
-    const sig = `${showdownResult.winnerId}:${showdownResult.winnerName}:${showdownResult.hand}:${showdownResult.pot}:${showdownResult.isSplit ? 1 : 0}:${showdownResult.skipRevealDelay ? 1 : 0}`;
+    const sig = `${showdownResult.winnerId}:${showdownResult.winnerName}:${showdownResult.hand}:${showdownResult.pot}:${showdownResult.isSplit ? 1 : 0}:${showdownResult.skipRevealDelay ? 1 : 0}:${showdownRevealSkipped ? 1 : 0}`;
     if (lastScheduledShowdownTransitionSigRef.current === sig) return;
     lastScheduledShowdownTransitionSigRef.current = sig;
-    const delayMs = showdownResult.skipRevealDelay ? 0 : SHOWDOWN_REVEAL_MS;
+    const delayMs =
+      showdownResult.skipRevealDelay || showdownRevealSkipped ? 0 : SHOWDOWN_REVEAL_MS;
     const id = window.setTimeout(() => {
       setLastWinnerData({
         name: showdownResult.winnerName,
@@ -609,19 +738,20 @@ export function Game() {
       }
     }, delayMs);
     return () => clearTimeout(id);
-  }, [showdownResult, showTransition, gameIdParam, isBotMode]);
+  }, [showdownResult, showTransition, gameIdParam, isBotMode, showdownRevealSkipped, SHOWDOWN_REVEAL_MS]);
 
   useEffect(() => {
     if (!isBotMode || !showdownResult || gameOverReason) {
       setShowBotHandEndPanel(false);
       return;
     }
-    const delayMs = showdownResult.skipRevealDelay ? 0 : SHOWDOWN_REVEAL_MS;
+    const delayMs =
+      showdownResult.skipRevealDelay || showdownRevealSkipped ? 0 : SHOWDOWN_REVEAL_MS;
     const id = window.setTimeout(() => {
       setShowBotHandEndPanel(true);
     }, delayMs);
     return () => window.clearTimeout(id);
-  }, [isBotMode, showdownResult, gameOverReason, SHOWDOWN_REVEAL_MS]);
+  }, [isBotMode, showdownResult, gameOverReason, showdownRevealSkipped, SHOWDOWN_REVEAL_MS]);
 
   // Note: gardé au cas où la modale "add money" serait réouverte via un handler futur.
   // Pour éviter une erreur lint "unused", on préfixe par "_" tant que non utilisé.
@@ -1112,7 +1242,7 @@ export function Game() {
         if (!res.ok) throw new Error(String(res.status));
         return res.json();
       })
-      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; turnTimeLimitSec?: number; handId?: string } | null) => {
+      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; hasFoldedThisHand?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; turnTimeLimitSec?: number; handId?: string } | null) => {
         if (cancelled || !gameState) return;
         if (gameStateFromSocketRef.current) return;
         if (typeof gameState.turnTimeLimitSec === "number" && gameState.turnTimeLimitSec > 0) {
@@ -1132,8 +1262,11 @@ export function Game() {
         const mapped = players.map((p, index) => {
           const isMe = !isSpectating && String(p.id) === String(userId);
           const serverCards = Array.isArray(p.cards) ? p.cards.map((c) => normalizeServerCard(c)).filter((c): c is Card => c !== null) : [];
+          const inHandForFog =
+            !serverPlayerHasFolded(p, { phaseLower: phase, serverPhaseUpper: gameState.phase }) &&
+            p.isActive !== false;
           const hiddenOpponentCards: Card[] =
-            !isMe && phase !== "showdown" && p.isActive !== false
+            !isMe && phase !== "showdown" && inHandForFog
               ? [{ suit: "hidden", value: "?" }, { suit: "hidden", value: "?" }]
               : [];
           return {
@@ -1146,7 +1279,7 @@ export function Game() {
             isDealer: p.isDealer ?? false,
             cards: isMe ? serverCards : (serverCards.length > 0 ? serverCards : hiddenOpponentCards),
             isConnected: p.isConnected !== false,
-            hasFolded: false,
+            hasFolded: serverPlayerHasFolded(p, { phaseLower: phase, serverPhaseUpper: gameState.phase }),
             isBot: String(p.id).startsWith("qb-bot-"),
             role: mapServerRoleToTableRole(p.role),
             avatar: (p as { avatar?: string }).avatar,
@@ -1244,7 +1377,7 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashCountdownRemainingSec?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string; hiddenBetNextHandId?: string; hiddenBetWindowOpen?: boolean; hiddenBetState?: { currentHandId: string | null; nextHandId: string | null; windowOpen: boolean; windowType: "PRE_HAND" | "LIVE_FLOP" | "LIVE_TURN" | "LIVE_RIVER" | null; closesAt?: number } | null }) => {
+    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; hasFoldedThisHand?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashCountdownRemainingSec?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string; hiddenBetNextHandId?: string; hiddenBetWindowOpen?: boolean; hiddenBetState?: { currentHandId: string | null; nextHandId: string | null; windowOpen: boolean; windowType: "PRE_HAND" | "LIVE_FLOP" | "LIVE_TURN" | "LIVE_RIVER" | null; closesAt?: number } | null }) => {
       console.log('[FRONT][GAME] socket_update_received', {
   source: _source,
   gameId: gameState?.id,
@@ -1372,7 +1505,8 @@ export function Game() {
       if (gameState.cashSeats && Array.isArray(gameState.cashSeats)) {
         setCashSeats(gameState.cashSeats);
         if (isSpectating && userId && gameState.cashSeats.some((s) => s.userId && String(s.userId) === String(userId))) {
-          navigate(`/game?gameId=${gameIdParam}`, { replace: true });
+          const tQs = searchParams.get("tournament") === "1" ? "&tournament=1" : "";
+          navigate(`/game?gameId=${gameIdParam}${tQs}`, { replace: true });
           return;
         }
       }
@@ -1397,14 +1531,18 @@ export function Game() {
           const isMe = !isSpectating && String(p.id) === String(userId);
           const serverCardsRaw = Array.isArray(p.cards) ? p.cards : [];
           const serverCards = serverCardsRaw.map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0])).filter((c): c is Card => c !== null);
+          const foldedByServer = serverPlayerHasFolded(p, {
+            phaseLower: incomingPhase,
+            serverPhaseUpper: gameState.phase,
+          });
+          const inHandForFog = !foldedByServer && p.isActive !== false;
           const hiddenOpponentCards: Card[] =
-            !isMe && incomingPhase !== "showdown" && p.isActive !== false
+            !isMe && incomingPhase !== "showdown" && inHandForFog
               ? [{ suit: "hidden", value: "?" }, { suit: "hidden", value: "?" }]
               : [];
           const myCards = isMe
             ? (serverCards.length > 0 ? serverCards : myCardsFromPrev)
             : (serverCards.length > 0 ? serverCards : hiddenOpponentCards);
-          const serverInHand = p.isActive !== false;
           return {
             id: String(p.id),
             name: p.name,
@@ -1415,7 +1553,7 @@ export function Game() {
             isDealer: p.isDealer ?? false,
             cards: myCards,
             isConnected: p.isConnected !== false,
-            hasFolded: gameState.phase === "WAITING" ? false : !serverInHand,
+            hasFolded: foldedByServer,
             isBot: String(p.id).startsWith("qb-bot-"),
             role: mapServerRoleToTableRole(p.role),
             avatar: (p as { avatar?: string }).avatar,
@@ -1768,6 +1906,7 @@ export function Game() {
     isExpertPracticeBot,
     postExpertPracticeRecordResult,
     clearMultiBustPromptTimer,
+    searchParams,
   ]);
 
   useEffect(() => {
@@ -2255,30 +2394,26 @@ export function Game() {
     }
   }, [phase]);
 
-  // Affichage du panneau inter-mains : seulement après 3s d’abattage, puis attente des ready.
+  // Panneau inter-mains : affiché tout de suite ; détail gagnant + tickets après 5s ou « Passer ».
   useEffect(() => {
     if (!cashWaitingPlayers) {
       setShowInterHandPanel(false);
       setHasClickedReadyThisInterHand(false);
+      setInterHandResultsVisible(false);
       return;
     }
-    // On laisse 3s d’abattage “pur” avant de montrer les résultats + boutons ready.
-    const id = window.setTimeout(() => {
-      setShowInterHandPanel(true);
-    }, SHOWDOWN_REVEAL_MS);
-    return () => window.clearTimeout(id);
-  }, [cashWaitingPlayers, SHOWDOWN_REVEAL_MS]);
-
-
-  useEffect(() => {
-    if (!cashWaitingPlayers) return;
-    setInterHandResultsVisible(false);
+    setShowInterHandPanel(true);
   }, [cashWaitingPlayers]);
 
   useEffect(() => {
     if (!cashWaitingPlayers) return;
-    if (showInterHandPanel) setInterHandResultsVisible(true);
-  }, [cashWaitingPlayers, showInterHandPanel]);
+    setInterHandResultsVisible(false);
+    const delayMs = showdownRevealSkipped ? 0 : SHOWDOWN_REVEAL_MS;
+    const id = window.setTimeout(() => {
+      setInterHandResultsVisible(true);
+    }, delayMs);
+    return () => window.clearTimeout(id);
+  }, [cashWaitingPlayers, SHOWDOWN_REVEAL_MS, showdownRevealSkipped]);
 
   useEffect(() => {
     if (gameIdParam) return;
@@ -2719,10 +2854,11 @@ export function Game() {
       return;
     }
     setShowMultiBustPrompt(false);
-    navigate(`/game?gameId=${encodeURIComponent(targetGameId)}&spectate=1`, {
+    const tQs = searchParams.get("tournament") === "1" ? "&tournament=1" : "";
+    navigate(`/game?gameId=${encodeURIComponent(targetGameId)}&spectate=1${tQs}`, {
       replace: true,
     });
-  }, [navigate, gameIdParam]);
+  }, [navigate, gameIdParam, searchParams]);
   const handleBackToLobbyAfterBust = useCallback(() => {
     setShowMultiBustPrompt(false);
     navigate("/lobby");
@@ -3779,13 +3915,7 @@ export function Game() {
                 <p className="text-emerald-300 font-semibold">
                   {t("game.waitingForReady", "En attente : cliquez « Prêt » pour la prochaine main")}
                 </p>
-                  {!interHandResultsVisible ? (
-                    <p className="text-slate-300 text-xs mt-2">
-                      {t("game.revealInProgress", "Abattage en cours…")}
-                    </p>
-                  ) : (
-                    <>
-                      {showdownResult && (
+                  {showdownResult && (
                   <div className="mt-2">
                     <div className="text-sm text-amber-200 font-semibold">{t("game.winnerLabel", "Gagnant")}</div>
                     <div className="text-2xl font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.25)]">
@@ -3799,8 +3929,23 @@ export function Game() {
                       +{(showdownResult.pot ?? 0).toLocaleString()} {t("game.jets", "jetons")}
                     </div>
                   </div>
-                      )}
-                    </>
+                  )}
+                  {!interHandResultsVisible && (
+                    <div className="mt-3 flex flex-col items-center gap-2">
+                      <p className="text-slate-400 text-xs">
+                        {t(
+                          "game.revealWaitSkippable",
+                          "Les cartes restent visibles environ 5 s — vous pouvez passer.",
+                        )}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowdownRevealSkipped(true)}
+                        className="text-sm font-semibold px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white border border-slate-500/80 transition"
+                      >
+                        {t("game.skipReveal", "Passer")}
+                      </button>
+                    </div>
                   )}
               </div>
 
@@ -4055,6 +4200,7 @@ export function Game() {
         onOpponentAvatarClick={(p) =>
           setPlayerMenuTarget({ id: String(p.id), name: p.name })
         }
+        hideHeroChipStack={!isTournamentTable}
         >
         <CommunityCards
         cards={communityCards}
@@ -4087,6 +4233,15 @@ export function Game() {
       hiddenBetNextHandId={hiddenBetNextHandId}
       hiddenBetWindowOpen={hiddenBetWindowOpen}
       hiddenBetState={hiddenBetState}
+      interHandShowdownSummary={
+        gameIdParam && !isBotMode && cashWaitingPlayers && showdownResult
+          ? {
+              winnerName: showdownResult.winnerName,
+              winningHand: showdownResult.hand,
+              pot: showdownResult.pot,
+            }
+          : null
+      }
       />
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
       <MessageFeed messages={chatMessages} />

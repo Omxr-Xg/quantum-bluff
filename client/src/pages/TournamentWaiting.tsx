@@ -21,7 +21,7 @@ export function TournamentWaiting() {
     };
 
     const handleFinal = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
-      navigate(`/game?gameId=${data.gameId}`, { state: { tournamentPlayers: data.players } });
+      navigate(`/game?gameId=${data.gameId}&tournament=1`, { state: { tournamentPlayers: data.players } });
     };
 
     socket.on('tournament-waiting-final', handleUpdate);

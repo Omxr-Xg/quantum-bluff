@@ -45,6 +45,8 @@ interface PokerTableProps {
   /** Clic sur l’avatar d’un adversaire (multijoueur) : menu invitation / message / signalement */
   onOpponentAvatarClick?: (player: Player) => void;
   enableAvatarInteractions?: boolean;
+  /** Cash / hors tournoi : masque le stack sous l’avatar du joueur (solde déjà en header). Tournoi : laisser false. */
+  hideHeroChipStack?: boolean;
 }
 
 // Dimensions de référence — doivent correspondre à tablePositions.ts
@@ -64,6 +66,7 @@ export function PokerTable({
   heroTimerDuration = 30,
   onOpponentAvatarClick,
   enableAvatarInteractions = false,
+  hideHeroChipStack = false,
 }: PokerTableProps) {
   const { t } = useTranslation();
   const { feltGradient, feltBorder } = useTableTheme();
@@ -389,10 +392,12 @@ export function PokerTable({
                             <div className="relative z-40 min-w-[4.8rem] rounded-md border border-white/10 bg-slate-950/95 px-3 py-1 text-center text-xs font-bold leading-none text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.55)] md:text-sm">
                               {displayName}
                             </div>
-                            <div className="inline-flex min-w-[4.8rem] items-center justify-center gap-1.5 rounded-md border border-slate-600/80 bg-slate-900/95 px-3 py-1 text-xs font-bold leading-none tabular-nums text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.45)] md:text-sm">
-                              <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0" />
-                              <span>{player.chips.toLocaleString()}</span>
-                            </div>
+                            {!(hideHeroChipStack && isHeroSeat) && (
+                              <div className="inline-flex min-w-[4.8rem] items-center justify-center gap-1.5 rounded-md border border-slate-600/80 bg-slate-900/95 px-3 py-1 text-xs font-bold leading-none tabular-nums text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.45)] md:text-sm">
+                                <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0" />
+                                <span>{player.chips.toLocaleString()}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

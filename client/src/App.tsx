@@ -113,7 +113,7 @@ function TournamentTeleporter() {
         const myTableId = data.playerToGameMap?.[userId];
         if (!myTableId) return;
         addToast(t("tournament.teleporter.toastStarted"), "success");
-        navigate(`/game?gameId=${myTableId}`);
+        navigate(`/game?gameId=${myTableId}&tournament=1`);
       }
     };
 
@@ -139,7 +139,7 @@ function TournamentTeleporter() {
 
     const handleFinalTable = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
       setTournamentResult(null);
-      navigate(`/game?gameId=${data.gameId}`, {
+      navigate(`/game?gameId=${data.gameId}&tournament=1`, {
         state: { tournamentPlayers: data.players }
       });
     };
@@ -153,7 +153,7 @@ function TournamentTeleporter() {
     const handleSpectate = (data: { gameId: string }) => {
       setTimeout(() => {
         setTournamentResult(null);
-        navigate(`/game?gameId=${data.gameId}&spectate=1`);
+        navigate(`/game?gameId=${data.gameId}&spectate=1&tournament=1`);
       }, 5000);
     };
 

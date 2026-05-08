@@ -61,6 +61,12 @@ interface HiddenBetsPanelProps {
   hiddenBetNextHandId?: string | null;
   hiddenBetWindowOpen?: boolean;
   hiddenBetState?: HiddenBetStatePayload | null;
+  /** Résumé main terminée (cash) : gagnant + combinaison pour le bloc résultats. */
+  interHandShowdownSummary?: {
+    winnerName: string;
+    winningHand: string;
+    pot?: number;
+  } | null;
 }
 
 export function HiddenBetsPanel({
@@ -71,6 +77,7 @@ export function HiddenBetsPanel({
   hiddenBetNextHandId,
   hiddenBetWindowOpen,
   hiddenBetState,
+  interHandShowdownSummary = null,
 }: HiddenBetsPanelProps) {
   const { t } = useTranslation();
   const [betTab, setBetTab] = useState<BetTab>("pre");
@@ -486,6 +493,25 @@ export function HiddenBetsPanel({
 
           {inInterHandTransition && (
             <div className="px-4 py-3 border-b border-slate-700">
+              {interHandShowdownSummary && (
+                <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-950/35 px-3 py-2.5">
+                  <div className="text-[10px] uppercase tracking-wide text-amber-200/80 font-semibold">
+                    {t("hiddenBets.lastHandOutcome", "Dernière main")}
+                  </div>
+                  <div className="text-base font-bold text-yellow-200 mt-0.5 truncate">
+                    {interHandShowdownSummary.winnerName}
+                  </div>
+                  <div className="text-xs text-slate-200 mt-1">
+                    <span className="text-slate-400">{t("game.winningHandLabel", "Combinaison")}: </span>
+                    <span className="text-amber-200 font-semibold">{interHandShowdownSummary.winningHand}</span>
+                  </div>
+                  {typeof interHandShowdownSummary.pot === "number" && interHandShowdownSummary.pot > 0 && (
+                    <div className="text-[11px] text-emerald-200/90 mt-1">
+                      +{interHandShowdownSummary.pot.toLocaleString()} {t("game.jets", "jetons")}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
                 <span>{t("hiddenBets.tableResolvedTitle", "Tickets résolus (table)")}</span>
                 {tableTicketsLoading && <span>{t("hiddenBets.loading", "Chargement…")}</span>}

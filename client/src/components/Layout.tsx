@@ -35,6 +35,7 @@ import {
   clearAuthStorage,
   fetchDailyLoginStatus,
   BALANCE_CHANGED_EVENT,
+  POKER_WALLET_DISPLAY_EVENT,
 } from "../utils/userProfile";
 import { DailyLoginModal } from "./DailyLoginModal";
 import { Toast } from "./Toast";
@@ -124,6 +125,8 @@ export function Layout({ children }: LayoutProps) {
   const [friendQuickReply, setFriendQuickReply] = useState("");
   const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
   const [balance, setBalance] = useState(getUserBalance());
+  /** Sur /game (cash), le solde affiché peut inclure la stack au siège (événement émis par Game.tsx). */
+  const [pokerDisplayTotal, setPokerDisplayTotal] = useState<number | null>(null);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showDailyLogin, setShowDailyLogin] = useState(false);
   const [dailyLoginAvailable, setDailyLoginAvailable] = useState(false);
@@ -161,6 +164,9 @@ export function Layout({ children }: LayoutProps) {
     return () => window.removeEventListener(OPEN_RATE_GAME_EVENT, openRate);
   }, []);
 
+  const isGamePagePath =
+    location.pathname === "/game" || location.pathname.startsWith("/game?");
+
   useEffect(() => {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
     setBalance(getUserBalance());
@@ -172,10 +178,25 @@ export function Layout({ children }: LayoutProps) {
         location.pathname === "/blackjack" ||
         location.pathname.startsWith("/blackjack/lobby") ||
         location.pathname.startsWith("/blackjack/table") ||
-        blackjackMultiInLobby;
+        blackjackMultiInLobby ||
+        isGamePagePath;
       fetchBalanceFromServer({ authoritative }).then(setBalance);
     }
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, isGamePagePath]);
+
+  useEffect(() => {
+    if (!isGamePagePath) setPokerDisplayTotal(null);
+  }, [isGamePagePath]);
+
+  useEffect(() => {
+    const onPokerWallet = (e: Event) => {
+      const ce = e as CustomEvent<{ total: number | null | undefined }>;
+      const v = ce.detail?.total;
+      setPokerDisplayTotal(typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : null);
+    };
+    window.addEventListener(POKER_WALLET_DISPLAY_EVENT, onPokerWallet);
+    return () => window.removeEventListener(POKER_WALLET_DISPLAY_EVENT, onPokerWallet);
+  }, []);
 
   /** Mise à jour immédiate du solde affiché (ex. mode bot : `addToUserBalance` ne touche que le localStorage). */
   useEffect(() => {
@@ -224,7 +245,8 @@ export function Layout({ children }: LayoutProps) {
           location.pathname === "/minigames" ||
           location.pathname === "/blackjack" ||
           location.pathname.startsWith("/blackjack/lobby") ||
-          location.pathname.startsWith("/blackjack/table");
+          location.pathname.startsWith("/blackjack/table") ||
+          isGamePagePath;
         fetchBalanceFromServer({ authoritative }).then(setBalance);
       } else {
         setBalance(getUserBalance());
@@ -232,7 +254,7 @@ export function Layout({ children }: LayoutProps) {
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, isGamePagePath]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -457,6 +479,10 @@ export function Layout({ children }: LayoutProps) {
       LOAN_REPAYMENT_IN: "Remboursement reçu",
       LOAN_REPAYMENT_OUT: "Remboursement envoyé",
       DEV_TOPUP: "Ajout de solde",
+      CASH_POKER_BUY_IN: "Cash poker — buy-in",
+      CASH_POKER_REBUY: "Cash poker — rebuy",
+      CASH_POKER_CASHOUT: "Cash poker — retrait table",
+      CASH_POKER_HAND_RESULT: "Cash poker — résultat de main",
     };
     return labels[reason] || reason;
   };
@@ -789,6 +815,7 @@ export function Layout({ children }: LayoutProps) {
   );
   const userAvatar = getUserAvatar();
   const username = getUsername();
+  const headerBalance = pokerDisplayTotal ?? balance;
   const languageButtonClass =
     "flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 md:h-11 md:min-h-11 md:w-11 md:min-w-11";
   const accountPill = (
@@ -801,7 +828,7 @@ export function Layout({ children }: LayoutProps) {
       >
         <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.1rem] md:w-[1.1rem]" />
         <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
-          {balance.toLocaleString()}
+          {headerBalance.toLocaleString()}
         </span>
         <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
       </button>
@@ -844,7 +871,7 @@ export function Layout({ children }: LayoutProps) {
       >
         <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.1rem] md:w-[1.1rem]" />
         <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
-          {balance.toLocaleString()}
+          {headerBalance.toLocaleString()}
         </span>
         <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
       </button>
