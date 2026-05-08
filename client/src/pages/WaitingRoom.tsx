@@ -442,7 +442,7 @@ export function WaitingRoom() {
   }
 
   return (
-    <div className="w-full min-h-screen app-shell-bg overflow-auto">
+    <div className="w-full min-h-full app-shell-bg overflow-x-hidden">
       <div className="w-full min-w-0 p-4 sm:p-6">
         <div className="flex items-center justify-between mb-8">
           <button

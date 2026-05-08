@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -491,8 +491,8 @@ export function Layout({ children }: LayoutProps) {
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table");
-  /** Une seule zone de scroll (évite double scroll + contenu masqué avec CustomScrollArea + min-h-screen des pages). */
-  const useNativeMainScroll = isAuthPage || path === "/lobby";
+  /** Scroll sur la fenêtre (document) : évite le double scroll conteneur interne + contenu. */
+  const lobbyDocumentScroll = path === "/lobby" || path === "/tutorial-lobby";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
@@ -541,6 +541,19 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     if (!isGameHudPage) setGameHudState(null);
   }, [isGameHudPage]);
+
+  useLayoutEffect(() => {
+    const on = lobbyDocumentScroll && !isCasinoFullBleed;
+    const root = document.getElementById("root");
+    document.documentElement.classList.toggle("doc-scroll-mode", on);
+    document.body.classList.toggle("doc-scroll-mode", on);
+    root?.classList.toggle("doc-scroll-mode", on);
+    return () => {
+      document.documentElement.classList.remove("doc-scroll-mode");
+      document.body.classList.remove("doc-scroll-mode");
+      root?.classList.remove("doc-scroll-mode");
+    };
+  }, [lobbyDocumentScroll, isCasinoFullBleed, path]);
 
   if (isAdminShell) {
     return (
@@ -895,8 +908,18 @@ export function Layout({ children }: LayoutProps) {
     navigate("/lobby");
   };
 
+  const shellBg =
+    showStandaloneTopBar || (lobbyDocumentScroll && !isCasinoFullBleed)
+      ? "bg-transparent"
+      : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900";
+  const shellClass =
+    lobbyDocumentScroll && !isCasinoFullBleed
+      ? /* Pas de min-h-[100dvh] ni flex-1 sur l’enfant : sinon zone vide en bas (fond document sans dégradés lobby). */
+        `flex w-full min-w-0 flex-col overflow-x-clip overflow-y-visible ${shellBg}`
+      : `flex h-[100dvh] max-h-[100dvh] min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden ${shellBg}`;
+
   return (
-    <div className={`flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden ${showStandaloneTopBar ? "bg-transparent" : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"}`}>
+    <div className={shellClass}>
       <GlobalHoverTooltip />
       <GlobalCustomScrollbars />
       <TopBarProvider menuContent={showIntegratedTopBar ? menuContent : null}>
@@ -1290,27 +1313,29 @@ export function Layout({ children }: LayoutProps) {
       <InvitationBanner />
 
       <div
-        className={`w-full min-w-0 overflow-x-hidden ${
+        className={`w-full min-w-0 overflow-x-clip overflow-y-visible ${
           isCasinoFullBleed
             ? "flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden pt-0 [&>*:last-child]:flex [&>*:last-child]:min-h-0 [&>*:last-child]:flex-1 [&>*:last-child]:flex-col"
-            : "min-h-0 flex-1"
+            : lobbyDocumentScroll
+              ? "w-full min-w-0"
+              : "min-h-0 flex-1"
         }`}
       >
         {isCasinoFullBleed ? (
           children
-        ) : useNativeMainScroll ? (
+        ) : lobbyDocumentScroll ? (
           <div
-            className={`h-full min-h-0 w-full overflow-x-hidden overflow-y-auto ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
+            className={`w-full min-w-0 ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
           >
             {children}
           </div>
         ) : (
-          <CustomScrollArea
-            className="h-full w-full"
-            contentClassName={`min-h-full ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
+          <div
+            data-native-scrollbar="true"
+            className={`app-main-scroll h-full min-h-0 w-full min-w-0 overflow-x-hidden overflow-y-auto ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
           >
             {children}
-          </CustomScrollArea>
+          </div>
         )}
       </div>
       </TopBarProvider>
