@@ -40,7 +40,17 @@ function mockCreateTx() {
           row.lastLoginRewardDayKey = todayKey()
         }
 
-        if (row.lastLoginRewardDayKey === where.lastLoginRewardDayKey.not) {
+        const or = where.OR as Array<{ lastLoginRewardDayKey: null | { not: string } }> | undefined
+        const allowed =
+          or?.some((cond) => {
+            if (cond.lastLoginRewardDayKey === null) {
+              return row.lastLoginRewardDayKey === null
+            }
+            const notKey = (cond.lastLoginRewardDayKey as { not: string })?.not
+            return row.lastLoginRewardDayKey != null && row.lastLoginRewardDayKey !== notKey
+          }) ?? false
+
+        if (!allowed) {
           return { count: 0 }
         }
 
@@ -116,6 +126,28 @@ describe('dailyLogin.service', () => {
     expect(claimed.chips).toBe(1100)
     expect(mockLedgerRows).toHaveLength(1)
     expect(mockLedgerRows[0]?.reason).toBe('DAILY_LOGIN_REWARD')
+  })
+
+  it('permet le claim quand lastLoginRewardDayKey est null (première fois)', async () => {
+    const u = mockUsers.get('u1')!
+    expect(u.lastLoginRewardDayKey).toBeNull()
+    await expect(claimDailyLogin('u1')).resolves.toMatchObject({ streakCount: 1, rewardTokens: 100 })
+  })
+
+  it('permet le claim le lendemain si la série continue (branche NOT du jour)', async () => {
+    const yesterday = new Date()
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1)
+    const yKey = yesterday.toISOString().slice(0, 10)
+    mockUsers.set('u1', {
+      id: 'u1',
+      chips: 1000,
+      loginStreakCount: 2,
+      lastLoginRewardDayKey: yKey,
+      lastLoginRewardAt: new Date(),
+    })
+    const claimed = await claimDailyLogin('u1')
+    expect(claimed.streakCount).toBe(3)
+    expect(claimed.rewardTokens).toBe(200)
   })
 
   it('refuse un second claim le même jour', async () => {

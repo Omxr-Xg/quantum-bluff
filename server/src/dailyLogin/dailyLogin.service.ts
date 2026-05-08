@@ -117,10 +117,14 @@ export async function claimDailyLogin(userId: string): Promise<DailyLoginClaimRe
     const rewardTokens = rewardForDay(nextDayIndex)
     const rewardAt = new Date()
 
-    // Anti double-claim: l'update passe uniquement si l'utilisateur n'a pas déjà
-    // la clé du jour courant en base (compare-and-set atomique côté SQL).
+    // Anti double-claim: compare-and-set atomique. Important : en SQL, `col <> dayKey`
+    // n'inclut PAS les NULL — il faut explicitement autoriser `lastLoginRewardDayKey IS NULL`
+    // sinon le tout premier claim échoue toujours (count = 0).
     const claimWrite = await tx.user.updateMany({
-      where: { id: userId, lastLoginRewardDayKey: { not: dayKey } },
+      where: {
+        id: userId,
+        OR: [{ lastLoginRewardDayKey: null }, { lastLoginRewardDayKey: { not: dayKey } }],
+      },
       data: {
         chips: { increment: rewardTokens },
         loginStreakCount: nextDayIndex,
