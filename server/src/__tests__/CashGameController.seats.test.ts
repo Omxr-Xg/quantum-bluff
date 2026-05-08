@@ -101,7 +101,9 @@ describe('CashGameController — sit / leave / rebuy', () => {
   test('removeDisconnectedPlayer entre mains', () => {
     const c = make()
     c.sit('u1', 'A', 3, 500)
-    expect(c.removeDisconnectedPlayer('u1')).toBe(true)
+    const r = c.removeDisconnectedPlayer('u1')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.cashedOutChips).toBe(500)
     expect(c.getOccupiedCount()).toBe(0)
   })
 })
