@@ -4,6 +4,14 @@ import { rootLogger } from '../observability/index.js';
 import { renewTournamentLeaderLock } from './tournamentLeaderLock.service.js';
 import { activeGames } from '../shared/activeGames.js';
 import { GameTable } from '../logic/GameTable.js';
+import {
+  appendTournamentSurvivor,
+  clearTournamentBracketState,
+  clearTournamentSurvivors,
+  getTournamentExpectedTables,
+  getTournamentSurvivors,
+  setTournamentExpectedTables,
+} from './tournamentBracketStore.service.js';
 
 /** Max joueurs par table au début du tournoi (n >= 7). */
 const TOURNAMENT_SEATS_PER_TABLE = 6;
@@ -62,11 +70,6 @@ export class TournamentService {
   >();
 
   private static alreadyEliminated = new Set<string>();
-
-  private static tournamentTables = new Map<string, {
-    survivors: { userId: string; username: string; chips: number }[];
-    expectedTables: number;
-  }>();
 
   private static eliminationOrder = new Map<string, string[]>();
 
@@ -482,9 +485,13 @@ export class TournamentService {
       })),
     );
 
-    TournamentService.tournamentTables.set(tournamentId, {
-      survivors: [],
-      expectedTables: numTables,
+    await setTournamentExpectedTables(tournamentId, numTables);
+    await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: {
+        openingRoundTableCount: numTables,
+        activeBracketPhase: 'OPENING',
+      },
     });
     TournamentService.eliminationOrder.set(tournamentId, []);
 
@@ -515,41 +522,57 @@ export class TournamentService {
     winnerUsername: string,
     winnerChips: number
   ) {
-    let tracking = this.tournamentTables.get(tournamentId);
-    if (!tracking) {
-    // Reconstruct tracking from DB
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
-      include: { players: true }
+      select: {
+        id: true,
+        status: true,
+        openingRoundTableCount: true,
+        activeBracketPhase: true,
+      },
     });
-    if (!tournament) return;
-    const numTables = getOpeningRoundTableSizes(tournament.players.length).length;
-    tracking = { survivors: [], expectedTables: numTables };
-    this.tournamentTables.set(tournamentId, tracking);
-  }
+    if (!tournament || tournament.status !== 'ACTIVE') return;
 
-    tracking.survivors.push({ userId: winnerId, username: winnerUsername, chips: winnerChips });
+    const persistedExpected =
+      tournament.activeBracketPhase === 'FINAL'
+        ? 1
+        : tournament.openingRoundTableCount ?? null;
+    const expectedTables =
+      persistedExpected ?? (await getTournamentExpectedTables(tournamentId)) ?? 1;
 
-    if (tracking.survivors.length < tracking.expectedTables) {
+    await appendTournamentSurvivor(tournamentId, {
+      userId: winnerId,
+      username: winnerUsername,
+      chips: winnerChips,
+    });
+
+    const survivors = await getTournamentSurvivors(tournamentId);
+
+    if (survivors.length < expectedTables) {
       if (this.io) {
         this.io.to(`user:${winnerId}`).emit('tournament-waiting-final', {
-          survivorsCount: tracking.survivors.length,
-          expectedTables: tracking.expectedTables,
+          survivorsCount: survivors.length,
+          expectedTables,
         });
       }
-      console.log(`[TOURNOI] Survivants: ${tracking.survivors.length}/${tracking.expectedTables}`);
+      console.log(`[TOURNOI] Survivants: ${survivors.length}/${expectedTables}`);
       return;
     }
 
-    if (tracking.survivors.length === 1) {
+    if (survivors.length === 1) {
       const eliminated = this.eliminationOrder.get(tournamentId) ?? [];
       const rankedIds = [winnerId, ...eliminated.slice().reverse()];
       await this.processVictory(rankedIds, tournamentId);
       return;
     }
 
+    await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { activeBracketPhase: 'FINAL' },
+    });
+
     const finalGameId = `game_tournoi_final_${Date.now()}`;
-    const finalPlayers = tracking.survivors.map((s, index) => ({
+    const finalPlayers = survivors.map((s, index) => ({
       id: s.userId,
       name: s.username,
       cards: [],
@@ -565,13 +588,8 @@ export class TournamentService {
     const finalTable = new GameTable(finalGameId, finalPlayers);
     finalTable.startHand();
     await activeGames.set(finalGameId, finalTable);
-
-    const survivorsCopy = [...tracking.survivors];
-
-    this.tournamentTables.set(tournamentId, {
-      survivors: [],
-      expectedTables: 1,
-    });
+    const survivorsCopy = [...survivors];
+    await clearTournamentSurvivors(tournamentId);
 
     const meta = await prisma.tournament.findUnique({
       where: { id: tournamentId },
@@ -693,8 +711,8 @@ export class TournamentService {
       }
 
       if (tournamentId) {
-        this.tournamentTables.delete(tournamentId);
         this.eliminationOrder.delete(tournamentId);
+        await clearTournamentBracketState(tournamentId);
       }
       this.clearSpectateTables(tournament.id);
 

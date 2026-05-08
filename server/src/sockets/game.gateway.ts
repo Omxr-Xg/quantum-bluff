@@ -1969,29 +1969,47 @@ export class GameGateway {
 
             if (callAmount === 0) {
               console.log(`⏱️ Timeout - ${player.name} CHECK auto`);
-              g.handlePlayerAction(currentPlayerId, "CHECK");
+              await applyPokerAction({
+                gameId,
+                playerId: currentPlayerId,
+                actionType: "CHECK",
+                actionId: `timeout-${Date.now()}`,
+              });
             } else {
               console.log(
                 `⏱️ Timeout - ${player.name} FOLD auto (callAmount: ${callAmount})`,
               );
-              g.handlePlayerAction(currentPlayerId, "FOLD");
+              await applyPokerAction({
+                gameId,
+                playerId: currentPlayerId,
+                actionType: "FOLD",
+                actionId: `timeout-${Date.now()}`,
+              });
             }
+
+            const fresh = await activeGames.get(gameId);
+            if (!fresh) return;
 
             const socketsInRoom = await this.io.in(gameId).fetchSockets();
             for (const s of socketsInRoom) {
               const uid = (s as unknown as AuthenticatedSocket).userId;
-              s.emit("GAME_UPDATE", g.getSanitizedState(uid));
+              const isSpectator = !fresh.getPlayerState(uid ?? "");
+              const snapshot = fresh.getSanitizedState(
+                isSpectator ? undefined : uid,
+              );
+              s.emit("GAME_UPDATE", snapshot);
+              s.emit("GAME_STATE_UPDATED", snapshot);
             }
-            if (g.state.phase === "SHOWDOWN" && g instanceof CashGameController) {
+            if (fresh.state.phase === "SHOWDOWN" && fresh instanceof CashGameController) {
               const showdownSnapshot = {
-                handId: g.state.handId ?? "",
-                handEndReason: g.state.handEndReason,
-                showdownWinnerId: g.state.showdownWinnerId,
-                showdownWinnerIds: g.state.showdownWinnerIds,
-                showdownPot: g.state.showdownPot,
+                handId: fresh.state.handId ?? "",
+                handEndReason: fresh.state.handEndReason,
+                showdownWinnerId: fresh.state.showdownWinnerId,
+                showdownWinnerIds: fresh.state.showdownWinnerIds,
+                showdownPot: fresh.state.showdownPot,
               };
-              await this.completeCashHandAndBroadcast(gameId, g, g.roomId, showdownSnapshot);
-            } else if (g.state.currentTurn) {
+              await this.completeCashHandAndBroadcast(gameId, fresh, fresh.roomId, showdownSnapshot);
+            } else if (fresh.state.currentTurn) {
               this.startTurnTimer(gameId);
             }
           } catch (error) {

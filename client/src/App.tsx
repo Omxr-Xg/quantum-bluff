@@ -117,18 +117,24 @@ function TournamentTeleporter() {
       }
     };
 
-    const handleTournamentWon = (data: { userId: string }) => {
+    const handleTournamentWon = (data: { userId: string; survivorsCount?: number; expectedTables?: number }) => {
       if (data.userId === userId) {
         setTournamentResult({ type: 'finalist' });
         setTimeout(() => {
           setTournamentResult(null);
-          navigate('/tournament-waiting');
+          navigate('/tournament-waiting', {
+            state: data.survivorsCount && data.expectedTables
+              ? { survivorsCount: data.survivorsCount, expectedTables: data.expectedTables }
+              : undefined,
+          });
         }, 3000);
       }
     };
 
-    const handleWaitingFinal = (_data: { survivorsCount: number; expectedTables: number }) => {
-      // Handled by TournamentWaiting page directly via socket
+    const handleWaitingFinal = (data: { survivorsCount: number; expectedTables: number }) => {
+      // Si l’utilisateur ouvre directement /tournament-waiting sans state, on pourrait
+      // relayer ici dans un store global. Pour l’instant, on se contente du composant dédié.
+      console.log('[TOURNOI] waiting-final update', data);
     };
 
     const handleFinalTable = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
