@@ -72,6 +72,7 @@ export class GameTable {
       player.cards = Array.isArray(player.cards) ? player.cards : []
       player.currentBet = player.currentBet ?? 0
       player.isActive = player.isActive ?? true
+      player.hasFoldedThisHand = player.hasFoldedThisHand ?? false
       player.position = index
       player.isDealer = false
       player.isConnected = player.isConnected ?? true
@@ -364,6 +365,7 @@ export class GameTable {
     const wasTheirTurn = this.state.currentTurn === playerId
 
     player.isActive = false
+    player.hasFoldedThisHand = true
     this.actedPlayerIds.add(player.id)
 
     if (this.getActivePlayers().length === 1) {
@@ -701,6 +703,7 @@ export class GameTable {
       player.cards = []
       player.currentBet = 0
       player.totalPutInThisHand = 0
+      player.hasFoldedThisHand = false
       player.isActive = player.isConnected !== false && player.chips > 0
       player.isDealer = false
       player.role = 'PLAYER'
@@ -759,6 +762,7 @@ export class GameTable {
   addPlayer(player: Player): void {
     player.cards = Array.isArray(player.cards) ? player.cards : []
     player.currentBet = 0
+    player.hasFoldedThisHand = false
     player.isActive =
       this.handStarted && this.state.phase !== 'SHOWDOWN'
         ? false
@@ -933,6 +937,7 @@ export class GameTable {
 
     if (action === 'FOLD') {
       player.isActive = false
+      player.hasFoldedThisHand = true
       this.actedPlayerIds.add(player.id)
 
       if (this.getActivePlayers().length === 1) {
@@ -1149,17 +1154,19 @@ export class GameTable {
    */
   public sweepBustedPlayers(): void {
     let playersEliminated = false;
+    const isTournamentTable = this.id.startsWith('game_tournoi_');
 
     for (const player of this.state.players) {
       if (player.chips <= 0) {
-        // Le joueur est officiellement éliminé
         player.isActive = false;
-        player.isConnected = false; // On le déconnecte virtuellement de la table
-        
-        // Optionnel: tu peux ajouter un flag isBusted dans le type Player si tu veux l'afficher côté Frontend
-        // player.isBusted = true; 
+        // Tournoi : bust = sortie de table côté moteur. Cash : garder isConnected pour éviter confusion UI / reconnexion.
+        if (isTournamentTable) {
+          player.isConnected = false;
+        }
 
-        console.log(`💀 [GameTable] Le joueur ${player.name} (${player.id}) a été éliminé du tournoi (0 jeton) !`);
+        console.log(
+          `💀 [GameTable] ${player.name} (${player.id}) — 0 jeton après la main${isTournamentTable ? ' (tournoi)' : ''}`,
+        );
         playersEliminated = true;
       }
     }
@@ -1229,13 +1236,14 @@ export class GameTable {
         position: player.position || 0,
         role: player.role,
         isActive: player.isActive,
+        hasFoldedThisHand: player.hasFoldedThisHand === true,
         isDealer: player.isDealer || false,
         isConnected: player.isConnected !== false,
         ...(player.avatar ? { avatar: player.avatar } : {}),
         // Règles de révélation des cartes :
         // - Spectateur (pas de requestingPlayerId) : jamais de cartes fermées (même au showdown)
         // - Avant showdown : chaque joueur voit uniquement ses propres cartes
-        // - Au showdown réel (plusieurs joueurs) : les joueurs voient les cartes des joueurs encore en lice
+        // - Au showdown réel (plusieurs joueurs) : cartes des participants qui n’ont pas fold (y compris bust all-in)
         // - "Gagne par abandon" (1 seul restant) : le gagnant ne montre pas, les folders ne voient pas sa main
         cards: (() => {
           if (requestingPlayerId === undefined || requestingPlayerId === '') {
@@ -1248,7 +1256,11 @@ export class GameTable {
                 ? player.cards
                 : []
             }
-            return player.isActive ? player.cards : []
+            const ids = this.state.handParticipantIds ?? []
+            const wasInShowdown =
+              (Array.isArray(ids) ? ids.includes(player.id) : this.handParticipantIds.has(player.id)) &&
+              !player.hasFoldedThisHand
+            return wasInShowdown ? player.cards : []
           }
           return player.id === requestingPlayerId ? player.cards : []
         })(),

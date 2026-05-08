@@ -40,6 +40,8 @@ export interface Player {
   /** Total amount put into the pot this hand (for side pot calculation). */
   totalPutInThisHand?: number;
   isActive: boolean;
+  /** Vrai seulement après un fold explicite (ou équivalent quit) sur cette main — pas pour un bust au showdown. */
+  hasFoldedThisHand?: boolean;
   position?: number;
   isDealer?: boolean;
   isConnected?: boolean;
