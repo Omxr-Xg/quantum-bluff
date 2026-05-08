@@ -3,6 +3,8 @@ import { prisma } from '../config/database.js';
 import { CashGameController, TURBO_TURN_TIMEOUT_MS } from '../logic/CashGameController.js';
 import { activeGames } from '../shared/activeGames.js';
 import { intChips } from '../utils/chips.js';
+import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js';
+import { createPokerCashLedgerContext } from '../poker/cash/pokerCashLedger.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js';
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js';
@@ -787,6 +789,57 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
       }))
     );
     cashGame.startHand();
+
+    const openHandId = cashGame.getGameTable()?.state.handId ?? 'table-open';
+    const seatDebits = cashGame
+      .getOccupiedSeats()
+      .filter((s) => s.userId != null)
+      .map((s) => ({ userId: s.userId as string, amount: intChips(s.chips) }));
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const { userId, amount } of seatDebits) {
+          const a = intChips(amount);
+          if (a <= 0) continue;
+          const row = await tx.user.findUnique({
+            where: { id: userId },
+            select: { chips: true },
+          });
+          const before = intChips(row?.chips ?? 0);
+          if (before < a) {
+            const e = new Error('INSUFFICIENT_CHIPS') as Error & { code: string };
+            e.code = 'INSUFFICIENT_CHIPS';
+            throw e;
+          }
+          const after = before - a;
+          await tx.user.update({
+            where: { id: userId },
+            data: { chips: after },
+          });
+          await appendWalletLedgerEntry(
+            {
+              context: createPokerCashLedgerContext({
+                userId,
+                gameId,
+                handId: openHandId,
+                actionId: `room-open:${userId}:${Date.now()}`,
+              }),
+              reason: 'CASH_POKER_BUY_IN',
+              amount: -a,
+              balanceBefore: before,
+              balanceAfter: after,
+            },
+            tx,
+          );
+        }
+      });
+    } catch (err) {
+      console.error('[waitingRoom] cash open debit failed', err);
+      return res.status(500).json({
+        error: 'Impossible de verrouiller les jetons en base pour cette table cash.',
+        code: 'CASH_OPEN_DEBIT_FAILED',
+      });
+    }
 
     // Stocker dans le cache (Redis + local)
     await activeGames.set(gameId, cashGame);
