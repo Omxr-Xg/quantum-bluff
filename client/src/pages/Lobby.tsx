@@ -467,7 +467,7 @@ export function Lobby() {
 
   return (
     <div
-      className={`relative w-full min-h-0 overflow-x-clip overflow-y-visible px-2 py-4 sm:px-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
+      className={`relative w-full min-h-[100dvh] overflow-x-clip overflow-y-visible px-2 py-4 sm:px-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
         lobbyMainTab === "poker"
           ? "bg-[#020716]"
           : lobbyMainTab === "minigames"
@@ -477,7 +477,7 @@ export function Lobby() {
     >
       {/* Fond Texas Hold'em */}
       <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
+        className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: lobbyMainTab === "poker" ? 1 : 0 }}
         aria-hidden
       >
@@ -498,7 +498,7 @@ export function Lobby() {
 
       {/* Fond Mini-jeux */}
       <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
+        className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: lobbyMainTab === "minigames" ? 1 : 0 }}
         aria-hidden
       >
@@ -525,7 +525,7 @@ export function Lobby() {
 
       {/* Fond Blackjack — bordeaux / rose / ardoise */}
       <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
+        className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: lobbyMainTab === "blackjack" ? 1 : 0 }}
         aria-hidden
       >
