@@ -33,8 +33,19 @@ export function getOpeningRoundTableSizes(totalPlayers: number): number[] {
   return tableSizes;
 }
 
+export type TournamentSpectateTableRow = {
+  tableNumber: number;
+  roomId: string;
+  players: { id: string; username: string }[];
+};
+
 export class TournamentService {
   private static io: Server | null = null;
+  /** Tables suivables en spectateur (mémoire processus — même instance que les parties). */
+  private static spectateTablesByTournament = new Map<
+    string,
+    { tournamentName: string; tables: TournamentSpectateTableRow[] }
+  >();
   private static tournamentVisibility = new Map<string, 'PUBLIC' | 'PRIVATE'>();
   private static privateJoinRequests = new Map<
     string,
@@ -66,6 +77,33 @@ export class TournamentService {
 
   static getIo(): Server | null {
     return this.io;
+  }
+
+  static publishSpectateTables(
+    tournamentId: string,
+    tournamentName: string,
+    tables: TournamentSpectateTableRow[],
+  ): void {
+    this.spectateTablesByTournament.set(tournamentId, { tournamentName, tables });
+  }
+
+  static clearSpectateTables(tournamentId: string): void {
+    this.spectateTablesByTournament.delete(tournamentId);
+  }
+
+  /** Tables connues pour ce tournoi + indicateur si la partie tourne encore sur ce nœud. */
+  static async getSpectateTablesPayload(tournamentId: string): Promise<{
+    tournamentName: string;
+    tables: Array<TournamentSpectateTableRow & { live: boolean }>;
+  } | null> {
+    const entry = this.spectateTablesByTournament.get(tournamentId);
+    if (!entry) return null;
+    const tables: Array<TournamentSpectateTableRow & { live: boolean }> = [];
+    for (const t of entry.tables) {
+      const g = await activeGames.get(t.roomId);
+      tables.push({ ...t, live: g != null });
+    }
+    return { tournamentName: entry.tournamentName, tables };
   }
 
   static notifyElimination(userId: string) {
@@ -358,6 +396,7 @@ export class TournamentService {
         data: { status: 'CANCELED', prizePool: 0 },
       });
     });
+    this.clearSpectateTables(tournamentId);
   }
 
   static async startTournament(tournamentId: string, providedIo?: Server) {
@@ -433,6 +472,16 @@ export class TournamentService {
       });
     }
 
+    this.publishSpectateTables(
+      tournamentId,
+      tournament.name,
+      tables.map((t) => ({
+        tableNumber: t.tableNumber,
+        roomId: t.roomId,
+        players: t.players.map((p) => ({ id: p.id, username: p.username })),
+      })),
+    );
+
     TournamentService.tournamentTables.set(tournamentId, {
       survivors: [],
       expectedTables: numTables,
@@ -452,6 +501,7 @@ export class TournamentService {
     if (socketToUse) {
       console.log(`📣 [SOCKET] Signal de départ envoyé pour ${tournament.name}`);
       socketToUse.emit('tournament-started', result);
+      socketToUse.emit('tournament-updated');
     } else {
       console.warn("⚠️ [SOCKET] Aucun socket disponible pour le signal.");
     }
@@ -522,6 +572,23 @@ export class TournamentService {
       survivors: [],
       expectedTables: 1,
     });
+
+    const meta = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { name: true },
+    });
+    if (meta) {
+      this.publishSpectateTables(tournamentId, meta.name, [
+        {
+          tableNumber: 1,
+          roomId: finalGameId,
+          players: survivorsCopy.map((p) => ({
+            id: p.userId,
+            username: p.username,
+          })),
+        },
+      ]);
+    }
 
     if (this.io) {
       survivorsCopy.forEach(s => {
@@ -629,6 +696,7 @@ export class TournamentService {
         this.tournamentTables.delete(tournamentId);
         this.eliminationOrder.delete(tournamentId);
       }
+      this.clearSpectateTables(tournament.id);
 
       console.log(`[TOURNOI] ${tournament.name} CLÔTURÉ.`, fullRanking);
 

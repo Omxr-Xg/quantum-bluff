@@ -1275,7 +1275,15 @@
       "full": "TORNEO LLENO",
       "toastJoin": "¡Inscripción confirmada!",
       "toastLeave": "Has abandonado el torneo.",
-      "errorUnknown": "Error desconocido"
+      "errorUnknown": "Error desconocido",
+      "live": "En vivo",
+      "spectate": "Ver como espectador",
+      "spectatePickTable": "Elegir mesa",
+      "spectateNoTables": "No hay mesas para seguir ahora.",
+      "spectateTableN": "Mesa {{n}}",
+      "spectatePlayerCount": "{{count}} jugadores",
+      "spectateEnded": "Terminada",
+      "spectateHintCards": "Espectador: cartas ocultas no visibles."
     },
     "widget": {
       "arena": "Arena de torneos",

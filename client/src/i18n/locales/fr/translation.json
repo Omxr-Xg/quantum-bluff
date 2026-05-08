@@ -1295,7 +1295,15 @@
       "full": "TOURNOI COMPLET",
       "toastJoin": "Inscription validée !",
       "toastLeave": "Vous avez quitté le tournoi.",
-      "errorUnknown": "Erreur inconnue"
+      "errorUnknown": "Erreur inconnue",
+      "live": "En direct",
+      "spectate": "Spectater",
+      "spectatePickTable": "Choisir une table",
+      "spectateNoTables": "Aucune table à suivre pour le moment.",
+      "spectateTableN": "Table {{n}}",
+      "spectatePlayerCount": "{{count}} joueurs",
+      "spectateEnded": "Terminée",
+      "spectateHintCards": "Spectateur : cartes privées masquées."
     },
     "widget": {
       "arena": "Arène des Tournois",

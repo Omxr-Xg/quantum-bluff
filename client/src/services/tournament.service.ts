@@ -15,6 +15,18 @@ export interface Tournament {
   players?: { userId: string; user: { id: string; username: string; experience: number } }[];
 }
 
+export interface TournamentSpectateTable {
+  tableNumber: number;
+  roomId: string;
+  players: { id: string; username: string }[];
+  live: boolean;
+}
+
+export interface TournamentSpectatePayload {
+  tournamentName: string;
+  tables: TournamentSpectateTable[];
+}
+
 export const TournamentService = {
   getTournaments: async (): Promise<Tournament[]> => {
     const token = getAuthItem('token'); // 1. On récupère le token
@@ -93,6 +105,17 @@ export const TournamentService = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Erreur d'acceptation");
+    return data;
+  },
+
+  getSpectateTables: async (id: string): Promise<TournamentSpectatePayload> => {
+    const res = await fetch(apiUrl(`/api/tournaments/${id}/spectate-tables`), {
+      headers: {
+        Authorization: `Bearer ${getAuthItem('token') ?? ''}`,
+      },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur chargement des tables');
     return data;
   },
 

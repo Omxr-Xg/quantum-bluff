@@ -562,7 +562,8 @@ export function Layout({ children }: LayoutProps) {
   }, [isGameHudPage]);
 
   useLayoutEffect(() => {
-    const on = lobbyDocumentScroll && !isCasinoFullBleed;
+    /** Admin + lobby : scroll sur le document (#root a overflow:hidden par défaut). */
+    const on = isAdminShell || (lobbyDocumentScroll && !isCasinoFullBleed);
     const root = document.getElementById("root");
     document.documentElement.classList.toggle("doc-scroll-mode", on);
     document.body.classList.toggle("doc-scroll-mode", on);
@@ -572,7 +573,7 @@ export function Layout({ children }: LayoutProps) {
       document.body.classList.remove("doc-scroll-mode");
       root?.classList.remove("doc-scroll-mode");
     };
-  }, [lobbyDocumentScroll, isCasinoFullBleed, path]);
+  }, [isAdminShell, lobbyDocumentScroll, isCasinoFullBleed, path]);
 
   if (isAdminShell) {
     return (

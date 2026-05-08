@@ -1289,7 +1289,15 @@
       "full": "TOURNAMENT FULL",
       "toastJoin": "You’re registered!",
       "toastLeave": "You left the tournament.",
-      "errorUnknown": "Unknown error"
+      "errorUnknown": "Unknown error",
+      "live": "Live",
+      "spectate": "Spectate",
+      "spectatePickTable": "Pick a table",
+      "spectateNoTables": "No tables to follow right now.",
+      "spectateTableN": "Table {{n}}",
+      "spectatePlayerCount": "{{count}} players",
+      "spectateEnded": "Finished",
+      "spectateHintCards": "Spectator view: hole cards are hidden."
     },
     "widget": {
       "arena": "Tournament arena",
