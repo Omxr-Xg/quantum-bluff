@@ -120,9 +120,17 @@ const limiter = rateLimitWithMetrics({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
-  skip: (req: Request) =>
-    req.method === 'GET' &&
-    (req.path === '/api/auth/balance' || req.path === '/api/auth/balance-history'),
+  skip: (req: Request) => {
+    const p = req.path
+    if (req.method === 'GET' && (p === '/api/auth/balance' || p === '/api/auth/balance-history')) {
+      return true
+    }
+    /** Console / outils admin : beaucoup de GET successifs ; le JWT admin est vérifié sur chaque route. */
+    if (p.startsWith('/api/admin')) {
+      return true
+    }
+    return false
+  },
 })
 
 app.use(limiter)
