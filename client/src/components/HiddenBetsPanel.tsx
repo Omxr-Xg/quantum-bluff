@@ -53,6 +53,17 @@ export type HiddenBetStatePayload = {
   closesAt?: number;
 };
 
+/** Phase tapis côté jeu (hors fenêtre API hidden bets). */
+export type HiddenBetsTablePhase =
+  | "init"
+  | "shuffle"
+  | "deal"
+  | "preflop"
+  | "flop"
+  | "turn"
+  | "river"
+  | "showdown";
+
 interface HiddenBetsPanelProps {
   isOpen: boolean;
   onToggle: () => void;
@@ -61,6 +72,10 @@ interface HiddenBetsPanelProps {
   hiddenBetNextHandId?: string | null;
   hiddenBetWindowOpen?: boolean;
   hiddenBetState?: HiddenBetStatePayload | null;
+  /** Phase poker affichée (preflop → onglet live indisponible). */
+  tablePhase?: HiddenBetsTablePhase;
+  /** File « Prêt » / attente prochaine main : uniquement paris sur la main suivante. */
+  betweenHands?: boolean;
   /** Résumé main terminée (cash) : gagnant + combinaison pour le bloc résultats. */
   interHandShowdownSummary?: {
     winnerName: string;
@@ -77,6 +92,8 @@ export function HiddenBetsPanel({
   hiddenBetNextHandId,
   hiddenBetWindowOpen,
   hiddenBetState,
+  tablePhase = "init",
+  betweenHands = false,
   interHandShowdownSummary = null,
 }: HiddenBetsPanelProps) {
   const { t } = useTranslation();
@@ -144,6 +161,38 @@ export function HiddenBetsPanel({
         !hiddenBetState?.currentHandId
     );
 
+  const preOnlyUi = Boolean(betweenHands || inInterHandTransition);
+
+  const isFlopOrLater =
+    tablePhase === "flop" ||
+    tablePhase === "turn" ||
+    tablePhase === "river" ||
+    tablePhase === "showdown";
+
+  /** Main en cours : paris live uniquement du flop au showdown (hors pause entre deux mains). */
+  const liveTabSelectable = !preOnlyUi && isFlopOrLater;
+
+  const panelJustOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      panelJustOpenedRef.current = false;
+      return;
+    }
+    if (!panelJustOpenedRef.current) {
+      panelJustOpenedRef.current = true;
+      if (preOnlyUi) setBetTab("pre");
+      else if (liveTabSelectable) setBetTab("live");
+      else setBetTab("pre");
+    }
+  }, [isOpen, preOnlyUi, liveTabSelectable]);
+
+  useEffect(() => {
+    if (preOnlyUi || !liveTabSelectable) {
+      setBetTab((tab) => (tab === "live" ? "pre" : tab));
+    }
+  }, [preOnlyUi, liveTabSelectable]);
+
   const loadHistory = useCallback(async () => {
     if (!gameId) return;
     try {
@@ -179,21 +228,21 @@ export function HiddenBetsPanel({
 
   useEffect(() => {
     if (!isOpen) return;
-    if (!inInterHandTransition) return;
+    if (!preOnlyUi) return;
     void loadTableTickets();
-  }, [isOpen, inInterHandTransition, loadTableTickets]);
+  }, [isOpen, preOnlyUi, loadTableTickets]);
 
   useEffect(() => {
     if (!socket || !gameId) return;
     const onUpd = () => {
       void loadHistory();
-      if (inInterHandTransition) void loadTableTickets();
+      if (preOnlyUi) void loadTableTickets();
     };
     socket.on("HIDDEN_BET_TICKET_UPDATED", onUpd);
     return () => {
       socket.off("HIDDEN_BET_TICKET_UPDATED", onUpd);
     };
-  }, [socket, gameId, loadHistory, inInterHandTransition, loadTableTickets]);
+  }, [socket, gameId, loadHistory, preOnlyUi, loadTableTickets]);
 
   const buildSelectionPre = (): SelectionPayload => {
     if (marketModePre === "PLAYER_WINS") {
@@ -452,25 +501,56 @@ export function HiddenBetsPanel({
             </button>
           </div>
 
-          <div className="px-4 py-2 flex gap-2 border-b border-slate-700">
-            <button
-              type="button"
-              onClick={() => setBetTab("pre")}
-              className={`flex-1 py-2 rounded-lg text-sm font-semibold ${
-                betTab === "pre" ? "bg-yellow-600 text-white" : "bg-slate-700 text-slate-300"
-              }`}
-            >
-              {t("hiddenBets.tabNextHand", "Prochaine main")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setBetTab("live")}
-              className={`flex-1 py-2 rounded-lg text-sm font-semibold ${
-                betTab === "live" ? "bg-yellow-600 text-white" : "bg-slate-700 text-slate-300"
-              }`}
-            >
-              {t("hiddenBets.tabLive", "Main en cours")}
-            </button>
+          <div className="px-4 py-2 border-b border-slate-700">
+            {preOnlyUi ? (
+              <div>
+                <div className="w-full py-2 rounded-lg text-sm font-semibold bg-yellow-600 text-white text-center">
+                  {t("hiddenBets.tabNextHand", "Prochaine main")}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1.5 text-center leading-snug">
+                  {t(
+                    "hiddenBets.betweenHandsOnlyNext",
+                    "Entre deux mains : paris uniquement sur la prochaine main.",
+                  )}
+                </p>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBetTab("pre")}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold ${
+                    betTab === "pre" ? "bg-yellow-600 text-white" : "bg-slate-700 text-slate-300"
+                  }`}
+                >
+                  {t("hiddenBets.tabNextHand", "Prochaine main")}
+                </button>
+                <button
+                  type="button"
+                  disabled={!liveTabSelectable}
+                  title={
+                    !liveTabSelectable
+                      ? t(
+                          "hiddenBets.liveTabDisabledPreflop",
+                          "Paris sur la main en cours : disponibles à partir du flop.",
+                        )
+                      : undefined
+                  }
+                  onClick={() => {
+                    if (liveTabSelectable) setBetTab("live");
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
+                    betTab === "live" && liveTabSelectable
+                      ? "bg-yellow-600 text-white"
+                      : liveTabSelectable
+                        ? "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                        : "bg-slate-800/80 text-slate-500 cursor-not-allowed opacity-60"
+                  }`}
+                >
+                  {t("hiddenBets.tabLive", "Main en cours")}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-700">
@@ -491,7 +571,7 @@ export function HiddenBetsPanel({
             {betTab === "live" && !windowOkLive && t("hiddenBets.liveClosed", "Paris live indisponibles hors FLOP/TURN/RIVER.")}
           </div>
 
-          {inInterHandTransition && (
+          {preOnlyUi && (
             <div className="px-4 py-3 border-b border-slate-700">
               {interHandShowdownSummary && (
                 <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-950/35 px-3 py-2.5">

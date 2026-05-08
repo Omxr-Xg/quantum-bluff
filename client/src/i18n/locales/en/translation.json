@@ -887,6 +887,8 @@
     "marketType": "Market",
     "tabNextHand": "Next hand",
     "tabLive": "Live hand",
+    "betweenHandsOnlyNext": "Between hands: bets only on the next hand.",
+    "liveTabDisabledPreflop": "Live hand bets are available from the flop onward.",
     "live": "Live",
     "currentHandShort": "hand",
     "livePhase": {
