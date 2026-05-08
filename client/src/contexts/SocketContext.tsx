@@ -38,7 +38,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [isConnected, setIsConnected] = useState(false)
   const [authVersion, setAuthVersion] = useState(0)
   const [pendingInvitations, setPendingInvitations] = useState<GameInvitationNotification[]>([])
-  const { userId } = useUser()
+  const { userId, isAdmin } = useUser()
   const { addToast } = useToast()
 
   const dismissInvitation = useCallback((invitationId: string) => {
@@ -57,7 +57,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const token = getAuthItem('token')
 
-    if (!token) {
+    if (!token || isAdmin) {
       setSocket(null)
       setIsConnected(false)
       return
@@ -122,7 +122,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         if (s.connected) s.disconnect()
       }, 0)
     }
-  }, [userId, authVersion])
+  }, [userId, authVersion, isAdmin])
 
   useEffect(() => {
     if (!socket || !addToast) return
@@ -181,7 +181,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   /** Invitations salle d’attente déjà en base (reconnexion / onglet rechargé). */
   useEffect(() => {
-    if (!socket || !userId) return
+    if (!socket || !userId || isAdmin) return
     const token = getAuthItem('token')
     if (!token) return
 
@@ -224,10 +224,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [socket, userId])
+  }, [socket, userId, isAdmin])
 
   useEffect(() => {
-    if (!socket) return
+    if (!socket || isAdmin) return
 
     const invalidateLoanList = () => {
       store.dispatch(api.util.invalidateTags(['FriendLoan']))
@@ -252,7 +252,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       notifyOnly.forEach((ev) => socket.off(ev, invalidateLoanList))
       walletEvents.forEach((ev) => socket.off(ev, invalidateLoanListAndSyncBalance))
     }
-  }, [socket])
+  }, [socket, isAdmin])
 
   const connect = useCallback(() => {
     if (socket && !socket.connected) {

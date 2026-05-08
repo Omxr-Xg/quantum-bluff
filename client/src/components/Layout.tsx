@@ -145,6 +145,8 @@ export function Layout({ children }: LayoutProps) {
   const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MENU_CLOSE_DELAY = 500;
   const isMobile = useIsMobile();
+  const isAdminShell =
+    location.pathname === "/auth/admin" || location.pathname.startsWith("/admin/");
   const { registerOpener, openSettingsMenu } = useAccessibilityMenuOpen() ?? {
     registerOpener: () => {},
     openSettingsMenu: () => {},
@@ -170,7 +172,7 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
     setBalance(getUserBalance());
-    if (getAuthItem("token")) {
+    if (getAuthItem("token") && !isAdminShell) {
       const blackjackMultiInLobby =
         location.pathname === "/lobby" && location.search.includes("tab=blackjack");
       const authoritative =
@@ -182,7 +184,7 @@ export function Layout({ children }: LayoutProps) {
         isGamePagePath;
       fetchBalanceFromServer({ authoritative }).then(setBalance);
     }
-  }, [location.pathname, location.search, isGamePagePath]);
+  }, [location.pathname, location.search, isGamePagePath, isAdminShell]);
 
   useEffect(() => {
     if (!isGamePagePath) setPokerDisplayTotal(null);
@@ -211,6 +213,10 @@ export function Layout({ children }: LayoutProps) {
       setDailyLoginAvailable(false);
       return;
     }
+    if (isAdminShell) {
+      setDailyLoginAvailable(false);
+      return;
+    }
     const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
     const showTopBarNow = !isAuthPage;
     let cancelled = false;
@@ -236,11 +242,11 @@ export function Layout({ children }: LayoutProps) {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, playSfx]);
+  }, [location.pathname, playSfx, isAdminShell]);
   
   useEffect(() => {
     const onFocus = () => {
-      if (getAuthItem("token")) {
+      if (getAuthItem("token") && !isAdminShell) {
         const authoritative =
           location.pathname === "/minigames" ||
           location.pathname === "/blackjack" ||
@@ -254,13 +260,13 @@ export function Layout({ children }: LayoutProps) {
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [location.pathname, location.search, isGamePagePath]);
+  }, [location.pathname, location.search, isGamePagePath, isAdminShell]);
 
   useEffect(() => {
-    if (!isConnected) {
+    if (!isAdminShell && !isConnected) {
       connect();
     }
-  }, [isConnected, connect]);
+  }, [isConnected, connect, isAdminShell]);
 
   useEffect(() => {
     const handler = (e: Event) => navigate((e as CustomEvent<string>).detail);
@@ -511,8 +517,6 @@ export function Layout({ children }: LayoutProps) {
   const isGameHudPage = isGamePage || isBlackjackGamePage;
   const isWaitingRoomPage = location.pathname === "/waiting-room";
   const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
-  const isAdminShell =
-    location.pathname === "/auth/admin" || location.pathname.startsWith("/admin/");
 
   useEffect(() => {
     if (isAdminShell) {

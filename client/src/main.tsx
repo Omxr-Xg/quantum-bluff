@@ -1,4 +1,5 @@
-import './i18n/config';
+import './i18n/preflight'
+import './i18n/config'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { installGlobalErrorHandlers } from './utils/errorReporting'
