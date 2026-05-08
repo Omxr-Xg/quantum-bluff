@@ -1716,6 +1716,31 @@ export function Game() {
           playerId: userId,
           avatarUrl: getUserAvatar(),
         });
+        if (gameIdParam) {
+          fetch(apiUrl(`/api/game/${gameIdParam}/action-log`), {
+            headers: { Authorization: `Bearer ${getAuthItem("token") ?? ""}` },
+          })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data: { entries: string[]; handId: string | null } | null) => {
+              if (data?.entries?.length) {
+                const restored = data.entries.map((line, i) => {
+                  const [street, name, action, amount] = line.split("|");
+                  const amt = Number(amount);
+                  const detail =
+                    action === "CHECK"
+                      ? `${name} check`
+                      : action === "FOLD"
+                      ? `${name} se couche`
+                      : action === "CALL"
+                      ? `${name} suit ${amt}`
+                      : `${name} relance ${amt}`;
+                  return { id: `restored-${i}`, line: `[${street}] ${detail}` };
+                });
+                setHandActionLog(restored);
+              }
+            })
+            .catch(() => {});
+        }
       }
     };
     socket.on("connect", emitJoinRoom);

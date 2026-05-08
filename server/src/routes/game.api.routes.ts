@@ -20,6 +20,7 @@ import {
 } from '../poker/services/practiceBotTurns.service.js'
 import type { BotDifficulty } from '../logic/botAI.js'
 import { intChips } from '../utils/chips.js'
+import { getActionLog } from '../config/redis.config.js'
 
 const router = express.Router()
 const gameReadLimiter = rateLimit({
@@ -155,6 +156,21 @@ router.get('/:gameId/room-info', gameReadLimiter, async (req, res) => {
     res.json({ roomId: room.id, hostId: room.hostId })
   } catch (error) {
     console.error('Erreur room-info:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// GET /api/game/:gameId/action-log - Log d'actions de la main en cours (restauration après reload)
+router.get('/:gameId/action-log', authMiddleware, gameReadLimiter, async (req, res) => {
+  try {
+    const { gameId } = req.params
+    const game = await activeGames.get(gameId)
+    if (!game) return res.status(404).json({ error: 'Partie introuvable' })
+    const handId = game.state.handId
+    if (!handId) return res.json({ entries: [], handId: null })
+    const lines = await getActionLog(gameId, handId)
+    res.json({ entries: lines, handId })
+  } catch {
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })

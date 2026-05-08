@@ -158,6 +158,32 @@ export const deleteGame = async (gameId: string): Promise<void> => {
   await redisClient.del(key)
 }
 
+const ACTION_LOG_TTL = 60 * 60 * 2
+
+export async function appendActionLog(gameId: string, handId: string, line: string): Promise<void> {
+  try {
+    const key = `action_log:${gameId}:${handId}`
+    await redisClient.rpush(key, line)
+    await redisClient.expire(key, ACTION_LOG_TTL)
+    await redisClient.ltrim(key, -99, -1)
+  } catch { /* ignore */ }
+}
+
+export async function getActionLog(gameId: string, handId: string): Promise<string[]> {
+  try {
+    const key = `action_log:${gameId}:${handId}`
+    return await redisClient.lrange(key, 0, -1)
+  } catch {
+    return []
+  }
+}
+
+export async function clearActionLog(gameId: string, handId: string): Promise<void> {
+  try {
+    await redisClient.del(`action_log:${gameId}:${handId}`)
+  } catch { /* ignore */ }
+}
+
 export const getAllGames = async (): Promise<Map<string, GameTable>> => {
   const keys = await redisClient.keys(`${GAME_PREFIX}*`)
   const games = new Map<string, GameTable>()

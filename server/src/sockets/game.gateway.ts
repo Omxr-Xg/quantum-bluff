@@ -42,6 +42,7 @@ import {
   censorChatLinks,
   isChatContentEffectivelyEmpty,
 } from "../utils/chatLinkCensor.js";
+import { appendActionLog } from "../config/redis.config.js";
 import { buildHiddenBetResolutionPayload } from "../poker/hiddenBets/hiddenBetSnapshot.js";
 import { resolveHiddenBetsForHand } from "../poker/hiddenBets/resolver/hiddenBetResolver.js";
 import {
@@ -890,6 +891,12 @@ export class GameGateway {
               handEndReason: freshGame.state.handEndReason,
               handId: freshGame.state.handId,
             });
+
+            if (freshGameAfterApply?.state.lastHandAction && freshGameAfterApply.state.handId) {
+              const { playerName, action: loggedAction, amount, street } = freshGameAfterApply.state.lastHandAction;
+              const line = `${street}|${playerName}|${loggedAction}|${amount ?? 0}`;
+              await appendActionLog(gameId, freshGameAfterApply.state.handId, line);
+            }
 
             if (isPracticeBotGameId(gameId)) {
               await runPracticeBotTurnsChain(this.io, gameId);
