@@ -234,12 +234,12 @@ docker:build:ai-service:
 # Déploiement = POST webhook. Les échecs "runner_system_failure" viennent souvent du cluster K8s
 # du runner (disque plein, nœud unreachable). On retente automatiquement ; si ça persiste,
 # contacter les admins GitLab / infra Unistra — ce n’est pas corrigeable uniquement dans ce fichier.
-#.deploy_hook_retry: &deploy_hook_retry
-#  retry:
-#    max: 10
-#    when:
-#      - runner_system_failure
-#      - stuck_or_timeout_failure
+.deploy_hook_retry: &deploy_hook_retry
+  retry:
+    max: 
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
 
 deploy:staging:
   <<: *deploy_hook_retry
