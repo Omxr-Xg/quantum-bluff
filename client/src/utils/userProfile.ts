@@ -216,3 +216,61 @@ export async function addDevMoney(amount: number): Promise<number> {
 export async function syncBalanceToServer(): Promise<void> {
   await fetchBalanceFromServer();
 }
+
+// ======================================================================
+// Daily login streak (récompense de connexion quotidienne)
+// ======================================================================
+
+export type DailyLoginStatus = {
+  dayKey: string;
+  streakCount: number;
+  claimedToday: boolean;
+  nextAction: "CLAIM_TODAY" | "ALREADY_CLAIMED";
+  nextDayIndex: number;
+  nextReward: number;
+  rewards: number[];
+};
+
+export type DailyLoginClaimResult = {
+  success: true;
+  dayKey: string;
+  streakCount: number;
+  rewardTokens: number;
+  chips: number;
+  reset: boolean;
+};
+
+/** Récupère l'état du daily streak depuis le serveur. */
+export async function fetchDailyLoginStatus(): Promise<DailyLoginStatus | null> {
+  const token = getAuthItem("token");
+  if (!token) return null;
+  try {
+    const res = await fetch(apiUrl("/api/daily-login/me"), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as DailyLoginStatus;
+  } catch {
+    return null;
+  }
+}
+
+/** Réclame la récompense de connexion du jour. Renvoie null si déjà réclamé / erreur. */
+export async function claimDailyLogin(): Promise<DailyLoginClaimResult | null> {
+  const token = getAuthItem("token");
+  if (!token) return null;
+  try {
+    const res = await fetch(apiUrl("/api/daily-login/claim"), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as DailyLoginClaimResult;
+    if (typeof data?.chips === "number") {
+      updateUserBalance(Math.max(0, Math.floor(data.chips)));
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}

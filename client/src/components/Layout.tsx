@@ -20,6 +20,7 @@ import {
   Radio,
   Waves,
   History,
+  Gift,
 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
@@ -32,8 +33,10 @@ import {
   addDevMoney,
   fetchBalanceFromServer,
   clearAuthStorage,
+  fetchDailyLoginStatus,
   BALANCE_CHANGED_EVENT,
 } from "../utils/userProfile";
+import { DailyLoginModal } from "./DailyLoginModal";
 import { Toast } from "./Toast";
 import { InvitationBanner } from "./InvitationBanner";
 import { NotificationCenter } from "./NotificationCenter";
@@ -122,6 +125,8 @@ export function Layout({ children }: LayoutProps) {
   const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
   const [balance, setBalance] = useState(getUserBalance());
   const [showAddMoney, setShowAddMoney] = useState(false);
+  const [showDailyLogin, setShowDailyLogin] = useState(false);
+  const [dailyLoginAvailable, setDailyLoginAvailable] = useState(false);
   const [balanceModalTab, setBalanceModalTab] = useState<"history" | "topup">("topup");
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [devValidation, setDevValidation] = useState("");
@@ -178,6 +183,22 @@ export function Layout({ children }: LayoutProps) {
     window.addEventListener(BALANCE_CHANGED_EVENT, sync);
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, sync);
   }, []);
+
+  /** Vérifie côté serveur si la récompense de connexion quotidienne est disponible. */
+  useEffect(() => {
+    if (!getAuthItem("token")) {
+      setDailyLoginAvailable(false);
+      return;
+    }
+    let cancelled = false;
+    fetchDailyLoginStatus().then((status) => {
+      if (cancelled) return;
+      setDailyLoginAvailable(Boolean(status && !status.claimedToday));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname]);
   
   useEffect(() => {
     const onFocus = () => {
@@ -753,6 +774,21 @@ export function Layout({ children }: LayoutProps) {
       </button>
       <button
         type="button"
+        onClick={() => {
+          playSfx("modalOpen");
+          setShowDailyLogin(true);
+        }}
+        className="relative mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/15 bg-slate-800/60 text-amber-200 transition hover:border-amber-300/60 hover:bg-amber-400/10 md:h-8 md:w-8"
+        title="Récompense quotidienne"
+        aria-label="Récompense quotidienne"
+      >
+        <Gift className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden />
+        {dailyLoginAvailable ? (
+          <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-rose-400 ring-2 ring-slate-950 motion-safe:animate-pulse" />
+        ) : null}
+      </button>
+      <button
+        type="button"
         onClick={() => navigate("/profile")}
         className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 transition hover:border-emerald-300/60 md:h-8 md:w-8"
         title={t("lobby.profile")}
@@ -973,6 +1009,23 @@ export function Layout({ children }: LayoutProps) {
       />
 
       <RateGameModal open={showRateGame} onClose={() => setShowRateGame(false)} />
+
+      <DailyLoginModal
+        open={showDailyLogin && Boolean(showTopBar)}
+        onClose={() => {
+          playSfx("modalClose");
+          setShowDailyLogin(false);
+          // Le serveur a peut-être marqué la récompense comme prise.
+          fetchDailyLoginStatus().then((s) => {
+            setDailyLoginAvailable(Boolean(s && !s.claimedToday));
+          });
+        }}
+        onClaimed={(newBalance) => {
+          setBalance(newBalance);
+          setDailyLoginAvailable(false);
+          playSfx("success");
+        }}
+      />
 
       {/* Modal Ajouter des jetons */}
       {showTopBar && showAddMoney && (

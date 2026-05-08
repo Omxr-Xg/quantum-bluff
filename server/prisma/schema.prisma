@@ -49,6 +49,16 @@ model User {
   /// True si avatarImage est renseigné — évite de charger le BYTEA au login pour construire l’URL publique.
   avatarHasBinary   Boolean  @default(false)
 
+  // ============================================
+  // DAILY LOGIN STREAK (récompense quotidienne progressive)
+  // ============================================
+  /// Numéro du jour courant dans la série de connexions consécutives (1..7, retombe à 1 si la série est cassée).
+  loginStreakCount        Int       @default(0)
+  /// Clé du dernier jour (YYYY-MM-DD UTC) où la récompense de connexion a été RÉCLAMÉE.
+  lastLoginRewardDayKey   String?
+  /// Date exacte de la dernière réclamation (audit/debug).
+  lastLoginRewardAt       DateTime?
+
   stats             UserStats?
   histories         GameHistory[] @relation("WinnerHistory")
 
@@ -109,6 +119,7 @@ model User {
   @@index([createdAt])
   @@index([chips])
   @@index([experience])
+  @@index([lastLoginRewardDayKey])
 }
 
 /// Avis joueur (étoiles + commentaire optionnel), collecté depuis le client.

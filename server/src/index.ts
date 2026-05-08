@@ -40,6 +40,7 @@ import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
 import dailyChallengesRoutes from './dailyChallenges/dailyChallenge.routes.js'
+import dailyLoginRoutes from './dailyLogin/dailyLogin.routes.js'
 import hiddenBetsRoutes from './routes/hiddenBets.routes.js'
 import feedbackRoutes from './routes/feedback.routes.js'
 import playerReportRoutes from './routes/playerReport.routes.js'
@@ -192,6 +193,7 @@ app.use('/api/blackjack-tables', blackjackMultiApiLimiter, blackjackMultiRoutes)
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/daily-challenges', dailyChallengesRoutes)
+app.use('/api/daily-login', dailyLoginRoutes)
 app.use('/api/tournaments', tournamentRoutes)
 
 // PROD HARDENING : On ne charge les routes sensibles qu'en mode développement
