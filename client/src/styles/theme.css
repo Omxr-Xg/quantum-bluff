@@ -435,19 +435,53 @@
   height: 0;
 }
 
-html,
-body,
-* {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/**
+ * Zone de scroll principale (Layout) : une seule piste — invisible au toucher (mobile),
+ * barre fine visible sur web / client desktop (breakpoint aligné sur Tailwind `md`).
+ */
+.app-main-scroll {
+  -webkit-overflow-scrolling: touch;
 }
 
-html::-webkit-scrollbar,
-body::-webkit-scrollbar,
-*::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+@media (max-width: 767px) {
+  .app-main-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .app-main-scroll::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .app-main-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.5) rgba(15, 23, 42, 0.4);
+  }
+
+  .app-main-scroll::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .app-main-scroll::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.35);
+    border-radius: 999px;
+  }
+
+  .app-main-scroll::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.45);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .app-main-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(203, 213, 225, 0.55);
+    background-clip: padding-box;
+  }
 }
 
 @keyframes slide-in-left {

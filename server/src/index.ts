@@ -87,6 +87,9 @@ const corsOptions: CorsOptions = {
 
 app.use(
   helmet({
+    // Par défaut Helmet met CORP « same-origin » : le front Vite (:5175) ne peut pas
+    // afficher des images servies par l’API (:3000). cross-origin est adapté à une API publique.
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],

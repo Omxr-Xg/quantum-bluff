@@ -108,5 +108,11 @@ export function apiUrl(path: string): string {
     const d = (import.meta.env.VITE_DEPLOY_ORIGIN ?? "").toString().replace(/\/$/, "").trim();
     if (d && /^\/vm[^/]+\/api\//i.test(p)) return `${d}${p}`;
   }
+  // Build Vite avec `base` non racine : sans ça, `/api/…` part à la racine du domaine
+  // alors que l’API est souvent servie sous le même préfixe que le SPA (ex. `/vm…/api`).
+  const viteBase = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+  if (viteBase && p.startsWith("/api")) {
+    return `${viteBase}${p}`;
+  }
   return p;
 }

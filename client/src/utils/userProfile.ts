@@ -240,37 +240,157 @@ export type DailyLoginClaimResult = {
   reset: boolean;
 };
 
-/** Récupère l'état du daily streak depuis le serveur. */
-export async function fetchDailyLoginStatus(): Promise<DailyLoginStatus | null> {
+export type DailyLoginStatusFetch =
+  | { ok: true; data: DailyLoginStatus }
+  | { ok: false; message: string };
+
+export type DailyLoginClaimFetch =
+  | { ok: true; data: DailyLoginClaimResult }
+  | { ok: false; message: string };
+
+function isDailyLoginStatusPayload(x: unknown): x is DailyLoginStatus {
+  if (!x || typeof x !== "object") return false;
+  const o = x as Record<string, unknown>;
+  const na = o.nextAction;
+  return (
+    typeof o.dayKey === "string" &&
+    typeof o.streakCount === "number" &&
+    typeof o.claimedToday === "boolean" &&
+    (na === "CLAIM_TODAY" || na === "ALREADY_CLAIMED") &&
+    typeof o.nextDayIndex === "number" &&
+    typeof o.nextReward === "number" &&
+    Array.isArray(o.rewards)
+  );
+}
+
+function isDailyLoginClaimPayload(x: unknown): x is DailyLoginClaimResult {
+  if (!x || typeof x !== "object") return false;
+  const o = x as Record<string, unknown>;
+  return (
+    o.success === true &&
+    typeof o.dayKey === "string" &&
+    typeof o.streakCount === "number" &&
+    typeof o.rewardTokens === "number" &&
+    typeof o.chips === "number" &&
+    typeof o.reset === "boolean"
+  );
+}
+
+function serverErrorMessage(body: unknown, status: number): string {
+  const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const msg = typeof o.error === "string" ? o.error : "";
+  const code = typeof o.code === "string" ? o.code : "";
+  if (status === 401) {
+    return msg || "Session expirée ou invalide. Reconnecte-toi.";
+  }
+  if (status === 403) {
+    return msg || "Ce compte ne peut pas utiliser cette récompense.";
+  }
+  if (status === 404 && code === "USER_NOT_FOUND") {
+    return "Compte introuvable sur le serveur. Déconnecte-toi puis reconnecte-toi.";
+  }
+  if (status === 409 && code === "ALREADY_CLAIMED") {
+    return msg || "Récompense déjà récupérée aujourd’hui.";
+  }
+  if (status === 503 && code === "SCHEMA_OUTDATED") {
+    return (
+      msg ||
+      "Base de données non à jour. Sur la machine du serveur : cd server && npx prisma migrate deploy"
+    );
+  }
+  if (status >= 500) {
+    return msg || "Erreur serveur. Réessaie dans un instant.";
+  }
+  return msg || `Réponse serveur inattendue (${status}).`;
+}
+
+/** Détail pour l’UI (messages d’erreur explicites). */
+export async function fetchDailyLoginStatusDetailed(): Promise<DailyLoginStatusFetch> {
   const token = getAuthItem("token");
-  if (!token) return null;
+  if (!token) {
+    return { ok: false, message: "Tu n’es pas connecté." };
+  }
   try {
     const res = await fetch(apiUrl("/api/daily-login/me"), {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) return null;
-    return (await res.json()) as DailyLoginStatus;
+    let body: unknown = null;
+    try {
+      body = await res.json();
+    } catch {
+      body = null;
+    }
+    if (!res.ok) {
+      const message = serverErrorMessage(body, res.status);
+      if (import.meta.env.DEV) {
+        console.warn("[daily-login/me]", res.status, body);
+      }
+      return { ok: false, message };
+    }
+    if (!isDailyLoginStatusPayload(body)) {
+      return {
+        ok: false,
+        message: "Réponse serveur invalide. Mets à jour l’application ou réessaie.",
+      };
+    }
+    return { ok: true, data: body };
   } catch {
-    return null;
+    return {
+      ok: false,
+      message:
+        "Impossible de joindre le serveur. Vérifie que l’API tourne (ou ta connexion réseau).",
+    };
   }
 }
 
-/** Réclame la récompense de connexion du jour. Renvoie null si déjà réclamé / erreur. */
-export async function claimDailyLogin(): Promise<DailyLoginClaimResult | null> {
+/** Réclame la récompense ; messages utilisables dans une modale. */
+export async function claimDailyLoginDetailed(): Promise<DailyLoginClaimFetch> {
   const token = getAuthItem("token");
-  if (!token) return null;
+  if (!token) {
+    return { ok: false, message: "Tu n’es pas connecté." };
+  }
   try {
     const res = await fetch(apiUrl("/api/daily-login/claim"), {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) return null;
-    const data = (await res.json()) as DailyLoginClaimResult;
-    if (typeof data?.chips === "number") {
-      updateUserBalance(Math.max(0, Math.floor(data.chips)));
+    let body: unknown = null;
+    try {
+      body = await res.json();
+    } catch {
+      body = null;
     }
-    return data;
+    if (!res.ok) {
+      const message = serverErrorMessage(body, res.status);
+      if (import.meta.env.DEV) {
+        console.warn("[daily-login/claim]", res.status, body);
+      }
+      return { ok: false, message };
+    }
+    if (!isDailyLoginClaimPayload(body)) {
+      return { ok: false, message: "Réponse serveur invalide après la réclamation." };
+    }
+    if (typeof body.chips === "number") {
+      updateUserBalance(Math.max(0, Math.floor(body.chips)));
+    }
+    return { ok: true, data: body };
   } catch {
-    return null;
+    return {
+      ok: false,
+      message:
+        "Impossible de joindre le serveur. Vérifie que l’API tourne (ou ta connexion réseau).",
+    };
   }
+}
+
+/** Récupère l'état du daily streak depuis le serveur. */
+export async function fetchDailyLoginStatus(): Promise<DailyLoginStatus | null> {
+  const r = await fetchDailyLoginStatusDetailed();
+  return r.ok ? r.data : null;
+}
+
+/** Réclame la récompense de connexion du jour. Renvoie null si déjà réclamé / erreur. */
+export async function claimDailyLogin(): Promise<DailyLoginClaimResult | null> {
+  const r = await claimDailyLoginDetailed();
+  return r.ok ? r.data : null;
 }

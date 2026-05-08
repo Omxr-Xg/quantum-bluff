@@ -437,7 +437,7 @@ export function Friends() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden overflow-y-auto bg-[#020716]">
+    <div className="relative min-h-full w-full overflow-x-hidden bg-[#020716]">
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.24),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_40%,rgba(14,116,144,0.10),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
         <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/40 blur-[120px]" />

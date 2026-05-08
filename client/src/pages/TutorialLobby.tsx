@@ -91,7 +91,7 @@ export function TutorialLobby() {
   };
 
   return (
-    <div className="size-full app-shell-bg p-4 sm:p-8 overflow-y-auto relative">
+    <div className="relative min-h-full w-full overflow-x-hidden app-shell-bg p-4 sm:p-8">
       {/* Fenêtre de dialogue */}
       <div className={`fixed ${getDialogPosition()} z-[70] max-w-md animate-bounce-in`}>
         <div className="bg-gradient-to-br from-blue-900 to-blue-950 rounded-2xl border-4 border-blue-400 shadow-2xl p-6 relative">
