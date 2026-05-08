@@ -334,7 +334,7 @@ export function TournamentLobby() {
                           type="button"
                           disabled={!tab.live}
                           onClick={() => {
-                            navigate(`/game?gameId=${encodeURIComponent(tab.roomId)}&spectate=1`);
+                            navigate(`/game?gameId=${encodeURIComponent(tab.roomId)}&spectate=1&tournament=1`);
                             closeSpectateModal();
                           }}
                           className="flex w-full flex-col items-stretch gap-1 rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-left transition hover:border-amber-500/40 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
