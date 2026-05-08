@@ -267,7 +267,12 @@ function makeError(
 
 function logRejected(
   code: PokerActionError["code"],
-  fields: { gameId?: string; handId?: string; actionId?: string },
+  fields: {
+    gameId?: string;
+    handId?: string;
+    actionId?: string;
+    playerId?: string;
+  },
 ): void {
   metrics.incPokerAction(code);
   const level = code === "DUPLICATE_ACTION" ? "info" : "warn";
@@ -309,7 +314,18 @@ export async function applyPokerAction(
       );
     }
 
-    logRejected("GAME_NOT_FOUND", { gameId: payload.gameId });
+    rootLogger.warn({
+      msg: "poker_action_game_not_found",
+      gameId: payload.gameId,
+      playerId: payload.playerId,
+      actionId: payload.actionId,
+      pokerStateStoreSnapshot: false,
+    });
+    logRejected("GAME_NOT_FOUND", {
+      gameId: payload.gameId,
+      playerId: payload.playerId,
+      actionId: payload.actionId,
+    });
     throw makeError("GAME_NOT_FOUND", "Partie introuvable", 404);
   }
 
