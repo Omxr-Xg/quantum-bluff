@@ -874,7 +874,13 @@ export function Layout({ children }: LayoutProps) {
         className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-visible max-sm:scroll-smooth max-sm:py-2 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
       >
         <NotificationCenter />
-        <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden sm:inline-flex`} title={t("leaderboard.title")}>
+        <button
+          type="button"
+          onClick={() => navigate("/leaderboard")}
+          className={topNavBtn}
+          title={t("leaderboard.title")}
+          aria-label={t("leaderboard.title")}
+        >
           <Trophy className={topNavIcon} aria-hidden />
         </button>
         <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={topNavBtn} title={t("settings.title")} aria-label={t("settings.title")}>
