@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, type CSSProperties } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
@@ -239,6 +239,40 @@ export function Lobby() {
   const tourRefBlackjack = useRef<HTMLDivElement>(null);
   const tourRefDaily = useRef<HTMLDivElement>(null);
   const lobbyTabsRef = useRef<HTMLElement>(null);
+  const [alignedContentMinHeight, setAlignedContentMinHeight] = useState(0);
+
+  useEffect(() => {
+    const sideColumn = tourRefFriends.current;
+    const tabs = lobbyTabsRef.current;
+    if (!sideColumn || !tabs) return;
+
+    let frame = 0;
+    const measure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const sideHeight = Math.max(sideColumn.getBoundingClientRect().height, sideColumn.scrollHeight);
+        const tabsHeight = tabs.getBoundingClientRect().height;
+        setAlignedContentMinHeight(Math.max(0, Math.ceil(sideHeight - tabsHeight - 24)));
+      });
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(sideColumn);
+    observer.observe(tabs);
+    window.addEventListener("resize", measure);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [lobbyMainTab]);
+
+  const lobbyAlignmentStyle = {
+    "--lobby-content-min-height": `${alignedContentMinHeight}px`,
+  } as CSSProperties;
+
   const lobbyTourRefs = useMemo(
     () => ({
       header: tourRefHeader,
@@ -828,9 +862,9 @@ export function Lobby() {
         )}
 
         {/* MAIN GRID - IMPROVED GAP */}
-        <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:items-start">
+        <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:items-stretch">
           {/* Colonne jeux : onglets au-dessus du contenu uniquement (pas au-dessus défis / amis) */}
-          <div className="md:col-span-2 lg:col-span-2 space-y-6">
+          <div className="md:col-span-2 lg:col-span-2 space-y-6 lg:flex lg:flex-col lg:space-y-0 lg:gap-6">
             <nav
               ref={lobbyTabsRef}
               className={`flex w-full overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
@@ -908,7 +942,7 @@ export function Lobby() {
             </nav>
 
           {lobbyMainTab === "poker" && (
-            <div className="space-y-6">
+            <div className="space-y-6 lg:flex lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-6">
               {/* Section Jouer contre Bot */}
               <div ref={tourRefBot} className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
@@ -1094,7 +1128,7 @@ export function Lobby() {
               </div>
               
               {/* Arène des tournois */}
-              <div ref={tourRefTournaments}>
+              <div ref={tourRefTournaments} className="lg:mt-auto">
                 <TournamentWidget />
               </div>
             </div>
@@ -1142,7 +1176,11 @@ export function Lobby() {
 
           {/* Onglet Blackjack - CONDITIONAL RENDER */}
           {lobbyMainTab === "blackjack" && (
-            <div ref={tourRefBlackjack} className="space-y-6">
+            <div
+              ref={tourRefBlackjack}
+              className="space-y-6 lg:flex lg:flex-col lg:space-y-0 lg:gap-6"
+              style={lobbyAlignmentStyle}
+            >
               <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
                   <Club className="h-8 w-8 text-rose-300" aria-hidden />
@@ -1170,12 +1208,14 @@ export function Lobby() {
           {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
           <div
             ref={tourRefFriends}
-            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:sticky lg:top-4 lg:z-10 lg:self-start"
+            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:flex lg:h-full lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-6 lg:pt-0 lg:sticky lg:top-4 lg:z-10"
           >
             <div ref={tourRefDaily}>
               <DailyChallenges />
             </div>
-            <FriendsList />
+            <div className="lg:flex-1">
+              <FriendsList />
+            </div>
           </div>
 
         </div>
