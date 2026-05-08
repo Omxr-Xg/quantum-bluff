@@ -6,6 +6,14 @@ import { createPortal } from "react-dom";
 const SELECTOR =
   'button:not([disabled]), [role="button"]:not([aria-disabled="true"]), input[type="submit"]:not([disabled]), input[type="button"]:not([disabled]), [data-tooltip], summary';
 
+function shouldDisableHoverTooltip(): boolean {
+  if (typeof window === "undefined") return true;
+  return (
+    window.matchMedia("(max-width: 767px)").matches ||
+    window.matchMedia("(pointer: coarse)").matches
+  );
+}
+
 function getTooltipText(el: HTMLElement): string | null {
   if (el.getAttribute("data-no-global-tooltip") !== null) return null;
   if (el.getAttribute("data-slot") === "tooltip-trigger") return null;
@@ -52,6 +60,11 @@ export function GlobalHoverTooltip() {
     };
 
     const onMouseOver = (e: MouseEvent) => {
+      if (shouldDisableHoverTooltip()) {
+        restore();
+        return;
+      }
+
       const raw = (e.target as Element | null)?.closest?.(SELECTOR);
       if (!(raw instanceof HTMLElement)) {
         restore();
@@ -116,10 +129,12 @@ export function GlobalHoverTooltip() {
 
     document.addEventListener("mouseover", onMouseOver, true);
     document.addEventListener("mouseout", onMouseOut, true);
+    window.addEventListener("resize", restore);
     return () => {
       restore();
       document.removeEventListener("mouseover", onMouseOver, true);
       document.removeEventListener("mouseout", onMouseOut, true);
+      window.removeEventListener("resize", restore);
     };
   }, []);
 
