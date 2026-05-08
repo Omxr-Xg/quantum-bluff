@@ -2268,6 +2268,23 @@ export function Game() {
     return () => clearTimeout(timer);
   }, [gameIdParam, isBotMode, serverHandRuntimePhase, gameOverReason]);
 
+  // Safety net for tournament / non-bot multiplayer games:
+  // If the server hand runtime stays at HAND_COMPLETE for more than 9 seconds
+  // (the orchestrator auto-start + gateway fallback together take ≤7.5s), re-request
+  // the game state by re-joining the room so the client can receive the new hand.
+  useEffect(() => {
+    if (!gameIdParam || isBotMode || gameOverReason) return;
+    if (serverHandRuntimePhase !== "HAND_COMPLETE") return;
+    const timer = window.setTimeout(() => {
+      if (!socket || !socket.connected || !userId) return;
+      // Re-join the game room to trigger a fresh state push from the server.
+      lastAppliedSocketSnapshotSigRef.current = "";
+      socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
+    }, 9000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameIdParam, isBotMode, serverHandRuntimePhase, gameOverReason]);
+
   useEffect(() => {
     if (!gameOverReason) return;
     if (pendingBotHandAutoApplyTimerRef.current) {
