@@ -1,4 +1,4 @@
-import { apiUrl } from "./apiBase";
+import { apiFetch, apiUrl } from "./apiBase";
 import {
   clearAuthStorageEverywhere,
   getAuthItem,
@@ -26,6 +26,8 @@ const STORAGE_KEYS = {
 
 /** Émis après chaque changement de balance locale (localStorage). Le Layout peut s’y abonner. */
 export const BALANCE_CHANGED_EVENT = 'quantum-bluff-balance-changed';
+/** Partie cash : solde affiché = portefeuille API + jetons au siège (`detail.total`, ou `null` pour réinitialiser). */
+export const POKER_WALLET_DISPLAY_EVENT = 'quantum-bluff-poker-wallet-display';
 export const PROFILE_CHANGED_EVENT = 'quantum-bluff-profile-changed';
 
 function notifyBalanceChanged(): void {
@@ -164,7 +166,7 @@ export async function fetchBalanceFromServer(options?: FetchBalanceOptions): Pro
   }
   const url = apiUrl("/api/auth/balance");
   try {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await apiFetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) {
       if (res.status === 401) {
         invalidateStaleAuthSession();

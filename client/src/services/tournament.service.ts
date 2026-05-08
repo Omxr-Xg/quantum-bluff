@@ -1,4 +1,4 @@
-import { apiUrl } from '../utils/apiBase';
+import { apiFetch, apiUrl } from '../utils/apiBase';
 import { getAuthItem } from '../utils/authStorage';
 
 export interface Tournament {
@@ -31,7 +31,7 @@ export const TournamentService = {
   getTournaments: async (): Promise<Tournament[]> => {
     const token = getAuthItem('token'); // 1. On récupère le token
     
-    const res = await fetch(apiUrl('/api/tournaments'), {
+    const res = await apiFetch(apiUrl('/api/tournaments'), {
       headers: {
         // 2. ON L'ENVOIE ! Sans ça, le serveur te voit comme un inconnu.
         'Authorization': `Bearer ${token}` 
@@ -43,7 +43,7 @@ export const TournamentService = {
   },
 
   createTournament: async (data: { name: string; buyIn: number; maxPlayers: number; startTime: string; visibility?: 'PUBLIC' | 'PRIVATE' }) => {
-    const res = await fetch(apiUrl('/api/tournaments/create'), {
+    const res = await apiFetch(apiUrl('/api/tournaments/create'), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${getAuthItem('token')}`,
@@ -59,7 +59,7 @@ export const TournamentService = {
 
   // ASSURE-TOI QUE CE NOM EST BIEN CELUI-LÀ 👇
   joinTournament: async (id: string) => {
-    const res = await fetch(apiUrl(`/api/tournaments/${id}/join`), {
+    const res = await apiFetch(apiUrl(`/api/tournaments/${id}/join`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${getAuthItem('token')}`,
@@ -72,7 +72,7 @@ export const TournamentService = {
   },
 
   requestJoinTournament: async (id: string) => {
-    const res = await fetch(apiUrl(`/api/tournaments/${id}/request-join`), {
+    const res = await apiFetch(apiUrl(`/api/tournaments/${id}/request-join`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${getAuthItem('token')}`,
@@ -85,7 +85,7 @@ export const TournamentService = {
   },
 
   getReceivedJoinRequests: async () => {
-    const res = await fetch(apiUrl('/api/tournaments/requests/received'), {
+    const res = await apiFetch(apiUrl('/api/tournaments/requests/received'), {
       headers: {
         'Authorization': `Bearer ${getAuthItem('token')}`,
       }
@@ -96,7 +96,7 @@ export const TournamentService = {
   },
 
   acceptJoinRequest: async (requestId: string) => {
-    const res = await fetch(apiUrl(`/api/tournaments/requests/${requestId}/accept`), {
+    const res = await apiFetch(apiUrl(`/api/tournaments/requests/${requestId}/accept`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${getAuthItem('token')}`,
@@ -109,7 +109,7 @@ export const TournamentService = {
   },
 
   getSpectateTables: async (id: string): Promise<TournamentSpectatePayload> => {
-    const res = await fetch(apiUrl(`/api/tournaments/${id}/spectate-tables`), {
+    const res = await apiFetch(apiUrl(`/api/tournaments/${id}/spectate-tables`), {
       headers: {
         Authorization: `Bearer ${getAuthItem('token') ?? ''}`,
       },
@@ -120,7 +120,7 @@ export const TournamentService = {
   },
 
   leaveTournament: async (id: string) => {
-    const res = await fetch(apiUrl(`/api/tournaments/${id}/leave`), {
+    const res = await apiFetch(apiUrl(`/api/tournaments/${id}/leave`), {
       method: 'POST',
       headers: { 
         'Authorization': `Bearer ${getAuthItem('token')}`,
