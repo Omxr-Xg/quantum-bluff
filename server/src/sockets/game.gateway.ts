@@ -1056,18 +1056,19 @@ export class GameGateway {
         }) => {
           try {
             const { gameId, seatIndex, buyIn } = data;
-            if (!socket.userId || !gameId || socket.gameId !== gameId) return;
-            await withPokerTableLock(gameId, `cashsit:${socket.userId}`, async () => {
+            const userId = socket.userId;
+            if (!userId || !gameId || socket.gameId !== gameId) return;
+            await withPokerTableLock(gameId, `cashsit:${userId}`, async () => {
               const game = await activeGames.get(gameId);
               if (!(game instanceof CashGameController)) return;
               const user = await prisma.user.findUnique({
-                where: { id: socket.userId },
+                where: { id: userId },
                 select: { username: true, chips: true },
               });
               const wallet = intChips(user?.chips ?? 0);
               const avatarUrl = sanitizePublicAvatarUrl(data.avatarUrl);
               const result = game.sit(
-                socket.userId,
+                userId,
                 user?.username ?? "Joueur",
                 seatIndex,
                 buyIn ?? 100,
@@ -1083,14 +1084,14 @@ export class GameGateway {
               }
               const seat = game
                 .getOccupiedSeats()
-                .find((s) => s.userId === socket.userId);
+                .find((s) => s.userId === userId);
               const debit = intChips(seat?.chips ?? 0);
               try {
                 await this.persistCashPokerBuyInDebits(gameId, "sit", [
-                  { userId: socket.userId, amount: debit },
+                  { userId, amount: debit },
                 ]);
               } catch {
-                game.forceClearSeatForUser(socket.userId);
+                game.forceClearSeatForUser(userId);
                 socket.emit("ERROR", {
                   code: "CASH_SIT_FAILED",
                   message:
