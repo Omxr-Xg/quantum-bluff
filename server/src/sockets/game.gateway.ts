@@ -53,6 +53,8 @@ import {
   emitToUsers,
   FRIEND_LOAN_SOCKET,
 } from "../services/friendLoan.emit.js";
+import { appendWalletLedgerEntry } from "../casino/services/walletLedger.service.js";
+import { createPokerCashLedgerContext } from "../poker/cash/pokerCashLedger.js";
 import {
   isUserOnline,
   markUserOffline,
@@ -486,6 +488,14 @@ export class GameGateway {
                 gameId,
                 action: "JOIN_GAME",
               });
+              rootLogger.warn({
+                msg: "socket_game_not_found",
+                reason: "JOIN_GAME",
+                gameId,
+                userId: socket.userId,
+                socketId: socket.id,
+                storedSnapshot: false,
+              });
 
               socket.emit("ERROR", {
                 code: "GAME_NOT_FOUND",
@@ -518,6 +528,13 @@ export class GameGateway {
             socket.emit("GAME_UPDATE", game.getSanitizedState());
             console.log(`👁️ Spectateur a rejoint la partie ${gameId}`);
           } else {
+            rootLogger.warn({
+              msg: "socket_game_not_found",
+              reason: "JOIN_SPECTATE",
+              gameId,
+              userId: socket.userId,
+              socketId: socket.id,
+            });
             socket.emit("ERROR", {
               code: "GAME_NOT_FOUND",
               message: "Partie introuvable",
@@ -799,6 +816,15 @@ export class GameGateway {
                 gameId,
                 action,
               });
+              rootLogger.warn({
+                msg: "socket_game_not_found",
+                reason: "PLAYER_ACTION",
+                gameId,
+                userId: socket.userId,
+                socketId: socket.id,
+                action,
+                storedSnapshot: false,
+              });
 
               socket.emit("ERROR", {
                 code: "GAME_NOT_FOUND",
@@ -850,6 +876,14 @@ export class GameGateway {
             this.resetTimer(gameId);
             let freshGame = await activeGames.get(gameId);
             if (!freshGame) {
+              rootLogger.warn({
+                msg: "socket_game_not_found_after_action",
+                gameId,
+                userId: socket.userId,
+                playerId,
+                action,
+                hint: "table_may_have_been_removed_after_hand_complete",
+              });
               socket.emit("ERROR", {
                 code: "GAME_NOT_FOUND",
                 message: "Partie introuvable",
@@ -1023,37 +1057,63 @@ export class GameGateway {
           try {
             const { gameId, seatIndex, buyIn } = data;
             if (!socket.userId || !gameId || socket.gameId !== gameId) return;
-            const game = await activeGames.get(gameId);
-            if (!(game instanceof CashGameController)) return;
-            const user = await prisma.user.findUnique({
-              where: { id: socket.userId },
-              select: { username: true, chips: true },
+            await withPokerTableLock(gameId, `cashsit:${socket.userId}`, async () => {
+              const game = await activeGames.get(gameId);
+              if (!(game instanceof CashGameController)) return;
+              const user = await prisma.user.findUnique({
+                where: { id: socket.userId },
+                select: { username: true, chips: true },
+              });
+              const wallet = intChips(user?.chips ?? 0);
+              const avatarUrl = sanitizePublicAvatarUrl(data.avatarUrl);
+              const result = game.sit(
+                socket.userId,
+                user?.username ?? "Joueur",
+                seatIndex,
+                buyIn ?? 100,
+                avatarUrl,
+                wallet,
+              );
+              if (!result.ok) {
+                socket.emit("ERROR", {
+                  code: "CASH_SIT_FAILED",
+                  message: result.error,
+                });
+                return;
+              }
+              const seat = game
+                .getOccupiedSeats()
+                .find((s) => s.userId === socket.userId);
+              const debit = intChips(seat?.chips ?? 0);
+              try {
+                await this.persistCashPokerBuyInDebits(gameId, "sit", [
+                  { userId: socket.userId, amount: debit },
+                ]);
+              } catch {
+                game.forceClearSeatForUser(socket.userId);
+                socket.emit("ERROR", {
+                  code: "CASH_SIT_FAILED",
+                  message:
+                    "Impossible de débiter le portefeuille pour ce buy-in. Réessayez.",
+                });
+                return;
+              }
+              const socketsInRoom = await this.io.in(gameId).fetchSockets();
+              for (const s of socketsInRoom) {
+                const uid = (s as unknown as AuthenticatedSocket).userId;
+                const snapshot = game.getSanitizedState(uid);
+                s.emit("GAME_UPDATE", snapshot);
+                s.emit("GAME_STATE_UPDATED", snapshot);
+              }
             });
-            const wallet = intChips(user?.chips ?? 0);
-            const avatarUrl = sanitizePublicAvatarUrl(data.avatarUrl);
-            const result = game.sit(
-              socket.userId,
-              user?.username ?? "Joueur",
-              seatIndex,
-              buyIn ?? 100,
-              avatarUrl,
-              wallet,
-            );
-            if (!result.ok) {
+          } catch (err) {
+            if (err instanceof PokerTableLockedError) {
               socket.emit("ERROR", {
-                code: "CASH_SIT_FAILED",
-                message: result.error,
+                code: "TABLE_LOCKED",
+                message: "Une action est déjà en cours sur cette table.",
               });
               return;
             }
-            const socketsInRoom = await this.io.in(gameId).fetchSockets();
-            for (const s of socketsInRoom) {
-              const uid = (s as unknown as AuthenticatedSocket).userId;
-              const snapshot = game.getSanitizedState(uid);
-              s.emit("GAME_UPDATE", snapshot);
-              s.emit("GAME_STATE_UPDATED", snapshot);
-            }
-          } catch (err) {
             console.error("Erreur CASH_SIT:", err);
           }
         },
@@ -1158,6 +1218,15 @@ export class GameGateway {
               });
               return;
             }
+            if (result.cashedOutChips > 0) {
+              await this.persistCashPokerCashouts(gameId, "leave", [
+                {
+                  userId: leaverId,
+                  chips: result.cashedOutChips,
+                  actionPrefix: "leave",
+                },
+              ]);
+            }
 
             let dissolveReason:
               | "all_players_left"
@@ -1174,7 +1243,16 @@ export class GameGateway {
               const remaining = game.getOccupiedSeats()[0]?.userId;
               if (remaining) {
                 game.cancelInterHandCountdown();
-                game.leave(remaining);
+                const r2 = game.leave(remaining);
+                if (r2.ok && r2.cashedOutChips > 0) {
+                  await this.persistCashPokerCashouts(gameId, "leave", [
+                    {
+                      userId: remaining,
+                      chips: r2.cashedOutChips,
+                      actionPrefix: "heads-up-peer",
+                    },
+                  ]);
+                }
                 dissolveReason = "heads_up_peer_left";
               }
             }
@@ -1236,11 +1314,32 @@ export class GameGateway {
             if (!socket.userId || !gameId || socket.gameId !== gameId) return;
             const game = await activeGames.get(gameId);
             if (!(game instanceof CashGameController)) return;
-            const result = game.rebuy(socket.userId, intChips(amount ?? 100));
+            const user = await prisma.user.findUnique({
+              where: { id: socket.userId },
+              select: { chips: true },
+            });
+            const wallet = intChips(user?.chips ?? 0);
+            const add = intChips(
+              Math.max(10, Math.min(intChips(amount ?? 100), 5000)),
+            );
+            const result = game.rebuy(socket.userId, intChips(amount ?? 100), wallet);
             if (!result.ok) {
               socket.emit("ERROR", {
                 code: "CASH_REBUY_FAILED",
                 message: result.error,
+              });
+              return;
+            }
+            try {
+              await this.persistCashPokerRebuyDebit(gameId, socket.userId, add);
+            } catch {
+              const seat = game
+                .getOccupiedSeats()
+                .find((s) => s.userId === socket.userId);
+              if (seat) seat.chips = Math.max(0, intChips(seat.chips) - add);
+              socket.emit("ERROR", {
+                code: "CASH_REBUY_FAILED",
+                message: "Solde insuffisant pour ce rebuy.",
               });
               return;
             }
@@ -1560,7 +1659,16 @@ export class GameGateway {
                 }
               } else if (game instanceof CashGameController) {
                 const removed = game.removeDisconnectedPlayer(userId);
-                if (removed) {
+                if (removed.ok) {
+                  if (removed.cashedOutChips > 0) {
+                    await this.persistCashPokerCashouts(gameId, "disconnect", [
+                      {
+                        userId,
+                        chips: removed.cashedOutChips,
+                        actionPrefix: "disconnect",
+                      },
+                    ]);
+                  }
                   const socketsInRoom = await this.io.in(gameId).fetchSockets();
                   for (const s of socketsInRoom) {
                     const uid = (s as unknown as AuthenticatedSocket).userId;
@@ -1711,6 +1819,138 @@ export class GameGateway {
     );
   }
 
+  private async persistCashPokerBuyInDebits(
+    gameId: string,
+    ledgerHandId: string,
+    items: { userId: string; amount: number }[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+    await prisma.$transaction(async (tx) => {
+      for (const { userId, amount } of items) {
+        const a = intChips(amount);
+        if (a <= 0) continue;
+        const row = await tx.user.findUnique({
+          where: { id: userId },
+          select: { chips: true },
+        });
+        const before = intChips(row?.chips ?? 0);
+        if (before < a) {
+          const e = new Error("INSUFFICIENT_CHIPS_BUY_IN") as Error & { code?: string };
+          e.code = "INSUFFICIENT_CHIPS_BUY_IN";
+          throw e;
+        }
+        const after = before - a;
+        await tx.user.update({
+          where: { id: userId },
+          data: { chips: after },
+        });
+        await appendWalletLedgerEntry(
+          {
+            context: createPokerCashLedgerContext({
+              userId,
+              gameId,
+              handId: ledgerHandId,
+              actionId: `buy-in:${userId}:${Date.now()}`,
+            }),
+            reason: "CASH_POKER_BUY_IN",
+            amount: -a,
+            balanceBefore: before,
+            balanceAfter: after,
+          },
+          tx,
+        );
+      }
+    });
+  }
+
+  private async persistCashPokerRebuyDebit(
+    gameId: string,
+    userId: string,
+    amount: number,
+  ): Promise<void> {
+    const a = intChips(amount);
+    if (a <= 0) return;
+    await prisma.$transaction(async (tx) => {
+      const row = await tx.user.findUnique({
+        where: { id: userId },
+        select: { chips: true },
+      });
+      const before = intChips(row?.chips ?? 0);
+      if (before < a) {
+        const e = new Error("INSUFFICIENT_CHIPS_REBUY") as Error & { code?: string };
+        e.code = "INSUFFICIENT_CHIPS_REBUY";
+        throw e;
+      }
+      const after = before - a;
+      await tx.user.update({
+        where: { id: userId },
+        data: { chips: after },
+      });
+      await appendWalletLedgerEntry(
+        {
+          context: createPokerCashLedgerContext({
+            userId,
+            gameId,
+            handId: "rebuy",
+            actionId: `rebuy:${userId}:${Date.now()}`,
+          }),
+          reason: "CASH_POKER_REBUY",
+          amount: -a,
+          balanceBefore: before,
+          balanceAfter: after,
+        },
+        tx,
+      );
+    });
+  }
+
+  private async persistCashPokerCashouts(
+    gameId: string,
+    ledgerHandId: string,
+    items: { userId: string; chips: number; actionPrefix: string }[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const { userId, chips, actionPrefix } of items) {
+          const amount = intChips(chips);
+          if (amount <= 0) continue;
+          const row = await tx.user.findUnique({
+            where: { id: userId },
+            select: { chips: true },
+          });
+          const before = intChips(row?.chips ?? 0);
+          const after = before + amount;
+          await tx.user.update({
+            where: { id: userId },
+            data: { chips: after },
+          });
+          await appendWalletLedgerEntry(
+            {
+              context: createPokerCashLedgerContext({
+                userId,
+                gameId,
+                handId: ledgerHandId,
+                actionId: `${actionPrefix}:${userId}:${Date.now()}`,
+              }),
+              reason: "CASH_POKER_CASHOUT",
+              amount,
+              balanceBefore: before,
+              balanceAfter: after,
+            },
+            tx,
+          );
+        }
+      });
+    } catch (err) {
+      rootLogger.error({
+        msg: "cash_poker_cashout_persist_failed",
+        gameId,
+        detail: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   /**
    * Après une main cash : HU → s’il ne reste qu’un joueur, retour lobby (GAME_ENDED).
    */
@@ -1718,6 +1958,7 @@ export class GameGateway {
     cashGame: CashGameController,
     gameId: string,
     roomId: string,
+    lastHandId: string,
   ): Promise<boolean> {
     const SHOWDOWN_RESULT_DISPLAY_MS = 3000;
     let dissolveReason: "all_players_left" | "heads_up_peer_left" | null = null;
@@ -1725,7 +1966,16 @@ export class GameGateway {
       const remaining = cashGame.getOccupiedSeats()[0]?.userId;
       if (remaining) {
         cashGame.cancelInterHandCountdown();
-        cashGame.leave(remaining);
+        const left = cashGame.leave(remaining);
+        if (left.ok && left.cashedOutChips > 0) {
+          await this.persistCashPokerCashouts(gameId, lastHandId, [
+            {
+              userId: remaining,
+              chips: left.cashedOutChips,
+              actionPrefix: "heads-up-dissolve",
+            },
+          ]);
+        }
         dissolveReason = "heads_up_peer_left";
       }
     }
@@ -1776,8 +2026,11 @@ export class GameGateway {
     },
   ): Promise<void> {
     const hiddenBetSnap = buildHiddenBetResolutionPayload(gameId, cashGame);
-    const balanceSnapshot = cashGame.onHandComplete();
-    const bustedUserIds = balanceSnapshot
+    const startingMap = cashGame.getLastHandStartingStacks();
+    const { playerStacks, seatCashOuts } = cashGame.onHandComplete();
+    const handId = showdownSnapshot.handId || "unknown";
+
+    const bustedUserIds = playerStacks
       .filter((b) => intChips(b.chips) <= 0)
       .map((b) => String(b.userId));
     for (const bustedUserId of bustedUserIds) {
@@ -1788,69 +2041,119 @@ export class GameGateway {
         mode: "cash",
       });
     }
-    if (balanceSnapshot.length > 0) {
+
+    if (playerStacks.length > 0 || seatCashOuts.length > 0) {
       try {
         const loanEmits: {
           socketRepayment?: RepaymentSocketPayload;
           socketCompleted?: RepaymentSocketPayload;
         }[] = [];
+        let seatAdjustments: { userId: string; delta: number }[] = [];
         await prisma.$transaction(async (tx) => {
-          const userIds = [...new Set(balanceSnapshot.map((b) => b.userId))];
+          seatAdjustments = [];
+          const userIds = [
+            ...new Set([
+              ...playerStacks.map((p) => p.userId),
+              ...seatCashOuts.map((s) => s.userId),
+            ]),
+          ];
           const dbRows = await tx.user.findMany({
             where: { id: { in: userIds } },
             select: { id: true, chips: true },
           });
-          const dbMap = new Map(dbRows.map((r) => [r.id, intChips(r.chips)]));
-          async function chipsFromDb(uid: string): Promise<number> {
-            if (!dbMap.has(uid)) {
+          const liquidMap = new Map(dbRows.map((r) => [r.id, intChips(r.chips)]));
+          async function liquidOf(uid: string): Promise<number> {
+            if (!liquidMap.has(uid)) {
               const r = await tx.user.findUnique({
                 where: { id: uid },
                 select: { chips: true },
               });
-              dbMap.set(uid, intChips(r?.chips ?? 0));
+              liquidMap.set(uid, intChips(r?.chips ?? 0));
             }
-            return dbMap.get(uid)!;
+            return liquidMap.get(uid)!;
           }
 
-          const finalChips = new Map<string, number>();
-          for (const { userId, chips } of balanceSnapshot) {
-            finalChips.set(userId, intChips(chips));
-          }
+          for (const { userId, chips: endStackRaw } of playerStacks) {
+            const endStack = intChips(endStackRaw);
+            const startStack = intChips(startingMap.get(userId) ?? 0);
+            const delta = endStack - startStack;
+            const liquid = await liquidOf(userId);
+            const balanceBeforeTotal = liquid + startStack;
+            const balanceAfterTotal = liquid + endStack;
 
-          for (const { userId, chips: snapRaw } of balanceSnapshot) {
-            const snap = intChips(snapRaw);
-            const db = dbMap.get(userId) ?? snap;
-            const delta = snap - db;
-            if (delta <= 0) continue;
-            const r = await applyRepaymentOnPokerSettlement(tx, {
-              borrowerId: userId,
-              grossWinDelta: delta,
-              borrowerBalanceAfterFullWin: snap,
-              gameId,
-              handId: showdownSnapshot.handId,
-            });
-            if (r.repayment > 0 && r.lenderId) {
-              finalChips.set(userId, snap - r.repayment);
-              const lenderPrev = finalChips.has(r.lenderId)
-                ? finalChips.get(r.lenderId)!
-                : await chipsFromDb(r.lenderId);
-              finalChips.set(r.lenderId, lenderPrev + r.repayment);
+            if (delta !== 0) {
+              await appendWalletLedgerEntry(
+                {
+                  context: createPokerCashLedgerContext({
+                    userId,
+                    gameId,
+                    handId,
+                    actionId: `hand-result:${handId}:${userId}`,
+                  }),
+                  reason: "CASH_POKER_HAND_RESULT",
+                  amount: delta,
+                  balanceBefore: balanceBeforeTotal,
+                  balanceAfter: balanceAfterTotal,
+                },
+                tx,
+              );
             }
-            if (r.socketRepayment || r.socketCompleted) {
-              loanEmits.push({
-                socketRepayment: r.socketRepayment,
-                socketCompleted: r.socketCompleted,
+
+            if (delta > 0) {
+              const totalAfterWin = liquid + endStack;
+              const r = await applyRepaymentOnPokerSettlement(tx, {
+                borrowerId: userId,
+                grossWinDelta: delta,
+                borrowerBalanceAfterFullWin: totalAfterWin,
+                gameId,
+                handId,
               });
+              if (r.repayment > 0 && r.lenderId) {
+                await tx.user.update({
+                  where: { id: r.lenderId },
+                  data: { chips: { increment: r.repayment } },
+                });
+                seatAdjustments.push({ userId, delta: -r.repayment });
+              }
+              if (r.socketRepayment || r.socketCompleted) {
+                loanEmits.push({
+                  socketRepayment: r.socketRepayment,
+                  socketCompleted: r.socketCompleted,
+                });
+              }
             }
           }
 
-          for (const [uid, chips] of finalChips) {
+          for (const { userId, chips: outRaw } of seatCashOuts) {
+            const amount = intChips(outRaw);
+            if (amount <= 0) continue;
+            const before = await liquidOf(userId);
+            const after = before + amount;
             await tx.user.update({
-              where: { id: uid },
-              data: { chips: intChips(chips) },
+              where: { id: userId },
+              data: { chips: after },
             });
+            liquidMap.set(userId, after);
+            await appendWalletLedgerEntry(
+              {
+                context: createPokerCashLedgerContext({
+                  userId,
+                  gameId,
+                  handId,
+                  actionId: `cashout-hand:${handId}:${userId}`,
+                }),
+                reason: "CASH_POKER_CASHOUT",
+                amount,
+                balanceBefore: before,
+                balanceAfter: after,
+              },
+              tx,
+            );
           }
         });
+        for (const adj of seatAdjustments) {
+          cashGame.adjustSeatChips(adj.userId, adj.delta);
+        }
         for (const ev of loanEmits) {
           if (ev.socketRepayment) {
             emitToUsers(
@@ -1885,7 +2188,7 @@ export class GameGateway {
         });
       }
     }
-    await cashGame.processRejoinQueue(async (uid) => {
+    const rejoinBuyIns = await cashGame.processRejoinQueue(async (uid) => {
       const u = await prisma.user.findUnique({
         where: { id: uid },
         select: { username: true, chips: true },
@@ -1894,6 +2197,27 @@ export class GameGateway {
         ? { username: u.username, chips: Math.max(100, u.chips ?? 1000) }
         : null;
     });
+    if (rejoinBuyIns.length > 0) {
+      try {
+        await this.persistCashPokerBuyInDebits(
+          gameId,
+          `rejoin-after:${handId}`,
+          rejoinBuyIns.map((b) => ({
+            userId: b.userId,
+            amount: b.buyInAmount,
+          })),
+        );
+      } catch (err) {
+        rootLogger.error({
+          msg: "cash_poker_rejoin_buy_in_failed",
+          gameId,
+          detail: err instanceof Error ? err.message : String(err),
+        });
+        for (const b of rejoinBuyIns) {
+          cashGame.forceClearSeatForUser(b.userId);
+        }
+      }
+    }
     const socketsInRoom2 = await this.io.in(gameId).fetchSockets();
     for (const s of socketsInRoom2) {
       const uid = (s as unknown as AuthenticatedSocket).userId;
@@ -1917,6 +2241,7 @@ export class GameGateway {
       cashGame,
       gameId,
       roomId,
+      handId,
     );
     if (!dissolved) {
       const snap = cashGame.getSanitizedState();
