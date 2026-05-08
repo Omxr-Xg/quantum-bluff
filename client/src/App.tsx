@@ -215,6 +215,7 @@ function TournamentTeleporter() {
     socket.on('tournament-player-joined', handlePlayerJoined);
     socket.on('tournament-waiting-final', handleWaitingFinal);
     socket.on('tournament-final-table', handleFinalTable);
+    socket.on('tournament-merge-table', handleFinalTable);
     socket.on('tournament-eliminated', handleElimination);
     socket.on('tournament-spectate', handleSpectate);
     socket.on('tournament-result', handleTournamentResult);
@@ -227,6 +228,7 @@ function TournamentTeleporter() {
       socket.off('tournament-player-joined', handlePlayerJoined);
       socket.off('tournament-waiting-final', handleWaitingFinal);
       socket.off('tournament-final-table', handleFinalTable);
+      socket.off('tournament-merge-table', handleFinalTable);
       socket.off('tournament-eliminated', handleElimination);
       socket.off('tournament-spectate', handleSpectate);
       socket.off('tournament-result', handleTournamentResult);

@@ -11,6 +11,7 @@ import {
   getTournamentExpectedTables,
   getTournamentSurvivors,
   setTournamentExpectedTables,
+  type BracketSurvivorRow,
 } from './tournamentBracketStore.service.js';
 
 /** Max joueurs par table au début du tournoi (n >= 7). */
@@ -72,6 +73,13 @@ export class TournamentService {
   private static alreadyEliminated = new Set<string>();
 
   private static eliminationOrder = new Map<string, string[]>();
+
+  /** Partie fusion `game_tournoi_merge_*` → tournoi (réduction à 2 avant finale HU). */
+  private static mergeRoundGameToTournament = new Map<string, string>();
+
+  static getMergeRoundTournamentId(gameId: string): string | undefined {
+    return this.mergeRoundGameToTournament.get(gameId);
+  }
 
   static setIo(io: Server) {
     this.io = io;
@@ -428,6 +436,8 @@ export class TournamentService {
       throw new Error("Tournoi déjà actif ou annulé");
     }
 
+    await clearTournamentBracketState(tournamentId);
+
     const players = [...tournament.players].sort(() => Math.random() - 0.5);
     const totalPlayers = players.length;
     const tableSizes = getOpeningRoundTableSizes(totalPlayers);
@@ -516,12 +526,224 @@ export class TournamentService {
     return result;
   }
 
+  private static async createHeadsUpFinalTable(
+    tournamentId: string,
+    survivors: BracketSurvivorRow[],
+    buyIn: number,
+  ): Promise<void> {
+    if (survivors.length !== 2) {
+      rootLogger.error({
+        msg: 'tournament_final_requires_two',
+        tournamentId,
+        count: survivors.length,
+      });
+      return;
+    }
+
+    await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { activeBracketPhase: 'FINAL' },
+    });
+
+    const finalGameId = `game_tournoi_final_${Date.now()}`;
+    const doubled = survivors.map((s) => ({
+      ...s,
+      stack: Math.max(s.chips, buyIn) * 2,
+    }));
+
+    const finalPlayers = doubled.map((s, index) => ({
+      id: s.userId,
+      name: s.username,
+      cards: [],
+      chips: s.stack,
+      role: 'PLAYER' as const,
+      currentBet: 0,
+      isActive: true,
+      position: index,
+      isDealer: false,
+      isConnected: true,
+    }));
+
+    const finalTable = new GameTable(finalGameId, finalPlayers);
+    finalTable.startHand();
+    await activeGames.set(finalGameId, finalTable);
+    const survivorsCopy = doubled.map((s) => ({
+      userId: s.userId,
+      username: s.username,
+      chips: s.stack,
+    }));
+    await clearTournamentSurvivors(tournamentId);
+
+    const meta = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { name: true },
+    });
+    if (meta) {
+      this.publishSpectateTables(tournamentId, meta.name, [
+        {
+          tableNumber: 1,
+          roomId: finalGameId,
+          players: survivorsCopy.map((p) => ({
+            id: p.userId,
+            username: p.username,
+          })),
+        },
+      ]);
+    }
+
+    if (this.io) {
+      const finalPayload = { gameId: finalGameId, players: survivorsCopy };
+      survivorsCopy.forEach((s) => {
+        this.io!.to(`user:${s.userId}`).emit('tournament-final-table', finalPayload);
+      });
+
+      const eliminated = this.eliminationOrder.get(tournamentId) ?? [];
+      eliminated.forEach(userId => {
+        this.io!.to(`user:${userId}`).emit('tournament-spectate', {
+          gameId: finalGameId,
+        });
+      });
+    }
+
+    rootLogger.info({
+      msg: 'tournament_final_table_created',
+      tournamentId,
+      gameId: finalGameId,
+    });
+  }
+
+  private static async createMergeRoundTable(
+    tournamentId: string,
+    survivors: BracketSurvivorRow[],
+    tournamentName: string,
+  ): Promise<void> {
+    const mergeId = `game_tournoi_merge_${Date.now()}`;
+    this.mergeRoundGameToTournament.set(mergeId, tournamentId);
+
+    const mergePlayers = survivors.map((s, index) => ({
+      id: s.userId,
+      name: s.username,
+      cards: [],
+      chips: Math.max(0, s.chips),
+      role: 'PLAYER' as const,
+      currentBet: 0,
+      isActive: true,
+      position: index,
+      isDealer: false,
+      isConnected: true,
+    }));
+
+    const mergeTable = new GameTable(mergeId, mergePlayers);
+    mergeTable.startHand();
+    await activeGames.set(mergeId, mergeTable);
+
+    await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { activeBracketPhase: 'MERGE' },
+    });
+    await clearTournamentSurvivors(tournamentId);
+
+    const payloadPlayers = survivors.map((p) => ({
+      userId: p.userId,
+      username: p.username,
+      chips: Math.max(0, p.chips),
+    }));
+
+    this.publishSpectateTables(tournamentId, tournamentName, [
+      {
+        tableNumber: 1,
+        roomId: mergeId,
+        players: survivors.map((p) => ({
+          id: p.userId,
+          username: p.username,
+        })),
+      },
+    ]);
+
+    if (this.io) {
+      payloadPlayers.forEach((p) => {
+        this.io!.to(`user:${p.userId}`).emit('tournament-merge-table', {
+          gameId: mergeId,
+          players: payloadPlayers,
+        });
+      });
+      const eliminated = this.eliminationOrder.get(tournamentId) ?? [];
+      eliminated.forEach((userId) => {
+        this.io!.to(`user:${userId}`).emit('tournament-spectate', {
+          gameId: mergeId,
+        });
+      });
+    }
+
+    rootLogger.info({
+      msg: 'tournament_merge_table_created',
+      tournamentId,
+      gameId: mergeId,
+      players: survivors.length,
+    });
+  }
+
+  static async handleMergeRoundComplete(
+    mergeGameId: string,
+    survivors: { userId: string; username: string; chips: number }[],
+  ): Promise<void> {
+    if (survivors.length !== 2) return;
+    const tournamentId = this.mergeRoundGameToTournament.get(mergeGameId);
+    if (!tournamentId) {
+      rootLogger.warn({ msg: 'tournament_merge_unknown_game', mergeGameId });
+      return;
+    }
+    this.mergeRoundGameToTournament.delete(mergeGameId);
+
+    const t = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { buyIn: true, status: true },
+    });
+    if (!t || t.status !== 'ACTIVE') return;
+
+    await this.createHeadsUpFinalTable(
+      tournamentId,
+      survivors.map((s) => ({
+        userId: s.userId,
+        username: s.username,
+        chips: s.chips,
+      })),
+      t.buyIn,
+    );
+  }
+
+  /** Cas rare : il ne reste qu’un survivant à la table de fusion (ex. pot à 3). */
+  static async handleMergeSingleWinner(
+    mergeGameId: string,
+    winnerId: string,
+  ): Promise<void> {
+    const tournamentId = this.mergeRoundGameToTournament.get(mergeGameId);
+    if (!tournamentId) {
+      rootLogger.warn({ msg: 'tournament_merge_single_unknown_game', mergeGameId });
+      return;
+    }
+    this.mergeRoundGameToTournament.delete(mergeGameId);
+
+    const eliminated = this.eliminationOrder.get(tournamentId) ?? [];
+    const rankedIds = [winnerId, ...eliminated.slice().reverse()];
+    await this.processVictory(rankedIds, tournamentId);
+  }
+
   static async handleTableFinished(
     tournamentId: string,
     winnerId: string,
     winnerUsername: string,
     winnerChips: number
-  ) {
+  ): Promise<
+    | {
+        emitTournamentWonPartial: {
+          userId: string;
+          survivorsCount: number;
+          expectedTables: number;
+        };
+      }
+    | undefined
+  > {
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       select: {
@@ -556,7 +778,13 @@ export class TournamentService {
         });
       }
       console.log(`[TOURNOI] Survivants: ${survivors.length}/${expectedTables}`);
-      return;
+      return {
+        emitTournamentWonPartial: {
+          userId: winnerId,
+          survivorsCount: survivors.length,
+          expectedTables,
+        },
+      };
     }
 
     if (survivors.length === 1) {
@@ -566,69 +794,37 @@ export class TournamentService {
       return;
     }
 
-    await prisma.tournament.update({
-      where: { id: tournamentId },
-      data: { activeBracketPhase: 'FINAL' },
-    });
+    const phase = tournament.activeBracketPhase ?? 'OPENING';
 
-    const finalGameId = `game_tournoi_final_${Date.now()}`;
-    const finalPlayers = survivors.map((s, index) => ({
-      id: s.userId,
-      name: s.username,
-      cards: [],
-      chips: s.chips,
-      role: 'PLAYER' as const,
-      currentBet: 0,
-      isActive: true,
-      position: index,
-      isDealer: false,
-      isConnected: true,
-    }));
-
-    const finalTable = new GameTable(finalGameId, finalPlayers);
-    finalTable.startHand();
-    await activeGames.set(finalGameId, finalTable);
-    const survivorsCopy = [...survivors];
-    await clearTournamentSurvivors(tournamentId);
-
-    const meta = await prisma.tournament.findUnique({
-      where: { id: tournamentId },
-      select: { name: true },
-    });
-    if (meta) {
-      this.publishSpectateTables(tournamentId, meta.name, [
-        {
-          tableNumber: 1,
-          roomId: finalGameId,
-          players: survivorsCopy.map((p) => ({
-            id: p.userId,
-            username: p.username,
-          })),
-        },
-      ]);
+    if (phase === 'OPENING' && survivors.length > 2) {
+      const meta = await prisma.tournament.findUnique({
+        where: { id: tournamentId },
+        select: { name: true },
+      });
+      if (meta) {
+        await this.createMergeRoundTable(tournamentId, survivors, meta.name);
+      }
+      return;
     }
 
-    if (this.io) {
-      survivorsCopy.forEach(s => {
-        this.io!.to(`user:${s.userId}`).emit('tournament-final-table', {
-          gameId: finalGameId,
-          players: survivorsCopy.map(p => ({
-            userId: p.userId,
-            username: p.username,
-            chips: p.chips,
-          })),
-        });
+    if (phase === 'OPENING' && survivors.length === 2) {
+      const t = await prisma.tournament.findUnique({
+        where: { id: tournamentId },
+        select: { buyIn: true },
       });
-
-      const eliminated = this.eliminationOrder.get(tournamentId) ?? [];
-      eliminated.forEach(userId => {
-        this.io!.to(`user:${userId}`).emit('tournament-spectate', {
-          gameId: finalGameId,
-        });
-      });
+      if (t) {
+        await this.createHeadsUpFinalTable(tournamentId, survivors, t.buyIn);
+      }
+      return;
     }
 
-    console.log(`[TOURNOI] TABLE FINALE créée: ${finalGameId} avec ${survivorsCopy.length} joueurs`);
+    rootLogger.warn({
+      msg: 'tournament_handle_table_unexpected_bracket',
+      tournamentId,
+      phase,
+      survivorCount: survivors.length,
+      expectedTables,
+    });
   }
 
   static async processVictory(rankedPlayerIds: string[], tournamentId?: string) {

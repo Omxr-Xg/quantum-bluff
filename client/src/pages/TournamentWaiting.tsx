@@ -26,10 +26,12 @@ export function TournamentWaiting() {
 
     socket.on('tournament-waiting-final', handleUpdate);
     socket.on('tournament-final-table', handleFinal);
+    socket.on('tournament-merge-table', handleFinal);
 
     return () => {
       socket.off('tournament-waiting-final', handleUpdate);
       socket.off('tournament-final-table', handleFinal);
+      socket.off('tournament-merge-table', handleFinal);
     };
   }, [socket, navigate]);
 

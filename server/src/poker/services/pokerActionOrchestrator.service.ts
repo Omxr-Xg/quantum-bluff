@@ -84,6 +84,29 @@ async function handleHandCompleteIfNeeded(
         (p) => p.chips > 0 && p.isConnected !== false,
       );
 
+  if (gameId.startsWith("game_tournoi_merge_")) {
+    if (survivors.length === 2) {
+      await TournamentService.handleMergeRoundComplete(
+        gameId,
+        survivors.map((p) => ({
+          userId: String(p.id),
+          username: String(p.name),
+          chips: p.chips,
+        })),
+      );
+      activeGames.delete(gameId);
+      return;
+    }
+    if (survivors.length === 1) {
+      await TournamentService.handleMergeSingleWinner(
+        gameId,
+        String(survivors[0].id),
+      );
+      activeGames.delete(gameId);
+      return;
+    }
+  }
+
   if (survivors.length > 1) {
     const nextHandDelayMs = isPracticeBotGameId(gameId) ? 900 : 6500;
     console.log(
@@ -179,22 +202,31 @@ async function handleHandCompleteIfNeeded(
     }, nextHandDelayMs);
   } else if (
     survivors.length === 1 &&
-    isTournamentTableGameId(gameId)
+    isTournamentTableGameId(gameId) &&
+    !gameId.startsWith("game_tournoi_merge_")
   ) {
     console.log(`🏆 [TOURNOI] VICTOIRE DE ${survivors[0].name} !`);
-
-    if (io) io.to(`user:${survivors[0].id}`).emit("tournament-won", { userId: survivors[0].id });
 
     const tp = await prisma.tournamentPlayer.findFirst({
       where: { userId: String(survivors[0].id), tournament: { status: 'ACTIVE' } },
     });
     if (tp) {
-      await TournamentService.handleTableFinished(
+      const partial = await TournamentService.handleTableFinished(
         tp.tournamentId,
         String(survivors[0].id),
         survivors[0].name,
         survivors[0].chips,
       );
+      if (partial?.emitTournamentWonPartial && io) {
+        io.to(`user:${partial.emitTournamentWonPartial.userId}`).emit(
+          "tournament-won",
+          {
+            userId: partial.emitTournamentWonPartial.userId,
+            survivorsCount: partial.emitTournamentWonPartial.survivorsCount,
+            expectedTables: partial.emitTournamentWonPartial.expectedTables,
+          },
+        );
+      }
     } else {
       const fallbackTournament = await prisma.tournament.findFirst({
         where: {

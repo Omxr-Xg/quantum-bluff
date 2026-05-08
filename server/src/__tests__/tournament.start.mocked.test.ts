@@ -23,6 +23,15 @@ jest.mock('../shared/activeGames.js', () => ({
   },
 }))
 
+jest.mock('../services/tournamentBracketStore.service.js', () => ({
+  appendTournamentSurvivor: jest.fn(),
+  clearTournamentBracketState: jest.fn().mockResolvedValue(undefined),
+  clearTournamentSurvivors: jest.fn(),
+  getTournamentExpectedTables: jest.fn(),
+  getTournamentSurvivors: jest.fn(),
+  setTournamentExpectedTables: jest.fn().mockResolvedValue(undefined),
+}))
+
 jest.mock('../logic/GameTable.js', () => ({
   GameTable: jest.fn().mockImplementation(() => ({
     startHand: jest.fn(),
