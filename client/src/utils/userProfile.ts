@@ -120,6 +120,7 @@ export function invalidateStaleAuthSession(): void {
   clearAuthStorageEverywhere();
   clearGamificationStorage();
   if (typeof window !== "undefined") {
+    localStorage.removeItem("quantum_bluff_daily_login_auto_opened");
     window.dispatchEvent(new Event("auth-changed"));
   }
 }
@@ -133,6 +134,7 @@ export function clearAuthStorage(): void {
   }
   clearAuthStorageEverywhere(["gamePlayers", "gameId"]);
   clearGamificationStorage();
+  localStorage.removeItem("quantum_bluff_daily_login_auto_opened");
   localStorage.removeItem("gamePlayers");
   localStorage.removeItem("gameId");
   sessionStorage.removeItem("gamePlayers");

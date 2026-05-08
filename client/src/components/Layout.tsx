@@ -184,21 +184,38 @@ export function Layout({ children }: LayoutProps) {
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, sync);
   }, []);
 
-  /** Vérifie côté serveur si la récompense de connexion quotidienne est disponible. */
+  /** Vérifie côté serveur si la récompense de connexion quotidienne est disponible ; ouvre la modale une fois par jour à la première visite hors écrans auth. */
   useEffect(() => {
     if (!getAuthItem("token")) {
       setDailyLoginAvailable(false);
       return;
     }
+    const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
+    const showTopBarNow = !isAuthPage;
     let cancelled = false;
     fetchDailyLoginStatus().then((status) => {
       if (cancelled) return;
-      setDailyLoginAvailable(Boolean(status && !status.claimedToday));
+      const available = Boolean(status && !status.claimedToday);
+      setDailyLoginAvailable(available);
+      if (!available || !status || !showTopBarNow) return;
+      const userKey =
+        (getAuthItem("userId") ?? getAuthItem("userid") ?? "").trim() || "anon";
+      const markerKey = "quantum_bluff_daily_login_auto_opened";
+      let prev: { u: string; d: string } | null = null;
+      try {
+        prev = JSON.parse(localStorage.getItem(markerKey) || "null") as { u: string; d: string } | null;
+      } catch {
+        prev = null;
+      }
+      if (prev && prev.u === userKey && prev.d === status.dayKey) return;
+      localStorage.setItem(markerKey, JSON.stringify({ u: userKey, d: status.dayKey }));
+      playSfx("modalOpen");
+      setShowDailyLogin(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [location.pathname]);
+  }, [location.pathname, playSfx]);
   
   useEffect(() => {
     const onFocus = () => {
