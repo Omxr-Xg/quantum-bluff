@@ -236,7 +236,7 @@ docker:build:ai-service:
 # contacter les admins GitLab / infra Unistra — ce n’est pas corrigeable uniquement dans ce fichier.
 .deploy_hook_retry: &deploy_hook_retry
   retry:
-    max: 3
+    max: 10
     when:
       - runner_system_failure
       - stuck_or_timeout_failure
