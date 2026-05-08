@@ -236,30 +236,9 @@ deploy:staging:
   image:
     name: public.ecr.aws/docker/library/alpine:latest
     entrypoint: [""]
-  before_script:
-    # SSH : la variable CI SSH_PRIVATE_KEY doit être une clé PEM complète (BEGIN…END),
-    # sans passphrase, ou une variable de type *File* (GitLab fournit alors un chemin).
-    - apk add --no-cache openssh-client
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - |
-      KEYFILE="$HOME/.ssh/ci_deploy_key"
-      if [ -n "$SSH_PRIVATE_KEY" ] && [ -f "$SSH_PRIVATE_KEY" ]; then
-        cp "$SSH_PRIVATE_KEY" "$KEYFILE"
-      else
-        printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > "$KEYFILE"
-      fi
-    - chmod 600 ~/.ssh/ci_deploy_key
-    - test -s ~/.ssh/ci_deploy_key
-    - head -1 ~/.ssh/ci_deploy_key | grep -q "BEGIN"
-    - eval $(ssh-agent -s)
-    - ssh-add ~/.ssh/ci_deploy_key
-    # Désactive la question "Voulez-vous vraiment vous connecter ?"
-    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
   script:
-    - echo " Déploiement automatique sur la VM via SSH..."
-    # Connexion à la VM et exécution de tes commandes de mise à jour
-    - ssh $VM_USER@$VM_IP "cd ~/quantum-bluff && git pull && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml pull && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml up -d --force-recreate && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml exec -T backend npx prisma migrate deploy"
+    - apk add --no-cache curl
+    - curl -X POST $STAGING_DEPLOY_HOOK
   only:
     - develop
 
