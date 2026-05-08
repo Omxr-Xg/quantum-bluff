@@ -21,6 +21,7 @@ import {
 } from '../utils/userAvatarIngest.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { ipKeyGenerator } from 'express-rate-limit'
+import { rateLimitWithMetrics } from '../observability/index.js'
 
 function normalizeRateLimitIdentity(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -102,6 +103,20 @@ const recoveryLimiter = rateLimit({
   legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json({ error: 'Trop de tentatives. Réessayez plus tard.' })
+  },
+})
+
+/** Polling solde / historique : plafond dédié par utilisateur (après authMiddleware). */
+const balancePollLimiter = rateLimitWithMetrics({
+  windowMs: 60 * 1000,
+  limit: env.isProduction ? 240 : 2000,
+  message: { error: 'Trop de lectures de solde, réessaie dans une minute' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: express.Request) => {
+    const uid = (req as express.Request & { userId?: string }).userId
+    if (uid) return `balancePoll:${uid}`
+    return `balancePoll:${ipKeyGenerator(req.ip ?? '')}`
   },
 })
 
@@ -583,7 +598,7 @@ router.get('/gamification', authMiddleware, async (req, res) => {
 })
 
 // GET /api/auth/balance - Récupère la balance serveur (source de vérité, jamais le client)
-router.get('/balance', authMiddleware, async (req, res) => {
+router.get('/balance', authMiddleware, balancePollLimiter, async (req, res) => {
   try {
     const userId = (req as express.Request & { userId?: string }).userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
@@ -600,7 +615,7 @@ router.get('/balance', authMiddleware, async (req, res) => {
 })
 
 // GET /api/auth/balance-history - Historique des mouvements de solde (casino ledger)
-router.get('/balance-history', authMiddleware, async (req, res) => {
+router.get('/balance-history', authMiddleware, balancePollLimiter, async (req, res) => {
   try {
     const userId = (req as express.Request & { userId?: string }).userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })

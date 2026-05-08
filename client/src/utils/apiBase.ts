@@ -116,3 +116,30 @@ export function apiUrl(path: string): string {
   }
   return p;
 }
+
+const API_FETCH_429_MAX_RETRIES = 3;
+
+/**
+ * fetch avec backoff sur 429 (Retry-After ou exponentiel) pour limiter les rafales
+ * quand le rate limit global API répond « trop de requêtes ».
+ */
+export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
+  let attempt = 0;
+  let last: Response | undefined;
+  while (attempt <= API_FETCH_429_MAX_RETRIES) {
+    last = await fetch(input, init);
+    if (last.status !== 429) return last;
+    if (attempt >= API_FETCH_429_MAX_RETRIES) return last;
+    const ra = last.headers.get("Retry-After");
+    let ms = 1000 * Math.pow(2, attempt);
+    if (ra) {
+      const sec = Number.parseInt(ra, 10);
+      if (Number.isFinite(sec)) {
+        ms = Math.min(60_000, Math.max(500, sec * 1000));
+      }
+    }
+    await new Promise((r) => setTimeout(r, ms));
+    attempt += 1;
+  }
+  return last!;
+}
