@@ -3733,7 +3733,7 @@ export function Game() {
                 </div>
                 {addMoneyAmount != null && (
                   <div className="space-y-2">
-                    <label className="text-slate-300 text-sm block">{t("lobby.devValidation") || 'Tapez "dev" pour valider'}</label>
+                    <label className="text-slate-300 text-sm block">{t("lobby.devValidation")}</label>
                     <input
                       type="text"
                       value={devValidation}

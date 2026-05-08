@@ -40,6 +40,7 @@
     "captchaError": "Incorrect. Try again.",
     "captchaSuccess": "Chips added!",
     "chooseAmount": "Choose an amount:",
+    "devValidation": "Type \"dev\" to confirm",
     "validate": "Validate",
     "deleteServer": "Delete",
     "createServerTitle": "Create a server",

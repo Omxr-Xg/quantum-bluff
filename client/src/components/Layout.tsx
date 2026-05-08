@@ -479,10 +479,12 @@ export function Layout({ children }: LayoutProps) {
   const showTopBar = !isAuthPage && getAuthItem("token");
   const addMoneyModalHeightClass =
     balanceModalTab === "history"
-      ? "h-[23rem]"
-      : addMoneyAmount != null || addSuccess
-        ? "h-[22rem]"
-        : "h-[17rem]";
+      ? "h-[24rem]"
+      : addSuccess
+        ? "h-[20rem]"
+        : addMoneyAmount != null
+          ? "h-[28rem]"
+          : "h-[18rem]";
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
   const isBotConfigPage = path.includes("bot-configuration");
@@ -1163,7 +1165,7 @@ export function Layout({ children }: LayoutProps) {
                 {addMoneyAmount != null && (
                   <div className="space-y-2">
                     <label className="text-slate-300 text-sm block">
-                      {t("lobby.devValidation") || 'Tapez "dev" pour valider'}
+                      {t("lobby.devValidation")}
                     </label>
                     <input
                       type="text"
