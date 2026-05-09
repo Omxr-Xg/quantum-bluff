@@ -117,6 +117,9 @@ export function TournamentLobby() {
     return <div className="flex justify-center items-center h-64 text-amber-500 font-bold">{t('tournament.lobby.loading')}</div>;
   }
 
+  const canRegisterForTournament = (trn: Tournament) =>
+    trn.status === 'PENDING' && new Date(trn.startTime).getTime() > Date.now();
+
   return (
     <div className="w-full min-w-0 p-4 sm:p-6">
       {/* Header */}
@@ -259,6 +262,7 @@ export function TournamentLobby() {
                     ) : (
                     <button
                         onClick={async () => {
+                          if (!canRegisterForTournament(trn)) return;
                           if (trn.visibility === 'PRIVATE') {
                             try {
                               await TournamentService.requestJoinTournament(trn.id);
@@ -271,10 +275,12 @@ export function TournamentLobby() {
                           }
                           handleJoin(trn.id);
                         }}
-                        disabled={trn._count.players >= trn.maxPlayers}
+                        disabled={trn._count.players >= trn.maxPlayers || !canRegisterForTournament(trn)}
                         className="w-full bg-amber-500 hover:bg-white text-slate-950 font-black py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 group-hover:scale-[1.02] shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {trn._count.players >= trn.maxPlayers
+                        {!canRegisterForTournament(trn)
+                          ? t('tournament.lobby.registrationClosed')
+                          : trn._count.players >= trn.maxPlayers
                           ? t('tournament.lobby.full')
                           : trn.visibility === 'PRIVATE'
                             ? 'Demander accès'

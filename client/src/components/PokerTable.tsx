@@ -9,6 +9,7 @@ import { Clock } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
 import { useTableTheme } from "../contexts/TableThemeContext";
 import { calculatePlayerPositions } from "../utils/tablePositions";
+import { cardHighlightKey } from "../utils/cards";
 
 interface Card {
   suit: string;
@@ -47,6 +48,10 @@ interface PokerTableProps {
   enableAvatarInteractions?: boolean;
   /** Cash / hors tournoi : masque le stack sous l’avatar du joueur (solde déjà en header). Tournoi : laisser false. */
   hideHeroChipStack?: boolean;
+  /** Nombre de sièges pour le calcul des positions (ex. spectateur : joueurs + 1 siège vide). */
+  layoutSeatCount?: number;
+  /** Clés `suit|value` des cartes à mettre en surbrillance (showdown). */
+  highlightCardKeys?: Set<string>;
 }
 
 // Dimensions de référence — doivent correspondre à tablePositions.ts
@@ -67,6 +72,8 @@ export function PokerTable({
   onOpponentAvatarClick,
   enableAvatarInteractions = false,
   hideHeroChipStack = false,
+  layoutSeatCount,
+  highlightCardKeys,
 }: PokerTableProps) {
   const { t } = useTranslation();
   const { feltGradient, feltBorder } = useTableTheme();
@@ -77,11 +84,13 @@ export function PokerTable({
   const isTablet  = deviceType === "tablet";
 
   // Positions calculées pour TOUS les sièges (même index = même position)
-  const allPositions = calculatePlayerPositions(
-    players.length > 0 ? players.length : 1,
-    isMobile,
-    isTablet
-  );
+  const seatCountForLayout =
+    typeof layoutSeatCount === "number" && layoutSeatCount > 0
+      ? layoutSeatCount
+      : players.length > 0
+        ? players.length
+        : 1;
+  const allPositions = calculatePlayerPositions(seatCountForLayout, isMobile, isTablet);
 
   /**
    * Convertit des coordonnées px (relatives au centre, issues de calculatePlayerPositions)
@@ -383,6 +392,11 @@ export function PokerTable({
                                     value={card.value}
                                     size="md"
                                     colorblindMode={colorblindMode}
+                                    highlight={Boolean(
+                                      highlightCardKeys?.size &&
+                                        card.suit !== "hidden" &&
+                                        highlightCardKeys.has(cardHighlightKey(card)),
+                                    )}
                                   />
                                 </div>
                               ))}
@@ -417,6 +431,12 @@ export function PokerTable({
                               faceDown={!isShowdown}
                               colorblindMode={colorblindMode}
                               className={index === 0 ? "-rotate-6" : "rotate-6"}
+                              highlight={Boolean(
+                                isShowdown &&
+                                  highlightCardKeys?.size &&
+                                  card.suit !== "hidden" &&
+                                  highlightCardKeys.has(cardHighlightKey(card)),
+                              )}
                             />
                           ))}
                         </div>
