@@ -51,7 +51,10 @@ export interface CashGameControllerOptions {
 export interface IGameSession {
   id: string
   state: GameState & { cashCountdownEndsAt?: number; cashSeats?: CashSeat[] }
-  getSanitizedState: (requestingPlayerId?: string) => GameState & { cashCountdownEndsAt?: number; cashSeats?: CashSeat[] }
+  getSanitizedState: (
+    requestingPlayerId?: string,
+    forSpectator?: boolean,
+  ) => GameState & { cashCountdownEndsAt?: number; cashSeats?: CashSeat[] }
   handlePlayerAction: (playerId: string, action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK', amount?: number) => void
   getPlayerState: (playerId: string) => Player | undefined
 }
@@ -660,10 +663,17 @@ export class CashGameController implements IGameSession {
     return this.pendingNextHandId
   }
 
-  getSanitizedState(requestingPlayerId?: string): GameState & { cashCountdownEndsAt?: number; cashSeats?: CashSeat[]; spectatorRejoinQueue?: string[] } {
+  getSanitizedState(
+    requestingPlayerId?: string,
+    forSpectator?: boolean,
+  ): GameState & { cashCountdownEndsAt?: number; cashSeats?: CashSeat[]; spectatorRejoinQueue?: string[] } {
     this.syncHiddenBetNextHandId()
     const base = this.gameTable
-      ? { ...this.gameTable.getSanitizedState(requestingPlayerId), cashCountdownEndsAt: undefined, cashSeats: this.seats }
+      ? {
+          ...this.gameTable.getSanitizedState(requestingPlayerId, forSpectator),
+          cashCountdownEndsAt: undefined,
+          cashSeats: this.seats,
+        }
       : { ...this.state, phase: this.countdownEndsAt ? 'WAITING' : 'WAITING' as const }
     const turnTimeLimitSec = Math.round(this.turnTimeoutMs / 1000)
     const cashCountdownRemainingSec =

@@ -294,6 +294,25 @@ export function isRankUsedInBestFiveOfSeven(cards: Card[], rank: Rank): boolean 
   return false;
 }
 
+/** Les 5 cartes qui réalisent la meilleure main Hold'em parmi 5–7 cartes (trouve une combinaison maximale). */
+export function getBestFiveOfSeven(cards: Card[]): Card[] {
+  const safe = cards.slice();
+  for (const c of safe) {
+    if (typeof c.value !== "number") c.value = RANK_VALUE[c.rank];
+  }
+  const n = safe.length;
+  if (n === 0) return [];
+  if (n < 5) return safe.map((c) => ({ ...c }));
+  const bestScore = evaluateSeven(safe).score;
+  for (const comb of combinations5Indices(n)) {
+    const five = comb.map((i) => safe[i]);
+    if (evaluateSeven(five).score === bestScore) {
+      return five.map((c) => ({ ...c }));
+    }
+  }
+  return safe.slice(0, 5).map((c) => ({ ...c }));
+}
+
 // ------------------------------
 // Public API (required)
 // ------------------------------

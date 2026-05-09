@@ -147,6 +147,7 @@ async function handleHandCompleteIfNeeded(
                     );
                     const snapshot = currentGame.getSanitizedState(
                       isSpectator ? undefined : uid,
+                      isSpectator,
                     );
                     s.emit("GAME_UPDATE", snapshot);
                     s.emit("GAME_STATE_UPDATED", snapshot);
