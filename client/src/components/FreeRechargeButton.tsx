@@ -31,6 +31,7 @@ export function FreeRechargeButton({
   showDetails = false,
 }: FreeRechargeButtonProps) {
   const [status, setStatus] = useState<FreeRechargeStatus | null>(null)
+  const [loading, setLoading] = useState(false)
   const [claiming, setClaiming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [displayTime, setDisplayTime] = useState<{
