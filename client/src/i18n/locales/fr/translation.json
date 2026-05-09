@@ -1337,6 +1337,7 @@
       "players": "Joueurs",
       "launch": "Lancement : {{time}}",
       "starting": "Démarrage...",
+      "startingSoon": "Démarrage en cours…",
       "prizePool": "Cagnotte",
       "registeredTitle": "Joueurs inscrits ({{current}}/{{max}})",
       "levelShort": "Niv. {{level}}",

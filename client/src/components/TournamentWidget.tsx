@@ -3,6 +3,7 @@ import { Trophy, Clock, Swords, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { TournamentService, Tournament } from '../services/tournament.service';
+import { socket } from '../services/socket';
 
 export function TournamentWidget() {
   const { t, i18n } = useTranslation();
@@ -14,10 +15,7 @@ export function TournamentWidget() {
     const fetchNextTournament = async () => {
       try {
         const data = await TournamentService.getTournaments();
-        // On prend juste le premier tournoi (le plus proche dans le temps)
-        if (data.length > 0) {
-          setNextTournament(data[0]);
-        }
+        setNextTournament(data.length > 0 ? data[0]! : null);
       } catch (err) {
         console.error('Tournament widget load error', err);
       } finally {
@@ -25,7 +23,14 @@ export function TournamentWidget() {
       }
     };
 
-    fetchNextTournament();
+    void fetchNextTournament();
+    const interval = setInterval(() => void fetchNextTournament(), 45_000);
+    const onSocketUpdate = () => void fetchNextTournament();
+    socket.on('tournament-updated', onSocketUpdate);
+    return () => {
+      clearInterval(interval);
+      socket.off('tournament-updated', onSocketUpdate);
+    };
   }, []);
 
   if (loading) {

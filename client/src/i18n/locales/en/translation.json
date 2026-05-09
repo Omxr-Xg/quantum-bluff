@@ -1331,6 +1331,7 @@
       "players": "Players",
       "launch": "Starts in: {{time}}",
       "starting": "Starting…",
+      "startingSoon": "Starting soon…",
       "prizePool": "Prize pool",
       "registeredTitle": "Registered players ({{current}}/{{max}})",
       "levelShort": "Lv. {{level}}",

@@ -85,6 +85,7 @@ model User {
   // ============================================
   tournamentsCreated Tournament[]       @relation("TournamentCreator")
   tournamentsJoined  TournamentPlayer[]
+  tournamentJoinRequests TournamentJoinRequest[] @relation("TournamentJoinRequester")
 
   // RELATIONS EXISTANTES
   gameActions       GameAction[]    // Actions effectuées par le joueur
@@ -828,6 +829,17 @@ enum TournamentStatus {
   CANCELED   // Annulé
 }
 
+enum TournamentVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum TournamentJoinRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model Tournament {
   id          String           @id @default(uuid())
   name        String
@@ -836,6 +848,7 @@ model Tournament {
   startTime   DateTime
   status      TournamentStatus @default(PENDING)
   prizePool   Int              @default(0)
+  visibility  TournamentVisibility @default(PUBLIC)
   /** Nombre de tables parallèles au 1er tour (reconstruction bracket si Redis vide). */
   openingRoundTableCount Int?
   /** OPENING | FINAL — phase bracket persistée pour reconstruction. */
@@ -846,9 +859,27 @@ model Tournament {
   createdAt   DateTime         @default(now())
 
   players     TournamentPlayer[]
+  joinRequests TournamentJoinRequest[]
 
   @@map("tournaments")
   @@index([status, startTime])
+}
+
+model TournamentJoinRequest {
+  id            String                      @id @default(uuid())
+  tournamentId  String
+  requesterId   String
+  status        TournamentJoinRequestStatus @default(PENDING)
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  requester  User       @relation("TournamentJoinRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, requesterId])
+  @@index([tournamentId, status])
+  @@index([requesterId, status])
+  @@map("tournament_join_requests")
 }
 
 model TournamentPlayer {

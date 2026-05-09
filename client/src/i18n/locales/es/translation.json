@@ -1299,6 +1299,7 @@
       "players": "Jugadores",
       "launch": "Comienza en: {{time}}",
       "starting": "Iniciando…",
+      "startingSoon": "Iniciando en breve…",
       "prizePool": "Bote",
       "registeredTitle": "Inscritos ({{current}}/{{max}})",
       "levelShort": "Nv. {{level}}",

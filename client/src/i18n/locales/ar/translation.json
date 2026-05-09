@@ -1299,6 +1299,7 @@
       "players": "اللاعبون",
       "launch": "يبدأ خلال: {{time}}",
       "starting": "جاري البدء…",
+      "startingSoon": "جاري بدء البطولة…",
       "prizePool": "الجوائز",
       "registeredTitle": "المسجلون ({{current}}/{{max}})",
       "levelShort": "م. {{level}}",

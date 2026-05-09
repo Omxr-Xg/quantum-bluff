@@ -34,6 +34,7 @@ type MetricsApi = {
   setSocketIoConnectionsActive: (count: number) => void
   setRedisSocketIoAdapterUp: (up: boolean) => void
   setTournamentLeaderActive: (instanceId: string, active: boolean) => void
+  setTournamentStalePendingCount: (count: number) => void
   observeRedisCommandDurationMs: (command: string, durationMs: number) => void
   incDbError: (operation: string) => void
   observePrismaDurationMs: (operation: string, durationMs: number) => void
@@ -143,6 +144,13 @@ function createRealMetrics(): MetricsApi {
     registers: [register],
   })
 
+  const tournamentStalePendingCount = new Gauge({
+    name: 'tournament_stale_pending_count',
+    help:
+      'Tournois PENDING dont l’heure de départ est dépassée (>30s) — alerte si Redis/leader bloque le démarrage auto',
+    registers: [register],
+  })
+
   const redisCommandDurationSeconds = new Histogram({
     name: 'redis_command_duration_seconds',
     help: 'Durée des commandes Redis instrumentées (échantillon)',
@@ -192,6 +200,9 @@ function createRealMetrics(): MetricsApi {
     setTournamentLeaderActive(instanceId: string, active: boolean) {
       tournamentLeaderActive.set({ instance_id: instanceId }, active ? 1 : 0)
     },
+    setTournamentStalePendingCount(count: number) {
+      tournamentStalePendingCount.set(count)
+    },
     observeRedisCommandDurationMs(command: string, durationMs: number) {
       redisCommandDurationSeconds.observe({ command }, durationMs / 1000)
     },
@@ -222,6 +233,7 @@ const noop: MetricsApi = {
   setSocketIoConnectionsActive: () => {},
   setRedisSocketIoAdapterUp: () => {},
   setTournamentLeaderActive: () => {},
+  setTournamentStalePendingCount: () => {},
   observeRedisCommandDurationMs: () => {},
   incDbError: () => {},
   observePrismaDurationMs: () => {},
