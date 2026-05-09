@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import { logSuspiciousAction } from "../utils/securityLogger.js";
 import { AntiCheatMonitor } from "../utils/antiCheat.js";
 import { prisma } from "../config/database.js";
-import type { GameTable } from "../logic/GameTable.js";
+import { GameTable } from "../logic/GameTable.js";
 import { CashGameController } from "../logic/CashGameController.js";
 import { intChips } from "../utils/chips.js";
 import {
@@ -452,10 +452,23 @@ export class GameGateway {
                   s.emit("GAME_UPDATE", snapshot);
                   s.emit("GAME_STATE_UPDATED", snapshot);
                 }
-              } else {
-                const snapshot = game.getSanitizedState(playerId);
-                socket.emit("GAME_UPDATE", snapshot);
-                socket.emit("GAME_STATE_UPDATED", snapshot);
+              } else if (game instanceof GameTable) {
+                const url = sanitizePublicAvatarUrl(data.avatarUrl);
+                if (url) {
+                  const pl = game.getPlayerState(playerId);
+                  if (pl) pl.avatar = url;
+                }
+                const socketsInRoom = await this.io.in(gameId).fetchSockets();
+                for (const s of socketsInRoom) {
+                  const uid = (s as unknown as AuthenticatedSocket).userId;
+                  const isSpectator = !uid || !game.getPlayerState(uid);
+                  const snapshot = game.getSanitizedState(
+                    isSpectator ? undefined : uid,
+                    isSpectator,
+                  );
+                  s.emit("GAME_UPDATE", snapshot);
+                  s.emit("GAME_STATE_UPDATED", snapshot);
+                }
                 if (isPracticeBotGameId(gameId)) {
                   try {
                     await runPracticeBotTurnsChain(this.io, gameId);
@@ -1460,10 +1473,23 @@ export class GameGateway {
                   s.emit("GAME_UPDATE", snapshot);
                   s.emit("GAME_STATE_UPDATED", snapshot);
                 }
-              } else {
-                const snapshot = pokerGame.getSanitizedState(socket.userId);
-                socket.emit("GAME_UPDATE", snapshot);
-                socket.emit("GAME_STATE_UPDATED", snapshot);
+              } else if (pokerGame instanceof GameTable) {
+                const url = sanitizePublicAvatarUrl(data.avatarUrl);
+                if (url && socket.userId) {
+                  const pl = pokerGame.getPlayerState(socket.userId);
+                  if (pl) pl.avatar = url;
+                }
+                const socketsInRoom = await this.io.in(gameId).fetchSockets();
+                for (const s of socketsInRoom) {
+                  const uid = (s as unknown as AuthenticatedSocket).userId;
+                  const isSpectator = !uid || !pokerGame.getPlayerState(uid);
+                  const snapshot = pokerGame.getSanitizedState(
+                    isSpectator ? undefined : uid,
+                    isSpectator,
+                  );
+                  s.emit("GAME_UPDATE", snapshot);
+                  s.emit("GAME_STATE_UPDATED", snapshot);
+                }
               }
 
               this.io.to(gameId).emit("PLAYER_RECONNECTED", {
