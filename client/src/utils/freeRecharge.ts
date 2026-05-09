@@ -3,6 +3,7 @@
  */
 
 import { getAuthItem } from './authStorage'
+import { apiUrl } from './apiBase'
 
 export interface FreeRechargeStatus {
   canRecharge: boolean
@@ -33,7 +34,7 @@ export async function fetchFreeRechargeStatus(): Promise<FreeRechargeStatus | nu
       return null
     }
 
-    const response = await fetch('/api/free-recharge/status', {
+    const response = await fetch(apiUrl('/api/free-recharge/status'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -64,7 +65,7 @@ export async function claimFreeRecharge(): Promise<FreeRechargeClaimResult | nul
       return null
     }
 
-    const response = await fetch('/api/free-recharge/claim', {
+    const response = await fetch(apiUrl('/api/free-recharge/claim'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
