@@ -1443,7 +1443,20 @@ export function Game() {
       setHiddenBetNextHandId(gameState.hiddenBetNextHandId ?? null);
       setHiddenBetWindowOpen(Boolean(gameState.hiddenBetWindowOpen));
       setHiddenBetState(gameState.hiddenBetState ?? null);
-      const socketSnapshotSig = `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}`;
+      const stMeta = gameState as {
+        updatedAt?: string;
+        streetVersion?: number;
+        pot?: number;
+        handRuntimePhase?: string;
+        id?: string;
+      };
+      /* Clé stricte : le serveur bump `updatedAt` à chaque mutation. L’ancienne clé (phase+version+tour)
+       * pouvait fusionner deux états réels différents → client qui ignorait un GAME_UPDATE et restait bloqué
+       * (fréquent en table finale / all-in / fin de main). */
+      const socketSnapshotSig =
+        typeof stMeta.updatedAt === "string" && stMeta.updatedAt.length > 0
+          ? `${stMeta.id ?? gameState.handId ?? "no-id"}:${stMeta.updatedAt}`
+          : `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}:${typeof stMeta.streetVersion === "number" ? stMeta.streetVersion : "no-sv"}:${typeof stMeta.pot === "number" ? stMeta.pot : "no-pot"}:${stMeta.handRuntimePhase ?? "no-hrp"}`;
       if (socketSnapshotSig === lastAppliedSocketSnapshotSigRef.current) {
   console.log('[FRONT][GAME] socket_update_ignored_same_snapshot', {
     socketSnapshotSig,
@@ -1812,8 +1825,15 @@ export function Game() {
     };
     const onGameUpdateMain = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_UPDATE", state);
     const onGameStateUpdated = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_STATE_UPDATED", state);
+    const onHandStateChanged = (payload: { gameId?: string }) => {
+      if (!gameIdParam || String(payload?.gameId) !== String(gameIdParam)) return;
+      /* Si un snapshot a été mal dédupliqué, le prochain GAME_UPDATE doit passer ; débloque aussi isLoading. */
+      lastAppliedSocketSnapshotSigRef.current = "";
+      setIsLoading(false);
+    };
     socket.on("GAME_UPDATE", onGameUpdateMain);
     socket.on("GAME_STATE_UPDATED", onGameStateUpdated);
+    socket.on("HAND_STATE_CHANGED", onHandStateChanged);
     const onGameEnded = (data: {
       gameId: string;
       winnerId?: string;
@@ -1957,6 +1977,7 @@ export function Game() {
       socket.off("connect", emitJoinRoom);
       socket.off("GAME_UPDATE", onGameUpdateMain);
       socket.off("GAME_STATE_UPDATED", onGameStateUpdated);
+      socket.off("HAND_STATE_CHANGED", onHandStateChanged);
       socket.off("GAME_ENDED", onGameEnded);
       socket.off("PRACTICE_SESSION_END", onPracticeSessionEnd);
       socket.off("PLAYER_BUSTED", onPlayerBusted);
