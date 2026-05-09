@@ -3,6 +3,11 @@ import { prisma } from '../config/database.js';
 import { TournamentService } from '../services/tournament.service.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import jwt from 'jsonwebtoken'; // Assure-toi d'avoir importé jwt
+import {
+  buildTournamentLobbyWhere,
+  TOURNAMENT_LIST_GRACE_MS_DEFAULT,
+  TOURNAMENT_LIST_TAKE_DEFAULT,
+} from '../tournament/tournamentLobbyWhere.js';
 
 const router = Router();
 
@@ -30,23 +35,27 @@ router.get('/', async (req: Request, res: Response) => {
       }
     }
 
-    // 2. Récupération des tournois
+    const now = new Date();
     const tournaments = await prisma.tournament.findMany({
-      where: { status: { in: ['PENDING', 'ACTIVE'] } },
+      where: buildTournamentLobbyWhere({
+        now,
+        graceMs: TOURNAMENT_LIST_GRACE_MS_DEFAULT,
+        currentUserId,
+      }),
+      take: TOURNAMENT_LIST_TAKE_DEFAULT,
       include: {
         _count: { select: { players: true } },
         players: {
           include: {
-            user: { select: { id: true, username: true, experience: true } }
-          }
-        }
+            user: { select: { id: true, username: true, experience: true } },
+          },
+        },
       },
-      orderBy: { startTime: 'asc' }
+      orderBy: { startTime: 'asc' },
     });
 
-    // 3. Formatage de la réponse
-    const result = tournaments.map(t => {
-      const isJoined = currentUserId ? t.players.some(p => p.userId === currentUserId) : false;
+    const result = tournaments.map((t) => {
+      const isJoined = currentUserId ? t.players.some((p) => p.userId === currentUserId) : false;
 
       return {
         id: t.id,
@@ -56,7 +65,7 @@ router.get('/', async (req: Request, res: Response) => {
         maxPlayers: t.maxPlayers,
         startTime: t.startTime,
         status: t.status,
-        visibility: TournamentService.getTournamentVisibility(t.id),
+        visibility: t.visibility,
         _count: t._count,
         isJoined,
         players: t.players,
@@ -142,7 +151,7 @@ router.post('/:id/request-join', authMiddleware, async (req: Request, res: Respo
 router.get('/requests/received', authMiddleware, async (req: Request, res: Response) => {
   const userId = req.userId;
   if (!userId) return res.status(401).json({ error: 'Non autorisé' });
-  res.json(TournamentService.getPendingRequestsForHost(userId));
+  res.json(await TournamentService.getPendingRequestsForHost(userId));
 });
 
 router.post('/requests/:requestId/accept', authMiddleware, async (req: Request, res: Response) => {

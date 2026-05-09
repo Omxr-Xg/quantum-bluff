@@ -1299,6 +1299,7 @@
       "players": "Гравці",
       "launch": "Старт через: {{time}}",
       "starting": "Старт…",
+      "startingSoon": "Запуск триває…",
       "prizePool": "Призовий фонд",
       "registeredTitle": "Зареєстровані ({{current}}/{{max}})",
       "levelShort": "Рів. {{level}}",

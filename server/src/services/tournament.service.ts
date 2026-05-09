@@ -1,6 +1,6 @@
 import type { Server } from 'socket.io';
 import { prisma } from '../config/database.js';
-import { rootLogger } from '../observability/index.js';
+import { metrics, rootLogger } from '../observability/index.js';
 import { renewTournamentLeaderLock } from './tournamentLeaderLock.service.js';
 import { activeGames } from '../shared/activeGames.js';
 import { GameTable } from '../logic/GameTable.js';
@@ -54,20 +54,6 @@ export class TournamentService {
   private static spectateTablesByTournament = new Map<
     string,
     { tournamentName: string; tables: TournamentSpectateTableRow[] }
-  >();
-  private static tournamentVisibility = new Map<string, 'PUBLIC' | 'PRIVATE'>();
-  private static privateJoinRequests = new Map<
-    string,
-    {
-      id: string;
-      tournamentId: string;
-      tournamentName: string;
-      hostId: string;
-      requesterId: string;
-      requesterUsername: string;
-      createdAt: number;
-      status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
-    }
   >();
 
   private static alreadyEliminated = new Set<string>();
@@ -223,6 +209,7 @@ export class TournamentService {
         createdById: data.createdById,
         status: 'PENDING',
         prizePool: 0,
+        visibility: data.visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
       },
     });
 
@@ -231,25 +218,19 @@ export class TournamentService {
       tournamentId: tournament.id,
       name: tournament.name
     });
-    this.tournamentVisibility.set(tournament.id, data.visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC');
 
     return tournament;
-  }
-
-  static getTournamentVisibility(tournamentId: string): 'PUBLIC' | 'PRIVATE' {
-    return this.tournamentVisibility.get(tournamentId) ?? 'PUBLIC';
   }
 
   static async createPrivateJoinRequest(tournamentId: string, requesterId: string) {
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
-      select: { id: true, name: true, createdById: true, status: true },
+      select: { id: true, name: true, createdById: true, status: true, visibility: true },
     });
     if (!tournament || tournament.status !== 'PENDING') {
       throw new Error("Ce tournoi n'est plus disponible.");
     }
-    const visibility = this.getTournamentVisibility(tournamentId);
-    if (visibility !== 'PRIVATE') {
+    if (tournament.visibility !== 'PRIVATE') {
       throw new Error('Ce tournoi est public. Inscription directe disponible.');
     }
     if (tournament.createdById === requesterId) {
@@ -262,46 +243,92 @@ export class TournamentService {
     if (!requester) {
       throw new Error('Utilisateur introuvable.');
     }
-    const id = `${tournamentId}:${requesterId}`;
-    const existing = this.privateJoinRequests.get(id);
-    if (existing?.status === 'PENDING') {
-      return existing;
-    }
-    const req = {
-      id,
+    const row = await prisma.tournamentJoinRequest.upsert({
+      where: {
+        tournamentId_requesterId: { tournamentId, requesterId },
+      },
+      create: {
+        tournamentId,
+        requesterId,
+        status: 'PENDING',
+      },
+      update: {
+        status: 'PENDING',
+      },
+    });
+    return {
+      id: row.id,
       tournamentId,
       tournamentName: tournament.name,
       hostId: tournament.createdById,
       requesterId,
       requesterUsername: requester.username,
-      createdAt: Date.now(),
+      createdAt: row.createdAt.getTime(),
       status: 'PENDING' as const,
     };
-    this.privateJoinRequests.set(id, req);
-    return req;
   }
 
-  static getPendingRequestsForHost(hostId: string) {
-    return Array.from(this.privateJoinRequests.values())
-      .filter((r) => r.hostId === hostId && r.status === 'PENDING')
-      .sort((a, b) => b.createdAt - a.createdAt);
+  static async getPendingRequestsForHost(hostId: string) {
+    const rows = await prisma.tournamentJoinRequest.findMany({
+      where: {
+        status: 'PENDING',
+        tournament: { createdById: hostId, status: 'PENDING' },
+      },
+      include: {
+        tournament: { select: { id: true, name: true, createdById: true } },
+        requester: { select: { id: true, username: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      tournamentId: r.tournamentId,
+      tournamentName: r.tournament.name,
+      hostId: r.tournament.createdById,
+      requesterId: r.requesterId,
+      requesterUsername: r.requester.username,
+      createdAt: r.createdAt.getTime(),
+      status: 'PENDING' as const,
+    }));
   }
 
   static async acceptPrivateJoinRequest(requestId: string, hostId: string) {
-    const req = this.privateJoinRequests.get(requestId);
-    if (!req || req.status !== 'PENDING') {
+    const row = await prisma.tournamentJoinRequest.findFirst({
+      where: {
+        id: requestId,
+        status: 'PENDING',
+        tournament: { createdById: hostId },
+      },
+      include: {
+        tournament: { select: { id: true, name: true, createdById: true } },
+        requester: { select: { username: true } },
+      },
+    });
+    if (!row) {
       throw new Error('Demande introuvable ou déjà traitée.');
     }
-    if (req.hostId !== hostId) {
-      throw new Error('Non autorisé.');
-    }
-    await this.joinTournament(req.tournamentId, req.requesterId);
-    req.status = 'ACCEPTED';
-    this.privateJoinRequests.set(requestId, req);
-    return req;
+    await this.joinTournament(row.tournamentId, row.requesterId, { allowPrivateInvite: true });
+    await prisma.tournamentJoinRequest.update({
+      where: { id: requestId },
+      data: { status: 'ACCEPTED' },
+    });
+    return {
+      id: row.id,
+      tournamentId: row.tournamentId,
+      tournamentName: row.tournament.name,
+      hostId: row.tournament.createdById,
+      requesterId: row.requesterId,
+      requesterUsername: row.requester.username,
+      createdAt: row.createdAt.getTime(),
+      status: 'ACCEPTED' as const,
+    };
   }
 
-  static async joinTournament(tournamentId: string, userId: string) {
+  static async joinTournament(
+    tournamentId: string,
+    userId: string,
+    options?: { allowPrivateInvite?: boolean },
+  ) {
     return await prisma.$transaction(async (tx) => {
       const tournament = await tx.tournament.findUnique({
         where: { id: tournamentId },
@@ -310,6 +337,14 @@ export class TournamentService {
 
       if (!tournament || tournament.status !== 'PENDING') {
         throw new Error("Ce tournoi n'est plus disponible.");
+      }
+
+      if (
+        tournament.visibility === 'PRIVATE' &&
+        tournament.createdById !== userId &&
+        !options?.allowPrivateInvite
+      ) {
+        throw new Error('Ce tournoi privé est sur invitation : demandez une invitation au créateur.');
       }
 
       if (new Date(tournament.startTime).getTime() < Date.now()) {
@@ -981,6 +1016,10 @@ export class TournamentService {
   /**
    * Branche Socket.IO pour les événements tournoi + démarrage automatique (leader Redis uniquement).
    * Le cron ne lance plus les tournois pour éviter double déclenchement avec cet intervalle.
+   *
+   * Ops : en multi-instances, Redis doit être joignable pour le verrou leader ; sinon les tournois
+   * peuvent rester PENDING après `startTime` (métrique `tournament_stale_pending_count`, logs
+   * `tournament_watcher_not_leader_stale_pending` / `tournament_leader_lock_redis_error`).
    */
   static startTournamentWatcher(io: Server) {
     this.setIo(io);
@@ -989,12 +1028,26 @@ export class TournamentService {
     setInterval(() => {
       void (async () => {
         try {
+          const now = new Date();
+          const overdueThreshold = new Date(now.getTime() - 30_000);
+          const stalePendingCount = await prisma.tournament.count({
+            where: { status: 'PENDING', startTime: { lte: overdueThreshold } },
+          });
+          metrics.setTournamentStalePendingCount(stalePendingCount);
+
           const leader = await renewTournamentLeaderLock();
           if (!leader) {
+            if (stalePendingCount > 0) {
+              rootLogger.warn({
+                msg: 'tournament_watcher_not_leader_stale_pending',
+                stalePendingCount,
+                detail:
+                  'Cette instance ne détient pas le verrou Redis ; les PENDING en retard ne seront pas démarrés ici. Vérifier Redis et la connectivité en multi-instances.',
+              });
+            }
             return;
           }
 
-          const now = new Date();
           const pendingOnes = await prisma.tournament.findMany({
             where: { status: 'PENDING', startTime: { lte: now } },
             select: { id: true },
