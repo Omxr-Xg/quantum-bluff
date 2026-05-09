@@ -11,7 +11,7 @@ import {
   useResetPasswordMutation,
 } from "../services/api";
 import { persistGamificationFromAuthUser } from "../utils/gamificationStorage";
-import { removeAuthItem, setAuthItem } from "../utils/authStorage";
+import { getAuthItem, removeAuthItem, setAuthItem } from "../utils/authStorage";
 
 // 👇 IMPORT DU HOOK LOADER
 import { useLoader } from "../contexts/LoaderContext";
@@ -53,6 +53,12 @@ export function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/lobby";
+
+  useEffect(() => {
+    if (getAuthItem("token")) {
+      navigate(from, { replace: true });
+    }
+  }, [navigate, from]);
 
   const passwordCriteria = {
     length: password.length >= 8,

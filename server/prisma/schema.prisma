@@ -835,4 +835,827 @@ model DailyChallengeProgress {
   @@index([userId, dayKey])
   @@index([dayKey, challengeCode])
   @@map("daily_challenge_progress")
+=======
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+// ERD désactivé ici pour éviter l'échec en CI (Puppeteer/Chrome nécessite libnss3 etc.).
+// Pour régénérer l'ERD en local : décommenter le bloc ci-dessous puis `npx prisma generate`.
+// generator erd {
+//   provider = "prisma-erd-generator"
+//   output   = "../src/generated/docs/ERD.svg"
+//   puppeteerConfig = "./puppeteer-config.json"
+//   theme    = "dark"
+//   includeRelationFromFields = true
+// }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(uuid())
+  username          String   @unique
+  email             String   @unique
+  password          String
+  /// 1–10 : index de la question secrète (récupération mot de passe)
+  secretQuestionId  Int?
+  secretAnswerHash  String?
+  chips             Int      @default(1000)
+  level             Int      @default(1)
+  /// XP total (cumulative). Le niveau est recalculé à partir de cette valeur.
+  experience        Int      @default(0)
+  totpSecret        String? // 2FA TOTP secret (optionnel)
+
+  // ============================================
+  // B4: ANTI-TRICHE & SÉCURITÉ
+  // ============================================
+  lastIp            String?   // Dernière IP connue pour détecter les multi-comptes
+  antiCheatAlerts   Int       @default(0) // Compteur d'alertes (bot, spam...)
+  bannedUntil       DateTime? // Si défini et dans le futur, le compte est bloqué
+  /// Tutoriel interactif du lobby terminé ou ignoré (une fois par compte).
+  lobbyTutorialCompletedAt DateTime?
+  /// URL d’avatar profil (chemin `/api/auth/avatars/:id` après enregistrement binaire, ou URL externe legacy).
+  avatarUrl         String?
+  /// Image d’avatar persistée en base (JPEG/PNG/SVG…), servie par GET /api/auth/avatars/:userId
+  avatarImage       Bytes?
+  avatarMime        String?
+  /// True si avatarImage est renseigné — évite de charger le BYTEA au login pour construire l’URL publique.
+  avatarHasBinary   Boolean  @default(false)
+
+  // ============================================
+  // DAILY LOGIN STREAK (récompense quotidienne progressive)
+  // ============================================
+  /// Numéro du jour courant dans la série de connexions consécutives (1..7, retombe à 1 si la série est cassée).
+  loginStreakCount        Int       @default(0)
+  /// Clé du dernier jour (YYYY-MM-DD UTC) où la récompense de connexion a été RÉCLAMÉE.
+  lastLoginRewardDayKey   String?
+  /// Date exacte de la dernière réclamation (audit/debug).
+  lastLoginRewardAt       DateTime?
+
+  stats             UserStats?
+  histories         GameHistory[] @relation("WinnerHistory")
+
+  // Relations amis
+  sentRequests      FriendRequest[] @relation("Sender")
+  receivedRequests  FriendRequest[] @relation("Receiver")
+  friendshipsAsUser1 Friendship[] @relation("User1")
+  friendshipsAsUser2 Friendship[] @relation("User2")
+  sentFriendMessages     FriendMessage[] @relation("MessageSender")
+  receivedFriendMessages FriendMessage[] @relation("MessageReceiver")
+
+  // Salle d'attente intégrée
+  roomPlayers       RoomPlayer[]
+
+  // Invitations à des parties
+  sentInvitations   GameInvitation[] @relation("InvitationSender")
+  receivedInvitations GameInvitation[] @relation("InvitationReceiver")
+
+  // Demandes de rejoindre des salles privées
+  joinRequests      JoinRequest[]
+
+  // ============================================
+  // B3: TOURNOIS
+  // ============================================
+  tournamentsCreated Tournament[]       @relation("TournamentCreator")
+  tournamentsJoined  TournamentPlayer[]
+
+  // RELATIONS EXISTANTES
+  gameActions       GameAction[]    // Actions effectuées par le joueur
+  gameWins          GameResult[]    // Parties gagnées par le joueur
+  playerStats       PlayerStats?    // Statistiques du joueur (relation 1-1)
+  casinoStats       CasinoStats?
+  userBadges        UserBadge[]
+  walletEntries     WalletLedgerEntry[] // AJOUT: Relation pour la comptabilité du casino
+  dailyChallengeProgresses DailyChallengeProgress[]
+  hiddenBetTickets  HiddenBetTicket[]
+
+  loanRequestsAsBorrower LoanRequest[] @relation("LoanRequestsBorrower")
+  loanRequestsAsLender   LoanRequest[] @relation("LoanRequestsLender")
+  loansAsBorrower        Loan[]        @relation("LoansBorrower")
+  loansAsLender          Loan[]        @relation("LoansLender")
+
+  blackjackHostedRooms BlackjackRoom[] @relation("BlackjackRoomHost")
+  blackjackRoomSeats   BlackjackRoomSeat[]
+  sentBlackjackInvitations     BlackjackRoomInvitation[] @relation("BjRoomInviteSender")
+  receivedBlackjackInvitations BlackjackRoomInvitation[] @relation("BjRoomInviteReceiver")
+
+  gameRatings GameRating[]
+
+  playerReportsSent     PlayerReport[] @relation("PlayerReportsSent")
+  playerReportsReceived PlayerReport[] @relation("PlayerReportsReceived")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([username])
+  @@index([email])
+  @@index([createdAt])
+  @@index([chips])
+  @@index([experience])
+  @@index([lastLoginRewardDayKey])
+}
+
+/// Avis joueur (étoiles + commentaire optionnel), collecté depuis le client.
+model GameRating {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stars     Int
+  message   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+/// Signalement en partie (langage, triche, etc.) — consultable par la console admin.
+enum PlayerReportReason {
+  INAPPROPRIATE_LANGUAGE
+  CHEATING
+  HARASSMENT
+  SPAM
+  OTHER
+}
+
+model PlayerReport {
+  id               String             @id @default(uuid())
+  reporterId     String
+  reportedUserId   String
+  gameId           String?
+  reason           PlayerReportReason
+  detail           String?
+  createdAt        DateTime           @default(now())
+  reviewedAt       DateTime?
+
+  reporter User @relation("PlayerReportsSent", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User @relation("PlayerReportsReceived", fields: [reportedUserId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([reviewedAt])
+  @@index([reportedUserId])
+  @@map("player_reports")
+}
+
+model UserStats {
+  id          String @id @default(uuid())
+  wins        Int    @default(0)
+  totalGames  Int    @default(0)
+  biggestPot  Int    @default(0)
+
+  user        User   @relation(fields: [userId], references: [id])
+  userId      String @unique
+}
+
+model GameHistory {
+  id        String   @id @default(uuid())
+  tableId   String
+  gameId    String
+  board     String[]
+  pot       Int
+  winnerId  String?
+
+  winner    User?    @relation("WinnerHistory", fields: [winnerId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  //Index pour accélérer les recherches par gagnant et par date (DA4/DA5)
+  @@index([winnerId])
+  @@index([createdAt])
+  @@index([gameId])
+}
+
+model FriendRequest {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  status     RequestStatus @default(PENDING)
+
+  sender   User @relation("Sender", fields: [senderId], references: [id])
+  receiver User @relation("Receiver", fields: [receiverId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  user1Id   String
+  user2Id   String
+  createdAt DateTime @default(now())
+
+  user1 User @relation("User1", fields: [user1Id], references: [id])
+  user2 User @relation("User2", fields: [user2Id], references: [id])
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+}
+
+// ============================================
+// PRÊTS ENTRE AMIS (V1)
+// ============================================
+
+enum LoanRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+enum LoanStatus {
+  ACTIVE
+  COMPLETED
+  DEFAULTED
+  CANCELLED
+}
+
+enum LoanLedgerEventType {
+  REQUEST_CREATED
+  REQUEST_ACCEPTED
+  REQUEST_REJECTED
+  REQUEST_CANCELLED
+  FUNDED
+  REPAYMENT_APPLIED
+  COMPLETED
+}
+
+enum LoanSourceGameType {
+  SLOT
+  ROULETTE
+  BLACKJACK_SOLO
+  BLACKJACK_MULTI
+  POKER_CASH
+}
+
+model LoanRequest {
+  id             String            @id @default(uuid())
+  borrowerId     String
+  lenderId       String
+  amount         Int
+  repaymentRate  Int
+  interestRate   Int
+  totalDue       Int
+  status         LoanRequestStatus @default(PENDING)
+  createdAt      DateTime          @default(now())
+  respondedAt    DateTime?
+  expiresAt      DateTime
+
+  borrower User  @relation("LoanRequestsBorrower", fields: [borrowerId], references: [id], onDelete: Cascade)
+  lender   User  @relation("LoanRequestsLender", fields: [lenderId], references: [id], onDelete: Cascade)
+  loan     Loan?
+  ledgerEvents LoanLedgerEvent[]
+
+  @@index([borrowerId, status])
+  @@index([lenderId, status])
+  @@map("loan_requests")
+}
+
+model Loan {
+  id               String      @id @default(uuid())
+  requestId        String      @unique
+  borrowerId       String
+  lenderId         String
+  principalAmount  Int
+  interestRate    Int
+  totalDue         Int
+  repaidAmount     Int         @default(0)
+  remainingAmount  Int
+  repaymentRate   Int
+  status           LoanStatus  @default(ACTIVE)
+  createdAt        DateTime    @default(now())
+  completedAt      DateTime?
+  lastRepaymentAt  DateTime?
+
+  request LoanRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  borrower User       @relation("LoansBorrower", fields: [borrowerId], references: [id], onDelete: Cascade)
+  lender   User       @relation("LoansLender", fields: [lenderId], references: [id], onDelete: Cascade)
+
+  repayments    LoanRepayment[]
+  ledgerEvents LoanLedgerEvent[]
+
+  @@index([borrowerId, status])
+  @@map("loans")
+}
+
+model LoanRepayment {
+  id                 String             @id @default(uuid())
+  loanId             String
+  borrowerId         String
+  lenderId           String
+  sourceGameType     LoanSourceGameType
+  sourceReferenceId  String
+  grossWinAmount     Int
+  repaymentAmount    Int
+  borrowerNetReceived Int
+  createdAt          DateTime           @default(now())
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@index([loanId])
+  @@index([borrowerId])
+  @@map("loan_repayments")
+  @@index([borrowerId, createdAt]) 
+  @@index([lenderId, createdAt])
+}
+
+model LoanLedgerEvent {
+  id           String              @id @default(uuid())
+  loanId       String?
+  requestId    String?
+  type         LoanLedgerEventType
+  amount       Int
+  metadataJson Json?
+  createdAt    DateTime            @default(now())
+
+  loan    Loan?       @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  request LoanRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([loanId])
+  @@index([requestId])
+  @@index([createdAt])
+  @@map("loan_ledger_events")
+}
+
+model FriendMessage {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  content    String
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model WaitingRoom {
+  id           String         @id @default(uuid())
+  name         String
+  hostId       String
+  maxPlayers   Int            @default(5)
+  visibility   RoomVisibility @default(PUBLIC)
+  status       RoomStatus     @default(WAITING)
+  smallBlind   Int?           // Small blind (optionnel, défaut serveur)
+  bigBlind     Int?           // Big blind / relance minimale
+  minBalance   Int?           // Solde minimal pour rejoindre
+  /** Mode turbo : tour de jeu limité à 10 s (sinon 30 s) */
+  turbo        Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  players      RoomPlayer[]
+  invitations  GameInvitation[]
+  joinRequests JoinRequest[]
+  gameId       String?
+
+  @@map("waiting_rooms")
+}
+
+model JoinRequest {
+  id         String        @id @default(uuid())
+  roomId     String
+  userId     String
+  status     RequestStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  room WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([roomId, status])
+  @@map("join_requests")
+}
+
+model RoomPlayer {
+  id           String   @id @default(uuid())
+  roomId       String
+  userId       String
+  isReady      Boolean  @default(false)
+  joinedAt     DateTime @default(now())
+  position     Int?     // Position à la table (optionnel)
+  /// URL d’avatar publique (client), validée par le serveur — partagée avec tous les joueurs de la salle
+  avatarUrl    String?
+
+  room         WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@map("room_players")
+}
+
+// ============================================
+// HISTORIQUE DES PARTIES
+// ============================================
+
+model GameAction {
+  id        String   @id @default(uuid())
+  gameId    String   // ID de la partie (game_xxx)
+  playerId  String
+  action    String   // 'FOLD', 'CALL', 'RAISE', 'CHECK', 'BET'
+  amount    Int?     // Montant pour RAISE/BET
+  phase     String   // 'PREFLOP', 'FLOP', 'TURN', 'RIVER'
+  round     Int      @default(1) // Numéro du tour de mise
+  timestamp DateTime @default(now())
+
+  player User @relation(fields: [playerId], references: [id])
+
+  @@index([gameId])
+  @@index([playerId])
+  @@index([timestamp])
+}
+
+model GameResult {
+  id        String   @id @default(uuid())
+  gameId    String   @unique // ID de la partie (game_xxx)
+  winnerId  String
+  winnerName String
+  pot       Int
+  hands     Json?    // Stocke les mains des joueurs (format JSON)
+  startedAt DateTime
+  endedAt   DateTime @default(now())
+
+  winner User @relation(fields: [winnerId], references: [id])
+
+  @@index([gameId])
+  @@index([winnerId])
+  @@index([endedAt])
+}
+
+model PlayerStats {
+  id              String   @id @default(uuid())
+  playerId        String   @unique
+  totalGames      Int      @default(0)
+  totalWins       Int      @default(0)
+  totalLosses     Int      @default(0)
+  totalHands      Int      @default(0) // Nombre de mains jouées
+  totalRaises     Int      @default(0)
+  totalCalls      Int      @default(0)
+  totalFolds      Int      @default(0)
+  totalChecks     Int      @default(0)
+  biggestPot      Int      @default(0)
+  biggestWin      Int      @default(0)
+  totalChipsWon   Int      @default(0)
+  totalChipsLost  Int      @default(0)
+  updatedAt       DateTime @default(now())
+
+  player User @relation(fields: [playerId], references: [id])
+
+  @@index([playerId])
+  @@index([totalWins])
+  @@index([totalGames])
+}
+
+model GameInvitation {
+  id         String           @id @default(uuid())
+  roomId     String
+  senderId   String
+  receiverId String
+  status     InvitationStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  room     WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender   User        @relation("InvitationSender", fields: [senderId], references: [id])
+  receiver User        @relation("InvitationReceiver", fields: [receiverId], references: [id])
+
+  @@unique([roomId, receiverId])
+  @@index([receiverId, status])
+  @@index([roomId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum RoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum RoomStatus {
+  WAITING
+  STARTING
+  IN_GAME
+}
+
+enum BlackjackRoomStatus {
+  WAITING
+  PLAYING
+}
+
+model BlackjackRoom {
+  id         String              @id @default(uuid())
+  name       String
+  hostId     String
+  maxSeats   Int                 @default(5)
+  visibility RoomVisibility      @default(PUBLIC)
+  status     BlackjackRoomStatus @default(WAITING)
+  gameId     String?
+  minBet     Int                 @default(10)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  host  User                  @relation("BlackjackRoomHost", fields: [hostId], references: [id])
+  seats BlackjackRoomSeat[]
+  invitations BlackjackRoomInvitation[]
+  snapshot BlackjackRoomSnapshot?
+
+  @@index([hostId])
+  @@index([status])
+  @@map("blackjack_rooms")
+  @@index([visibility, status]) // Pour le lobby Blackjack
+}
+
+model BlackjackRoomSnapshot {
+  id        String   @id @default(uuid())
+  roomId    String   @unique
+  snapshot  Json
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  room BlackjackRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
+  @@map("blackjack_room_snapshots")
+}
+
+model BlackjackRoomSeat {
+  id       String   @id @default(uuid())
+  roomId   String
+  userId   String
+  position Int
+  isReady  Boolean  @default(false)
+  joinedAt DateTime @default(now())
+
+  room BlackjackRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@unique([roomId, position])
+  @@map("blackjack_room_seats")
+}
+
+model BlackjackRoomInvitation {
+  id              String           @id @default(uuid())
+  blackjackRoomId String
+  senderId        String
+  receiverId      String
+  status          InvitationStatus @default(PENDING)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  room     BlackjackRoom @relation(fields: [blackjackRoomId], references: [id], onDelete: Cascade)
+  sender   User          @relation("BjRoomInviteSender", fields: [senderId], references: [id])
+  receiver User          @relation("BjRoomInviteReceiver", fields: [receiverId], references: [id])
+
+  @@unique([blackjackRoomId, receiverId])
+  @@index([receiverId, status])
+  @@map("blackjack_room_invitations")
+}
+
+model CasinoStats {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  slotSpins          Int      @default(0)
+  rouletteSpins      Int      @default(0)
+  blackjackHandsPlayed Int      @default(0)
+  slotBiggestWin       Int      @default(0)
+  rouletteBiggestWin   Int      @default(0)
+  blackjackBiggestWin  Int      @default(0)
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([slotBiggestWin])
+  @@index([rouletteBiggestWin])
+  @@index([blackjackBiggestWin])
+  @@map("casino_stats")
+}
+
+model UserBadge {
+  id         String   @id @default(uuid())
+  userId     String
+  badgeId    String
+  unlockedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}
+
+// ============================================
+// MODÈLE MANQUANT - COMPTABILITÉ CASINO
+// ============================================
+model WalletLedgerEntry {
+  id                 String   @id @default(uuid())
+  userId             String
+  amount             Int
+  reason             String
+  game               String?  // Gardé pour la compatibilité
+  
+  // Nouveaux champs demandés par le moteur de casino pro
+  roundId            String?
+  actionId           String?
+  gameType           String?  // 'slot', 'roulette', etc.
+  balanceBefore      Int?
+  balanceAfter       Int?
+  settlementState    String   @default("SETTLED")
+  engineVersion      String?
+  rulesVersion       String?
+  payoutTableVersion String?
+  rngVersion         String?
+  integrityHash      String?
+
+  createdAt          DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([roundId])
+  @@map("wallet_ledger_entries")
+}
+
+// ============================================
+// PARIS CACHÉS POKER (cash game)
+// ============================================
+
+enum HiddenBetTicketStatus {
+  PENDING
+  SETTLING
+  WON
+  LOST
+  VOID
+  CANCELED
+}
+
+enum HiddenBetCombinator {
+  SINGLE
+  AND
+}
+
+enum HiddenBetMarketPhase {
+  PRE_HAND
+  LIVE_FLOP
+  LIVE_TURN
+  LIVE_RIVER
+}
+
+model HiddenBetTicket {
+  id                    String                 @id @default(uuid())
+  userId                String
+  gameId                String
+  handId                String
+  marketPhase           HiddenBetMarketPhase   @default(PRE_HAND)
+  status                HiddenBetTicketStatus  @default(PENDING)
+  stake                 Int
+  quotedOdds            Float
+  potentialPayout       Int
+  currency              String                 @default("CHIPS")
+  combinator            HiddenBetCombinator    @default(SINGLE)
+  placedAt              DateTime               @default(now())
+  resolvedAt            DateTime?
+  resolutionStartedAt   DateTime?
+  quoteExpiresAt        DateTime?
+  actionId              String
+  pricingVersion        String
+  resolutionVersion     String                 @default("hidden-bets-resolve-v1")
+  resultSummaryJson     Json?
+  stateSnapshotJson     Json?
+  ticketHash            String?
+  quoteHash             String?
+  quotedProbability     Float?
+  houseEdgeVersion      String?
+
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selections HiddenBetSelection[]
+
+  @@unique([userId, actionId])
+  @@index([userId, gameId, handId])
+  @@index([gameId, handId, status])
+  @@index([userId, status])
+  @@index([gameId, handId, marketPhase])
+  @@map("hidden_bet_tickets")
+}
+
+model HiddenBetSelection {
+  id             String          @id @default(uuid())
+  ticketId       String
+  marketType     String
+  marketKey      String
+  paramSignature String
+  paramsJson     String
+  displayLabel   String?
+  sequenceOrder  Int             @default(0)
+
+  ticket HiddenBetTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("hidden_bet_selections")
+}
+
+/// Verrou idempotence : une seule résolution réussie par (gameId, handId).
+model HiddenBetHandResolution {
+  gameId     String
+  handId     String
+  resolvedAt DateTime @default(now())
+
+  @@id([gameId, handId])
+  @@map("hidden_bet_hand_resolutions")
+}
+
+// ============================================
+// NOUVEAUX MODÈLES - TOURNOIS (B3)
+// ============================================
+
+enum TournamentStatus {
+  PENDING    // En attente de joueurs
+  ACTIVE     // Tournoi en cours
+  COMPLETED  // Terminé
+  CANCELED   // Annulé
+}
+
+model Tournament {
+  id          String           @id @default(uuid())
+  name        String
+  buyIn       Int
+  maxPlayers  Int
+  startTime   DateTime
+  status      TournamentStatus @default(PENDING)
+  prizePool   Int              @default(0)
+  /** Nombre de tables parallèles au 1er tour (reconstruction bracket si Redis vide). */
+  openingRoundTableCount Int?
+  /** OPENING | FINAL — phase bracket persistée pour reconstruction. */
+  activeBracketPhase     String?
+
+  createdById String
+  createdBy   User             @relation("TournamentCreator", fields: [createdById], references: [id])
+  createdAt   DateTime         @default(now())
+
+  players     TournamentPlayer[]
+
+  @@map("tournaments")
+  @@index([status, startTime])
+}
+
+model TournamentPlayer {
+  tournamentId String
+  userId       String
+  eliminatedAt DateTime? // Si rempli, le joueur a perdu (tournoi fini pour lui)
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tournamentId, userId]) // Clé primaire composite
+  @@map("tournament_players")
+}
+
+model DailyChallengeProgress {
+  id           String   @id @default(uuid())
+  userId       String
+  dayKey       String
+  challengeCode String
+  progress     Int      @default(0)
+  goal         Int
+  completed    Boolean  @default(false)
+  claimed      Boolean  @default(false)
+  rewardTokens Int
+  claimedAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayKey, challengeCode])
+  @@index([userId, dayKey])
+  @@index([dayKey, challengeCode])
+  @@map("daily_challenge_progress")
+>>>>>>> add5fc559ef19edb7684e9fa094a61c6a9062f1c
 }

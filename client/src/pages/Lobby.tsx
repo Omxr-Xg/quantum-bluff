@@ -475,7 +475,7 @@ export function Lobby() {
 
   return (
     <div
-      className={`relative w-full min-h-full overflow-x-hidden px-2 py-4 sm:px-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
+      className={`relative w-full min-h-[100dvh] overflow-x-clip overflow-y-visible px-2 py-4 sm:px-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
         lobbyMainTab === "poker"
           ? "bg-[#020716]"
           : lobbyMainTab === "minigames"
@@ -485,7 +485,7 @@ export function Lobby() {
     >
       {/* Fond Texas Hold'em */}
       <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
+        className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: lobbyMainTab === "poker" ? 1 : 0 }}
         aria-hidden
       >
@@ -506,7 +506,7 @@ export function Lobby() {
 
       {/* Fond Mini-jeux */}
       <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
+        className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: lobbyMainTab === "minigames" ? 1 : 0 }}
         aria-hidden
       >
@@ -533,7 +533,7 @@ export function Lobby() {
 
       {/* Fond Blackjack — bordeaux / rose / ardoise */}
       <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
+        className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: lobbyMainTab === "blackjack" ? 1 : 0 }}
         aria-hidden
       >
@@ -892,7 +892,7 @@ export function Lobby() {
                     : "border-white/10 bg-rose-950/45"
               }`}
               role="tablist"
-              aria-label="Game sections"
+              aria-label={t("lobby.tabListAria")}
             >
               <button
                 type="button"
@@ -910,7 +910,9 @@ export function Lobby() {
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">Poker</span>
+                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">
+                  {t("lobby.tabPoker")}
+                </span>
               </button>
               <div className="hidden w-px self-stretch bg-slate-600/40 md:block" aria-hidden />
               <button
@@ -929,7 +931,9 @@ export function Lobby() {
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">Blackjack</span>
+                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">
+                  {t("lobby.tabBlackjack")}
+                </span>
               </button>
               <div className="hidden w-px self-stretch bg-slate-600/40 md:block" aria-hidden />
               <button
@@ -948,7 +952,9 @@ export function Lobby() {
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">Mini-games</span>
+                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">
+                  {t("lobby.tabMinigames")}
+                </span>
               </button>
             </nav>
 
@@ -1219,7 +1225,7 @@ export function Lobby() {
           {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
           <div
             ref={tourRefFriends}
-            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:flex lg:h-full lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-6 lg:pt-0"
+            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:flex lg:h-full lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-6 lg:pt-0 lg:sticky lg:top-4 lg:z-10"
           >
             <div ref={tourRefDaily}>
               <DailyChallenges />

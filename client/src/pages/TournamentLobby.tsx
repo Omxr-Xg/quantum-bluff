@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Trophy, Users, Coins, Clock, ChevronRight, ArrowLeft, Settings } from 'lucide-react';
+import { Trophy, Users, Coins, Clock, ChevronRight, ArrowLeft, Settings, Eye, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { TournamentService, Tournament } from '../services/tournament.service';
+import {
+  TournamentService,
+  Tournament,
+  type TournamentSpectatePayload,
+} from '../services/tournament.service';
 import { useToast } from '../contexts/ToastContext';
 import { socket } from '../services/socket'; // 👈 IMPORT DU SOCKET
 
@@ -26,6 +30,9 @@ export function TournamentLobby() {
   const [, setNow] = useState(new Date()); // Pour forcer le refresh du timer
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const [spectateOpenForId, setSpectateOpenForId] = useState<string | null>(null);
+  const [spectateLoading, setSpectateLoading] = useState(false);
+  const [spectatePayload, setSpectatePayload] = useState<TournamentSpectatePayload | null>(null);
 
   const loadTournaments = useCallback(async () => {
     try {
@@ -73,6 +80,28 @@ export function TournamentLobby() {
     }
   };
 
+  const closeSpectateModal = () => {
+    setSpectateOpenForId(null);
+    setSpectatePayload(null);
+    setSpectateLoading(false);
+  };
+
+  const openSpectateModal = async (tournamentId: string) => {
+    setSpectateOpenForId(tournamentId);
+    setSpectatePayload(null);
+    setSpectateLoading(true);
+    try {
+      const payload = await TournamentService.getSpectateTables(tournamentId);
+      setSpectatePayload(payload);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('tournament.lobby.errorUnknown');
+      addToast(message, 'error');
+      closeSpectateModal();
+    } finally {
+      setSpectateLoading(false);
+    }
+  };
+
   const handleLeave = async (id: string) => {
     try {
         await TournamentService.leaveTournament(id);
@@ -87,6 +116,9 @@ export function TournamentLobby() {
   if (loading && tournaments.length === 0) {
     return <div className="flex justify-center items-center h-64 text-amber-500 font-bold">{t('tournament.lobby.loading')}</div>;
   }
+
+  const canRegisterForTournament = (trn: Tournament) =>
+    trn.status === 'PENDING' && new Date(trn.startTime).getTime() > Date.now();
 
   return (
     <div className="w-full min-w-0 p-4 sm:p-6">
@@ -163,9 +195,22 @@ export function TournamentLobby() {
                 <div className="flex items-center justify-center gap-3 bg-slate-800/80 py-3 rounded-xl border border-amber-500/20">
                   <Clock className="w-5 h-5 text-amber-500 animate-pulse" />
                   <span className="text-amber-200 font-mono font-bold tracking-widest">
-                    {formatTimeLeft(trn.startTime, t)}
+                    {trn.status === 'ACTIVE'
+                      ? t('tournament.lobby.live')
+                      : formatTimeLeft(trn.startTime, t)}
                   </span>
                 </div>
+
+                {trn.status === 'ACTIVE' && (
+                  <button
+                    type="button"
+                    onClick={() => void openSpectateModal(trn.id)}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-indigo-400/40 bg-indigo-500/15 py-3 font-bold text-sm uppercase tracking-wide text-indigo-100 transition hover:bg-indigo-500/25"
+                  >
+                    <Eye className="h-5 w-5" aria-hidden />
+                    {t('tournament.lobby.spectate')}
+                  </button>
+                )}
 
                 {/* Footer & Action */}
                 <div className="pt-4 border-t border-slate-800">
@@ -217,6 +262,7 @@ export function TournamentLobby() {
                     ) : (
                     <button
                         onClick={async () => {
+                          if (!canRegisterForTournament(trn)) return;
                           if (trn.visibility === 'PRIVATE') {
                             try {
                               await TournamentService.requestJoinTournament(trn.id);
@@ -229,10 +275,12 @@ export function TournamentLobby() {
                           }
                           handleJoin(trn.id);
                         }}
-                        disabled={trn._count.players >= trn.maxPlayers}
+                        disabled={trn._count.players >= trn.maxPlayers || !canRegisterForTournament(trn)}
                         className="w-full bg-amber-500 hover:bg-white text-slate-950 font-black py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 group-hover:scale-[1.02] shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {trn._count.players >= trn.maxPlayers
+                        {!canRegisterForTournament(trn)
+                          ? t('tournament.lobby.registrationClosed')
+                          : trn._count.players >= trn.maxPlayers
                           ? t('tournament.lobby.full')
                           : trn.visibility === 'PRIVATE'
                             ? 'Demander accès'
@@ -244,6 +292,83 @@ export function TournamentLobby() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {spectateOpenForId && (
+        <div
+          className="fixed inset-0 z-[500] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
+          onClick={closeSpectateModal}
+          role="presentation"
+        >
+          <div
+            className="max-h-[min(85vh,32rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-600 bg-slate-900 p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="spectate-modal-title"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 id="spectate-modal-title" className="text-lg font-bold text-white">
+                  {t('tournament.lobby.spectatePickTable')}
+                </h2>
+                <p className="mt-1 text-xs text-slate-400">{t('tournament.lobby.spectateHintCards')}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeSpectateModal}
+                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                aria-label={t('game.help.close')}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {spectateLoading && (
+              <p className="py-8 text-center text-slate-400">{t('tournament.lobby.loading')}</p>
+            )}
+            {!spectateLoading && spectatePayload && (
+              <>
+                <p className="mb-3 text-sm font-semibold text-amber-200/90">{spectatePayload.tournamentName}</p>
+                {spectatePayload.tables.length === 0 ? (
+                  <p className="text-slate-500">{t('tournament.lobby.spectateNoTables')}</p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {spectatePayload.tables.map((tab) => (
+                      <li key={tab.roomId}>
+                        <button
+                          type="button"
+                          disabled={!tab.live}
+                          onClick={() => {
+                            navigate(`/game?gameId=${encodeURIComponent(tab.roomId)}&spectate=1&tournament=1`);
+                            closeSpectateModal();
+                          }}
+                          className="flex w-full flex-col items-stretch gap-1 rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-left transition hover:border-amber-500/40 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+                        >
+                          <span className="font-bold text-white">
+                            {t('tournament.lobby.spectateTableN', { n: String(tab.tableNumber) })}
+                            {!tab.live ? (
+                              <span className="ml-2 text-xs font-normal text-slate-500">
+                                ({t('tournament.lobby.spectateEnded')})
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            {t('tournament.lobby.spectatePlayerCount', {
+                              count: String(tab.players.length),
+                            })}
+                          </span>
+                          <span className="truncate text-[11px] text-slate-500">
+                            {tab.players.map((p) => p.username).join(' · ')}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

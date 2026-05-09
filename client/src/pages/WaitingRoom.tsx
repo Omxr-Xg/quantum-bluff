@@ -24,6 +24,10 @@ export function WaitingRoom() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const [defeatBanner] = useState(() => {
+    const st = location.state as { outcome?: string; message?: string } | null;
+    return st?.outcome === "lost" && st.message ? st.message : null;
+  });
   const { userId, username } = useUser();
   const { socket, isConnected, joinRoom, leaveRoom } = useSocket();
   const queryParams = new URLSearchParams(location.search);
@@ -103,11 +107,25 @@ export function WaitingRoom() {
     async (id: string) => {
       const url = apiUrl(`/api/waiting-room/${id}`);
       const res = await fetch(url);
+      if (res.status === 410) {
+        const msg = await extractErrorMessage(
+          res,
+          t("waitingRoom.roomGameEnded", "Cette partie est terminée ou n’est plus disponible."),
+        );
+        return { fetchError: msg, code: "ROOM_GAME_ENDED" as const };
+      }
       if (!res.ok) return null;
       return res.json();
     },
-    []
+    [extractErrorMessage, t]
   );
+
+  useEffect(() => {
+    const st = location.state as { outcome?: string } | null;
+    if (st?.outcome === "lost") {
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.search, location.state, navigate]);
 
   useEffect(() => {
     if (!userId) {
@@ -152,6 +170,11 @@ export function WaitingRoom() {
 
         const room = await fetchRoom(rawRoomId);
         if (cancelled) return;
+        if (room && typeof room === "object" && "fetchError" in room) {
+          setRoomError(room.fetchError);
+          setRoomLoading(false);
+          return;
+        }
         if (!room) {
           setRoomError(t('waitingRoom.roomNotFound'));
           setRoomLoading(false);
@@ -442,8 +465,16 @@ export function WaitingRoom() {
   }
 
   return (
-    <div className="w-full min-h-screen app-shell-bg overflow-auto">
+    <div className="w-full min-h-full app-shell-bg overflow-x-hidden">
       <div className="w-full min-w-0 p-4 sm:p-6">
+        {defeatBanner ? (
+          <div
+            className="mb-6 rounded-xl border border-rose-500/35 bg-rose-950/40 px-4 py-3 text-sm text-rose-100"
+            role="status"
+          >
+            {defeatBanner}
+          </div>
+        ) : null}
         <div className="flex items-center justify-between mb-8">
           <button
             onClick={handleLeaveRoom}

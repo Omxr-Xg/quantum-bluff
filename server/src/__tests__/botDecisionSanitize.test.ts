@@ -19,20 +19,20 @@ describe('sanitizeBotDecision — short stack', () => {
     const req = baseReq()
     const d = sanitizeBotDecision({ action: 'CALL', amount: 80, reasoning: 'ai' }, req)
     expect(d.action).toBe('CALL')
-    expect(d.amount).toBe(40)
+    expect('amount' in d ? d.amount : undefined).toBe(40)
   })
 
   test('CHECK invalide avec mise → all-in partiel', () => {
     const req = baseReq()
     const d = sanitizeBotDecision({ action: 'CHECK', reasoning: 'ai' }, req)
     expect(d.action).toBe('CALL')
-    expect(d.amount).toBe(40)
+    expect('amount' in d ? d.amount : undefined).toBe(40)
   })
 
   test('RAISE alors que call > jetons → all-in call', () => {
     const req = baseReq()
     const d = sanitizeBotDecision({ action: 'RAISE', amount: 500, reasoning: 'ai' }, req)
     expect(d.action).toBe('CALL')
-    expect(d.amount).toBe(40)
+    expect('amount' in d ? d.amount : undefined).toBe(40)
   })
 })

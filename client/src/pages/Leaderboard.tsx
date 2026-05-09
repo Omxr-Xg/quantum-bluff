@@ -153,7 +153,7 @@ export function Leaderboard() {
 
   return (
     <div
-      className={`relative w-full min-h-screen overflow-x-hidden overflow-y-auto p-6 transition-[background-color] duration-700 ease-in-out ${pageBaseBg}`}
+      className={`relative w-full min-h-full overflow-x-hidden p-6 transition-[background-color] duration-700 ease-in-out ${pageBaseBg}`}
     >
       {/* Fond Général — indigo / ciel (3ᵉ thème) */}
       <div

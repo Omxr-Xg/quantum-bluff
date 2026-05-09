@@ -38,7 +38,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     // 2. Récupération des tournois
     const tournaments = await prisma.tournament.findMany({
-      where: { status: 'PENDING' },
+      where: { status: { in: ['PENDING', 'ACTIVE'] } },
       include: {
         _count: { select: { players: true } },
         players: {
@@ -109,6 +109,19 @@ router.post('/create', authMiddleware, async (req: Request, res: Response) => {
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erreur lors de la création";
     res.status(400).json({ error: msg });
+  }
+});
+
+/** Tables suivables en spectateur (cartes fermées masquées côté moteur). */
+router.get('/:id/spectate-tables', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const payload = await TournamentService.getSpectateTablesPayload(req.params.id);
+    if (!payload) {
+      return res.status(404).json({ error: 'Aucune table en suivi pour ce tournoi.' });
+    }
+    res.json(payload);
+  } catch {
+    res.status(500).json({ error: 'Erreur lors du chargement des tables.' });
   }
 });
 

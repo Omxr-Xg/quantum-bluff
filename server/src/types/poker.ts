@@ -40,6 +40,8 @@ export interface Player {
   /** Total amount put into the pot this hand (for side pot calculation). */
   totalPutInThisHand?: number;
   isActive: boolean;
+  /** Vrai seulement après un fold explicite (ou équivalent quit) sur cette main — pas pour un bust au showdown. */
+  hasFoldedThisHand?: boolean;
   position?: number;
   isDealer?: boolean;
   isConnected?: boolean;
@@ -65,6 +67,8 @@ export interface GameState {
   showdownHandName?: string
   /** Pot attribué au showdown (pour affichage) */
   showdownPot?: number
+  /** Les 5 cartes formant la main gagnante au showdown (Hold'em). */
+  showdownWinningCards?: Card[]
   /** Nombre de cartes brûlées (affichage face cachée à côté de la table) */
   burnedCardsCount?: number
   /** Relance minimum côté serveur (cash / tournoi). */

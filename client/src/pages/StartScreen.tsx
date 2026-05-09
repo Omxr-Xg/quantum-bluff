@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles, Crown, Gem, Zap } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import i18n from "../i18n/config";
+import { getAuthItem } from "../utils/authStorage";
 
 export function StartScreen() {
   const { t } = useTranslation();
@@ -11,6 +12,13 @@ export function StartScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingText, setLoadingText] = useState(() => i18n.t("startScreen.init"));
+
+  useEffect(() => {
+    const token = getAuthItem("token");
+    if (token) {
+      navigate("/lobby", { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     const keys = [

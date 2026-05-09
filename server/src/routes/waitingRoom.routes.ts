@@ -3,6 +3,8 @@ import { prisma } from '../config/database.js';
 import { CashGameController, TURBO_TURN_TIMEOUT_MS } from '../logic/CashGameController.js';
 import { activeGames } from '../shared/activeGames.js';
 import { intChips } from '../utils/chips.js';
+import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js';
+import { createPokerCashLedgerContext } from '../poker/cash/pokerCashLedger.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js';
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js';
@@ -10,6 +12,13 @@ import sanitizeHtml from 'sanitize-html';
 import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
+
+/** Partie poker encore présente dans le runtime (cache local). */
+function isAttachedGameLive(gameId: string | null | undefined): boolean {
+  if (!gameId) return false;
+  return Boolean(activeGames.getSync(gameId));
+}
+
 const waitingRoomListLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
@@ -208,6 +217,7 @@ router.get('/games-in-progress', waitingRoomListLimiter, async (req, res) => {
     }
     for (const room of rooms) {
       if (!room.gameId) continue;
+      if (!activeGames.getSync(room.gameId)) continue;
       if (room.visibility === 'PRIVATE') {
         if (!userId) continue;
         if (room.hostId === userId || myFriends.has(room.hostId)) {
@@ -446,6 +456,13 @@ router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
       return res.status(404).json({ error: 'Salle non trouvée' });
     }
 
+    if (room.status === 'IN_GAME' && !isAttachedGameLive(room.gameId)) {
+      return res.status(410).json({
+        error: 'Cette partie est terminée ou n’est plus disponible.',
+        code: 'ROOM_GAME_ENDED',
+      });
+    }
+
     res.json({
       id: room.id,
       name: room.name,
@@ -487,6 +504,13 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
 
     if (!room) {
       return res.status(404).json({ error: 'Salle non trouvée' });
+    }
+
+    if (room.status === 'IN_GAME' && !isAttachedGameLive(room.gameId)) {
+      return res.status(410).json({
+        error: 'Cette partie est terminée ou n’est plus disponible.',
+        code: 'ROOM_GAME_ENDED',
+      });
     }
 
     if (room.status !== 'WAITING') {
@@ -787,6 +811,57 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
       }))
     );
     cashGame.startHand();
+
+    const openHandId = cashGame.getGameTable()?.state.handId ?? 'table-open';
+    const seatDebits = cashGame
+      .getOccupiedSeats()
+      .filter((s) => s.userId != null)
+      .map((s) => ({ userId: s.userId as string, amount: intChips(s.chips) }));
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const { userId, amount } of seatDebits) {
+          const a = intChips(amount);
+          if (a <= 0) continue;
+          const row = await tx.user.findUnique({
+            where: { id: userId },
+            select: { chips: true },
+          });
+          const before = intChips(row?.chips ?? 0);
+          if (before < a) {
+            const e = new Error('INSUFFICIENT_CHIPS') as Error & { code: string };
+            e.code = 'INSUFFICIENT_CHIPS';
+            throw e;
+          }
+          const after = before - a;
+          await tx.user.update({
+            where: { id: userId },
+            data: { chips: after },
+          });
+          await appendWalletLedgerEntry(
+            {
+              context: createPokerCashLedgerContext({
+                userId,
+                gameId,
+                handId: openHandId,
+                actionId: `room-open:${userId}:${Date.now()}`,
+              }),
+              reason: 'CASH_POKER_BUY_IN',
+              amount: -a,
+              balanceBefore: before,
+              balanceAfter: after,
+            },
+            tx,
+          );
+        }
+      });
+    } catch (err) {
+      console.error('[waitingRoom] cash open debit failed', err);
+      return res.status(500).json({
+        error: 'Impossible de verrouiller les jetons en base pour cette table cash.',
+        code: 'CASH_OPEN_DEBIT_FAILED',
+      });
+    }
 
     // Stocker dans le cache (Redis + local)
     await activeGames.set(gameId, cashGame);

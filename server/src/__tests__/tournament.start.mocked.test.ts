@@ -1,14 +1,17 @@
 var mockTournamentFindUnique: jest.Mock
 var mockTournamentUpdateMany: jest.Mock
+var mockTournamentUpdate: jest.Mock
 
 jest.mock('../config/database.js', () => {
   mockTournamentFindUnique = jest.fn()
   mockTournamentUpdateMany = jest.fn()
+  mockTournamentUpdate = jest.fn()
   return {
     prisma: {
       tournament: {
         findUnique: mockTournamentFindUnique,
         updateMany: mockTournamentUpdateMany,
+        update: mockTournamentUpdate,
       },
     },
   }
@@ -18,6 +21,15 @@ jest.mock('../shared/activeGames.js', () => ({
   activeGames: {
     set: jest.fn().mockResolvedValue(undefined),
   },
+}))
+
+jest.mock('../services/tournamentBracketStore.service.js', () => ({
+  appendTournamentSurvivor: jest.fn(),
+  clearTournamentBracketState: jest.fn().mockResolvedValue(undefined),
+  clearTournamentSurvivors: jest.fn(),
+  getTournamentExpectedTables: jest.fn(),
+  getTournamentSurvivors: jest.fn(),
+  setTournamentExpectedTables: jest.fn().mockResolvedValue(undefined),
 }))
 
 jest.mock('../logic/GameTable.js', () => ({
@@ -58,6 +70,7 @@ describe('TournamentService.startTournament (mocked)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockTournamentUpdateMany.mockResolvedValue({ count: 1 })
+    mockTournamentUpdate.mockResolvedValue({ id: 'tour-test-1' })
   })
 
   it('4 joueurs → 2 tables de 2', async () => {
@@ -68,6 +81,13 @@ describe('TournamentService.startTournament (mocked)', () => {
       2, 2,
     ])
     expect(GameTable).toHaveBeenCalledTimes(2)
+    expect(mockTournamentUpdate).toHaveBeenCalledWith({
+      where: { id: 'tour-test-1' },
+      data: {
+        openingRoundTableCount: 2,
+        activeBracketPhase: 'OPENING',
+      },
+    })
   })
 
   it('5 joueurs → tables 2 et 3', async () => {
