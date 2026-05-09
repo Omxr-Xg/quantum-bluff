@@ -1,5 +1,4 @@
 import { prisma } from '../config/database.js'
-import type { Prisma } from '../generated/prisma/index.js'
 
 export async function createGiftCode(data: {
   code: string

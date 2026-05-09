@@ -27,7 +27,7 @@ const requireAdminToken = async (req: express.Request, res: express.Response, ne
 
     req.userId = decoded.userId
     return next()
-  } catch (error: any) {
+  } catch {
     return res.status(401).json({ error: 'Token invalide' })
   }
 }

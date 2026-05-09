@@ -1,5 +1,5 @@
 import express from 'express'
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
+import rateLimit from 'express-rate-limit'
 import { authMiddleware } from '../middleware/auth.middleware.js'
 import {
   claimFreeRecharge,
@@ -11,6 +11,15 @@ const router = express.Router()
 
 router.use(authMiddleware)
 
+/** Extrait l'IP client de manière sûre (gère IPv4 et IPv6). */
+const getClientIp = (req: express.Request): string => {
+  const forwarded = req.headers['x-forwarded-for']
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim()
+  }
+  return req.ip || 'unknown'
+}
+
 /** Limite les abus sur POST /claim (complète le cooldown côté métier). */
 const claimLimiter = rateLimit({
   windowMs: 60_000,
@@ -19,7 +28,7 @@ const claimLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const uid = (req as express.Request & { userId?: string }).userId
-    return uid ? `free-recharge:${uid}` : `free-recharge:${ipKeyGenerator(req)}`
+    return uid ? `free-recharge:${uid}` : `free-recharge:${getClientIp(req)}`
   },
 })
 
