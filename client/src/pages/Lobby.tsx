@@ -870,7 +870,7 @@ export function Lobby() {
         )}
 
         {/* 🆕 FREE RECHARGE BUTTON */}
-        <div className="mb-6 max-w-sm mx-auto">
+        <div className="mb-6 max-w-sm mx-auto empty:hidden">
           <FreeRechargeButton
             key={rechargeKey}
             onClaimed={handleRechargeSuccess}

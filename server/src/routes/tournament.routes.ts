@@ -20,19 +20,13 @@ router.get('/', async (req: Request, res: Response) => {
     let currentUserId: string | null = null;
     const authHeader = req.headers.authorization;
 
-    console.log("=== DEBUG LOBBY ==="); // 👈 MOUCHARD 1
-    console.log("Header recu :", authHeader); // 👈 MOUCHARD 2
-
-    // 1. Décryptage du token
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       try {
-        // VÉRIFIE BIEN QUE CETTE CLÉ (secret) EST LA MÊME DANS TOUT TON PROJET
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as TokenPayload;
         currentUserId = decoded.userId;
-        console.log("ID Utilisateur détecté dans le Lobby:", currentUserId); // LOG DE DEBUG
       } catch {
-        console.log("Token invalide ou manquant");
+        /* token invalide : lobby public sans isJoined */
       }
     }
 
@@ -112,12 +106,12 @@ router.post('/create', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-/** Tables suivables en spectateur (cartes fermées masquées côté moteur). */
+/** Tables suivables en spectateur (200 + tables vides si tournoi terminé ou aucune partie sur ce nœud). */
 router.get('/:id/spectate-tables', authMiddleware, async (req: Request, res: Response) => {
   try {
     const payload = await TournamentService.getSpectateTablesPayload(req.params.id);
     if (!payload) {
-      return res.status(404).json({ error: 'Aucune table en suivi pour ce tournoi.' });
+      return res.status(404).json({ error: 'Tournoi introuvable.' });
     }
     res.json(payload);
   } catch {

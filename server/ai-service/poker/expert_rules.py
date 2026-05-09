@@ -112,7 +112,7 @@ def label_situation(payload: dict[str, Any]) -> ExpertLabel:
                 return _make("RAISE", 0.78, "value", f"Strong preflop hand opens or 3-bets ({tier_name})")
             return _make("CHECK_CALL", 0.68, "pot_odds", f"Strong preflop hand continues versus pressure ({tier_name})")
         if tier >= 0.54:
-            if pressure >= 0.42 and not in_position:
+            if pressure >= 0.52 and not in_position:
                 return _make("FOLD", 0.72, "discipline", f"Playable hand folds to heavy OOP pressure ({tier_name})")
             if to_call == 0 and (in_position or passive_villain):
                 return _make("RAISE", 0.62, "steal", f"Playable preflop hand pressures blinds ({tier_name})")
@@ -170,9 +170,14 @@ def label_situation(payload: dict[str, Any]) -> ExpertLabel:
         return _make("CHECK_CALL", 0.6, "pot_odds", "Marginal call justified by price")
     if to_call > 0 and to_call <= pot * 0.34 and equity >= 0.24:
         return _make("CHECK_CALL", 0.52, "float", "Petite mise par rapport au pot — call « humain »")
-    if pressure > 0.34 or aggressive_villain:
-        return _make("FOLD", 0.72, "discipline", "Weak hand facing costly or aggressive action")
-    return _make("FOLD", 0.58, "discipline", "Weak hand with insufficient equity")
+    # Sans lecture d’adversaire : ne fold que si la pression est réellement forte (évite fold auto).
+    if (pressure > 0.48 and equity < 0.3) or (aggressive_villain and pressure > 0.42):
+        return _make("FOLD", 0.72, "discipline", "Weak hand facing strong pressure")
+    if to_call > 0 and to_call <= pot * 0.42 and equity >= 0.18:
+        return _make("CHECK_CALL", 0.48, "float", "Mise modérée — call pour voir ou bluff induce")
+    if to_call <= 0 and in_position and equity >= 0.28:
+        return _make("RAISE", 0.5, "bluff", "Position : petite pression comme un régulier")
+    return _make("CHECK_CALL", 0.55, "pot_control", "Pas assez d’info pour jeter ; contrôle du pot")
 
 
 def _make(label: str, confidence: float, style: str, reason: str) -> ExpertLabel:

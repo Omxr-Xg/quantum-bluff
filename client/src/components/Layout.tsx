@@ -57,6 +57,12 @@ import { RateGameModal } from "./RateGameModal";
 import { GlobalHoverTooltip } from "./GlobalHoverTooltip";
 import { GlobalCustomScrollbars } from "./GlobalCustomScrollbars";
 import { CustomScrollArea } from "./CustomScrollArea";
+import {
+  FakeCardTopUpFields,
+  FakePromoCodeField,
+  isFakeCardComplete,
+  isQuantumPromo,
+} from "./FakeCardTopUpForm";
 import { useIsMobile } from "./ui/use-mobile";
 import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
@@ -138,7 +144,11 @@ export function Layout({ children }: LayoutProps) {
   const [dailyLoginAvailable, setDailyLoginAvailable] = useState(false);
   const [balanceModalTab, setBalanceModalTab] = useState<"history" | "topup" | "codes">("topup");
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
-  const [devValidation, setDevValidation] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardDigits, setCardDigits] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -454,7 +464,11 @@ export function Layout({ children }: LayoutProps) {
     setShowAddMoney(true);
     setBalanceModalTab("topup");
     setAddMoneyAmount(null);
-    setDevValidation("");
+    setPromoCode("");
+    setCardName("");
+    setCardDigits("");
+    setCardExpiry("");
+    setCardCvv("");
     setAddSuccess(false);
   };
   const loadBalanceHistory = useCallback(async () => {
@@ -563,6 +577,13 @@ export function Layout({ children }: LayoutProps) {
   const closeAddMoney = () => {
     playSfx("modalClose");
     setShowAddMoney(false);
+    setAddMoneyAmount(null);
+    setPromoCode("");
+    setCardName("");
+    setCardDigits("");
+    setCardExpiry("");
+    setCardCvv("");
+    setAddSuccess(false);
     if (getAuthItem("token")) {
       fetchBalanceFromServer().then(setBalance);
     } else {
@@ -570,8 +591,9 @@ export function Layout({ children }: LayoutProps) {
     }
   };
   const submitAddMoney = async () => {
-    if (addMoneyAmount == null) return;
-    if (devValidation.trim().toLowerCase() !== "dev") return;
+    if (addMoneyAmount == null || addMoneyAmount <= 0) return;
+    const quantumActive = isQuantumPromo(promoCode);
+    if (!quantumActive && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
     const newBalance = await addDevMoney(addMoneyAmount);
     setBalance(newBalance);
     await loadBalanceHistory();
@@ -592,13 +614,18 @@ export function Layout({ children }: LayoutProps) {
     }
   }, [isAdminShell, stopBgm]);
   const showTopBar = !isAuthPage && getAuthItem("token");
+  const quantumTopUp = isQuantumPromo(promoCode);
+  const canSubmitTopUp =
+    addMoneyAmount != null &&
+    addMoneyAmount > 0 &&
+    (quantumTopUp || isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName));
   const addMoneyModalHeightClass =
     balanceModalTab === "history"
       ? "h-[24rem]"
       : addSuccess
         ? "h-[20rem]"
         : addMoneyAmount != null
-          ? "h-[28rem]"
+          ? "h-[38rem]"
           : "h-[18rem]";
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
@@ -1387,23 +1414,24 @@ export function Layout({ children }: LayoutProps) {
                   ))}
                 </div>
                 {addMoneyAmount != null && (
-                  <div className="space-y-2">
-                    <label className="text-slate-300 text-sm block">
-                      {t("lobby.devValidation")}
-                    </label>
-                    <input
-                      type="text"
-                      value={devValidation}
-                      onChange={(e) => setDevValidation(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
-                      placeholder="dev"
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-slate-50 placeholder-slate-500 outline-none transition focus:border-amber-300/55 focus:ring-1 focus:ring-amber-300/35"
-                      autoComplete="off"
+                  <div className="space-y-3">
+                    <FakeCardTopUpFields
+                      addMoneyAmount={addMoneyAmount}
+                      promoCode={promoCode}
+                      cardName={cardName}
+                      setCardName={setCardName}
+                      cardDigits={cardDigits}
+                      setCardDigits={setCardDigits}
+                      cardExpiry={cardExpiry}
+                      setCardExpiry={setCardExpiry}
+                      cardCvv={cardCvv}
+                      setCardCvv={setCardCvv}
                     />
+                    <FakePromoCodeField promoCode={promoCode} setPromoCode={setPromoCode} />
                     <button
                       type="button"
-                      onClick={submitAddMoney}
-                      disabled={devValidation.trim().toLowerCase() !== "dev"}
+                      onClick={() => void submitAddMoney()}
+                      disabled={!canSubmitTopUp}
                       className="w-full rounded-full border border-amber-200/35 bg-amber-400/16 py-2 font-bold text-amber-100 transition hover:bg-amber-400/24 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500"
                     >
                       Valider l'alimentation
