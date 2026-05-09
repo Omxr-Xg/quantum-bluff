@@ -450,6 +450,8 @@
       "spectatorPlaceholder": "Zone spectateur"
     },
     "handFinished": "Manche terminée",
+    "showdownWinnerIs": "Le gagnant est {{name}}",
+    "showdownContinue": "Continuer",
     "victory": "Victoire !",
     "allBotsEliminated": "Tu as éliminé tous les bots !",
     "defeated": "Éliminé !",

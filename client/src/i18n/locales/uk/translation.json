@@ -348,6 +348,8 @@
     "hiddenBetsUnavailableBotMode": "Недоступно в режимі гри проти бота",
     "chatLinkBlocked": "Посилання в чаті заборонені.",
     "backToLobby": "Назад до лобі",
+    "showdownWinnerIs": "Переможець: {{name}}",
+    "showdownContinue": "Далі",
     "replaySameConfig": "Переграти з тією ж конфігурацією",
     "rematchSameMembers": "Переграти з тими ж гравцями",
     "rejoinNextHand": "Приєднатися до наступної роздачі",

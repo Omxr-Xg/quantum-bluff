@@ -352,7 +352,8 @@ function advancedPotOddsDecision(req: BotActionRequest, p: AdvancedProfile): Bot
     }
     return { action: 'CHECK', reasoning: `${p.name}: check weak` }
   }
-  const heroRate = p.name === 'expert' ? 0.34 : 0.4
+  /* Expert : ne pas être plus « discipline » que hard ici — sinon fold trop visible en spots marginaux. */
+  const heroRate = p.name === 'expert' ? 0.44 : 0.4
   if (headsUp && Math.random() < heroRate) {
     if (req.playerChips >= req.callAmount) {
       return { action: 'CALL', amount: intChips(req.callAmount), reasoning: `${p.name}: hero call` }
@@ -389,6 +390,133 @@ function advancedPotOddsDecision(req: BotActionRequest, p: AdvancedProfile): Bot
     }
   }
   return { action: 'FOLD', reasoning: `${p.name}: fold` }
+}
+
+/** Contexte « voyant » : trous adverses connus (mode expert sans ou en secours du service Python). */
+export type ExpertOracleContext = {
+  opponentHoleCards?: Card[][]
+  opponentStack?: number
+}
+
+/**
+ * Force normalisée « adversaire » en oracle multiway : avec 3+ trous, le pur max surestime
+ * toujours quelqu’un qui nous domine — on mélange meilleure main et médiane.
+ * `sortedDesc` : forces triées décroissantes.
+ */
+export function compositeOpponentNormalizedStrength(sortedDesc: number[]): number {
+  const n = sortedDesc.length
+  if (n === 0) return 0
+  if (n <= 2) return sortedDesc[0]!
+  const best = sortedDesc[0]!
+  const median = sortedDesc[Math.floor(n / 2)]!
+  const w = Math.max(0.35, Math.min(0.68, 0.56 - 0.05 * (n - 3)))
+  return best * w + median * (1 - w)
+}
+
+/**
+ * Politique expert quand les cartes adverses sont connues (oracle), sans appel Python.
+ * Évite le fold mécanique du heuristic expert classique qui ne voit pas les mains adverses.
+ */
+export function expertOracleDecision(req: BotActionRequest, ctx: ExpertOracleContext): BotActionResponse {
+  const board = req.communityCards
+  const holes = (ctx.opponentHoleCards ?? []).filter((h) => Array.isArray(h) && h.length >= 2)
+  const hero = normalizedHandStrength(req.playerCards, board)
+  const oppStrengths = holes.map((h) => normalizedHandStrength(h, board)).sort((a, b) => b - a)
+  const oppBest = compositeOpponentNormalizedStrength(oppStrengths)
+  const edge = hero - oppBest
+
+  const potOdds = req.callAmount / Math.max(req.potSize + req.callAmount, 1)
+  const pressure = req.callAmount / Math.max(req.playerChips, 1)
+
+  const eq = Math.min(0.96, Math.max(0.06, hero + edge * 0.52))
+
+  if (req.callAmount === 0) {
+    if (edge > 0.02) {
+      return {
+        action: 'RAISE',
+        amount: minRaiseAmount(req, 2.35 + Math.random() * 0.75),
+        style: 'value',
+        reasoning: `expert-oracle: value (edge=${edge.toFixed(2)})`,
+      }
+    }
+    if (edge > -0.14 && Math.random() < 0.44) {
+      return {
+        action: 'RAISE',
+        amount: minRaiseAmount(req, 1.85 + Math.random() * 0.55),
+        style: 'bluff',
+        reasoning: `expert-oracle: bluff / pression (edge=${edge.toFixed(2)})`,
+      }
+    }
+    return {
+      action: 'CHECK',
+      style: 'pot_control',
+      reasoning: `expert-oracle: check (edge=${edge.toFixed(2)})`,
+    }
+  }
+
+  if (edge > 0.08) {
+    if (eq > potOdds + 0.1 && Math.random() < 0.5) {
+      return {
+        action: 'RAISE',
+        amount: minRaiseAmount(req, 2.15 + Math.random() * 0.5),
+        style: 'value',
+        reasoning: 'expert-oracle: relance value face à une mise',
+      }
+    }
+    return {
+      action: 'CALL',
+      amount: intChips(req.callAmount),
+      style: 'value',
+      reasoning: 'expert-oracle: call — devant',
+    }
+  }
+
+  if (edge >= -0.07 && eq + 0.05 >= potOdds) {
+    return {
+      action: 'CALL',
+      amount: intChips(req.callAmount),
+      style: 'showdown_value',
+      reasoning: 'expert-oracle: call — prix potable',
+    }
+  }
+
+  if (edge >= -0.14 && req.callAmount <= req.potSize * 0.5) {
+    if (Math.random() < 0.68) {
+      return {
+        action: 'CALL',
+        amount: intChips(req.callAmount),
+        style: 'float',
+        reasoning: 'expert-oracle: call mise modérée',
+      }
+    }
+  }
+
+  if (edge < -0.22 && (pressure > 0.4 || req.callAmount > req.potSize * 0.9)) {
+    return {
+      action: 'FOLD',
+      style: 'discipline',
+      reasoning: 'expert-oracle: dominé + grosse pression',
+    }
+  }
+
+  if (edge < -0.16 && potOdds > 0.48) {
+    return {
+      action: 'FOLD',
+      style: 'discipline',
+      reasoning: 'expert-oracle: dominé, pot odds défavorables',
+    }
+  }
+
+  if (req.playerChips >= req.callAmount && Math.random() < 0.82) {
+    return {
+      action: 'CALL',
+      amount: intChips(req.callAmount),
+      style: 'hero',
+      reasoning: 'expert-oracle: call (évite fold systématique)',
+    }
+  }
+
+  return { action: 'FOLD', style: 'discipline', reasoning: 'expert-oracle: fold' }
 }
 
 export function decideBotAction(req: BotActionRequest): BotActionResponse {

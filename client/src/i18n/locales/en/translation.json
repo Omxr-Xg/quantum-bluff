@@ -450,6 +450,8 @@
       "spectatorPlaceholder": "Spectator area"
     },
     "handFinished": "Hand complete",
+    "showdownWinnerIs": "The winner is {{name}}",
+    "showdownContinue": "Continue",
     "victory": "Victory!",
     "allBotsEliminated": "You eliminated all bots!",
     "defeated": "Eliminated!",

@@ -49,6 +49,7 @@ import adminConsoleRoutes from './routes/adminConsole.routes.js'
 import { antiCheatMiddleware } from './middleware/antiCheat.middleware.js'
 import adminRoutes from './routes/admin.routes.js'
 import { GameGateway } from './sockets/game.gateway.js'
+import { setGameIo } from './sockets/gameIo.registry.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
 import { connectDB } from './config/database.js'
 import { createSocketIoRedisClients, disconnectSocketIoRedisClients } from './config/socketIoRedis.js'
@@ -357,6 +358,7 @@ void pruneInactiveBlackjackWaitingRooms()
     })
   })
 new GameGateway(io)
+setGameIo(io)
 
 const PORT = env.port
 

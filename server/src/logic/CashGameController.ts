@@ -416,6 +416,60 @@ export class CashGameController implements IGameSession {
     seat.chips = Math.max(0, intChips(seat.chips) + d)
   }
 
+  /**
+   * Stack tapis disponible pour financer un pari caché (main en cours ou entre deux mains).
+   */
+  getTableStackForHiddenBet(userId: string): number {
+    if (this.gameTable) {
+      const p = this.gameTable.state.players.find((x) => x.id === userId)
+      return p ? intChips(p.chips) : 0
+    }
+    const seat = this.seats.find((s) => s.userId === userId)
+    return seat ? intChips(seat.chips) : 0
+  }
+
+  /**
+   * Retire des jetons du stack joueur pour un pari caché (le complément peut venir du portefeuille DB).
+   */
+  deductStackForHiddenBet(
+    userId: string,
+    amount: number,
+  ): { ok: true } | { ok: false; error: string } {
+    const a = intChips(amount)
+    if (a <= 0) return { ok: true }
+    if (this.gameTable) {
+      const p = this.gameTable.state.players.find((x) => x.id === userId)
+      if (!p) return { ok: false, error: 'Joueur absent de la main' }
+      if (p.chips < a) return { ok: false, error: 'Stack tapis insuffisant pour ce pari' }
+      p.chips = intChips(p.chips) - a
+      const seat = this.seats.find((s) => s.userId === userId)
+      if (seat) seat.chips = p.chips
+      return { ok: true }
+    }
+    const seat = this.seats.find((s) => s.userId === userId)
+    if (!seat) return { ok: false, error: 'Pas assis à cette table' }
+    if (seat.chips < a) return { ok: false, error: 'Stack tapis insuffisant pour ce pari' }
+    seat.chips = intChips(seat.chips) - a
+    return { ok: true }
+  }
+
+  /** Annule `deductStackForHiddenBet` si la persistance DB du ticket échoue. */
+  restoreStackForHiddenBet(userId: string, amount: number): void {
+    const a = intChips(amount)
+    if (a <= 0) return
+    if (this.gameTable) {
+      const p = this.gameTable.state.players.find((x) => x.id === userId)
+      if (p) {
+        p.chips = intChips(p.chips) + a
+        const seat = this.seats.find((s) => s.userId === userId)
+        if (seat) seat.chips = p.chips
+      }
+      return
+    }
+    const seat = this.seats.find((s) => s.userId === userId)
+    if (seat) seat.chips = intChips(seat.chips) + a
+  }
+
   /** Appelé après le showdown: synchronise les jetons, supprime les éliminés, déclenche le countdown */
   onHandComplete(): CashHandCompleteResult {
     if (!this.gameTable) return { playerStacks: [], seatCashOuts: [] }
