@@ -88,96 +88,112 @@ export async function getFreeRechargeStatus(userId: string): Promise<FreeRecharg
 }
 
 /**
- * Effectue une recharge gratuite.
- * - Vérifie que le cooldown est expiré
- * - Ajoute les jetons
- * - Enregistre dans l'historique du portefeuille
- * - Met à jour le cooldown
+ * Effectue une recharge gratuite (transaction Serializable pour limiter doubles crédits concurrents).
  */
 export async function claimFreeRecharge(userId: string): Promise<FreeRechargeClaimResult> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { chips: true },
-  })
+  try {
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { chips: true },
+        })
+        if (!user) {
+          throw new FreeRechargeError(404, 'USER_NOT_FOUND', 'Utilisateur non trouvé')
+        }
 
-  if (!user) {
-    throw new FreeRechargeError(404, 'USER_NOT_FOUND', 'Utilisateur non trouvé')
-  }
+        const recharge = await tx.freeRecharge.findUnique({ where: { userId } })
+        const now = new Date()
 
-  const recharge = await prisma.freeRecharge.findUnique({
-    where: { userId },
-  })
+        if (recharge?.nextRechargeAfter && recharge.nextRechargeAfter > now) {
+          const msUntilRecharge = recharge.nextRechargeAfter.getTime() - now.getTime()
+          const totalMinutes = Math.ceil(msUntilRecharge / 1000 / 60)
+          const hours = Math.floor(totalMinutes / 60)
+          const minutes = totalMinutes % 60
 
-  const now = new Date()
+          throw new FreeRechargeError(
+            429,
+            'COOLDOWN_ACTIVE',
+            `Recharge indisponible pendant ${hours}h ${minutes}m`,
+          )
+        }
 
-  // Vérifier que le cooldown est expiré
-  if (recharge?.nextRechargeAfter && recharge.nextRechargeAfter > now) {
-    const msUntilRecharge = recharge.nextRechargeAfter.getTime() - now.getTime()
-    const totalMinutes = Math.ceil(msUntilRecharge / 1000 / 60)
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
+        if (user.chips >= FREE_RECHARGE_THRESHOLD) {
+          throw new FreeRechargeError(
+            400,
+            'BALANCE_TOO_HIGH',
+            `Solde trop élevé : il faut moins de ${FREE_RECHARGE_THRESHOLD} jetons (tu en as ${user.chips}).`,
+          )
+        }
 
-    throw new FreeRechargeError(
-      429,
-      'COOLDOWN_ACTIVE',
-      `Recharge indisponible pendant ${hours}h ${minutes}m`
+        const balanceBefore = user.chips
+        const updatedUser = await tx.user.update({
+          where: { id: userId },
+          data: { chips: { increment: FREE_RECHARGE_AMOUNT } },
+          select: { chips: true },
+        })
+
+        const nextRechargeAfter = new Date(
+          now.getTime() + FREE_RECHARGE_COOLDOWN_HOURS * 60 * 60 * 1000,
+        )
+
+        await tx.walletLedgerEntry.create({
+          data: {
+            userId,
+            amount: FREE_RECHARGE_AMOUNT,
+            reason: 'FREE_RECHARGE',
+            balanceBefore,
+            balanceAfter: updatedUser.chips,
+            settlementState: 'SETTLED',
+          },
+        })
+
+        const updatedRecharge = await tx.freeRecharge.upsert({
+          where: { userId },
+          create: {
+            userId,
+            lastRechargeAt: now,
+            nextRechargeAfter,
+          },
+          update: {
+            lastRechargeAt: now,
+            nextRechargeAfter,
+            updatedAt: now,
+          },
+        })
+
+        return {
+          newBalance: updatedUser.chips,
+          nextRechargeAfter: updatedRecharge.nextRechargeAfter,
+        }
+      },
+      {
+        isolationLevel: 'Serializable',
+        maxWait: 5000,
+        timeout: 10000,
+      },
     )
-  }
-
-  // Calculer la prochaine recharge disponible (dans 4 heures)
-  const nextRechargeAfter = new Date(now.getTime() + FREE_RECHARGE_COOLDOWN_HOURS * 60 * 60 * 1000)
-
-  // Transaction : ajouter les jetons et créer l'entrée d'historique
-  const result = await prisma.$transaction(async (tx) => {
-    // Mettre à jour les jetons de l'utilisateur
-    const updatedUser = await tx.user.update({
-      where: { id: userId },
-      data: {
-        chips: {
-          increment: FREE_RECHARGE_AMOUNT,
-        },
-      },
-      select: { chips: true },
-    })
-
-    // Enregistrer dans l'historique du portefeuille
-    await tx.walletLedgerEntry.create({
-      data: {
-        userId,
-        amount: FREE_RECHARGE_AMOUNT,
-        reason: 'FREE_RECHARGE',
-        balanceBefore: user.chips,
-        balanceAfter: updatedUser.chips,
-        settlementState: 'SETTLED',
-      },
-    })
-
-    // Mettre à jour ou créer l'enregistrement de recharge
-    const updatedRecharge = await tx.freeRecharge.upsert({
-      where: { userId },
-      create: {
-        userId,
-        lastRechargeAt: now,
-        nextRechargeAfter,
-      },
-      update: {
-        lastRechargeAt: now,
-        nextRechargeAfter,
-        updatedAt: now,
-      },
-    })
 
     return {
-      newBalance: updatedUser.chips,
-      nextRechargeAfter: updatedRecharge.nextRechargeAfter,
+      success: true,
+      newBalance: result.newBalance,
+      addedAmount: FREE_RECHARGE_AMOUNT,
+      nextRechargeAt: result.nextRechargeAfter?.toISOString() ?? null,
+      message: `Recharge de ${FREE_RECHARGE_AMOUNT} jetons effectuée avec succès!`,
     }
-  })
-
-  return {
-    success: true,
-    newBalance: result.newBalance,
-    addedAmount: FREE_RECHARGE_AMOUNT,
-    nextRechargeAt: result.nextRechargeAfter?.toISOString() ?? null,
-    message: `Recharge de ${FREE_RECHARGE_AMOUNT} jetons effectuée avec succès!`,
+  } catch (err: unknown) {
+    if (isFreeRechargeError(err)) throw err
+    const code =
+      err && typeof err === 'object' && 'code' in err
+        ? String((err as { code: unknown }).code)
+        : ''
+    if (code === 'P2034') {
+      throw new FreeRechargeError(
+        409,
+        'CONFLICT_RETRY',
+        'Conflit temporaire : réessaie dans une seconde.',
+      )
+    }
+    throw err
   }
 }

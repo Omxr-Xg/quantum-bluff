@@ -33,6 +33,8 @@ export class GameTable {
       liveBetWindowMs?: number
       /** Désactive les fenêtres gelées (comportement historique immédiat). */
       liveBetWindowDisabled?: boolean
+      tournamentId?: string
+      tournamentTableNumber?: number
     }
   ) {
     this.id = id
@@ -62,6 +64,10 @@ export class GameTable {
       updatedAt: new Date().toISOString(),
       handParticipantIds: [],
       handRuntimePhase: 'HAND_IN_PROGRESS',
+      ...(options?.tournamentId ? { tournamentId: options.tournamentId } : {}),
+      ...(options?.tournamentTableNumber != null
+        ? { tournamentTableNumber: options.tournamentTableNumber }
+        : {}),
     }
 
     this.normalizePlayers()

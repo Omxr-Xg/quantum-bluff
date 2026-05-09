@@ -102,13 +102,58 @@ export class TournamentService {
     this.spectateTablesByTournament.delete(tournamentId);
   }
 
+  /** Reconstruit la liste des tables depuis les parties actives (Redis + mémoire) si la carte en mémoire a été perdue. */
+  private static async rebuildSpectateTablesFromActiveGames(
+    tournamentId: string,
+  ): Promise<TournamentSpectateTableRow[]> {
+    const all = await activeGames.getAll();
+    const rows: TournamentSpectateTableRow[] = [];
+    for (const [roomId, game] of all) {
+      if (!(game instanceof GameTable)) continue;
+      if (!roomId.startsWith('game_tournoi_')) continue;
+      if (game.state.tournamentId !== tournamentId) continue;
+      const players = game.state.players.map((p) => ({
+        id: p.id,
+        username: p.name,
+      }));
+      rows.push({
+        tableNumber: game.state.tournamentTableNumber ?? rows.length + 1,
+        roomId,
+        players,
+      });
+    }
+    rows.sort((a, b) => a.tableNumber - b.tableNumber);
+    return rows;
+  }
+
   /** Tables connues pour ce tournoi + indicateur si la partie tourne encore sur ce nœud. */
   static async getSpectateTablesPayload(tournamentId: string): Promise<{
     tournamentName: string;
     tables: Array<TournamentSpectateTableRow & { live: boolean }>;
   } | null> {
-    const entry = this.spectateTablesByTournament.get(tournamentId);
-    if (!entry) return null;
+    const meta = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { name: true, status: true },
+    });
+    if (!meta) return null;
+
+    if (meta.status === 'COMPLETED' || meta.status === 'CANCELED') {
+      return { tournamentName: meta.name, tables: [] };
+    }
+
+    let entry = this.spectateTablesByTournament.get(tournamentId);
+    if (!entry) {
+      const rebuilt = await this.rebuildSpectateTablesFromActiveGames(tournamentId);
+      if (rebuilt.length > 0) {
+        entry = { tournamentName: meta.name, tables: rebuilt };
+        this.spectateTablesByTournament.set(tournamentId, entry);
+      }
+    }
+
+    if (!entry) {
+      return { tournamentName: meta.name, tables: [] };
+    }
+
     const tables: Array<TournamentSpectateTableRow & { live: boolean }> = [];
     for (const t of entry.tables) {
       const g = await activeGames.get(t.roomId);
@@ -474,7 +519,10 @@ export class TournamentService {
         isConnected: true
       }));
 
-      const newTable = new GameTable(realGameId, gamePlayers);
+      const newTable = new GameTable(realGameId, gamePlayers, {
+        tournamentId,
+        tournamentTableNumber: tableIdx + 1,
+      });
       newTable.startHand();
       await activeGames.set(realGameId, newTable);
 
@@ -568,7 +616,10 @@ export class TournamentService {
       isConnected: true,
     }));
 
-    const finalTable = new GameTable(finalGameId, finalPlayers);
+    const finalTable = new GameTable(finalGameId, finalPlayers, {
+      tournamentId,
+      tournamentTableNumber: 1,
+    });
     finalTable.startHand();
     await activeGames.set(finalGameId, finalTable);
     const survivorsCopy = doubled.map((s) => ({
@@ -637,7 +688,10 @@ export class TournamentService {
       isConnected: true,
     }));
 
-    const mergeTable = new GameTable(mergeId, mergePlayers);
+    const mergeTable = new GameTable(mergeId, mergePlayers, {
+      tournamentId,
+      tournamentTableNumber: 1,
+    });
     mergeTable.startHand();
     await activeGames.set(mergeId, mergeTable);
 
@@ -918,6 +972,7 @@ export class TournamentService {
 
       console.log(`[TOURNOI] ${tournament.name} CLÔTURÉ.`, fullRanking);
 
+      this.io?.emit('tournament-updated');
     } catch (error) {
       console.error('[TOURNOI] Erreur processVictory:', error);
     }
@@ -970,6 +1025,29 @@ export class TournamentService {
                 detail: msg,
               });
             }
+          }
+
+          const staleMs = 2 * 60 * 60 * 1000;
+          const staleBefore = new Date(now.getTime() - staleMs);
+          const abandonedPending = await prisma.tournament.findMany({
+            where: { status: 'PENDING', startTime: { lt: staleBefore } },
+            include: { players: true },
+          });
+          for (const t of abandonedPending) {
+            try {
+              await this.refundAllPlayersAndCancelTournament(t.id);
+              this.notifyCancellation(t.id, t.name, t.players.map((p) => p.userId));
+              rootLogger.info({ msg: 'tournament_abandoned_pending_cleaned', tournamentId: t.id });
+            } catch (err) {
+              rootLogger.warn({
+                msg: 'tournament_abandoned_cleanup_failed',
+                tournamentId: t.id,
+                detail: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }
+          if (abandonedPending.length > 0) {
+            this.io?.emit('tournament-updated');
           }
         } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : String(error);
