@@ -13,6 +13,7 @@ import {
   Search,
   Shield,
   Trash2,
+  Gift,
 } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
 import { clearAuthStorage } from "../utils/userProfile";
@@ -529,7 +530,7 @@ export function AdminConsole() {
     { id: "history", label: t("adminConsole.tabHistory") },
     { id: "ratings", label: t("adminConsole.tabRatings") },
     { id: "reports", label: t("adminConsole.tabReports") },
-    { id: "giftCodes", label: "🎁 Codes Cadeaux" },
+    { id: "giftCodes", label: "Codes Cadeaux" },
   ];
 
   const reportReasonLabel = (reason: string) =>
@@ -617,7 +618,14 @@ export function AdminConsole() {
                   : "text-slate-300 hover:bg-slate-700/80 hover:text-white"
               }`}
             >
-              {x.label}
+              {x.id === "giftCodes" ? (
+                <span className="inline-flex items-center gap-2">
+                  <Gift className="h-4 w-4 shrink-0" aria-hidden />
+                  {x.label}
+                </span>
+              ) : (
+                x.label
+              )}
             </button>
           ))}
         </nav>
@@ -1180,7 +1188,10 @@ export function AdminConsole() {
         {tab === "giftCodes" && (
           <div className="space-y-4">
             <div className="rounded-2xl border border-slate-600 bg-slate-800/50 p-6">
-              <h3 className="mb-4 text-lg font-bold text-white">🎁 Créer un nouveau code</h3>
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">
+                <Gift className="h-5 w-5 shrink-0 text-amber-400" aria-hidden />
+                Créer un nouveau code
+              </h3>
 
               <div className="space-y-3 mb-4">
                 <div>

@@ -199,7 +199,7 @@ messagesRouter.post('/', friendMessageSendLimiter, async (req, res) => {
 
     const io = req.app.get('io') as Server | undefined
     if (io) {
-      io.to(`user:${receiverIdStr}`).emit('FRIEND_MESSAGE', {
+      const payload = {
         id: message.id,
         senderId: message.senderId,
         receiverId: message.receiverId,
@@ -207,7 +207,10 @@ messagesRouter.post('/', friendMessageSendLimiter, async (req, res) => {
         createdAt: message.createdAt.toISOString(),
         sender: message.sender,
         receiver: message.receiver
-      })
+      }
+      for (const uid of new Set([receiverIdStr, senderId])) {
+        io.to(`user:${uid}`).emit('FRIEND_MESSAGE', payload)
+      }
     }
 
     return res.json(message)
