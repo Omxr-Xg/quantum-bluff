@@ -39,6 +39,12 @@ import { intChips } from "../utils/chips";
 import { getWinMultiplierFromDifficultyParam } from "../utils/botModeReward";
 import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
 import { DeckShuffleOverlay } from "../components/game/DeckShuffleOverlay";
+import {
+  FakeCardTopUpFields,
+  FakePromoCodeField,
+  isFakeCardComplete,
+  isQuantumPromo,
+} from "../components/FakeCardTopUpForm";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
@@ -101,6 +107,36 @@ function labelForBotTableAction(kind: BotTableActionKind, tr: (key: string) => s
     default:
       return tr("game.actionRaised");
   }
+}
+
+/** Données « oracle » pour l’IA expert : adversaires encore en main + leurs cartes (table locale). */
+function buildExpertOraclePayload(
+  playersState: (BasePlayer | BotPlayer)[],
+  activePlayerId: string | number,
+): { opponentHoleCards?: { suit: string; rank: string }[][]; opponentStack: number } {
+  const opps = playersState.filter((p) => {
+    if (p.id === activePlayerId) return false;
+    if (p.isConnected === false) return false;
+    if (p.hasFolded === true) return false;
+    return true;
+  });
+  const opponentStack = opps.length > 0 ? Math.max(0, ...opps.map((p) => p.chips ?? 0)) : 0;
+  const opponentHoleCards = opps
+    .map((p) => (Array.isArray(p.cards) ? p.cards : []))
+    .filter((c) => c.length >= 2)
+    .map((c) =>
+      c.slice(0, 2).map((card) => ({
+        suit: card.suit,
+        rank: card.value,
+      })),
+    );
+  const out: { opponentHoleCards?: { suit: string; rank: string }[][]; opponentStack: number } = {
+    opponentStack,
+  };
+  if (opponentHoleCards.length > 0) {
+    out.opponentHoleCards = opponentHoleCards;
+  }
+  return out;
 }
 
 interface BasePlayer {
@@ -288,7 +324,11 @@ export function Game() {
   }, []);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
-  const [devValidation, setDevValidation] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardDigits, setCardDigits] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const turnTimeLimitSecRef = useRef(30);
@@ -768,20 +808,29 @@ export function Game() {
   const _openAddMoney = () => {
     setShowAddMoney(true);
     setAddMoneyAmount(null);
-    setDevValidation("");
+    setPromoCode("");
+    setCardName("");
+    setCardDigits("");
+    setCardExpiry("");
+    setCardCvv("");
     setAddSuccess(false);
   };
 
   const closeAddMoney = () => {
     setShowAddMoney(false);
     setAddMoneyAmount(null);
-    setDevValidation("");
+    setPromoCode("");
+    setCardName("");
+    setCardDigits("");
+    setCardExpiry("");
+    setCardCvv("");
     setAddSuccess(false);
   };
 
   const submitAddMoney = async () => {
     if (addMoneyAmount == null || addMoneyAmount <= 0) return;
-    if (devValidation.trim().toLowerCase() !== "dev") return;
+    const quantumActive = isQuantumPromo(promoCode);
+    if (!quantumActive && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
     const newBalance = mode === "bot"
       ? addToUserBalance(addMoneyAmount)
       : await addDevMoney(addMoneyAmount);
@@ -796,6 +845,12 @@ export function Game() {
     setAddSuccess(true);
     setTimeout(() => closeAddMoney(), 800);
   };
+
+  const quantumTopUpGame = isQuantumPromo(promoCode);
+  const canSubmitTopUpGame =
+    addMoneyAmount != null &&
+    addMoneyAmount > 0 &&
+    (quantumTopUpGame || isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName));
 
   const getPlayers = (): (BasePlayer | BotPlayer)[] => {
     const count = parseInt(searchParams.get("bots") || "1", 10);
@@ -1443,7 +1498,20 @@ export function Game() {
       setHiddenBetNextHandId(gameState.hiddenBetNextHandId ?? null);
       setHiddenBetWindowOpen(Boolean(gameState.hiddenBetWindowOpen));
       setHiddenBetState(gameState.hiddenBetState ?? null);
-      const socketSnapshotSig = `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}`;
+      const stMeta = gameState as {
+        updatedAt?: string;
+        streetVersion?: number;
+        pot?: number;
+        handRuntimePhase?: string;
+        id?: string;
+      };
+      /* Clé stricte : le serveur bump `updatedAt` à chaque mutation. L’ancienne clé (phase+version+tour)
+       * pouvait fusionner deux états réels différents → client qui ignorait un GAME_UPDATE et restait bloqué
+       * (fréquent en table finale / all-in / fin de main). */
+      const socketSnapshotSig =
+        typeof stMeta.updatedAt === "string" && stMeta.updatedAt.length > 0
+          ? `${stMeta.id ?? gameState.handId ?? "no-id"}:${stMeta.updatedAt}`
+          : `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}:${typeof stMeta.streetVersion === "number" ? stMeta.streetVersion : "no-sv"}:${typeof stMeta.pot === "number" ? stMeta.pot : "no-pot"}:${stMeta.handRuntimePhase ?? "no-hrp"}`;
       if (socketSnapshotSig === lastAppliedSocketSnapshotSigRef.current) {
   console.log('[FRONT][GAME] socket_update_ignored_same_snapshot', {
     socketSnapshotSig,
@@ -1812,8 +1880,15 @@ export function Game() {
     };
     const onGameUpdateMain = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_UPDATE", state);
     const onGameStateUpdated = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_STATE_UPDATED", state);
+    const onHandStateChanged = (payload: { gameId?: string }) => {
+      if (!gameIdParam || String(payload?.gameId) !== String(gameIdParam)) return;
+      /* Si un snapshot a été mal dédupliqué, le prochain GAME_UPDATE doit passer ; débloque aussi isLoading. */
+      lastAppliedSocketSnapshotSigRef.current = "";
+      setIsLoading(false);
+    };
     socket.on("GAME_UPDATE", onGameUpdateMain);
     socket.on("GAME_STATE_UPDATED", onGameStateUpdated);
+    socket.on("HAND_STATE_CHANGED", onHandStateChanged);
     const onGameEnded = (data: {
       gameId: string;
       winnerId?: string;
@@ -1957,6 +2032,7 @@ export function Game() {
       socket.off("connect", emitJoinRoom);
       socket.off("GAME_UPDATE", onGameUpdateMain);
       socket.off("GAME_STATE_UPDATED", onGameStateUpdated);
+      socket.off("HAND_STATE_CHANGED", onHandStateChanged);
       socket.off("GAME_ENDED", onGameEnded);
       socket.off("PRACTICE_SESSION_END", onPracticeSessionEnd);
       socket.off("PLAYER_BUSTED", onPlayerBusted);
@@ -3041,6 +3117,11 @@ export function Game() {
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
         const url = apiUrl("/api/bot/action");
+        const botDifficulty = "isBot" in activePlayer ? activePlayer.difficulty : "medium";
+        const expertOracle =
+          botDifficulty === "expert"
+            ? buildExpertOraclePayload(playersState, activePlayer.id)
+            : null;
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -3048,7 +3129,7 @@ export function Game() {
           body: JSON.stringify({
             playerCards: activePlayer.cards,
             communityCards: communityCardsState.filter((c): c is Card => c !== null),
-            difficulty: "isBot" in activePlayer ? activePlayer.difficulty : "medium",
+            difficulty: botDifficulty,
             currentBet: currentBet,
             playerChips: activePlayer.chips,
             callAmount,
@@ -3056,6 +3137,7 @@ export function Game() {
             potSize: pot,
             position: activePlayer.position,
             playersCount: playersState.filter((p) => p.isConnected !== false).length,
+            ...(expertOracle ?? {}),
           }),
         });
         clearTimeout(timeoutId);
@@ -3973,7 +4055,10 @@ export function Game() {
 
       {showAddMoney && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
-          <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="max-h-[min(90vh,40rem)] overflow-y-auto bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white">{t("lobby.addMoneyTitle")}</h3>
               <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
@@ -3998,21 +4083,25 @@ export function Game() {
                   ))}
                 </div>
                 {addMoneyAmount != null && (
-                  <div className="space-y-2">
-                    <label className="text-slate-300 text-sm block">{t("lobby.devValidation")}</label>
-                    <input
-                      type="text"
-                      value={devValidation}
-                      onChange={(e) => setDevValidation(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
-                      placeholder="dev"
-                      className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
-                      autoComplete="off"
+                  <div className="space-y-3">
+                    <FakeCardTopUpFields
+                      compact
+                      addMoneyAmount={addMoneyAmount}
+                      promoCode={promoCode}
+                      cardName={cardName}
+                      setCardName={setCardName}
+                      cardDigits={cardDigits}
+                      setCardDigits={setCardDigits}
+                      cardExpiry={cardExpiry}
+                      setCardExpiry={setCardExpiry}
+                      cardCvv={cardCvv}
+                      setCardCvv={setCardCvv}
                     />
+                    <FakePromoCodeField compact promoCode={promoCode} setPromoCode={setPromoCode} />
                     <button
                       type="button"
-                      onClick={submitAddMoney}
-                      disabled={devValidation.trim().toLowerCase() !== "dev"}
+                      onClick={() => void submitAddMoney()}
+                      disabled={!canSubmitTopUpGame}
                       className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
                     >
                       {t("lobby.validate")}

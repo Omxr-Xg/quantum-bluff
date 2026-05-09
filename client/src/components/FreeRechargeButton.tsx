@@ -1,10 +1,19 @@
-import { useEffect, useState } from 'react'
-import { Clock, Zap, Loader2 } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Zap, Loader2 } from 'lucide-react'
 import {
   fetchFreeRechargeStatus,
   claimFreeRecharge,
+  FREE_RECHARGE_AMOUNT,
+  FreeRechargeApiError,
   type FreeRechargeStatus,
 } from '../utils/freeRecharge'
+import {
+  clearLocalNotice,
+  dispatchLocalNotice,
+  FREE_RECHARGE_BALANCE_NOTICE_ID,
+  FREE_RECHARGE_COOLDOWN_NOTICE_ID,
+} from '../utils/localNotices'
 import { ChipIcon } from './ChipIcon'
 import { motion } from 'motion/react'
 
@@ -17,20 +26,23 @@ type FreeRechargeButtonProps = {
   showDetails?: boolean
 }
 
-const FREE_RECHARGE_AMOUNT = 300 // Montant rechargé pour joueurs en difficulté
-
 /**
  * Composant affichant le bouton de recharge gratuite ou le compteur de cooldown.
  *
  * État 1 : Recharge disponible → bouton doré avec animation
- * État 2 : Cooldown actif → affiche "Prochaine recharge dans Xh Ym"
+ * État 2 : Cooldown — pas de bloc dans le lobby ; détail dans les notifications (cloche).
  */
 export function FreeRechargeButton({
   onClaimed,
   className = '',
   showDetails = false,
 }: FreeRechargeButtonProps) {
+  const { t } = useTranslation()
   const [status, setStatus] = useState<FreeRechargeStatus | null>(null)
+  const lastBalanceNoticeBodyRef = useRef<string | null>(null)
+  const lastCooldownTimeSigRef = useRef<string | null>(null)
+  /** Chargement / rafraîchissement du statut (évite ReferenceError si absent ; polling sans masquer l’UI une fois `status` connu). */
+  const [loading, setLoading] = useState(false)
   const [claiming, setClaiming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [displayTime, setDisplayTime] = useState<{
@@ -74,12 +86,58 @@ export function FreeRechargeButton({
     return () => clearInterval(interval)
   }, [status?.nextRechargeAt])
 
+  /** Solde trop élevé : notice « balance » ; cooldown : notice séparée ; sinon on nettoie. */
+  useEffect(() => {
+    if (!status) return
+    if (status.canRecharge) {
+      clearLocalNotice(FREE_RECHARGE_BALANCE_NOTICE_ID)
+      clearLocalNotice(FREE_RECHARGE_COOLDOWN_NOTICE_ID)
+      lastBalanceNoticeBodyRef.current = null
+      lastCooldownTimeSigRef.current = null
+      return
+    }
+    if (status.nextRechargeAt) {
+      clearLocalNotice(FREE_RECHARGE_BALANCE_NOTICE_ID)
+      lastBalanceNoticeBodyRef.current = null
+      return
+    }
+    clearLocalNotice(FREE_RECHARGE_COOLDOWN_NOTICE_ID)
+    lastCooldownTimeSigRef.current = null
+    if (!status.message) return
+    if (lastBalanceNoticeBodyRef.current === status.message) return
+    lastBalanceNoticeBodyRef.current = status.message
+    dispatchLocalNotice({
+      id: FREE_RECHARGE_BALANCE_NOTICE_ID,
+      title: t('notifications.freeRechargeNoticeTitle'),
+      body: status.message,
+    })
+  }, [status, t])
+
+  /** Cooldown : mise à jour de la notice quand le délai affiché change (à la minute près). */
+  useEffect(() => {
+    if (!status || status.canRecharge || !status.nextRechargeAt) return
+    if (!displayTime) return
+    const { hours, minutes } = displayTime
+    const sig = `${hours}:${minutes}`
+    if (lastCooldownTimeSigRef.current === sig) return
+    lastCooldownTimeSigRef.current = sig
+    const formatted =
+      hours > 0 ? `${hours}h ${minutes}m` : minutes > 0 ? `${minutes}m` : '…'
+    dispatchLocalNotice({
+      id: FREE_RECHARGE_COOLDOWN_NOTICE_ID,
+      title: t('notifications.freeRechargeCooldownTitle'),
+      body: t('notifications.freeRechargeCooldownBody', { time: formatted }),
+    })
+  }, [status, displayTime, t])
+
   const loadStatus = async () => {
     setError(null)
     try {
       const s = await fetchFreeRechargeStatus()
       if (s) {
         setStatus(s)
+      } else {
+        setError('Impossible de charger le statut')
       }
     } catch (err) {
       setError('Impossible de charger le statut')
@@ -95,19 +153,19 @@ export function FreeRechargeButton({
 
     try {
       const result = await claimFreeRecharge()
-      if (result?.success) {
-        setStatus({
-          ...status,
-          canRecharge: false,
-          nextRechargeAt: result.nextRechargeAt,
-          lastRechargeAt: new Date().toISOString(),
-        })
-        onClaimed?.(result.newBalance)
-      } else {
-        setError('Recharge échouée. Réessaye plus tard.')
-      }
+      setStatus({
+        ...status,
+        canRecharge: false,
+        nextRechargeAt: result.nextRechargeAt,
+        lastRechargeAt: new Date().toISOString(),
+      })
+      onClaimed?.(result.newBalance)
     } catch (err) {
-      setError('Erreur lors de la recharge')
+      setError(
+        err instanceof FreeRechargeApiError
+          ? err.message
+          : 'Erreur réseau. Réessaie plus tard.',
+      )
       console.error(err)
     } finally {
       setClaiming(false)
@@ -115,6 +173,21 @@ export function FreeRechargeButton({
   }
 
   if (!status) {
+    if (error) {
+      return (
+        <div className={`flex flex-col items-stretch gap-2 ${className}`}>
+          <div className="text-sm text-red-400 text-center">{error}</div>
+          <button
+            type="button"
+            onClick={() => void loadStatus()}
+            disabled={loading}
+            className="text-xs text-amber-400 underline disabled:opacity-50"
+          >
+            Réessayer
+          </button>
+        </div>
+      )
+    }
     return (
       <div className={`flex items-center gap-2 ${className}`}>
         <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
@@ -178,62 +251,14 @@ export function FreeRechargeButton({
     )
   }
 
-  // === ÉTAT 2 : COOLDOWN ACTIF ===
-  if (!status.canRecharge && displayTime) {
-    const { hours, minutes } = displayTime
-    const formattedTime =
-      hours > 0 ? `${hours}h ${minutes}m` : minutes > 0 ? `${minutes}m` : 'Bientôt...'
-
-    return (
-      <div className={className}>
-        <div
-          className={`
-            flex items-center justify-center gap-3 px-4 py-3
-            bg-gray-700/50 border border-gray-600 rounded-lg
-            text-gray-300 font-medium
-          `}
-        >
-          <Clock className="w-5 h-5 text-gray-500 flex-shrink-0" />
-          <div className="flex-1">
-            <div className="text-sm">Prochaine recharge</div>
-            <div className="text-xs text-amber-400 font-bold">{formattedTime}</div>
-          </div>
-        </div>
-
-        {showDetails && (
-          <div className="mt-2 text-xs text-gray-500 text-center">
-            <p>Gère tes jetons intelligemment en attendant</p>
-          </div>
-        )}
-      </div>
-    )
+  // === ÉTAT 2 : COOLDOWN — détail dans les notifications (cloche), pas de bloc dans le lobby ===
+  if (!status.canRecharge && status.nextRechargeAt) {
+    return null
   }
 
-  // === ÉTAT 3 : SOLDE TROP ÉLEVÉ ===
+  // === ÉTAT 3 : SOLDE TROP ÉLEVÉ — détail dans le centre de notifications (cloche) ===
   if (!status.canRecharge && !displayTime) {
-    return (
-      <div className={className}>
-        <div
-          className={`
-            flex items-center justify-center gap-3 px-4 py-3
-            bg-red-900/30 border border-red-700/50 rounded-lg
-            text-gray-300 font-medium
-          `}
-        >
-          <span className="text-2xl">🚫</span>
-          <div className="flex-1 text-left">
-            <div className="text-sm">Solde suffisant</div>
-            <div className="text-xs text-red-400">{status.message}</div>
-          </div>
-        </div>
-
-        {showDetails && (
-          <div className="mt-2 text-xs text-gray-500 text-center">
-            <p>Dépense tes jetons pour devenir éligible</p>
-          </div>
-        )}
-      </div>
-    )
+    return null
   }
 
   // État par défaut

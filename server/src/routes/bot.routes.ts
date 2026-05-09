@@ -50,7 +50,10 @@ const botActionBodySchema = z.object({
   minRaise: z.number().int().min(1),
   potSize: z.number().int().min(0),
   position: z.number().int().min(0),
-  playersCount: z.number().int().min(2)
+  playersCount: z.number().int().min(2),
+  /** Mode expert uniquement : trous des adversaires encore en main (oracle local). */
+  opponentHoleCards: z.array(z.array(cardSchema).min(2)).max(8).optional(),
+  opponentStack: z.number().int().min(0).optional(),
 })
 
 const evaluateWinnerBodySchema = z.object({
@@ -169,7 +172,15 @@ router.post('/action', botActionLimiter, async (req, res) => {
       communityCards: raw.communityCards.map(normalizeCard),
     }
 
-    const rawDecision = await decideBotActionWithExpertAi(botRequest)
+    const expertContext =
+      raw.difficulty === 'expert'
+        ? {
+            opponentHoleCards: raw.opponentHoleCards?.map((row) => row.map(normalizeCard)),
+            opponentStack: raw.opponentStack,
+          }
+        : {}
+
+    const rawDecision = await decideBotActionWithExpertAi(botRequest, expertContext)
     const decision = sanitizeBotDecision(rawDecision, botRequest)
     const finalAmount = 'amount' in decision ? decision.amount : undefined
     rootLogger.info({

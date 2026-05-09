@@ -121,7 +121,9 @@ def build_features(payload: dict[str, Any]) -> tuple[list[float], FeatureContext
     if position_raw in {"SMALL_BLIND", "BIG_BLIND", "BLIND", "EARLY"}:
         position_score = 0.12
     elif isinstance(payload.get("position"), (int, float)):
-        position_score = clamp(float(payload["position"]) / max(players - 1, 1))
+        # Index de siège (0…n-1) : éviter 0 strict qui pénalise trop les heuristiques (fold excessif).
+        ratio = clamp(float(payload["position"]) / max(players - 1, 1))
+        position_score = 0.22 + 0.78 * ratio
 
     raises, calls, checks, folds = _action_counts(list(payload.get("actions", [])))
     opponent_style = str(payload.get("opponentStyle", "")).upper()

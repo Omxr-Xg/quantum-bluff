@@ -1,12 +1,23 @@
-import { useEffect, useState } from 'react'
-import { X, Zap, Clock, AlertCircle } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
+import { X, Zap, AlertCircle, Bell } from 'lucide-react'
 import {
   fetchFreeRechargeStatus,
   claimFreeRecharge,
+  FREE_RECHARGE_AMOUNT,
+  FREE_RECHARGE_COOLDOWN_HOURS,
+  FREE_RECHARGE_THRESHOLD,
+  FreeRechargeApiError,
   type FreeRechargeStatus,
 } from '../utils/freeRecharge'
 import { ChipIcon } from './ChipIcon'
 import { motion, AnimatePresence } from 'motion/react'
+import {
+  clearLocalNotice,
+  dispatchLocalNotice,
+  FREE_RECHARGE_BALANCE_NOTICE_ID,
+  FREE_RECHARGE_COOLDOWN_NOTICE_ID,
+} from '../utils/localNotices'
 
 type FreeRechargeModalProps = {
   open: boolean
@@ -15,19 +26,19 @@ type FreeRechargeModalProps = {
   onClaimed?: (newBalance: number) => void
 }
 
-const FREE_RECHARGE_AMOUNT = 300
-const COOLDOWN_HOURS = 4
-
 /**
  * Modal affichant le système de recharge gratuite avec cooldown intelligent.
  *
  * Affiche :
  * - État 1 : Bouton doré animé pour recharger
- * - État 2 : Compteur de cooldown avec temps restant
+ * - État 2 : Cooldown — renvoi vers les notifications (cloche)
  * - Infos sur le système et la dernière recharge
  */
 export function FreeRechargeModal({ open, onClose, onClaimed }: FreeRechargeModalProps) {
+  const { t } = useTranslation()
   const [status, setStatus] = useState<FreeRechargeStatus | null>(null)
+  const lastBalanceNoticeBodyRef = useRef<string | null>(null)
+  const lastCooldownTimeSigRef = useRef<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [claiming, setClaiming] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +55,48 @@ export function FreeRechargeModal({ open, onClose, onClaimed }: FreeRechargeModa
 
     loadStatus()
   }, [open])
+
+  useEffect(() => {
+    if (!open || !status) return
+    if (status.canRecharge) {
+      clearLocalNotice(FREE_RECHARGE_BALANCE_NOTICE_ID)
+      clearLocalNotice(FREE_RECHARGE_COOLDOWN_NOTICE_ID)
+      lastBalanceNoticeBodyRef.current = null
+      lastCooldownTimeSigRef.current = null
+      return
+    }
+    if (status.nextRechargeAt) {
+      clearLocalNotice(FREE_RECHARGE_BALANCE_NOTICE_ID)
+      lastBalanceNoticeBodyRef.current = null
+      return
+    }
+    clearLocalNotice(FREE_RECHARGE_COOLDOWN_NOTICE_ID)
+    lastCooldownTimeSigRef.current = null
+    if (!status.message) return
+    if (lastBalanceNoticeBodyRef.current === status.message) return
+    lastBalanceNoticeBodyRef.current = status.message
+    dispatchLocalNotice({
+      id: FREE_RECHARGE_BALANCE_NOTICE_ID,
+      title: t('notifications.freeRechargeNoticeTitle'),
+      body: status.message,
+    })
+  }, [open, status, t])
+
+  useEffect(() => {
+    if (!open || !status || status.canRecharge || !status.nextRechargeAt) return
+    if (!displayTime) return
+    const { hours, minutes } = displayTime
+    const sig = `${hours}:${minutes}`
+    if (lastCooldownTimeSigRef.current === sig) return
+    lastCooldownTimeSigRef.current = sig
+    const formatted =
+      hours > 0 ? `${hours}h ${minutes}m` : minutes > 0 ? `${minutes}m` : '…'
+    dispatchLocalNotice({
+      id: FREE_RECHARGE_COOLDOWN_NOTICE_ID,
+      title: t('notifications.freeRechargeCooldownTitle'),
+      body: t('notifications.freeRechargeCooldownBody', { time: formatted }),
+    })
+  }, [open, status, displayTime, t])
 
   useEffect(() => {
     if (!status?.nextRechargeAt) {
@@ -95,24 +148,23 @@ export function FreeRechargeModal({ open, onClose, onClaimed }: FreeRechargeModa
 
     try {
       const result = await claimFreeRecharge()
-      if (result?.success) {
-        setStatus({
-          ...status,
-          canRecharge: false,
-          nextRechargeAt: result.nextRechargeAt,
-          lastRechargeAt: new Date().toISOString(),
-        })
-        onClaimed?.(result.newBalance)
+      setStatus({
+        ...status,
+        canRecharge: false,
+        nextRechargeAt: result.nextRechargeAt,
+        lastRechargeAt: new Date().toISOString(),
+      })
+      onClaimed?.(result.newBalance)
 
-        // Afficher un message de succès
-        setTimeout(() => {
-          setError(null)
-        }, 3000)
-      } else {
-        setError('Recharge échouée. Réessaye plus tard.')
-      }
+      setTimeout(() => {
+        setError(null)
+      }, 3000)
     } catch (err) {
-      setError('Erreur lors de la recharge')
+      setError(
+        err instanceof FreeRechargeApiError
+          ? err.message
+          : 'Erreur réseau. Réessaie plus tard.',
+      )
       console.error(err)
     } finally {
       setClaiming(false)
@@ -162,10 +214,11 @@ export function FreeRechargeModal({ open, onClose, onClaimed }: FreeRechargeModa
               {/* Description */}
               <div className="space-y-2">
                 <p className="text-sm text-gray-300">
-                  Recevez <span className="font-bold text-amber-400">{FREE_RECHARGE_AMOUNT} jetons gratuits</span> quand votre solde devient critique.
+                  Recevez <span className="font-bold text-amber-400">{FREE_RECHARGE_AMOUNT} jetons gratuits</span> si votre solde est sous{' '}
+                  <span className="font-bold text-amber-400/90">{FREE_RECHARGE_THRESHOLD}</span> jetons.
                 </p>
                 <p className="text-xs text-gray-400">
-                  Après une recharge, vous devrez attendre <span className="font-bold">{COOLDOWN_HOURS} heures</span> avant la prochaine.
+                  Après une recharge, vous devrez attendre <span className="font-bold">{FREE_RECHARGE_COOLDOWN_HOURS} heures</span> avant la prochaine.
                 </p>
               </div>
 
@@ -211,22 +264,15 @@ export function FreeRechargeModal({ open, onClose, onClaimed }: FreeRechargeModa
                     </>
                   )}
                 </motion.button>
+              ) : status?.nextRechargeAt ? (
+                <div className="bg-slate-700/40 border border-slate-600 rounded-lg p-4 flex gap-3 items-start">
+                  <Bell className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" aria-hidden />
+                  <p className="text-sm text-slate-300">{t('notifications.freeRechargeDetailInBell')}</p>
+                </div>
               ) : (
-                /* COMPTEUR DE COOLDOWN */
-                <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Clock className="w-5 h-5 text-amber-400" />
-                    <span className="text-sm font-bold text-gray-300">Prochaine recharge disponible</span>
-                  </div>
-                  {displayTime && (
-                    <div className="text-3xl font-bold text-amber-400">
-                      {displayTime.hours > 0
-                        ? `${displayTime.hours}h ${displayTime.minutes}m`
-                        : displayTime.minutes > 0
-                          ? `${displayTime.minutes}m`
-                          : 'Bientôt!'}
-                    </div>
-                  )}
+                <div className="bg-slate-700/40 border border-slate-600 rounded-lg p-4 flex gap-3 items-start">
+                  <Bell className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" aria-hidden />
+                  <p className="text-sm text-slate-300">{t('notifications.freeRechargeDetailInBell')}</p>
                 </div>
               )}
 
@@ -257,7 +303,7 @@ export function FreeRechargeModal({ open, onClose, onClaimed }: FreeRechargeModa
                 <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wide">Conseils</h3>
                 <ul className="text-xs text-gray-400 space-y-1">
                   <li>• Utilisez cette recharge de secours pour revenir en jeu</li>
-                  <li>• Respectez le cooldown de {COOLDOWN_HOURS}h pour éviter les abus</li>
+                  <li>• Respectez le cooldown de {FREE_RECHARGE_COOLDOWN_HOURS}h pour éviter les abus</li>
                   <li>• Gérez vos jetons intelligemment entre deux recharges</li>
                   <li>• Les mises doivent être réalistes avec votre solde</li>
                 </ul>
