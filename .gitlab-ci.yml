@@ -253,6 +253,7 @@ deploy:staging:
     - curl -fsS -m 120 -X POST "${STAGING_DEPLOY_HOOK}"
   only:
     - develop
+  when: manual
 
 deploy:production:
   <<: *deploy_hook_retry
