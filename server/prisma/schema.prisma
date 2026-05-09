@@ -112,6 +112,7 @@ model User {
   playerReportsReceived PlayerReport[] @relation("PlayerReportsReceived")
 
   freeRecharge      FreeRecharge?
+  giftCodeUsages    GiftCodeUsage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -683,6 +684,48 @@ model FreeRecharge {
   @@index([userId])
   @@index([nextRechargeAfter])
   @@map("free_recharges")
+}
+
+// ============================================
+// CODES CADEAUX & PROMOTIONS
+// ============================================
+model GiftCode {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  amount        Int      // Montant de jetons à ajouter
+  type          String   // ACHIEVEMENT | EVENT | SEASONAL | SPECIAL
+  description   String?  // Ex: "50 matchs de suite", "Noël 2024"
+  expiresAt     DateTime?// null = pas d'expiration
+  maxUses       Int      @default(-1) // -1 = illimité
+  usedCount     Int      @default(0)
+
+  // Relations
+  usedByUsers   GiftCodeUsage[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([code])
+  @@index([expiresAt])
+  @@index([type])
+  @@map("gift_codes")
+}
+
+model GiftCodeUsage {
+  id        String   @id @default(uuid())
+  codeId    String
+  userId    String
+
+  code  GiftCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  user  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  usedAt DateTime @default(now())
+
+  @@unique([codeId, userId]) // Un code par utilisateur
+  @@index([userId])
+  @@index([codeId])
+  @@index([usedAt])
+  @@map("gift_code_usages")
 }
 
 // ============================================

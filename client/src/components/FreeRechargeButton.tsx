@@ -75,7 +75,6 @@ export function FreeRechargeButton({
   }, [status?.nextRechargeAt])
 
   const loadStatus = async () => {
-    setLoading(true)
     setError(null)
     try {
       const s = await fetchFreeRechargeStatus()
@@ -85,8 +84,6 @@ export function FreeRechargeButton({
     } catch (err) {
       setError('Impossible de charger le statut')
       console.error(err)
-    } finally {
-      setLoading(false)
     }
   }
 
