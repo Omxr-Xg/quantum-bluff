@@ -39,6 +39,12 @@ import { intChips } from "../utils/chips";
 import { getWinMultiplierFromDifficultyParam } from "../utils/botModeReward";
 import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
 import { DeckShuffleOverlay } from "../components/game/DeckShuffleOverlay";
+import {
+  FakeCardTopUpFields,
+  FakePromoCodeField,
+  isFakeCardComplete,
+  isQuantumPromo,
+} from "../components/FakeCardTopUpForm";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
@@ -288,7 +294,11 @@ export function Game() {
   }, []);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
-  const [devValidation, setDevValidation] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardDigits, setCardDigits] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const turnTimeLimitSecRef = useRef(30);
@@ -768,20 +778,29 @@ export function Game() {
   const _openAddMoney = () => {
     setShowAddMoney(true);
     setAddMoneyAmount(null);
-    setDevValidation("");
+    setPromoCode("");
+    setCardName("");
+    setCardDigits("");
+    setCardExpiry("");
+    setCardCvv("");
     setAddSuccess(false);
   };
 
   const closeAddMoney = () => {
     setShowAddMoney(false);
     setAddMoneyAmount(null);
-    setDevValidation("");
+    setPromoCode("");
+    setCardName("");
+    setCardDigits("");
+    setCardExpiry("");
+    setCardCvv("");
     setAddSuccess(false);
   };
 
   const submitAddMoney = async () => {
     if (addMoneyAmount == null || addMoneyAmount <= 0) return;
-    if (devValidation.trim().toLowerCase() !== "dev") return;
+    const quantumActive = isQuantumPromo(promoCode);
+    if (!quantumActive && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
     const newBalance = mode === "bot"
       ? addToUserBalance(addMoneyAmount)
       : await addDevMoney(addMoneyAmount);
@@ -796,6 +815,12 @@ export function Game() {
     setAddSuccess(true);
     setTimeout(() => closeAddMoney(), 800);
   };
+
+  const quantumTopUpGame = isQuantumPromo(promoCode);
+  const canSubmitTopUpGame =
+    addMoneyAmount != null &&
+    addMoneyAmount > 0 &&
+    (quantumTopUpGame || isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName));
 
   const getPlayers = (): (BasePlayer | BotPlayer)[] => {
     const count = parseInt(searchParams.get("bots") || "1", 10);
@@ -3994,7 +4019,10 @@ export function Game() {
 
       {showAddMoney && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
-          <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="max-h-[min(90vh,40rem)] overflow-y-auto bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white">{t("lobby.addMoneyTitle")}</h3>
               <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
@@ -4019,21 +4047,25 @@ export function Game() {
                   ))}
                 </div>
                 {addMoneyAmount != null && (
-                  <div className="space-y-2">
-                    <label className="text-slate-300 text-sm block">{t("lobby.devValidation")}</label>
-                    <input
-                      type="text"
-                      value={devValidation}
-                      onChange={(e) => setDevValidation(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
-                      placeholder="dev"
-                      className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
-                      autoComplete="off"
+                  <div className="space-y-3">
+                    <FakeCardTopUpFields
+                      compact
+                      addMoneyAmount={addMoneyAmount}
+                      promoCode={promoCode}
+                      cardName={cardName}
+                      setCardName={setCardName}
+                      cardDigits={cardDigits}
+                      setCardDigits={setCardDigits}
+                      cardExpiry={cardExpiry}
+                      setCardExpiry={setCardExpiry}
+                      cardCvv={cardCvv}
+                      setCardCvv={setCardCvv}
                     />
+                    <FakePromoCodeField compact promoCode={promoCode} setPromoCode={setPromoCode} />
                     <button
                       type="button"
-                      onClick={submitAddMoney}
-                      disabled={devValidation.trim().toLowerCase() !== "dev"}
+                      onClick={() => void submitAddMoney()}
+                      disabled={!canSubmitTopUpGame}
                       className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
                     >
                       {t("lobby.validate")}

@@ -82,6 +82,17 @@
     "blackjackSoloHint": "نفس طاولة « إنشاء طاولة »: لعب لك وحدك دون لاعبين آخرين.",
     "blackjackMultiLobby": "طاولات متعددة (ردهة)",
     "devValidation": "اكتب \"dev\" للتحقق",
+    "fakePaymentDisclaimer": "عرض تجريبي فقط — لا يتم خصم حقيقي من البطاقة.",
+    "fakePaymentChipsLine": "الحزمة: {{count}} رقاقة",
+    "fakePaymentTotalSimulated": "الإجمالي (محاكاة): {{amount}} €",
+    "fakePaymentCardHolder": "اسم حامل البطاقة",
+    "fakePaymentCardNumber": "رقم البطاقة",
+    "fakePaymentExpiry": "الانتهاء (شهر/سنة)",
+    "fakePaymentCvv": "CVV",
+    "fakePaymentPromoLabel": "رمز ترويجي",
+    "fakePaymentPromoPlaceholder": "رمز ترويجي",
+    "fakePaymentPromoHint": "اختياري — أدخل رمزًا ترويجيًا إن وُجد.",
+    "fakePaymentQuantumActive": "تم تطبيق الرمز — الإجمالي المحاكى 0 € (لا حاجة لبيانات البطاقة).",
     "help": {
       "openAria": "مساعدة الردهة",
       "title": "دليل الردهة",
@@ -1094,7 +1105,12 @@
     "quickReplyPlaceholder": "رد…",
     "quickReplySend": "إرسال",
     "messages": "رسائل",
-    "chat": "محادثة"
+    "chat": "محادثة",
+    "localNotices": "معلومات",
+    "freeRechargeNoticeTitle": "شحن مجاني",
+    "freeRechargeDetailInBell": "اطلع على التفاصيل في الإشعارات (أيقونة الجرس أعلى اليمين).",
+    "freeRechargeCooldownTitle": "الشحن التالي",
+    "freeRechargeCooldownBody": "متبقٍ {{time}} حتى الشحن المجاني التالي."
   },
   "filters": {
     "maxBet50": "رهانات < 50$",
