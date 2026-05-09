@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { TournamentService, Tournament } from '../services/tournament.service';
 import { socket } from '../services/socket';
+import { ChipIcon } from './ChipIcon';
 
 export function TournamentWidget() {
   const { t, i18n } = useTranslation();
@@ -79,7 +80,10 @@ export function TournamentWidget() {
               <Clock className="w-4 h-4 text-amber-100/70" />
               <span className="text-slate-300 text-sm">{dateLine}</span>
             </div>
-            <span className="text-amber-200 font-black text-sm">{nextTournament.prizePool} 💰</span>
+            <span className="inline-flex items-center gap-1.5 text-amber-200 font-black text-sm">
+              {nextTournament.prizePool}
+              <ChipIcon size="sm" className="shrink-0" />
+            </span>
           </div>
           
           <button 

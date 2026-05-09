@@ -115,6 +115,21 @@ router.post('/create', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
+/** Partie tournoi en cours sur ce pod pour l’utilisateur (récupération client si socket manqué). */
+router.get('/my-table', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Non autorisé' });
+    const found = await TournamentService.findActiveTournamentTableForUser(userId);
+    res.json({
+      gameId: found?.gameId ?? null,
+      tournamentId: found?.tournamentId ?? null,
+    });
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 /** Tables suivables en spectateur (200 + tables vides si tournoi terminé ou aucune partie sur ce nœud). */
 router.get('/:id/spectate-tables', authMiddleware, async (req: Request, res: Response) => {
   try {

@@ -13,6 +13,7 @@ import {
   setTournamentExpectedTables,
   type BracketSurvivorRow,
 } from './tournamentBracketStore.service.js';
+import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js';
 
 /** Max joueurs par table au début du tournoi (n >= 7). */
 const TOURNAMENT_SEATS_PER_TABLE = 6;
@@ -49,6 +50,23 @@ export type TournamentSpectateTableRow = {
 };
 
 export class TournamentService {
+  private static async avatarUrlByUserId(
+    userIds: string[],
+  ): Promise<Map<string, string>> {
+    const unique = [...new Set(userIds.filter(Boolean))];
+    if (unique.length === 0) return new Map();
+    const users = await prisma.user.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, avatarUrl: true, avatarHasBinary: true },
+    });
+    const m = new Map<string, string>();
+    for (const u of users) {
+      const url = clientAvatarUrlFromUser(u);
+      if (url) m.set(u.id, url);
+    }
+    return m;
+  }
+
   private static io: Server | null = null;
   /** Tables suivables en spectateur (mémoire processus — même instance que les parties). */
   private static spectateTablesByTournament = new Map<
@@ -146,6 +164,39 @@ export class TournamentService {
       tables.push({ ...t, live: g != null });
     }
     return { tournamentName: entry.tournamentName, tables };
+  }
+
+  /**
+   * Table de tournoi active sur ce nœud où le joueur est encore assis (rétablissement après événement socket manqué ou reconnexion).
+   */
+  static async findActiveTournamentTableForUser(
+    userId: string,
+  ): Promise<{ gameId: string; tournamentId: string } | null> {
+    const uid = String(userId).trim();
+    if (!uid) return null;
+
+    const registrations = await prisma.tournamentPlayer.findMany({
+      where: {
+        userId: uid,
+        eliminatedAt: null,
+        tournament: { status: 'ACTIVE' },
+      },
+      select: { tournamentId: true },
+    });
+    if (registrations.length === 0) return null;
+
+    const tournamentIds = new Set(registrations.map((r) => r.tournamentId));
+    const all = await activeGames.getAll();
+    for (const [roomId, game] of all) {
+      if (!(game instanceof GameTable)) continue;
+      const tid = game.state.tournamentId;
+      if (!tid || !tournamentIds.has(tid)) continue;
+      if (!roomId.startsWith('game_tournoi_')) continue;
+      if (game.state.players.some((p) => String(p.id) === uid)) {
+        return { gameId: roomId, tournamentId: tid };
+      }
+    }
+    return null;
   }
 
   static notifyElimination(userId: string) {
@@ -499,7 +550,16 @@ export class TournamentService {
       where: { id: tournamentId },
       include: {
         players: {
-          include: { user: { select: { id: true, username: true } } }
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatarUrl: true,
+                avatarHasBinary: true,
+              },
+            },
+          },
         }
       }
     });
@@ -541,18 +601,22 @@ export class TournamentService {
       const slice = tableSlices[tableIdx];
       const realGameId = `game_tournoi_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 
-      const gamePlayers = slice.map((p, index) => ({
-        id: p.userId,
-        name: p.user.username,
-        cards: [],
-        chips: tournament.buyIn,
-        role: 'PLAYER' as const,
-        currentBet: 0,
-        isActive: true,
-        position: index,
-        isDealer: false,
-        isConnected: true
-      }));
+      const gamePlayers = slice.map((p, index) => {
+        const avatar = clientAvatarUrlFromUser(p.user) ?? undefined;
+        return {
+          id: p.userId,
+          name: p.user.username,
+          cards: [],
+          chips: tournament.buyIn,
+          role: 'PLAYER' as const,
+          currentBet: 0,
+          isActive: true,
+          position: index,
+          isDealer: false,
+          isConnected: true,
+          ...(avatar ? { avatar } : {}),
+        };
+      });
 
       const newTable = new GameTable(realGameId, gamePlayers, {
         tournamentId,
@@ -638,18 +702,23 @@ export class TournamentService {
       stack: Math.max(s.chips, buyIn) * 2,
     }));
 
-    const finalPlayers = doubled.map((s, index) => ({
-      id: s.userId,
-      name: s.username,
-      cards: [],
-      chips: s.stack,
-      role: 'PLAYER' as const,
-      currentBet: 0,
-      isActive: true,
-      position: index,
-      isDealer: false,
-      isConnected: true,
-    }));
+    const avatarMap = await this.avatarUrlByUserId(doubled.map((s) => s.userId));
+    const finalPlayers = doubled.map((s, index) => {
+      const avatar = avatarMap.get(s.userId);
+      return {
+        id: s.userId,
+        name: s.username,
+        cards: [],
+        chips: s.stack,
+        role: 'PLAYER' as const,
+        currentBet: 0,
+        isActive: true,
+        position: index,
+        isDealer: false,
+        isConnected: true,
+        ...(avatar ? { avatar } : {}),
+      };
+    });
 
     const finalTable = new GameTable(finalGameId, finalPlayers, {
       tournamentId,
@@ -710,18 +779,23 @@ export class TournamentService {
     const mergeId = `game_tournoi_merge_${Date.now()}`;
     this.mergeRoundGameToTournament.set(mergeId, tournamentId);
 
-    const mergePlayers = survivors.map((s, index) => ({
-      id: s.userId,
-      name: s.username,
-      cards: [],
-      chips: Math.max(0, s.chips),
-      role: 'PLAYER' as const,
-      currentBet: 0,
-      isActive: true,
-      position: index,
-      isDealer: false,
-      isConnected: true,
-    }));
+    const mergeAvatarMap = await this.avatarUrlByUserId(survivors.map((s) => s.userId));
+    const mergePlayers = survivors.map((s, index) => {
+      const avatar = mergeAvatarMap.get(s.userId);
+      return {
+        id: s.userId,
+        name: s.username,
+        cards: [],
+        chips: Math.max(0, s.chips),
+        role: 'PLAYER' as const,
+        currentBet: 0,
+        isActive: true,
+        position: index,
+        isDealer: false,
+        isConnected: true,
+        ...(avatar ? { avatar } : {}),
+      };
+    });
 
     const mergeTable = new GameTable(mergeId, mergePlayers, {
       tournamentId,

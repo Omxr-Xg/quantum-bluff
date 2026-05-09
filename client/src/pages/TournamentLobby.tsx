@@ -9,6 +9,7 @@ import {
 } from '../services/tournament.service';
 import { useToast } from '../contexts/ToastContext';
 import { socket } from '../services/socket'; // 👈 IMPORT DU SOCKET
+import { ChipIcon } from '../components/ChipIcon';
 
 function formatTimeLeft(
   targetDate: string,
@@ -82,6 +83,14 @@ export function TournamentLobby() {
     const fast = setInterval(() => void loadTournaments(), 3000);
     return () => clearInterval(fast);
   }, [tournaments, loadTournaments]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void loadTournaments();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [loadTournaments]);
 
   const handleJoin = async (id: string) => {
     try {
@@ -242,7 +251,10 @@ export function TournamentLobby() {
                   <div className="flex justify-between items-end mb-6">
                     <div className="flex flex-col">
                       <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{t('tournament.lobby.prizePool')}</span>
-                      <span className="text-2xl font-black text-green-400 leading-none">{trn.prizePool} 💰</span>
+                      <span className="inline-flex items-center gap-1.5 text-2xl font-black text-green-400 leading-none">
+                        {trn.prizePool}
+                        <ChipIcon size="lg" className="h-7 w-7 shrink-0" />
+                      </span>
                     </div>
                   </div>
 
