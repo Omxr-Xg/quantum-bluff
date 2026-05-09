@@ -109,6 +109,36 @@ function labelForBotTableAction(kind: BotTableActionKind, tr: (key: string) => s
   }
 }
 
+/** Données « oracle » pour l’IA expert : adversaires encore en main + leurs cartes (table locale). */
+function buildExpertOraclePayload(
+  playersState: (BasePlayer | BotPlayer)[],
+  activePlayerId: string | number,
+): { opponentHoleCards?: { suit: string; rank: string }[][]; opponentStack: number } {
+  const opps = playersState.filter((p) => {
+    if (p.id === activePlayerId) return false;
+    if (p.isConnected === false) return false;
+    if (p.hasFolded === true) return false;
+    return true;
+  });
+  const opponentStack = opps.length > 0 ? Math.max(0, ...opps.map((p) => p.chips ?? 0)) : 0;
+  const opponentHoleCards = opps
+    .map((p) => (Array.isArray(p.cards) ? p.cards : []))
+    .filter((c) => c.length >= 2)
+    .map((c) =>
+      c.slice(0, 2).map((card) => ({
+        suit: card.suit,
+        rank: card.value,
+      })),
+    );
+  const out: { opponentHoleCards?: { suit: string; rank: string }[][]; opponentStack: number } = {
+    opponentStack,
+  };
+  if (opponentHoleCards.length > 0) {
+    out.opponentHoleCards = opponentHoleCards;
+  }
+  return out;
+}
+
 interface BasePlayer {
   id: number | string;
   name: string;
@@ -3087,6 +3117,11 @@ export function Game() {
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
         const url = apiUrl("/api/bot/action");
+        const botDifficulty = "isBot" in activePlayer ? activePlayer.difficulty : "medium";
+        const expertOracle =
+          botDifficulty === "expert"
+            ? buildExpertOraclePayload(playersState, activePlayer.id)
+            : null;
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -3094,7 +3129,7 @@ export function Game() {
           body: JSON.stringify({
             playerCards: activePlayer.cards,
             communityCards: communityCardsState.filter((c): c is Card => c !== null),
-            difficulty: "isBot" in activePlayer ? activePlayer.difficulty : "medium",
+            difficulty: botDifficulty,
             currentBet: currentBet,
             playerChips: activePlayer.chips,
             callAmount,
@@ -3102,6 +3137,7 @@ export function Game() {
             potSize: pot,
             position: activePlayer.position,
             playersCount: playersState.filter((p) => p.isConnected !== false).length,
+            ...(expertOracle ?? {}),
           }),
         });
         clearTimeout(timeoutId);
