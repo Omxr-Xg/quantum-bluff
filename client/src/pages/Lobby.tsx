@@ -37,6 +37,7 @@ import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSec
 import { DailyChallenges } from "../components/DailyChallenges";
 import { TournamentWidget } from '../components/TournamentWidget';
 import { getAuthItem } from "../utils/authStorage";
+import { FreeRechargeButton } from '../components/FreeRechargeButton';
 
 function readLobbyTabFromUrl(): "poker" | "minigames" | "blackjack" {
   if (typeof window === "undefined") return "poker";
@@ -121,6 +122,13 @@ export function Lobby() {
   const [lobbyMainTab, setLobbyMainTabState] = useState<"poker" | "minigames" | "blackjack">(readLobbyTabFromUrl);
   const { addToast } = useToast();
   const [balance, setBalance] = useState<number>(getUserBalance());
+  const [rechargeKey, setRechargeKey] = useState(0);
+
+  const handleRechargeSuccess = (newBalance: number) => {
+    setBalance(newBalance);
+    setRechargeKey(prev => prev + 1);
+    addToast('✅ Recharge effectuée!', 'success');
+  };
 
   useEffect(() => {
     const sync = () => setBalance(getUserBalance());
@@ -860,6 +868,15 @@ export function Lobby() {
             </div>
           </div>
         )}
+
+        {/* 🆕 FREE RECHARGE BUTTON */}
+        <div className="mb-6 max-w-sm mx-auto">
+          <FreeRechargeButton
+            key={rechargeKey}
+            onClaimed={handleRechargeSuccess}
+            showDetails={true}
+          />
+        </div>
 
         {/* MAIN GRID - IMPROVED GAP */}
         <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:items-stretch">
