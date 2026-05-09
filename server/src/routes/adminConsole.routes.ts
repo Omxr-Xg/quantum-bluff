@@ -555,4 +555,109 @@ router.post('/tournaments/:id/cancel', async (req, res) => {
   }
 })
 
+/** Suppression BDD d’un tournoi déjà terminé ou annulé (pas les ACTIVE / PENDING). */
+router.delete('/tournaments/:id', async (req, res) => {
+  const id = req.params.id
+  if (!id || id.length > 64) {
+    return res.status(400).json({ error: 'Identifiant invalide' })
+  }
+  try {
+    const t = await prisma.tournament.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    })
+    if (!t) {
+      return res.status(404).json({ error: 'Tournoi introuvable' })
+    }
+    if (t.status !== 'COMPLETED' && t.status !== 'CANCELED') {
+      return res.status(400).json({
+        error:
+          'Suppression réservée aux tournois terminés (COMPLETED) ou annulés (CANCELED).',
+      })
+    }
+    await prisma.tournament.delete({ where: { id } })
+    return res.json({ ok: true })
+  } catch (e) {
+    console.error('[adminConsole] tournament delete', e)
+    return res.status(500).json({
+      error: e instanceof Error ? e.message : 'Suppression impossible',
+    })
+  }
+})
+
+router.get('/waiting-rooms', async (req, res) => {
+  const parsed = listQuery.safeParse(req.query)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Pagination invalide' })
+  }
+  const { take, skip, q: searchRaw } = parsed.data
+  const search = searchRaw?.trim()
+  const where =
+    search && search.length > 0
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { id: { contains: search, mode: 'insensitive' as const } },
+            { hostId: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : undefined
+  try {
+    const [items, total] = await Promise.all([
+      prisma.waitingRoom.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          hostId: true,
+          status: true,
+          gameId: true,
+          maxPlayers: true,
+          visibility: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.waitingRoom.count({ where }),
+    ])
+    return res.json({ items, total, take, skip })
+  } catch (e) {
+    console.error('[adminConsole] waiting-rooms list', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+router.delete('/waiting-rooms/:id', async (req, res) => {
+  const id = req.params.id
+  if (!id || id.length > 64) {
+    return res.status(400).json({ error: 'Identifiant invalide' })
+  }
+  try {
+    const room = await prisma.waitingRoom.findUnique({
+      where: { id },
+      select: { id: true, gameId: true },
+    })
+    if (!room) {
+      return res.status(404).json({ error: 'Salle introuvable' })
+    }
+    if (room.gameId) {
+      try {
+        await activeGames.delete(room.gameId)
+      } catch {
+        void 0
+      }
+    }
+    await prisma.waitingRoom.delete({ where: { id } })
+    return res.json({ ok: true })
+  } catch (e) {
+    console.error('[adminConsole] waiting-room delete', e)
+    return res.status(500).json({
+      error: e instanceof Error ? e.message : 'Suppression impossible',
+    })
+  }
+})
+
 export default router
