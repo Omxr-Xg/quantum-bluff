@@ -1,6 +1,7 @@
 import type { Player } from '../../types/poker.js'
 import { computeShowdownRanking } from './showdownRanking.js'
 import type { Card } from '../../types/poker.js'
+import { getBestFiveOfSeven } from '../Evaluator.js'
 
 export interface PotSettlementInput {
   players: Player[]
@@ -13,6 +14,8 @@ export interface PotSettlementResult {
   showdownWinnerIds: string[]
   showdownHandName: string
   showdownPot: number
+  /** 5 cartes de la main gagnante (premier gagnant en cas de partage — même force). */
+  showdownWinningCards: Card[]
 }
 
 function contributionOf(player: Player): number {
@@ -33,6 +36,7 @@ export function settlePots(input: PotSettlementInput): PotSettlementResult {
       showdownWinnerIds: [],
       showdownHandName: '',
       showdownPot: totalPot,
+      showdownWinningCards: [],
     }
   }
 
@@ -44,6 +48,7 @@ export function settlePots(input: PotSettlementInput): PotSettlementResult {
   let lastWinnerId = ''
   let lastWinnerIds: string[] = []
   let lastHandName = ''
+  let lastWinningCards: Card[] = []
 
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i]
@@ -78,6 +83,10 @@ export function settlePots(input: PotSettlementInput): PotSettlementResult {
     lastWinnerId = winnerIds[0] ?? lastWinnerId
     lastWinnerIds = winnerIds
     lastHandName = handName
+    const wp = eligible.find((p) => p.id === winnerIds[0])
+    if (wp && input.communityCards.length >= 5) {
+      lastWinningCards = getBestFiveOfSeven([...wp.cards, ...input.communityCards])
+    }
   }
 
   const remainder = totalPot - distributed
@@ -91,6 +100,7 @@ export function settlePots(input: PotSettlementInput): PotSettlementResult {
     showdownWinnerIds: lastWinnerIds,
     showdownHandName: lastHandName,
     showdownPot: totalPot,
+    showdownWinningCards: lastWinningCards,
   }
 }
 

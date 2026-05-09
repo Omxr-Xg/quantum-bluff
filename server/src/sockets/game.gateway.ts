@@ -444,7 +444,11 @@ export class GameGateway {
 
                 for (const s of socketsInRoom) {
                   const uid = (s as unknown as AuthenticatedSocket).userId;
-                  const snapshot = game.getSanitizedState(uid);
+                  const isSpectator = !game.getPlayerState(uid ?? "");
+                  const snapshot = game.getSanitizedState(
+                    isSpectator ? undefined : uid,
+                    isSpectator,
+                  );
                   s.emit("GAME_UPDATE", snapshot);
                   s.emit("GAME_STATE_UPDATED", snapshot);
                 }
@@ -525,7 +529,7 @@ export class GameGateway {
                 void this.broadcastCashGameSnapshot(gameId);
               });
             }
-            socket.emit("GAME_UPDATE", game.getSanitizedState());
+            socket.emit("GAME_UPDATE", game.getSanitizedState(undefined, true));
             console.log(`👁️ Spectateur a rejoint la partie ${gameId}`);
           } else {
             rootLogger.warn({
@@ -914,6 +918,7 @@ export class GameGateway {
               const isSpectator = !freshGame.getPlayerState(uid ?? "");
               const snapshot = freshGame.getSanitizedState(
                 isSpectator ? undefined : uid,
+                isSpectator,
               );
               s.emit("GAME_UPDATE", snapshot);
               s.emit("GAME_STATE_UPDATED", snapshot);
@@ -943,6 +948,7 @@ export class GameGateway {
                   const isSpectator = !freshGame.getPlayerState(uid ?? "");
                   const snapshot = freshGame.getSanitizedState(
                     isSpectator ? undefined : uid,
+                    isSpectator,
                   );
                   s.emit("GAME_UPDATE", snapshot);
                   s.emit("GAME_STATE_UPDATED", snapshot);
@@ -1102,7 +1108,11 @@ export class GameGateway {
               const socketsInRoom = await this.io.in(gameId).fetchSockets();
               for (const s of socketsInRoom) {
                 const uid = (s as unknown as AuthenticatedSocket).userId;
-                const snapshot = game.getSanitizedState(uid);
+                const isSpectator = !game.getPlayerState(uid ?? "");
+                const snapshot = game.getSanitizedState(
+                  isSpectator ? undefined : uid,
+                  isSpectator,
+                );
                 s.emit("GAME_UPDATE", snapshot);
                 s.emit("GAME_STATE_UPDATED", snapshot);
               }
@@ -1157,6 +1167,7 @@ export class GameGateway {
                 const isSpectator = !freshGame.getPlayerState(uid ?? "");
                 const snapshot = freshGame.getSanitizedState(
                   isSpectator ? undefined : uid,
+                  isSpectator,
                 );
                 s.emit("GAME_UPDATE", snapshot);
                 s.emit("GAME_STATE_UPDATED", snapshot);
@@ -1262,7 +1273,11 @@ export class GameGateway {
               const socketsInRoom = await this.io.in(gameId).fetchSockets();
               for (const s of socketsInRoom) {
                 const uid = (s as unknown as AuthenticatedSocket).userId;
-                const snapshot = game.getSanitizedState(uid);
+                const isSpectator = !game.getPlayerState(uid ?? "");
+                const snapshot = game.getSanitizedState(
+                  isSpectator ? undefined : uid,
+                  isSpectator,
+                );
                 s.emit("GAME_UPDATE", snapshot);
                 s.emit("GAME_STATE_UPDATED", snapshot);
               }
@@ -1347,7 +1362,11 @@ export class GameGateway {
             const socketsInRoom = await this.io.in(gameId).fetchSockets();
             for (const s of socketsInRoom) {
               const uid = (s as unknown as AuthenticatedSocket).userId;
-              s.emit("GAME_UPDATE", game.getSanitizedState(uid));
+              const isSpectator = !game.getPlayerState(uid ?? "");
+              s.emit(
+                "GAME_UPDATE",
+                game.getSanitizedState(isSpectator ? undefined : uid, isSpectator),
+              );
             }
           } catch (err) {
             console.error("Erreur CASH_REBUY:", err);
@@ -1433,7 +1452,11 @@ export class GameGateway {
                 const socketsInRoom = await this.io.in(gameId).fetchSockets();
                 for (const s of socketsInRoom) {
                   const uid = (s as unknown as AuthenticatedSocket).userId;
-                  const snapshot = pokerGame.getSanitizedState(uid);
+                  const isSpectator = !pokerGame.getPlayerState(uid ?? "");
+                  const snapshot = pokerGame.getSanitizedState(
+                    isSpectator ? undefined : uid,
+                    isSpectator,
+                  );
                   s.emit("GAME_UPDATE", snapshot);
                   s.emit("GAME_STATE_UPDATED", snapshot);
                 }
@@ -1604,7 +1627,11 @@ export class GameGateway {
                       .fetchSockets();
                     for (const s of socketsInRoom) {
                       const uid = (s as unknown as AuthenticatedSocket).userId;
-                      const snapshot = game.getSanitizedState(uid);
+                      const isSpectator = !game.getPlayerState(uid ?? "");
+                      const snapshot = game.getSanitizedState(
+                        isSpectator ? undefined : uid,
+                        isSpectator,
+                      );
                       s.emit("GAME_UPDATE", snapshot);
                       s.emit("GAME_STATE_UPDATED", snapshot);
                     }
@@ -1627,7 +1654,11 @@ export class GameGateway {
                   const socketsInRoom = await this.io.in(gameId).fetchSockets();
                   for (const s of socketsInRoom) {
                     const uid = (s as unknown as AuthenticatedSocket).userId;
-                    const snapshot = game.getSanitizedState(uid);
+                    const isSpectator = !game.getPlayerState(uid ?? "");
+                    const snapshot = game.getSanitizedState(
+                      isSpectator ? undefined : uid,
+                      isSpectator,
+                    );
                     s.emit("GAME_UPDATE", snapshot);
                     s.emit("GAME_STATE_UPDATED", snapshot);
                   }
@@ -1673,7 +1704,11 @@ export class GameGateway {
                   const socketsInRoom = await this.io.in(gameId).fetchSockets();
                   for (const s of socketsInRoom) {
                     const uid = (s as unknown as AuthenticatedSocket).userId;
-                    s.emit("GAME_UPDATE", game.getSanitizedState(uid));
+                    const isSpectator = !game.getPlayerState(uid ?? "");
+                    s.emit(
+                      "GAME_UPDATE",
+                      game.getSanitizedState(isSpectator ? undefined : uid, isSpectator),
+                    );
                   }
                   if (game.getOccupiedCount() === 0) {
                     await activeGames.delete(gameId);
@@ -2008,7 +2043,7 @@ export class GameGateway {
     for (const s of socketsInRoom) {
       const uid = (s as unknown as AuthenticatedSocket).userId;
       const isSpectator = !game.getPlayerState(uid ?? "");
-      const snapshot = game.getSanitizedState(isSpectator ? undefined : uid);
+      const snapshot = game.getSanitizedState(isSpectator ? undefined : uid, isSpectator);
       s.emit("GAME_UPDATE", snapshot);
       s.emit("GAME_STATE_UPDATED", snapshot);
     }
@@ -2222,7 +2257,11 @@ export class GameGateway {
     const socketsInRoom2 = await this.io.in(gameId).fetchSockets();
     for (const s of socketsInRoom2) {
       const uid = (s as unknown as AuthenticatedSocket).userId;
-      const snapshot = cashGame.getSanitizedState(uid);
+      const isSpectator = !cashGame.getPlayerState(uid ?? "");
+      const snapshot = cashGame.getSanitizedState(
+        isSpectator ? undefined : uid,
+        isSpectator,
+      );
       s.emit("GAME_UPDATE", snapshot);
       s.emit("GAME_STATE_UPDATED", snapshot);
     }
@@ -2322,6 +2361,7 @@ export class GameGateway {
               const isSpectator = !fresh.getPlayerState(uid ?? "");
               const snapshot = fresh.getSanitizedState(
                 isSpectator ? undefined : uid,
+                isSpectator,
               );
               s.emit("GAME_UPDATE", snapshot);
               s.emit("GAME_STATE_UPDATED", snapshot);

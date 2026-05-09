@@ -126,7 +126,7 @@ async function emitRoomAfterPracticeAction(
   for (const s of socketsInRoom) {
     const uid = (s as unknown as { userId?: string }).userId
     const isSpectator = !game.getPlayerState(uid ?? '')
-    const snapshot = game.getSanitizedState(isSpectator ? undefined : uid)
+    const snapshot = game.getSanitizedState(isSpectator ? undefined : uid, isSpectator)
     s.emit('GAME_UPDATE', snapshot)
     s.emit('GAME_STATE_UPDATED', snapshot)
   }
