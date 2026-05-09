@@ -1,0 +1,223 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                      TESTER DANS LE JEU (5 MIN)                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+1️⃣  LANCER LE JEU
+═════════════════════════════════════════════════════════════════════════════
+
+  Terminal 1 (Backend):
+  $ cd server
+  $ npm run dev
+  
+  ✅ Attendre: "Server running on http://localhost:3000"
+
+  Terminal 2 (Frontend):
+  $ cd client
+  $ npm run dev
+  
+  ✅ Attendre: "Local: http://localhost:5173"
+
+
+2️⃣  AJOUTER LE CODE (5 min)
+═════════════════════════════════════════════════════════════════════════════
+
+  Fichier: client/src/pages/Lobby.tsx
+
+  ┌─ AJOUTER L'IMPORT (ligne ~40) ─┐
+  │                                 │
+  │ import { DailyLogin... }        │
+  │ import { TournamentWidget }     │
+  │ + import { FreeRechargeButton } │ ← NOUVELLE LIGNE
+  │                                 │
+  └─────────────────────────────────┘
+
+  ┌─ AJOUTER L'ÉTAT (ligne ~123) ──┐
+  │                                 │
+  │ const [balance, ...] = useState │
+  │ + const [rechargeKey, ...] = 0  │ ← NOUVELLE LIGNE
+  │                                 │
+  │ + const handleRecharge = ...    │ ← NOUVELLE FONCTION
+  │                                 │
+  └─────────────────────────────────┘
+
+  ┌─ AJOUTER AU JSX (chercher "balance")─┐
+  │                                       │
+  │ <span>{balance} jetons</span>         │
+  │                                       │
+  │ + <FreeRechargeButton                │ ← NOUVELLE LIGNE
+  │     onClaimed={handleRecharge}       │
+  │     showDetails={true}               │
+  │   />                                 │
+  │                                       │
+  └───────────────────────────────────────┘
+
+
+3️⃣  TESTER
+═════════════════════════════════════════════════════════════════════════════
+
+  Ouvrir le navigateur:
+  
+  http://localhost:5173
+  
+  ✅ Se connecter au jeu
+  ✅ Aller au Lobby
+  
+  Vous devriez voir:
+  
+  ┌──────────────────────────────────┐
+  │ Username: votreNom               │
+  │ Solde: 1500 jetons               │
+  │                                  │
+  │ ┌──────────────────────────┐     │
+  │ │ 🟡 Recharger maintenant │     │  ← BOUTON DORÉ ANIMÉ
+  │ │    + 1000 jetons        │     │
+  │ └──────────────────────────┘     │
+  │                                  │
+  │ Salles disponibles:              │
+  │ • Poker Texas Hold'em...         │
+  └──────────────────────────────────┘
+
+
+4️⃣  CLIQUER ET OBSERVER
+═════════════════════════════════════════════════════════════════════════════
+
+  ✅ Étape 1: Cliquer le bouton doré
+     
+     Avant: Solde: 1500 jetons
+     ↓
+     Clic!
+     ↓
+     Après: Solde: 2500 jetons ✨
+
+  ✅ Étape 2: Observer le compteur
+     
+     Le bouton devient:
+     
+     ┌──────────────────────────┐
+     │ ⏰ Prochaine recharge    │
+     │    dans 3h 59m           │
+     └──────────────────────────┘
+     
+     ⏱️  Les minutes diminuent chaque seconde
+     ⏱️  Les heures changent à 0m
+
+  ✅ Étape 3: Rafraîchir la page
+     
+     Appuyer sur F5
+     
+     ✅ Le compteur réapparaît
+     ✅ Pas de recharge à nouveau (cooldown actif)
+
+
+5️⃣  VÉRIFIER LES LOGS
+═════════════════════════════════════════════════════════════════════════════
+
+  Ouvrir la console du navigateur: F12
+
+  ✅ Onglet "Console":
+     
+     Vous devriez voir:
+     
+     [freeRecharge] Status: {canRecharge: true}
+     ✅ Recharge effectuée! Nouveau solde: 2500
+     [freeRecharge] Status: {canRecharge: false, ...}
+
+  ✅ Onglet "Network":
+     
+     Chercher: /api/free-recharge/claim
+     Status: 200 (succès)
+     
+     Si vous réessayez immédiatement:
+     Status: 429 (cooldown actif)
+
+
+6️⃣  CAS DE TEST
+═════════════════════════════════════════════════════════════════════════════
+
+  Case 1: Première recharge
+  ├─ Solde: 1500 → 2500 ✅
+  └─ Cooldown: 4h ✅
+
+  Case 2: Cooldown empêche recharge
+  ├─ Cliquer à nouveau immédiatement ❌
+  └─ Erreur 429: "Cooldown actif" ✅
+
+  Case 3: Compteur temps réel
+  ├─ Les minutes changent chaque seconde ✅
+  └─ Les heures changent à 0m ✅
+
+  Case 4: Rafraîchir la page
+  ├─ Cooldown toujours actif ✅
+  └─ Compteur réapparaît ✅
+
+  Case 5: Base de données
+  ├─ Historique créé ✅
+  │  SELECT * FROM wallet_ledger_entries 
+  │  WHERE reason = 'FREE_RECHARGE'
+  └─ Balance + 1000 ✅
+
+
+7️⃣  MODIFIER LES CONSTANTES POUR TESTER PLUS VITE
+═════════════════════════════════════════════════════════════════════════════
+
+  Fichier: server/src/freeRecharge/freeRecharge.types.ts
+
+  Avant:
+  export const FREE_RECHARGE_COOLDOWN_HOURS = 4
+
+  Après: (pour tester rapidement)
+  export const FREE_RECHARGE_COOLDOWN_HOURS = 0.05  // = 3 minutes
+
+  Puis:
+  $ npm run build
+  $ npm run dev
+
+  Maintenant:
+  ✅ Recharge à 15:00
+  ✅ Attendre 3 minutes
+  ✅ À 15:03 → Peut recharger à nouveau!
+
+  ⚠️  N'OUBLIEZ PAS: Remettre à 4 avant production!
+
+
+TROUBLESHOOTING
+═════════════════════════════════════════════════════════════════════════════
+
+  ❌ "Cannot find module FreeRechargeButton"
+     → Vérifier: client/src/components/FreeRechargeButton.tsx existe
+
+  ❌ Le bouton ne s'affiche pas
+     → F12 → Console → voir les erreurs rouges
+     → Vérifier que le code est dans le bon endroit du Lobby
+
+  ❌ Le bouton s'affiche mais ne fonctionne pas
+     → F12 → Network → chercher /api/free-recharge/claim
+     → Vérifier Status: 200 (OK) ou 401 (auth), 429 (cooldown)
+
+  ❌ Erreur backend
+     → Terminal server: regarder les logs rouges
+     → Vérifier que la migration Prisma est appliquée
+
+
+✅ CHECKLIST FINALE
+═════════════════════════════════════════════════════════════════════════════
+
+  ☐ Backend lancé
+  ☐ Frontend lancé
+  ☐ Lobby.tsx modifié (import + state + JSX)
+  ☐ Page recharge automatiquement
+  ☐ Bouton visible en doré
+  ☐ Cliquer augmente le solde
+  ☐ Cooldown de 4h (ou 3min en test) activé
+  ☐ Compteur temps réel fonctionne
+  ☐ Historique créé en base de données
+  ☐ Pas d'erreur dans la console (F12)
+
+
+🎉 C'EST TOUT! Vous testez maintenant le système complet dans le jeu.
+
+Version: 1.0
+Date: 2026-05-09
+Status: READY TO TEST
+
+═════════════════════════════════════════════════════════════════════════════
