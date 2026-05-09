@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSocket } from '../hooks/useSocket';
 import { Trophy, Clock, Users } from 'lucide-react';
+import { TournamentService } from '../services/tournament.service';
 
 export function TournamentWaiting() {
   const { t } = useTranslation();
@@ -34,6 +35,26 @@ export function TournamentWaiting() {
       socket.off('tournament-merge-table', handleFinal);
     };
   }, [socket, navigate]);
+
+  /** Si les événements final-table / merge ont été manqués, retrouver la table via l’API. */
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const { gameId } = await TournamentService.getMyTournamentTable();
+        if (cancelled || !gameId) return;
+        navigate(`/game?gameId=${encodeURIComponent(gameId)}&tournament=1`);
+      } catch {
+        /* ignore */
+      }
+    };
+    void poll();
+    const iv = setInterval(() => void poll(), 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+    };
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">

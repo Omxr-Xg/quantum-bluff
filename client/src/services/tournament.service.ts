@@ -108,6 +108,21 @@ export const TournamentService = {
     return data;
   },
 
+  /** Récupère l’id de partie tournoi sur ce serveur si le joueur est encore à table (évite blocage si socket manqué). */
+  getMyTournamentTable: async (): Promise<{ gameId: string | null; tournamentId: string | null }> => {
+    const res = await apiFetch(apiUrl('/api/tournaments/my-table'), {
+      headers: {
+        Authorization: `Bearer ${getAuthItem('token') ?? ''}`,
+      },
+    });
+    const data = (await res.json()) as { gameId?: string | null; tournamentId?: string | null; error?: string };
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    return {
+      gameId: data.gameId ?? null,
+      tournamentId: data.tournamentId ?? null,
+    };
+  },
+
   getSpectateTables: async (id: string): Promise<TournamentSpectatePayload> => {
     const res = await apiFetch(apiUrl(`/api/tournaments/${id}/spectate-tables`), {
       headers: {

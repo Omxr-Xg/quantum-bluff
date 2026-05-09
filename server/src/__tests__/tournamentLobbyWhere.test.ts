@@ -32,13 +32,17 @@ describe('buildTournamentLobbyWhere', () => {
     )
   })
 
-  it('inclut ACTIVE dans le filtre temporel', () => {
+  it('inclut ACTIVE récent (avec borne startTime) dans le filtre temporel', () => {
     const w = buildTournamentLobbyWhere({
       now,
       graceMs: TOURNAMENT_LIST_GRACE_MS_DEFAULT,
       currentUserId: null,
     })
-    const temporal = (w.AND as unknown[])[0] as { OR: { status: string }[] }
-    expect(temporal.OR.map((x) => x.status)).toContain('ACTIVE')
+    const temporal = (w.AND as unknown[])[0] as { OR: Record<string, unknown>[] }
+    const activeBranch = temporal.OR.find((x) => x.status === 'ACTIVE')
+    expect(activeBranch).toMatchObject({
+      status: 'ACTIVE',
+      startTime: { gte: expect.any(Date) },
+    })
   })
 })
