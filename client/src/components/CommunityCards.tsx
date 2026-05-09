@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useDeviceType } from "./ui/use-mobile";
 import { PokerCard, PokerCardSlot } from "./PokerCard";
+import { cardHighlightKey } from "../utils/cards";
 
 interface Card {
   suit: string;
@@ -18,9 +19,10 @@ interface CommunityCardsProps {
   potRef?: Ref<HTMLDivElement>;
   /** Ref sur cartes communes + libellés Flop/Turn/River (tutoriel) */
   boardRef?: Ref<HTMLDivElement>;
+  highlightCardKeys?: Set<string>;
 }
 
-export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, potRef, boardRef }: CommunityCardsProps) {
+export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, potRef, boardRef, highlightCardKeys }: CommunityCardsProps) {
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
@@ -133,6 +135,9 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
                   value={card.value}
                   size={isMobile ? "xs" : isTablet ? "sm" : "md"}
                   colorblindMode={colorblindMode}
+                  highlight={Boolean(
+                    highlightCardKeys?.size && highlightCardKeys.has(cardHighlightKey(card)),
+                  )}
                 />
               ) : (
                 <PokerCardSlot size={isMobile ? "xs" : isTablet ? "sm" : "md"} />

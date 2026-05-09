@@ -34,7 +34,7 @@ import { PlayerGameMenuModal } from "../components/PlayerGameMenuModal";
 import { fetchHiddenBetTableHistory } from "../api/hiddenBetsApi";
 
 import type { ClientCard } from "../utils/cards";
-import { normalizeServerCard } from "../utils/cards";
+import { normalizeServerCard, cardHighlightKey } from "../utils/cards";
 import { intChips } from "../utils/chips";
 import { getWinMultiplierFromDifficultyParam } from "../utils/botModeReward";
 import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
@@ -331,6 +331,9 @@ export function Game() {
     "human_eliminated" | "bot_eliminated" | "practice_stuck" | null
   >(null);
   const [showMultiBustPrompt, setShowMultiBustPrompt] = useState(false);
+  const [cashGameClosedModal, setCashGameClosedModal] = useState<{ roomId?: string; message: string } | null>(
+    null,
+  );
   const multiBustGameIdRef = useRef<string | null>(null);
   const multiBustPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gameOverReasonRef = useRef(gameOverReason);
@@ -381,7 +384,14 @@ export function Game() {
   const showdownStartedRef = useRef(false);
   const showdownResultRef = useRef<typeof showdownResult>(null);
   showdownResultRef.current = showdownResult;
-  const [_showdownWinnerCards, setShowdownWinnerCards] = useState<Card[]>([]);
+  const [showdownWinningHighlightCards, setShowdownWinningHighlightCards] = useState<Card[]>([]);
+  const showdownHighlightKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of showdownWinningHighlightCards) {
+      if (c?.suit && c.suit !== "hidden") s.add(cardHighlightKey(c));
+    }
+    return s;
+  }, [showdownWinningHighlightCards]);
   const [_pendingShowdownData, setPendingShowdownData] = useState<{
     winnerId: string;
     winnerIds?: string[];
@@ -884,6 +894,18 @@ export function Game() {
     phase !== "showdown" &&
     !showOpeningShuffle;
   const tablePlayers = activePlayers.map((player) => {
+    if (isSpectating && gameIdParam) {
+      const pos = activePlayers.indexOf(player) + 1;
+      return {
+        ...player,
+        position: pos,
+        cards: player.cards || [],
+        isActive: isRoundInteractable && player.isActive,
+        hasFolded: player.hasFolded ?? false,
+        lastAction:
+          lastBotAction?.name === player.name ? labelForBotTableAction(lastBotAction.kind, t) : undefined,
+      };
+    }
     const base = isHero(player)
       ? { ...player, position: 0, cards: player.cards || [] }
       : { ...player, position: activePlayers.filter((p) => !isHero(p)).indexOf(player) + 1 };
@@ -895,6 +917,8 @@ export function Game() {
         lastBotAction?.name === player.name ? labelForBotTableAction(lastBotAction.kind, t) : undefined,
     };
   });
+  const layoutSeatCount =
+    isSpectating && gameIdParam ? Math.max(2, activePlayers.length + 1) : undefined;
   const isMyTurn = Boolean(
     activePlayer &&
       (String(activePlayer.id) === String(userId) ||
@@ -906,6 +930,27 @@ export function Game() {
   const hasFoldedFromState = heroPlayer?.hasFolded ?? false;
   const displayedHeroChips =
     heroPlayer != null && typeof heroPlayer.chips === "number" ? heroPlayer.chips : playerChips;
+
+  const hiddenBetsBetweenHands = Boolean(
+    gameIdParam &&
+      !isBotMode &&
+      (cashWaitingPlayers ||
+        (hiddenBetState?.windowType === "PRE_HAND" && !hiddenBetState?.currentHandId)),
+  );
+  const hiddenBetsStreetLive =
+    phase === "flop" || phase === "turn" || phase === "river" || phase === "showdown";
+  const hiddenBetsUiEnabled = Boolean(
+    gameIdParam && !isBotMode && (hiddenBetsBetweenHands || hiddenBetsStreetLive),
+  );
+
+  useEffect(() => {
+    if (!hiddenBetsUiEnabled) setIsPanelOpen(false);
+  }, [hiddenBetsUiEnabled]);
+
+  const handleToggleBluff = useCallback(() => {
+    if (isBotMode || !hiddenBetsUiEnabled) return;
+    setIsPanelOpen((prev) => !prev);
+  }, [isBotMode, hiddenBetsUiEnabled]);
 
   playersStateRef.current = activePlayers;
 
@@ -1099,12 +1144,6 @@ export function Game() {
     return pots;
   };
 
-  // ========== handleToggleBluff fonksiyonu ==========
-  const handleToggleBluff = useCallback(() => {
-    if (isBotMode) return;
-    setIsPanelOpen((prev) => !prev);
-  }, [isBotMode]);
-
   const postExpertPracticeRecordResult = useCallback((delta: number) => {
     const token = getAuthItem("token");
     if (!token) return;
@@ -1202,7 +1241,7 @@ export function Game() {
     setGameOverReason(null);
     setRunOutPhase(null);
     setShowdownReveal(false);
-    setShowdownWinnerCards([]);
+    setShowdownWinningHighlightCards([]);
     showdownStartedRef.current = false;
     setIsBotThinking(false);
     botIsFetchingRef.current = false;
@@ -1496,6 +1535,7 @@ export function Game() {
         setShowTransition(false);
         lastScheduledShowdownTransitionSigRef.current = "";
         showdownStartedRef.current = false;
+        setShowdownWinningHighlightCards([]);
       }
       if (typeof gameState.cashCountdownRemainingSec === "number") {
         setCashCountdownEndsAt(Date.now() + Math.max(0, gameState.cashCountdownRemainingSec) * 1000);
@@ -1578,6 +1618,19 @@ export function Game() {
       }
       setPhase(phase as GamePhase);
       setBurnedCardsCount((gameState as { burnedCardsCount?: number }).burnedCardsCount ?? 0);
+      const swc = (
+        gameState as {
+          showdownWinningCards?: { suit?: string; rank?: string; value?: number | string }[];
+        }
+      ).showdownWinningCards;
+      if (incomingPhase === "showdown" && Array.isArray(swc) && swc.length > 0) {
+        const norm = swc
+          .map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]))
+          .filter((c): c is Card => Boolean(c));
+        setShowdownWinningHighlightCards(norm);
+      } else if (incomingPhase !== "showdown") {
+        setShowdownWinningHighlightCards([]);
+      }
       const cc = gameState.communityCards;
       if (Array.isArray(cc)) {
         const arr: (Card | null)[] = [null, null, null, null, null];
@@ -1784,9 +1837,9 @@ export function Game() {
         data.roomId &&
         String(data.gameId) === String(gameIdParam)
       ) {
-        navigate(`/waiting-room?roomId=${encodeURIComponent(data.roomId)}`, {
-          replace: true,
-          state: { message: t("game.cashTableClosedReturnToWaitingRoom") },
+        setCashGameClosedModal({
+          roomId: data.roomId,
+          message: t("game.cashTableClosedReturnToWaitingRoom"),
         });
       }
     };
@@ -2385,7 +2438,7 @@ export function Game() {
     if (phase === "init" || phase === "shuffle") {
       showdownStartedRef.current = false;
       setShowdownReveal(false);
-      setShowdownWinnerCards([]);
+      setShowdownWinningHighlightCards([]);
       setPendingShowdownData(null);
       setHandResult(null);
       setHandResultData(null);
@@ -2546,7 +2599,7 @@ export function Game() {
             mainHandName = data.handName ?? "Haute carte";
             mainIsSplit = data.isSplit === true && winnerIds.length > 1;
             const winner = activeInHand.find((p) => String(p.id) === winnerIds[0]);
-            if (winner?.cards) setShowdownWinnerCards(winner.cards);
+            if (winner?.cards) setShowdownWinningHighlightCards(winner.cards);
           }
 
           const share = Math.floor(sp.amount / winnerIds.length);
@@ -2647,7 +2700,7 @@ export function Game() {
       if (winner) {
         setPlayersState((prev) => prev.map((p) => (p.id === winner.id ? { ...p, chips: (p.chips ?? 0) + currentPot } : p)));
         if (winner.id === userId || winner.id === "human") setPlayerChips((prev) => prev + currentPot);
-        setShowdownWinnerCards((winner as BasePlayer | BotPlayer).cards ?? []);
+        setShowdownWinningHighlightCards((winner as BasePlayer | BotPlayer).cards ?? []);
       }
       setShowdownResult({
         winnerId: String(winner?.id ?? ""),
@@ -2862,6 +2915,25 @@ export function Game() {
   const handleBackToLobbyAfterBust = useCallback(() => {
     setShowMultiBustPrompt(false);
     navigate("/lobby");
+  }, [navigate]);
+
+  const handleCashClosedGoWaitingRoom = useCallback(() => {
+    if (!cashGameClosedModal?.roomId) {
+      setCashGameClosedModal(null);
+      navigate("/lobby", { replace: true, state: { outcome: "lost" as const, reason: "table_closed" } });
+      return;
+    }
+    const { roomId, message } = cashGameClosedModal;
+    setCashGameClosedModal(null);
+    navigate(`/waiting-room?roomId=${encodeURIComponent(roomId)}`, {
+      replace: true,
+      state: { outcome: "lost" as const, reason: "table_closed", message },
+    });
+  }, [cashGameClosedModal, navigate]);
+
+  const handleCashClosedGoLobby = useCallback(() => {
+    setCashGameClosedModal(null);
+    navigate("/lobby", { replace: true, state: { outcome: "lost" as const, reason: "table_closed" } });
   }, [navigate]);
 
   /** Bot local (sans gameId) : même flux que RoundTransition — relance la table avec les params d’URL. */
@@ -3758,6 +3830,44 @@ export function Game() {
           </motion.div>
         )}
       </AnimatePresence>
+      <AnimatePresence>
+        {cashGameClosedModal && !isBotMode && (
+          <motion.div
+            key="cash-game-closed"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <motion.div
+              className="flex max-w-md w-full flex-col items-center gap-5 rounded-2xl border border-slate-600 bg-slate-900/95 p-8 text-center shadow-2xl"
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            >
+              <h2 className="text-2xl font-bold text-rose-200">{t("game.tableClosedTitle")}</h2>
+              <p className="text-slate-200">{cashGameClosedModal.message}</p>
+              <div className="flex w-full flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleCashClosedGoWaitingRoom}
+                  className="flex-1 rounded-xl bg-violet-600 px-5 py-3 font-semibold text-white transition hover:bg-violet-500"
+                >
+                  {t("game.backToWaitingRoom")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCashClosedGoLobby}
+                  className="flex-1 rounded-xl border border-slate-500 px-5 py-3 font-semibold text-slate-200 transition hover:bg-slate-800"
+                >
+                  {t("game.backToLobby")}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
@@ -4188,6 +4298,8 @@ export function Game() {
         >
         <PokerTable
         players={tablePlayers}
+        layoutSeatCount={layoutSeatCount}
+        highlightCardKeys={phase === "showdown" ? showdownHighlightKeys : undefined}
         communitySafeZone={230}
         phase={phase}
         burnedCardsCount={displayBurnedCardsCount}
@@ -4209,6 +4321,7 @@ export function Game() {
         colorblindMode={colorblindMode}
         potRef={tourRefPot}
         boardRef={tourRefBoard}
+        highlightCardKeys={phase === "showdown" ? showdownHighlightKeys : undefined}
         />
         </PokerTable>
         </div>
@@ -4226,7 +4339,7 @@ export function Game() {
         }}
       />
       <HiddenBetsPanel
-      isOpen={isPanelOpen && !isBotMode}
+      isOpen={isPanelOpen && !isBotMode && hiddenBetsUiEnabled}
       onToggle={handleToggleBluff}
       players={activePlayers}
       gameId={gameIdParam}
@@ -4234,7 +4347,7 @@ export function Game() {
       hiddenBetWindowOpen={hiddenBetWindowOpen}
       hiddenBetState={hiddenBetState}
       tablePhase={phase}
-      betweenHands={Boolean(gameIdParam && !isBotMode && cashWaitingPlayers)}
+      betweenHands={Boolean(gameIdParam && !isBotMode && hiddenBetsBetweenHands)}
       interHandShowdownSummary={
         gameIdParam && !isBotMode && cashWaitingPlayers && showdownResult
           ? {
@@ -4262,8 +4375,14 @@ export function Game() {
           {userId ? (
             <button
               type="button"
-              onClick={() => setIsPanelOpen((o) => !o)}
-              className={`px-5 py-2.5 rounded-xl border-2 border-violet-500/80 bg-violet-950/90 font-semibold text-sm text-violet-100 shadow-lg transition-all hover:bg-violet-900/90 ${isPanelOpen ? "ring-2 ring-violet-400" : ""}`}
+              onClick={() => {
+                if (hiddenBetsUiEnabled) setIsPanelOpen((o) => !o);
+              }}
+              disabled={!hiddenBetsUiEnabled}
+              title={
+                !hiddenBetsUiEnabled ? t("game.hiddenBetsUnavailablePreflop") : undefined
+              }
+              className={`px-5 py-2.5 rounded-xl border-2 border-violet-500/80 bg-violet-950/90 font-semibold text-sm text-violet-100 shadow-lg transition-all hover:bg-violet-900/90 ${isPanelOpen ? "ring-2 ring-violet-400" : ""} ${!hiddenBetsUiEnabled ? "cursor-not-allowed opacity-45" : ""}`}
             >
               {t("hiddenBets.title")}
             </button>
@@ -4310,9 +4429,12 @@ export function Game() {
           onQuantumHoverEnter={onQuantumProbasEnter}
           onQuantumHoverLeave={onQuantumProbasLeave}
           onToggleHiddenBets={() => {
-            if (!isBotMode) setIsPanelOpen(!isPanelOpen);
+            if (!isBotMode && hiddenBetsUiEnabled) setIsPanelOpen(!isPanelOpen);
           }}
-          hiddenBetsDisabled={isBotMode}
+          hiddenBetsDisabled={isBotMode || !hiddenBetsUiEnabled}
+          hiddenBetsDisabledTitle={
+            !isBotMode && !hiddenBetsUiEnabled ? t("game.hiddenBetsUnavailablePreflop") : undefined
+          }
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
           isHiddenBetsOpen={isPanelOpen}
           isChatOpen={isChatOpen}
@@ -4382,15 +4504,21 @@ export function Game() {
                 <button
                   type="button"
                   role="menuitem"
-                  aria-disabled={isBotMode}
-                  title={isBotMode ? t("game.hiddenBetsUnavailableBotMode") : undefined}
+                  aria-disabled={isBotMode || !hiddenBetsUiEnabled}
+                  title={
+                    isBotMode
+                      ? t("game.hiddenBetsUnavailableBotMode")
+                      : !hiddenBetsUiEnabled
+                        ? t("game.hiddenBetsUnavailablePreflop")
+                        : undefined
+                  }
                   onClick={() => {
-                    if (isBotMode) return;
+                    if (isBotMode || !hiddenBetsUiEnabled) return;
                     setIsPanelOpen((o) => !o);
                     setShowMenu(false);
                   }}
                   className={`flex w-full items-center gap-3 px-4 py-3 transition-all ${
-                    isBotMode
+                    isBotMode || !hiddenBetsUiEnabled
                       ? "cursor-not-allowed opacity-45 text-slate-500"
                       : isPanelOpen
                         ? "bg-yellow-500/15 text-yellow-400"
