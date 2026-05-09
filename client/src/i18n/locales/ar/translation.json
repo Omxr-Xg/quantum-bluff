@@ -348,6 +348,8 @@
     "hiddenBetsUnavailableBotMode": "غير متاح في وضع اللعب ضد البوت",
     "chatLinkBlocked": "غير مسموح بالروابط في الدردشة.",
     "backToLobby": "العودة إلى القاعة",
+    "showdownWinnerIs": "الفائز هو {{name}}",
+    "showdownContinue": "متابعة",
     "replaySameConfig": "إعادة اللعب بنفس التكوين",
     "rematchSameMembers": "إعادة اللعب مع نفس الأعضاء",
     "rejoinNextHand": "الانضمام للجولة التالية",

@@ -8,6 +8,7 @@ import { listMarketsForPhase } from '../poker/hiddenBets/services/hiddenBetMarke
 import type { HiddenBetMarketPhase } from '../poker/hiddenBets/types.js'
 import { prisma } from '../config/database.js'
 import { rootLogger } from '../observability/logger.js'
+import { broadcastCashGameState } from '../sockets/gameIo.registry.js'
 
 const router = express.Router()
 
@@ -68,6 +69,7 @@ router.post('/place', authMiddleware, async (req, res) => {
       expectedPricingVersion: req.body?.pricingVersion,
       quoteExpiresAt: req.body?.quoteExpiresAt,
     })
+    void broadcastCashGameState(gameId)
     rootLogger.info({ msg: 'hidden_bet_placed_http', userId, gameId, marketPhase })
     res.json(result)
   } catch (e) {

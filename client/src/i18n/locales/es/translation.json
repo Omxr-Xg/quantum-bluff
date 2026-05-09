@@ -348,6 +348,8 @@
     "hiddenBetsUnavailableBotMode": "No disponible en modo contra el bot",
     "chatLinkBlocked": "No se permiten enlaces en el chat.",
     "backToLobby": "Volver al lobby",
+    "showdownWinnerIs": "El ganador es {{name}}",
+    "showdownContinue": "Continuar",
     "replaySameConfig": "Rejugar con la misma configuración",
     "rematchSameMembers": "Rejugar con los mismos miembros",
     "rejoinNextHand": "Unirse a la próxima mano",

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { env } from '../config/env.js'
 import {
   decideBotAction,
+  expertOracleDecision,
   type BotActionRequest,
   type BotActionResponse,
 } from '../logic/botAI.js'
@@ -122,6 +123,12 @@ function buildAiPayload(req: BotActionRequest, context: ExpertAiContext = {}) {
   }
 }
 
+function hasOracleOpponentHoles(context: ExpertAiContext): boolean {
+  return Boolean(
+    context.opponentHoleCards?.some((h) => Array.isArray(h) && h.length >= 2),
+  )
+}
+
 async function callPythonExpertAi(
   req: BotActionRequest,
   context: ExpertAiContext = {},
@@ -174,11 +181,31 @@ async function callPythonExpertAi(
   }
 }
 
+/**
+ * Expert :
+ * - **Trous adverses (`opponentHoleCards`)** : toujours `expertOracleDecision` (TS). Le modèle Python fold trop
+ *   en multiway avec oracle côté client ; la politique TS est calibrée pour ce cas.
+ * - **Sans trous** : si `AI_SERVICE_ENABLED` + URL → Python (`python-expert` dans reasoning) ; sinon `expertBotDecision`.
+ * - Échec Python (sans oracle, car sinon on n’appelle pas Python) : heuristique expert avec message de fallback.
+ */
 export async function decideBotActionWithExpertAi(
   req: BotActionRequest,
   context: ExpertAiContext = {},
 ): Promise<BotActionResponse> {
-  if (req.difficulty !== 'expert' || !env.aiServiceEnabled) {
+  if (req.difficulty !== 'expert') {
+    return decideBotAction(req)
+  }
+
+  const oracle = hasOracleOpponentHoles(context)
+
+  if (oracle) {
+    return expertOracleDecision(req, {
+      opponentHoleCards: context.opponentHoleCards,
+      opponentStack: context.opponentStack,
+    })
+  }
+
+  if (!env.aiServiceEnabled) {
     return decideBotAction(req)
   }
 

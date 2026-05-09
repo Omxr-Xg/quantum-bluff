@@ -47,7 +47,9 @@ import {
 } from "../components/FakeCardTopUpForm";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
+import { getPokerTableAvatar } from "../utils/avatars";
 import { getAuthItem } from "../utils/authStorage";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import {
   shouldBotReplyToHuman,
   shouldBotTauntAfterAction,
@@ -109,6 +111,25 @@ function labelForBotTableAction(kind: BotTableActionKind, tr: (key: string) => s
   }
 }
 
+/** Vraies cartes connues (pas les dos « hidden / ? » du brouillard multijoueur). */
+function isRealHoleForExpertOracle(cards: Card[]): boolean {
+  if (!Array.isArray(cards) || cards.length < 2) return false;
+  return !cards.some((x) => String(x.suit) === "hidden" || x.value === "?");
+}
+
+/** Joueurs encore en main (non couchés), cohérent avec nextTurn / IA. */
+function countLocalPlayersInHand(ps: (BasePlayer | BotPlayer)[]): number {
+  return ps.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false)).length;
+}
+
+/** Mises égalisées ou tapis sans jetons : fin du round d’enchères courant. */
+function localBetsEqualizedForStreet(ps: (BasePlayer | BotPlayer)[]): boolean {
+  const active = ps.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false));
+  if (active.length < 2) return true;
+  const maxBet = Math.max(0, ...active.map((p) => p.bet ?? 0));
+  return active.every((p) => (p.bet ?? 0) === maxBet || (p.chips ?? 0) === 0);
+}
+
 /** Données « oracle » pour l’IA expert : adversaires encore en main + leurs cartes (table locale). */
 function buildExpertOraclePayload(
   playersState: (BasePlayer | BotPlayer)[],
@@ -123,7 +144,7 @@ function buildExpertOraclePayload(
   const opponentStack = opps.length > 0 ? Math.max(0, ...opps.map((p) => p.chips ?? 0)) : 0;
   const opponentHoleCards = opps
     .map((p) => (Array.isArray(p.cards) ? p.cards : []))
-    .filter((c) => c.length >= 2)
+    .filter(isRealHoleForExpertOracle)
     .map((c) =>
       c.slice(0, 2).map((card) => ({
         suit: card.suit,
@@ -393,6 +414,11 @@ export function Game() {
     skipRevealDelay?: boolean;
   } | null>(null);
   const [showBotHandEndPanel, setShowBotHandEndPanel] = useState(false);
+  /** Multijoueur cash : panneau plein écran « comme le bot » après la révélation des cartes gagnantes. */
+  const [showCashHandEndOverlay, setShowCashHandEndOverlay] = useState(false);
+  /** Après ~5 s (ou « Passer ») : on peut afficher gagnant / avatar ; avant ça, uniquement la surbrillance des 5 cartes. */
+  const [cashShowdownWinnerRevealUnlocked, setCashShowdownWinnerRevealUnlocked] = useState(false);
+  const cashHandWinnerModalDismissedRef = useRef(false);
   const [lastBotAction, setLastBotAction] = useState<{ name: string; kind: BotTableActionKind } | null>(null);
   const [runOutPhase, setRunOutPhase] = useState<GamePhase | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -416,6 +442,9 @@ export function Game() {
   const streetPhaseEnteredRef = useRef<number>(0);
   const bothActedNoTurnRef = useRef(false);
   const botIsFetchingRef = useRef(false);
+  const handleCheckForBotStuckRef = useRef<(playerId?: number | string) => void>(() => {});
+  const handleCallForBotStuckRef = useRef<(amount: number, playerId?: number | string) => void>(() => {});
+  const handleFoldForBotStuckRef = useRef<(playerId?: number | string) => void>(() => {});
   /** Une seule synchro `/record-result` par manche (mode expert local sans gameId réseau). */
   const expertRecordSentForGenRef = useRef<number | null>(null);
   /** Dedupe solde + record-result pour une main practice-bot servie par le socket (gameId practice-bot-*). */
@@ -768,6 +797,8 @@ export function Game() {
 
   useEffect(() => {
     setShowdownRevealSkipped(false);
+    setCashShowdownWinnerRevealUnlocked(false);
+    cashHandWinnerModalDismissedRef.current = false;
   }, [showdownResult?.winnerId, showdownResult?.hand, showdownResult?.pot, showdownResult?.isSplit]);
 
   useEffect(() => {
@@ -802,6 +833,24 @@ export function Game() {
     }, delayMs);
     return () => window.clearTimeout(id);
   }, [isBotMode, showdownResult, gameOverReason, showdownRevealSkipped, SHOWDOWN_REVEAL_MS]);
+
+  useEffect(() => {
+    if (!gameIdParam || isBotMode || !showdownResult) {
+      setShowCashHandEndOverlay(false);
+      return;
+    }
+    if (cashHandWinnerModalDismissedRef.current) {
+      return;
+    }
+    setShowCashHandEndOverlay(false);
+    const delayMs =
+      showdownResult.skipRevealDelay || showdownRevealSkipped ? 0 : SHOWDOWN_REVEAL_MS;
+    const id = window.setTimeout(() => {
+      setCashShowdownWinnerRevealUnlocked(true);
+      setShowCashHandEndOverlay(true);
+    }, delayMs);
+    return () => clearTimeout(id);
+  }, [gameIdParam, isBotMode, showdownResult, showdownRevealSkipped, SHOWDOWN_REVEAL_MS]);
 
   // Note: gardé au cas où la modale "add money" serait réouverte via un handler futur.
   // Pour éviter une erreur lint "unused", on préfixe par "_" tant que non utilisé.
@@ -974,6 +1023,23 @@ export function Game() {
   });
   const layoutSeatCount =
     isSpectating && gameIdParam ? Math.max(2, activePlayers.length + 1) : undefined;
+
+  const multiplayerShowdownWinnerSlots = useMemo(() => {
+    if (!showdownResult || !gameIdParam || isBotMode) return [];
+    const ids =
+      showdownResult.winnerIds && showdownResult.winnerIds.length > 0
+        ? showdownResult.winnerIds
+        : [showdownResult.winnerId];
+    return ids.map((id) => {
+      const p = activePlayers.find((x) => String(x.id) === String(id));
+      const name =
+        p?.name ??
+        (String(id) === String(userId) ? t("game.you") : String(showdownResult.winnerName));
+      const avatarUrl = getPokerTableAvatar(name, id, userId ?? null, p?.avatar ?? null);
+      return { id, name, avatarUrl };
+    });
+  }, [showdownResult, gameIdParam, isBotMode, activePlayers, userId, t]);
+
   const isMyTurn = Boolean(
     activePlayer &&
       (String(activePlayer.id) === String(userId) ||
@@ -996,6 +1062,11 @@ export function Game() {
     phase === "flop" || phase === "turn" || phase === "river" || phase === "showdown";
   const hiddenBetsUiEnabled = Boolean(
     gameIdParam && !isBotMode && (hiddenBetsBetweenHands || hiddenBetsStreetLive),
+  );
+  /** Bandeau d’actions + Paris cachés : aussi entre les mains / showdown, pas seulement quand on peut miser au poker. */
+  const showPlayerActionBar = Boolean(
+    !isSpectating &&
+      (isRoundInteractable || (gameIdParam && !isBotMode && hiddenBetsUiEnabled)),
   );
 
   /** Surbrillance des 5 cartes gagnantes : au showdown et pendant la pause cash avant la main suivante. */
@@ -2248,6 +2319,12 @@ export function Game() {
     const ps = playersStateRef.current;
     if (ps.length < 2) return;
     if (ps.some((p) => p.isActive)) return;
+    if (streetTransitionScheduledRef.current === phase || streetTransitionTimeoutRef.current != null) {
+      return;
+    }
+    if (localBetsEqualizedForStreet(ps)) {
+      return;
+    }
     const eligible = ps.filter(
       (p) => p.isConnected !== false && !(p.hasFolded ?? false) && (p.chips ?? 0) > 0,
     );
@@ -2271,26 +2348,6 @@ export function Game() {
       }
     }
   }, [isBotMode, gameIdParam, phase, playersState]);
-
-  useEffect(() => {
-    if (!isBotMode || gameIdParam || !isBotThinking) return;
-    const stuck = setTimeout(() => {
-      if (botIsFetchingRef.current || isBotThinking) {
-        console.warn("[QB] Bot stuck detected, forcing action");
-        const activePlayer = playersState.find((p) => p.isActive && "isBot" in p && p.isBot);
-        if (activePlayer) {
-          const chips = activePlayer.chips ?? 0;
-          if (callAmount === 0) handleCheck(activePlayer.id);
-          else if (chips >= callAmount) handleCall(callAmount, activePlayer.id);
-          else if (chips > 0) handleCall(chips, activePlayer.id);
-          else handleFold(activePlayer.id);
-        }
-        setIsBotThinking(false);
-        botIsFetchingRef.current = false;
-      }
-    }, 15000);
-    return () => clearTimeout(stuck);
-  }, [isBotThinking, isBotMode, gameIdParam]);
 
   const nextTurn = (justActedIndex?: number) => {
     const idx =
@@ -3136,7 +3193,7 @@ export function Game() {
             minRaise: effectiveMinRaise,
             potSize: pot,
             position: activePlayer.position,
-            playersCount: playersState.filter((p) => p.isConnected !== false).length,
+            playersCount: Math.max(2, countLocalPlayersInHand(playersState)),
             ...(expertOracle ?? {}),
           }),
         });
@@ -3159,6 +3216,7 @@ export function Game() {
           action?: string;
           amount?: number;
           style?: string;
+          reasoning?: string;
         };
         const expertStyle = typeof decision.style === "string" ? decision.style : undefined;
         if (botActionGen !== localHandGenerationRef.current) {
@@ -3479,6 +3537,23 @@ export function Game() {
         .reduce((sum, p) => sum + ((p.bet ?? 0) - botTotalBetAfter), 0);
         
       const humanRefund = hero && hero.id !== playerId && (hero.bet ?? 0) > botTotalBetAfter ? (hero.bet ?? 0) - botTotalBetAfter : 0;
+
+      const snapshotAfterCall = playersState.map((p) => {
+        if (p.id === playerId) {
+          return {
+            ...p,
+            chips: Math.max(0, actorChipsBefore - amount),
+            bet: botTotalBetAfter,
+            isActive: false,
+          };
+        }
+        if ((p.bet ?? 0) > botTotalBetAfter) {
+          const refund = (p.bet ?? 0) - botTotalBetAfter;
+          return { ...p, chips: p.chips + refund, bet: botTotalBetAfter };
+        }
+        return p;
+      });
+      const activeInHandCountAfter = countLocalPlayersInHand(snapshotAfterCall);
       
       setPlayersState((prev) => {
         const nextList = prev.map((p) => {
@@ -3501,8 +3576,7 @@ export function Game() {
       setPot((prev) => Math.max(0, prev + amount - totalRefund));
       setRoundPlayersActed((prev) => {
         const next = new Set(prev).add(botIndex);
-          const activeInHandCount = playersStateRef.current.filter((p) => p.isConnected !== false && !(p.hasFolded ?? false)).length;
-          if (next.size >= activeInHandCount && !isBotAllInCall) {
+          if (next.size >= activeInHandCountAfter && !isBotAllInCall) {
           bothActedNoTurnRef.current = true;
           const currentPhase = phase;
           if (streetTransitionScheduledRef.current !== currentPhase) {
@@ -3524,7 +3598,7 @@ export function Game() {
               transitionFn();
             }, 1000);
           }
-          } else if (next.size < activeInHandCount && !isBotAllInCall) {
+          } else if (next.size < activeInHandCountAfter && !isBotAllInCall) {
           setTimeout(() => {
             setPlayersState((prev) => {
                 const newPlayers = prev.map(p => ({ ...p, isActive: false }));
@@ -3685,6 +3759,32 @@ export function Game() {
     }
   };
 
+  handleCheckForBotStuckRef.current = handleCheck;
+  handleCallForBotStuckRef.current = handleCall;
+  handleFoldForBotStuckRef.current = handleFold;
+
+  useEffect(() => {
+    if (!isBotMode || gameIdParam || !isBotThinking) return;
+    const stuck = setTimeout(() => {
+      if (!botIsFetchingRef.current && !isBotThinking) return;
+      console.warn("[QB] Bot stuck detected, forcing action");
+      const ps = playersStateRef.current;
+      const activePlayer = ps.find((p) => p.isActive && "isBot" in p && p.isBot);
+      if (activePlayer) {
+        const highestBet = Math.max(0, ...ps.map((p) => p.bet ?? 0));
+        const callAmt = intChips(Math.max(0, highestBet - (activePlayer.bet ?? 0)));
+        const chips = activePlayer.chips ?? 0;
+        if (callAmt === 0) handleCheckForBotStuckRef.current(activePlayer.id);
+        else if (chips >= callAmt) handleCallForBotStuckRef.current(callAmt, activePlayer.id);
+        else if (chips > 0) handleCallForBotStuckRef.current(chips, activePlayer.id);
+        else handleFoldForBotStuckRef.current(activePlayer.id);
+      }
+      setIsBotThinking(false);
+      botIsFetchingRef.current = false;
+    }, 15000);
+    return () => clearTimeout(stuck);
+  }, [isBotThinking, isBotMode, gameIdParam]);
+
   const handleSendMessage = (content: string, type: "emoji" | "text") => {
     const trimmed = content.trim();
     if (!trimmed) return;
@@ -3751,6 +3851,27 @@ export function Game() {
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col relative">
+      {gameIdParam &&
+        !isBotMode &&
+        showdownResult &&
+        !cashShowdownWinnerRevealUnlocked &&
+        !gameOverReason && (
+          <div className="pointer-events-auto fixed bottom-6 left-1/2 z-[9996] flex max-w-[min(100vw-1rem,420px)] -translate-x-1/2 flex-col items-center gap-2 rounded-xl border border-slate-600/80 bg-slate-900/95 px-4 py-3 shadow-xl">
+            <p className="text-center text-xs text-slate-300">
+              {t(
+                "game.revealWaitSkippable",
+                "Les cartes gagnantes restent surlignées environ 5 s — vous pouvez passer.",
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowdownRevealSkipped(true)}
+              className="text-sm font-semibold rounded-lg border border-amber-500/60 bg-amber-500/20 px-4 py-2 text-amber-100 hover:bg-amber-500/30 transition"
+            >
+              {t("game.skipReveal", "Passer")}
+            </button>
+          </div>
+        )}
       <AnimatePresence>
       {isBotMode && showdownResult && showBotHandEndPanel && !gameOverReason && (
         <motion.div
@@ -3808,6 +3929,84 @@ export function Game() {
           </motion.div>
         </motion.div>
       )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {gameIdParam &&
+          !isBotMode &&
+          showdownResult &&
+          showCashHandEndOverlay &&
+          multiplayerShowdownWinnerSlots.length > 0 && (
+            <motion.div
+              key="cash-hand-end"
+              className="fixed inset-0 z-[9997] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <motion.div
+                className="flex flex-col items-center gap-5 text-center p-8 rounded-2xl bg-slate-900/95 border border-amber-500/30 shadow-2xl max-w-md w-full"
+                initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                transition={{ type: "spring", damping: 24, stiffness: 320 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-5xl" aria-hidden>
+                  🃏
+                </div>
+                <h2 className="text-xl font-bold uppercase tracking-wide text-amber-400/90">
+                  {t("game.handFinished", "Manche terminée")}
+                </h2>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  {multiplayerShowdownWinnerSlots.map((slot) => (
+                    <div key={String(slot.id)} className="flex flex-col items-center gap-1">
+                      <ImageWithFallback
+                        src={slot.avatarUrl}
+                        alt=""
+                        className="w-20 h-20 rounded-full object-cover ring-2 ring-amber-400/60 shadow-lg"
+                      />
+                      <span className="text-sm font-semibold text-slate-200 max-w-[140px] truncate">
+                        {slot.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-lg sm:text-xl font-bold text-yellow-300 drop-shadow-[0_0_12px_rgba(251,191,36,0.2)] px-2">
+                  {showdownResult.isSplit ||
+                  (showdownResult.winnerIds && showdownResult.winnerIds.length > 1)
+                    ? showdownResult.winnerName
+                    : t("game.showdownWinnerIs", {
+                        name: multiplayerShowdownWinnerSlots[0]?.name ?? showdownResult.winnerName,
+                      })}
+                </p>
+                <div className="w-full rounded-xl bg-slate-800/80 border border-slate-600/60 px-5 py-4 space-y-2">
+                  <p className="text-xs font-semibold text-amber-200/80 uppercase tracking-wider">
+                    {t("game.winningHandLabel", "Combinaison")}
+                  </p>
+                  <p className="text-lg font-semibold text-amber-200">
+                    {showdownResult.hand && showdownResult.hand !== "—"
+                      ? showdownResult.hand
+                      : t("showdown.highCard")}
+                  </p>
+                  <p className="text-sm text-slate-200">
+                    +{(showdownResult.pot ?? 0).toLocaleString()} {t("game.jets", "jetons")}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    cashHandWinnerModalDismissedRef.current = true;
+                    setShowCashHandEndOverlay(false);
+                  }}
+                  className="rounded-xl px-6 py-3 font-semibold bg-amber-500 text-slate-900 hover:bg-amber-400 transition-colors w-full sm:w-auto"
+                >
+                  {t("game.showdownContinue", "Continuer")}
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
       </AnimatePresence>
 
       <AnimatePresence>
@@ -4134,9 +4333,21 @@ export function Game() {
                 <p className="text-emerald-300 font-semibold">
                   {t("game.waitingForReady", "En attente : cliquez « Prêt » pour la prochaine main")}
                 </p>
-                  {showdownResult && (
+                  {showdownResult && cashShowdownWinnerRevealUnlocked && (
                   <div className="mt-2">
                     <div className="text-sm text-amber-200 font-semibold">{t("game.winnerLabel", "Gagnant")}</div>
+                    {multiplayerShowdownWinnerSlots.length > 0 && (
+                      <div className="flex flex-wrap justify-center gap-2 my-2">
+                        {multiplayerShowdownWinnerSlots.map((slot) => (
+                          <ImageWithFallback
+                            key={String(slot.id)}
+                            src={slot.avatarUrl}
+                            alt=""
+                            className="w-12 h-12 rounded-full object-cover ring-2 ring-amber-400/50"
+                          />
+                        ))}
+                      </div>
+                    )}
                     <div className="text-2xl font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.25)]">
                       {showdownResult.winnerName}
                     </div>
@@ -4149,7 +4360,7 @@ export function Game() {
                     </div>
                   </div>
                   )}
-                  {!interHandResultsVisible && (
+                  {!interHandResultsVisible && cashShowdownWinnerRevealUnlocked && (
                     <div className="mt-3 flex flex-col items-center gap-2">
                       <p className="text-slate-400 text-xs">
                         {t(
@@ -4512,7 +4723,7 @@ export function Game() {
         </div>
       )}
 
-      {!isSpectating && isRoundInteractable && (
+      {showPlayerActionBar && (
         <PlayerDashboard
           ref={tourRefActions}
           name={heroDisplayName}
