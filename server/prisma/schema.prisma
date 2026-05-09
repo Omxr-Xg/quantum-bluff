@@ -792,6 +792,10 @@ model Tournament {
   startTime   DateTime
   status      TournamentStatus @default(PENDING)
   prizePool   Int              @default(0)
+  /** Nombre de tables parallèles au 1er tour (reconstruction bracket si Redis vide). */
+  openingRoundTableCount Int?
+  /** OPENING | FINAL — phase bracket persistée pour reconstruction. */
+  activeBracketPhase     String?
 
   createdById String
   createdBy   User             @relation("TournamentCreator", fields: [createdById], references: [id])
