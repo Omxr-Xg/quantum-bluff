@@ -21,6 +21,7 @@ import {
 import type { BotDifficulty } from '../logic/botAI.js'
 import { intChips } from '../utils/chips.js'
 import { getActionLog } from '../config/redis.config.js'
+import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 
 const router = express.Router()
 const gameReadLimiter = rateLimit({
@@ -75,7 +76,13 @@ router.post('/bot/start', authMiddleware, gameActionLimiter, async (req, res) =>
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { username: true, chips: true },
+      select: {
+        id: true,
+        username: true,
+        chips: true,
+        avatarUrl: true,
+        avatarHasBinary: true,
+      },
     })
     if (!user) {
       return res.status(404).json({ error: 'Utilisateur introuvable' })
@@ -103,6 +110,7 @@ router.post('/bot/start', authMiddleware, gameActionLimiter, async (req, res) =>
         isConnected: true,
       })
     }
+    const humanAvatar = clientAvatarUrlFromUser(user)
     players.push({
       id: userId,
       name: user.username ?? 'Vous',
@@ -111,6 +119,7 @@ router.post('/bot/start', authMiddleware, gameActionLimiter, async (req, res) =>
       role: 'PLAYER',
       isActive: true,
       isConnected: true,
+      ...(humanAvatar ? { avatar: humanAvatar } : {}),
     })
 
     const gameId = `${PRACTICE_BOT_GAME_PREFIX}${randomUUID()}`
