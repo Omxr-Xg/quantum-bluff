@@ -60,7 +60,6 @@ import { CustomScrollArea } from "./CustomScrollArea";
 import {
   FakeCardTopUpFields,
   isFakeCardComplete,
-  isQuantumPromo,
   type PromoDiscountInfo,
   simulatedEurFromChips,
 } from "./FakeCardTopUpForm";

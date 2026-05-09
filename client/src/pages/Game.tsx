@@ -42,7 +42,6 @@ import { DeckShuffleOverlay } from "../components/game/DeckShuffleOverlay";
 import {
   FakeCardTopUpFields,
   isFakeCardComplete,
-  isQuantumPromo,
   type PromoDiscountInfo,
   simulatedEurFromChips,
 } from "../components/FakeCardTopUpForm";
