@@ -943,6 +943,13 @@ export function Game() {
     gameIdParam && !isBotMode && (hiddenBetsBetweenHands || hiddenBetsStreetLive),
   );
 
+  /** Surbrillance des 5 cartes gagnantes : au showdown et pendant la pause cash avant la main suivante. */
+  const winningCardsHighlightActive = useMemo(() => {
+    if (showdownHighlightKeys.size === 0) return false;
+    if (phase === "showdown") return true;
+    return Boolean(gameIdParam && !isBotMode && cashWaitingPlayers);
+  }, [showdownHighlightKeys, phase, gameIdParam, isBotMode, cashWaitingPlayers]);
+
   useEffect(() => {
     if (!hiddenBetsUiEnabled) setIsPanelOpen(false);
   }, [hiddenBetsUiEnabled]);
@@ -1499,13 +1506,22 @@ export function Game() {
         gameState.phase != null
           ? (phaseMap[gameState.phase] ?? (gameState.phase as string).toLowerCase?.() ?? "preflop")
           : "preflop";
-      if (incomingPhase !== "init" && incomingPhase !== "shuffle") {
+      /** Nouvelle main « en jeu » : hors pause / showdown / attente lobby. */
+      const activePlayPhase =
+        incomingPhase === "preflop" ||
+        incomingPhase === "flop" ||
+        incomingPhase === "turn" ||
+        incomingPhase === "river";
+      if (activePlayPhase) {
         setCashWaitingPlayers(false);
         setCashCountdownEndsAt(null);
       }
       if (gameState.phase === "WAITING") {
-        setShowdownResult(null);
-        showdownResultRef.current = null;
+        /* Cash multijoueur : garder le dernier résultat pour le panneau paris cachés entre deux mains. */
+        if (!gameIdParam || isBotMode) {
+          setShowdownResult(null);
+          showdownResultRef.current = null;
+        }
         setShowTransition(false);
         lastScheduledShowdownTransitionSigRef.current = "";
       }
@@ -2438,14 +2454,18 @@ export function Game() {
     if (phase === "init" || phase === "shuffle") {
       showdownStartedRef.current = false;
       setShowdownReveal(false);
-      setShowdownWinningHighlightCards([]);
+      /* Entre deux mains cash, phase « init » (WAITING) : garder la surbrillance des 5 cartes
+       * jusqu’à la main suivante (reset au changement de handId). */
+      if (!(gameIdParam && !isBotMode && cashWaitingPlayers)) {
+        setShowdownWinningHighlightCards([]);
+      }
       setPendingShowdownData(null);
       setHandResult(null);
       setHandResultData(null);
       // Ne pas reset la fenêtre inter-main ici :
       // entre les mains, la phase côté UI peut repasser en "init"/"shuffle" tout en attendant le système "ready".
     }
-  }, [phase]);
+  }, [phase, gameIdParam, isBotMode, cashWaitingPlayers]);
 
   // Panneau inter-mains : affiché tout de suite ; détail gagnant + tickets après 5s ou « Passer ».
   useEffect(() => {
@@ -4299,7 +4319,7 @@ export function Game() {
         <PokerTable
         players={tablePlayers}
         layoutSeatCount={layoutSeatCount}
-        highlightCardKeys={phase === "showdown" ? showdownHighlightKeys : undefined}
+        highlightCardKeys={winningCardsHighlightActive ? showdownHighlightKeys : undefined}
         communitySafeZone={230}
         phase={phase}
         burnedCardsCount={displayBurnedCardsCount}
@@ -4321,7 +4341,7 @@ export function Game() {
         colorblindMode={colorblindMode}
         potRef={tourRefPot}
         boardRef={tourRefBoard}
-        highlightCardKeys={phase === "showdown" ? showdownHighlightKeys : undefined}
+        highlightCardKeys={winningCardsHighlightActive ? showdownHighlightKeys : undefined}
         />
         </PokerTable>
         </div>
