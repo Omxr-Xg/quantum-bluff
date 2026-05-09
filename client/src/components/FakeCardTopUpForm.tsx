@@ -6,10 +6,31 @@ export function isQuantumPromo(code: string): boolean {
   return code.trim().toUpperCase() === QUANTUM_PROMO_CODE;
 }
 
-/** Montant TTC simulé (100 jetons ≈ 1 €). Code promo secret → total 0 €. */
-export function simulatedEurFromChips(chips: number, quantum: boolean): number {
-  if (quantum) return 0;
-  return Math.round((chips / 100) * 100) / 100;
+export type PromoDiscountInfo = {
+  discountType: "FIXED_DISCOUNT" | "PERCENTAGE_DISCOUNT";
+  discountValue: number;
+} | null;
+
+/** Montant TTC simulé (100 jetons ≈ 1 €).
+ *  Applique une réduction selon le type: fixe en € ou pourcentage. */
+export function simulatedEurFromChips(
+  chips: number,
+  discount: PromoDiscountInfo,
+): number {
+  const baseEur = Math.round((chips / 100) * 100) / 100;
+
+  if (!discount) return baseEur;
+
+  if (discount.discountType === "FIXED_DISCOUNT") {
+    // Réduction fixe en € (e.g., 10€ de réduction)
+    return Math.max(0, baseEur - discount.discountValue);
+  } else if (discount.discountType === "PERCENTAGE_DISCOUNT") {
+    // Réduction en % (e.g., 20% de réduction)
+    const discountAmount = (baseEur * discount.discountValue) / 100;
+    return Math.max(0, baseEur - discountAmount);
+  }
+
+  return baseEur;
 }
 
 export function formatCardDisplayDigits(raw: string): string {
@@ -45,10 +66,18 @@ export type FakePromoCodeFieldProps = {
   promoCode: string;
   setPromoCode: (v: string) => void;
   compact?: boolean;
+  isValidating?: boolean;
+  hasDiscount?: boolean;
 };
 
-/** Zone code promo (à placer en bas du formulaire, au-dessus du bouton payer). */
-export function FakePromoCodeField({ promoCode, setPromoCode, compact }: FakePromoCodeFieldProps) {
+/** Zone code promo (à placer en haut du formulaire). */
+export function FakePromoCodeField({
+  promoCode,
+  setPromoCode,
+  compact,
+  isValidating,
+  hasDiscount,
+}: FakePromoCodeFieldProps) {
   const { t } = useTranslation();
   const labelCls = compact ? "text-slate-400 text-xs" : "text-slate-300 text-sm";
   const inputCls = compact
@@ -56,8 +85,13 @@ export function FakePromoCodeField({ promoCode, setPromoCode, compact }: FakePro
     : "w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-slate-50 placeholder-slate-500 outline-none transition focus:border-amber-300/55 focus:ring-1 focus:ring-amber-300/35";
 
   return (
-    <div className={`mt-1 border-t border-white/10 pt-3 flex flex-col ${compact ? "gap-2" : "gap-3"}`}>
-      <label className={labelCls}>{t("lobby.fakePaymentPromoLabel")}</label>
+    <div className={`flex flex-col ${compact ? "gap-2" : "gap-3"}`}>
+      <div className="flex items-center gap-2">
+        <span className="text-lg">🎁</span>
+        <label className={`${labelCls} font-semibold`}>{t("lobby.fakePaymentPromoLabel")}</label>
+        {isValidating && <span className="text-[10px] text-slate-400">en validation...</span>}
+        {hasDiscount && <span className="text-[10px] text-emerald-400">✅ code appliqué</span>}
+      </div>
       <input
         type="text"
         value={promoCode}
@@ -74,6 +108,9 @@ export function FakePromoCodeField({ promoCode, setPromoCode, compact }: FakePro
 export type FakeCardTopUpFieldsProps = {
   addMoneyAmount: number;
   promoCode: string;
+  setPromoCode?: (v: string) => void;
+  promoDiscount: PromoDiscountInfo;
+  isPromoValidating?: boolean;
   cardName: string;
   setCardName: (v: string) => void;
   cardDigits: string;
@@ -89,6 +126,9 @@ export type FakeCardTopUpFieldsProps = {
 export function FakeCardTopUpFields({
   addMoneyAmount,
   promoCode,
+  setPromoCode,
+  promoDiscount,
+  isPromoValidating,
   cardName,
   setCardName,
   cardDigits,
@@ -100,8 +140,11 @@ export function FakeCardTopUpFields({
   compact,
 }: FakeCardTopUpFieldsProps) {
   const { t } = useTranslation();
-  const quantum = isQuantumPromo(promoCode);
-  const eur = simulatedEurFromChips(addMoneyAmount, quantum);
+  const isFreePayment = promoDiscount?.discountValue !== undefined &&
+    simulatedEurFromChips(addMoneyAmount, promoDiscount) === 0;
+  const baseEur = Math.round((addMoneyAmount / 100) * 100) / 100;
+  const eur = simulatedEurFromChips(addMoneyAmount, promoDiscount);
+  const discountAmount = baseEur - eur;
   const gap = compact ? "gap-2" : "gap-3";
   const labelCls = compact ? "text-slate-400 text-xs" : "text-slate-300 text-sm";
   const inputCls = compact
@@ -114,14 +157,32 @@ export function FakeCardTopUpFields({
         {t("lobby.fakePaymentDisclaimer")}
       </p>
 
+      {/* Section Code Promo en haut */}
+      {setPromoCode && (
+        <FakePromoCodeField
+          promoCode={promoCode}
+          setPromoCode={setPromoCode}
+          compact={compact}
+          isValidating={isPromoValidating}
+          hasDiscount={!!promoDiscount}
+        />
+      )}
+
       <div className={`flex flex-wrap items-baseline justify-between gap-2 border-b border-white/10 pb-2 ${compact ? "text-xs" : "text-sm"}`}>
         <span className="text-slate-400">{t("lobby.fakePaymentChipsLine", { count: addMoneyAmount })}</span>
-        <span className="font-bold tabular-nums text-amber-100">
-          {t("lobby.fakePaymentTotalSimulated", { amount: eur.toFixed(2) })}
-        </span>
+        <div className="flex flex-col items-end gap-1">
+          {discountAmount > 0 && (
+            <span className="text-emerald-400 text-xs font-semibold">
+              -{discountAmount.toFixed(2)}€
+            </span>
+          )}
+          <span className="font-bold tabular-nums text-amber-100">
+            {t("lobby.fakePaymentTotalSimulated", { amount: eur.toFixed(2) })}
+          </span>
+        </div>
       </div>
 
-      {!quantum ? (
+      {!isFreePayment ? (
         <>
           <div>
             <label className={`${labelCls} mb-1 block`}>{t("lobby.fakePaymentCardHolder")}</label>
@@ -175,7 +236,7 @@ export function FakeCardTopUpFields({
         </>
       ) : (
         <p className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-2 text-xs text-emerald-200">
-          {t("lobby.fakePaymentQuantumActive")}
+          🎁 {t("lobby.fakePaymentQuantumActive")}
         </p>
       )}
     </div>
