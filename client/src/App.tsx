@@ -113,27 +113,33 @@ function TournamentTeleporter() {
         const myTableId = data.playerToGameMap?.[userId];
         if (!myTableId) return;
         addToast(t("tournament.teleporter.toastStarted"), "success");
-        navigate(`/game?gameId=${myTableId}`);
+        navigate(`/game?gameId=${myTableId}&tournament=1`);
       }
     };
 
-    const handleTournamentWon = (data: { userId: string }) => {
+    const handleTournamentWon = (data: { userId: string; survivorsCount?: number; expectedTables?: number }) => {
       if (data.userId === userId) {
         setTournamentResult({ type: 'finalist' });
         setTimeout(() => {
           setTournamentResult(null);
-          navigate('/tournament-waiting');
+          navigate('/tournament-waiting', {
+            state: data.survivorsCount && data.expectedTables
+              ? { survivorsCount: data.survivorsCount, expectedTables: data.expectedTables }
+              : undefined,
+          });
         }, 3000);
       }
     };
 
-    const handleWaitingFinal = (_data: { survivorsCount: number; expectedTables: number }) => {
-      // Handled by TournamentWaiting page directly via socket
+    const handleWaitingFinal = (data: { survivorsCount: number; expectedTables: number }) => {
+      // Si l’utilisateur ouvre directement /tournament-waiting sans state, on pourrait
+      // relayer ici dans un store global. Pour l’instant, on se contente du composant dédié.
+      console.log('[TOURNOI] waiting-final update', data);
     };
 
     const handleFinalTable = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
       setTournamentResult(null);
-      navigate(`/game?gameId=${data.gameId}`, {
+      navigate(`/game?gameId=${data.gameId}&tournament=1`, {
         state: { tournamentPlayers: data.players }
       });
     };
@@ -147,7 +153,7 @@ function TournamentTeleporter() {
     const handleSpectate = (data: { gameId: string }) => {
       setTimeout(() => {
         setTournamentResult(null);
-        navigate(`/game?gameId=${data.gameId}&spectate=1`);
+        navigate(`/game?gameId=${data.gameId}&spectate=1&tournament=1`);
       }, 5000);
     };
 
@@ -209,6 +215,7 @@ function TournamentTeleporter() {
     socket.on('tournament-player-joined', handlePlayerJoined);
     socket.on('tournament-waiting-final', handleWaitingFinal);
     socket.on('tournament-final-table', handleFinalTable);
+    socket.on('tournament-merge-table', handleFinalTable);
     socket.on('tournament-eliminated', handleElimination);
     socket.on('tournament-spectate', handleSpectate);
     socket.on('tournament-result', handleTournamentResult);
@@ -221,6 +228,7 @@ function TournamentTeleporter() {
       socket.off('tournament-player-joined', handlePlayerJoined);
       socket.off('tournament-waiting-final', handleWaitingFinal);
       socket.off('tournament-final-table', handleFinalTable);
+      socket.off('tournament-merge-table', handleFinalTable);
       socket.off('tournament-eliminated', handleElimination);
       socket.off('tournament-spectate', handleSpectate);
       socket.off('tournament-result', handleTournamentResult);

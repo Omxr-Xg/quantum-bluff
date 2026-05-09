@@ -21,15 +21,17 @@ export function TournamentWaiting() {
     };
 
     const handleFinal = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
-      navigate(`/game?gameId=${data.gameId}`, { state: { tournamentPlayers: data.players } });
+      navigate(`/game?gameId=${data.gameId}&tournament=1`, { state: { tournamentPlayers: data.players } });
     };
 
     socket.on('tournament-waiting-final', handleUpdate);
     socket.on('tournament-final-table', handleFinal);
+    socket.on('tournament-merge-table', handleFinal);
 
     return () => {
       socket.off('tournament-waiting-final', handleUpdate);
       socket.off('tournament-final-table', handleFinal);
+      socket.off('tournament-merge-table', handleFinal);
     };
   }, [socket, navigate]);
 

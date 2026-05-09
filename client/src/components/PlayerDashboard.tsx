@@ -38,6 +38,8 @@ interface PlayerDashboardProps {
   onToggleHiddenBets?: () => void;
   /** Mode contre bot : bouton Paris grisé, infobulle explicative. */
   hiddenBetsDisabled?: boolean;
+  /** Infobulle quand Paris est désactivé (ex. preflop cash) — sinon message bot par défaut. */
+  hiddenBetsDisabledTitle?: string;
   onToggleChat?: () => void;
   isHiddenBetsOpen?: boolean;
   isChatOpen?: boolean;
@@ -69,6 +71,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   onQuantumHoverLeave,
   onToggleHiddenBets,
   hiddenBetsDisabled = false,
+  hiddenBetsDisabledTitle,
   onToggleChat,
   isHiddenBetsOpen: _isHiddenBetsOpen,
   isChatOpen = false,
@@ -349,7 +352,11 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
               <NeonButton
                 onClick={hiddenBetsDisabled ? undefined : onToggleHiddenBets}
                 disabled={hiddenBetsDisabled}
-                title={hiddenBetsDisabled ? t("game.hiddenBetsUnavailableBotMode") : undefined}
+                title={
+                  hiddenBetsDisabled
+                    ? (hiddenBetsDisabledTitle ?? t("game.hiddenBetsUnavailableBotMode"))
+                    : undefined
+                }
                 variant="gold"
                 icon={<Eye className="w-4 h-4" />}
                 className="px-4 py-3 text-xs md:px-5 md:py-3.5"

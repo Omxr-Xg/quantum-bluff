@@ -1,6 +1,6 @@
 import './observability/otelEarly.js'
 
-import express from 'express'
+import express, { type Request } from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { createAdapter } from '@socket.io/redis-adapter'
@@ -88,6 +88,9 @@ const corsOptions: CorsOptions = {
 
 app.use(
   helmet({
+    // Par défaut Helmet met CORP « same-origin » : le front Vite (:5175) ne peut pas
+    // afficher des images servies par l’API (:3000). cross-origin est adapté à une API publique.
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
@@ -108,11 +111,27 @@ app.use(httpAccessLogMiddleware)
 
 const limiter = rateLimitWithMetrics({
   windowMs: 15 * 60 * 1000,
-  limit: env.isProduction ? 100 : 1000, 
+  /**
+   * Comptage surtout des réponses non-2xx (skipSuccessfulRequests) ; marge pour clients qui retry après erreurs.
+   * Les lectures de solde sont exclues : avec skipSuccessfulRequests, les rafales concurrentes peuvent quand même
+   * dépasser le plafond avant les décrémentations « finish » — le client poll /balance pendant une partie cash.
+   */
+  limit: env.isProduction ? 400 : 1000,
   message: { error: 'Trop de requêtes, réessaie plus tard' },
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
+  skip: (req: Request) => {
+    const p = req.path
+    if (req.method === 'GET' && (p === '/api/auth/balance' || p === '/api/auth/balance-history')) {
+      return true
+    }
+    /** Console / outils admin : beaucoup de GET successifs ; le JWT admin est vérifié sur chaque route. */
+    if (p.startsWith('/api/admin')) {
+      return true
+    }
+    return false
+  },
 })
 
 app.use(limiter)

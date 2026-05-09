@@ -33,3 +33,8 @@ export function normalizeServerCard(
         : String(c.value ?? "");
   return { suit, value };
 }
+
+/** Clé stable pour surbrillance board / mains (cartes normalisées client). */
+export function cardHighlightKey(c: ClientCard): string {
+  return `${c.suit}|${c.value}`;
+}

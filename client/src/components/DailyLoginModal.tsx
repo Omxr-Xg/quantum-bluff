@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Gift, X, Flame, Check } from "lucide-react";
 import {
-  claimDailyLogin,
-  fetchDailyLoginStatus,
+  claimDailyLoginDetailed,
+  fetchDailyLoginStatusDetailed,
   type DailyLoginStatus,
 } from "../utils/userProfile";
 import { ChipIcon } from "./ChipIcon";
@@ -36,11 +36,16 @@ export function DailyLoginModal({ open, onClose, onClaimed }: DailyLoginModalPro
     }
     let cancelled = false;
     setLoading(true);
-    fetchDailyLoginStatus()
-      .then((s) => {
+    fetchDailyLoginStatusDetailed()
+      .then((r) => {
         if (cancelled) return;
-        setStatus(s);
-        if (!s) setError("Impossible de récupérer la récompense.");
+        if (r.ok) {
+          setStatus(r.data);
+          setError(null);
+        } else {
+          setStatus(null);
+          setError(r.message);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -55,20 +60,21 @@ export function DailyLoginModal({ open, onClose, onClaimed }: DailyLoginModalPro
     setClaiming(true);
     setError(null);
     try {
-      const result = await claimDailyLogin();
-      if (!result) {
-        setError("Récompense indisponible. Réessaie plus tard.");
+      const result = await claimDailyLoginDetailed();
+      if (!result.ok) {
+        setError(result.message);
         return;
       }
-      setJustClaimed(result.rewardTokens);
+      const payload = result.data;
+      setJustClaimed(payload.rewardTokens);
       setStatus({
         ...status,
-        streakCount: result.streakCount,
+        streakCount: payload.streakCount,
         claimedToday: true,
         nextAction: "ALREADY_CLAIMED",
         nextReward: 0,
       });
-      onClaimed?.(result.chips);
+      onClaimed?.(payload.chips);
     } finally {
       setClaiming(false);
     }

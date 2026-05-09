@@ -26,8 +26,8 @@ export function isCapacitorWebViewShell(): boolean {
   ) {
     return true;
   }
+  // APK/IPA : origine parfois autre que localhost (IP machine, domaine custom).
   if (import.meta.env.MODE !== "capacitor") return false;
-  if (hostname !== "localhost" && hostname !== "127.0.0.1") return false;
   return protocol === "https:" || protocol === "http:";
 }
 
@@ -108,5 +108,38 @@ export function apiUrl(path: string): string {
     const d = (import.meta.env.VITE_DEPLOY_ORIGIN ?? "").toString().replace(/\/$/, "").trim();
     if (d && /^\/vm[^/]+\/api\//i.test(p)) return `${d}${p}`;
   }
+  // Build Vite avec `base` non racine : sans ça, `/api/…` part à la racine du domaine
+  // alors que l’API est souvent servie sous le même préfixe que le SPA (ex. `/vm…/api`).
+  const viteBase = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+  if (viteBase && p.startsWith("/api")) {
+    return `${viteBase}${p}`;
+  }
   return p;
+}
+
+const API_FETCH_429_MAX_RETRIES = 3;
+
+/**
+ * fetch avec backoff sur 429 (Retry-After ou exponentiel) pour limiter les rafales
+ * quand le rate limit global API répond « trop de requêtes ».
+ */
+export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
+  let attempt = 0;
+  let last: Response | undefined;
+  while (attempt <= API_FETCH_429_MAX_RETRIES) {
+    last = await fetch(input, init);
+    if (last.status !== 429) return last;
+    if (attempt >= API_FETCH_429_MAX_RETRIES) return last;
+    const ra = last.headers.get("Retry-After");
+    let ms = 1000 * Math.pow(2, attempt);
+    if (ra) {
+      const sec = Number.parseInt(ra, 10);
+      if (Number.isFinite(sec)) {
+        ms = Math.min(60_000, Math.max(500, sec * 1000));
+      }
+    }
+    await new Promise((r) => setTimeout(r, ms));
+    attempt += 1;
+  }
+  return last!;
 }

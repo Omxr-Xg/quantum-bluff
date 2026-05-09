@@ -30,6 +30,12 @@ export interface CashBalanceSnapshot {
   chips: number
 }
 
+/** Résultat de fin de main : stacks à jour + retraits siège (cash-out) à créditer en portefeuille. */
+export interface CashHandCompleteResult {
+  playerStacks: CashBalanceSnapshot[]
+  seatCashOuts: { userId: string; chips: number }[]
+}
+
 export interface CashGameControllerOptions {
   id: string
   roomId: string
@@ -45,7 +51,10 @@ export interface CashGameControllerOptions {
 export interface IGameSession {
   id: string
   state: GameState & { cashCountdownEndsAt?: number; cashSeats?: CashSeat[] }
-  getSanitizedState: (requestingPlayerId?: string) => GameState & { cashCountdownEndsAt?: number; cashSeats?: CashSeat[] }
+  getSanitizedState: (
+    requestingPlayerId?: string,
+    forSpectator?: boolean,
+  ) => GameState & { cashCountdownEndsAt?: number; cashSeats?: CashSeat[] }
   handlePlayerAction: (playerId: string, action: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK', amount?: number) => void
   getPlayerState: (playerId: string) => Player | undefined
 }
@@ -84,6 +93,8 @@ export class CashGameController implements IGameSession {
   private onLiveBetWindowClosed?: () => void
   private readonly debugRuntimeLogsEnabled: boolean =
     process.env.POKER_RUNTIME_DEBUG_LOGS === '1'
+  /** Jetons en début de main courante (siège), par userId — pour delta portefeuille / ledger. */
+  private lastHandStartingChipsByUserId: Map<string, number> = new Map()
 
   /** Enregistré par la gateway pour diffuser l’état après fermeture fenêtre live. */
   setOnLiveBetWindowClosed(cb: () => void): void {
@@ -235,7 +246,9 @@ export class CashGameController implements IGameSession {
     const dealer = state.players.find((p) => p.isDealer)
     const smallBlind = state.players.find((p) => p.role === 'SMALL_BLIND')
     const bigBlind = state.players.find((p) => p.role === 'BIG_BLIND')
-    const foldedPlayerIds = state.players.filter((p) => !p.isActive).map((p) => p.id)
+    const foldedPlayerIds = state.players
+      .filter((p) => p.hasFoldedThisHand === true)
+      .map((p) => p.id)
     const showdownEligiblePlayerIds = state.players
       .filter((p) => p.isActive && (state.handParticipantIds ?? []).includes(p.id))
       .map((p) => p.id)
@@ -263,6 +276,22 @@ export class CashGameController implements IGameSession {
 
   getTurnTimeoutMs(): number {
     return this.turnTimeoutMs
+  }
+
+  /** Buy-in effectif (plancher salle / plafond 10k), aligné sur `sit`. */
+  effectiveSitBuyInAmount(requestedBuyIn: number): number {
+    return intChips(Math.max(this.defaultBuyIn, Math.min(requestedBuyIn, 10000)))
+  }
+
+  /** Retire un joueur du siège sans crédit portefeuille (rollback si échec persistance BDD). */
+  forceClearSeatForUser(userId: string): void {
+    const seat = this.seats.find((s) => s.userId === userId)
+    if (!seat) return
+    seat.userId = null
+    seat.username = null
+    seat.chips = 0
+    seat.avatarUrl = null
+    this.nextHandReadyUserIds.delete(userId)
   }
 
   getOccupiedSeats(): CashSeat[] {
@@ -340,6 +369,11 @@ export class CashGameController implements IGameSession {
       return
     }
 
+    this.lastHandStartingChipsByUserId = new Map()
+    for (const s of occupied) {
+      if (s.userId) this.lastHandStartingChipsByUserId.set(s.userId, intChips(s.chips))
+    }
+
     const players = this.buildPlayersFromSeats(true)
     const liveBetWindowMs = this.turnTimeoutMs <= TURBO_TURN_TIMEOUT_MS ? 3000 : 5000
     this.gameTable = new GameTable(this.id, players, {
@@ -368,9 +402,23 @@ export class CashGameController implements IGameSession {
     this.logRuntimeEvent('HAND_START')
   }
 
+  /** Stacks en début de la main qui vient de se terminer (avant `onHandComplete`). */
+  getLastHandStartingStacks(): ReadonlyMap<string, number> {
+    return this.lastHandStartingChipsByUserId
+  }
+
+  /** Ajuste les jetons siège (ex. après remboursement prêt sur gains). */
+  adjustSeatChips(userId: string, delta: number): void {
+    const d = intChips(delta)
+    if (d === 0) return
+    const seat = this.seats.find((s) => s.userId === userId)
+    if (!seat) return
+    seat.chips = Math.max(0, intChips(seat.chips) + d)
+  }
+
   /** Appelé après le showdown: synchronise les jetons, supprime les éliminés, déclenche le countdown */
-  onHandComplete(): CashBalanceSnapshot[] {
-    if (!this.gameTable) return []
+  onHandComplete(): CashHandCompleteResult {
+    if (!this.gameTable) return { playerStacks: [], seatCashOuts: [] }
     this.clearLiveBetTimer()
 
     const state = this.gameTable.state
@@ -378,6 +426,7 @@ export class CashGameController implements IGameSession {
       userId: p.id,
       chips: p.chips,
     }))
+    const seatCashOuts: { userId: string; chips: number }[] = []
     for (const p of state.players) {
       const seat = this.seats.find((s) => s.userId === p.id)
       if (seat) seat.chips = p.chips
@@ -407,6 +456,8 @@ export class CashGameController implements IGameSession {
     for (const uid of this.pendingQuitUserIds) {
       const seat = this.seats.find((s) => s.userId === uid)
       if (seat) {
+        const out = intChips(seat.chips)
+        if (out > 0) seatCashOuts.push({ userId: uid, chips: out })
         seat.userId = null
         seat.username = null
         seat.chips = 0
@@ -427,7 +478,7 @@ export class CashGameController implements IGameSession {
     this.countdownTimer = null
     this.runtimePhase = 'WAITING_READY'
     this.nextHandReadyUserIds.clear()
-    return balanceSnapshot
+    return { playerStacks: balanceSnapshot, seatCashOuts }
   }
 
   /**
@@ -478,16 +529,17 @@ export class CashGameController implements IGameSession {
   }
 
   /** Retirer un joueur déconnecté de son siège (entre les mains uniquement) */
-  removeDisconnectedPlayer(userId: string): boolean {
-    if (this.gameTable != null) return false
+  removeDisconnectedPlayer(userId: string): { ok: true; cashedOutChips: number } | { ok: false } {
+    if (this.gameTable != null) return { ok: false }
     const seat = this.seats.find((s) => s.userId === userId)
-    if (!seat) return false
+    if (!seat) return { ok: false }
+    const cashedOutChips = intChips(seat.chips)
     seat.userId = null
     seat.username = null
     seat.chips = 0
     seat.avatarUrl = null
     this.nextHandReadyUserIds.delete(userId)
-    return true
+    return { ok: true, cashedOutChips }
   }
 
   /** Annule le compte à rebours entre deux mains (timer + date de fin). */
@@ -527,24 +579,28 @@ export class CashGameController implements IGameSession {
   }
 
   /** Se lever (entre les mains uniquement) */
-  leave(userId: string): { ok: boolean; error?: string } {
+  leave(userId: string): { ok: true; cashedOutChips: number } | { ok: false; error: string } {
     if (this.gameTable != null) return { ok: false, error: 'Une main est en cours' }
     const seat = this.seats.find((s) => s.userId === userId)
     if (!seat) return { ok: false, error: 'Vous n\'êtes pas assis' }
+    const cashedOutChips = intChips(seat.chips)
     seat.userId = null
     seat.username = null
     seat.chips = 0
     seat.avatarUrl = null
     this.nextHandReadyUserIds.delete(userId)
-    return { ok: true }
+    return { ok: true, cashedOutChips }
   }
 
   /** Racheter des jetons (entre les mains uniquement) */
-  rebuy(userId: string, amount: number): { ok: boolean; error?: string } {
+  rebuy(userId: string, amount: number, walletChips?: number): { ok: boolean; error?: string } {
     if (this.gameTable != null) return { ok: false, error: 'Une main est en cours' }
     const seat = this.seats.find((s) => s.userId === userId)
     if (!seat) return { ok: false, error: 'Vous n\'êtes pas assis' }
     const add = intChips(Math.max(10, Math.min(amount, 5000)))
+    if (typeof walletChips === 'number' && intChips(walletChips) < add) {
+      return { ok: false, error: `Solde insuffisant pour ce rebuy (${add} jetons requis).` }
+    }
     seat.chips += add
     return { ok: true }
   }
@@ -607,10 +663,17 @@ export class CashGameController implements IGameSession {
     return this.pendingNextHandId
   }
 
-  getSanitizedState(requestingPlayerId?: string): GameState & { cashCountdownEndsAt?: number; cashSeats?: CashSeat[]; spectatorRejoinQueue?: string[] } {
+  getSanitizedState(
+    requestingPlayerId?: string,
+    forSpectator?: boolean,
+  ): GameState & { cashCountdownEndsAt?: number; cashSeats?: CashSeat[]; spectatorRejoinQueue?: string[] } {
     this.syncHiddenBetNextHandId()
     const base = this.gameTable
-      ? { ...this.gameTable.getSanitizedState(requestingPlayerId), cashCountdownEndsAt: undefined, cashSeats: this.seats }
+      ? {
+          ...this.gameTable.getSanitizedState(requestingPlayerId, forSpectator),
+          cashCountdownEndsAt: undefined,
+          cashSeats: this.seats,
+        }
       : { ...this.state, phase: this.countdownEndsAt ? 'WAITING' : 'WAITING' as const }
     const turnTimeLimitSec = Math.round(this.turnTimeoutMs / 1000)
     const cashCountdownRemainingSec =
@@ -720,10 +783,13 @@ export class CashGameController implements IGameSession {
   }
 
   /** Appelé après onHandComplete quand le countdown démarre : place les spectateurs inscrits */
-  async processRejoinQueue(getUser: (userId: string) => Promise<{ username: string; chips: number } | null>): Promise<void> {
+  async processRejoinQueue(
+    getUser: (userId: string) => Promise<{ username: string; chips: number } | null>
+  ): Promise<{ userId: string; buyInAmount: number }[]> {
     const toProcess = Array.from(this.spectatorRejoinQueue)
     this.spectatorRejoinQueue.clear()
     let firstSeated: string | null = null
+    const buyInsToPersist: { userId: string; buyInAmount: number }[] = []
     for (const userId of toProcess) {
       const user = await getUser(userId)
       if (!user) continue
@@ -736,8 +802,13 @@ export class CashGameController implements IGameSession {
       if (free >= 0) {
         const buyIn = Math.min(wallet, 10_000)
         const r = this.sit(userId, user.username, free, buyIn, null, wallet)
-        if (r.ok && !firstSeated) firstSeated = userId
-        else if (!r.ok) this.spectatorRejoinQueue.add(userId)
+        if (r.ok) {
+          const amount = intChips(this.seats[free]?.chips ?? buyIn)
+          buyInsToPersist.push({ userId, buyInAmount: amount })
+          if (!firstSeated) firstSeated = userId
+        } else {
+          this.spectatorRejoinQueue.add(userId)
+        }
       } else {
         this.spectatorRejoinQueue.add(userId) // pas de place, reste en file
       }
@@ -745,5 +816,6 @@ export class CashGameController implements IGameSession {
     if (firstSeated) {
       this.nextHandBigBlindUserId = firstSeated
     }
+    return buyInsToPersist
   }
 }

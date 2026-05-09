@@ -169,6 +169,24 @@ describe('Poker edge cases pack - runtime rules', () => {
     expect(t.state.phase).toBe('SHOWDOWN')
     expect((t.state.actionVersion ?? 0)).toBe(versionAfterShowdown)
     expect(t.state.handEndReason).toBe('ALL_IN_RUNOUT')
+    const losers = t.state.players.filter((p) => p.chips === 0)
+    expect(losers.length).toBeGreaterThan(0)
+    for (const p of losers) {
+      expect(p.hasFoldedThisHand).toBe(false)
+    }
+  })
+
+  test('explicit fold sets hasFoldedThisHand', () => {
+    const t = new GameTable(
+      'edge-fold-flag',
+      [player('p1', 1000), player('p2', 1000), player('p3', 1000)],
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
+    )
+    t.startHand()
+    const folderId = t.state.currentTurn
+    t.handlePlayerAction(folderId, 'FOLD')
+    const folder = t.state.players.find((p) => p.id === folderId)
+    expect(folder?.hasFoldedThisHand).toBe(true)
   })
 
   test('all-in on flop runs out turn+river and resolves exactly once', () => {

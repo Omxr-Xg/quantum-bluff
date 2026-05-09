@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -35,6 +35,7 @@ import {
   clearAuthStorage,
   fetchDailyLoginStatus,
   BALANCE_CHANGED_EVENT,
+  POKER_WALLET_DISPLAY_EVENT,
 } from "../utils/userProfile";
 import { DailyLoginModal } from "./DailyLoginModal";
 import { Toast } from "./Toast";
@@ -124,6 +125,8 @@ export function Layout({ children }: LayoutProps) {
   const [friendQuickReply, setFriendQuickReply] = useState("");
   const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
   const [balance, setBalance] = useState(getUserBalance());
+  /** Sur /game (cash), le solde affiché peut inclure la stack au siège (événement émis par Game.tsx). */
+  const [pokerDisplayTotal, setPokerDisplayTotal] = useState<number | null>(null);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showDailyLogin, setShowDailyLogin] = useState(false);
   const [dailyLoginAvailable, setDailyLoginAvailable] = useState(false);
@@ -142,6 +145,8 @@ export function Layout({ children }: LayoutProps) {
   const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MENU_CLOSE_DELAY = 500;
   const isMobile = useIsMobile();
+  const isAdminShell =
+    location.pathname === "/auth/admin" || location.pathname.startsWith("/admin/");
   const { registerOpener, openSettingsMenu } = useAccessibilityMenuOpen() ?? {
     registerOpener: () => {},
     openSettingsMenu: () => {},
@@ -161,10 +166,13 @@ export function Layout({ children }: LayoutProps) {
     return () => window.removeEventListener(OPEN_RATE_GAME_EVENT, openRate);
   }, []);
 
+  const isGamePagePath =
+    location.pathname === "/game" || location.pathname.startsWith("/game?");
+
   useEffect(() => {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
     setBalance(getUserBalance());
-    if (getAuthItem("token")) {
+    if (getAuthItem("token") && !isAdminShell) {
       const blackjackMultiInLobby =
         location.pathname === "/lobby" && location.search.includes("tab=blackjack");
       const authoritative =
@@ -172,10 +180,25 @@ export function Layout({ children }: LayoutProps) {
         location.pathname === "/blackjack" ||
         location.pathname.startsWith("/blackjack/lobby") ||
         location.pathname.startsWith("/blackjack/table") ||
-        blackjackMultiInLobby;
+        blackjackMultiInLobby ||
+        isGamePagePath;
       fetchBalanceFromServer({ authoritative }).then(setBalance);
     }
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, isGamePagePath, isAdminShell]);
+
+  useEffect(() => {
+    if (!isGamePagePath) setPokerDisplayTotal(null);
+  }, [isGamePagePath]);
+
+  useEffect(() => {
+    const onPokerWallet = (e: Event) => {
+      const ce = e as CustomEvent<{ total: number | null | undefined }>;
+      const v = ce.detail?.total;
+      setPokerDisplayTotal(typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : null);
+    };
+    window.addEventListener(POKER_WALLET_DISPLAY_EVENT, onPokerWallet);
+    return () => window.removeEventListener(POKER_WALLET_DISPLAY_EVENT, onPokerWallet);
+  }, []);
 
   /** Mise à jour immédiate du solde affiché (ex. mode bot : `addToUserBalance` ne touche que le localStorage). */
   useEffect(() => {
@@ -184,30 +207,52 @@ export function Layout({ children }: LayoutProps) {
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, sync);
   }, []);
 
-  /** Vérifie côté serveur si la récompense de connexion quotidienne est disponible. */
+  /** Vérifie côté serveur si la récompense de connexion quotidienne est disponible ; ouvre la modale une fois par jour à la première visite hors écrans auth. */
   useEffect(() => {
     if (!getAuthItem("token")) {
       setDailyLoginAvailable(false);
       return;
     }
+    if (isAdminShell) {
+      setDailyLoginAvailable(false);
+      return;
+    }
+    const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
+    const showTopBarNow = !isAuthPage;
     let cancelled = false;
     fetchDailyLoginStatus().then((status) => {
       if (cancelled) return;
-      setDailyLoginAvailable(Boolean(status && !status.claimedToday));
+      const available = Boolean(status && !status.claimedToday);
+      setDailyLoginAvailable(available);
+      if (!available || !status || !showTopBarNow) return;
+      const userKey =
+        (getAuthItem("userId") ?? getAuthItem("userid") ?? "").trim() || "anon";
+      const markerKey = "quantum_bluff_daily_login_auto_opened";
+      let prev: { u: string; d: string } | null = null;
+      try {
+        prev = JSON.parse(localStorage.getItem(markerKey) || "null") as { u: string; d: string } | null;
+      } catch {
+        prev = null;
+      }
+      if (prev && prev.u === userKey && prev.d === status.dayKey) return;
+      localStorage.setItem(markerKey, JSON.stringify({ u: userKey, d: status.dayKey }));
+      playSfx("modalOpen");
+      setShowDailyLogin(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [location.pathname]);
+  }, [location.pathname, playSfx, isAdminShell]);
   
   useEffect(() => {
     const onFocus = () => {
-      if (getAuthItem("token")) {
+      if (getAuthItem("token") && !isAdminShell) {
         const authoritative =
           location.pathname === "/minigames" ||
           location.pathname === "/blackjack" ||
           location.pathname.startsWith("/blackjack/lobby") ||
-          location.pathname.startsWith("/blackjack/table");
+          location.pathname.startsWith("/blackjack/table") ||
+          isGamePagePath;
         fetchBalanceFromServer({ authoritative }).then(setBalance);
       } else {
         setBalance(getUserBalance());
@@ -215,13 +260,13 @@ export function Layout({ children }: LayoutProps) {
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, isGamePagePath, isAdminShell]);
 
   useEffect(() => {
-    if (!isConnected) {
+    if (!isAdminShell && !isConnected) {
       connect();
     }
-  }, [isConnected, connect]);
+  }, [isConnected, connect, isAdminShell]);
 
   useEffect(() => {
     const handler = (e: Event) => navigate((e as CustomEvent<string>).detail);
@@ -440,6 +485,10 @@ export function Layout({ children }: LayoutProps) {
       LOAN_REPAYMENT_IN: "Remboursement reçu",
       LOAN_REPAYMENT_OUT: "Remboursement envoyé",
       DEV_TOPUP: "Ajout de solde",
+      CASH_POKER_BUY_IN: "Cash poker — buy-in",
+      CASH_POKER_REBUY: "Cash poker — rebuy",
+      CASH_POKER_CASHOUT: "Cash poker — retrait table",
+      CASH_POKER_HAND_RESULT: "Cash poker — résultat de main",
     };
     return labels[reason] || reason;
   };
@@ -468,8 +517,6 @@ export function Layout({ children }: LayoutProps) {
   const isGameHudPage = isGamePage || isBlackjackGamePage;
   const isWaitingRoomPage = location.pathname === "/waiting-room";
   const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
-  const isAdminShell =
-    location.pathname === "/auth/admin" || location.pathname.startsWith("/admin/");
 
   useEffect(() => {
     if (isAdminShell) {
@@ -479,10 +526,12 @@ export function Layout({ children }: LayoutProps) {
   const showTopBar = !isAuthPage && getAuthItem("token");
   const addMoneyModalHeightClass =
     balanceModalTab === "history"
-      ? "h-[23rem]"
-      : addMoneyAmount != null || addSuccess
-        ? "h-[22rem]"
-        : "h-[17rem]";
+      ? "h-[24rem]"
+      : addSuccess
+        ? "h-[20rem]"
+        : addMoneyAmount != null
+          ? "h-[28rem]"
+          : "h-[18rem]";
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
   const isBotConfigPage = path.includes("bot-configuration");
@@ -491,8 +540,8 @@ export function Layout({ children }: LayoutProps) {
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table");
-  /** Une seule zone de scroll (évite double scroll + contenu masqué avec CustomScrollArea + min-h-screen des pages). */
-  const useNativeMainScroll = isAuthPage || path === "/lobby";
+  /** Scroll sur la fenêtre (document) : évite le double scroll conteneur interne + contenu. */
+  const lobbyDocumentScroll = path === "/lobby" || path === "/tutorial-lobby";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
@@ -541,6 +590,20 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     if (!isGameHudPage) setGameHudState(null);
   }, [isGameHudPage]);
+
+  useLayoutEffect(() => {
+    /** Admin + lobby : scroll sur le document (#root a overflow:hidden par défaut). */
+    const on = isAdminShell || (lobbyDocumentScroll && !isCasinoFullBleed);
+    const root = document.getElementById("root");
+    document.documentElement.classList.toggle("doc-scroll-mode", on);
+    document.body.classList.toggle("doc-scroll-mode", on);
+    root?.classList.toggle("doc-scroll-mode", on);
+    return () => {
+      document.documentElement.classList.remove("doc-scroll-mode");
+      document.body.classList.remove("doc-scroll-mode");
+      root?.classList.remove("doc-scroll-mode");
+    };
+  }, [isAdminShell, lobbyDocumentScroll, isCasinoFullBleed, path]);
 
   if (isAdminShell) {
     return (
@@ -756,6 +819,7 @@ export function Layout({ children }: LayoutProps) {
   );
   const userAvatar = getUserAvatar();
   const username = getUsername();
+  const headerBalance = pokerDisplayTotal ?? balance;
   const languageButtonClass =
     "flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 md:h-11 md:min-h-11 md:w-11 md:min-w-11";
   const accountPill = (
@@ -768,7 +832,7 @@ export function Layout({ children }: LayoutProps) {
       >
         <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.1rem] md:w-[1.1rem]" />
         <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
-          {balance.toLocaleString()}
+          {headerBalance.toLocaleString()}
         </span>
         <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
       </button>
@@ -811,7 +875,7 @@ export function Layout({ children }: LayoutProps) {
       >
         <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.1rem] md:w-[1.1rem]" />
         <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
-          {balance.toLocaleString()}
+          {headerBalance.toLocaleString()}
         </span>
         <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
       </button>
@@ -874,7 +938,16 @@ export function Layout({ children }: LayoutProps) {
         className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-visible max-sm:scroll-smooth max-sm:py-2 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
       >
         <NotificationCenter />
-        <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden sm:inline-flex`} title={t("leaderboard.title")}>
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiSelect");
+            navigate("/leaderboard");
+          }}
+          className={topNavBtn}
+          title={t("leaderboard.title")}
+          aria-label={t("leaderboard.title")}
+        >
           <Trophy className={topNavIcon} aria-hidden />
         </button>
         <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={topNavBtn} title={t("settings.title")} aria-label={t("settings.title")}>
@@ -895,8 +968,27 @@ export function Layout({ children }: LayoutProps) {
     navigate("/lobby");
   };
 
+  const lobbyShellBg = (() => {
+    if (!lobbyDocumentScroll || isCasinoFullBleed) return "bg-transparent";
+    const tab = new URLSearchParams(location.search).get("tab");
+    if (tab === "minigames" || tab === "roulette") return "bg-[#02100c]";
+    if (tab === "blackjack") return "bg-[#100409]";
+    return "bg-[#020716]";
+  })();
+  const shellBg =
+    lobbyDocumentScroll && !isCasinoFullBleed
+      ? lobbyShellBg
+      : showStandaloneTopBar
+        ? "bg-transparent"
+      : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900";
+  const shellClass =
+    lobbyDocumentScroll && !isCasinoFullBleed
+      ? /* Pas de min-h-[100dvh] ni flex-1 sur l’enfant : sinon zone vide en bas (fond document sans dégradés lobby). */
+        `flex w-full min-w-0 flex-col overflow-x-clip overflow-y-visible ${shellBg}`
+      : `flex h-[100dvh] max-h-[100dvh] min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden ${shellBg}`;
+
   return (
-    <div className={`flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden ${showStandaloneTopBar ? "bg-transparent" : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"}`}>
+    <div className={shellClass}>
       <GlobalHoverTooltip />
       <GlobalCustomScrollbars />
       <TopBarProvider menuContent={showIntegratedTopBar ? menuContent : null}>
@@ -1140,7 +1232,7 @@ export function Layout({ children }: LayoutProps) {
                 {addMoneyAmount != null && (
                   <div className="space-y-2">
                     <label className="text-slate-300 text-sm block">
-                      {t("lobby.devValidation") || 'Tapez "dev" pour valider'}
+                      {t("lobby.devValidation")}
                     </label>
                     <input
                       type="text"
@@ -1290,27 +1382,29 @@ export function Layout({ children }: LayoutProps) {
       <InvitationBanner />
 
       <div
-        className={`w-full min-w-0 overflow-x-hidden ${
+        className={`w-full min-w-0 overflow-x-clip overflow-y-visible ${
           isCasinoFullBleed
             ? "flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden pt-0 [&>*:last-child]:flex [&>*:last-child]:min-h-0 [&>*:last-child]:flex-1 [&>*:last-child]:flex-col"
-            : "min-h-0 flex-1"
+            : lobbyDocumentScroll
+              ? "w-full min-w-0"
+              : "min-h-0 flex-1"
         }`}
       >
         {isCasinoFullBleed ? (
           children
-        ) : useNativeMainScroll ? (
+        ) : lobbyDocumentScroll ? (
           <div
-            className={`h-full min-h-0 w-full overflow-x-hidden overflow-y-auto ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
+            className={`w-full min-w-0 ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
           >
             {children}
           </div>
         ) : (
-          <CustomScrollArea
-            className="h-full w-full"
-            contentClassName={`min-h-full ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
+          <div
+            data-native-scrollbar="true"
+            className={`app-main-scroll h-full min-h-0 w-full min-w-0 overflow-x-hidden overflow-y-auto ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
           >
             {children}
-          </CustomScrollArea>
+          </div>
         )}
       </div>
       </TopBarProvider>

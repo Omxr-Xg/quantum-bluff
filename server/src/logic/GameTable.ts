@@ -72,6 +72,7 @@ export class GameTable {
       player.cards = Array.isArray(player.cards) ? player.cards : []
       player.currentBet = player.currentBet ?? 0
       player.isActive = player.isActive ?? true
+      player.hasFoldedThisHand = player.hasFoldedThisHand ?? false
       player.position = index
       player.isDealer = false
       player.isConnected = player.isConnected ?? true
@@ -306,6 +307,7 @@ export class GameTable {
     this.state.showdownWinnerId = winner.id
     this.state.showdownHandName = 'Gagne par abandon'
     this.state.showdownPot = awardedPot
+    this.state.showdownWinningCards = []
 
     this.state.pot = 0
     this.state.phase = 'SHOWDOWN'
@@ -364,6 +366,7 @@ export class GameTable {
     const wasTheirTurn = this.state.currentTurn === playerId
 
     player.isActive = false
+    player.hasFoldedThisHand = true
     this.actedPlayerIds.add(player.id)
 
     if (this.getActivePlayers().length === 1) {
@@ -701,6 +704,7 @@ export class GameTable {
       player.cards = []
       player.currentBet = 0
       player.totalPutInThisHand = 0
+      player.hasFoldedThisHand = false
       player.isActive = player.isConnected !== false && player.chips > 0
       player.isDealer = false
       player.role = 'PLAYER'
@@ -736,6 +740,7 @@ export class GameTable {
     this.state.showdownIsSplit = undefined
     this.state.showdownHandName = undefined
     this.state.showdownPot = undefined
+    this.state.showdownWinningCards = undefined
     console.log('[POKER][HAND] started', {
   gameId: this.id,
   handId: this.state.handId,
@@ -759,6 +764,7 @@ export class GameTable {
   addPlayer(player: Player): void {
     player.cards = Array.isArray(player.cards) ? player.cards : []
     player.currentBet = 0
+    player.hasFoldedThisHand = false
     player.isActive =
       this.handStarted && this.state.phase !== 'SHOWDOWN'
         ? false
@@ -933,6 +939,7 @@ export class GameTable {
 
     if (action === 'FOLD') {
       player.isActive = false
+      player.hasFoldedThisHand = true
       this.actedPlayerIds.add(player.id)
 
       if (this.getActivePlayers().length === 1) {
@@ -1057,6 +1064,8 @@ export class GameTable {
     this.state.showdownIsSplit = settled.showdownWinnerIds.length > 1
     this.state.showdownHandName = settled.showdownHandName
     this.state.showdownPot = settled.showdownPot
+    this.state.showdownWinningCards =
+      settled.showdownWinningCards.length > 0 ? settled.showdownWinningCards : undefined
     this.state.handEndReason = this.state.handEndReason ?? 'SHOWDOWN'
     this.state.handRuntimePhase = 'HAND_COMPLETE'
     console.log('[POKER][SHOWDOWN] resolve_done', {
@@ -1149,17 +1158,19 @@ export class GameTable {
    */
   public sweepBustedPlayers(): void {
     let playersEliminated = false;
+    const isTournamentTable = this.id.startsWith('game_tournoi_');
 
     for (const player of this.state.players) {
       if (player.chips <= 0) {
-        // Le joueur est officiellement éliminé
         player.isActive = false;
-        player.isConnected = false; // On le déconnecte virtuellement de la table
-        
-        // Optionnel: tu peux ajouter un flag isBusted dans le type Player si tu veux l'afficher côté Frontend
-        // player.isBusted = true; 
+        // Tournoi : bust = sortie de table côté moteur. Cash : garder isConnected pour éviter confusion UI / reconnexion.
+        if (isTournamentTable) {
+          player.isConnected = false;
+        }
 
-        console.log(`💀 [GameTable] Le joueur ${player.name} (${player.id}) a été éliminé du tournoi (0 jeton) !`);
+        console.log(
+          `💀 [GameTable] ${player.name} (${player.id}) — 0 jeton après la main${isTournamentTable ? ' (tournoi)' : ''}`,
+        );
         playersEliminated = true;
       }
     }
@@ -1187,6 +1198,7 @@ export class GameTable {
       showdownIsSplit: this.state.showdownIsSplit,
       showdownHandName: this.state.showdownHandName,
       showdownPot: this.state.showdownPot,
+      showdownWinningCards: this.state.showdownWinningCards,
       burnedCardsCount: this.deck.burnedCards.length,
       minRaise: this.getMinRaise(),
       handParticipantIds: this.state.handParticipantIds,
@@ -1196,7 +1208,7 @@ export class GameTable {
     }
   }
 
-  getSanitizedState(requestingPlayerId?: string): GameState {
+  getSanitizedState(requestingPlayerId?: string, forSpectator?: boolean): GameState {
     return {
       id: this.id,
       pot: this.state.pot,
@@ -1213,6 +1225,7 @@ export class GameTable {
       showdownIsSplit: this.state.showdownIsSplit,
       showdownHandName: this.state.showdownHandName,
       showdownPot: this.state.showdownPot,
+      showdownWinningCards: this.state.showdownWinningCards,
       burnedCardsCount: this.deck.burnedCards.length,
       handParticipantIds: this.state.handParticipantIds,
       handEndReason: this.state.handEndReason,
@@ -1229,25 +1242,48 @@ export class GameTable {
         position: player.position || 0,
         role: player.role,
         isActive: player.isActive,
+        hasFoldedThisHand: player.hasFoldedThisHand === true,
         isDealer: player.isDealer || false,
         isConnected: player.isConnected !== false,
         ...(player.avatar ? { avatar: player.avatar } : {}),
         // Règles de révélation des cartes :
+        // - Spectateur (forSpectator) : pas de cartes hors showdown (le client affiche des dos) ; au showdown, même logique que les observateurs
+        // - Pas de joueur cible : []
         // - Avant showdown : chaque joueur voit uniquement ses propres cartes
-        // - Au showdown réel (plusieurs joueurs) : tous voient les cartes des joueurs encore en lice (isActive)
-        // - "Gagne par abandon" (1 seul restant) : le gagnant ne montre pas, les folders ne voient pas sa main
-        cards:
-          this.state.phase === 'SHOWDOWN'
-            ? this.state.showdownHandName === 'Gagne par abandon'
-              ? player.id === requestingPlayerId && player.id === this.state.showdownWinnerId
+        // - Au showdown réel : cartes des participants qui n’ont pas fold
+        // - "Gagne par abandon" : seul le gagnant voit ses cartes (identité = requestingPlayerId)
+        cards: (() => {
+          if (forSpectator) {
+            if (this.state.phase === 'SHOWDOWN') {
+              if (this.state.showdownHandName === 'Gagne par abandon') {
+                return player.id === this.state.showdownWinnerId ? player.cards : []
+              }
+              const ids = this.state.handParticipantIds ?? []
+              const wasInShowdown =
+                (Array.isArray(ids) ? ids.includes(player.id) : this.handParticipantIds.has(player.id)) &&
+                !player.hasFoldedThisHand
+              return wasInShowdown ? player.cards : []
+            }
+            return []
+          }
+          if (requestingPlayerId === undefined || requestingPlayerId === '') {
+            return []
+          }
+          if (this.state.phase === 'SHOWDOWN') {
+            if (this.state.showdownHandName === 'Gagne par abandon') {
+              return player.id === requestingPlayerId &&
+                player.id === this.state.showdownWinnerId
                 ? player.cards
                 : []
-              : player.isActive
-                ? player.cards
-                : []
-            : player.id === requestingPlayerId
-              ? player.cards
-              : []
+            }
+            const ids = this.state.handParticipantIds ?? []
+            const wasInShowdown =
+              (Array.isArray(ids) ? ids.includes(player.id) : this.handParticipantIds.has(player.id)) &&
+              !player.hasFoldedThisHand
+            return wasInShowdown ? player.cards : []
+          }
+          return player.id === requestingPlayerId ? player.cards : []
+        })(),
       }))
     }
   }

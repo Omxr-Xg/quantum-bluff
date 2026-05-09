@@ -45,7 +45,7 @@ describe('Poker runtime integration', () => {
 
     // In-hand: player cannot be removed from seats immediately.
     expect(game.leave('u1').ok).toBe(false)
-    expect(game.removeDisconnectedPlayer('u1')).toBe(false)
+    expect(game.removeDisconnectedPlayer('u1').ok).toBe(false)
     expect(game.getOccupiedCount()).toBe(2)
   })
 
@@ -87,7 +87,7 @@ describe('Poker runtime integration', () => {
     game.onHandComplete()
     expect(game.state.phase).toBe('WAITING')
 
-    expect(game.removeDisconnectedPlayer('u1')).toBe(true)
+    expect(game.removeDisconnectedPlayer('u1').ok).toBe(true)
     expect(game.getOccupiedCount()).toBe(1)
   })
 })

@@ -22,6 +22,8 @@ i18n
   .init({
     resources,
     fallbackLng: 'en',
+    // Désactive le message sponsor Locize en console (i18next 25.8+).
+    showSupportNotice: false,
     interpolation: {
       escapeValue: false
     },
