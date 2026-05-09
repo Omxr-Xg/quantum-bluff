@@ -18,7 +18,6 @@ type FreeRechargeButtonProps = {
 }
 
 const FREE_RECHARGE_AMOUNT = 300 // Montant rechargé pour joueurs en difficulté
-const FREE_RECHARGE_THRESHOLD = 400 // Seuil minimum de jetons requis
 
 /**
  * Composant affichant le bouton de recharge gratuite ou le compteur de cooldown.
@@ -32,7 +31,6 @@ export function FreeRechargeButton({
   showDetails = false,
 }: FreeRechargeButtonProps) {
   const [status, setStatus] = useState<FreeRechargeStatus | null>(null)
-  const [loading, setLoading] = useState(false)
   const [claiming, setClaiming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [displayTime, setDisplayTime] = useState<{
