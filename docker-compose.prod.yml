@@ -44,10 +44,8 @@ services:
     # Même secrets qu’en local : server/.env (gitignored) survit aux git pull sur la VM.
     # Ne pas mettre ADMIN_CONSOLE_* dans environment avec ${VAR:-} vide : ça écraserait les valeurs du fichier.
     env_file:
-      - path: server/.env
-        required: false
-      - path: .env
-        required: false
+      - server/.env
+      - .env
     environment:
       DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD:-My027}@postgres:5432/${DB_NAME:-quantum_bluff}?schema=public
       REDIS_URL: redis://redis:6379
