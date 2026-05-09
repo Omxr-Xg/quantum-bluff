@@ -15,10 +15,14 @@ default:
   # Le runner K8s peut échouer avant tout script (nœuds indisponibles, disk-pressure, timeout de pod).
   # Relance uniquement dans ces cas, pas sur une vraie erreur de test ou de lint.
   retry:
-    max: 2
+    max: 4
     when:
       - runner_system_failure
       - stuck_or_timeout_failure
+
+# Évite 3 pods verify en parallèle (backend + frontend + database) sur un cluster déjà saturé.
+.verify_kubernetes_throttled:
+  resource_group: k8s-verify-${CI_PROJECT_ID}
 
 stages:
   - verify
@@ -37,7 +41,9 @@ cache:
 
 # --- develop / main : un seul npm ci + lint + tests (au lieu de 2 jobs séquentiels)
 backend:verify:
-  extends: .node_docker_ci
+  extends:
+    - .node_docker_ci
+    - .verify_kubernetes_throttled
   stage: verify
   services:
     - name: public.ecr.aws/docker/library/postgres:15
@@ -59,7 +65,9 @@ backend:verify:
     - main
 
 frontend:verify:
-  extends: .node_docker_ci
+  extends:
+    - .node_docker_ci
+    - .verify_kubernetes_throttled
   stage: verify
   script:
     - cd client
@@ -83,6 +91,7 @@ backend:lint:
     - /^fix\/.*$/
 
 database:test:
+  extends: .verify_kubernetes_throttled
   stage: verify
   image:
     name: public.ecr.aws/docker/library/postgres:15
