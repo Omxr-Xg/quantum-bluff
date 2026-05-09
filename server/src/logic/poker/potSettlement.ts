@@ -84,8 +84,12 @@ export function settlePots(input: PotSettlementInput): PotSettlementResult {
     lastWinnerIds = winnerIds
     lastHandName = handName
     const wp = eligible.find((p) => p.id === winnerIds[0])
-    if (wp && input.communityCards.length >= 5) {
-      lastWinningCards = getBestFiveOfSeven([...wp.cards, ...input.communityCards])
+    const combined =
+      wp && wp.cards.length + input.communityCards.length >= 5
+        ? [...wp.cards, ...input.communityCards]
+        : []
+    if (combined.length >= 5) {
+      lastWinningCards = getBestFiveOfSeven(combined)
     }
   }
 
