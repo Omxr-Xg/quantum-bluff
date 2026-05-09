@@ -1,5 +1,5 @@
 import express from 'express'
-import rateLimit from 'express-rate-limit'
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
 import { authMiddleware } from '../middleware/auth.middleware.js'
 import {
   claimFreeRecharge,
@@ -19,7 +19,7 @@ const claimLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const uid = (req as express.Request & { userId?: string }).userId
-    return uid ? `free-recharge:${uid}` : `free-recharge:${req.ip ?? 'unknown'}`
+    return uid ? `free-recharge:${uid}` : `free-recharge:${ipKeyGenerator(req)}`
   },
 })
 

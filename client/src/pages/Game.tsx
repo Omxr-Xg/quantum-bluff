@@ -41,10 +41,12 @@ import { BOT_TABLE_DEFAULTS } from "../config/botTableDefaults";
 import { DeckShuffleOverlay } from "../components/game/DeckShuffleOverlay";
 import {
   FakeCardTopUpFields,
-  FakePromoCodeField,
   isFakeCardComplete,
   isQuantumPromo,
+  type PromoDiscountInfo,
+  simulatedEurFromChips,
 } from "../components/FakeCardTopUpForm";
+import { validateGiftCode } from "../utils/wallet";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
@@ -325,6 +327,8 @@ export function Game() {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [promoCode, setPromoCode] = useState("");
+  const [promoDiscount, setPromoDiscount] = useState<PromoDiscountInfo>(null);
+  const [promoValidating, setPromoValidating] = useState(false);
   const [cardName, setCardName] = useState("");
   const [cardDigits, setCardDigits] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -820,6 +824,7 @@ export function Game() {
     setShowAddMoney(false);
     setAddMoneyAmount(null);
     setPromoCode("");
+    setPromoDiscount(null);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -827,10 +832,37 @@ export function Game() {
     setAddSuccess(false);
   };
 
+  const validatePaymentPromo = useCallback(async (code: string) => {
+    if (!code.trim()) {
+      setPromoDiscount(null);
+      return;
+    }
+    setPromoValidating(true);
+    try {
+      const result = await validateGiftCode(code);
+      if (result && result.success && result.discountType) {
+        // C'est un code de réduction
+        setPromoDiscount({
+          discountType: result.discountType as "FIXED_DISCOUNT" | "PERCENTAGE_DISCOUNT",
+          discountValue: result.discountValue || 0,
+        });
+      } else {
+        setPromoDiscount(null);
+      }
+    } catch (error) {
+      console.error("[payment] Promo validation error:", error);
+      setPromoDiscount(null);
+    } finally {
+      setPromoValidating(false);
+    }
+  }, []);
+
   const submitAddMoney = async () => {
     if (addMoneyAmount == null || addMoneyAmount <= 0) return;
-    const quantumActive = isQuantumPromo(promoCode);
-    if (!quantumActive && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
+    // Vérifier si c'est un paiement gratuit (réduction 100%)
+    const finalPrice = simulatedEurFromChips(addMoneyAmount, promoDiscount);
+    const isFreePayment = finalPrice === 0;
+    if (!isFreePayment && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
     const newBalance = mode === "bot"
       ? addToUserBalance(addMoneyAmount)
       : await addDevMoney(addMoneyAmount);
@@ -846,11 +878,11 @@ export function Game() {
     setTimeout(() => closeAddMoney(), 800);
   };
 
-  const quantumTopUpGame = isQuantumPromo(promoCode);
+  const isFreePaymentTopUpGame = promoDiscount ? simulatedEurFromChips(addMoneyAmount || 0, promoDiscount) === 0 : false;
   const canSubmitTopUpGame =
     addMoneyAmount != null &&
     addMoneyAmount > 0 &&
-    (quantumTopUpGame || isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName));
+    (isFreePaymentTopUpGame || isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName));
 
   const getPlayers = (): (BasePlayer | BotPlayer)[] => {
     const count = parseInt(searchParams.get("bots") || "1", 10);
@@ -4088,6 +4120,12 @@ export function Game() {
                       compact
                       addMoneyAmount={addMoneyAmount}
                       promoCode={promoCode}
+                      setPromoCode={(code) => {
+                        setPromoCode(code);
+                        void validatePaymentPromo(code);
+                      }}
+                      promoDiscount={promoDiscount}
+                      isPromoValidating={promoValidating}
                       cardName={cardName}
                       setCardName={setCardName}
                       cardDigits={cardDigits}
@@ -4097,7 +4135,6 @@ export function Game() {
                       cardCvv={cardCvv}
                       setCardCvv={setCardCvv}
                     />
-                    <FakePromoCodeField compact promoCode={promoCode} setPromoCode={setPromoCode} />
                     <button
                       type="button"
                       onClick={() => void submitAddMoney()}
