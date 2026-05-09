@@ -119,6 +119,10 @@ export interface GameState {
     windowType: 'PRE_HAND' | 'LIVE_FLOP' | 'LIVE_TURN' | 'LIVE_RIVER' | null
     closesAt?: number
   }
+  /** Rattachement tournoi (tables `game_tournoi_*`) — non exposé au client via état sanitizé. */
+  tournamentId?: string
+  /** Numéro d’affichage table (1…n) pour spectateurs / reconstruction. */
+  tournamentTableNumber?: number
   /** Phase runtime détaillée (pilotage backend/front). */
   handRuntimePhase?:
     | 'HAND_IN_PROGRESS'
