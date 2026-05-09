@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Gift } from "lucide-react";
 
 export const QUANTUM_PROMO_CODE = "QUANTUM";
 
@@ -87,7 +88,7 @@ export function FakePromoCodeField({
   return (
     <div className={`flex flex-col ${compact ? "gap-2" : "gap-3"}`}>
       <div className="flex items-center gap-2">
-        <span className="text-lg">🎁</span>
+        <Gift className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
         <label className={`${labelCls} font-semibold`}>{t("lobby.fakePaymentPromoLabel")}</label>
         {isValidating && <span className="text-[10px] text-slate-400">en validation...</span>}
         {hasDiscount && <span className="text-[10px] text-emerald-400">✅ code appliqué</span>}
@@ -235,8 +236,9 @@ export function FakeCardTopUpFields({
           </div>
         </>
       ) : (
-        <p className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-2 text-xs text-emerald-200">
-          🎁 {t("lobby.fakePaymentQuantumActive")}
+        <p className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-2 text-xs text-emerald-200">
+          <Gift className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden />
+          {t("lobby.fakePaymentQuantumActive")}
         </p>
       )}
     </div>

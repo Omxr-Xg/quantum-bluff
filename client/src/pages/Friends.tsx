@@ -123,7 +123,7 @@ function SortDropdown({ ariaLabel, value, options, onChange }: SortDropdownProps
 }
 
 export function Friends() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { userId } = useUser();
   const { socket, isConnected, connect } = useSocket();
@@ -142,7 +142,7 @@ export function Friends() {
   const [friendStatusFilter, setFriendStatusFilter] = useState<FriendStatusFilter>("all");
   const [friendSort, setFriendSort] = useState<FriendSort>("recent");
   const [requestSort, setRequestSort] = useState<RequestSort>("recent");
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const tab = searchParams.get("tab");
     const withUserId = searchParams.get("with");
@@ -151,6 +151,7 @@ export function Friends() {
     } else if (tab === "messages") {
       setActiveTab("messages");
       if (withUserId) setSelectedChat(withUserId);
+      else setSelectedChat(null);
     }
   }, [searchParams]);
 
@@ -345,11 +346,28 @@ export function Friends() {
 
   const openChat = (friendId: string) => {
     setSelectedChat(friendId);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", "messages");
+        next.set("with", friendId);
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const closeChat = () => {
     setSelectedChat(null);
     setMessageInput("");
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("with");
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const selectedFriend = friends?.find((f) => f.id === selectedChat);
@@ -394,6 +412,16 @@ export function Friends() {
     };
   }, [socket, userId, selectedChat, refetchMessages]);
 
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const friendId = (ev as CustomEvent<{ friendId: string }>).detail?.friendId;
+      if (!friendId || !selectedChat) return;
+      if (friendId === selectedChat) void refetchMessages();
+    };
+    window.addEventListener("refetch-friend-messages", handler);
+    return () => window.removeEventListener("refetch-friend-messages", handler);
+  }, [selectedChat, refetchMessages]);
+
   const handleSendMessage = async () => {
     if (!selectedChat || !userId || !messageInput.trim()) return;
 
@@ -424,16 +452,19 @@ export function Friends() {
   const formatMessageTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
+    if (Number.isNaN(date.getTime())) return t("friends.justNow");
     const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMs < 0) return t("friends.justNow");
+
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
+    const lang = i18n.language;
 
-    if (diffMins < 1) return t("friends.justNow");
-    if (diffMins < 60) return t("friends.minutesAgo", { count: diffMins });
-    if (diffHours < 24) return t("friends.hoursAgo", { count: diffHours });
+    if (diffHours < 24) {
+      return date.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+    }
     if (diffDays < 7) return t("friends.daysAgo", { count: diffDays });
-    return date.toLocaleDateString();
+    return date.toLocaleDateString(lang);
   };
 
   return (
@@ -990,25 +1021,39 @@ export function Friends() {
         </div>
       )}
 
-      {selectedChat && selectedFriend && (
+      {selectedChat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className={`flex h-[600px] w-full max-w-2xl flex-col overflow-hidden ${pokerGlassCard}`}>
             <div className="flex items-center justify-between border-b border-white/10 p-6">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
-                  {getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl) ? (
-                    <ImageWithFallback
-                      src={getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl)}
-                      alt={`${selectedFriend.username}'s avatar`}
-                      className="h-12 w-12 rounded-full object-cover"
-                    />
+                  {selectedFriend ? (
+                    getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl) ? (
+                      <ImageWithFallback
+                        src={getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl)}
+                        alt={`${selectedFriend.username}'s avatar`}
+                        className="h-12 w-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xl font-bold text-white">{selectedFriend.username.charAt(0).toUpperCase()}</span>
+                    )
+                  ) : loadingFriends ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-300" />
                   ) : (
-                    <span className="text-xl font-bold text-white">{selectedFriend.username.charAt(0).toUpperCase()}</span>
+                    <MessageCircle className="h-6 w-6 text-slate-400" />
                   )}
                 </div>
                 <div className="min-w-0">
-                  <h2 className="truncate text-xl font-bold text-white">{selectedFriend.username}</h2>
-                  <p className="text-sm text-gray-400">{t("friends.level", { level: selectedFriend.level })}</p>
+                  <h2 className="truncate text-xl font-bold text-white">
+                    {selectedFriend
+                      ? selectedFriend.username
+                      : loadingFriends
+                        ? t("common.loading")
+                        : t("friends.chat")}
+                  </h2>
+                  <p className="text-sm text-gray-400">
+                    {selectedFriend ? t("friends.level", { level: selectedFriend.level }) : "\u00a0"}
+                  </p>
                 </div>
               </div>
               <button

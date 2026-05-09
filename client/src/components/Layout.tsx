@@ -66,7 +66,8 @@ import {
 import { useIsMobile } from "./ui/use-mobile";
 import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
-import { useSendFriendMessageMutation } from "../services/api";
+import { api, useSendFriendMessageMutation } from "../services/api";
+import { store } from "../store";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
 
@@ -436,10 +437,15 @@ export function Layout({ children }: LayoutProps) {
     const text = friendQuickReply.trim();
     if (!text || sendingFriendReply) return;
     try {
+      const receiverId = notification.senderId;
       await sendFriendMessage({
-        receiverId: notification.senderId,
+        receiverId,
         content: text,
       }).unwrap();
+      store.dispatch(api.util.invalidateTags([{ type: "FriendMessage", id: receiverId }]));
+      window.dispatchEvent(
+        new CustomEvent("refetch-friend-messages", { detail: { friendId: receiverId } }),
+      );
       playSfx("uiSelect");
       setNotification(null);
       setFriendQuickReply("");
@@ -527,7 +533,7 @@ export function Layout({ children }: LayoutProps) {
         SEASONAL: "🎄 Code - Saisonnier",
         SPECIAL: "⭐ Code - Spécial",
       };
-      return typeMap[type] || "🎁 Code cadeau";
+      return typeMap[type] || "Code cadeau";
     }
 
     return labels[reason] || reason;
@@ -1324,7 +1330,12 @@ export function Layout({ children }: LayoutProps) {
                           <div key={entry.id} className="rounded-xl border border-amber-300/12 bg-slate-950/34 px-3 py-2">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <p className="text-sm font-semibold text-slate-100">{reasonLabel(entry.reason)}</p>
+                                <p className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+                                  {entry.reason.startsWith("GIFT_CODE_") ? (
+                                    <Gift className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-hidden />
+                                  ) : null}
+                                  <span>{reasonLabel(entry.reason)}</span>
+                                </p>
                                 <p className="text-xs text-slate-400">
                                   {new Intl.DateTimeFormat("fr-CA", {
                                     dateStyle: "medium",
@@ -1351,7 +1362,10 @@ export function Layout({ children }: LayoutProps) {
             ) : balanceModalTab === "codes" ? (
               <div className="space-y-4">
                 <div>
-                  <p className="text-slate-300 text-sm mb-3">🎁 Codes disponibles :</p>
+                  <p className="mb-3 flex items-center gap-2 text-sm text-slate-300">
+                    <Gift className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
+                    Codes disponibles :
+                  </p>
                   {codesLoading ? (
                     <div className="text-center py-8 text-slate-400">Chargement...</div>
                   ) : giftCodes.length > 0 ? (
