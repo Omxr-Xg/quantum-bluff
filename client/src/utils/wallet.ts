@@ -21,11 +21,25 @@ export interface GiftCode {
   id: string
   code: string
   amount: number
+  usageType: string
   type: string
   description: string | null
   expiresAt: string | null
   usedCount: number
   maxUses: number
+}
+
+export type PromoCodeValidationResult = {
+  success: boolean
+  message: string
+  usageType: string
+  // Réponse si code TOKENS
+  newBalance?: number
+  addedAmount?: number
+  // Réponse si code FIXED_DISCOUNT ou PERCENTAGE_DISCOUNT
+  discountType?: string
+  discountValue?: number
+  description?: string
 }
 
 export async function fetchWalletHistory(limit = 50, offset = 0): Promise<WalletHistory | null> {
@@ -74,7 +88,7 @@ export async function fetchAvailableGiftCodes(): Promise<GiftCode[] | null> {
   }
 }
 
-export async function validateGiftCode(code: string): Promise<{ success: boolean; message: string; newBalance: number; addedAmount: number } | null> {
+export async function validateGiftCode(code: string): Promise<PromoCodeValidationResult | null> {
   try {
     const token = getAuthItem('token')
     const response = await fetch(apiUrl('/api/gift-codes/validate'), {

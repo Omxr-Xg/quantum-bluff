@@ -59,9 +59,10 @@ import { GlobalCustomScrollbars } from "./GlobalCustomScrollbars";
 import { CustomScrollArea } from "./CustomScrollArea";
 import {
   FakeCardTopUpFields,
-  FakePromoCodeField,
   isFakeCardComplete,
   isQuantumPromo,
+  type PromoDiscountInfo,
+  simulatedEurFromChips,
 } from "./FakeCardTopUpForm";
 import { useIsMobile } from "./ui/use-mobile";
 import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
@@ -145,6 +146,8 @@ export function Layout({ children }: LayoutProps) {
   const [balanceModalTab, setBalanceModalTab] = useState<"history" | "topup" | "codes">("topup");
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [promoCode, setPromoCode] = useState("");
+  const [promoDiscount, setPromoDiscount] = useState<PromoDiscountInfo>(null);
+  const [promoValidating, setPromoValidating] = useState(false);
   const [cardName, setCardName] = useState("");
   const [cardDigits, setCardDigits] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -590,10 +593,37 @@ export function Layout({ children }: LayoutProps) {
       setBalance(getUserBalance());
     }
   };
+  const validatePaymentPromo = useCallback(async (code: string) => {
+    if (!code.trim()) {
+      setPromoDiscount(null);
+      return;
+    }
+    setPromoValidating(true);
+    try {
+      const result = await validateGiftCode(code);
+      if (result && result.success && result.discountType) {
+        // C'est un code de réduction
+        setPromoDiscount({
+          discountType: result.discountType as "FIXED_DISCOUNT" | "PERCENTAGE_DISCOUNT",
+          discountValue: result.discountValue || 0,
+        });
+      } else {
+        setPromoDiscount(null);
+      }
+    } catch (error) {
+      console.error("[payment] Promo validation error:", error);
+      setPromoDiscount(null);
+    } finally {
+      setPromoValidating(false);
+    }
+  }, []);
+
   const submitAddMoney = async () => {
     if (addMoneyAmount == null || addMoneyAmount <= 0) return;
-    const quantumActive = isQuantumPromo(promoCode);
-    if (!quantumActive && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
+    // Vérifier si c'est un paiement gratuit (réduction 100%)
+    const finalPrice = simulatedEurFromChips(addMoneyAmount, promoDiscount);
+    const isFreePayment = finalPrice === 0;
+    if (!isFreePayment && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
     const newBalance = await addDevMoney(addMoneyAmount);
     setBalance(newBalance);
     await loadBalanceHistory();
@@ -614,11 +644,11 @@ export function Layout({ children }: LayoutProps) {
     }
   }, [isAdminShell, stopBgm]);
   const showTopBar = !isAuthPage && getAuthItem("token");
-  const quantumTopUp = isQuantumPromo(promoCode);
+  const isFreePaymentTopUp = promoDiscount ? simulatedEurFromChips(addMoneyAmount || 0, promoDiscount) === 0 : false;
   const canSubmitTopUp =
     addMoneyAmount != null &&
     addMoneyAmount > 0 &&
-    (quantumTopUp || isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName));
+    (isFreePaymentTopUp || isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName));
   const addMoneyModalHeightClass =
     balanceModalTab === "history"
       ? "h-[24rem]"
@@ -1418,6 +1448,12 @@ export function Layout({ children }: LayoutProps) {
                     <FakeCardTopUpFields
                       addMoneyAmount={addMoneyAmount}
                       promoCode={promoCode}
+                      setPromoCode={(code) => {
+                        setPromoCode(code);
+                        void validatePaymentPromo(code);
+                      }}
+                      promoDiscount={promoDiscount}
+                      isPromoValidating={promoValidating}
                       cardName={cardName}
                       setCardName={setCardName}
                       cardDigits={cardDigits}
@@ -1427,7 +1463,6 @@ export function Layout({ children }: LayoutProps) {
                       cardCvv={cardCvv}
                       setCardCvv={setCardCvv}
                     />
-                    <FakePromoCodeField promoCode={promoCode} setPromoCode={setPromoCode} />
                     <button
                       type="button"
                       onClick={() => void submitAddMoney()}

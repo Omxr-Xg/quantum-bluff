@@ -4,6 +4,7 @@ import type { Prisma } from '../generated/prisma/index.js'
 export async function createGiftCode(data: {
   code: string
   amount: number
+  usageType: string
   type: string
   description?: string | null
   expiresAt?: string | null
@@ -23,6 +24,7 @@ export async function createGiftCode(data: {
     data: {
       code: data.code.toUpperCase(),
       amount: data.amount,
+      usageType: data.usageType,
       type: data.type,
       description: data.description || null,
       expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
@@ -44,6 +46,7 @@ export async function getAllGiftCodes(limit = 50, offset = 0) {
         id: true,
         code: true,
         amount: true,
+        usageType: true,
         type: true,
         description: true,
         expiresAt: true,
@@ -76,6 +79,7 @@ export async function getAvailableCodesForUser(userId: string) {
       id: true,
       code: true,
       amount: true,
+      usageType: true,
       type: true,
       description: true,
       expiresAt: true,
@@ -89,7 +93,7 @@ export async function getAvailableCodesForUser(userId: string) {
 
 export async function validateAndUseCode(userId: string, code: string) {
   const giftCode = await prisma.giftCode.findUnique({
-    where: { code }
+    where: { code: code.toUpperCase() }
   })
 
   if (!giftCode) {
@@ -136,33 +140,47 @@ export async function validateAndUseCode(userId: string, code: string) {
       data: { usedCount: { increment: 1 } }
     })
 
-    // Ajouter les jetons à l'utilisateur
-    const user = await tx.user.findUnique({ where: { id: userId } })
-    if (!user) throw new Error('Utilisateur introuvable')
+    // Appliquer l'effet selon le type d'utilisation
+    if (giftCode.usageType === 'TOKENS') {
+      // Ajouter les jetons à l'utilisateur
+      const user = await tx.user.findUnique({ where: { id: userId } })
+      if (!user) throw new Error('Utilisateur introuvable')
 
-    const newBalance = user.chips + giftCode.amount
+      const newBalance = user.chips + giftCode.amount
 
-    await tx.user.update({
-      where: { id: userId },
-      data: { chips: newBalance }
-    })
+      await tx.user.update({
+        where: { id: userId },
+        data: { chips: newBalance }
+      })
 
-    // Enregistrer la transaction dans WalletLedgerEntry
-    await tx.walletLedgerEntry.create({
-      data: {
-        userId: userId,
-        amount: giftCode.amount,
-        reason: `GIFT_CODE_${giftCode.type}`,
-        balanceBefore: user.chips,
-        balanceAfter: newBalance
+      // Enregistrer la transaction dans WalletLedgerEntry
+      await tx.walletLedgerEntry.create({
+        data: {
+          userId: userId,
+          amount: giftCode.amount,
+          reason: `GIFT_CODE_${giftCode.type}`,
+          balanceBefore: user.chips,
+          balanceAfter: newBalance
+        }
+      })
+
+      return {
+        success: true,
+        message: `+${giftCode.amount} jetons ajoutés!`,
+        newBalance: newBalance,
+        addedAmount: giftCode.amount,
+        usageType: 'TOKENS'
       }
-    })
-
-    return {
-      success: true,
-      message: `+${giftCode.amount} jetons ajoutés!`,
-      newBalance: newBalance,
-      addedAmount: giftCode.amount
+    } else {
+      // Pour les codes de réduction (CB), juste retourner les infos
+      return {
+        success: true,
+        message: 'Code valide',
+        usageType: giftCode.usageType,
+        discountType: giftCode.usageType,
+        discountValue: giftCode.amount,
+        description: giftCode.description
+      }
     }
   })
 

@@ -692,7 +692,8 @@ model FreeRecharge {
 model GiftCode {
   id            String   @id @default(uuid())
   code          String   @unique
-  amount        Int      // Montant de jetons à ajouter
+  amount        Int      // Valeur générique: jetons ou montant/pourcentage de réduction
+  usageType     String   @default("TOKENS") // TOKENS | FIXED_DISCOUNT | PERCENTAGE_DISCOUNT
   type          String   // ACHIEVEMENT | EVENT | SEASONAL | SPECIAL
   description   String?  // Ex: "50 matchs de suite", "Noël 2024"
   expiresAt     DateTime?// null = pas d'expiration

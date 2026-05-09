@@ -55,7 +55,7 @@ router.get('/admin/list', requireAdminToken, async (req: express.Request, res: e
  */
 router.post('/admin/create', requireAdminToken, async (req: express.Request, res: express.Response) => {
   try {
-    const { code, amount, type, description, expiresAt, maxUses } = req.body
+    const { code, amount, usageType, type, description, expiresAt, maxUses } = req.body
 
     // Validation
     if (!code || typeof code !== 'string' || !code.trim()) {
@@ -66,6 +66,10 @@ router.post('/admin/create', requireAdminToken, async (req: express.Request, res
       return res.status(400).json({ error: 'Le montant doit être >= 1' })
     }
 
+    if (!usageType || typeof usageType !== 'string' || !['TOKENS', 'FIXED_DISCOUNT', 'PERCENTAGE_DISCOUNT'].includes(usageType)) {
+      return res.status(400).json({ error: 'Type d\'utilisation invalide. Utilise: TOKENS, FIXED_DISCOUNT, PERCENTAGE_DISCOUNT' })
+    }
+
     if (!type || typeof type !== 'string' || !['ACHIEVEMENT', 'EVENT', 'SEASONAL', 'SPECIAL'].includes(type)) {
       return res.status(400).json({ error: 'Type invalide. Utilise: ACHIEVEMENT, EVENT, SEASONAL, SPECIAL' })
     }
@@ -73,6 +77,7 @@ router.post('/admin/create', requireAdminToken, async (req: express.Request, res
     const giftCode = await giftCodesService.createGiftCode({
       code: code.trim(),
       amount,
+      usageType,
       type,
       description: description || null,
       expiresAt: expiresAt || null,

@@ -123,6 +123,7 @@ type GiftCodeRow = {
   id: string;
   code: string;
   amount: number;
+  usageType: string;
   type: string;
   description: string | null;
   expiresAt: string | null;
@@ -153,6 +154,7 @@ export function AdminConsole() {
   const [codeForm, setCodeForm] = useState({
     code: "",
     amount: 500,
+    usageType: "TOKENS",
     type: "SPECIAL",
     description: "",
     expiresAt: "",
@@ -235,6 +237,7 @@ export function AdminConsole() {
         body: JSON.stringify({
           code: codeForm.code,
           amount: codeForm.amount,
+          usageType: codeForm.usageType,
           type: codeForm.type,
           description: codeForm.description || null,
           expiresAt: codeForm.expiresAt || null,
@@ -252,6 +255,7 @@ export function AdminConsole() {
       setCodeForm({
         code: "",
         amount: 500,
+        usageType: "TOKENS",
         type: "SPECIAL",
         description: "",
         expiresAt: "",
@@ -1190,9 +1194,24 @@ export function AdminConsole() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">Montant</label>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Type d'utilisation</label>
+                    <select
+                      value={codeForm.usageType}
+                      onChange={(e) => setCodeForm({ ...codeForm, usageType: e.target.value })}
+                      className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="TOKENS">Jetons</option>
+                      <option value="FIXED_DISCOUNT">Réduction fixe (€)</option>
+                      <option value="PERCENTAGE_DISCOUNT">Réduction % (CB)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                      {codeForm.usageType === "TOKENS" ? "Montant (jetons)" : codeForm.usageType === "FIXED_DISCOUNT" ? "Réduction (€)" : "Réduction (%)"}
+                    </label>
                     <input
                       type="number"
                       value={codeForm.amount}
@@ -1201,7 +1220,9 @@ export function AdminConsole() {
                       className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
+                </div>
 
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-400 mb-1">Type</label>
                     <select
@@ -1276,10 +1297,12 @@ export function AdminConsole() {
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <p className="font-mono font-bold text-blue-300">{code.code}</p>
-                          <p className="text-xs text-slate-400">{code.type}</p>
+                          <p className="text-xs text-slate-400">{code.type} · {code.usageType === "TOKENS" ? "Jetons" : code.usageType === "FIXED_DISCOUNT" ? "Réduction €" : "Réduction %"}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-emerald-300">{code.amount} jetons</p>
+                          <p className="font-bold text-emerald-300">
+                            {code.usageType === "TOKENS" ? `${code.amount} jetons` : code.usageType === "FIXED_DISCOUNT" ? `${code.amount}€` : `${code.amount}%`}
+                          </p>
                           <p className="text-xs text-slate-400">{code.usedCount} / {code.maxUses === -1 ? "∞" : code.maxUses} utilisé</p>
                         </div>
                       </div>
