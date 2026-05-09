@@ -15,8 +15,7 @@ type FreeRechargeModalProps = {
   onClaimed?: (newBalance: number) => void
 }
 
-const FREE_RECHARGE_AMOUNT = 1000
-const FREE_RECHARGE_THRESHOLD = 200
+const FREE_RECHARGE_AMOUNT = 300
 const COOLDOWN_HOURS = 4
 
 /**
