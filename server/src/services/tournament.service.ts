@@ -267,6 +267,10 @@ export class TournamentService {
         throw new Error("Ce tournoi n'est plus disponible.");
       }
 
+      if (new Date(tournament.startTime).getTime() < Date.now()) {
+        throw new Error('La date de début de ce tournoi est passée.')
+      }
+
       const alreadyJoined = await tx.tournamentPlayer.findUnique({
         where: { tournamentId_userId: { tournamentId, userId } }
       });

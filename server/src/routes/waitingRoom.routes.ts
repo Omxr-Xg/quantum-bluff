@@ -12,6 +12,13 @@ import sanitizeHtml from 'sanitize-html';
 import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
+
+/** Partie poker encore présente dans le runtime (cache local). */
+function isAttachedGameLive(gameId: string | null | undefined): boolean {
+  if (!gameId) return false;
+  return Boolean(activeGames.getSync(gameId));
+}
+
 const waitingRoomListLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
@@ -210,6 +217,7 @@ router.get('/games-in-progress', waitingRoomListLimiter, async (req, res) => {
     }
     for (const room of rooms) {
       if (!room.gameId) continue;
+      if (!activeGames.getSync(room.gameId)) continue;
       if (room.visibility === 'PRIVATE') {
         if (!userId) continue;
         if (room.hostId === userId || myFriends.has(room.hostId)) {
@@ -448,6 +456,13 @@ router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
       return res.status(404).json({ error: 'Salle non trouvée' });
     }
 
+    if (room.status === 'IN_GAME' && !isAttachedGameLive(room.gameId)) {
+      return res.status(410).json({
+        error: 'Cette partie est terminée ou n’est plus disponible.',
+        code: 'ROOM_GAME_ENDED',
+      });
+    }
+
     res.json({
       id: room.id,
       name: room.name,
@@ -489,6 +504,13 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
 
     if (!room) {
       return res.status(404).json({ error: 'Salle non trouvée' });
+    }
+
+    if (room.status === 'IN_GAME' && !isAttachedGameLive(room.gameId)) {
+      return res.status(410).json({
+        error: 'Cette partie est terminée ou n’est plus disponible.',
+        code: 'ROOM_GAME_ENDED',
+      });
     }
 
     if (room.status !== 'WAITING') {
