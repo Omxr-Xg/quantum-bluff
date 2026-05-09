@@ -82,6 +82,17 @@
     "blackjackSoloHint": "Той самий стіл, що й «Створити стіл»: гра лише для вас, без інших гравців.",
     "blackjackMultiLobby": "Багатокористувацькі столи (лобі)",
     "devValidation": "Введіть \"dev\" для підтвердження",
+    "fakePaymentDisclaimer": "Лише демо-оплата — реального списання з картки немає.",
+    "fakePaymentChipsLine": "Пакет: {{count}} фішок",
+    "fakePaymentTotalSimulated": "Симульована сума: {{amount}} €",
+    "fakePaymentCardHolder": "Ім’я на картці",
+    "fakePaymentCardNumber": "Номер картки",
+    "fakePaymentExpiry": "Термін (ММ/РР)",
+    "fakePaymentCvv": "CVV",
+    "fakePaymentPromoLabel": "Промокод",
+    "fakePaymentPromoPlaceholder": "Промокод",
+    "fakePaymentPromoHint": "Необов’язково — введіть промокод, якщо він у вас є.",
+    "fakePaymentQuantumActive": "Промокод застосовано — симульована сума 0 € (картка не потрібна).",
     "help": {
       "openAria": "Довідка лобі",
       "title": "Гід по лобі",
@@ -1094,7 +1105,12 @@
     "quickReplyPlaceholder": "Відповісти…",
     "quickReplySend": "Надіслати",
     "messages": "Повідомлення",
-    "chat": "Написати"
+    "chat": "Написати",
+    "localNotices": "Корисне",
+    "freeRechargeNoticeTitle": "Безкоштовне поповнення",
+    "freeRechargeDetailInBell": "Деталі — у сповіщеннях (дзвоник угорі праворуч).",
+    "freeRechargeCooldownTitle": "Наступне поповнення",
+    "freeRechargeCooldownBody": "Залишилось {{time}} до наступного безкоштовного поповнення."
   },
   "filters": {
     "maxBet50": "Ставки < $50",

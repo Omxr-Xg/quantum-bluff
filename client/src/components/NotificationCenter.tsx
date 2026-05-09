@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, Gamepad2, UserPlus, Check, X, MessageCircle } from "lucide-react";
+import { Bell, Gamepad2, UserPlus, Check, X, MessageCircle, Info } from "lucide-react";
 import { cn } from "./ui/utils";
 import { useSocket } from "../hooks/useSocket";
 import { useInvitationAccept } from "../contexts/InvitationAcceptContext";
@@ -11,6 +11,11 @@ import { useGetFriendRequestsQuery, useRespondToFriendRequestMutation } from "..
 import { apiUrl } from "../utils/apiBase";
 import { TournamentService } from "../services/tournament.service";
 import { getAuthItem } from "../utils/authStorage";
+import {
+  LOCAL_NOTICE_ADD_EVENT,
+  LOCAL_NOTICE_REMOVE_EVENT,
+  type LocalNoticePayload,
+} from "../utils/localNotices";
 
 interface UnreadMessage {
   senderId: string;
@@ -52,6 +57,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
   const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null);
   const [unreadMessages, setUnreadMessages] = useState<UnreadMessage[]>([]);
   const [tournamentRequests, setTournamentRequests] = useState<TournamentJoinRequest[]>([]);
+  const [localNotices, setLocalNotices] = useState<LocalNoticePayload[]>([]);
 
   const { data: friendRequests, refetch: refetchRequests } = useGetFriendRequestsQuery(
     userId ?? "",
@@ -61,7 +67,35 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
   const [respondRequest] = useRespondToFriendRequestMutation();
 
   const pendingFriendRequests = friendRequests?.filter((r) => r.status === "PENDING") ?? [];
-  const totalCount = pendingInvitations.length + pendingFriendRequests.length + unreadMessages.length + tournamentRequests.length;
+  /** Badge cloche : invitations, amis, messages, tournois — pas les infos locales (ex. recharge). */
+  const badgeCount =
+    pendingInvitations.length +
+    pendingFriendRequests.length +
+    unreadMessages.length +
+    tournamentRequests.length;
+  const panelHasContent = badgeCount > 0 || localNotices.length > 0;
+
+  useEffect(() => {
+    const onAdd = (e: Event) => {
+      const d = (e as CustomEvent<LocalNoticePayload>).detail;
+      if (!d?.id) return;
+      setLocalNotices((prev) => {
+        const rest = prev.filter((x) => x.id !== d.id);
+        return [...rest, d];
+      });
+    };
+    const onRemove = (e: Event) => {
+      const id = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (!id) return;
+      setLocalNotices((prev) => prev.filter((x) => x.id !== id));
+    };
+    window.addEventListener(LOCAL_NOTICE_ADD_EVENT, onAdd);
+    window.addEventListener(LOCAL_NOTICE_REMOVE_EVENT, onRemove);
+    return () => {
+      window.removeEventListener(LOCAL_NOTICE_ADD_EVENT, onAdd);
+      window.removeEventListener(LOCAL_NOTICE_REMOVE_EVENT, onRemove);
+    };
+  }, []);
 
   const loadTournamentRequests = async () => {
     try {
@@ -275,12 +309,30 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
       </div>
 
       <div className="p-2">
-        {totalCount === 0 ? (
+        {!panelHasContent ? (
           <p className="text-slate-400 text-sm py-6 text-center">
             {t("notifications.empty")}
           </p>
         ) : (
           <>
+            {localNotices.length > 0 && (
+              <div className="mb-2">
+                <p className="text-slate-400 text-xs font-semibold uppercase mb-1 px-2 flex items-center gap-1">
+                  <Info className="w-3 h-3" />
+                  {t("notifications.localNotices")}
+                </p>
+                {localNotices.map((n) => (
+                  <div
+                    key={n.id}
+                    className="p-3 mb-2 bg-amber-950/35 border border-amber-500/35 rounded-lg"
+                  >
+                    <p className="text-white text-sm font-medium">{n.title}</p>
+                    <p className="text-slate-300 text-xs mt-1 whitespace-pre-wrap">{n.body}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* GAME INVITATIONS */}
             {pendingInvitations.length > 0 && (
               <div className="mb-2">
@@ -441,9 +493,9 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
       >
         <Bell className={cn("shrink-0", NAV_BELL)} strokeWidth={2.25} />
 
-        {totalCount > 0 && (
+        {badgeCount > 0 && (
           <span className="absolute right-0 top-0 flex h-[18px] min-w-[18px] translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
-            {totalCount > 99 ? "99+" : totalCount}
+            {badgeCount > 99 ? "99+" : badgeCount}
           </span>
         )}
       </button>
