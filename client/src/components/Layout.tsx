@@ -21,6 +21,7 @@ import {
   Waves,
   History,
   Gift,
+  AlertCircle,
 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
@@ -37,6 +38,11 @@ import {
   BALANCE_CHANGED_EVENT,
   POKER_WALLET_DISPLAY_EVENT,
 } from "../utils/userProfile";
+import {
+  fetchAvailableGiftCodes,
+  validateGiftCode,
+  type GiftCode,
+} from "../utils/wallet";
 import { DailyLoginModal } from "./DailyLoginModal";
 import { Toast } from "./Toast";
 import { InvitationBanner } from "./InvitationBanner";
@@ -130,13 +136,18 @@ export function Layout({ children }: LayoutProps) {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showDailyLogin, setShowDailyLogin] = useState(false);
   const [dailyLoginAvailable, setDailyLoginAvailable] = useState(false);
-  const [balanceModalTab, setBalanceModalTab] = useState<"history" | "topup">("topup");
+  const [balanceModalTab, setBalanceModalTab] = useState<"history" | "topup" | "codes">("topup");
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [devValidation, setDevValidation] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyEntries, setHistoryEntries] = useState<BalanceHistoryEntry[]>([]);
+  const [giftCodes, setGiftCodes] = useState<GiftCode[]>([]);
+  const [codeInput, setCodeInput] = useState("");
+  const [codesLoading, setCodesLoading] = useState(false);
+  const [codesError, setCodesError] = useState<string | null>(null);
+  const [codesSuccess, setCodesSuccess] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showRateGame, setShowRateGame] = useState(false);
@@ -490,8 +501,65 @@ export function Layout({ children }: LayoutProps) {
       CASH_POKER_CASHOUT: "Cash poker — retrait table",
       CASH_POKER_HAND_RESULT: "Cash poker — résultat de main",
     };
+
+    // Handle GIFT_CODE_* patterns
+    if (reason.startsWith("GIFT_CODE_")) {
+      const type = reason.replace("GIFT_CODE_", "");
+      const typeMap: Record<string, string> = {
+        ACHIEVEMENT: "🏆 Code - Achievement",
+        EVENT: "🎉 Code - Événement",
+        SEASONAL: "🎄 Code - Saisonnier",
+        SPECIAL: "⭐ Code - Spécial",
+      };
+      return typeMap[type] || "🎁 Code cadeau";
+    }
+
     return labels[reason] || reason;
   };
+  const loadGiftCodes = useCallback(async () => {
+    setCodesLoading(true);
+    setCodesError(null);
+    try {
+      const codes = await fetchAvailableGiftCodes();
+      setGiftCodes(codes || []);
+    } catch (err) {
+      setCodesError(err instanceof Error ? err.message : "Erreur lors du chargement des codes");
+    } finally {
+      setCodesLoading(false);
+    }
+  }, []);
+
+  const handleValidateCode = async () => {
+    if (!codeInput.trim()) {
+      setCodesError("Veuillez entrer un code");
+      return;
+    }
+
+    setCodesLoading(true);
+    setCodesError(null);
+    setCodesSuccess(null);
+
+    try {
+      const result = await validateGiftCode(codeInput.trim());
+      if (result) {
+        setCodesSuccess(`✅ ${result.message}`);
+        setCodeInput("");
+        setBalance(result.newBalance);
+
+        // Reload codes and history
+        setTimeout(() => {
+          void loadGiftCodes();
+          void loadBalanceHistory();
+          setCodesSuccess(null);
+        }, 2000);
+      }
+    } catch (err: Error | unknown) {
+      setCodesError(err instanceof Error ? err.message : "Code invalide");
+    } finally {
+      setCodesLoading(false);
+    }
+  };
+
   const closeAddMoney = () => {
     playSfx("modalClose");
     setShowAddMoney(false);
@@ -1152,6 +1220,22 @@ export function Layout({ children }: LayoutProps) {
               <button
                 type="button"
                 onClick={() => {
+                  setBalanceModalTab("codes");
+                  void loadGiftCodes();
+                }}
+                aria-label="Codes cadeaux"
+                title="Codes cadeaux"
+                className={`group relative flex min-h-[2.75rem] w-14 shrink-0 items-center justify-center rounded-full border px-3 py-2 transition ${
+                  balanceModalTab === "codes"
+                    ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"
+                    : "border-white/8 bg-black/10 text-slate-400 hover:border-amber-300/24 hover:text-slate-100"
+                }`}
+              >
+                <Gift className="h-4 w-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setBalanceModalTab("history");
                   void loadBalanceHistory();
                 }}
@@ -1208,6 +1292,79 @@ export function Layout({ children }: LayoutProps) {
                   </div>
                 ) : null}
               </>
+            ) : balanceModalTab === "codes" ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-slate-300 text-sm mb-3">🎁 Codes disponibles :</p>
+                  {codesLoading ? (
+                    <div className="text-center py-8 text-slate-400">Chargement...</div>
+                  ) : giftCodes.length > 0 ? (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {giftCodes.map((code) => (
+                        <div
+                          key={code.id}
+                          className="bg-slate-800/40 border border-amber-300/16 rounded-lg p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="font-mono text-amber-300 font-bold text-sm">{code.code}</p>
+                            {code.description && (
+                              <p className="text-xs text-slate-400">{code.description}</p>
+                            )}
+                            {code.expiresAt && (
+                              <p className="text-xs text-rose-400 mt-1">
+                                Expire: {new Date(code.expiresAt).toLocaleDateString("fr-FR")}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="text-amber-300 font-bold flex items-center gap-1 text-sm">
+                              <ChipIcon className="w-4 h-4" />
+                              +{code.amount}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 text-center py-4">Aucun code disponible pour vous</p>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-slate-300 text-sm mb-2">Ou utilisez votre code :</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={codeInput}
+                      onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+                      onKeyPress={(e) => e.key === "Enter" && handleValidateCode()}
+                      placeholder="Tapez votre code..."
+                      className="flex-1 bg-slate-950/40 border border-white/10 rounded-lg px-3 py-2 text-slate-50 placeholder-slate-500 focus:outline-none focus:border-amber-300/55 focus:ring-1 focus:ring-amber-300/35"
+                      disabled={codesLoading}
+                    />
+                    <button
+                      onClick={handleValidateCode}
+                      disabled={codesLoading || !codeInput.trim()}
+                      className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Valider
+                    </button>
+                  </div>
+                </div>
+
+                {codesError && (
+                  <div className="bg-rose-900/30 border border-rose-700/50 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-rose-300">{codesError}</p>
+                  </div>
+                )}
+
+                {codesSuccess && (
+                  <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-lg p-3">
+                    <p className="text-xs text-emerald-300">{codesSuccess}</p>
+                  </div>
+                )}
+              </div>
             ) : addSuccess ? (
               <p className="text-emerald-300 font-medium text-center py-4">{t("lobby.captchaSuccess")}</p>
             ) : (
