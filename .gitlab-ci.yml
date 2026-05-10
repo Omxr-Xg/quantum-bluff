@@ -265,6 +265,7 @@ deploy:staging:
     - runner-vm-quantum  
   script:
     - echo " Déploiement en cours sur la VM..."
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - echo "JWT_SECRET=$JWT_SECRET" > .env
     - echo "DATABASE_URL=$DATABASE_URL" >> .env
     - echo "QUANTUM_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE" >> .env
