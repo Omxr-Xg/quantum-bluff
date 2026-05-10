@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles, Crown, Gem, Zap } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
+import { DEPLOY_VISUAL_MARKER } from "../config/deployMarker";
 import i18n from "../i18n/config";
 import { getAuthItem } from "../utils/authStorage";
 
@@ -218,15 +219,22 @@ export function StartScreen() {
 
         {/* Titre avec gradient animé - BLEU NUIT */}
         <div className="mb-3 text-center sm:mb-4">
-          <h1 className="mb-2 text-5xl font-bold sm:text-7xl">
-            <span 
+          <h1 className="mb-2 flex flex-wrap items-baseline justify-center gap-2 text-5xl font-bold sm:gap-3 sm:text-7xl">
+            <span
               className="bg-gradient-to-r from-blue-200 via-cyan-100 to-blue-300 bg-clip-text text-transparent animate-gradient-flow"
-              style={{ 
-                backgroundSize: '200% auto',
-                textShadow: '0 0 40px rgba(59, 130, 246, 0.42)'
+              style={{
+                backgroundSize: "200% auto",
+                textShadow: "0 0 40px rgba(59, 130, 246, 0.42)",
               }}
             >
               Quantum Bluff
+            </span>
+            <span
+              className="text-3xl font-bold tabular-nums text-cyan-200/95 drop-shadow-[0_0_12px_rgba(34,211,238,0.45)] sm:text-5xl"
+              title={`Build ${DEPLOY_VISUAL_MARKER}`}
+              aria-hidden
+            >
+              {DEPLOY_VISUAL_MARKER}
             </span>
           </h1>
           <div className="flex items-center justify-center gap-2 text-slate-300"> {/* Texte plus clair */}

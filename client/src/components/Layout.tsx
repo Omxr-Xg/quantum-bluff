@@ -71,6 +71,7 @@ import { api, useSendFriendMessageMutation } from "../services/api";
 import { store } from "../store";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
+import { DEPLOY_VISUAL_MARKER } from "../config/deployMarker";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 type BalanceHistoryEntry = {
@@ -1132,7 +1133,15 @@ export function Layout({ children }: LayoutProps) {
                 className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/55 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md transition hover:border-blue-200/25 hover:bg-blue-950/60 md:h-11 md:px-4"
               >
                 <Home className="h-[1.05rem] w-[1.05rem] shrink-0" aria-hidden />
-                <span>{t("botConfig.home")}</span>
+                <span className="flex items-baseline gap-1.5">
+                  <span>{t("botConfig.home")}</span>
+                  <span
+                    className="text-xs font-bold tabular-nums text-cyan-200/95 sm:text-sm"
+                    title={`Build ${DEPLOY_VISUAL_MARKER}`}
+                  >
+                    {DEPLOY_VISUAL_MARKER}
+                  </span>
+                </span>
               </button>
             )}
             <div className={`${isGameHudPage ? "min-w-0 flex-1 sm:flex-none sm:shrink-0" : "min-w-0 flex-1"} overflow-x-auto overflow-y-visible py-2 scrollbar-hide`}>
