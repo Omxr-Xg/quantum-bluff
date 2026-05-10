@@ -42,6 +42,8 @@ import {
 } from "../utils/friendLoanPreview";
 import { getFriendLoanApiErrorMessage } from "../utils/friendLoanApiError";
 import { censorChatLinks, isChatContentEffectivelyEmpty } from "../utils/chatLinkCensor";
+import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
 
 type FriendsTab = "friends" | "messages" | "loans";
 type FriendStatusFilter = "all" | "online" | "offline";
@@ -226,6 +228,20 @@ export function Friends() {
       connect();
     }
   }, [isConnected, connect]);
+
+  useEffect(() => {
+    if (!userId || !isConnected) return;
+    const token = getAuthItem("token");
+    if (!token) return;
+    void fetch(apiUrl("/api/friends/inbox-seen"), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((r) => {
+      if (r.ok) {
+        window.dispatchEvent(new CustomEvent("friends-inbox-cleared"));
+      }
+    });
+  }, [userId, isConnected]);
 
   useEffect(() => {
     if (!showAddFriend) return;

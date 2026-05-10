@@ -147,6 +147,22 @@ describe('Poker edge cases pack - runtime rules', () => {
     }
   })
 
+  test('two all-in and one covering stack: flop stays open for betting (no premature runout)', () => {
+    const t = new GameTable(
+      'edge-covering-stack-no-runout',
+      [player('p1', 100), player('p2', 100), player('p3', 5000)],
+      { smallBlind: 10, bigBlind: 20, liveBetWindowDisabled: true }
+    )
+    t.startHand()
+    const a = t.state.currentTurn
+    t.handlePlayerAction(a, 'RAISE', 80)
+    t.handlePlayerAction(t.state.currentTurn, 'CALL')
+    t.handlePlayerAction(t.state.currentTurn, 'CALL')
+    expect(t.state.phase).toBe('FLOP')
+    expect(t.state.communityCards).toHaveLength(3)
+    expect(t.state.handRuntimePhase).toBe('BETTING_ACTIVE')
+  })
+
   test('all-in preflop runs out board and resolves exactly once', () => {
     const t = new GameTable(
       'edge-runout-preflop',

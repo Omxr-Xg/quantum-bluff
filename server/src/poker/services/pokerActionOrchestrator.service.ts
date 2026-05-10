@@ -27,6 +27,12 @@ function isTournamentTableGameId(gameId: string): boolean {
   return gameId.startsWith("game_tournoi_");
 }
 
+/**
+ * Laisser le gateway envoyer GAME_UPDATE (showdown) avant l’overlay d’élimination.
+ * Côté client : `SHOWDOWN_REVEAL_MS` = 5000 ms (`client/src/pages/Game.tsx`) — marge pour réseau / rendu.
+ */
+const TOURNAMENT_ELIM_SOCKET_DELAY_MS = 5_500;
+
 type ActionTarget = {
   getStateContext: () => {
     handId?: string;
@@ -53,19 +59,28 @@ async function handleHandCompleteIfNeeded(
 
   if (isTournamentTableGameId(gameId)) {
     const bustedPlayers = game.state.players.filter((p) => p.chips <= 0);
-    for (const busted of bustedPlayers) {
-      console.log(
-        `📣 [SOCKET] Envoi du signal d'élimination à ${busted.name}`,
-      );
-      if (io) io.to(`user:${busted.id}`).emit("tournament-eliminated", { userId: busted.id });
-      if (io) {
-        io.to(`user:${busted.id}`).emit("PLAYER_BUSTED", {
-          gameId,
-          userId: String(busted.id),
-          reason: "OUT_OF_CHIPS",
-          mode: "tournament",
-        });
-      }
+    const bustedPayloads = bustedPlayers.map((b) => ({
+      userId: String(b.id),
+      name: b.name,
+    }));
+    if (bustedPayloads.length && io) {
+      const ioRef = io;
+      setTimeout(() => {
+        for (const busted of bustedPayloads) {
+          console.log(
+            `📣 [SOCKET] Envoi du signal d'élimination à ${busted.name} (différé showdown)`,
+          );
+          ioRef.to(`user:${busted.userId}`).emit("tournament-eliminated", {
+            userId: busted.userId,
+          });
+          ioRef.to(`user:${busted.userId}`).emit("PLAYER_BUSTED", {
+            gameId,
+            userId: busted.userId,
+            reason: "OUT_OF_CHIPS",
+            mode: "tournament",
+          });
+        }
+      }, TOURNAMENT_ELIM_SOCKET_DELAY_MS);
     }
     for (const busted of bustedPlayers) {
       const tp = await prisma.tournamentPlayer.findFirst({

@@ -57,6 +57,114 @@ const friendMessageSendLimiter = rateLimit({
 
 router.use(authMiddleware)
 
+/** Marque l’écran Amis comme consulté (compteurs / toasts basés sur la DB, pas localStorage). */
+router.post('/inbox-seen', friendMessageReadLimiter, async (req, res) => {
+  const userId = String(req.userId ?? '').trim()
+  if (!userId) {
+    return res.status(401).json({ error: 'Non authentifié' })
+  }
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { friendsInboxSeenAt: new Date() },
+    })
+    return res.json({ ok: true })
+  } catch (error) {
+    console.error('POST /api/friends/inbox-seen error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/** Synthèse après reconnexion : nouveautés depuis friendsInboxSeenAt (ou createdAt du compte). */
+router.get('/pending-social', friendMessageReadLimiter, async (req, res) => {
+  const userId = String(req.userId ?? '').trim()
+  if (!userId) {
+    return res.status(401).json({ error: 'Non authentifié' })
+  }
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { friendsInboxSeenAt: true, createdAt: true },
+    })
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable' })
+    }
+    const since = user.friendsInboxSeenAt ?? user.createdAt
+
+    const [newMessagesCount, newLoanRequestsAsLender, recentIncoming] = await Promise.all([
+      prisma.friendMessage.count({
+        where: { receiverId: userId, createdAt: { gt: since } },
+      }),
+      prisma.loanRequest.count({
+        where: {
+          lenderId: userId,
+          status: 'PENDING',
+          createdAt: { gt: since },
+        },
+      }),
+      prisma.friendMessage.findMany({
+        where: { receiverId: userId, createdAt: { gt: since } },
+        orderBy: { createdAt: 'desc' },
+        take: 40,
+        select: {
+          id: true,
+          senderId: true,
+          content: true,
+          createdAt: true,
+          sender: { select: { username: true } },
+        },
+      }),
+    ])
+
+    const seenSenders = new Set<string>()
+    const missedMessages: {
+      senderId: string
+      senderUsername: string
+      preview: string
+      createdAt: string
+    }[] = []
+
+    for (const row of recentIncoming) {
+      if (seenSenders.has(row.senderId)) continue
+      seenSenders.add(row.senderId)
+      const preview =
+        row.content.length > 120
+          ? `${row.content.slice(0, 120)}…`
+          : row.content
+      missedMessages.push({
+        senderId: row.senderId,
+        senderUsername: row.sender.username,
+        preview,
+        createdAt: row.createdAt.toISOString(),
+      })
+      if (missedMessages.length >= 8) break
+    }
+
+    const latestIncomingMessage = recentIncoming[0]
+      ? {
+          id: recentIncoming[0].id,
+          senderId: recentIncoming[0].senderId,
+          senderUsername: recentIncoming[0].sender.username,
+          preview:
+            recentIncoming[0].content.length > 120
+              ? `${recentIncoming[0].content.slice(0, 120)}…`
+              : recentIncoming[0].content,
+          createdAt: recentIncoming[0].createdAt.toISOString(),
+        }
+      : null
+
+    return res.json({
+      newMessagesCount,
+      newLoanRequestsAsLender,
+      missedMessages,
+      latestIncomingMessage,
+    })
+  } catch (error) {
+    console.error('GET /api/friends/pending-social error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // Messages: défini et monté EN PREMIER pour éviter que "messages" soit capté par /:userId
 const messagesRouter = express.Router({ mergeParams: true })
 

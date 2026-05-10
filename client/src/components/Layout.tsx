@@ -148,7 +148,7 @@ export function Layout({ children }: LayoutProps) {
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [promoCode, setPromoCode] = useState("");
   const [promoDiscount, setPromoDiscount] = useState<PromoDiscountInfo>(null);
-  const [balanceResetPromo, setBalanceResetPromo] = useState(false);
+  const [freeCheckoutPromo, setFreeCheckoutPromo] = useState(false);
   const [promoValidating, setPromoValidating] = useState(false);
   const [cardName, setCardName] = useState("");
   const [cardDigits, setCardDigits] = useState("");
@@ -476,7 +476,7 @@ export function Layout({ children }: LayoutProps) {
     setAddMoneyAmount(null);
     setPromoCode("");
     setPromoDiscount(null);
-    setBalanceResetPromo(false);
+    setFreeCheckoutPromo(false);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -571,7 +571,7 @@ export function Layout({ children }: LayoutProps) {
     setAddMoneyAmount(null);
     setPromoCode("");
     setPromoDiscount(null);
-    setBalanceResetPromo(false);
+    setFreeCheckoutPromo(false);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -586,18 +586,18 @@ export function Layout({ children }: LayoutProps) {
   const validatePaymentPromo = useCallback(async (code: string) => {
     if (!code.trim()) {
       setPromoDiscount(null);
-      setBalanceResetPromo(false);
+      setFreeCheckoutPromo(false);
       return;
     }
     setPromoValidating(true);
     try {
       const top = await validateTopUpPromo(code);
-      if (top?.valid && top.resetBalance) {
-        setBalanceResetPromo(true);
+      if (top?.valid && top.freeCheckout) {
+        setFreeCheckoutPromo(true);
         setPromoDiscount(null);
         return;
       }
-      setBalanceResetPromo(false);
+      setFreeCheckoutPromo(false);
       const result = await validateGiftCode(code);
       if (result && result.success && result.discountType) {
         // C'est un code de réduction
@@ -611,7 +611,7 @@ export function Layout({ children }: LayoutProps) {
     } catch (error) {
       console.error("[payment] Promo validation error:", error);
       setPromoDiscount(null);
-      setBalanceResetPromo(false);
+      setFreeCheckoutPromo(false);
     } finally {
       setPromoValidating(false);
     }
@@ -621,10 +621,10 @@ export function Layout({ children }: LayoutProps) {
     if (addMoneyAmount == null || addMoneyAmount <= 0) return;
     // Vérifier si c'est un paiement gratuit (réduction 100% ou code promo solde)
     const finalPrice = simulatedEurFromChips(addMoneyAmount, promoDiscount);
-    const isFreePayment = balanceResetPromo || finalPrice === 0;
+    const isFreePayment = freeCheckoutPromo || finalPrice === 0;
     if (!isFreePayment && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
     const newBalance = await addDevMoney(addMoneyAmount, {
-      promoCode: balanceResetPromo ? promoCode : undefined,
+      promoCode: freeCheckoutPromo ? promoCode : undefined,
     });
     setBalance(newBalance);
     await loadBalanceHistory();
@@ -646,7 +646,7 @@ export function Layout({ children }: LayoutProps) {
   }, [isAdminShell, stopBgm]);
   const showTopBar = !isAuthPage && getAuthItem("token");
   const isFreePaymentTopUp =
-    balanceResetPromo ||
+    freeCheckoutPromo ||
     Boolean(promoDiscount && simulatedEurFromChips(addMoneyAmount || 0, promoDiscount) === 0);
   const canSubmitTopUp =
     addMoneyAmount != null &&
@@ -1485,7 +1485,7 @@ export function Layout({ children }: LayoutProps) {
                         void validatePaymentPromo(code);
                       }}
                       promoDiscount={promoDiscount}
-                      promoResetsBalance={balanceResetPromo}
+                      promoFreeCheckout={freeCheckoutPromo}
                       isPromoValidating={promoValidating}
                       cardName={cardName}
                       setCardName={setCardName}

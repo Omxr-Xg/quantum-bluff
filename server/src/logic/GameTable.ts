@@ -559,7 +559,10 @@ export class GameTable {
   private runOutBoardIfAllIn(): void {
     const activePlayers = this.getNonFoldedParticipants()
     const actingPlayers = activePlayers.filter((p) => p.chips > 0)
-    const hasNoMoreBetting = actingPlayers.length <= 1
+    // Tous tapis → runout. Heads-up avec un tapis : plus de mise possible sur le main pot → runout. À 3+ avec exactement un joueur couvert, il peut encore miser (side pots) → pas de runout automatique.
+    const hasNoMoreBetting =
+      actingPlayers.length === 0 ||
+      (actingPlayers.length === 1 && activePlayers.length === 2)
     const phaseOrder: GamePhase[] = ['PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
     const currentPhase: GamePhase = this.state.phase
     if (!hasNoMoreBetting || currentPhase === 'SHOWDOWN') return
@@ -1169,10 +1172,7 @@ export class GameTable {
     for (const player of this.state.players) {
       if (player.chips <= 0) {
         player.isActive = false;
-        // Tournoi : bust = sortie de table côté moteur. Cash : garder isConnected pour éviter confusion UI / reconnexion.
-        if (isTournamentTable) {
-          player.isConnected = false;
-        }
+        // Ne pas forcer isConnected = false au bust tournoi : le client filtre sur isConnected pour l’affichage main/showdown, et l’événement tournament-eliminated gère la sortie. startHand exclut déjà chips <= 0.
 
         console.log(
           `💀 [GameTable] ${player.name} (${player.id}) — 0 jeton après la main${isTournamentTable ? ' (tournoi)' : ''}`,

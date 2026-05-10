@@ -179,6 +179,93 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [socket, addToast])
 
+  /** Prêts / messages depuis la dernière visite Amis (serveur) + synchro cache RTK. */
+  useEffect(() => {
+    if (!socket || isAdmin) return
+
+    const syncInboxAfterReconnect = () => {
+      store.dispatch(api.util.invalidateTags(['FriendLoan', 'FriendMessage']))
+      const token = getAuthItem('token')
+      if (!token) return
+      void (async () => {
+        try {
+          if (typeof window !== 'undefined' && window.location.pathname === '/friends') {
+            const seen = await fetch(apiUrl('/api/friends/inbox-seen'), {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            if (seen.ok) {
+              window.dispatchEvent(new CustomEvent('friends-inbox-cleared'))
+            }
+          }
+          const r = await fetch(apiUrl('/api/friends/pending-social'), {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          if (!r.ok) return
+          const d = (await r.json()) as {
+            newMessagesCount: number
+            newLoanRequestsAsLender: number
+            missedMessages: {
+              senderId: string
+              senderUsername: string
+              preview: string
+              createdAt: string
+            }[]
+            latestIncomingMessage: {
+              senderUsername?: string
+            } | null
+          }
+          window.dispatchEvent(
+            new CustomEvent('friends-offline-inbox', {
+              detail: {
+                newMessagesCount: d.newMessagesCount ?? 0,
+                newLoanRequestsAsLender: d.newLoanRequestsAsLender ?? 0,
+                missedMessages: Array.isArray(d.missedMessages) ? d.missedMessages : [],
+              },
+            }),
+          )
+          const hasNews =
+            (d.newMessagesCount ?? 0) > 0 || (d.newLoanRequestsAsLender ?? 0) > 0
+          if (!hasNews) return
+          const openFriends = () => {
+            window.dispatchEvent(new CustomEvent('navigate-to', { detail: '/friends' }))
+          }
+          const hasMsg = (d.newMessagesCount ?? 0) > 0
+          const hasLoans = (d.newLoanRequestsAsLender ?? 0) > 0
+          if (hasLoans && hasMsg) {
+            addToast(i18n.t('toast.inboxReconnectMixed'), 'info', openFriends)
+          } else if (hasLoans) {
+            addToast(
+              i18n.t('toast.inboxReconnectLoans', {
+                count: String(d.newLoanRequestsAsLender),
+              }),
+              'info',
+              openFriends,
+            )
+          } else {
+            addToast(
+              i18n.t('toast.inboxReconnectMessage', {
+                username:
+                  d.latestIncomingMessage?.senderUsername ??
+                  i18n.t('toast.inboxReconnectFriendFallback'),
+              }),
+              'info',
+              openFriends,
+            )
+          }
+        } catch {
+          /* ignore */
+        }
+      })()
+    }
+
+    socket.on('connect', syncInboxAfterReconnect)
+    if (socket.connected) syncInboxAfterReconnect()
+    return () => {
+      socket.off('connect', syncInboxAfterReconnect)
+    }
+  }, [socket, isAdmin, addToast])
+
   /** Invitations salle d’attente déjà en base (reconnexion / onglet rechargé). */
   useEffect(() => {
     if (!socket || !userId || isAdmin) return

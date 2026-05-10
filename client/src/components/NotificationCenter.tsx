@@ -56,6 +56,8 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null);
   const [unreadMessages, setUnreadMessages] = useState<UnreadMessage[]>([]);
+  /** Demandes de prêt reçues (prêteur) depuis la dernière visite Amis — aligné sur GET /pending-social. */
+  const [serverLoanBadge, setServerLoanBadge] = useState(0);
   const [tournamentRequests, setTournamentRequests] = useState<TournamentJoinRequest[]>([]);
   const [localNotices, setLocalNotices] = useState<LocalNoticePayload[]>([]);
 
@@ -72,6 +74,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     pendingInvitations.length +
     pendingFriendRequests.length +
     unreadMessages.length +
+    serverLoanBadge +
     tournamentRequests.length;
   const panelHasContent = badgeCount > 0 || localNotices.length > 0;
 
@@ -94,6 +97,48 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     return () => {
       window.removeEventListener(LOCAL_NOTICE_ADD_EVENT, onAdd);
       window.removeEventListener(LOCAL_NOTICE_REMOVE_EVENT, onRemove);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onOfflineInbox = (e: Event) => {
+      const d = (e as CustomEvent<{
+        newMessagesCount: number;
+        newLoanRequestsAsLender: number;
+        missedMessages: {
+          senderId: string;
+          senderUsername: string;
+          preview: string;
+          createdAt: string;
+        }[];
+      }>).detail;
+      if (!d) return;
+      setServerLoanBadge(Math.max(0, d.newLoanRequestsAsLender ?? 0));
+      const rows = d.missedMessages ?? [];
+      if (rows.length === 0) return;
+      setUnreadMessages((prev) => {
+        const byId = new Map(prev.map((m) => [m.senderId, m]));
+        for (const row of rows) {
+          if (byId.has(row.senderId)) continue;
+          byId.set(row.senderId, {
+            senderId: row.senderId,
+            senderUsername: row.senderUsername,
+            content: row.preview,
+            timestamp: new Date(row.createdAt).getTime() || Date.now(),
+          });
+        }
+        return Array.from(byId.values());
+      });
+    };
+    const onInboxCleared = () => {
+      setServerLoanBadge(0);
+      setUnreadMessages([]);
+    };
+    window.addEventListener("friends-offline-inbox", onOfflineInbox);
+    window.addEventListener("friends-inbox-cleared", onInboxCleared);
+    return () => {
+      window.removeEventListener("friends-offline-inbox", onOfflineInbox);
+      window.removeEventListener("friends-inbox-cleared", onInboxCleared);
     };
   }, []);
 

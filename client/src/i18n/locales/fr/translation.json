@@ -53,7 +53,7 @@
     "fakePaymentPromoHint": "Facultatif — saisissez un code promo si vous en avez un.",
     "fakePaymentPromoAppliedShort": "Appliqué",
     "fakePaymentPromoZeroTotal": "Code promo appliqué — total simulé 0 € (carte non requise).",
-    "fakePaymentPromoResetHint": "En validant, ton solde en jetons sera remis à zéro (offre de démonstration). Aucune carte requise.",
+    "fakePaymentPromoFreeCheckoutHint": "Montant à payer fictif : 0 €. Les jetons choisis seront ajoutés à ton solde. Aucune carte requise.",
     "fakePaymentPromoValidating": "Validation…",
     "fakePaymentDiscountAppliedShort": "Réduction appliquée",
     "balanceTabTopUp": "Alimenter le compte",
@@ -761,6 +761,7 @@
       "LOAN_REPAYMENT_OUT": "Remboursement envoyé",
       "DEV_TOPUP": "Ajout de solde",
       "PROMO_BALANCE_RESET": "Code promo — réinitialisation du solde",
+      "PROMO_FREE_TOPUP": "Code promo — alimentation gratuite",
       "CASH_POKER_BUY_IN": "Cash poker — buy-in",
       "CASH_POKER_REBUY": "Cash poker — rebuy",
       "CASH_POKER_CASHOUT": "Cash poker — retrait table",
@@ -1267,7 +1268,11 @@
     "friendIsOffline": "{{name}} est hors ligne",
     "joinRequestFrom": "{{username}} veut rejoindre votre salle",
     "joinRequestAccepted": "Votre demande pour {{room}} a été acceptée !",
-    "joinRequestRejected": "Votre demande pour {{room}} a été refusée"
+    "joinRequestRejected": "Votre demande pour {{room}} a été refusée",
+    "inboxReconnectMixed": "Pendant votre absence : nouveaux messages et demandes de prêt — consultez Amis.",
+    "inboxReconnectLoans": "{{count}} demande(s) de prêt en attente — consultez Amis.",
+    "inboxReconnectMessage": "Nouveau message de {{username}} — consultez Amis.",
+    "inboxReconnectFriendFallback": "un ami"
   },
   "gameHelp": {
     "foldDesc": "Abandonner le coup en cours",

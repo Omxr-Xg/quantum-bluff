@@ -53,7 +53,7 @@
     "fakePaymentPromoHint": "Opcional — introduce un código promocional si tienes uno.",
     "fakePaymentPromoAppliedShort": "Aplicado",
     "fakePaymentPromoZeroTotal": "Promo aplicada — total simulado 0 € (sin datos de tarjeta).",
-    "fakePaymentPromoResetHint": "Al confirmar, tu saldo de fichas se pondrá a cero (oferta de demostración). No hace falta tarjeta.",
+    "fakePaymentPromoFreeCheckoutHint": "Importe a pagar simulado: 0 €. Las fichas elegidas se añadirán a tu saldo. No hace falta tarjeta.",
     "fakePaymentPromoValidating": "Validando…",
     "fakePaymentDiscountAppliedShort": "Descuento aplicado",
     "balanceTabTopUp": "Añadir saldo",
@@ -753,6 +753,7 @@
       "LOAN_REPAYMENT_OUT": "Pago enviado",
       "DEV_TOPUP": "Recarga de saldo",
       "PROMO_BALANCE_RESET": "Promo — saldo reiniciado",
+      "PROMO_FREE_TOPUP": "Promo — recarga gratuita",
       "CASH_POKER_BUY_IN": "Cash poker — buy-in",
       "CASH_POKER_REBUY": "Cash poker — rebuy",
       "CASH_POKER_CASHOUT": "Cash poker — retiro",
@@ -1233,7 +1234,11 @@
     "friendIsOffline": "{{name}} está desconectado",
     "joinRequestFrom": "{{username}} quiere unirse a tu sala",
     "joinRequestAccepted": "¡Tu solicitud para {{room}} fue aceptada!",
-    "joinRequestRejected": "Tu solicitud para {{room}} fue rechazada"
+    "joinRequestRejected": "Tu solicitud para {{room}} fue rechazada",
+    "inboxReconnectMixed": "Mientras no estabas: nuevos mensajes y solicitudes de préstamo — revisa Amigos.",
+    "inboxReconnectLoans": "{{count}} solicitud(es) de préstamo pendiente(s) — revisa Amigos.",
+    "inboxReconnectMessage": "Nuevo mensaje de {{username}} — revisa Amigos.",
+    "inboxReconnectFriendFallback": "un amigo"
   },
   "gameHelp": {
     "foldDesc": "Abandonar la mano actual",

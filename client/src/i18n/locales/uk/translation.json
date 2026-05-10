@@ -94,7 +94,7 @@
     "fakePaymentPromoHint": "Необов’язково — введіть промокод, якщо він у вас є.",
     "fakePaymentPromoAppliedShort": "Застосовано",
     "fakePaymentPromoZeroTotal": "Промокод застосовано — симульована сума 0 € (картка не потрібна).",
-    "fakePaymentPromoResetHint": "Після підтвердження баланс фішок обнулиться (демо-акція). Картка не потрібна.",
+    "fakePaymentPromoFreeCheckoutHint": "Умовна сума до сплати: 0 €. Обрані фішки буде додано на баланс. Картка не потрібна.",
     "fakePaymentPromoValidating": "Перевірка…",
     "fakePaymentDiscountAppliedShort": "Знижку застосовано",
     "balanceTabTopUp": "Поповнити баланс",
@@ -753,6 +753,7 @@
       "LOAN_REPAYMENT_OUT": "Надіслано погашення",
       "DEV_TOPUP": "Поповнення балансу",
       "PROMO_BALANCE_RESET": "Акція — скидання балансу",
+      "PROMO_FREE_TOPUP": "Акція — безкоштовне поповнення",
       "CASH_POKER_BUY_IN": "Кеш-покер — бай-ін",
       "CASH_POKER_REBUY": "Кеш-покер — ребай",
       "CASH_POKER_CASHOUT": "Кеш-покер — вихід з грошима",
@@ -1238,7 +1239,11 @@
     "friendIsOffline": "{{name}} не в мережі",
     "joinRequestFrom": "{{username}} хоче приєднатися до вашої кімнати",
     "joinRequestAccepted": "Ваш запит на {{room}} прийнято!",
-    "joinRequestRejected": "Ваш запит на {{room}} відхилено"
+    "joinRequestRejected": "Ваш запит на {{room}} відхилено",
+    "inboxReconnectMixed": "Поки вас не було: нові повідомлення та запити на позики — відкрийте Друзі.",
+    "inboxReconnectLoans": "{{count}} очікуваних запит(ів) на позику — відкрийте Друзі.",
+    "inboxReconnectMessage": "Нове повідомлення від {{username}} — відкрийте Друзі.",
+    "inboxReconnectFriendFallback": "друга"
   },
   "gameHelp": {
     "foldDesc": "Скинути поточну руку",

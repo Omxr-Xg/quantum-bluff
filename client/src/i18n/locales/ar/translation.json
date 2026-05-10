@@ -94,7 +94,7 @@
     "fakePaymentPromoHint": "اختياري — أدخل رمزًا ترويجيًا إن وُجد.",
     "fakePaymentPromoAppliedShort": "مُطبَّق",
     "fakePaymentPromoZeroTotal": "تم تطبيق الرمز — الإجمالي المحاكى 0 € (لا حاجة لبيانات البطاقة).",
-    "fakePaymentPromoResetHint": "عند التأكيد، يُعاد رصيد الرقائق إلى صفر (عرض تجريبي). لا حاجة لبطاقة.",
+    "fakePaymentPromoFreeCheckoutHint": "المبلغ الوهمي للدفع: 0 €. ستُضاف الرقائق المختارة إلى رصيدك. لا حاجة لبطاقة.",
     "fakePaymentPromoValidating": "جاري التحقق…",
     "fakePaymentDiscountAppliedShort": "مُطبَّق",
     "balanceTabTopUp": "إضافة إلى الرصيد",
@@ -753,6 +753,7 @@
       "LOAN_REPAYMENT_OUT": "سداد مُرسَل",
       "DEV_TOPUP": "إضافة رصيد",
       "PROMO_BALANCE_RESET": "عرض — إعادة ضبط الرصيد",
+      "PROMO_FREE_TOPUP": "عرض — شحن مجاني",
       "CASH_POKER_BUY_IN": "بوكر نقدي — شراء",
       "CASH_POKER_REBUY": "بوكر نقدي — إعادة شراء",
       "CASH_POKER_CASHOUT": "بوكر نقدي — صرف",
@@ -1234,7 +1235,11 @@
     "friendIsOffline": "{{name}} غير متصل",
     "joinRequestFrom": "{{username}} يريد الانضمام إلى غرفتك",
     "joinRequestAccepted": "تم قبول طلبك لـ {{room}}!",
-    "joinRequestRejected": "تم رفض طلبك لـ {{room}}"
+    "joinRequestRejected": "تم رفض طلبك لـ {{room}}",
+    "inboxReconnectMixed": "أثناء غيابك: رسائل جديدة وطلبات قروض — راجع الأصدقاء.",
+    "inboxReconnectLoans": "{{count}} طلب/طلبات قرض معلّقة — راجع الأصدقاء.",
+    "inboxReconnectMessage": "رسالة جديدة من {{username}} — راجع الأصدقاء.",
+    "inboxReconnectFriendFallback": "صديق"
   },
   "gameHelp": {
     "foldDesc": "التخلي عن اليد الحالية",
