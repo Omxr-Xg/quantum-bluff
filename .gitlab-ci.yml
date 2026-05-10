@@ -264,11 +264,15 @@ deploy:staging:
   tags:
     - runner-vm-quantum  
   script:
-    - echo " Déploiement en cours sur la VM..."
+    - echo " Connexion au registre GitLab..."
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-    - echo "JWT_SECRET=$JWT_SECRET" > server/.env
-    - echo "DATABASE_URL=$DATABASE_URL" >> server/.env
-    - echo "QUANTUM_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE" >> server/.env
+    
+    - echo " Préparation des fichiers de configuration..."
+    - echo "JWT_SECRET=$JWT_SECRET" > .env
+    - echo "DATABASE_URL=$DATABASE_URL" >> .env
+    - echo "QUANTUM_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE" >> .env
+    
+    - cp .env server/.env
     
     - echo " Docker Compose au rapport !"
     - docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml pull
