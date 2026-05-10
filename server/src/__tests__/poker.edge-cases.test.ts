@@ -169,10 +169,10 @@ describe('Poker edge cases pack - runtime rules', () => {
     expect(t.state.phase).toBe('SHOWDOWN')
     expect((t.state.actionVersion ?? 0)).toBe(versionAfterShowdown)
     expect(t.state.handEndReason).toBe('ALL_IN_RUNOUT')
-    const losers = t.state.players.filter((p) => p.chips === 0)
-    expect(losers.length).toBeGreaterThan(0)
-    for (const p of losers) {
-      expect(p.hasFoldedThisHand).toBe(false)
+    // Chop possible: everyone can have >0 jetons après partage du pot — on vérifie seulement
+    // qu’un joueur à 0 n’a pas fold (perdant all-in au showdown).
+    for (const p of t.state.players) {
+      if (p.chips === 0) expect(p.hasFoldedThisHand).toBe(false)
     }
   })
 
