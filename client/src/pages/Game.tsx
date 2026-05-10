@@ -1461,6 +1461,12 @@ export function Game() {
       .then((res) => {
         if (cancelled) return null;
         if (res.status === 404) {
+          // Si le serveur vient d'émettre tournament-final-table / tournament-merge-table,
+          // App.tsx pose ce drapeau pour qu'on n'écrase pas la navigation vers la nouvelle table.
+          const flag = (window as unknown as { __pendingTournamentNavAt?: number }).__pendingTournamentNavAt;
+          if (typeof flag === "number" && Date.now() - flag < 4000) {
+            return null;
+          }
           navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
           return null;
         }
@@ -1574,6 +1580,12 @@ export function Game() {
 
     const onError = (payload: { code?: string; message?: string }) => {
       if (payload?.code === "GAME_NOT_FOUND") {
+        // Cf. fetch 404 plus haut : si on est en train d'être téléporté vers la finale d'un tournoi,
+        // on laisse la navigation tournament-final-table / tournament-merge-table prendre le dessus.
+        const flag = (window as unknown as { __pendingTournamentNavAt?: number }).__pendingTournamentNavAt;
+        if (typeof flag === "number" && Date.now() - flag < 4000) {
+          return;
+        }
         navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
       }
         else if (payload?.code === "ACTION_ERROR" || payload?.code === "INVALID_RAISE" || payload?.code === "TOO_MANY_ACTIONS") {

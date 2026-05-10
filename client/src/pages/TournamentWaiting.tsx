@@ -36,23 +36,41 @@ export function TournamentWaiting() {
     };
   }, [socket, navigate]);
 
-  /** Si les événements final-table / merge ont été manqués, retrouver la table via l’API. */
+  /**
+   * Si les événements `tournament-final-table` / `tournament-merge-table` ont été manqués
+   * (perte momentanée de socket, reconnexion, navigation un peu trop tardive…), on retrouve
+   * la table active via l'API.
+   *
+   * Polling agressif au début (1.5 s) puis on relâche (5 s) pour ne pas marteler le serveur
+   * si le joueur reste sur la page d'attente plusieurs minutes.
+   */
   useEffect(() => {
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const start = Date.now();
+
     const poll = async () => {
+      if (cancelled) return;
       try {
         const { gameId } = await TournamentService.getMyTournamentTable();
-        if (cancelled || !gameId) return;
-        navigate(`/game?gameId=${encodeURIComponent(gameId)}&tournament=1`);
+        if (cancelled) return;
+        if (gameId) {
+          navigate(`/game?gameId=${encodeURIComponent(gameId)}&tournament=1`);
+          return;
+        }
       } catch {
         /* ignore */
       }
+      if (cancelled) return;
+      const elapsed = Date.now() - start;
+      const delay = elapsed < 30_000 ? 1500 : 5000;
+      timer = setTimeout(() => void poll(), delay);
     };
+
     void poll();
-    const iv = setInterval(() => void poll(), 5000);
     return () => {
       cancelled = true;
-      clearInterval(iv);
+      if (timer) clearTimeout(timer);
     };
   }, [navigate]);
 

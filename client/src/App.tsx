@@ -143,10 +143,35 @@ function TournamentTeleporter() {
       }
     };
 
+    /**
+     * Timer du « finalist » overlay (3 s) avant de rediriger vers /tournament-waiting.
+     * On le garde dans une closure mutable pour pouvoir l'annuler si la table de finale
+     * arrive avant le délai (sinon le setTimeout pousserait l'utilisateur sur
+     * /tournament-waiting alors qu'il vient déjà d'être téléporté à la finale).
+     */
+    let tournamentWonTimer: ReturnType<typeof setTimeout> | null = null;
+    const cancelTournamentWonTimer = () => {
+      if (tournamentWonTimer != null) {
+        clearTimeout(tournamentWonTimer);
+        tournamentWonTimer = null;
+      }
+    };
+
+    /** Pose un drapeau global lu par <Game /> pour bloquer un éventuel redirect /lobby pendant la transition vers la finale/merge. */
+    const flagPendingTournamentNav = () => {
+      try {
+        (window as unknown as { __pendingTournamentNavAt?: number }).__pendingTournamentNavAt = Date.now();
+      } catch {
+        /* ignore */
+      }
+    };
+
     const handleTournamentWon = (data: { userId: string; survivorsCount?: number; expectedTables?: number }) => {
       if (data.userId === userId) {
         setTournamentResult({ type: 'finalist' });
-        setTimeout(() => {
+        cancelTournamentWonTimer();
+        tournamentWonTimer = setTimeout(() => {
+          tournamentWonTimer = null;
           setTournamentResult(null);
           navigate('/tournament-waiting', {
             state: data.survivorsCount && data.expectedTables
@@ -164,6 +189,12 @@ function TournamentTeleporter() {
     };
 
     const handleFinalTable = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
+      // Annule le redirect pendant qu'on est sur le « finalist » overlay : sinon, après 3 s
+      // l'utilisateur est repoussé sur /tournament-waiting alors qu'on vient de l'envoyer en finale.
+      cancelTournamentWonTimer();
+      // Empêche <Game /> de rediriger vers /lobby si un fetch HTTP 404 arrive en parallèle
+      // (la table semi-finale a été supprimée côté serveur juste après la création de la finale).
+      flagPendingTournamentNav();
       setTournamentResult(null);
       navigate(`/game?gameId=${data.gameId}&tournament=1`, {
         state: { tournamentPlayers: data.players }
@@ -251,6 +282,7 @@ function TournamentTeleporter() {
     socket.on('tournament-result', handleTournamentResult);
 
     return () => {
+      cancelTournamentWonTimer();
       socket.off('connect', onSocketConnect);
       socket.off('tournament-started', handleTournamentStart);
       socket.off('tournament-won', handleTournamentWon);
