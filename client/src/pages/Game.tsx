@@ -1464,7 +1464,7 @@ export function Game() {
           // Si le serveur vient d'émettre tournament-final-table / tournament-merge-table,
           // App.tsx pose ce drapeau pour qu'on n'écrase pas la navigation vers la nouvelle table.
           const flag = (window as unknown as { __pendingTournamentNavAt?: number }).__pendingTournamentNavAt;
-          if (typeof flag === "number" && Date.now() - flag < 4000) {
+          if (typeof flag === "number" && Date.now() - flag < 10_000) {
             return null;
           }
           navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
@@ -1583,7 +1583,7 @@ export function Game() {
         // Cf. fetch 404 plus haut : si on est en train d'être téléporté vers la finale d'un tournoi,
         // on laisse la navigation tournament-final-table / tournament-merge-table prendre le dessus.
         const flag = (window as unknown as { __pendingTournamentNavAt?: number }).__pendingTournamentNavAt;
-        if (typeof flag === "number" && Date.now() - flag < 4000) {
+        if (typeof flag === "number" && Date.now() - flag < 10_000) {
           return;
         }
         navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });

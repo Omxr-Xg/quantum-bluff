@@ -183,12 +183,15 @@ function TournamentTeleporter() {
     };
 
     const handleWaitingFinal = (data: { survivorsCount: number; expectedTables: number }) => {
-      // Si l’utilisateur ouvre directement /tournament-waiting sans state, on pourrait
-      // relayer ici dans un store global. Pour l’instant, on se contente du composant dédié.
-      console.log('[TOURNOI] waiting-final update', data);
+      if (isDev) {
+        console.log('[TOURNOI_TRACE] tournament-waiting-final', { userId, ...data, path: window.location.pathname });
+      }
     };
 
     const handleFinalTable = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
+      if (isDev) {
+        console.log('[TOURNOI_TRACE] tournament-final-table / merge-table', { userId, gameId: data.gameId, path: window.location.pathname });
+      }
       // Annule le redirect pendant qu'on est sur le « finalist » overlay : sinon, après 3 s
       // l'utilisateur est repoussé sur /tournament-waiting alors qu'on vient de l'envoyer en finale.
       cancelTournamentWonTimer();

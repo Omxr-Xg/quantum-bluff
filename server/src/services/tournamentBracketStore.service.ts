@@ -12,9 +12,13 @@ const SPECTATE_SNAPSHOT_KEY = (tournamentId: string) =>
   `tournament:${tournamentId}:spectate_snapshot`
 const MERGE_ROUND_MAP_KEY = (mergeGameId: string) =>
   `tournament:merge_round:${mergeGameId}`
+/** userId → gameId : table poker active pour ce joueur dans ce tournoi (partagé entre pods). */
+const BRACKET_SEAT_GAME_KEY = (tournamentId: string) =>
+  `tournament:${tournamentId}:seat_game`
 
 const SPECTATE_TTL_SEC = 60 * 60 * 24 * 7
 const MERGE_MAP_TTL_SEC = 60 * 60 * 48
+const SEAT_GAME_TTL_SEC = 60 * 60 * 24 * 7
 
 export type BracketSurvivorRow = {
   userId: string
@@ -39,6 +43,37 @@ export type SpectateSnapshotPayload = {
 const memorySurvivorsByTournament = new Map<string, BracketSurvivorRow[]>()
 const memoryExpectedByTournament = new Map<string, number>()
 const memoryFinishedTablesByTournament = new Map<string, Set<string>>()
+/** tournamentId → (userId → gameId) si Redis HSAT indisponible en écriture. */
+const memorySeatGameByTournament = new Map<string, Map<string, string>>()
+
+function getMemorySeatMap(tournamentId: string): Map<string, string> {
+  let m = memorySeatGameByTournament.get(tournamentId)
+  if (!m) {
+    m = new Map()
+    memorySeatGameByTournament.set(tournamentId, m)
+  }
+  return m
+}
+
+function mergeSurvivorLists(
+  tournamentId: string,
+  redisList: BracketSurvivorRow[],
+  memBefore: BracketSurvivorRow[],
+): BracketSurvivorRow[] {
+  if (memBefore.length === 0) return redisList
+  const seen = new Set(redisList.map((r) => r.userId))
+  const extra = memBefore.filter((r) => r.userId && !seen.has(r.userId))
+  if (extra.length === 0) return redisList
+  rootLogger.warn({
+    msg: 'tournament_survivors_merged_memory_supplement',
+    tournamentId,
+    redisCount: redisList.length,
+    memoryExtraCount: extra.length,
+    extraUserIds: extra.map((e) => e.userId),
+  })
+  metrics.incTournamentBracket('survivors_merged_memory_supplement')
+  return [...redisList, ...extra]
+}
 
 function getMemoryFinishedSet(tournamentId: string): Set<string> {
   let s = memoryFinishedTablesByTournament.get(tournamentId)
@@ -110,6 +145,15 @@ export async function appendTournamentSurvivor(
       const list = memorySurvivorsByTournament.get(tournamentId) ?? []
       memorySurvivorsByTournament.set(tournamentId, [...list, row])
       metrics.incTournamentBracket('survivor_append_memory_fallback')
+      if (process.env.NODE_ENV === 'production') {
+        rootLogger.error({
+          msg: 'tournament_bracket_survivor_memory_only_prod',
+          tournamentId,
+          sourceGameId,
+          detail:
+            'Bracket survivant hors Redis en production : risque de désynchronisation multi-instances.',
+        })
+      }
       return { duplicate: false, memoryOnly: true }
     }
     return { duplicate: true, memoryOnly: true }
@@ -123,6 +167,7 @@ export async function appendTournamentSurvivor(
 export async function getTournamentSurvivors(
   tournamentId: string,
 ): Promise<BracketSurvivorRow[]> {
+  const memBefore = memorySurvivorsByTournament.get(tournamentId) ?? []
   try {
     const raw = await redisClient.lrange(
       BRACKET_SURVIVORS_KEY(tournamentId),
@@ -139,9 +184,10 @@ export async function getTournamentSurvivors(
       })
       .filter((x): x is BracketSurvivorRow => x != null)
 
-    memorySurvivorsByTournament.set(tournamentId, redisList)
+    const merged = mergeSurvivorLists(tournamentId, redisList, memBefore)
+    memorySurvivorsByTournament.set(tournamentId, merged)
     metrics.setDegraded('tournament_bracket_redis', false)
-    return redisList
+    return merged
   } catch (err) {
     rootLogger.error({
       msg: 'tournament_bracket_survivor_list_redis_failed',
@@ -153,6 +199,88 @@ export async function getTournamentSurvivors(
     const memList = memorySurvivorsByTournament.get(tournamentId) ?? []
     return memList
   }
+}
+
+/**
+ * Enregistre la partie poker où le joueur doit se rendre (même info sur tous les pods).
+ */
+export async function setTournamentSeatGame(
+  tournamentId: string,
+  userId: string,
+  gameId: string,
+): Promise<void> {
+  const tid = String(tournamentId).trim()
+  const uid = String(userId).trim()
+  const gid = String(gameId).trim()
+  if (!tid || !uid || !gid) return
+  getMemorySeatMap(tid).set(uid, gid)
+  try {
+    await redisClient.hset(BRACKET_SEAT_GAME_KEY(tid), uid, gid)
+    await redisClient.expire(BRACKET_SEAT_GAME_KEY(tid), SEAT_GAME_TTL_SEC)
+    metrics.setDegraded('tournament_bracket_redis', false)
+  } catch (err) {
+    rootLogger.error({
+      msg: 'tournament_seat_game_set_failed',
+      tournamentId: tid,
+      userId: uid,
+      detail: err instanceof Error ? err.message : String(err),
+    })
+    metrics.setDegraded('tournament_bracket_redis', true)
+  }
+}
+
+/** Retire l’assignation table pour ces joueurs (fin de table / attente finale). */
+export async function clearTournamentSeatGamesForUsers(
+  tournamentId: string,
+  userIds: string[],
+): Promise<void> {
+  const tid = String(tournamentId).trim()
+  if (!tid || userIds.length === 0) return
+  const mem = getMemorySeatMap(tid)
+  for (const raw of userIds) {
+    const uid = String(raw).trim()
+    if (!uid) continue
+    mem.delete(uid)
+    try {
+      await redisClient.hdel(BRACKET_SEAT_GAME_KEY(tid), uid)
+    } catch (err) {
+      rootLogger.warn({
+        msg: 'tournament_seat_game_hdel_failed',
+        tournamentId: tid,
+        userId: uid,
+        detail: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+  try {
+    await redisClient.expire(BRACKET_SEAT_GAME_KEY(tid), SEAT_GAME_TTL_SEC)
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function getTournamentSeatGameForUser(
+  tournamentId: string,
+  userId: string,
+): Promise<string | null> {
+  const tid = String(tournamentId).trim()
+  const uid = String(userId).trim()
+  if (!tid || !uid) return null
+  try {
+    const v = await redisClient.hget(BRACKET_SEAT_GAME_KEY(tid), uid)
+    if (v != null && v.length > 0) {
+      getMemorySeatMap(tid).set(uid, v)
+      return v
+    }
+  } catch (err) {
+    rootLogger.warn({
+      msg: 'tournament_seat_game_get_failed',
+      tournamentId: tid,
+      userId: uid,
+      detail: err instanceof Error ? err.message : String(err),
+    })
+  }
+  return getMemorySeatMap(tid).get(uid) ?? null
 }
 
 export async function clearTournamentSurvivors(
@@ -226,12 +354,14 @@ export async function clearTournamentBracketState(
   memorySurvivorsByTournament.delete(tournamentId)
   memoryExpectedByTournament.delete(tournamentId)
   memoryFinishedTablesByTournament.delete(tournamentId)
+  memorySeatGameByTournament.delete(tournamentId)
   await Promise.allSettled([
     redisClient.del(
       BRACKET_SURVIVORS_KEY(tournamentId),
       BRACKET_EXPECTED_KEY(tournamentId),
       BRACKET_FINISHED_TABLES_SET(tournamentId),
       SPECTATE_SNAPSHOT_KEY(tournamentId),
+      BRACKET_SEAT_GAME_KEY(tournamentId),
     ),
   ])
 }

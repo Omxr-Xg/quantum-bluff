@@ -31,10 +31,12 @@ jest.mock('../services/tournamentBracketStore.service.js', () => ({
   deleteMergeRoundMapping: jest.fn().mockResolvedValue(undefined),
   getMergeRoundMapping: jest.fn().mockResolvedValue(null),
   getTournamentExpectedTables: jest.fn(),
+  getTournamentSeatGameForUser: jest.fn().mockResolvedValue(null),
   getTournamentSpectateSnapshot: jest.fn().mockResolvedValue(null),
   getTournamentSurvivors: jest.fn(),
   setMergeRoundMapping: jest.fn().mockResolvedValue(undefined),
   setTournamentExpectedTables: jest.fn().mockResolvedValue(undefined),
+  setTournamentSeatGame: jest.fn().mockResolvedValue(undefined),
   setTournamentSpectateSnapshot: jest.fn().mockResolvedValue(undefined),
 }))
 

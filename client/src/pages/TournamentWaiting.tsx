@@ -5,6 +5,8 @@ import { useSocket } from '../hooks/useSocket';
 import { Trophy, Clock, Users } from 'lucide-react';
 import { TournamentService } from '../services/tournament.service';
 
+const isDev = import.meta.env.DEV;
+
 export function TournamentWaiting() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -18,10 +20,12 @@ export function TournamentWaiting() {
     if (!socket) return;
 
     const handleUpdate = (data: { survivorsCount: number; expectedTables: number }) => {
+      if (isDev) console.log('[TOURNOI_TRACE] waiting room tournament-waiting-final', data);
       setSurvivorsCount(data.survivorsCount);
     };
 
     const handleFinal = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
+      if (isDev) console.log('[TOURNOI_TRACE] waiting room navigate to final/merge', { gameId: data.gameId, playerCount: data.players?.length });
       navigate(`/game?gameId=${data.gameId}&tournament=1`, { state: { tournamentPlayers: data.players } });
     };
 
@@ -55,6 +59,7 @@ export function TournamentWaiting() {
         const { gameId } = await TournamentService.getMyTournamentTable();
         if (cancelled) return;
         if (gameId) {
+          if (isDev) console.log('[TOURNOI_TRACE] getMyTournamentTable recovered gameId', { gameId });
           navigate(`/game?gameId=${encodeURIComponent(gameId)}&tournament=1`);
           return;
         }

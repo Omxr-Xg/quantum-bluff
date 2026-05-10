@@ -16,6 +16,7 @@ import { withPokerTableLock } from "./pokerTableLock.service.js";
 import { metrics } from "../../observability/metrics.js";
 import { rootLogger } from "../../observability/logger.js";
 import { TournamentService } from "../../services/tournament.service.js";
+import { clearTournamentSeatGamesForUsers } from "../../services/tournamentBracketStore.service.js";
 import { CashGameController } from "../../logic/CashGameController.js";
 import { prisma } from "../../config/database.js";
 import { isPracticeBotGameId } from "../../shared/practiceBotGames.js";
@@ -208,6 +209,12 @@ async function handleHandCompleteIfNeeded(
   ) {
     console.log(`🏆 [TOURNOI] VICTOIRE DE ${survivors[0].name} !`);
 
+    const tid = game.state.tournamentId;
+    if (tid && typeof tid === "string") {
+      const seatUserIds = game.state.players.map((p) => String(p.id));
+      await clearTournamentSeatGamesForUsers(tid, seatUserIds);
+    }
+
     const tp = await prisma.tournamentPlayer.findFirst({
       where: { userId: String(survivors[0].id), tournament: { status: 'ACTIVE' } },
     });
@@ -230,17 +237,41 @@ async function handleHandCompleteIfNeeded(
         );
       }
     } else {
+      const winnerId = String(survivors[0].id);
       const fallbackTournament = await prisma.tournament.findFirst({
         where: {
           status: "ACTIVE",
-          players: { some: { userId: String(survivors[0].id) } },
+          players: { some: { userId: winnerId } },
         },
         select: { id: true },
       });
-      await TournamentService.processVictory(
-        [String(survivors[0].id)],
-        fallbackTournament?.id,
-      );
+      rootLogger.error({
+        msg: "tournament_winner_missing_tournament_player",
+        winnerId,
+        gameId,
+        fallbackTournamentId: fallbackTournament?.id ?? null,
+        detail:
+          "Refus de clôturer le tournoi via processVictory de secours : incohérence Prisma ou userId table ≠ userId compte.",
+      });
+      if (fallbackTournament) {
+        const partial = await TournamentService.handleTableFinished(
+          fallbackTournament.id,
+          winnerId,
+          survivors[0].name,
+          survivors[0].chips,
+          gameId,
+        );
+        if (partial?.emitTournamentWonPartial && io) {
+          io.to(`user:${partial.emitTournamentWonPartial.userId}`).emit(
+            "tournament-won",
+            {
+              userId: partial.emitTournamentWonPartial.userId,
+              survivorsCount: partial.emitTournamentWonPartial.survivorsCount,
+              expectedTables: partial.emitTournamentWonPartial.expectedTables,
+            },
+          );
+        }
+      }
     }
 
     activeGames.delete(gameId);

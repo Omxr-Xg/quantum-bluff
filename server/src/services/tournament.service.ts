@@ -13,10 +13,12 @@ import {
   deleteMergeRoundMapping,
   getMergeRoundMapping,
   getTournamentExpectedTables,
+  getTournamentSeatGameForUser,
   getTournamentSpectateSnapshot,
   getTournamentSurvivors,
   setMergeRoundMapping,
   setTournamentExpectedTables,
+  setTournamentSeatGame,
   setTournamentSpectateSnapshot,
   type BracketSurvivorRow,
 } from './tournamentBracketStore.service.js';
@@ -217,6 +219,20 @@ export class TournamentService {
     if (registrations.length === 0) return null;
 
     const tournamentIds = new Set(registrations.map((r) => r.tournamentId));
+
+    for (const tid of tournamentIds) {
+      const seatGameId = await getTournamentSeatGameForUser(tid, uid);
+      if (seatGameId) {
+        rootLogger.debug({
+          msg: 'tournament_my_table_from_redis_seat',
+          userId: uid,
+          tournamentId: tid,
+          gameId: seatGameId,
+        });
+        return { gameId: seatGameId, tournamentId: tid };
+      }
+    }
+
     const all = await activeGames.getAll();
     for (const [roomId, game] of all) {
       if (!(game instanceof GameTable)) continue;
@@ -224,6 +240,12 @@ export class TournamentService {
       if (!tid || !tournamentIds.has(tid)) continue;
       if (!roomId.startsWith('game_tournoi_')) continue;
       if (game.state.players.some((p) => String(p.id) === uid)) {
+        rootLogger.debug({
+          msg: 'tournament_my_table_from_local_active_games',
+          userId: uid,
+          tournamentId: tid,
+          gameId: roomId,
+        });
         return { gameId: roomId, tournamentId: tid };
       }
     }
@@ -689,6 +711,18 @@ export class TournamentService {
 
     const playerIds = players.map(p => p.userId);
 
+    await Promise.all(
+      Object.entries(playerToGameMap).map(([uId, gid]) =>
+        setTournamentSeatGame(tournamentId, uId, gid),
+      ),
+    );
+    rootLogger.info({
+      msg: 'tournament_opening_seat_map_written',
+      tournamentId,
+      playerCount: Object.keys(playerToGameMap).length,
+      host: process.env.HOSTNAME ?? 'unknown',
+    });
+
     const result = {
       tournamentId,
       playerToGameMap,
@@ -781,6 +815,19 @@ export class TournamentService {
       ]);
     }
 
+    await Promise.all(
+      survivorsCopy.map((s) =>
+        setTournamentSeatGame(tournamentId, s.userId, finalGameId),
+      ),
+    );
+    rootLogger.info({
+      msg: 'tournament_final_seat_map_written',
+      tournamentId,
+      gameId: finalGameId,
+      finalistIds: survivorsCopy.map((s) => s.userId),
+      host: process.env.HOSTNAME ?? 'unknown',
+    });
+
     if (this.io) {
       const finalPayload = { gameId: finalGameId, players: survivorsCopy };
       survivorsCopy.forEach((s) => {
@@ -858,6 +905,17 @@ export class TournamentService {
         })),
       },
     ]);
+
+    await Promise.all(
+      survivors.map((p) => setTournamentSeatGame(tournamentId, p.userId, mergeId)),
+    );
+    rootLogger.info({
+      msg: 'tournament_merge_seat_map_written',
+      tournamentId,
+      gameId: mergeId,
+      playerIds: survivors.map((p) => p.userId),
+      host: process.env.HOSTNAME ?? 'unknown',
+    });
 
     if (this.io) {
       payloadPlayers.forEach((p) => {
@@ -977,6 +1035,16 @@ export class TournamentService {
     const expectedTables =
       persistedExpected ?? (await getTournamentExpectedTables(tournamentId)) ?? 1;
 
+    rootLogger.info({
+      msg: 'tournament_handle_table_finished',
+      tournamentId,
+      winnerId,
+      finishedGameId,
+      activeBracketPhase: tournament.activeBracketPhase,
+      expectedTables,
+      host: process.env.HOSTNAME ?? 'unknown',
+    });
+
     const appendResult = await appendTournamentSurvivor(
       tournamentId,
       {
@@ -1020,6 +1088,8 @@ export class TournamentService {
         survivorsCount: survivors.length,
         expectedTables,
         finishedGameId,
+        survivorUserIds: survivors.map((s) => s.userId),
+        host: process.env.HOSTNAME ?? 'unknown',
       });
       return {
         emitTournamentWonPartial: {
@@ -1082,6 +1152,14 @@ export class TournamentService {
         console.warn(`[TOURNOI] Aucun tournoi actif trouvé pour ${winnerId}`);
         return;
       }
+
+      rootLogger.info({
+        msg: 'tournament_process_victory_begin',
+        winnerId,
+        rankedPlayerIds,
+        tournamentId: playerRecord.tournamentId,
+        host: process.env.HOSTNAME ?? 'unknown',
+      });
 
       const tournament = playerRecord.tournament;
       const prizePool = tournament.prizePool;
