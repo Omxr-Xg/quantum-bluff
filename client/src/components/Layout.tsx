@@ -41,6 +41,7 @@ import {
 import {
   fetchAvailableGiftCodes,
   validateGiftCode,
+  validateTopUpPromo,
   type GiftCode,
 } from "../utils/wallet";
 import { DailyLoginModal } from "./DailyLoginModal";
@@ -147,6 +148,7 @@ export function Layout({ children }: LayoutProps) {
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [promoCode, setPromoCode] = useState("");
   const [promoDiscount, setPromoDiscount] = useState<PromoDiscountInfo>(null);
+  const [balanceResetPromo, setBalanceResetPromo] = useState(false);
   const [promoValidating, setPromoValidating] = useState(false);
   const [cardName, setCardName] = useState("");
   const [cardDigits, setCardDigits] = useState("");
@@ -473,6 +475,8 @@ export function Layout({ children }: LayoutProps) {
     setBalanceModalTab("topup");
     setAddMoneyAmount(null);
     setPromoCode("");
+    setPromoDiscount(null);
+    setBalanceResetPromo(false);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -518,6 +522,7 @@ export function Layout({ children }: LayoutProps) {
       LOAN_REPAYMENT_IN: "Remboursement reçu",
       LOAN_REPAYMENT_OUT: "Remboursement envoyé",
       DEV_TOPUP: "Ajout de solde",
+      PROMO_BALANCE_RESET: "Code promo — réinitialisation du solde",
       CASH_POKER_BUY_IN: "Cash poker — buy-in",
       CASH_POKER_REBUY: "Cash poker — rebuy",
       CASH_POKER_CASHOUT: "Cash poker — retrait table",
@@ -587,6 +592,8 @@ export function Layout({ children }: LayoutProps) {
     setShowAddMoney(false);
     setAddMoneyAmount(null);
     setPromoCode("");
+    setPromoDiscount(null);
+    setBalanceResetPromo(false);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -601,10 +608,18 @@ export function Layout({ children }: LayoutProps) {
   const validatePaymentPromo = useCallback(async (code: string) => {
     if (!code.trim()) {
       setPromoDiscount(null);
+      setBalanceResetPromo(false);
       return;
     }
     setPromoValidating(true);
     try {
+      const top = await validateTopUpPromo(code);
+      if (top?.valid && top.resetBalance) {
+        setBalanceResetPromo(true);
+        setPromoDiscount(null);
+        return;
+      }
+      setBalanceResetPromo(false);
       const result = await validateGiftCode(code);
       if (result && result.success && result.discountType) {
         // C'est un code de réduction
@@ -618,6 +633,7 @@ export function Layout({ children }: LayoutProps) {
     } catch (error) {
       console.error("[payment] Promo validation error:", error);
       setPromoDiscount(null);
+      setBalanceResetPromo(false);
     } finally {
       setPromoValidating(false);
     }
@@ -625,11 +641,13 @@ export function Layout({ children }: LayoutProps) {
 
   const submitAddMoney = async () => {
     if (addMoneyAmount == null || addMoneyAmount <= 0) return;
-    // Vérifier si c'est un paiement gratuit (réduction 100%)
+    // Vérifier si c'est un paiement gratuit (réduction 100% ou code promo solde)
     const finalPrice = simulatedEurFromChips(addMoneyAmount, promoDiscount);
-    const isFreePayment = finalPrice === 0;
+    const isFreePayment = balanceResetPromo || finalPrice === 0;
     if (!isFreePayment && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
-    const newBalance = await addDevMoney(addMoneyAmount);
+    const newBalance = await addDevMoney(addMoneyAmount, {
+      promoCode: balanceResetPromo ? promoCode : undefined,
+    });
     setBalance(newBalance);
     await loadBalanceHistory();
     setAddSuccess(true);
@@ -649,7 +667,9 @@ export function Layout({ children }: LayoutProps) {
     }
   }, [isAdminShell, stopBgm]);
   const showTopBar = !isAuthPage && getAuthItem("token");
-  const isFreePaymentTopUp = promoDiscount ? simulatedEurFromChips(addMoneyAmount || 0, promoDiscount) === 0 : false;
+  const isFreePaymentTopUp =
+    balanceResetPromo ||
+    Boolean(promoDiscount && simulatedEurFromChips(addMoneyAmount || 0, promoDiscount) === 0);
   const canSubmitTopUp =
     addMoneyAmount != null &&
     addMoneyAmount > 0 &&
@@ -1466,6 +1486,7 @@ export function Layout({ children }: LayoutProps) {
                         void validatePaymentPromo(code);
                       }}
                       promoDiscount={promoDiscount}
+                      promoResetsBalance={balanceResetPromo}
                       isPromoValidating={promoValidating}
                       cardName={cardName}
                       setCardName={setCardName}

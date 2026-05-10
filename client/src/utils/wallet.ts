@@ -88,6 +88,32 @@ export async function fetchAvailableGiftCodes(): Promise<GiftCode[] | null> {
   }
 }
 
+export type TopUpPromoValidationResult = {
+  valid: boolean
+  resetBalance?: boolean
+}
+
+/** Code promo réservé au faux paiement (effet défini uniquement côté API). */
+export async function validateTopUpPromo(code: string): Promise<TopUpPromoValidationResult | null> {
+  try {
+    const token = getAuthItem('token')
+    if (!token || !code.trim()) return { valid: false }
+    const response = await fetch(apiUrl('/api/auth/validate-topup-promo'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ code: code.trim() }),
+    })
+    if (!response.ok) return { valid: false }
+    return (await response.json()) as TopUpPromoValidationResult
+  } catch (error) {
+    console.error('[wallet] validateTopUpPromo error:', error)
+    return { valid: false }
+  }
+}
+
 export async function validateGiftCode(code: string): Promise<PromoCodeValidationResult | null> {
   try {
     const token = getAuthItem('token')

@@ -92,7 +92,9 @@
     "fakePaymentPromoLabel": "Промокод",
     "fakePaymentPromoPlaceholder": "Промокод",
     "fakePaymentPromoHint": "Необов’язково — введіть промокод, якщо він у вас є.",
-    "fakePaymentQuantumActive": "Промокод застосовано — симульована сума 0 € (картка не потрібна).",
+    "fakePaymentPromoAppliedShort": "Застосовано",
+    "fakePaymentPromoZeroTotal": "Промокод застосовано — симульована сума 0 € (картка не потрібна).",
+    "fakePaymentPromoResetHint": "Після підтвердження баланс фішок обнулиться (демо-акція). Картка не потрібна.",
     "help": {
       "openAria": "Довідка лобі",
       "title": "Гід по лобі",

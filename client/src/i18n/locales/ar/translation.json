@@ -92,7 +92,9 @@
     "fakePaymentPromoLabel": "رمز ترويجي",
     "fakePaymentPromoPlaceholder": "رمز ترويجي",
     "fakePaymentPromoHint": "اختياري — أدخل رمزًا ترويجيًا إن وُجد.",
-    "fakePaymentQuantumActive": "تم تطبيق الرمز — الإجمالي المحاكى 0 € (لا حاجة لبيانات البطاقة).",
+    "fakePaymentPromoAppliedShort": "مُطبَّق",
+    "fakePaymentPromoZeroTotal": "تم تطبيق الرمز — الإجمالي المحاكى 0 € (لا حاجة لبيانات البطاقة).",
+    "fakePaymentPromoResetHint": "عند التأكيد، يُعاد رصيد الرقائق إلى صفر (عرض تجريبي). لا حاجة لبطاقة.",
     "help": {
       "openAria": "مساعدة الردهة",
       "title": "دليل الردهة",
