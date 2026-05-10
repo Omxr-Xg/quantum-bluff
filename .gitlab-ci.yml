@@ -260,34 +260,22 @@ docker:build:ai-service:
       - stuck_or_timeout_failure
 
 deploy:staging:
-  <<: *deploy_hook_retry
   stage: deploy
-  image:
-    name: public.ecr.aws/docker/library/alpine:latest
-    entrypoint: [""]
-  before_script:
-    - echo " Préparation de la connexion SSH..."
-    - apk add --no-cache openssh-client
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
-    - chmod 600 ~/.ssh/id_ed25519
-    - eval $(ssh-agent -s)
-    - ssh-add ~/.ssh/id_ed25519
-    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  tags:
+    - runner-vm-quantum  
   script:
-    - echo " Création du fichier .env sécurisé..."
-    - echo "JWT_SECRET=$JWT_SECRET" > .env.prod
-    - echo "DATABASE_URL=$DATABASE_URL" >> .env.prod
+    - echo " Déploiement en cours sur la VM..."
+    - echo "JWT_SECRET=$JWT_SECRET" > .env
+    - echo "DATABASE_URL=$DATABASE_URL" >> .env
     
-    - echo " Envoi du fichier .env sur la VM..."
-    - scp .env.prod $VM_USER@$VM_IP:~/quantum-bluff/.env
+    - echo " Docker Compose au rapport !"
+    - docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml pull
+    - docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml up -d --force-recreate
     
-    - echo " Déploiement automatique sur la VM (Staging)..."
-    - ssh $VM_USER@$VM_IP "cd ~/quantum-bluff && git pull && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml pull && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml up -d --force-recreate && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml exec -T backend npx prisma migrate deploy"
+    - echo " Migration de la base de données..."
+    - docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml exec -T backend npx prisma migrate deploy
   only:
     - develop
-  when: manual
 
 deploy:production:
   <<: *deploy_hook_retry
