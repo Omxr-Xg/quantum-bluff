@@ -15,7 +15,7 @@ default:
   # Le runner K8s peut échouer avant tout script (nœuds indisponibles, disk-pressure, timeout de pod).
   # Relance uniquement dans ces cas, pas sur une vraie erreur de test ou de lint.
   retry:
-    max: 4
+    max: 2
     when:
       - runner_system_failure
       - stuck_or_timeout_failure
