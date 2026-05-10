@@ -140,8 +140,8 @@ describe('dailyChallenge.service', () => {
   it('WIN_WITH_PAIR compte uniquement pour Paire', async () => {
     await getMyDailyChallenges('u1')
     const tx = mockCreateTx()
-    await markWinWithPair('u1', 'Double paire', true, tx as any)
-    await markWinWithPair('u1', 'Paire', true, tx as any)
+    await markWinWithPair('u1', 'Double paire', true, false, tx as any)
+    await markWinWithPair('u1', 'Paire', true, false, tx as any)
     const row = mockProgressRows.find((r) => r.challengeCode === 'WIN_WITH_PAIR')
     expect(row?.progress).toBe(1)
     expect(row?.completed).toBe(true)
@@ -150,11 +150,11 @@ describe('dailyChallenge.service', () => {
   it('claim crédite une seule fois et écrit le ledger', async () => {
     await getMyDailyChallenges('u1')
     const tx = mockCreateTx()
-    await incrementMultiplayerPlayCount('u1', tx as any)
-    await incrementMultiplayerPlayCount('u1', tx as any)
-    await incrementMultiplayerPlayCount('u1', tx as any)
-    await incrementMultiplayerPlayCount('u1', tx as any)
-    await incrementMultiplayerPlayCount('u1', tx as any)
+    await incrementMultiplayerPlayCount('u1', false, tx as any)
+    await incrementMultiplayerPlayCount('u1', false, tx as any)
+    await incrementMultiplayerPlayCount('u1', false, tx as any)
+    await incrementMultiplayerPlayCount('u1', false, tx as any)
+    await incrementMultiplayerPlayCount('u1', false, tx as any)
 
     const claimed = await claimDailyChallenge('u1', 'PLAY_5_TIMES')
     expect(claimed.rewardTokens).toBe(500)

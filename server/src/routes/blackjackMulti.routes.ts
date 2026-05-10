@@ -281,7 +281,7 @@ async function payoutAndFinish(
         userId,
         XP_BLACKJACK_HAND + winBonus
       )
-      await incrementMultiplayerPlayCount(userId, tx)
+      await incrementMultiplayerPlayCount(userId, false, tx)
       settlements.push({
         userId,
         username,
