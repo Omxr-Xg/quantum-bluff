@@ -22,9 +22,10 @@ default:
       - runner_system_failure
       - stuck_or_timeout_failure
 
-# Évite 3 pods verify en parallèle (backend + frontend + database) sur un cluster déjà saturé.
-.verify_kubernetes_throttled:
-  resource_group: k8s-verify-${CI_PROJECT_ID}
+# Les jobs verify tournent en parallèle (durée ~ max des trois, pas la somme).
+# Si le cluster K8s du runner Unistra sature (OOM, pods Pending), réintroduire par ex. :
+#   resource_group: k8s-verify-${CI_PROJECT_ID}
+# sur les jobs lourds uniquement.
 
 stages:
   - verify
@@ -45,7 +46,6 @@ cache:
 backend:verify:
   extends:
     - .node_docker_ci
-    - .verify_kubernetes_throttled
   stage: verify
   services:
     - name: public.ecr.aws/docker/library/postgres:15
@@ -69,7 +69,6 @@ backend:verify:
 frontend:verify:
   extends:
     - .node_docker_ci
-    - .verify_kubernetes_throttled
   stage: verify
   script:
     - cd client
@@ -93,7 +92,6 @@ backend:lint:
     - /^fix\/.*$/
 
 database:test:
-  extends: .verify_kubernetes_throttled
   stage: verify
   image:
     name: public.ecr.aws/docker/library/postgres:15
