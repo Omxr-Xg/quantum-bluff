@@ -1,11 +1,18 @@
 import { useLocation, useNavigate } from 'react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSocket } from '../hooks/useSocket';
 import { Trophy, Clock, Users } from 'lucide-react';
 import { TournamentService } from '../services/tournament.service';
+import { TournamentWaitingZipGame } from '../components/tournament/TournamentWaitingZipGame';
 
 const isDev = import.meta.env.DEV;
+
+function formatWaitTime(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
 
 export function TournamentWaiting() {
   const { t } = useTranslation();
@@ -15,6 +22,17 @@ export function TournamentWaiting() {
   const state = location.state as { survivorsCount: number; expectedTables: number } | null;
   const [survivorsCount, setSurvivorsCount] = useState(state?.survivorsCount ?? 1);
   const expectedTables = state?.expectedTables ?? 1;
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const waitStartedAtRef = useRef<number>(Date.now());
+
+  useEffect(() => {
+    waitStartedAtRef.current = Date.now();
+    setElapsedSeconds(0);
+    const id = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - waitStartedAtRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
@@ -86,8 +104,9 @@ export function TournamentWaiting() {
           <Trophy className="w-8 h-8 text-yellow-400" />
         </div>
         <h1 className="text-2xl font-bold text-white mb-2">{t('tournament.waiting.title')}</h1>
+        <p className="text-amber-200/90 text-sm font-medium mb-1">{t('tournament.waiting.wonTable')}</p>
         <p className="text-slate-400 mb-6">{t('tournament.waiting.subtitle')}</p>
-        <div className="bg-slate-700 rounded-xl p-4 mb-6">
+        <div className="bg-slate-700 rounded-xl p-4 mb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-slate-400 text-sm flex items-center gap-2">
               <Users className="w-4 h-4" />
@@ -101,6 +120,19 @@ export function TournamentWaiting() {
               style={{ width: `${(survivorsCount / expectedTables) * 100}%` }}
             />
           </div>
+        </div>
+        <div
+          className="mb-4 rounded-xl bg-slate-700/60 border border-slate-600/60 px-4 py-3"
+          role="timer"
+          aria-label={t('tournament.waiting.timerLabel')}
+        >
+          <div className="text-slate-400 text-xs uppercase tracking-wide mb-1">{t('tournament.waiting.timerLabel')}</div>
+          <div className="text-2xl font-mono font-semibold text-white tabular-nums" aria-live="off">
+            {formatWaitTime(elapsedSeconds)}
+          </div>
+        </div>
+        <div className="mb-6">
+          <TournamentWaitingZipGame />
         </div>
         <div className="flex items-center justify-center gap-2 text-slate-400">
           <Clock className="w-4 h-4 animate-spin" />

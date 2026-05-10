@@ -1486,9 +1486,16 @@
     },
     "waiting": {
       "title": "Ви у фіналі!",
+      "wonTable": "Ви виграли свій стіл.",
       "subtitle": "Чекаємо на інші столи…",
       "tablesDone": "Столи завершено",
-      "preparing": "Готуємо фінальний стіл…"
+      "preparing": "Готуємо фінальний стіл…",
+      "timerLabel": "Час очікування",
+      "zipTitle": "Міні-гра ZIP",
+      "zipHint": "Натисніть мішень, щойно вона з’явиться.",
+      "zipScore": "Рахунок: {{score}}",
+      "zipRestart": "Ще раз",
+      "zipTarget": "ZIP!"
     },
     "teleporter": {
       "toastStarted": "Турнір починається!",

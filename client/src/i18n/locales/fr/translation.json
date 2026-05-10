@@ -1515,9 +1515,16 @@
     },
     "waiting": {
       "title": "Vous êtes en finale !",
+      "wonTable": "Vous avez remporté votre table.",
       "subtitle": "En attente des autres tables...",
       "tablesDone": "Tables terminées",
-      "preparing": "La table finale se prépare..."
+      "preparing": "La table finale se prépare...",
+      "timerLabel": "Temps d’attente",
+      "zipTitle": "Mini jeu ZIP !",
+      "zipHint": "Touchez la cible dès qu’elle apparaît.",
+      "zipScore": "Score : {{score}}",
+      "zipRestart": "Recommencer",
+      "zipTarget": "ZIP !"
     },
     "teleporter": {
       "toastStarted": "Le tournoi commence !",

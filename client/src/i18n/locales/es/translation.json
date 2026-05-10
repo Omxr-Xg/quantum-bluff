@@ -1481,9 +1481,16 @@
     },
     "waiting": {
       "title": "¡Estás en la final!",
+      "wonTable": "Has ganado tu mesa.",
       "subtitle": "Esperando a las demás mesas…",
       "tablesDone": "Mesas terminadas",
-      "preparing": "Se prepara la mesa final…"
+      "preparing": "Se prepara la mesa final…",
+      "timerLabel": "Tiempo de espera",
+      "zipTitle": "Minijuego ZIP",
+      "zipHint": "Toca el objetivo en cuanto aparezca.",
+      "zipScore": "Puntuación: {{score}}",
+      "zipRestart": "Volver a jugar",
+      "zipTarget": "¡ZIP!"
     },
     "teleporter": {
       "toastStarted": "¡El torneo comienza!",

@@ -1509,9 +1509,16 @@
     },
     "waiting": {
       "title": "You’re in the final!",
+      "wonTable": "You won your table.",
       "subtitle": "Waiting for other tables…",
       "tablesDone": "Tables finished",
-      "preparing": "The final table is being set up…"
+      "preparing": "The final table is being set up…",
+      "timerLabel": "Waiting time",
+      "zipTitle": "ZIP mini-game",
+      "zipHint": "Tap the target as soon as it appears.",
+      "zipScore": "Score: {{score}}",
+      "zipRestart": "Play again",
+      "zipTarget": "ZIP!"
     },
     "teleporter": {
       "toastStarted": "The tournament is starting!",

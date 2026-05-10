@@ -1482,9 +1482,16 @@
     },
     "waiting": {
       "title": "أنت في النهائي!",
+      "wonTable": "لقد فزت بطاولتك.",
       "subtitle": "في انتظار الطاولات الأخرى…",
       "tablesDone": "طاولات منتهية",
-      "preparing": "جاري تجهيز الطاولة النهائية…"
+      "preparing": "جاري تجهيز الطاولة النهائية…",
+      "timerLabel": "مدة الانتظار",
+      "zipTitle": "لعبة ZIP المصغرة",
+      "zipHint": "المس الهدف بمجرد ظهوره.",
+      "zipScore": "النقاط: {{score}}",
+      "zipRestart": "إعادة اللعب",
+      "zipTarget": "ZIP!"
     },
     "teleporter": {
       "toastStarted": "تبدأ البطولة!",
