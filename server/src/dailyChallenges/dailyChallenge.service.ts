@@ -108,18 +108,23 @@ export async function addSlotNetWinProgress(
 
 export async function incrementMultiplayerPlayCount(
   userId: string,
+  isBotGame: boolean,
   db: DailyChallengeDb = prisma
 ): Promise<void> {
-  await incrementChallengeProgress(userId, 'PLAY_5_TIMES', 1, db)
+  if (!isBotGame) {
+    await incrementChallengeProgress(userId, 'PLAY_5_TIMES', 1, db)
+  }
 }
 
 export async function markWinWithPair(
   userId: string,
   finalHandName: string | undefined,
   didWin: boolean,
+  isBotGame: boolean,
   db: DailyChallengeDb = prisma
 ): Promise<void> {
   if (!didWin) return
+  if (isBotGame) return
   if (finalHandName !== 'Paire') return
   await incrementChallengeProgress(userId, 'WIN_WITH_PAIR', 1, db)
 }
