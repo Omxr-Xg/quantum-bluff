@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Coins, History, TrendingUp, Trophy, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -158,6 +158,15 @@ export function SlotMachine() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyEntries, setHistoryEntries] = useState<BalanceHistoryEntry[]>([]);
+  const [spinKey, setSpinKey] = useState(0);
+  const spinLockRef = useRef(false);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach(clearTimeout);
+    };
+  }, []);
 
   const isRefund = result.isWin && result.winAmount === bet;
   const isBigWin = result.isWin && result.winAmount! > bet;
@@ -215,6 +224,7 @@ export function SlotMachine() {
   }
 
   const handleSpin = async () => {
+    if (spinLockRef.current) return;
     const currentBalance = getUserBalance();
     if (isSpinning || currentBalance < bet) return;
 
@@ -229,10 +239,15 @@ export function SlotMachine() {
     updateUserBalance(newBalanceAfterBet);
 
     // Lancement des animations (Code d'Azra)
+    spinLockRef.current = true;
     setIsSpinning(true);
     setShowWin(false);
     setSpinningReels([true, true, true]);
     setReels([generateReelSymbols(), generateReelSymbols(), generateReelSymbols()]);
+    setSpinKey((prev) => prev + 1);
+
+    timeoutsRef.current.forEach(clearTimeout);
+    timeoutsRef.current = [];
 
     // Sécurité et tentatives du backend (Code Serveur)
     const actionId = crypto.randomUUID();
@@ -310,9 +325,9 @@ export function SlotMachine() {
         generateReelSymbols(finalUiSymbols[2]),
       ]);
 
-      setTimeout(() => setSpinningReels([false, true, true]), 500);
-      setTimeout(() => setSpinningReels([false, false, true]), 1000);
-      setTimeout(() => {
+      const t1 = setTimeout(() => setSpinningReels([false, true, true]), 500);
+      const t2 = setTimeout(() => setSpinningReels([false, false, true]), 1000);
+      const t3 = setTimeout(() => {
         setSpinningReels([false, false, false]);
         
         setResult({
@@ -320,7 +335,9 @@ export function SlotMachine() {
           isWin: isWin,
           winAmount: data.winAmount,
         });
-        
+      }, 1500);
+
+      const t4 = setTimeout(() => {
         const finalChips =
           typeof data.chips === "number"
             ? Math.max(0, Math.floor(data.chips))
@@ -341,14 +358,21 @@ export function SlotMachine() {
           addToast(t("slot.refundLine"), "info");
         }
         setIsSpinning(false);
-      }, 1500);
+        spinLockRef.current = false;
+      }, 2000); // Attend que l'animation de freinage de 0.5s se termine
+      timeoutsRef.current = [t1, t2, t3, t4];
 
     } catch (err: unknown) {
       // Si tout échoue, on rembourse la mise visuellement
       updateUserBalance(currentBalance);
       addToast(errorMessage(err, t("slot.errorSpin")), "error");
-      setIsSpinning(false);
       setSpinningReels([false, false, false]);
+      
+      const tErr = setTimeout(() => {
+        setIsSpinning(false);
+        spinLockRef.current = false;
+      }, 500);
+      timeoutsRef.current = [tErr];
     }
   };
 
@@ -511,6 +535,7 @@ export function SlotMachine() {
                         <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-px bg-gradient-to-b from-transparent via-amber-200/28 to-transparent" />
 
                         <motion.div
+                          key={`reel-${reelIndex}-spin-${spinKey}`}
                           className="flex flex-col items-center"
                           animate={
                             isReelSpinning
