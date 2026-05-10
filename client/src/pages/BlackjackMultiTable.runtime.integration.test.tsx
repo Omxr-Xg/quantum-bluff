@@ -30,6 +30,7 @@ vi.mock("../contexts/ToastContext", () => ({
 
 vi.mock("../utils/apiBase", () => ({
   apiUrl: (p: string) => p,
+  isCapacitorWebViewShell: () => false,
 }));
 
 vi.mock("../utils/userProfile", () => ({

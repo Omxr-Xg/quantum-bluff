@@ -119,8 +119,12 @@ export function PokerCard({
   return (
     <Wrapper
       {...(animProps as Record<string, unknown>)}
-      className={`${s.card} relative bg-transparent
-        ${highlight ? "scale-105 drop-shadow-[0_0_12px_rgba(251,191,36,0.45)]" : ""}
+      className={`${s.card} relative bg-transparent rounded-[6px]
+        ${
+          highlight
+            ? "ring-[3px] ring-amber-400 ring-offset-2 ring-offset-black/40 scale-105 shadow-[0_0_14px_rgba(251,191,36,0.55)] z-10"
+            : ""
+        }
         transition-transform duration-200 hover:-translate-y-0.5 hover:scale-[1.02]
         ${className}`}
     >

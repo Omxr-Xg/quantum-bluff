@@ -17,7 +17,7 @@
   minRaise: number;              // Relance minimum
   potSize: number;               // Taille du pot
   position: number;              // Position (0 = dealer, 1 = small blind...)
-  playersCount: number;          // Nombre total de joueurs
+  playersCount: number;          // Joueurs encore en main (non couchés), ≥ 2 — pas le simple décompte « connectés »
 }
 ```
 
@@ -30,6 +30,12 @@
   reasoning?: string;            // Pour debug
 }
 ```
+
+## Mode expert (routing serveur)
+
+- Avec **`opponentHoleCards`** valides (au moins un trou de 2 cartes) : toujours l’oracle TypeScript (`expert-oracle` dans `reasoning`) — le Python n’est pas appelé (évite des folds excessifs en multiway avec trous connus).
+- **Sans** trous : si `AI_SERVICE_URL` et `AI_SERVICE_ENABLED`, décision via Python (`python-expert`) ; sinon heuristique `expertBotDecision`.
+- En erreur / timeout Python (sans oracle) : heuristique expert avec `fallback heuristic expert`.
 
 ## Exemple d'utilisation dans Game.tsx
 

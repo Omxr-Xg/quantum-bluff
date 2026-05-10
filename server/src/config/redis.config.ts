@@ -1,6 +1,7 @@
 import { Redis } from 'ioredis'
 import { GameTable } from '../logic/GameTable.js'
 import { rootLogger } from '../observability/logger.js'
+import { metrics } from '../observability/metrics.js'
 import type { Card, GamePhase, Player } from '../types/poker.js'
 import { env } from './env.js'
 
@@ -10,6 +11,8 @@ interface SerializedGameState {
   players: Omit<Player, 'cards'>[]
   currentTurn: string
   phase: string
+  tournamentId?: string
+  tournamentTableNumber?: number
 }
 
 const redisLiteClient = env.isJest || env.isCi
@@ -35,6 +38,20 @@ redisClient.on('connect', () => {
     rootLogger.info({ msg: 'redis_connected' })
   }
 })
+
+if (!redisLiteClient) {
+  const origSend = redisClient.sendCommand.bind(redisClient) as (
+    ...args: unknown[]
+  ) => Promise<unknown>
+  redisClient.sendCommand = function sendCommandInstrumented(...args: unknown[]) {
+    const cmd = args[0] as { name?: string } | undefined
+    const name = (cmd?.name ?? 'unknown').toLowerCase()
+    const t0 = Date.now()
+    return origSend(...args).finally(() => {
+      metrics.observeRedisCommandDurationMs(name, Date.now() - t0)
+    })
+  }
+}
 
 redisClient.on('error', (err: Error) => {
   if (redisLiteClient) {
@@ -87,6 +104,10 @@ export const serializeGame = (_gameId: string, game: GameTable): string => {
       })),
       currentTurn: state.currentTurn,
       phase: state.phase,
+      ...(game.state.tournamentId ? { tournamentId: game.state.tournamentId } : {}),
+      ...(game.state.tournamentTableNumber != null
+        ? { tournamentTableNumber: game.state.tournamentTableNumber }
+        : {}),
     },
   })
 }
@@ -109,6 +130,10 @@ export const deserializeGame = (gameId: string, data: string): GameTable | null 
       communityCards: parsedState.communityCards as Card[],
       currentTurn: parsedState.currentTurn,
       phase: parsedState.phase as GamePhase,
+      ...(parsedState.tournamentId ? { tournamentId: parsedState.tournamentId } : {}),
+      ...(parsedState.tournamentTableNumber != null
+        ? { tournamentTableNumber: parsedState.tournamentTableNumber }
+        : {}),
     }
 
     return game
@@ -141,6 +166,32 @@ export const getGame = async (gameId: string): Promise<GameTable | null> => {
 export const deleteGame = async (gameId: string): Promise<void> => {
   const key = `${GAME_PREFIX}${gameId}`
   await redisClient.del(key)
+}
+
+const ACTION_LOG_TTL = 60 * 60 * 2
+
+export async function appendActionLog(gameId: string, handId: string, line: string): Promise<void> {
+  try {
+    const key = `action_log:${gameId}:${handId}`
+    await redisClient.rpush(key, line)
+    await redisClient.expire(key, ACTION_LOG_TTL)
+    await redisClient.ltrim(key, -99, -1)
+  } catch { /* ignore */ }
+}
+
+export async function getActionLog(gameId: string, handId: string): Promise<string[]> {
+  try {
+    const key = `action_log:${gameId}:${handId}`
+    return await redisClient.lrange(key, 0, -1)
+  } catch {
+    return []
+  }
+}
+
+export async function clearActionLog(gameId: string, handId: string): Promise<void> {
+  try {
+    await redisClient.del(`action_log:${gameId}:${handId}`)
+  } catch { /* ignore */ }
 }
 
 export const getAllGames = async (): Promise<Map<string, GameTable>> => {

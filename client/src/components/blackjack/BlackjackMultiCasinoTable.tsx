@@ -2,10 +2,10 @@ import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { PokerCard } from "../PokerCard";
-import { ChipIcon } from "../ChipIcon";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { getPlayerAvatar } from "../../utils/avatars";
 import { useTableTheme } from "../../contexts/TableThemeContext";
+import logoSrc from "../../assets/logo-personnel.png";
 
 export type BjCard = { rank: string; suit: string };
 
@@ -107,7 +107,7 @@ export function PlayingCard({
   className?: string;
   style?: CSSProperties;
 }) {
-  const responsiveClasses = `!w-[min(4rem,20vw)] !h-auto aspect-[63/88] shrink-0 ${className}`;
+  const responsiveClasses = `!w-[min(3.3rem,16vw)] sm:!w-[min(4rem,20vw)] !h-auto aspect-[63/88] shrink-0 ${className}`;
 
   if (hidden || !card || card.suit === "?" || card.rank === "?") {
     return (
@@ -147,7 +147,7 @@ function ChipStack({ amount }: { amount: number }) {
       <div className="absolute bottom-2 flex h-7 w-7 items-center justify-center rounded-full border-2 border-amber-100 bg-gradient-to-br from-amber-600 via-yellow-700 to-amber-950 text-[10px] font-black text-amber-100 shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
         $
       </div>
-      <span className="absolute -bottom-0.5 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-black/75 px-1.5 py-0.5 font-mono text-[10px] font-bold text-amber-100 shadow">
+      <span className="absolute bottom-0 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-black/75 px-1.5 py-0.5 font-mono text-[10px] font-bold text-amber-100 shadow">
         {amount}
       </span>
     </div>
@@ -157,13 +157,11 @@ function ChipStack({ amount }: { amount: number }) {
 export function BlackjackMultiCasinoTable({
   state,
   userId,
-  playerBalance,
   playerEffectiveMaxBet,
   children,
 }: {
   state: BjTableState;
   userId: string | null;
-  playerBalance?: number | null;
   playerEffectiveMaxBet: number;
   children: ReactNode;
 }) {
@@ -178,6 +176,7 @@ export function BlackjackMultiCasinoTable({
       if (timeout !== undefined) clearTimeout(timeout);
       timeout = setTimeout(() => {
         const width = window.innerWidth;
+        const height = window.innerHeight;
         let newScale = 1;
         if (width < 640) {
           newScale = 0.85;
@@ -186,6 +185,10 @@ export function BlackjackMultiCasinoTable({
         } else {
           newScale = 1;
         }
+        // Écrans "desktop compacts" (ex: MacBook Air 13") : on réduit légèrement même si la largeur est grande.
+        if (height < 900) newScale = Math.min(newScale, 0.96);
+        if (height < 820) newScale = Math.min(newScale, 0.92);
+        if (height < 760) newScale = Math.min(newScale, 0.88);
 
         /** Chrome : zoom réduit la boîte ; Safari/WebKit : transform:scale() ne la réduit pas → débordement. */
         const zoomSupported = (() => {
@@ -202,7 +205,11 @@ export function BlackjackMultiCasinoTable({
         if (zoomSupported) {
           setContainerStyle({ zoom: newScale });
         } else {
-          setContainerStyle({});
+          // Safari/WebKit: fallback équivalent à zoom via transform.
+          setContainerStyle({
+            transform: `scale(${newScale})`,
+            transformOrigin: "top center",
+          });
         }
       }, 100);
     };
@@ -226,22 +233,24 @@ export function BlackjackMultiCasinoTable({
   return (
     <div className="relative w-full overflow-x-hidden">
       <div 
-        className="mx-auto w-full min-w-0 px-3 pb-6 sm:px-4"
+        className="mx-auto w-[min(100%,54rem)] min-w-0 px-3 pb-6 sm:px-4"
         style={containerStyle}
       >
         <div
-          className="relative overflow-hidden rounded-[2rem] border-[10px] p-2 shadow-[0_32px_80px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.06)] sm:rounded-[2.5rem] sm:border-[12px] sm:p-3"
+          className="relative overflow-hidden rounded-[2.4rem] border-[10px] p-2 shadow-[0_32px_80px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.08)] sm:rounded-[3rem] sm:border-[12px] sm:p-3"
           style={{
-            background: "linear-gradient(145deg, #2a1810 0%, #1a120c 100%)",
-            borderColor: "rgba(61, 41, 20, 0.95)",
+            background:
+              "linear-gradient(145deg, rgba(2,6,23,0.98) 0%, rgba(12,18,32,0.98) 45%, rgba(50,35,15,0.94) 100%)",
+            borderColor: "rgba(212, 175, 55, 0.28)",
           }}
         >
           <div
-            className="relative min-h-[min(14rem,42dvh)] overflow-hidden rounded-[1.35rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_100px_rgba(0,0,0,0.35)] sm:min-h-[min(18rem,48dvh)] lg:min-h-[min(24rem,52dvh)] sm:rounded-[1.75rem]"
+            className="relative h-[clamp(27rem,min(80dvh,92svh),40rem)] overflow-hidden rounded-[2rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_110px_rgba(0,0,0,0.38),inset_0_12px_32px_rgba(255,255,255,0.045)] sm:h-[clamp(23rem,62dvh,35rem)] sm:rounded-[2.5rem]"
             style={{
               background: `
-                radial-gradient(ellipse 120% 80% at 50% 25%, rgba(255,255,255,0.07) 0%, transparent 52%),
-                radial-gradient(ellipse 90% 55% at 50% 100%, rgba(0,0,0,0.45) 0%, transparent 48%),
+                radial-gradient(ellipse 115% 78% at 50% 18%, rgba(255,255,255,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse 85% 55% at 50% 100%, rgba(0,0,0,0.48) 0%, transparent 52%),
+                linear-gradient(90deg, rgba(0,0,0,0.28), transparent 18%, transparent 82%, rgba(0,0,0,0.28)),
                 ${feltGradient}
               `,
               borderColor: feltBorder,
@@ -255,8 +264,15 @@ export function BlackjackMultiCasinoTable({
               }}
             />
             <div className="pointer-events-none absolute inset-3 rounded-[1rem] border border-[#c9a227]/25 shadow-[inset_0_0_40px_rgba(0,0,0,0.2)] sm:inset-4 sm:rounded-[1.35rem]" />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
+              <img
+                src={logoSrc}
+                alt=""
+                className="h-[34%] max-h-44 w-auto opacity-[0.075] saturate-0"
+              />
+            </div>
 
-            <div className="relative z-10 flex flex-col items-center gap-1 px-4 pt-5 text-center sm:pt-6">
+            <div className="relative z-10 flex flex-col items-center gap-0.5 px-4 pt-2 text-center sm:gap-1 sm:pt-6">
               <div className="inline-flex flex-wrap items-center justify-center gap-2">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#c9a227]/40 bg-black/35 px-4 py-1.5 shadow-lg backdrop-blur-sm">
                   <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#d4af37]/90">
@@ -271,25 +287,6 @@ export function BlackjackMultiCasinoTable({
                     {phaseLabel}
                   </span>
                 </div>
-                {typeof playerBalance === "number" && userId ? (
-                  <div className="inline-flex items-center gap-2 rounded-full border border-[#c9a227]/40 bg-black/45 py-1.5 pl-1.5 pr-3 shadow-md backdrop-blur-sm">
-                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-emerald-500/50 bg-black/40">
-                      <ImageWithFallback
-                        src={getPlayerAvatar("Vous", userId, userId)}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200/85">
-                      {t("bjMulti.yourBalance")}
-                    </span>
-                    <span className="h-3 w-px bg-[#c9a227]/35" />
-                    <span className="font-mono text-sm font-bold tabular-nums text-amber-100">
-                      {playerBalance.toLocaleString()}
-                    </span>
-                    <ChipIcon size="sm" className="shrink-0 brightness-110" />
-                  </div>
-                ) : null}
               </div>
               <p className="text-[11px] text-emerald-200/70">
                 {t("bjMulti.betLimitsLine", {
@@ -299,8 +296,8 @@ export function BlackjackMultiCasinoTable({
               </p>
             </div>
 
-            <div className="relative z-10 mt-4 flex flex-col items-center sm:mt-6">
-              <div className="mb-2 flex items-center gap-2">
+            <div className="relative z-10 mt-1 flex flex-col items-center sm:mt-5 md:mt-6">
+              <div className="mb-1 flex items-center gap-2 sm:mb-2">
                 <span className="rounded-md border border-white/20 bg-black/30 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/90 shadow">
                   {t("bjMulti.dealer")}
                 </span>
@@ -311,41 +308,47 @@ export function BlackjackMultiCasinoTable({
                   ) : null}
                 </div>
               </div>
-              <div className="flex justify-center pl-4">
-                {state.dealerCards.map((c, i) => (
-                  <motion.div
-                    key={`${state.handNumber}-d-${i}-${c.rank}-${c.suit}`}
-                    className="-ml-4 first:ml-0 sm:-ml-5"
-                    style={{ zIndex: i }}
-                    initial={{
-                      opacity: 0,
-                      y: -16,
-                      scale: 0.96,
-                      rotate: -3 + i * 2.5,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      y: i * 2,
-                      scale: 1,
-                      rotate: -3 + i * 2.5,
-                    }}
-                    transition={{
-                      delay: i * DEAL_STAGGER_SEC,
-                      duration: 0.28,
-                      ease: [0.25, 0.1, 0.25, 1],
-                    }}
-                  >
-                    <PlayingCard
-                      card={c}
-                      hidden={state.dealerHoleHidden && i === 1}
-                    />
-                  </motion.div>
-                ))}
+              <div className="flex min-h-[4.25rem] items-center justify-center pl-3 sm:min-h-[5.75rem] sm:pl-4">
+                {state.dealerCards.length === 0 ? (
+                  <div className="pointer-events-none opacity-0" aria-hidden>
+                    <PlayingCard hidden />
+                  </div>
+                ) : (
+                  state.dealerCards.map((c, i) => (
+                    <motion.div
+                      key={`${state.handNumber}-d-${i}-${c.rank}-${c.suit}`}
+                      className="-ml-4 first:ml-0 sm:-ml-5"
+                      style={{ zIndex: i }}
+                      initial={{
+                        opacity: 0,
+                        y: -16,
+                        scale: 0.96,
+                        rotate: -3 + i * 2.5,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: i * 2,
+                        scale: 1,
+                        rotate: -3 + i * 2.5,
+                      }}
+                      transition={{
+                        delay: i * DEAL_STAGGER_SEC,
+                        duration: 0.28,
+                        ease: [0.25, 0.1, 0.25, 1],
+                      }}
+                    >
+                      <PlayingCard
+                        card={c}
+                        hidden={state.dealerHoleHidden && i === 1}
+                      />
+                    </motion.div>
+                  ))
+                )}
               </div>
             </div>
 
-            <div className="relative z-10 mx-auto mt-6 flex w-full min-w-0 max-w-full flex-wrap md:flex-nowrap overflow-x-auto md:overflow-visible items-end justify-center gap-2 px-2 pb-4 sm:mt-10 sm:gap-4 sm:px-4 scroll-smooth snap-x snap-mandatory scrollbar-hide">
-              {sortedSeats.map((s, idx) => {
+            <div className="relative z-10 mx-auto mt-2 flex w-full min-w-0 max-w-full flex-wrap md:flex-nowrap overflow-x-auto md:overflow-visible items-end justify-center gap-1.5 px-1.5 pb-10 sm:mt-7 sm:gap-4 sm:px-2 sm:pb-6 md:mt-9 lg:mt-10 scroll-smooth snap-x snap-mandatory scrollbar-hide">
+              {sortedSeats.map((s) => {
                 const isYou = s.userId === userId;
                 const seatAvatar = getPlayerAvatar(s.username, s.userId, userId, s.avatarUrl);
                 const hv =
@@ -358,16 +361,16 @@ export function BlackjackMultiCasinoTable({
                 return (
                   <div
                     key={s.userId}
-                    className={`flex min-w-[140px] max-w-[200px] flex-1 flex-col items-center snap-center sm:min-w-[160px] ${
+                    className={`flex min-w-[126px] max-w-[188px] flex-1 flex-col items-center snap-center sm:min-w-[160px] ${
                       turn ? "z-20" : "z-10 opacity-95"
                     }`}
                     style={{
-                      transform: `perspective(800px) rotateX(2deg) translateY(${Math.abs(idx - (sortedSeats.length - 1) / 2) * 2}px)`,
+                      transform: "perspective(800px) rotateX(2deg)",
                       willChange: "transform",
                     }}
                   >
                     <div
-                      className={`relative mb-2 w-full rounded-2xl border-2 px-2 pb-3 pt-2 shadow-xl transition-all ${
+                      className={`relative mb-1.5 w-full rounded-2xl border-2 px-2 pb-2.5 pt-1.5 shadow-xl transition-all ${
                         turn
                           ? "border-amber-300/90 bg-gradient-to-b from-amber-500/25 to-transparent shadow-[0_0_40px_rgba(251,191,36,0.35)]"
                           : "border-white/10 bg-black/25"
@@ -410,11 +413,11 @@ export function BlackjackMultiCasinoTable({
                       <div className="flex justify-center">
                         <ChipStack amount={s.totalBet > 0 ? s.totalBet : s.bet} />
                       </div>
-                      <div className="mt-2 flex min-h-[4.5rem] justify-center pl-3 sm:min-h-[5rem] sm:pl-4">
+                      <div className="mt-1.5 flex min-h-[4rem] justify-center pl-2 sm:min-h-[5rem] sm:pl-4">
                         {s.cards.map((c, ci) => (
                           <motion.div
                             key={`${state.handNumber}-${s.userId}-c-${ci}-${c.rank}-${c.suit}`}
-                            className="-ml-2 first:ml-0 sm:-ml-3 md:-ml-3.5"
+                            className="-ml-1.5 first:ml-0 sm:-ml-3 md:-ml-3.5"
                             initial={{ opacity: 0, y: 12, scale: 0.97, rotate: -1 }}
                             animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
                             transition={{
@@ -444,11 +447,11 @@ export function BlackjackMultiCasinoTable({
               })}
             </div>
 
-            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/50 to-transparent" />
+            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-black/45 to-transparent sm:h-24" />
           </div>
         </div>
 
-        <div className="relative z-20 -mt-2 mx-auto max-w-3xl rounded-b-2xl border border-slate-800/90 border-t-0 bg-gradient-to-b from-slate-900/95 to-slate-950 px-4 py-5 shadow-[0_16px_40px_rgba(0,0,0,0.5)] sm:px-8">
+        <div className="relative z-20 mx-auto mt-4 max-w-3xl rounded-[2rem] border border-white/10 bg-slate-950/55 px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md sm:mt-6 sm:py-4 sm:px-8">
           {children}
         </div>
       </div>

@@ -13,16 +13,18 @@ import {
   Search,
   Shield,
   Trash2,
+  Gift,
 } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
 import { clearAuthStorage } from "../utils/userProfile";
+import { getAuthItem } from "../utils/authStorage";
 
-type Tab = "users" | "history" | "poker" | "bj" | "ratings" | "reports";
+type Tab = "users" | "history" | "poker" | "bj" | "tournaments" | "waitingRooms" | "ratings" | "reports" | "giftCodes";
 
 const PAGE_SIZE = 25;
 
 function authHeaders(): HeadersInit {
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -91,6 +93,46 @@ type ReportRow = {
   reported?: { id: string; username: string; email: string };
 };
 
+type TournamentAdminRow = {
+  id: string;
+  name: string;
+  buyIn: number;
+  maxPlayers: number;
+  prizePool: number;
+  startTime: string;
+  status: string;
+  openingRoundTableCount?: number | null;
+  activeBracketPhase?: string | null;
+  createdAt: string;
+  createdBy: { id: string; username: string };
+  _count: { players: number };
+};
+
+type WaitingRoomAdminRow = {
+  id: string;
+  name: string;
+  hostId: string;
+  status: string;
+  gameId: string | null;
+  maxPlayers: number;
+  visibility: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type GiftCodeRow = {
+  id: string;
+  code: string;
+  amount: number;
+  usageType: string;
+  type: string;
+  description: string | null;
+  expiresAt: string | null;
+  maxUses: number;
+  usedCount: number;
+  createdAt: string;
+};
+
 export function AdminConsole() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -108,6 +150,21 @@ export function AdminConsole() {
   const [pwdInput, setPwdInput] = useState("");
   const [pwdResult, setPwdResult] = useState<string | null>(null);
   const [pwdLoading, setPwdLoading] = useState(false);
+
+  // Gift Codes states
+  const [codeForm, setCodeForm] = useState({
+    code: "",
+    amount: 500,
+    usageType: "TOKENS",
+    type: "SPECIAL",
+    description: "",
+    expiresAt: "",
+    maxUses: -1
+  });
+  const [giftCodes, setGiftCodes] = useState<GiftCodeRow[]>([]);
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [codeSuccess, setCodeSuccess] = useState<string | null>(null);
 
   const fetchReportUnread = useCallback(async () => {
     try {
@@ -142,6 +199,82 @@ export function AdminConsole() {
     return p.toString();
   }, [skip, debouncedSearch]);
 
+  const loadGiftCodes = useCallback(async () => {
+    setCodeLoading(true);
+    setCodeError(null);
+    try {
+      const res = await fetch(apiUrl("/api/gift-codes/admin/list?limit=50"), { headers: authHeaders() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCodeError((data as { error?: string }).error ?? "Erreur lors du chargement");
+        return;
+      }
+      setGiftCodes((data as { codes?: GiftCodeRow[] }).codes || []);
+    } catch {
+      setCodeError("Erreur réseau");
+    } finally {
+      setCodeLoading(false);
+    }
+  }, []);
+
+  const createGiftCode = useCallback(async () => {
+    if (!codeForm.code.trim()) {
+      setCodeError("Le code est requis");
+      return;
+    }
+    if (codeForm.amount < 1) {
+      setCodeError("Le montant doit être >= 1");
+      return;
+    }
+
+    setCodeLoading(true);
+    setCodeError(null);
+    setCodeSuccess(null);
+
+    try {
+      const res = await fetch(apiUrl("/api/gift-codes/admin/create"), {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          code: codeForm.code,
+          amount: codeForm.amount,
+          usageType: codeForm.usageType,
+          type: codeForm.type,
+          description: codeForm.description || null,
+          expiresAt: codeForm.expiresAt || null,
+          maxUses: codeForm.maxUses === -1 ? -1 : codeForm.maxUses
+        })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCodeError((data as { error?: string }).error ?? "Erreur lors de la création");
+        return;
+      }
+
+      setCodeSuccess(`✅ Code créé: ${codeForm.code}`);
+      setCodeForm({
+        code: "",
+        amount: 500,
+        usageType: "TOKENS",
+        type: "SPECIAL",
+        description: "",
+        expiresAt: "",
+        maxUses: -1
+      });
+
+      // Reload the list
+      setTimeout(() => {
+        void loadGiftCodes();
+        setCodeSuccess(null);
+      }, 1500);
+    } catch {
+      setCodeError("Erreur réseau");
+    } finally {
+      setCodeLoading(false);
+    }
+  }, [codeForm, loadGiftCodes]);
+
   const load = useCallback(async () => {
     setError(null);
     setLoading(true);
@@ -153,9 +286,15 @@ export function AdminConsole() {
         const p = new URLSearchParams();
         if (debouncedSearch) p.set("q", debouncedSearch);
         path = `/api/admin/console/games/active-poker?${p.toString()}`;
-      } else if (tab === "bj") path = `/api/admin/console/games/blackjack-rooms?${listParams}`;
+      }       else if (tab === "bj") path = `/api/admin/console/games/blackjack-rooms?${listParams}`;
+      else if (tab === "tournaments") path = `/api/admin/console/tournaments?${listParams}`;
+      else if (tab === "waitingRooms") path = `/api/admin/console/waiting-rooms?${listParams}`;
       else if (tab === "reports") path = `/api/admin/console/player-reports?${listParams}`;
-      else path = `/api/admin/console/ratings?${listParams}`;
+      else if (tab === "giftCodes") {
+        void loadGiftCodes();
+        setLoading(false);
+        return;
+      } else path = `/api/admin/console/ratings?${listParams}`;
 
       const res = await fetch(apiUrl(path), { headers: authHeaders() });
       const data = await res.json().catch(() => ({}));
@@ -237,6 +376,63 @@ export function AdminConsole() {
       }
       await load();
       await fetchReportUnread();
+    } catch {
+      setError(t("adminConsole.networkError"));
+    }
+  };
+
+  const cancelPendingTournament = async (tournamentId: string) => {
+    if (!window.confirm(t("adminConsole.tournamentsCancelConfirm"))) return;
+    setError(null);
+    try {
+      const res = await fetch(
+        apiUrl(`/api/admin/console/tournaments/${encodeURIComponent(tournamentId)}/cancel`),
+        { method: "POST", headers: authHeaders() },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data as { error?: string }).error ?? t("adminConsole.actionError"));
+        return;
+      }
+      await load();
+    } catch {
+      setError(t("adminConsole.networkError"));
+    }
+  };
+
+  const deleteArchivedTournament = async (tournamentId: string) => {
+    if (!window.confirm(t("adminConsole.tournamentsDeleteDbConfirm"))) return;
+    setError(null);
+    try {
+      const res = await fetch(
+        apiUrl(`/api/admin/console/tournaments/${encodeURIComponent(tournamentId)}`),
+        { method: "DELETE", headers: authHeaders() },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data as { error?: string }).error ?? t("adminConsole.actionError"));
+        return;
+      }
+      await load();
+    } catch {
+      setError(t("adminConsole.networkError"));
+    }
+  };
+
+  const deleteWaitingRoomAdmin = async (roomId: string) => {
+    if (!window.confirm(t("adminConsole.waitingRoomsDeleteConfirm"))) return;
+    setError(null);
+    try {
+      const res = await fetch(
+        apiUrl(`/api/admin/console/waiting-rooms/${encodeURIComponent(roomId)}`),
+        { method: "DELETE", headers: authHeaders() },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data as { error?: string }).error ?? t("adminConsole.actionError"));
+        return;
+      }
+      await load();
     } catch {
       setError(t("adminConsole.networkError"));
     }
@@ -328,10 +524,13 @@ export function AdminConsole() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "poker", label: t("adminConsole.tabPokerActive") },
     { id: "bj", label: t("adminConsole.tabBlackjack") },
+    { id: "tournaments", label: t("adminConsole.tabTournaments") },
+    { id: "waitingRooms", label: t("adminConsole.tabWaitingRooms") },
     { id: "users", label: t("adminConsole.tabPlayers") },
     { id: "history", label: t("adminConsole.tabHistory") },
     { id: "ratings", label: t("adminConsole.tabRatings") },
     { id: "reports", label: t("adminConsole.tabReports") },
+    { id: "giftCodes", label: "Codes Cadeaux" },
   ];
 
   const reportReasonLabel = (reason: string) =>
@@ -419,7 +618,14 @@ export function AdminConsole() {
                   : "text-slate-300 hover:bg-slate-700/80 hover:text-white"
               }`}
             >
-              {x.label}
+              {x.id === "giftCodes" ? (
+                <span className="inline-flex items-center gap-2">
+                  <Gift className="h-4 w-4 shrink-0" aria-hidden />
+                  {x.label}
+                </span>
+              ) : (
+                x.label
+              )}
             </button>
           ))}
         </nav>
@@ -446,7 +652,13 @@ export function AdminConsole() {
               </button>
             )}
           </div>
-          <p className="text-xs text-slate-500 sm:max-w-xs">{t("adminConsole.filterHint")}</p>
+          <p className="text-xs text-slate-500 sm:max-w-xs">
+            {tab === "tournaments"
+              ? t("adminConsole.filterHintTournaments")
+              : tab === "waitingRooms"
+                ? t("adminConsole.filterHintWaitingRooms")
+                : t("adminConsole.filterHint")}
+          </p>
         </div>
 
         {error && (
@@ -545,6 +757,150 @@ export function AdminConsole() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {tab === "waitingRooms" && json && listPayload?.items && (
+          <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
+            <p className="px-3 py-2 text-xs text-slate-400">
+              {totalCount != null ? (
+                <>
+                  {t("adminConsole.totalCount")}: <span className="text-slate-200">{totalCount}</span>
+                </>
+              ) : null}
+            </p>
+            <table className="w-full min-w-[860px] text-left text-sm">
+              <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="px-3 py-3">{t("adminConsole.waitingRoomsColName")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.waitingRoomsColHost")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.waitingRoomsColStatus")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.waitingRoomsColGameId")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.waitingRoomsColUpdated")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.colActions")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/80">
+                {(listPayload.items as WaitingRoomAdminRow[]).map((row) => (
+                  <tr key={row.id} className="text-slate-200">
+                    <td className="px-3 py-2">
+                      <span className="font-medium text-white">{row.name}</span>
+                      <div className="font-mono text-[10px] text-slate-500">{row.id}</div>
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs">{row.hostId}</td>
+                    <td className="px-3 py-2">
+                      <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs">{row.status}</span>
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs text-slate-400">{row.gameId ?? "—"}</td>
+                    <td className="px-3 py-2 text-xs text-slate-400">
+                      {new Date(row.updatedAt).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => void deleteWaitingRoomAdmin(row.id)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-red-600/85 px-2 py-1 text-xs font-semibold text-white hover:bg-red-500"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        {t("adminConsole.waitingRoomsDelete")}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {listPayload.items.length === 0 && (
+              <p className="py-12 text-center text-slate-500">{t("adminConsole.waitingRoomsEmpty")}</p>
+            )}
+          </div>
+        )}
+
+        {tab === "tournaments" && json && listPayload?.items && (
+          <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
+            <p className="px-3 py-2 text-xs text-slate-400">
+              {totalCount != null ? (
+                <>
+                  {t("adminConsole.totalCount")}: <span className="text-slate-200">{totalCount}</span>
+                </>
+              ) : null}
+            </p>
+            <p className="px-3 pb-2 text-xs text-slate-500">{t("adminConsole.tournamentsCreateHint")}</p>
+            <table className="w-full min-w-[960px] text-left text-sm">
+              <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColName")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColStatus")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColBuyIn")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColPlayers")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColPrize")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColStart")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColBracket")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColCreator")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.colActions")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/80">
+                {(listPayload.items as TournamentAdminRow[]).map((row) => (
+                  <tr key={row.id} className="text-slate-200">
+                    <td className="px-3 py-2">
+                      <span className="font-medium text-white">{row.name}</span>
+                      <div className="font-mono text-[10px] text-slate-500">{row.id}</div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs">{row.status}</span>
+                    </td>
+                    <td className="px-3 py-2">{row.buyIn}</td>
+                    <td className="px-3 py-2">
+                      {row._count?.players ?? 0} / {row.maxPlayers}
+                    </td>
+                    <td className="px-3 py-2">{row.prizePool}</td>
+                    <td className="px-3 py-2 text-xs text-slate-400">
+                      {new Date(row.startTime).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-400">
+                      {row.openingRoundTableCount != null ? (
+                        <span>
+                          {t("adminConsole.tournamentsTables", { n: row.openingRoundTableCount })}
+                          {row.activeBracketPhase ? ` · ${row.activeBracketPhase}` : ""}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      {row.createdBy?.username ?? "—"}
+                      <div className="font-mono text-[10px] text-slate-500">{row.createdBy?.id ?? ""}</div>
+                    </td>
+                    <td className="px-3 py-2">
+                      {row.status === "PENDING" ? (
+                        <button
+                          type="button"
+                          onClick={() => void cancelPendingTournament(row.id)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-red-600/85 px-2 py-1 text-xs font-semibold text-white hover:bg-red-500"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          {t("adminConsole.tournamentsCancel")}
+                        </button>
+                      ) : row.status === "COMPLETED" || row.status === "CANCELED" ? (
+                        <button
+                          type="button"
+                          onClick={() => void deleteArchivedTournament(row.id)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-slate-600 px-2 py-1 text-xs font-semibold text-white hover:bg-slate-500"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          {t("adminConsole.tournamentsDeleteDb")}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-500">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {listPayload.items.length === 0 && (
+              <p className="py-12 text-center text-slate-500">{t("adminConsole.tournamentsEmpty")}</p>
             )}
           </div>
         )}
@@ -795,7 +1151,7 @@ export function AdminConsole() {
         )}
 
         {tab !== "poker" &&
-          ["users", "history", "bj", "ratings", "reports"].includes(tab) &&
+          ["users", "history", "bj", "tournaments", "waitingRooms", "ratings", "reports"].includes(tab) &&
           json &&
           totalCount != null &&
           totalCount > PAGE_SIZE && (
@@ -828,6 +1184,152 @@ export function AdminConsole() {
               </div>
             </div>
           )}
+
+        {tab === "giftCodes" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-600 bg-slate-800/50 p-6">
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">
+                <Gift className="h-5 w-5 shrink-0 text-amber-400" aria-hidden />
+                Créer un nouveau code
+              </h3>
+
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Code</label>
+                  <input
+                    type="text"
+                    value={codeForm.code}
+                    onChange={(e) => setCodeForm({ ...codeForm, code: e.target.value.toUpperCase() })}
+                    placeholder="BIENVENUE"
+                    className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Type d'utilisation</label>
+                    <select
+                      value={codeForm.usageType}
+                      onChange={(e) => setCodeForm({ ...codeForm, usageType: e.target.value })}
+                      className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="TOKENS">Jetons</option>
+                      <option value="FIXED_DISCOUNT">Réduction fixe (€)</option>
+                      <option value="PERCENTAGE_DISCOUNT">Réduction % (CB)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                      {codeForm.usageType === "TOKENS" ? "Montant (jetons)" : codeForm.usageType === "FIXED_DISCOUNT" ? "Réduction (€)" : "Réduction (%)"}
+                    </label>
+                    <input
+                      type="number"
+                      value={codeForm.amount}
+                      onChange={(e) => setCodeForm({ ...codeForm, amount: parseInt(e.target.value) || 0 })}
+                      min="1"
+                      className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Type</label>
+                    <select
+                      value={codeForm.type}
+                      onChange={(e) => setCodeForm({ ...codeForm, type: e.target.value })}
+                      className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    >
+                      <option>ACHIEVEMENT</option>
+                      <option>EVENT</option>
+                      <option>SEASONAL</option>
+                      <option>SPECIAL</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Max utilisations</label>
+                    <input
+                      type="number"
+                      value={codeForm.maxUses === -1 ? "∞" : codeForm.maxUses}
+                      onChange={(e) => setCodeForm({ ...codeForm, maxUses: e.target.value === "∞" ? -1 : parseInt(e.target.value) || -1 })}
+                      placeholder="-1 pour illimité"
+                      className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Description (optionnel)</label>
+                  <input
+                    type="text"
+                    value={codeForm.description}
+                    onChange={(e) => setCodeForm({ ...codeForm, description: e.target.value })}
+                    placeholder="Bienvenue! Réclamez votre bonus..."
+                    className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Date d'expiration (optionnel)</label>
+                  <input
+                    type="datetime-local"
+                    value={codeForm.expiresAt}
+                    onChange={(e) => setCodeForm({ ...codeForm, expiresAt: e.target.value })}
+                    className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {codeError && <p className="mb-3 text-sm text-red-400">{codeError}</p>}
+              {codeSuccess && <p className="mb-3 text-sm text-emerald-400">{codeSuccess}</p>}
+
+              <button
+                onClick={createGiftCode}
+                disabled={codeLoading || !codeForm.code.trim()}
+                className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:cursor-not-allowed px-4 py-2 font-medium text-white transition"
+              >
+                {codeLoading ? "Création..." : "Créer le code"}
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-600 bg-slate-800/40 p-6">
+              <h3 className="mb-4 text-lg font-bold text-white">📋 Codes existants</h3>
+
+              {codeLoading && giftCodes.length === 0 && <p className="text-slate-400">Chargement...</p>}
+
+              {giftCodes.length === 0 && !codeLoading && <p className="text-slate-400">Aucun code</p>}
+
+              {giftCodes.length > 0 && (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {giftCodes.map((code) => (
+                    <div key={code.id} className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="font-mono font-bold text-blue-300">{code.code}</p>
+                          <p className="text-xs text-slate-400">{code.type} · {code.usageType === "TOKENS" ? "Jetons" : code.usageType === "FIXED_DISCOUNT" ? "Réduction €" : "Réduction %"}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-emerald-300">
+                            {code.usageType === "TOKENS" ? `${code.amount} jetons` : code.usageType === "FIXED_DISCOUNT" ? `${code.amount}€` : `${code.amount}%`}
+                          </p>
+                          <p className="text-xs text-slate-400">{code.usedCount} / {code.maxUses === -1 ? "∞" : code.maxUses} utilisé</p>
+                        </div>
+                      </div>
+                      {code.description && <p className="text-xs text-slate-400 mb-2">{code.description}</p>}
+                      {code.expiresAt && (
+                        <p className="text-xs text-orange-400">
+                          Expire: {new Date(code.expiresAt).toLocaleDateString("fr-FR")}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {pwdModal && (

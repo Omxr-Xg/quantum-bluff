@@ -20,11 +20,34 @@ import {
   isUuidParam,
 } from '../utils/userAvatarIngest.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
+import { ipKeyGenerator } from 'express-rate-limit'
+import { rateLimitWithMetrics } from '../observability/index.js'
+
+function normalizeRateLimitIdentity(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  return value.trim().toLowerCase()
+}
+
+function loginRateLimitKey(req: express.Request): string {
+  const email = normalizeRateLimitIdentity(req.body?.email)
+  if (email) return `${ipKeyGenerator(req.ip ?? '')}:login:${email}`  
+  return `${ipKeyGenerator(req.ip ?? '')}:login`
+}
+
+function registerRateLimitKey(req: express.Request): string {
+  const email = normalizeRateLimitIdentity(req.body?.email)
+  const username = normalizeRateLimitIdentity(req.body?.username)
+  if (email) return `${ipKeyGenerator(req.ip ?? '')}:register:${email}`
+  if (username) return `${ipKeyGenerator(req.ip ?? '')}:register:${username}`
+  return `${ipKeyGenerator(req.ip ?? '')}:register`
+}
 
 /** Connexion : 5 requêtes / 10 min / IP. */
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: loginRateLimitKey,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -46,6 +69,8 @@ const loginLimiter = rateLimit({
 const registerLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: registerRateLimitKey,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -78,6 +103,20 @@ const recoveryLimiter = rateLimit({
   legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json({ error: 'Trop de tentatives. Réessayez plus tard.' })
+  },
+})
+
+/** Polling solde / historique : plafond dédié par utilisateur (après authMiddleware). */
+const balancePollLimiter = rateLimitWithMetrics({
+  windowMs: 60 * 1000,
+  limit: env.isProduction ? 240 : 2000,
+  message: { error: 'Trop de lectures de solde, réessaie dans une minute' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: express.Request) => {
+    const uid = (req as express.Request & { userId?: string }).userId
+    if (uid) return `balancePoll:${uid}`
+    return `balancePoll:${ipKeyGenerator(req.ip ?? '')}`
   },
 })
 
@@ -559,7 +598,7 @@ router.get('/gamification', authMiddleware, async (req, res) => {
 })
 
 // GET /api/auth/balance - Récupère la balance serveur (source de vérité, jamais le client)
-router.get('/balance', authMiddleware, async (req, res) => {
+router.get('/balance', authMiddleware, balancePollLimiter, async (req, res) => {
   try {
     const userId = (req as express.Request & { userId?: string }).userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
@@ -575,9 +614,42 @@ router.get('/balance', authMiddleware, async (req, res) => {
   }
 })
 
+// GET /api/auth/balance-history - Historique des mouvements de solde (casino ledger)
+router.get('/balance-history', authMiddleware, balancePollLimiter, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const rawLimit = Number(req.query.limit)
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(100, Math.floor(rawLimit))) : 50
+
+    const entries = await prisma.walletLedgerEntry.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        createdAt: true,
+        reason: true,
+        gameType: true,
+        amount: true,
+        balanceBefore: true,
+        balanceAfter: true,
+        roundId: true,
+      },
+    })
+
+    res.json({ entries })
+  } catch (error) {
+    console.error('balance-history GET error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // POST /api/auth/add-dev-money - Ajoute des jetons (validation "dev" côté serveur, pas de confiance client)
 router.post('/add-dev-money', authMiddleware, async (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
+  const allowInProduction = String(process.env.ALLOW_DEV_TOPUP ?? '').toLowerCase() === 'true'
+  if (process.env.NODE_ENV === 'production' && !allowInProduction) {
     return res.status(403).json({ error: "Bien essayé !  L'ajout d'argent gratuit est désactivé en production." })
   }
 
@@ -589,10 +661,29 @@ router.post('/add-dev-money', authMiddleware, async (req, res) => {
     const rawAmount = typeof req.body?.amount === 'number' ? req.body.amount : Number(req.body?.amount)
     const amount = Math.min(999999, Math.max(1, Math.floor(Number(rawAmount))))
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Montant invalide' })
+    const before = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { chips: true },
+    })
+    if (!before) return res.status(404).json({ error: 'Utilisateur non trouvé' })
+
     const user = await prisma.user.update({
       where: { id: userId },
       data: { chips: { increment: amount } },
       select: { chips: true }
+    })
+
+    // Trace comptable explicite du rajout de solde (utile pour l'historique client).
+    await prisma.walletLedgerEntry.create({
+      data: {
+        userId,
+        amount,
+        reason: 'DEV_TOPUP',
+        gameType: 'wallet',
+        balanceBefore: before.chips,
+        balanceAfter: user.chips,
+        settlementState: 'SETTLED',
+      },
     })
     res.json({ ok: true, chips: user.chips })
   } catch (error) {
@@ -621,7 +712,10 @@ const adminConsoleLoginSchema = z.object({
 
 router.post('/admin/login', adminConsoleLoginLimiter, async (req, res) => {
   if (!env.adminConsoleUsername || !env.adminConsolePasswordHash) {
-    return res.status(503).json({ error: 'Console administrateur non configurée.' })
+    return res.status(503).json({
+      error: 'Console administrateur non configurée.',
+      code: 'ADMIN_CONSOLE_NOT_CONFIGURED',
+    })
   }
   const parsed = adminConsoleLoginSchema.safeParse(req.body)
   if (!parsed.success) {

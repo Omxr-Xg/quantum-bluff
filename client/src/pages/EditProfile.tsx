@@ -2,11 +2,23 @@ import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Camera, Save, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router";
-import { QuantumBluffLogo, defaultAvatarUrl } from "../assets/logo";
+import { defaultAvatarUrl } from "../assets/logo";
 import { getUserProfile, saveUserProfile } from "../utils/userProfile";
 import { AvatarGallery } from "../components/AvatarGallery";
 import { useUpdateProfileAvatarMutation } from "../services/api";
 import { fileToAvatarDataUrl } from "../utils/avatarUpload";
+import { getAuthItem, setAuthItem } from "../utils/authStorage";
+
+const editGlassCard =
+  "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
+const editInnerCard =
+  "rounded-xl border border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md";
+const editInputClass =
+  "w-full rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-blue-200/45 focus:ring-1 focus:ring-blue-300/25";
+const editPrimaryButton =
+  "rounded-full border border-blue-300/20 bg-blue-950/75 font-semibold text-white shadow-lg shadow-black/20 transition hover:border-blue-200/35 hover:bg-blue-900/85 disabled:cursor-not-allowed disabled:opacity-50";
+const editMutedButton =
+  "rounded-full border border-white/10 bg-white/[0.055] font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]";
 
 export function EditProfile() {
   const { t } = useTranslation();
@@ -74,7 +86,7 @@ export function EditProfile() {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthItem("token");
       let avatarToPersist = profileImage;
       let usernameToPersist = formData.username.trim();
       let emailToPersist = formData.email.trim();
@@ -97,9 +109,9 @@ export function EditProfile() {
         email: emailToPersist,
         avatar: avatarToPersist,
       });
-      localStorage.setItem("username", usernameToPersist);
-      localStorage.setItem("quantum_bluff_username", usernameToPersist);
-      localStorage.setItem("quantum_bluff_email", emailToPersist);
+      setAuthItem("username", usernameToPersist);
+      setAuthItem("quantum_bluff_username", usernameToPersist);
+      setAuthItem("quantum_bluff_email", emailToPersist);
       window.dispatchEvent(new Event("auth-changed"));
       setSuccessMessage(t("editProfile.profileUpdated"));
       setTimeout(() => {
@@ -119,50 +131,64 @@ export function EditProfile() {
   };
 
   return (
-    <div className="size-full app-shell-bg overflow-auto">
-      <div className="w-full min-w-0 p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-8">
+    <div className="relative min-h-full w-full overflow-hidden bg-[#020716] text-slate-100">
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.24),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_40%,rgba(14,116,144,0.10),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
+        <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/40 blur-[120px]" />
+        <div className="absolute -left-20 top-1/3 h-80 w-80 rounded-full bg-cyan-700/10 blur-[90px]" />
+        <div className="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-indigo-950/28 blur-[110px]" />
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.26) 1px, transparent 0)",
+            backgroundSize: "22px 22px",
+          }}
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.55),transparent_58%)]" />
+      </div>
+
+      <div className="relative z-10 mx-auto w-full max-w-6xl min-w-0 p-3 sm:p-6">
+        <div className="mb-6 flex items-start justify-between">
           <button
             onClick={() => navigate("/profile")}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+            className={`flex w-fit items-center gap-2 px-3 py-2 text-sm sm:px-4 ${editMutedButton}`}
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="h-4 w-4" />
             <span>{t("editProfile.backToProfile")}</span>
           </button>
-
-          <div className="flex items-center gap-3">
-            <QuantumBluffLogo className="w-12 h-12 drop-shadow-2xl" />
-            <span className="text-2xl font-bold text-white">{t("lobby.title")}</span>
-          </div>
         </div>
 
         {successMessage && (
-          <div className="bg-green-600/20 border border-green-500 text-green-400 px-6 py-4 rounded-xl mb-6 text-center font-semibold">
+          <div className="mb-6 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-6 py-4 text-center font-semibold text-emerald-200 shadow-[0_0_30px_rgba(16,185,129,0.10)]">
             {successMessage}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-8">
-            <h1 className="text-3xl font-bold text-white mb-6">
+          <div className={`p-5 sm:p-7 ${editGlassCard}`}>
+            <h1 className="mb-2 bg-gradient-to-r from-slate-100 via-blue-200 to-cyan-200 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl">
               {t("editProfile.editProfileTitle")}
             </h1>
+            <p className="mb-7 max-w-2xl text-sm text-slate-400">
+              {t("editProfile.profilePhotoSection")} · {t("editProfile.basicInfoSection")} · {t("editProfile.securitySection")}
+            </p>
 
-            <div className="mb-8 pb-8 border-b border-slate-700">
-              <h2 className="text-xl font-semibold text-white mb-4">
+            <div className={`mb-5 p-4 sm:p-5 ${editInnerCard}`}>
+              <h2 className="mb-4 text-xl font-semibold text-white">
                 {t("editProfile.profilePhotoSection")}
               </h2>
 
-              <div className="flex flex-col md:flex-row md:items-center gap-6 mb-6">
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-green-600 to-green-800 border-4 border-yellow-400 overflow-hidden flex items-center justify-center shadow-2xl">
+              <div className="mb-6 flex flex-col gap-6 md:flex-row md:items-center">
+                <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border border-blue-200/25 bg-blue-950/55 shadow-[0_0_44px_rgba(59,130,246,0.20)]">
                   <img
                     src={profileImage}
                     alt={t("editProfile.profilePreviewAlt")}
-                    className="w-full h-full object-cover"
+                    className="h-full w-full object-cover"
                   />
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -173,20 +199,20 @@ export function EditProfile() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg"
+                    className={`flex items-center gap-2 px-6 py-3 ${editPrimaryButton}`}
                   >
-                    <Camera className="w-5 h-5" />
+                    <Camera className="h-5 w-5" />
                     {t("editProfile.choosePhoto")}
                   </button>
-                  <p className="text-gray-400 text-sm mt-2">{t("editProfile.photoFormatsHint")}</p>
+                  <p className="mt-2 text-sm text-slate-400">{t("editProfile.photoFormatsHint")}</p>
                 </div>
               </div>
 
               <div className="mt-6">
-                <h3 className="text-lg font-semibold text-white mb-3">
+                <h3 className="mb-3 text-lg font-semibold text-white">
                   {t("editProfile.avatarGalleryLabel")}
                 </h3>
-                <p className="text-gray-400 text-sm mb-4">{t("editProfile.avatarPresetHint")}</p>
+                <p className="mb-4 text-sm text-slate-400">{t("editProfile.avatarPresetHint")}</p>
                 <AvatarGallery
                   selectedAvatar={profileImage}
                   onSelect={handleAvatarSelect}
@@ -194,14 +220,14 @@ export function EditProfile() {
               </div>
             </div>
 
-            <div className="mb-8 pb-8 border-b border-slate-700">
-              <h2 className="text-xl font-semibold text-white mb-4">
+            <div className={`mb-5 p-4 sm:p-5 ${editInnerCard}`}>
+              <h2 className="mb-4 text-xl font-semibold text-white">
                 {t("editProfile.basicInfoSection")}
               </h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-gray-400 text-sm font-semibold mb-2">
+                  <label className="mb-2 block text-sm font-semibold text-slate-400">
                     {t("editProfile.usernameLabel")}
                   </label>
                   <input
@@ -210,13 +236,13 @@ export function EditProfile() {
                     onChange={(e) =>
                       setFormData({ ...formData, username: e.target.value })
                     }
-                    className="w-full bg-slate-700/50 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-green-500 transition-colors"
+                    className={editInputClass}
                     placeholder={t("editProfile.usernamePlaceholder")}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-400 text-sm font-semibold mb-2">
+                  <label className="mb-2 block text-sm font-semibold text-slate-400">
                     {t("editProfile.emailLabel")}
                   </label>
                   <input
@@ -225,21 +251,21 @@ export function EditProfile() {
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
                     }
-                    className="w-full bg-slate-700/50 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-green-500 transition-colors"
+                    className={editInputClass}
                     placeholder={t("editProfile.emailPlaceholder")}
                   />
                 </div>
               </div>
             </div>
 
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold text-white mb-4">
+            <div className={`mb-5 p-4 sm:p-5 ${editInnerCard}`}>
+              <h2 className="mb-4 text-xl font-semibold text-white">
                 {t("editProfile.securitySection")}
               </h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-gray-400 text-sm font-semibold mb-2">
+                  <label className="mb-2 block text-sm font-semibold text-slate-400">
                     {t("editProfile.currentPasswordLabel")}
                   </label>
                   <div className="relative">
@@ -249,25 +275,25 @@ export function EditProfile() {
                       onChange={(e) =>
                         setFormData({ ...formData, currentPassword: e.target.value })
                       }
-                      className="w-full bg-slate-700/50 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-green-500 transition-colors pr-12"
+                      className={`${editInputClass} pr-12`}
                       placeholder={t("editProfile.currentPasswordPlaceholder")}
                     />
                     <button
                       type="button"
                       onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-white"
                     >
                       {showCurrentPassword ? (
-                        <EyeOff className="w-5 h-5" />
+                        <EyeOff className="h-5 w-5" />
                       ) : (
-                        <Eye className="w-5 h-5" />
+                        <Eye className="h-5 w-5" />
                       )}
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-gray-400 text-sm font-semibold mb-2">
+                  <label className="mb-2 block text-sm font-semibold text-slate-400">
                     {t("editProfile.newPasswordLabel")}
                   </label>
                   <div className="relative">
@@ -277,28 +303,28 @@ export function EditProfile() {
                       onChange={(e) =>
                         setFormData({ ...formData, newPassword: e.target.value })
                       }
-                      className="w-full bg-slate-700/50 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-green-500 transition-colors pr-12"
+                      className={`${editInputClass} pr-12`}
                       placeholder={t("editProfile.newPasswordPlaceholder")}
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-white"
                     >
                       {showNewPassword ? (
-                        <EyeOff className="w-5 h-5" />
+                        <EyeOff className="h-5 w-5" />
                       ) : (
-                        <Eye className="w-5 h-5" />
+                        <Eye className="h-5 w-5" />
                       )}
                     </button>
                   </div>
-                  <p className="text-gray-500 text-xs mt-1">
+                  <p className="mt-1 text-xs text-slate-500">
                     {t("editProfile.newPasswordOptionalHint")}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-gray-400 text-sm font-semibold mb-2">
+                  <label className="mb-2 block text-sm font-semibold text-slate-400">
                     {t("editProfile.confirmPasswordLabel")}
                   </label>
                   <div className="relative">
@@ -308,18 +334,18 @@ export function EditProfile() {
                       onChange={(e) =>
                         setFormData({ ...formData, confirmPassword: e.target.value })
                       }
-                      className="w-full bg-slate-700/50 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-green-500 transition-colors pr-12"
+                      className={`${editInputClass} pr-12`}
                       placeholder={t("editProfile.confirmPasswordPlaceholder")}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-white"
                     >
                       {showConfirmPassword ? (
-                        <EyeOff className="w-5 h-5" />
+                        <EyeOff className="h-5 w-5" />
                       ) : (
-                        <Eye className="w-5 h-5" />
+                        <Eye className="h-5 w-5" />
                       )}
                     </button>
                   </div>
@@ -327,11 +353,11 @@ export function EditProfile() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-4 pt-6 border-t border-slate-700">
+            <div className="flex flex-col items-stretch justify-end gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center">
               <button
                 type="button"
                 onClick={() => navigate("/profile")}
-                className="bg-slate-700 hover:bg-slate-600 text-white px-8 py-3 rounded-xl font-semibold transition-all"
+                className={`px-8 py-3 ${editMutedButton}`}
               >
                 {t("common.cancel")}
               </button>
@@ -339,9 +365,9 @@ export function EditProfile() {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-xl font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`flex items-center justify-center gap-2 px-8 py-3 ${editPrimaryButton}`}
               >
-                <Save className="w-5 h-5" />
+                <Save className="h-5 w-5" />
                 {isSaving ? t("editProfile.saving") : t("editProfile.saveChanges")}
               </button>
             </div>

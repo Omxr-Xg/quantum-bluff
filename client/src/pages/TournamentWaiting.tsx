@@ -1,9 +1,12 @@
 import { useLocation, useNavigate } from 'react-router';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSocket } from '../hooks/useSocket';
 import { Trophy, Clock, Users } from 'lucide-react';
+import { TournamentService } from '../services/tournament.service';
 
 export function TournamentWaiting() {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { socket } = useSocket();
@@ -19,17 +22,39 @@ export function TournamentWaiting() {
     };
 
     const handleFinal = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
-      navigate(`/game?gameId=${data.gameId}`, { state: { tournamentPlayers: data.players } });
+      navigate(`/game?gameId=${data.gameId}&tournament=1`, { state: { tournamentPlayers: data.players } });
     };
 
     socket.on('tournament-waiting-final', handleUpdate);
     socket.on('tournament-final-table', handleFinal);
+    socket.on('tournament-merge-table', handleFinal);
 
     return () => {
       socket.off('tournament-waiting-final', handleUpdate);
       socket.off('tournament-final-table', handleFinal);
+      socket.off('tournament-merge-table', handleFinal);
     };
   }, [socket, navigate]);
+
+  /** Si les événements final-table / merge ont été manqués, retrouver la table via l’API. */
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const { gameId } = await TournamentService.getMyTournamentTable();
+        if (cancelled || !gameId) return;
+        navigate(`/game?gameId=${encodeURIComponent(gameId)}&tournament=1`);
+      } catch {
+        /* ignore */
+      }
+    };
+    void poll();
+    const iv = setInterval(() => void poll(), 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+    };
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
@@ -37,13 +62,13 @@ export function TournamentWaiting() {
         <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
           <Trophy className="w-8 h-8 text-yellow-400" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Vous êtes en finale !</h1>
-        <p className="text-slate-400 mb-6">En attente des autres tables...</p>
+        <h1 className="text-2xl font-bold text-white mb-2">{t('tournament.waiting.title')}</h1>
+        <p className="text-slate-400 mb-6">{t('tournament.waiting.subtitle')}</p>
         <div className="bg-slate-700 rounded-xl p-4 mb-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-slate-400 text-sm flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Tables terminées
+              {t('tournament.waiting.tablesDone')}
             </span>
             <span className="text-white font-bold">{survivorsCount}/{expectedTables}</span>
           </div>
@@ -56,7 +81,7 @@ export function TournamentWaiting() {
         </div>
         <div className="flex items-center justify-center gap-2 text-slate-400">
           <Clock className="w-4 h-4 animate-spin" />
-          <span className="text-sm">La table finale se prépare...</span>
+          <span className="text-sm">{t('tournament.waiting.preparing')}</span>
         </div>
       </div>
     </div>

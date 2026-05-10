@@ -79,7 +79,7 @@ export const LanguageSwitcher = ({ className = "", buttonClassName = "" }: Langu
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [isOpen]);
 
-  const currentLang =
+  const _currentLang =
     allLanguages.find((l) => l.code === i18n.language || i18n.language.startsWith(l.code + "-")) ?? allLanguages[1];
 
   const panel =
@@ -121,7 +121,7 @@ export const LanguageSwitcher = ({ className = "", buttonClassName = "" }: Langu
       : null;
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative shrink-0 overflow-visible ${className}`}>
       <button
         ref={buttonRef}
         type="button"

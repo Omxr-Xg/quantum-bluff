@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router";
 import { useSocket } from "./useSocket";
 import type { GameInvitationNotification } from "../contexts/SocketContext";
 import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
 
 /**
  * Accepter une invitation salle d’attente / blackjack : si l’utilisateur est en partie cash
@@ -28,7 +29,7 @@ export function useWaitingRoomInvitationAccept() {
 
   const runAccept = useCallback(
     async (inv: GameInvitationNotification) => {
-      const token = localStorage.getItem("token");
+      const token = getAuthItem("token");
       const isBj = inv.game === "blackjack";
       const sp = new URLSearchParams(window.location.search);
       const gameId = sp.get("gameId");

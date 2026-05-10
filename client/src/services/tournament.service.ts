@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "http://localhost:3000/api";
+import { apiFetch, apiUrl } from '../utils/apiBase';
+import { getAuthItem } from '../utils/authStorage';
 
 export interface Tournament {
   id: string;
@@ -8,16 +9,29 @@ export interface Tournament {
   maxPlayers: number;
   startTime: string;
   status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'CANCELED';
+  visibility?: 'PUBLIC' | 'PRIVATE';
   _count: { players: number };
   isJoined: boolean;
   players?: { userId: string; user: { id: string; username: string; experience: number } }[];
 }
 
+export interface TournamentSpectateTable {
+  tableNumber: number;
+  roomId: string;
+  players: { id: string; username: string }[];
+  live: boolean;
+}
+
+export interface TournamentSpectatePayload {
+  tournamentName: string;
+  tables: TournamentSpectateTable[];
+}
+
 export const TournamentService = {
   getTournaments: async (): Promise<Tournament[]> => {
-    const token = localStorage.getItem('token'); // 1. On récupère le token
+    const token = getAuthItem('token'); // 1. On récupère le token
     
-    const res = await fetch(`${API_URL}/tournaments`, {
+    const res = await apiFetch(apiUrl('/api/tournaments'), {
       headers: {
         // 2. ON L'ENVOIE ! Sans ça, le serveur te voit comme un inconnu.
         'Authorization': `Bearer ${token}` 
@@ -28,11 +42,11 @@ export const TournamentService = {
     return res.json();
   },
 
-  createTournament: async (data: { name: string; buyIn: number; maxPlayers: number; startTime: string }) => {
-    const res = await fetch(`${API_URL}/tournaments/create`, {
+  createTournament: async (data: { name: string; buyIn: number; maxPlayers: number; startTime: string; visibility?: 'PUBLIC' | 'PRIVATE' }) => {
+    const res = await apiFetch(apiUrl('/api/tournaments/create'), {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${getAuthItem('token')}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(data)
@@ -45,10 +59,10 @@ export const TournamentService = {
 
   // ASSURE-TOI QUE CE NOM EST BIEN CELUI-LÀ 👇
   joinTournament: async (id: string) => {
-    const res = await fetch(`${API_URL}/tournaments/${id}/join`, {
+    const res = await apiFetch(apiUrl(`/api/tournaments/${id}/join`), {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${getAuthItem('token')}`,
         'Content-Type': 'application/json'
       }
     });
@@ -57,11 +71,74 @@ export const TournamentService = {
     return data;
   },
 
+  requestJoinTournament: async (id: string) => {
+    const res = await apiFetch(apiUrl(`/api/tournaments/${id}/request-join`), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${getAuthItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Erreur d'envoi de demande");
+    return data;
+  },
+
+  getReceivedJoinRequests: async () => {
+    const res = await apiFetch(apiUrl('/api/tournaments/requests/received'), {
+      headers: {
+        'Authorization': `Bearer ${getAuthItem('token')}`,
+      }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Erreur de chargement des demandes");
+    return data;
+  },
+
+  acceptJoinRequest: async (requestId: string) => {
+    const res = await apiFetch(apiUrl(`/api/tournaments/requests/${requestId}/accept`), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${getAuthItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Erreur d'acceptation");
+    return data;
+  },
+
+  /** Récupère l’id de partie tournoi sur ce serveur si le joueur est encore à table (évite blocage si socket manqué). */
+  getMyTournamentTable: async (): Promise<{ gameId: string | null; tournamentId: string | null }> => {
+    const res = await apiFetch(apiUrl('/api/tournaments/my-table'), {
+      headers: {
+        Authorization: `Bearer ${getAuthItem('token') ?? ''}`,
+      },
+    });
+    const data = (await res.json()) as { gameId?: string | null; tournamentId?: string | null; error?: string };
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    return {
+      gameId: data.gameId ?? null,
+      tournamentId: data.tournamentId ?? null,
+    };
+  },
+
+  getSpectateTables: async (id: string): Promise<TournamentSpectatePayload> => {
+    const res = await apiFetch(apiUrl(`/api/tournaments/${id}/spectate-tables`), {
+      headers: {
+        Authorization: `Bearer ${getAuthItem('token') ?? ''}`,
+      },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur chargement des tables');
+    return data;
+  },
+
   leaveTournament: async (id: string) => {
-    const res = await fetch(`${API_URL}/tournaments/${id}/leave`, {
+    const res = await apiFetch(apiUrl(`/api/tournaments/${id}/leave`), {
       method: 'POST',
       headers: { 
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${getAuthItem('token')}`,
         'Content-Type': 'application/json' 
       }
     });

@@ -9,6 +9,7 @@ import { Clock } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
 import { useTableTheme } from "../contexts/TableThemeContext";
 import { calculatePlayerPositions } from "../utils/tablePositions";
+import { cardHighlightKey } from "../utils/cards";
 
 interface Card {
   suit: string;
@@ -45,6 +46,12 @@ interface PokerTableProps {
   /** Clic sur l’avatar d’un adversaire (multijoueur) : menu invitation / message / signalement */
   onOpponentAvatarClick?: (player: Player) => void;
   enableAvatarInteractions?: boolean;
+  /** Cash / hors tournoi : masque le stack sous l’avatar du joueur (solde déjà en header). Tournoi : laisser false. */
+  hideHeroChipStack?: boolean;
+  /** Nombre de sièges pour le calcul des positions (ex. spectateur : joueurs + 1 siège vide). */
+  layoutSeatCount?: number;
+  /** Clés `suit|value` des cartes à mettre en surbrillance (showdown). */
+  highlightCardKeys?: Set<string>;
 }
 
 // Dimensions de référence — doivent correspondre à tablePositions.ts
@@ -64,6 +71,9 @@ export function PokerTable({
   heroTimerDuration = 30,
   onOpponentAvatarClick,
   enableAvatarInteractions = false,
+  hideHeroChipStack = false,
+  layoutSeatCount,
+  highlightCardKeys,
 }: PokerTableProps) {
   const { t } = useTranslation();
   const { feltGradient, feltBorder } = useTableTheme();
@@ -74,11 +84,13 @@ export function PokerTable({
   const isTablet  = deviceType === "tablet";
 
   // Positions calculées pour TOUS les sièges (même index = même position)
-  const allPositions = calculatePlayerPositions(
-    players.length > 0 ? players.length : 1,
-    isMobile,
-    isTablet
-  );
+  const seatCountForLayout =
+    typeof layoutSeatCount === "number" && layoutSeatCount > 0
+      ? layoutSeatCount
+      : players.length > 0
+        ? players.length
+        : 1;
+  const allPositions = calculatePlayerPositions(seatCountForLayout, isMobile, isTablet);
 
   /**
    * Convertit des coordonnées px (relatives au centre, issues de calculatePlayerPositions)
@@ -109,8 +121,8 @@ export function PokerTable({
       <div
         className="relative flex items-center justify-center"
         style={isMobile ? {
-          width: "85vw",
-          maxWidth: "85vw",
+          width: "90vw",
+          maxWidth: "90vw",
           aspectRatio: "2 / 3",
           overflow: "visible",
         } : isTablet ? {
@@ -363,7 +375,7 @@ export function PokerTable({
                           </svg>
                         )}
                         <div className="relative z-10">{avatarNode}</div>
-                        <div className="pointer-events-none absolute left-1/2 top-[72%] z-30 flex -translate-x-1/2 flex-col items-center drop-shadow-2xl">
+                        <div className="pointer-events-none absolute left-1/2 top-[58%] z-30 flex -translate-x-1/2 flex-col items-center drop-shadow-2xl md:top-[64%]">
                           {player.cards && player.cards.length > 0 && !player.hasFolded && (
                             <div className="relative z-10 flex items-start justify-center">
                               {player.cards.map((card, index) => (
@@ -371,28 +383,35 @@ export function PokerTable({
                                   key={index}
                                   className="relative origin-top transition-all duration-300"
                                   style={{
-                                    marginLeft: index > 0 ? (isMobile ? "4px" : "8px") : "0",
-                                    transform: `rotate(${index === 0 ? -5 : 6}deg) scale(1.2)`,
+                                    marginLeft: index > 0 ? (isMobile ? "3px" : "8px") : "0",
+                                    transform: `rotate(${index === 0 ? -5 : 6}deg)${isMobile ? "" : " scale(1.2)"}`,
                                   }}
                                 >
                                   <PokerCard
                                     suit={card.suit}
                                     value={card.value}
-                                    size="md"
+                                    size={isMobile ? "sm" : "md"}
                                     colorblindMode={colorblindMode}
+                                    highlight={Boolean(
+                                      highlightCardKeys?.size &&
+                                        card.suit !== "hidden" &&
+                                        highlightCardKeys.has(cardHighlightKey(card)),
+                                    )}
                                   />
                                 </div>
                               ))}
                             </div>
                           )}
-                          <div className="mt-2 flex flex-col items-center gap-0">
+                          <div className="mt-1 flex flex-col items-center gap-0 md:mt-1.5">
                             <div className="relative z-40 min-w-[4.8rem] rounded-md border border-white/10 bg-slate-950/95 px-3 py-1 text-center text-xs font-bold leading-none text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.55)] md:text-sm">
                               {displayName}
                             </div>
-                            <div className="inline-flex min-w-[4.8rem] items-center justify-center gap-1.5 rounded-md border border-slate-600/80 bg-slate-900/95 px-3 py-1 text-xs font-bold leading-none tabular-nums text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.45)] md:text-sm">
-                              <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0" />
-                              <span>{player.chips.toLocaleString()}</span>
-                            </div>
+                            {!(hideHeroChipStack && isHeroSeat) && (
+                              <div className="inline-flex min-w-[4.8rem] items-center justify-center gap-1.5 rounded-md border border-slate-600/80 bg-slate-900/95 px-3 py-1 text-xs font-bold leading-none tabular-nums text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.45)] md:text-sm">
+                                <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0" />
+                                <span>{player.chips.toLocaleString()}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -412,6 +431,12 @@ export function PokerTable({
                               faceDown={!isShowdown}
                               colorblindMode={colorblindMode}
                               className={index === 0 ? "-rotate-6" : "rotate-6"}
+                              highlight={Boolean(
+                                isShowdown &&
+                                  highlightCardKeys?.size &&
+                                  card.suit !== "hidden" &&
+                                  highlightCardKeys.has(cardHighlightKey(card)),
+                              )}
                             />
                           ))}
                         </div>

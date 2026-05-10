@@ -41,13 +41,23 @@ model User {
   bannedUntil       DateTime? // Si défini et dans le futur, le compte est bloqué
   /// Tutoriel interactif du lobby terminé ou ignoré (une fois par compte).
   lobbyTutorialCompletedAt DateTime?
-  /// URL d’avatar profil (chemin `/api/auth/avatars/:id` après enregistrement binaire, ou URL externe legacy).
+  /// URL d'avatar profil (chemin `/api/auth/avatars/:id` après enregistrement binaire, ou URL externe legacy).
   avatarUrl         String?
-  /// Image d’avatar persistée en base (JPEG/PNG/SVG…), servie par GET /api/auth/avatars/:userId
+  /// Image d'avatar persistée en base (JPEG/PNG/SVG…), servie par GET /api/auth/avatars/:userId
   avatarImage       Bytes?
   avatarMime        String?
-  /// True si avatarImage est renseigné — évite de charger le BYTEA au login pour construire l’URL publique.
+  /// True si avatarImage est renseigné — évite de charger le BYTEA au login pour construire l'URL publique.
   avatarHasBinary   Boolean  @default(false)
+
+  // ============================================
+  // DAILY LOGIN STREAK (récompense quotidienne progressive)
+  // ============================================
+  /// Numéro du jour courant dans la série de connexions consécutives (1..7, retombe à 1 si la série est cassée).
+  loginStreakCount        Int       @default(0)
+  /// Clé du dernier jour (YYYY-MM-DD UTC) où la récompense de connexion a été RÉCLAMÉE.
+  lastLoginRewardDayKey   String?
+  /// Date exacte de la dernière réclamation (audit/debug).
+  lastLoginRewardAt       DateTime?
 
   stats             UserStats?
   histories         GameHistory[] @relation("WinnerHistory")
@@ -75,6 +85,7 @@ model User {
   // ============================================
   tournamentsCreated Tournament[]       @relation("TournamentCreator")
   tournamentsJoined  TournamentPlayer[]
+  tournamentJoinRequests TournamentJoinRequest[] @relation("TournamentJoinRequester")
 
   // RELATIONS EXISTANTES
   gameActions       GameAction[]    // Actions effectuées par le joueur
@@ -101,6 +112,9 @@ model User {
   playerReportsSent     PlayerReport[] @relation("PlayerReportsSent")
   playerReportsReceived PlayerReport[] @relation("PlayerReportsReceived")
 
+  freeRecharge      FreeRecharge?
+  giftCodeUsages    GiftCodeUsage[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -109,6 +123,7 @@ model User {
   @@index([createdAt])
   @@index([chips])
   @@index([experience])
+  @@index([lastLoginRewardDayKey])
 }
 
 /// Avis joueur (étoiles + commentaire optionnel), collecté depuis le client.
@@ -317,7 +332,7 @@ model LoanRepayment {
   @@index([loanId])
   @@index([borrowerId])
   @@map("loan_repayments")
-  @@index([borrowerId, createdAt]) 
+  @@index([borrowerId, createdAt])
   @@index([lenderId, createdAt])
 }
 
@@ -406,7 +421,7 @@ model RoomPlayer {
   isReady      Boolean  @default(false)
   joinedAt     DateTime @default(now())
   position     Int?     // Position à la table (optionnel)
-  /// URL d’avatar publique (client), validée par le serveur — partagée avec tous les joueurs de la salle
+  /// URL d'avatar publique (client), validée par le serveur — partagée avec tous les joueurs de la salle
   avatarUrl    String?
 
   room         WaitingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
@@ -630,7 +645,7 @@ model WalletLedgerEntry {
   amount             Int
   reason             String
   game               String?  // Gardé pour la compatibilité
-  
+
   // Nouveaux champs demandés par le moteur de casino pro
   roundId            String?
   actionId           String?
@@ -652,6 +667,67 @@ model WalletLedgerEntry {
   @@index([createdAt])
   @@index([roundId])
   @@map("wallet_ledger_entries")
+}
+
+// ============================================
+// RECHARGE GRATUITE AVEC COOLDOWN
+// ============================================
+model FreeRecharge {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  lastRechargeAt     DateTime?
+  nextRechargeAfter  DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([nextRechargeAfter])
+  @@map("free_recharges")
+}
+
+// ============================================
+// CODES CADEAUX & PROMOTIONS
+// ============================================
+model GiftCode {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  amount        Int      // Valeur générique: jetons ou montant/pourcentage de réduction
+  usageType     String   @default("TOKENS") // TOKENS | FIXED_DISCOUNT | PERCENTAGE_DISCOUNT
+  type          String   // ACHIEVEMENT | EVENT | SEASONAL | SPECIAL
+  description   String?  // Ex: "50 matchs de suite", "Noël 2024"
+  expiresAt     DateTime?// null = pas d'expiration
+  maxUses       Int      @default(-1) // -1 = illimité
+  usedCount     Int      @default(0)
+
+  // Relations
+  usedByUsers   GiftCodeUsage[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([code])
+  @@index([expiresAt])
+  @@index([type])
+  @@map("gift_codes")
+}
+
+model GiftCodeUsage {
+  id        String   @id @default(uuid())
+  codeId    String
+  userId    String
+
+  code  GiftCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  user  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  usedAt DateTime @default(now())
+
+  @@unique([codeId, userId]) // Un code par utilisateur
+  @@index([userId])
+  @@index([codeId])
+  @@index([usedAt])
+  @@map("gift_code_usages")
 }
 
 // ============================================
@@ -753,6 +829,17 @@ enum TournamentStatus {
   CANCELED   // Annulé
 }
 
+enum TournamentVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum TournamentJoinRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model Tournament {
   id          String           @id @default(uuid())
   name        String
@@ -761,15 +848,38 @@ model Tournament {
   startTime   DateTime
   status      TournamentStatus @default(PENDING)
   prizePool   Int              @default(0)
-  
+  visibility  TournamentVisibility @default(PUBLIC)
+  /** Nombre de tables parallèles au 1er tour (reconstruction bracket si Redis vide). */
+  openingRoundTableCount Int?
+  /** OPENING | FINAL — phase bracket persistée pour reconstruction. */
+  activeBracketPhase     String?
+
   createdById String
   createdBy   User             @relation("TournamentCreator", fields: [createdById], references: [id])
   createdAt   DateTime         @default(now())
 
   players     TournamentPlayer[]
+  joinRequests TournamentJoinRequest[]
 
   @@map("tournaments")
   @@index([status, startTime])
+}
+
+model TournamentJoinRequest {
+  id            String                      @id @default(uuid())
+  tournamentId  String
+  requesterId   String
+  status        TournamentJoinRequestStatus @default(PENDING)
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  requester  User       @relation("TournamentJoinRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, requesterId])
+  @@index([tournamentId, status])
+  @@index([requesterId, status])
+  @@map("tournament_join_requests")
 }
 
 model TournamentPlayer {

@@ -3,6 +3,11 @@ import { prisma } from '../config/database.js';
 import { TournamentService } from '../services/tournament.service.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import jwt from 'jsonwebtoken'; // Assure-toi d'avoir importé jwt
+import {
+  buildTournamentLobbyWhere,
+  TOURNAMENT_LIST_GRACE_MS_DEFAULT,
+  TOURNAMENT_LIST_TAKE_DEFAULT,
+} from '../tournament/tournamentLobbyWhere.js';
 
 const router = Router();
 
@@ -20,39 +25,37 @@ router.get('/', async (req: Request, res: Response) => {
     let currentUserId: string | null = null;
     const authHeader = req.headers.authorization;
 
-    console.log("=== DEBUG LOBBY ==="); // 👈 MOUCHARD 1
-    console.log("Header recu :", authHeader); // 👈 MOUCHARD 2
-
-    // 1. Décryptage du token
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       try {
-        // VÉRIFIE BIEN QUE CETTE CLÉ (secret) EST LA MÊME DANS TOUT TON PROJET
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as TokenPayload;
         currentUserId = decoded.userId;
-        console.log("ID Utilisateur détecté dans le Lobby:", currentUserId); // LOG DE DEBUG
       } catch {
-        console.log("Token invalide ou manquant");
+        /* token invalide : lobby public sans isJoined */
       }
     }
 
-    // 2. Récupération des tournois
+    const now = new Date();
     const tournaments = await prisma.tournament.findMany({
-      where: { status: 'PENDING' },
+      where: buildTournamentLobbyWhere({
+        now,
+        graceMs: TOURNAMENT_LIST_GRACE_MS_DEFAULT,
+        currentUserId,
+      }),
+      take: TOURNAMENT_LIST_TAKE_DEFAULT,
       include: {
         _count: { select: { players: true } },
         players: {
           include: {
-            user: { select: { id: true, username: true, experience: true } }
-          }
-        }
+            user: { select: { id: true, username: true, experience: true } },
+          },
+        },
       },
-      orderBy: { startTime: 'asc' }
+      orderBy: { startTime: 'asc' },
     });
 
-    // 3. Formatage de la réponse
-    const result = tournaments.map(t => {
-      const isJoined = currentUserId ? t.players.some(p => p.userId === currentUserId) : false;
+    const result = tournaments.map((t) => {
+      const isJoined = currentUserId ? t.players.some((p) => p.userId === currentUserId) : false;
 
       return {
         id: t.id,
@@ -62,6 +65,7 @@ router.get('/', async (req: Request, res: Response) => {
         maxPlayers: t.maxPlayers,
         startTime: t.startTime,
         status: t.status,
+        visibility: t.visibility,
         _count: t._count,
         isJoined,
         players: t.players,
@@ -80,7 +84,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.post('/create', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { name, buyIn, maxPlayers, startTime } = req.body;
+    const { name, buyIn, maxPlayers, startTime, visibility } = req.body;
     const userId = req.userId; // Déjà typé via ton declare global
 
     if (!userId) {
@@ -91,8 +95,8 @@ router.post('/create', authMiddleware, async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Données manquantes" });
     }
 
-    if (maxPlayers < 7 || maxPlayers > 36) {
-      return res.status(400).json({ error: 'Le nombre de joueurs doit être entre 7 et 36.' });
+    if (maxPlayers < 4 || maxPlayers > 36) {
+      return res.status(400).json({ error: 'Le nombre de joueurs doit être entre 4 et 36.' });
     }
 
     const tournament = await TournamentService.createTournament({
@@ -100,12 +104,84 @@ router.post('/create', authMiddleware, async (req: Request, res: Response) => {
       buyIn: Number(buyIn), 
       maxPlayers: Number(maxPlayers), 
       startTime: new Date(startTime), 
-      createdById: userId
+      createdById: userId,
+      visibility: visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
     });
     
     res.status(201).json(tournament);
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erreur lors de la création";
+    res.status(400).json({ error: msg });
+  }
+});
+
+/** Partie tournoi en cours sur ce pod pour l’utilisateur (récupération client si socket manqué). */
+router.get('/my-table', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Non autorisé' });
+    const found = await TournamentService.findActiveTournamentTableForUser(userId);
+    res.json({
+      gameId: found?.gameId ?? null,
+      tournamentId: found?.tournamentId ?? null,
+    });
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/** Tables suivables en spectateur (200 + tables vides si tournoi terminé ou aucune partie sur ce nœud). */
+router.get('/:id/spectate-tables', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const payload = await TournamentService.getSpectateTablesPayload(req.params.id);
+    if (!payload) {
+      return res.status(404).json({ error: 'Tournoi introuvable.' });
+    }
+    res.json(payload);
+  } catch {
+    res.status(500).json({ error: 'Erreur lors du chargement des tables.' });
+  }
+});
+
+router.post('/:id/request-join', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Non autorisé' });
+    const request = await TournamentService.createPrivateJoinRequest(req.params.id, userId);
+    const io = TournamentService.getIo();
+    io?.to(`user:${request.hostId}`).emit('TOURNAMENT_JOIN_REQUEST_RECEIVED', {
+      requestId: request.id,
+      tournamentId: request.tournamentId,
+      tournamentName: request.tournamentName,
+      requesterId: request.requesterId,
+      requesterUsername: request.requesterUsername,
+    });
+    res.json({ message: 'Demande envoyée', requestId: request.id });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Erreur';
+    res.status(400).json({ error: msg });
+  }
+});
+
+router.get('/requests/received', authMiddleware, async (req: Request, res: Response) => {
+  const userId = req.userId;
+  if (!userId) return res.status(401).json({ error: 'Non autorisé' });
+  res.json(await TournamentService.getPendingRequestsForHost(userId));
+});
+
+router.post('/requests/:requestId/accept', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Non autorisé' });
+    const accepted = await TournamentService.acceptPrivateJoinRequest(req.params.requestId, userId);
+    const io = TournamentService.getIo();
+    io?.to(`user:${accepted.requesterId}`).emit('TOURNAMENT_JOIN_REQUEST_ACCEPTED', {
+      tournamentId: accepted.tournamentId,
+      tournamentName: accepted.tournamentName,
+    });
+    res.json({ message: 'Demande acceptée' });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Erreur';
     res.status(400).json({ error: msg });
   }
 });

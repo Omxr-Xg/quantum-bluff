@@ -73,7 +73,7 @@ export function FriendsList() {
   const friendsCount = friends?.length || 0;
 
   return (
-    <div className="relative min-h-full overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl">
+    <div className="relative overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl">
       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/40 to-transparent" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.06] via-blue-950/[0.12] to-transparent" />
       <div className="relative z-10">

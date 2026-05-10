@@ -1,0 +1,16 @@
+# Exemple minimal : OTLP HTTP (4318) → debug (stdout). Remplacez l’exporter par Tempo / Jaeger en prod.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]

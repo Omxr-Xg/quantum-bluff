@@ -40,21 +40,42 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: quantum_backend
     restart: unless-stopped
+    # Même secrets qu’en local : server/.env (gitignored) survit aux git pull sur la VM.
+    # Ne pas mettre ADMIN_CONSOLE_* dans environment avec ${VAR:-} vide : ça écraserait les valeurs du fichier.
+    env_file:
+      - server/.env
+      - .env
     environment:
       DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD:-My027}@postgres:5432/${DB_NAME:-quantum_bluff}?schema=public
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-super_secret_for_production_change_me}
       PORT: 3000
+      INSTANCE_ID: ${INSTANCE_ID:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-quantum-bluff-api}
       CORS_ORIGIN: "https://mai-projet-integrateur.u-strasbg.fr"
-    ports:
-      - "3000:3000"
+      AI_SERVICE_ENABLED: ${AI_SERVICE_ENABLED:-true}
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_TIMEOUT_MS: ${AI_SERVICE_TIMEOUT_MS:-450}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
+      ai-service:
+        condition: service_started
+    networks:
+      - quantum_net
+
+  ai-service:
+    build:
+      context: ./server/ai-service
+      dockerfile: Dockerfile
+    container_name: quantum_ai_service
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     networks:
       - quantum_net
 
@@ -78,6 +99,8 @@ services:
     tmpfs:
       - /var/cache/nginx
       - /var/run
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "80:80"
       - "443:443"

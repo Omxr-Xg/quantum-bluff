@@ -1,7 +1,8 @@
 import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
 
 function authHeaders(json = false): HeadersInit {
-  const token = typeof localStorage !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined" ? getAuthItem("token") : null;
   const h: Record<string, string> = {};
   if (json) h["Content-Type"] = "application/json";
   if (token) h.Authorization = `Bearer ${token}`;

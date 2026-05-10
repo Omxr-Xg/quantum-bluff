@@ -31,6 +31,11 @@ type MetricsApi = {
   setDegraded: (reason: string, active: boolean) => void
   incRateLimitExceeded: (routeGroup: string) => void
   incSocketEvent: (event: string) => void
+  setSocketIoConnectionsActive: (count: number) => void
+  setRedisSocketIoAdapterUp: (up: boolean) => void
+  setTournamentLeaderActive: (instanceId: string, active: boolean) => void
+  setTournamentStalePendingCount: (count: number) => void
+  observeRedisCommandDurationMs: (command: string, durationMs: number) => void
   incDbError: (operation: string) => void
   observePrismaDurationMs: (operation: string, durationMs: number) => void
   getMetricsText: () => Promise<string>
@@ -120,6 +125,40 @@ function createRealMetrics(): MetricsApi {
     registers: [register],
   })
 
+  const socketIoConnectionsActive = new Gauge({
+    name: 'socket_io_connections_active',
+    help: 'Connexions Socket.IO actives sur cette instance (engine)',
+    registers: [register],
+  })
+
+  const redisAdapterUp = new Gauge({
+    name: 'redis_adapter_up',
+    help: '1 si adaptateur Redis Socket.IO actif sur cette instance',
+    registers: [register],
+  })
+
+  const tournamentLeaderActive = new Gauge({
+    name: 'tournament_leader_active',
+    help: '1 si cette instance détient le verrou leader cron tournoi',
+    labelNames: ['instance_id'],
+    registers: [register],
+  })
+
+  const tournamentStalePendingCount = new Gauge({
+    name: 'tournament_stale_pending_count',
+    help:
+      'Tournois PENDING dont l’heure de départ est dépassée (>30s) — alerte si Redis/leader bloque le démarrage auto',
+    registers: [register],
+  })
+
+  const redisCommandDurationSeconds = new Histogram({
+    name: 'redis_command_duration_seconds',
+    help: 'Durée des commandes Redis instrumentées (échantillon)',
+    labelNames: ['command'],
+    buckets: [0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1],
+    registers: [register],
+  })
+
   return {
     observeHttp({ method, routeGroup, status, durationMs }) {
       const sc = statusClass(status)
@@ -152,6 +191,21 @@ function createRealMetrics(): MetricsApi {
     incSocketEvent(event: string) {
       socketIoEventsTotal.inc({ event })
     },
+    setSocketIoConnectionsActive(count: number) {
+      socketIoConnectionsActive.set(count)
+    },
+    setRedisSocketIoAdapterUp(up: boolean) {
+      redisAdapterUp.set(up ? 1 : 0)
+    },
+    setTournamentLeaderActive(instanceId: string, active: boolean) {
+      tournamentLeaderActive.set({ instance_id: instanceId }, active ? 1 : 0)
+    },
+    setTournamentStalePendingCount(count: number) {
+      tournamentStalePendingCount.set(count)
+    },
+    observeRedisCommandDurationMs(command: string, durationMs: number) {
+      redisCommandDurationSeconds.observe({ command }, durationMs / 1000)
+    },
     incDbError(operation: string) {
       dbErrorsTotal.inc({ operation })
     },
@@ -176,6 +230,11 @@ const noop: MetricsApi = {
   setDegraded: () => {},
   incRateLimitExceeded: () => {},
   incSocketEvent: () => {},
+  setSocketIoConnectionsActive: () => {},
+  setRedisSocketIoAdapterUp: () => {},
+  setTournamentLeaderActive: () => {},
+  setTournamentStalePendingCount: () => {},
+  observeRedisCommandDurationMs: () => {},
   incDbError: () => {},
   observePrismaDurationMs: () => {},
   async getMetricsText() {

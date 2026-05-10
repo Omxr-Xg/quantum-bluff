@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import { AccessibilityProvider } from "./contexts/AccessibilityContext";
 import { AccessibilityMenuOpenProvider } from "./contexts/AccessibilityMenuOpenContext";
@@ -39,6 +40,8 @@ import { InvitationAcceptProvider } from "./contexts/InvitationAcceptContext";
 import { socket } from './services/socket';
 import { useUser } from './hooks/useUser';
 import { useToast } from './contexts/ToastContext';
+import { getAuthItem } from './utils/authStorage';
+import { TournamentService } from './services/tournament.service';
 
 
 const isDev = import.meta.env.DEV;
@@ -81,6 +84,23 @@ function TournamentTeleporter() {
   const navigate = useNavigate();
   const { userId } = useUser();
   const { addToast } = useToast();
+  const { t, i18n } = useTranslation();
+
+  const recoverTournamentTable = useCallback(async () => {
+    const uid = userId != null ? String(userId) : "";
+    if (!uid) return;
+    const token = getAuthItem("token");
+    if (!token) return;
+    try {
+      const { gameId } = await TournamentService.getMyTournamentTable();
+      if (!gameId) return;
+      const params = new URLSearchParams(window.location.search);
+      if (window.location.pathname === "/game" && params.get("gameId") === gameId) return;
+      navigate(`/game?gameId=${encodeURIComponent(gameId)}&tournament=1`);
+    } catch {
+      /* ignore */
+    }
+  }, [userId, navigate]);
   
   const [tournamentResult, setTournamentResult] = useState<{
     type: 'win' | 'lose' | 'finalist' | 'result';
@@ -91,7 +111,7 @@ function TournamentTeleporter() {
   } | null>(null);
 
   useEffect(() => {
-    const currentToken = localStorage.getItem('token');
+    const currentToken = getAuthItem('token');
 
     if (!currentToken) {
       if (isDev) console.warn("⛔ Pas de token — socket non connecté");
@@ -105,32 +125,47 @@ function TournamentTeleporter() {
     }
 
     const handleTournamentStart = (data: { playersToTeleport?: string[]; playerToGameMap?: Record<string, string> }) => {
-      const isIncluded = data.playersToTeleport?.includes(userId);
+      const uid = userId != null ? String(userId) : "";
+      if (!uid) {
+        void recoverTournamentTable();
+        return;
+      }
+      const ids = data.playersToTeleport ?? [];
+      const isIncluded = ids.some((id) => String(id) === uid);
       if (isIncluded) {
-        const myTableId = data.playerToGameMap?.[userId];
-        if (!myTableId) return;
-        addToast(`Le tournoi commence !`, "success");
-        navigate(`/game?gameId=${myTableId}`);
+        const myTableId = data.playerToGameMap?.[uid] ?? data.playerToGameMap?.[userId as string];
+        if (!myTableId) {
+          void recoverTournamentTable();
+          return;
+        }
+        addToast(t("tournament.teleporter.toastStarted"), "success");
+        navigate(`/game?gameId=${encodeURIComponent(myTableId)}&tournament=1`);
       }
     };
 
-    const handleTournamentWon = (data: { userId: string }) => {
+    const handleTournamentWon = (data: { userId: string; survivorsCount?: number; expectedTables?: number }) => {
       if (data.userId === userId) {
         setTournamentResult({ type: 'finalist' });
         setTimeout(() => {
           setTournamentResult(null);
-          navigate('/tournament-waiting');
+          navigate('/tournament-waiting', {
+            state: data.survivorsCount && data.expectedTables
+              ? { survivorsCount: data.survivorsCount, expectedTables: data.expectedTables }
+              : undefined,
+          });
         }, 3000);
       }
     };
 
-    const handleWaitingFinal = (_data: { survivorsCount: number; expectedTables: number }) => {
-      // Handled by TournamentWaiting page directly via socket
+    const handleWaitingFinal = (data: { survivorsCount: number; expectedTables: number }) => {
+      // Si l’utilisateur ouvre directement /tournament-waiting sans state, on pourrait
+      // relayer ici dans un store global. Pour l’instant, on se contente du composant dédié.
+      console.log('[TOURNOI] waiting-final update', data);
     };
 
     const handleFinalTable = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
       setTournamentResult(null);
-      navigate(`/game?gameId=${data.gameId}`, {
+      navigate(`/game?gameId=${data.gameId}&tournament=1`, {
         state: { tournamentPlayers: data.players }
       });
     };
@@ -144,7 +179,7 @@ function TournamentTeleporter() {
     const handleSpectate = (data: { gameId: string }) => {
       setTimeout(() => {
         setTournamentResult(null);
-        navigate(`/game?gameId=${data.gameId}&spectate=1`);
+        navigate(`/game?gameId=${data.gameId}&spectate=1&tournament=1`);
       }, 5000);
     };
 
@@ -168,19 +203,41 @@ function TournamentTeleporter() {
       }, 12000);
     };
 
-    const handleCountdown = (data: { tournamentName: string; minutesLeft: number; message: string }) => {
+    const handleCountdown = (data: { tournamentName: string; minutesLeft: number }) => {
       const type = data.minutesLeft <= 5 ? 'warning' : 'info';
-      addToast(data.message, type);
+      const msg =
+        data.minutesLeft === 1
+          ? t('tournament.teleporter.countdownOne', { name: data.tournamentName })
+          : t('tournament.teleporter.countdownMany', {
+              name: data.tournamentName,
+              minutes: String(data.minutesLeft),
+            });
+      addToast(msg, type);
     };
 
-    const handleCancelled = (data: { tournamentName: string; message: string }) => {
-      addToast(data.message, 'error');
+    const handleCancelled = (data: { tournamentName: string; reason?: string }) => {
+      addToast(t('tournament.teleporter.cancelled', { name: data.tournamentName }), 'error');
     };
 
-    const handlePlayerJoined = (data: { message: string }) => {
-      addToast(data.message, 'info');
+    const handlePlayerJoined = (data: {
+      username: string;
+      playerCount: number;
+      maxPlayers: number;
+    }) => {
+      addToast(
+        t('tournament.teleporter.playerJoined', {
+          username: data.username,
+          current: String(data.playerCount),
+          max: String(data.maxPlayers),
+        }),
+        'info',
+      );
     };
 
+    const onSocketConnect = () => {
+      void recoverTournamentTable();
+    };
+    socket.on('connect', onSocketConnect);
     socket.on('tournament-started', handleTournamentStart);
     socket.on('tournament-won', handleTournamentWon);
     socket.on('tournament-countdown', handleCountdown);
@@ -188,11 +245,13 @@ function TournamentTeleporter() {
     socket.on('tournament-player-joined', handlePlayerJoined);
     socket.on('tournament-waiting-final', handleWaitingFinal);
     socket.on('tournament-final-table', handleFinalTable);
+    socket.on('tournament-merge-table', handleFinalTable);
     socket.on('tournament-eliminated', handleElimination);
     socket.on('tournament-spectate', handleSpectate);
     socket.on('tournament-result', handleTournamentResult);
 
     return () => {
+      socket.off('connect', onSocketConnect);
       socket.off('tournament-started', handleTournamentStart);
       socket.off('tournament-won', handleTournamentWon);
       socket.off('tournament-countdown', handleCountdown);
@@ -200,11 +259,16 @@ function TournamentTeleporter() {
       socket.off('tournament-player-joined', handlePlayerJoined);
       socket.off('tournament-waiting-final', handleWaitingFinal);
       socket.off('tournament-final-table', handleFinalTable);
+      socket.off('tournament-merge-table', handleFinalTable);
       socket.off('tournament-eliminated', handleElimination);
       socket.off('tournament-spectate', handleSpectate);
       socket.off('tournament-result', handleTournamentResult);
     };
-  }, [userId, navigate, addToast]);
+  }, [userId, navigate, addToast, t, i18n.language, recoverTournamentTable]);
+
+  useEffect(() => {
+    void recoverTournamentTable();
+  }, [recoverTournamentTable]);
 
   if (tournamentResult) {
     const medals = ['🥇', '🥈', '🥉'];
@@ -221,13 +285,13 @@ function TournamentTeleporter() {
         }}>
           <div style={{ fontSize: '5rem', marginBottom: '20px' }}>🏆</div>
           <h1 style={{ fontSize: '3rem', margin: 0, color: '#FFD700', textShadow: '0 0 20px #FFD700' }}>
-            Félicitations !
+            {t('tournament.teleporter.finalistTitle')}
           </h1>
           <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
-            Vous êtes qualifié pour la finale !
+            {t('tournament.teleporter.finalistSubtitle')}
           </p>
           <p style={{ marginTop: '10px', fontSize: '1rem', opacity: 0.6 }}>
-            Redirection dans quelques secondes...
+            {t('tournament.teleporter.redirecting')}
           </p>
         </div>
       );
@@ -244,13 +308,13 @@ function TournamentTeleporter() {
         }}>
           <div style={{ fontSize: '6rem', marginBottom: '20px' }}>💥</div>
           <h1 style={{ fontSize: '4rem', margin: 0, color: '#FF4444', textShadow: '0 0 20px #FF0000' }}>
-            ÉLIMINÉ
+            {t('tournament.teleporter.eliminatedTitle')}
           </h1>
           <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
-            Tu n'as plus de jetons. Fin de la partie...
+            {t('tournament.teleporter.eliminatedSubtitle')}
           </p>
           <p style={{ marginTop: '20px', fontSize: '1rem', opacity: 0.5 }}>
-            Redirection vers la table finale en mode spectateur...
+            {t('tournament.teleporter.spectateHint')}
           </p>
           <button
             type="button"
@@ -262,7 +326,7 @@ function TournamentTeleporter() {
               fontSize: '1rem', cursor: 'pointer', fontFamily: 'sans-serif',
             }}
           >
-            Retourner
+            {t('tournament.teleporter.backButton')}
           </button>
         </div>
       );
@@ -287,11 +351,21 @@ function TournamentTeleporter() {
             color: myPos && myPos <= 3 ? medalColors[myPos - 1] : '#ffffff',
             textShadow: myPos && myPos <= 3 ? `0 0 20px ${medalColors[myPos - 1]}` : 'none'
           }}>
-            {myPos === 1 ? 'VICTOIRE !' : myPos === 2 ? '2ème PLACE' : myPos === 3 ? '3ème PLACE' : `${myPos}ème PLACE`}
+            {myPos === 1
+              ? t('tournament.teleporter.place1')
+              : myPos === 2
+                ? t('tournament.teleporter.place2')
+                : myPos === 3
+                  ? t('tournament.teleporter.place3')
+                  : myPos
+                    ? t('tournament.teleporter.placeN', { n: String(myPos) })
+                    : ''}
           </h1>
           {tournamentResult.myAmount && tournamentResult.myAmount > 0 && (
             <p style={{ fontSize: '1.5rem', marginTop: '10px', color: '#4ade80' }}>
-              +{tournamentResult.myAmount.toLocaleString()} jetons
+              {t('tournament.teleporter.prizeChips', {
+                amount: tournamentResult.myAmount.toLocaleString(i18n.language),
+              })}
             </p>
           )}
           {tournamentResult.ranking && tournamentResult.ranking.length > 0 && (
@@ -314,7 +388,9 @@ function TournamentTeleporter() {
                   </span>
                   {r.amount > 0 && (
                     <span style={{ color: '#4ade80', fontSize: '0.9rem' }}>
-                      +{r.amount.toLocaleString()}
+                      {t('tournament.teleporter.prizeChips', {
+                        amount: r.amount.toLocaleString(i18n.language),
+                      })}
                     </span>
                   )}
                 </div>
@@ -322,7 +398,7 @@ function TournamentTeleporter() {
             </div>
           )}
           <p style={{ marginTop: '24px', fontSize: '0.9rem', opacity: 0.4 }}>
-            Retour aux tournois dans quelques secondes...
+            {t('tournament.teleporter.backTournamentsSoon')}
           </p>
         </div>
       );

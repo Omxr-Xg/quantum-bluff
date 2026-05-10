@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { getUserBalance, updateUserBalance, addToUserBalance, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
+import { getAuthItem } from "../utils/authStorage";
 
 interface UserContextType {
   userId: string | null;
@@ -13,12 +15,12 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 function readFromStorage() {
-  const rawUserId = localStorage.getItem("userId") ?? localStorage.getItem("userid");
-  const rawUsername = localStorage.getItem("username");
+  const rawUserId = getAuthItem("userId") ?? getAuthItem("userid");
+  const rawUsername = getAuthItem("username");
   return {
     userId: rawUserId && rawUserId !== "undefined" && rawUserId !== "null" ? rawUserId : null,
     username: rawUsername && rawUsername !== "undefined" && rawUsername !== "null" ? rawUsername : null,
-    isAdmin: localStorage.getItem("role") === "admin",
+    isAdmin: getAuthItem("role") === "admin",
   };
 }
 
@@ -26,10 +28,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [userId, setUserId] = useState<string | null>(() => readFromStorage().userId);
   const [username, setUsername] = useState<string | null>(() => readFromStorage().username);
   const [isAdmin, setIsAdmin] = useState<boolean>(() => readFromStorage().isAdmin);
-  const [chips, setChips] = useState<number>(() => {
-    const stored = localStorage.getItem("chips");
-    return stored ? Number(stored) : 1000;
-  });
+  const [chips, setChips] = useState<number>(() => getUserBalance());
 
   useEffect(() => {
     const handleAuthChanged = () => {
@@ -37,21 +36,28 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setUserId(newUserId);
       setUsername(newUsername);
       setIsAdmin(nextAdmin);
+      setChips(getUserBalance());
     };
     window.addEventListener("auth-changed", handleAuthChanged);
     return () => window.removeEventListener("auth-changed", handleAuthChanged);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("chips", String(chips));
-  }, [chips]);
+    const onBalanceChanged = () => setChips(getUserBalance());
+    window.addEventListener(BALANCE_CHANGED_EVENT, onBalanceChanged);
+    return () => window.removeEventListener(BALANCE_CHANGED_EVENT, onBalanceChanged);
+  }, []);
+
+  const setChipsSynced = (value: number) => {
+    updateUserBalance(value);
+  };
 
   const addChips = (amount: number) => {
-    setChips((prev) => prev + amount);
+    addToUserBalance(amount);
   };
 
   return (
-    <UserContext.Provider value={{ userId, username, chips, isAdmin, setChips, addChips }}>
+    <UserContext.Provider value={{ userId, username, chips, isAdmin, setChips: setChipsSynced, addChips }}>
       {children}
     </UserContext.Provider>
   );

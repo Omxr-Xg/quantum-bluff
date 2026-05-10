@@ -220,6 +220,7 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
 
   const playSfx = useCallback((name: SfxName) => {
     if (!sfxEnabledRef.current || sfxVolumeRef.current <= 0) return;
+    window.__quantumBluffLastSfxAt = performance.now();
 
     if (name === 'victory') {
       const audio = sfxAudioRefs.current.victory;
@@ -305,5 +306,6 @@ export const useMusic = useAudio;
 declare global {
   interface Window {
     webkitAudioContext?: typeof globalThis.AudioContext;
+    __quantumBluffLastSfxAt?: number;
   }
 }

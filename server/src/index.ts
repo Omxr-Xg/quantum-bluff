@@ -1,12 +1,16 @@
-import express from 'express'
+import './observability/otelEarly.js'
+
+import express, { type Request } from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
+import { createAdapter } from '@socket.io/redis-adapter'
 import cors, { type CorsOptions } from 'cors'
 import helmet from 'helmet'
 import swaggerUi from 'swagger-ui-express'
 import { env } from './config/env.js'
 import { swaggerSpec } from './config/swagger.config.js'
 import { initCleanupJobs } from './utils/cleanup.job.js'
+import { pruneInactiveBlackjackWaitingRooms } from './blackjack/recovery/blackjackRecovery.service.js'
 import { TournamentService } from './services/tournament.service.js'
 import './cron/tournament.cron.js'
 import tournamentRoutes from './routes/tournament.routes.js'
@@ -36,6 +40,10 @@ import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
 import dailyChallengesRoutes from './dailyChallenges/dailyChallenge.routes.js'
+import dailyLoginRoutes from './dailyLogin/dailyLogin.routes.js'
+import freeRechargeRoutes from './freeRecharge/freeRecharge.routes.js'
+import giftCodesRoutes from './giftCodes/giftCodes.routes.js'
+import walletRoutes from './wallet/wallet.routes.js'
 import hiddenBetsRoutes from './routes/hiddenBets.routes.js'
 import feedbackRoutes from './routes/feedback.routes.js'
 import playerReportRoutes from './routes/playerReport.routes.js'
@@ -43,8 +51,13 @@ import adminConsoleRoutes from './routes/adminConsole.routes.js'
 import { antiCheatMiddleware } from './middleware/antiCheat.middleware.js'
 import adminRoutes from './routes/admin.routes.js'
 import { GameGateway } from './sockets/game.gateway.js'
+import { setGameIo } from './sockets/gameIo.registry.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
 import { connectDB } from './config/database.js'
+import { createSocketIoRedisClients, disconnectSocketIoRedisClients } from './config/socketIoRedis.js'
+import { shutdownOtel } from './observability/otel.js'
+import { setDraining } from './observability/readinessDrain.js'
+import { releaseTournamentLeaderLock } from './services/tournamentLeaderLock.service.js'
 import { recoverBlackjackRuntimeAtBoot } from './blackjack/recovery/blackjackRecovery.service.js'
 import adminPokerRuntimeRoutes from './routes/admin.poker.runtime.routes.js'
 import adminRouletteOverrideRoutes from './routes/admin.roulette.override.routes.js'
@@ -78,6 +91,9 @@ const corsOptions: CorsOptions = {
 
 app.use(
   helmet({
+    // Par défaut Helmet met CORP « same-origin » : le front Vite (:5175) ne peut pas
+    // afficher des images servies par l’API (:3000). cross-origin est adapté à une API publique.
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
@@ -98,11 +114,27 @@ app.use(httpAccessLogMiddleware)
 
 const limiter = rateLimitWithMetrics({
   windowMs: 15 * 60 * 1000,
-  limit: env.isProduction ? 100 : 1000, 
+  /**
+   * Comptage surtout des réponses non-2xx (skipSuccessfulRequests) ; marge pour clients qui retry après erreurs.
+   * Les lectures de solde sont exclues : avec skipSuccessfulRequests, les rafales concurrentes peuvent quand même
+   * dépasser le plafond avant les décrémentations « finish » — le client poll /balance pendant une partie cash.
+   */
+  limit: env.isProduction ? 400 : 1000,
   message: { error: 'Trop de requêtes, réessaie plus tard' },
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
+  skip: (req: Request) => {
+    const p = req.path
+    if (req.method === 'GET' && (p === '/api/auth/balance' || p === '/api/auth/balance-history')) {
+      return true
+    }
+    /** Console / outils admin : beaucoup de GET successifs ; le JWT admin est vérifié sur chaque route. */
+    if (p.startsWith('/api/admin')) {
+      return true
+    }
+    return false
+  },
 })
 
 app.use(limiter)
@@ -184,6 +216,10 @@ app.use('/api/blackjack-tables', blackjackMultiApiLimiter, blackjackMultiRoutes)
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/daily-challenges', dailyChallengesRoutes)
+app.use('/api/daily-login', dailyLoginRoutes)
+app.use('/api/free-recharge', freeRechargeRoutes)
+app.use('/api/gift-codes', giftCodesRoutes)
+app.use('/api/wallet', walletRoutes)
 app.use('/api/tournaments', tournamentRoutes)
 
 // PROD HARDENING : On ne charge les routes sensibles qu'en mode développement
@@ -287,14 +323,84 @@ const io = new Server(httpServer, {
   },
 })
 
+if (!env.isJest) {
+  try {
+    const { pubClient, subClient } = createSocketIoRedisClients()
+    io.adapter(createAdapter(pubClient, subClient))
+    metrics.setRedisSocketIoAdapterUp(true)
+    const onDown = () => metrics.setRedisSocketIoAdapterUp(false)
+    pubClient.on('error', onDown)
+    subClient.on('error', onDown)
+    pubClient.on('end', onDown)
+    subClient.on('end', onDown)
+  } catch (err) {
+    rootLogger.warn({
+      msg: 'socket_io_redis_adapter_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    })
+    metrics.setRedisSocketIoAdapterUp(false)
+  }
+} else {
+  metrics.setRedisSocketIoAdapterUp(false)
+}
+
 TournamentService.setIo(io)
 io.use(socketAuth)
 app.set('io', io)
 
 initCleanupJobs()
+void pruneInactiveBlackjackWaitingRooms()
+  .then((deleted) => {
+    if (deleted > 0) {
+      rootLogger.info({ msg: 'bj_waiting_prune_at_boot', deleted })
+    }
+  })
+  .catch((err) => {
+    rootLogger.warn({
+      msg: 'bj_waiting_prune_at_boot_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    })
+  })
 new GameGateway(io)
+setGameIo(io)
 
 const PORT = env.port
+
+let shuttingDown = false
+function registerGracefulShutdown(): void {
+  const drain = async (signal: string) => {
+    if (shuttingDown) return
+    shuttingDown = true
+    rootLogger.info({ msg: 'shutdown_begin', signal, instanceId: env.instanceId })
+    setDraining(true)
+    const drainMs = Number.parseInt(process.env.SHUTDOWN_DRAIN_MS ?? '30000', 10) || 30000
+    await new Promise((r) => setTimeout(r, Math.min(2000, drainMs)))
+
+    await new Promise<void>((resolve) => {
+      httpServer.close(() => resolve())
+    })
+
+    await new Promise<void>((resolve) => {
+      const t = setTimeout(resolve, drainMs)
+      io.close(() => {
+        clearTimeout(t)
+        resolve()
+      })
+    })
+
+    metrics.setRedisSocketIoAdapterUp(false)
+    await releaseTournamentLeaderLock()
+    await shutdownOtel()
+    await disconnectSocketIoRedisClients()
+    rootLogger.info({ msg: 'shutdown_complete', instanceId: env.instanceId })
+    process.exit(0)
+  }
+
+  process.on('SIGTERM', () => void drain('SIGTERM'))
+  process.on('SIGINT', () => void drain('SIGINT'))
+}
+
+registerGracefulShutdown()
 
 ;(async () => {
   try {
@@ -303,11 +409,12 @@ const PORT = env.port
     await recoverBlackjackRuntimeAtBoot()
 
     httpServer.listen(PORT, () => {
-  rootLogger.info({
-    msg: 'server_listen',
-    port: PORT,
-    detail: 'Quantum Bluff API démarrée',
-  })
+      rootLogger.info({
+        msg: 'server_listen',
+        port: PORT,
+        instanceId: env.instanceId,
+        detail: 'Quantum Bluff API démarrée',
+      })
 
       TournamentService.startTournamentWatcher(io)
     })

@@ -40,6 +40,8 @@ export interface Player {
   /** Total amount put into the pot this hand (for side pot calculation). */
   totalPutInThisHand?: number;
   isActive: boolean;
+  /** Vrai seulement après un fold explicite (ou équivalent quit) sur cette main — pas pour un bust au showdown. */
+  hasFoldedThisHand?: boolean;
   position?: number;
   isDealer?: boolean;
   isConnected?: boolean;
@@ -65,10 +67,16 @@ export interface GameState {
   showdownHandName?: string
   /** Pot attribué au showdown (pour affichage) */
   showdownPot?: number
+  /** Les 5 cartes formant la main gagnante au showdown (Hold'em). */
+  showdownWinningCards?: Card[]
   /** Nombre de cartes brûlées (affichage face cachée à côté de la table) */
   burnedCardsCount?: number
   /** Relance minimum côté serveur (cash / tournoi). */
   minRaise?: number
+  /** Grosse blind de la table (presets de relance côté client). */
+  bigBlind?: number
+  /** Petite blind de la table. */
+  smallBlind?: number
   /** Durée max d’un tour en secondes (cash game multi) */
   turnTimeLimitSec?: number
   /** Identifiant logique de la main courante (canonical runtime state). */
@@ -111,6 +119,10 @@ export interface GameState {
     windowType: 'PRE_HAND' | 'LIVE_FLOP' | 'LIVE_TURN' | 'LIVE_RIVER' | null
     closesAt?: number
   }
+  /** Rattachement tournoi (tables `game_tournoi_*`) — non exposé au client via état sanitizé. */
+  tournamentId?: string
+  /** Numéro d’affichage table (1…n) pour spectateurs / reconstruction. */
+  tournamentTableNumber?: number
   /** Phase runtime détaillée (pilotage backend/front). */
   handRuntimePhase?:
     | 'HAND_IN_PROGRESS'

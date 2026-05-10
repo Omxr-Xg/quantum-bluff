@@ -7,17 +7,24 @@ import { CashGameController } from '../../logic/CashGameController.js'
 import type { GameTable } from '../../logic/GameTable.js'
 import type { ActiveGame } from '../../shared/activeGames.js'
 import {
-  decideBotAction,
   type BotActionRequest,
   type BotDifficulty,
 } from '../../logic/botAI.js'
 import { sanitizeBotDecision } from '../../logic/botDecisionSanitize.js'
 import { getPracticeBotDifficulty } from '../../shared/practiceBotGames.js'
 import { rootLogger } from '../../observability/logger.js'
+import { decideBotActionWithExpertAi } from '../../services/botAi.service.js'
+
 const QB_BOT_PREFIX = 'qb-bot-'
 
 /** Délai avant chaque action bot (affordance « réflexion » côté joueur humain). */
 const PRACTICE_BOT_THINK_MS = 3000
+
+/** Garde-fou : mains très longues (beaucoup de relances). */
+const PRACTICE_BOT_MAX_STEPS = 160
+
+/** Si le tour bot ne progresse pas après N tentatives, on force CHECK/FOLD. */
+const PRACTICE_BOT_STALL_BEFORE_FORCE = 3
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -32,6 +39,21 @@ function isBotSeatId(playerId: string): boolean {
 
 function tableHighestCurrentBet(state: { players: { currentBet?: number }[] }): number {
   return Math.max(0, ...state.players.map((p) => p.currentBet ?? 0))
+}
+
+function progressSignature(g: GameTable): string {
+  const s = g.state
+  return `${s.handId ?? ''}|${s.phase}|${s.currentTurn ?? ''}|${s.actionVersion ?? 0}|${s.streetVersion ?? 0}|${s.pot}`
+}
+
+/** Action sûre si l’IA ou la requête bot est indisponible. */
+function inferFallbackAction(inner: GameTable, botId: string): 'CHECK' | 'FOLD' {
+  const bot = inner.state.players.find((p) => p.id === botId)
+  const highest = tableHighestCurrentBet(inner.state)
+  const myBet = bot?.currentBet ?? 0
+  const callAmount = Math.max(0, highest - myBet)
+  if (callAmount === 0) return 'CHECK'
+  return 'FOLD'
 }
 
 function buildBotRequest(
@@ -66,6 +88,25 @@ function buildBotRequest(
   }
 }
 
+function buildExpertAiContext(game: GameTable, gameId: string, botId: string) {
+  const bot = game.state.players.find((p) => p.id === botId)
+  const activeOpponents = game.state.players.filter((p) => p.id !== botId && p.isActive !== false)
+  const opponentStack =
+    activeOpponents
+      .sort((a, b) => b.chips - a.chips)[0]?.chips ?? bot?.chips ?? 0
+
+  return {
+    gameId,
+    botId,
+    street: game.state.phase,
+    opponentStack,
+    actions: game.state.lastHandAction ? [game.state.lastHandAction] : [],
+    opponentHoleCards: activeOpponents
+      .map((p) => p.cards ?? [])
+      .filter((cards) => cards.length >= 2),
+  }
+}
+
 /** Diffuse l’état courant à toute la room (même logique que la gateway). */
 export async function broadcastPracticeTableState(
   io: Server,
@@ -85,7 +126,7 @@ async function emitRoomAfterPracticeAction(
   for (const s of socketsInRoom) {
     const uid = (s as unknown as { userId?: string }).userId
     const isSpectator = !game.getPlayerState(uid ?? '')
-    const snapshot = game.getSanitizedState(isSpectator ? undefined : uid)
+    const snapshot = game.getSanitizedState(isSpectator ? undefined : uid, isSpectator)
     s.emit('GAME_UPDATE', snapshot)
     s.emit('GAME_STATE_UPDATED', snapshot)
   }
@@ -105,22 +146,78 @@ async function emitRoomAfterPracticeAction(
   }
 }
 
+async function applyBotAction(
+  gameId: string,
+  botId: string,
+  inner: GameTable,
+  actionType: 'FOLD' | 'CALL' | 'RAISE' | 'CHECK',
+  amount?: number,
+): Promise<void> {
+  await applyPokerAction({
+    gameId,
+    playerId: botId,
+    actionType,
+    amount,
+    actionId: `bot-${randomUUID()}`,
+    handId: inner.state.handId,
+    expectedStreet: inner.state.phase,
+  })
+}
+
 async function runPracticeBotTurnsChainBody(
   io: Server,
   gameId: string,
 ): Promise<void> {
-  for (let step = 0; step < 48; step++) {
+  let stallCount = 0
+
+  for (let step = 0; step < PRACTICE_BOT_MAX_STEPS; step++) {
     const game = await activeGames.get(gameId)
-    if (!game || game instanceof CashGameController) break
+    if (!game || game instanceof CashGameController) {
+      break
+    }
 
     const turn = game.state.currentTurn
-    if (!turn || !isBotSeatId(turn)) break
+    if (!turn || !isBotSeatId(turn)) {
+      break
+    }
 
-    if (game.state.handRuntimePhase === 'HAND_COMPLETE') break
+    if (game.state.handRuntimePhase === 'HAND_COMPLETE') {
+      break
+    }
 
     const inner = game as GameTable
+    const sigBefore = progressSignature(inner)
     const difficulty = getPracticeBotDifficulty(gameId)
     const req = buildBotRequest(inner, turn, difficulty)
+
+    const runFallbackOnly = async (reason: string): Promise<boolean> => {
+      const latest = (await activeGames.get(gameId)) as GameTable | undefined
+      if (!latest || latest instanceof CashGameController) return false
+      if (latest.state.currentTurn !== turn || !isBotSeatId(turn)) return true
+      const fb = inferFallbackAction(latest, turn)
+      rootLogger.warn({
+        msg: 'practice_bot_fallback_action',
+        gameId,
+        turn,
+        reason,
+        fallback: fb,
+      })
+      await sleep(Math.min(500, PRACTICE_BOT_THINK_MS))
+      try {
+        await applyBotAction(gameId, turn, latest, fb)
+      } catch (err) {
+        rootLogger.error({
+          msg: 'practice_bot_fallback_failed',
+          gameId,
+          turn,
+          detail: err instanceof Error ? err.message : String(err),
+        })
+        await broadcastPracticeTableState(io, gameId)
+        return false
+      }
+      return true
+    }
+
     if (!req) {
       rootLogger.warn({
         msg: 'practice_bot_skip_no_request',
@@ -128,11 +225,32 @@ async function runPracticeBotTurnsChainBody(
         turn,
         cardsLen: inner.state.players.find((p) => p.id === turn)?.cards?.length ?? -1,
       })
-      break
+      const ok = await runFallbackOnly('no_bot_request')
+      if (!ok) break
+      const fresh = await activeGames.get(gameId)
+      if (!fresh) break
+      await emitRoomAfterPracticeAction(io, gameId, fresh)
+      if (fresh.state.phase === 'SHOWDOWN') break
+      if (fresh.state.handRuntimePhase === 'HAND_COMPLETE') break
+      stallCount = 0
+      continue
     }
 
-    const raw = decideBotAction(req)
+    const decisionStart = Date.now()
+    const raw = await decideBotActionWithExpertAi(req, buildExpertAiContext(inner, gameId, turn))
     const decision = sanitizeBotDecision(raw, req)
+    const finalAmount = 'amount' in decision ? decision.amount : undefined
+    rootLogger.info({
+      msg: 'practice_bot_action_final',
+      gameId,
+      botId: turn,
+      difficulty,
+      aiAction: raw.action,
+      finalAction: decision.action,
+      finalAmount,
+      latencyMs: Date.now() - decisionStart,
+      reason: decision.reasoning ?? raw.reasoning,
+    })
 
     const actionType = decision.action
     const amount =
@@ -141,32 +259,68 @@ async function runPracticeBotTurnsChainBody(
     await sleep(PRACTICE_BOT_THINK_MS)
 
     try {
-      await applyPokerAction({
-        gameId,
-        playerId: turn,
-        actionType,
-        amount,
-        actionId: `bot-${randomUUID()}`,
-        handId: game.state.handId,
-        expectedStreet: game.state.phase,
-      })
+      await applyBotAction(gameId, turn, inner, actionType, amount)
     } catch (err) {
-      rootLogger.error({
-        msg: 'practice_bot_action_failed',
+      rootLogger.warn({
+        msg: 'practice_bot_primary_apply_failed',
         gameId,
         turn,
-        detail: err,
+        detail: err instanceof Error ? err.message : String(err),
       })
-      break
+      try {
+        const reRead = await activeGames.get(gameId)
+        if (!reRead || reRead instanceof CashGameController) {
+          const ok = await runFallbackOnly('apply_failed')
+          if (!ok) break
+        } else {
+          await applyBotAction(gameId, turn, reRead as GameTable, actionType, amount)
+        }
+      } catch (err2) {
+        rootLogger.warn({
+          msg: 'practice_bot_retry_failed',
+          gameId,
+          turn,
+          detail: err2 instanceof Error ? err2.message : String(err2),
+        })
+        const ok = await runFallbackOnly('apply_failed')
+        if (!ok) break
+      }
     }
 
     const fresh = await activeGames.get(gameId)
     if (!fresh) break
+
+    const sigAfter = progressSignature(fresh as GameTable)
+    const stillBot =
+      fresh.state.currentTurn === turn &&
+      isBotSeatId(turn) &&
+      fresh.state.handRuntimePhase !== 'HAND_COMPLETE' &&
+      fresh.state.phase !== 'SHOWDOWN'
+
+    if (stillBot && sigAfter === sigBefore) {
+      stallCount++
+      if (stallCount >= PRACTICE_BOT_STALL_BEFORE_FORCE) {
+        const ok = await runFallbackOnly('stall_no_progress')
+        if (!ok) break
+        stallCount = 0
+        const afterStall = await activeGames.get(gameId)
+        if (!afterStall) break
+        await emitRoomAfterPracticeAction(io, gameId, afterStall)
+        if (afterStall.state.phase === 'SHOWDOWN') break
+        if (afterStall.state.handRuntimePhase === 'HAND_COMPLETE') break
+        continue
+      }
+    } else {
+      stallCount = 0
+    }
+
     await emitRoomAfterPracticeAction(io, gameId, fresh)
 
     if (fresh.state.phase === 'SHOWDOWN') break
     if (fresh.state.handRuntimePhase === 'HAND_COMPLETE') break
   }
+
+  await broadcastPracticeTableState(io, gameId)
 }
 
 /**

@@ -19,6 +19,7 @@ import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { useGetFriendsQuery } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
 import {
   getDisplayedBlackjackMaxBet,
   refreshGamificationFromServer,
@@ -48,7 +49,7 @@ interface BjRoom {
 }
 
 function authHeaders(): HeadersInit {
-  const token = localStorage.getItem("token");
+  const token = getAuthItem("token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -343,8 +344,8 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
       friends?.filter((f) => f.id !== userId && !seatedIds.has(f.id)) ?? [];
 
     return (
-      <div className={`space-y-4 lg:flex lg:flex-col lg:space-y-0 ${className}`}>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:flex-1">
+      <div className={`space-y-4 ${className}`}>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
@@ -539,7 +540,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
 
   if (roomIdParam && !roomDetail) {
     return (
-      <div className={`flex min-h-[12rem] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] py-12 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl ${className}`}>
+      <div className={`flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] py-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl ${className}`}>
         <Loader2 className="h-10 w-10 animate-spin text-rose-300" />
       </div>
     );
@@ -629,8 +630,8 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
   );
 
   return (
-    <div className={`space-y-4 lg:flex lg:flex-col lg:space-y-0 ${className}`}>
-      <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:flex lg:flex-1 lg:flex-col">
+    <div className={`space-y-4 ${className}`}>
+      <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
         <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
           <Users className="h-8 w-8 text-rose-300" aria-hidden />
           {t("bjMulti.lobbyTitle")}
@@ -648,17 +649,17 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
           </button>
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md lg:flex lg:flex-1 lg:flex-col">
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md">
           <p className="mb-3 text-sm font-semibold text-gray-300">{t("lobby.waitingRooms")}</p>
           {loading ? (
-            <p className="flex items-center justify-center gap-2 py-8 text-gray-500 lg:flex-1">
+            <p className="flex items-center justify-center gap-2 py-8 text-gray-500">
               <Loader2 className="h-5 w-5 animate-spin text-rose-300" />
               {t("common.loading")}
             </p>
           ) : rooms.length === 0 ? (
-            <p className="flex items-center justify-center py-6 text-center text-sm text-gray-500 lg:flex-1">{t("bjMulti.noRooms")}</p>
+            <p className="flex items-center justify-center py-6 text-center text-sm text-gray-500">{t("bjMulti.noRooms")}</p>
           ) : (
-            <ul className="space-y-2 lg:flex-1">
+            <ul className="space-y-2">
               {rooms.map((r) => {
                 const isPrivate = r.visibility === "PRIVATE";
                 const isFull = r.seats.length >= r.maxSeats;

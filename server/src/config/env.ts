@@ -1,4 +1,5 @@
 import dotenv from 'dotenv'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -60,6 +61,21 @@ function getPositiveIntegerEnv(name: string, fallback: number): number {
 
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer`)
+  }
+
+  return value
+}
+
+function getNonNegativeIntegerEnv(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim()
+  if (!raw) {
+    return fallback
+  }
+
+  const value = Number.parseInt(raw, 10)
+
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer`)
   }
 
   return value
@@ -133,13 +149,19 @@ const defaultDevCorsOrigins = [
   'http://127.0.0.1:5177',
   'capacitor://localhost',
   'http://localhost',
+  'https://localhost',
 ]
 
 /**
  * Schémas fixes des apps natives (Capacitor / Ionic) : l’en-tête Origin n’est jamais l’URL HTTPS du déploiement.
+ * Android (WebView récent) peut envoyer https://localhost au lieu de capacitor://localhost.
  * Sans ces entrées, le login depuis iOS/Android échoue en prod si CORS_ORIGIN ne liste que le site web.
  */
-const nativeWebViewOrigins = ['capacitor://localhost', 'ionic://localhost'] as const
+const nativeWebViewOrigins = [
+  'capacitor://localhost',
+  'ionic://localhost',
+  'https://localhost',
+] as const
 
 function mergeCorsOrigins(list: string[]): string[] {
   return [...new Set([...list, ...nativeWebViewOrigins])]
@@ -180,6 +202,9 @@ if (adminApiToken && adminApiToken.length < 16) {
   throw new Error('ADMIN_API_TOKEN must be at least 16 characters long')
 }
 
+const aiServiceUrl = getOptionalEnv('AI_SERVICE_URL')
+const aiServiceEnabled = parseBooleanEnv('AI_SERVICE_ENABLED', Boolean(aiServiceUrl))
+
 /** Console web admin (JWT dédié) : identifiant + hash bcrypt du mot de passe. Les deux ou aucun. */
 const adminConsoleUsername = getOptionalEnv('ADMIN_CONSOLE_USERNAME')
 const adminConsolePasswordHash = getOptionalEnv('ADMIN_CONSOLE_PASSWORD_HASH')
@@ -199,6 +224,12 @@ if (adminConsolePasswordHash && adminConsolePasswordHash.length < 20) {
   throw new Error('ADMIN_CONSOLE_PASSWORD_HASH is too short or invalid')
 }
 
+/** Identifiant d’instance pour logs / locks (horizontal scaling). */
+const instanceId =
+  getOptionalEnv('INSTANCE_ID')?.trim() ||
+  (typeof os.hostname === 'function' ? os.hostname() : 'unknown') ||
+  'unknown'
+
 export const env = {
   nodeEnv,
   isDevelopment,
@@ -206,6 +237,7 @@ export const env = {
   isTest,
   isCi,
   isJest,
+  instanceId,
   port: getPositiveIntegerEnv('PORT', 3000),
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
   databaseUrl,
@@ -221,6 +253,9 @@ export const env = {
   corsOrigins,
   metricsBearerToken: getOptionalEnv('METRICS_BEARER_TOKEN'),
   adminApiToken,
+  aiServiceUrl,
+  aiServiceTimeoutMs: getNonNegativeIntegerEnv('AI_SERVICE_TIMEOUT_MS', 450),
+  aiServiceEnabled,
   adminConsoleUsername,
   adminConsolePasswordHash,
   adminConsoleJwtUserId,

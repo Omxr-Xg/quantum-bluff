@@ -3,6 +3,7 @@ import { CheckCircle, Target } from "lucide-react";
 import { useUser } from "../hooks/useUser";
 import { apiUrl } from "../utils/apiBase";
 import { useTranslation } from "react-i18next";
+import { getAuthItem } from "../utils/authStorage";
 
 interface Challenge {
   code: string;
@@ -32,7 +33,7 @@ export function DailyChallenges() {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthItem("token");
       if (!token) {
         setChallenges([]);
         setErrorKey("dailyChallenges.errors.auth");
@@ -67,7 +68,7 @@ export function DailyChallenges() {
 
   const handleClaim = async (challengeCode: string) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthItem("token");
       if (!token) {
         setErrorKey("dailyChallenges.errors.auth");
         return;
@@ -157,13 +158,26 @@ export function DailyChallenges() {
                 </span>
               </div>
 
-              <div className="w-full bg-slate-950/55 h-2 rounded-full overflow-hidden">
+              <div className="relative w-full py-1">
+                <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-amber-300/14 blur-md" />
                 <div
-                  className={`h-full transition-all ${
-                    c.completed ? "bg-green-400" : "bg-blue-300"
-                  }`}
-                  style={{ width: `${percent}%` }}
-                />
+                  className="relative h-1 overflow-hidden rounded-full border border-amber-200/24 bg-slate-950/60 backdrop-blur-sm"
+                >
+                  <div
+                    className={`relative h-full transition-all duration-500 ease-out animate-[challenge-gradient-flow_3s_ease_infinite] ${
+                      c.completed
+                        ? "bg-gradient-to-r from-yellow-500 via-amber-100 to-amber-400"
+                        : "bg-gradient-to-r from-amber-700 via-yellow-100 to-amber-500"
+                    }`}
+                    style={{
+                      width: `${percent}%`,
+                      backgroundSize: "200% auto",
+                      boxShadow: c.completed
+                        ? "0 0 15px 1px rgba(251, 191, 36, 0.58)"
+                        : "0 0 15px 1px rgba(245, 158, 11, 0.56)",
+                    }}
+                  />
+                </div>
               </div>
               <div className="text-amber-100/85 text-xs mt-2">
                 {t("dailyChallenges.rewardWithChips", {
@@ -192,6 +206,13 @@ export function DailyChallenges() {
         })}
       </div>
       </div>
+
+      <style>{`
+        @keyframes challenge-gradient-flow {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -50,8 +50,8 @@ export function AvatarGallery({ selectedAvatar, onSelect }: AvatarGalleryProps) 
               className={`p-2 rounded-2xl border-2 transition-all duration-200 flex items-center justify-center
               ${
                 isSelected
-                  ? "border-green-500 bg-green-500/10 scale-105"
-                  : "border-slate-600 bg-slate-800 hover:border-slate-400 hover:scale-105"
+                  ? "scale-105 border-blue-200/55 bg-blue-400/12 shadow-[0_0_24px_rgba(59,130,246,0.18)] ring-1 ring-amber-200/20"
+                  : "border-white/10 bg-slate-950/35 hover:border-blue-200/28 hover:bg-white/[0.06] hover:scale-105"
               }
             `}
             >
@@ -71,10 +71,10 @@ export function AvatarGallery({ selectedAvatar, onSelect }: AvatarGalleryProps) 
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-emerald-500/60 hover:bg-slate-700 hover:text-white"
+              className="inline-flex items-center gap-2 rounded-full border border-blue-300/15 bg-blue-950/60 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-blue-200/30 hover:bg-blue-900/70 hover:text-white"
               aria-expanded={false}
             >
-              <ChevronDown className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
+              <ChevronDown className="h-4 w-4 shrink-0 text-blue-200" aria-hidden />
               {t("editProfile.showMoreAvatars", { count: total - INITIAL_VISIBLE })}
             </button>
           ) : (
@@ -82,7 +82,7 @@ export function AvatarGallery({ selectedAvatar, onSelect }: AvatarGalleryProps) 
               <button
                 type="button"
                 onClick={() => setExpanded(false)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-700 hover:text-white"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
                 aria-expanded
               >
                 <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />

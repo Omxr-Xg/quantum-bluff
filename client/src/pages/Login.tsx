@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useLoginMutation } from "../services/api";
+import { removeAuthItem, setAuthItem } from "../utils/authStorage";
 
 export function Login() {
   const { t } = useTranslation();
@@ -25,21 +26,21 @@ export function Login() {
     const response = await login({ email, password }).unwrap()
     console.log("✅ Connexion réussie:", response)
 
-    localStorage.removeItem('userid')
-    localStorage.setItem('token', response.token)
-    localStorage.setItem('userId', String(response.user.id))
-    localStorage.setItem('username', response.user.username)
+    removeAuthItem('userid')
+    setAuthItem('token', response.token)
+    setAuthItem('userId', String(response.user.id))
+    setAuthItem('username', response.user.username)
     // Mettre à jour le profil local pour l'écran Profile
-    localStorage.setItem('quantum_bluff_username', response.user.username)
-    localStorage.setItem('quantum_bluff_email', response.user.email)
+    setAuthItem('quantum_bluff_username', response.user.username)
+    setAuthItem('quantum_bluff_email', response.user.email)
     if (typeof response.user.chips === 'number') {
-      localStorage.setItem('quantum_bluff_balance', String(response.user.chips))
+      setAuthItem('quantum_bluff_balance', String(response.user.chips))
     }
     const avatarUrl = (response.user as { avatarUrl?: string | null }).avatarUrl
     if (typeof avatarUrl === 'string' && avatarUrl.trim() !== '') {
-      localStorage.setItem('quantum_bluff_avatar', avatarUrl.trim())
+      setAuthItem('quantum_bluff_avatar', avatarUrl.trim())
     } else {
-      localStorage.removeItem('quantum_bluff_avatar')
+      removeAuthItem('quantum_bluff_avatar')
     }
 
     window.dispatchEvent(new Event('auth-changed'))
@@ -144,7 +145,7 @@ export function Login() {
             <button
               type="submit"
               disabled={isLoading || !isFormValid}
-              className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${isFormValid && !isLoading ? 'bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_0.5s_linear_infinite]' : 'bg-slate-950/20 text-white/45 font-normal shadow-[0_0_11px_2px_rgba(59,130,246,0.18)] border-blue-300/40 opacity-80 cursor-not-allowed'} before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
+              className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${isFormValid && !isLoading ? 'bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_2s_linear_infinite]' : 'bg-slate-950/20 text-white/45 font-normal shadow-[0_0_11px_2px_rgba(59,130,246,0.18)] border-blue-300/40 opacity-80 cursor-not-allowed'} before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
             >
               {isLoading ? (
                 <>
@@ -180,5 +181,4 @@ export function Login() {
     </div>
   );
 }
-
 

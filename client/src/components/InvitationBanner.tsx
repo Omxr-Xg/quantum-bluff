@@ -6,6 +6,7 @@ import type { GameInvitationNotification } from "../contexts/SocketContext";
 import { apiUrl } from "../utils/apiBase";
 import { useEffect, useState } from "react";
 import { useInvitationAccept } from "../contexts/InvitationAcceptContext";
+import { getAuthItem } from "../utils/authStorage";
 
 export function InvitationBanner() {
   const { t } = useTranslation();
@@ -18,7 +19,7 @@ export function InvitationBanner() {
 
   const handleReject = async (inv: GameInvitationNotification) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthItem("token");
       const isBj = inv.game === "blackjack";
       const url = apiUrl(
         isBj

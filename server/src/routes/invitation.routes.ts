@@ -3,12 +3,18 @@ import type { Server } from 'socket.io'
 import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
+import { isUserOnline } from '../services/presence.service.js'
 import {
   searchUserSchema,
   friendRequestSchema,
   updateRequestSchema
 } from '../validation/friends.validation.js'
 import rateLimit from 'express-rate-limit'
+import {
+  censorChatLinks,
+  isChatContentEffectivelyEmpty,
+} from '../utils/chatLinkCensor.js'
+import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 
 const router = express.Router()
 
@@ -174,11 +180,16 @@ messagesRouter.post('/', friendMessageSendLimiter, async (req, res) => {
       allowedAttributes: {}
     })
 
+    const censoredContent = censorChatLinks(safeContent)
+    if (isChatContentEffectivelyEmpty(censoredContent)) {
+      return res.status(400).json({ error: 'MESSAGE_LINKS_NOT_ALLOWED' })
+    }
+
     const message = await prisma.friendMessage.create({
       data: {
         senderId,
         receiverId: receiverIdStr,
-        content: safeContent
+        content: censoredContent
       },
       include: {
         sender: { select: { id: true, username: true } },
@@ -188,7 +199,7 @@ messagesRouter.post('/', friendMessageSendLimiter, async (req, res) => {
 
     const io = req.app.get('io') as Server | undefined
     if (io) {
-      io.to(`user:${receiverIdStr}`).emit('FRIEND_MESSAGE', {
+      const payload = {
         id: message.id,
         senderId: message.senderId,
         receiverId: message.receiverId,
@@ -196,7 +207,10 @@ messagesRouter.post('/', friendMessageSendLimiter, async (req, res) => {
         createdAt: message.createdAt.toISOString(),
         sender: message.sender,
         receiver: message.receiver
-      })
+      }
+      for (const uid of new Set([receiverIdStr, senderId])) {
+        io.to(`user:${uid}`).emit('FRIEND_MESSAGE', payload)
+      }
     }
 
     return res.json(message)
@@ -261,6 +275,7 @@ router.get('/search', friendSearchLimiter, async (req, res) => {
         username: true,
         level: true,
         avatarUrl: true,
+        avatarHasBinary: true,
         playerStats: {
           select: {
             totalWins: true,
@@ -271,7 +286,12 @@ router.get('/search', friendSearchLimiter, async (req, res) => {
       take: 10
     })
 
-    return res.json(users)
+    return res.json(
+      users.map((u) => ({
+        ...u,
+        avatarUrl: clientAvatarUrlFromUser(u),
+      })),
+    )
   } catch (error) {
     console.error('GET /api/friends/search error:', error)
     return res.status(500).json({ error: 'Erreur serveur' })
@@ -341,7 +361,8 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
             id: true,
             username: true,
             level: true,
-            avatarUrl: true
+            avatarUrl: true,
+            avatarHasBinary: true
           }
         }
       }
@@ -361,7 +382,8 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
               id: true,
               username: true,
               level: true,
-              avatarUrl: true
+              avatarUrl: true,
+              avatarHasBinary: true
             }
           }
         }
@@ -379,7 +401,8 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
               id: true,
               username: true,
               level: true,
-              avatarUrl: true
+              avatarUrl: true,
+              avatarHasBinary: true
             }
           }
         }
@@ -403,7 +426,7 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
             id: request.sender.id,
             username: request.sender.username,
             level: request.sender.level,
-            avatarUrl: request.sender.avatarUrl ?? null
+            avatarUrl: clientAvatarUrlFromUser(request.sender)
           }
         })
       }
@@ -442,6 +465,7 @@ router.get('/requests/:userId', async (req, res) => {
             username: true,
             level: true,
             avatarUrl: true,
+            avatarHasBinary: true,
             playerStats: {
               select: {
                 totalWins: true,
@@ -456,7 +480,15 @@ router.get('/requests/:userId', async (req, res) => {
       }
     })
 
-    return res.json(requests)
+    return res.json(
+      requests.map((r) => ({
+        ...r,
+        sender: {
+          ...r.sender,
+          avatarUrl: clientAvatarUrlFromUser(r.sender),
+        },
+      })),
+    )
   } catch (error) {
     console.error('GET /api/friends/requests/:userId error:', error)
     const msg = error instanceof Error ? error.message : String(error)
@@ -581,6 +613,7 @@ router.get('/:userId', async (req, res) => {
             username: true,
             level: true,
             avatarUrl: true,
+            avatarHasBinary: true,
             playerStats: {
               select: {
                 totalWins: true,
@@ -595,6 +628,7 @@ router.get('/:userId', async (req, res) => {
             username: true,
             level: true,
             avatarUrl: true,
+            avatarHasBinary: true,
             playerStats: {
               select: {
                 totalWins: true,
@@ -607,13 +641,22 @@ router.get('/:userId', async (req, res) => {
     })
 
     const userIdStr = String(userId)
-    const friends = friendships
-      .map((friendship) =>
-        String(friendship.user1Id) === userIdStr
-          ? friendship.user2
-          : friendship.user1
+    const friends = (
+      await Promise.all(
+        friendships.map(async (friendship) => {
+          const friend =
+            String(friendship.user1Id) === userIdStr
+              ? friendship.user2
+              : friendship.user1
+          return {
+            ...friend,
+            avatarUrl: clientAvatarUrlFromUser(friend),
+            friendshipCreatedAt: friendship.createdAt,
+            isOnline: await isUserOnline(String(friend.id)),
+          }
+        }),
       )
-      .filter((f) => String(f.id) !== userIdStr)
+    ).filter((f) => String(f.id) !== userIdStr)
 
     return res.json(friends)
   } catch (error) {

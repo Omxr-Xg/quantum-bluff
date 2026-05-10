@@ -5,6 +5,7 @@ import { useAccessibility } from "../contexts/AccessibilityContext";
 import { NeonButton } from "./NeonButton";
 import { HandCombinationsHelpButton } from "./HandCombinationsHelpButton";
 import { useAudio } from "../contexts/MusicContext";
+import { buildRaiseIncrementPresets } from "../utils/pokerRaisePresets";
 
 interface Card {
   suit: string;
@@ -22,6 +23,8 @@ interface PlayerDashboardProps {
   callAmount: number;
   minRaise: number;
   maxRaise: number;
+  /** Grosse blind (ou pas d’échelle) pour les montants rapides 50, 100, 150… */
+  raisePresetStep?: number;
   isMyTurn: boolean;
   isLoading?: boolean;
   hasFolded: boolean;
@@ -33,6 +36,10 @@ interface PlayerDashboardProps {
   onQuantumHoverEnter?: () => void;
   onQuantumHoverLeave?: () => void;
   onToggleHiddenBets?: () => void;
+  /** Mode contre bot : bouton Paris grisé, infobulle explicative. */
+  hiddenBetsDisabled?: boolean;
+  /** Infobulle quand Paris est désactivé (ex. preflop cash) — sinon message bot par défaut. */
+  hiddenBetsDisabledTitle?: string;
   onToggleChat?: () => void;
   isHiddenBetsOpen?: boolean;
   isChatOpen?: boolean;
@@ -52,6 +59,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   callAmount,
   minRaise,
   maxRaise,
+  raisePresetStep,
   isMyTurn,
   isLoading = false,
   hasFolded,
@@ -62,6 +70,8 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   onQuantumHoverEnter,
   onQuantumHoverLeave,
   onToggleHiddenBets,
+  hiddenBetsDisabled = false,
+  hiddenBetsDisabledTitle,
   onToggleChat,
   isHiddenBetsOpen: _isHiddenBetsOpen,
   isChatOpen = false,
@@ -85,6 +95,8 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   const [combinationsHelpOpen, setCombinationsHelpOpen] = useState(false);
   const isAllIn = maxRaise > 0 && raiseAmount >= maxRaise;
   const canRaise = isMyTurn && !actionsDisabled && !isLoading && !hasFolded && !hasActed && maxRaise > 0;
+  const primaryActionButtonClass =
+    "min-w-0 flex-1 px-3 py-2.5 text-[0.8rem] lg:flex-none lg:min-w-[176px] lg:px-[2.2rem] lg:py-[1.1rem] lg:text-[1.1rem]";
 
   useEffect(() => {
     setRaiseAmount((prev) => clampRaise(prev));
@@ -151,23 +163,13 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
     setTimeout(() => setShowSuccessPopup(false), 2000);
   };
 
-  const raisePresets = (() => {
-    if (maxRaise <= 0) return [];
-    const range = maxRaise - effectiveMinRaise;
-    if (range <= 0) return [maxRaise];
-    return [
-      effectiveMinRaise,
-      effectiveMinRaise + Math.floor(range * 0.25),
-      effectiveMinRaise + Math.floor(range * 0.5),
-      effectiveMinRaise + Math.floor(range * 0.75),
-      maxRaise,
-    ].filter((v, i, a) => a.indexOf(v) === i);
-  })();
+  const stepForPresets = Math.max(1, Math.floor(raisePresetStep ?? minRaise));
+  const raisePresets = buildRaiseIncrementPresets(effectiveMinRaise, maxRaise, stepForPresets);
 
   return (
     <div
       ref={ref}
-      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+2.25rem)] left-0 right-0 w-full transition-all duration-300 md:bottom-12 ${
+      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.2rem)] left-0 right-0 w-full transition-all duration-300 lg:bottom-12 ${
         raisePopoverOpen || combinationsHelpOpen ? "z-[120]" : "z-40"
       } pointer-events-none`}
     >
@@ -182,7 +184,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
         </div>
       )}
 
-      <div className="pointer-events-auto mx-auto w-full max-w-[min(1200px,calc(100vw-2rem))]">
+      <div className="pointer-events-auto mx-auto w-full max-w-[min(1200px,calc(100vw-1rem))] lg:max-w-[min(1200px,calc(100vw-2rem))]">
 
         {hasFolded && (
           <div className="text-center mb-1 md:mb-2">
@@ -203,35 +205,15 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
           </div>
         )}
 
-        <div className="grid grid-cols-1 items-end gap-3 xl:grid-cols-[minmax(16rem,1fr)_auto_minmax(16rem,1fr)] xl:gap-5">
+        <div className="flex flex-wrap justify-center items-end gap-2 xl:grid xl:grid-cols-[minmax(16rem,1fr)_auto_minmax(16rem,1fr)] xl:gap-5">
 
-          {/* LEFT TOOLS */}
-          <div className="order-2 flex shrink-0 flex-wrap items-end justify-center gap-2 drop-shadow-2xl xl:order-none xl:justify-self-end">
-            {onToggleChat && (
-              <NeonButton
-                onClick={onToggleChat}
-                variant="blue"
-                icon={<MessageCircle className="h-4 w-4 shrink-0" />}
-                className={`px-4 py-3 text-xs md:px-5 md:py-3.5 ${
-                  isChatOpen ? "ring-2 ring-blue-300/60" : ""
-                }`}
-              >
-                Chat
-              </NeonButton>
-            )}
-            <HandCombinationsHelpButton
-              colorblindMode={colorblindMode}
-              onOpenChange={setCombinationsHelpOpen}
-            />
-          </div>
-
-          {/* ACTION BUTTONS - Adaptés à l'écran */}
-          <div className="order-1 flex w-full justify-center gap-2 md:w-auto xl:order-none xl:justify-self-center md:gap-3">
+          {/* ACTION BUTTONS — Row 1 on mobile (full width), center column on desktop */}
+          <div className="w-full flex justify-center gap-1.5 xl:order-2 xl:w-auto xl:justify-self-center xl:gap-3">
             <NeonButton
               onClick={onFold}
               disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
               variant="red"
-              className="min-w-0 flex-1 px-4 py-3 text-xs md:flex-none md:min-w-[160px] md:px-8 md:py-4 md:text-base"
+              className={primaryActionButtonClass}
             >
               {t('game.fold')}
             </NeonButton>
@@ -241,7 +223,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 onClick={onCheck}
                 disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
                 variant="blue"
-                className="min-w-0 flex-1 px-4 py-3 text-xs md:flex-none md:min-w-[160px] md:px-8 md:py-4 md:text-base"
+                className={primaryActionButtonClass}
               >
                 {t('game.check')}
               </NeonButton>
@@ -254,7 +236,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                     onClick={() => onCall(effectiveCall)}
                     disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || chips <= 0 || callAmount <= 0}
                     variant="blue"
-                    className="min-w-0 flex-1 whitespace-nowrap px-4 py-3 text-xs md:flex-none md:min-w-[160px] md:px-8 md:py-4 md:text-base"
+                    className={`${primaryActionButtonClass} whitespace-nowrap`}
                   >
                     {isCallAllIn ? t('game.allIn') : `${t('game.callLabel')} ${callAmount > 0 ? callAmount : ""}`}
                   </NeonButton>
@@ -269,7 +251,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
             >
               {canRaise && raisePopoverOpen && (
                 <div
-                  className="absolute bottom-full right-0 z-50 mb-3 w-[220px] origin-bottom-right rounded-2xl border-2 border-[rgb(7,221,0)] app-shell-bg p-3 shadow-[0_0_12px_2px_rgba(7,221,0,0.5)] md:w-[240px]"
+                  className="absolute bottom-full right-0 z-50 mb-3 w-[220px] origin-bottom-right rounded-2xl border-2 border-[rgb(7,221,0)] bg-slate-950/92 p-3 shadow-[0_0_16px_2px_rgba(7,221,0,0.55),0_18px_56px_rgba(0,0,0,0.58)] backdrop-blur-xl md:w-[240px]"
                   onMouseEnter={handleRaiseMouseEnter}
                   onMouseLeave={handleRaiseMouseLeave}
                 >
@@ -336,19 +318,50 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 onClick={() => (raisePopoverOpen ? handleRaiseClick() : setRaisePopoverOpen(true))}
                 disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed || maxRaise <= 0}
                 variant="green"
-                icon={<TrendingUp className="w-4 h-4 md:w-6 md:h-6 hidden md:block" />}
-                className="flex w-full min-w-0 justify-center px-4 py-3 text-xs md:min-w-[160px] md:px-8 md:py-4 md:text-base"
+                icon={<TrendingUp className="hidden h-4 w-4 lg:block lg:h-6 lg:w-6" />}
+                className={`flex w-full justify-center ${primaryActionButtonClass}`}
               >
                 {isAllIn ? t('game.allIn') : t('game.raise')}
               </NeonButton>
             </div>
           </div>
 
-          {/* RIGHT TOOLS */}
-          <div className="order-3 flex shrink-0 flex-wrap justify-center gap-2 xl:order-none xl:justify-self-start">
+          {/* LEFT TOOLS — Row 2 on mobile, left column on desktop */}
+          <div className="flex shrink-0 flex-wrap items-end gap-2 drop-shadow-2xl xl:order-1 xl:justify-self-end">
+            {onToggleChat && (
+              <NeonButton
+                onClick={onToggleChat}
+                variant="blue"
+                icon={<MessageCircle className="h-4 w-4 shrink-0" />}
+                className={`px-3 py-2.5 text-xs md:px-5 md:py-3.5 ${
+                  isChatOpen ? "ring-2 ring-blue-300/60" : ""
+                }`}
+              >
+                Chat
+              </NeonButton>
+            )}
+            <HandCombinationsHelpButton
+              colorblindMode={colorblindMode}
+              onOpenChange={setCombinationsHelpOpen}
+            />
+          </div>
+
+          {/* RIGHT TOOLS — Row 2 on mobile, right column on desktop */}
+          <div className="flex shrink-0 flex-wrap items-end gap-1.5 xl:order-3 xl:justify-self-start">
             {onToggleHiddenBets && (
-              <NeonButton onClick={onToggleHiddenBets} variant="gold" icon={<Eye className="w-4 h-4" />} className="px-4 py-3 text-xs md:px-5 md:py-3.5">
-                {t('game.bets')}
+              <NeonButton
+                onClick={hiddenBetsDisabled ? undefined : onToggleHiddenBets}
+                disabled={hiddenBetsDisabled}
+                title={
+                  hiddenBetsDisabled
+                    ? (hiddenBetsDisabledTitle ?? t("game.hiddenBetsUnavailableBotMode"))
+                    : undefined
+                }
+                variant="gold"
+                icon={<Eye className="w-4 h-4" />}
+                className="px-3 py-2.5 text-xs md:px-5 md:py-3.5"
+              >
+                {t("game.bets")}
               </NeonButton>
             )}
             {onToggleQuantum && (
@@ -357,7 +370,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 onMouseEnter={onQuantumHoverEnter}
                 onMouseLeave={onQuantumHoverLeave}
               >
-                <NeonButton onClick={onToggleQuantum} variant="amber" icon={<Activity className="w-4 h-4" />} className="px-4 py-3 text-xs md:px-5 md:py-3.5">
+                <NeonButton onClick={onToggleQuantum} variant="amber" icon={<Activity className="w-4 h-4" />} className="px-3 py-2.5 text-xs md:px-5 md:py-3.5">
                   {t("game.probabilitiesShort")}
                 </NeonButton>
               </div>

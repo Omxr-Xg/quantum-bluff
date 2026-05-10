@@ -21,6 +21,10 @@ type WalletLedgerReason =
   | 'LOAN_FUNDED_IN'
   | 'LOAN_REPAYMENT_OUT'
   | 'LOAN_REPAYMENT_IN'
+  | 'CASH_POKER_BUY_IN'
+  | 'CASH_POKER_REBUY'
+  | 'CASH_POKER_CASHOUT'
+  | 'CASH_POKER_HAND_RESULT'
 
 export type WalletLedgerInput = {
   context: CasinoRoundContext

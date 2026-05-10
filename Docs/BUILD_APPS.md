@@ -70,23 +70,18 @@ L’application mobile utilise Capacitor pour générer des APK (Android) et des
 
 ### Configuration backend (mobile)
 
-Sur mobile, `localhost` désigne l’appareil. L’API et les WebSockets doivent pointer vers le serveur (IP ou domaine public).
+Sur mobile, la WebView a l’origine `capacitor://localhost` : un `VITE_API_URL` **relatif** type `/vmProjet…` ne cible pas le serveur. Il faut des **URL absolues** (`https://…/vmProjet…`).
 
-**Option 1 – Variables d’environnement**
+- Fichier **versionné** : `client/.env.capacitor` (URL prod université par défaut).
+- **Repli** : si une variable manque, `vite.config.ts` (mode `capacitor`) injecte la même base HTTPS que la prod.
+- **LAN / autre backend** : créer `client/.env.capacitor.local` (non versionné) avec tes `VITE_API_URL` / `VITE_SOCKET_URL` / `VITE_SOCKET_PATH`.
 
-Créer `client/.env` ou `client/.env.production` :
-
-```env
-VITE_API_URL=http://185.155.93.105:3000
-VITE_SOCKET_URL=http://185.155.93.105:3000
-```
-
-**Option 2 – Script dédié**
-
-Le script `build:cap` utilise déjà ces variables :
+Build + sync en une commande :
 
 ```bash
-npm run build:cap
+cd client
+npm run build:cap:sync
+# ou : npm run cap:sync
 ```
 
 ### Build Android (APK)

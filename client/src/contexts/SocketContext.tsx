@@ -6,7 +6,9 @@ import { useToast } from './ToastContext'
 import { store } from '../store'
 import { api } from '../services/api'
 import { fetchBalanceFromServer } from '../utils/userProfile'
-import { apiUrl, getApiBaseUrl } from '../utils/apiBase'
+import { apiUrl } from '../utils/apiBase'
+import { getSocketIoUrlAndPath } from '../utils/socketConnect'
+import { getAuthItem } from '../utils/authStorage'
 
 export interface GameInvitationNotification {
   invitationId: string
@@ -29,64 +31,14 @@ interface SocketContextType {
 
 export const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-// 🚀 DÉTECTION INFAILLIBLE DU CHEMIN
-const getSocketConfig = () => {
-  let url = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim() || 'http://localhost:3000';
-  let path = '/socket.io';
-
-  if (typeof window !== 'undefined') {
-    const { protocol, pathname } = window.location;
-    const pathParts = pathname.split('/');
-
-    // Capacitor / WebView : pas de pathname /vm... — il faut la même base que l’API (déploiement ou URL absolue).
-    if (protocol === 'capacitor:' || protocol === 'ionic:' || protocol === 'file:') {
-      const explicitPath = (import.meta.env.VITE_SOCKET_PATH ?? '').toString().trim();
-      if (explicitPath) {
-        path = explicitPath.startsWith('/') ? explicitPath : `/${explicitPath}`;
-      } else {
-        const apiEnv = (import.meta.env.VITE_API_URL ?? '').toString().trim();
-        const vmRel = apiEnv.match(/^(\/vm[^/]+)/i);
-        if (vmRel) path = `${vmRel[1]}/socket.io`;
-        else if (apiEnv.startsWith('http')) {
-          try {
-            const u = new URL(apiEnv);
-            const first = u.pathname.replace(/\/$/, '').split('/').filter(Boolean)[0];
-            if (first?.toLowerCase().startsWith('vmprojet')) path = `/${first}/socket.io`;
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-      const socketUrlEnv = (import.meta.env.VITE_SOCKET_URL ?? '').toString().trim();
-      if (socketUrlEnv) url = socketUrlEnv;
-      else {
-        const base = getApiBaseUrl();
-        if (base) url = base;
-      }
-      return { URL: url, SOCKET_PATH: path };
-    }
-
-    // Auto-détection (marche pour VM 0 et VM 1)
-    if (pathParts.length > 1 && pathParts[1].toLowerCase().startsWith('vmprojet')) {
-      const vmPrefix = '/' + pathParts[1];
-      url = window.location.origin;
-      path = `${vmPrefix}/socket.io`;
-    } else if (url.startsWith('/')) {
-      path = `${url}/socket.io`;
-      url = window.location.origin;
-    }
-  }
-  return { URL: url, SOCKET_PATH: path };
-};
-
-const { URL, SOCKET_PATH } = getSocketConfig();
+const { url: socketIoUrl, path: socketIoPath } = getSocketIoUrlAndPath()
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [authVersion, setAuthVersion] = useState(0)
   const [pendingInvitations, setPendingInvitations] = useState<GameInvitationNotification[]>([])
-  const { userId } = useUser()
+  const { userId, isAdmin } = useUser()
   const { addToast } = useToast()
 
   const dismissInvitation = useCallback((invitationId: string) => {
@@ -103,19 +55,18 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token = getAuthItem('token')
 
-    if (!token) {
+    if (!token || isAdmin) {
       setSocket(null)
       setIsConnected(false)
       return
     }
 
-    // 🚀 INITIALISATION AVEC LE BON CHEMIN
-    const socketInstance = io(URL, {
+    const socketInstance = io(socketIoUrl, {
       forceNew: true, // <--- TUE LE CACHE DE SOCKET.IO !
       autoConnect: true,
-      path: SOCKET_PATH,
+      path: socketIoPath,
       auth: { token },
       secure: typeof window !== 'undefined' && window.location.protocol === 'https:',
       transports: ['polling', 'websocket'],
@@ -125,17 +76,28 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       reconnectionDelayMax: 3000,
     })
 
+    if (import.meta.env.MODE === 'capacitor') {
+      console.info('[QB] SocketContext Socket.IO', { url: socketIoUrl, path: socketIoPath })
+    }
+
     setSocket(socketInstance)
 
     socketInstance.on('connect', () => {
       setIsConnected(true)
-      const uid = localStorage.getItem('userId')
+      if (import.meta.env.MODE === 'capacitor') {
+        console.info('[QB] SocketContext connected', { id: socketInstance.id })
+      }
+      const uid = getAuthItem('userId')
       if (uid) socketInstance.emit('JOIN_USER_ROOM', { userId: uid })
     })
 
     socketInstance.on('disconnect', () => setIsConnected(false))
 
-    socketInstance.on('connect_error', () => {})
+    socketInstance.on('connect_error', (err) => {
+      if (import.meta.env.MODE === 'capacitor') {
+        console.warn('[QB] SocketContext connect_error', err?.message ?? err)
+      }
+    })
 
     const tryReconnect = () => {
       if (!socketInstance.connected) socketInstance.connect()
@@ -160,7 +122,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         if (s.connected) s.disconnect()
       }, 0)
     }
-  }, [userId, authVersion])
+  }, [userId, authVersion, isAdmin])
 
   useEffect(() => {
     if (!socket || !addToast) return
@@ -219,8 +181,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   /** Invitations salle d’attente déjà en base (reconnexion / onglet rechargé). */
   useEffect(() => {
-    if (!socket || !userId) return
-    const token = localStorage.getItem('token')
+    if (!socket || !userId || isAdmin) return
+    const token = getAuthItem('token')
     if (!token) return
 
     let cancelled = false
@@ -262,10 +224,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [socket, userId])
+  }, [socket, userId, isAdmin])
 
   useEffect(() => {
-    if (!socket) return
+    if (!socket || isAdmin) return
 
     const invalidateLoanList = () => {
       store.dispatch(api.util.invalidateTags(['FriendLoan']))
@@ -290,7 +252,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       notifyOnly.forEach((ev) => socket.off(ev, invalidateLoanList))
       walletEvents.forEach((ev) => socket.off(ev, invalidateLoanListAndSyncBalance))
     }
-  }, [socket])
+  }, [socket, isAdmin])
 
   const connect = useCallback(() => {
     if (socket && !socket.connected) {

@@ -1,4 +1,9 @@
-import { normalizedHandStrength, decideBotAction } from '../logic/botAI.js'
+import {
+  normalizedHandStrength,
+  decideBotAction,
+  compositeOpponentNormalizedStrength,
+  expertOracleDecision,
+} from '../logic/botAI.js'
 import type { Card } from '../types/poker.js'
 
 const c = (rank: Card['rank'], suit: Card['suit'] = 'HEARTS', value?: number): Card => ({
@@ -27,6 +32,45 @@ describe('botAI — normalizedHandStrength', () => {
     const s = normalizedHandStrength(hole, board)
     expect(s).toBeGreaterThanOrEqual(0)
     expect(s).toBeLessThanOrEqual(1)
+  })
+})
+
+describe('botAI — compositeOpponentNormalizedStrength', () => {
+  test('≤2 adversaires : conserve le max', () => {
+    expect(compositeOpponentNormalizedStrength([0.8])).toBe(0.8)
+    expect(compositeOpponentNormalizedStrength([0.8, 0.3])).toBe(0.8)
+  })
+
+  test('3+ adversaires : strictement entre médiane et max quand ils diffèrent', () => {
+    const s = compositeOpponentNormalizedStrength([0.9, 0.5, 0.2])
+    expect(s).toBeLessThan(0.9)
+    expect(s).toBeGreaterThan(0.2)
+    expect(s).toBeGreaterThan(0.5)
+  })
+})
+
+describe('botAI — expertOracleDecision multiway', () => {
+  test('5 trous faibles + héros moyen + petite mise : pas fold systématique (random figé)', () => {
+    const rnd = jest.spyOn(Math, 'random').mockReturnValue(0.99)
+    const board: Card[] = [c('2'), c('7'), c('K')]
+    const hero: Card[] = [c('9'), c('9')]
+    const weak: Card[] = [c('3'), c('4')]
+    const req = {
+      playerCards: hero,
+      communityCards: board,
+      difficulty: 'expert' as const,
+      currentBet: 100,
+      playerChips: 900,
+      callAmount: 80,
+      minRaise: 100,
+      potSize: 400,
+      position: 2,
+      playersCount: 6,
+    }
+    const holes = [weak, weak, weak, weak, weak]
+    const d = expertOracleDecision(req, { opponentHoleCards: holes })
+    rnd.mockRestore()
+    expect(d.action).not.toBe('FOLD')
   })
 })
 

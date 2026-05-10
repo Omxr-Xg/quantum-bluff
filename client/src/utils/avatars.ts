@@ -1,4 +1,5 @@
 import { getUserAvatar, getUsername } from "./userProfile";
+import { apiUrl } from "./apiBase";
 
 /**
  * Style unique **luxe / caricature** : Dicebear 7.x `micah` partout (même trait graphique).
@@ -9,6 +10,16 @@ const LUXURY_MICAH_STYLE = "micah" as const;
 function luxuryMicahCaricature(seed: string, backgroundColor: string): string {
   const s = encodeURIComponent(seed);
   return `https://api.dicebear.com/7.x/${LUXURY_MICAH_STYLE}/svg?seed=${s}&backgroundColor=${backgroundColor}`;
+}
+
+function normalizeRemoteAvatarUrl(remoteAvatarUrl?: string | null): string {
+  const trimmed = typeof remoteAvatarUrl === "string" ? remoteAvatarUrl.trim() : "";
+  if (trimmed === "") return "";
+  if (trimmed.startsWith("/api/")) return apiUrl(trimmed);
+  // Déploiement web avec préfixe /vm…/ dans l’URL (localStorage ou payload) : ne pas laisser relatif sous Capacitor.
+  const vmApi = trimmed.match(/^\/vm[^/]+(\/api\/.+)$/i);
+  if (vmApi?.[1]) return apiUrl(vmApi[1]);
+  return trimmed;
 }
 
 /** Fonds « luxe » (hex sans #) — rotation pour 20 presets distincts. */
@@ -100,7 +111,7 @@ export function getPlayerAvatar(
   if (isLocalPlayerSeat(playerName, playerId, heroSeatId)) {
     return getUserAvatar();
   }
-  const trimmed = typeof remoteAvatarUrl === "string" ? remoteAvatarUrl.trim() : "";
+  const trimmed = normalizeRemoteAvatarUrl(remoteAvatarUrl);
   if (trimmed !== "") {
     return trimmed;
   }
@@ -109,17 +120,22 @@ export function getPlayerAvatar(
 }
 
 /**
- * Avatars sur la table de poker : le joueur local voit son avatar profil ;
- * les adversaires voient uniquement un avatar générique (pas leur photo / URL serveur).
+ * Avatars sur la table de poker :
+ * - joueur local : avatar du profil ;
+ * - adversaire : URL serveur si fournie (photo uploadée), sinon fallback Dicebear.
  */
 export function getPokerTableAvatar(
   playerName: string,
   playerId?: string | number,
   heroSeatId?: string | number | null,
-  _serverAvatarIgnored?: string | null
+  serverAvatarUrl?: string | null
 ): string {
   if (isLocalPlayerSeat(playerName, playerId, heroSeatId)) {
     return getUserAvatar();
+  }
+  const trimmed = normalizeRemoteAvatarUrl(serverAvatarUrl);
+  if (trimmed !== "") {
+    return trimmed;
   }
   const seedKey = playerId != null ? String(playerId) : playerName;
   return luxuryMicahCaricature(`qb-opp-${seedKey}-${playerName}`, "1e1b4b");

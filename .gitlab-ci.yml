@@ -1,25 +1,31 @@
-# ============================================
-# .gitlab-ci.yml - Quantum Bluff (FIXED)
-# ============================================
-
 variables:
   NODE_IMAGE: public.ecr.aws/docker/library/node:20
   POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:15
   TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.58.1
+  # Sans ça, le cache GitLab sur `.npm/` reste vide : chaque job retélécharge les paquets.
+  NPM_CONFIG_CACHE: "${CI_PROJECT_DIR}/.npm"
 
-# FIX SHELL (important)
 .node_docker_ci:
   image:
     name: public.ecr.aws/docker/library/node:20
-    entrypoint: ["/bin/sh", "-c"]
 
 default:
   tags:
-    - node18
+    - kubernetes
+  # Le runner K8s peut échouer avant tout script (nœuds indisponibles, disk-pressure, timeout de pod).
+  # Relance uniquement dans ces cas, pas sur une vraie erreur de test ou de lint.
+  retry:
+    max: 
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+# Évite 3 pods verify en parallèle (backend + frontend + database) sur un cluster déjà saturé.
+.verify_kubernetes_throttled:
+  resource_group: k8s-verify-${CI_PROJECT_ID}
 
 stages:
-  - lint
-  - test
+  - verify
   - test-security
   - build
   - docker-build
@@ -33,27 +39,12 @@ cache:
   paths:
     - .npm/
 
-# ============================================
-# BACKEND
-# ============================================
-
-backend:lint:
-  extends: .node_docker_ci
-  stage: lint
-  script:
-    - cd server
-    - npm ci
-    - npm run lint
-  only:
-    - develop
-    - main
-    - /^feature\/.*$/
-    - /^fix\/.*$/
-
-backend:test:
-  extends: .node_docker_ci
-  stage: test
-  tags: [kubernetes]
+# --- develop / main : un seul npm ci + lint + tests (au lieu de 2 jobs séquentiels)
+backend:verify:
+  extends:
+    - .node_docker_ci
+    - .verify_kubernetes_throttled
+  stage: verify
   services:
     - name: public.ecr.aws/docker/library/postgres:15
       alias: postgres
@@ -66,68 +57,42 @@ backend:test:
     DATABASE_URL: postgresql://test_user:test_password@postgres:5432/quantum_test
   script:
     - cd server
-    - npm ci
+    - npm ci --legacy-peer-deps
+    - npm run lint
     - npm run test:coverage
   only:
     - develop
     - main
 
-backend:build:
-  extends: .node_docker_ci
-  stage: build
-  script:
-    - cd server
-    - npm ci
-    - npx prisma generate
-    - npm run build
-  only:
-    - main
-    - /^release\/.*$/
-
-# ============================================
-# FRONTEND
-# ============================================
-
-frontend:lint:
-  extends: .node_docker_ci
-  stage: lint
+frontend:verify:
+  extends:
+    - .node_docker_ci
+    - .verify_kubernetes_throttled
+  stage: verify
   script:
     - cd client
     - npm ci --legacy-peer-deps
     - npm run lint
-  only:
-    - develop
-    - main
-
-frontend:test:
-  extends: .node_docker_ci
-  stage: test
-  script:
-    - cd client
-    - npm ci --legacy-peer-deps
     - npm test
   only:
     - develop
     - main
 
-frontend:build:
-  extends: .node_docker_ci
-  stage: build
+# Branches feature/fix : lint backend seul (pas de BDD / tests unitaires serveur)
+backend:lint:
+  stage: verify
+  image: public.ecr.aws/docker/library/node:20
   script:
-    - cd client
+    - cd server
     - npm ci --legacy-peer-deps
-    - npm run build
+    - npm run lint
   only:
-    - main
-    - /^release\/.*$/
-
-# ============================================
-# DATABASE
-# ============================================
+    - /^feature\/.*$/
+    - /^fix\/.*$/
 
 database:test:
-  stage: test
-  tags: [kubernetes]
+  extends: .verify_kubernetes_throttled
+  stage: verify
   image:
     name: public.ecr.aws/docker/library/postgres:15
     entrypoint: [""]
@@ -144,16 +109,36 @@ database:test:
     - develop
     - main
 
-# ============================================
-# SECURITY
-# ============================================
+backend:build:
+  extends: .node_docker_ci
+  stage: build
+  script:
+    - cd server
+    - npm ci
+    - npx prisma generate
+    - npm run build
+  only:
+    - main
+    - /^release\/.*$/
 
+frontend:build:
+  extends: .node_docker_ci
+  stage: build
+  script:
+    - cd client
+    - npm ci --legacy-peer-deps
+    - npm run build
+  only:
+    - main
+    - /^release\/.*$/
+
+# Pas de npm ci : audit à partir des lockfiles uniquement (beaucoup plus rapide).
 security:npm:
   extends: .node_docker_ci
   stage: test-security
   script:
-    - cd server && npm ci && npm audit --omit=dev || true
-    - cd ../client && npm ci --legacy-peer-deps && npm audit --omit=dev || true
+    - cd server && npm audit --omit=dev --package-lock-only --audit-level=high
+    - cd ../client && npm audit --omit=dev --package-lock-only --audit-level=high
   allow_failure: true
   only:
     - develop
@@ -165,75 +150,137 @@ security:trivy:
     name: public.ecr.aws/aquasecurity/trivy:0.58.1
     entrypoint: [""]
   script:
-    - trivy fs --severity HIGH,CRITICAL --no-progress .
+    - trivy fs --severity HIGH,CRITICAL --no-progress --skip-dirs node_modules --skip-dirs dist --skip-dirs android --skip-dirs ios .
   allow_failure: true
   only:
     - develop
     - main
 
-# ============================================
-# DOCKER BUILD (FIXED 🔥)
-# ============================================
-
 docker:build:
   stage: docker-build
-  tags: [kubernetes]
+  needs:
+    # optional : branches release/* n’exécutent pas verify (historique du projet).
+    - job: backend:verify
+      optional: true
+    - job: frontend:verify
+      optional: true
+    - job: database:test
+      optional: true
   image:
     name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: [""]
   script:
-    - echo "🐳 Build image..."
-
+    - echo "Build image..."
     - mkdir -p /kaniko/.docker
-
-    # 🔥 FIX QUOTING
     - AUTH=$(printf "%s:%s" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
-
     - |
-      cat > /kaniko/.docker/config.json <<EOF
-      {
-        "auths": {
-          "$CI_REGISTRY": {
-            "auth": "$AUTH"
-          }
-        }
-      }
-      EOF
-
-    - /kaniko/executor \
-        --context "${CI_PROJECT_DIR}/server" \
-        --dockerfile "${CI_PROJECT_DIR}/server/Dockerfile" \
-        --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}" \
+      printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$AUTH" \
+        > /kaniko/.docker/config.json
+    - /kaniko/executor
+        --context "${CI_PROJECT_DIR}/server"
+        --dockerfile "${CI_PROJECT_DIR}/server/Dockerfile"
+        --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
         --destination "${CI_REGISTRY_IMAGE}:latest"
-
   only:
+    - develop
     - main
     - /^release\/.*$/
 
-# ============================================
-# DEPLOY
-# ============================================
+# Images pour déploiement VM sans « docker compose build » (pull uniquement).
+docker:build:client:
+  stage: docker-build
+  needs:
+    - job: backend:verify
+      optional: true
+    - job: frontend:verify
+      optional: true
+    - job: database:test
+      optional: true
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  variables:
+    # Surchargeable dans GitLab → Settings → CI/CD → Variables (ex. préfixe API derrière nginx).
+    VITE_API_URL: "/vmProjetIntegrateurgrp10-0"
+  script:
+    - mkdir -p /kaniko/.docker
+    - AUTH=$(printf "%s:%s" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
+    - |
+      printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$AUTH" \
+        > /kaniko/.docker/config.json
+    - /kaniko/executor
+        --context "${CI_PROJECT_DIR}/client"
+        --dockerfile "${CI_PROJECT_DIR}/client/Dockerfile"
+        --build-arg "VITE_API_URL=${VITE_API_URL}"
+        --destination "${CI_REGISTRY_IMAGE}:client-${CI_COMMIT_SHORT_SHA}"
+        --destination "${CI_REGISTRY_IMAGE}:client-latest"
+  only:
+    - develop
+    - main
+    - /^release\/.*$/
+
+docker:build:ai-service:
+  stage: docker-build
+  needs:
+    - job: backend:verify
+      optional: true
+    - job: frontend:verify
+      optional: true
+    - job: database:test
+      optional: true
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  script:
+    - mkdir -p /kaniko/.docker
+    - AUTH=$(printf "%s:%s" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
+    - |
+      printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$AUTH" \
+        > /kaniko/.docker/config.json
+    - /kaniko/executor
+        --context "${CI_PROJECT_DIR}/server/ai-service"
+        --dockerfile "${CI_PROJECT_DIR}/server/ai-service/Dockerfile"
+        --destination "${CI_REGISTRY_IMAGE}:ai-${CI_COMMIT_SHORT_SHA}"
+        --destination "${CI_REGISTRY_IMAGE}:ai-latest"
+  only:
+    - develop
+    - main
+    - /^release\/.*$/
+
+# Déploiement = POST webhook. Les échecs "runner_system_failure" viennent souvent du cluster K8s
+# du runner (disque plein, nœud unreachable). On retente automatiquement ; si ça persiste,
+# contacter les admins GitLab / infra Unistra — ce n’est pas corrigeable uniquement dans ce fichier.
+.deploy_hook_retry: &deploy_hook_retry
+  retry:
+    max: 
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
 
 deploy:staging:
+  <<: *deploy_hook_retry
   stage: deploy
   image:
     name: public.ecr.aws/docker/library/alpine:latest
     entrypoint: [""]
   script:
     - apk add --no-cache curl
-    - curl -X POST $STAGING_DEPLOY_HOOK || true
+    - test -n "${STAGING_DEPLOY_HOOK}"
+    - curl -fsS -m 120 -X POST "${STAGING_DEPLOY_HOOK}"
   only:
     - develop
   when: manual
 
 deploy:production:
+  <<: *deploy_hook_retry
   stage: deploy
   image:
     name: public.ecr.aws/docker/library/alpine:latest
     entrypoint: [""]
   script:
     - apk add --no-cache curl
-    - curl -X POST $PRODUCTION_DEPLOY_HOOK || true
+    - test -n "${PRODUCTION_DEPLOY_HOOK}"
+    - curl -fsS -m 120 -X POST "${PRODUCTION_DEPLOY_HOOK}" || true
   only:
     - main
   when: manual

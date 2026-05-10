@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-electron
+android
+ios
+e2e
+playwright-report
+test-results
+.git
+.gitignore
+*.md
+.env
+.env.*
+coverage
+npm-debug.log*

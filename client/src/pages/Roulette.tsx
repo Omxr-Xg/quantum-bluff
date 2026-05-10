@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation, type TFunction } from "react-i18next";
 import { motion, useMotionValue, animate, type MotionValue } from "motion/react";
-import { ArrowLeft, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, History, Trash2, Undo2 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { updateUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 import {
@@ -14,6 +14,8 @@ import {
 import { apiUrl } from "../utils/apiBase";
 import { ChipIcon } from "../components/ChipIcon";
 import logoSrc from "../assets/logo-personnel.png";
+import { CustomScrollArea } from "../components/CustomScrollArea";
+import { getAuthItem } from "../utils/authStorage";
 
 type RouletteChipToken = {
   value: number;
@@ -344,15 +346,43 @@ function computeRouletteTargetRotation(
   currentRotation: number,
   segmentIndex: number,
   segmentCount: number,
-  fullTurns: number
+  fullTurns: number,
+  landingAngleDeg: number
 ): number {
   const stepDeg = 360 / segmentCount;
-  // RouletteWheelSvg : centre du segment i à (i+0.5)*step - 90°, repère haut = -90°
-  const targetRemainder = mod360(-(segmentIndex + 0.5) * stepDeg);
+  // RouletteWheelSvg : centre du segment i à (i+0.5)*step - 90°.
+  // On force ce centre à tomber à un angle absolu variable (landingAngleDeg),
+  // ce qui évite une chute toujours "en haut".
+  const targetRemainder = mod360(landingAngleDeg + 90 - (segmentIndex + 0.5) * stepDeg);
   const currentRem = mod360(currentRotation);
   let delta = targetRemainder - currentRem;
   if (delta > 0) delta -= 360;
   return currentRotation + delta - fullTurns * 360;
+}
+
+/**
+ * Cible d'orbite de bille qui:
+ * - respecte un mouvement "avant" (sens inverse de la roue ici),
+ * - et finit exactement sur la case gagnante.
+ */
+function computeBallOrbitTarget(
+  currentBallOrbit: number,
+  landingAngleDeg: number,
+  segmentCount: number,
+  minForwardTurns: number,
+  landingOffsetRatio: number
+): number {
+  const stepDeg = 360 / segmentCount;
+  // La bille démarre en haut (-90°). On veut qu'à la fin elle soit au centre du segment gagnant.
+  const clampedOffset = Math.max(-0.42, Math.min(0.42, landingOffsetRatio));
+  // angle bille = -90 + orbit; donc orbit = angleBille + 90.
+  const desiredOrbitRemainder = mod360(landingAngleDeg + 90 + clampedOffset * stepDeg);
+  const currentRem = mod360(currentBallOrbit);
+  let delta = desiredOrbitRemainder - currentRem;
+  if (delta < 0) delta += 360;
+  const minAdvance = minForwardTurns * 360;
+  while (delta < minAdvance) delta += 360;
+  return currentBallOrbit + delta;
 }
 
 /** Affiche pile de jetons + montant sur une case du tapis. */
@@ -411,7 +441,15 @@ function PlacedChipsBadge({
   );
 }
 
-function RouletteWheelSvg({ wheelOrder, rotation }: { wheelOrder: number[]; rotation: MotionValue<number> }) {
+function RouletteWheelSvg({
+  wheelOrder,
+  rotation,
+  ballOrbit,
+}: {
+  wheelOrder: number[];
+  rotation: MotionValue<number>;
+  ballOrbit: MotionValue<number>;
+}) {
   const uid = useId().replace(/:/g, "");
   const n = wheelOrder.length;
   const step = 360 / n;
@@ -469,17 +507,7 @@ function RouletteWheelSvg({ wheelOrder, rotation }: { wheelOrder: number[]; rota
   const gidCone = `rw-cone-${uid}`;
 
   return (
-    <div className="relative mx-auto w-[min(100%,380px)] aspect-square">
-      {/* Indicateur fixe type « flipper » */}
-      <div className="pointer-events-none absolute left-1/2 top-0 z-30 flex -translate-x-1/2 -translate-y-1 flex-col items-center">
-        <div
-          className="h-0 w-0 border-l-[12px] border-r-[12px] border-t-[20px] border-l-transparent border-r-transparent border-t-[#f5e6b8] drop-shadow-[0_3px_6px_rgba(0,0,0,0.85)]"
-          style={{ filter: "drop-shadow(0 0 4px rgba(212,175,55,0.8))" }}
-          aria-hidden
-        />
-        <div className="-mt-px h-2 w-4 rounded-b-sm bg-gradient-to-b from-amber-200 to-amber-700 shadow-md" />
-      </div>
-
+    <div className="relative mx-auto aspect-square w-full max-w-[min(100%,clamp(15rem,min(88vmin,92vw),36rem))] sm:max-w-[min(100%,clamp(17rem,82vmin,38rem))] lg:max-w-[min(100%,clamp(17rem,min(72vmin,46vw),36rem))]">
       {/* Cuvette fixe (bois + laiton) */}
       <div
         className="absolute inset-[6px] rounded-full p-[9px] shadow-[0_24px_48px_rgba(0,0,0,0.75),inset_0_2px_8px_rgba(255,255,255,0.06)] ring-1 ring-black/60"
@@ -560,6 +588,9 @@ function RouletteWheelSvg({ wheelOrder, rotation }: { wheelOrder: number[]; rota
                   <circle cx="50" cy="50" r={rIn - 2.5} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth={0.2} />
                 </svg>
               </motion.div>
+              <motion.div className="pointer-events-none absolute inset-0 z-20" style={{ rotate: ballOrbit }} aria-hidden>
+                <div className="absolute left-1/2 top-[8%] h-3.5 w-3.5 -translate-x-1/2 rounded-full border border-slate-100/90 bg-gradient-to-b from-white via-slate-100 to-slate-300 shadow-[0_0_10px_rgba(255,255,255,0.7),0_3px_10px_rgba(0,0,0,0.5)]" />
+              </motion.div>
             </div>
           </div>
         </div>
@@ -589,8 +620,8 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   const [chips, setChips] = useState<number | null>(null);
   const [minBet, setMinBet] = useState(10);
   /** Alignés sur le palier bas (niveau 1) jusqu’au chargement config + gamification. */
-  const [maxBetPerLine, setMaxBetPerLine] = useState(250);
-  const [maxTotalStake, setMaxTotalStake] = useState(1500);
+  const [maxBetPerLine, setMaxBetPerLine] = useState(750);
+  const [maxTotalStake, setMaxTotalStake] = useState(5000);
   const [limitsLoaded, setLimitsLoaded] = useState(false);
   const [wheelOrder, setWheelOrder] = useState<number[]>(DEFAULT_WHEEL);
   /** Somme des jetons tapés avant de poser sur le tapis. */
@@ -609,20 +640,21 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   const [lastColor, setLastColor] = useState<string | null>(null);
   const wheelSectionRef = useRef<HTMLDivElement>(null);
   const rotation = useMotionValue(0);
+  const ballOrbit = useMotionValue(0);
   const streetBases = useMemo(() => buildStreetBases(), []);
   const sixBases = useMemo(() => buildSixLineBases(), []);
   const corners = useMemo(() => buildCornerDefs(), []);
   const splits = useMemo(() => buildSplitPairs(), []);
 
   const loadBalance = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token) {
       navigate("/lobby");
       return;
     }
     try {
       const c = await fetchBalanceFromServer({ authoritative: true });
-      if (!localStorage.getItem("token")) {
+      if (!getAuthItem("token")) {
         navigate("/lobby");
         return;
       }
@@ -637,8 +669,8 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
     try {
       const url = apiUrl("/api/roulette/config");
       const res = await fetch(url);
-      let lineCap = 250;
-      let totalCap = 1500;
+      let lineCap = 750;
+      let totalCap = 5000;
       if (res.ok) {
         const data = await res.json();
         if (typeof data?.minBet === "number") setMinBet(Math.max(1, Math.floor(data.minBet)));
@@ -654,10 +686,12 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         lineCap = Math.min(lineCap, g.maxBetRouletteLine);
       }
       if (typeof g.maxRouletteTotalStake === "number") {
-        totalCap = Math.min(totalCap, g.maxRouletteTotalStake);
+        // Ne jamais descendre sous la limite roulette métier (5000) à cause
+        // d'une valeur gamification obsolète en cache/session.
+        totalCap = Math.max(totalCap, g.maxRouletteTotalStake);
       }
       setMaxBetPerLine(lineCap);
-      setMaxTotalStake(totalCap);
+      setMaxTotalStake(Math.max(5000, totalCap));
     } catch {
       /* defaults déjà cohérents (250 / 1500) */
     } finally {
@@ -761,7 +795,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   }, [bets]);
 
   const spin = async () => {
-    const token = localStorage.getItem("token");
+    const token = getAuthItem("token");
     if (!token || chips === null || spinning) return;
     if (bets.size === 0) {
       addToast(t("roulette.noBets"), "error");
@@ -853,17 +887,38 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
       if (segmentIndex < 0) segmentIndex = 0;
 
       const fullTurns = 5;
+      // Angle absolu de chute de la bille (variable à chaque spin).
+      const landingAngleDeg = Math.random() * 360 - 180;
       const targetAngle = computeRouletteTargetRotation(
         rotation.get(),
         segmentIndex,
         wheelOrder.length,
-        fullTurns
+        fullTurns,
+        landingAngleDeg
       );
 
-      await animate(rotation, targetAngle, {
-        duration: 3.8,
-        ease: [0.2, 0.8, 0.2, 1],
-      });
+      // Effet réel: la roue tourne dans un sens, la bille dans l'autre,
+      // puis la bille termine précisément sur la case du résultat.
+      const landingOffsetRatio = (Math.random() * 2 - 1) * 0.32;
+      const ballTarget = computeBallOrbitTarget(
+        ballOrbit.get(),
+        landingAngleDeg,
+        wheelOrder.length,
+        fullTurns + 1,
+        landingOffsetRatio
+      );
+      const wheelSpinDuration = 3.8;
+      const ballSpinDuration = wheelSpinDuration + 1;
+      await Promise.all([
+        animate(rotation, targetAngle, {
+          duration: wheelSpinDuration,
+          ease: [0.2, 0.8, 0.2, 1],
+        }),
+        animate(ballOrbit, ballTarget, {
+          duration: ballSpinDuration,
+          ease: [0.12, 0.78, 0.22, 1],
+        }),
+      ]);
 
       setLastResult(result);
       setLastColor(typeof data.resultColor === "string" ? data.resultColor : null);
@@ -937,7 +992,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         onClick={() => addToKey(key, pendingStake)}
         className={`${feltCellClass(
           n
-        )} relative flex min-h-[2.85rem] w-full flex-col items-center justify-start overflow-visible rounded-sm border-2 pt-1 font-serif text-sm font-bold tracking-tight transition hover:brightness-110 hover:ring-1 hover:ring-green-400/35 active:scale-[0.96] disabled:opacity-45 disabled:hover:ring-0 pb-5`}
+        )} relative flex min-h-[2.55rem] w-full flex-col items-center justify-start overflow-visible rounded-sm border-2 pt-0.5 font-serif text-[11px] font-bold tracking-tight transition hover:brightness-110 hover:ring-1 hover:ring-green-400/35 active:scale-[0.96] disabled:opacity-45 disabled:hover:ring-0 pb-4 sm:min-h-[3.15rem] sm:pb-5 sm:pt-1 sm:text-sm md:min-h-[3.35rem] md:text-base`}
       >
         <span className="relative z-0 leading-none">{n}</span>
         <PlacedChipsBadge amount={placed} layout="cell" />
@@ -946,36 +1001,40 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden app-shell-bg text-slate-100">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#020716] text-slate-100">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
-        <div className="absolute -top-24 left-1/2 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-purple-600/14 blur-[95px]" />
-        <div className="absolute -right-20 top-1/4 h-72 w-72 rounded-full bg-cyan-500/8 blur-[80px]" />
-        <div className="absolute -left-16 bottom-0 h-64 w-64 rounded-full bg-fuchsia-500/10 blur-[85px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.22),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_42%,rgba(245,158,11,0.08),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
+        <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/36 blur-[120px]" />
+        <div className="absolute -right-20 top-1/4 h-72 w-72 rounded-full bg-emerald-700/10 blur-[90px]" />
+        <div className="absolute -left-16 bottom-0 h-80 w-80 rounded-full bg-amber-700/8 blur-[95px]" />
         <div
           className="absolute inset-0 opacity-[0.07]"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.5) 1px, transparent 0)",
+              "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.26) 1px, transparent 0)",
             backgroundSize: "22px 22px",
           }}
         />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.55),transparent_58%)]" />
       </div>
 
-      <header className="relative z-10 shrink-0 flex items-center justify-between gap-2 border-b border-slate-700/90 bg-slate-900/95 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm md:px-5">
+      <header className="relative z-10 flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/55 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-xl md:px-5">
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-200 shadow-sm transition hover:bg-slate-700 hover:text-white"
+          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-slate-200 shadow-sm transition hover:border-blue-200/25 hover:bg-white/[0.08] hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           {backToMinigamesHub
             ? t("minigames.backToLobbyMinigamesTab")
             : t("roulette.back")}
         </button>
-        <h1 className="bg-gradient-to-r from-purple-300 via-purple-200 to-cyan-200 bg-clip-text text-center text-base font-bold tracking-wide text-transparent md:text-lg">
-          {t("roulette.title")}
+        <h1 className="flex min-w-0 flex-1 items-center justify-center rounded-full border border-amber-200/16 bg-slate-950/45 px-2 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_rgba(245,158,11,0.06)] sm:px-4">
+          <span className="truncate bg-gradient-to-r from-slate-50 via-blue-100 to-amber-200 bg-clip-text text-base font-black tracking-[0.08em] text-transparent sm:text-lg sm:tracking-[0.12em] md:text-2xl">
+            {t("roulette.title")}
+          </span>
         </h1>
-        <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 text-sm font-bold tabular-nums text-green-400 md:max-w-none md:text-base">
+        <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 rounded-full border border-amber-300/15 bg-slate-950/55 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-100 md:max-w-none md:text-base">
           {chips !== null ? (
             <>
               <span className="truncate">{chips.toLocaleString()}</span>
@@ -987,198 +1046,79 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         </div>
       </header>
 
-      <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-5 pb-24 md:pb-8">
-        <p className="mx-auto mb-5 max-w-lg text-center text-xs leading-relaxed text-slate-400 md:text-sm">
+      <CustomScrollArea className="relative z-10 min-h-0 flex-1" contentClassName="overflow-x-hidden p-2 pb-24 sm:p-3 md:p-5 md:pb-8">
+        <p className="mx-auto mb-4 max-w-lg text-center text-[10px] leading-relaxed text-slate-400 sm:mb-5 sm:text-xs md:text-sm">
           {t("roulette.subtitle")}
         </p>
 
-        <div className="mx-auto grid w-full min-w-0 max-w-full grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-          <div
-            ref={wheelSectionRef}
-            className="flex flex-col items-center rounded-2xl border border-slate-600/80 bg-slate-800/40 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] scroll-mt-3 md:scroll-mt-4"
-          >
-            <RouletteWheelSvg wheelOrder={wheelOrder} rotation={rotation} />
-            <div className="mt-5 min-h-[2.75rem] w-full max-w-xs rounded-lg border border-slate-600 bg-slate-900/60 px-4 py-2 text-center text-sm text-slate-200">
-              {lastResult !== null ? (
-                <span>
-                  {t("roulette.lastResult", { n: lastResult })}
-                  {lastColor ? (
-                    <>
-                      <span className="text-slate-500"> · </span>
-                      <span className={rouletteResultColorWordClass(lastColor)}>
-                        {t(`roulette.color.${lastColor}`)}
-                      </span>
-                    </>
-                  ) : null}
-                </span>
-              ) : (
-                <span className="text-slate-500">{t("roulette.noSpinYet")}</span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setHistoryOpen((open) => !open)}
-              className={`mt-3 inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition sm:text-sm ${
-                historyOpen
-                  ? "border-cyan-400/60 bg-cyan-500/10 text-cyan-100"
-                  : "border-slate-600 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
-              }`}
-            >
-              {t("roulette.tabHistory")}
-            </button>
-            {historyOpen ? (
-              <div className="mt-3 max-h-80 w-full max-w-xl space-y-2.5 overflow-y-auto rounded-xl border border-slate-600/80 bg-slate-900/45 p-3 text-left shadow-lg">
-                {spinHistory.length === 0 ? (
-                  <p className="py-4 text-center text-xs text-slate-500">{t("roulette.historyEmpty")}</p>
-                ) : (
-                  spinHistory.map((entry) => {
-                    const winningLines = entry.lines.filter((l) => l.payout > 0);
-                    return (
-                      <div
-                        key={entry.id}
-                        className="rounded-lg border border-slate-600/70 bg-slate-900/60 p-3 text-[11px] leading-snug text-slate-300 sm:text-xs"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="font-semibold text-purple-200">{t("roulette.historySpin", { n: entry.spinIndex })}</p>
-                          <span className="rounded-full border border-slate-500/60 bg-slate-950/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-                            {t("roulette.historyResult", {
-                              n: entry.result,
-                              color: t(`roulette.color.${entry.resultColorKey}`),
-                            })}
-                          </span>
-                        </div>
-
-                        <div className="mt-2 grid grid-cols-3 gap-2">
-                          <div className="rounded-md border border-slate-700/80 bg-slate-950/40 px-2 py-1.5">
-                            <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("roulette.historyStakeLabel")}</p>
-                            <p className="mt-0.5 font-semibold tabular-nums text-slate-100">{entry.totalStake}</p>
-                          </div>
-                          <div className="rounded-md border border-slate-700/80 bg-slate-950/40 px-2 py-1.5">
-                            <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("roulette.historyReturnsLabel")}</p>
-                            <p className="mt-0.5 font-semibold tabular-nums text-slate-100">{entry.totalPayout}</p>
-                          </div>
-                          <div className="rounded-md border border-slate-700/80 bg-slate-950/40 px-2 py-1.5">
-                            <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("roulette.historyNetLabel")}</p>
-                            <p
-                              className={`mt-0.5 font-semibold tabular-nums ${
-                                entry.net > 0 ? "text-green-400" : entry.net < 0 ? "text-rose-400" : "text-slate-100"
-                              }`}
-                            >
-                              {entry.net === 0
-                                ? t("roulette.historyNetZero")
-                                : t("roulette.historyNet", {
-                                    amount: Math.abs(entry.net),
-                                    sign: entry.net > 0 ? "+" : "−",
-                                  })}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-2 rounded-md border border-slate-700/70 bg-slate-950/30 px-2.5 py-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            {t("roulette.historyBetsLabel")}
-                          </p>
-                          <div className="mt-1 flex flex-wrap gap-1.5">
-                            {entry.lines.map((l, index) => (
-                              <span
-                                key={`${entry.id}-bet-${index}-${l.label}`}
-                                className="rounded-full border border-slate-700/80 bg-slate-900/70 px-2 py-0.5 text-[10px] text-slate-200"
-                              >
-                                {t("roulette.historyBetChip", { stake: l.stake, label: l.label })}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="mt-2 rounded-md border border-slate-700/70 bg-slate-950/30 px-2.5 py-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            {t("roulette.historyPayoutsLabel")}
-                          </p>
-                          {winningLines.length === 0 ? (
-                            <p className="mt-1 text-[10px] text-slate-400">{t("roulette.historyNoPayout")}</p>
-                          ) : (
-                            <div className="mt-1 space-y-1">
-                              {winningLines.map((l, index) => (
-                                <p key={`${entry.id}-payout-${index}-${l.label}`} className="text-[10px] text-slate-300 sm:text-[11px]">
-                                  {t("roulette.historyPayoutWin", {
-                                    label: l.label,
-                                    stake: l.stake,
-                                    mult: l.mult,
-                                    payout: l.payout,
-                                  })}
-                                </p>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="space-y-4">
-            <div className="space-y-3 rounded-2xl border border-slate-600/80 bg-slate-800/50 p-4 shadow-lg backdrop-blur-sm">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-600/60 pb-2">
-                <h2 className="text-sm font-semibold text-slate-100">{t("roulette.tabChips")}</h2>
-              </div>
-              <p className="text-center text-xs leading-snug text-slate-400">{t("roulette.chipTrayHint")}</p>
-              {availableTokens.length === 0 ? (
-                <p className="py-2 text-center text-sm text-amber-400/90">
-                  {t("roulette.noChipsForLimits", { min: minBet, max: maxBetPerLine })}
-                </p>
-              ) : null}
-              <div className="flex flex-wrap items-end justify-center gap-3 sm:gap-4">
-                {availableTokens.map((tok) => (
-                  <button
-                    key={tok.value}
-                    type="button"
-                    disabled={bettingDisabled}
-                    title={t(`roulette.chipNames.${tok.labelKey}`, { value: tok.value })}
-                    onClick={() =>
-                      setPendingStake((p) => {
-                        if (chips === null || !limitsLoaded) return p;
-                        const tot = totalStakeRef.current;
-                        const rem = Math.max(0, chips - tot);
-                        const maxStack = Math.min(maxBetPerLine, rem);
-                        return Math.min(p + tok.value, maxStack);
-                      })
-                    }
-                    className="group flex flex-col items-center gap-1 touch-manipulation disabled:opacity-40"
-                  >
-                    <span className="transition group-active:scale-95 group-hover:brightness-110">
-                      <RouletteTrayChip tok={tok} />
-                    </span>
-                    <span className="text-[11px] font-bold tabular-nums text-slate-300">
-                      {tok.value.toLocaleString()}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-3 border-t border-slate-600/60 pt-3">
-                <div className="min-w-[6rem] rounded-lg border border-slate-600 bg-slate-900/70 px-4 py-2">
-                  <span className="block text-center text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    {t("roulette.pendingStack")}
-                  </span>
-                  <span className="block min-w-[4rem] text-center text-2xl font-bold tabular-nums text-green-400">
-                    {pendingStake}
-                  </span>
+        <div className="mx-auto flex w-full min-w-0 max-w-[min(100%,min(100vw-1.5rem,90rem))] flex-col gap-6 lg:gap-8">
+          {/* Desktop : tapis + jetons à gauche, roue à droite (même hauteur). Mobile : roue en premier, puis mises. */}
+          <div className="flex w-full min-h-0 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-[clamp(0.75rem,2vw,1.25rem)] xl:gap-5">
+            <div className="order-2 flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:order-1 lg:flex-row lg:items-stretch lg:gap-[clamp(0.75rem,2vw,1.25rem)] xl:gap-5">
+            <aside className="order-1 w-full shrink-0 lg:order-2 lg:w-[clamp(6.25rem,11vw,8.5rem)] lg:max-w-[clamp(6.25rem,11vw,8.5rem)]">
+              <div className="flex h-full min-h-0 flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.24)] backdrop-blur-xl lg:py-4">
+                <div className="border-b border-slate-600/60 pb-2">
+                  <h2 className="text-center text-xs font-semibold uppercase tracking-wide text-slate-100 lg:text-[11px]">
+                    {t("roulette.tabChips")}
+                  </h2>
                 </div>
-                <button
-                  type="button"
-                  disabled={bettingDisabled || pendingStake === 0}
-                  onClick={() => setPendingStake(0)}
-                  className="rounded-lg border border-slate-600 bg-slate-700/80 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-600 disabled:opacity-30"
-                >
-                  {t("roulette.clearPending")}
-                </button>
+                <p className="hidden text-center text-[10px] leading-snug text-slate-400 lg:block">{t("roulette.chipTrayHint")}</p>
+                {availableTokens.length === 0 ? (
+                  <p className="py-2 text-center text-xs text-amber-400/90">
+                    {t("roulette.noChipsForLimits", { min: minBet, max: maxBetPerLine })}
+                  </p>
+                ) : null}
+                <div className="flex flex-row flex-wrap items-end justify-center gap-2 sm:gap-3 lg:flex-col lg:items-center lg:gap-3 lg:px-0.5">
+                  {availableTokens.map((tok) => (
+                    <button
+                      key={tok.value}
+                      type="button"
+                      disabled={bettingDisabled}
+                      title={t(`roulette.chipNames.${tok.labelKey}`, { value: tok.value })}
+                      onClick={() =>
+                        setPendingStake((p) => {
+                          if (chips === null || !limitsLoaded) return p;
+                          const tot = totalStakeRef.current;
+                          const rem = Math.max(0, chips - tot);
+                          const maxStack = Math.min(maxBetPerLine, rem);
+                          return Math.min(p + tok.value, maxStack);
+                        })
+                      }
+                      className="group flex flex-col items-center gap-0.5 touch-manipulation disabled:opacity-40"
+                    >
+                      <span className="origin-center scale-[0.88] transition group-active:scale-[0.82] group-hover:brightness-110 sm:scale-95 lg:scale-90">
+                        <RouletteTrayChip tok={tok} />
+                      </span>
+                      <span className="text-[10px] font-bold tabular-nums text-slate-300 lg:text-[11px]">
+                        {tok.value.toLocaleString()}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-auto flex flex-col gap-2 border-t border-slate-600/60 pt-3">
+                  <div className="rounded-lg border border-slate-600 bg-slate-900/70 px-2 py-2">
+                    <span className="block text-center text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+                      {t("roulette.pendingStack")}
+                    </span>
+                    <span className="block text-center text-lg font-bold tabular-nums text-green-400 lg:text-xl">
+                      {pendingStake}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={bettingDisabled || pendingStake === 0}
+                    onClick={() => setPendingStake(0)}
+                    className="w-full rounded-lg border border-slate-600 bg-slate-700/80 px-2 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-600 disabled:opacity-30"
+                  >
+                    {t("roulette.clearPending")}
+                  </button>
+                </div>
               </div>
-            </div>
+            </aside>
 
+            <div className="order-2 min-w-0 flex-1 lg:order-1">
             <div
-              className="rounded-xl border-2 border-slate-600/90 bg-slate-900/40 p-3 shadow-[inset_0_2px_12px_rgba(0,0,0,0.35)]"
+              className="rounded-2xl border border-amber-200/16 bg-slate-900/58 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_22px_60px_rgba(0,0,0,0.26)] backdrop-blur-xl sm:p-2 md:p-4"
               style={{
                 background:
                   "radial-gradient(ellipse 85% 55% at 25% 15%, rgba(16,185,129,0.12) 0%, transparent 55%), radial-gradient(ellipse 100% 80% at 50% 100%, rgba(15,23,42,0.95) 0%, rgba(22,101,52,0.35) 55%, rgba(15,23,42,0.9) 100%), linear-gradient(180deg, rgb(15 23 42 / 0.9) 0%, rgb(15 118 110 / 0.15) 50%, rgb(15 23 42) 100%)",
@@ -1222,49 +1162,102 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 </button>
               </div>
 
+              {/* Tapis chiffré : min-width + défilement horizontal sur mobile pour garder des cases tapables. */}
+              <div className="mb-2 max-md:-mx-0.5 max-md:overflow-x-auto max-md:overscroll-x-contain max-md:px-0.5 max-md:pb-0.5 max-md:[-webkit-overflow-scrolling:touch] sm:mx-0 sm:overflow-visible">
+                <div className="w-full min-w-[320px] sm:min-w-0">
               {/* Zero — case « bande » sur le tapis */}
               <div className="mb-2 flex justify-center">
-                <div className="w-[min(100%,3.5rem)]">{numCell(0)}</div>
+                <div className="w-[min(100%,3.25rem)] sm:w-[min(100%,3.5rem)]">{numCell(0)}</div>
               </div>
 
-              {/* 3 x 12 grille */}
-              <div className="mb-2 grid grid-cols-12 gap-px rounded-sm bg-[#b8860b]/40 p-px shadow-inner">
+              {/* 3×12 : pleine largeur comme grid-cols-12, + pistes fixes pour chevaux horizontaux */}
+              <div
+                className="mb-2 grid w-full rounded-sm bg-[#b8860b]/40 p-px shadow-inner"
+                style={{
+                  gridTemplateColumns:
+                    "repeat(11, minmax(0, 1fr) clamp(0.4rem, 2vw, 0.75rem)) minmax(0, 1fr)",
+                }}
+              >
                 {Array.from({ length: 12 }, (_, c) => {
                   const top = 3 + c * 3;
                   const mid = 2 + c * 3;
                   const bot = 1 + c * 3;
+                  const topR = 3 + (c + 1) * 3;
+                  const midR = 2 + (c + 1) * 3;
+                  const botR = 1 + (c + 1) * 3;
+                  const hkTop = `sp:${Math.min(top, topR)}-${Math.max(top, topR)}` as BetKey;
+                  const hkMid = `sp:${Math.min(mid, midR)}-${Math.max(mid, midR)}` as BetKey;
+                  const hkBot = `sp:${Math.min(bot, botR)}-${Math.max(bot, botR)}` as BetKey;
+                  const stackCol = c * 2 + 1;
                   return (
-                    <div key={c} className="flex flex-col gap-px">
-                      {numCell(top)}
-                      <button
-                        type="button"
-                        disabled={bettingDisabled}
-                        className="relative h-4 min-h-[14px] rounded-[1px] border border-emerald-800/40 bg-[#031910] hover:bg-[#0a3020]"
-                        title={t("roulette.splitVertical")}
-                        onClick={() => addToKey(`sp:${Math.min(top, mid)}-${Math.max(top, mid)}` as BetKey, pendingStake)}
-                      >
-                        <PlacedChipsBadge
-                          amount={bets.get(`sp:${Math.min(top, mid)}-${Math.max(top, mid)}` as BetKey) ?? 0}
-                          layout="thin"
-                        />
-                      </button>
-                      {numCell(mid)}
-                      <button
-                        type="button"
-                        disabled={bettingDisabled}
-                        className="relative h-4 min-h-[14px] rounded-[1px] border border-emerald-800/40 bg-[#031910] hover:bg-[#0a3020]"
-                        title={t("roulette.splitVertical")}
-                        onClick={() => addToKey(`sp:${Math.min(mid, bot)}-${Math.max(mid, bot)}` as BetKey, pendingStake)}
-                      >
-                        <PlacedChipsBadge
-                          amount={bets.get(`sp:${Math.min(mid, bot)}-${Math.max(mid, bot)}` as BetKey) ?? 0}
-                          layout="thin"
-                        />
-                      </button>
-                      {numCell(bot)}
-                    </div>
+                    <Fragment key={c}>
+                      <div className="flex min-w-0 flex-col gap-px" style={{ gridColumn: stackCol }}>
+                        {numCell(top)}
+                        <button
+                          type="button"
+                          disabled={bettingDisabled}
+                          className="relative h-4 min-h-[1rem] rounded-[1px] border border-emerald-800/40 bg-[#031910] hover:bg-[#0a3020] sm:h-5 sm:min-h-[1.15rem]"
+                            title={t("roulette.splitVertical")}
+                            onClick={() => addToKey(`sp:${Math.min(top, mid)}-${Math.max(top, mid)}` as BetKey, pendingStake)}
+                          >
+                            <PlacedChipsBadge
+                              amount={bets.get(`sp:${Math.min(top, mid)}-${Math.max(top, mid)}` as BetKey) ?? 0}
+                              layout="thin"
+                            />
+                          </button>
+                          {numCell(mid)}
+                          <button
+                            type="button"
+                            disabled={bettingDisabled}
+                            className="relative h-4 min-h-[1rem] rounded-[1px] border border-emerald-800/40 bg-[#031910] hover:bg-[#0a3020] sm:h-5 sm:min-h-[1.15rem]"
+                          title={t("roulette.splitVertical")}
+                          onClick={() => addToKey(`sp:${Math.min(mid, bot)}-${Math.max(mid, bot)}` as BetKey, pendingStake)}
+                        >
+                          <PlacedChipsBadge
+                            amount={bets.get(`sp:${Math.min(mid, bot)}-${Math.max(mid, bot)}` as BetKey) ?? 0}
+                            layout="thin"
+                          />
+                        </button>
+                        {numCell(bot)}
+                      </div>
+                      {c < 11 ? (
+                        <div className="flex min-w-0 flex-col gap-px" style={{ gridColumn: stackCol + 1 }}>
+                          <button
+                            type="button"
+                            disabled={bettingDisabled}
+                            className="relative min-h-[2.55rem] w-full min-w-0 rounded-[2px] border border-amber-700/45 bg-[#031910] hover:bg-[#0a3020] sm:min-h-[3.15rem] md:min-h-[3.35rem]"
+                            title={t("roulette.splitHorizontal")}
+                            onClick={() => addToKey(hkTop, pendingStake)}
+                          >
+                            <PlacedChipsBadge amount={bets.get(hkTop) ?? 0} layout="thin" />
+                          </button>
+                          <div className="h-4 min-h-[1rem] shrink-0 sm:h-5 sm:min-h-[1.15rem]" aria-hidden />
+                          <button
+                            type="button"
+                            disabled={bettingDisabled}
+                            className="relative min-h-[2.55rem] w-full min-w-0 rounded-[2px] border border-amber-700/45 bg-[#031910] hover:bg-[#0a3020] sm:min-h-[3.15rem] md:min-h-[3.35rem]"
+                            title={t("roulette.splitHorizontal")}
+                            onClick={() => addToKey(hkMid, pendingStake)}
+                          >
+                            <PlacedChipsBadge amount={bets.get(hkMid) ?? 0} layout="thin" />
+                          </button>
+                          <div className="h-4 min-h-[1rem] shrink-0 sm:h-5 sm:min-h-[1.15rem]" aria-hidden />
+                          <button
+                            type="button"
+                            disabled={bettingDisabled}
+                            className="relative min-h-[2.55rem] w-full min-w-0 rounded-[2px] border border-amber-700/45 bg-[#031910] hover:bg-[#0a3020] sm:min-h-[3.15rem] md:min-h-[3.35rem]"
+                            title={t("roulette.splitHorizontal")}
+                            onClick={() => addToKey(hkBot, pendingStake)}
+                          >
+                            <PlacedChipsBadge amount={bets.get(hkBot) ?? 0} layout="thin" />
+                          </button>
+                        </div>
+                      ) : null}
+                    </Fragment>
                   );
                 })}
+              </div>
+                </div>
               </div>
 
               <div className="mb-2 grid grid-cols-3 gap-1">
@@ -1272,7 +1265,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("d:1", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.dozen1")}
                   <PlacedChipsBadge amount={bets.get("d:1") ?? 0} layout="corner" />
@@ -1281,7 +1274,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("d:2", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.dozen2")}
                   <PlacedChipsBadge amount={bets.get("d:2") ?? 0} layout="corner" />
@@ -1290,7 +1283,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("d:3", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.dozen3")}
                   <PlacedChipsBadge amount={bets.get("d:3") ?? 0} layout="corner" />
@@ -1302,7 +1295,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("col:1", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.col1")}
                   <PlacedChipsBadge amount={bets.get("col:1") ?? 0} layout="corner" />
@@ -1311,7 +1304,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("col:2", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.col2")}
                   <PlacedChipsBadge amount={bets.get("col:2") ?? 0} layout="corner" />
@@ -1320,7 +1313,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   type="button"
                   disabled={bettingDisabled}
                   onClick={() => addToKey("col:3", pendingStake)}
-                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-2 pl-2 pr-7 font-serif text-[11px] font-bold text-slate-200 hover:bg-slate-800/60 sm:text-xs"
+                  className="relative rounded-sm border border-slate-500/50 bg-slate-900/45 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight text-slate-200 hover:bg-slate-800/60 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs"
                 >
                   {t("roulette.col3")}
                   <PlacedChipsBadge amount={bets.get("col:3") ?? 0} layout="corner" />
@@ -1334,7 +1327,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                     type="button"
                     disabled={bettingDisabled}
                     onClick={() => addToKey(k, pendingStake)}
-                    className={`relative rounded-sm border-2 py-2 pl-2 pr-7 font-serif text-[11px] font-bold transition hover:brightness-110 sm:text-xs ${
+                    className={`relative rounded-sm border-2 py-1.5 pl-1.5 pr-6 font-serif text-[10px] font-bold leading-tight transition hover:brightness-110 sm:py-2 sm:pl-2 sm:pr-7 sm:text-xs ${
                       k === "red"
                         ? "border-[#f87171]/60 bg-gradient-to-b from-[#b91c1c] to-[#7f1d1d] text-white"
                         : k === "black"
@@ -1427,13 +1420,144 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
               type="button"
               disabled={bettingDisabled || bets.size === 0}
               onClick={() => void spin()}
-              className="w-full rounded-xl border-2 border-green-400/45 bg-gradient-to-b from-green-600 to-green-800 py-4 text-lg font-bold tracking-wide text-white shadow-[0_4px_0_rgb(21_128_61),0_14px_36px_rgba(0,0,0,0.45)] transition hover:from-green-500 hover:to-green-700 active:translate-y-0.5 active:shadow-[0_2px_0_rgb(21_128_61)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:active:translate-y-0"
+              className="w-full rounded-full border border-amber-300/35 bg-amber-400/16 py-4 text-lg font-black tracking-[0.08em] text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_14px_34px_rgba(0,0,0,0.34),0_0_24px_rgba(245,158,11,0.10)] transition hover:border-amber-200/55 hover:bg-amber-400/24 hover:text-amber-50 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500 disabled:shadow-none"
             >
               {spinning ? t("roulette.spinning") : t("roulette.spin")}
             </button>
+            </div>
+            </div>
+
+            <div
+              ref={wheelSectionRef}
+              className="order-1 flex w-full shrink-0 flex-col items-center rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl scroll-mt-3 sm:p-4 md:scroll-mt-4 lg:order-2 lg:w-[min(100%,clamp(17rem,min(48vw,88vmin),36rem))] lg:max-w-[min(100%,clamp(17rem,min(48vw,88vmin),36rem))] lg:flex-none xl:p-5"
+            >
+              <RouletteWheelSvg wheelOrder={wheelOrder} rotation={rotation} ballOrbit={ballOrbit} />
+              <div className="mt-4 min-h-[2.75rem] w-full max-w-xs rounded-lg border border-slate-600 bg-slate-900/60 px-4 py-2 text-center text-sm text-slate-200">
+                {lastResult !== null ? (
+                  <span>
+                    {t("roulette.lastResult", { n: lastResult })}
+                    {lastColor ? (
+                      <>
+                        <span className="text-slate-500"> · </span>
+                        <span className={rouletteResultColorWordClass(lastColor)}>
+                          {t(`roulette.color.${lastColor}`)}
+                        </span>
+                      </>
+                    ) : null}
+                  </span>
+                ) : (
+                  <span className="text-slate-500">{t("roulette.noSpinYet")}</span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setHistoryOpen((open) => !open)}
+                className={`mt-3 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+                  historyOpen
+                    ? "border-cyan-400/60 bg-cyan-500/10 text-cyan-100"
+                    : "border-slate-600 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
+                title={t("roulette.tabHistory")}
+                aria-label={t("roulette.tabHistory")}
+              >
+                <History className="h-4 w-4 lg:hidden" aria-hidden />
+                <span className="hidden lg:inline">{t("roulette.tabHistory")}</span>
+              </button>
+              {historyOpen ? (
+                <div className="mt-3 max-h-80 w-full max-w-xl space-y-2.5 overflow-y-auto rounded-xl border border-slate-600/80 bg-slate-900/45 p-3 text-left shadow-lg">
+                  {spinHistory.length === 0 ? (
+                    <p className="py-4 text-center text-xs text-slate-500">{t("roulette.historyEmpty")}</p>
+                  ) : (
+                    spinHistory.map((entry) => {
+                      const winningLines = entry.lines.filter((l) => l.payout > 0);
+                      return (
+                        <div
+                          key={entry.id}
+                          className="rounded-lg border border-slate-600/70 bg-slate-900/60 p-3 text-[11px] leading-snug text-slate-300 sm:text-xs"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="font-semibold text-purple-200">{t("roulette.historySpin", { n: entry.spinIndex })}</p>
+                            <span className="rounded-full border border-slate-500/60 bg-slate-950/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                              {t("roulette.historyResult", {
+                                n: entry.result,
+                                color: t(`roulette.color.${entry.resultColorKey}`),
+                              })}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 grid grid-cols-3 gap-2">
+                            <div className="rounded-md border border-slate-700/80 bg-slate-950/40 px-2 py-1.5">
+                              <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("roulette.historyStakeLabel")}</p>
+                              <p className="mt-0.5 font-semibold tabular-nums text-slate-100">{entry.totalStake}</p>
+                            </div>
+                            <div className="rounded-md border border-slate-700/80 bg-slate-950/40 px-2 py-1.5">
+                              <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("roulette.historyReturnsLabel")}</p>
+                              <p className="mt-0.5 font-semibold tabular-nums text-slate-100">{entry.totalPayout}</p>
+                            </div>
+                            <div className="rounded-md border border-slate-700/80 bg-slate-950/40 px-2 py-1.5">
+                              <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("roulette.historyNetLabel")}</p>
+                              <p
+                                className={`mt-0.5 font-semibold tabular-nums ${
+                                  entry.net > 0 ? "text-green-400" : entry.net < 0 ? "text-rose-400" : "text-slate-100"
+                                }`}
+                              >
+                                {entry.net === 0
+                                  ? t("roulette.historyNetZero")
+                                  : t("roulette.historyNet", {
+                                      amount: Math.abs(entry.net),
+                                      sign: entry.net > 0 ? "+" : "−",
+                                    })}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-2 rounded-md border border-slate-700/70 bg-slate-950/30 px-2.5 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                              {t("roulette.historyBetsLabel")}
+                            </p>
+                            <div className="mt-1 flex flex-wrap gap-1.5">
+                              {entry.lines.map((l, index) => (
+                                <span
+                                  key={`${entry.id}-bet-${index}-${l.label}`}
+                                  className="rounded-full border border-slate-700/80 bg-slate-900/70 px-2 py-0.5 text-[10px] text-slate-200"
+                                >
+                                  {t("roulette.historyBetChip", { stake: l.stake, label: l.label })}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="mt-2 rounded-md border border-slate-700/70 bg-slate-950/30 px-2.5 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                              {t("roulette.historyPayoutsLabel")}
+                            </p>
+                            {winningLines.length === 0 ? (
+                              <p className="mt-1 text-[10px] text-slate-400">{t("roulette.historyNoPayout")}</p>
+                            ) : (
+                              <div className="mt-1 space-y-1">
+                                {winningLines.map((l, index) => (
+                                  <p key={`${entry.id}-payout-${index}-${l.label}`} className="text-[10px] text-slate-300 sm:text-[11px]">
+                                    {t("roulette.historyPayoutWin", {
+                                      label: l.label,
+                                      stake: l.stake,
+                                      mult: l.mult,
+                                      payout: l.payout,
+                                    })}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
-      </div>
+      </CustomScrollArea>
     </div>
   );
 }

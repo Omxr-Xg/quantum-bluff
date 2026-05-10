@@ -11,10 +11,17 @@ import { GameTable } from '../logic/GameTable.js'
 import type { Player } from '../types/poker.js'
 import {
   PRACTICE_BOT_GAME_PREFIX,
+  isPracticeBotGameId,
   registerPracticeBotGame,
 } from '../shared/practiceBotGames.js'
-import { runPracticeBotTurnsChain } from '../poker/services/practiceBotTurns.service.js'
+import {
+  broadcastPracticeTableState,
+  runPracticeBotTurnsChain,
+} from '../poker/services/practiceBotTurns.service.js'
 import type { BotDifficulty } from '../logic/botAI.js'
+import { intChips } from '../utils/chips.js'
+import { getActionLog } from '../config/redis.config.js'
+import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 
 const router = express.Router()
 const gameReadLimiter = rateLimit({
@@ -69,7 +76,13 @@ router.post('/bot/start', authMiddleware, gameActionLimiter, async (req, res) =>
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { username: true, chips: true },
+      select: {
+        id: true,
+        username: true,
+        chips: true,
+        avatarUrl: true,
+        avatarHasBinary: true,
+      },
     })
     if (!user) {
       return res.status(404).json({ error: 'Utilisateur introuvable' })
@@ -97,6 +110,7 @@ router.post('/bot/start', authMiddleware, gameActionLimiter, async (req, res) =>
         isConnected: true,
       })
     }
+    const humanAvatar = clientAvatarUrlFromUser(user)
     players.push({
       id: userId,
       name: user.username ?? 'Vous',
@@ -105,6 +119,7 @@ router.post('/bot/start', authMiddleware, gameActionLimiter, async (req, res) =>
       role: 'PLAYER',
       isActive: true,
       isConnected: true,
+      ...(humanAvatar ? { avatar: humanAvatar } : {}),
     })
 
     const gameId = `${PRACTICE_BOT_GAME_PREFIX}${randomUUID()}`
@@ -150,6 +165,21 @@ router.get('/:gameId/room-info', gameReadLimiter, async (req, res) => {
     res.json({ roomId: room.id, hostId: room.hostId })
   } catch (error) {
     console.error('Erreur room-info:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// GET /api/game/:gameId/action-log - Log d'actions de la main en cours (restauration après reload)
+router.get('/:gameId/action-log', authMiddleware, gameReadLimiter, async (req, res) => {
+  try {
+    const { gameId } = req.params
+    const game = await activeGames.get(gameId)
+    if (!game) return res.status(404).json({ error: 'Partie introuvable' })
+    const handId = game.state.handId
+    if (!handId) return res.json({ entries: [], handId: null })
+    const lines = await getActionLog(gameId, handId)
+    res.json({ entries: lines, handId })
+  } catch {
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })
@@ -228,7 +258,18 @@ router.post('/:gameId/action', authMiddleware, gameActionLimiter, async (req, re
       expectedStreet,
     })
 
-    res.json(game.getSanitizedState(playerId))
+    const io = req.app.get('io') as Server | undefined
+    if (io && isPracticeBotGameId(gameId)) {
+      await runPracticeBotTurnsChain(io, gameId)
+      await broadcastPracticeTableState(io, gameId)
+    }
+
+    const freshAfter = await activeGames.get(gameId)
+    res.json(
+      freshAfter
+        ? freshAfter.getSanitizedState(playerId)
+        : game.getSanitizedState(playerId),
+    )
   } catch (error) {
     const e = error as { code?: string; message?: string; httpStatus?: number }
     console.error('Erreur action:', error)
@@ -256,7 +297,7 @@ router.post('/record-result', authMiddleware, async (req, res) => {
     const userId = (req as express.Request & { userId?: string }).userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const { won, delta } = req.body as { won?: boolean; delta?: number }
+    const { won, delta, persistChips } = req.body as { won?: boolean; delta?: number; persistChips?: boolean }
     if (typeof won !== 'boolean') {
       return res
         .status(400)
@@ -286,13 +327,20 @@ router.post('/record-result', authMiddleware, async (req, res) => {
       },
     })
 
-    if (chipsDelta !== 0) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          chips: { increment: chipsDelta },
-        },
-        select: { id: true },
+    // En "practice bot", on peut choisir de ne pas persister le solde joueur
+    // (objectif: solde stable, sauf difficulté expert).
+    if (persistChips === true && chipsDelta !== 0) {
+      await prisma.$transaction(async (tx) => {
+        const row = await tx.user.findUnique({
+          where: { id: userId },
+          select: { chips: true },
+        })
+        if (!row) return
+        const next = Math.max(0, intChips(row.chips) + chipsDelta)
+        await tx.user.update({
+          where: { id: userId },
+          data: { chips: next },
+        })
       })
     }
 

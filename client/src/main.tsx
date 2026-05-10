@@ -1,4 +1,5 @@
-import './i18n/config';
+import './i18n/preflight'
+import './i18n/config'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { installGlobalErrorHandlers } from './utils/errorReporting'
@@ -19,6 +20,9 @@ import { LoaderProvider } from './contexts/LoaderContext' // Adapte le chemin si
 
 import App from './App'
 import './index.css'
+import { scheduleMigrateLegacyAuthOnStartup } from './utils/authStorage'
+
+scheduleMigrateLegacyAuthOnStartup()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

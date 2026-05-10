@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import { logSuspiciousAction } from "../utils/securityLogger.js";
 import { AntiCheatMonitor } from "../utils/antiCheat.js";
 import { prisma } from "../config/database.js";
-import type { GameTable } from "../logic/GameTable.js";
+import { GameTable } from "../logic/GameTable.js";
 import { CashGameController } from "../logic/CashGameController.js";
 import { intChips } from "../utils/chips.js";
 import {
@@ -38,6 +38,11 @@ import {
   markWinWithPair,
 } from "../dailyChallenges/dailyChallenge.service.js";
 import { sanitizePublicAvatarUrl } from "../utils/avatarUrl.js";
+import {
+  censorChatLinks,
+  isChatContentEffectivelyEmpty,
+} from "../utils/chatLinkCensor.js";
+import { appendActionLog } from "../config/redis.config.js";
 import { buildHiddenBetResolutionPayload } from "../poker/hiddenBets/hiddenBetSnapshot.js";
 import { resolveHiddenBetsForHand } from "../poker/hiddenBets/resolver/hiddenBetResolver.js";
 import {
@@ -48,6 +53,13 @@ import {
   emitToUsers,
   FRIEND_LOAN_SOCKET,
 } from "../services/friendLoan.emit.js";
+import { appendWalletLedgerEntry } from "../casino/services/walletLedger.service.js";
+import { createPokerCashLedgerContext } from "../poker/cash/pokerCashLedger.js";
+import {
+  isUserOnline,
+  markUserOffline,
+  markUserOnline,
+} from "../services/presence.service.js";
 
 // 👇 B4 : IMPORT DU SERVICE ANTI-TRICHE 👇
 import { AntiCheatService } from "../services/antiCheat.service.js";
@@ -171,6 +183,7 @@ export class GameGateway {
         this.io as unknown as { engine: { clientsCount: number } }
       ).engine.clientsCount;
       promMetrics.incSocketEvent("connection");
+      promMetrics.setSocketIoConnectionsActive(clientsCount);
       rootLogger.debug({
         msg: "socket_client_connected",
         socketId: socket.id,
@@ -181,7 +194,18 @@ export class GameGateway {
       if (socket.userId) {
         this.socketToUser.set(socket.id, socket.userId);
         this.userToSocket.set(socket.userId, socket.id);
+        void markUserOnline(socket.userId, socket.id).catch((err) =>
+          rootLogger.warn({
+            msg: "presence_mark_online_failed",
+            userId: socket.userId,
+            detail: err instanceof Error ? err.message : String(err),
+          }),
+        );
         socket.join(`user:${socket.userId}`);
+        this.io.emit("FRIEND_STATUS_CHANGED", {
+          userId: socket.userId,
+          status: "online",
+        });
         rootLogger.debug({
           msg: "socket_user_room_joined",
           userId: socket.userId,
@@ -420,14 +444,31 @@ export class GameGateway {
 
                 for (const s of socketsInRoom) {
                   const uid = (s as unknown as AuthenticatedSocket).userId;
-                  const snapshot = game.getSanitizedState(uid);
+                  const isSpectator = !game.getPlayerState(uid ?? "");
+                  const snapshot = game.getSanitizedState(
+                    isSpectator ? undefined : uid,
+                    isSpectator,
+                  );
                   s.emit("GAME_UPDATE", snapshot);
                   s.emit("GAME_STATE_UPDATED", snapshot);
                 }
-              } else {
-                const snapshot = game.getSanitizedState(playerId);
-                socket.emit("GAME_UPDATE", snapshot);
-                socket.emit("GAME_STATE_UPDATED", snapshot);
+              } else if (game instanceof GameTable) {
+                const url = sanitizePublicAvatarUrl(data.avatarUrl);
+                if (url) {
+                  const pl = game.getPlayerState(playerId);
+                  if (pl) pl.avatar = url;
+                }
+                const socketsInRoom = await this.io.in(gameId).fetchSockets();
+                for (const s of socketsInRoom) {
+                  const uid = (s as unknown as AuthenticatedSocket).userId;
+                  const isSpectator = !uid || !game.getPlayerState(uid);
+                  const snapshot = game.getSanitizedState(
+                    isSpectator ? undefined : uid,
+                    isSpectator,
+                  );
+                  s.emit("GAME_UPDATE", snapshot);
+                  s.emit("GAME_STATE_UPDATED", snapshot);
+                }
                 if (isPracticeBotGameId(gameId)) {
                   try {
                     await runPracticeBotTurnsChain(this.io, gameId);
@@ -464,6 +505,14 @@ export class GameGateway {
                 gameId,
                 action: "JOIN_GAME",
               });
+              rootLogger.warn({
+                msg: "socket_game_not_found",
+                reason: "JOIN_GAME",
+                gameId,
+                userId: socket.userId,
+                socketId: socket.id,
+                storedSnapshot: false,
+              });
 
               socket.emit("ERROR", {
                 code: "GAME_NOT_FOUND",
@@ -493,9 +542,16 @@ export class GameGateway {
                 void this.broadcastCashGameSnapshot(gameId);
               });
             }
-            socket.emit("GAME_UPDATE", game.getSanitizedState());
+            socket.emit("GAME_UPDATE", game.getSanitizedState(undefined, true));
             console.log(`👁️ Spectateur a rejoint la partie ${gameId}`);
           } else {
+            rootLogger.warn({
+              msg: "socket_game_not_found",
+              reason: "JOIN_SPECTATE",
+              gameId,
+              userId: socket.userId,
+              socketId: socket.id,
+            });
             socket.emit("ERROR", {
               code: "GAME_NOT_FOUND",
               message: "Partie introuvable",
@@ -777,6 +833,15 @@ export class GameGateway {
                 gameId,
                 action,
               });
+              rootLogger.warn({
+                msg: "socket_game_not_found",
+                reason: "PLAYER_ACTION",
+                gameId,
+                userId: socket.userId,
+                socketId: socket.id,
+                action,
+                storedSnapshot: false,
+              });
 
               socket.emit("ERROR", {
                 code: "GAME_NOT_FOUND",
@@ -828,6 +893,14 @@ export class GameGateway {
             this.resetTimer(gameId);
             let freshGame = await activeGames.get(gameId);
             if (!freshGame) {
+              rootLogger.warn({
+                msg: "socket_game_not_found_after_action",
+                gameId,
+                userId: socket.userId,
+                playerId,
+                action,
+                hint: "table_may_have_been_removed_after_hand_complete",
+              });
               socket.emit("ERROR", {
                 code: "GAME_NOT_FOUND",
                 message: "Partie introuvable",
@@ -858,6 +931,7 @@ export class GameGateway {
               const isSpectator = !freshGame.getPlayerState(uid ?? "");
               const snapshot = freshGame.getSanitizedState(
                 isSpectator ? undefined : uid,
+                isSpectator,
               );
               s.emit("GAME_UPDATE", snapshot);
               s.emit("GAME_STATE_UPDATED", snapshot);
@@ -870,6 +944,12 @@ export class GameGateway {
               handId: freshGame.state.handId,
             });
 
+            if (freshGameAfterApply?.state.lastHandAction && freshGameAfterApply.state.handId) {
+              const { playerName, action: loggedAction, amount, street } = freshGameAfterApply.state.lastHandAction;
+              const line = `${street}|${playerName}|${loggedAction}|${amount ?? 0}`;
+              await appendActionLog(gameId, freshGameAfterApply.state.handId, line);
+            }
+
             if (isPracticeBotGameId(gameId)) {
               await runPracticeBotTurnsChain(this.io, gameId);
               const afterBots = await activeGames.get(gameId);
@@ -881,6 +961,7 @@ export class GameGateway {
                   const isSpectator = !freshGame.getPlayerState(uid ?? "");
                   const snapshot = freshGame.getSanitizedState(
                     isSpectator ? undefined : uid,
+                    isSpectator,
                   );
                   s.emit("GAME_UPDATE", snapshot);
                   s.emit("GAME_STATE_UPDATED", snapshot);
@@ -976,9 +1057,11 @@ export class GameGateway {
           )
             return;
           if (socket.userId !== playerId) return;
+          const censored = censorChatLinks(String(content));
+          if (isChatContentEffectivelyEmpty(censored)) return;
           socket.broadcast
             .to(gameId)
-            .emit("GAME_CHAT", { playerId, playerName, content, type });
+            .emit("GAME_CHAT", { playerId, playerName, content: censored, type });
         },
       );
 
@@ -992,38 +1075,69 @@ export class GameGateway {
         }) => {
           try {
             const { gameId, seatIndex, buyIn } = data;
-            if (!socket.userId || !gameId || socket.gameId !== gameId) return;
-            const game = await activeGames.get(gameId);
-            if (!(game instanceof CashGameController)) return;
-            const user = await prisma.user.findUnique({
-              where: { id: socket.userId },
-              select: { username: true, chips: true },
+            const userId = socket.userId;
+            if (!userId || !gameId || socket.gameId !== gameId) return;
+            await withPokerTableLock(gameId, `cashsit:${userId}`, async () => {
+              const game = await activeGames.get(gameId);
+              if (!(game instanceof CashGameController)) return;
+              const user = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { username: true, chips: true },
+              });
+              const wallet = intChips(user?.chips ?? 0);
+              const avatarUrl = sanitizePublicAvatarUrl(data.avatarUrl);
+              const result = game.sit(
+                userId,
+                user?.username ?? "Joueur",
+                seatIndex,
+                buyIn ?? 100,
+                avatarUrl,
+                wallet,
+              );
+              if (!result.ok) {
+                socket.emit("ERROR", {
+                  code: "CASH_SIT_FAILED",
+                  message: result.error,
+                });
+                return;
+              }
+              const seat = game
+                .getOccupiedSeats()
+                .find((s) => s.userId === userId);
+              const debit = intChips(seat?.chips ?? 0);
+              try {
+                await this.persistCashPokerBuyInDebits(gameId, "sit", [
+                  { userId, amount: debit },
+                ]);
+              } catch {
+                game.forceClearSeatForUser(userId);
+                socket.emit("ERROR", {
+                  code: "CASH_SIT_FAILED",
+                  message:
+                    "Impossible de débiter le portefeuille pour ce buy-in. Réessayez.",
+                });
+                return;
+              }
+              const socketsInRoom = await this.io.in(gameId).fetchSockets();
+              for (const s of socketsInRoom) {
+                const uid = (s as unknown as AuthenticatedSocket).userId;
+                const isSpectator = !game.getPlayerState(uid ?? "");
+                const snapshot = game.getSanitizedState(
+                  isSpectator ? undefined : uid,
+                  isSpectator,
+                );
+                s.emit("GAME_UPDATE", snapshot);
+                s.emit("GAME_STATE_UPDATED", snapshot);
+              }
             });
-            const wallet = intChips(user?.chips ?? 0);
-            const avatarUrl = sanitizePublicAvatarUrl(data.avatarUrl);
-            const result = game.sit(
-              socket.userId,
-              user?.username ?? "Joueur",
-              seatIndex,
-              buyIn ?? 100,
-              avatarUrl,
-              wallet,
-            );
-            if (!result.ok) {
+          } catch (err) {
+            if (err instanceof PokerTableLockedError) {
               socket.emit("ERROR", {
-                code: "CASH_SIT_FAILED",
-                message: result.error,
+                code: "TABLE_LOCKED",
+                message: "Une action est déjà en cours sur cette table.",
               });
               return;
             }
-            const socketsInRoom = await this.io.in(gameId).fetchSockets();
-            for (const s of socketsInRoom) {
-              const uid = (s as unknown as AuthenticatedSocket).userId;
-              const snapshot = game.getSanitizedState(uid);
-              s.emit("GAME_UPDATE", snapshot);
-              s.emit("GAME_STATE_UPDATED", snapshot);
-            }
-          } catch (err) {
             console.error("Erreur CASH_SIT:", err);
           }
         },
@@ -1066,6 +1180,7 @@ export class GameGateway {
                 const isSpectator = !freshGame.getPlayerState(uid ?? "");
                 const snapshot = freshGame.getSanitizedState(
                   isSpectator ? undefined : uid,
+                  isSpectator,
                 );
                 s.emit("GAME_UPDATE", snapshot);
                 s.emit("GAME_STATE_UPDATED", snapshot);
@@ -1128,6 +1243,15 @@ export class GameGateway {
               });
               return;
             }
+            if (result.cashedOutChips > 0) {
+              await this.persistCashPokerCashouts(gameId, "leave", [
+                {
+                  userId: leaverId,
+                  chips: result.cashedOutChips,
+                  actionPrefix: "leave",
+                },
+              ]);
+            }
 
             let dissolveReason:
               | "all_players_left"
@@ -1144,7 +1268,16 @@ export class GameGateway {
               const remaining = game.getOccupiedSeats()[0]?.userId;
               if (remaining) {
                 game.cancelInterHandCountdown();
-                game.leave(remaining);
+                const r2 = game.leave(remaining);
+                if (r2.ok && r2.cashedOutChips > 0) {
+                  await this.persistCashPokerCashouts(gameId, "leave", [
+                    {
+                      userId: remaining,
+                      chips: r2.cashedOutChips,
+                      actionPrefix: "heads-up-peer",
+                    },
+                  ]);
+                }
                 dissolveReason = "heads_up_peer_left";
               }
             }
@@ -1153,7 +1286,11 @@ export class GameGateway {
               const socketsInRoom = await this.io.in(gameId).fetchSockets();
               for (const s of socketsInRoom) {
                 const uid = (s as unknown as AuthenticatedSocket).userId;
-                const snapshot = game.getSanitizedState(uid);
+                const isSpectator = !game.getPlayerState(uid ?? "");
+                const snapshot = game.getSanitizedState(
+                  isSpectator ? undefined : uid,
+                  isSpectator,
+                );
                 s.emit("GAME_UPDATE", snapshot);
                 s.emit("GAME_STATE_UPDATED", snapshot);
               }
@@ -1206,7 +1343,15 @@ export class GameGateway {
             if (!socket.userId || !gameId || socket.gameId !== gameId) return;
             const game = await activeGames.get(gameId);
             if (!(game instanceof CashGameController)) return;
-            const result = game.rebuy(socket.userId, intChips(amount ?? 100));
+            const user = await prisma.user.findUnique({
+              where: { id: socket.userId },
+              select: { chips: true },
+            });
+            const wallet = intChips(user?.chips ?? 0);
+            const add = intChips(
+              Math.max(10, Math.min(intChips(amount ?? 100), 5000)),
+            );
+            const result = game.rebuy(socket.userId, intChips(amount ?? 100), wallet);
             if (!result.ok) {
               socket.emit("ERROR", {
                 code: "CASH_REBUY_FAILED",
@@ -1214,10 +1359,27 @@ export class GameGateway {
               });
               return;
             }
+            try {
+              await this.persistCashPokerRebuyDebit(gameId, socket.userId, add);
+            } catch {
+              const seat = game
+                .getOccupiedSeats()
+                .find((s) => s.userId === socket.userId);
+              if (seat) seat.chips = Math.max(0, intChips(seat.chips) - add);
+              socket.emit("ERROR", {
+                code: "CASH_REBUY_FAILED",
+                message: "Solde insuffisant pour ce rebuy.",
+              });
+              return;
+            }
             const socketsInRoom = await this.io.in(gameId).fetchSockets();
             for (const s of socketsInRoom) {
               const uid = (s as unknown as AuthenticatedSocket).userId;
-              s.emit("GAME_UPDATE", game.getSanitizedState(uid));
+              const isSpectator = !game.getPlayerState(uid ?? "");
+              s.emit(
+                "GAME_UPDATE",
+                game.getSanitizedState(isSpectator ? undefined : uid, isSpectator),
+              );
             }
           } catch (err) {
             console.error("Erreur CASH_REBUY:", err);
@@ -1303,14 +1465,31 @@ export class GameGateway {
                 const socketsInRoom = await this.io.in(gameId).fetchSockets();
                 for (const s of socketsInRoom) {
                   const uid = (s as unknown as AuthenticatedSocket).userId;
-                  const snapshot = pokerGame.getSanitizedState(uid);
+                  const isSpectator = !pokerGame.getPlayerState(uid ?? "");
+                  const snapshot = pokerGame.getSanitizedState(
+                    isSpectator ? undefined : uid,
+                    isSpectator,
+                  );
                   s.emit("GAME_UPDATE", snapshot);
                   s.emit("GAME_STATE_UPDATED", snapshot);
                 }
-              } else {
-                const snapshot = pokerGame.getSanitizedState(socket.userId);
-                socket.emit("GAME_UPDATE", snapshot);
-                socket.emit("GAME_STATE_UPDATED", snapshot);
+              } else if (pokerGame instanceof GameTable) {
+                const url = sanitizePublicAvatarUrl(data.avatarUrl);
+                if (url && socket.userId) {
+                  const pl = pokerGame.getPlayerState(socket.userId);
+                  if (pl) pl.avatar = url;
+                }
+                const socketsInRoom = await this.io.in(gameId).fetchSockets();
+                for (const s of socketsInRoom) {
+                  const uid = (s as unknown as AuthenticatedSocket).userId;
+                  const isSpectator = !uid || !pokerGame.getPlayerState(uid);
+                  const snapshot = pokerGame.getSanitizedState(
+                    isSpectator ? undefined : uid,
+                    isSpectator,
+                  );
+                  s.emit("GAME_UPDATE", snapshot);
+                  s.emit("GAME_STATE_UPDATED", snapshot);
+                }
               }
 
               this.io.to(gameId).emit("PLAYER_RECONNECTED", {
@@ -1403,6 +1582,7 @@ export class GameGateway {
           this.io as unknown as { engine: { clientsCount: number } }
         ).engine.clientsCount;
         promMetrics.incSocketEvent("disconnect");
+        promMetrics.setSocketIoConnectionsActive(currentCount);
         rootLogger.debug({
           msg: "socket_client_disconnected",
           socketId: socket.id,
@@ -1416,12 +1596,10 @@ export class GameGateway {
         this.socketToUser.delete(socket.id);
 
         if (userId) {
-          //  On regarde s'il reste d'autres sockets actifs pour ce joueur (multi-onglets ou reconnexion ultra-rapide)
-          const userRoom = this.io.sockets.adapter.rooms.get(`user:${userId}`);
-          const activeSocketsCount = userRoom ? userRoom.size : 0;
+          await markUserOffline(userId, socket.id);
+          const stillOnline = await isUserOnline(userId);
 
-          if (activeSocketsCount === 0) {
-            // Le joueur est VRAIMENT hors ligne (plus aucun socket)
+          if (!stillOnline) {
             console.log(
               `[Réseau] Le joueur ${userId} n'a plus de sockets actifs.`,
             );
@@ -1434,9 +1612,8 @@ export class GameGateway {
             });
           } else {
             console.log(
-              `[Réseau] Socket ${socket.id} mort pour ${userId}, mais il reste ${activeSocketsCount} connexion(s) active(s).`,
+              `[Réseau] Socket ${socket.id} mort pour ${userId}, mais d'autres connexions restent actives (Redis / cluster).`,
             );
-            // On s'arrête là, on ne lance PAS le timeout de 10s car il est encore là sur un autre onglet/socket !
             return;
           }
         }
@@ -1476,7 +1653,11 @@ export class GameGateway {
                       .fetchSockets();
                     for (const s of socketsInRoom) {
                       const uid = (s as unknown as AuthenticatedSocket).userId;
-                      const snapshot = game.getSanitizedState(uid);
+                      const isSpectator = !game.getPlayerState(uid ?? "");
+                      const snapshot = game.getSanitizedState(
+                        isSpectator ? undefined : uid,
+                        isSpectator,
+                      );
                       s.emit("GAME_UPDATE", snapshot);
                       s.emit("GAME_STATE_UPDATED", snapshot);
                     }
@@ -1499,7 +1680,11 @@ export class GameGateway {
                   const socketsInRoom = await this.io.in(gameId).fetchSockets();
                   for (const s of socketsInRoom) {
                     const uid = (s as unknown as AuthenticatedSocket).userId;
-                    const snapshot = game.getSanitizedState(uid);
+                    const isSpectator = !game.getPlayerState(uid ?? "");
+                    const snapshot = game.getSanitizedState(
+                      isSpectator ? undefined : uid,
+                      isSpectator,
+                    );
                     s.emit("GAME_UPDATE", snapshot);
                     s.emit("GAME_STATE_UPDATED", snapshot);
                   }
@@ -1532,11 +1717,24 @@ export class GameGateway {
                 }
               } else if (game instanceof CashGameController) {
                 const removed = game.removeDisconnectedPlayer(userId);
-                if (removed) {
+                if (removed.ok) {
+                  if (removed.cashedOutChips > 0) {
+                    await this.persistCashPokerCashouts(gameId, "disconnect", [
+                      {
+                        userId,
+                        chips: removed.cashedOutChips,
+                        actionPrefix: "disconnect",
+                      },
+                    ]);
+                  }
                   const socketsInRoom = await this.io.in(gameId).fetchSockets();
                   for (const s of socketsInRoom) {
                     const uid = (s as unknown as AuthenticatedSocket).userId;
-                    s.emit("GAME_UPDATE", game.getSanitizedState(uid));
+                    const isSpectator = !game.getPlayerState(uid ?? "");
+                    s.emit(
+                      "GAME_UPDATE",
+                      game.getSanitizedState(isSpectator ? undefined : uid, isSpectator),
+                    );
                   }
                   if (game.getOccupiedCount() === 0) {
                     await activeGames.delete(gameId);
@@ -1683,6 +1881,138 @@ export class GameGateway {
     );
   }
 
+  private async persistCashPokerBuyInDebits(
+    gameId: string,
+    ledgerHandId: string,
+    items: { userId: string; amount: number }[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+    await prisma.$transaction(async (tx) => {
+      for (const { userId, amount } of items) {
+        const a = intChips(amount);
+        if (a <= 0) continue;
+        const row = await tx.user.findUnique({
+          where: { id: userId },
+          select: { chips: true },
+        });
+        const before = intChips(row?.chips ?? 0);
+        if (before < a) {
+          const e = new Error("INSUFFICIENT_CHIPS_BUY_IN") as Error & { code?: string };
+          e.code = "INSUFFICIENT_CHIPS_BUY_IN";
+          throw e;
+        }
+        const after = before - a;
+        await tx.user.update({
+          where: { id: userId },
+          data: { chips: after },
+        });
+        await appendWalletLedgerEntry(
+          {
+            context: createPokerCashLedgerContext({
+              userId,
+              gameId,
+              handId: ledgerHandId,
+              actionId: `buy-in:${userId}:${Date.now()}`,
+            }),
+            reason: "CASH_POKER_BUY_IN",
+            amount: -a,
+            balanceBefore: before,
+            balanceAfter: after,
+          },
+          tx,
+        );
+      }
+    });
+  }
+
+  private async persistCashPokerRebuyDebit(
+    gameId: string,
+    userId: string,
+    amount: number,
+  ): Promise<void> {
+    const a = intChips(amount);
+    if (a <= 0) return;
+    await prisma.$transaction(async (tx) => {
+      const row = await tx.user.findUnique({
+        where: { id: userId },
+        select: { chips: true },
+      });
+      const before = intChips(row?.chips ?? 0);
+      if (before < a) {
+        const e = new Error("INSUFFICIENT_CHIPS_REBUY") as Error & { code?: string };
+        e.code = "INSUFFICIENT_CHIPS_REBUY";
+        throw e;
+      }
+      const after = before - a;
+      await tx.user.update({
+        where: { id: userId },
+        data: { chips: after },
+      });
+      await appendWalletLedgerEntry(
+        {
+          context: createPokerCashLedgerContext({
+            userId,
+            gameId,
+            handId: "rebuy",
+            actionId: `rebuy:${userId}:${Date.now()}`,
+          }),
+          reason: "CASH_POKER_REBUY",
+          amount: -a,
+          balanceBefore: before,
+          balanceAfter: after,
+        },
+        tx,
+      );
+    });
+  }
+
+  private async persistCashPokerCashouts(
+    gameId: string,
+    ledgerHandId: string,
+    items: { userId: string; chips: number; actionPrefix: string }[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const { userId, chips, actionPrefix } of items) {
+          const amount = intChips(chips);
+          if (amount <= 0) continue;
+          const row = await tx.user.findUnique({
+            where: { id: userId },
+            select: { chips: true },
+          });
+          const before = intChips(row?.chips ?? 0);
+          const after = before + amount;
+          await tx.user.update({
+            where: { id: userId },
+            data: { chips: after },
+          });
+          await appendWalletLedgerEntry(
+            {
+              context: createPokerCashLedgerContext({
+                userId,
+                gameId,
+                handId: ledgerHandId,
+                actionId: `${actionPrefix}:${userId}:${Date.now()}`,
+              }),
+              reason: "CASH_POKER_CASHOUT",
+              amount,
+              balanceBefore: before,
+              balanceAfter: after,
+            },
+            tx,
+          );
+        }
+      });
+    } catch (err) {
+      rootLogger.error({
+        msg: "cash_poker_cashout_persist_failed",
+        gameId,
+        detail: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   /**
    * Après une main cash : HU → s’il ne reste qu’un joueur, retour lobby (GAME_ENDED).
    */
@@ -1690,13 +2020,24 @@ export class GameGateway {
     cashGame: CashGameController,
     gameId: string,
     roomId: string,
+    lastHandId: string,
   ): Promise<boolean> {
+    const SHOWDOWN_RESULT_DISPLAY_MS = 3000;
     let dissolveReason: "all_players_left" | "heads_up_peer_left" | null = null;
     if (cashGame.getOccupiedCount() === 1) {
       const remaining = cashGame.getOccupiedSeats()[0]?.userId;
       if (remaining) {
         cashGame.cancelInterHandCountdown();
-        cashGame.leave(remaining);
+        const left = cashGame.leave(remaining);
+        if (left.ok && left.cashedOutChips > 0) {
+          await this.persistCashPokerCashouts(gameId, lastHandId, [
+            {
+              userId: remaining,
+              chips: left.cashedOutChips,
+              actionPrefix: "heads-up-dissolve",
+            },
+          ]);
+        }
         dissolveReason = "heads_up_peer_left";
       }
     }
@@ -1707,11 +2048,15 @@ export class GameGateway {
         where: { id: roomId },
         data: { status: "WAITING", gameId: null },
       });
-      this.io.to(gameId).emit("GAME_ENDED", {
-        gameId,
-        reason: dissolveReason,
-        roomId,
-      });
+      // Laisse le temps au front d'afficher l'abattage + gagnant avant retour waiting room.
+      const endTimer = setTimeout(() => {
+        this.io.to(gameId).emit("GAME_ENDED", {
+          gameId,
+          reason: dissolveReason,
+          roomId,
+        });
+      }, SHOWDOWN_RESULT_DISPLAY_MS);
+      endTimer.unref?.();
       return true;
     }
     return false;
@@ -1724,7 +2069,7 @@ export class GameGateway {
     for (const s of socketsInRoom) {
       const uid = (s as unknown as AuthenticatedSocket).userId;
       const isSpectator = !game.getPlayerState(uid ?? "");
-      const snapshot = game.getSanitizedState(isSpectator ? undefined : uid);
+      const snapshot = game.getSanitizedState(isSpectator ? undefined : uid, isSpectator);
       s.emit("GAME_UPDATE", snapshot);
       s.emit("GAME_STATE_UPDATED", snapshot);
     }
@@ -1743,70 +2088,134 @@ export class GameGateway {
     },
   ): Promise<void> {
     const hiddenBetSnap = buildHiddenBetResolutionPayload(gameId, cashGame);
-    const balanceSnapshot = cashGame.onHandComplete();
-    if (balanceSnapshot.length > 0) {
+    const startingMap = cashGame.getLastHandStartingStacks();
+    const { playerStacks, seatCashOuts } = cashGame.onHandComplete();
+    const handId = showdownSnapshot.handId || "unknown";
+
+    const bustedUserIds = playerStacks
+      .filter((b) => intChips(b.chips) <= 0)
+      .map((b) => String(b.userId));
+    for (const bustedUserId of bustedUserIds) {
+      this.io.to(`user:${bustedUserId}`).emit("PLAYER_BUSTED", {
+        gameId,
+        userId: bustedUserId,
+        reason: "OUT_OF_CHIPS",
+        mode: "cash",
+      });
+    }
+
+    if (playerStacks.length > 0 || seatCashOuts.length > 0) {
       try {
         const loanEmits: {
           socketRepayment?: RepaymentSocketPayload;
           socketCompleted?: RepaymentSocketPayload;
         }[] = [];
+        let seatAdjustments: { userId: string; delta: number }[] = [];
         await prisma.$transaction(async (tx) => {
-          const userIds = [...new Set(balanceSnapshot.map((b) => b.userId))];
+          seatAdjustments = [];
+          const userIds = [
+            ...new Set([
+              ...playerStacks.map((p) => p.userId),
+              ...seatCashOuts.map((s) => s.userId),
+            ]),
+          ];
           const dbRows = await tx.user.findMany({
             where: { id: { in: userIds } },
             select: { id: true, chips: true },
           });
-          const dbMap = new Map(dbRows.map((r) => [r.id, intChips(r.chips)]));
-          async function chipsFromDb(uid: string): Promise<number> {
-            if (!dbMap.has(uid)) {
+          const liquidMap = new Map(dbRows.map((r) => [r.id, intChips(r.chips)]));
+          async function liquidOf(uid: string): Promise<number> {
+            if (!liquidMap.has(uid)) {
               const r = await tx.user.findUnique({
                 where: { id: uid },
                 select: { chips: true },
               });
-              dbMap.set(uid, intChips(r?.chips ?? 0));
+              liquidMap.set(uid, intChips(r?.chips ?? 0));
             }
-            return dbMap.get(uid)!;
+            return liquidMap.get(uid)!;
           }
 
-          const finalChips = new Map<string, number>();
-          for (const { userId, chips } of balanceSnapshot) {
-            finalChips.set(userId, intChips(chips));
-          }
+          for (const { userId, chips: endStackRaw } of playerStacks) {
+            const endStack = intChips(endStackRaw);
+            const startStack = intChips(startingMap.get(userId) ?? 0);
+            const delta = endStack - startStack;
+            const liquid = await liquidOf(userId);
+            const balanceBeforeTotal = liquid + startStack;
+            const balanceAfterTotal = liquid + endStack;
 
-          for (const { userId, chips: snapRaw } of balanceSnapshot) {
-            const snap = intChips(snapRaw);
-            const db = dbMap.get(userId) ?? snap;
-            const delta = snap - db;
-            if (delta <= 0) continue;
-            const r = await applyRepaymentOnPokerSettlement(tx, {
-              borrowerId: userId,
-              grossWinDelta: delta,
-              borrowerBalanceAfterFullWin: snap,
-              gameId,
-              handId: showdownSnapshot.handId,
-            });
-            if (r.repayment > 0 && r.lenderId) {
-              finalChips.set(userId, snap - r.repayment);
-              const lenderPrev = finalChips.has(r.lenderId)
-                ? finalChips.get(r.lenderId)!
-                : await chipsFromDb(r.lenderId);
-              finalChips.set(r.lenderId, lenderPrev + r.repayment);
+            if (delta !== 0) {
+              await appendWalletLedgerEntry(
+                {
+                  context: createPokerCashLedgerContext({
+                    userId,
+                    gameId,
+                    handId,
+                    actionId: `hand-result:${handId}:${userId}`,
+                  }),
+                  reason: "CASH_POKER_HAND_RESULT",
+                  amount: delta,
+                  balanceBefore: balanceBeforeTotal,
+                  balanceAfter: balanceAfterTotal,
+                },
+                tx,
+              );
             }
-            if (r.socketRepayment || r.socketCompleted) {
-              loanEmits.push({
-                socketRepayment: r.socketRepayment,
-                socketCompleted: r.socketCompleted,
+
+            if (delta > 0) {
+              const totalAfterWin = liquid + endStack;
+              const r = await applyRepaymentOnPokerSettlement(tx, {
+                borrowerId: userId,
+                grossWinDelta: delta,
+                borrowerBalanceAfterFullWin: totalAfterWin,
+                gameId,
+                handId,
               });
+              if (r.repayment > 0 && r.lenderId) {
+                await tx.user.update({
+                  where: { id: r.lenderId },
+                  data: { chips: { increment: r.repayment } },
+                });
+                seatAdjustments.push({ userId, delta: -r.repayment });
+              }
+              if (r.socketRepayment || r.socketCompleted) {
+                loanEmits.push({
+                  socketRepayment: r.socketRepayment,
+                  socketCompleted: r.socketCompleted,
+                });
+              }
             }
           }
 
-          for (const [uid, chips] of finalChips) {
+          for (const { userId, chips: outRaw } of seatCashOuts) {
+            const amount = intChips(outRaw);
+            if (amount <= 0) continue;
+            const before = await liquidOf(userId);
+            const after = before + amount;
             await tx.user.update({
-              where: { id: uid },
-              data: { chips: intChips(chips) },
+              where: { id: userId },
+              data: { chips: after },
             });
+            liquidMap.set(userId, after);
+            await appendWalletLedgerEntry(
+              {
+                context: createPokerCashLedgerContext({
+                  userId,
+                  gameId,
+                  handId,
+                  actionId: `cashout-hand:${handId}:${userId}`,
+                }),
+                reason: "CASH_POKER_CASHOUT",
+                amount,
+                balanceBefore: before,
+                balanceAfter: after,
+              },
+              tx,
+            );
           }
         });
+        for (const adj of seatAdjustments) {
+          cashGame.adjustSeatChips(adj.userId, adj.delta);
+        }
         for (const ev of loanEmits) {
           if (ev.socketRepayment) {
             emitToUsers(
@@ -1841,7 +2250,7 @@ export class GameGateway {
         });
       }
     }
-    await cashGame.processRejoinQueue(async (uid) => {
+    const rejoinBuyIns = await cashGame.processRejoinQueue(async (uid) => {
       const u = await prisma.user.findUnique({
         where: { id: uid },
         select: { username: true, chips: true },
@@ -1850,10 +2259,35 @@ export class GameGateway {
         ? { username: u.username, chips: Math.max(100, u.chips ?? 1000) }
         : null;
     });
+    if (rejoinBuyIns.length > 0) {
+      try {
+        await this.persistCashPokerBuyInDebits(
+          gameId,
+          `rejoin-after:${handId}`,
+          rejoinBuyIns.map((b) => ({
+            userId: b.userId,
+            amount: b.buyInAmount,
+          })),
+        );
+      } catch (err) {
+        rootLogger.error({
+          msg: "cash_poker_rejoin_buy_in_failed",
+          gameId,
+          detail: err instanceof Error ? err.message : String(err),
+        });
+        for (const b of rejoinBuyIns) {
+          cashGame.forceClearSeatForUser(b.userId);
+        }
+      }
+    }
     const socketsInRoom2 = await this.io.in(gameId).fetchSockets();
     for (const s of socketsInRoom2) {
       const uid = (s as unknown as AuthenticatedSocket).userId;
-      const snapshot = cashGame.getSanitizedState(uid);
+      const isSpectator = !cashGame.getPlayerState(uid ?? "");
+      const snapshot = cashGame.getSanitizedState(
+        isSpectator ? undefined : uid,
+        isSpectator,
+      );
       s.emit("GAME_UPDATE", snapshot);
       s.emit("GAME_STATE_UPDATED", snapshot);
     }
@@ -1873,6 +2307,7 @@ export class GameGateway {
       cashGame,
       gameId,
       roomId,
+      handId,
     );
     if (!dissolved) {
       const snap = cashGame.getSanitizedState();
@@ -1925,20 +2360,48 @@ export class GameGateway {
 
             if (callAmount === 0) {
               console.log(`⏱️ Timeout - ${player.name} CHECK auto`);
-              g.handlePlayerAction(currentPlayerId, "CHECK");
+              await applyPokerAction({
+                gameId,
+                playerId: currentPlayerId,
+                actionType: "CHECK",
+                actionId: `timeout-${Date.now()}`,
+              });
             } else {
               console.log(
                 `⏱️ Timeout - ${player.name} FOLD auto (callAmount: ${callAmount})`,
               );
-              g.handlePlayerAction(currentPlayerId, "FOLD");
+              await applyPokerAction({
+                gameId,
+                playerId: currentPlayerId,
+                actionType: "FOLD",
+                actionId: `timeout-${Date.now()}`,
+              });
             }
+
+            const fresh = await activeGames.get(gameId);
+            if (!fresh) return;
 
             const socketsInRoom = await this.io.in(gameId).fetchSockets();
             for (const s of socketsInRoom) {
               const uid = (s as unknown as AuthenticatedSocket).userId;
-              s.emit("GAME_UPDATE", g.getSanitizedState(uid));
+              const isSpectator = !fresh.getPlayerState(uid ?? "");
+              const snapshot = fresh.getSanitizedState(
+                isSpectator ? undefined : uid,
+                isSpectator,
+              );
+              s.emit("GAME_UPDATE", snapshot);
+              s.emit("GAME_STATE_UPDATED", snapshot);
             }
-            if (g.state.currentTurn) {
+            if (fresh.state.phase === "SHOWDOWN" && fresh instanceof CashGameController) {
+              const showdownSnapshot = {
+                handId: fresh.state.handId ?? "",
+                handEndReason: fresh.state.handEndReason,
+                showdownWinnerId: fresh.state.showdownWinnerId,
+                showdownWinnerIds: fresh.state.showdownWinnerIds,
+                showdownPot: fresh.state.showdownPot,
+              };
+              await this.completeCashHandAndBroadcast(gameId, fresh, fresh.roomId, showdownSnapshot);
+            } else if (fresh.state.currentTurn) {
               this.startTurnTimer(gameId);
             }
           } catch (error) {

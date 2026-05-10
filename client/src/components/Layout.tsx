@@ -1,18 +1,27 @@
-import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
+  DoorOpen,
+  Eye,
   X,
   LogOut,
+  Music2,
+  Palette,
   Plus,
   Menu,
   Settings,
   Trophy,
   Home,
-  Sparkles,
+  CircleHelp,
   MessageCircle,
   Loader2,
+  Radio,
+  Waves,
+  History,
+  Gift,
+  AlertCircle,
 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
@@ -25,8 +34,16 @@ import {
   addDevMoney,
   fetchBalanceFromServer,
   clearAuthStorage,
+  fetchDailyLoginStatus,
   BALANCE_CHANGED_EVENT,
+  POKER_WALLET_DISPLAY_EVENT,
 } from "../utils/userProfile";
+import {
+  fetchAvailableGiftCodes,
+  validateGiftCode,
+  type GiftCode,
+} from "../utils/wallet";
+import { DailyLoginModal } from "./DailyLoginModal";
 import { Toast } from "./Toast";
 import { InvitationBanner } from "./InvitationBanner";
 import { NotificationCenter } from "./NotificationCenter";
@@ -34,14 +51,36 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ChipIcon } from "./ChipIcon";
 import { TopBarProvider } from "../contexts/TopBarContext";
 import { useAccessibilityMenuOpen } from "../contexts/AccessibilityMenuOpenContext";
+import { useAccessibility } from "../contexts/AccessibilityContext";
 import { SettingsMenu } from "./SettingsMenu";
 import { RateGameModal } from "./RateGameModal";
 import { GlobalHoverTooltip } from "./GlobalHoverTooltip";
+import { GlobalCustomScrollbars } from "./GlobalCustomScrollbars";
+import { CustomScrollArea } from "./CustomScrollArea";
+import {
+  FakeCardTopUpFields,
+  isFakeCardComplete,
+  type PromoDiscountInfo,
+  simulatedEurFromChips,
+} from "./FakeCardTopUpForm";
+import { useIsMobile } from "./ui/use-mobile";
 import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
-import { useSendFriendMessageMutation } from "../services/api";
+import { api, useSendFriendMessageMutation } from "../services/api";
+import { store } from "../store";
+import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
+type BalanceHistoryEntry = {
+  id: string;
+  createdAt: string;
+  reason: string;
+  gameType?: string | null;
+  amount: number;
+  balanceBefore?: number | null;
+  balanceAfter?: number | null;
+};
 
 type LayoutNotification =
   | {
@@ -69,21 +108,69 @@ export function Layout({ children }: LayoutProps) {
   const { t } = useTranslation();
   const { socket, isConnected, connect } = useSocket();
   const { toasts, removeToast, addToast } = useToast();
-  const { unlockAudio, playSfx, stopBgm } = useAudio();
+  const {
+    unlockAudio,
+    playSfx,
+    stopBgm,
+    bgmEnabled,
+    bgmVolume,
+    sfxEnabled,
+    sfxVolume,
+    setBgmVolume,
+    setSfxVolume,
+    toggleBgm,
+    toggleSfx,
+  } = useAudio();
+  const {
+    highContrast,
+    toggleHighContrast,
+    visualAlerts,
+    toggleVisualAlerts,
+    colorblindMode,
+    toggleColorblindMode,
+  } = useAccessibility();
   const [notification, setNotification] = useState<LayoutNotification | null>(null);
+  const [gameHudState, setGameHudState] = useState<{
+    game?: "poker" | "blackjack";
+    phase?: string;
+    isMyTurn?: boolean;
+  } | null>(null);
   const [friendQuickReply, setFriendQuickReply] = useState("");
   const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
   const [balance, setBalance] = useState(getUserBalance());
+  /** Sur /game (cash), le solde affiché peut inclure la stack au siège (événement émis par Game.tsx). */
+  const [pokerDisplayTotal, setPokerDisplayTotal] = useState<number | null>(null);
   const [showAddMoney, setShowAddMoney] = useState(false);
+  const [showDailyLogin, setShowDailyLogin] = useState(false);
+  const [dailyLoginAvailable, setDailyLoginAvailable] = useState(false);
+  const [balanceModalTab, setBalanceModalTab] = useState<"history" | "topup" | "codes">("topup");
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
-  const [devValidation, setDevValidation] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [promoDiscount, setPromoDiscount] = useState<PromoDiscountInfo>(null);
+  const [promoValidating, setPromoValidating] = useState(false);
+  const [cardName, setCardName] = useState("");
+  const [cardDigits, setCardDigits] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<BalanceHistoryEntry[]>([]);
+  const [giftCodes, setGiftCodes] = useState<GiftCode[]>([]);
+  const [codeInput, setCodeInput] = useState("");
+  const [codesLoading, setCodesLoading] = useState(false);
+  const [codesError, setCodesError] = useState<string | null>(null);
+  const [codesSuccess, setCodesSuccess] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showRateGame, setShowRateGame] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("aesthetic");
+  const [gameHudToolsOpen, setGameHudToolsOpen] = useState(false);
   const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MENU_CLOSE_DELAY = 500;
+  const isMobile = useIsMobile();
+  const isAdminShell =
+    location.pathname === "/auth/admin" || location.pathname.startsWith("/admin/");
   const { registerOpener, openSettingsMenu } = useAccessibilityMenuOpen() ?? {
     registerOpener: () => {},
     openSettingsMenu: () => {},
@@ -103,10 +190,13 @@ export function Layout({ children }: LayoutProps) {
     return () => window.removeEventListener(OPEN_RATE_GAME_EVENT, openRate);
   }, []);
 
+  const isGamePagePath =
+    location.pathname === "/game" || location.pathname.startsWith("/game?");
+
   useEffect(() => {
     // Toujours refléter le local tout de suite (gains bot, navigation lobby ← jeu).
     setBalance(getUserBalance());
-    if (localStorage.getItem("token")) {
+    if (getAuthItem("token") && !isAdminShell) {
       const blackjackMultiInLobby =
         location.pathname === "/lobby" && location.search.includes("tab=blackjack");
       const authoritative =
@@ -114,10 +204,25 @@ export function Layout({ children }: LayoutProps) {
         location.pathname === "/blackjack" ||
         location.pathname.startsWith("/blackjack/lobby") ||
         location.pathname.startsWith("/blackjack/table") ||
-        blackjackMultiInLobby;
+        blackjackMultiInLobby ||
+        isGamePagePath;
       fetchBalanceFromServer({ authoritative }).then(setBalance);
     }
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, isGamePagePath, isAdminShell]);
+
+  useEffect(() => {
+    if (!isGamePagePath) setPokerDisplayTotal(null);
+  }, [isGamePagePath]);
+
+  useEffect(() => {
+    const onPokerWallet = (e: Event) => {
+      const ce = e as CustomEvent<{ total: number | null | undefined }>;
+      const v = ce.detail?.total;
+      setPokerDisplayTotal(typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : null);
+    };
+    window.addEventListener(POKER_WALLET_DISPLAY_EVENT, onPokerWallet);
+    return () => window.removeEventListener(POKER_WALLET_DISPLAY_EVENT, onPokerWallet);
+  }, []);
 
   /** Mise à jour immédiate du solde affiché (ex. mode bot : `addToUserBalance` ne touche que le localStorage). */
   useEffect(() => {
@@ -125,15 +230,53 @@ export function Layout({ children }: LayoutProps) {
     window.addEventListener(BALANCE_CHANGED_EVENT, sync);
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, sync);
   }, []);
+
+  /** Vérifie côté serveur si la récompense de connexion quotidienne est disponible ; ouvre la modale une fois par jour à la première visite hors écrans auth. */
+  useEffect(() => {
+    if (!getAuthItem("token")) {
+      setDailyLoginAvailable(false);
+      return;
+    }
+    if (isAdminShell) {
+      setDailyLoginAvailable(false);
+      return;
+    }
+    const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
+    const showTopBarNow = !isAuthPage;
+    let cancelled = false;
+    fetchDailyLoginStatus().then((status) => {
+      if (cancelled) return;
+      const available = Boolean(status && !status.claimedToday);
+      setDailyLoginAvailable(available);
+      if (!available || !status || !showTopBarNow) return;
+      const userKey =
+        (getAuthItem("userId") ?? getAuthItem("userid") ?? "").trim() || "anon";
+      const markerKey = "quantum_bluff_daily_login_auto_opened";
+      let prev: { u: string; d: string } | null = null;
+      try {
+        prev = JSON.parse(localStorage.getItem(markerKey) || "null") as { u: string; d: string } | null;
+      } catch {
+        prev = null;
+      }
+      if (prev && prev.u === userKey && prev.d === status.dayKey) return;
+      localStorage.setItem(markerKey, JSON.stringify({ u: userKey, d: status.dayKey }));
+      playSfx("modalOpen");
+      setShowDailyLogin(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, playSfx, isAdminShell]);
   
   useEffect(() => {
     const onFocus = () => {
-      if (localStorage.getItem("token")) {
+      if (getAuthItem("token") && !isAdminShell) {
         const authoritative =
           location.pathname === "/minigames" ||
           location.pathname === "/blackjack" ||
           location.pathname.startsWith("/blackjack/lobby") ||
-          location.pathname.startsWith("/blackjack/table");
+          location.pathname.startsWith("/blackjack/table") ||
+          isGamePagePath;
         fetchBalanceFromServer({ authoritative }).then(setBalance);
       } else {
         setBalance(getUserBalance());
@@ -141,13 +284,13 @@ export function Layout({ children }: LayoutProps) {
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, isGamePagePath, isAdminShell]);
 
   useEffect(() => {
-    if (!isConnected) {
+    if (!isAdminShell && !isConnected) {
       connect();
     }
-  }, [isConnected, connect]);
+  }, [isConnected, connect, isAdminShell]);
 
   useEffect(() => {
     const handler = (e: Event) => navigate((e as CustomEvent<string>).detail);
@@ -159,6 +302,43 @@ export function Layout({ children }: LayoutProps) {
     const onInviteSfx = () => playSfx("notification");
     window.addEventListener("play-notification-sfx", onInviteSfx);
     return () => window.removeEventListener("play-notification-sfx", onInviteSfx);
+  }, [playSfx]);
+
+  useEffect(() => {
+    const interactiveSelector = [
+      "button",
+      "a[href]",
+      "[role='button']",
+      "summary",
+      "input[type='button']",
+      "input[type='submit']",
+      "input[type='reset']",
+    ].join(",");
+
+    const isDisabled = (element: HTMLElement) =>
+      element.hasAttribute("disabled") ||
+      element.getAttribute("aria-disabled") === "true" ||
+      ((element instanceof HTMLButtonElement || element instanceof HTMLInputElement) && element.disabled);
+
+    const handleGlobalClickSfx = (event: MouseEvent) => {
+      if (event.defaultPrevented) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const interactive = target.closest(interactiveSelector);
+      if (!(interactive instanceof HTMLElement)) return;
+      if (interactive.closest("[data-sfx-silent='true']")) return;
+      if (isDisabled(interactive)) return;
+
+      const sfxBeforeClick = window.__quantumBluffLastSfxAt ?? 0;
+      window.setTimeout(() => {
+        const latestSfx = window.__quantumBluffLastSfxAt ?? 0;
+        if (latestSfx !== sfxBeforeClick && performance.now() - latestSfx < 140) return;
+        playSfx("uiClick");
+      }, 35);
+    };
+
+    document.addEventListener("click", handleGlobalClickSfx, true);
+    return () => document.removeEventListener("click", handleGlobalClickSfx, true);
   }, [playSfx]);
 
   useEffect(() => {
@@ -257,10 +437,15 @@ export function Layout({ children }: LayoutProps) {
     const text = friendQuickReply.trim();
     if (!text || sendingFriendReply) return;
     try {
+      const receiverId = notification.senderId;
       await sendFriendMessage({
-        receiverId: notification.senderId,
+        receiverId,
         content: text,
       }).unwrap();
+      store.dispatch(api.util.invalidateTags([{ type: "FriendMessage", id: receiverId }]));
+      window.dispatchEvent(
+        new CustomEvent("refetch-friend-messages", { detail: { friendId: receiverId } }),
+      );
       playSfx("uiSelect");
       setNotification(null);
       setFriendQuickReply("");
@@ -285,41 +470,198 @@ export function Layout({ children }: LayoutProps) {
   const openAddMoney = () => {
     playSfx("modalOpen");
     setShowAddMoney(true);
+    setBalanceModalTab("topup");
     setAddMoneyAmount(null);
-    setDevValidation("");
+    setPromoCode("");
+    setCardName("");
+    setCardDigits("");
+    setCardExpiry("");
+    setCardCvv("");
     setAddSuccess(false);
   };
+  const loadBalanceHistory = useCallback(async () => {
+    const token = getAuthItem("token");
+    if (!token) return;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const res = await fetch(apiUrl("/api/auth/balance-history?limit=50"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const parsed = (await res.json().catch(() => ({}))) as {
+        entries?: BalanceHistoryEntry[];
+        error?: string;
+      };
+      if (!res.ok) throw new Error(parsed.error || "Impossible de charger l'historique.");
+      setHistoryEntries(Array.isArray(parsed.entries) ? parsed.entries : []);
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : "Impossible de charger l'historique.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  const reasonLabel = (reason: string): string => {
+    const labels: Record<string, string> = {
+      SLOT_STAKE: "Mise slot",
+      SLOT_PAYOUT: "Gain slot",
+      ROULETTE_STAKE: "Mise roulette",
+      ROULETTE_PAYOUT: "Gain roulette",
+      BLACKJACK_STAKE: "Mise blackjack",
+      BLACKJACK_PAYOUT: "Gain blackjack",
+      HIDDEN_BET_STAKE: "Mise pari caché",
+      HIDDEN_BET_PAYOUT: "Gain pari caché",
+      HIDDEN_BET_REFUND_VOID: "Remboursement pari annulé",
+      HIDDEN_BET_REFUND_CANCEL: "Remboursement pari annulé",
+      LOAN_FUNDED_IN: "Prêt reçu",
+      LOAN_FUNDED_OUT: "Prêt envoyé",
+      LOAN_REPAYMENT_IN: "Remboursement reçu",
+      LOAN_REPAYMENT_OUT: "Remboursement envoyé",
+      DEV_TOPUP: "Ajout de solde",
+      CASH_POKER_BUY_IN: "Cash poker — buy-in",
+      CASH_POKER_REBUY: "Cash poker — rebuy",
+      CASH_POKER_CASHOUT: "Cash poker — retrait table",
+      CASH_POKER_HAND_RESULT: "Cash poker — résultat de main",
+    };
+
+    // Handle GIFT_CODE_* patterns
+    if (reason.startsWith("GIFT_CODE_")) {
+      const type = reason.replace("GIFT_CODE_", "");
+      const typeMap: Record<string, string> = {
+        ACHIEVEMENT: "🏆 Code - Achievement",
+        EVENT: "🎉 Code - Événement",
+        SEASONAL: "🎄 Code - Saisonnier",
+        SPECIAL: "⭐ Code - Spécial",
+      };
+      return typeMap[type] || "Code cadeau";
+    }
+
+    return labels[reason] || reason;
+  };
+  const loadGiftCodes = useCallback(async () => {
+    setCodesLoading(true);
+    setCodesError(null);
+    try {
+      const codes = await fetchAvailableGiftCodes();
+      setGiftCodes(codes || []);
+    } catch (err) {
+      setCodesError(err instanceof Error ? err.message : "Erreur lors du chargement des codes");
+    } finally {
+      setCodesLoading(false);
+    }
+  }, []);
+
+  const handleValidateCode = async () => {
+    if (!codeInput.trim()) {
+      setCodesError("Veuillez entrer un code");
+      return;
+    }
+
+    setCodesLoading(true);
+    setCodesError(null);
+    setCodesSuccess(null);
+
+    try {
+      const result = await validateGiftCode(codeInput.trim());
+      if (result) {
+        setCodesSuccess(`✅ ${result.message}`);
+        setCodeInput("");
+        setBalance(result.newBalance);
+
+        // Reload codes and history
+        setTimeout(() => {
+          void loadGiftCodes();
+          void loadBalanceHistory();
+          setCodesSuccess(null);
+        }, 2000);
+      }
+    } catch (err: Error | unknown) {
+      setCodesError(err instanceof Error ? err.message : "Code invalide");
+    } finally {
+      setCodesLoading(false);
+    }
+  };
+
   const closeAddMoney = () => {
     playSfx("modalClose");
     setShowAddMoney(false);
-    if (localStorage.getItem("token")) {
+    setAddMoneyAmount(null);
+    setPromoCode("");
+    setCardName("");
+    setCardDigits("");
+    setCardExpiry("");
+    setCardCvv("");
+    setAddSuccess(false);
+    if (getAuthItem("token")) {
       fetchBalanceFromServer().then(setBalance);
     } else {
       setBalance(getUserBalance());
     }
   };
+  const validatePaymentPromo = useCallback(async (code: string) => {
+    if (!code.trim()) {
+      setPromoDiscount(null);
+      return;
+    }
+    setPromoValidating(true);
+    try {
+      const result = await validateGiftCode(code);
+      if (result && result.success && result.discountType) {
+        // C'est un code de réduction
+        setPromoDiscount({
+          discountType: result.discountType as "FIXED_DISCOUNT" | "PERCENTAGE_DISCOUNT",
+          discountValue: result.discountValue || 0,
+        });
+      } else {
+        setPromoDiscount(null);
+      }
+    } catch (error) {
+      console.error("[payment] Promo validation error:", error);
+      setPromoDiscount(null);
+    } finally {
+      setPromoValidating(false);
+    }
+  }, []);
+
   const submitAddMoney = async () => {
-    if (addMoneyAmount == null) return;
-    if (devValidation.trim().toLowerCase() !== "dev") return;
+    if (addMoneyAmount == null || addMoneyAmount <= 0) return;
+    // Vérifier si c'est un paiement gratuit (réduction 100%)
+    const finalPrice = simulatedEurFromChips(addMoneyAmount, promoDiscount);
+    const isFreePayment = finalPrice === 0;
+    if (!isFreePayment && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
     const newBalance = await addDevMoney(addMoneyAmount);
     setBalance(newBalance);
+    await loadBalanceHistory();
     setAddSuccess(true);
     playSfx("success");
     setTimeout(closeAddMoney, 800);
   };
 
   const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
+  const isBlackjackGamePage = location.pathname.startsWith("/blackjack/table");
+  const isGameHudPage = isGamePage || isBlackjackGamePage;
   const isWaitingRoomPage = location.pathname === "/waiting-room";
   const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
-  const isAdminShell =
-    location.pathname === "/auth/admin" || location.pathname.startsWith("/admin/");
 
   useEffect(() => {
     if (isAdminShell) {
       stopBgm();
     }
   }, [isAdminShell, stopBgm]);
-  const showTopBar = !isAuthPage && localStorage.getItem("token");
+  const showTopBar = !isAuthPage && getAuthItem("token");
+  const isFreePaymentTopUp = promoDiscount ? simulatedEurFromChips(addMoneyAmount || 0, promoDiscount) === 0 : false;
+  const canSubmitTopUp =
+    addMoneyAmount != null &&
+    addMoneyAmount > 0 &&
+    (isFreePaymentTopUp || isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName));
+  const addMoneyModalHeightClass =
+    balanceModalTab === "history"
+      ? "h-[24rem]"
+      : addSuccess
+        ? "h-[20rem]"
+        : addMoneyAmount != null
+          ? "h-[38rem]"
+          : "h-[18rem]";
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
   const isBotConfigPage = path.includes("bot-configuration");
@@ -328,6 +670,8 @@ export function Layout({ children }: LayoutProps) {
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table");
+  /** Scroll sur la fenêtre (document) : évite le double scroll conteneur interne + contenu. */
+  const lobbyDocumentScroll = path === "/lobby" || path === "/tutorial-lobby";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
@@ -339,19 +683,57 @@ export function Layout({ children }: LayoutProps) {
     path.startsWith("/blackjack/table");
   /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
   const showHamburgerMenu =
-    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage && !isGamePage;
+    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage && !isGameHudPage;
   const showLobbyIntegratedBar = showTopBar && isLobby;
-  const showStandaloneTopBar = showTopBar && (isBotConfigPage || isGamePage);
+  const showFriendsIntegratedBar = showTopBar && path === "/friends";
+  const showIntegratedTopBar = showLobbyIntegratedBar || showFriendsIntegratedBar;
+  const showStandaloneTopBar = showTopBar && (isBotConfigPage || isGameHudPage);
   /**
    * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
    * et seul un bouton paramètres est en coin ; éviter la « barre » vide / décalage en haut.
    */
   const topBarPaddingForHamburger =
     showTopBar &&
-    !showLobbyIntegratedBar &&
+    !showIntegratedTopBar &&
     showHamburgerMenu &&
-    !isGamePage &&
+    !isGameHudPage &&
     !isWaitingRoomPage;
+
+  useEffect(() => {
+    const onHudState = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        game?: "poker" | "blackjack";
+        phase?: string;
+        isMyTurn?: boolean;
+      } | null>).detail;
+      setGameHudState(detail ?? null);
+    };
+    const onHudReset = () => setGameHudState(null);
+    window.addEventListener("game-hud-state", onHudState as EventListener);
+    window.addEventListener("game-hud-reset", onHudReset);
+    return () => {
+      window.removeEventListener("game-hud-state", onHudState as EventListener);
+      window.removeEventListener("game-hud-reset", onHudReset);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isGameHudPage) setGameHudState(null);
+  }, [isGameHudPage]);
+
+  useLayoutEffect(() => {
+    /** Admin + lobby : scroll sur le document (#root a overflow:hidden par défaut). */
+    const on = isAdminShell || (lobbyDocumentScroll && !isCasinoFullBleed);
+    const root = document.getElementById("root");
+    document.documentElement.classList.toggle("doc-scroll-mode", on);
+    document.body.classList.toggle("doc-scroll-mode", on);
+    root?.classList.toggle("doc-scroll-mode", on);
+    return () => {
+      document.documentElement.classList.remove("doc-scroll-mode");
+      document.body.classList.remove("doc-scroll-mode");
+      root?.classList.remove("doc-scroll-mode");
+    };
+  }, [isAdminShell, lobbyDocumentScroll, isCasinoFullBleed, path]);
 
   if (isAdminShell) {
     return (
@@ -378,12 +760,198 @@ export function Layout({ children }: LayoutProps) {
 
   /** Téléphone : h-9 / icônes 4.5 — md+ : h-11. Scroll horizontal côté Lobby. */
   const topNavBtn =
-    "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:w-11";
+    "inline-flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:min-h-11 md:w-11 md:min-w-11";
+  const gameExitBtn =
+    "inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-red-300/25 bg-red-950/45 px-3 text-xs font-bold text-red-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_28px_rgba(127,29,29,0.24)] backdrop-blur-md transition hover:border-red-200/50 hover:bg-red-900/65 hover:text-white md:h-11 md:px-4 md:text-sm";
   const topNavIcon = "h-[1.05rem] w-[1.05rem] shrink-0 [stroke-width:2.15] md:h-[1.15rem] md:w-[1.15rem]";
+  const gameHudBtn =
+    "flex aspect-square h-7 min-h-7 w-7 min-w-7 shrink-0 items-center justify-center rounded-full border transition md:h-8 md:min-h-8 md:w-8 md:min-w-8";
+  const gameHudBtnOff =
+    "border-white/10 bg-slate-950/25 text-slate-400 hover:border-white/25 hover:bg-slate-800/70 hover:text-white";
+  const gameHudIcon = "h-3.5 w-3.5 shrink-0 md:h-4 md:w-4";
+  const phase = gameHudState?.phase ?? "init";
+  const phaseLabel =
+    gameHudState?.game === "blackjack"
+      ? t(`bjMulti.phase_${phase}`, { defaultValue: phase })
+      : phase === "init" || phase === "shuffle" || phase === "deal"
+      ? t("game.waiting")
+      : t(`game.phaseBadge.${phase}`, { defaultValue: phase });
+  const bgmPct = bgmEnabled ? Math.round(bgmVolume * 100) : 0;
+  const sfxPct = sfxEnabled ? Math.round(sfxVolume * 100) : 0;
+  const updateBgmVolume = (value: number) => {
+    const next = Math.max(0, Math.min(100, value)) / 100;
+    setBgmVolume(next);
+    if (next <= 0 && bgmEnabled) toggleBgm(false);
+    if (next > 0 && !bgmEnabled) toggleBgm(true);
+  };
+  const updateSfxVolume = (value: number) => {
+    const next = Math.max(0, Math.min(100, value)) / 100;
+    setSfxVolume(next);
+    if (next <= 0 && sfxEnabled) toggleSfx(false);
+    if (next > 0 && !sfxEnabled) toggleSfx(true);
+  };
+  const gameHudPhaseClasses = `flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-4 md:text-sm ${
+    gameHudState?.isMyTurn
+      ? "border-amber-300/35 bg-amber-500/15 text-amber-100"
+      : "border-emerald-300/20 bg-slate-950/45 text-emerald-100"
+  }`;
+  const gameHudPhaseContent = (
+    <>
+      <Radio className={`h-[1.05rem] w-[1.05rem] shrink-0 ${gameHudState?.isMyTurn ? "text-amber-300" : "text-emerald-300"}`} aria-hidden />
+      <span className="whitespace-nowrap">{phaseLabel}</span>
+      {gameHudState?.isMyTurn && (
+        <span className="hidden rounded-full bg-amber-300/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-100 lg:inline">
+          {t("game.yourTurn")}
+        </span>
+      )}
+      {isMobile && <Settings className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />}
+    </>
+  );
+  const gameHudAccessibilityControls = (
+    <div className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-slate-950/45 px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiClick");
+            toggleHighContrast();
+          }}
+          className={`${gameHudBtn} ${highContrast ? "border-yellow-300/45 bg-yellow-300/15 text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.18)]" : gameHudBtnOff}`}
+          title={t("accessibility.highContrastTitle")}
+          aria-label={t("accessibility.highContrastTitle")}
+          aria-pressed={highContrast}
+        >
+          <Eye className={gameHudIcon} aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiClick");
+            toggleVisualAlerts();
+          }}
+          className={`${gameHudBtn} ${visualAlerts ? "border-sky-300/45 bg-sky-400/15 text-sky-100 shadow-[0_0_18px_rgba(56,189,248,0.16)]" : gameHudBtnOff}`}
+          title={t("accessibility.visualAlertsTitle")}
+          aria-label={t("accessibility.visualAlertsTitle")}
+          aria-pressed={visualAlerts}
+        >
+          <Bell className={gameHudIcon} aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiClick");
+            toggleColorblindMode();
+          }}
+          className={`${gameHudBtn} ${colorblindMode ? "border-fuchsia-300/45 bg-fuchsia-400/15 text-fuchsia-100 shadow-[0_0_18px_rgba(217,70,239,0.16)]" : gameHudBtnOff}`}
+          title={t("accessibility.colorblindTitle")}
+          aria-label={t("accessibility.colorblindTitle")}
+          aria-pressed={colorblindMode}
+        >
+          <Palette className={gameHudIcon} aria-hidden />
+        </button>
+      </div>
+  );
+  const gameHudAudioControls = (
+    <div className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-slate-950/45 px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md md:h-11 md:px-1.5">
+        <label
+          className={`relative flex h-7 w-[4.2rem] shrink-0 cursor-ew-resize items-center justify-center overflow-hidden rounded-full border transition md:h-8 md:w-[4.9rem] ${
+            bgmPct > 0 ? "border-emerald-300/45 bg-emerald-950/40 text-emerald-50" : gameHudBtnOff
+          }`}
+          data-tooltip={`${t("settings.musicTitle")} ${bgmPct}%`}
+          data-active={bgmPct > 0 ? "true" : undefined}
+        >
+          <span
+            aria-hidden
+            data-volume-fill
+            className="absolute inset-y-0 left-0 rounded-full bg-emerald-400/25 transition-[width]"
+            style={{ width: `${bgmPct}%` }}
+          />
+          <span className="pointer-events-none relative z-10 flex items-center gap-1 text-[0.68rem] font-black tabular-nums md:text-xs">
+            <Music2 className={gameHudIcon} aria-hidden />
+            {bgmPct}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={bgmPct}
+            onChange={(event) => updateBgmVolume(Number(event.target.value))}
+            className="absolute inset-0 z-20 h-full w-full cursor-ew-resize opacity-0"
+            aria-label={t("settings.musicVolume")}
+          />
+        </label>
+        <label
+          className={`relative flex h-7 w-[4.2rem] shrink-0 cursor-ew-resize items-center justify-center overflow-hidden rounded-full border transition md:h-8 md:w-[4.9rem] ${
+            sfxPct > 0 ? "border-cyan-300/45 bg-cyan-950/40 text-cyan-50" : gameHudBtnOff
+          }`}
+          data-tooltip={`${t("settings.sfxTitle")} ${sfxPct}%`}
+          data-active={sfxPct > 0 ? "true" : undefined}
+        >
+          <span
+            aria-hidden
+            data-volume-fill
+            className="absolute inset-y-0 left-0 rounded-full bg-cyan-400/25 transition-[width]"
+            style={{ width: `${sfxPct}%` }}
+          />
+          <span className="pointer-events-none relative z-10 flex items-center gap-1 text-[0.68rem] font-black tabular-nums md:text-xs">
+            <Waves className={gameHudIcon} aria-hidden />
+            {sfxPct}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={sfxPct}
+            onChange={(event) => updateSfxVolume(Number(event.target.value))}
+            className="absolute inset-0 z-20 h-full w-full cursor-ew-resize opacity-0"
+            aria-label={t("settings.sfxVolume")}
+          />
+        </label>
+      </div>
+  );
+  const gameHudControls = (
+    <div className="relative flex min-w-0 shrink-0 items-center gap-2 overflow-visible py-1 sm:flex-1">
+      {isMobile ? (
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiClick");
+            setGameHudToolsOpen((open) => !open);
+          }}
+          className={gameHudPhaseClasses}
+          title={`${t("game.phase")}: ${phaseLabel}${gameHudState?.isMyTurn ? ` · ${t("game.yourTurn")}` : ""}`}
+          aria-label={`${t("game.phase")}: ${phaseLabel}`}
+          aria-expanded={gameHudToolsOpen}
+        >
+          {gameHudPhaseContent}
+        </button>
+      ) : (
+        <>
+          <div
+            className={gameHudPhaseClasses}
+            title={`${t("game.phase")}: ${phaseLabel}${gameHudState?.isMyTurn ? ` · ${t("game.yourTurn")}` : ""}`}
+            aria-label={`${t("game.phase")}: ${phaseLabel}`}
+          >
+            {gameHudPhaseContent}
+          </div>
+          {gameHudAccessibilityControls}
+          {gameHudAudioControls}
+        </>
+      )}
+      {isMobile && gameHudToolsOpen && (
+        <div className="absolute left-0 top-full z-[270] mt-1.5 flex w-max max-w-[calc(100vw-1rem)] flex-col gap-1.5 rounded-2xl border border-white/10 bg-slate-950/90 p-2 shadow-2xl backdrop-blur-xl">
+          {gameHudAccessibilityControls}
+          {gameHudAudioControls}
+        </div>
+      )}
+    </div>
+  );
   const userAvatar = getUserAvatar();
   const username = getUsername();
+  const headerBalance = pokerDisplayTotal ?? balance;
   const languageButtonClass =
-    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 md:h-11 md:w-11";
+    "flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 md:h-11 md:min-h-11 md:w-11 md:min-w-11";
   const accountPill = (
     <div className="flex h-9 shrink-0 items-center overflow-hidden rounded-full border border-white/10 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-md md:h-11">
       <button
@@ -394,14 +962,29 @@ export function Layout({ children }: LayoutProps) {
       >
         <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.1rem] md:w-[1.1rem]" />
         <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
-          {balance.toLocaleString()}
+          {headerBalance.toLocaleString()}
         </span>
         <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
       </button>
       <button
         type="button"
+        onClick={() => {
+          playSfx("modalOpen");
+          setShowDailyLogin(true);
+        }}
+        className="relative mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/15 bg-slate-800/60 text-amber-200 transition hover:border-amber-300/60 hover:bg-amber-400/10 md:h-8 md:w-8"
+        title="Récompense quotidienne"
+        aria-label="Récompense quotidienne"
+      >
+        <Gift className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden />
+        {dailyLoginAvailable ? (
+          <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-rose-400 ring-2 ring-slate-950 motion-safe:animate-pulse" />
+        ) : null}
+      </button>
+      <button
+        type="button"
         onClick={() => navigate("/profile")}
-        className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 transition hover:border-emerald-300/60 md:h-8 md:w-8"
+        className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 transition hover:border-emerald-300/60 md:h-8 md:w-8"
         title={t("lobby.profile")}
         aria-label={t("lobby.profile")}
       >
@@ -411,35 +994,96 @@ export function Layout({ children }: LayoutProps) {
     </div>
   );
 
-  const menuContent = (
-    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end md:gap-2">
+  const gameAccountPill = (
+    <div className="flex h-9 shrink-0 items-center overflow-hidden rounded-full border border-white/10 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-md md:h-11">
+      <button
+        type="button"
+        onClick={openAddMoney}
+        className="flex h-full min-w-0 items-center gap-2 px-3 text-left transition hover:bg-white/[0.06] md:gap-2.5 md:px-4"
+        title={t("lobby.addMoney")}
+        aria-label={t("lobby.addMoney")}
+      >
+        <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.1rem] md:w-[1.1rem]" />
+        <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
+          {headerBalance.toLocaleString()}
+        </span>
+        <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
+      </button>
+      <span
+        className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 md:h-8 md:w-8"
+        data-tooltip={username}
+        aria-label={username}
+      >
+        <img src={userAvatar} alt="" className="h-full w-full object-cover" draggable={false} />
+      </span>
+    </div>
+  );
+
+  const quitGameButton = (
+    <button
+      type="button"
+      onClick={() => {
+        playSfx("uiClick");
+        window.dispatchEvent(new Event(isBlackjackGamePage ? "request-blackjack-quit" : "request-game-quit"));
+      }}
+      className={gameExitBtn}
+      title={t("nav.quitGame")}
+      aria-label={t("nav.quitGame")}
+    >
+      <DoorOpen className={topNavIcon} aria-hidden />
+      <span className="hidden sm:inline">{t("nav.confirmQuit")}</span>
+    </button>
+  );
+
+  const gameMenuContent = (
+    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center justify-end gap-1.5 overflow-visible sm:w-auto sm:shrink-0 md:gap-2">
+      <div
+        className="flex min-w-0 items-center justify-end gap-1 overflow-x-auto overflow-y-visible py-2 scroll-smooth scrollbar-hide [-webkit-overflow-scrolling:touch] [touch-action:pan-x] sm:gap-1.5 md:gap-2"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiClick");
+            window.dispatchEvent(new Event(isBlackjackGamePage ? "request-blackjack-tour" : "request-game-tour"));
+          }}
+          className={`${topNavBtn} max-sm:hidden`}
+          title={t("game.menuGuidedTour")}
+          aria-label={t("game.menuGuidedTour")}
+        >
+          <CircleHelp className={topNavIcon} aria-hidden />
+        </button>
+        <LanguageSwitcher buttonClassName={languageButtonClass} className="max-sm:hidden" />
+        {gameAccountPill}
+        <NotificationCenter />
+        {quitGameButton}
+      </div>
+    </div>
+  );
+
+  const menuContent = isGameHudPage ? gameMenuContent : (
+    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-visible max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end md:gap-2">
       <LanguageSwitcher buttonClassName={languageButtonClass} />
       {accountPill}
       <div
-        className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:scroll-smooth max-sm:py-0 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
+        className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-visible max-sm:scroll-smooth max-sm:py-2 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
       >
-        {!isGamePage && <NotificationCenter />}
-        {isGamePage ? (
-          <button
-            type="button"
-            onClick={() => {
-              playSfx("uiClick");
-              window.dispatchEvent(new Event("request-game-tour"));
-            }}
-            className={topNavBtn}
-            title={t("game.menuGuidedTour")}
-          >
-            <Sparkles className={topNavIcon} aria-hidden />
-          </button>
-        ) : (
-          <button type="button" onClick={() => navigate("/leaderboard")} className={`${topNavBtn} hidden sm:inline-flex`} title={t("leaderboard.title")}>
-            <Trophy className={topNavIcon} aria-hidden />
-          </button>
-        )}
-        <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={topNavBtn} title={t("settings.title")}>
+        <NotificationCenter />
+        <button
+          type="button"
+          onClick={() => {
+            playSfx("uiSelect");
+            navigate("/leaderboard");
+          }}
+          className={topNavBtn}
+          title={t("leaderboard.title")}
+          aria-label={t("leaderboard.title")}
+        >
+          <Trophy className={topNavIcon} aria-hidden />
+        </button>
+        <button type="button" onClick={() => { playSfx("uiClick"); openSettingsMenu(); }} className={topNavBtn} title={t("settings.title")} aria-label={t("settings.title")}>
           <Settings className={topNavIcon} aria-hidden />
         </button>
-        <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} hover:border-red-300/40 hover:bg-red-950/45`} title={t("lobby.logout")}>
+        <button type="button" onClick={() => { clearAuthStorage(); navigate("/"); }} className={`${topNavBtn} hover:border-red-300/40 hover:bg-red-950/45`} title={t("lobby.logout")} aria-label={t("lobby.logout")}>
           <LogOut className={topNavIcon} aria-hidden />
         </button>
       </div>
@@ -447,29 +1091,53 @@ export function Layout({ children }: LayoutProps) {
   );
   const handleStandaloneHomeClick = () => {
     playSfx("uiClick");
-    if (isGamePage) {
-      window.dispatchEvent(new Event("request-game-quit"));
+    if (isGameHudPage) {
+      window.dispatchEvent(new Event(isBlackjackGamePage ? "request-blackjack-quit" : "request-game-quit"));
       return;
     }
     navigate("/lobby");
   };
 
+  const lobbyShellBg = (() => {
+    if (!lobbyDocumentScroll || isCasinoFullBleed) return "bg-transparent";
+    const tab = new URLSearchParams(location.search).get("tab");
+    if (tab === "minigames" || tab === "roulette") return "bg-[#02100c]";
+    if (tab === "blackjack") return "bg-[#100409]";
+    return "bg-[#020716]";
+  })();
+  const shellBg =
+    lobbyDocumentScroll && !isCasinoFullBleed
+      ? lobbyShellBg
+      : showStandaloneTopBar
+        ? "bg-transparent"
+      : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900";
+  const shellClass =
+    lobbyDocumentScroll && !isCasinoFullBleed
+      ? /* Pas de min-h-[100dvh] ni flex-1 sur l’enfant : sinon zone vide en bas (fond document sans dégradés lobby). */
+        `flex w-full min-w-0 flex-col overflow-x-clip overflow-y-visible ${shellBg}`
+      : `flex h-[100dvh] max-h-[100dvh] min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden ${shellBg}`;
+
   return (
-    <div className={`min-h-screen w-full ${showStandaloneTopBar ? "bg-transparent" : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"}`}>
+    <div className={shellClass}>
       <GlobalHoverTooltip />
-      <TopBarProvider menuContent={showLobbyIntegratedBar ? menuContent : null}>
+      <GlobalCustomScrollbars />
+      <TopBarProvider menuContent={showIntegratedTopBar ? menuContent : null}>
       {showStandaloneTopBar && (
-        <div className={`${isGamePage ? "fixed left-0 right-0 top-0" : "sticky top-0"} z-[250] w-full bg-transparent`}>
-          <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-8 lg:px-10">
-            <button
-              type="button"
-              onClick={handleStandaloneHomeClick}
-              className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/55 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md transition hover:border-blue-200/25 hover:bg-blue-950/60 md:h-11 md:px-4"
-            >
-              <Home className="h-[1.05rem] w-[1.05rem] shrink-0" aria-hidden />
-              <span>{isGamePage ? t("nav.home") : t("botConfig.home")}</span>
-            </button>
-            <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide">
+        <div className={`${isGameHudPage ? "fixed left-0 right-0 top-0" : "sticky top-0"} z-[250] w-full bg-transparent`}>
+          <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-8 lg:px-10">
+            {isGameHudPage ? (
+              gameHudControls
+            ) : (
+              <button
+                type="button"
+                onClick={handleStandaloneHomeClick}
+                className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/55 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md transition hover:border-blue-200/25 hover:bg-blue-950/60 md:h-11 md:px-4"
+              >
+                <Home className="h-[1.05rem] w-[1.05rem] shrink-0" aria-hidden />
+                <span>{t("botConfig.home")}</span>
+              </button>
+            )}
+            <div className={`${isGameHudPage ? "min-w-0 flex-1 sm:flex-none sm:shrink-0" : "min-w-0 flex-1"} overflow-x-auto overflow-y-visible py-2 scrollbar-hide`}>
               {menuContent}
             </div>
           </div>
@@ -490,7 +1158,7 @@ export function Layout({ children }: LayoutProps) {
                   playSfx("uiClick");
                   openSettingsMenu?.();
                 }}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9"
+                className="flex aspect-square h-7 min-h-7 w-7 min-w-7 shrink-0 items-center justify-center rounded-full border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:min-h-8 sm:w-8 sm:min-w-8 md:h-9 md:min-h-9 md:w-9 md:min-w-9"
                 title={t("settings.title")}
               >
                 <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -516,7 +1184,7 @@ export function Layout({ children }: LayoutProps) {
                   closeMenuTimerRef.current = null;
                   setMenuOpen((o) => !o);
                 }}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:w-8 sm:rounded-lg md:h-9 md:w-9"
+                className="flex aspect-square h-7 min-h-7 w-7 min-w-7 shrink-0 items-center justify-center rounded-full border-2 border-slate-500 bg-slate-700 text-white shadow-lg transition hover:bg-slate-600 sm:h-8 sm:min-h-8 sm:w-8 sm:min-w-8 md:h-9 md:min-h-9 md:w-9 md:min-w-9"
                 title="Menu"
                 aria-expanded={menuOpen}
               >
@@ -533,7 +1201,7 @@ export function Layout({ children }: LayoutProps) {
                     closeMenuTimerRef.current = setTimeout(() => setMenuOpen(false), MENU_CLOSE_DELAY);
                   }}
                 >
-                  <div className="flex min-w-0 max-w-[min(100vw-2rem,28rem)] flex-row flex-nowrap items-center gap-1 overflow-x-auto scroll-smooth py-0.5 [touch-action:pan-x] scrollbar-hide sm:max-w-none sm:gap-2">
+                  <div className="flex min-w-0 max-w-[min(100vw-2rem,28rem)] flex-row flex-nowrap items-center gap-1 overflow-x-auto overflow-y-visible scroll-smooth px-0.5 py-2 [touch-action:pan-x] scrollbar-hide sm:max-w-none sm:gap-2">
                 <LanguageSwitcher buttonClassName={languageButtonClass} />
                 {accountPill}
                 <NotificationCenter />
@@ -559,35 +1227,229 @@ export function Layout({ children }: LayoutProps) {
         onClose={() => setShowSettingsMenu(false)}
         initialTab={settingsInitialTab}
         onRateGame={() => setShowRateGame(true)}
+        hideAestheticTab={isGameHudPage}
       />
 
       <RateGameModal open={showRateGame} onClose={() => setShowRateGame(false)} />
 
+      <DailyLoginModal
+        open={showDailyLogin && Boolean(showTopBar)}
+        onClose={() => {
+          playSfx("modalClose");
+          setShowDailyLogin(false);
+          // Le serveur a peut-être marqué la récompense comme prise.
+          fetchDailyLoginStatus().then((s) => {
+            setDailyLoginAvailable(Boolean(s && !s.claimedToday));
+          });
+        }}
+        onClaimed={(newBalance) => {
+          setBalance(newBalance);
+          setDailyLoginAvailable(false);
+          playSfx("success");
+        }}
+      />
+
       {/* Modal Ajouter des jetons */}
       {showTopBar && showAddMoney && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeAddMoney}>
-          <div className="bg-slate-800 border border-yellow-500/50 rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">{t("lobby.addMoneyTitle")}</h3>
-              <button type="button" onClick={closeAddMoney} className="text-slate-400 hover:text-white p-1">
+          <div
+            className={`relative ${addMoneyModalHeightClass} max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-hidden rounded-3xl border border-amber-300/20 bg-[#070b12] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.62),0_0_24px_rgba(245,158,11,0.08)] transition-[height] duration-300 ease-out`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_28%_0%,rgba(245,158,11,0.11),transparent_36%),radial-gradient(circle_at_100%_35%,rgba(30,64,175,0.13),transparent_42%),linear-gradient(160deg,rgba(8,13,24,0.98)_0%,rgba(3,7,18,0.98)_58%,rgba(11,10,8,0.98)_100%)]" />
+            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
+            <div className="relative z-10 flex h-full min-h-0 flex-col">
+            <div className="flex shrink-0 items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-amber-100">
+                {t("lobby.addMoneyTitle")}
+              </h3>
+              <button type="button" onClick={closeAddMoney} className="p-1 text-amber-100/55 transition hover:text-amber-50">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            {addSuccess ? (
-              <p className="text-green-400 font-medium text-center py-4">{t("lobby.captchaSuccess")}</p>
+            <div className="mb-5 flex shrink-0 items-center gap-2 rounded-full border border-amber-400/16 bg-slate-950/42 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <button
+                type="button"
+                onClick={() => setBalanceModalTab("topup")}
+                className={`min-h-[2.75rem] flex-1 rounded-full border px-4 py-2 text-sm font-bold tracking-wide transition ${
+                  balanceModalTab === "topup"
+                    ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"
+                    : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-amber-300/24 hover:text-amber-100"
+                }`}
+              >
+                Alimenter le compte
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBalanceModalTab("codes");
+                  void loadGiftCodes();
+                }}
+                aria-label="Codes cadeaux"
+                title="Codes cadeaux"
+                className={`group relative flex min-h-[2.75rem] w-14 shrink-0 items-center justify-center rounded-full border px-3 py-2 transition ${
+                  balanceModalTab === "codes"
+                    ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"
+                    : "border-white/8 bg-black/10 text-slate-400 hover:border-amber-300/24 hover:text-slate-100"
+                }`}
+              >
+                <Gift className="h-4 w-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBalanceModalTab("history");
+                  void loadBalanceHistory();
+                }}
+                aria-label="Historique"
+                title="Historique"
+                className={`group relative flex min-h-[2.75rem] w-14 shrink-0 items-center justify-center rounded-full border px-3 py-2 transition ${
+                  balanceModalTab === "history"
+                    ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"
+                    : "border-white/8 bg-black/10 text-slate-400 hover:border-amber-300/24 hover:text-slate-100"
+                }`}
+              >
+                <History className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+            <CustomScrollArea className="min-h-0 flex-1 pr-1" contentClassName="pr-3">
+            {balanceModalTab === "history" ? (
+              <>
+                {historyLoading ? <p className="text-slate-300 text-center py-4">Chargement...</p> : null}
+                {historyError ? <p className="text-rose-300 text-sm text-center py-3">{historyError}</p> : null}
+                {!historyLoading && !historyError ? (
+                  <div className="space-y-2">
+                    {historyEntries.length === 0 ? (
+                      <p className="text-amber-100/45 text-center py-6">Aucun mouvement.</p>
+                    ) : (
+                      historyEntries.map((entry) => {
+                        const before = typeof entry.balanceBefore === "number" ? entry.balanceBefore : null;
+                        const after = typeof entry.balanceAfter === "number" ? entry.balanceAfter : null;
+                        const delta = before !== null && after !== null ? after - before : entry.amount;
+                        return (
+                          <div key={entry.id} className="rounded-xl border border-amber-300/12 bg-slate-950/34 px-3 py-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+                                  {entry.reason.startsWith("GIFT_CODE_") ? (
+                                    <Gift className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-hidden />
+                                  ) : null}
+                                  <span>{reasonLabel(entry.reason)}</span>
+                                </p>
+                                <p className="text-xs text-slate-400">
+                                  {new Intl.DateTimeFormat("fr-CA", {
+                                    dateStyle: "medium",
+                                    timeStyle: "short",
+                                  }).format(new Date(entry.createdAt))}
+                                </p>
+                              </div>
+                              <p className={`text-sm font-bold ${delta >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                                {delta >= 0 ? "+" : ""}
+                                {delta.toLocaleString()}
+                              </p>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-400">
+                              Avant: {before !== null ? before.toLocaleString() : "—"} · Apres:{" "}
+                              {after !== null ? after.toLocaleString() : "—"}
+                            </p>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                ) : null}
+              </>
+            ) : balanceModalTab === "codes" ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-3 flex items-center gap-2 text-sm text-slate-300">
+                    <Gift className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
+                    Codes disponibles :
+                  </p>
+                  {codesLoading ? (
+                    <div className="text-center py-8 text-slate-400">Chargement...</div>
+                  ) : giftCodes.length > 0 ? (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {giftCodes.map((code) => (
+                        <div
+                          key={code.id}
+                          className="bg-slate-800/40 border border-amber-300/16 rounded-lg p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="font-mono text-amber-300 font-bold text-sm">{code.code}</p>
+                            {code.description && (
+                              <p className="text-xs text-slate-400">{code.description}</p>
+                            )}
+                            {code.expiresAt && (
+                              <p className="text-xs text-rose-400 mt-1">
+                                Expire: {new Date(code.expiresAt).toLocaleDateString("fr-FR")}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="text-amber-300 font-bold flex items-center gap-1 text-sm">
+                              <ChipIcon className="w-4 h-4" />
+                              +{code.amount}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 text-center py-4">Aucun code disponible pour vous</p>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-slate-300 text-sm mb-2">Ou utilisez votre code :</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={codeInput}
+                      onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+                      onKeyPress={(e) => e.key === "Enter" && handleValidateCode()}
+                      placeholder="Tapez votre code..."
+                      className="flex-1 bg-slate-950/40 border border-white/10 rounded-lg px-3 py-2 text-slate-50 placeholder-slate-500 focus:outline-none focus:border-amber-300/55 focus:ring-1 focus:ring-amber-300/35"
+                      disabled={codesLoading}
+                    />
+                    <button
+                      onClick={handleValidateCode}
+                      disabled={codesLoading || !codeInput.trim()}
+                      className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Valider
+                    </button>
+                  </div>
+                </div>
+
+                {codesError && (
+                  <div className="bg-rose-900/30 border border-rose-700/50 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-rose-300">{codesError}</p>
+                  </div>
+                )}
+
+                {codesSuccess && (
+                  <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-lg p-3">
+                    <p className="text-xs text-emerald-300">{codesSuccess}</p>
+                  </div>
+                )}
+              </div>
+            ) : addSuccess ? (
+              <p className="text-emerald-300 font-medium text-center py-4">{t("lobby.captchaSuccess")}</p>
             ) : (
               <>
                 <p className="text-slate-300 text-sm mb-3">{t("lobby.chooseAmount")}</p>
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="mb-4 grid grid-cols-5 gap-1.5 sm:gap-2">
                   {ADD_MONEY_PRESETS.map((amount) => (
                     <button
                       key={amount}
                       type="button"
                       onClick={() => setAddMoneyAmount(amount)}
-                      className={`px-4 py-2 rounded-lg font-bold transition ${
+                      className={`rounded-full border px-1.5 py-2 text-xs font-bold tabular-nums transition sm:px-3 sm:text-sm ${
                         addMoneyAmount === amount
-                          ? "bg-yellow-500 text-slate-900"
-                          : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                          ? "border-amber-200/60 bg-amber-400/15 text-amber-100 shadow-[0_0_16px_rgba(245,158,11,0.14)]"
+                          : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-amber-300/28 hover:text-amber-100"
                       }`}
                     >
                       {amount.toLocaleString()}
@@ -595,29 +1457,39 @@ export function Layout({ children }: LayoutProps) {
                   ))}
                 </div>
                 {addMoneyAmount != null && (
-                  <div className="space-y-2">
-                    <label className="text-slate-300 text-sm block">{t("lobby.devValidation") || 'Tapez "dev" pour valider'}</label>
-                    <input
-                      type="text"
-                      value={devValidation}
-                      onChange={(e) => setDevValidation(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && submitAddMoney()}
-                      placeholder="dev"
-                      className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
-                      autoComplete="off"
+                  <div className="space-y-3">
+                    <FakeCardTopUpFields
+                      addMoneyAmount={addMoneyAmount}
+                      promoCode={promoCode}
+                      setPromoCode={(code) => {
+                        setPromoCode(code);
+                        void validatePaymentPromo(code);
+                      }}
+                      promoDiscount={promoDiscount}
+                      isPromoValidating={promoValidating}
+                      cardName={cardName}
+                      setCardName={setCardName}
+                      cardDigits={cardDigits}
+                      setCardDigits={setCardDigits}
+                      cardExpiry={cardExpiry}
+                      setCardExpiry={setCardExpiry}
+                      cardCvv={cardCvv}
+                      setCardCvv={setCardCvv}
                     />
                     <button
                       type="button"
-                      onClick={submitAddMoney}
-                      disabled={devValidation.trim().toLowerCase() !== "dev"}
-                      className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
+                      onClick={() => void submitAddMoney()}
+                      disabled={!canSubmitTopUp}
+                      className="w-full rounded-full border border-amber-200/35 bg-amber-400/16 py-2 font-bold text-amber-100 transition hover:bg-amber-400/24 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500"
                     >
-                      {t("lobby.validate")}
+                      Valider l'alimentation
                     </button>
                   </div>
                 )}
               </>
             )}
+            </CustomScrollArea>
+          </div>
           </div>
         </div>
       )}
@@ -743,13 +1615,30 @@ export function Layout({ children }: LayoutProps) {
       <InvitationBanner />
 
       <div
-        className={`w-full min-w-0 overflow-x-hidden ${
+        className={`w-full min-w-0 overflow-x-clip overflow-y-visible ${
           isCasinoFullBleed
             ? "flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden pt-0 [&>*:last-child]:flex [&>*:last-child]:min-h-0 [&>*:last-child]:flex-1 [&>*:last-child]:flex-col"
-            : `min-h-screen ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`
+            : lobbyDocumentScroll
+              ? "w-full min-w-0"
+              : "min-h-0 flex-1"
         }`}
       >
-        {children}
+        {isCasinoFullBleed ? (
+          children
+        ) : lobbyDocumentScroll ? (
+          <div
+            className={`w-full min-w-0 ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
+          >
+            {children}
+          </div>
+        ) : (
+          <div
+            data-native-scrollbar="true"
+            className={`app-main-scroll h-full min-h-0 w-full min-w-0 overflow-x-hidden overflow-y-auto ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
+          >
+            {children}
+          </div>
+        )}
       </div>
       </TopBarProvider>
     </div>

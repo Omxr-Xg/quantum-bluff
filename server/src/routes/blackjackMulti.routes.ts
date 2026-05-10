@@ -23,7 +23,10 @@ import {
   BLACKJACK_RUNTIME_STALE_MS,
   runtimeReadinessToHttp,
 } from '../blackjack/services/blackjackRuntimeHealth.service.js'
-import { resetStaleBlackjackPlaySession } from '../blackjack/recovery/blackjackRecovery.service.js'
+import {
+  pruneInactiveBlackjackWaitingRooms,
+  resetStaleBlackjackPlaySession,
+} from '../blackjack/recovery/blackjackRecovery.service.js'
 import {
   awardXpInTransaction,
   getEffectiveBlackjackMaxBet,
@@ -41,6 +44,7 @@ const router = express.Router()
 
 /** Révélation des cartes croupier + résultats (sync client animation). */
 const ROUND_REVEAL_MS = 2000
+const scheduledPayoutAdvances = new Set<string>()
 
 type BjRoundSummaryRow = {
   userId: string
@@ -67,6 +71,19 @@ function makeHttpError(
 
 function getIo(req: express.Request): Server | undefined {
   return req.app.get('io') as Server | undefined
+}
+
+function schedulePayoutAdvance(gameId: string, io: Server | undefined): void {
+  if (scheduledPayoutAdvances.has(gameId)) return
+  scheduledPayoutAdvances.add(gameId)
+  setTimeout(() => {
+    scheduledPayoutAdvances.delete(gameId)
+    const t = activeBlackjackGames.get(gameId)
+    if (!t || t.phase !== 'payout') return
+    t.finishHandAfterPayout()
+    activeBlackjackGames.sync(gameId)
+    broadcastTable(gameId, t, io)
+  }, ROUND_REVEAL_MS)
 }
 
 /** Rafraîchit `updatedAt` pour le nettoyage des salles WAITING inactives. */
@@ -265,7 +282,6 @@ async function payoutAndFinish(
         XP_BLACKJACK_HAND + winBonus
       )
       await incrementMultiplayerPlayCount(userId, tx)
-      const lvl = levelFromExperience(updated.experience)
       settlements.push({
         userId,
         username,
@@ -276,7 +292,7 @@ async function payoutAndFinish(
         level: gamification.level,
         xpToNext: gamification.xpToNext,
         newBadges: gamification.newBadges,
-        maxBetBlackjack: getEffectiveBlackjackMaxBet(lvl),
+        maxBetBlackjack: getEffectiveBlackjackMaxBet(gamification.level),
       })
     }
   })
@@ -301,14 +317,7 @@ async function payoutAndFinish(
   }
 
   broadcastTable(gameId, table, io, { roundSummary })
-
-  setTimeout(() => {
-    const t = activeBlackjackGames.get(gameId)
-    if (!t || t.phase !== 'payout') return
-    t.finishHandAfterPayout()
-    activeBlackjackGames.sync(gameId)
-    broadcastTable(gameId, t, io)
-  }, ROUND_REVEAL_MS)
+  schedulePayoutAdvance(gameId, io)
 
   return { settlements, roundSummary }
 }
@@ -385,6 +394,8 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    await pruneInactiveBlackjackWaitingRooms()
 
     const rooms = await prisma.blackjackRoom.findMany({
       where: {
@@ -822,6 +833,10 @@ router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
       if (!seated) {
         return res.status(403).json({ error: 'Accès refusé' })
       }
+    }
+
+    if (table?.phase === 'payout') {
+      schedulePayoutAdvance(req.params.gameId, getIo(req))
     }
 
     return res.json({

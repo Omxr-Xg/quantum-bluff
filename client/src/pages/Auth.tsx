@@ -11,6 +11,7 @@ import {
   useResetPasswordMutation,
 } from "../services/api";
 import { persistGamificationFromAuthUser } from "../utils/gamificationStorage";
+import { getAuthItem, removeAuthItem, setAuthItem } from "../utils/authStorage";
 
 // 👇 IMPORT DU HOOK LOADER
 import { useLoader } from "../contexts/LoaderContext";
@@ -52,6 +53,12 @@ export function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/lobby";
+
+  useEffect(() => {
+    if (getAuthItem("token")) {
+      navigate(from, { replace: true });
+    }
+  }, [navigate, from]);
 
   const passwordCriteria = {
     length: password.length >= 8,
@@ -111,23 +118,23 @@ export function Auth() {
       const token = response.token;
 
       // ✅ STOCKAGE
-      localStorage.removeItem("userid");
-      localStorage.removeItem("role");
-      localStorage.setItem("token", token);
-      localStorage.setItem("userId", String(response.user.id));
-      localStorage.setItem("username", response.user.username);
-      localStorage.setItem("quantum_bluff_username", response.user.username);
-      localStorage.setItem("quantum_bluff_email", response.user.email);
+      removeAuthItem("userid");
+      removeAuthItem("role");
+      setAuthItem("token", token);
+      setAuthItem("userId", String(response.user.id));
+      setAuthItem("username", response.user.username);
+      setAuthItem("quantum_bluff_username", response.user.username);
+      setAuthItem("quantum_bluff_email", response.user.email);
 
       if (typeof response.user.chips === "number") {
-        localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
+        setAuthItem("quantum_bluff_balance", String(response.user.chips));
       }
 
       const avatarUrl = (response.user as { avatarUrl?: string | null }).avatarUrl;
       if (typeof avatarUrl === "string" && avatarUrl.trim() !== "") {
-        localStorage.setItem("quantum_bluff_avatar", avatarUrl.trim());
+        setAuthItem("quantum_bluff_avatar", avatarUrl.trim());
       } else {
-        localStorage.removeItem("quantum_bluff_avatar");
+        removeAuthItem("quantum_bluff_avatar");
       }
 
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
@@ -160,21 +167,21 @@ export function Auth() {
         secretQuestionId,
         secretAnswer: secretAnswer.trim(),
       }).unwrap();
-      localStorage.removeItem("userid");
-      localStorage.removeItem("role");
-      localStorage.setItem("token", response.token);
-      localStorage.setItem("userId", String(response.user.id));
-      localStorage.setItem("username", response.user.username);
-      localStorage.setItem("quantum_bluff_username", response.user.username);
-      localStorage.setItem("quantum_bluff_email", response.user.email);
+      removeAuthItem("userid");
+      removeAuthItem("role");
+      setAuthItem("token", response.token);
+      setAuthItem("userId", String(response.user.id));
+      setAuthItem("username", response.user.username);
+      setAuthItem("quantum_bluff_username", response.user.username);
+      setAuthItem("quantum_bluff_email", response.user.email);
       if (typeof response.user.chips === "number") {
-        localStorage.setItem("quantum_bluff_balance", String(response.user.chips));
+        setAuthItem("quantum_bluff_balance", String(response.user.chips));
       }
       const avatarUrlReg = (response.user as { avatarUrl?: string | null }).avatarUrl;
       if (typeof avatarUrlReg === "string" && avatarUrlReg.trim() !== "") {
-        localStorage.setItem("quantum_bluff_avatar", avatarUrlReg.trim());
+        setAuthItem("quantum_bluff_avatar", avatarUrlReg.trim());
       } else {
-        localStorage.removeItem("quantum_bluff_avatar");
+        removeAuthItem("quantum_bluff_avatar");
       }
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
       
@@ -279,7 +286,7 @@ export function Auth() {
           : t("auth.createYourAccount");
 
   return (
-    <div className="w-full min-h-screen relative overflow-hidden bg-slate-900 flex items-center justify-center min-h-screen p-4 sm:p-6 font-sans">
+    <div className="relative flex w-full min-h-full items-center justify-center overflow-x-hidden bg-slate-900 p-4 py-10 sm:p-6 sm:py-12 font-sans">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_70%_at_50%_-10%,rgba(30,64,175,0.24),transparent_55%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]"></div>
         <div
@@ -398,7 +405,7 @@ export function Auth() {
                 disabled={isCheckingEmail || !isEmailValid}
                 className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${
                   isEmailValid && !isCheckingEmail
-                    ? "bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_0.5s_linear_infinite]"
+                    ? "bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_2s_linear_infinite]"
                     : "bg-slate-950/20 text-white/45 font-normal shadow-[0_0_11px_2px_rgba(59,130,246,0.18)] border-blue-300/40 opacity-80 cursor-not-allowed"
                 } before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
               >
@@ -487,7 +494,7 @@ export function Auth() {
                 disabled={isLoggingIn || !isLoginFormValid}
                 className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${
                   isLoginFormValid && !isLoggingIn
-                    ? "bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_0.5s_linear_infinite]"
+                    ? "bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_2s_linear_infinite]"
                     : "bg-slate-950/20 text-white/45 font-normal shadow-[0_0_11px_2px_rgba(59,130,246,0.18)] border-blue-300/40 opacity-80 cursor-not-allowed"
                 } before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
               >
@@ -603,7 +610,7 @@ export function Auth() {
                     disabled={isResetting || !isForgotFormValid}
                     className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${
                       isForgotFormValid && !isResetting
-                        ? "bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_0.5s_linear_infinite]"
+                        ? "bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_2s_linear_infinite]"
                         : "bg-slate-950/20 text-white/45 font-normal shadow-[0_0_11px_2px_rgba(59,130,246,0.18)] border-blue-300/40 opacity-80 cursor-not-allowed"
                     } before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
                   >
@@ -776,7 +783,7 @@ export function Auth() {
                 disabled={isRegistering || !isRegisterFormValid}
                 className={`relative w-full py-4 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border-[0.1px] ${
                   isRegisterFormValid && !isRegistering
-                    ? "bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_0.5s_linear_infinite]"
+                    ? "bg-gradient-to-r from-blue-950 via-blue-700 to-cyan-900 text-white font-semibold shadow-[0_0_30px_5px_rgba(59,130,246,0.42)] border-blue-300/70 before:animate-[sh02_2s_linear_infinite]"
                     : "bg-slate-950/20 text-white/45 font-normal shadow-[0_0_11px_2px_rgba(59,130,246,0.18)] border-blue-300/40 opacity-80 cursor-not-allowed"
                 } before:content-[''] before:block before:w-0 before:h-[86%] before:absolute before:top-[7%] before:left-0 before:opacity-0 before:bg-white before:shadow-[0_0_50px_30px_#fff] before:-skew-x-[20deg]`}
               >
@@ -805,4 +812,3 @@ export function Auth() {
     </div>
   );
 }
-

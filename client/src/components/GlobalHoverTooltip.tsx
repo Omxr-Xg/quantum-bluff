@@ -4,7 +4,15 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 const SELECTOR =
-  'button:not([disabled]), [role="button"]:not([aria-disabled="true"]), input[type="submit"]:not([disabled]), input[type="button"]:not([disabled]), summary';
+  'button:not([disabled]), [role="button"]:not([aria-disabled="true"]), input[type="submit"]:not([disabled]), input[type="button"]:not([disabled]), [data-tooltip], summary';
+
+function shouldDisableHoverTooltip(): boolean {
+  if (typeof window === "undefined") return true;
+  return (
+    window.matchMedia("(max-width: 767px)").matches ||
+    window.matchMedia("(pointer: coarse)").matches
+  );
+}
 
 function getTooltipText(el: HTMLElement): string | null {
   if (el.getAttribute("data-no-global-tooltip") !== null) return null;
@@ -26,7 +34,12 @@ function getTooltipText(el: HTMLElement): string | null {
  * data-tooltip → aria-label → title → texte visible court).
  */
 export function GlobalHoverTooltip() {
-  const [state, setState] = useState<{ text: string; left: number; top: number } | null>(null);
+  const [state, setState] = useState<{
+    text: string;
+    left: number;
+    top: number;
+    placement: "top" | "bottom";
+  } | null>(null);
 
   useEffect(() => {
     let currentEl: HTMLElement | null = null;
@@ -47,6 +60,11 @@ export function GlobalHoverTooltip() {
     };
 
     const onMouseOver = (e: MouseEvent) => {
+      if (shouldDisableHoverTooltip()) {
+        restore();
+        return;
+      }
+
       const raw = (e.target as Element | null)?.closest?.(SELECTOR);
       if (!(raw instanceof HTMLElement)) {
         restore();
@@ -83,10 +101,17 @@ export function GlobalHoverTooltip() {
           titleBackup = null;
         }
         const rect = raw.getBoundingClientRect();
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1024;
+        const tooltipHalfWidth = Math.min(160, Math.max(84, (viewportWidth - 24) / 2));
+        const placement = rect.top < 48 ? "bottom" : "top";
         setState({
           text: textFinal,
-          left: rect.left + rect.width / 2,
-          top: rect.top,
+          left: Math.min(
+            Math.max(rect.left + rect.width / 2, tooltipHalfWidth + 8),
+            viewportWidth - tooltipHalfWidth - 8,
+          ),
+          top: placement === "top" ? rect.top - 6 : rect.bottom + 6,
+          placement,
         });
       }, 280);
     };
@@ -104,10 +129,12 @@ export function GlobalHoverTooltip() {
 
     document.addEventListener("mouseover", onMouseOver, true);
     document.addEventListener("mouseout", onMouseOut, true);
+    window.addEventListener("resize", restore);
     return () => {
       restore();
       document.removeEventListener("mouseover", onMouseOver, true);
       document.removeEventListener("mouseout", onMouseOut, true);
+      window.removeEventListener("resize", restore);
     };
   }, []);
 
@@ -116,7 +143,9 @@ export function GlobalHoverTooltip() {
   return createPortal(
     <div
       role="tooltip"
-      className="pointer-events-none fixed z-[99999] max-w-[min(20rem,calc(100vw-1rem))] -translate-x-1/2 -translate-y-full rounded-lg border border-slate-500/80 bg-slate-800 px-2.5 py-1.5 text-left text-xs leading-snug text-slate-100 shadow-xl [margin-top:-6px]"
+      className={`pointer-events-none fixed z-[99999] max-w-[min(20rem,calc(100vw-1rem))] -translate-x-1/2 rounded-lg border border-slate-500/80 bg-slate-800 px-2.5 py-1.5 text-left text-xs leading-snug text-slate-100 shadow-xl ${
+        state.placement === "top" ? "-translate-y-full" : ""
+      }`}
       style={{ left: state.left, top: state.top }}
     >
       {state.text}

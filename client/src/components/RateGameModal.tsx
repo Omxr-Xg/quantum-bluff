@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Star, X } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
 import { useToast } from "../contexts/ToastContext";
+import { getAuthItem } from "../utils/authStorage";
 
 type Props = {
   open: boolean;
@@ -26,7 +27,7 @@ export function RateGameModal({ open, onClose }: Props) {
     }
     setSubmitting(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthItem("token");
       const res = await fetch(apiUrl("/api/feedback/game-rating"), {
         method: "POST",
         headers: {
