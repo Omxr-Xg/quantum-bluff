@@ -911,7 +911,7 @@ export function Layout({ children }: LayoutProps) {
       </div>
   );
   const gameHudControls = (
-    <div className="relative flex min-w-0 flex-1 items-center gap-2 overflow-visible py-1">
+    <div className="relative flex min-w-0 shrink-0 items-center gap-2 overflow-visible py-1 sm:flex-1">
       {isMobile ? (
         <button
           type="button"
@@ -1046,13 +1046,13 @@ export function Layout({ children }: LayoutProps) {
             playSfx("uiClick");
             window.dispatchEvent(new Event(isBlackjackGamePage ? "request-blackjack-tour" : "request-game-tour"));
           }}
-          className={topNavBtn}
+          className={`${topNavBtn} max-sm:hidden`}
           title={t("game.menuGuidedTour")}
           aria-label={t("game.menuGuidedTour")}
         >
           <CircleHelp className={topNavIcon} aria-hidden />
         </button>
-        <LanguageSwitcher buttonClassName={languageButtonClass} />
+        <LanguageSwitcher buttonClassName={languageButtonClass} className="max-sm:hidden" />
         {gameAccountPill}
         <NotificationCenter />
         {quitGameButton}
