@@ -261,11 +261,12 @@ export const env = {
   adminConsoleJwtUserId,
   enableAdminRouletteOverride: parseBooleanEnv('ENABLE_ADMIN_ROULETTE_OVERRIDE', false),
   /**
-   * Code promo connu uniquement du serveur (flux alimentation compte) : remet les jetons à 0 à la confirmation.
-   * Surcharger en prod via `BALANCE_RESET_PROMO_CODE` ; ne pas exposer au client.
+   * Code promo secret (faux checkout) : montant à payer simulé = 0 €, les jetons achetés sont crédités.
+   * Variable d’env : `BALANCE_RESET_PROMO_CODE` (nom historique) ou `FREE_TOPUP_PROMO_CODE`.
    */
-  balanceResetPromoCode: (() => {
-    const raw = process.env.BALANCE_RESET_PROMO_CODE
+  freeTopupPromoCode: (() => {
+    const raw =
+      process.env.FREE_TOPUP_PROMO_CODE ?? process.env.BALANCE_RESET_PROMO_CODE
     if (raw === undefined || raw.trim() === '') return 'QUANTUM'
     return raw.trim().toUpperCase()
   })(),

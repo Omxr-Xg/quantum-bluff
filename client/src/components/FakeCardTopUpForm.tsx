@@ -110,8 +110,8 @@ export type FakePromoCodeFieldProps = {
   compact?: boolean;
   isValidating?: boolean;
   hasDiscount?: boolean;
-  /** Code serveur validé : solde remis à 0 à la confirmation (message générique). */
-  hasResetBalancePromo?: boolean;
+  /** Code serveur validé : paiement fictif offert + crédit des jetons. */
+  hasFreeCheckoutPromo?: boolean;
 };
 
 /** Zone code promo (à placer en haut du formulaire). */
@@ -121,7 +121,7 @@ export function FakePromoCodeField({
   compact,
   isValidating,
   hasDiscount,
-  hasResetBalancePromo,
+  hasFreeCheckoutPromo,
 }: FakePromoCodeFieldProps) {
   const { t } = useTranslation();
   const labelCls = compact ? "text-slate-400 text-xs" : "text-slate-300 text-sm";
@@ -137,10 +137,10 @@ export function FakePromoCodeField({
         {isValidating && (
           <span className="text-[10px] text-slate-400">{t("lobby.fakePaymentPromoValidating")}</span>
         )}
-        {hasResetBalancePromo && (
+        {hasFreeCheckoutPromo && (
           <span className="text-[10px] text-amber-200">✅ {t("lobby.fakePaymentPromoAppliedShort")}</span>
         )}
-        {!hasResetBalancePromo && hasDiscount && (
+        {!hasFreeCheckoutPromo && hasDiscount && (
           <span className="text-[10px] text-emerald-400">✅ {t("lobby.fakePaymentDiscountAppliedShort")}</span>
         )}
       </div>
@@ -162,8 +162,8 @@ export type FakeCardTopUpFieldsProps = {
   promoCode: string;
   setPromoCode?: (v: string) => void;
   promoDiscount: PromoDiscountInfo;
-  /** Code promo serveur : à la confirmation, solde → 0 (pas de saisie carte). */
-  promoResetsBalance?: boolean;
+  /** Code promo serveur : montant fictif 0 € + crédit des jetons (pas de saisie carte). */
+  promoFreeCheckout?: boolean;
   isPromoValidating?: boolean;
   cardName: string;
   setCardName: (v: string) => void;
@@ -182,7 +182,7 @@ export function FakeCardTopUpFields({
   promoCode,
   setPromoCode,
   promoDiscount,
-  promoResetsBalance,
+  promoFreeCheckout,
   isPromoValidating,
   cardName,
   setCardName,
@@ -196,7 +196,7 @@ export function FakeCardTopUpFields({
 }: FakeCardTopUpFieldsProps) {
   const { t } = useTranslation();
   const isFreePayment =
-    !!promoResetsBalance ||
+    !!promoFreeCheckout ||
     (promoDiscount?.discountValue !== undefined &&
       simulatedEurFromChips(addMoneyAmount, promoDiscount) === 0);
   const baseEur = Math.round((addMoneyAmount / 100) * 100) / 100;
@@ -222,7 +222,7 @@ export function FakeCardTopUpFields({
           compact={compact}
           isValidating={isPromoValidating}
           hasDiscount={!!promoDiscount}
-          hasResetBalancePromo={!!promoResetsBalance}
+          hasFreeCheckoutPromo={!!promoFreeCheckout}
         />
       )}
 
@@ -292,10 +292,10 @@ export function FakeCardTopUpFields({
             </div>
           </div>
         </>
-      ) : promoResetsBalance ? (
+      ) : promoFreeCheckout ? (
         <p className="flex items-center gap-2 rounded-lg border border-amber-400/35 bg-amber-950/35 px-2.5 py-2 text-xs text-amber-100">
           <Gift className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-hidden />
-          {t("lobby.fakePaymentPromoResetHint")}
+          {t("lobby.fakePaymentPromoFreeCheckoutHint")}
         </p>
       ) : (
         <p className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-2 text-xs text-emerald-200">

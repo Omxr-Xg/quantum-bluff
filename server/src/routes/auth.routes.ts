@@ -22,7 +22,7 @@ import {
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { ipKeyGenerator } from 'express-rate-limit'
 import { rateLimitWithMetrics } from '../observability/index.js'
-import { isBalanceResetPromoCode } from '../config/balanceResetPromo.js'
+import { isFreeTopupPromoCode } from '../config/balanceResetPromo.js'
 
 function normalizeRateLimitIdentity(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -654,8 +654,8 @@ router.post('/validate-topup-promo', authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
     const code = typeof req.body?.code === 'string' ? req.body.code : ''
     if (!code.trim()) return res.json({ valid: false })
-    if (isBalanceResetPromoCode(code)) {
-      return res.json({ valid: true, resetBalance: true })
+    if (isFreeTopupPromoCode(code)) {
+      return res.json({ valid: true, freeCheckout: true })
     }
     return res.json({ valid: false })
   } catch (error) {
@@ -684,30 +684,29 @@ router.post('/add-dev-money', authMiddleware, async (req, res) => {
     })
     if (!before) return res.status(404).json({ error: 'Utilisateur non trouvé' })
 
-    if (isBalanceResetPromoCode(promoRaw)) {
+    const rawAmount = typeof req.body?.amount === 'number' ? req.body.amount : Number(req.body?.amount)
+    const amount = Math.min(999999, Math.max(1, Math.floor(Number(rawAmount))))
+    if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Montant invalide' })
+
+    if (isFreeTopupPromoCode(promoRaw)) {
       const user = await prisma.user.update({
         where: { id: userId },
-        data: { chips: 0 },
+        data: { chips: { increment: amount } },
         select: { chips: true },
       })
-      const removed = before.chips
       await prisma.walletLedgerEntry.create({
         data: {
           userId,
-          amount: removed === 0 ? 0 : -removed,
-          reason: 'PROMO_BALANCE_RESET',
+          amount,
+          reason: 'PROMO_FREE_TOPUP',
           gameType: 'wallet',
           balanceBefore: before.chips,
           balanceAfter: user.chips,
           settlementState: 'SETTLED',
         },
       })
-      return res.json({ ok: true, chips: user.chips, balanceReset: true })
+      return res.json({ ok: true, chips: user.chips, freeCheckout: true })
     }
-
-    const rawAmount = typeof req.body?.amount === 'number' ? req.body.amount : Number(req.body?.amount)
-    const amount = Math.min(999999, Math.max(1, Math.floor(Number(rawAmount))))
-    if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Montant invalide' })
 
     const user = await prisma.user.update({
       where: { id: userId },

@@ -90,7 +90,8 @@ export async function fetchAvailableGiftCodes(): Promise<GiftCode[] | null> {
 
 export type TopUpPromoValidationResult = {
   valid: boolean
-  resetBalance?: boolean
+  /** Paiement fictif à 0 € + crédit des jetons choisis (code secret serveur). */
+  freeCheckout?: boolean
 }
 
 /** Code promo réservé au faux paiement (effet défini uniquement côté API). */

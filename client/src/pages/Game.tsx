@@ -20,7 +20,6 @@ import { useAccessibility } from "../contexts/AccessibilityContext";
 import {
   addToUserBalance,
   addDevMoney,
-  updateUserBalance,
   getUserBalance,
   getUserAvatar,
   fetchBalanceFromServer,
@@ -349,7 +348,7 @@ export function Game() {
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [promoCode, setPromoCode] = useState("");
   const [promoDiscount, setPromoDiscount] = useState<PromoDiscountInfo>(null);
-  const [balanceResetPromo, setBalanceResetPromo] = useState(false);
+  const [freeCheckoutPromo, setFreeCheckoutPromo] = useState(false);
   const [promoValidating, setPromoValidating] = useState(false);
   const [cardName, setCardName] = useState("");
   const [cardDigits, setCardDigits] = useState("");
@@ -864,7 +863,7 @@ export function Game() {
     setAddMoneyAmount(null);
     setPromoCode("");
     setPromoDiscount(null);
-    setBalanceResetPromo(false);
+    setFreeCheckoutPromo(false);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -877,7 +876,7 @@ export function Game() {
     setAddMoneyAmount(null);
     setPromoCode("");
     setPromoDiscount(null);
-    setBalanceResetPromo(false);
+    setFreeCheckoutPromo(false);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -888,18 +887,18 @@ export function Game() {
   const validatePaymentPromo = useCallback(async (code: string) => {
     if (!code.trim()) {
       setPromoDiscount(null);
-      setBalanceResetPromo(false);
+      setFreeCheckoutPromo(false);
       return;
     }
     setPromoValidating(true);
     try {
       const top = await validateTopUpPromo(code);
-      if (top?.valid && top.resetBalance) {
-        setBalanceResetPromo(true);
+      if (top?.valid && top.freeCheckout) {
+        setFreeCheckoutPromo(true);
         setPromoDiscount(null);
         return;
       }
-      setBalanceResetPromo(false);
+      setFreeCheckoutPromo(false);
       const result = await validateGiftCode(code);
       if (result && result.success && result.discountType) {
         // C'est un code de réduction
@@ -913,7 +912,7 @@ export function Game() {
     } catch (error) {
       console.error("[payment] Promo validation error:", error);
       setPromoDiscount(null);
-      setBalanceResetPromo(false);
+      setFreeCheckoutPromo(false);
     } finally {
       setPromoValidating(false);
     }
@@ -923,15 +922,14 @@ export function Game() {
     if (addMoneyAmount == null || addMoneyAmount <= 0) return;
     // Vérifier si c'est un paiement gratuit (réduction 100% ou code solde)
     const finalPrice = simulatedEurFromChips(addMoneyAmount, promoDiscount);
-    const isFreePayment = balanceResetPromo || finalPrice === 0;
+    const isFreePayment = freeCheckoutPromo || finalPrice === 0;
     if (!isFreePayment && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
     let newBalance: number;
     if (mode === "bot") {
-      newBalance = balanceResetPromo ? 0 : addToUserBalance(addMoneyAmount);
-      if (balanceResetPromo) updateUserBalance(0);
+      newBalance = addToUserBalance(addMoneyAmount);
     } else {
       newBalance = await addDevMoney(addMoneyAmount, {
-        promoCode: balanceResetPromo ? promoCode : undefined,
+        promoCode: freeCheckoutPromo ? promoCode : undefined,
       });
     }
     if (mode === "bot") {
@@ -947,7 +945,7 @@ export function Game() {
   };
 
   const isFreePaymentTopUpGame =
-    balanceResetPromo ||
+    freeCheckoutPromo ||
     Boolean(promoDiscount && simulatedEurFromChips(addMoneyAmount || 0, promoDiscount) === 0);
   const canSubmitTopUpGame =
     addMoneyAmount != null &&
@@ -4372,7 +4370,7 @@ export function Game() {
                         void validatePaymentPromo(code);
                       }}
                       promoDiscount={promoDiscount}
-                      promoResetsBalance={balanceResetPromo}
+                      promoFreeCheckout={freeCheckoutPromo}
                       isPromoValidating={promoValidating}
                       cardName={cardName}
                       setCardName={setCardName}
