@@ -1835,13 +1835,14 @@ export class GameGateway {
           });
           await awardXpInTransaction(tx, player.id, xpAmount);
           if (participatedInHand) {
-            await incrementMultiplayerPlayCount(player.id, tx);
+            await incrementMultiplayerPlayCount(player.id, isPracticeBotGameId(game.id), tx);
           }
           if (isWinningPlayer) {
             await markWinWithPair(
               player.id,
               game.state.showdownHandName,
               true,
+            isPracticeBotGameId(game.id),
               tx,
             );
           }
