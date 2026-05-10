@@ -217,6 +217,7 @@ async function handleHandCompleteIfNeeded(
         String(survivors[0].id),
         survivors[0].name,
         survivors[0].chips,
+        gameId,
       );
       if (partial?.emitTournamentWonPartial && io) {
         io.to(`user:${partial.emitTournamentWonPartial.userId}`).emit(
@@ -307,6 +308,12 @@ export async function applyPokerAction(
         gameId: payload.gameId,
         handId: snapshot.handId,
         actionId: payload.actionId,
+      });
+      rootLogger.warn({
+        msg: "poker_table_not_loaded_locally",
+        gameId: payload.gameId,
+        hint:
+          "En multi-instances, orienter le client (HTTP + WebSocket) vers la même réplique ou activer l’affinité par cookie / en-tête ; la partie peut être sur un autre pod.",
       });
       throw makeError(
         "TABLE_NOT_LOADED_LOCALLY",

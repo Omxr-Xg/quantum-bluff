@@ -35,6 +35,8 @@ type MetricsApi = {
   setRedisSocketIoAdapterUp: (up: boolean) => void
   setTournamentLeaderActive: (instanceId: string, active: boolean) => void
   setTournamentStalePendingCount: (count: number) => void
+  /** Bracket / spectate tournoi (faible cardinalité sur `event`). */
+  incTournamentBracket: (event: string) => void
   observeRedisCommandDurationMs: (command: string, durationMs: number) => void
   incDbError: (operation: string) => void
   observePrismaDurationMs: (operation: string, durationMs: number) => void
@@ -151,6 +153,13 @@ function createRealMetrics(): MetricsApi {
     registers: [register],
   })
 
+  const tournamentBracketEventsTotal = new Counter({
+    name: 'tournament_bracket_events_total',
+    help: 'Événements bracket tournoi (idempotence, Redis, attente)',
+    labelNames: ['event'],
+    registers: [register],
+  })
+
   const redisCommandDurationSeconds = new Histogram({
     name: 'redis_command_duration_seconds',
     help: 'Durée des commandes Redis instrumentées (échantillon)',
@@ -203,6 +212,9 @@ function createRealMetrics(): MetricsApi {
     setTournamentStalePendingCount(count: number) {
       tournamentStalePendingCount.set(count)
     },
+    incTournamentBracket(event: string) {
+      tournamentBracketEventsTotal.inc({ event })
+    },
     observeRedisCommandDurationMs(command: string, durationMs: number) {
       redisCommandDurationSeconds.observe({ command }, durationMs / 1000)
     },
@@ -234,6 +246,7 @@ const noop: MetricsApi = {
   setRedisSocketIoAdapterUp: () => {},
   setTournamentLeaderActive: () => {},
   setTournamentStalePendingCount: () => {},
+  incTournamentBracket: () => {},
   observeRedisCommandDurationMs: () => {},
   incDbError: () => {},
   observePrismaDurationMs: () => {},
