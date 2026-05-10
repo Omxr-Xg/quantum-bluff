@@ -260,7 +260,11 @@ docker:build:ai-service:
 deploy:staging:
   stage: deploy
   tags:
-    - runner-vm-quantum  
+    - runner-vm-quantum
+  # Sur la VM, certbot/www et certbot/conf sont des volumes (souvent root). Le défaut
+  # `git clean -ffdx` lors du checkout CI échoue → job en erreur avant tout script.
+  variables:
+    GIT_CLEAN_FLAGS: none
   script:
     - echo " Connexion au registre GitLab..."
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
