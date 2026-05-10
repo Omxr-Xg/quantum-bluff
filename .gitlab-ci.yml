@@ -267,6 +267,7 @@ deploy:staging:
     - echo " Déploiement en cours sur la VM..."
     - echo "JWT_SECRET=$JWT_SECRET" > .env
     - echo "DATABASE_URL=$DATABASE_URL" >> .env
+    - echo "QUANTUM_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE" >> .env
     
     - echo " Docker Compose au rapport !"
     - docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml pull
