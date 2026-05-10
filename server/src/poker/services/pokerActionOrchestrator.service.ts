@@ -73,6 +73,9 @@ async function handleHandCompleteIfNeeded(
           ioRef.to(`user:${busted.userId}`).emit("tournament-eliminated", {
             userId: busted.userId,
           });
+          ioRef.to(`user:${busted.userId}`).emit("tournament-spectate", {
+            gameId,
+          });
           ioRef.to(`user:${busted.userId}`).emit("PLAYER_BUSTED", {
             gameId,
             userId: busted.userId,

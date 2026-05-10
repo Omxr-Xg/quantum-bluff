@@ -1523,7 +1523,8 @@
       "zipHint": "Tap the target as soon as it appears.",
       "zipScore": "Score: {{score}}",
       "zipRestart": "Play again",
-      "zipTarget": "ZIP!"
+      "zipTarget": "ZIP!",
+      "zipAreaWaiting": "Target incoming…"
     },
     "teleporter": {
       "toastStarted": "The tournament is starting!",
@@ -1537,6 +1538,10 @@
       "eliminatedTitle": "ELIMINATED",
       "eliminatedSubtitle": "You’re out of chips. End of the road…",
       "spectateHint": "Redirecting to the final table as a spectator…",
+      "eliminatedChoosePath": "You can watch the table still in play, or go back to the lobby.",
+      "eliminatedSpectatePending": "Loading table info… You can go to the lobby now. The “Spectate” button will appear once we know which table to open.",
+      "spectateButton": "Spectate",
+      "lobbyButton": "Back to lobby",
       "backButton": "Back",
       "place1": "WINNER!",
       "place2": "2nd PLACE",

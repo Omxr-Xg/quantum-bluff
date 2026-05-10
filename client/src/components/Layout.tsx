@@ -637,7 +637,8 @@ export function Layout({ children }: LayoutProps) {
   const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
   const isBlackjackGamePage = location.pathname.startsWith("/blackjack/table");
   const isGameHudPage = isGamePage || isBlackjackGamePage;
-  const isWaitingRoomPage = location.pathname === "/waiting-room";
+  const isWaitingRoomPage =
+    location.pathname === "/waiting-room" || location.pathname === "/tournament-waiting";
   const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
 
   useEffect(() => {
@@ -670,11 +671,13 @@ export function Layout({ children }: LayoutProps) {
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table");
   /** Scroll sur la fenêtre (document) : évite le double scroll conteneur interne + contenu. */
-  const lobbyDocumentScroll = path === "/lobby" || path === "/tutorial-lobby";
+  const lobbyDocumentScroll =
+    path === "/lobby" || path === "/tutorial-lobby" || path === "/tournament-waiting";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
     path.includes("waiting-room") ||
+    path === "/tournament-waiting" ||
     path.includes("tutorial-lobby") ||
     path === "/minigames" ||
     path === "/blackjack" ||

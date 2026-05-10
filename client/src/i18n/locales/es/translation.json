@@ -1495,7 +1495,8 @@
       "zipHint": "Toca el objetivo en cuanto aparezca.",
       "zipScore": "Puntuación: {{score}}",
       "zipRestart": "Volver a jugar",
-      "zipTarget": "¡ZIP!"
+      "zipTarget": "¡ZIP!",
+      "zipAreaWaiting": "El objetivo aparece…"
     },
     "teleporter": {
       "toastStarted": "¡El torneo comienza!",
@@ -1509,6 +1510,10 @@
       "eliminatedTitle": "ELIMINADO",
       "eliminatedSubtitle": "Te quedaste sin fichas. Fin de la partida…",
       "spectateHint": "Redirigiendo a la mesa final como espectador…",
+      "eliminatedChoosePath": "Puedes ver la mesa que sigue en juego como espectador o volver al lobby.",
+      "eliminatedSpectatePending": "Cargando la mesa… Ya puedes ir al lobby. El botón «Espectador» aparecerá cuando sepamos qué mesa abrir.",
+      "spectateButton": "Ver mesa",
+      "lobbyButton": "Volver al lobby",
       "backButton": "Volver",
       "place1": "¡VICTORIA!",
       "place2": "2.º PUESTO",

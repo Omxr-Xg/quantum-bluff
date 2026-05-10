@@ -1500,7 +1500,8 @@
       "zipHint": "Натисніть мішень, щойно вона з’явиться.",
       "zipScore": "Рахунок: {{score}}",
       "zipRestart": "Ще раз",
-      "zipTarget": "ZIP!"
+      "zipTarget": "ZIP!",
+      "zipAreaWaiting": "Ціль з’явиться…"
     },
     "teleporter": {
       "toastStarted": "Турнір починається!",
@@ -1514,6 +1515,10 @@
       "eliminatedTitle": "ВИБУВ",
       "eliminatedSubtitle": "Жетонів більше немає. Кінець гри…",
       "spectateHint": "Перехід на фінальний стіл як глядач…",
+      "eliminatedChoosePath": "Можна дивитися стіл, що ще грається, як глядач або повернутися в лобі.",
+      "eliminatedSpectatePending": "Завантажуємо стіл… Можна вже йти в лобі. Кнопка «Спостерігати» з’явиться, коли буде відомий стіл.",
+      "spectateButton": "Спостерігати",
+      "lobbyButton": "У лобі",
       "backButton": "Назад",
       "place1": "ПЕРЕМОГА!",
       "place2": "2-е МІСЦЕ",

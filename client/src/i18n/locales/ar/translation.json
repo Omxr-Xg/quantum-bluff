@@ -1496,7 +1496,8 @@
       "zipHint": "المس الهدف بمجرد ظهوره.",
       "zipScore": "النقاط: {{score}}",
       "zipRestart": "إعادة اللعب",
-      "zipTarget": "ZIP!"
+      "zipTarget": "ZIP!",
+      "zipAreaWaiting": "الهدف قادم…"
     },
     "teleporter": {
       "toastStarted": "تبدأ البطولة!",
@@ -1510,6 +1511,10 @@
       "eliminatedTitle": "خروج",
       "eliminatedSubtitle": "لم يتبقَّ لديك رموز. انتهت المباراة…",
       "spectateHint": "إعادة التوجيه للطاولة النهائية كمتفرج…",
+      "eliminatedChoosePath": "يمكنك مشاهدة الطاولة ما زالت جارية كمتفرج أو العودة إلى الردهة.",
+      "eliminatedSpectatePending": "جاري تحميل معلومات الطاولة… يمكنك العودة إلى الردهة الآن. سيظهر زر «مشاهدة» عند معرفة الطاولة.",
+      "spectateButton": "مشاهدة الطاولة",
+      "lobbyButton": "العودة إلى الردهة",
       "backButton": "رجوع",
       "place1": "فوز!",
       "place2": "المركز الثاني",

@@ -1529,7 +1529,8 @@
       "zipHint": "Touchez la cible dès qu’elle apparaît.",
       "zipScore": "Score : {{score}}",
       "zipRestart": "Recommencer",
-      "zipTarget": "ZIP !"
+      "zipTarget": "ZIP !",
+      "zipAreaWaiting": "La cible arrive…"
     },
     "teleporter": {
       "toastStarted": "Le tournoi commence !",
@@ -1543,6 +1544,10 @@
       "eliminatedTitle": "ÉLIMINÉ",
       "eliminatedSubtitle": "Tu n'as plus de jetons. Fin de la partie...",
       "spectateHint": "Redirection vers la table finale en mode spectateur...",
+      "eliminatedChoosePath": "Tu peux suivre la table encore en cours en spectateur, ou retourner au lobby.",
+      "eliminatedSpectatePending": "Connexion des infos de table… Tu peux déjà retourner au lobby. Le bouton « Spectateur » apparaîtra dès que la table est connue.",
+      "spectateButton": "Regarder la table",
+      "lobbyButton": "Retour au lobby",
       "backButton": "Retourner",
       "place1": "VICTOIRE !",
       "place2": "2ème PLACE",

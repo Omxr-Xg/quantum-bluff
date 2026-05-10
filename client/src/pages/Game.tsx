@@ -1124,8 +1124,9 @@ export function Game() {
   const winningCardsHighlightActive = useMemo(() => {
     if (showdownHighlightKeys.size === 0) return false;
     if (phase === "showdown") return true;
+    if (gameIdParam && !isBotMode && showdownResult) return true;
     return Boolean(gameIdParam && !isBotMode && cashWaitingPlayers);
-  }, [showdownHighlightKeys, phase, gameIdParam, isBotMode, cashWaitingPlayers]);
+  }, [showdownHighlightKeys, phase, gameIdParam, isBotMode, cashWaitingPlayers, showdownResult]);
 
   useEffect(() => {
     if (!hiddenBetsUiEnabled) setIsPanelOpen(false);
@@ -1831,7 +1832,23 @@ export function Game() {
           : undefined,
       );
       const phase = incomingPhase;
-      if (phase === "showdown") {
+      const hrpRaw =
+        typeof (gameState as { handRuntimePhase?: string }).handRuntimePhase === "string"
+          ? (gameState as { handRuntimePhase?: string }).handRuntimePhase!
+          : "";
+      const hasShowdownWinnerEarly = Boolean(
+        gameState.showdownWinnerId ||
+          (gameState.showdownWinnerIds && gameState.showdownWinnerIds.length > 0),
+      );
+      const multiplayerEndOfHandShowdown =
+        Boolean(gameIdParam) &&
+        !isBotMode &&
+        hasShowdownWinnerEarly &&
+        (hrpRaw === "HAND_COMPLETE" ||
+          hrpRaw === "SHOWDOWN_REVEAL" ||
+          hrpRaw === "SHOWDOWN_PENDING");
+      const treatAsShowdownForUi = phase === "showdown" || multiplayerEndOfHandShowdown;
+      if (treatAsShowdownForUi) {
         lastShowdownSnapshotAtRef.current = Date.now();
       }
       setPhase(phase as GamePhase);
@@ -1841,12 +1858,12 @@ export function Game() {
           showdownWinningCards?: { suit?: string; rank?: string; value?: number | string }[];
         }
       ).showdownWinningCards;
-      if (incomingPhase === "showdown" && Array.isArray(swc) && swc.length > 0) {
+      if (treatAsShowdownForUi && Array.isArray(swc) && swc.length > 0) {
         const norm = swc
           .map((c) => normalizeServerCard(c as Parameters<typeof normalizeServerCard>[0]))
           .filter((c): c is Card => Boolean(c));
         setShowdownWinningHighlightCards(norm);
-      } else if (incomingPhase !== "showdown") {
+      } else if (!treatAsShowdownForUi) {
         setShowdownWinningHighlightCards([]);
       }
       const cc = gameState.communityCards;
@@ -1905,7 +1922,7 @@ export function Game() {
       }
 
       const currentTurnId = gameState.currentTurn != null ? String(gameState.currentTurn) : "";
-      if (phase === "showdown" && !isSpectating) {
+      if (treatAsShowdownForUi && !isSpectating) {
         setTimerActive(false);
       } else if (currentTurnId && currentTurnId === String(userId)) {
         setTimerActive(true);
@@ -1913,8 +1930,8 @@ export function Game() {
       } else {
         setTimerActive(false);
       }
-      const hasShowdownWinner = gameState.showdownWinnerId || (gameState.showdownWinnerIds && gameState.showdownWinnerIds.length > 0);
-      if (phase === "showdown" && hasShowdownWinner) {
+      const hasShowdownWinner = hasShowdownWinnerEarly;
+      if (treatAsShowdownForUi && hasShowdownWinner) {
         const winnerIds = gameState.showdownIsSplit && gameState.showdownWinnerIds?.length
           ? gameState.showdownWinnerIds
           : [gameState.showdownWinnerId!];
@@ -3042,19 +3059,41 @@ export function Game() {
   }, [gameIdParam, isBotMode, userId, practiceBotTurnWatchId, phase, gameOverReason]);
 
   // Safety net for tournament / non-bot multiplayer games:
-  // If the server hand runtime stays at HAND_COMPLETE for more than 9 seconds
-  // (the orchestrator auto-start + gateway fallback together take ≤7.5s), re-request
-  // the game state by re-joining the room so the client can receive the new hand.
+  // If the server hand runtime stays at HAND_COMPLETE (orchestrator auto-start can lag),
+  // re-join the socket room so both clients receive the next hand without a manual refresh.
   useEffect(() => {
     if (!gameIdParam || isBotMode || gameOverReason) return;
     if (serverHandRuntimePhase !== "HAND_COMPLETE") return;
-    const timer = window.setTimeout(() => {
+    const doRejoin = () => {
       if (!socket || !socket.connected || !userId) return;
       lastAppliedSocketSnapshotSigRef.current = "";
-      socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
-    }, 9000);
-    return () => clearTimeout(timer);
-  }, [gameIdParam, isBotMode, serverHandRuntimePhase, gameOverReason]);
+      if (isSpectating) {
+        socket.emit("JOIN_SPECTATE", { gameId: gameIdParam });
+      } else {
+        socket.emit("JOIN_GAME", {
+          gameId: gameIdParam,
+          playerId: userId,
+          avatarUrl: getUserAvatar(),
+        });
+      }
+    };
+    const tEarly =
+      isTournamentTable && userId ? window.setTimeout(doRejoin, 4000) : undefined;
+    const tLate = window.setTimeout(doRejoin, 9000);
+    return () => {
+      if (tEarly != null) window.clearTimeout(tEarly);
+      window.clearTimeout(tLate);
+    };
+  }, [
+    gameIdParam,
+    isBotMode,
+    serverHandRuntimePhase,
+    gameOverReason,
+    isTournamentTable,
+    isSpectating,
+    socket,
+    userId,
+  ]);
 
   useEffect(() => {
     if (!gameOverReason) return;

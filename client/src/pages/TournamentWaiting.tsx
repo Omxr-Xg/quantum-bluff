@@ -21,7 +21,7 @@ export function TournamentWaiting() {
   const { socket } = useSocket();
   const state = location.state as { survivorsCount: number; expectedTables: number } | null;
   const [survivorsCount, setSurvivorsCount] = useState(state?.survivorsCount ?? 1);
-  const expectedTables = state?.expectedTables ?? 1;
+  const expectedTables = Math.max(1, state?.expectedTables ?? 1);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const waitStartedAtRef = useRef<number>(Date.now());
 
@@ -97,9 +97,11 @@ export function TournamentWaiting() {
     };
   }, [navigate]);
 
+  const progressPct = Math.min(100, Math.max(0, (survivorsCount / expectedTables) * 100));
+
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-slate-800 rounded-2xl border border-slate-700 p-8 text-center">
+    <div className="min-h-[100dvh] w-full bg-slate-900 flex items-start sm:items-center justify-center p-4 py-8 sm:py-10">
+      <div className="max-w-lg w-full bg-slate-800 rounded-2xl border border-slate-700 p-6 sm:p-8 text-center shadow-xl">
         <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
           <Trophy className="w-8 h-8 text-yellow-400" />
         </div>
@@ -117,21 +119,26 @@ export function TournamentWaiting() {
           <div className="w-full bg-slate-600 rounded-full h-2">
             <div
               className="bg-yellow-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${(survivorsCount / expectedTables) * 100}%` }}
+              style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
         <div
-          className="mb-4 rounded-xl bg-slate-700/60 border border-slate-600/60 px-4 py-3"
+          className="mb-4 rounded-xl bg-slate-900/50 border border-amber-500/25 px-4 py-4 shadow-inner"
           role="timer"
           aria-label={t('tournament.waiting.timerLabel')}
         >
-          <div className="text-slate-400 text-xs uppercase tracking-wide mb-1">{t('tournament.waiting.timerLabel')}</div>
-          <div className="text-2xl font-mono font-semibold text-white tabular-nums" aria-live="off">
+          <div className="text-amber-200/80 text-xs font-semibold uppercase tracking-wide mb-2">
+            {t('tournament.waiting.timerLabel')}
+          </div>
+          <div
+            className="text-3xl sm:text-4xl font-mono font-bold text-amber-100 tabular-nums tracking-tight"
+            aria-live="polite"
+          >
             {formatWaitTime(elapsedSeconds)}
           </div>
         </div>
-        <div className="mb-6">
+        <div className="mb-6 w-full min-h-[200px]">
           <TournamentWaitingZipGame />
         </div>
         <div className="flex items-center justify-center gap-2 text-slate-400">

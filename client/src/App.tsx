@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -104,11 +104,14 @@ function TournamentTeleporter() {
   
   const [tournamentResult, setTournamentResult] = useState<{
     type: 'win' | 'lose' | 'finalist' | 'result';
+    /** Table à suivre en spectateur (émis avec l’élimination ou peu après). */
+    spectateGameId?: string;
     myPosition?: number | null;
     myAmount?: number;
     tournamentName?: string;
     ranking?: { userId: string; username: string; position: number; amount: number }[];
   } | null>(null);
+  const lastSpectateGameIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const currentToken = getAuthItem('token');
@@ -133,6 +136,7 @@ function TournamentTeleporter() {
       const ids = data.playersToTeleport ?? [];
       const isIncluded = ids.some((id) => String(id) === uid);
       if (isIncluded) {
+        lastSpectateGameIdRef.current = null;
         const myTableId = data.playerToGameMap?.[uid] ?? data.playerToGameMap?.[userId as string];
         if (!myTableId) {
           void recoverTournamentTable();
@@ -198,6 +202,7 @@ function TournamentTeleporter() {
       // Empêche <Game /> de rediriger vers /lobby si un fetch HTTP 404 arrive en parallèle
       // (la table semi-finale a été supprimée côté serveur juste après la création de la finale).
       flagPendingTournamentNav();
+      lastSpectateGameIdRef.current = null;
       setTournamentResult(null);
       navigate(`/game?gameId=${data.gameId}&tournament=1`, {
         state: { tournamentPlayers: data.players }
@@ -206,15 +211,19 @@ function TournamentTeleporter() {
 
     const handleElimination = (data: { userId: string }) => {
       if (data.userId === userId) {
-        setTournamentResult({ type: 'lose' });
+        const gid = lastSpectateGameIdRef.current ?? undefined;
+        setTournamentResult({
+          type: 'lose',
+          ...(gid ? { spectateGameId: gid } : {}),
+        });
       }
     };
 
     const handleSpectate = (data: { gameId: string }) => {
-      setTimeout(() => {
-        setTournamentResult(null);
-        navigate(`/game?gameId=${encodeURIComponent(data.gameId)}&spectate=1&tournament=1`);
-      }, 1500);
+      lastSpectateGameIdRef.current = data.gameId;
+      setTournamentResult((prev) =>
+        prev?.type === 'lose' ? { ...prev, spectateGameId: data.gameId } : prev,
+      );
     };
 
     const handleTournamentResult = (data: {
@@ -333,6 +342,26 @@ function TournamentTeleporter() {
     }
 
     if (tournamentResult.type === 'lose') {
+      const spectateId = tournamentResult.spectateGameId;
+      const btnStyle: CSSProperties = {
+        padding: '12px 28px',
+        border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+        fontSize: '1rem', cursor: 'pointer', fontFamily: 'sans-serif',
+      };
+      const goLobby = () => {
+        lastSpectateGameIdRef.current = null;
+        setTournamentResult(null);
+        navigate('/lobby', { replace: true });
+      };
+      const goSpectate = () => {
+        if (!spectateId) return;
+        lastSpectateGameIdRef.current = null;
+        setTournamentResult(null);
+        navigate(
+          `/game?gameId=${encodeURIComponent(spectateId)}&spectate=1&tournament=1`,
+          { replace: true },
+        );
+      };
       return (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
@@ -348,21 +377,35 @@ function TournamentTeleporter() {
           <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
             {t('tournament.teleporter.eliminatedSubtitle')}
           </p>
-          <p style={{ marginTop: '20px', fontSize: '1rem', opacity: 0.5 }}>
-            {t('tournament.teleporter.spectateHint')}
+          <p style={{ marginTop: '20px', fontSize: '1rem', opacity: 0.55, maxWidth: '28rem', padding: '0 16px' }}>
+            {spectateId
+              ? t('tournament.teleporter.eliminatedChoosePath')
+              : t('tournament.teleporter.eliminatedSpectatePending')}
           </p>
-          <button
-            type="button"
-            onClick={() => navigate('/lobby')}
-            style={{
-              marginTop: '24px', padding: '12px 32px',
-              border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
-              background: 'transparent', color: 'white',
-              fontSize: '1rem', cursor: 'pointer', fontFamily: 'sans-serif',
-            }}
-          >
-            {t('tournament.teleporter.backButton')}
-          </button>
+          <div style={{ marginTop: '28px', display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center' }}>
+            {spectateId ? (
+              <button
+                type="button"
+                onClick={goSpectate}
+                style={{
+                  ...btnStyle,
+                  background: 'rgba(251, 191, 36, 0.25)', color: '#fde68a', borderColor: 'rgba(251, 191, 36, 0.5)',
+                }}
+              >
+                {t('tournament.teleporter.spectateButton')}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={goLobby}
+              style={{
+                ...btnStyle,
+                background: 'transparent', color: 'white',
+              }}
+            >
+              {t('tournament.teleporter.lobbyButton')}
+            </button>
+          </div>
         </div>
       );
     }
