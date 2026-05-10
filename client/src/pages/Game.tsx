@@ -3044,7 +3044,6 @@ export function Game() {
       socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
     }, 9000);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameIdParam, isBotMode, serverHandRuntimePhase, gameOverReason]);
 
   useEffect(() => {
