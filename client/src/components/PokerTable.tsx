@@ -121,8 +121,8 @@ export function PokerTable({
       <div
         className="relative flex items-center justify-center"
         style={isMobile ? {
-          width: "85vw",
-          maxWidth: "85vw",
+          width: "90vw",
+          maxWidth: "90vw",
           aspectRatio: "2 / 3",
           overflow: "visible",
         } : isTablet ? {
@@ -375,7 +375,7 @@ export function PokerTable({
                           </svg>
                         )}
                         <div className="relative z-10">{avatarNode}</div>
-                        <div className="pointer-events-none absolute left-1/2 top-[62%] z-30 flex -translate-x-1/2 flex-col items-center drop-shadow-2xl md:top-[64%]">
+                        <div className="pointer-events-none absolute left-1/2 top-[58%] z-30 flex -translate-x-1/2 flex-col items-center drop-shadow-2xl md:top-[64%]">
                           {player.cards && player.cards.length > 0 && !player.hasFolded && (
                             <div className="relative z-10 flex items-start justify-center">
                               {player.cards.map((card, index) => (
@@ -383,14 +383,14 @@ export function PokerTable({
                                   key={index}
                                   className="relative origin-top transition-all duration-300"
                                   style={{
-                                    marginLeft: index > 0 ? (isMobile ? "4px" : "8px") : "0",
-                                    transform: `rotate(${index === 0 ? -5 : 6}deg) scale(1.2)`,
+                                    marginLeft: index > 0 ? (isMobile ? "3px" : "8px") : "0",
+                                    transform: `rotate(${index === 0 ? -5 : 6}deg)${isMobile ? "" : " scale(1.2)"}`,
                                   }}
                                 >
                                   <PokerCard
                                     suit={card.suit}
                                     value={card.value}
-                                    size="md"
+                                    size={isMobile ? "sm" : "md"}
                                     colorblindMode={colorblindMode}
                                     highlight={Boolean(
                                       highlightCardKeys?.size &&

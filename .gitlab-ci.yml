@@ -285,6 +285,7 @@ deploy:staging:
     - ssh $VM_USER@$VM_IP "cd ~/quantum-bluff && git pull && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml pull && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml up -d --force-recreate && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml exec -T backend npx prisma migrate deploy"
   only:
     - develop
+  when: manual
 
 deploy:production:
   <<: *deploy_hook_retry

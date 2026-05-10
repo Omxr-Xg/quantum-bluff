@@ -909,7 +909,7 @@ export function Layout({ children }: LayoutProps) {
       </div>
   );
   const gameHudControls = (
-    <div className="relative flex min-w-0 flex-1 items-center gap-2 overflow-visible py-1">
+    <div className="relative flex min-w-0 shrink-0 items-center gap-2 overflow-visible py-1 sm:flex-1">
       {isMobile ? (
         <button
           type="button"
@@ -1044,13 +1044,13 @@ export function Layout({ children }: LayoutProps) {
             playSfx("uiClick");
             window.dispatchEvent(new Event(isBlackjackGamePage ? "request-blackjack-tour" : "request-game-tour"));
           }}
-          className={topNavBtn}
+          className={`${topNavBtn} max-sm:hidden`}
           title={t("game.menuGuidedTour")}
           aria-label={t("game.menuGuidedTour")}
         >
           <CircleHelp className={topNavIcon} aria-hidden />
         </button>
-        <LanguageSwitcher buttonClassName={languageButtonClass} />
+        <LanguageSwitcher buttonClassName={languageButtonClass} className="max-sm:hidden" />
         {gameAccountPill}
         <NotificationCenter />
         {quitGameButton}
@@ -1285,6 +1285,22 @@ export function Layout({ children }: LayoutProps) {
                 }}
                 aria-label={t("lobby.balanceTabGiftAria")}
                 title={t("lobby.balanceTabGiftAria")}
+                className={`group relative flex min-h-[2.75rem] w-14 shrink-0 items-center justify-center rounded-full border px-3 py-2 transition ${
+                  balanceModalTab === "codes"
+                    ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"
+                    : "border-white/8 bg-black/10 text-slate-400 hover:border-amber-300/24 hover:text-slate-100"
+                }`}
+              >
+                <Gift className="h-4 w-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBalanceModalTab("codes");
+                  void loadGiftCodes();
+                }}
+                aria-label="Codes cadeaux"
+                title="Codes cadeaux"
                 className={`group relative flex min-h-[2.75rem] w-14 shrink-0 items-center justify-center rounded-full border px-3 py-2 transition ${
                   balanceModalTab === "codes"
                     ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"

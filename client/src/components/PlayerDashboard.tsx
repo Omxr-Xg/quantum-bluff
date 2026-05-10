@@ -96,7 +96,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   const isAllIn = maxRaise > 0 && raiseAmount >= maxRaise;
   const canRaise = isMyTurn && !actionsDisabled && !isLoading && !hasFolded && !hasActed && maxRaise > 0;
   const primaryActionButtonClass =
-    "min-w-0 flex-1 px-[1.1rem] py-[0.825rem] text-[0.825rem] lg:flex-none lg:min-w-[176px] lg:px-[2.2rem] lg:py-[1.1rem] lg:text-[1.1rem]";
+    "min-w-0 flex-1 px-3 py-2.5 text-[0.8rem] lg:flex-none lg:min-w-[176px] lg:px-[2.2rem] lg:py-[1.1rem] lg:text-[1.1rem]";
 
   useEffect(() => {
     setRaiseAmount((prev) => clampRaise(prev));
@@ -205,30 +205,10 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
           </div>
         )}
 
-        <div className="grid grid-cols-1 items-end gap-3 xl:grid-cols-[minmax(16rem,1fr)_auto_minmax(16rem,1fr)] xl:gap-5">
+        <div className="flex flex-wrap justify-center items-end gap-2 xl:grid xl:grid-cols-[minmax(16rem,1fr)_auto_minmax(16rem,1fr)] xl:gap-5">
 
-          {/* LEFT TOOLS */}
-          <div className="order-2 flex shrink-0 flex-wrap items-end justify-center gap-2 drop-shadow-2xl xl:order-none xl:justify-self-end">
-            {onToggleChat && (
-              <NeonButton
-                onClick={onToggleChat}
-                variant="blue"
-                icon={<MessageCircle className="h-4 w-4 shrink-0" />}
-                className={`px-4 py-3 text-xs md:px-5 md:py-3.5 ${
-                  isChatOpen ? "ring-2 ring-blue-300/60" : ""
-                }`}
-              >
-                Chat
-              </NeonButton>
-            )}
-            <HandCombinationsHelpButton
-              colorblindMode={colorblindMode}
-              onOpenChange={setCombinationsHelpOpen}
-            />
-          </div>
-
-          {/* ACTION BUTTONS - Adaptés à l'écran */}
-          <div className="order-1 flex w-full justify-center gap-2 lg:w-auto xl:order-none xl:justify-self-center lg:gap-3">
+          {/* ACTION BUTTONS — Row 1 on mobile (full width), center column on desktop */}
+          <div className="w-full flex justify-center gap-1.5 xl:order-2 xl:w-auto xl:justify-self-center xl:gap-3">
             <NeonButton
               onClick={onFold}
               disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
@@ -346,8 +326,28 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
             </div>
           </div>
 
-          {/* RIGHT TOOLS */}
-          <div className="order-3 flex shrink-0 flex-wrap justify-center gap-2 xl:order-none xl:justify-self-start">
+          {/* LEFT TOOLS — Row 2 on mobile, left column on desktop */}
+          <div className="flex shrink-0 flex-wrap items-end gap-2 drop-shadow-2xl xl:order-1 xl:justify-self-end">
+            {onToggleChat && (
+              <NeonButton
+                onClick={onToggleChat}
+                variant="blue"
+                icon={<MessageCircle className="h-4 w-4 shrink-0" />}
+                className={`px-3 py-2.5 text-xs md:px-5 md:py-3.5 ${
+                  isChatOpen ? "ring-2 ring-blue-300/60" : ""
+                }`}
+              >
+                Chat
+              </NeonButton>
+            )}
+            <HandCombinationsHelpButton
+              colorblindMode={colorblindMode}
+              onOpenChange={setCombinationsHelpOpen}
+            />
+          </div>
+
+          {/* RIGHT TOOLS — Row 2 on mobile, right column on desktop */}
+          <div className="flex shrink-0 flex-wrap items-end gap-1.5 xl:order-3 xl:justify-self-start">
             {onToggleHiddenBets && (
               <NeonButton
                 onClick={hiddenBetsDisabled ? undefined : onToggleHiddenBets}
@@ -359,7 +359,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 }
                 variant="gold"
                 icon={<Eye className="w-4 h-4" />}
-                className="px-4 py-3 text-xs md:px-5 md:py-3.5"
+                className="px-3 py-2.5 text-xs md:px-5 md:py-3.5"
               >
                 {t("game.bets")}
               </NeonButton>
@@ -370,7 +370,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
                 onMouseEnter={onQuantumHoverEnter}
                 onMouseLeave={onQuantumHoverLeave}
               >
-                <NeonButton onClick={onToggleQuantum} variant="amber" icon={<Activity className="w-4 h-4" />} className="px-4 py-3 text-xs md:px-5 md:py-3.5">
+                <NeonButton onClick={onToggleQuantum} variant="amber" icon={<Activity className="w-4 h-4" />} className="px-3 py-2.5 text-xs md:px-5 md:py-3.5">
                   {t("game.probabilitiesShort")}
                 </NeonButton>
               </div>
