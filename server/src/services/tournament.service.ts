@@ -154,30 +154,6 @@ export class TournamentService {
     return rows;
   }
 
-  /** Reconstruit la liste des tables depuis les parties actives (Redis + mémoire) si la carte en mémoire a été perdue. */
-  private static async rebuildSpectateTablesFromActiveGames(
-    tournamentId: string,
-  ): Promise<TournamentSpectateTableRow[]> {
-    const all = await activeGames.getAll();
-    const rows: TournamentSpectateTableRow[] = [];
-    for (const [roomId, game] of all) {
-      if (!(game instanceof GameTable)) continue;
-      if (!roomId.startsWith('game_tournoi_')) continue;
-      if (game.state.tournamentId !== tournamentId) continue;
-      const players = game.state.players.map((p) => ({
-        id: p.id,
-        username: p.name,
-      }));
-      rows.push({
-        tableNumber: game.state.tournamentTableNumber ?? rows.length + 1,
-        roomId,
-        players,
-      });
-    }
-    rows.sort((a, b) => a.tableNumber - b.tableNumber);
-    return rows;
-  }
-
   /** Tables connues pour ce tournoi + indicateur si la partie tourne encore sur ce nœud. */
   static async getSpectateTablesPayload(tournamentId: string): Promise<{
     tournamentName: string;
