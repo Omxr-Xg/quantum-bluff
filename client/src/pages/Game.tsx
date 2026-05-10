@@ -4362,7 +4362,7 @@ export function Game() {
                       disabled={!canSubmitTopUpGame}
                       className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
                     >
-                      {t("lobby.validate")}
+                      {t("lobby.confirmTopUp")}
                     </button>
                   </div>
                 )}

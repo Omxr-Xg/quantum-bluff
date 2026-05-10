@@ -151,7 +151,7 @@ export function WaitingRoom() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               hostId: userId,
-              roomName: `Salle de ${username || "Joueur"}`,
+              roomName: t("lobby.roomOf", { name: username || t("lobby.defaultPlayerName") }),
               maxPlayers: 5,
               avatarUrl: getUserAvatar(),
             }),
@@ -528,7 +528,14 @@ export function WaitingRoom() {
             {roomMinBalance && roomMinBalance > 0 && (
               <div className="flex items-center gap-2 text-sm text-slate-400 mt-1">
                 <ChipIcon size="sm" />
-                <span>Mise minimale requise : <span className="text-amber-400 font-bold">{roomMinBalance.toLocaleString()}</span> jetons</span>
+                <span>
+                  {t("waitingRoom.minStakeRequiredBefore")}
+                  <span className="text-amber-400 font-bold">
+                    {" "}
+                    {roomMinBalance.toLocaleString()}{" "}
+                  </span>
+                  {t("waitingRoom.minStakeRequiredAfter")}
+                </span>
               </div>
             )}
           </div>

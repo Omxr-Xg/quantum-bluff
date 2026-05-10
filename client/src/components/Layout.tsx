@@ -106,7 +106,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { socket, isConnected, connect } = useSocket();
   const { toasts, removeToast, addToast } = useToast();
   const {
@@ -496,53 +496,31 @@ export function Layout({ children }: LayoutProps) {
         entries?: BalanceHistoryEntry[];
         error?: string;
       };
-      if (!res.ok) throw new Error(parsed.error || "Impossible de charger l'historique.");
+      if (!res.ok) throw new Error(parsed.error || t("lobby.balanceHistoryLoadError"));
       setHistoryEntries(Array.isArray(parsed.entries) ? parsed.entries : []);
     } catch (err) {
-      setHistoryError(err instanceof Error ? err.message : "Impossible de charger l'historique.");
+      setHistoryError(err instanceof Error ? err.message : t("lobby.balanceHistoryLoadError"));
     } finally {
       setHistoryLoading(false);
     }
-  }, []);
+  }, [t]);
 
-  const reasonLabel = (reason: string): string => {
-    const labels: Record<string, string> = {
-      SLOT_STAKE: "Mise slot",
-      SLOT_PAYOUT: "Gain slot",
-      ROULETTE_STAKE: "Mise roulette",
-      ROULETTE_PAYOUT: "Gain roulette",
-      BLACKJACK_STAKE: "Mise blackjack",
-      BLACKJACK_PAYOUT: "Gain blackjack",
-      HIDDEN_BET_STAKE: "Mise pari caché",
-      HIDDEN_BET_PAYOUT: "Gain pari caché",
-      HIDDEN_BET_REFUND_VOID: "Remboursement pari annulé",
-      HIDDEN_BET_REFUND_CANCEL: "Remboursement pari annulé",
-      LOAN_FUNDED_IN: "Prêt reçu",
-      LOAN_FUNDED_OUT: "Prêt envoyé",
-      LOAN_REPAYMENT_IN: "Remboursement reçu",
-      LOAN_REPAYMENT_OUT: "Remboursement envoyé",
-      DEV_TOPUP: "Ajout de solde",
-      PROMO_BALANCE_RESET: "Code promo — réinitialisation du solde",
-      CASH_POKER_BUY_IN: "Cash poker — buy-in",
-      CASH_POKER_REBUY: "Cash poker — rebuy",
-      CASH_POKER_CASHOUT: "Cash poker — retrait table",
-      CASH_POKER_HAND_RESULT: "Cash poker — résultat de main",
-    };
-
-    // Handle GIFT_CODE_* patterns
-    if (reason.startsWith("GIFT_CODE_")) {
-      const type = reason.replace("GIFT_CODE_", "");
-      const typeMap: Record<string, string> = {
-        ACHIEVEMENT: "🏆 Code - Achievement",
-        EVENT: "🎉 Code - Événement",
-        SEASONAL: "🎄 Code - Saisonnier",
-        SPECIAL: "⭐ Code - Spécial",
-      };
-      return typeMap[type] || "Code cadeau";
-    }
-
-    return labels[reason] || reason;
-  };
+  const reasonLabel = useCallback(
+    (reason: string): string => {
+      if (reason.startsWith("GIFT_CODE_")) {
+        const type = reason.replace("GIFT_CODE_", "");
+        const giftKey = `balanceLedger.giftType.${type}`;
+        const giftTr = t(giftKey);
+        if (giftTr !== giftKey) return giftTr;
+        return t("balanceLedger.giftFallback");
+      }
+      const key = `balanceLedger.reasons.${reason}`;
+      const tr = t(key);
+      if (tr !== key) return tr;
+      return reason;
+    },
+    [t],
+  );
   const loadGiftCodes = useCallback(async () => {
     setCodesLoading(true);
     setCodesError(null);
@@ -550,15 +528,15 @@ export function Layout({ children }: LayoutProps) {
       const codes = await fetchAvailableGiftCodes();
       setGiftCodes(codes || []);
     } catch (err) {
-      setCodesError(err instanceof Error ? err.message : "Erreur lors du chargement des codes");
+      setCodesError(err instanceof Error ? err.message : t("lobby.giftCodesLoadError"));
     } finally {
       setCodesLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const handleValidateCode = async () => {
     if (!codeInput.trim()) {
-      setCodesError("Veuillez entrer un code");
+      setCodesError(t("lobby.giftCodeEnterError"));
       return;
     }
 
@@ -581,7 +559,7 @@ export function Layout({ children }: LayoutProps) {
         }, 2000);
       }
     } catch (err: Error | unknown) {
-      setCodesError(err instanceof Error ? err.message : "Code invalide");
+      setCodesError(err instanceof Error ? err.message : t("lobby.giftCodeInvalid"));
     } finally {
       setCodesLoading(false);
     }
@@ -993,8 +971,8 @@ export function Layout({ children }: LayoutProps) {
           setShowDailyLogin(true);
         }}
         className="relative mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/15 bg-slate-800/60 text-amber-200 transition hover:border-amber-300/60 hover:bg-amber-400/10 md:h-8 md:w-8"
-        title="Récompense quotidienne"
-        aria-label="Récompense quotidienne"
+        title={t("dailyLogin.title")}
+        aria-label={t("dailyLogin.title")}
       >
         <Gift className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden />
         {dailyLoginAvailable ? (
@@ -1297,7 +1275,7 @@ export function Layout({ children }: LayoutProps) {
                     : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-amber-300/24 hover:text-amber-100"
                 }`}
               >
-                Alimenter le compte
+                {t("lobby.balanceTabTopUp")}
               </button>
               <button
                 type="button"
@@ -1305,8 +1283,8 @@ export function Layout({ children }: LayoutProps) {
                   setBalanceModalTab("codes");
                   void loadGiftCodes();
                 }}
-                aria-label="Codes cadeaux"
-                title="Codes cadeaux"
+                aria-label={t("lobby.balanceTabGiftAria")}
+                title={t("lobby.balanceTabGiftAria")}
                 className={`group relative flex min-h-[2.75rem] w-14 shrink-0 items-center justify-center rounded-full border px-3 py-2 transition ${
                   balanceModalTab === "codes"
                     ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"
@@ -1321,8 +1299,8 @@ export function Layout({ children }: LayoutProps) {
                   setBalanceModalTab("history");
                   void loadBalanceHistory();
                 }}
-                aria-label="Historique"
-                title="Historique"
+                aria-label={t("lobby.balanceTabHistoryAria")}
+                title={t("lobby.balanceTabHistoryAria")}
                 className={`group relative flex min-h-[2.75rem] w-14 shrink-0 items-center justify-center rounded-full border px-3 py-2 transition ${
                   balanceModalTab === "history"
                     ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"
@@ -1335,12 +1313,14 @@ export function Layout({ children }: LayoutProps) {
             <CustomScrollArea className="min-h-0 flex-1 pr-1" contentClassName="pr-3">
             {balanceModalTab === "history" ? (
               <>
-                {historyLoading ? <p className="text-slate-300 text-center py-4">Chargement...</p> : null}
+                {historyLoading ? (
+                  <p className="text-slate-300 text-center py-4">{t("common.loading")}</p>
+                ) : null}
                 {historyError ? <p className="text-rose-300 text-sm text-center py-3">{historyError}</p> : null}
                 {!historyLoading && !historyError ? (
                   <div className="space-y-2">
                     {historyEntries.length === 0 ? (
-                      <p className="text-amber-100/45 text-center py-6">Aucun mouvement.</p>
+                      <p className="text-amber-100/45 text-center py-6">{t("lobby.balanceHistoryEmpty")}</p>
                     ) : (
                       historyEntries.map((entry) => {
                         const before = typeof entry.balanceBefore === "number" ? entry.balanceBefore : null;
@@ -1357,7 +1337,7 @@ export function Layout({ children }: LayoutProps) {
                                   <span>{reasonLabel(entry.reason)}</span>
                                 </p>
                                 <p className="text-xs text-slate-400">
-                                  {new Intl.DateTimeFormat("fr-CA", {
+                                  {new Intl.DateTimeFormat(i18n.language, {
                                     dateStyle: "medium",
                                     timeStyle: "short",
                                   }).format(new Date(entry.createdAt))}
@@ -1369,8 +1349,10 @@ export function Layout({ children }: LayoutProps) {
                               </p>
                             </div>
                             <p className="mt-1 text-xs text-slate-400">
-                              Avant: {before !== null ? before.toLocaleString() : "—"} · Apres:{" "}
-                              {after !== null ? after.toLocaleString() : "—"}
+                              {t("lobby.balanceHistoryBeforeAfter", {
+                                before: before !== null ? before.toLocaleString() : "—",
+                                after: after !== null ? after.toLocaleString() : "—",
+                              })}
                             </p>
                           </div>
                         );
@@ -1384,10 +1366,10 @@ export function Layout({ children }: LayoutProps) {
                 <div>
                   <p className="mb-3 flex items-center gap-2 text-sm text-slate-300">
                     <Gift className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
-                    Codes disponibles :
+                    {t("lobby.giftCodesAvailable")}
                   </p>
                   {codesLoading ? (
-                    <div className="text-center py-8 text-slate-400">Chargement...</div>
+                    <div className="text-center py-8 text-slate-400">{t("common.loading")}</div>
                   ) : giftCodes.length > 0 ? (
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {giftCodes.map((code) => (
@@ -1402,7 +1384,8 @@ export function Layout({ children }: LayoutProps) {
                             )}
                             {code.expiresAt && (
                               <p className="text-xs text-rose-400 mt-1">
-                                Expire: {new Date(code.expiresAt).toLocaleDateString("fr-FR")}
+                                {t("lobby.giftCodeExpires")}{" "}
+                                {new Date(code.expiresAt).toLocaleDateString(i18n.language)}
                               </p>
                             )}
                           </div>
@@ -1416,19 +1399,19 @@ export function Layout({ children }: LayoutProps) {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-slate-400 text-center py-4">Aucun code disponible pour vous</p>
+                    <p className="text-slate-400 text-center py-4">{t("lobby.giftCodesNone")}</p>
                   )}
                 </div>
 
                 <div>
-                  <p className="text-slate-300 text-sm mb-2">Ou utilisez votre code :</p>
+                  <p className="text-slate-300 text-sm mb-2">{t("lobby.giftCodeEnterLabel")}</p>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       value={codeInput}
                       onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
                       onKeyPress={(e) => e.key === "Enter" && handleValidateCode()}
-                      placeholder="Tapez votre code..."
+                      placeholder={t("lobby.giftCodeInputPlaceholder")}
                       className="flex-1 bg-slate-950/40 border border-white/10 rounded-lg px-3 py-2 text-slate-50 placeholder-slate-500 focus:outline-none focus:border-amber-300/55 focus:ring-1 focus:ring-amber-300/35"
                       disabled={codesLoading}
                     />
@@ -1437,7 +1420,7 @@ export function Layout({ children }: LayoutProps) {
                       disabled={codesLoading || !codeInput.trim()}
                       className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Valider
+                      {t("lobby.validate")}
                     </button>
                   </div>
                 </div>
@@ -1503,7 +1486,7 @@ export function Layout({ children }: LayoutProps) {
                       disabled={!canSubmitTopUp}
                       className="w-full rounded-full border border-amber-200/35 bg-amber-400/16 py-2 font-bold text-amber-100 transition hover:bg-amber-400/24 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500"
                     >
-                      Valider l'alimentation
+                      {t("lobby.confirmTopUp")}
                     </button>
                   </div>
                 )}

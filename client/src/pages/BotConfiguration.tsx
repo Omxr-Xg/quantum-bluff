@@ -206,7 +206,7 @@ export function BotConfiguration() {
                     >
                       {diff.id === "expert" && (
                         <div className="absolute -top-3 left-5 rounded-full border border-cyan-200/70 bg-cyan-950/95 px-3 py-1 text-[0.65rem] font-black uppercase tracking-[0.18em] text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.28)]">
-                          REAL AI
+                          {t("botConfig.realAiBadge")}
                         </div>
                       )}
                       <div className="flex items-start gap-4">
@@ -277,7 +277,7 @@ export function BotConfiguration() {
                       <div className={`text-xs font-semibold ${
                         numberOfBots === num ? "text-blue-200" : "text-gray-500"
                       }`}>
-                        {num} {num > 1 ? "Bots" : "Bot"}
+                        {t("botConfig.botCountLine", { count: num })}
                       </div>
                     </div>
                   </button>
@@ -334,7 +334,9 @@ export function BotConfiguration() {
                         <div className="flex h-8 w-8 items-center justify-center rounded-full border border-blue-300/15 bg-blue-950/70 text-xs font-bold text-blue-100">
                           {BOT_NAMES[i]?.[0]}
                         </div>
-                        <span className="text-gray-300 text-sm font-medium">Bot {BOT_NAMES[i]}</span>
+                        <span className="text-gray-300 text-sm font-medium">
+                          {t("botConfig.botNamed", { name: BOT_NAMES[i] })}
+                        </span>
                       </div>
                       <div className="flex-1 flex items-center gap-2">
                         <input
@@ -365,7 +367,7 @@ export function BotConfiguration() {
                           </div>
                         )}
                       </div>
-                      <span className="text-gray-500 text-xs min-w-[20px]">chips</span>
+                      <span className="text-gray-500 text-xs min-w-[20px]">{t("botConfig.chipsUnit")}</span>
                     </div>
                   );
                 })
@@ -380,7 +382,7 @@ export function BotConfiguration() {
               <div>
                 <span className="text-gray-400">{t('botConfig.opponents')}</span>
                 <span className="text-white font-bold ml-2">
-                  {numberOfBots === null ? "-" : `${numberOfBots} ${numberOfBots > 1 ? "bots" : "bot"}`}
+                  {numberOfBots === null ? "-" : t("botConfig.opponentsCount", { count: numberOfBots })}
                 </span>
               </div>
               <div>

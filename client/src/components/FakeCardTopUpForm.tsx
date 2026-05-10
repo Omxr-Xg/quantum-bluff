@@ -134,12 +134,14 @@ export function FakePromoCodeField({
       <div className="flex items-center gap-2">
         <Gift className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
         <label className={`${labelCls} font-semibold`}>{t("lobby.fakePaymentPromoLabel")}</label>
-        {isValidating && <span className="text-[10px] text-slate-400">en validation...</span>}
+        {isValidating && (
+          <span className="text-[10px] text-slate-400">{t("lobby.fakePaymentPromoValidating")}</span>
+        )}
         {hasResetBalancePromo && (
           <span className="text-[10px] text-amber-200">✅ {t("lobby.fakePaymentPromoAppliedShort")}</span>
         )}
         {!hasResetBalancePromo && hasDiscount && (
-          <span className="text-[10px] text-emerald-400">✅ code appliqué</span>
+          <span className="text-[10px] text-emerald-400">✅ {t("lobby.fakePaymentDiscountAppliedShort")}</span>
         )}
       </div>
       <input

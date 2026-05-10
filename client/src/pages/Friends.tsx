@@ -67,8 +67,9 @@ type SortDropdownProps = {
 };
 
 function SortDropdown({ ariaLabel, value, options, onChange }: SortDropdownProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const selectedLabel = options.find((option) => option.value === value)?.label ?? "Trier";
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? t("friends.sort");
 
   return (
     <div
@@ -88,7 +89,7 @@ function SortDropdown({ ariaLabel, value, options, onChange }: SortDropdownProps
       >
         <span className="flex min-w-0 items-center gap-2">
           <ArrowUpDown className="h-4 w-4 shrink-0 text-blue-200" />
-          <span className="shrink-0">Trier</span>
+          <span className="shrink-0">{t("friends.sort")}</span>
           <span className="hidden max-w-[8rem] truncate text-xs font-semibold text-slate-400 sm:block">
             {selectedLabel}
           </span>
@@ -522,13 +523,13 @@ export function Friends() {
                 className={`flex shrink-0 items-center justify-center gap-2 px-3.5 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${pokerMutedButton}`}
               >
                 <RefreshCw className={`h-4 w-4 ${fetchingFriends ? "animate-spin text-blue-300" : ""}`} />
-                {fetchingFriends ? "Mise à jour..." : "Actualiser"}
+                {fetchingFriends ? t("friends.refreshing") : t("friends.refresh")}
               </button>
             </div>
           </div>
         </header>
 
-        <nav className="mb-5 overflow-x-auto overflow-y-hidden scrollbar-hide" aria-label="Navigation amis">
+        <nav className="mb-5 overflow-x-auto overflow-y-hidden scrollbar-hide" aria-label={t("friends.navAria")}>
           <div className="flex w-max min-w-full items-center gap-1 rounded-full border border-white/10 bg-white/[0.045] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_45px_rgba(0,0,0,0.22)] backdrop-blur-xl">
             {tabItems.map(({ key, label, Icon }) => (
               <button
@@ -563,18 +564,18 @@ export function Friends() {
                     ) : null}
                   </h2>
                   {!loadingRequests && sortedRequests.length === 0 ? (
-                    <p className="mt-1 text-sm text-slate-400">Aucune demande en attente.</p>
+                    <p className="mt-1 text-sm text-slate-400">{t("friends.noPendingRequests")}</p>
                   ) : null}
                 </div>
                 {sortedRequests.length > 0 ? (
                   <SortDropdown
-                    ariaLabel="Trier les demandes"
+                    ariaLabel={t("friends.sortRequestsAria")}
                     value={requestSort}
                     onChange={(value) => setRequestSort(value as RequestSort)}
                     options={[
-                      { value: "recent", label: "Plus récentes" },
-                      { value: "oldest", label: "Moins récentes" },
-                      { value: "alpha", label: "A-Z" },
+                      { value: "recent", label: t("friends.sortRecentRequests") },
+                      { value: "oldest", label: t("friends.sortOldestRequests") },
+                      { value: "alpha", label: t("friends.sortAlphaAZ") },
                     ]}
                   />
                 ) : null}
@@ -642,7 +643,7 @@ export function Friends() {
               </div>
               <div className="grid grid-cols-3 gap-1 rounded-full border border-white/10 bg-slate-950/45 p-1 md:w-auto md:min-w-[22rem]">
                 {[
-                  { key: "all" as const, label: "Tous", count: friendsCount },
+                  { key: "all" as const, label: t("friends.filterAll"), count: friendsCount },
                   { key: "online" as const, label: t("friends.online"), count: onlineFriendsCount },
                   { key: "offline" as const, label: t("friends.offline"), count: offlineFriendsCount },
                 ].map((item) => (
@@ -662,13 +663,13 @@ export function Friends() {
                 ))}
               </div>
               <SortDropdown
-                ariaLabel="Trier les amis"
+                ariaLabel={t("friends.sortFriendsAria")}
                 value={friendSort}
                 onChange={(value) => setFriendSort(value as FriendSort)}
                 options={[
-                  { value: "recent", label: "Ajout le plus récent" },
-                  { value: "oldest", label: "Ajout le plus ancien" },
-                  { value: "alpha", label: "A-Z" },
+                  { value: "recent", label: t("friends.sortAddedRecent") },
+                  { value: "oldest", label: t("friends.sortAddedOldest") },
+                  { value: "alpha", label: t("friends.sortAlphaAZ") },
                 ]}
               />
             </div>
@@ -682,7 +683,7 @@ export function Friends() {
                 {fetchingFriends && !loadingFriends ? (
                   <div className="flex items-center gap-2 rounded-full border border-blue-300/15 bg-blue-950/35 px-3 py-1.5 text-sm text-blue-200">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Synchronisation...
+                    {t("friends.syncing")}
                   </div>
                 ) : null}
               </div>

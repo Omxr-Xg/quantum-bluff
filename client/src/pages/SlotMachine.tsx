@@ -465,12 +465,13 @@ export function SlotMachine() {
                     disabled={isSpinning || balance < preset}
                     className="min-w-[3rem] flex-1 rounded-full border border-white/10 bg-white/[0.045] px-2 py-1.5 text-xs font-bold text-slate-200 transition hover:border-amber-200/24 hover:bg-amber-300/10 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {preset === 500 ? 'MAX' : preset}
+                    {preset === 500 ? t("minigames.betPresetMax") : preset}
                   </button>
                 ))}
               </div>
               <p className="mt-1.5 text-center text-xs text-slate-500">
-                Max : 500 <ChipIcon size="sm" className="inline" />
+                {t("minigames.maxBetNote", { amount: 500 })}{" "}
+                <ChipIcon size="sm" className="inline" />
               </p>
             </div>
           </div>
