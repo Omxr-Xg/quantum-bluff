@@ -26,10 +26,16 @@ jest.mock('../shared/activeGames.js', () => ({
 jest.mock('../services/tournamentBracketStore.service.js', () => ({
   appendTournamentSurvivor: jest.fn(),
   clearTournamentBracketState: jest.fn().mockResolvedValue(undefined),
+  clearTournamentSpectateSnapshot: jest.fn().mockResolvedValue(undefined),
   clearTournamentSurvivors: jest.fn(),
+  deleteMergeRoundMapping: jest.fn().mockResolvedValue(undefined),
+  getMergeRoundMapping: jest.fn().mockResolvedValue(null),
   getTournamentExpectedTables: jest.fn(),
+  getTournamentSpectateSnapshot: jest.fn().mockResolvedValue(null),
   getTournamentSurvivors: jest.fn(),
+  setMergeRoundMapping: jest.fn().mockResolvedValue(undefined),
   setTournamentExpectedTables: jest.fn().mockResolvedValue(undefined),
+  setTournamentSpectateSnapshot: jest.fn().mockResolvedValue(undefined),
 }))
 
 jest.mock('../logic/GameTable.js', () => ({

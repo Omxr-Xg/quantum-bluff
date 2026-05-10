@@ -189,7 +189,10 @@ export async function fetchBalanceFromServer(options?: FetchBalanceOptions): Pro
 }
 
 /** Ajoute des jetons via l'API serveur (validation "dev" côté serveur). Retourne la nouvelle balance. */
-export async function addDevMoney(amount: number): Promise<number> {
+export async function addDevMoney(
+  amount: number,
+  options?: { promoCode?: string },
+): Promise<number> {
   const safeAmount = Math.max(0, Math.floor(amount));
   if (safeAmount <= 0) return getUserBalance();
   const token = getAuthItem("token");
@@ -197,11 +200,16 @@ export async function addDevMoney(amount: number): Promise<number> {
     return addToUserBalance(safeAmount);
   }
   const url = apiUrl("/api/auth/add-dev-money");
+  const promo = options?.promoCode?.trim();
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ amount: safeAmount, secret: "dev" }),
+      body: JSON.stringify({
+        amount: safeAmount,
+        secret: "dev",
+        ...(promo ? { promoCode: promo } : {}),
+      }),
     });
     if (res.ok) {
       const data = await res.json();

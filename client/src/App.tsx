@@ -179,8 +179,8 @@ function TournamentTeleporter() {
     const handleSpectate = (data: { gameId: string }) => {
       setTimeout(() => {
         setTournamentResult(null);
-        navigate(`/game?gameId=${data.gameId}&spectate=1&tournament=1`);
-      }, 5000);
+        navigate(`/game?gameId=${encodeURIComponent(data.gameId)}&spectate=1&tournament=1`);
+      }, 1500);
     };
 
     const handleTournamentResult = (data: {

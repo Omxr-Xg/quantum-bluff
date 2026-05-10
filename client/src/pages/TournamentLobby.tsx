@@ -150,7 +150,7 @@ export function TournamentLobby() {
     }
     if (!canRegisterForTournament(trn)) return t('tournament.lobby.registrationClosed');
     return trn.visibility === 'PRIVATE'
-      ? 'Demander accès'
+      ? t('tournament.lobby.requestAccess')
       : t('tournament.lobby.register');
   };
 
@@ -303,7 +303,7 @@ export function TournamentLobby() {
                           if (trn.visibility === 'PRIVATE') {
                             try {
                               await TournamentService.requestJoinTournament(trn.id);
-                              addToast('Demande envoyée au créateur du tournoi.', "success");
+                              addToast(t('tournament.lobby.requestAccessToast'), "success");
                             } catch (err: unknown) {
                               const message = err instanceof Error ? err.message : t('tournament.lobby.errorUnknown');
                               addToast(message, "error");

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Gift, X, Flame, Check } from "lucide-react";
 import {
   claimDailyLoginDetailed,
@@ -22,6 +23,7 @@ type DailyLoginModalProps = {
  * Si le joueur rate un jour, la série retombe à 1.
  */
 export function DailyLoginModal({ open, onClose, onClaimed }: DailyLoginModalProps) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<DailyLoginStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -95,13 +97,13 @@ export function DailyLoginModal({ open, onClose, onClaimed }: DailyLoginModalPro
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Gift className="h-5 w-5 text-amber-300" aria-hidden />
-              <h3 className="text-xl font-bold text-amber-100">Récompense quotidienne</h3>
+              <h3 className="text-xl font-bold text-amber-100">{t("dailyLogin.title")}</h3>
             </div>
             <button
               type="button"
               onClick={onClose}
               className="p-1 text-amber-100/55 transition hover:text-amber-50"
-              aria-label="Fermer"
+              aria-label={t("common.close")}
             >
               <X className="h-5 w-5" />
             </button>
@@ -111,18 +113,15 @@ export function DailyLoginModal({ open, onClose, onClaimed }: DailyLoginModalPro
             <div className="mb-4 flex items-center justify-center gap-2 rounded-full border border-amber-300/20 bg-amber-400/[0.05] py-2 text-sm text-amber-100">
               <Flame className="h-4 w-4 text-orange-400" aria-hidden />
               <span>
-                Série en cours :{" "}
+                {t("dailyLogin.streakPrefix")}{" "}
                 <span className="font-bold text-amber-200">
-                  {status.streakCount} jour{status.streakCount > 1 ? "s" : ""}
+                  {t("dailyLogin.streakDays", { count: status.streakCount })}
                 </span>
               </span>
             </div>
           ) : null}
 
-          <p className="mb-4 text-center text-sm text-slate-300">
-            Connecte-toi chaque jour pour augmenter ta récompense. Si tu rates un jour, la série
-            recommence à zéro.
-          </p>
+          <p className="mb-4 text-center text-sm text-slate-300">{t("dailyLogin.body")}</p>
 
           <div className="mb-5 grid grid-cols-7 gap-1.5">
             {rewards.map((amount, idx) => {
@@ -146,7 +145,7 @@ export function DailyLoginModal({ open, onClose, onClaimed }: DailyLoginModalPro
                   }`}
                 >
                   <span className="text-[0.65rem] font-semibold uppercase tracking-wide opacity-80">
-                    J{dayNumber}
+                    {t("dailyLogin.dayShort", { n: dayNumber })}
                   </span>
                   <div className="flex items-center gap-0.5">
                     <ChipIcon size="sm" className="h-3 w-3 brightness-110" />
@@ -163,17 +162,15 @@ export function DailyLoginModal({ open, onClose, onClaimed }: DailyLoginModalPro
           </div>
 
           {loading ? (
-            <p className="py-3 text-center text-sm text-slate-300">Chargement…</p>
+            <p className="py-3 text-center text-sm text-slate-300">{t("common.loading")}</p>
           ) : error ? (
             <p className="py-3 text-center text-sm text-rose-300">{error}</p>
           ) : justClaimed != null ? (
             <p className="py-3 text-center text-emerald-300 font-medium">
-              +{justClaimed.toLocaleString()} jetons ajoutés à ton solde !
+              {t("dailyLogin.rewardClaimed", { amount: justClaimed.toLocaleString() })}
             </p>
           ) : status?.claimedToday ? (
-            <p className="py-3 text-center text-sm text-slate-300">
-              Récompense déjà récupérée aujourd’hui. Reviens demain !
-            </p>
+            <p className="py-3 text-center text-sm text-slate-300">{t("dailyLogin.alreadyClaimed")}</p>
           ) : (
             <button
               type="button"
@@ -182,8 +179,10 @@ export function DailyLoginModal({ open, onClose, onClaimed }: DailyLoginModalPro
               className="w-full rounded-full border border-amber-200/35 bg-amber-400/16 py-2.5 font-bold text-amber-100 transition hover:bg-amber-400/24 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500"
             >
               {claiming
-                ? "Récupération…"
-                : `Récupérer ${status ? status.nextReward.toLocaleString() : ""} jetons`}
+                ? t("dailyLogin.claiming")
+                : t("dailyLogin.claimButton", {
+                    amount: status ? status.nextReward.toLocaleString() : "",
+                  })}
             </button>
           )}
         </div>

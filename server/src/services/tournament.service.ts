@@ -3,14 +3,21 @@ import { prisma } from '../config/database.js';
 import { metrics, rootLogger } from '../observability/index.js';
 import { renewTournamentLeaderLock } from './tournamentLeaderLock.service.js';
 import { activeGames } from '../shared/activeGames.js';
+import { pokerStateStore } from '../shared/pokerStateStore.js';
 import { GameTable } from '../logic/GameTable.js';
 import {
   appendTournamentSurvivor,
   clearTournamentBracketState,
+  clearTournamentSpectateSnapshot,
   clearTournamentSurvivors,
+  deleteMergeRoundMapping,
+  getMergeRoundMapping,
   getTournamentExpectedTables,
+  getTournamentSpectateSnapshot,
   getTournamentSurvivors,
+  setMergeRoundMapping,
   setTournamentExpectedTables,
+  setTournamentSpectateSnapshot,
   type BracketSurvivorRow,
 } from './tournamentBracketStore.service.js';
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js';
@@ -81,6 +88,9 @@ export class TournamentService {
   /** Partie fusion `game_tournoi_merge_*` → tournoi (réduction à 2 avant finale HU). */
   private static mergeRoundGameToTournament = new Map<string, string>();
 
+  /** Compteur pour un contrôle ~1 min du bracket (leader uniquement). */
+  private static bracketStaleWatcherTick = 0;
+
   static getMergeRoundTournamentId(gameId: string): string | undefined {
     return this.mergeRoundGameToTournament.get(gameId);
   }
@@ -100,10 +110,48 @@ export class TournamentService {
     tables: TournamentSpectateTableRow[],
   ): void {
     this.spectateTablesByTournament.set(tournamentId, { tournamentName, tables });
+    void setTournamentSpectateSnapshot(tournamentId, tournamentName, tables);
   }
 
   static clearSpectateTables(tournamentId: string): void {
     this.spectateTablesByTournament.delete(tournamentId);
+    void clearTournamentSpectateSnapshot(tournamentId);
+  }
+
+  /** Partie encore « live » pour l’UI spectateur : runtime local ou snapshot poker partagé. */
+  private static async isTournamentRoomLive(roomId: string): Promise<boolean> {
+    const runtime = await activeGames.get(roomId);
+    if (runtime) return true;
+    try {
+      const snap = await pokerStateStore.get(roomId);
+      return snap != null;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Reconstruit la liste des tables depuis les parties actives (Redis + mémoire) si la carte en mémoire a été perdue. */
+  private static async rebuildSpectateTablesFromActiveGames(
+    tournamentId: string,
+  ): Promise<TournamentSpectateTableRow[]> {
+    const all = await activeGames.getAll();
+    const rows: TournamentSpectateTableRow[] = [];
+    for (const [roomId, game] of all) {
+      if (!(game instanceof GameTable)) continue;
+      if (!roomId.startsWith('game_tournoi_')) continue;
+      if (game.state.tournamentId !== tournamentId) continue;
+      const players = game.state.players.map((p) => ({
+        id: p.id,
+        username: p.name,
+      }));
+      rows.push({
+        tableNumber: game.state.tournamentTableNumber ?? rows.length + 1,
+        roomId,
+        players,
+      });
+    }
+    rows.sort((a, b) => a.tableNumber - b.tableNumber);
+    return rows;
   }
 
   /** Reconstruit la liste des tables depuis les parties actives (Redis + mémoire) si la carte en mémoire a été perdue. */
@@ -145,8 +193,15 @@ export class TournamentService {
       return { tournamentName: meta.name, tables: [] };
     }
 
+    const redisSnap = await getTournamentSpectateSnapshot(tournamentId);
     let entry = this.spectateTablesByTournament.get(tournamentId);
-    if (!entry) {
+
+    if (redisSnap?.tables?.length) {
+      entry = {
+        tournamentName: redisSnap.tournamentName || meta.name,
+        tables: redisSnap.tables,
+      };
+    } else if (!entry) {
       const rebuilt = await this.rebuildSpectateTablesFromActiveGames(tournamentId);
       if (rebuilt.length > 0) {
         entry = { tournamentName: meta.name, tables: rebuilt };
@@ -160,8 +215,8 @@ export class TournamentService {
 
     const tables: Array<TournamentSpectateTableRow & { live: boolean }> = [];
     for (const t of entry.tables) {
-      const g = await activeGames.get(t.roomId);
-      tables.push({ ...t, live: g != null });
+      const live = await this.isTournamentRoomLive(t.roomId);
+      tables.push({ ...t, live });
     }
     return { tournamentName: entry.tournamentName, tables };
   }
@@ -778,6 +833,7 @@ export class TournamentService {
   ): Promise<void> {
     const mergeId = `game_tournoi_merge_${Date.now()}`;
     this.mergeRoundGameToTournament.set(mergeId, tournamentId);
+    void setMergeRoundMapping(mergeId, tournamentId);
 
     const mergeAvatarMap = await this.avatarUrlByUserId(survivors.map((s) => s.userId));
     const mergePlayers = survivors.map((s, index) => {
@@ -855,12 +911,19 @@ export class TournamentService {
     survivors: { userId: string; username: string; chips: number }[],
   ): Promise<void> {
     if (survivors.length !== 2) return;
-    const tournamentId = this.mergeRoundGameToTournament.get(mergeGameId);
+    let tournamentId = this.mergeRoundGameToTournament.get(mergeGameId);
+    if (!tournamentId) {
+      tournamentId = (await getMergeRoundMapping(mergeGameId)) ?? undefined;
+      if (tournamentId) {
+        this.mergeRoundGameToTournament.set(mergeGameId, tournamentId);
+      }
+    }
     if (!tournamentId) {
       rootLogger.warn({ msg: 'tournament_merge_unknown_game', mergeGameId });
       return;
     }
     this.mergeRoundGameToTournament.delete(mergeGameId);
+    void deleteMergeRoundMapping(mergeGameId);
 
     const t = await prisma.tournament.findUnique({
       where: { id: tournamentId },
@@ -884,12 +947,19 @@ export class TournamentService {
     mergeGameId: string,
     winnerId: string,
   ): Promise<void> {
-    const tournamentId = this.mergeRoundGameToTournament.get(mergeGameId);
+    let tournamentId = this.mergeRoundGameToTournament.get(mergeGameId);
+    if (!tournamentId) {
+      tournamentId = (await getMergeRoundMapping(mergeGameId)) ?? undefined;
+      if (tournamentId) {
+        this.mergeRoundGameToTournament.set(mergeGameId, tournamentId);
+      }
+    }
     if (!tournamentId) {
       rootLogger.warn({ msg: 'tournament_merge_single_unknown_game', mergeGameId });
       return;
     }
     this.mergeRoundGameToTournament.delete(mergeGameId);
+    void deleteMergeRoundMapping(mergeGameId);
 
     const eliminated = this.eliminationOrder.get(tournamentId) ?? [];
     const rankedIds = [winnerId, ...eliminated.slice().reverse()];
@@ -900,7 +970,9 @@ export class TournamentService {
     tournamentId: string,
     winnerId: string,
     winnerUsername: string,
-    winnerChips: number
+    winnerChips: number,
+    /** Identifiant de la partie terminée (idempotence bracket multi-pods). */
+    finishedGameId: string,
   ): Promise<
     | {
         emitTournamentWonPartial: {
@@ -929,22 +1001,50 @@ export class TournamentService {
     const expectedTables =
       persistedExpected ?? (await getTournamentExpectedTables(tournamentId)) ?? 1;
 
-    await appendTournamentSurvivor(tournamentId, {
-      userId: winnerId,
-      username: winnerUsername,
-      chips: winnerChips,
-    });
+    const appendResult = await appendTournamentSurvivor(
+      tournamentId,
+      {
+        userId: winnerId,
+        username: winnerUsername,
+        chips: winnerChips,
+      },
+      finishedGameId,
+    );
+    if (appendResult.duplicate) {
+      rootLogger.info({
+        msg: 'tournament_table_finish_duplicate_ignored',
+        tournamentId,
+        finishedGameId,
+        winnerId,
+      });
+    }
+    if (appendResult.memoryOnly) {
+      rootLogger.warn({
+        msg: 'tournament_survivor_recorded_memory_only',
+        tournamentId,
+        finishedGameId,
+        detail:
+          'Redis bracket indisponible : risque de désynchronisation multi-instances. Vérifier REDIS_URL et la charge.',
+      });
+    }
 
     const survivors = await getTournamentSurvivors(tournamentId);
 
     if (survivors.length < expectedTables) {
+      metrics.incTournamentBracket('partial_waiting');
       if (this.io) {
         this.io.to(`user:${winnerId}`).emit('tournament-waiting-final', {
           survivorsCount: survivors.length,
           expectedTables,
         });
       }
-      console.log(`[TOURNOI] Survivants: ${survivors.length}/${expectedTables}`);
+      rootLogger.info({
+        msg: 'tournament_bracket_waiting_more_tables',
+        tournamentId,
+        survivorsCount: survivors.length,
+        expectedTables,
+        finishedGameId,
+      });
       return {
         emitTournamentWonPartial: {
           userId: winnerId,
@@ -1175,6 +1275,33 @@ export class TournamentService {
           }
           if (abandonedPending.length > 0) {
             this.io?.emit('tournament-updated');
+          }
+
+          this.bracketStaleWatcherTick += 1;
+          if (this.bracketStaleWatcherTick % 12 === 0) {
+            const activeOpening = await prisma.tournament.findMany({
+              where: { status: 'ACTIVE', activeBracketPhase: 'OPENING' },
+              select: { id: true, openingRoundTableCount: true, name: true },
+            });
+            for (const t of activeOpening) {
+              const expected =
+                t.openingRoundTableCount ??
+                (await getTournamentExpectedTables(t.id)) ??
+                1;
+              const survivors = await getTournamentSurvivors(t.id);
+              if (survivors.length > 0 && survivors.length < expected) {
+                rootLogger.warn({
+                  msg: 'tournament_bracket_still_waiting_watcher',
+                  tournamentId: t.id,
+                  name: t.name,
+                  survivorsCount: survivors.length,
+                  expectedTables: expected,
+                  detail:
+                    'Bracket incomplet : vérifier Redis (clés tournament:*:survivors), que chaque table a produit un gagnant, et l’affinité client↔pod pour les actions.',
+                });
+                metrics.incTournamentBracket('watcher_still_waiting');
+              }
+            }
           }
         } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : String(error);

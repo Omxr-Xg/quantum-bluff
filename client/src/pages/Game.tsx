@@ -20,6 +20,7 @@ import { useAccessibility } from "../contexts/AccessibilityContext";
 import {
   addToUserBalance,
   addDevMoney,
+  updateUserBalance,
   getUserBalance,
   getUserAvatar,
   fetchBalanceFromServer,
@@ -45,7 +46,7 @@ import {
   type PromoDiscountInfo,
   simulatedEurFromChips,
 } from "../components/FakeCardTopUpForm";
-import { validateGiftCode } from "../utils/wallet";
+import { validateGiftCode, validateTopUpPromo } from "../utils/wallet";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
 import { getPokerTableAvatar } from "../utils/avatars";
@@ -348,6 +349,7 @@ export function Game() {
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [promoCode, setPromoCode] = useState("");
   const [promoDiscount, setPromoDiscount] = useState<PromoDiscountInfo>(null);
+  const [balanceResetPromo, setBalanceResetPromo] = useState(false);
   const [promoValidating, setPromoValidating] = useState(false);
   const [cardName, setCardName] = useState("");
   const [cardDigits, setCardDigits] = useState("");
@@ -861,6 +863,8 @@ export function Game() {
     setShowAddMoney(true);
     setAddMoneyAmount(null);
     setPromoCode("");
+    setPromoDiscount(null);
+    setBalanceResetPromo(false);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -873,6 +877,7 @@ export function Game() {
     setAddMoneyAmount(null);
     setPromoCode("");
     setPromoDiscount(null);
+    setBalanceResetPromo(false);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -883,10 +888,18 @@ export function Game() {
   const validatePaymentPromo = useCallback(async (code: string) => {
     if (!code.trim()) {
       setPromoDiscount(null);
+      setBalanceResetPromo(false);
       return;
     }
     setPromoValidating(true);
     try {
+      const top = await validateTopUpPromo(code);
+      if (top?.valid && top.resetBalance) {
+        setBalanceResetPromo(true);
+        setPromoDiscount(null);
+        return;
+      }
+      setBalanceResetPromo(false);
       const result = await validateGiftCode(code);
       if (result && result.success && result.discountType) {
         // C'est un code de réduction
@@ -900,6 +913,7 @@ export function Game() {
     } catch (error) {
       console.error("[payment] Promo validation error:", error);
       setPromoDiscount(null);
+      setBalanceResetPromo(false);
     } finally {
       setPromoValidating(false);
     }
@@ -907,26 +921,34 @@ export function Game() {
 
   const submitAddMoney = async () => {
     if (addMoneyAmount == null || addMoneyAmount <= 0) return;
-    // Vérifier si c'est un paiement gratuit (réduction 100%)
+    // Vérifier si c'est un paiement gratuit (réduction 100% ou code solde)
     const finalPrice = simulatedEurFromChips(addMoneyAmount, promoDiscount);
-    const isFreePayment = finalPrice === 0;
+    const isFreePayment = balanceResetPromo || finalPrice === 0;
     if (!isFreePayment && !isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName)) return;
-    const newBalance = mode === "bot"
-      ? addToUserBalance(addMoneyAmount)
-      : await addDevMoney(addMoneyAmount);
+    let newBalance: number;
+    if (mode === "bot") {
+      newBalance = balanceResetPromo ? 0 : addToUserBalance(addMoneyAmount);
+      if (balanceResetPromo) updateUserBalance(0);
+    } else {
+      newBalance = await addDevMoney(addMoneyAmount, {
+        promoCode: balanceResetPromo ? promoCode : undefined,
+      });
+    }
     if (mode === "bot") {
       setPlayerChips(newBalance);
       setPlayersState((prev) =>
         prev.map((p) =>
-          p.id === "human" || String(p.id) === String(userId) ? { ...p, chips: newBalance } : p
-        )
+          p.id === "human" || String(p.id) === String(userId) ? { ...p, chips: newBalance } : p,
+        ),
       );
     }
     setAddSuccess(true);
     setTimeout(() => closeAddMoney(), 800);
   };
 
-  const isFreePaymentTopUpGame = promoDiscount ? simulatedEurFromChips(addMoneyAmount || 0, promoDiscount) === 0 : false;
+  const isFreePaymentTopUpGame =
+    balanceResetPromo ||
+    Boolean(promoDiscount && simulatedEurFromChips(addMoneyAmount || 0, promoDiscount) === 0);
   const canSubmitTopUpGame =
     addMoneyAmount != null &&
     addMoneyAmount > 0 &&
@@ -3018,29 +3040,11 @@ export function Game() {
     if (serverHandRuntimePhase !== "HAND_COMPLETE") return;
     const timer = window.setTimeout(() => {
       if (!socket || !socket.connected || !userId) return;
-      // Re-join the game room to trigger a fresh state push from the server.
       lastAppliedSocketSnapshotSigRef.current = "";
       socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
     }, 9000);
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameIdParam, isBotMode, serverHandRuntimePhase, gameOverReason]);
-
-  // Safety net for tournament / non-bot multiplayer games:
-  // If the server hand runtime stays at HAND_COMPLETE for more than 9 seconds
-  // (the orchestrator auto-start + gateway fallback together take ≤7.5s), re-request
-  // the game state by re-joining the room so the client can receive the new hand.
-  useEffect(() => {
-    if (!gameIdParam || isBotMode || gameOverReason) return;
-    if (serverHandRuntimePhase !== "HAND_COMPLETE") return;
-    const timer = window.setTimeout(() => {
-      if (!socket || !socket.connected || !userId) return;
-      // Re-join the game room to trigger a fresh state push from the server.
-      lastAppliedSocketSnapshotSigRef.current = "";
-      socket.emit("JOIN_GAME", { gameId: gameIdParam, playerId: userId });
-    }, 9000);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameIdParam, isBotMode, serverHandRuntimePhase, gameOverReason]);
 
   useEffect(() => {
@@ -4357,6 +4361,7 @@ export function Game() {
                         void validatePaymentPromo(code);
                       }}
                       promoDiscount={promoDiscount}
+                      promoResetsBalance={balanceResetPromo}
                       isPromoValidating={promoValidating}
                       cardName={cardName}
                       setCardName={setCardName}
@@ -4373,7 +4378,7 @@ export function Game() {
                       disabled={!canSubmitTopUpGame}
                       className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold transition"
                     >
-                      {t("lobby.validate")}
+                      {t("lobby.confirmTopUp")}
                     </button>
                   </div>
                 )}
@@ -4684,7 +4689,7 @@ export function Game() {
          {/* TABLE */}
         <div
         ref={tourRefTable}
-        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 pb-[8rem] w-full -mt-6' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-20'}`}
+        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 pb-[9rem] w-full -mt-14 -translate-y-4' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-20'}`}
         >
         <PokerTable
         players={tablePlayers}
