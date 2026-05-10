@@ -3,6 +3,12 @@
  */
 
 import { getAuthItem } from './authStorage'
+import { apiUrl } from './apiBase'
+
+/** À garder aligné avec `server/src/freeRecharge/freeRecharge.types.ts` (affichage UI). */
+export const FREE_RECHARGE_AMOUNT = 500
+export const FREE_RECHARGE_THRESHOLD = 1200
+export const FREE_RECHARGE_COOLDOWN_HOURS = 4
 
 export interface FreeRechargeStatus {
   canRecharge: boolean
@@ -22,6 +28,18 @@ export interface FreeRechargeClaimResult {
   message: string
 }
 
+/** Erreur renvoyée par l’API (4xx/5xx) avec message serveur. */
+export class FreeRechargeApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string | undefined,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'FreeRechargeApiError'
+  }
+}
+
 /**
  * Récupère le statut de la recharge gratuite depuis le serveur
  */
@@ -33,7 +51,7 @@ export async function fetchFreeRechargeStatus(): Promise<FreeRechargeStatus | nu
       return null
     }
 
-    const response = await fetch('/api/free-recharge/status', {
+    const response = await fetch(apiUrl('/api/free-recharge/status'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -54,33 +72,41 @@ export async function fetchFreeRechargeStatus(): Promise<FreeRechargeStatus | nu
 }
 
 /**
- * Effectue une recharge gratuite
+ * Effectue une recharge gratuite.
+ * @throws FreeRechargeApiError si l’API renvoie une erreur (message affichable)
  */
-export async function claimFreeRecharge(): Promise<FreeRechargeClaimResult | null> {
-  try {
-    const token = getAuthItem('token')
-    if (!token) {
-      console.error('[freeRecharge] No token found')
-      return null
-    }
-
-    const response = await fetch('/api/free-recharge/claim', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({}),
-    })
-
-    if (!response.ok) {
-      console.error('[freeRecharge] Claim error:', response.status)
-      return null
-    }
-
-    return await response.json()
-  } catch (error) {
-    console.error('[freeRecharge] Claim error:', error)
-    return null
+export async function claimFreeRecharge(): Promise<FreeRechargeClaimResult> {
+  const token = getAuthItem('token')
+  if (!token) {
+    throw new FreeRechargeApiError(401, 'NO_TOKEN', 'Connexion requise pour recharger.')
   }
+
+  const response = await fetch(apiUrl('/api/free-recharge/claim'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({}),
+  })
+
+  const data = (await response.json().catch(() => ({}))) as {
+    error?: string
+    code?: string
+    success?: boolean
+    newBalance?: number
+    addedAmount?: number
+    nextRechargeAt?: string | null
+    message?: string
+  }
+
+  if (!response.ok) {
+    throw new FreeRechargeApiError(
+      response.status,
+      data.code,
+      data.error || `Erreur ${response.status}`,
+    )
+  }
+
+  return data as FreeRechargeClaimResult
 }

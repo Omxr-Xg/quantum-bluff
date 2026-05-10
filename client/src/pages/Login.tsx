@@ -104,7 +104,7 @@ export function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="joueur@quantum.com"
+                  placeholder={t("auth.emailPlaceholder")}
                   className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-blue-400/20 focus:border-blue-400"
                   required
                 />

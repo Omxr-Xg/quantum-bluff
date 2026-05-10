@@ -1,18 +1,26 @@
 import type { Server } from 'socket.io';
 import { prisma } from '../config/database.js';
-import { rootLogger } from '../observability/index.js';
+import { metrics, rootLogger } from '../observability/index.js';
 import { renewTournamentLeaderLock } from './tournamentLeaderLock.service.js';
 import { activeGames } from '../shared/activeGames.js';
+import { pokerStateStore } from '../shared/pokerStateStore.js';
 import { GameTable } from '../logic/GameTable.js';
 import {
   appendTournamentSurvivor,
   clearTournamentBracketState,
+  clearTournamentSpectateSnapshot,
   clearTournamentSurvivors,
+  deleteMergeRoundMapping,
+  getMergeRoundMapping,
   getTournamentExpectedTables,
+  getTournamentSpectateSnapshot,
   getTournamentSurvivors,
+  setMergeRoundMapping,
   setTournamentExpectedTables,
+  setTournamentSpectateSnapshot,
   type BracketSurvivorRow,
 } from './tournamentBracketStore.service.js';
+import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js';
 
 /** Max joueurs par table au début du tournoi (n >= 7). */
 const TOURNAMENT_SEATS_PER_TABLE = 6;
@@ -49,25 +57,28 @@ export type TournamentSpectateTableRow = {
 };
 
 export class TournamentService {
+  private static async avatarUrlByUserId(
+    userIds: string[],
+  ): Promise<Map<string, string>> {
+    const unique = [...new Set(userIds.filter(Boolean))];
+    if (unique.length === 0) return new Map();
+    const users = await prisma.user.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, avatarUrl: true, avatarHasBinary: true },
+    });
+    const m = new Map<string, string>();
+    for (const u of users) {
+      const url = clientAvatarUrlFromUser(u);
+      if (url) m.set(u.id, url);
+    }
+    return m;
+  }
+
   private static io: Server | null = null;
   /** Tables suivables en spectateur (mémoire processus — même instance que les parties). */
   private static spectateTablesByTournament = new Map<
     string,
     { tournamentName: string; tables: TournamentSpectateTableRow[] }
-  >();
-  private static tournamentVisibility = new Map<string, 'PUBLIC' | 'PRIVATE'>();
-  private static privateJoinRequests = new Map<
-    string,
-    {
-      id: string;
-      tournamentId: string;
-      tournamentName: string;
-      hostId: string;
-      requesterId: string;
-      requesterUsername: string;
-      createdAt: number;
-      status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
-    }
   >();
 
   private static alreadyEliminated = new Set<string>();
@@ -76,6 +87,9 @@ export class TournamentService {
 
   /** Partie fusion `game_tournoi_merge_*` → tournoi (réduction à 2 avant finale HU). */
   private static mergeRoundGameToTournament = new Map<string, string>();
+
+  /** Compteur pour un contrôle ~1 min du bracket (leader uniquement). */
+  private static bracketStaleWatcherTick = 0;
 
   static getMergeRoundTournamentId(gameId: string): string | undefined {
     return this.mergeRoundGameToTournament.get(gameId);
@@ -96,10 +110,48 @@ export class TournamentService {
     tables: TournamentSpectateTableRow[],
   ): void {
     this.spectateTablesByTournament.set(tournamentId, { tournamentName, tables });
+    void setTournamentSpectateSnapshot(tournamentId, tournamentName, tables);
   }
 
   static clearSpectateTables(tournamentId: string): void {
     this.spectateTablesByTournament.delete(tournamentId);
+    void clearTournamentSpectateSnapshot(tournamentId);
+  }
+
+  /** Partie encore « live » pour l’UI spectateur : runtime local ou snapshot poker partagé. */
+  private static async isTournamentRoomLive(roomId: string): Promise<boolean> {
+    const runtime = await activeGames.get(roomId);
+    if (runtime) return true;
+    try {
+      const snap = await pokerStateStore.get(roomId);
+      return snap != null;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Reconstruit la liste des tables depuis les parties actives (Redis + mémoire) si la carte en mémoire a été perdue. */
+  private static async rebuildSpectateTablesFromActiveGames(
+    tournamentId: string,
+  ): Promise<TournamentSpectateTableRow[]> {
+    const all = await activeGames.getAll();
+    const rows: TournamentSpectateTableRow[] = [];
+    for (const [roomId, game] of all) {
+      if (!(game instanceof GameTable)) continue;
+      if (!roomId.startsWith('game_tournoi_')) continue;
+      if (game.state.tournamentId !== tournamentId) continue;
+      const players = game.state.players.map((p) => ({
+        id: p.id,
+        username: p.name,
+      }));
+      rows.push({
+        tableNumber: game.state.tournamentTableNumber ?? rows.length + 1,
+        roomId,
+        players,
+      });
+    }
+    rows.sort((a, b) => a.tableNumber - b.tableNumber);
+    return rows;
   }
 
   /** Tables connues pour ce tournoi + indicateur si la partie tourne encore sur ce nœud. */
@@ -107,14 +159,75 @@ export class TournamentService {
     tournamentName: string;
     tables: Array<TournamentSpectateTableRow & { live: boolean }>;
   } | null> {
-    const entry = this.spectateTablesByTournament.get(tournamentId);
-    if (!entry) return null;
+    const meta = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { name: true, status: true },
+    });
+    if (!meta) return null;
+
+    if (meta.status === 'COMPLETED' || meta.status === 'CANCELED') {
+      return { tournamentName: meta.name, tables: [] };
+    }
+
+    const redisSnap = await getTournamentSpectateSnapshot(tournamentId);
+    let entry = this.spectateTablesByTournament.get(tournamentId);
+
+    if (redisSnap?.tables?.length) {
+      entry = {
+        tournamentName: redisSnap.tournamentName || meta.name,
+        tables: redisSnap.tables,
+      };
+    } else if (!entry) {
+      const rebuilt = await this.rebuildSpectateTablesFromActiveGames(tournamentId);
+      if (rebuilt.length > 0) {
+        entry = { tournamentName: meta.name, tables: rebuilt };
+        this.spectateTablesByTournament.set(tournamentId, entry);
+      }
+    }
+
+    if (!entry) {
+      return { tournamentName: meta.name, tables: [] };
+    }
+
     const tables: Array<TournamentSpectateTableRow & { live: boolean }> = [];
     for (const t of entry.tables) {
-      const g = await activeGames.get(t.roomId);
-      tables.push({ ...t, live: g != null });
+      const live = await this.isTournamentRoomLive(t.roomId);
+      tables.push({ ...t, live });
     }
     return { tournamentName: entry.tournamentName, tables };
+  }
+
+  /**
+   * Table de tournoi active sur ce nœud où le joueur est encore assis (rétablissement après événement socket manqué ou reconnexion).
+   */
+  static async findActiveTournamentTableForUser(
+    userId: string,
+  ): Promise<{ gameId: string; tournamentId: string } | null> {
+    const uid = String(userId).trim();
+    if (!uid) return null;
+
+    const registrations = await prisma.tournamentPlayer.findMany({
+      where: {
+        userId: uid,
+        eliminatedAt: null,
+        tournament: { status: 'ACTIVE' },
+      },
+      select: { tournamentId: true },
+    });
+    if (registrations.length === 0) return null;
+
+    const tournamentIds = new Set(registrations.map((r) => r.tournamentId));
+    const all = await activeGames.getAll();
+    for (const [roomId, game] of all) {
+      if (!(game instanceof GameTable)) continue;
+      const tid = game.state.tournamentId;
+      if (!tid || !tournamentIds.has(tid)) continue;
+      if (!roomId.startsWith('game_tournoi_')) continue;
+      if (game.state.players.some((p) => String(p.id) === uid)) {
+        return { gameId: roomId, tournamentId: tid };
+      }
+    }
+    return null;
   }
 
   static notifyElimination(userId: string) {
@@ -178,6 +291,7 @@ export class TournamentService {
         createdById: data.createdById,
         status: 'PENDING',
         prizePool: 0,
+        visibility: data.visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
       },
     });
 
@@ -186,25 +300,19 @@ export class TournamentService {
       tournamentId: tournament.id,
       name: tournament.name
     });
-    this.tournamentVisibility.set(tournament.id, data.visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC');
 
     return tournament;
-  }
-
-  static getTournamentVisibility(tournamentId: string): 'PUBLIC' | 'PRIVATE' {
-    return this.tournamentVisibility.get(tournamentId) ?? 'PUBLIC';
   }
 
   static async createPrivateJoinRequest(tournamentId: string, requesterId: string) {
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
-      select: { id: true, name: true, createdById: true, status: true },
+      select: { id: true, name: true, createdById: true, status: true, visibility: true },
     });
     if (!tournament || tournament.status !== 'PENDING') {
       throw new Error("Ce tournoi n'est plus disponible.");
     }
-    const visibility = this.getTournamentVisibility(tournamentId);
-    if (visibility !== 'PRIVATE') {
+    if (tournament.visibility !== 'PRIVATE') {
       throw new Error('Ce tournoi est public. Inscription directe disponible.');
     }
     if (tournament.createdById === requesterId) {
@@ -217,46 +325,92 @@ export class TournamentService {
     if (!requester) {
       throw new Error('Utilisateur introuvable.');
     }
-    const id = `${tournamentId}:${requesterId}`;
-    const existing = this.privateJoinRequests.get(id);
-    if (existing?.status === 'PENDING') {
-      return existing;
-    }
-    const req = {
-      id,
+    const row = await prisma.tournamentJoinRequest.upsert({
+      where: {
+        tournamentId_requesterId: { tournamentId, requesterId },
+      },
+      create: {
+        tournamentId,
+        requesterId,
+        status: 'PENDING',
+      },
+      update: {
+        status: 'PENDING',
+      },
+    });
+    return {
+      id: row.id,
       tournamentId,
       tournamentName: tournament.name,
       hostId: tournament.createdById,
       requesterId,
       requesterUsername: requester.username,
-      createdAt: Date.now(),
+      createdAt: row.createdAt.getTime(),
       status: 'PENDING' as const,
     };
-    this.privateJoinRequests.set(id, req);
-    return req;
   }
 
-  static getPendingRequestsForHost(hostId: string) {
-    return Array.from(this.privateJoinRequests.values())
-      .filter((r) => r.hostId === hostId && r.status === 'PENDING')
-      .sort((a, b) => b.createdAt - a.createdAt);
+  static async getPendingRequestsForHost(hostId: string) {
+    const rows = await prisma.tournamentJoinRequest.findMany({
+      where: {
+        status: 'PENDING',
+        tournament: { createdById: hostId, status: 'PENDING' },
+      },
+      include: {
+        tournament: { select: { id: true, name: true, createdById: true } },
+        requester: { select: { id: true, username: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      tournamentId: r.tournamentId,
+      tournamentName: r.tournament.name,
+      hostId: r.tournament.createdById,
+      requesterId: r.requesterId,
+      requesterUsername: r.requester.username,
+      createdAt: r.createdAt.getTime(),
+      status: 'PENDING' as const,
+    }));
   }
 
   static async acceptPrivateJoinRequest(requestId: string, hostId: string) {
-    const req = this.privateJoinRequests.get(requestId);
-    if (!req || req.status !== 'PENDING') {
+    const row = await prisma.tournamentJoinRequest.findFirst({
+      where: {
+        id: requestId,
+        status: 'PENDING',
+        tournament: { createdById: hostId },
+      },
+      include: {
+        tournament: { select: { id: true, name: true, createdById: true } },
+        requester: { select: { username: true } },
+      },
+    });
+    if (!row) {
       throw new Error('Demande introuvable ou déjà traitée.');
     }
-    if (req.hostId !== hostId) {
-      throw new Error('Non autorisé.');
-    }
-    await this.joinTournament(req.tournamentId, req.requesterId);
-    req.status = 'ACCEPTED';
-    this.privateJoinRequests.set(requestId, req);
-    return req;
+    await this.joinTournament(row.tournamentId, row.requesterId, { allowPrivateInvite: true });
+    await prisma.tournamentJoinRequest.update({
+      where: { id: requestId },
+      data: { status: 'ACCEPTED' },
+    });
+    return {
+      id: row.id,
+      tournamentId: row.tournamentId,
+      tournamentName: row.tournament.name,
+      hostId: row.tournament.createdById,
+      requesterId: row.requesterId,
+      requesterUsername: row.requester.username,
+      createdAt: row.createdAt.getTime(),
+      status: 'ACCEPTED' as const,
+    };
   }
 
-  static async joinTournament(tournamentId: string, userId: string) {
+  static async joinTournament(
+    tournamentId: string,
+    userId: string,
+    options?: { allowPrivateInvite?: boolean },
+  ) {
     return await prisma.$transaction(async (tx) => {
       const tournament = await tx.tournament.findUnique({
         where: { id: tournamentId },
@@ -265,6 +419,14 @@ export class TournamentService {
 
       if (!tournament || tournament.status !== 'PENDING') {
         throw new Error("Ce tournoi n'est plus disponible.");
+      }
+
+      if (
+        tournament.visibility === 'PRIVATE' &&
+        tournament.createdById !== userId &&
+        !options?.allowPrivateInvite
+      ) {
+        throw new Error('Ce tournoi privé est sur invitation : demandez une invitation au créateur.');
       }
 
       if (new Date(tournament.startTime).getTime() < Date.now()) {
@@ -419,7 +581,16 @@ export class TournamentService {
       where: { id: tournamentId },
       include: {
         players: {
-          include: { user: { select: { id: true, username: true } } }
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatarUrl: true,
+                avatarHasBinary: true,
+              },
+            },
+          },
         }
       }
     });
@@ -461,20 +632,27 @@ export class TournamentService {
       const slice = tableSlices[tableIdx];
       const realGameId = `game_tournoi_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 
-      const gamePlayers = slice.map((p, index) => ({
-        id: p.userId,
-        name: p.user.username,
-        cards: [],
-        chips: tournament.buyIn,
-        role: 'PLAYER' as const,
-        currentBet: 0,
-        isActive: true,
-        position: index,
-        isDealer: false,
-        isConnected: true
-      }));
+      const gamePlayers = slice.map((p, index) => {
+        const avatar = clientAvatarUrlFromUser(p.user) ?? undefined;
+        return {
+          id: p.userId,
+          name: p.user.username,
+          cards: [],
+          chips: tournament.buyIn,
+          role: 'PLAYER' as const,
+          currentBet: 0,
+          isActive: true,
+          position: index,
+          isDealer: false,
+          isConnected: true,
+          ...(avatar ? { avatar } : {}),
+        };
+      });
 
-      const newTable = new GameTable(realGameId, gamePlayers);
+      const newTable = new GameTable(realGameId, gamePlayers, {
+        tournamentId,
+        tournamentTableNumber: tableIdx + 1,
+      });
       newTable.startHand();
       await activeGames.set(realGameId, newTable);
 
@@ -555,20 +733,28 @@ export class TournamentService {
       stack: Math.max(s.chips, buyIn) * 2,
     }));
 
-    const finalPlayers = doubled.map((s, index) => ({
-      id: s.userId,
-      name: s.username,
-      cards: [],
-      chips: s.stack,
-      role: 'PLAYER' as const,
-      currentBet: 0,
-      isActive: true,
-      position: index,
-      isDealer: false,
-      isConnected: true,
-    }));
+    const avatarMap = await this.avatarUrlByUserId(doubled.map((s) => s.userId));
+    const finalPlayers = doubled.map((s, index) => {
+      const avatar = avatarMap.get(s.userId);
+      return {
+        id: s.userId,
+        name: s.username,
+        cards: [],
+        chips: s.stack,
+        role: 'PLAYER' as const,
+        currentBet: 0,
+        isActive: true,
+        position: index,
+        isDealer: false,
+        isConnected: true,
+        ...(avatar ? { avatar } : {}),
+      };
+    });
 
-    const finalTable = new GameTable(finalGameId, finalPlayers);
+    const finalTable = new GameTable(finalGameId, finalPlayers, {
+      tournamentId,
+      tournamentTableNumber: 1,
+    });
     finalTable.startHand();
     await activeGames.set(finalGameId, finalTable);
     const survivorsCopy = doubled.map((s) => ({
@@ -623,21 +809,30 @@ export class TournamentService {
   ): Promise<void> {
     const mergeId = `game_tournoi_merge_${Date.now()}`;
     this.mergeRoundGameToTournament.set(mergeId, tournamentId);
+    void setMergeRoundMapping(mergeId, tournamentId);
 
-    const mergePlayers = survivors.map((s, index) => ({
-      id: s.userId,
-      name: s.username,
-      cards: [],
-      chips: Math.max(0, s.chips),
-      role: 'PLAYER' as const,
-      currentBet: 0,
-      isActive: true,
-      position: index,
-      isDealer: false,
-      isConnected: true,
-    }));
+    const mergeAvatarMap = await this.avatarUrlByUserId(survivors.map((s) => s.userId));
+    const mergePlayers = survivors.map((s, index) => {
+      const avatar = mergeAvatarMap.get(s.userId);
+      return {
+        id: s.userId,
+        name: s.username,
+        cards: [],
+        chips: Math.max(0, s.chips),
+        role: 'PLAYER' as const,
+        currentBet: 0,
+        isActive: true,
+        position: index,
+        isDealer: false,
+        isConnected: true,
+        ...(avatar ? { avatar } : {}),
+      };
+    });
 
-    const mergeTable = new GameTable(mergeId, mergePlayers);
+    const mergeTable = new GameTable(mergeId, mergePlayers, {
+      tournamentId,
+      tournamentTableNumber: 1,
+    });
     mergeTable.startHand();
     await activeGames.set(mergeId, mergeTable);
 
@@ -692,12 +887,19 @@ export class TournamentService {
     survivors: { userId: string; username: string; chips: number }[],
   ): Promise<void> {
     if (survivors.length !== 2) return;
-    const tournamentId = this.mergeRoundGameToTournament.get(mergeGameId);
+    let tournamentId = this.mergeRoundGameToTournament.get(mergeGameId);
+    if (!tournamentId) {
+      tournamentId = (await getMergeRoundMapping(mergeGameId)) ?? undefined;
+      if (tournamentId) {
+        this.mergeRoundGameToTournament.set(mergeGameId, tournamentId);
+      }
+    }
     if (!tournamentId) {
       rootLogger.warn({ msg: 'tournament_merge_unknown_game', mergeGameId });
       return;
     }
     this.mergeRoundGameToTournament.delete(mergeGameId);
+    void deleteMergeRoundMapping(mergeGameId);
 
     const t = await prisma.tournament.findUnique({
       where: { id: tournamentId },
@@ -721,12 +923,19 @@ export class TournamentService {
     mergeGameId: string,
     winnerId: string,
   ): Promise<void> {
-    const tournamentId = this.mergeRoundGameToTournament.get(mergeGameId);
+    let tournamentId = this.mergeRoundGameToTournament.get(mergeGameId);
+    if (!tournamentId) {
+      tournamentId = (await getMergeRoundMapping(mergeGameId)) ?? undefined;
+      if (tournamentId) {
+        this.mergeRoundGameToTournament.set(mergeGameId, tournamentId);
+      }
+    }
     if (!tournamentId) {
       rootLogger.warn({ msg: 'tournament_merge_single_unknown_game', mergeGameId });
       return;
     }
     this.mergeRoundGameToTournament.delete(mergeGameId);
+    void deleteMergeRoundMapping(mergeGameId);
 
     const eliminated = this.eliminationOrder.get(tournamentId) ?? [];
     const rankedIds = [winnerId, ...eliminated.slice().reverse()];
@@ -737,7 +946,9 @@ export class TournamentService {
     tournamentId: string,
     winnerId: string,
     winnerUsername: string,
-    winnerChips: number
+    winnerChips: number,
+    /** Identifiant de la partie terminée (idempotence bracket multi-pods). */
+    finishedGameId: string,
   ): Promise<
     | {
         emitTournamentWonPartial: {
@@ -766,22 +977,50 @@ export class TournamentService {
     const expectedTables =
       persistedExpected ?? (await getTournamentExpectedTables(tournamentId)) ?? 1;
 
-    await appendTournamentSurvivor(tournamentId, {
-      userId: winnerId,
-      username: winnerUsername,
-      chips: winnerChips,
-    });
+    const appendResult = await appendTournamentSurvivor(
+      tournamentId,
+      {
+        userId: winnerId,
+        username: winnerUsername,
+        chips: winnerChips,
+      },
+      finishedGameId,
+    );
+    if (appendResult.duplicate) {
+      rootLogger.info({
+        msg: 'tournament_table_finish_duplicate_ignored',
+        tournamentId,
+        finishedGameId,
+        winnerId,
+      });
+    }
+    if (appendResult.memoryOnly) {
+      rootLogger.warn({
+        msg: 'tournament_survivor_recorded_memory_only',
+        tournamentId,
+        finishedGameId,
+        detail:
+          'Redis bracket indisponible : risque de désynchronisation multi-instances. Vérifier REDIS_URL et la charge.',
+      });
+    }
 
     const survivors = await getTournamentSurvivors(tournamentId);
 
     if (survivors.length < expectedTables) {
+      metrics.incTournamentBracket('partial_waiting');
       if (this.io) {
         this.io.to(`user:${winnerId}`).emit('tournament-waiting-final', {
           survivorsCount: survivors.length,
           expectedTables,
         });
       }
-      console.log(`[TOURNOI] Survivants: ${survivors.length}/${expectedTables}`);
+      rootLogger.info({
+        msg: 'tournament_bracket_waiting_more_tables',
+        tournamentId,
+        survivorsCount: survivors.length,
+        expectedTables,
+        finishedGameId,
+      });
       return {
         emitTournamentWonPartial: {
           userId: winnerId,
@@ -918,6 +1157,7 @@ export class TournamentService {
 
       console.log(`[TOURNOI] ${tournament.name} CLÔTURÉ.`, fullRanking);
 
+      this.io?.emit('tournament-updated');
     } catch (error) {
       console.error('[TOURNOI] Erreur processVictory:', error);
     }
@@ -926,6 +1166,10 @@ export class TournamentService {
   /**
    * Branche Socket.IO pour les événements tournoi + démarrage automatique (leader Redis uniquement).
    * Le cron ne lance plus les tournois pour éviter double déclenchement avec cet intervalle.
+   *
+   * Ops : en multi-instances, Redis doit être joignable pour le verrou leader ; sinon les tournois
+   * peuvent rester PENDING après `startTime` (métrique `tournament_stale_pending_count`, logs
+   * `tournament_watcher_not_leader_stale_pending` / `tournament_leader_lock_redis_error`).
    */
   static startTournamentWatcher(io: Server) {
     this.setIo(io);
@@ -934,12 +1178,26 @@ export class TournamentService {
     setInterval(() => {
       void (async () => {
         try {
+          const now = new Date();
+          const overdueThreshold = new Date(now.getTime() - 30_000);
+          const stalePendingCount = await prisma.tournament.count({
+            where: { status: 'PENDING', startTime: { lte: overdueThreshold } },
+          });
+          metrics.setTournamentStalePendingCount(stalePendingCount);
+
           const leader = await renewTournamentLeaderLock();
           if (!leader) {
+            if (stalePendingCount > 0) {
+              rootLogger.warn({
+                msg: 'tournament_watcher_not_leader_stale_pending',
+                stalePendingCount,
+                detail:
+                  'Cette instance ne détient pas le verrou Redis ; les PENDING en retard ne seront pas démarrés ici. Vérifier Redis et la connectivité en multi-instances.',
+              });
+            }
             return;
           }
 
-          const now = new Date();
           const pendingOnes = await prisma.tournament.findMany({
             where: { status: 'PENDING', startTime: { lte: now } },
             select: { id: true },
@@ -969,6 +1227,56 @@ export class TournamentService {
                 tournamentId: t.id,
                 detail: msg,
               });
+            }
+          }
+
+          const staleMs = 2 * 60 * 60 * 1000;
+          const staleBefore = new Date(now.getTime() - staleMs);
+          const abandonedPending = await prisma.tournament.findMany({
+            where: { status: 'PENDING', startTime: { lt: staleBefore } },
+            include: { players: true },
+          });
+          for (const t of abandonedPending) {
+            try {
+              await this.refundAllPlayersAndCancelTournament(t.id);
+              this.notifyCancellation(t.id, t.name, t.players.map((p) => p.userId));
+              rootLogger.info({ msg: 'tournament_abandoned_pending_cleaned', tournamentId: t.id });
+            } catch (err) {
+              rootLogger.warn({
+                msg: 'tournament_abandoned_cleanup_failed',
+                tournamentId: t.id,
+                detail: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }
+          if (abandonedPending.length > 0) {
+            this.io?.emit('tournament-updated');
+          }
+
+          this.bracketStaleWatcherTick += 1;
+          if (this.bracketStaleWatcherTick % 12 === 0) {
+            const activeOpening = await prisma.tournament.findMany({
+              where: { status: 'ACTIVE', activeBracketPhase: 'OPENING' },
+              select: { id: true, openingRoundTableCount: true, name: true },
+            });
+            for (const t of activeOpening) {
+              const expected =
+                t.openingRoundTableCount ??
+                (await getTournamentExpectedTables(t.id)) ??
+                1;
+              const survivors = await getTournamentSurvivors(t.id);
+              if (survivors.length > 0 && survivors.length < expected) {
+                rootLogger.warn({
+                  msg: 'tournament_bracket_still_waiting_watcher',
+                  tournamentId: t.id,
+                  name: t.name,
+                  survivorsCount: survivors.length,
+                  expectedTables: expected,
+                  detail:
+                    'Bracket incomplet : vérifier Redis (clés tournament:*:survivors), que chaque table a produit un gagnant, et l’affinité client↔pod pour les actions.',
+                });
+                metrics.incTournamentBracket('watcher_still_waiting');
+              }
             }
           }
         } catch (error: unknown) {

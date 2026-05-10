@@ -394,7 +394,7 @@ export function Lobby() {
         headers: authHeaders(),
         body: JSON.stringify({
           hostId: userId,
-          roomName: `Salle de ${username || "Joueur"}`,
+          roomName: t("lobby.roomOf", { name: username || t("lobby.defaultPlayerName") }),
           maxPlayers: createMaxPlayers,
           visibility: createVisibility,
           smallBlind: createSmallBlind,
@@ -710,9 +710,7 @@ export function Lobby() {
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-                <p className="text-xs text-slate-500 mt-2">
-                  Réglage rapide conseillé: Public + 5 joueurs pour lancer vite une partie entre amis.
-                </p>
+                <p className="text-xs text-slate-500 mt-2">{t("lobby.createServerQuickTip")}</p>
               </div>
 
               {/* Voir plus — options avancées */}
@@ -870,7 +868,7 @@ export function Lobby() {
         )}
 
         {/* 🆕 FREE RECHARGE BUTTON */}
-        <div className="mb-6 max-w-sm mx-auto">
+        <div className="mb-6 max-w-sm mx-auto empty:hidden">
           <FreeRechargeButton
             key={rechargeKey}
             onClaimed={handleRechargeSuccess}

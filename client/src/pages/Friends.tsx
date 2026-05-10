@@ -67,8 +67,9 @@ type SortDropdownProps = {
 };
 
 function SortDropdown({ ariaLabel, value, options, onChange }: SortDropdownProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const selectedLabel = options.find((option) => option.value === value)?.label ?? "Trier";
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? t("friends.sort");
 
   return (
     <div
@@ -88,7 +89,7 @@ function SortDropdown({ ariaLabel, value, options, onChange }: SortDropdownProps
       >
         <span className="flex min-w-0 items-center gap-2">
           <ArrowUpDown className="h-4 w-4 shrink-0 text-blue-200" />
-          <span className="shrink-0">Trier</span>
+          <span className="shrink-0">{t("friends.sort")}</span>
           <span className="hidden max-w-[8rem] truncate text-xs font-semibold text-slate-400 sm:block">
             {selectedLabel}
           </span>
@@ -123,7 +124,7 @@ function SortDropdown({ ariaLabel, value, options, onChange }: SortDropdownProps
 }
 
 export function Friends() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { userId } = useUser();
   const { socket, isConnected, connect } = useSocket();
@@ -142,7 +143,7 @@ export function Friends() {
   const [friendStatusFilter, setFriendStatusFilter] = useState<FriendStatusFilter>("all");
   const [friendSort, setFriendSort] = useState<FriendSort>("recent");
   const [requestSort, setRequestSort] = useState<RequestSort>("recent");
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const tab = searchParams.get("tab");
     const withUserId = searchParams.get("with");
@@ -151,6 +152,7 @@ export function Friends() {
     } else if (tab === "messages") {
       setActiveTab("messages");
       if (withUserId) setSelectedChat(withUserId);
+      else setSelectedChat(null);
     }
   }, [searchParams]);
 
@@ -345,11 +347,28 @@ export function Friends() {
 
   const openChat = (friendId: string) => {
     setSelectedChat(friendId);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", "messages");
+        next.set("with", friendId);
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const closeChat = () => {
     setSelectedChat(null);
     setMessageInput("");
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("with");
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const selectedFriend = friends?.find((f) => f.id === selectedChat);
@@ -394,6 +413,16 @@ export function Friends() {
     };
   }, [socket, userId, selectedChat, refetchMessages]);
 
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const friendId = (ev as CustomEvent<{ friendId: string }>).detail?.friendId;
+      if (!friendId || !selectedChat) return;
+      if (friendId === selectedChat) void refetchMessages();
+    };
+    window.addEventListener("refetch-friend-messages", handler);
+    return () => window.removeEventListener("refetch-friend-messages", handler);
+  }, [selectedChat, refetchMessages]);
+
   const handleSendMessage = async () => {
     if (!selectedChat || !userId || !messageInput.trim()) return;
 
@@ -424,16 +453,19 @@ export function Friends() {
   const formatMessageTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
+    if (Number.isNaN(date.getTime())) return t("friends.justNow");
     const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMs < 0) return t("friends.justNow");
+
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
+    const lang = i18n.language;
 
-    if (diffMins < 1) return t("friends.justNow");
-    if (diffMins < 60) return t("friends.minutesAgo", { count: diffMins });
-    if (diffHours < 24) return t("friends.hoursAgo", { count: diffHours });
+    if (diffHours < 24) {
+      return date.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+    }
     if (diffDays < 7) return t("friends.daysAgo", { count: diffDays });
-    return date.toLocaleDateString();
+    return date.toLocaleDateString(lang);
   };
 
   return (
@@ -491,13 +523,13 @@ export function Friends() {
                 className={`flex shrink-0 items-center justify-center gap-2 px-3.5 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${pokerMutedButton}`}
               >
                 <RefreshCw className={`h-4 w-4 ${fetchingFriends ? "animate-spin text-blue-300" : ""}`} />
-                {fetchingFriends ? "Mise à jour..." : "Actualiser"}
+                {fetchingFriends ? t("friends.refreshing") : t("friends.refresh")}
               </button>
             </div>
           </div>
         </header>
 
-        <nav className="mb-5 overflow-x-auto overflow-y-hidden scrollbar-hide" aria-label="Navigation amis">
+        <nav className="mb-5 overflow-x-auto overflow-y-hidden scrollbar-hide" aria-label={t("friends.navAria")}>
           <div className="flex w-max min-w-full items-center gap-1 rounded-full border border-white/10 bg-white/[0.045] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_45px_rgba(0,0,0,0.22)] backdrop-blur-xl">
             {tabItems.map(({ key, label, Icon }) => (
               <button
@@ -532,18 +564,18 @@ export function Friends() {
                     ) : null}
                   </h2>
                   {!loadingRequests && sortedRequests.length === 0 ? (
-                    <p className="mt-1 text-sm text-slate-400">Aucune demande en attente.</p>
+                    <p className="mt-1 text-sm text-slate-400">{t("friends.noPendingRequests")}</p>
                   ) : null}
                 </div>
                 {sortedRequests.length > 0 ? (
                   <SortDropdown
-                    ariaLabel="Trier les demandes"
+                    ariaLabel={t("friends.sortRequestsAria")}
                     value={requestSort}
                     onChange={(value) => setRequestSort(value as RequestSort)}
                     options={[
-                      { value: "recent", label: "Plus récentes" },
-                      { value: "oldest", label: "Moins récentes" },
-                      { value: "alpha", label: "A-Z" },
+                      { value: "recent", label: t("friends.sortRecentRequests") },
+                      { value: "oldest", label: t("friends.sortOldestRequests") },
+                      { value: "alpha", label: t("friends.sortAlphaAZ") },
                     ]}
                   />
                 ) : null}
@@ -611,7 +643,7 @@ export function Friends() {
               </div>
               <div className="grid grid-cols-3 gap-1 rounded-full border border-white/10 bg-slate-950/45 p-1 md:w-auto md:min-w-[22rem]">
                 {[
-                  { key: "all" as const, label: "Tous", count: friendsCount },
+                  { key: "all" as const, label: t("friends.filterAll"), count: friendsCount },
                   { key: "online" as const, label: t("friends.online"), count: onlineFriendsCount },
                   { key: "offline" as const, label: t("friends.offline"), count: offlineFriendsCount },
                 ].map((item) => (
@@ -631,13 +663,13 @@ export function Friends() {
                 ))}
               </div>
               <SortDropdown
-                ariaLabel="Trier les amis"
+                ariaLabel={t("friends.sortFriendsAria")}
                 value={friendSort}
                 onChange={(value) => setFriendSort(value as FriendSort)}
                 options={[
-                  { value: "recent", label: "Ajout le plus récent" },
-                  { value: "oldest", label: "Ajout le plus ancien" },
-                  { value: "alpha", label: "A-Z" },
+                  { value: "recent", label: t("friends.sortAddedRecent") },
+                  { value: "oldest", label: t("friends.sortAddedOldest") },
+                  { value: "alpha", label: t("friends.sortAlphaAZ") },
                 ]}
               />
             </div>
@@ -651,7 +683,7 @@ export function Friends() {
                 {fetchingFriends && !loadingFriends ? (
                   <div className="flex items-center gap-2 rounded-full border border-blue-300/15 bg-blue-950/35 px-3 py-1.5 text-sm text-blue-200">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Synchronisation...
+                    {t("friends.syncing")}
                   </div>
                 ) : null}
               </div>
@@ -990,25 +1022,39 @@ export function Friends() {
         </div>
       )}
 
-      {selectedChat && selectedFriend && (
+      {selectedChat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className={`flex h-[600px] w-full max-w-2xl flex-col overflow-hidden ${pokerGlassCard}`}>
             <div className="flex items-center justify-between border-b border-white/10 p-6">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
-                  {getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl) ? (
-                    <ImageWithFallback
-                      src={getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl)}
-                      alt={`${selectedFriend.username}'s avatar`}
-                      className="h-12 w-12 rounded-full object-cover"
-                    />
+                  {selectedFriend ? (
+                    getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl) ? (
+                      <ImageWithFallback
+                        src={getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl)}
+                        alt={`${selectedFriend.username}'s avatar`}
+                        className="h-12 w-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xl font-bold text-white">{selectedFriend.username.charAt(0).toUpperCase()}</span>
+                    )
+                  ) : loadingFriends ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-300" />
                   ) : (
-                    <span className="text-xl font-bold text-white">{selectedFriend.username.charAt(0).toUpperCase()}</span>
+                    <MessageCircle className="h-6 w-6 text-slate-400" />
                   )}
                 </div>
                 <div className="min-w-0">
-                  <h2 className="truncate text-xl font-bold text-white">{selectedFriend.username}</h2>
-                  <p className="text-sm text-gray-400">{t("friends.level", { level: selectedFriend.level })}</p>
+                  <h2 className="truncate text-xl font-bold text-white">
+                    {selectedFriend
+                      ? selectedFriend.username
+                      : loadingFriends
+                        ? t("common.loading")
+                        : t("friends.chat")}
+                  </h2>
+                  <p className="text-sm text-gray-400">
+                    {selectedFriend ? t("friends.level", { level: selectedFriend.level }) : "\u00a0"}
+                  </p>
                 </div>
               </div>
               <button

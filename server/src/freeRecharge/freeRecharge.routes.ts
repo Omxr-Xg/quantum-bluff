@@ -1,4 +1,5 @@
 import express from 'express'
+import rateLimit from 'express-rate-limit'
 import { authMiddleware } from '../middleware/auth.middleware.js'
 import {
   claimFreeRecharge,
@@ -9,6 +10,27 @@ import {
 const router = express.Router()
 
 router.use(authMiddleware)
+
+/** Extrait l'IP client de manière sûre (gère IPv4 et IPv6). */
+const getClientIp = (req: express.Request): string => {
+  const forwarded = req.headers['x-forwarded-for']
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim()
+  }
+  return req.ip || 'unknown'
+}
+
+/** Limite les abus sur POST /claim (complète le cooldown côté métier). */
+const claimLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const uid = (req as express.Request & { userId?: string }).userId
+    return uid ? `free-recharge:${uid}` : `free-recharge:${getClientIp(req)}`
+  },
+})
 
 /**
  * GET /api/free-recharge/status
@@ -38,12 +60,12 @@ router.get('/status', async (req, res) => {
 
 /**
  * POST /api/free-recharge/claim
- * Effectue une recharge gratuite (1000 jetons)
+ * Effectue une recharge gratuite (montant : FREE_RECHARGE_AMOUNT côté service)
  * - Vérifie que le cooldown est expiré
  * - Ajoute les jetons
  * - Retourne le nouveau solde et le cooldown
  */
-router.post('/claim', async (req, res) => {
+router.post('/claim', claimLimiter, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) {

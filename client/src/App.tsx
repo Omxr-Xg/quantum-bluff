@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -41,6 +41,7 @@ import { socket } from './services/socket';
 import { useUser } from './hooks/useUser';
 import { useToast } from './contexts/ToastContext';
 import { getAuthItem } from './utils/authStorage';
+import { TournamentService } from './services/tournament.service';
 
 
 const isDev = import.meta.env.DEV;
@@ -84,6 +85,22 @@ function TournamentTeleporter() {
   const { userId } = useUser();
   const { addToast } = useToast();
   const { t, i18n } = useTranslation();
+
+  const recoverTournamentTable = useCallback(async () => {
+    const uid = userId != null ? String(userId) : "";
+    if (!uid) return;
+    const token = getAuthItem("token");
+    if (!token) return;
+    try {
+      const { gameId } = await TournamentService.getMyTournamentTable();
+      if (!gameId) return;
+      const params = new URLSearchParams(window.location.search);
+      if (window.location.pathname === "/game" && params.get("gameId") === gameId) return;
+      navigate(`/game?gameId=${encodeURIComponent(gameId)}&tournament=1`);
+    } catch {
+      /* ignore */
+    }
+  }, [userId, navigate]);
   
   const [tournamentResult, setTournamentResult] = useState<{
     type: 'win' | 'lose' | 'finalist' | 'result';
@@ -108,12 +125,21 @@ function TournamentTeleporter() {
     }
 
     const handleTournamentStart = (data: { playersToTeleport?: string[]; playerToGameMap?: Record<string, string> }) => {
-      const isIncluded = data.playersToTeleport?.includes(userId);
+      const uid = userId != null ? String(userId) : "";
+      if (!uid) {
+        void recoverTournamentTable();
+        return;
+      }
+      const ids = data.playersToTeleport ?? [];
+      const isIncluded = ids.some((id) => String(id) === uid);
       if (isIncluded) {
-        const myTableId = data.playerToGameMap?.[userId];
-        if (!myTableId) return;
+        const myTableId = data.playerToGameMap?.[uid] ?? data.playerToGameMap?.[userId as string];
+        if (!myTableId) {
+          void recoverTournamentTable();
+          return;
+        }
         addToast(t("tournament.teleporter.toastStarted"), "success");
-        navigate(`/game?gameId=${myTableId}&tournament=1`);
+        navigate(`/game?gameId=${encodeURIComponent(myTableId)}&tournament=1`);
       }
     };
 
@@ -153,8 +179,8 @@ function TournamentTeleporter() {
     const handleSpectate = (data: { gameId: string }) => {
       setTimeout(() => {
         setTournamentResult(null);
-        navigate(`/game?gameId=${data.gameId}&spectate=1&tournament=1`);
-      }, 5000);
+        navigate(`/game?gameId=${encodeURIComponent(data.gameId)}&spectate=1&tournament=1`);
+      }, 1500);
     };
 
     const handleTournamentResult = (data: {
@@ -208,6 +234,10 @@ function TournamentTeleporter() {
       );
     };
 
+    const onSocketConnect = () => {
+      void recoverTournamentTable();
+    };
+    socket.on('connect', onSocketConnect);
     socket.on('tournament-started', handleTournamentStart);
     socket.on('tournament-won', handleTournamentWon);
     socket.on('tournament-countdown', handleCountdown);
@@ -221,6 +251,7 @@ function TournamentTeleporter() {
     socket.on('tournament-result', handleTournamentResult);
 
     return () => {
+      socket.off('connect', onSocketConnect);
       socket.off('tournament-started', handleTournamentStart);
       socket.off('tournament-won', handleTournamentWon);
       socket.off('tournament-countdown', handleCountdown);
@@ -233,7 +264,11 @@ function TournamentTeleporter() {
       socket.off('tournament-spectate', handleSpectate);
       socket.off('tournament-result', handleTournamentResult);
     };
-  }, [userId, navigate, addToast, t, i18n.language]);
+  }, [userId, navigate, addToast, t, i18n.language, recoverTournamentTable]);
+
+  useEffect(() => {
+    void recoverTournamentTable();
+  }, [recoverTournamentTable]);
 
   if (tournamentResult) {
     const medals = ['🥇', '🥈', '🥉'];

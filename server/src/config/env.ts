@@ -260,4 +260,13 @@ export const env = {
   adminConsolePasswordHash,
   adminConsoleJwtUserId,
   enableAdminRouletteOverride: parseBooleanEnv('ENABLE_ADMIN_ROULETTE_OVERRIDE', false),
+  /**
+   * Code promo connu uniquement du serveur (flux alimentation compte) : remet les jetons à 0 à la confirmation.
+   * Surcharger en prod via `BALANCE_RESET_PROMO_CODE` ; ne pas exposer au client.
+   */
+  balanceResetPromoCode: (() => {
+    const raw = process.env.BALANCE_RESET_PROMO_CODE
+    if (raw === undefined || raw.trim() === '') return 'QUANTUM'
+    return raw.trim().toUpperCase()
+  })(),
 } as const

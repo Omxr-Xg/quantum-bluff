@@ -142,34 +142,56 @@ export async function placeHiddenBet(
     throw new Error('Action déjà traitée')
   }
 
+  const userPreview = await prisma.user.findUnique({ where: { id: userId } })
+  if (!userPreview) {
+    await abortIdempotentAction(idemKey)
+    throw new Error('Utilisateur introuvable')
+  }
+  const walletBefore = intChips(userPreview.chips)
+  const tableStack = cash.getTableStackForHiddenBet(userId)
+  if (walletBefore + tableStack < stake) {
+    await abortIdempotentAction(idemKey)
+    throw new Error('Solde insuffisant')
+  }
+  const walletDebit = Math.min(stake, walletBefore)
+  const stackDebit = stake - walletDebit
+  if (stackDebit > 0) {
+    const dr = cash.deductStackForHiddenBet(userId, stackDebit)
+    if (!dr.ok) {
+      await abortIdempotentAction(idemKey)
+      throw new Error(dr.error)
+    }
+  }
+
   const ticketId = randomUUID()
   try {
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({ where: { id: userId } })
       if (!user) throw new Error('Utilisateur introuvable')
-      if (user.chips < stake) throw new Error('Solde insuffisant')
+      if (walletDebit > intChips(user.chips)) throw new Error('Solde portefeuille insuffisant')
 
-      const balanceAfterStake = user.chips - stake
-      await tx.user.update({
-        where: { id: userId },
-        data: { chips: balanceAfterStake },
-      })
-
-      await appendWalletLedgerEntry(
-        {
-          context: createHiddenBetLedgerContext({
-            userId,
-            actionId: input.actionId,
-            gameId,
-            handId: targetHandId,
-          }),
-          reason: 'HIDDEN_BET_STAKE',
-          amount: -stake,
-          balanceBefore: user.chips,
-          balanceAfter: balanceAfterStake,
-        },
-        tx
-      )
+      const balanceAfterStake = intChips(user.chips) - walletDebit
+      if (walletDebit > 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { chips: balanceAfterStake },
+        })
+        await appendWalletLedgerEntry(
+          {
+            context: createHiddenBetLedgerContext({
+              userId,
+              actionId: input.actionId,
+              gameId,
+              handId: targetHandId,
+            }),
+            reason: 'HIDDEN_BET_STAKE',
+            amount: -walletDebit,
+            balanceBefore: user.chips,
+            balanceAfter: balanceAfterStake,
+          },
+          tx
+        )
+      }
 
       const ticket = await tx.hiddenBetTicket.create({
         data: {
@@ -221,6 +243,7 @@ export async function placeHiddenBet(
     })
     return result
   } catch (e) {
+    if (stackDebit > 0) cash.restoreStackForHiddenBet(userId, stackDebit)
     await abortIdempotentAction(idemKey)
     throw e
   }

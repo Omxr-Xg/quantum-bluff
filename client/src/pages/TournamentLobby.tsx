@@ -9,13 +9,20 @@ import {
 } from '../services/tournament.service';
 import { useToast } from '../contexts/ToastContext';
 import { socket } from '../services/socket'; // 👈 IMPORT DU SOCKET
+import { ChipIcon } from '../components/ChipIcon';
 
 function formatTimeLeft(
   targetDate: string,
+  status: Tournament['status'],
   t: (key: string, opts?: Record<string, string>) => string,
 ) {
   const difference = +new Date(targetDate) - +new Date();
-  if (difference <= 0) return t('tournament.lobby.starting');
+  if (difference <= 0) {
+    if (status === 'PENDING') {
+      return t('tournament.lobby.startingSoon', 'Démarrage en cours…');
+    }
+    return t('tournament.lobby.starting');
+  }
 
   const minutes = Math.floor((difference / 1000 / 60) % 60);
   const seconds = Math.floor((difference / 1000) % 60);
@@ -54,9 +61,7 @@ export function TournamentLobby() {
     // Refresh du timer toutes les secondes
     const timerInterval = setInterval(() => setNow(new Date()), 1000);
 
-    // 🎧 NOUVEAU : Écouteur en temps réel pour actualiser les compteurs de joueurs
     const handleTournamentUpdate = () => {
-      console.log("🔄 Mise à jour des tournois reçue via Socket !");
       loadTournaments();
     };
 
@@ -65,8 +70,26 @@ export function TournamentLobby() {
     return () => {
       clearInterval(listInterval);
       clearInterval(timerInterval);
-      socket.off('tournament-updated', handleTournamentUpdate); // On débranche au démontage
+      socket.off('tournament-updated', handleTournamentUpdate);
     };
+  }, [loadTournaments]);
+
+  /** Pendant qu’un PENDING a dépassé l’heure de départ, rafraîchir souvent jusqu’au passage ACTIVE. */
+  useEffect(() => {
+    const needsFastPoll = tournaments.some(
+      (t) => t.status === 'PENDING' && new Date(t.startTime).getTime() <= Date.now(),
+    );
+    if (!needsFastPoll) return;
+    const fast = setInterval(() => void loadTournaments(), 3000);
+    return () => clearInterval(fast);
+  }, [tournaments, loadTournaments]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void loadTournaments();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
   }, [loadTournaments]);
 
   const handleJoin = async (id: string) => {
@@ -119,6 +142,17 @@ export function TournamentLobby() {
 
   const canRegisterForTournament = (trn: Tournament) =>
     trn.status === 'PENDING' && new Date(trn.startTime).getTime() > Date.now();
+
+  const registerButtonLabel = (trn: Tournament) => {
+    if (trn._count.players >= trn.maxPlayers) return t('tournament.lobby.full');
+    if (trn.status === 'PENDING' && new Date(trn.startTime).getTime() <= Date.now()) {
+      return t('tournament.lobby.startingSoon', 'Démarrage en cours…');
+    }
+    if (!canRegisterForTournament(trn)) return t('tournament.lobby.registrationClosed');
+    return trn.visibility === 'PRIVATE'
+      ? t('tournament.lobby.requestAccess')
+      : t('tournament.lobby.register');
+  };
 
   return (
     <div className="w-full min-w-0 p-4 sm:p-6">
@@ -197,7 +231,7 @@ export function TournamentLobby() {
                   <span className="text-amber-200 font-mono font-bold tracking-widest">
                     {trn.status === 'ACTIVE'
                       ? t('tournament.lobby.live')
-                      : formatTimeLeft(trn.startTime, t)}
+                      : formatTimeLeft(trn.startTime, trn.status, t)}
                   </span>
                 </div>
 
@@ -217,7 +251,10 @@ export function TournamentLobby() {
                   <div className="flex justify-between items-end mb-6">
                     <div className="flex flex-col">
                       <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{t('tournament.lobby.prizePool')}</span>
-                      <span className="text-2xl font-black text-green-400 leading-none">{trn.prizePool} 💰</span>
+                      <span className="inline-flex items-center gap-1.5 text-2xl font-black text-green-400 leading-none">
+                        {trn.prizePool}
+                        <ChipIcon size="lg" className="h-7 w-7 shrink-0" />
+                      </span>
                     </div>
                   </div>
 
@@ -266,7 +303,7 @@ export function TournamentLobby() {
                           if (trn.visibility === 'PRIVATE') {
                             try {
                               await TournamentService.requestJoinTournament(trn.id);
-                              addToast('Demande envoyée au créateur du tournoi.', "success");
+                              addToast(t('tournament.lobby.requestAccessToast'), "success");
                             } catch (err: unknown) {
                               const message = err instanceof Error ? err.message : t('tournament.lobby.errorUnknown');
                               addToast(message, "error");
@@ -275,16 +312,12 @@ export function TournamentLobby() {
                           }
                           handleJoin(trn.id);
                         }}
-                        disabled={trn._count.players >= trn.maxPlayers || !canRegisterForTournament(trn)}
+                        disabled={
+                          trn._count.players >= trn.maxPlayers || !canRegisterForTournament(trn)
+                        }
                         className="w-full bg-amber-500 hover:bg-white text-slate-950 font-black py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 group-hover:scale-[1.02] shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {!canRegisterForTournament(trn)
-                          ? t('tournament.lobby.registrationClosed')
-                          : trn._count.players >= trn.maxPlayers
-                          ? t('tournament.lobby.full')
-                          : trn.visibility === 'PRIVATE'
-                            ? 'Demander accès'
-                            : t('tournament.lobby.register')}
+                        {registerButtonLabel(trn)}
                         <ChevronRight className="w-6 h-6" />
                     </button>
                     )}

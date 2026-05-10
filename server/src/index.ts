@@ -42,6 +42,8 @@ import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes
 import dailyChallengesRoutes from './dailyChallenges/dailyChallenge.routes.js'
 import dailyLoginRoutes from './dailyLogin/dailyLogin.routes.js'
 import freeRechargeRoutes from './freeRecharge/freeRecharge.routes.js'
+import giftCodesRoutes from './giftCodes/giftCodes.routes.js'
+import walletRoutes from './wallet/wallet.routes.js'
 import hiddenBetsRoutes from './routes/hiddenBets.routes.js'
 import feedbackRoutes from './routes/feedback.routes.js'
 import playerReportRoutes from './routes/playerReport.routes.js'
@@ -49,6 +51,7 @@ import adminConsoleRoutes from './routes/adminConsole.routes.js'
 import { antiCheatMiddleware } from './middleware/antiCheat.middleware.js'
 import adminRoutes from './routes/admin.routes.js'
 import { GameGateway } from './sockets/game.gateway.js'
+import { setGameIo } from './sockets/gameIo.registry.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
 import { connectDB } from './config/database.js'
 import { createSocketIoRedisClients, disconnectSocketIoRedisClients } from './config/socketIoRedis.js'
@@ -215,6 +218,8 @@ app.use('/api/invitations', invitationRoutes)
 app.use('/api/daily-challenges', dailyChallengesRoutes)
 app.use('/api/daily-login', dailyLoginRoutes)
 app.use('/api/free-recharge', freeRechargeRoutes)
+app.use('/api/gift-codes', giftCodesRoutes)
+app.use('/api/wallet', walletRoutes)
 app.use('/api/tournaments', tournamentRoutes)
 
 // PROD HARDENING : On ne charge les routes sensibles qu'en mode développement
@@ -357,6 +362,7 @@ void pruneInactiveBlackjackWaitingRooms()
     })
   })
 new GameGateway(io)
+setGameIo(io)
 
 const PORT = env.port
 

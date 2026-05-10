@@ -22,6 +22,7 @@ import {
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { ipKeyGenerator } from 'express-rate-limit'
 import { rateLimitWithMetrics } from '../observability/index.js'
+import { isBalanceResetPromoCode } from '../config/balanceResetPromo.js'
 
 function normalizeRateLimitIdentity(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -646,6 +647,23 @@ router.get('/balance-history', authMiddleware, balancePollLimiter, async (req, r
   }
 })
 
+/** Valide un code promo pour le faux checkout « alimenter le compte » (effets connus uniquement côté serveur). */
+router.post('/validate-topup-promo', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const code = typeof req.body?.code === 'string' ? req.body.code : ''
+    if (!code.trim()) return res.json({ valid: false })
+    if (isBalanceResetPromoCode(code)) {
+      return res.json({ valid: true, resetBalance: true })
+    }
+    return res.json({ valid: false })
+  } catch (error) {
+    console.error('validate-topup-promo error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // POST /api/auth/add-dev-money - Ajoute des jetons (validation "dev" côté serveur, pas de confiance client)
 router.post('/add-dev-money', authMiddleware, async (req, res) => {
   const allowInProduction = String(process.env.ALLOW_DEV_TOPUP ?? '').toLowerCase() === 'true'
@@ -658,14 +676,38 @@ router.post('/add-dev-money', authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
     const secret = typeof req.body?.secret === 'string' ? req.body.secret.trim().toLowerCase() : ''
     if (secret !== 'dev') return res.status(403).json({ error: 'Validation requise' })
-    const rawAmount = typeof req.body?.amount === 'number' ? req.body.amount : Number(req.body?.amount)
-    const amount = Math.min(999999, Math.max(1, Math.floor(Number(rawAmount))))
-    if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Montant invalide' })
+    const promoRaw = typeof req.body?.promoCode === 'string' ? req.body.promoCode : ''
+
     const before = await prisma.user.findUnique({
       where: { id: userId },
       select: { chips: true },
     })
     if (!before) return res.status(404).json({ error: 'Utilisateur non trouvé' })
+
+    if (isBalanceResetPromoCode(promoRaw)) {
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: { chips: 0 },
+        select: { chips: true },
+      })
+      const removed = before.chips
+      await prisma.walletLedgerEntry.create({
+        data: {
+          userId,
+          amount: removed === 0 ? 0 : -removed,
+          reason: 'PROMO_BALANCE_RESET',
+          gameType: 'wallet',
+          balanceBefore: before.chips,
+          balanceAfter: user.chips,
+          settlementState: 'SETTLED',
+        },
+      })
+      return res.json({ ok: true, chips: user.chips, balanceReset: true })
+    }
+
+    const rawAmount = typeof req.body?.amount === 'number' ? req.body.amount : Number(req.body?.amount)
+    const amount = Math.min(999999, Math.max(1, Math.floor(Number(rawAmount))))
+    if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Montant invalide' })
 
     const user = await prisma.user.update({
       where: { id: userId },

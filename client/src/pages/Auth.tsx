@@ -94,7 +94,7 @@ export function Auth() {
     e.preventDefault();
     if (!isEmailValid) return;
     try {
-      showLoader("Vérification de l'email..."); // 🟢 ON AFFICHE LE LOADER
+      showLoader(t("auth.checkingEmail"));
       const { exists } = await checkEmail({ email: email.trim() }).unwrap();
       setStep(exists ? "login" : "register");
     } catch {
@@ -247,7 +247,7 @@ export function Auth() {
     if (!isForgotFormValid) return;
     setResetPasswordError(null);
     try {
-      showLoader("Réinitialisation du mot de passe..."); // 🟢 ON AFFICHE LE LOADER
+      showLoader(t("auth.resettingPassword"));
       await resetPassword({
         email: email.trim(),
         secretAnswer: forgotSecretAnswer.trim(),
@@ -384,7 +384,7 @@ export function Auth() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="joueur@quantum.com"
+                    placeholder={t("auth.emailPlaceholder")}
                     className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-blue-400/20 focus:border-blue-400"
                     required
                   />

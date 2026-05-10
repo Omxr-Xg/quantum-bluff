@@ -147,7 +147,7 @@ export function AdminTournaments() {
           {/* Visibilité */}
           <div>
             <label className="text-slate-300 text-sm font-bold uppercase tracking-widest mb-2 block">
-              Visibilité du tournoi
+              {t("tournament.admin.visibilityLabel")}
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -160,7 +160,7 @@ export function AdminTournaments() {
                 }`}
               >
                 <Globe className="w-4 h-4" />
-                Public
+                {t("lobby.public")}
               </button>
               <button
                 type="button"
@@ -172,7 +172,7 @@ export function AdminTournaments() {
                 }`}
               >
                 <Lock className="w-4 h-4" />
-                Privé
+                {t("lobby.private")}
               </button>
             </div>
           </div>
@@ -197,7 +197,7 @@ export function AdminTournaments() {
                       : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                   }`}
                 >
-                  +{m} min
+                  {t("tournament.admin.presetPlusMinutes", { minutes: m })}
                 </button>
               ))}
             </div>
@@ -208,9 +208,7 @@ export function AdminTournaments() {
               onChange={(e) => setFormData({...formData, startTime: e.target.value})}
               className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all outline-none"
             />
-            <p className="mt-2 text-xs text-slate-400">
-              Astuce: clique un preset (+15 min, +30 min...) pour programmer rapidement.
-            </p>
+            <p className="mt-2 text-xs text-slate-400">{t("tournament.admin.startTimeHint")}</p>
           </div>
 
           <button 
