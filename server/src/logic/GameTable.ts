@@ -33,8 +33,6 @@ export class GameTable {
       liveBetWindowMs?: number
       /** Désactive les fenêtres gelées (comportement historique immédiat). */
       liveBetWindowDisabled?: boolean
-      tournamentId?: string
-      tournamentTableNumber?: number
     }
   ) {
     this.id = id
@@ -64,10 +62,6 @@ export class GameTable {
       updatedAt: new Date().toISOString(),
       handParticipantIds: [],
       handRuntimePhase: 'HAND_IN_PROGRESS',
-      ...(options?.tournamentId ? { tournamentId: options.tournamentId } : {}),
-      ...(options?.tournamentTableNumber != null
-        ? { tournamentTableNumber: options.tournamentTableNumber }
-        : {}),
     }
 
     this.normalizePlayers()
@@ -1161,21 +1155,17 @@ export class GameTable {
   }
 
   /**
-   * 💀 LA FAUCHEUSE (Mode Tournoi)
-   * Vérifie tous les joueurs après la distribution du pot.
-   * Si un joueur a 0 jeton, il est désactivé et marqué comme "Buste" (éliminé).
+   * Désactive les joueurs à 0 jeton après attribution du pot.
    */
   public sweepBustedPlayers(): void {
     let playersEliminated = false;
-    const isTournamentTable = this.id.startsWith('game_tournoi_');
 
     for (const player of this.state.players) {
       if (player.chips <= 0) {
         player.isActive = false;
-        // Ne pas forcer isConnected = false au bust tournoi : le client filtre sur isConnected pour l’affichage main/showdown, et l’événement tournament-eliminated gère la sortie. startHand exclut déjà chips <= 0.
 
         console.log(
-          `💀 [GameTable] ${player.name} (${player.id}) — 0 jeton après la main${isTournamentTable ? ' (tournoi)' : ''}`,
+          `💀 [GameTable] ${player.name} (${player.id}) — 0 jeton après la main`,
         );
         playersEliminated = true;
       }

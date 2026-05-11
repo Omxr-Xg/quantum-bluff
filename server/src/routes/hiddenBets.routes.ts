@@ -9,6 +9,7 @@ import type { HiddenBetMarketPhase } from '../poker/hiddenBets/types.js'
 import { prisma } from '../config/database.js'
 import { rootLogger } from '../observability/logger.js'
 import { broadcastCashGameState } from '../sockets/gameIo.registry.js'
+import { isTournamentGameId } from '../tournament/tournament.constants.js'
 
 const router = express.Router()
 
@@ -25,6 +26,9 @@ router.post('/quote', authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
     const gameId = req.body?.gameId as string
     if (!gameId) return res.status(400).json({ error: 'gameId requis' })
+    if (isTournamentGameId(gameId)) {
+      return res.status(400).json({ error: 'Paris cachés indisponibles sur les tables tournoi' })
+    }
     const marketPhase = parseMarketPhase(req.body?.marketPhase)
     if (!marketPhase) return res.status(400).json({ error: 'marketPhase invalide' })
     const game = await activeGames.get(gameId)
@@ -51,6 +55,9 @@ router.post('/place', authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
     const gameId = req.body?.gameId as string
     if (!gameId) return res.status(400).json({ error: 'gameId requis' })
+    if (isTournamentGameId(gameId)) {
+      return res.status(400).json({ error: 'Paris cachés indisponibles sur les tables tournoi' })
+    }
     const marketPhase = parseMarketPhase(req.body?.marketPhase)
     if (!marketPhase) return res.status(400).json({ error: 'marketPhase invalide' })
     const game = await activeGames.get(gameId)
@@ -82,6 +89,9 @@ router.get('/markets', authMiddleware, async (req, res) => {
   if (!userId) return res.status(401).json({ error: 'Non authentifié' })
   const gameId = req.query.gameId as string
   if (!gameId) return res.status(400).json({ error: 'gameId requis' })
+  if (isTournamentGameId(gameId)) {
+    return res.status(400).json({ error: 'Paris cachés indisponibles sur les tables tournoi' })
+  }
   const game = await activeGames.get(gameId)
   if (!game || !(game instanceof CashGameController)) {
     return res.status(404).json({ error: 'Partie cash introuvable' })

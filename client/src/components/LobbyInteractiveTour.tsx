@@ -19,7 +19,6 @@ export type LobbyTourRefs = {
   multiplayer: RefObject<HTMLElement | null>;
   waitingRooms: RefObject<HTMLElement | null>;
   gamesInProgress: RefObject<HTMLElement | null>;
-  tournaments: RefObject<HTMLElement | null>;
   minigamesPanel: RefObject<HTMLElement | null>;
   blackjackPanel: RefObject<HTMLElement | null>;
   dailyChallenges: RefObject<HTMLElement | null>;
@@ -60,12 +59,6 @@ const STEP_DEFS: StepDef[] = [
     highlight: "gamesInProgress",
     titleKey: "gamesTitle",
     bodyKey: "gamesBody",
-    mainTab: "poker",
-  },
-  {
-    highlight: "tournaments",
-    titleKey: "tournamentsTitle",
-    bodyKey: "tournamentsBody",
     mainTab: "poker",
   },
   {

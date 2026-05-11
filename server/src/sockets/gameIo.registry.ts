@@ -8,6 +8,10 @@ export function setGameIo(io: Server): void {
   gameIo = io
 }
 
+export function getGameIo(): Server | undefined {
+  return gameIo
+}
+
 interface SocketWithUser extends Socket {
   userId?: string
 }

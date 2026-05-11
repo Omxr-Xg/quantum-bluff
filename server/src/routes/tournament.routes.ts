@@ -1,230 +1,93 @@
-import { Router, Request, Response } from 'express';
-import { prisma } from '../config/database.js';
-import { TournamentService } from '../services/tournament.service.js';
-import { authMiddleware } from '../middleware/auth.middleware.js';
-import jwt from 'jsonwebtoken'; // Assure-toi d'avoir importé jwt
+import express from 'express'
+import type { Server } from 'socket.io'
+import { authMiddleware } from '../middleware/auth.middleware.js'
 import {
-  buildTournamentLobbyWhere,
-  TOURNAMENT_LIST_GRACE_MS_DEFAULT,
-  TOURNAMENT_LIST_TAKE_DEFAULT,
-} from '../tournament/tournamentLobbyWhere.js';
+  createTournament,
+  getTournamentDetail,
+  joinTournament,
+  leaveTournament,
+  listOpenTournaments,
+} from '../tournament/tournament.service.js'
+import { startTournamentFromDb } from '../tournament/tournament.runtime.service.js'
 
-const router = Router();
+const router = express.Router()
 
-// Interface pour typer le contenu de ton token
-interface TokenPayload {
-  userId: string;
-  // ajoute d'autres champs si ton token en contient (ex: iat, exp)
+function getIo(req: express.Request): Server {
+  const io = req.app.get('io') as Server | undefined
+  if (!io) throw new Error('Socket.IO non initialisé')
+  return io
 }
 
-/**
- * 1. LISTER LES TOURNOIS (Lobby)
- */
-router.get('/', async (req: Request, res: Response) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
-    let currentUserId: string | null = null;
-    const authHeader = req.headers.authorization;
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as TokenPayload;
-        currentUserId = decoded.userId;
-      } catch {
-        /* token invalide : lobby public sans isJoined */
-      }
-    }
-
-    const now = new Date();
-    const tournaments = await prisma.tournament.findMany({
-      where: buildTournamentLobbyWhere({
-        now,
-        graceMs: TOURNAMENT_LIST_GRACE_MS_DEFAULT,
-        currentUserId,
-      }),
-      take: TOURNAMENT_LIST_TAKE_DEFAULT,
-      include: {
-        _count: { select: { players: true } },
-        players: {
-          include: {
-            user: { select: { id: true, username: true, experience: true } },
-          },
-        },
-      },
-      orderBy: { startTime: 'asc' },
-    });
-
-    const result = tournaments.map((t) => {
-      const isJoined = currentUserId ? t.players.some((p) => p.userId === currentUserId) : false;
-
-      return {
-        id: t.id,
-        name: t.name,
-        buyIn: t.buyIn,
-        prizePool: t.prizePool,
-        maxPlayers: t.maxPlayers,
-        startTime: t.startTime,
-        status: t.status,
-        visibility: t.visibility,
-        _count: t._count,
-        isJoined,
-        players: t.players,
-      };
-    });
-
-    res.json(result);
-  } catch (error) {
-    console.error("Lobby Error:", error);
-    res.status(500).json({ error: "Erreur lors de la récupération des tournois" });
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const body = req.body as Record<string, unknown>
+    const id = await createTournament({
+      hostId: userId,
+      name: String(body.name ?? ''),
+      visibility: body.visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
+      joinCode: body.joinCode != null ? String(body.joinCode) : null,
+      maxPlayers: Number(body.maxPlayers ?? 8),
+      initialStack: Number(body.initialStack ?? 2000),
+      startAt: new Date(String(body.startAt ?? Date.now())),
+      blindSmall: Number(body.blindSmall ?? 10),
+      blindBig: Number(body.blindBig ?? 20),
+    })
+    res.status(201).json(id)
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message })
   }
-});
+})
 
-/**
- * 2. CRÉER UN TOURNOI
- */
-router.post('/create', authMiddleware, async (req: Request, res: Response) => {
+router.get('/', authMiddleware, async (_req, res) => {
+  const rows = await listOpenTournaments()
+  res.json(rows)
+})
+
+router.get('/:id', authMiddleware, async (req, res) => {
+  const userId = req.userId ?? null
+  const row = await getTournamentDetail(req.params.id, userId)
+  if (!row) return res.status(404).json({ error: 'Introuvable' })
+  res.json(row)
+})
+
+router.post('/:id/join', authMiddleware, async (req, res) => {
   try {
-    const { name, buyIn, maxPlayers, startTime, visibility } = req.body;
-    const userId = req.userId; // Déjà typé via ton declare global
-
-    if (!userId) {
-      return res.status(401).json({ error: "Utilisateur non authentifié" });
-    }
-
-    if (!name || buyIn === undefined || !maxPlayers || !startTime) {
-      return res.status(400).json({ error: "Données manquantes" });
-    }
-
-    if (maxPlayers < 4 || maxPlayers > 36) {
-      return res.status(400).json({ error: 'Le nombre de joueurs doit être entre 4 et 36.' });
-    }
-
-    const tournament = await TournamentService.createTournament({
-      name: String(name), 
-      buyIn: Number(buyIn), 
-      maxPlayers: Number(maxPlayers), 
-      startTime: new Date(startTime), 
-      createdById: userId,
-      visibility: visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
-    });
-    
-    res.status(201).json(tournament);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : "Erreur lors de la création";
-    res.status(400).json({ error: msg });
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    await joinTournament(req.params.id, userId, (req.body as { code?: string })?.code)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message })
   }
-});
-
-/** Partie tournoi en cours sur ce pod pour l’utilisateur (récupération client si socket manqué). */
-router.get('/my-table', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId;
-    if (!userId) return res.status(401).json({ error: 'Non autorisé' });
-    const found = await TournamentService.findActiveTournamentTableForUser(userId);
-    res.json({
-      gameId: found?.gameId ?? null,
-      tournamentId: found?.tournamentId ?? null,
-    });
-  } catch {
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-/** Tables suivables en spectateur (200 + tables vides si tournoi terminé ou aucune partie sur ce nœud). */
-router.get('/:id/spectate-tables', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const payload = await TournamentService.getSpectateTablesPayload(req.params.id);
-    if (!payload) {
-      return res.status(404).json({ error: 'Tournoi introuvable.' });
-    }
-    res.json(payload);
-  } catch {
-    res.status(500).json({ error: 'Erreur lors du chargement des tables.' });
-  }
-});
-
-router.post('/:id/request-join', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId;
-    if (!userId) return res.status(401).json({ error: 'Non autorisé' });
-    const request = await TournamentService.createPrivateJoinRequest(req.params.id, userId);
-    const io = TournamentService.getIo();
-    io?.to(`user:${request.hostId}`).emit('TOURNAMENT_JOIN_REQUEST_RECEIVED', {
-      requestId: request.id,
-      tournamentId: request.tournamentId,
-      tournamentName: request.tournamentName,
-      requesterId: request.requesterId,
-      requesterUsername: request.requesterUsername,
-    });
-    res.json({ message: 'Demande envoyée', requestId: request.id });
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Erreur';
-    res.status(400).json({ error: msg });
-  }
-});
-
-router.get('/requests/received', authMiddleware, async (req: Request, res: Response) => {
-  const userId = req.userId;
-  if (!userId) return res.status(401).json({ error: 'Non autorisé' });
-  res.json(await TournamentService.getPendingRequestsForHost(userId));
-});
-
-router.post('/requests/:requestId/accept', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId;
-    if (!userId) return res.status(401).json({ error: 'Non autorisé' });
-    const accepted = await TournamentService.acceptPrivateJoinRequest(req.params.requestId, userId);
-    const io = TournamentService.getIo();
-    io?.to(`user:${accepted.requesterId}`).emit('TOURNAMENT_JOIN_REQUEST_ACCEPTED', {
-      tournamentId: accepted.tournamentId,
-      tournamentName: accepted.tournamentName,
-    });
-    res.json({ message: 'Demande acceptée' });
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Erreur';
-    res.status(400).json({ error: msg });
-  }
-});
-
-/**
- * 3. REJOINDRE UN TOURNOI
- */
-router.post('/:id/join', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const tournamentId = req.params.id;
-    const userId = req.userId;
-
-    if (!userId) return res.status(401).json({ error: "Non autorisé" });
-
-    const registration = await TournamentService.joinTournament(tournamentId, userId);
-    res.json({ message: "Inscription réussie !", registration });
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : "Erreur lors de l'inscription";
-    res.status(400).json({ error: msg });
-  }
-});
-
-/**
- * 4. LANCER MANUELLEMENT
- */
-router.post('/:id/start', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const result = await TournamentService.startTournament(req.params.id);
-    res.json(result);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : "Erreur lors du lancement";
-    res.status(400).json({ error: msg });
-  }
-});
+})
 
 router.post('/:id/leave', authMiddleware, async (req, res) => {
   try {
-    await TournamentService.leaveTournament(req.params.id, req.userId!);
-    res.json({ message: "Vous avez quitté le tournoi. Votre Buy-in a été remboursé." });
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : "Erreur";
-    res.status(400).json({ error: msg });
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    await leaveTournament(req.params.id, userId)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message })
   }
-});
+})
 
-export default router;
+router.post('/:id/start', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const t = await getTournamentDetail(req.params.id, userId)
+    if (!t || t.hostId !== userId) {
+      return res.status(403).json({ error: 'Réservé à l’hôte' })
+    }
+    const io = getIo(req)
+    await startTournamentFromDb(req.params.id, io)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message })
+  }
+})
+
+export default router

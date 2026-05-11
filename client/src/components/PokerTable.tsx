@@ -46,7 +46,7 @@ interface PokerTableProps {
   /** Clic sur l’avatar d’un adversaire (multijoueur) : menu invitation / message / signalement */
   onOpponentAvatarClick?: (player: Player) => void;
   enableAvatarInteractions?: boolean;
-  /** Cash / hors tournoi : masque le stack sous l’avatar du joueur (solde déjà en header). Tournoi : laisser false. */
+  /** Masque le stack sous l’avatar du héros (solde déjà en header). */
   hideHeroChipStack?: boolean;
   /** Nombre de sièges pour le calcul des positions (ex. spectateur : joueurs + 1 siège vide). */
   layoutSeatCount?: number;

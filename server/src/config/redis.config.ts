@@ -11,8 +11,6 @@ interface SerializedGameState {
   players: Omit<Player, 'cards'>[]
   currentTurn: string
   phase: string
-  tournamentId?: string
-  tournamentTableNumber?: number
 }
 
 const redisLiteClient = env.isJest || env.isCi
@@ -104,10 +102,6 @@ export const serializeGame = (_gameId: string, game: GameTable): string => {
       })),
       currentTurn: state.currentTurn,
       phase: state.phase,
-      ...(game.state.tournamentId ? { tournamentId: game.state.tournamentId } : {}),
-      ...(game.state.tournamentTableNumber != null
-        ? { tournamentTableNumber: game.state.tournamentTableNumber }
-        : {}),
     },
   })
 }
@@ -130,10 +124,6 @@ export const deserializeGame = (gameId: string, data: string): GameTable | null 
       communityCards: parsedState.communityCards as Card[],
       currentTurn: parsedState.currentTurn,
       phase: parsedState.phase as GamePhase,
-      ...(parsedState.tournamentId ? { tournamentId: parsedState.tournamentId } : {}),
-      ...(parsedState.tournamentTableNumber != null
-        ? { tournamentTableNumber: parsedState.tournamentTableNumber }
-        : {}),
     }
 
     return game

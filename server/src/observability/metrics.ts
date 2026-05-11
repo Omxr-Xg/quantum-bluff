@@ -33,10 +33,6 @@ type MetricsApi = {
   incSocketEvent: (event: string) => void
   setSocketIoConnectionsActive: (count: number) => void
   setRedisSocketIoAdapterUp: (up: boolean) => void
-  setTournamentLeaderActive: (instanceId: string, active: boolean) => void
-  setTournamentStalePendingCount: (count: number) => void
-  /** Bracket / spectate tournoi (faible cardinalité sur `event`). */
-  incTournamentBracket: (event: string) => void
   observeRedisCommandDurationMs: (command: string, durationMs: number) => void
   incDbError: (operation: string) => void
   observePrismaDurationMs: (operation: string, durationMs: number) => void
@@ -139,27 +135,6 @@ function createRealMetrics(): MetricsApi {
     registers: [register],
   })
 
-  const tournamentLeaderActive = new Gauge({
-    name: 'tournament_leader_active',
-    help: '1 si cette instance détient le verrou leader cron tournoi',
-    labelNames: ['instance_id'],
-    registers: [register],
-  })
-
-  const tournamentStalePendingCount = new Gauge({
-    name: 'tournament_stale_pending_count',
-    help:
-      'Tournois PENDING dont l’heure de départ est dépassée (>30s) — alerte si Redis/leader bloque le démarrage auto',
-    registers: [register],
-  })
-
-  const tournamentBracketEventsTotal = new Counter({
-    name: 'tournament_bracket_events_total',
-    help: 'Événements bracket tournoi (idempotence, Redis, attente)',
-    labelNames: ['event'],
-    registers: [register],
-  })
-
   const redisCommandDurationSeconds = new Histogram({
     name: 'redis_command_duration_seconds',
     help: 'Durée des commandes Redis instrumentées (échantillon)',
@@ -206,15 +181,6 @@ function createRealMetrics(): MetricsApi {
     setRedisSocketIoAdapterUp(up: boolean) {
       redisAdapterUp.set(up ? 1 : 0)
     },
-    setTournamentLeaderActive(instanceId: string, active: boolean) {
-      tournamentLeaderActive.set({ instance_id: instanceId }, active ? 1 : 0)
-    },
-    setTournamentStalePendingCount(count: number) {
-      tournamentStalePendingCount.set(count)
-    },
-    incTournamentBracket(event: string) {
-      tournamentBracketEventsTotal.inc({ event })
-    },
     observeRedisCommandDurationMs(command: string, durationMs: number) {
       redisCommandDurationSeconds.observe({ command }, durationMs / 1000)
     },
@@ -244,9 +210,6 @@ const noop: MetricsApi = {
   incSocketEvent: () => {},
   setSocketIoConnectionsActive: () => {},
   setRedisSocketIoAdapterUp: () => {},
-  setTournamentLeaderActive: () => {},
-  setTournamentStalePendingCount: () => {},
-  incTournamentBracket: () => {},
   observeRedisCommandDurationMs: () => {},
   incDbError: () => {},
   observePrismaDurationMs: () => {},

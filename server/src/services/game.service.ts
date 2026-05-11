@@ -16,7 +16,7 @@ class GameService {
   }
 
   createGame(playerName: string, forcedPlayerId?: string) {
-    // Si on donne un ID (Tournoi), on l'utilise. Sinon, on en génère un (Cash Game).
+    // Si on fournit un identifiant de partie, on le conserve ; sinon le serveur en génère un.
     const playerId = forcedPlayerId || `player_${Date.now()}_${Math.floor(Math.random() * 100000)}`
     const gameId = `game_${Date.now()}_${Math.floor(Math.random() * 100000)}`
 

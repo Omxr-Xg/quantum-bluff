@@ -15,23 +15,10 @@ import {
 import { withPokerTableLock } from "./pokerTableLock.service.js";
 import { metrics } from "../../observability/metrics.js";
 import { rootLogger } from "../../observability/logger.js";
-import { TournamentService } from "../../services/tournament.service.js";
-import { clearTournamentSeatGamesForUsers } from "../../services/tournamentBracketStore.service.js";
+import { getGameIo } from "../../sockets/gameIo.registry.js";
 import { CashGameController } from "../../logic/CashGameController.js";
-import { prisma } from "../../config/database.js";
 import { isPracticeBotGameId } from "../../shared/practiceBotGames.js";
 import type { ActiveGame } from "../../shared/activeGames.js";
-
-/** Tables poker tournoi (y compris table finale `game_tournoi_final_*`). */
-function isTournamentTableGameId(gameId: string): boolean {
-  return gameId.startsWith("game_tournoi_");
-}
-
-/**
- * Laisser le gateway envoyer GAME_UPDATE (showdown) avant l’overlay d’élimination.
- * Côté client : `SHOWDOWN_REVEAL_MS` = 5000 ms (`client/src/pages/Game.tsx`) — marge pour réseau / rendu.
- */
-const TOURNAMENT_ELIM_SOCKET_DELAY_MS = 5_500;
 
 type ActionTarget = {
   getStateContext: () => {
@@ -55,76 +42,15 @@ async function handleHandCompleteIfNeeded(
     return;
   }
 
-  const io = TournamentService.getIo();
-
-  if (isTournamentTableGameId(gameId)) {
-    const bustedPlayers = game.state.players.filter((p) => p.chips <= 0);
-    const bustedPayloads = bustedPlayers.map((b) => ({
-      userId: String(b.id),
-      name: b.name,
-    }));
-    if (bustedPayloads.length && io) {
-      const ioRef = io;
-      setTimeout(() => {
-        for (const busted of bustedPayloads) {
-          console.log(
-            `📣 [SOCKET] Envoi du signal d'élimination à ${busted.name} (différé showdown)`,
-          );
-          ioRef.to(`user:${busted.userId}`).emit("tournament-eliminated", {
-            userId: busted.userId,
-          });
-          ioRef.to(`user:${busted.userId}`).emit("tournament-spectate", {
-            gameId,
-          });
-          ioRef.to(`user:${busted.userId}`).emit("PLAYER_BUSTED", {
-            gameId,
-            userId: busted.userId,
-            reason: "OUT_OF_CHIPS",
-            mode: "tournament",
-          });
-        }
-      }, TOURNAMENT_ELIM_SOCKET_DELAY_MS);
-    }
-    for (const busted of bustedPlayers) {
-      const tp = await prisma.tournamentPlayer.findFirst({
-        where: { userId: String(busted.id), tournament: { status: 'ACTIVE' } }
-      });
-      if (tp) TournamentService.recordElimination(tp.tournamentId, String(busted.id));
-    }
-  }
+  const io = getGameIo();
 
   if (game instanceof CashGameController) {
     return;
   }
 
-  const survivors = isTournamentTableGameId(gameId)
-    ? game.state.players.filter((p) => p.chips > 0)
-    : game.state.players.filter(
-        (p) => p.chips > 0 && p.isConnected !== false,
-      );
-
-  if (gameId.startsWith("game_tournoi_merge_")) {
-    if (survivors.length === 2) {
-      await TournamentService.handleMergeRoundComplete(
-        gameId,
-        survivors.map((p) => ({
-          userId: String(p.id),
-          username: String(p.name),
-          chips: p.chips,
-        })),
-      );
-      activeGames.delete(gameId);
-      return;
-    }
-    if (survivors.length === 1) {
-      await TournamentService.handleMergeSingleWinner(
-        gameId,
-        String(survivors[0].id),
-      );
-      activeGames.delete(gameId);
-      return;
-    }
-  }
+  const survivors = game.state.players.filter(
+    (p) => p.chips > 0 && p.isConnected !== false,
+  );
 
   if (survivors.length > 1) {
     const nextHandDelayMs = isPracticeBotGameId(gameId) ? 900 : 6500;
@@ -141,20 +67,16 @@ async function handleHandCompleteIfNeeded(
             const currentGame = await activeGames.get(gameId);
 
             if (currentGame && "startHand" in currentGame) {
-              const currentSurvivors = isTournamentTableGameId(
-                gameId,
-              )
-                ? currentGame.state.players.filter((p) => p.chips > 0)
-                : currentGame.state.players.filter(
-                    (p) =>
-                      p.chips > 0 && p.isConnected !== false,
-                  );
+              const currentSurvivors = currentGame.state.players.filter(
+                (p) =>
+                  p.chips > 0 && p.isConnected !== false,
+              );
 
               if (currentSurvivors.length > 1) {
                 currentGame.startHand();
                 await activeGames.set(gameId, currentGame);
 
-                const ioRel = TournamentService.getIo() ?? io;
+                const ioRel = getGameIo() ?? io;
                 if (ioRel) {
                   const room = ioRel.in(gameId);
                   const sockets = await room.fetchSockets();
@@ -181,7 +103,7 @@ async function handleHandCompleteIfNeeded(
                   });
                 }
               } else if (isPracticeBotGameId(gameId)) {
-                const ioRel = TournamentService.getIo() ?? io;
+                const ioRel = getGameIo() ?? io;
                 if (ioRel) {
                   let reason:
                     | "human_won"
@@ -202,7 +124,7 @@ async function handleHandCompleteIfNeeded(
           },
         );
 
-        const ioAfter = TournamentService.getIo();
+        const ioAfter = getGameIo();
         if (ioAfter && isPracticeBotGameId(gameId)) {
           const { runPracticeBotTurnsChain, broadcastPracticeTableState } =
             await import("./practiceBotTurns.service.js");
@@ -211,7 +133,7 @@ async function handleHandCompleteIfNeeded(
         }
       } catch (error) {
         console.error("❌ Erreur relance auto :", error);
-        const ioErr = TournamentService.getIo();
+        const ioErr = getGameIo();
         if (ioErr && isPracticeBotGameId(gameId)) {
           ioErr.to(gameId).emit("PRACTICE_SESSION_END", {
             gameId,
@@ -220,79 +142,6 @@ async function handleHandCompleteIfNeeded(
         }
       }
     }, nextHandDelayMs);
-  } else if (
-    survivors.length === 1 &&
-    isTournamentTableGameId(gameId) &&
-    !gameId.startsWith("game_tournoi_merge_")
-  ) {
-    console.log(`🏆 [TOURNOI] VICTOIRE DE ${survivors[0].name} !`);
-
-    const tid = game.state.tournamentId;
-    if (tid && typeof tid === "string") {
-      const seatUserIds = game.state.players.map((p) => String(p.id));
-      await clearTournamentSeatGamesForUsers(tid, seatUserIds);
-    }
-
-    const tp = await prisma.tournamentPlayer.findFirst({
-      where: { userId: String(survivors[0].id), tournament: { status: 'ACTIVE' } },
-    });
-    if (tp) {
-      const partial = await TournamentService.handleTableFinished(
-        tp.tournamentId,
-        String(survivors[0].id),
-        survivors[0].name,
-        survivors[0].chips,
-        gameId,
-      );
-      if (partial?.emitTournamentWonPartial && io) {
-        io.to(`user:${partial.emitTournamentWonPartial.userId}`).emit(
-          "tournament-won",
-          {
-            userId: partial.emitTournamentWonPartial.userId,
-            survivorsCount: partial.emitTournamentWonPartial.survivorsCount,
-            expectedTables: partial.emitTournamentWonPartial.expectedTables,
-          },
-        );
-      }
-    } else {
-      const winnerId = String(survivors[0].id);
-      const fallbackTournament = await prisma.tournament.findFirst({
-        where: {
-          status: "ACTIVE",
-          players: { some: { userId: winnerId } },
-        },
-        select: { id: true },
-      });
-      rootLogger.error({
-        msg: "tournament_winner_missing_tournament_player",
-        winnerId,
-        gameId,
-        fallbackTournamentId: fallbackTournament?.id ?? null,
-        detail:
-          "Refus de clôturer le tournoi via processVictory de secours : incohérence Prisma ou userId table ≠ userId compte.",
-      });
-      if (fallbackTournament) {
-        const partial = await TournamentService.handleTableFinished(
-          fallbackTournament.id,
-          winnerId,
-          survivors[0].name,
-          survivors[0].chips,
-          gameId,
-        );
-        if (partial?.emitTournamentWonPartial && io) {
-          io.to(`user:${partial.emitTournamentWonPartial.userId}`).emit(
-            "tournament-won",
-            {
-              userId: partial.emitTournamentWonPartial.userId,
-              survivorsCount: partial.emitTournamentWonPartial.survivorsCount,
-              expectedTables: partial.emitTournamentWonPartial.expectedTables,
-            },
-          );
-        }
-      }
-    }
-
-    activeGames.delete(gameId);
   } else if (isPracticeBotGameId(gameId) && io) {
     let reason: "human_won" | "human_busted" | "session_over" =
       "session_over";

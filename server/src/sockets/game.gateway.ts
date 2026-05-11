@@ -227,6 +227,18 @@ export class GameGateway {
       });
 
       socket.on(
+        "JOIN_TOURNAMENT_ROOM",
+        async ({ tournamentId }: { tournamentId?: string }) => {
+          if (!tournamentId || !socket.userId) return;
+          const tp = await prisma.tournamentPlayer.findFirst({
+            where: { tournamentId, userId: socket.userId },
+          });
+          if (!tp) return;
+          socket.join(`tournament:${tournamentId}`);
+        },
+      );
+
+      socket.on(
         "join-room",
         ({ roomId }: { roomId?: string; userId?: string }) => {
           if (!roomId) return;
@@ -2023,6 +2035,9 @@ export class GameGateway {
     roomId: string,
     lastHandId: string,
   ): Promise<boolean> {
+    if (cashGame.getWalletLedger() === "none") {
+      return false;
+    }
     const SHOWDOWN_RESULT_DISPLAY_MS = 3000;
     let dissolveReason: "all_players_left" | "heads_up_peer_left" | null = null;
     if (cashGame.getOccupiedCount() === 1) {
@@ -2088,7 +2103,10 @@ export class GameGateway {
       showdownPot?: number;
     },
   ): Promise<void> {
-    const hiddenBetSnap = buildHiddenBetResolutionPayload(gameId, cashGame);
+    const virtual = cashGame.getWalletLedger() === "none";
+    const hiddenBetSnap = virtual
+      ? null
+      : buildHiddenBetResolutionPayload(gameId, cashGame);
     const startingMap = cashGame.getLastHandStartingStacks();
     const { playerStacks, seatCashOuts } = cashGame.onHandComplete();
     const handId = showdownSnapshot.handId || "unknown";
@@ -2096,6 +2114,20 @@ export class GameGateway {
     const bustedUserIds = playerStacks
       .filter((b) => intChips(b.chips) <= 0)
       .map((b) => String(b.userId));
+    if (virtual && bustedUserIds.length > 0) {
+      try {
+        const { recordTournamentEliminationsIfAny } = await import(
+          "../tournament/tournament.runtime.service.js"
+        );
+        await recordTournamentEliminationsIfAny(gameId, bustedUserIds);
+      } catch (err) {
+        rootLogger.error({
+          msg: "tournament_elimination_record_failed",
+          gameId,
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
     for (const bustedUserId of bustedUserIds) {
       this.io.to(`user:${bustedUserId}`).emit("PLAYER_BUSTED", {
         gameId,
@@ -2105,7 +2137,7 @@ export class GameGateway {
       });
     }
 
-    if (playerStacks.length > 0 || seatCashOuts.length > 0) {
+    if (!virtual && (playerStacks.length > 0 || seatCashOuts.length > 0)) {
       try {
         const loanEmits: {
           socketRepayment?: RepaymentSocketPayload;
@@ -2251,16 +2283,18 @@ export class GameGateway {
         });
       }
     }
-    const rejoinBuyIns = await cashGame.processRejoinQueue(async (uid) => {
-      const u = await prisma.user.findUnique({
-        where: { id: uid },
-        select: { username: true, chips: true },
-      });
-      return u
-        ? { username: u.username, chips: Math.max(100, u.chips ?? 1000) }
-        : null;
-    });
-    if (rejoinBuyIns.length > 0) {
+    const rejoinBuyIns = virtual
+      ? []
+      : await cashGame.processRejoinQueue(async (uid) => {
+          const u = await prisma.user.findUnique({
+            where: { id: uid },
+            select: { username: true, chips: true },
+          });
+          return u
+            ? { username: u.username, chips: Math.max(100, u.chips ?? 1000) }
+            : null;
+        });
+    if (!virtual && rejoinBuyIns.length > 0) {
       try {
         await this.persistCashPokerBuyInDebits(
           gameId,
@@ -2311,14 +2345,57 @@ export class GameGateway {
       handId,
     );
     if (!dissolved) {
-      const snap = cashGame.getSanitizedState();
-      this.io.to(gameId).emit("CASH_WAITING_PLAYERS", {
-        cashSeats: snap.cashSeats,
-      });
-      this.io.to(gameId).emit("CASH_NEXT_HAND_READY_UPDATED", {
-        readyUserIds: cashGame.getNextHandReadyUserIds(),
-        allReady: cashGame.isAllNextHandPlayersReady(),
-      });
+      if (virtual) {
+        const survivors = cashGame.getSurvivorsWithChips();
+        if (
+          cashGame.getStopWhenSingleSurvivor() &&
+          survivors.length === 1
+        ) {
+          await activeGames.set(gameId, cashGame);
+          await this.broadcastCashGameSnapshot(gameId);
+          const { onTournamentSingleSurvivor } = await import(
+            "../tournament/tournament.gatewayHook.js"
+          );
+          await onTournamentSingleSurvivor(
+            this.io,
+            gameId,
+            survivors[0]!.userId,
+          );
+          this.io.to(gameId).emit("GAME_ENDED", {
+            gameId,
+            reason: "TOURNAMENT_TABLE_COMPLETE",
+          });
+        } else if (cashGame.startNextHandIfMultiSurvivors()) {
+          await activeGames.set(gameId, cashGame);
+          await this.broadcastCashGameSnapshot(gameId);
+          this.resetTimer(gameId);
+          this.io.to(gameId).emit("HAND_STATE_CHANGED", {
+            gameId,
+            phase: cashGame.state.phase,
+            handRuntimePhase: cashGame.state.handRuntimePhase,
+            handEndReason: cashGame.state.handEndReason,
+            handId: cashGame.state.handId,
+          });
+        } else {
+          const snap = cashGame.getSanitizedState();
+          this.io.to(gameId).emit("CASH_WAITING_PLAYERS", {
+            cashSeats: snap.cashSeats,
+          });
+          this.io.to(gameId).emit("CASH_NEXT_HAND_READY_UPDATED", {
+            readyUserIds: cashGame.getNextHandReadyUserIds(),
+            allReady: cashGame.isAllNextHandPlayersReady(),
+          });
+        }
+      } else {
+        const snap = cashGame.getSanitizedState();
+        this.io.to(gameId).emit("CASH_WAITING_PLAYERS", {
+          cashSeats: snap.cashSeats,
+        });
+        this.io.to(gameId).emit("CASH_NEXT_HAND_READY_UPDATED", {
+          readyUserIds: cashGame.getNextHandReadyUserIds(),
+          allReady: cashGame.isAllNextHandPlayersReady(),
+        });
+      }
     }
   }
 
