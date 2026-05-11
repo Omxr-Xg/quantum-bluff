@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, Spade, Heart } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useRegisterMutation } from "../services/api";
 import { removeAuthItem, setAuthItem } from "../utils/authStorage";
@@ -48,7 +48,7 @@ export function Register() {
       secretAnswer: secretAnswer.trim(),
     }).unwrap()
 
-    console.log("✅ Inscription réussie:", response)
+    console.log("Inscription réussie:", response)
 
     removeAuthItem('userid')
     setAuthItem('token', response.token)
@@ -65,7 +65,7 @@ export function Register() {
 
     navigate("/lobby")
   } catch (err) {
-    console.error("❌ Erreur d'inscription:", err)
+    console.error("Erreur d'inscription:", err)
   }
 };
 
@@ -92,12 +92,12 @@ export function Register() {
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
         <div className="absolute top-[15%] left-[8%] animate-float-card">
           <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-6xl text-blue-300/40 font-bold">♠</div>
+            <Spade className="h-14 w-14 text-blue-300/40" aria-hidden strokeWidth={1.75} />
           </div>
         </div>
         <div className="absolute top-[55%] right-[12%] animate-float-card-delayed" style={{ animationDelay: "1s" }}>
           <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 -rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-6xl text-blue-300/40 font-bold">♥</div>
+            <Heart className="h-14 w-14 text-red-400/50" aria-hidden strokeWidth={1.75} />
           </div>
         </div>
       </div>

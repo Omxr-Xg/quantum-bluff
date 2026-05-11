@@ -7,19 +7,18 @@ import { usePokerSocket, usePokerGame, usePokerDeck } from "../hooks";
  * Cette page montre comment utiliser l'architecture propre avec les hooks customs
  */
 export function GameExample() {
-  // 🎣 Hook pour la connexion WebSocket
   const { isConnected, sendAction, joinGame, leaveGame, error } = usePokerSocket({
     gameId: "room-123",
     playerId: "user-456",
     onGameStateUpdate: (newState) => {
-      console.log("📡 État du jeu mis à jour:", newState);
+      console.log("[GameExample] game state:", newState);
     },
     onError: (err) => {
-      console.error("❌ Erreur:", err);
+      console.error("[GameExample] error:", err);
     },
   });
 
-  // 🎮 Hook pour gérer l'état du jeu
+  // État du jeu (local)
   const {
     phase,
     pot,
@@ -31,13 +30,13 @@ export function GameExample() {
     allPlayersActed,
   } = usePokerGame();
 
-  // 🃏 Hook pour gérer le deck
+  // Deck
   const { generateDeck, drawCard, drawCards, burnCard, cardsRemaining } = usePokerDeck();
 
   // Initialisation : générer le deck au chargement
   useEffect(() => {
     const newDeck = generateDeck();
-    console.log("🎴 Deck généré:", newDeck.length, "cartes");
+    console.log("[GameExample] deck:", newDeck.length, "cards");
   }, [generateDeck]);
 
   // Rejoindre la partie au chargement
@@ -74,21 +73,21 @@ export function GameExample() {
       case "preflop": {
         burnCard();
         const flopCards = drawCards(3);
-        console.log("🎴 Flop:", flopCards);
+        console.log("[GameExample] flop:", flopCards);
         nextPhase();
         break;
       }
       case "flop": {
         burnCard();
         const turnCard = drawCard();
-        console.log("🎴 Turn:", turnCard);
+        console.log("[GameExample] turn:", turnCard);
         nextPhase();
         break;
       }
       case "turn": {
         burnCard();
         const riverCard = drawCard();
-        console.log("🎴 River:", riverCard);
+        console.log("[GameExample] river:", riverCard);
         nextPhase();
         break;
       }
@@ -103,21 +102,21 @@ export function GameExample() {
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">🎰 Exemple d'utilisation des Hooks</h1>
+        <h1 className="text-3xl font-bold mb-8">Exemple d&apos;utilisation des hooks</h1>
         
         {/* Statut de connexion */}
         <div className="bg-slate-800 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">📡 Connexion</h2>
+          <h2 className="text-xl font-semibold mb-4">Connexion</h2>
           <div className="flex items-center gap-3">
             <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
             <span>{isConnected ? 'Connecté au serveur' : 'Déconnecté'}</span>
           </div>
-          {error && <p className="text-red-400 mt-2">❌ {error}</p>}
+          {error && <p className="text-red-400 mt-2">Erreur : {error}</p>}
         </div>
 
         {/* État du jeu */}
         <div className="bg-slate-800 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">🎮 État du jeu</h2>
+          <h2 className="text-xl font-semibold mb-4">État du jeu</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-gray-400">Phase</p>
@@ -140,7 +139,7 @@ export function GameExample() {
 
         {/* Actions */}
         <div className="bg-slate-800 rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">🎯 Actions</h2>
+          <h2 className="text-xl font-semibold mb-4">Actions</h2>
           <div className="flex gap-3">
             <button
               onClick={() => handlePlayerAction("fold")}
@@ -165,7 +164,7 @@ export function GameExample() {
 
         {/* Code example */}
         <div className="mt-8 bg-slate-800 rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">💻 Code utilisé :</h3>
+          <h3 className="text-lg font-semibold mb-4">Code utilisé</h3>
           <pre className="bg-slate-900 p-4 rounded overflow-x-auto text-sm">
 {`// Hooks personnalisés
 const { sendAction } = usePokerSocket({ ... });

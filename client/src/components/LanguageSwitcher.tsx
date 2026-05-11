@@ -1,16 +1,16 @@
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Globe2 } from "lucide-react";
+import { Check, Globe2 } from "lucide-react";
 
 const PANEL_W = 56; // w-14
 
 const allLanguages = [
-  { code: "fr", flag: "🇫🇷" },
-  { code: "en", flag: "🇬🇧" },
-  { code: "es", flag: "🇪🇸" },
-  { code: "ar", flag: "🇸🇦" },
-  { code: "uk", flag: "🇺🇦" },
+  { code: "fr", label: "FR" },
+  { code: "en", label: "EN" },
+  { code: "es", label: "ES" },
+  { code: "ar", label: "AR" },
+  { code: "uk", label: "UK" },
 ] as const;
 
 type LanguageSwitcherProps = {
@@ -106,10 +106,10 @@ export const LanguageSwitcher = ({ className = "", buttonClassName = "" }: Langu
                       : "text-gray-300"
                   }`}
                 >
-                  <span className="text-xl leading-none">{lang.flag}</span>
+                  <span className="text-xs font-bold tracking-wide">{lang.label}</span>
                   {(i18n.language === lang.code || i18n.language.startsWith(lang.code + "-")) && (
-                    <span className="absolute right-1 top-1/2 -translate-y-1/2 text-xs leading-none" aria-hidden>
-                      ✓
+                    <span className="absolute right-1 top-1/2 -translate-y-1/2" aria-hidden>
+                      <Check className="h-3.5 w-3.5 text-emerald-400" strokeWidth={3} />
                     </span>
                   )}
                 </button>

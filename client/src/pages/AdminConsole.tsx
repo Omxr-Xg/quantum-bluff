@@ -14,6 +14,7 @@ import {
   Shield,
   Trash2,
   Gift,
+  ClipboardList,
 } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
 import { clearAuthStorage } from "../utils/userProfile";
@@ -237,7 +238,7 @@ export function AdminConsole() {
         return;
       }
 
-      setCodeSuccess(`✅ Code créé: ${codeForm.code}`);
+      setCodeSuccess(`Code créé : ${codeForm.code}`);
       setCodeForm({
         code: "",
         amount: 500,
@@ -1149,7 +1150,10 @@ export function AdminConsole() {
             </div>
 
             <div className="rounded-2xl border border-slate-600 bg-slate-800/40 p-6">
-              <h3 className="mb-4 text-lg font-bold text-white">📋 Codes existants</h3>
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">
+                <ClipboardList className="h-5 w-5 text-emerald-300 shrink-0" aria-hidden />
+                Codes existants
+              </h3>
 
               {codeLoading && giftCodes.length === 0 && <p className="text-slate-400">Chargement...</p>}
 

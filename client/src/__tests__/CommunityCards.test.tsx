@@ -44,7 +44,7 @@ describe('CommunityCards - Cartes affichées', () => {
     ];
     render(<CommunityCards cards={cards} pot={100} />);
     
-    // 🛠️ MODIFIÉ ICI : On cherche l'attribut 'alt' de la nouvelle balise <img>
+    // On cherche l'attribut 'alt' de la nouvelle balise <img>
     expect(screen.getByAltText('Carte A de hearts')).toBeDefined();
   });
 
@@ -58,7 +58,7 @@ describe('CommunityCards - Cartes affichées', () => {
     ];
     render(<CommunityCards cards={cards} pot={0} />);
     
-    // 🛠️ MODIFIÉ ICI : On vérifie que les images des cartes J et 10 sont bien là
+    // On vérifie que les images des cartes J et 10 sont bien là
     expect(screen.getByAltText('Carte J de spades')).toBeDefined();
     expect(screen.getByAltText('Carte 10 de diamonds')).toBeDefined();
   });

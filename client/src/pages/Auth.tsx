@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Heart } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import {
   useCheckEmailMutation,
@@ -13,7 +13,7 @@ import {
 import { persistGamificationFromAuthUser } from "../utils/gamificationStorage";
 import { getAuthItem, removeAuthItem, setAuthItem } from "../utils/authStorage";
 
-// 👇 IMPORT DU HOOK LOADER
+// Hook loader
 import { useLoader } from "../contexts/LoaderContext";
 import { socket } from "../services/socket";
 
@@ -24,7 +24,7 @@ const SECRET_QUESTION_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 export function Auth() {
   const { t } = useTranslation();
   
-  // 👇 INITIALISATION DU LOADER
+  // Initialisation du loader
   const { showLoader, hideLoader } = useLoader();
 
   const [step, setStep] = useState<Step>("email");
@@ -100,7 +100,7 @@ export function Auth() {
     } catch {
       // Error handled by checkError
     } finally {
-      hideLoader(); // 🔴 ON CACHE LE LOADER
+      hideLoader();
     }
   };
 
@@ -117,7 +117,7 @@ export function Auth() {
 
       const token = response.token;
 
-      // ✅ STOCKAGE
+      // Stockage session
       removeAuthItem("userid");
       removeAuthItem("role");
       setAuthItem("token", token);
@@ -139,7 +139,7 @@ export function Auth() {
 
       persistGamificationFromAuthUser(response.user as unknown as Record<string, unknown>);
 
-      // 🔥🔥🔥 FIX SOCKET ICI
+      // Reconnexion socket après auth
       socket.disconnect(); // clean ancien état
       socket.auth = { token }; // inject token
       socket.connect(); // reconnect propre
@@ -159,7 +159,7 @@ export function Auth() {
     e.preventDefault();
     if (!isRegisterFormValid) return;
     try {
-      showLoader(t("auth.registering") || "Création de votre compte..."); // 🟢 ON AFFICHE LE LOADER
+      showLoader(t("auth.registering") || "Création de votre compte...");
       const response = await register({
         username: username.trim(),
         email: email.trim(),
@@ -195,7 +195,7 @@ export function Auth() {
     } catch {
       // Error handled by registerError
     } finally {
-      hideLoader(); // 🔴 ON CACHE LE LOADER
+      hideLoader();
     }
   };
 
@@ -263,7 +263,7 @@ export function Auth() {
       const data = err && typeof err === "object" && "data" in err ? (err as { data?: { error?: string } }).data : undefined;
       setResetPasswordError(data?.error ?? t("common.error"));
     } finally {
-      hideLoader(); // 🔴 ON CACHE LE LOADER
+      hideLoader();
     }
   };
 
@@ -306,7 +306,7 @@ export function Auth() {
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
         <div className="absolute top-[15%] left-[8%] animate-float-card">
           <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-6xl text-blue-300/40 font-bold">♠</div>
+            <Spade className="h-14 w-14 text-blue-300/40" aria-hidden strokeWidth={1.75} />
           </div>
         </div>
         <div
@@ -314,7 +314,7 @@ export function Auth() {
           style={{ animationDelay: "1s" }}
         >
           <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 -rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-6xl text-blue-300/40 font-bold">♥</div>
+            <Heart className="h-14 w-14 text-red-400/50" aria-hidden strokeWidth={1.75} />
           </div>
         </div>
       </div>

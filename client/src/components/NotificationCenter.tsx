@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, Gamepad2, UserPlus, Check, X, MessageCircle, Info } from "lucide-react";
+import { Bell, Gamepad2, UserPlus, Check, X, MessageCircle, Info, Spade } from "lucide-react";
 import { cn } from "./ui/utils";
 import { useSocket } from "../hooks/useSocket";
 import { useInvitationAccept } from "../contexts/InvitationAcceptContext";
@@ -356,8 +356,20 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
                         {t("invitation.title", { username: inv.sender.username })}
                       </p>
 
-                      <p className="text-indigo-300/80 text-xs truncate flex items-center gap-1">
-                        {inv.game === 'blackjack' ? '🃏 Blackjack' : '♠️ Texas Hold\'em'} — {inv.roomName}
+                      <p className="text-indigo-300/80 text-xs truncate flex items-center gap-1.5">
+                        {inv.game === "blackjack" ? (
+                          <>
+                            <Gamepad2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            <span>Blackjack</span>
+                          </>
+                        ) : (
+                          <>
+                            <Spade className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            <span>Texas Hold&apos;em</span>
+                          </>
+                        )}
+                        <span className="text-indigo-200/50">—</span>
+                        <span className="truncate">{inv.roomName}</span>
                       </p>
 
                       <div className="flex gap-2 mt-2">

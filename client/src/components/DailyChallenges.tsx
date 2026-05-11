@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { CheckCircle, Target } from "lucide-react";
 import { useUser } from "../hooks/useUser";
 import { apiUrl } from "../utils/apiBase";
@@ -24,7 +24,7 @@ export function DailyChallenges() {
 
   const { userId } = useUser();
 
-  const fetchChallenges = async () => {
+  const fetchChallenges = useCallback(async () => {
     if (!userId) {
       setChallenges([]);
       setErrorKey(null);
@@ -60,11 +60,19 @@ export function DailyChallenges() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     void fetchChallenges();
-  }, [userId]);
+  }, [fetchChallenges]);
+
+  useEffect(() => {
+    const onRewards = () => {
+      void fetchChallenges();
+    };
+    window.addEventListener("user-rewards-updated", onRewards);
+    return () => window.removeEventListener("user-rewards-updated", onRewards);
+  }, [fetchChallenges]);
 
   const handleClaim = async (challengeCode: string) => {
     try {

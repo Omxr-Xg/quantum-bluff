@@ -1,4 +1,21 @@
-import { X, Trophy, TrendingUp, Award, Coins } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  X,
+  Trophy,
+  TrendingUp,
+  Award,
+  Coins,
+  Target,
+  Layers,
+  Boxes,
+  BarChart3,
+  Gem,
+  Crown,
+  Star,
+  Sparkles,
+  User,
+  Spade,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
@@ -20,19 +37,19 @@ export function HiddenBetsResultsModal({
     .filter((bet) => bet.won)
     .reduce((sum, bet) => sum + (bet.winAmount ?? 0), 0);
 
-  const getCombinationEmoji = (combination: string) => {
-    const emojis: Record<string, string> = {
-      Paire: "🎯",
-      "Double Paire": "🎲",
-      Brelan: "🎪",
-      Quinte: "📊",
-      Couleur: "💎",
-      Full: "🏆",
-      Carré: "👑",
-      "Quinte Flush": "⭐",
-      "Quinte Flush Royale": "💫",
+  const getCombinationIcon = (combination: string): LucideIcon => {
+    const icons: Record<string, LucideIcon> = {
+      Paire: Target,
+      "Double Paire": Layers,
+      Brelan: Boxes,
+      Quinte: BarChart3,
+      Couleur: Gem,
+      Full: Trophy,
+      Carré: Crown,
+      "Quinte Flush": Star,
+      "Quinte Flush Royale": Sparkles,
     };
-    return emojis[combination] ?? "🎴";
+    return icons[combination] ?? Spade;
   };
 
   const getOddsColor = (odds: number) => {
@@ -131,14 +148,31 @@ export function HiddenBetsResultsModal({
                               : "bg-purple-600 text-white"
                           }`}
                         >
-                          {bet.betType === "winner"
-                            ? `👤 ${t('hiddenBets.whoWins')}`
-                            : `🎴 ${t('hiddenBets.combinationLabel')}`}
+                          <span className="inline-flex items-center gap-1.5">
+                            {bet.betType === "winner" ? (
+                              <User className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+                            ) : (
+                              <Spade className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+                            )}
+                            {bet.betType === "winner"
+                              ? t('hiddenBets.whoWins')
+                              : t('hiddenBets.combinationLabel')}
+                          </span>
                         </div>
-                        <div className="text-yellow-300 font-bold text-base">
-                          {bet.betType === "winner"
-                            ? bet.betChoice
-                            : `${getCombinationEmoji(bet.betChoice)} ${bet.betChoice}`}
+                        <div className="flex items-center gap-2 text-yellow-300 font-bold text-base">
+                          {bet.betType === "winner" ? (
+                            bet.betChoice
+                          ) : (
+                            <>
+                              {(() => {
+                                const ComboIcon = getCombinationIcon(bet.betChoice);
+                                return (
+                                  <ComboIcon className="h-5 w-5 shrink-0 text-amber-200" aria-hidden />
+                                );
+                              })()}
+                              <span>{bet.betChoice}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -159,8 +193,9 @@ export function HiddenBetsResultsModal({
                     <div className="text-right flex-shrink-0 min-w-[120px]">
                       {bet.won ? (
                         <div className="bg-green-600 rounded-xl p-3 border-2 border-green-400">
-                          <div className="text-green-200 text-xs mb-1">
-                            💰 {t('hiddenBets.gainLabel')}
+                          <div className="flex items-center justify-end gap-1 text-green-200 text-xs mb-1">
+                            <Coins className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            {t('hiddenBets.gainLabel')}
                           </div>
                           <div className="text-white font-bold text-xl">
                             +${(bet.winAmount ?? 0).toLocaleString()}

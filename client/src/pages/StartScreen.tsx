@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Loader2, Sparkles, Crown, Gem, Zap } from "lucide-react";
+import { Loader2, Sparkles, Crown, Gem, Zap, Spade, Heart, Diamond, Club } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { DEPLOY_VISUAL_MARKER } from "../config/deployMarker";
 import i18n from "../i18n/config";
@@ -121,28 +121,28 @@ export function StartScreen() {
         {/* Carte 1 */}
         <div className="absolute top-[15%] left-[8%] animate-float-card opacity-20">
           <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-5xl text-blue-300 font-bold">♠</div>
+            <Spade className="h-12 w-12 text-blue-300" aria-hidden strokeWidth={1.75} />
           </div>
         </div>
         
         {/* Carte 2 */}
         <div className="absolute top-[55%] right-[12%] animate-float-card-delayed opacity-20" style={{ animationDelay: "1s" }}>
           <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 -rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-5xl text-blue-300 font-bold">♥</div>
+            <Heart className="h-12 w-12 text-red-400" aria-hidden strokeWidth={1.75} />
           </div>
         </div>
 
         {/* Carte 3 */}
         <div className="absolute bottom-[18%] left-[18%] animate-float-card opacity-20" style={{ animationDelay: "2s" }}>
           <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 rotate-6 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-5xl text-blue-300 font-bold">♦</div>
+            <Diamond className="h-12 w-12 text-red-400" aria-hidden strokeWidth={1.75} />
           </div>
         </div>
 
         {/* Carte 4 */}
         <div className="absolute top-[35%] right-[22%] animate-float-card-delayed opacity-20" style={{ animationDelay: "0.5s" }}>
           <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 -rotate-6 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-5xl text-blue-300 font-bold">♣</div>
+            <Club className="h-12 w-12 text-blue-300" aria-hidden strokeWidth={1.75} />
           </div>
         </div>
 

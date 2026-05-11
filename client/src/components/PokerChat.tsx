@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
-import { MessageCircle, Send, X } from "lucide-react";
+import { MessageCircle, MessagesSquare, Send, Sparkles, X } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
+import {
+  CHAT_REACTION_PREFIX,
+  ChatReactionIcon,
+  QUICK_MESSAGE_ICONS,
+} from "./chatReactionDisplay";
 
 interface PokerChatProps {
   isOpen: boolean;
@@ -16,46 +21,46 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
 
-  const pokerEmojis: { emoji: string; labelKey: string }[] = [
-    { emoji: "🃏", labelKey: "cards" },
-    { emoji: "🎰", labelKey: "casino" },
-    { emoji: "💰", labelKey: "money" },
-    { emoji: "🔥", labelKey: "onFire" },
-    { emoji: "😎", labelKey: "cool" },
-    { emoji: "🤔", labelKey: "thinking" },
-    { emoji: "😅", labelKey: "nervous" },
-    { emoji: "👑", labelKey: "king" },
-    { emoji: "⚡", labelKey: "fast" },
-    { emoji: "🎯", labelKey: "precise" },
-    { emoji: "🤝", labelKey: "gg" },
-    { emoji: "💪", labelKey: "strong" },
-    { emoji: "🎲", labelKey: "luck" },
-    { emoji: "💎", labelKey: "diamond" },
-    { emoji: "🏆", labelKey: "trophy" },
-    { emoji: "🎉", labelKey: "party" },
-    { emoji: "😱", labelKey: "shocked" },
-    { emoji: "🤯", labelKey: "mindBlown" },
-    { emoji: "🥶", labelKey: "cold" },
-    { emoji: "🤑", labelKey: "rich" },
+  const pokerReactions: { labelKey: string }[] = [
+    { labelKey: "cards" },
+    { labelKey: "casino" },
+    { labelKey: "money" },
+    { labelKey: "onFire" },
+    { labelKey: "cool" },
+    { labelKey: "thinking" },
+    { labelKey: "nervous" },
+    { labelKey: "king" },
+    { labelKey: "fast" },
+    { labelKey: "precise" },
+    { labelKey: "gg" },
+    { labelKey: "strong" },
+    { labelKey: "luck" },
+    { labelKey: "diamond" },
+    { labelKey: "trophy" },
+    { labelKey: "party" },
+    { labelKey: "shocked" },
+    { labelKey: "mindBlown" },
+    { labelKey: "cold" },
+    { labelKey: "rich" },
   ];
 
-  const quickMessages: { textKey: string; icon: string }[] = [
-    { textKey: "wellPlayed", icon: "👏" },
-    { textKey: "allIn", icon: "🚀" },
-    { textKey: "bluffing", icon: "🤫" },
-    { textKey: "whatAHand", icon: "🔥" },
-    { textKey: "luckyShot", icon: "🍀" },
-    { textKey: "heatingUp", icon: "🌶️" },
-    { textKey: "impressive", icon: "😮" },
-    { textKey: "ggWp", icon: "🤝" },
-    { textKey: "risky", icon: "⚠️" },
-    { textKey: "easy", icon: "😎" },
-    { textKey: "oops", icon: "😬" },
-    { textKey: "incredible", icon: "🤩" },
+  const quickMessages: { textKey: string }[] = [
+    { textKey: "wellPlayed" },
+    { textKey: "allIn" },
+    { textKey: "bluffing" },
+    { textKey: "whatAHand" },
+    { textKey: "luckyShot" },
+    { textKey: "heatingUp" },
+    { textKey: "impressive" },
+    { textKey: "ggWp" },
+    { textKey: "risky" },
+    { textKey: "easy" },
+    { textKey: "oops" },
+    { textKey: "incredible" },
   ];
 
-  const handleEmojiClick = (emoji: string) => {
-    onSendMessage(emoji, "emoji");
+  const handleReactionClick = (labelKey: string) => {
+    onSendMessage(`${CHAT_REACTION_PREFIX}${labelKey}`, "emoji");
     onToggle();
   };
 
@@ -63,9 +68,6 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
     onSendMessage(message, "text");
     onToggle();
   };
-
-  const emojiTabLabel = `${t("pokerChat.emojiTabPrefix")} ${t("pokerChat.tabEmojis")}`;
-  const messagesTabLabel = `${t("pokerChat.messageTabPrefix")} ${t("pokerChat.tabMessages")}`;
 
   return (
     <AnimatePresence>
@@ -80,7 +82,6 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
       <div className={`pointer-events-auto flex flex-col overflow-hidden rounded-2xl border border-blue-300/45 bg-gradient-to-br from-slate-950/96 via-slate-900/96 to-blue-950/92 shadow-[0_24px_70px_rgba(2,6,23,0.58),0_0_34px_rgba(59,130,246,0.20)] backdrop-blur-xl max-h-[min(56vh,28rem)] ${
         isMobile ? "w-[calc(100vw-1.5rem)]" : "w-[min(24rem,calc(100vw-2rem))]"
       }`}>
-        {/* Header */}
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-slate-700 shrink-0">
           <div className="flex items-center gap-2 sm:gap-3">
             <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400 shrink-0" />
@@ -99,7 +100,6 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-slate-700 shrink-0">
           <button
             onClick={() => setActiveTab("emojis")}
@@ -109,7 +109,10 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
                 : "text-gray-400 hover:text-white"
             }`}
           >
-            {emojiTabLabel}
+            <span className="inline-flex items-center justify-center gap-2">
+              <Sparkles className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+              {t("pokerChat.tabEmojis")}
+            </span>
           </button>
           <button
             onClick={() => setActiveTab("messages")}
@@ -119,25 +122,31 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
                 : "text-gray-400 hover:text-white"
             }`}
           >
-            {messagesTabLabel}
+            <span className="inline-flex items-center justify-center gap-2">
+              <MessagesSquare className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+              {t("pokerChat.tabMessages")}
+            </span>
           </button>
         </div>
 
-        {/* Contenu scrollable */}
         <div className="p-3 sm:p-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
           {activeTab === "emojis" ? (
             <div className={`grid gap-1.5 sm:gap-2 ${isMobile ? "grid-cols-5" : "grid-cols-6"}`}>
-              {pokerEmojis.map((item, index) => {
+              {pokerReactions.map((item) => {
                 const label = t(`pokerChat.emoji.${item.labelKey}`);
+                const payload = `${CHAT_REACTION_PREFIX}${item.labelKey}`;
                 return (
                   <button
-                    key={index}
-                    onClick={() => handleEmojiClick(item.emoji)}
+                    key={item.labelKey}
+                    onClick={() => handleReactionClick(item.labelKey)}
                     className="group relative bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-xl p-2 sm:p-3 transition-all active:scale-95 border border-slate-700 hover:border-blue-500 touch-manipulation min-h-[44px] sm:min-h-[52px] flex items-center justify-center"
                     title={label}
                     aria-label={label}
                   >
-                    <span className={`${isMobile ? "text-2xl" : "text-3xl"}`}>{item.emoji}</span>
+                    <ChatReactionIcon
+                      content={payload}
+                      className={`${isMobile ? "h-7 w-7" : "h-9 w-9"} text-amber-200/95`}
+                    />
                     {!isMobile && (
                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                         {label}
@@ -149,16 +158,19 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
             </div>
           ) : (
             <div className="space-y-1.5 sm:space-y-2">
-              {quickMessages.map((item, index) => {
+              {quickMessages.map((item) => {
                 const text = t(`pokerChat.quick.${item.textKey}`);
+                const Icon = QUICK_MESSAGE_ICONS[item.textKey];
                 return (
                   <button
-                    key={index}
+                    key={item.textKey}
                     onClick={() => handleMessageClick(text)}
                     className="w-full group bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-xl p-3 transition-all active:scale-[0.98] border border-slate-700 hover:border-blue-500 flex items-center justify-between touch-manipulation min-h-[48px]"
                   >
                     <div className="flex items-center gap-2 sm:gap-3">
-                      <span className="text-xl sm:text-2xl shrink-0">{item.icon}</span>
+                      {Icon ? (
+                        <Icon className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 text-blue-300" aria-hidden />
+                      ) : null}
                       <span className="text-white font-semibold text-sm sm:text-base truncate">{text}</span>
                     </div>
                     <Send className="w-4 h-4 text-gray-400 group-hover:text-blue-400 transition-colors shrink-0" />
@@ -169,7 +181,6 @@ export function PokerChat({ isOpen, onToggle, onSendMessage }: PokerChatProps) {
           )}
         </div>
 
-        {/* Footer - En bas, facilement accessible */}
         <div className="p-2 sm:p-3 border-t border-slate-700 bg-slate-800/50 shrink-0 flex items-center justify-between gap-2">
           <span className="text-[10px] sm:text-xs text-gray-400 truncate">{t("pokerChat.footerHint")}</span>
           <div className="flex items-center gap-1 shrink-0">

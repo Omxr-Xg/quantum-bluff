@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, forwardRef } from "react";
 import { useTranslation } from "react-i18next";
-import { X, TrendingUp, Loader2, Activity, Eye, MessageCircle } from "lucide-react";
+import { X, TrendingUp, Loader2, Activity, Eye, MessageCircle, Check } from "lucide-react";
 import { useAccessibility } from "../contexts/AccessibilityContext";
 import { NeonButton } from "./NeonButton";
 import { HandCombinationsHelpButton } from "./HandCombinationsHelpButton";
@@ -178,7 +178,10 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
         <div className="absolute top-0 md:top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full md:-translate-y-1/2 z-50 animate-bounce">
           <div className="bg-green-600 text-white px-4 py-2 md:px-8 md:py-4 rounded-xl shadow-2xl border-2 border-green-400">
             <div className="text-lg md:text-2xl font-bold text-center whitespace-nowrap">
-              ✓ {successMessage}
+              <span className="inline-flex items-center gap-1">
+                <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {successMessage}
+              </span>
             </div>
           </div>
         </div>

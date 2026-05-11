@@ -1,3 +1,5 @@
+import { SuitLucideIcon } from "./suitLucide";
+
 interface Card {
   suit: string;
   value: string;
@@ -11,16 +13,6 @@ interface HeroPlayerProps {
 }
 
 export function HeroPlayer({ name, chips, cards, colorblindMode = false }: HeroPlayerProps) {
-  const getSuitSymbol = (suit: string) => {
-    const suits: { [key: string]: string } = {
-      hearts: '♥',
-      diamonds: '♦',
-      clubs: '♣',
-      spades: '♠',
-    };
-    return suits[suit] || '';
-  };
-
   const getSuitColor = (suit: string) => {
     return suit === 'hearts' || suit === 'diamonds' ? 'text-red-600' : 'text-gray-900';
   };
@@ -56,8 +48,8 @@ export function HeroPlayer({ name, chips, cards, colorblindMode = false }: HeroP
             </div>
             
             {/* Symbole au centre */}
-            <div className={`text-6xl ${getSuitColor(card.suit)}`}>
-              {getSuitSymbol(card.suit)}
+            <div className={`flex items-center justify-center ${getSuitColor(card.suit)}`}>
+              <SuitLucideIcon suit={card.suit} className="h-14 w-14" strokeWidth={1.75} />
             </div>
             
             {/* Valeur en bas (inversée) */}

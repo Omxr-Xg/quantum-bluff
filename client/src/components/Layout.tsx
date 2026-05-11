@@ -21,6 +21,7 @@ import {
   Waves,
   History,
   Gift,
+  CalendarDays,
   AlertCircle,
 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
@@ -71,7 +72,6 @@ import { api, useSendFriendMessageMutation } from "../services/api";
 import { store } from "../store";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
-import { DEPLOY_VISUAL_MARKER } from "../config/deployMarker";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 type BalanceHistoryEntry = {
@@ -270,7 +270,20 @@ export function Layout({ children }: LayoutProps) {
       cancelled = true;
     };
   }, [location.pathname, playSfx, isAdminShell]);
-  
+
+  useEffect(() => {
+    if (isAdminShell) return;
+    const onRewards = (e: Event) => {
+      const d = (e as CustomEvent<{ source?: string }>).detail;
+      if (d?.source !== "daily_login") return;
+      void fetchDailyLoginStatus().then((s) => {
+        setDailyLoginAvailable(Boolean(s && !s.claimedToday));
+      });
+    };
+    window.addEventListener("user-rewards-updated", onRewards);
+    return () => window.removeEventListener("user-rewards-updated", onRewards);
+  }, [isAdminShell]);
+
   useEffect(() => {
     const onFocus = () => {
       if (getAuthItem("token") && !isAdminShell) {
@@ -548,7 +561,7 @@ export function Layout({ children }: LayoutProps) {
     try {
       const result = await validateGiftCode(codeInput.trim());
       if (result) {
-        setCodesSuccess(`✅ ${result.message}`);
+        setCodesSuccess(result.message);
         setCodeInput("");
         setBalance(result.newBalance);
 
@@ -977,7 +990,7 @@ export function Layout({ children }: LayoutProps) {
         title={t("dailyLogin.title")}
         aria-label={t("dailyLogin.title")}
       >
-        <Gift className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden />
+        <CalendarDays className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden />
         {dailyLoginAvailable ? (
           <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-rose-400 ring-2 ring-slate-950 motion-safe:animate-pulse" />
         ) : null}
@@ -1135,15 +1148,7 @@ export function Layout({ children }: LayoutProps) {
                 className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-slate-950/55 px-3 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.20)] backdrop-blur-md transition hover:border-blue-200/25 hover:bg-blue-950/60 md:h-11 md:px-4"
               >
                 <Home className="h-[1.05rem] w-[1.05rem] shrink-0" aria-hidden />
-                <span className="flex items-baseline gap-1.5">
-                  <span>{t("botConfig.home")}</span>
-                  <span
-                    className="text-xs font-bold tabular-nums text-cyan-200/95 sm:text-sm"
-                    title={`Build ${DEPLOY_VISUAL_MARKER}`}
-                  >
-                    {DEPLOY_VISUAL_MARKER}
-                  </span>
-                </span>
+                <span>{t("botConfig.home")}</span>
               </button>
             )}
             <div className={`${isGameHudPage ? "min-w-0 flex-1 sm:flex-none sm:shrink-0" : "min-w-0 flex-1"} overflow-x-auto overflow-y-visible py-2 scrollbar-hide`}>
@@ -1296,22 +1301,6 @@ export function Layout({ children }: LayoutProps) {
                 }}
                 aria-label={t("lobby.balanceTabGiftAria")}
                 title={t("lobby.balanceTabGiftAria")}
-                className={`group relative flex min-h-[2.75rem] w-14 shrink-0 items-center justify-center rounded-full border px-3 py-2 transition ${
-                  balanceModalTab === "codes"
-                    ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"
-                    : "border-white/8 bg-black/10 text-slate-400 hover:border-amber-300/24 hover:text-slate-100"
-                }`}
-              >
-                <Gift className="h-4 w-4" aria-hidden />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setBalanceModalTab("codes");
-                  void loadGiftCodes();
-                }}
-                aria-label="Codes cadeaux"
-                title="Codes cadeaux"
                 className={`group relative flex min-h-[2.75rem] w-14 shrink-0 items-center justify-center rounded-full border px-3 py-2 transition ${
                   balanceModalTab === "codes"
                     ? "border-amber-200/55 bg-amber-400/14 text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-amber-200/20"

@@ -51,7 +51,7 @@ export function usePokerSocket({
       
       // ws.onopen = () => {
       //   setIsConnected(true);
-      //   console.log('✅ Connecté au serveur de poker');
+      //   console.log('[poker] connected');
       // };
 
       // ws.onmessage = (event) => {
@@ -66,13 +66,13 @@ export function usePokerSocket({
 
       // ws.onclose = () => {
       //   setIsConnected(false);
-      //   console.log('❌ Déconnecté du serveur');
+      //   console.log('[poker] disconnected');
       // };
 
       // Simulation pour le développement
       setTimeout(() => {
         setIsConnected(true);
-        console.log('🎮 Mode simulation activé (usePokerSocket)');
+        console.log('[usePokerSocket] simulation mode on');
       }, 500);
 
       // Cleanup
@@ -88,7 +88,7 @@ export function usePokerSocket({
    */
   const sendAction = useCallback((action: PokerAction, amount?: number) => {
     if (!isConnected) {
-      console.warn('⚠️ Non connecté au serveur');
+      console.warn('[usePokerSocket] not connected');
       return;
     }
 
@@ -105,7 +105,7 @@ export function usePokerSocket({
     // TODO: Envoyer au serveur via WebSocket
     // ws.send(JSON.stringify(message));
 
-    console.log('📤 Action envoyée (simulation):', message);
+    console.log('[usePokerSocket] send action (sim):', message);
   }, [isConnected, playerId]);
 
   /**
@@ -121,7 +121,7 @@ export function usePokerSocket({
     };
 
     // TODO: Envoyer au serveur
-    console.log('🚪 Rejoindre la partie (simulation):', message);
+    console.log('[usePokerSocket] join game (sim):', message);
   }, [playerId]);
 
   /**
@@ -136,7 +136,7 @@ export function usePokerSocket({
     };
 
     // TODO: Envoyer au serveur
-    console.log('🚪 Quitter la partie (simulation):', message);
+    console.log('[usePokerSocket] leave game (sim):', message);
     setIsConnected(false);
   }, [playerId]);
 

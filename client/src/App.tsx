@@ -30,6 +30,7 @@ import { MiniGames } from './pages/MiniGames';
 import { TournamentLobby } from "./features/tournament/pages/TournamentLobby";
 import { TournamentRoom } from "./features/tournament/pages/TournamentRoom";
 import { TournamentWaiting } from "./features/tournament/pages/TournamentWaiting";
+import { TournamentResults } from "./features/tournament/pages/TournamentResults";
 import { AdminAuth } from "./pages/AdminAuth";
 import { AdminConsole } from "./pages/AdminConsole";
 import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
@@ -41,13 +42,13 @@ const isDev = import.meta.env.DEV;
 
 socket.on("connect_error", (err) => {
   if (isDev) {
-    console.error("❌ ERREUR DE CONNEXION SOCKET :", err.message);
+    console.error("[socket] ERREUR DE CONNEXION :", err.message);
     if (err.message === "xhr poll error") {
-      console.log("👉 Cause probable : Le serveur est éteint ou l'URL est mauvaise.");
+      console.log("Cause probable : serveur éteint ou URL incorrecte.");
     }
     if (err.message === "Not authorized" || err.message === "Invalid token") {
       console.warn(
-        "⚠️ Le Socket a rejeté le token. Déconnexion du socket uniquement (pas de vidage localStorage).",
+        "[socket] Token rejeté — déconnexion du socket uniquement (localStorage inchangé).",
       );
     }
   }
@@ -58,13 +59,13 @@ socket.on("connect_error", (err) => {
 
 socket.on("connect", () => {
   if (isDev) {
-    console.log("✅ SOCKET CONNECTÉ — id :", socket.id);
+    console.log("[socket] Connecté — id :", socket.id);
   }
 });
 
 if (isDev) {
   socket.onAny((eventName, ...args) => {
-    console.log("🌐 [SOCKET]", eventName, args);
+    console.log("[socket]", eventName, args);
   });
 }
 
@@ -106,6 +107,7 @@ function App() {
             <Route path="/waiting-room" element={<ProtectedRoute><WaitingRoom /></ProtectedRoute>} />
 
             <Route path="/tournaments" element={<ProtectedRoute><TournamentLobby /></ProtectedRoute>} />
+            <Route path="/tournaments/:id/results" element={<ProtectedRoute><TournamentResults /></ProtectedRoute>} />
             <Route path="/tournaments/:id" element={<ProtectedRoute><TournamentRoom /></ProtectedRoute>} />
             <Route path="/tournaments/:id/waiting" element={<ProtectedRoute><TournamentWaiting /></ProtectedRoute>} />
 

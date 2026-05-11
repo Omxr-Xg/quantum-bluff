@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { SuitLucideIcon } from "./suitLucide";
 
 interface PlayerTimerProps {
   playerName: string;
@@ -120,13 +121,6 @@ interface CardSymbol {
 
 export function AccessibleCard({ suit, value, showLargeSymbol = false }: CardSymbol & { showLargeSymbol?: boolean }) {
 
-  const suitSymbols = {
-    heart: "♥",
-    diamond: "♦",
-    spade: "♠",
-    club: "♣"
-  };
-
   const suitColors = {
     heart: "text-red-600",
     diamond: "text-red-600",
@@ -151,13 +145,15 @@ export function AccessibleCard({ suit, value, showLargeSymbol = false }: CardSym
 
       <div className={`absolute top-2 left-2 flex flex-col items-center ${suitColors[suit]}`}>
         <span className="text-2xl font-bold">{value}</span>
-        <span className="text-3xl leading-none">{suitSymbols[suit]}</span>
+        <SuitLucideIcon suit={suit} className="h-8 w-8" strokeWidth={2} />
       </div>
 
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className={`${suitColors[suit]} ${showLargeSymbol ? "text-6xl" : "text-4xl"}`}>
-          {suitSymbols[suit]}
-        </span>
+      <div className={`absolute inset-0 flex items-center justify-center ${suitColors[suit]}`}>
+        <SuitLucideIcon
+          suit={suit}
+          className={showLargeSymbol ? "h-16 w-16" : "h-11 w-11"}
+          strokeWidth={showLargeSymbol ? 1.6 : 2}
+        />
       </div>
     </div>
   );

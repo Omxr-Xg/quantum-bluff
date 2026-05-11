@@ -1,4 +1,4 @@
-import { X, TrendingUp, BarChart2, Target, Award, GripVertical } from "lucide-react";
+import { X, TrendingUp, BarChart2, Target, Award, GripVertical, Spade } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -221,7 +221,7 @@ export function QuantumHUD({
             <div className="px-2.5 py-1.5 bg-purple-900/20 border-b border-purple-500/30">
               <div className="text-[10px] text-purple-400 mb-0.5 uppercase tracking-wide">{t("quantumHUD.currentHand")}</div>
               <div className="text-white font-semibold flex items-center gap-1.5 text-sm">
-                <span className="text-lg leading-none" aria-hidden>🎴</span>
+                <Spade className="h-4 w-4 shrink-0 text-purple-300/90" aria-hidden strokeWidth={2} />
                 <span className="truncate">{currentHand ? t(`quantumHUD.hand.${currentHand}`) : "—"}</span>
               </div>
             </div>

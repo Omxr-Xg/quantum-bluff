@@ -1,4 +1,5 @@
-import { motion } from "motion/react"
+import { motion } from "motion/react";
+import { Trophy } from "lucide-react";
 
 interface VictoryAnimationProps {
   winner: string
@@ -14,7 +15,9 @@ export function VictoryAnimation({ winner }: VictoryAnimationProps) {
         transition={{ duration: 0.4 }}
         className="bg-gradient-to-br from-yellow-400 to-yellow-600 p-10 rounded-2xl shadow-2xl text-center"
       >
-        <div className="text-5xl mb-4">🏆</div>
+        <div className="mb-4 flex justify-center">
+          <Trophy className="h-14 w-14 text-white drop-shadow-md" aria-hidden strokeWidth={1.25} />
+        </div>
 
         <h1 className="text-2xl font-bold text-white">
           Victoire !

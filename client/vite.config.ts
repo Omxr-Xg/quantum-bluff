@@ -1,5 +1,5 @@
 /// <reference types="vitest/config" />
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type PreviewServer, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
@@ -66,37 +66,72 @@ export default defineConfig(({ mode }) => {
         })()
       : {};
 
+  /**
+   * Avec `base` non racine (ex. `/vm…/`), une URL du type `http://localhost:5175/tournaments/id`
+   * ne passe pas par Vite : 404. On redirige vers `base + chemin` (GET document / deep links).
+   */
+  function attachBasePathRedirects(server: ViteDevServer | PreviewServer): void {
+    server.middlewares.use((req, res, next) => {
+      if (!basePathWithoutTrailingSlash || req.method !== 'GET') {
+        next();
+        return;
+      }
+      if ((req.headers.upgrade ?? '').toLowerCase() === 'websocket') {
+        next();
+        return;
+      }
+      const url = req.url ?? '';
+      const q = url.indexOf('?');
+      const pathname = q >= 0 ? url.slice(0, q) : url;
+      if (pathname.startsWith(basePathWithoutTrailingSlash)) {
+        next();
+        return;
+      }
+      if (
+        pathname.startsWith('/@') ||
+        pathname.startsWith('/__') ||
+        pathname.startsWith('/node_modules') ||
+        pathname.startsWith('/src') ||
+        pathname.startsWith('/api') ||
+        pathname.startsWith('/socket.io')
+      ) {
+        next();
+        return;
+      }
+      if (/\.[a-zA-Z0-9]{1,8}$/.test(pathname)) {
+        next();
+        return;
+      }
+      const suffix = pathname === '/' ? '/' : pathname;
+      const query = q >= 0 ? url.slice(q) : '';
+      const location = `${basePathWithoutTrailingSlash}${suffix === '/' ? '/' : suffix}${query}`;
+      res.statusCode = 302;
+      res.setHeader('Location', location);
+      res.end();
+    });
+
+    server.middlewares.use((req, res, next) => {
+      const url = req.url ?? '';
+      if (
+        basePathWithoutTrailingSlash &&
+        (url === basePathWithoutTrailingSlash || url.startsWith(`${basePathWithoutTrailingSlash}?`))
+      ) {
+        res.statusCode = 302;
+        res.setHeader('Location', `${basePath}${url.slice(basePathWithoutTrailingSlash.length)}`);
+        res.end();
+        return;
+      }
+      next();
+    });
+  }
+
   const basePathRedirectPlugin = {
     name: 'base-path-trailing-slash-redirect',
     configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        const url = req.url ?? '';
-        if (
-          basePathWithoutTrailingSlash &&
-          (url === basePathWithoutTrailingSlash || url.startsWith(`${basePathWithoutTrailingSlash}?`))
-        ) {
-          res.statusCode = 302;
-          res.setHeader('Location', `${basePath}${url.slice(basePathWithoutTrailingSlash.length)}`);
-          res.end();
-          return;
-        }
-        next();
-      });
+      attachBasePathRedirects(server);
     },
     configurePreviewServer(server) {
-      server.middlewares.use((req, res, next) => {
-        const url = req.url ?? '';
-        if (
-          basePathWithoutTrailingSlash &&
-          (url === basePathWithoutTrailingSlash || url.startsWith(`${basePathWithoutTrailingSlash}?`))
-        ) {
-          res.statusCode = 302;
-          res.setHeader('Location', `${basePath}${url.slice(basePathWithoutTrailingSlash.length)}`);
-          res.end();
-          return;
-        }
-        next();
-      });
+      attachBasePathRedirects(server);
     },
   };
 

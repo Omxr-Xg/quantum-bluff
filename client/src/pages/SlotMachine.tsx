@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Coins, History, TrendingUp, Trophy, Zap } from "lucide-react";
+import { Bell, Coins, Gem, History, TrendingUp, Trophy, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "../contexts/ToastContext";
 import {
@@ -17,12 +17,16 @@ import slotSevenLucky from "../assets/slot-seven-lucky.png";
 import slotLemon from "../assets/slot-lemon.png";
 import slotCherries from "../assets/slot-cherries.png";
 
-type SlotSymbol = "🍒" | "🍊" | "💎" | "7️⃣" | "🎰";
+type SlotSymbol = "cherry" | "lemon" | "diamond" | "seven" | "bell";
 
 const SLOT_SYM_IMG_REEL_CLS =
   "relative z-10 h-[3rem] w-auto max-w-[4rem] object-contain [filter:drop-shadow(0_2px_8px_rgba(0,0,0,0.45))] sm:h-[3.5rem] sm:max-w-[4.5rem] md:h-[4rem] md:max-w-[5rem]";
 const SLOT_SYM_IMG_PAYTABLE_CLS =
   "h-9 w-auto max-w-[3rem] object-contain [filter:drop-shadow(0_2px_6px_rgba(0,0,0,0.35))] sm:h-10 sm:max-w-[3.5rem]";
+const SLOT_SYM_ICON_REEL_CLS =
+  "relative z-10 h-[3rem] w-[3rem] shrink-0 text-amber-200/95 [filter:drop-shadow(0_2px_8px_rgba(0,0,0,0.45))] sm:h-[3.5rem] sm:w-[3.5rem] md:h-[4rem] md:w-[4rem]";
+const SLOT_SYM_ICON_PAYTABLE_CLS =
+  "h-9 w-9 shrink-0 text-amber-200/90 [filter:drop-shadow(0_2px_6px_rgba(0,0,0,0.35))] sm:h-10 sm:w-10";
 
 function SlotSymbolDisplay({
   symbol,
@@ -32,36 +36,34 @@ function SlotSymbolDisplay({
   variant?: "reel" | "paytable";
 }) {
   const imgCls = variant === "reel" ? SLOT_SYM_IMG_REEL_CLS : SLOT_SYM_IMG_PAYTABLE_CLS;
+  const iconCls = variant === "reel" ? SLOT_SYM_ICON_REEL_CLS : SLOT_SYM_ICON_PAYTABLE_CLS;
 
-  if (symbol === "7️⃣") {
+  if (symbol === "seven") {
     return (
       <img src={slotSevenLucky} alt="" className={imgCls} draggable={false} aria-hidden />
     );
   }
-  if (symbol === "🍊") {
+  if (symbol === "lemon") {
     return <img src={slotLemon} alt="" className={imgCls} draggable={false} aria-hidden />;
   }
-  if (symbol === "🍒") {
+  if (symbol === "cherry") {
     return <img src={slotCherries} alt="" className={imgCls} draggable={false} aria-hidden />;
   }
-  const emojiCls =
-    variant === "reel"
-      ? "text-4xl leading-none sm:text-5xl md:text-6xl"
-      : "text-2xl leading-none sm:text-3xl";
-  return (
-    <span className={`relative z-10 ${emojiCls}`} aria-hidden>
-      {symbol}
-    </span>
-  );
+  if (symbol === "diamond") {
+    return <Gem className={iconCls} aria-hidden strokeWidth={1.25} />;
+  }
+  if (symbol === "bell") {
+    return <Bell className={iconCls} aria-hidden strokeWidth={1.25} />;
+  }
+  return null;
 }
 
-// Mapping entre les données du backend et tes émojis UI
 const API_TO_UI: Record<string, SlotSymbol> = {
-  cherry: "🍒",
-  lemon: "🍊",
-  diamond: "💎",
-  seven: "7️⃣",
-  bell: "🎰",
+  cherry: "cherry",
+  lemon: "lemon",
+  diamond: "diamond",
+  seven: "seven",
+  bell: "bell",
 };
 
 interface SlotResult {
@@ -81,13 +83,13 @@ type BalanceHistoryEntry = {
   roundId: string | null;
 };
 
-const SYMBOLS: SlotSymbol[] = ["🍒", "🍊", "💎", "7️⃣", "🎰"];
-const MULTIPLIERS = {
-  "🍒": 2,
-  "🍊": 3,
-  "💎": 5,
-  "7️⃣": 10,
-  "🎰": 50,
+const SYMBOLS: SlotSymbol[] = ["cherry", "lemon", "diamond", "seven", "bell"];
+const MULTIPLIERS: Record<SlotSymbol, number> = {
+  cherry: 2,
+  lemon: 3,
+  diamond: 5,
+  seven: 10,
+  bell: 50,
 };
 
 const REEL_SYMBOLS_COUNT = 20;
@@ -148,7 +150,7 @@ export function SlotMachine() {
     generateReelSymbols(),
   ]);
   const [result, setResult] = useState<SlotResult>({
-    symbols: ["💎", "💎", "💎"],
+    symbols: ["diamond", "diamond", "diamond"],
     isWin: false,
     winAmount: 0,
   });
@@ -316,7 +318,7 @@ export function SlotMachine() {
 
       // Application des résultats sur l'UI (Code d'Azra)
       const finalApiSymbols = data.reels;
-      const finalUiSymbols = finalApiSymbols.map((sym) => API_TO_UI[sym] ?? "🍒") as SlotSymbol[];
+      const finalUiSymbols = finalApiSymbols.map((sym) => API_TO_UI[sym] ?? "cherry") as SlotSymbol[];
       const isWin = data.winAmount > 0;
 
       setReels([
@@ -702,12 +704,23 @@ export function SlotMachine() {
         <div className="relative z-10 space-y-3">
           {Object.entries(MULTIPLIERS).map(([symbol, multiplier]) => {
             const sym = symbol as SlotSymbol;
-            const paytableLabel =
-              sym === "7️⃣"
-                ? t("slot.paytableTriple", { symbol: "7" })
-                : sym === "🍊"
-                  ? t("slot.paytableTriple", { symbol: "🍋" })
-                  : t("slot.paytableTriple", { symbol });
+            const symName = (() => {
+              switch (sym) {
+                case "cherry":
+                  return t("slot.symCherry", "Cerises");
+                case "lemon":
+                  return t("slot.symLemon", "Citron");
+                case "diamond":
+                  return t("slot.symDiamond", "Diamant");
+                case "seven":
+                  return t("slot.symSeven", "7");
+                case "bell":
+                  return t("slot.symBell", "Cloche");
+                default:
+                  return sym;
+              }
+            })();
+            const paytableLabel = t("slot.paytableTriple", { symbol: symName });
             return (
             <motion.div
               key={symbol}

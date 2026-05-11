@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Users, UserPlus, Loader2, ChevronRight } from "lucide-react";
+import { Users, UserPlus, Loader2, ChevronRight, Trophy } from "lucide-react";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import {
@@ -126,7 +126,10 @@ export function FriendsList() {
                   <p className="text-xs text-gray-400">{t('friends.level', { level: friend.level })}</p>
                 </div>
                 <div className="text-xs text-gray-400">
-                  🏆 {friend.stats?.wins || 0}
+                  <span className="inline-flex items-center gap-1">
+                    <Trophy className="h-3.5 w-3.5 text-amber-400/90 shrink-0" aria-hidden />
+                    {friend.stats?.wins || 0}
+                  </span>
                 </div>
               </div>
             ))}

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { PokerTable } from "../components/PokerTable";
 import { ArrowRight } from "lucide-react";
+import { SuitLucideIcon } from "../components/suitLucide";
 import { QuantumBluffLogo } from "../assets/logo";
 import { ChipIcon } from "../components/ChipIcon";
 import { DeckShuffleOverlay } from "../components/game/DeckShuffleOverlay";
@@ -200,16 +201,6 @@ export function GameDeal() {
     }
   };
 
-  const getSuitSymbol = (suit: string) => {
-    const suits: { [key: string]: string } = {
-      hearts: "♥",
-      diamonds: "♦",
-      clubs: "♣",
-      spades: "♠",
-    };
-    return suits[suit] || "";
-  };
-
   const getSuitColor = (suit: string) => {
     return suit === "hearts" || suit === "diamonds"
       ? "text-red-600"
@@ -332,10 +323,8 @@ export function GameDeal() {
                     >
                       {card.value}
                     </div>
-                    <div
-                      className={`text-4xl ${getSuitColor(card.suit)}`}
-                    >
-                      {getSuitSymbol(card.suit)}
+                    <div className={`flex items-center justify-center ${getSuitColor(card.suit)}`}>
+                      <SuitLucideIcon suit={card.suit} className="h-10 w-10" strokeWidth={2} />
                     </div>
                   </>
                 ) : (

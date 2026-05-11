@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { ChatReactionIcon, isChatReactionId } from "./chatReactionDisplay";
 
 interface ChatMessage {
   id: number;
@@ -62,12 +63,16 @@ function ToastMessage({ message, onRemove }: { message: ChatMessage; onRemove: (
             </div>
             <div
               className={`${
-                message.type === "emoji"
-                  ? "text-3xl"
+                message.type === "emoji" || isChatReactionId(message.content)
+                  ? "flex items-center justify-start min-h-[2.5rem]"
                   : "text-white text-sm font-medium"
               }`}
             >
-              {message.content}
+              {message.type === "emoji" || isChatReactionId(message.content) ? (
+                <ChatReactionIcon content={message.content} />
+              ) : (
+                message.content
+              )}
             </div>
           </div>
         </div>

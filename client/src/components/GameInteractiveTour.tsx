@@ -7,7 +7,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Heart, Diamond, Club, Spade } from "lucide-react";
 import { PokerCard } from "./PokerCard";
 import { ChipIcon } from "./ChipIcon";
 
@@ -110,11 +110,11 @@ function GameTourCardStrip({
     case "headerSuits":
       return (
         <div className={`${wrap} gap-2`}>
-          <div className="flex justify-center gap-4 text-3xl leading-none">
-            <span className="text-red-500 drop-shadow-sm">♥</span>
-            <span className="text-red-500 drop-shadow-sm">♦</span>
-            <span className="text-slate-200 drop-shadow-sm">♣</span>
-            <span className="text-slate-200 drop-shadow-sm">♠</span>
+          <div className="flex justify-center gap-4">
+            <Heart className="h-9 w-9 text-red-500 drop-shadow-sm" aria-hidden strokeWidth={1.75} />
+            <Diamond className="h-9 w-9 text-red-500 drop-shadow-sm" aria-hidden strokeWidth={1.75} />
+            <Club className="h-9 w-9 text-slate-200 drop-shadow-sm" aria-hidden strokeWidth={1.75} />
+            <Spade className="h-9 w-9 text-slate-200 drop-shadow-sm" aria-hidden strokeWidth={1.75} />
           </div>
         </div>
       );

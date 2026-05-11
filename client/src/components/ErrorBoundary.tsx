@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import { AlertTriangle } from "lucide-react";
 import { reportError } from "../utils/errorReporting";
 
 interface Props {
@@ -35,7 +36,9 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="fixed inset-0 z-[100000] flex flex-col items-center justify-center p-6 bg-slate-950 text-white">
           <div className="max-w-md w-full text-center p-8 bg-slate-900 border border-purple-500/30 rounded-2xl shadow-[0_0_40px_rgba(168,85,247,0.15)]">
-            <h2 className="text-3xl mb-4">💥</h2>
+            <div className="mb-4 flex justify-center">
+              <AlertTriangle className="h-12 w-12 text-amber-400" aria-hidden strokeWidth={1.5} />
+            </div>
             <h2 className="text-xl font-bold text-slate-100 mb-2">Anomalie système</h2>
             
             <p className="text-sm text-slate-400 mb-6">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2, Spade, Heart } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useLoginMutation } from "../services/api";
 import { removeAuthItem, setAuthItem } from "../utils/authStorage";
@@ -24,7 +24,7 @@ export function Login() {
 
   try {
     const response = await login({ email, password }).unwrap()
-    console.log("✅ Connexion réussie:", response)
+    console.log("Connexion réussie:", response)
 
     removeAuthItem('userid')
     setAuthItem('token', response.token)
@@ -47,7 +47,7 @@ export function Login() {
 
     navigate(from, { replace: true })
   } catch (err) {
-    console.error("❌ Erreur de connexion:", err)
+    console.error("Erreur de connexion:", err)
   }
 };
 
@@ -67,13 +67,13 @@ export function Login() {
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
         <div className="absolute top-[15%] left-[8%] animate-float-card">
           <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-6xl text-blue-300/40 font-bold">♠</div>
+            <Spade className="h-14 w-14 text-blue-300/40" aria-hidden strokeWidth={1.75} />
           </div>
         </div>
         
         <div className="absolute top-[55%] right-[12%] animate-float-card-delayed" style={{ animationDelay: "1s" }}>
           <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 -rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <div className="text-6xl text-blue-300/40 font-bold">♥</div>
+            <Heart className="h-14 w-14 text-red-400/50" aria-hidden strokeWidth={1.75} />
           </div>
         </div>
       </div>

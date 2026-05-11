@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { Trophy } from "lucide-react";
 import { PokerCard } from "./PokerCard";
 import { ChipIcon } from "./ChipIcon";
 import { useAccessibility } from "../contexts/AccessibilityContext";
@@ -82,7 +83,9 @@ export function ShowdownDisplay({ winner, winnerCards, onClose }: ShowdownDispla
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-center mb-6">
-            <div className="text-6xl mb-4">🏆</div>
+            <div className="mb-4 flex justify-center">
+              <Trophy className="h-16 w-16 text-amber-400 drop-shadow-lg" aria-hidden strokeWidth={1.25} />
+            </div>
             <h2 className="text-3xl font-bold text-white mb-2">{t('showdown.title')}</h2>
           </div>
 

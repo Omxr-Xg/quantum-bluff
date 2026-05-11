@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Gift, X, Flame, Check } from "lucide-react";
+import { CalendarDays, X, Flame, Check } from "lucide-react";
 import {
   claimDailyLoginDetailed,
   fetchDailyLoginStatusDetailed,
@@ -96,7 +96,7 @@ export function DailyLoginModal({ open, onClose, onClaimed }: DailyLoginModalPro
         <div className="relative z-10">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-amber-300" aria-hidden />
+              <CalendarDays className="h-5 w-5 text-amber-300" aria-hidden />
               <h3 className="text-xl font-bold text-amber-100">{t("dailyLogin.title")}</h3>
             </div>
             <button

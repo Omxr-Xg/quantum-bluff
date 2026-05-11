@@ -13,7 +13,19 @@ import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
-import { DoorOpen, Menu, Loader2, X, Sparkles, Trophy, Activity, Info } from "lucide-react";
+import {
+  Activity,
+  Banknote,
+  DoorOpen,
+  Info,
+  Loader2,
+  Menu,
+  PauseCircle,
+  Skull,
+  Sparkles,
+  Trophy,
+  X,
+} from "lucide-react";
 import { useDeviceType } from "../components/ui/use-mobile";
 import { useUser } from "../hooks/useUser";
 import { useAccessibility } from "../contexts/AccessibilityContext";
@@ -61,6 +73,9 @@ import { censorChatLinks, isChatContentEffectivelyEmpty } from "../utils/chatLin
 
 /** Aligné sur `server/src/shared/practiceBotGames.ts` — parties bots via `/api/game/bot/start`. */
 const PRACTICE_BOT_GAME_ID_PREFIX = "practice-bot-";
+
+/** Aligné sur `server/src/tournament/tournament.constants.ts` — tables bracket tournoi (wallet off). */
+const TOURNAMENT_GAME_ID_PREFIX = "game_tournament_";
 
 type Card = ClientCard;
 
@@ -1455,6 +1470,11 @@ export function Game() {
       .then((res) => {
         if (cancelled) return null;
         if (res.status === 404) {
+          const tid = searchParams.get("tournamentId");
+          if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX) && tid) {
+            navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
+            return null;
+          }
           navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
           return null;
         }
@@ -1542,7 +1562,7 @@ export function Game() {
         if (!cancelled) console.error("Erreur récupération état partie:", err);
       });
     return () => { cancelled = true; };
-  }, [gameIdParam, userId, navigate, isSpectating]);
+  }, [gameIdParam, userId, navigate, isSpectating, searchParams]);
 
   useEffect(() => {
   if (!socket || !gameIdParam) return;
@@ -1568,6 +1588,11 @@ export function Game() {
 
     const onError = (payload: { code?: string; message?: string }) => {
       if (payload?.code === "GAME_NOT_FOUND") {
+        const tid = searchParams.get("tournamentId");
+        if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX) && tid) {
+          navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
+          return;
+        }
         navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
       }
         else if (payload?.code === "ACTION_ERROR" || payload?.code === "INVALID_RAISE" || payload?.code === "TOO_MANY_ACTIONS") {
@@ -1582,7 +1607,27 @@ export function Game() {
       socket.off("GAME_CHAT", onChatMessage);
       socket.off("ERROR", onError);
     };
-  }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating]);
+  }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating, searchParams]);
+
+  useEffect(() => {
+    if (!socket || !gameIdParam || !gameIdParam.startsWith(TOURNAMENT_GAME_ID_PREFIX)) return;
+    const tidFromUrl = searchParams.get("tournamentId");
+    const onTournamentTableAssigned = (payload: {
+      tournamentId?: string;
+      gameId?: string;
+      roundNumber?: number;
+    }) => {
+      if (!payload?.gameId) return;
+      if (String(payload.gameId) === String(gameIdParam)) return;
+      const tid = payload.tournamentId ?? tidFromUrl;
+      const q = new URLSearchParams();
+      q.set("gameId", payload.gameId);
+      if (tid) q.set("tournamentId", tid);
+      navigate(`/game?${q.toString()}`, { replace: true });
+    };
+    socket.on("TOURNAMENT_TABLE_ASSIGNED", onTournamentTableAssigned);
+    return () => socket.off("TOURNAMENT_TABLE_ASSIGNED", onTournamentTableAssigned);
+  }, [socket, gameIdParam, navigate, searchParams]);
 
   useEffect(() => {
     if (!socket || !gameIdParam) return;
@@ -2028,7 +2073,49 @@ export function Game() {
       reason: string;
       pot?: number;
       roomId?: string;
+      tournamentId?: string;
+      winnerUserId?: string;
+      /** Aligné sur `TournamentTableFinishAdvance` côté serveur. */
+      tournamentAdvance?:
+        | "pending_other_tables"
+        | "next_round_spawned"
+        | "tournament_complete";
     }) => {
+      if (
+        data.reason === "TOURNAMENT_TABLE_COMPLETE" &&
+        data.tournamentId &&
+        String(data.gameId) === String(gameIdParam)
+      ) {
+        const tid = String(data.tournamentId);
+        const winner =
+          data.winnerUserId != null
+            ? String(data.winnerUserId)
+            : data.winnerId != null
+              ? String(data.winnerId)
+              : "";
+        const advance = data.tournamentAdvance ?? "pending_other_tables";
+        if (isSpectating) {
+          navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
+          return;
+        }
+        if (userId && winner && winner === String(userId)) {
+          if (advance === "next_round_spawned") {
+            /* L’autre demi-finale est déjà finie : la table suivante arrive via TOURNAMENT_TABLE_ASSIGNED — pas de Zip. */
+            return;
+          }
+          if (advance === "tournament_complete") {
+            navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
+            return;
+          }
+          navigate(`/tournaments/${encodeURIComponent(tid)}/waiting`, { replace: true });
+          return;
+        }
+        if (userId && winner) {
+          navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
+          return;
+        }
+        return;
+      }
       if (data.reason === "opponent_left" && data.winnerId != null && String(data.winnerId) === String(userId)) {
         const balanceChange = Math.round(data.pot ?? 0);
         const isPracticeBotServerGame = Boolean(
@@ -4120,19 +4207,19 @@ export function Game() {
         >
         {gameOverReason === "bot_eliminated" ? (
           <>
-            <div className="text-6xl">🏆</div>
+            <Trophy className="h-20 w-20 text-amber-400 drop-shadow-lg" aria-hidden strokeWidth={1.25} />
             <h2 className="text-4xl font-bold text-yellow-400">{t('game.victory')}</h2>
             <p className="text-slate-300">{t('game.allBotsEliminated')}</p>
           </>
         ) : gameOverReason === "human_eliminated" ? (
           <>
-            <div className="text-6xl">💥</div>
+            <Skull className="h-20 w-20 text-red-400 drop-shadow-lg" aria-hidden strokeWidth={1.25} />
             <h2 className="text-4xl font-bold text-red-400">{t('game.defeated')}</h2>
             <p className="text-slate-300">{t('game.outOfChips')}</p>
           </>
         ) : (
           <>
-            <div className="text-6xl">⏸️</div>
+            <PauseCircle className="h-20 w-20 text-amber-300/90" aria-hidden strokeWidth={1.25} />
             <h2 className="text-2xl font-bold text-amber-300">
               {t("game.practiceStuckTitle", "Partie interrompue")}
             </h2>
@@ -4193,7 +4280,7 @@ export function Game() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.98 }}
             >
-              <div className="text-6xl">💸</div>
+              <Banknote className="h-20 w-20 text-rose-300 drop-shadow-lg" aria-hidden strokeWidth={1.25} />
               <h2 className="text-3xl font-bold text-rose-300">
                 {t("game.defeated", "Defaite")}
               </h2>
@@ -4612,7 +4699,7 @@ export function Game() {
                               } ${!isMe ? "opacity-70" : ""}`}
                             >
                               {isReady
-                                ? t("game.ready", "✅ Prêt")
+                                ? t("game.ready", "Prêt")
                                 : isMe
                                   ? t("game.notReady", "Prêt ?")
                                   : t("game.notReady", "Pas prêt")}

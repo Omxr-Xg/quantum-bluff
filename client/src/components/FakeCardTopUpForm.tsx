@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Gift } from "lucide-react";
+import { Check, Gift } from "lucide-react";
 
 export type PromoDiscountInfo = {
   discountType: "FIXED_DISCOUNT" | "PERCENTAGE_DISCOUNT";
@@ -138,10 +138,16 @@ export function FakePromoCodeField({
           <span className="text-[10px] text-slate-400">{t("lobby.fakePaymentPromoValidating")}</span>
         )}
         {hasFreeCheckoutPromo && (
-          <span className="text-[10px] text-amber-200">✅ {t("lobby.fakePaymentPromoAppliedShort")}</span>
+          <span className="inline-flex items-center gap-1 text-[10px] text-amber-200">
+            <Check className="h-3 w-3 shrink-0" aria-hidden />
+            {t("lobby.fakePaymentPromoAppliedShort")}
+          </span>
         )}
         {!hasFreeCheckoutPromo && hasDiscount && (
-          <span className="text-[10px] text-emerald-400">✅ {t("lobby.fakePaymentDiscountAppliedShort")}</span>
+          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400">
+            <Check className="h-3 w-3 shrink-0" aria-hidden />
+            {t("lobby.fakePaymentDiscountAppliedShort")}
+          </span>
         )}
       </div>
       <input
