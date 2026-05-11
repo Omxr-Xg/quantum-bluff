@@ -1139,6 +1139,16 @@
     "pokerPlayerList": "Учасники",
     "pokerCloseGame": "Закрити стіл",
     "pokerCloseConfirm": "Примусово закрити цей стіл? Підключених гравців буде від’єднано.",
+    "spectate": "Спостерігати",
+    "pokerLifecycle": {
+      "between_hands": "Між роздачами",
+      "street_live": "Роздача триває",
+      "showdown": "Відкриття карт",
+      "hand_ended": "Роздачу завершено",
+      "other": "Інша фаза",
+      "unknown": "Невідомо"
+    },
+    "bjStatusEndedNoRuntime": "Завершено (немає живого столу)",
     "bjColName": "Кімната",
     "bjColHost": "Хост",
     "bjColStatus": "Статус",
@@ -1159,6 +1169,15 @@
     "tournamentsCancel": "Скасувати (повернення)",
     "tournamentsCancelConfirm": "Скасувати цей турнір у очікуванні? Бай-ін повернуть зареєстрованим гравцям.",
     "tournamentsEmpty": "Немає турнірів за цим фільтром.",
+    "tournamentOpenApp": "Відкрити в застосунку",
+    "tournamentStatus": {
+      "REGISTRATION_OPEN": "Реєстрація відкрита",
+      "STARTING": "Запуск",
+      "ROUND_IN_PROGRESS": "Раунд триває",
+      "WAITING_FOR_TABLES": "Очікування столів",
+      "COMPLETED": "Завершено",
+      "CANCELLED": "Скасовано"
+    },
     "tournamentsTables": "{{n}} стіл(ів) відкриття",
     "historyColGameId": "Гра",
     "historyColPot": "Банк",

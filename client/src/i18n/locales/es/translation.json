@@ -1134,6 +1134,16 @@
     "pokerPlayerList": "Participantes",
     "pokerCloseGame": "Cerrar mesa",
     "pokerCloseConfirm": "¿Forzar el cierre de esta mesa? Los jugadores conectados serán desconectados.",
+    "spectate": "Espectador",
+    "pokerLifecycle": {
+      "between_hands": "Entre manos",
+      "street_live": "Mano en curso",
+      "showdown": "Showdown",
+      "hand_ended": "Mano terminada",
+      "other": "Otra fase",
+      "unknown": "Desconocido"
+    },
+    "bjStatusEndedNoRuntime": "Finalizada (sin mesa en vivo)",
     "bjColName": "Sala",
     "bjColHost": "Anfitrión",
     "bjColStatus": "Estado",
@@ -1154,6 +1164,15 @@
     "tournamentsCancel": "Cancelar (reembolso)",
     "tournamentsCancelConfirm": "¿Cancelar este torneo pendiente? Se reembolsará el buy-in a los inscritos.",
     "tournamentsEmpty": "Sin torneos para este filtro.",
+    "tournamentOpenApp": "Abrir en la app",
+    "tournamentStatus": {
+      "REGISTRATION_OPEN": "Inscripciones abiertas",
+      "STARTING": "Iniciando",
+      "ROUND_IN_PROGRESS": "Ronda en curso",
+      "WAITING_FOR_TABLES": "Esperando mesas",
+      "COMPLETED": "Finalizado",
+      "CANCELLED": "Cancelado"
+    },
     "tournamentsTables": "{{n}} mesa(s) apertura",
     "historyColGameId": "Partida",
     "historyColPot": "Bote",

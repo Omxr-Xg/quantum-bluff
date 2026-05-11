@@ -1135,6 +1135,16 @@
     "pokerPlayerList": "المشاركون",
     "pokerCloseGame": "إغلاق الطاولة",
     "pokerCloseConfirm": "إغلاق هذه الطاولة بالقوة؟ سيتم قطع اتصال اللاعبين.",
+    "spectate": "مشاهدة",
+    "pokerLifecycle": {
+      "between_hands": "بين اليدين",
+      "street_live": "يد قيد اللعب",
+      "showdown": "المواجهة",
+      "hand_ended": "انتهت اليد",
+      "other": "مرحلة أخرى",
+      "unknown": "غير معروف"
+    },
+    "bjStatusEndedNoRuntime": "منتهية (لا طاولة حية)",
     "bjColName": "الغرفة",
     "bjColHost": "المضيف",
     "bjColStatus": "الحالة",
@@ -1155,6 +1165,15 @@
     "tournamentsCancel": "إلغاء (استرداد)",
     "tournamentsCancelConfirm": "إلغاء هذه البطولة المعلّقة؟ سيتم استرداد رسوم الدخول للمسجّلين.",
     "tournamentsEmpty": "لا بطولات لهذا التصفية.",
+    "tournamentOpenApp": "فتح في التطبيق",
+    "tournamentStatus": {
+      "REGISTRATION_OPEN": "التسجيل مفتوح",
+      "STARTING": "بدء",
+      "ROUND_IN_PROGRESS": "جولة جارية",
+      "WAITING_FOR_TABLES": "انتظار الطاولات",
+      "COMPLETED": "مكتمل",
+      "CANCELLED": "ملغى"
+    },
     "tournamentsTables": "{{n}} طاولة/طاولات افتتاح",
     "historyColGameId": "معرّف اللعبة",
     "historyColPot": "القدر",

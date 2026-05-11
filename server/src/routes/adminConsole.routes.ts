@@ -27,6 +27,16 @@ function generateAdminTempPassword(): string {
   return out
 }
 
+/** Libellé clé pour l’admin : clarifie « WAITING » (entre mains) vs main réellement en cours. */
+function pokerLifecycleKey(phase: string | undefined): string {
+  if (!phase) return 'unknown'
+  if (phase === 'ENDED_OPPONENT_LEFT') return 'hand_ended'
+  if (phase === 'SHOWDOWN') return 'showdown'
+  if (phase === 'WAITING') return 'between_hands'
+  if (phase === 'PREFLOP' || phase === 'FLOP' || phase === 'TURN' || phase === 'RIVER') return 'street_live'
+  return 'other'
+}
+
 function summarizeActiveGame(gameId: string, game: ActiveGame): Record<string, unknown> {
   let phase: string | undefined
   let pot: number | undefined
@@ -58,6 +68,7 @@ function summarizeActiveGame(gameId: string, game: ActiveGame): Record<string, u
         cashId: game.id,
         roomId: game.roomId,
         phase,
+        lifecycleKey: pokerLifecycleKey(phase),
         pot,
         players,
         playerCount: players.length,
@@ -81,6 +92,7 @@ function summarizeActiveGame(gameId: string, game: ActiveGame): Record<string, u
         kind: 'table',
         tableId: game.id,
         phase,
+        lifecycleKey: pokerLifecycleKey(phase),
         pot,
         players,
         playerCount: players.length,
@@ -91,12 +103,31 @@ function summarizeActiveGame(gameId: string, game: ActiveGame): Record<string, u
   }
 
   if (game instanceof CashGameController) {
-    return { gameId, kind: 'cash', cashId: game.id, roomId: game.roomId, phase, pot, players, playerCount: players.length }
+    return {
+      gameId,
+      kind: 'cash',
+      cashId: game.id,
+      roomId: game.roomId,
+      phase,
+      lifecycleKey: pokerLifecycleKey(phase),
+      pot,
+      players,
+      playerCount: players.length,
+    }
   }
   if (game instanceof GameTable) {
-    return { gameId, kind: 'table', tableId: game.id, phase, pot, players, playerCount: players.length }
+    return {
+      gameId,
+      kind: 'table',
+      tableId: game.id,
+      phase,
+      lifecycleKey: pokerLifecycleKey(phase),
+      pot,
+      players,
+      playerCount: players.length,
+    }
   }
-  return { gameId, kind: 'unknown', players, playerCount: players.length }
+  return { gameId, kind: 'unknown', players, playerCount: players.length, lifecycleKey: 'unknown' }
 }
 
 router.get('/users', async (req, res) => {
@@ -287,7 +318,7 @@ router.get('/games/blackjack-rooms', async (req, res) => {
         }
       : undefined
 
-  const [items, total] = await Promise.all([
+  const [rows, total] = await Promise.all([
     prisma.blackjackRoom.findMany({
       where,
       take,
@@ -302,7 +333,58 @@ router.get('/games/blackjack-rooms', async (req, res) => {
     }),
     prisma.blackjackRoom.count({ where }),
   ])
+  const items = rows.map((room) => {
+    const seats = room.seats ?? []
+    const gid = room.gameId?.trim() ?? ''
+    const runtimeAlive = gid.length > 0 ? Boolean(activeBlackjackGames.getSync(gid)) : false
+    const adminStatusKey =
+      gid.length > 0 && !runtimeAlive ? 'BJ_ENDED_NO_RUNTIME' : room.status
+    return {
+      ...room,
+      seats,
+      runtimeAlive,
+      adminStatusKey,
+    }
+  })
   return res.json({ items, total, take, skip })
+})
+
+router.get('/tournaments', async (req, res) => {
+  const parsed = listQuery.safeParse(req.query)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Pagination invalide' })
+  }
+  const { take, skip, q: searchRaw } = parsed.data
+  const search = searchRaw?.trim()
+  const where =
+    search && search.length > 0
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { id: { contains: search, mode: 'insensitive' as const } },
+            { host: { username: { contains: search, mode: 'insensitive' as const } } },
+          ],
+        }
+      : undefined
+  try {
+    const [items, total] = await Promise.all([
+      prisma.tournament.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { startAt: 'desc' },
+        include: {
+          host: { select: { id: true, username: true } },
+          _count: { select: { players: true } },
+        },
+      }),
+      prisma.tournament.count({ where }),
+    ])
+    return res.json({ items, total, take, skip })
+  } catch (e) {
+    console.error('[adminConsole] tournaments list', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
 })
 
 router.get('/ratings', async (req, res) => {

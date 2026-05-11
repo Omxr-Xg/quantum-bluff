@@ -1158,6 +1158,16 @@
     "pokerPlayerList": "Participants",
     "pokerCloseGame": "Close table",
     "pokerCloseConfirm": "Force-close this poker table? Connected players will be disconnected.",
+    "spectate": "Spectate",
+    "pokerLifecycle": {
+      "between_hands": "Between hands (idle)",
+      "street_live": "Hand in progress",
+      "showdown": "Showdown",
+      "hand_ended": "Hand ended",
+      "other": "Other phase",
+      "unknown": "Unknown"
+    },
+    "bjStatusEndedNoRuntime": "Finished (no live table)",
     "bjColName": "Room",
     "bjColHost": "Host",
     "bjColStatus": "Status",
@@ -1180,6 +1190,15 @@
     "tournamentsDeleteDb": "Delete (DB)",
     "tournamentsDeleteDbConfirm": "Permanently delete this tournament? Only for completed or cancelled status.",
     "tournamentsEmpty": "No tournaments for this filter.",
+    "tournamentOpenApp": "Open in app",
+    "tournamentStatus": {
+      "REGISTRATION_OPEN": "Registration open",
+      "STARTING": "Starting",
+      "ROUND_IN_PROGRESS": "Round in progress",
+      "WAITING_FOR_TABLES": "Waiting for tables",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
     "tournamentsTables": "{{n}} opening table(s)",
     "waitingRoomsColName": "Room",
     "waitingRoomsColHost": "Host",

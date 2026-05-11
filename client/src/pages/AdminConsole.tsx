@@ -15,14 +15,32 @@ import {
   Trash2,
   Gift,
   ClipboardList,
+  Eye,
 } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
 import { clearAuthStorage } from "../utils/userProfile";
 import { getAuthItem } from "../utils/authStorage";
 
-type Tab = "users" | "history" | "poker" | "bj" | "waitingRooms" | "ratings" | "reports" | "giftCodes";
+type Tab =
+  | "users"
+  | "history"
+  | "poker"
+  | "bj"
+  | "waitingRooms"
+  | "tournaments"
+  | "ratings"
+  | "reports"
+  | "giftCodes";
 
 const PAGE_SIZE = 25;
+
+/** Chemin app joueur (basename Vite) pour ouvrir /game, /blackjack, /tournaments depuis la console admin. */
+function playerAppHref(pathAndQuery: string): string {
+  const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+  const pq = pathAndQuery.startsWith("/") ? pathAndQuery : `/${pathAndQuery}`;
+  const combined = base ? `${base}${pq}` : pq;
+  return new URL(combined, window.location.origin).toString();
+}
 
 function authHeaders(): HeadersInit {
   const token = getAuthItem("token");
@@ -38,6 +56,7 @@ type PokerRow = {
   roomId?: string;
   cashId?: string;
   phase?: string;
+  lifecycleKey?: string;
   pot?: number;
   playerCount?: number;
   players?: Array<{
@@ -71,8 +90,22 @@ type BjRoom = {
   name: string;
   status: string;
   gameId: string | null;
-  host: { username: string };
-  seats: Array<{ user: { username: string; id: string } }>;
+  host?: { username: string } | null;
+  seats?: Array<{ user: { username: string; id: string } }>;
+  runtimeAlive?: boolean;
+  adminStatusKey?: string;
+};
+
+type TournamentAdminRow = {
+  id: string;
+  name: string;
+  status: string;
+  maxPlayers: number;
+  initialStack: number;
+  startAt: string;
+  currentRoundNumber: number;
+  host?: { username: string; id: string } | null;
+  _count?: { players: number };
 };
 
 type RatingRow = {
@@ -272,7 +305,8 @@ export function AdminConsole() {
         const p = new URLSearchParams();
         if (debouncedSearch) p.set("q", debouncedSearch);
         path = `/api/admin/console/games/active-poker?${p.toString()}`;
-      }       else if (tab === "bj") path = `/api/admin/console/games/blackjack-rooms?${listParams}`;
+      } else if (tab === "bj") path = `/api/admin/console/games/blackjack-rooms?${listParams}`;
+      else if (tab === "tournaments") path = `/api/admin/console/tournaments?${listParams}`;
       else if (tab === "waitingRooms") path = `/api/admin/console/waiting-rooms?${listParams}`;
       else if (tab === "reports") path = `/api/admin/console/player-reports?${listParams}`;
       else if (tab === "giftCodes") {
@@ -471,6 +505,7 @@ export function AdminConsole() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "poker", label: t("adminConsole.tabPokerActive") },
     { id: "bj", label: t("adminConsole.tabBlackjack") },
+    { id: "tournaments", label: t("adminConsole.tabTournaments") },
     { id: "waitingRooms", label: t("adminConsole.tabWaitingRooms") },
     { id: "users", label: t("adminConsole.tabPlayers") },
     { id: "history", label: t("adminConsole.tabHistory") },
@@ -601,7 +636,9 @@ export function AdminConsole() {
           <p className="text-xs text-slate-500 sm:max-w-xs">
             {tab === "waitingRooms"
               ? t("adminConsole.filterHintWaitingRooms")
-              : t("adminConsole.filterHint")}
+              : tab === "tournaments"
+                ? t("adminConsole.filterHintTournaments")
+                : t("adminConsole.filterHint")}
           </p>
         </div>
 
@@ -641,6 +678,16 @@ export function AdminConsole() {
                           <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs text-slate-200">
                             {row.kind ?? "—"}
                           </span>
+                          {row.lifecycleKey && (
+                            <span
+                              className="rounded-md bg-emerald-950/60 px-2 py-0.5 text-xs text-emerald-200"
+                              title={row.phase ?? ""}
+                            >
+                              {t(`adminConsole.pokerLifecycle.${row.lifecycleKey}`, {
+                                defaultValue: row.lifecycleKey,
+                              })}
+                            </span>
+                          )}
                           {row.phase && (
                             <span className="rounded-md bg-violet-900/50 px-2 py-0.5 text-xs text-violet-200">
                               {row.phase}
@@ -648,14 +695,32 @@ export function AdminConsole() {
                           )}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => void closePokerGame(row.gameId)}
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-red-600/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        {t("adminConsole.pokerCloseGame")}
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            window.open(
+                              playerAppHref(
+                                `/game?gameId=${encodeURIComponent(row.gameId)}&spectate=1`,
+                              ),
+                              "_blank",
+                              "noopener,noreferrer",
+                            )
+                          }
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-500 bg-slate-700/80 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-600"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          {t("adminConsole.spectate")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void closePokerGame(row.gameId)}
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-red-600/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          {t("adminConsole.pokerCloseGame")}
+                        </button>
+                      </div>
                     </div>
                     {row.roomId && (
                       <p className="mb-2 text-xs text-slate-400">
@@ -762,7 +827,7 @@ export function AdminConsole() {
 
         {tab === "bj" && json && listPayload?.items && (
           <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[860px] text-left text-sm">
               <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-3 py-3">{t("adminConsole.bjColName")}</th>
@@ -774,25 +839,115 @@ export function AdminConsole() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700/80">
-                {(listPayload.items as BjRoom[]).map((room) => (
-                  <tr key={room.id} className="text-slate-200">
-                    <td className="px-3 py-2 font-medium">{room.name}</td>
-                    <td className="px-3 py-2">{room.host?.username ?? "—"}</td>
+                {(listPayload.items as BjRoom[]).map((room) => {
+                  const seatCount = room.seats?.length ?? 0;
+                  const statusShown =
+                    room.adminStatusKey === "BJ_ENDED_NO_RUNTIME"
+                      ? t("adminConsole.bjStatusEndedNoRuntime")
+                      : room.status;
+                  const gid = room.gameId?.trim() ?? "";
+                  return (
+                    <tr key={room.id} className="text-slate-200">
+                      <td className="px-3 py-2 font-medium">{room.name}</td>
+                      <td className="px-3 py-2">{room.host?.username ?? "—"}</td>
+                      <td className="px-3 py-2">
+                        <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs">{statusShown}</span>
+                      </td>
+                      <td className="px-3 py-2">{seatCount}</td>
+                      <td className="px-3 py-2 font-mono text-xs text-slate-400">
+                        {room.gameId ?? "—"}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-2">
+                          {gid.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                window.open(
+                                  playerAppHref(
+                                    `/blackjack/table/${encodeURIComponent(gid)}?spectate=1`,
+                                  ),
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                )
+                              }
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-500 bg-slate-700/80 px-2 py-1 text-xs font-semibold text-white hover:bg-slate-600"
+                            >
+                              <Eye className="h-3 w-3" />
+                              {t("adminConsole.spectate")}
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => void closeBlackjackRoom(room.id)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-red-600/85 px-2 py-1 text-xs font-semibold text-white hover:bg-red-500"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            {t("adminConsole.blackjackCloseRoom")}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {listPayload.items.length === 0 && (
+              <p className="py-12 text-center text-slate-500">{t("adminConsole.blackjackEmpty")}</p>
+            )}
+          </div>
+        )}
+
+        {tab === "tournaments" && json && listPayload?.items && (
+          <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
+            <p className="px-3 py-2 text-xs text-slate-400">{t("adminConsole.tournamentsCreateHint")}</p>
+            <p className="px-3 pb-2 text-xs text-slate-400">
+              {totalCount != null ? (
+                <>
+                  {t("adminConsole.totalCount")}: <span className="text-slate-200">{totalCount}</span>
+                </>
+              ) : null}
+            </p>
+            <table className="w-full min-w-[920px] text-left text-sm">
+              <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColName")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColStatus")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColPlayers")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColStart")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.tournamentsColCreator")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.colActions")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/80">
+                {(listPayload.items as TournamentAdminRow[]).map((row) => (
+                  <tr key={row.id} className="text-slate-200">
                     <td className="px-3 py-2">
-                      <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs">{room.status}</span>
+                      <span className="font-medium text-white">{row.name}</span>
+                      <div className="font-mono text-[10px] text-slate-500">{row.id}</div>
                     </td>
-                    <td className="px-3 py-2">{room.seats.length}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-slate-400">
-                      {room.gameId ?? "—"}
+                    <td className="px-3 py-2">
+                      <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs">
+                        {t(`adminConsole.tournamentStatus.${row.status}`, { defaultValue: row.status })}
+                      </span>
                     </td>
+                    <td className="px-3 py-2">
+                      {row._count?.players ?? 0}
+                      <span className="text-slate-500"> / {row.maxPlayers}</span>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-400">
+                      {new Date(row.startAt).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2">{row.host?.username ?? "—"}</td>
                     <td className="px-3 py-2">
                       <button
                         type="button"
-                        onClick={() => void closeBlackjackRoom(room.id)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-red-600/85 px-2 py-1 text-xs font-semibold text-white hover:bg-red-500"
+                        onClick={() =>
+                          window.open(playerAppHref(`/tournaments/${encodeURIComponent(row.id)}`), "_blank", "noopener,noreferrer")
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg border border-amber-600/50 bg-amber-950/40 px-2 py-1 text-xs font-semibold text-amber-100 hover:bg-amber-900/50"
                       >
-                        <Trash2 className="h-3 w-3" />
-                        {t("adminConsole.blackjackCloseRoom")}
+                        {t("adminConsole.tournamentOpenApp")}
                       </button>
                     </td>
                   </tr>
@@ -800,7 +955,7 @@ export function AdminConsole() {
               </tbody>
             </table>
             {listPayload.items.length === 0 && (
-              <p className="py-12 text-center text-slate-500">{t("adminConsole.blackjackEmpty")}</p>
+              <p className="py-12 text-center text-slate-500">{t("adminConsole.tournamentsEmpty")}</p>
             )}
           </div>
         )}
@@ -1006,7 +1161,7 @@ export function AdminConsole() {
         )}
 
         {tab !== "poker" &&
-          ["users", "history", "bj", "waitingRooms", "ratings", "reports"].includes(tab) &&
+          ["users", "history", "bj", "tournaments", "waitingRooms", "ratings", "reports"].includes(tab) &&
           json &&
           totalCount != null &&
           totalCount > PAGE_SIZE && (

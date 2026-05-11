@@ -1158,6 +1158,16 @@
     "pokerPlayerList": "Participants",
     "pokerCloseGame": "Fermer la table",
     "pokerCloseConfirm": "Forcer la fermeture de cette table ? Les joueurs connectés seront déconnectés.",
+    "spectate": "Spectater",
+    "pokerLifecycle": {
+      "between_hands": "Entre deux mains",
+      "street_live": "Main en cours",
+      "showdown": "Abattage",
+      "hand_ended": "Main terminée",
+      "other": "Autre phase",
+      "unknown": "Inconnu"
+    },
+    "bjStatusEndedNoRuntime": "Terminée (plus de table live)",
     "bjColName": "Salle",
     "bjColHost": "Hôte",
     "bjColStatus": "Statut",
@@ -1180,6 +1190,15 @@
     "tournamentsDeleteDb": "Supprimer (BDD)",
     "tournamentsDeleteDbConfirm": "Supprimer définitivement ce tournoi ? Uniquement pour statut terminé ou annulé.",
     "tournamentsEmpty": "Aucun tournoi pour ce filtre.",
+    "tournamentOpenApp": "Ouvrir dans l’app",
+    "tournamentStatus": {
+      "REGISTRATION_OPEN": "Inscriptions ouvertes",
+      "STARTING": "Démarrage",
+      "ROUND_IN_PROGRESS": "Manche en cours",
+      "WAITING_FOR_TABLES": "En attente des tables",
+      "COMPLETED": "Terminé",
+      "CANCELLED": "Annulé"
+    },
     "tournamentsTables": "{{n}} table(s) ouverture",
     "waitingRoomsColName": "Salle",
     "waitingRoomsColHost": "Hôte",

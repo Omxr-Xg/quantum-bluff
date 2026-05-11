@@ -966,7 +966,8 @@ export function Layout({ children }: LayoutProps) {
   const headerBalance = pokerDisplayTotal ?? balance;
   const languageButtonClass =
     "flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 md:h-11 md:min-h-11 md:w-11 md:min-w-11";
-  const accountPill = (
+  /** Jetons + connexion quotidienne (pastille) — séparé du bouton profil pour le lobby / menu compact. */
+  const lobbyMoneyPill = (
     <div className="flex h-9 shrink-0 items-center overflow-hidden rounded-full border border-white/10 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-md md:h-11">
       <button
         type="button"
@@ -995,16 +996,26 @@ export function Layout({ children }: LayoutProps) {
           <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-rose-400 ring-2 ring-slate-950 motion-safe:animate-pulse" />
         ) : null}
       </button>
-      <button
-        type="button"
-        onClick={() => navigate("/profile")}
-        className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-slate-800 transition hover:border-emerald-300/60 md:h-8 md:w-8"
-        title={t("lobby.profile")}
-        aria-label={t("lobby.profile")}
-      >
-        <img src={userAvatar} alt="" className="h-full w-full object-cover" draggable={false} />
-        <span className="sr-only">{username}</span>
-      </button>
+    </div>
+  );
+
+  const lobbyProfileButton = (
+    <button
+      type="button"
+      onClick={() => navigate("/profile")}
+      className={`${languageButtonClass} overflow-hidden p-0 hover:border-emerald-300/45`}
+      title={t("lobby.profile")}
+      aria-label={t("lobby.profile")}
+    >
+      <img src={userAvatar} alt="" className="h-full w-full object-cover" draggable={false} />
+      <span className="sr-only">{username}</span>
+    </button>
+  );
+
+  const lobbyMoneyAndProfile = (
+    <div className="flex shrink-0 items-center gap-2 md:gap-2.5">
+      {lobbyMoneyPill}
+      {lobbyProfileButton}
     </div>
   );
 
@@ -1077,7 +1088,7 @@ export function Layout({ children }: LayoutProps) {
   const menuContent = isGameHudPage ? gameMenuContent : (
     <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-visible max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end md:gap-2">
       <LanguageSwitcher buttonClassName={languageButtonClass} />
-      {accountPill}
+      {lobbyMoneyAndProfile}
       <div
         className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-visible max-sm:scroll-smooth max-sm:py-2 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
       >
@@ -1217,7 +1228,7 @@ export function Layout({ children }: LayoutProps) {
                 >
                   <div className="flex min-w-0 max-w-[min(100vw-2rem,28rem)] flex-row flex-nowrap items-center gap-1 overflow-x-auto overflow-y-visible scroll-smooth px-0.5 py-2 [touch-action:pan-x] scrollbar-hide sm:max-w-none sm:gap-2">
                 <LanguageSwitcher buttonClassName={languageButtonClass} />
-                {accountPill}
+                {lobbyMoneyAndProfile}
                 <NotificationCenter />
                 <button type="button" onClick={() => { playSfx("uiSelect"); setMenuOpen(false); navigate("/leaderboard"); }} className={topNavBtn} title={t("leaderboard.title")}>
                   <Trophy className={topNavIcon} aria-hidden />
