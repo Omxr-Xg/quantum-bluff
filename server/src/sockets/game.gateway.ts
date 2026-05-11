@@ -60,6 +60,7 @@ import {
   markUserOffline,
   markUserOnline,
 } from "../services/presence.service.js";
+import { TOURNAMENT_LOBBY_SOCKET_ROOM } from "../tournament/tournament.roster.events.js";
 
 // 👇 B4 : IMPORT DU SERVICE ANTI-TRICHE 👇
 import { AntiCheatService } from "../services/antiCheat.service.js";
@@ -230,13 +231,36 @@ export class GameGateway {
         "JOIN_TOURNAMENT_ROOM",
         async ({ tournamentId }: { tournamentId?: string }) => {
           if (!tournamentId || !socket.userId) return;
+          const tournament = await prisma.tournament.findUnique({
+            where: { id: tournamentId },
+            select: { hostId: true, visibility: true },
+          });
+          if (!tournament) return;
+          const isHost = tournament.hostId === socket.userId;
           const tp = await prisma.tournamentPlayer.findFirst({
             where: { tournamentId, userId: socket.userId },
           });
-          if (!tp) return;
+          if (!isHost && !tp && tournament.visibility !== "PUBLIC") return;
           socket.join(`tournament:${tournamentId}`);
         },
       );
+
+      socket.on(
+        "LEAVE_TOURNAMENT_ROOM",
+        ({ tournamentId }: { tournamentId?: string }) => {
+          if (!tournamentId) return;
+          socket.leave(`tournament:${tournamentId}`);
+        },
+      );
+
+      socket.on("JOIN_TOURNAMENT_LOBBY", () => {
+        if (!socket.userId) return;
+        socket.join(TOURNAMENT_LOBBY_SOCKET_ROOM);
+      });
+
+      socket.on("LEAVE_TOURNAMENT_LOBBY", () => {
+        socket.leave(TOURNAMENT_LOBBY_SOCKET_ROOM);
+      });
 
       socket.on(
         "join-room",
@@ -2356,7 +2380,7 @@ export class GameGateway {
           const { onTournamentSingleSurvivor } = await import(
             "../tournament/tournament.gatewayHook.js"
           );
-          await onTournamentSingleSurvivor(
+          const tournamentAdvance = await onTournamentSingleSurvivor(
             this.io,
             gameId,
             survivors[0]!.userId,
@@ -2364,6 +2388,9 @@ export class GameGateway {
           this.io.to(gameId).emit("GAME_ENDED", {
             gameId,
             reason: "TOURNAMENT_TABLE_COMPLETE",
+            tournamentId: cashGame.roomId,
+            winnerUserId: survivors[0]!.userId,
+            tournamentAdvance,
           });
         } else if (cashGame.startNextHandIfMultiSurvivors()) {
           await activeGames.set(gameId, cashGame);
