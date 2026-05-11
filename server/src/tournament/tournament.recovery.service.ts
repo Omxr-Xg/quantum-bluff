@@ -2,6 +2,7 @@ import type { Server } from 'socket.io'
 import { prisma } from '../config/database.js'
 import { rootLogger } from '../observability/logger.js'
 import { grantTournamentRewardsIfMissing } from './tournament.reward.service.js'
+import { emitTournamentLiveSpectateChanged } from './tournament.roster.events.js'
 import { tryAdvanceRoundAfterTableComplete } from './tournament.runtime.service.js'
 
 /**
@@ -41,6 +42,11 @@ export async function recoverTournamentsAtBoot(io: Server): Promise<void> {
     if (pending > 0) continue
     try {
       await tryAdvanceRoundAfterTableComplete(io, r.id)
+      const roundMeta = await prisma.tournamentRound.findUnique({
+        where: { id: r.id },
+        select: { tournamentId: true },
+      })
+      if (roundMeta) emitTournamentLiveSpectateChanged(io, roundMeta.tournamentId)
     } catch (e) {
       rootLogger.warn({
         msg: 'tournament_recovery_advance_failed',

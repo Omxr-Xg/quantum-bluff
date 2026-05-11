@@ -6,6 +6,22 @@ import { buildOpeningRound, buildRoundFromSurvivors } from './bracket/Tournament
 import { createAndRegisterTournamentTable, makeTournamentGameId } from './tournamentTableFactory.js'
 import { grantTournamentRewardsIfMissing } from './tournament.reward.service.js'
 import { seedFromTournamentId } from './tournament.seed.js'
+import { TOURNAMENT_MIN_PLAYERS } from './tournament.create.validation.js'
+import { emitTournamentLiveSpectateChanged } from './tournament.roster.events.js'
+
+/** `scheduled` : heure de départ atteinte — pas assez de monde → annulation. `host` : clic hôte — pas assez → erreur API, tournoi inchangé. */
+export type TournamentStartSource = 'host' | 'scheduled'
+
+/**
+ * Après une table terminée : pour le client (GAME_ENDED).
+ * - pending_other_tables : d'autres tables du même tour sont encore en cours → salle d'attente / Zip.
+ * - next_round_spawned : le tour est bouclé, les tables suivantes sont créées (TOURNAMENT_TABLE_ASSIGNED).
+ * - tournament_complete : vainqueur final du tournoi.
+ */
+export type TournamentTableFinishAdvance =
+  | 'pending_other_tables'
+  | 'next_round_spawned'
+  | 'tournament_complete'
 
 export async function recordTournamentEliminationsIfAny(
   gameId: string,
@@ -277,20 +293,20 @@ async function spawnRoundTables(
 export async function tryAdvanceRoundAfterTableComplete(
   io: Server,
   roundId: string,
-): Promise<void> {
+): Promise<TournamentTableFinishAdvance> {
   const pending = await prisma.tournamentTable.count({
     where: {
       roundId,
       status: { in: ['PENDING', 'IN_PROGRESS', 'RECOVERING'] },
     },
   })
-  if (pending > 0) return
+  if (pending > 0) return 'pending_other_tables'
 
   const round = await prisma.tournamentRound.findUnique({
     where: { id: roundId },
     include: { tournament: true },
   })
-  if (!round) return
+  if (!round) return 'pending_other_tables'
 
   await prisma.tournamentRound.update({
     where: { id: roundId },
@@ -306,7 +322,7 @@ export async function tryAdvanceRoundAfterTableComplete(
 
   if (winners.length === 1) {
     await finalizeTournament(io, tournament.id, winners[0]!, tables)
-    return
+    return 'tournament_complete'
   }
 
   const seed = seedFromTournamentId(`${tournament.id}:${round.roundNumber + 1}`)
@@ -337,18 +353,19 @@ export async function tryAdvanceRoundAfterTableComplete(
     tournament.blindSmall,
     tournament.blindBig,
   )
+  return 'next_round_spawned'
 }
 
 export async function notifyTournamentTableFinished(
   io: Server,
   gameId: string,
   winnerUserId: string,
-): Promise<void> {
+): Promise<TournamentTableFinishAdvance> {
   const table = await prisma.tournamentTable.findFirst({
     where: { gameId },
     include: { round: true },
   })
-  if (!table) return
+  if (!table) return 'pending_other_tables'
 
   await prisma.tournamentTable.update({
     where: { id: table.id },
@@ -360,10 +377,17 @@ export async function notifyTournamentTableFinished(
     data: { status: 'WAITING_NEXT_ROUND' },
   })
 
-  await tryAdvanceRoundAfterTableComplete(io, table.roundId)
+  const advance = await tryAdvanceRoundAfterTableComplete(io, table.roundId)
+  emitTournamentLiveSpectateChanged(io, table.round.tournamentId)
+  return advance
 }
 
-export async function startTournamentFromDb(tournamentId: string, io: Server): Promise<void> {
+export async function startTournamentFromDb(
+  tournamentId: string,
+  io: Server,
+  options: { source?: TournamentStartSource } = {},
+): Promise<void> {
+  const source = options.source ?? 'scheduled'
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
     include: {
@@ -376,7 +400,12 @@ export async function startTournamentFromDb(tournamentId: string, io: Server): P
   }
 
   const playerIds = tournament.players.map((p) => p.userId)
-  if (playerIds.length < 4) {
+  if (playerIds.length < TOURNAMENT_MIN_PLAYERS) {
+    if (source === 'host') {
+      throw new Error(
+        `Au moins ${TOURNAMENT_MIN_PLAYERS} joueurs inscrits sont requis pour démarrer (${playerIds.length}/${TOURNAMENT_MIN_PLAYERS})`,
+      )
+    }
     await prisma.tournament.update({
       where: { id: tournamentId },
       data: { status: 'CANCELLED' },
@@ -385,6 +414,7 @@ export async function startTournamentFromDb(tournamentId: string, io: Server): P
       tournamentId,
       reason: 'INSUFFICIENT_PLAYERS',
     })
+    emitTournamentLiveSpectateChanged(io, tournamentId)
     return
   }
 
@@ -418,4 +448,5 @@ export async function startTournamentFromDb(tournamentId: string, io: Server): P
   )
 
   io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_STARTED', { tournamentId })
+  emitTournamentLiveSpectateChanged(io, tournamentId)
 }

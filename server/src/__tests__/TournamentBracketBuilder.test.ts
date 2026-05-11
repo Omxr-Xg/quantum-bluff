@@ -7,12 +7,12 @@ import { assertTableSizesValid, computeTableSizesForRound } from '../tournament/
 
 /** Golden : partitions attendues pour n joueurs (trier pour comparaison stable). */
 const EXPECTED_ROUND1_SIZES: Record<number, number[]> = {
-  4: [4],
-  5: [5],
-  6: [6],
-  7: [7],
-  8: [8],
-  9: [9],
+  4: [2, 2],
+  5: [3, 2],
+  6: [3, 3],
+  7: [4, 3],
+  8: [4, 4],
+  9: [5, 4],
   10: [5, 5],
   11: [6, 5],
   12: [6, 6],
@@ -41,6 +41,24 @@ describe('computeTableSizesForRound golden 4–20', () => {
 })
 
 describe('buildOpeningRound', () => {
+  it('4 joueurs → 2 tables de 2 (1v1 + 1v1)', () => {
+    const ids = ['a', 'b', 'c', 'd']
+    const r = buildOpeningRound(ids, 1)
+    expect(r.tables).toHaveLength(2)
+    expect(r.tables.map((t) => t.playerIds.length).sort((x, y) => y - x)).toEqual([2, 2])
+    const flat = r.tables.flatMap((t) => t.playerIds)
+    expect(new Set(flat).size).toBe(4)
+  })
+
+  it('5 joueurs → table 3 + table 2', () => {
+    const ids = ['a', 'b', 'c', 'd', 'e']
+    const r = buildOpeningRound(ids, 1)
+    expect(r.tables).toHaveLength(2)
+    expect(r.tables.map((t) => t.playerIds.length).sort((x, y) => y - x)).toEqual([3, 2])
+    const flat = r.tables.flatMap((t) => t.playerIds)
+    expect(new Set(flat).size).toBe(5)
+  })
+
   it('répartit tous les joueurs une fois', () => {
     const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
     const r = buildOpeningRound(ids, 12345)
