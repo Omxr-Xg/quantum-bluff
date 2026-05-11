@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, Zap } from "lucide-react";
+import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, Zap, Clock } from "lucide-react";
 import { ChipIcon } from "../components/ChipIcon";
 import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
@@ -35,7 +35,8 @@ export function WaitingRoom() {
   const roomId = rawRoomId || `room_${Date.now()}`;
 
   const [players, setPlayers] = useState<Player[]>([]);
-  const [invitedPlayers, setInvitedPlayers] = useState<Player[]>([]);
+  /** Invitations poker salle d'attente : en attente de réponse ou refusée (affichage rose). */
+  const [friendInviteStatus, setFriendInviteStatus] = useState<Record<string, "pending" | "rejected">>({});
   const [isCreator, setIsCreator] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [roomVisibility, setRoomVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
@@ -88,6 +89,55 @@ export function WaitingRoom() {
 
   const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
   const { addToast } = useToast();
+
+  useEffect(() => {
+    setFriendInviteStatus({});
+  }, [rawRoomId]);
+
+  useEffect(() => {
+    setFriendInviteStatus((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const id of Object.keys(next)) {
+        if (players.some((p) => p.id === id)) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [players]);
+
+  useEffect(() => {
+    if (!socket || !rawRoomId || rawRoomId.startsWith("room_")) return;
+    const onInviteRejected = (data: { userId?: string; roomId?: string }) => {
+      if (data.roomId && data.roomId !== rawRoomId) return;
+      if (!data.userId) return;
+      setFriendInviteStatus((prev) => {
+        if (prev[data.userId!] !== "pending") return prev;
+        return { ...prev, [data.userId!]: "rejected" };
+      });
+      const name =
+        friends?.find((f) => f.id === data.userId)?.username ??
+        t("waitingRoom.inviteRejectedSomeone");
+      addToast(t("waitingRoom.inviteRejectedToast", { name }), "info");
+    };
+    const onInviteAccepted = (data: { userId?: string; roomId?: string }) => {
+      if (data.roomId && data.roomId !== rawRoomId) return;
+      if (!data.userId) return;
+      setFriendInviteStatus((prev) => {
+        if (!(data.userId! in prev)) return prev;
+        const { [data.userId!]: _, ...rest } = prev;
+        return rest;
+      });
+    };
+    socket.on("INVITATION_REJECTED", onInviteRejected);
+    socket.on("INVITATION_ACCEPTED", onInviteAccepted);
+    return () => {
+      socket.off("INVITATION_REJECTED", onInviteRejected);
+      socket.off("INVITATION_ACCEPTED", onInviteAccepted);
+    };
+  }, [socket, rawRoomId, friends, addToast, t]);
 
   const extractErrorMessage = useCallback(
     async (res: Response, fallback: string) => {
@@ -262,7 +312,14 @@ export function WaitingRoom() {
       hostId?: string;
       players?: Array<{ id: string; username: string; level?: number; isReady?: boolean; avatarUrl?: string | null }>;
     } | null) => {
-      if (!room || room.status !== "WAITING") return;
+      if (!room) {
+        if (rawRoomId && !rawRoomId.startsWith("room_")) {
+          leaveRoom(rawRoomId);
+        }
+        navigate("/lobby");
+        return;
+      }
+      if (room.status !== "WAITING") return;
       applyRoomSnapshot(room);
     };
     socket.on("WAITING_ROOM_UPDATED", onWaitingRoomUpdated);
@@ -270,7 +327,7 @@ export function WaitingRoom() {
       socket.off("HOST_REQUESTED_START", onHostRequestedStart);
       socket.off("WAITING_ROOM_UPDATED", onWaitingRoomUpdated);
     };
-  }, [socket, userId, addToast, applyRoomSnapshot]);
+  }, [socket, userId, addToast, applyRoomSnapshot, rawRoomId, leaveRoom, navigate]);
 
   useEffect(() => {
     if (!rawRoomId || rawRoomId.startsWith("room_")) return;
@@ -322,12 +379,12 @@ export function WaitingRoom() {
     setProcessingRequest(requestId);
     try {
       const url = apiUrl(`/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`);
-      await fetch(url, {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hostId: userId }),
       });
-      setJoinRequests(prev => prev.filter(r => r.id !== requestId));
+      if (res.ok) void fetchJoinRequests();
     } catch { /* ignore */ }
     setProcessingRequest(null);
   };
@@ -337,39 +394,34 @@ export function WaitingRoom() {
     setProcessingRequest(requestId);
     try {
       const url = apiUrl(`/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`);
-      await fetch(url, {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hostId: userId }),
       });
-      setJoinRequests(prev => prev.filter(r => r.id !== requestId));
+      if (res.ok) void fetchJoinRequests();
     } catch { /* ignore */ }
     setProcessingRequest(null);
   };
 
   const handleInvite = (friend: { id: string; username: string; level?: number }) => {
-    // Envoyer une invitation via socket
-    socket?.emit('invite-to-room', {
+    socket?.emit("invite-to-room", {
       roomId,
       invitedUserId: friend.id,
-      inviterId: userId
+      inviterId: userId,
     });
-
-    // Mise à jour locale en attendant la confirmation socket
-    setInvitedPlayers(prev => [...prev, {
-      id: friend.id,
-      name: friend.username,
-      level: friend.level ?? 0,
-      isReady: false
-    }]);
+    setFriendInviteStatus((prev) => ({ ...prev, [friend.id]: "pending" }));
   };
 
   const _handleRemoveInvite = (playerId: string) => {
-    socket?.emit('cancel-invitation', {
+    socket?.emit("cancel-invitation", {
       roomId,
-      playerId
+      playerId,
     });
-    setInvitedPlayers(prev => prev.filter(p => p.id !== playerId));
+    setFriendInviteStatus((prev) => {
+      const { [playerId]: _, ...rest } = prev;
+      return rest;
+    });
   };
 
   const handleReady = () => {
@@ -565,7 +617,16 @@ export function WaitingRoom() {
                   </div>
                   <div>
                     <div className="text-white font-bold">{username}</div>
-                    <div className="text-gray-400 text-sm">{myIsReady ? `✅ ${t('waitingRoom.ready')}` : t('waitingRoom.readyQuestion')}</div>
+                    <div className="flex items-center gap-1.5 text-gray-400 text-sm">
+                      {myIsReady ? (
+                        <>
+                          <Check className="h-4 w-4 text-emerald-400 shrink-0" aria-hidden />
+                          {t("waitingRoom.ready")}
+                        </>
+                      ) : (
+                        t("waitingRoom.readyQuestion")
+                      )}
+                    </div>
                   </div>
                 </div>
                 {!myIsReady && (
@@ -577,7 +638,10 @@ export function WaitingRoom() {
                   </button>
                 )}
                 {myIsReady && (
-                  <span className="text-green-400 font-medium">✅ {t('waitingRoom.ready')}</span>
+                  <span className="inline-flex items-center gap-1.5 text-green-400 font-medium">
+                    <Check className="h-4 w-4 shrink-0" aria-hidden />
+                    {t("waitingRoom.ready")}
+                  </span>
                 )}
               </div>
             </div>
@@ -603,7 +667,17 @@ export function WaitingRoom() {
                     </div>
                   </div>
                   <div className="text-sm text-gray-400">
-                    {player.isReady ? `✅ ${t('waitingRoom.ready')}` : `⏳ ${t('game.waiting')}`}
+                    {player.isReady ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Check className="h-4 w-4 text-emerald-400 shrink-0" aria-hidden />
+                        {t("waitingRoom.ready")}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Clock className="h-4 w-4 text-amber-400/90 shrink-0" aria-hidden />
+                        {t("game.waiting")}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -646,15 +720,22 @@ export function WaitingRoom() {
                       </div>
                     </div>
                     <button
+                      type="button"
                       onClick={() => handleInvite(friend)}
-                      disabled={invitedPlayers.some(p => p.id === friend.id)}
+                      disabled={friendInviteStatus[friend.id] === "pending"}
                       className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                        invitedPlayers.some(p => p.id === friend.id)
-                          ? "bg-green-600 text-white cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-500 text-white"
+                        friendInviteStatus[friend.id] === "pending"
+                          ? "bg-emerald-600 text-white cursor-not-allowed"
+                          : friendInviteStatus[friend.id] === "rejected"
+                            ? "border border-rose-400/60 bg-rose-950/70 text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:bg-rose-900/80"
+                            : "bg-blue-600 hover:bg-blue-500 text-white"
                       }`}
                     >
-                      {invitedPlayers.some(p => p.id === friend.id) ? t('waitingRoom.invited') : t('waitingRoom.invite')}
+                      {friendInviteStatus[friend.id] === "pending"
+                        ? t("waitingRoom.invited")
+                        : friendInviteStatus[friend.id] === "rejected"
+                          ? t("waitingRoom.inviteRejectedLabel")
+                          : t("waitingRoom.invite")}
                     </button>
                   </div>
                 ))}

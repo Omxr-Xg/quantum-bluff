@@ -7,7 +7,6 @@ import {
   Server,
   Loader2,
   X,
-  Trash2,
   Lock,
   Globe,
   Minus,
@@ -108,6 +107,8 @@ export function Lobby() {
   const [createBigBlind, setCreateBigBlind] = useState(10);
   const [createMinBalance, setCreateMinBalance] = useState(100);
   const [createTurbo, setCreateTurbo] = useState(false);
+  /** Nom affiché de la salle ; vide = nom par défaut (ex. « Salle de … » / traduction). */
+  const [createRoomName, setCreateRoomName] = useState("");
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
   const [gamesInProgress, setGamesInProgress] = useState<GameInProgressItem[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
@@ -126,7 +127,7 @@ export function Lobby() {
   const handleRechargeSuccess = (newBalance: number) => {
     setBalance(newBalance);
     setRechargeKey(prev => prev + 1);
-    addToast('✅ Recharge effectuée!', 'success');
+    addToast("Recharge effectuée.", "success");
   };
 
   useEffect(() => {
@@ -365,6 +366,7 @@ export function Lobby() {
     setCreateBigBlind(10);
     setCreateMinBalance(100);
     setCreateTurbo(false);
+    setCreateRoomName("");
   };
 
   const MIN_BALANCE = 100;
@@ -386,12 +388,15 @@ export function Lobby() {
     setShowCreateModal(false);
     try {
       const url = apiUrl("/api/waiting-room/create");
+      const custom = createRoomName.trim().slice(0, 80);
       const res = await fetch(url, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
           hostId: userId,
-          roomName: t("lobby.roomOf", { name: username || t("lobby.defaultPlayerName") }),
+          ...(custom.length > 0
+            ? { roomName: custom }
+            : { roomName: t("lobby.roomOf", { name: username || t("lobby.defaultPlayerName") }) }),
           maxPlayers: createMaxPlayers,
           visibility: createVisibility,
           smallBlind: createSmallBlind,
@@ -449,25 +454,6 @@ export function Lobby() {
 
   const handleSpectateGame = (gameId: string) => {
     navigate(`/game?gameId=${gameId}&spectate=1`);
-  };
-
-  const handleDeleteRoom = async (roomId: string) => {
-    if (!userId) return;
-    try {
-      const url = apiUrl(`/api/waiting-room/${roomId}`);
-      const res = await fetch(url, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-      if (!res.ok) {
-        console.error("Erreur suppression salle:", await res.text().catch(() => ""));
-      }
-    } catch (e) {
-      console.error("Erreur suppression salle:", e);
-    } finally {
-      setRooms((prev) => prev.filter((r) => r.id !== roomId));
-    }
   };
 
   return (
@@ -600,6 +586,23 @@ export function Lobby() {
                 <button type="button" onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white p-1" aria-label={t('common.close')}>
                   <X className="w-5 h-5" />
                 </button>
+              </div>
+
+              <div className="mb-6">
+                <label htmlFor="lobby-create-room-name" className="mb-2 block text-sm font-medium text-slate-300">
+                  {t("lobby.createRoomNameLabel")}
+                </label>
+                <input
+                  id="lobby-create-room-name"
+                  type="text"
+                  maxLength={80}
+                  value={createRoomName}
+                  onChange={(e) => setCreateRoomName(e.target.value)}
+                  placeholder={t("lobby.createRoomNamePlaceholder")}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-blue-400/50 focus:ring-1 focus:ring-blue-400/30"
+                  autoComplete="off"
+                />
+                <p className="mt-2 text-xs text-slate-500">{t("lobby.createRoomNameHint")}</p>
               </div>
 
               {/* Visibility toggle */}
@@ -1057,17 +1060,6 @@ export function Lobby() {
                               )}
                             </div>
                             <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
-                              {isHost && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteRoom(room.id)}
-                                  className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-lg transition flex items-center gap-1"
-                                  aria-label={t('lobby.deleteServer')}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                  {t('lobby.deleteServer')}
-                                </button>
-                              )}
                               {isFull ? (
                                 <span className="text-gray-500 text-xs font-semibold px-3 py-1.5 bg-slate-700 rounded-lg cursor-not-allowed">
                                   {t('lobby.roomFull')}
