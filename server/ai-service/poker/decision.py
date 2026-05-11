@@ -131,21 +131,21 @@ def _style_for_action(action: str, ctx: FeatureContext) -> str:
     return "discipline"
 
 
-def _emoji_for_style(style: str, action: str) -> str:
+def _label_for_style(style: str, action: str) -> str:
     if action == "ALL_IN":
-        return "🚀"
+        return "[all-in]"
     return {
-        "semi_bluff": "🎭",
-        "bluff": "😏",
-        "value": "💎",
-        "thin_value": "💎",
-        "pressure": "🔥",
-        "discipline": "🧊",
-        "pot_control": "🛡️",
-        "draw": "🎯",
-        "showdown_value": "👀",
-        "trap": "🪤",
-    }.get(style, "🃏")
+        "semi_bluff": "[semi-bluff]",
+        "bluff": "[bluff]",
+        "value": "[value]",
+        "thin_value": "[thin-value]",
+        "pressure": "[pressure]",
+        "discipline": "[discipline]",
+        "pot_control": "[pot-control]",
+        "draw": "[draw]",
+        "showdown_value": "[showdown]",
+        "trap": "[trap]",
+    }.get(style, "[play]")
 
 
 def _raise_amount(payload: dict[str, Any], ctx: FeatureContext, all_in: bool = False) -> int:
@@ -271,13 +271,13 @@ def predict_decision(payload: dict[str, Any], model: PolicyModel | None = None) 
         action_idx = _choose_action(probs, temperature)
     decision = _legalize(action_idx, payload, ctx, probs)
     final_style = teacher_style if decision.style in {"bluff", "pot_control", "discipline"} else decision.style
-    emoji = _emoji_for_style(final_style, decision.action)
+    style_tag = _label_for_style(final_style, decision.action)
     return BotDecision(
         action=decision.action,
         amount=decision.amount,
         confidence=decision.confidence,
         style=final_style,
-        reason=f"{emoji} {decision.reason}; teacher={teacher_reason}",
+        reason=f"{style_tag} {decision.reason}; teacher={teacher_reason}",
     )
 
 
