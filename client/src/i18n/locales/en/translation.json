@@ -930,6 +930,7 @@
     "waitingForOthers": "Waiting for other players...",
     "invited": "Invited",
     "inviteRejectedLabel": "Invitation declined",
+    "inviteAlreadyRejected": "Invitation already declined",
     "inviteRejectedToast": "{{name}} declined your invitation.",
     "inviteRejectedSomeone": "A player",
     "invite": "Invite",

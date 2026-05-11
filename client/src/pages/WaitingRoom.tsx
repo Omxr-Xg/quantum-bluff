@@ -719,24 +719,27 @@ export function WaitingRoom() {
                         <div className="text-yellow-400 text-sm">{t('friends.level', { level: friend.level })}</div>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleInvite(friend)}
-                      disabled={friendInviteStatus[friend.id] === "pending"}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                        friendInviteStatus[friend.id] === "pending"
-                          ? "bg-emerald-600 text-white cursor-not-allowed"
-                          : friendInviteStatus[friend.id] === "rejected"
-                            ? "border border-rose-400/60 bg-rose-950/70 text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:bg-rose-900/80"
+                    <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleInvite(friend)}
+                        disabled={friendInviteStatus[friend.id] === "pending"}
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                          friendInviteStatus[friend.id] === "pending"
+                            ? "bg-emerald-600 text-white cursor-not-allowed"
                             : "bg-blue-600 hover:bg-blue-500 text-white"
-                      }`}
-                    >
-                      {friendInviteStatus[friend.id] === "pending"
-                        ? t("waitingRoom.invited")
-                        : friendInviteStatus[friend.id] === "rejected"
-                          ? t("waitingRoom.inviteRejectedLabel")
+                        }`}
+                      >
+                        {friendInviteStatus[friend.id] === "pending"
+                          ? t("waitingRoom.invited")
                           : t("waitingRoom.invite")}
-                    </button>
+                      </button>
+                      {friendInviteStatus[friend.id] === "rejected" ? (
+                        <span className="max-w-[11rem] text-right text-[11px] leading-snug text-rose-300/90 sm:text-left">
+                          {t("waitingRoom.inviteAlreadyRejected")}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
 

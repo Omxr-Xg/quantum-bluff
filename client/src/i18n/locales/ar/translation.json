@@ -922,6 +922,7 @@
     "waitingForOthers": "في انتظار اللاعبين الآخرين...",
     "invited": "مدعو",
     "inviteRejectedLabel": "تم رفض الدعوة",
+    "inviteAlreadyRejected": "الدعوة مرفوضة مسبقًا",
     "inviteRejectedToast": "رفض {{name}} دعوتك.",
     "inviteRejectedSomeone": "لاعب",
     "invite": "دعوة",

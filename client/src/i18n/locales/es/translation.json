@@ -921,6 +921,7 @@
     "waitingForOthers": "Esperando a otros jugadores...",
     "invited": "Invitado",
     "inviteRejectedLabel": "Invitación rechazada",
+    "inviteAlreadyRejected": "Invitación ya rechazada",
     "inviteRejectedToast": "{{name}} rechazó tu invitación.",
     "inviteRejectedSomeone": "Un jugador",
     "invite": "Invitar",

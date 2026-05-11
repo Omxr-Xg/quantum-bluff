@@ -922,6 +922,7 @@
     "waitingForOthers": "Очікування інших гравців...",
     "invited": "Запрошено",
     "inviteRejectedLabel": "Запрошення відхилено",
+    "inviteAlreadyRejected": "Запрошення вже відхилено",
     "inviteRejectedToast": "{{name}} відхилив(-ла) ваше запрошення.",
     "inviteRejectedSomeone": "Гравець",
     "invite": "Запросити",
