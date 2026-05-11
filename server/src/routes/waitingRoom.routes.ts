@@ -131,8 +131,22 @@ router.get('/', waitingRoomListLimiter, async (req, res) => {
       for (const f of friendships) {
         myFriends.add(String(f.user1Id) === userId ? f.user2Id : f.user1Id);
       }
+      /** Salles où l’utilisateur a une demande en cours ou refusée : il doit pouvoir renvoyer une demande. */
+      const myJoinRequestRoomIds = new Set(
+        (
+          await prisma.joinRequest.findMany({
+            where: {
+              userId,
+              status: { in: ['PENDING', 'REJECTED'] },
+            },
+            select: { roomId: true },
+          })
+        ).map((r) => r.roomId),
+      );
       filteredRooms = filteredRooms.filter(room => {
         if (room.visibility === 'PUBLIC') return true;
+        if (room.players.some((p) => p.userId === userId)) return true;
+        if (myJoinRequestRoomIds.has(room.id)) return true;
         if (room.hostId === userId) return true;
         if (myFriends.has(room.hostId)) return true;
         const playerIds = room.players.map(p => p.userId).filter(Boolean);
@@ -1126,6 +1140,14 @@ router.post('/:roomId/join-requests/:requestId/accept', waitingRoomHostLimiter, 
     if (room.hostId !== hostId) return res.status(403).json({ error: 'Non autorisé' });
     if (room.players.length >= room.maxPlayers) return res.status(400).json({ error: 'Salle pleine' });
 
+    const existingJr = await prisma.joinRequest.findFirst({
+      where: { id: requestId, roomId },
+    });
+    if (!existingJr) return res.status(404).json({ error: 'Demande non trouvée' });
+    if (existingJr.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Cette demande a déjà été traitée' });
+    }
+
     const joinRequest = await prisma.joinRequest.update({
       where: { id: requestId },
       data: { status: 'ACCEPTED' },
@@ -1184,11 +1206,13 @@ router.post('/:roomId/join-requests/:requestId/reject', waitingRoomHostLimiter, 
 
     if (!joinRequest) return res.status(404).json({ error: 'Demande non trouvée' });
     if (joinRequest.room.hostId !== hostId) return res.status(403).json({ error: 'Non autorisé' });
+    if (joinRequest.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Cette demande a déjà été traitée' });
+    }
 
-    /* Supprimer la ligne (pas seulement REJECTED) pour libérer @@unique([roomId, userId]) :
-       la prochaine demande recrée une entrée PENDING avec un nouvel id (upsert create). */
-    await prisma.joinRequest.delete({
+    await prisma.joinRequest.update({
       where: { id: requestId },
+      data: { status: 'REJECTED' },
     });
 
     const io = req.app.get('io') as import('socket.io').Server | undefined;
