@@ -1,13 +1,14 @@
 variables:
-  NODE_IMAGE: public.ecr.aws/docker/library/node:20
-  POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:15
-  TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.58.1
+  # docker.io : moins de TOOMANYREQUESTS que public.ecr.aws sur runners K8s partagés.
+  NODE_IMAGE: docker.io/library/node:20
+  POSTGRES_IMAGE: docker.io/library/postgres:15
+  TRIVY_IMAGE: docker.io/aquasec/trivy:0.58.1
   # Sans ça, le cache GitLab sur `.npm/` reste vide : chaque job retélécharge les paquets.
   NPM_CONFIG_CACHE: "${CI_PROJECT_DIR}/.npm"
 
 .node_docker_ci:
   image:
-    name: public.ecr.aws/docker/library/node:20
+    name: docker.io/library/node:20
 
 default:
   tags:
@@ -48,7 +49,7 @@ backend:verify:
     - .node_docker_ci
   stage: verify
   services:
-    - name: public.ecr.aws/docker/library/postgres:15
+    - name: docker.io/library/postgres:15
       alias: postgres
   variables:
     NODE_ENV: test
@@ -82,7 +83,7 @@ frontend:verify:
 # Branches feature/fix : lint backend seul (pas de BDD / tests unitaires serveur)
 backend:lint:
   stage: verify
-  image: public.ecr.aws/docker/library/node:20
+  image: docker.io/library/node:20
   script:
     - cd server
     - npm ci --legacy-peer-deps
@@ -94,10 +95,10 @@ backend:lint:
 database:test:
   stage: verify
   image:
-    name: public.ecr.aws/docker/library/postgres:15
+    name: docker.io/library/postgres:15
     entrypoint: [""]
   services:
-    - name: public.ecr.aws/docker/library/postgres:15
+    - name: docker.io/library/postgres:15
       alias: postgres
   variables:
     POSTGRES_DB: quantum_test
@@ -147,7 +148,7 @@ security:npm:
 security:trivy:
   stage: test-security
   image:
-    name: public.ecr.aws/aquasecurity/trivy:0.58.1
+    name: docker.io/aquasec/trivy:0.58.1
     entrypoint: [""]
   script:
     - trivy fs --severity HIGH,CRITICAL --no-progress --skip-dirs node_modules --skip-dirs dist --skip-dirs android --skip-dirs ios .
@@ -290,7 +291,7 @@ deploy:production:
   <<: *deploy_hook_retry
   stage: deploy
   image:
-    name: public.ecr.aws/docker/library/alpine:latest
+    name: docker.io/library/alpine:latest
     entrypoint: [""]
   before_script:
     - echo " Préparation de la connexion SSH..."

@@ -1,5 +1,5 @@
 # Use official PostgreSQL image
-FROM public.ecr.aws/docker/library/postgres:16
+FROM docker.io/library/postgres:16
 
 # Set environment variables for default DB and user
 ENV POSTGRES_USER=admin
