@@ -309,9 +309,17 @@ router.post('/create', waitingRoomCreateLimiter, async (req, res) => {
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
 
+    const ROOM_NAME_MAX = 80
+    const trimmedRequested =
+      typeof roomName === 'string' ? roomName.trim().slice(0, ROOM_NAME_MAX) : ''
+    const sanitizedCustom =
+      trimmedRequested.length > 0 ? sanitizeHtml(trimmedRequested).trim() : ''
+    const resolvedName =
+      sanitizedCustom.length > 0 ? sanitizedCustom : `Salle de ${user.username}`
+
     const room = await prisma.waitingRoom.create({
       data: {
-        name: roomName ? sanitizeHtml(roomName) : `Salle de ${user.username}`,
+        name: resolvedName,
         hostId,
         maxPlayers: clampedMaxPlayers,
         visibility: roomVisibility,
@@ -620,8 +628,85 @@ router.post('/:roomId/leave', waitingRoomActionLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
     const { userId } = req.body;
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
 
-    // Supprimer le joueur de la salle
+    if (typeof userId !== 'string' || userId.trim().length === 0) {
+      return res.status(400).json({ error: 'userId invalide ou manquant' });
+    }
+
+    const roomBefore = await prisma.waitingRoom.findUnique({
+      where: { id: roomId },
+      include: { players: true }
+    });
+
+    if (!roomBefore) {
+      return res.status(404).json({ error: 'Salle introuvable' });
+    }
+
+    const isMember =
+      roomBefore.players.some((p) => p.userId === userId) || roomBefore.hostId === userId;
+
+    if (!isMember) {
+      return res.status(403).json({ error: "Vous n'êtes pas dans cette salle" });
+    }
+
+    // L'hôte quitte : s'il est seul, on supprime la salle ; sinon le premier autre joueur devient hôte
+    if (roomBefore.hostId === userId) {
+      const others = roomBefore.players
+        .filter((p) => p.userId !== userId)
+        .sort((a, b) => {
+          const pa = a.position == null ? 9999 : a.position;
+          const pb = b.position == null ? 9999 : b.position;
+          if (pa !== pb) return pa - pb;
+          return a.userId.localeCompare(b.userId);
+        });
+
+      if (others.length === 0) {
+        await prisma.waitingRoom.delete({ where: { id: roomId } });
+        io?.to(roomId).emit('WAITING_ROOM_CLOSED_BY_HOST', { roomId });
+        io?.to(roomId).emit('WAITING_ROOM_UPDATED', null);
+        return res.json({ message: 'Salle fermée par l\'hôte', closedByHost: true });
+      }
+
+      const newHostId = others[0].userId;
+
+      await prisma.roomPlayer.deleteMany({
+        where: { roomId, userId }
+      });
+
+      await prisma.waitingRoom.update({
+        where: { id: roomId },
+        data: { hostId: newHostId }
+      });
+
+      io?.to(roomId).emit('PLAYER_LEFT', { roomId, userId, scope: 'WAITING_ROOM' });
+
+      const refreshedAfterHostLeave = await prisma.waitingRoom.findUnique({
+        where: { id: roomId },
+        include: {
+          players: {
+            include: {
+              user: {
+                select: { id: true, username: true, level: true }
+              }
+            }
+          }
+        }
+      });
+      if (refreshedAfterHostLeave) {
+        io?.to(roomId).emit(
+          'WAITING_ROOM_UPDATED',
+          formatWaitingRoomPayload(refreshedAfterHostLeave as never)
+        );
+      }
+
+      return res.json({
+        message: 'Hôte transféré',
+        newHostId,
+        hostTransferred: true
+      });
+    }
+
     await prisma.roomPlayer.deleteMany({
       where: {
         roomId,
@@ -629,30 +714,19 @@ router.post('/:roomId/leave', waitingRoomActionLimiter, async (req, res) => {
       }
     });
 
-    // Vérifier s'il reste des joueurs
     const room = await prisma.waitingRoom.findUnique({
       where: { id: roomId },
       include: { players: true }
     });
 
-    const io = req.app.get('io') as import('socket.io').Server | undefined;
     io?.to(roomId).emit('PLAYER_LEFT', { roomId, userId, scope: 'WAITING_ROOM' });
 
-    // Si plus de joueurs, supprimer la salle
     if (room && room.players.length === 0) {
       await prisma.waitingRoom.delete({
         where: { id: roomId }
       });
       io?.to(roomId).emit('WAITING_ROOM_UPDATED', null);
       return res.json({ message: 'Salle supprimée', empty: true });
-    }
-
-    // Si l'hôte est parti, nommer un nouvel hôte
-    if (room && room.hostId === userId && room.players.length > 0) {
-      await prisma.waitingRoom.update({
-        where: { id: roomId },
-        data: { hostId: room.players[0].userId }
-      });
     }
 
     if (room) {
@@ -973,7 +1047,7 @@ router.post('/:roomId/request-join', waitingRoomJoinLimiter, async (req, res) =>
     const joinRequest = await prisma.joinRequest.upsert({
       where: { roomId_userId: { roomId, userId } },
       create: { roomId, userId, status: 'PENDING' },
-      update: { status: 'PENDING' }
+      update: { status: 'PENDING' },
     });
 
     const io = req.app.get('io') as import('socket.io').Server | undefined;
@@ -1111,9 +1185,10 @@ router.post('/:roomId/join-requests/:requestId/reject', waitingRoomHostLimiter, 
     if (!joinRequest) return res.status(404).json({ error: 'Demande non trouvée' });
     if (joinRequest.room.hostId !== hostId) return res.status(403).json({ error: 'Non autorisé' });
 
-    await prisma.joinRequest.update({
+    /* Supprimer la ligne (pas seulement REJECTED) pour libérer @@unique([roomId, userId]) :
+       la prochaine demande recrée une entrée PENDING avec un nouvel id (upsert create). */
+    await prisma.joinRequest.delete({
       where: { id: requestId },
-      data: { status: 'REJECTED' }
     });
 
     const io = req.app.get('io') as import('socket.io').Server | undefined;

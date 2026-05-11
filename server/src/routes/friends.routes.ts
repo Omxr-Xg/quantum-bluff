@@ -146,6 +146,7 @@ router.post('/:id/accept', invitationRespondLimiter, async (req, res) => {
       io.to(`user:${invitation.senderId}`).emit('INVITATION_ACCEPTED', {
         invitationId: id,
         userId,
+        roomId: invitation.roomId,
       })
     }
 
@@ -176,6 +177,7 @@ router.post('/:id/reject', invitationRespondLimiter, async (req, res) => {
       io.to(`user:${invitation.senderId}`).emit('INVITATION_REJECTED', {
         invitationId: id,
         userId,
+        roomId: invitation.roomId,
       })
     }
 

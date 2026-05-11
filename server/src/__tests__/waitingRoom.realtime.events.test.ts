@@ -63,18 +63,102 @@ describe('waiting room realtime events', () => {
     )
   })
 
-  test('emits PLAYER_LEFT and WAITING_ROOM_UPDATED on leave', async () => {
-    ;(prisma.roomPlayer.deleteMany as jest.Mock).mockResolvedValue({ count: 1 })
+  test('when host leaves alone, deletes room and emits WAITING_ROOM_UPDATED null', async () => {
+    ;(prisma.waitingRoom.findUnique as jest.Mock).mockResolvedValue({
+      id: 'room-2',
+      hostId: 'u1',
+      players: [{ userId: 'u1' }],
+    })
+    ;(prisma.waitingRoom.delete as jest.Mock).mockResolvedValue({ id: 'room-2' })
+
+    await request(app)
+      .post('/api/waiting-room/room-2/leave')
+      .send({ userId: 'u1' })
+      .expect(200)
+
+    expect(prisma.waitingRoom.delete).toHaveBeenCalledWith({ where: { id: 'room-2' } })
+    expect(prisma.roomPlayer.deleteMany).not.toHaveBeenCalled()
+    expect(ioEmit).toHaveBeenCalledWith('WAITING_ROOM_CLOSED_BY_HOST', { roomId: 'room-2' })
+    expect(ioEmit).toHaveBeenCalledWith('WAITING_ROOM_UPDATED', null)
+  })
+
+  test('when host leaves with others, first remaining player becomes host', async () => {
     ;(prisma.waitingRoom.findUnique as jest.Mock)
       .mockResolvedValueOnce({
-        id: 'room-2',
+        id: 'room-x',
         hostId: 'u1',
-        players: [{ userId: 'u2' }],
+        players: [
+          { userId: 'u1', position: 0 },
+          { userId: 'u2', position: 1 },
+          { userId: 'u3', position: 2 },
+        ],
       })
       .mockResolvedValueOnce({
-        id: 'room-2',
-        name: 'Room 2',
+        id: 'room-x',
+        name: 'Room X',
         hostId: 'u2',
+        maxPlayers: 5,
+        visibility: 'PUBLIC',
+        status: 'WAITING',
+        turbo: false,
+        players: [
+          {
+            isReady: false,
+            position: 1,
+            avatarUrl: null,
+            user: { id: 'u2', username: 'B', level: 1 },
+          },
+          {
+            isReady: false,
+            position: 2,
+            avatarUrl: null,
+            user: { id: 'u3', username: 'C', level: 1 },
+          },
+        ],
+      })
+    ;(prisma.roomPlayer.deleteMany as jest.Mock).mockResolvedValue({ count: 1 })
+    ;(prisma.waitingRoom.update as jest.Mock).mockResolvedValue({ id: 'room-x', hostId: 'u2' })
+
+    const res = await request(app)
+      .post('/api/waiting-room/room-x/leave')
+      .send({ userId: 'u1' })
+      .expect(200)
+
+    expect(res.body).toEqual(
+      expect.objectContaining({ newHostId: 'u2', hostTransferred: true })
+    )
+    expect(prisma.waitingRoom.delete).not.toHaveBeenCalled()
+    expect(prisma.waitingRoom.update).toHaveBeenCalledWith({
+      where: { id: 'room-x' },
+      data: { hostId: 'u2' },
+    })
+    expect(ioEmit).toHaveBeenCalledWith('PLAYER_LEFT', {
+      roomId: 'room-x',
+      userId: 'u1',
+      scope: 'WAITING_ROOM',
+    })
+    expect(ioEmit).toHaveBeenCalledWith(
+      'WAITING_ROOM_UPDATED',
+      expect.objectContaining({ id: 'room-x', hostId: 'u2', status: 'WAITING' })
+    )
+  })
+
+  test('when a non-host leaves, emits PLAYER_LEFT and WAITING_ROOM_UPDATED', async () => {
+    ;(prisma.waitingRoom.findUnique as jest.Mock)
+      .mockResolvedValueOnce({
+        id: 'room-3',
+        hostId: 'u1',
+        players: [{ userId: 'u1' }, { userId: 'u2' }],
+      })
+      .mockResolvedValueOnce({
+        id: 'room-3',
+        hostId: 'u1',
+        players: [{ userId: 'u1' }],
+      })
+      .mockResolvedValueOnce({
+        id: 'room-3',
+        name: 'Room 3',
+        hostId: 'u1',
         maxPlayers: 5,
         visibility: 'PUBLIC',
         status: 'WAITING',
@@ -82,28 +166,26 @@ describe('waiting room realtime events', () => {
           {
             isReady: false,
             position: 0,
-            user: { id: 'u2', username: 'B', level: 1 },
+            user: { id: 'u1', username: 'A', level: 1 },
           },
         ],
       })
-    ;(prisma.waitingRoom.update as jest.Mock).mockResolvedValue({
-      id: 'room-2',
-      hostId: 'u2',
-    })
+    ;(prisma.roomPlayer.deleteMany as jest.Mock).mockResolvedValue({ count: 1 })
 
     await request(app)
-      .post('/api/waiting-room/room-2/leave')
-      .send({ userId: 'u1' })
+      .post('/api/waiting-room/room-3/leave')
+      .send({ userId: 'u2' })
       .expect(200)
 
+    expect(prisma.waitingRoom.delete).not.toHaveBeenCalled()
     expect(ioEmit).toHaveBeenCalledWith('PLAYER_LEFT', {
-      roomId: 'room-2',
-      userId: 'u1',
+      roomId: 'room-3',
+      userId: 'u2',
       scope: 'WAITING_ROOM',
     })
     expect(ioEmit).toHaveBeenCalledWith(
       'WAITING_ROOM_UPDATED',
-      expect.objectContaining({ id: 'room-2', status: 'WAITING' })
+      expect.objectContaining({ id: 'room-3', status: 'WAITING' })
     )
   })
 })

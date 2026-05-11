@@ -86,4 +86,39 @@ describe('waiting room create route', () => {
       .send({ hostId: 'u1', roomName: 'Salle test', maxPlayers: 6 })
       .expect(400)
   })
+
+  test('uses default room name when roomName is only whitespace', async () => {
+    ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: 'u1',
+      username: 'Host',
+    })
+    ;(prisma.waitingRoom.create as jest.Mock).mockResolvedValue({
+      id: 'room-2',
+      name: 'Salle de Host',
+      hostId: 'u1',
+      maxPlayers: 5,
+      visibility: 'PUBLIC',
+      status: 'WAITING',
+      turbo: false,
+      players: [
+        {
+          isReady: false,
+          position: 0,
+          avatarUrl: null,
+          user: { id: 'u1', username: 'Host', level: 1 },
+        },
+      ],
+    })
+
+    await request(app)
+      .post('/api/waiting-room/create')
+      .send({ hostId: 'u1', roomName: '   \t  ', maxPlayers: 5, visibility: 'PUBLIC' })
+      .expect(200)
+
+    expect(prisma.waitingRoom.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ name: 'Salle de Host' }),
+      })
+    )
+  })
 })
