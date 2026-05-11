@@ -5,7 +5,7 @@ import { useUser } from '../hooks/useUser'
 import { useToast } from './ToastContext'
 import { store } from '../store'
 import { api } from '../services/api'
-import { fetchBalanceFromServer } from '../utils/userProfile'
+import { fetchBalanceFromServer, updateUserBalance } from '../utils/userProfile'
 import { apiUrl } from '../utils/apiBase'
 import { getSocketIoUrlAndPath } from '../utils/socketConnect'
 import { getAuthItem } from '../utils/authStorage'
@@ -178,6 +178,27 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       socket.off('JOIN_REQUEST_REJECTED')
     }
   }, [socket, addToast])
+
+  /** Connexion quotidienne / défis : solde serveur + rafraîchissement UI sans attendre un refetch manuel. */
+  useEffect(() => {
+    if (!socket || isAdmin) return
+
+    const onUserRewardsUpdated = (data: {
+      chips?: number
+      source?: string
+      challengeCode?: string
+    }) => {
+      if (typeof data.chips === 'number' && Number.isFinite(data.chips)) {
+        updateUserBalance(Math.max(0, Math.floor(data.chips)))
+      }
+      window.dispatchEvent(new CustomEvent('user-rewards-updated', { detail: data }))
+    }
+
+    socket.on('USER_REWARDS_UPDATED', onUserRewardsUpdated)
+    return () => {
+      socket.off('USER_REWARDS_UPDATED', onUserRewardsUpdated)
+    }
+  }, [socket, isAdmin])
 
   /** Prêts / messages depuis la dernière visite Amis (serveur) + synchro cache RTK. */
   useEffect(() => {

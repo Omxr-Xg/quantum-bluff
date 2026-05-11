@@ -1,6 +1,8 @@
 import express from 'express'
+import type { Server } from 'socket.io'
 import { authMiddleware } from '../middleware/auth.middleware.js'
 import { env } from '../config/env.js'
+import { emitUserRewardsUpdated } from '../rewards/userRewards.socket.js'
 import {
   claimDailyLogin,
   getDailyLoginStatus,
@@ -59,6 +61,10 @@ router.post('/claim', async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
     const payload = await claimDailyLogin(userId)
+    const io = req.app.get('io') as Server | undefined
+    if (io) {
+      emitUserRewardsUpdated(io, userId, { chips: payload.chips, source: 'daily_login' })
+    }
     return res.json({ success: true, ...payload })
   } catch (error) {
     if (isDailyLoginError(error)) {
