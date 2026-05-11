@@ -82,13 +82,6 @@ model User {
   // Demandes de rejoindre des salles privées
   joinRequests      JoinRequest[]
 
-  // ============================================
-  // B3: TOURNOIS
-  // ============================================
-  tournamentsCreated Tournament[]       @relation("TournamentCreator")
-  tournamentsJoined  TournamentPlayer[]
-  tournamentJoinRequests TournamentJoinRequest[] @relation("TournamentJoinRequester")
-
   // RELATIONS EXISTANTES
   gameActions       GameAction[]    // Actions effectuées par le joueur
   gameWins          GameResult[]    // Parties gagnées par le joueur
@@ -116,6 +109,9 @@ model User {
 
   freeRecharge      FreeRecharge?
   giftCodeUsages    GiftCodeUsage[]
+
+  hostedTournaments   Tournament[]       @relation("TournamentHost")
+  tournamentPlayers   TournamentPlayer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -820,82 +816,6 @@ model HiddenBetHandResolution {
   @@map("hidden_bet_hand_resolutions")
 }
 
-// ============================================
-// NOUVEAUX MODÈLES - TOURNOIS (B3)
-// ============================================
-
-enum TournamentStatus {
-  PENDING    // En attente de joueurs
-  ACTIVE     // Tournoi en cours
-  COMPLETED  // Terminé
-  CANCELED   // Annulé
-}
-
-enum TournamentVisibility {
-  PUBLIC
-  PRIVATE
-}
-
-enum TournamentJoinRequestStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-}
-
-model Tournament {
-  id          String           @id @default(uuid())
-  name        String
-  buyIn       Int
-  maxPlayers  Int
-  startTime   DateTime
-  status      TournamentStatus @default(PENDING)
-  prizePool   Int              @default(0)
-  visibility  TournamentVisibility @default(PUBLIC)
-  /** Nombre de tables parallèles au 1er tour (reconstruction bracket si Redis vide). */
-  openingRoundTableCount Int?
-  /** OPENING | FINAL — phase bracket persistée pour reconstruction. */
-  activeBracketPhase     String?
-
-  createdById String
-  createdBy   User             @relation("TournamentCreator", fields: [createdById], references: [id])
-  createdAt   DateTime         @default(now())
-
-  players     TournamentPlayer[]
-  joinRequests TournamentJoinRequest[]
-
-  @@map("tournaments")
-  @@index([status, startTime])
-}
-
-model TournamentJoinRequest {
-  id            String                      @id @default(uuid())
-  tournamentId  String
-  requesterId   String
-  status        TournamentJoinRequestStatus @default(PENDING)
-  createdAt     DateTime                    @default(now())
-  updatedAt     DateTime                    @updatedAt
-
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  requester  User       @relation("TournamentJoinRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-
-  @@unique([tournamentId, requesterId])
-  @@index([tournamentId, status])
-  @@index([requesterId, status])
-  @@map("tournament_join_requests")
-}
-
-model TournamentPlayer {
-  tournamentId String
-  userId       String
-  eliminatedAt DateTime? // Si rempli, le joueur a perdu (tournoi fini pour lui)
-
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([tournamentId, userId]) // Clé primaire composite
-  @@map("tournament_players")
-}
-
 model DailyChallengeProgress {
   id           String   @id @default(uuid())
   userId       String
@@ -916,4 +836,152 @@ model DailyChallengeProgress {
   @@index([userId, dayKey])
   @@index([dayKey, challengeCode])
   @@map("daily_challenge_progress")
+}
+
+// ============================================
+// TOURNOIS TEXAS HOLD'EM (élimination directe)
+// ============================================
+
+enum TournamentVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum TournamentStatus {
+  REGISTRATION_OPEN
+  STARTING
+  ROUND_IN_PROGRESS
+  WAITING_FOR_TABLES
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentPlayerStatus {
+  REGISTERED
+  ACTIVE
+  WAITING_NEXT_ROUND
+  ELIMINATED
+  WINNER
+}
+
+enum TournamentRoundStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TournamentTableStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RECOVERING
+}
+
+enum TournamentRewardLedgerKind {
+  CHIPS_WINNER
+  XP_PLACEMENT
+}
+
+model Tournament {
+  id                        String             @id @default(uuid())
+  name                      String
+  hostId                    String
+  host                      User               @relation("TournamentHost", fields: [hostId], references: [id], onDelete: Cascade)
+  visibility                TournamentVisibility @default(PUBLIC)
+  /// Hash bcrypt du code (PRIVATE uniquement)
+  codeHash                  String?
+  status                    TournamentStatus   @default(REGISTRATION_OPEN)
+  maxPlayers                Int                /// 4–20
+  initialStack              Int
+  startAt                   DateTime
+  blindSmall                Int
+  blindBig                  Int
+  currentRoundNumber        Int                @default(0)
+  bracketJson               Json?
+  /// Snapshot au moment de la création de la table finale (JSON string[] userIds)
+  finalTablePlayerIds       Json?
+  finalTableInitialStackSum Int?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+
+  players TournamentPlayer[]
+  rounds  TournamentRound[]
+  rewards TournamentRewardLedger[]
+
+  @@index([status, startAt])
+  @@index([hostId])
+  @@map("tournaments")
+}
+
+model TournamentPlayer {
+  id                    String                 @id @default(uuid())
+  tournamentId        String
+  userId              String
+  status              TournamentPlayerStatus @default(REGISTERED)
+  eliminatedAt        DateTime?
+  finalRank           Int?
+  eliminationOrder    Int?
+  eliminatedFromTableId String?
+  qualifiedRound      Int?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId, status])
+  @@index([userId])
+  @@map("tournament_players")
+}
+
+model TournamentRound {
+  id            String               @id @default(uuid())
+  tournamentId  String
+  roundNumber   Int
+  status        TournamentRoundStatus @default(PENDING)
+  startedAt     DateTime?
+  completedAt   DateTime?
+
+  tournament Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tables     TournamentTable[]
+
+  @@unique([tournamentId, roundNumber])
+  @@index([tournamentId, status])
+  @@map("tournament_rounds")
+}
+
+model TournamentTable {
+  id           String                @id @default(uuid())
+  roundId      String
+  gameId       String                @unique
+  status       TournamentTableStatus @default(PENDING)
+  winnerUserId String?
+  playerCount  Int                   @default(0)
+  isFinalTable Boolean               @default(false)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  round TournamentRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@index([roundId, status])
+  @@index([gameId])
+  @@map("tournament_tables")
+}
+
+model TournamentRewardLedger {
+  id           String                    @id @default(uuid())
+  tournamentId String
+  userId       String
+  kind         TournamentRewardLedgerKind
+  chipsAmount  Int?
+  xpDelta      Int?
+  createdAt    DateTime                  @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId, kind])
+  @@index([tournamentId])
+  @@map("tournament_reward_ledger")
 }

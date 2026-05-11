@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import { AccessibilityProvider } from "./contexts/AccessibilityContext";
 import { AccessibilityMenuOpenProvider } from "./contexts/AccessibilityMenuOpenContext";
@@ -29,20 +27,15 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LoaderProvider } from "./contexts/LoaderContext";
 
 import { MiniGames } from './pages/MiniGames';
-import { TournamentLobby } from './pages/TournamentLobby';
-import { TournamentWaiting } from './pages/TournamentWaiting';
-import { AdminTournaments } from './pages/AdminTournaments';
+import { TournamentLobby } from "./features/tournament/pages/TournamentLobby";
+import { TournamentRoom } from "./features/tournament/pages/TournamentRoom";
+import { TournamentWaiting } from "./features/tournament/pages/TournamentWaiting";
 import { AdminAuth } from "./pages/AdminAuth";
 import { AdminConsole } from "./pages/AdminConsole";
 import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 
 import { InvitationAcceptProvider } from "./contexts/InvitationAcceptContext";
 import { socket } from './services/socket';
-import { useUser } from './hooks/useUser';
-import { useToast } from './contexts/ToastContext';
-import { getAuthItem } from './utils/authStorage';
-import { TournamentService } from './services/tournament.service';
-
 
 const isDev = import.meta.env.DEV;
 
@@ -80,414 +73,6 @@ function GameWithKey() {
   return <Game key={location.pathname + location.search} />;
 }
 
-function TournamentTeleporter() {
-  const navigate = useNavigate();
-  const { userId } = useUser();
-  const { addToast } = useToast();
-  const { t, i18n } = useTranslation();
-
-  const recoverTournamentTable = useCallback(async () => {
-    const uid = userId != null ? String(userId) : "";
-    if (!uid) return;
-    const token = getAuthItem("token");
-    if (!token) return;
-    try {
-      const { gameId } = await TournamentService.getMyTournamentTable();
-      if (!gameId) return;
-      const params = new URLSearchParams(window.location.search);
-      if (window.location.pathname === "/game" && params.get("gameId") === gameId) return;
-      navigate(`/game?gameId=${encodeURIComponent(gameId)}&tournament=1`);
-    } catch {
-      /* ignore */
-    }
-  }, [userId, navigate]);
-  
-  const [tournamentResult, setTournamentResult] = useState<{
-    type: 'win' | 'lose' | 'finalist' | 'result';
-    /** Table à suivre en spectateur (émis avec l’élimination ou peu après). */
-    spectateGameId?: string;
-    myPosition?: number | null;
-    myAmount?: number;
-    tournamentName?: string;
-    ranking?: { userId: string; username: string; position: number; amount: number }[];
-  } | null>(null);
-  const lastSpectateGameIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    const currentToken = getAuthItem('token');
-
-    if (!currentToken) {
-      if (isDev) console.warn("⛔ Pas de token — socket non connecté");
-      return;
-    }
-
-    if (!socket.connected) {
-      socket.auth = { token: currentToken };
-      if (isDev) console.log("🔐 Token socket injecté");
-      socket.connect();
-    }
-
-    const handleTournamentStart = (data: { playersToTeleport?: string[]; playerToGameMap?: Record<string, string> }) => {
-      const uid = userId != null ? String(userId) : "";
-      if (!uid) {
-        void recoverTournamentTable();
-        return;
-      }
-      const ids = data.playersToTeleport ?? [];
-      const isIncluded = ids.some((id) => String(id) === uid);
-      if (isIncluded) {
-        lastSpectateGameIdRef.current = null;
-        const myTableId = data.playerToGameMap?.[uid] ?? data.playerToGameMap?.[userId as string];
-        if (!myTableId) {
-          void recoverTournamentTable();
-          return;
-        }
-        addToast(t("tournament.teleporter.toastStarted"), "success");
-        navigate(`/game?gameId=${encodeURIComponent(myTableId)}&tournament=1`);
-      }
-    };
-
-    /**
-     * Timer du « finalist » overlay (3 s) avant de rediriger vers /tournament-waiting.
-     * On le garde dans une closure mutable pour pouvoir l'annuler si la table de finale
-     * arrive avant le délai (sinon le setTimeout pousserait l'utilisateur sur
-     * /tournament-waiting alors qu'il vient déjà d'être téléporté à la finale).
-     */
-    let tournamentWonTimer: ReturnType<typeof setTimeout> | null = null;
-    const cancelTournamentWonTimer = () => {
-      if (tournamentWonTimer != null) {
-        clearTimeout(tournamentWonTimer);
-        tournamentWonTimer = null;
-      }
-    };
-
-    /** Pose un drapeau global lu par <Game /> pour bloquer un éventuel redirect /lobby pendant la transition vers la finale/merge. */
-    const flagPendingTournamentNav = () => {
-      try {
-        (window as unknown as { __pendingTournamentNavAt?: number }).__pendingTournamentNavAt = Date.now();
-      } catch {
-        /* ignore */
-      }
-    };
-
-    const handleTournamentWon = (data: { userId: string; survivorsCount?: number; expectedTables?: number }) => {
-      if (data.userId === userId) {
-        setTournamentResult({ type: 'finalist' });
-        cancelTournamentWonTimer();
-        tournamentWonTimer = setTimeout(() => {
-          tournamentWonTimer = null;
-          setTournamentResult(null);
-          navigate('/tournament-waiting', {
-            state: data.survivorsCount && data.expectedTables
-              ? { survivorsCount: data.survivorsCount, expectedTables: data.expectedTables }
-              : undefined,
-          });
-        }, 3000);
-      }
-    };
-
-    const handleWaitingFinal = (data: { survivorsCount: number; expectedTables: number }) => {
-      if (isDev) {
-        console.log('[TOURNOI_TRACE] tournament-waiting-final', { userId, ...data, path: window.location.pathname });
-      }
-    };
-
-    const handleFinalTable = (data: { gameId: string; players: { userId: string; username: string; chips: number }[] }) => {
-      if (isDev) {
-        console.log('[TOURNOI_TRACE] tournament-final-table / merge-table', { userId, gameId: data.gameId, path: window.location.pathname });
-      }
-      // Annule le redirect pendant qu'on est sur le « finalist » overlay : sinon, après 3 s
-      // l'utilisateur est repoussé sur /tournament-waiting alors qu'on vient de l'envoyer en finale.
-      cancelTournamentWonTimer();
-      // Empêche <Game /> de rediriger vers /lobby si un fetch HTTP 404 arrive en parallèle
-      // (la table semi-finale a été supprimée côté serveur juste après la création de la finale).
-      flagPendingTournamentNav();
-      lastSpectateGameIdRef.current = null;
-      setTournamentResult(null);
-      navigate(`/game?gameId=${data.gameId}&tournament=1`, {
-        state: { tournamentPlayers: data.players }
-      });
-    };
-
-    const handleElimination = (data: { userId: string }) => {
-      if (data.userId === userId) {
-        const gid = lastSpectateGameIdRef.current ?? undefined;
-        setTournamentResult({
-          type: 'lose',
-          ...(gid ? { spectateGameId: gid } : {}),
-        });
-      }
-    };
-
-    const handleSpectate = (data: { gameId: string }) => {
-      lastSpectateGameIdRef.current = data.gameId;
-      setTournamentResult((prev) =>
-        prev?.type === 'lose' ? { ...prev, spectateGameId: data.gameId } : prev,
-      );
-    };
-
-    const handleTournamentResult = (data: {
-      tournamentName: string;
-      prizePool: number;
-      ranking: { userId: string; username: string; position: number; amount: number }[];
-      myPosition: number | null;
-      myAmount: number;
-    }) => {
-      setTournamentResult({
-        type: 'result',
-        myPosition: data.myPosition,
-        myAmount: data.myAmount,
-        tournamentName: data.tournamentName,
-        ranking: data.ranking,
-      });
-      setTimeout(() => {
-        setTournamentResult(null);
-        navigate('/tournaments');
-      }, 12000);
-    };
-
-    const handleCountdown = (data: { tournamentName: string; minutesLeft: number }) => {
-      const type = data.minutesLeft <= 5 ? 'warning' : 'info';
-      const msg =
-        data.minutesLeft === 1
-          ? t('tournament.teleporter.countdownOne', { name: data.tournamentName })
-          : t('tournament.teleporter.countdownMany', {
-              name: data.tournamentName,
-              minutes: String(data.minutesLeft),
-            });
-      addToast(msg, type);
-    };
-
-    const handleCancelled = (data: { tournamentName: string; reason?: string }) => {
-      addToast(t('tournament.teleporter.cancelled', { name: data.tournamentName }), 'error');
-    };
-
-    const handlePlayerJoined = (data: {
-      username: string;
-      playerCount: number;
-      maxPlayers: number;
-    }) => {
-      addToast(
-        t('tournament.teleporter.playerJoined', {
-          username: data.username,
-          current: String(data.playerCount),
-          max: String(data.maxPlayers),
-        }),
-        'info',
-      );
-    };
-
-    const onSocketConnect = () => {
-      void recoverTournamentTable();
-    };
-    socket.on('connect', onSocketConnect);
-    socket.on('tournament-started', handleTournamentStart);
-    socket.on('tournament-won', handleTournamentWon);
-    socket.on('tournament-countdown', handleCountdown);
-    socket.on('tournament-cancelled', handleCancelled);
-    socket.on('tournament-player-joined', handlePlayerJoined);
-    socket.on('tournament-waiting-final', handleWaitingFinal);
-    socket.on('tournament-final-table', handleFinalTable);
-    socket.on('tournament-merge-table', handleFinalTable);
-    socket.on('tournament-eliminated', handleElimination);
-    socket.on('tournament-spectate', handleSpectate);
-    socket.on('tournament-result', handleTournamentResult);
-
-    return () => {
-      cancelTournamentWonTimer();
-      socket.off('connect', onSocketConnect);
-      socket.off('tournament-started', handleTournamentStart);
-      socket.off('tournament-won', handleTournamentWon);
-      socket.off('tournament-countdown', handleCountdown);
-      socket.off('tournament-cancelled', handleCancelled);
-      socket.off('tournament-player-joined', handlePlayerJoined);
-      socket.off('tournament-waiting-final', handleWaitingFinal);
-      socket.off('tournament-final-table', handleFinalTable);
-      socket.off('tournament-merge-table', handleFinalTable);
-      socket.off('tournament-eliminated', handleElimination);
-      socket.off('tournament-spectate', handleSpectate);
-      socket.off('tournament-result', handleTournamentResult);
-    };
-  }, [userId, navigate, addToast, t, i18n.language, recoverTournamentTable]);
-
-  useEffect(() => {
-    void recoverTournamentTable();
-  }, [recoverTournamentTable]);
-
-  if (tournamentResult) {
-    const medals = ['🥇', '🥈', '🥉'];
-    const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
-
-    if (tournamentResult.type === 'finalist') {
-      return (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
-          zIndex: 99999, display: 'flex', flexDirection: 'column',
-          justifyContent: 'center', alignItems: 'center',
-          color: 'white', fontFamily: 'sans-serif', textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '5rem', marginBottom: '20px' }}>🏆</div>
-          <h1 style={{ fontSize: '3rem', margin: 0, color: '#FFD700', textShadow: '0 0 20px #FFD700' }}>
-            {t('tournament.teleporter.finalistTitle')}
-          </h1>
-          <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
-            {t('tournament.teleporter.finalistSubtitle')}
-          </p>
-          <p style={{ marginTop: '10px', fontSize: '1rem', opacity: 0.6 }}>
-            {t('tournament.teleporter.redirecting')}
-          </p>
-        </div>
-      );
-    }
-
-    if (tournamentResult.type === 'lose') {
-      const spectateId = tournamentResult.spectateGameId;
-      const btnStyle: CSSProperties = {
-        padding: '12px 28px',
-        border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
-        fontSize: '1rem', cursor: 'pointer', fontFamily: 'sans-serif',
-      };
-      const goLobby = () => {
-        lastSpectateGameIdRef.current = null;
-        setTournamentResult(null);
-        navigate('/lobby', { replace: true });
-      };
-      const goSpectate = () => {
-        if (!spectateId) return;
-        lastSpectateGameIdRef.current = null;
-        setTournamentResult(null);
-        navigate(
-          `/game?gameId=${encodeURIComponent(spectateId)}&spectate=1&tournament=1`,
-          { replace: true },
-        );
-      };
-      return (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(30,0,0,0.9)', backdropFilter: 'blur(8px)',
-          zIndex: 99999, display: 'flex', flexDirection: 'column',
-          justifyContent: 'center', alignItems: 'center',
-          color: 'white', fontFamily: 'sans-serif', textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '6rem', marginBottom: '20px' }}>💥</div>
-          <h1 style={{ fontSize: '4rem', margin: 0, color: '#FF4444', textShadow: '0 0 20px #FF0000' }}>
-            {t('tournament.teleporter.eliminatedTitle')}
-          </h1>
-          <p style={{ fontSize: '1.5rem', marginTop: '20px', opacity: 0.9 }}>
-            {t('tournament.teleporter.eliminatedSubtitle')}
-          </p>
-          <p style={{ marginTop: '20px', fontSize: '1rem', opacity: 0.55, maxWidth: '28rem', padding: '0 16px' }}>
-            {spectateId
-              ? t('tournament.teleporter.eliminatedChoosePath')
-              : t('tournament.teleporter.eliminatedSpectatePending')}
-          </p>
-          <div style={{ marginTop: '28px', display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center' }}>
-            {spectateId ? (
-              <button
-                type="button"
-                onClick={goSpectate}
-                style={{
-                  ...btnStyle,
-                  background: 'rgba(251, 191, 36, 0.25)', color: '#fde68a', borderColor: 'rgba(251, 191, 36, 0.5)',
-                }}
-              >
-                {t('tournament.teleporter.spectateButton')}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={goLobby}
-              style={{
-                ...btnStyle,
-                background: 'transparent', color: 'white',
-              }}
-            >
-              {t('tournament.teleporter.lobbyButton')}
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (tournamentResult.type === 'result' || tournamentResult.type === 'win') {
-      const myPos = tournamentResult.myPosition;
-      return (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)',
-          zIndex: 99999, display: 'flex', flexDirection: 'column',
-          justifyContent: 'center', alignItems: 'center',
-          color: 'white', fontFamily: 'sans-serif', textAlign: 'center',
-          padding: '20px', overflowY: 'auto'
-        }}>
-          <div style={{ fontSize: '5rem', marginBottom: '10px' }}>
-            {myPos && myPos <= 3 ? medals[myPos - 1] : '🎮'}
-          </div>
-          <h1 style={{
-            fontSize: '3rem', margin: 0,
-            color: myPos && myPos <= 3 ? medalColors[myPos - 1] : '#ffffff',
-            textShadow: myPos && myPos <= 3 ? `0 0 20px ${medalColors[myPos - 1]}` : 'none'
-          }}>
-            {myPos === 1
-              ? t('tournament.teleporter.place1')
-              : myPos === 2
-                ? t('tournament.teleporter.place2')
-                : myPos === 3
-                  ? t('tournament.teleporter.place3')
-                  : myPos
-                    ? t('tournament.teleporter.placeN', { n: String(myPos) })
-                    : ''}
-          </h1>
-          {tournamentResult.myAmount && tournamentResult.myAmount > 0 && (
-            <p style={{ fontSize: '1.5rem', marginTop: '10px', color: '#4ade80' }}>
-              {t('tournament.teleporter.prizeChips', {
-                amount: tournamentResult.myAmount.toLocaleString(i18n.language),
-              })}
-            </p>
-          )}
-          {tournamentResult.ranking && tournamentResult.ranking.length > 0 && (
-            <div style={{
-              marginTop: '24px', background: 'rgba(255,255,255,0.08)',
-              borderRadius: '12px', padding: '16px',
-              minWidth: '300px', maxWidth: '400px', width: '100%'
-            }}>
-              <p style={{ fontSize: '0.9rem', opacity: 0.6, marginBottom: '12px' }}>
-                {tournamentResult.tournamentName}
-              </p>
-              {tournamentResult.ranking.map((r) => (
-                <div key={r.userId} style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.1)',
-                  color: r.position <= 3 ? medalColors[r.position - 1] : 'rgba(255,255,255,0.6)'
-                }}>
-                  <span>
-                    {r.position <= 3 ? medals[r.position - 1] : `#${r.position}`} {r.username}
-                  </span>
-                  {r.amount > 0 && (
-                    <span style={{ color: '#4ade80', fontSize: '0.9rem' }}>
-                      {t('tournament.teleporter.prizeChips', {
-                        amount: r.amount.toLocaleString(i18n.language),
-                      })}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          <p style={{ marginTop: '24px', fontSize: '0.9rem', opacity: 0.4 }}>
-            {t('tournament.teleporter.backTournamentsSoon')}
-          </p>
-        </div>
-      );
-    }
-
-    return null;
-  }
-
-  return null;
-}
-
 const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
 const isCapacitor = typeof window !== 'undefined' && !!(window as Window & { Capacitor?: unknown }).Capacitor;
 const basename = base && !isCapacitor ? base : undefined;
@@ -503,7 +88,6 @@ function App() {
         <InvitationAcceptProvider>
         <Layout>
           
-          <TournamentTeleporter />
           <Routes>
             <Route path="/" element={<StartScreen />} />
             <Route path="/auth" element={<Auth />} />
@@ -521,6 +105,10 @@ function App() {
             <Route path="/blackjack/table/:gameId" element={<ProtectedRoute><BlackjackMultiTable /></ProtectedRoute>} />
             <Route path="/waiting-room" element={<ProtectedRoute><WaitingRoom /></ProtectedRoute>} />
 
+            <Route path="/tournaments" element={<ProtectedRoute><TournamentLobby /></ProtectedRoute>} />
+            <Route path="/tournaments/:id" element={<ProtectedRoute><TournamentRoom /></ProtectedRoute>} />
+            <Route path="/tournaments/:id/waiting" element={<ProtectedRoute><TournamentWaiting /></ProtectedRoute>} />
+
             <Route path="/game" element={<ProtectedRoute><GameWithKey /></ProtectedRoute>} />
             <Route path="/game-deal" element={<ProtectedRoute><GameDeal /></ProtectedRoute>} />
             <Route path="/game-example" element={<ProtectedRoute><GameExample /></ProtectedRoute>} />
@@ -533,10 +121,6 @@ function App() {
             <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
 
             <Route path="/tutorial-lobby" element={<ProtectedRoute><TutorialLobby /></ProtectedRoute>} />
-
-            <Route path="/tournaments" element={<ProtectedRoute><TournamentLobby /></ProtectedRoute>} />
-            <Route path="/tournament-waiting" element={<ProtectedRoute><TournamentWaiting /></ProtectedRoute>} />
-            <Route path="/admin/tournaments" element={<ProtectedRoute><AdminTournaments /></ProtectedRoute>} />
 
           </Routes>
         </Layout>

@@ -201,11 +201,6 @@ export function Game() {
   const mode = searchParams.get("mode");
   const gameIdParam = searchParams.get("gameId");
   const isSpectating = searchParams.get("spectate") === "1";
-  const isTournamentTable =
-    searchParams.get("tournament") === "1" ||
-    Array.isArray(
-      (location.state as { tournamentPlayers?: unknown[] } | null | undefined)?.tournamentPlayers,
-    );
   const isBotMode = mode === "bot";
   const { userId } = useUser();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
@@ -1353,7 +1348,7 @@ export function Game() {
   /** Solde compte + persistance serveur — practice bot « expert » uniquement (local sans gameId, ou gameId practice-bot-* géré ailleurs). */
   const applyLocalExpertWalletDelta = useCallback(
     (delta: number) => {
-      // Partie cash / tournoi : le serveur porte le wallet ; pas de double comptage client.
+      // Partie cash : le serveur porte le wallet ; pas de double comptage client.
       if (gameIdParam && !String(gameIdParam).startsWith(PRACTICE_BOT_GAME_ID_PREFIX)) return;
       if (!isBotMode || !isExpertPracticeBot) return;
       if (delta !== 0) {
@@ -1460,12 +1455,6 @@ export function Game() {
       .then((res) => {
         if (cancelled) return null;
         if (res.status === 404) {
-          // Si le serveur vient d'émettre tournament-final-table / tournament-merge-table,
-          // App.tsx pose ce drapeau pour qu'on n'écrase pas la navigation vers la nouvelle table.
-          const flag = (window as unknown as { __pendingTournamentNavAt?: number }).__pendingTournamentNavAt;
-          if (typeof flag === "number" && Date.now() - flag < 10_000) {
-            return null;
-          }
           navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
           return null;
         }
@@ -1579,12 +1568,6 @@ export function Game() {
 
     const onError = (payload: { code?: string; message?: string }) => {
       if (payload?.code === "GAME_NOT_FOUND") {
-        // Cf. fetch 404 plus haut : si on est en train d'être téléporté vers la finale d'un tournoi,
-        // on laisse la navigation tournament-final-table / tournament-merge-table prendre le dessus.
-        const flag = (window as unknown as { __pendingTournamentNavAt?: number }).__pendingTournamentNavAt;
-        if (typeof flag === "number" && Date.now() - flag < 10_000) {
-          return;
-        }
         navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
       }
         else if (payload?.code === "ACTION_ERROR" || payload?.code === "INVALID_RAISE" || payload?.code === "TOO_MANY_ACTIONS") {
@@ -1764,8 +1747,7 @@ export function Game() {
       if (gameState.cashSeats && Array.isArray(gameState.cashSeats)) {
         setCashSeats(gameState.cashSeats);
         if (isSpectating && userId && gameState.cashSeats.some((s) => s.userId && String(s.userId) === String(userId))) {
-          const tQs = searchParams.get("tournament") === "1" ? "&tournament=1" : "";
-          navigate(`/game?gameId=${gameIdParam}${tQs}`, { replace: true });
+          navigate(`/game?gameId=${gameIdParam}`, { replace: true });
           return;
         }
       }
@@ -3058,9 +3040,7 @@ export function Game() {
     return () => window.clearTimeout(t);
   }, [gameIdParam, isBotMode, userId, practiceBotTurnWatchId, phase, gameOverReason]);
 
-  // Safety net for tournament / non-bot multiplayer games:
-  // If the server hand runtime stays at HAND_COMPLETE (orchestrator auto-start can lag),
-  // re-join the socket room so both clients receive the next hand without a manual refresh.
+  // Safety net for non-bot multiplayer games: if HAND_COMPLETE lingers, re-join the socket room.
   useEffect(() => {
     if (!gameIdParam || isBotMode || gameOverReason) return;
     if (serverHandRuntimePhase !== "HAND_COMPLETE") return;
@@ -3077,11 +3057,8 @@ export function Game() {
         });
       }
     };
-    const tEarly =
-      isTournamentTable && userId ? window.setTimeout(doRejoin, 4000) : undefined;
     const tLate = window.setTimeout(doRejoin, 9000);
     return () => {
-      if (tEarly != null) window.clearTimeout(tEarly);
       window.clearTimeout(tLate);
     };
   }, [
@@ -3089,7 +3066,6 @@ export function Game() {
     isBotMode,
     serverHandRuntimePhase,
     gameOverReason,
-    isTournamentTable,
     isSpectating,
     socket,
     userId,
@@ -3177,11 +3153,10 @@ export function Game() {
       return;
     }
     setShowMultiBustPrompt(false);
-    const tQs = searchParams.get("tournament") === "1" ? "&tournament=1" : "";
-    navigate(`/game?gameId=${encodeURIComponent(targetGameId)}&spectate=1${tQs}`, {
+    navigate(`/game?gameId=${encodeURIComponent(targetGameId)}&spectate=1`, {
       replace: true,
     });
-  }, [navigate, gameIdParam, searchParams]);
+  }, [navigate, gameIdParam]);
   const handleBackToLobbyAfterBust = useCallback(() => {
     setShowMultiBustPrompt(false);
     navigate("/lobby");
@@ -4755,7 +4730,7 @@ export function Game() {
         onOpponentAvatarClick={(p) =>
           setPlayerMenuTarget({ id: String(p.id), name: p.name })
         }
-        hideHeroChipStack={!isTournamentTable}
+        hideHeroChipStack
         >
         <CommunityCards
         cards={communityCards}

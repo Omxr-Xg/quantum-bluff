@@ -35,7 +35,6 @@ import { apiUrl } from "../utils/apiBase";
 import { getUserBalance, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 import { DailyChallenges } from "../components/DailyChallenges";
-import { TournamentWidget } from '../components/TournamentWidget';
 import { getAuthItem } from "../utils/authStorage";
 import { FreeRechargeButton } from '../components/FreeRechargeButton';
 
@@ -242,7 +241,6 @@ export function Lobby() {
   const tourRefWaiting = useRef<HTMLDivElement>(null);
   const tourRefGames = useRef<HTMLDivElement>(null);
   const tourRefFriends = useRef<HTMLDivElement>(null);
-  const tourRefTournaments = useRef<HTMLDivElement>(null);
   const tourRefMinigames = useRef<HTMLDivElement>(null);
   const tourRefBlackjack = useRef<HTMLDivElement>(null);
   const tourRefDaily = useRef<HTMLDivElement>(null);
@@ -290,7 +288,6 @@ export function Lobby() {
       multiplayer: tourRefMultiplayer,
       waitingRooms: tourRefWaiting,
       gamesInProgress: tourRefGames,
-      tournaments: tourRefTournaments,
       minigamesPanel: tourRefMinigames,
       blackjackPanel: tourRefBlackjack,
       dailyChallenges: tourRefDaily,
@@ -974,6 +971,20 @@ export function Lobby() {
                 </button>
               </div>
 
+              <div className="rounded-2xl border border-amber-400/15 bg-amber-950/40 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+                <h2 className="mb-2 text-xl font-bold text-white">Tournois Texas Hold&apos;em</h2>
+                <p className="mb-4 text-sm text-amber-100/80">
+                  Tables virtuelles, élimination directe, récompenses XP et jetons.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate("/tournaments")}
+                  className="w-full rounded-xl border border-amber-300/25 bg-amber-900/70 py-3 font-bold text-white transition hover:border-amber-200/40 hover:bg-amber-800/80 md:py-4"
+                >
+                  Ouvrir le lobby tournoi
+                </button>
+              </div>
+
               {/* Section Serveur Multi-joueurs */}
               <div ref={tourRefMultiplayer} className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
@@ -1140,11 +1151,6 @@ export function Lobby() {
                     )}
                   </div>
                 </div>
-              </div>
-              
-              {/* Arène des tournois */}
-              <div ref={tourRefTournaments} className="lg:mt-auto">
-                <TournamentWidget />
               </div>
             </div>
           )}

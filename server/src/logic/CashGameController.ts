@@ -36,6 +36,8 @@ export interface CashHandCompleteResult {
   seatCashOuts: { userId: string; chips: number }[]
 }
 
+export type CashWalletLedgerMode = 'cash' | 'none'
+
 export interface CashGameControllerOptions {
   id: string
   roomId: string
@@ -45,6 +47,16 @@ export interface CashGameControllerOptions {
   defaultBuyIn?: number
   /** Durée max d’un tour (ms), ex. turbo = 10_000 */
   turnTimeoutMs?: number
+  /**
+   * `none` : stacks virtuels, pas de sync `User.chips` sur la table (tournoi).
+   * `cash` : comportement historique salle d’attente.
+   */
+  walletLedger?: CashWalletLedgerMode
+  /**
+   * Entre deux mains, si exactement un joueur a des jetons, ne pas relancer de main
+   * (fin de « match » élimination directe). La gateway notifie le tournoi.
+   */
+  stopWhenSingleSurvivor?: boolean
 }
 
 /** Interface compatible avec GameTable pour activeGames */
@@ -67,6 +79,8 @@ export class CashGameController implements IGameSession {
   private readonly bigBlind: number
   private readonly defaultBuyIn: number
   private readonly turnTimeoutMs: number
+  private readonly walletLedger: CashWalletLedgerMode
+  private readonly stopWhenSingleSurvivor: boolean
   private seats: CashSeat[]
   private buttonSeatIndex: number
   private gameTable: GameTable | null = null
@@ -193,6 +207,8 @@ export class CashGameController implements IGameSession {
     this.smallBlind = options.smallBlind ?? DEFAULT_SMALL_BLIND
     this.bigBlind = options.bigBlind ?? DEFAULT_BIG_BLIND
     this.defaultBuyIn = options.defaultBuyIn ?? DEFAULT_BUY_IN
+    this.walletLedger = options.walletLedger === 'none' ? 'none' : 'cash'
+    this.stopWhenSingleSurvivor = Boolean(options.stopWhenSingleSurvivor)
     this.turnTimeoutMs =
       typeof options.turnTimeoutMs === 'number' && options.turnTimeoutMs >= 3000 && options.turnTimeoutMs <= 120_000
         ? options.turnTimeoutMs
@@ -276,6 +292,37 @@ export class CashGameController implements IGameSession {
 
   getTurnTimeoutMs(): number {
     return this.turnTimeoutMs
+  }
+
+  getWalletLedger(): CashWalletLedgerMode {
+    return this.walletLedger
+  }
+
+  getStopWhenSingleSurvivor(): boolean {
+    return this.stopWhenSingleSurvivor
+  }
+
+  /**
+   * Sièges occupés avec jetons > 0 (hors main : après `onHandComplete`).
+   */
+  getSurvivorsWithChips(): { userId: string; chips: number }[] {
+    return this.getOccupiedSeats()
+      .filter((s) => s.userId != null && intChips(s.chips) > 0)
+      .map((s) => ({ userId: s.userId!, chips: intChips(s.chips) }))
+  }
+
+  /**
+   * Tournoi : enchaîne la main suivante sans attendre `CASH_NEXT_HAND_READY`.
+   */
+  startNextHandIfMultiSurvivors(): boolean {
+    if (this.walletLedger !== 'none') return false
+    if (this.gameTable != null) return false
+    const alive = this.getSurvivorsWithChips()
+    if (alive.length >= 2) {
+      this.startHand()
+      return true
+    }
+    return false
   }
 
   /** Buy-in effectif (plancher salle / plafond 10k), aligné sur `sit`. */
@@ -572,7 +619,11 @@ export class CashGameController implements IGameSession {
     if (seatIndex < 0 || seatIndex >= this.maxSeats) return { ok: false, error: 'Siège invalide' }
     if (this.seats[seatIndex].userId != null) return { ok: false, error: 'Siège occupé' }
     const amount = intChips(Math.max(this.defaultBuyIn, Math.min(buyIn, 10000)))
-    if (typeof walletChips === 'number' && intChips(walletChips) < amount) {
+    if (
+      this.walletLedger === 'cash' &&
+      typeof walletChips === 'number' &&
+      intChips(walletChips) < amount
+    ) {
       return {
         ok: false,
         error: `Solde insuffisant : il faut au moins ${amount} jetons pour s'asseoir (buy-in min. ${this.defaultBuyIn}).`,
@@ -648,6 +699,7 @@ export class CashGameController implements IGameSession {
 
   /** Racheter des jetons (entre les mains uniquement) */
   rebuy(userId: string, amount: number, walletChips?: number): { ok: boolean; error?: string } {
+    if (this.walletLedger === 'none') return { ok: false, error: 'Rebuy indisponible sur cette table' }
     if (this.gameTable != null) return { ok: false, error: 'Une main est en cours' }
     const seat = this.seats.find((s) => s.userId === userId)
     if (!seat) return { ok: false, error: 'Vous n\'êtes pas assis' }
@@ -695,6 +747,7 @@ export class CashGameController implements IGameSession {
 
   /** Paris cachés : fenêtre ouverte entre deux mains avec au moins 2 joueurs ayant des jetons. */
   isHiddenBetWindowOpen(): boolean {
+    if (this.walletLedger === 'none') return false
     if (this.gameTable) return false
     const occupied = this.getOccupiedSeats().filter((s) => s.userId && s.chips > 0)
     if (occupied.length < 2) return false
@@ -703,6 +756,10 @@ export class CashGameController implements IGameSession {
 
   /** Garantit un nextHandId pour quote/place quand la fenêtre est ouverte. */
   private syncHiddenBetNextHandId(): void {
+    if (this.walletLedger === 'none') {
+      this.pendingNextHandId = null
+      return
+    }
     if (this.gameTable) return
     const occupied = this.getOccupiedSeats().filter((s) => s.userId && s.chips > 0)
     if (occupied.length < 2) {

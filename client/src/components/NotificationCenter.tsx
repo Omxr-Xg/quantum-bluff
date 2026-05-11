@@ -9,7 +9,6 @@ import { useInvitationAccept } from "../contexts/InvitationAcceptContext";
 import { useUser } from "../hooks/useUser";
 import { useGetFriendRequestsQuery, useRespondToFriendRequestMutation } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
-import { TournamentService } from "../services/tournament.service";
 import { getAuthItem } from "../utils/authStorage";
 import {
   LOCAL_NOTICE_ADD_EVENT,
@@ -23,14 +22,6 @@ interface UnreadMessage {
   content: string;
   timestamp: number;
 }
-interface TournamentJoinRequest {
-  id: string;
-  tournamentId: string;
-  tournamentName: string;
-  requesterId: string;
-  requesterUsername: string;
-}
-
 /** Même échelle que `Layout` (topNavBtn) : compact sur mobile */
 const NAV_BTN =
   "relative inline-flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:min-h-11 md:w-11 md:min-w-11";
@@ -58,7 +49,6 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
   const [unreadMessages, setUnreadMessages] = useState<UnreadMessage[]>([]);
   /** Demandes de prêt reçues (prêteur) depuis la dernière visite Amis — aligné sur GET /pending-social. */
   const [serverLoanBadge, setServerLoanBadge] = useState(0);
-  const [tournamentRequests, setTournamentRequests] = useState<TournamentJoinRequest[]>([]);
   const [localNotices, setLocalNotices] = useState<LocalNoticePayload[]>([]);
 
   const { data: friendRequests, refetch: refetchRequests } = useGetFriendRequestsQuery(
@@ -69,13 +59,12 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
   const [respondRequest] = useRespondToFriendRequestMutation();
 
   const pendingFriendRequests = friendRequests?.filter((r) => r.status === "PENDING") ?? [];
-  /** Badge cloche : invitations, amis, messages, tournois — pas les infos locales (ex. recharge). */
+  /** Badge cloche : invitations, amis, messages — pas les infos locales (ex. recharge). */
   const badgeCount =
     pendingInvitations.length +
     pendingFriendRequests.length +
     unreadMessages.length +
-    serverLoanBadge +
-    tournamentRequests.length;
+    serverLoanBadge;
   const panelHasContent = badgeCount > 0 || localNotices.length > 0;
 
   useEffect(() => {
@@ -142,15 +131,6 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     };
   }, []);
 
-  const loadTournamentRequests = async () => {
-    try {
-      const data = await TournamentService.getReceivedJoinRequests();
-      setTournamentRequests(Array.isArray(data) ? data : []);
-    } catch {
-      /* ignore */
-    }
-  };
-
   // Refetch triggered by other parts of the app
   useEffect(() => {
     const handler = () => refetchRequests();
@@ -158,21 +138,12 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     return () => window.removeEventListener("refetch-requests", handler);
   }, [refetchRequests]);
 
-  useEffect(() => {
-    if (!userId) return;
-    loadTournamentRequests();
-    const iv = setInterval(loadTournamentRequests, 5000);
-    return () => clearInterval(iv);
-  }, [userId]);
-
   // Refetch on incoming socket friend events; collect unread messages
   useEffect(() => {
     if (!socket) return;
 
     const handleFriendRequest = () => { refetchRequests(); };
     const handleFriendAccepted = () => { refetchRequests(); };
-    const handleTournamentJoinRequest = () => { loadTournamentRequests(); };
-
     const handleFriendMessage = (data: {
       senderId: string;
       sender?: { username?: string };
@@ -202,12 +173,10 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
 
     socket.on("FRIEND_REQUEST_RECEIVED", handleFriendRequest);
     socket.on("FRIEND_REQUEST_ACCEPTED", handleFriendAccepted);
-    socket.on("TOURNAMENT_JOIN_REQUEST_RECEIVED", handleTournamentJoinRequest);
     socket.on("FRIEND_MESSAGE", handleFriendMessage);
     return () => {
       socket.off("FRIEND_REQUEST_RECEIVED", handleFriendRequest);
       socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendAccepted);
-      socket.off("TOURNAMENT_JOIN_REQUEST_RECEIVED", handleTournamentJoinRequest);
       socket.off("FRIEND_MESSAGE", handleFriendMessage);
     };
   }, [socket, refetchRequests]);
@@ -321,15 +290,6 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     navigate(`/friends?tab=messages&with=${msg.senderId}`);
     setUnreadMessages((prev) => prev.filter((m) => m.senderId !== msg.senderId));
     setOpen(false);
-  };
-
-  const handleAcceptTournamentRequest = async (requestId: string) => {
-    try {
-      await TournamentService.acceptJoinRequest(requestId);
-      setTournamentRequests((prev) => prev.filter((r) => r.id !== requestId));
-    } catch {
-      /* ignore */
-    }
   };
 
   if (!userId) return null;
@@ -457,31 +417,6 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {tournamentRequests.length > 0 && (
-              <div className="mb-2">
-                <p className="text-slate-400 text-xs font-semibold uppercase mb-1 px-2 flex items-center gap-1">
-                  <UserPlus className="w-3 h-3" />
-                  Demandes tournoi privé
-                </p>
-                {tournamentRequests.map((req) => (
-                  <div
-                    key={req.id}
-                    className="flex items-center justify-between gap-2 p-3 mb-2 bg-purple-900/25 border border-purple-500/40 rounded-lg"
-                  >
-                    <p className="text-white text-sm truncate flex-1">
-                      {req.requesterUsername} veut rejoindre "{req.tournamentName}"
-                    </p>
-                    <button
-                      onClick={() => handleAcceptTournamentRequest(req.id)}
-                      className="p-1.5 bg-green-600 hover:bg-green-500 rounded text-white"
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
                   </div>
                 ))}
               </div>

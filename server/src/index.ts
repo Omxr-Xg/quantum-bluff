@@ -11,9 +11,6 @@ import { env } from './config/env.js'
 import { swaggerSpec } from './config/swagger.config.js'
 import { initCleanupJobs } from './utils/cleanup.job.js'
 import { pruneInactiveBlackjackWaitingRooms } from './blackjack/recovery/blackjackRecovery.service.js'
-import { TournamentService } from './services/tournament.service.js'
-import './cron/tournament.cron.js'
-import tournamentRoutes from './routes/tournament.routes.js'
 import {
   requestIdMiddleware,
   httpAccessLogMiddleware,
@@ -57,9 +54,11 @@ import { connectDB } from './config/database.js'
 import { createSocketIoRedisClients, disconnectSocketIoRedisClients } from './config/socketIoRedis.js'
 import { shutdownOtel } from './observability/otel.js'
 import { setDraining } from './observability/readinessDrain.js'
-import { releaseTournamentLeaderLock } from './services/tournamentLeaderLock.service.js'
 import { recoverBlackjackRuntimeAtBoot } from './blackjack/recovery/blackjackRecovery.service.js'
 import adminPokerRuntimeRoutes from './routes/admin.poker.runtime.routes.js'
+import tournamentRoutes from './routes/tournament.routes.js'
+import { initTournamentScheduler } from './tournament/tournament.scheduler.js'
+import { recoverTournamentsAtBoot } from './tournament/tournament.recovery.service.js'
 import adminRouletteOverrideRoutes from './routes/admin.roulette.override.routes.js'
 import { timeoutMiddleware } from './middleware/timeout.middleware.js';
 import { idempotencyMiddleware } from './middleware/idempotency.middleware.js';
@@ -202,6 +201,7 @@ app.use('/api/friends', friendsRoutes)
 app.use('/api/friends', friendLoanRoutes)
 app.use('/api/friends', invitationRoutes)
 app.use('/api/waiting-room', waitingRoomRoutes)
+app.use('/api/tournaments', tournamentRoutes)
 app.use('/api/game', gameApiRoutes)
 app.use('/api/bot', botApiLimiter, botRoutes)
 app.use('/api/slot', slotApiLimiter, slotRoutes)
@@ -220,8 +220,6 @@ app.use('/api/daily-login', dailyLoginRoutes)
 app.use('/api/free-recharge', freeRechargeRoutes)
 app.use('/api/gift-codes', giftCodesRoutes)
 app.use('/api/wallet', walletRoutes)
-app.use('/api/tournaments', tournamentRoutes)
-
 // PROD HARDENING : On ne charge les routes sensibles qu'en mode développement
 if (!env.isProduction) {
   app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
@@ -344,7 +342,6 @@ if (!env.isJest) {
   metrics.setRedisSocketIoAdapterUp(false)
 }
 
-TournamentService.setIo(io)
 io.use(socketAuth)
 app.set('io', io)
 
@@ -363,6 +360,7 @@ void pruneInactiveBlackjackWaitingRooms()
   })
 new GameGateway(io)
 setGameIo(io)
+initTournamentScheduler(app)
 
 const PORT = env.port
 
@@ -389,7 +387,6 @@ function registerGracefulShutdown(): void {
     })
 
     metrics.setRedisSocketIoAdapterUp(false)
-    await releaseTournamentLeaderLock()
     await shutdownOtel()
     await disconnectSocketIoRedisClients()
     rootLogger.info({ msg: 'shutdown_complete', instanceId: env.instanceId })
@@ -407,6 +404,7 @@ registerGracefulShutdown()
     await connectDB()
     await logDegradedStateAtBoot()
     await recoverBlackjackRuntimeAtBoot()
+    await recoverTournamentsAtBoot(io)
 
     httpServer.listen(PORT, () => {
       rootLogger.info({
@@ -416,7 +414,6 @@ registerGracefulShutdown()
         detail: 'Quantum Bluff API démarrée',
       })
 
-      TournamentService.startTournamentWatcher(io)
     })
   } catch (error) {
     rootLogger.error({
