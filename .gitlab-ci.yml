@@ -242,9 +242,10 @@ docker:build:ai-service:
         --dockerfile "${CI_PROJECT_DIR}/server/ai-service/Dockerfile"
         --destination "${CI_REGISTRY_IMAGE}:ai-${CI_COMMIT_SHORT_SHA}"
         --destination "${CI_REGISTRY_IMAGE}:ai-latest"
+  # Build de l'image AI uniquement sur les branches de release.
+  # (Les runners K8s saturent souvent en disque sur ce job ; on évite de bloquer
+  # les pipelines de develop/main tant que l'infra n'est pas élargie.)
   only:
-    - develop
-    - main
     - /^release\/.*$/
 
 # Déploiement = POST webhook. Les échecs "runner_system_failure" viennent souvent du cluster K8s
