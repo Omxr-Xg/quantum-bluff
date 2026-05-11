@@ -167,6 +167,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     socket.on('JOIN_REQUEST_REJECTED', (data: { roomName?: string }) => {
       addToast(i18n.t('toast.joinRequestRejected', { room: data.roomName ?? '' }), 'error')
+      window.dispatchEvent(new CustomEvent('refetch-waiting-rooms'))
     })
 
     return () => {

@@ -353,6 +353,14 @@ export function Lobby() {
     return () => clearInterval(interval);
   }, [fetchRooms]);
 
+  useEffect(() => {
+    const onRefetchWaitingRooms = () => {
+      void fetchRooms();
+    };
+    window.addEventListener("refetch-waiting-rooms", onRefetchWaitingRooms);
+    return () => window.removeEventListener("refetch-waiting-rooms", onRefetchWaitingRooms);
+  }, [fetchRooms]);
+
   const handlePlayBot = () => {
     navigate("/bot-configuration");
   };
