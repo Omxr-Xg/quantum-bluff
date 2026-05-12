@@ -1568,8 +1568,8 @@
       "modalTitle": "Новий турнір",
       "modalHint": "Параметри можна змінювати, поки відкрита реєстрація.",
       "sectionGeneral": "Загальне",
-      "labelName": "Назва турніру",
-      "namePlaceholder": "Напр. Friday Night Knockout",
+      "labelName": "Назва турніру (необов’язково)",
+      "namePlaceholder": "Залиште порожнім для автоматичної назви",
       "labelVisibility": "Видимість",
       "visibilityPublic": "Публічний — у списку для всіх",
       "visibilityPrivate": "Приватний — потрібен код доступу",
@@ -1596,7 +1596,9 @@
       "valBlinds": "Некоректні блайнди",
       "valBlindsMax": "Занадто великі блайнди",
       "valSbBb": "Малий блайнд не може бути більшим за великий",
-      "quickName": "Швидко {{time}}"
+      "quickName": "Швидко {{time}}",
+      "quickCustomNamePlaceholder": "Інша назва (необов’язково)",
+      "quickCustomNameAria": "Необов’язкова назва для швидкого створення"
     },
     "room": {
       "backList": "Усі турніри",

@@ -1592,8 +1592,8 @@
       "modalTitle": "New tournament",
       "modalHint": "Settings can be changed while registration is open.",
       "sectionGeneral": "General",
-      "labelName": "Tournament name",
-      "namePlaceholder": "e.g. Friday Night Knockout",
+      "labelName": "Tournament name (optional)",
+      "namePlaceholder": "Leave blank for an automatic name",
       "labelVisibility": "Visibility",
       "visibilityPublic": "Public — listed for everyone",
       "visibilityPrivate": "Private — access code required",
@@ -1620,7 +1620,9 @@
       "valBlinds": "Invalid blinds",
       "valBlindsMax": "Blinds too high",
       "valSbBb": "Small blind cannot exceed big blind",
-      "quickName": "Quick {{time}}"
+      "quickName": "Quick {{time}}",
+      "quickCustomNamePlaceholder": "Custom name (optional)",
+      "quickCustomNameAria": "Optional name for quick create"
     },
     "room": {
       "backList": "All tournaments",

@@ -18,6 +18,11 @@ function tournamentTableGameIsLiveInMemory(gameId: string): boolean {
 
 const NAME_MAX = 80
 
+function defaultTournamentName(): string {
+  const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  return `Tournoi rapide ${stamp}`.slice(0, NAME_MAX)
+}
+
 export async function createTournament(input: {
   hostId: string
   name: string
@@ -30,9 +35,8 @@ export async function createTournament(input: {
   blindBig: number
 }): Promise<{ id: string }> {
   const maxPlayers = normalizeTournamentMaxPlayers(input.maxPlayers)
-  if (input.name.trim().length === 0) {
-    throw new Error('Nom requis')
-  }
+  const trimmedName = input.name.trim().slice(0, NAME_MAX)
+  const name = trimmedName.length > 0 ? trimmedName : defaultTournamentName()
   validateTournamentGameParams({
     initialStack: input.initialStack,
     blindSmall: input.blindSmall,
@@ -49,7 +53,7 @@ export async function createTournament(input: {
   }
   const row = await prisma.tournament.create({
     data: {
-      name: input.name.trim().slice(0, NAME_MAX),
+      name,
       hostId: input.hostId,
       visibility: input.visibility,
       codeHash,

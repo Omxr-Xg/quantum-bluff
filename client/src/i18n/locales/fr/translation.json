@@ -1598,8 +1598,8 @@
       "modalTitle": "Nouveau tournoi",
       "modalHint": "Les paramètres peuvent être ajustés tant que les inscriptions sont ouvertes.",
       "sectionGeneral": "Général",
-      "labelName": "Nom du tournoi",
-      "namePlaceholder": "Ex. Friday Night Knockout",
+      "labelName": "Nom du tournoi (facultatif)",
+      "namePlaceholder": "Laisser vide pour un nom automatique",
       "labelVisibility": "Visibilité",
       "visibilityPublic": "Public — visible dans la liste",
       "visibilityPrivate": "Privé — code d’accès requis",
@@ -1626,7 +1626,9 @@
       "valBlinds": "Blinds invalides",
       "valBlindsMax": "Blinds trop élevées",
       "valSbBb": "La petite blind ne peut pas dépasser la grosse blind",
-      "quickName": "Rapide {{time}}"
+      "quickName": "Rapide {{time}}",
+      "quickCustomNamePlaceholder": "Autre nom (optionnel)",
+      "quickCustomNameAria": "Nom optionnel pour la création rapide"
     },
     "room": {
       "backList": "Tous les tournois",

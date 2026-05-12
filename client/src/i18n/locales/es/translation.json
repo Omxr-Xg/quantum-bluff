@@ -1563,8 +1563,8 @@
       "modalTitle": "Nuevo torneo",
       "modalHint": "Los ajustes se pueden cambiar mientras las inscripciones estén abiertas.",
       "sectionGeneral": "General",
-      "labelName": "Nombre del torneo",
-      "namePlaceholder": "Ej. Friday Night Knockout",
+      "labelName": "Nombre del torneo (opcional)",
+      "namePlaceholder": "Déjalo vacío para un nombre automático",
       "labelVisibility": "Visibilidad",
       "visibilityPublic": "Público — visible en la lista",
       "visibilityPrivate": "Privado — código de acceso obligatorio",
@@ -1591,7 +1591,9 @@
       "valBlinds": "Ciegas no válidas",
       "valBlindsMax": "Ciegas demasiado altas",
       "valSbBb": "La ciega pequeña no puede superar a la grande",
-      "quickName": "Rápido {{time}}"
+      "quickName": "Rápido {{time}}",
+      "quickCustomNamePlaceholder": "Otro nombre (opcional)",
+      "quickCustomNameAria": "Nombre opcional para creación rápida"
     },
     "room": {
       "backList": "Todos los torneos",

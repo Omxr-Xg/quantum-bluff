@@ -1564,8 +1564,8 @@
       "modalTitle": "بطولة جديدة",
       "modalHint": "يمكن تعديل الإعدادات ما دام التسجيل مفتوحًا.",
       "sectionGeneral": "عام",
-      "labelName": "اسم البطولة",
-      "namePlaceholder": "مثال Friday Night Knockout",
+      "labelName": "اسم البطولة (اختياري)",
+      "namePlaceholder": "اتركه فارغًا لاسم تلقائي",
       "labelVisibility": "الظهور",
       "visibilityPublic": "عام — يظهر في القائمة",
       "visibilityPrivate": "خاص — يتطلب رمز دخول",
@@ -1592,7 +1592,9 @@
       "valBlinds": "ماينز غير صالحة",
       "valBlindsMax": "ماينز مرتفعة جدًا",
       "valSbBb": "الماين الصغير لا يمكن أن يتجاوز الكبير",
-      "quickName": "سريع {{time}}"
+      "quickName": "سريع {{time}}",
+      "quickCustomNamePlaceholder": "اسم مخصص (اختياري)",
+      "quickCustomNameAria": "اسم اختياري للإنشاء السريع"
     },
     "room": {
       "backList": "كل البطولات",
