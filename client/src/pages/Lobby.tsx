@@ -23,7 +23,7 @@ import {
   Disc,
   SquareStack,
 } from "lucide-react";
-import { QuantumBluffLogo } from "../assets/QuantumBluffLogo";
+import lobbyHeaderIcon from "../../app-icon.png";
 import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
@@ -549,7 +549,11 @@ export function Lobby() {
 
           {/* Côté Gauche (Logo + Titre) */}
           <div ref={tourRefHeader} className="flex w-full shrink-0 items-center gap-3 sm:gap-4 sm:w-auto">
-            <QuantumBluffLogo className="h-10 w-10 shrink-0 sm:h-12 sm:w-12 md:h-16 md:w-16" />
+            <img
+              src={lobbyHeaderIcon}
+              alt="Quantum Bluff"
+              className="h-10 w-10 shrink-0 rounded-xl object-contain sm:h-12 sm:w-12 md:h-16 md:w-16"
+            />
             <div className="flex-1 min-w-0">
               <h1
                 className={`truncate text-2xl font-bold transition-colors duration-700 md:text-4xl ${
