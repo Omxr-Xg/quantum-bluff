@@ -15,8 +15,9 @@ ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 # Dépendances d’abord → moins de pics disque (cache npm vidé avant le build Vite).
+# Ne pas utiliser --omit=optional : Rollup (Vite) requiert @rollup/rollup-linux-x64-musl sur Alpine.
 COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps --no-audit --no-fund --omit=optional \
+RUN npm ci --legacy-peer-deps --no-audit --no-fund \
   && npm cache clean --force
 COPY . .
 RUN npm run build && rm -rf node_modules /root/.npm
