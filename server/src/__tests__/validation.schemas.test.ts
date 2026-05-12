@@ -28,7 +28,7 @@ describe('validation schemas', () => {
       ).toBe(false)
     })
     it('loginSchema', () => {
-      expect(loginSchema.safeParse({ email: 'x@y.z', password: '123456' }).success).toBe(true)
+      expect(loginSchema.safeParse({ email: 'user@example.com', password: '123456' }).success).toBe(true)
       expect(loginSchema.safeParse({ email: 'x', password: '123456' }).success).toBe(false)
     })
     it('resetPasswordSchema', () => {

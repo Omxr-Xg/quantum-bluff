@@ -1,28 +1,26 @@
 import type { Server } from 'socket.io'
 import { jest } from '@jest/globals'
 
-const notifyTournamentTableFinished = jest
-  .fn()
-  .mockResolvedValue('tournament_complete' as const)
-
 jest.mock('../tournament/tournament.runtime.service.js', () => ({
-  notifyTournamentTableFinished,
+  notifyTournamentTableFinished: jest.fn().mockResolvedValue('tournament_complete'),
 }))
 
-const deleteGame = jest.fn().mockResolvedValue(undefined)
 jest.mock('../shared/activeGames.js', () => ({
   activeGames: {
-    delete: deleteGame,
+    delete: jest.fn().mockResolvedValue(undefined),
   },
 }))
 
+import { notifyTournamentTableFinished } from '../tournament/tournament.runtime.service.js'
+import { activeGames } from '../shared/activeGames.js'
+import { onTournamentSingleSurvivor } from '../tournament/tournament.gatewayHook.js'
+
 describe('tournament.gatewayHook', () => {
   it('onTournamentSingleSurvivor notifies runtime then removes active game', async () => {
-    const { onTournamentSingleSurvivor } = await import('../tournament/tournament.gatewayHook.js')
     const io = {} as Server
     const advance = await onTournamentSingleSurvivor(io, 'game_tournament_x', 'user-1')
     expect(advance).toBe('tournament_complete')
     expect(notifyTournamentTableFinished).toHaveBeenCalledWith(io, 'game_tournament_x', 'user-1')
-    expect(deleteGame).toHaveBeenCalledWith('game_tournament_x')
+    expect(activeGames.delete).toHaveBeenCalledWith('game_tournament_x')
   })
 })
