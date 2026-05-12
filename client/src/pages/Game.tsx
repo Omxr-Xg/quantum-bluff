@@ -420,6 +420,8 @@ export function Game() {
   const [tournamentTableTransition, setTournamentTableTransition] =
     useState<TournamentTableTransitionOverlay>(null);
   const tournamentTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Incrémenté à chaque invalidation des timeouts de navigation tournoi (Zip / résultats). */
+  const tournamentScheduledNavEpochRef = useRef(0);
   /** Table quittée par `TOURNAMENT_TABLE_ASSIGNED` avant réception de `GAME_ENDED` (même `gameId`). */
   const pendingTournamentEndedGameIdRef = useRef<string | null>(null);
   const multiBustGameIdRef = useRef<string | null>(null);
@@ -1639,14 +1641,26 @@ export function Game() {
   useEffect(() => {
     /* Toujours annuler le timer de fin de table : sans ça, un passage demi-finale → finale
      * (deux `game_tournament_*`) laissait actif le timeout « secours » 12s / 3.8s programmé sur l’ancienne
-     * table → navigation forcée vers /waiting (Zip) pendant la finale. */
+     * table → navigation forcée vers /waiting (Zip) pendant la finale.
+     * Important : ne jamais `return` avant de définir le cleanup — sinon pas de cleanup au démontage
+     * quand `gameIdParam` reste en `game_tournament_*` (Zip puis finale : timer orphelin). */
     pendingTournamentEndedGameIdRef.current = null;
     if (tournamentTransitionTimerRef.current) {
       clearTimeout(tournamentTransitionTimerRef.current);
       tournamentTransitionTimerRef.current = null;
+      tournamentScheduledNavEpochRef.current += 1;
     }
-    if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX)) return;
-    setTournamentTableTransition(null);
+    if (!gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX)) {
+      setTournamentTableTransition(null);
+    }
+
+    return () => {
+      if (tournamentTransitionTimerRef.current) {
+        clearTimeout(tournamentTransitionTimerRef.current);
+        tournamentTransitionTimerRef.current = null;
+        tournamentScheduledNavEpochRef.current += 1;
+      }
+    };
   }, [gameIdParam]);
 
   useEffect(() => {
@@ -1666,6 +1680,7 @@ export function Game() {
       if (tournamentTransitionTimerRef.current) {
         clearTimeout(tournamentTransitionTimerRef.current);
         tournamentTransitionTimerRef.current = null;
+        tournamentScheduledNavEpochRef.current += 1;
       }
       pendingTournamentEndedGameIdRef.current = String(gameIdParam);
       const tid = payload.tournamentId ?? tidFromUrl;
@@ -2157,6 +2172,7 @@ export function Game() {
             clearTimeout(tournamentTransitionTimerRef.current);
             tournamentTransitionTimerRef.current = null;
           }
+          tournamentScheduledNavEpochRef.current += 1;
         };
 
         if (isSpectating) {
@@ -2169,8 +2185,10 @@ export function Game() {
         if (!amIWinner) {
           clearTournamentTransitionTimer();
           setTournamentTableTransition({ variant: "eliminated", tournamentId: tid });
+          const navTicket = tournamentScheduledNavEpochRef.current;
           tournamentTransitionTimerRef.current = setTimeout(() => {
-            clearTournamentTransitionTimer();
+            if (tournamentScheduledNavEpochRef.current !== navTicket) return;
+            tournamentTransitionTimerRef.current = null;
             setTournamentTableTransition(null);
             navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
           }, 3800);
@@ -2184,8 +2202,10 @@ export function Game() {
 
         if (advance === "tournament_complete") {
           setTournamentTableTransition({ variant: "champion", tournamentId: tid });
+          const navTicket = tournamentScheduledNavEpochRef.current;
           tournamentTransitionTimerRef.current = setTimeout(() => {
-            clearTournamentTransitionTimer();
+            if (tournamentScheduledNavEpochRef.current !== navTicket) return;
+            tournamentTransitionTimerRef.current = null;
             setTournamentTableTransition(null);
             navigate(`/tournaments/${encodeURIComponent(tid)}/results`, { replace: true });
           }, 4200);
@@ -2194,8 +2214,10 @@ export function Game() {
 
         if (advance === "pending_other_tables") {
           setTournamentTableTransition({ variant: "won_waiting", tournamentId: tid });
+          const navTicketW = tournamentScheduledNavEpochRef.current;
           tournamentTransitionTimerRef.current = setTimeout(() => {
-            clearTournamentTransitionTimer();
+            if (tournamentScheduledNavEpochRef.current !== navTicketW) return;
+            tournamentTransitionTimerRef.current = null;
             setTournamentTableTransition(null);
             navigate(`/tournaments/${encodeURIComponent(tid)}/waiting`, { replace: true });
           }, 3800);
@@ -2205,8 +2227,10 @@ export function Game() {
         if (advance === "next_round_spawned") {
           /* Nouvelle table : navigation dès TOURNAMENT_TABLE_ASSIGNED ; secours → salle d’attente. */
           setTournamentTableTransition({ variant: "won_next_table", tournamentId: tid });
+          const navTicketN = tournamentScheduledNavEpochRef.current;
           tournamentTransitionTimerRef.current = setTimeout(() => {
-            clearTournamentTransitionTimer();
+            if (tournamentScheduledNavEpochRef.current !== navTicketN) return;
+            tournamentTransitionTimerRef.current = null;
             setTournamentTableTransition(null);
             navigate(`/tournaments/${encodeURIComponent(tid)}/waiting`, { replace: true });
           }, 12000);
@@ -2349,6 +2373,11 @@ export function Game() {
     emitJoinRoom();
 
     return () => {
+      if (tournamentTransitionTimerRef.current) {
+        clearTimeout(tournamentTransitionTimerRef.current);
+        tournamentTransitionTimerRef.current = null;
+        tournamentScheduledNavEpochRef.current += 1;
+      }
       emitTournamentJoinRef.current = null;
       socket.off("connect", emitJoinRoom);
       socket.off("GAME_UPDATE", onGameUpdateMain);
