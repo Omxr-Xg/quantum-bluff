@@ -420,6 +420,8 @@ export function Game() {
   const [tournamentTableTransition, setTournamentTableTransition] =
     useState<TournamentTableTransitionOverlay>(null);
   const tournamentTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Table quittée par `TOURNAMENT_TABLE_ASSIGNED` avant réception de `GAME_ENDED` (même `gameId`). */
+  const pendingTournamentEndedGameIdRef = useRef<string | null>(null);
   const multiBustGameIdRef = useRef<string | null>(null);
   const multiBustPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gameOverReasonRef = useRef(gameOverReason);
@@ -1635,6 +1637,8 @@ export function Game() {
   }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating, searchParams]);
 
   useEffect(() => {
+    if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX)) return;
+    pendingTournamentEndedGameIdRef.current = null;
     if (tournamentTransitionTimerRef.current) {
       clearTimeout(tournamentTransitionTimerRef.current);
       tournamentTransitionTimerRef.current = null;
@@ -1656,11 +1660,7 @@ export function Game() {
     }) => {
       if (!payload?.gameId) return;
       if (String(payload.gameId) === String(gameIdParam)) return;
-      if (tournamentTransitionTimerRef.current) {
-        clearTimeout(tournamentTransitionTimerRef.current);
-        tournamentTransitionTimerRef.current = null;
-      }
-      setTournamentTableTransition(null);
+      pendingTournamentEndedGameIdRef.current = String(gameIdParam);
       const tid = payload.tournamentId ?? tidFromUrl;
       const q = new URLSearchParams();
       q.set("gameId", payload.gameId);
@@ -1741,7 +1741,6 @@ export function Game() {
         /* La nouvelle main attend le bouton « Manche suivante » / Rejouer — pas d’application auto. */
         return;
       }
-      lastAppliedSocketSnapshotSigRef.current = socketSnapshotSig;
       const incomingVersion = typeof gameState.actionVersion === "number" ? gameState.actionVersion : -1;
       const incomingHandId = gameState.handId ?? undefined;
       if (incomingHandId && incomingHandId !== lastServerActionVersionHandRef.current) {
@@ -1808,6 +1807,7 @@ export function Game() {
       ) {
         return;
       }
+      lastAppliedSocketSnapshotSigRef.current = socketSnapshotSig;
       if (typeof gameState.turnTimeLimitSec === "number" && gameState.turnTimeLimitSec > 0) {
         turnTimeLimitSecRef.current = gameState.turnTimeLimitSec;
       }
@@ -2101,7 +2101,14 @@ export function Game() {
     const onGameUpdateMain = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_UPDATE", state);
     const onGameStateUpdated = (state: Parameters<typeof onGameUpdate>[1]) => onGameUpdate("GAME_STATE_UPDATED", state);
     const onHandStateChanged = (payload: { gameId?: string }) => {
-      if (!gameIdParam || String(payload?.gameId) !== String(gameIdParam)) return;
+      if (!gameIdParam) return;
+      const gid = String(payload?.gameId ?? "");
+      if (
+        gid !== String(gameIdParam) &&
+        gid !== String(pendingTournamentEndedGameIdRef.current)
+      ) {
+        return;
+      }
       /* Si un snapshot a été mal dédupliqué, le prochain GAME_UPDATE doit passer ; débloque aussi isLoading. */
       lastAppliedSocketSnapshotSigRef.current = "";
       setIsLoading(false);
@@ -2123,11 +2130,13 @@ export function Game() {
         | "next_round_spawned"
         | "tournament_complete";
     }) => {
-      if (
-        data.reason === "TOURNAMENT_TABLE_COMPLETE" &&
-        data.tournamentId &&
-        String(data.gameId) === String(gameIdParam)
-      ) {
+      if (data.reason === "TOURNAMENT_TABLE_COMPLETE" && data.tournamentId) {
+        const endedGid = String(data.gameId);
+        const matchesTable =
+          endedGid === String(gameIdParam) ||
+          endedGid === String(pendingTournamentEndedGameIdRef.current);
+        if (!matchesTable) return;
+        pendingTournamentEndedGameIdRef.current = null;
         const tid = String(data.tournamentId);
         const winner =
           data.winnerUserId != null

@@ -2132,6 +2132,11 @@ export class GameGateway {
     },
   ): Promise<void> {
     const virtual = cashGame.getWalletLedger() === "none";
+    const gtBeforeComplete = cashGame.getGameTable();
+    if (virtual && gtBeforeComplete?.state.phase === "SHOWDOWN") {
+      // Même délai que `SHOWDOWN_REVEAL_MS` (5000) côté client `Game.tsx` : laisser le showdown + highlights.
+      await new Promise<void>((resolve) => setTimeout(resolve, 5000));
+    }
     const hiddenBetSnap = virtual
       ? null
       : buildHiddenBetResolutionPayload(gameId, cashGame);
@@ -2354,6 +2359,13 @@ export class GameGateway {
       s.emit("GAME_UPDATE", snapshot);
       s.emit("GAME_STATE_UPDATED", snapshot);
     }
+    this.io.to(gameId).emit("HAND_STATE_CHANGED", {
+      gameId,
+      phase: cashGame.state.phase,
+      handRuntimePhase: cashGame.state.handRuntimePhase,
+      handEndReason: cashGame.state.handEndReason,
+      handId: cashGame.state.handId,
+    });
     this.io.to(gameId).emit("SHOWDOWN_RESULT", {
       gameId,
       handId: showdownSnapshot.handId,

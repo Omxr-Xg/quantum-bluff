@@ -661,8 +661,9 @@ router.post('/:roomId/leave', waitingRoomActionLimiter, async (req, res) => {
     const isMember =
       roomBefore.players.some((p) => p.userId === userId) || roomBefore.hostId === userId;
 
+    /* Idempotent : double clic, navigation + effet, sendBeacon au unload — évite 403 inutiles. */
     if (!isMember) {
-      return res.status(403).json({ error: "Vous n'êtes pas dans cette salle" });
+      return res.json({ message: 'Déjà absent', alreadyLeft: true });
     }
 
     // L'hôte quitte : s'il est seul, on supprime la salle ; sinon le premier autre joueur devient hôte

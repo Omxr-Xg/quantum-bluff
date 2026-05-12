@@ -58,6 +58,8 @@ export function WaitingRoom() {
   const [joinRequests, setJoinRequests] = useState<JoinRequestItem[]>([]);
   const [processingRequest, setProcessingRequest] = useState<string | null>(null);
   const roomPollInFlightRef = useRef(false);
+  /** Évite POST /leave au démontage après départ explicite ou lancement partie (salle IN_GAME). */
+  const skipPersistedLeaveOnUnmountRef = useRef(false);
 
   const applyRoomSnapshot = useCallback((room: {
     name?: string;
@@ -93,6 +95,29 @@ export function WaitingRoom() {
   useEffect(() => {
     setFriendInviteStatus({});
   }, [rawRoomId]);
+
+  useEffect(() => {
+    skipPersistedLeaveOnUnmountRef.current = false;
+  }, [rawRoomId]);
+
+  const postWaitingRoomLeavePersisted = useCallback((roomIdToLeave: string, uid: string) => {
+    if (!roomIdToLeave || roomIdToLeave.startsWith("room_")) return;
+    const url = apiUrl(`/api/waiting-room/${roomIdToLeave}/leave`);
+    const body = JSON.stringify({ userId: uid });
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        if (navigator.sendBeacon(url, new Blob([body], { type: "application/json" }))) return;
+      }
+    } catch {
+      /* sendBeacon indisponible ou refusé → fetch */
+    }
+    void fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true,
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     setFriendInviteStatus((prev) => {
@@ -274,8 +299,13 @@ export function WaitingRoom() {
   useEffect(() => {
     if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;
     joinRoom(rawRoomId);
-    return () => leaveRoom(rawRoomId);
-  }, [userId, rawRoomId, roomLoading]);
+    return () => {
+      leaveRoom(rawRoomId);
+      if (!skipPersistedLeaveOnUnmountRef.current) {
+        postWaitingRoomLeavePersisted(rawRoomId, userId);
+      }
+    };
+  }, [userId, rawRoomId, roomLoading, joinRoom, leaveRoom, postWaitingRoomLeavePersisted]);
 
   useEffect(() => {
     if (!socket || !navigate) return;
@@ -284,6 +314,7 @@ export function WaitingRoom() {
         if (data.gameId && data.players?.length) {
           localStorage.setItem("gamePlayers", JSON.stringify(data.players));
           localStorage.setItem("gameId", data.gameId);
+          skipPersistedLeaveOnUnmountRef.current = true;
           leaveRoom(rawRoomId!);
           navigate(`/game?gameId=${data.gameId}`);
         }
@@ -509,6 +540,7 @@ export function WaitingRoom() {
         localStorage.setItem("gamePlayers", JSON.stringify(data.players));
         localStorage.setItem("gameId", data.gameId || "");
       }
+      skipPersistedLeaveOnUnmountRef.current = true;
       leaveRoom(rawRoomId);
       navigate(data.gameId ? `/game?gameId=${data.gameId}` : "/game");
     } catch (e) {
@@ -519,6 +551,7 @@ export function WaitingRoom() {
   };
 
   const handleLeaveRoom = async () => {
+    skipPersistedLeaveOnUnmountRef.current = true;
     if (rawRoomId && !rawRoomId.startsWith("room_") && userId) {
       try {
         const url = apiUrl(`/api/waiting-room/${rawRoomId}/leave`);
@@ -529,7 +562,7 @@ export function WaitingRoom() {
         });
       } catch { /* no-op */ }
     }
-    leaveRoom(roomId);
+    leaveRoom(rawRoomId || roomId);
     navigate("/lobby");
   };
 

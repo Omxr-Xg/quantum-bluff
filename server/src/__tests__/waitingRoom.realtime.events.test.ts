@@ -188,4 +188,22 @@ describe('waiting room realtime events', () => {
       expect.objectContaining({ id: 'room-3', status: 'WAITING' })
     )
   })
+
+  test('leave when user is not a member is idempotent (200, no DB writes)', async () => {
+    ;(prisma.waitingRoom.findUnique as jest.Mock).mockResolvedValue({
+      id: 'room-idem',
+      hostId: 'u1',
+      players: [{ userId: 'u1' }],
+    })
+
+    const res = await request(app)
+      .post('/api/waiting-room/room-idem/leave')
+      .send({ userId: 'u99' })
+      .expect(200)
+
+    expect(res.body).toEqual(expect.objectContaining({ alreadyLeft: true }))
+    expect(prisma.roomPlayer.deleteMany).not.toHaveBeenCalled()
+    expect(prisma.waitingRoom.delete).not.toHaveBeenCalled()
+    expect(prisma.waitingRoom.update).not.toHaveBeenCalled()
+  })
 })
