@@ -1639,6 +1639,16 @@
       "loading": "Завантаження…",
       "resultsCta": "Підсумок і XP"
     },
+    "tableTransition": {
+      "eliminatedTitle": "Вас вибуло",
+      "eliminatedSubtitle": "Ви не пройшли цей стіл. Повернемо вас до кімнати турніру.",
+      "wonTableTitle": "Ви виграли цей стіл!",
+      "wonWaitingSubtitle": "Ви проходите далі. Зачекайте, поки завершаться інші столи.",
+      "wonNextRoundSubtitle": "Чудово! Відкривається ваш наступний стіл…",
+      "championTitle": "Ви виграли турнір!",
+      "championSubtitle": "Відкриваємо підсумкову таблицю та нагороди…",
+      "pleaseWait": "Зачекайте кілька секунд…"
+    },
     "results": {
       "title": "Підсумок",
       "subtitle": "Фінальні місця та зароблений досвід",

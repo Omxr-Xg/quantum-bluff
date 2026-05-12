@@ -54,6 +54,19 @@ export function TournamentResults() {
     void load();
   }, [load]);
 
+  /** Le classement peut arriver quelques instants après COMPLETED (grant serveur). */
+  useEffect(() => {
+    if (!data || data.leaderboardAvailable || data.status !== "COMPLETED") return;
+    const interval = setInterval(() => {
+      void load();
+    }, 1200);
+    const stop = setTimeout(() => clearInterval(interval), 30000);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(stop);
+    };
+  }, [data?.leaderboardAvailable, data?.status, load]);
+
   const authUserId = getAuthItem("userId");
   const showChipsCol = Boolean(data?.rows.some((r) => r.chipsAwarded != null && r.chipsAwarded > 0));
 

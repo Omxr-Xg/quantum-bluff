@@ -13,6 +13,7 @@ import { useTournamentSocket } from "../hooks/useTournamentSocket";
 import { TOURNAMENT_MIN_PLAYERS } from "../tournamentConstants";
 import { getAuthItem } from "../../../utils/authStorage";
 import { useToast } from "../../../contexts/ToastContext";
+import { fetchBalanceFromServer } from "../../../utils/userProfile";
 
 type PlayerRow = {
   userId: string;
@@ -146,12 +147,14 @@ export function TournamentRoom() {
       );
     },
     onCompleted: () => {
+      void fetchBalanceFromServer({ authoritative: true });
       void reload();
     },
     onStarted: () => {
       void reload();
     },
     onCancelled: () => {
+      void fetchBalanceFromServer({ authoritative: true });
       void reload();
     },
     onRosterUpdated: () => {
@@ -162,6 +165,7 @@ export function TournamentRoom() {
     },
     onKicked: () => {
       addToast(t("tournament.room.kickedToast"), "warning");
+      void fetchBalanceFromServer({ authoritative: true });
       void reload();
     },
   });
@@ -425,6 +429,7 @@ export function TournamentRoom() {
                             joinNeedsCode ? joinCode.trim() : undefined,
                           );
                           setJoinCode("");
+                          await fetchBalanceFromServer({ authoritative: true });
                           await reload();
                         } catch (e) {
                           setErr((e as Error).message);
@@ -452,6 +457,7 @@ export function TournamentRoom() {
                     onClick={async () => {
                       try {
                         await leaveTournament(id);
+                        await fetchBalanceFromServer({ authoritative: true });
                         await reload();
                       } catch (e) {
                         setErr((e as Error).message);

@@ -1635,6 +1635,16 @@
       "loading": "جارٍ التحميل…",
       "resultsCta": "الترتيب والخبرة"
     },
+    "tableTransition": {
+      "eliminatedTitle": "لقد خرجت من البطولة",
+      "eliminatedSubtitle": "لم تتبقَ على هذه الطاولة. سنعيدك إلى غرفة البطولة.",
+      "wonTableTitle": "لقد فزت بهذه الطاولة!",
+      "wonWaitingSubtitle": "تتأهل للجولة التالية. انتظر انتهاء الطاولات الأخرى.",
+      "wonNextRoundSubtitle": "رائع! طاولتك التالية تفتح…",
+      "championTitle": "لقد فزت بالبطولة!",
+      "championSubtitle": "جاري فتح الترتيب النهائي ومكافآتك…",
+      "pleaseWait": "يرجى الانتظار بضع ثوانٍ…"
+    },
     "results": {
       "title": "الترتيب النهائي",
       "subtitle": "المراكز والخبرة المكتسبة",

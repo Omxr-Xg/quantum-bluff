@@ -7,6 +7,7 @@ import {
   validateTournamentGameParams,
 } from './tournament.create.validation.js'
 import { isTournamentGameId } from './tournament.constants.js'
+import { tournamentEntryFeeChips } from './tournament.entryFee.js'
 import { xpForFinalRank } from './tournament.reward.service.js'
 
 /** Table marquée « en cours » en base mais partie encore chargée en mémoire (spectate réel). */
@@ -69,54 +70,85 @@ export async function joinTournament(
   userId: string,
   joinCode?: string | null,
 ): Promise<{ joined: boolean }> {
-  const t = await prisma.tournament.findUnique({ where: { id: tournamentId } })
-  if (!t) throw new Error('Tournoi introuvable')
-  if (t.status !== 'REGISTRATION_OPEN') {
-    throw new Error('Inscriptions fermées')
-  }
-  const count = await prisma.tournamentPlayer.count({ where: { tournamentId } })
-  if (count >= t.maxPlayers) {
-    throw new Error('Tournoi complet')
-  }
-  if (t.visibility === 'PRIVATE') {
-    if (!t.codeHash) throw new Error('Configuration tournoi invalide')
-    const ok = await bcrypt.compare(String(joinCode ?? ''), t.codeHash)
-    if (!ok) throw new Error('Code incorrect')
-  }
   const existing = await prisma.tournamentPlayer.findUnique({
     where: { tournamentId_userId: { tournamentId, userId } },
   })
   if (existing) return { joined: false }
-  await prisma.tournamentPlayer.create({
-    data: { tournamentId, userId, status: 'REGISTERED' },
+
+  await prisma.$transaction(async (tx) => {
+    const t = await tx.tournament.findUnique({ where: { id: tournamentId } })
+    if (!t) throw new Error('Tournoi introuvable')
+    if (t.status !== 'REGISTRATION_OPEN') {
+      throw new Error('Inscriptions fermées')
+    }
+    const count = await tx.tournamentPlayer.count({ where: { tournamentId } })
+    if (count >= t.maxPlayers) {
+      throw new Error('Tournoi complet')
+    }
+    if (t.visibility === 'PRIVATE') {
+      if (!t.codeHash) throw new Error('Configuration tournoi invalide')
+      const ok = await bcrypt.compare(String(joinCode ?? ''), t.codeHash)
+      if (!ok) throw new Error('Code incorrect')
+    }
+    const fee = tournamentEntryFeeChips(t.initialStack)
+    const dec = await tx.user.updateMany({
+      where: { id: userId, chips: { gte: fee } },
+      data: { chips: { decrement: fee } },
+    })
+    if (dec.count === 0) {
+      const u = await tx.user.findUnique({ where: { id: userId }, select: { chips: true } })
+      if (!u) throw new Error('Utilisateur introuvable')
+      throw new Error('Jetons insuffisants.')
+    }
+    await tx.tournamentPlayer.create({
+      data: { tournamentId, userId, status: 'REGISTERED' },
+    })
   })
   return { joined: true }
 }
 
 export async function leaveTournament(tournamentId: string, userId: string): Promise<{ left: boolean }> {
-  const t = await prisma.tournament.findUnique({ where: { id: tournamentId } })
-  if (!t) throw new Error('Tournoi introuvable')
-  if (t.status !== 'REGISTRATION_OPEN') {
-    throw new Error('Impossible de quitter après le début')
-  }
-  const r = await prisma.tournamentPlayer.deleteMany({ where: { tournamentId, userId } })
-  return { left: r.count > 0 }
+  let left = false
+  await prisma.$transaction(async (tx) => {
+    const t = await tx.tournament.findUnique({ where: { id: tournamentId } })
+    if (!t) throw new Error('Tournoi introuvable')
+    if (t.status !== 'REGISTRATION_OPEN') {
+      throw new Error('Impossible de quitter après le début')
+    }
+    const fee = tournamentEntryFeeChips(t.initialStack)
+    const r = await tx.tournamentPlayer.deleteMany({ where: { tournamentId, userId } })
+    if (r.count > 0) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { chips: { increment: fee } },
+      })
+      left = true
+    }
+  })
+  return { left }
 }
 
 /** Retire un inscrit pendant les inscriptions (réservé à l’hôte — vérifié par la route). */
 export async function kickTournamentPlayer(tournamentId: string, targetUserId: string): Promise<void> {
   const uid = String(targetUserId ?? '').trim()
   if (!uid) throw new Error('Utilisateur invalide')
-  const t = await prisma.tournament.findUnique({ where: { id: tournamentId } })
-  if (!t) throw new Error('Tournoi introuvable')
-  if (t.status !== 'REGISTRATION_OPEN') {
-    throw new Error('Inscriptions fermées')
-  }
-  if (uid === t.hostId) {
-    throw new Error("Impossible d'éjecter l'hôte")
-  }
-  const r = await prisma.tournamentPlayer.deleteMany({ where: { tournamentId, userId: uid } })
-  if (r.count === 0) throw new Error('Joueur non inscrit à ce tournoi')
+  await prisma.$transaction(async (tx) => {
+    const t = await tx.tournament.findUnique({ where: { id: tournamentId } })
+    if (!t) throw new Error('Tournoi introuvable')
+    if (t.status !== 'REGISTRATION_OPEN') {
+      throw new Error('Inscriptions fermées')
+    }
+    if (uid === t.hostId) {
+      throw new Error("Impossible d'éjecter l'hôte")
+    }
+    const fee = tournamentEntryFeeChips(t.initialStack)
+    const r = await tx.tournamentPlayer.deleteMany({ where: { tournamentId, userId: uid } })
+    if (r.count === 0) throw new Error('Joueur non inscrit à ce tournoi')
+    await tx.user.update({
+      where: { id: uid },
+      data: { chips: { increment: fee } },
+    })
+  })
 }
 
 export async function listOpenTournaments() {

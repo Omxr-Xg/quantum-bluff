@@ -1668,6 +1668,16 @@
       "loading": "Chargement…",
       "resultsCta": "Classement complet & XP"
     },
+    "tableTransition": {
+      "eliminatedTitle": "Vous êtes éliminé",
+      "eliminatedSubtitle": "Vous n’avez pas survécu à cette table. Vous allez être renvoyé vers la salle du tournoi.",
+      "wonTableTitle": "Vous avez gagné cette table !",
+      "wonWaitingSubtitle": "Vous passez au tour suivant. Patience : les autres tables doivent encore se terminer.",
+      "wonNextRoundSubtitle": "Bravo ! Votre prochaine table s’ouvre…",
+      "championTitle": "Vous avez gagné le tournoi !",
+      "championSubtitle": "Ouverture du classement final et de vos récompenses…",
+      "pleaseWait": "Veuillez patienter quelques secondes…"
+    },
     "results": {
       "title": "Classement",
       "subtitle": "Places finales et expérience gagnée",

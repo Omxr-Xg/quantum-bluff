@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '../generated/prisma/index.js'
 import { levelFromExperience } from '../logic/gamification.js'
 import { rootLogger } from '../observability/logger.js'
+import { tournamentEntryFeeChips } from './tournament.entryFee.js'
 
 export const XP_TOURNAMENT_1ST = 500
 export const XP_TOURNAMENT_2ND = 400
@@ -95,7 +96,8 @@ export async function applyChipsWinnerIfMissing(
 }
 
 /**
- * À appeler quand le tournoi est `COMPLETED` : XP pour tous + chips vainqueur depuis snapshot.
+ * À appeler quand le tournoi est `COMPLETED` : XP pour tous + chips vainqueur
+ * (= somme des buy-in : chaque inscrit × `initialStack`, idempotent via ledger).
  */
 export async function grantTournamentRewardsIfMissing(prisma: PrismaClient, tournamentId: string): Promise<void> {
   const t = await prisma.tournament.findUnique({
@@ -105,7 +107,9 @@ export async function grantTournamentRewardsIfMissing(prisma: PrismaClient, tour
     },
   })
   if (!t || t.status !== 'COMPLETED') return
-  const prize = t.finalTableInitialStackSum
+  const fee = tournamentEntryFeeChips(t.initialStack)
+  const participantCount = t.players.length
+  const prize = participantCount * fee
   const winner = t.players.find((p) => p.finalRank === 1)
   if (!winner) {
     rootLogger.warn({ msg: 'tournament_reward_no_winner_row', tournamentId })

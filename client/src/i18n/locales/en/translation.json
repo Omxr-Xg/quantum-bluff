@@ -1662,6 +1662,16 @@
       "loading": "Loading…",
       "resultsCta": "Full results & XP"
     },
+    "tableTransition": {
+      "eliminatedTitle": "You're eliminated",
+      "eliminatedSubtitle": "You didn't survive this table. You'll return to the tournament room.",
+      "wonTableTitle": "You won this table!",
+      "wonWaitingSubtitle": "You're through to the next round. Please wait while other tables finish.",
+      "wonNextRoundSubtitle": "Nice! Your next table is opening…",
+      "championTitle": "You won the tournament!",
+      "championSubtitle": "Opening the final leaderboard and your rewards…",
+      "pleaseWait": "Please wait a few seconds…"
+    },
     "results": {
       "title": "Results",
       "subtitle": "Final standings and experience earned",

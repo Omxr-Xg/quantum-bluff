@@ -4,6 +4,7 @@ import { prisma } from '../config/database.js'
 import { rootLogger } from '../observability/logger.js'
 import { buildOpeningRound, buildRoundFromSurvivors } from './bracket/TournamentBracketBuilder.js'
 import { createAndRegisterTournamentTable, makeTournamentGameId } from './tournamentTableFactory.js'
+import { tournamentEntryFeeChips } from './tournament.entryFee.js'
 import { grantTournamentRewardsIfMissing } from './tournament.reward.service.js'
 import { seedFromTournamentId } from './tournament.seed.js'
 import { TOURNAMENT_MIN_PLAYERS } from './tournament.create.validation.js'
@@ -406,9 +407,18 @@ export async function startTournamentFromDb(
         `Au moins ${TOURNAMENT_MIN_PLAYERS} joueurs inscrits sont requis pour démarrer (${playerIds.length}/${TOURNAMENT_MIN_PLAYERS})`,
       )
     }
-    await prisma.tournament.update({
-      where: { id: tournamentId },
-      data: { status: 'CANCELLED' },
+    const fee = tournamentEntryFeeChips(tournament.initialStack)
+    await prisma.$transaction(async (tx) => {
+      for (const p of tournament.players) {
+        await tx.user.update({
+          where: { id: p.userId },
+          data: { chips: { increment: fee } },
+        })
+      }
+      await tx.tournament.update({
+        where: { id: tournamentId },
+        data: { status: 'CANCELLED' },
+      })
     })
     io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_CANCELLED', {
       tournamentId,

@@ -1634,6 +1634,16 @@
       "loading": "Cargando…",
       "resultsCta": "Clasificación y XP"
     },
+    "tableTransition": {
+      "eliminatedTitle": "Estás eliminado",
+      "eliminatedSubtitle": "No sobreviviste a esta mesa. Volverás a la sala del torneo.",
+      "wonTableTitle": "¡Ganaste esta mesa!",
+      "wonWaitingSubtitle": "Pasas a la siguiente ronda. Espera a que terminen las otras mesas.",
+      "wonNextRoundSubtitle": "¡Bien! Se abre tu próxima mesa…",
+      "championTitle": "¡Ganaste el torneo!",
+      "championSubtitle": "Abriendo la clasificación final y tus recompensas…",
+      "pleaseWait": "Espera unos segundos…"
+    },
     "results": {
       "title": "Clasificación",
       "subtitle": "Puestos finales y experiencia ganada",

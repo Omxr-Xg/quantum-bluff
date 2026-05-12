@@ -16,6 +16,7 @@ import { useToast } from "../contexts/ToastContext";
 import {
   Activity,
   Banknote,
+  CircleX,
   DoorOpen,
   Info,
   Loader2,
@@ -76,6 +77,13 @@ const PRACTICE_BOT_GAME_ID_PREFIX = "practice-bot-";
 
 /** Aligné sur `server/src/tournament/tournament.constants.ts` — tables bracket tournoi (wallet off). */
 const TOURNAMENT_GAME_ID_PREFIX = "game_tournament_";
+
+type TournamentTableTransitionOverlay =
+  | null
+  | { variant: "eliminated"; tournamentId: string }
+  | { variant: "won_waiting"; tournamentId: string }
+  | { variant: "won_next_table"; tournamentId: string }
+  | { variant: "champion"; tournamentId: string };
 
 type Card = ClientCard;
 
@@ -409,6 +417,9 @@ export function Game() {
   const [cashGameClosedModal, setCashGameClosedModal] = useState<{ roomId?: string; message: string } | null>(
     null,
   );
+  const [tournamentTableTransition, setTournamentTableTransition] =
+    useState<TournamentTableTransitionOverlay>(null);
+  const tournamentTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const multiBustGameIdRef = useRef<string | null>(null);
   const multiBustPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gameOverReasonRef = useRef(gameOverReason);
@@ -1610,6 +1621,14 @@ export function Game() {
   }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating, searchParams]);
 
   useEffect(() => {
+    if (tournamentTransitionTimerRef.current) {
+      clearTimeout(tournamentTransitionTimerRef.current);
+      tournamentTransitionTimerRef.current = null;
+    }
+    setTournamentTableTransition(null);
+  }, [gameIdParam]);
+
+  useEffect(() => {
     if (!socket || !gameIdParam || !gameIdParam.startsWith(TOURNAMENT_GAME_ID_PREFIX)) return;
     const tidFromUrl = searchParams.get("tournamentId");
     const onTournamentTableAssigned = (payload: {
@@ -1619,6 +1638,11 @@ export function Game() {
     }) => {
       if (!payload?.gameId) return;
       if (String(payload.gameId) === String(gameIdParam)) return;
+      if (tournamentTransitionTimerRef.current) {
+        clearTimeout(tournamentTransitionTimerRef.current);
+        tournamentTransitionTimerRef.current = null;
+      }
+      setTournamentTableTransition(null);
       const tid = payload.tournamentId ?? tidFromUrl;
       const q = new URLSearchParams();
       q.set("gameId", payload.gameId);
@@ -2094,26 +2118,65 @@ export function Game() {
               ? String(data.winnerId)
               : "";
         const advance = data.tournamentAdvance ?? "pending_other_tables";
+        const clearTournamentTransitionTimer = () => {
+          if (tournamentTransitionTimerRef.current) {
+            clearTimeout(tournamentTransitionTimerRef.current);
+            tournamentTransitionTimerRef.current = null;
+          }
+        };
+
         if (isSpectating) {
           navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
           return;
         }
-        if (userId && winner && winner === String(userId)) {
-          if (advance === "next_round_spawned") {
-            /* L’autre demi-finale est déjà finie : la table suivante arrive via TOURNAMENT_TABLE_ASSIGNED — pas de Zip. */
-            return;
-          }
-          if (advance === "tournament_complete") {
+
+        const amIWinner = Boolean(userId && winner && winner === String(userId));
+
+        if (!amIWinner) {
+          clearTournamentTransitionTimer();
+          setTournamentTableTransition({ variant: "eliminated", tournamentId: tid });
+          tournamentTransitionTimerRef.current = setTimeout(() => {
+            clearTournamentTransitionTimer();
+            setTournamentTableTransition(null);
             navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
-            return;
-          }
-          navigate(`/tournaments/${encodeURIComponent(tid)}/waiting`, { replace: true });
+          }, 3800);
           return;
         }
-        if (userId && winner) {
-          navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
+
+        clearTournamentTransitionTimer();
+        void fetchBalanceFromServer({ authoritative: true });
+
+        if (advance === "tournament_complete") {
+          setTournamentTableTransition({ variant: "champion", tournamentId: tid });
+          tournamentTransitionTimerRef.current = setTimeout(() => {
+            clearTournamentTransitionTimer();
+            setTournamentTableTransition(null);
+            navigate(`/tournaments/${encodeURIComponent(tid)}/results`, { replace: true });
+          }, 4200);
           return;
         }
+
+        if (advance === "pending_other_tables") {
+          setTournamentTableTransition({ variant: "won_waiting", tournamentId: tid });
+          tournamentTransitionTimerRef.current = setTimeout(() => {
+            clearTournamentTransitionTimer();
+            setTournamentTableTransition(null);
+            navigate(`/tournaments/${encodeURIComponent(tid)}/waiting`, { replace: true });
+          }, 3800);
+          return;
+        }
+
+        if (advance === "next_round_spawned") {
+          /* Nouvelle table : navigation dès TOURNAMENT_TABLE_ASSIGNED ; secours → salle d’attente. */
+          setTournamentTableTransition({ variant: "won_next_table", tournamentId: tid });
+          tournamentTransitionTimerRef.current = setTimeout(() => {
+            clearTournamentTransitionTimer();
+            setTournamentTableTransition(null);
+            navigate(`/tournaments/${encodeURIComponent(tid)}/waiting`, { replace: true });
+          }, 12000);
+          return;
+        }
+
         return;
       }
       if (data.reason === "opponent_left" && data.winnerId != null && String(data.winnerId) === String(userId)) {
@@ -2272,6 +2335,7 @@ export function Game() {
     postExpertPracticeRecordResult,
     clearMultiBustPromptTimer,
     searchParams,
+    fetchBalanceFromServer,
   ]);
 
   useEffect(() => {
@@ -4264,6 +4328,97 @@ export function Game() {
     </motion.div>
   )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {tournamentTableTransition && (
+          <motion.div
+            key="tournament-table-transition"
+            className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/88 backdrop-blur-md px-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+          >
+            <motion.div
+              className="flex max-w-md flex-col items-center gap-5 rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/98 to-slate-950/98 p-8 text-center shadow-2xl shadow-violet-950/40 ring-1 ring-violet-500/15"
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.99 }}
+              transition={{ type: "spring", damping: 24, stiffness: 320 }}
+            >
+              {tournamentTableTransition.variant === "eliminated" && (
+                <>
+                  <div
+                    className="flex h-24 w-24 items-center justify-center rounded-full bg-red-500/15 ring-2 ring-red-400/40"
+                    aria-hidden
+                  >
+                    <CircleX className="h-14 w-14 text-red-400" strokeWidth={2.25} />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-red-100 sm:text-3xl">
+                    {t("tournament.tableTransition.eliminatedTitle")}
+                  </h2>
+                  <p className="text-sm leading-relaxed text-white/65">
+                    {t("tournament.tableTransition.eliminatedSubtitle")}
+                  </p>
+                  <p className="text-xs text-white/40">{t("tournament.tableTransition.pleaseWait")}</p>
+                </>
+              )}
+              {tournamentTableTransition.variant === "won_waiting" && (
+                <>
+                  <div
+                    className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-500/15 ring-2 ring-emerald-400/35"
+                    aria-hidden
+                  >
+                    <Trophy className="h-12 w-12 text-emerald-300" strokeWidth={1.5} />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-emerald-100 sm:text-3xl">
+                    {t("tournament.tableTransition.wonTableTitle")}
+                  </h2>
+                  <p className="text-sm leading-relaxed text-white/70">
+                    {t("tournament.tableTransition.wonWaitingSubtitle")}
+                  </p>
+                  <p className="text-xs text-white/40">{t("tournament.tableTransition.pleaseWait")}</p>
+                </>
+              )}
+              {tournamentTableTransition.variant === "won_next_table" && (
+                <>
+                  <div
+                    className="flex h-24 w-24 items-center justify-center rounded-full bg-violet-500/15 ring-2 ring-violet-400/35"
+                    aria-hidden
+                  >
+                    <Trophy className="h-12 w-12 text-violet-200" strokeWidth={1.5} />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-violet-100 sm:text-3xl">
+                    {t("tournament.tableTransition.wonTableTitle")}
+                  </h2>
+                  <p className="text-sm leading-relaxed text-white/70">
+                    {t("tournament.tableTransition.wonNextRoundSubtitle")}
+                  </p>
+                  <p className="text-xs text-white/40">{t("tournament.tableTransition.pleaseWait")}</p>
+                </>
+              )}
+              {tournamentTableTransition.variant === "champion" && (
+                <>
+                  <div
+                    className="flex h-24 w-24 items-center justify-center rounded-full bg-amber-500/20 ring-2 ring-amber-300/45"
+                    aria-hidden
+                  >
+                    <Trophy className="h-14 w-14 text-amber-200" strokeWidth={1.35} />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-amber-100 sm:text-3xl">
+                    {t("tournament.tableTransition.championTitle")}
+                  </h2>
+                  <p className="text-sm leading-relaxed text-white/70">
+                    {t("tournament.tableTransition.championSubtitle")}
+                  </p>
+                  <p className="text-xs text-white/40">{t("tournament.tableTransition.pleaseWait")}</p>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showMultiBustPrompt && !isBotMode && !isSpectating && (
           <motion.div
