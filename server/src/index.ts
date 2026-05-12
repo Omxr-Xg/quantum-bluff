@@ -63,6 +63,31 @@ import adminRouletteOverrideRoutes from './routes/admin.roulette.override.routes
 import { timeoutMiddleware } from './middleware/timeout.middleware.js';
 import { idempotencyMiddleware } from './middleware/idempotency.middleware.js';
 
+function logUnknownReason(reason: unknown): string {
+  if (reason instanceof Error) return reason.stack ?? reason.message
+  try {
+    return JSON.stringify(reason)
+  } catch {
+    return String(reason)
+  }
+}
+
+/** Aide au diagnostic des 502 : nginx sans upstream = souvent process Node arrêté (crash hors route). */
+process.on('unhandledRejection', (reason, promise) => {
+  rootLogger.error({
+    msg: 'unhandled_rejection',
+    detail: logUnknownReason(reason),
+    promise: String(promise),
+  })
+})
+process.on('uncaughtException', (err) => {
+  rootLogger.fatal({
+    msg: 'uncaught_exception',
+    detail: err.stack ?? err.message,
+  })
+  process.exit(1)
+})
+
 const app = express()
 
 app.disable('x-powered-by')
