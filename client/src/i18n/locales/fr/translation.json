@@ -1642,6 +1642,7 @@
       "stack": "Stack",
       "registered": "Inscrits",
       "winner": "Vainqueur",
+      "winnerPrize": "+{{amount}} jetons remportés",
       "cancelled": "Ce tournoi a été annulé.",
       "playersSection": "Joueurs",
       "playerUnknown": "Joueur",

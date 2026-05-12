@@ -1612,6 +1612,7 @@
       "stack": "Стек",
       "registered": "Зареєстр.",
       "winner": "Переможець",
+      "winnerPrize": "+{{amount}} фішок виграно",
       "cancelled": "Цей турнір скасовано.",
       "playersSection": "Гравці",
       "playerUnknown": "Гравець",

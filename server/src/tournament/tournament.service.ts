@@ -254,7 +254,11 @@ export async function getTournamentDetail(tournamentId: string, userId?: string 
   const t = await prisma.tournament.findUnique({
     where: { id: tournamentId },
     include: {
-      players: { include: { user: { select: { id: true, username: true } } } },
+      players: {
+        include: {
+          user: { select: { id: true, username: true, avatarUrl: true } },
+        },
+      },
       _count: { select: { players: true } },
     },
   })
@@ -289,12 +293,24 @@ export async function getTournamentDetail(tournamentId: string, userId?: string 
       }))
   }
 
-  return { ...t, me, spectateTables }
+  /* Quand le tournoi est terminé, on expose le prize crédité au vainqueur
+   * (lu depuis le ledger pour rester aligné avec l'historique). */
+  let winnerChipsAwarded: number | null = null
+  if (t.status === 'COMPLETED') {
+    const winnerRow = await prisma.tournamentRewardLedger.findFirst({
+      where: { tournamentId, kind: 'CHIPS_WINNER' },
+      select: { chipsAmount: true },
+    })
+    winnerChipsAwarded = winnerRow?.chipsAmount ?? null
+  }
+
+  return { ...t, me, spectateTables, winnerChipsAwarded }
 }
 
 export type TournamentResultsLeaderboardRow = {
   userId: string
   username: string | null
+  avatarUrl: string | null
   finalRank: number | null
   eliminationOrder: number | null
   xpAwarded: number
@@ -330,7 +346,7 @@ export async function getTournamentResults(tournamentId: string): Promise<{
   const [players, xpLedger, chipsLedger] = await Promise.all([
     prisma.tournamentPlayer.findMany({
       where: { tournamentId },
-      include: { user: { select: { username: true } } },
+      include: { user: { select: { username: true, avatarUrl: true } } },
     }),
     prisma.tournamentRewardLedger.findMany({
       where: { tournamentId, kind: 'XP_PLACEMENT' },
@@ -351,6 +367,7 @@ export async function getTournamentResults(tournamentId: string): Promise<{
     return {
       userId: p.userId,
       username: p.user?.username ?? null,
+      avatarUrl: p.user?.avatarUrl ?? null,
       finalRank: p.finalRank,
       eliminationOrder: p.eliminationOrder ?? null,
       xpAwarded,

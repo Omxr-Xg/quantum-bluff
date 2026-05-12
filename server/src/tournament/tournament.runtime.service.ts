@@ -227,9 +227,10 @@ async function finalizeTournament(
     where: { id: tournamentId },
     data: { status: 'COMPLETED' },
   })
-  const completedPayload = { tournamentId, winnerUserId }
-  io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_COMPLETED', completedPayload)
-  io.to(`user:${winnerUserId}`).emit('TOURNAMENT_COMPLETED', completedPayload)
+  /* Crédit les chips et l'XP AVANT d'émettre TOURNAMENT_COMPLETED : le client
+   * écoute cet event pour refetch son solde (SocketContext), et un emit
+   * antérieur au crédit retournerait l'ancien solde. La recovery au boot
+   * couvre les cas où ce grant échouerait ici. */
   try {
     await grantTournamentRewardsIfMissing(prisma, tournamentId)
   } catch (e) {
@@ -239,6 +240,9 @@ async function finalizeTournament(
       detail: e instanceof Error ? e.message : String(e),
     })
   }
+  const completedPayload = { tournamentId, winnerUserId }
+  io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_COMPLETED', completedPayload)
+  io.to(`user:${winnerUserId}`).emit('TOURNAMENT_COMPLETED', completedPayload)
 }
 
 async function spawnRoundTables(

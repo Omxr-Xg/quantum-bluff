@@ -1636,6 +1636,7 @@
       "stack": "Stack",
       "registered": "Registered",
       "winner": "Winner",
+      "winnerPrize": "+{{amount}} chips won",
       "cancelled": "This tournament was cancelled.",
       "playersSection": "Players",
       "playerUnknown": "Player",

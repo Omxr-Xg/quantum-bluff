@@ -1607,6 +1607,7 @@
       "stack": "Stack",
       "registered": "Inscritos",
       "winner": "Ganador",
+      "winnerPrize": "+{{amount}} fichas ganadas",
       "cancelled": "Este torneo ha sido cancelado.",
       "playersSection": "Jugadores",
       "playerUnknown": "Jugador",

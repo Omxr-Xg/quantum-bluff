@@ -14,11 +14,13 @@ import { TOURNAMENT_MIN_PLAYERS } from "../tournamentConstants";
 import { getAuthItem } from "../../../utils/authStorage";
 import { useToast } from "../../../contexts/ToastContext";
 import { fetchBalanceFromServer } from "../../../utils/userProfile";
+import { getPlayerAvatar } from "../../../utils/avatars";
+import { ImageWithFallback } from "../../../components/figma/ImageWithFallback";
 
 type PlayerRow = {
   userId: string;
   status: string;
-  user?: { id: string; username: string };
+  user?: { id: string; username: string; avatarUrl?: string | null };
 };
 
 type MeRow = { userId?: string; status?: string } | undefined;
@@ -112,6 +114,7 @@ export function TournamentRoom() {
     () => players.find((p) => p.status === "WINNER"),
     [players],
   );
+  const winnerChipsAwarded = (data?.winnerChipsAwarded as number | null) ?? null;
 
   const isFull = maxPlayers > 0 && playerCount >= maxPlayers;
   const joinNeedsCode = visibility === "PRIVATE";
@@ -273,16 +276,50 @@ export function TournamentRoom() {
               <div className="mb-6 space-y-4">
                 {winner?.user && (
                   <div className="flex items-center gap-4 rounded-xl border border-amber-500/35 bg-gradient-to-r from-amber-950/50 to-amber-900/20 px-4 py-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-amber-500/20">
-                      <Crown className="h-8 w-8 text-amber-200" aria-hidden strokeWidth={1.25} />
+                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-400/40 bg-amber-500/20">
+                      {(() => {
+                        const winnerAvatar = getPlayerAvatar(
+                          winner.user.username,
+                          winner.userId,
+                          authUserId,
+                          winner.user.avatarUrl ?? null,
+                        );
+                        return winnerAvatar ? (
+                          <ImageWithFallback
+                            src={winnerAvatar}
+                            alt={winner.user.username}
+                            className="h-14 w-14 rounded-xl object-cover"
+                          />
+                        ) : (
+                          <Crown
+                            className="h-8 w-8 text-amber-200"
+                            aria-hidden
+                            strokeWidth={1.25}
+                          />
+                        );
+                      })()}
+                      <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-amber-400/60 bg-amber-900/80">
+                        <Crown
+                          className="h-3 w-3 text-amber-200"
+                          aria-hidden
+                          strokeWidth={1.5}
+                        />
+                      </span>
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold uppercase tracking-wider text-amber-200/70">
                         {t("tournament.room.winner")}
                       </p>
-                      <p className="text-lg font-bold text-amber-100">
+                      <p className="truncate text-lg font-bold text-amber-100">
                         {winner.user.username}
                       </p>
+                      {winnerChipsAwarded != null && winnerChipsAwarded > 0 && (
+                        <p className="mt-1 font-mono text-sm tabular-nums text-amber-200/95">
+                          {t("tournament.room.winnerPrize", {
+                            amount: winnerChipsAwarded.toLocaleString(),
+                          })}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -344,13 +381,29 @@ export function TournamentRoom() {
                   {t("tournament.room.playersSection")}
                 </h3>
                 <ul className="flex flex-wrap gap-2">
-                  {players.map((p) => (
+                  {players.map((p) => {
+                    const username = p.user?.username ?? "";
+                    const avatarSrc = getPlayerAvatar(
+                      username,
+                      p.userId,
+                      authUserId,
+                      p.user?.avatarUrl ?? null,
+                    );
+                    return (
                     <li
                       key={p.userId}
                       className="flex items-center gap-2 rounded-full border border-white/10 bg-black/25 py-1 pl-1 pr-2"
                     >
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/40 to-fuchsia-600/30 text-xs font-bold text-white">
-                        {initialFromUsername(p.user?.username)}
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-gradient-to-br from-violet-500/40 to-fuchsia-600/30 text-xs font-bold text-white">
+                        {avatarSrc ? (
+                          <ImageWithFallback
+                            src={avatarSrc}
+                            alt={username || "avatar"}
+                            className="h-8 w-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          initialFromUsername(p.user?.username)
+                        )}
                       </span>
                       <span className="max-w-[10rem] truncate text-sm text-white/85">
                         {p.user?.username ?? t("tournament.room.playerUnknown")}
@@ -396,7 +449,8 @@ export function TournamentRoom() {
                         </button>
                       )}
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               </div>
             )}

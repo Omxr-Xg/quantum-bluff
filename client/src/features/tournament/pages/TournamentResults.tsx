@@ -4,10 +4,13 @@ import { useTranslation } from "react-i18next";
 import { ArrowLeft, Trophy } from "lucide-react";
 import { fetchTournamentResults } from "../services/tournamentApi";
 import { getAuthItem } from "../../../utils/authStorage";
+import { getPlayerAvatar } from "../../../utils/avatars";
+import { ImageWithFallback } from "../../../components/figma/ImageWithFallback";
 
 type Row = {
   userId: string;
   username: string | null;
+  avatarUrl: string | null;
   finalRank: number | null;
   eliminationOrder: number | null;
   xpAwarded: number;
@@ -139,14 +142,22 @@ export function TournamentResults() {
                         {t("tournament.results.colXp")}
                       </th>
                       {showChipsCol && (
-                        <th className="hidden px-4 py-3 text-right tabular-nums sm:table-cell">
+                        <th className="px-4 py-3 text-right tabular-nums">
                           {t("tournament.results.colChips")}
                         </th>
                       )}
                     </tr>
                   </thead>
                   <tbody>
-                    {data.rows.map((r) => (
+                    {data.rows.map((r) => {
+                      const username = r.username ?? r.userId;
+                      const avatarSrc = getPlayerAvatar(
+                        username,
+                        r.userId,
+                        authUserId,
+                        r.avatarUrl,
+                      );
+                      return (
                       <tr
                         key={r.userId}
                         className="border-b border-white/5 last:border-0 hover:bg-white/[0.03]"
@@ -156,7 +167,20 @@ export function TournamentResults() {
                         </td>
                         <td className="px-4 py-3 text-white/90">
                           <span className="inline-flex flex-wrap items-center gap-2">
-                            <span className="truncate">{r.username ?? r.userId}</span>
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-violet-500/15">
+                              {avatarSrc ? (
+                                <ImageWithFallback
+                                  src={avatarSrc}
+                                  alt={username}
+                                  className="h-7 w-7 rounded-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-[10px] font-bold text-white/80">
+                                  {username.slice(0, 1).toUpperCase()}
+                                </span>
+                              )}
+                            </span>
+                            <span className="truncate">{username}</span>
                             {authUserId === r.userId && (
                               <span className="shrink-0 rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-200">
                                 {t("tournament.results.youBadge")}
@@ -168,7 +192,7 @@ export function TournamentResults() {
                           +{r.xpAwarded}
                         </td>
                         {showChipsCol && (
-                          <td className="hidden px-4 py-3 text-right font-mono text-sm tabular-nums text-amber-200/90 sm:table-cell">
+                          <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-amber-200/90">
                             {r.chipsAwarded != null && r.chipsAwarded > 0
                               ? t("tournament.results.chipsWinner", {
                                   amount: r.chipsAwarded.toLocaleString(),
@@ -177,7 +201,8 @@ export function TournamentResults() {
                           </td>
                         )}
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

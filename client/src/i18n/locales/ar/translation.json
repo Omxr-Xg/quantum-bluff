@@ -1608,6 +1608,7 @@
       "stack": "الرصيد",
       "registered": "المسجّلون",
       "winner": "الفائز",
+      "winnerPrize": "+{{amount}} رقاقة مكتسبة",
       "cancelled": "تم إلغاء هذه البطولة.",
       "playersSection": "اللاعبون",
       "playerUnknown": "لاعب",
