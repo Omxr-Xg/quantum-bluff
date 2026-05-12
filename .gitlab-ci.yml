@@ -1,14 +1,15 @@
 variables:
-  # docker.io : moins de TOOMANYREQUESTS que public.ecr.aws sur runners K8s partagés.
-  NODE_IMAGE: docker.io/library/node:20
-  POSTGRES_IMAGE: docker.io/library/postgres:15
+  # Sur runners K8s partagés, les pulls anonymes docker.io (node/postgres) déclenchent souvent TOOMANYREQUESTS.
+  # Miroir Docker Official Images sur AWS Public ECR (même contenu, pas le quota Hub par IP partagée).
+  NODE_IMAGE: public.ecr.aws/docker/library/node:20
+  POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:15
   TRIVY_IMAGE: docker.io/aquasec/trivy:0.58.1
   # Sans ça, le cache GitLab sur `.npm/` reste vide : chaque job retélécharge les paquets.
   NPM_CONFIG_CACHE: "${CI_PROJECT_DIR}/.npm"
 
 .node_docker_ci:
   image:
-    name: docker.io/library/node:20
+    name: $NODE_IMAGE
 
 default:
   tags:
@@ -49,7 +50,7 @@ backend:verify:
     - .node_docker_ci
   stage: verify
   services:
-    - name: docker.io/library/postgres:15
+    - name: $POSTGRES_IMAGE
       alias: postgres
   variables:
     NODE_ENV: test
@@ -83,7 +84,7 @@ frontend:verify:
 # Branches feature/fix : lint backend seul (pas de BDD / tests unitaires serveur)
 backend:lint:
   stage: verify
-  image: docker.io/library/node:20
+  image: $NODE_IMAGE
   script:
     - cd server
     - npm ci --legacy-peer-deps
@@ -95,10 +96,10 @@ backend:lint:
 database:test:
   stage: verify
   image:
-    name: docker.io/library/postgres:15
+    name: $POSTGRES_IMAGE
     entrypoint: [""]
   services:
-    - name: docker.io/library/postgres:15
+    - name: $POSTGRES_IMAGE
       alias: postgres
   variables:
     POSTGRES_DB: quantum_test
