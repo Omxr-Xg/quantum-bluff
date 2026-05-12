@@ -6,6 +6,10 @@ RUN chown node:node /app
 
 USER node
 
+# Évite le téléchargement Chromium (puppeteer / mermaid-cli) : ~400 Mo+ et échoue souvent en CI (ENOSPC).
+# L’API runtime n’utilise pas Puppeteer.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 COPY --chown=node:node package*.json ./
 COPY --chown=node:node prisma ./prisma/
 
