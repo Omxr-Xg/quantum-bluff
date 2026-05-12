@@ -852,6 +852,7 @@ enum TournamentStatus {
   STARTING
   ROUND_IN_PROGRESS
   WAITING_FOR_TABLES
+  WAITING_READY_CHECK
   COMPLETED
   CANCELLED
 }
@@ -902,12 +903,19 @@ model Tournament {
   /// Snapshot au moment de la création de la table finale (JSON string[] userIds)
   finalTablePlayerIds       Json?
   finalTableInitialStackSum Int?
+  /// Fenêtre ready-check ouverte entre deux manches (flag idempotent pour proceedToNextRound).
+  nextRoundReadyOpen        Boolean            @default(false)
+  /// Deadline d'auto-ready (timestamp T+30s à l'ouverture de la fenêtre courante).
+  nextRoundReadyDeadline    DateTime?
+  /// Numéro du round à venir (le NEXT, pas celui qui vient de finir). Permet de filtrer les lignes ready.
+  nextRoundReadyNumber      Int?
   createdAt                 DateTime           @default(now())
   updatedAt                 DateTime           @updatedAt
 
-  players TournamentPlayer[]
-  rounds  TournamentRound[]
-  rewards TournamentRewardLedger[]
+  players      TournamentPlayer[]
+  rounds       TournamentRound[]
+  rewards      TournamentRewardLedger[]
+  roundReadies TournamentRoundReady[]
 
   @@index([status, startAt])
   @@index([hostId])
@@ -984,4 +992,22 @@ model TournamentRewardLedger {
   @@unique([tournamentId, userId, kind])
   @@index([tournamentId])
   @@map("tournament_reward_ledger")
+}
+
+/// Une ligne par survivant ayant cliqué « Prêt » pour la manche à venir.
+/// Persisté pour idempotence (recovery + tick scheduler) et audit (autoReady).
+model TournamentRoundReady {
+  id           String   @id @default(uuid())
+  tournamentId String
+  /// Round à venir (le NEXT, pas celui qui vient de finir).
+  roundNumber  Int
+  userId       String
+  readyAt      DateTime @default(now())
+  autoReady    Boolean  @default(false)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, roundNumber, userId])
+  @@index([tournamentId, roundNumber])
+  @@map("tournament_round_ready")
 }

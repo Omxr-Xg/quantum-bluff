@@ -1535,7 +1535,18 @@
       "linkTournament": "Torneo",
       "linkLobby": "Lobby",
       "title": "Esperando mesa",
-      "subtitle": "Entrarás al juego automáticamente cuando tu mesa esté lista."
+      "subtitle": "Entrarás al juego automáticamente cuando tu mesa esté lista.",
+      "readyTitle": "¿Listo para la ronda {{round}}?",
+      "readySubtitle": "Todos los supervivientes deben declararse listos para continuar.",
+      "readyButton": "Estoy listo",
+      "readyButtonDone": "Listo ✓",
+      "readyButtonLoading": "Enviando…",
+      "readyProgress": "{{ready}} / {{total}} listos",
+      "readyTimeout": "Inicio automático en {{seconds}} s",
+      "readyTimeoutExpired": "Inicio automático en curso…",
+      "readySurvivorsTitle": "Supervivientes",
+      "readyStatusReady": "Listo",
+      "readyStatusWaiting": "Esperando"
     },
     "zipRush": {
       "title": "Zip Rush",

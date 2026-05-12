@@ -1564,7 +1564,18 @@
       "linkTournament": "Tournament",
       "linkLobby": "Lobby",
       "title": "Waiting for your table",
-      "subtitle": "You’ll join the game automatically when your table is ready."
+      "subtitle": "You’ll join the game automatically when your table is ready.",
+      "readyTitle": "Ready for round {{round}}?",
+      "readySubtitle": "All survivors must mark themselves ready before the next round starts.",
+      "readyButton": "I’m ready",
+      "readyButtonDone": "Ready ✓",
+      "readyButtonLoading": "Sending…",
+      "readyProgress": "{{ready}} / {{total}} ready",
+      "readyTimeout": "Auto-start in {{seconds}}s",
+      "readyTimeoutExpired": "Auto-starting…",
+      "readySurvivorsTitle": "Survivors",
+      "readyStatusReady": "Ready",
+      "readyStatusWaiting": "Waiting"
     },
     "zipRush": {
       "title": "Zip Rush",

@@ -1707,7 +1707,30 @@ export function Game() {
       navigate(`/game?${q.toString()}`, { replace: true });
     };
     socket.on("TOURNAMENT_TABLE_ASSIGNED", onTournamentTableAssigned);
-    return () => socket.off("TOURNAMENT_TABLE_ASSIGNED", onTournamentTableAssigned);
+    const onTournamentRoundReadyOpened = (payload: {
+      tournamentId?: string;
+      roundNumber?: number;
+    }) => {
+      const tid = payload?.tournamentId ?? tidFromUrl;
+      if (!tid) return;
+      if (tournamentTransitionTimerRef.current) {
+        clearTimeout(tournamentTransitionTimerRef.current);
+        tournamentTransitionTimerRef.current = null;
+        tournamentScheduledNavEpochRef.current += 1;
+      }
+      pendingTournamentEndedGameIdRef.current = String(gameIdParam);
+      /* Le serveur a clos le round courant et ouvert la fen\u00eatre ready-check :
+       * on quitte la table termin\u00e9e pour basculer sur l'\u00e9cran d'attente,
+       * o\u00f9 le panneau « Pr\u00eat » s'affichera. */
+      navigate(`/tournaments/${encodeURIComponent(tid)}/waiting?ready=1`, {
+        replace: true,
+      });
+    };
+    socket.on("TOURNAMENT_ROUND_READY_OPENED", onTournamentRoundReadyOpened);
+    return () => {
+      socket.off("TOURNAMENT_TABLE_ASSIGNED", onTournamentTableAssigned);
+      socket.off("TOURNAMENT_ROUND_READY_OPENED", onTournamentRoundReadyOpened);
+    };
   }, [socket, gameIdParam, navigate, searchParams]);
 
   useEffect(() => {

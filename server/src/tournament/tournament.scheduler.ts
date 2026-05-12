@@ -3,15 +3,26 @@ import type { Server } from 'socket.io'
 import { prisma } from '../config/database.js'
 import { rootLogger } from '../observability/logger.js'
 import { startTournamentFromDb } from './tournament.runtime.service.js'
+import { processExpiredRoundReadyWindows } from './tournament.roundReady.service.js'
 
 let interval: ReturnType<typeof setInterval> | null = null
+let readyTickInterval: ReturnType<typeof setInterval> | null = null
 
 export function initTournamentScheduler(app: Express): void {
-  if (interval) return
-  interval = setInterval(() => {
-    void tick(app)
-  }, 10_000)
-  interval.unref?.()
+  if (!interval) {
+    interval = setInterval(() => {
+      void tick(app)
+    }, 10_000)
+    interval.unref?.()
+  }
+  if (!readyTickInterval) {
+    /* Tick rapide (2 s) pour rattraper les fenêtres ready-check expirées
+     * sans rallonger le délai perçu par les joueurs. */
+    readyTickInterval = setInterval(() => {
+      void readyTick(app)
+    }, 2_000)
+    readyTickInterval.unref?.()
+  }
 }
 
 async function tick(app: Express): Promise<void> {
@@ -36,5 +47,18 @@ async function tick(app: Express): Promise<void> {
         detail: e instanceof Error ? e.message : String(e),
       })
     }
+  }
+}
+
+async function readyTick(app: Express): Promise<void> {
+  const io = app.get('io') as Server | undefined
+  if (!io) return
+  try {
+    await processExpiredRoundReadyWindows(io)
+  } catch (e) {
+    rootLogger.warn({
+      msg: 'tournament_ready_tick_failed',
+      detail: e instanceof Error ? e.message : String(e),
+    })
   }
 }

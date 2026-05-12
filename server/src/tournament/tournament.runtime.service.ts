@@ -16,11 +16,13 @@ export type TournamentStartSource = 'host' | 'scheduled'
 /**
  * Après une table terminée : pour le client (GAME_ENDED).
  * - pending_other_tables : d'autres tables du même tour sont encore en cours → salle d'attente / Zip.
+ * - ready_check_open : tour terminé, fenêtre "Prêt" ouverte pour les survivants avant la manche suivante.
  * - next_round_spawned : le tour est bouclé, les tables suivantes sont créées (TOURNAMENT_TABLE_ASSIGNED).
  * - tournament_complete : vainqueur final du tournoi.
  */
 export type TournamentTableFinishAdvance =
   | 'pending_other_tables'
+  | 'ready_check_open'
   | 'next_round_spawned'
   | 'tournament_complete'
 
@@ -349,35 +351,98 @@ export async function tryAdvanceRoundAfterTableComplete(
     return 'tournament_complete'
   }
 
-  const seed = seedFromTournamentId(`${tournament.id}:${round.roundNumber + 1}`)
+  /* Round non-final terminé : on ouvre une fenêtre ready-check au lieu de spawn directement.
+   * proceedToNextRound sera déclenché soit par tous les survivants pressant « Prêt »,
+   * soit par le tick auto-ready quand la deadline est atteinte. */
+  const { openRoundReadyCheck } = await import('./tournament.roundReady.service.js')
+  await openRoundReadyCheck(io, tournament.id, round.roundNumber + 1, winners)
+  return 'ready_check_open'
+}
+
+/**
+ * Spawn effectif des tables de la manche suivante, après ready-check.
+ * Idempotent via le flag `Tournament.nextRoundReadyOpen` : seul le premier appel
+ * (transaction qui flip `true → false`) déclenche réellement le bracket suivant.
+ * Appelée par :
+ * - le hook ready-check (tous prêts),
+ * - le scheduler auto-ready (deadline atteinte),
+ * - la recovery au boot (si la fenêtre est expirée).
+ */
+export async function proceedToNextRound(io: Server, tournamentId: string): Promise<boolean> {
+  const flipped = await prisma.tournament.updateMany({
+    where: { id: tournamentId, nextRoundReadyOpen: true },
+    data: { nextRoundReadyOpen: false },
+  })
+  if (flipped.count === 0) return false
+
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+  })
+  if (!tournament) return false
+
+  const nextRoundNumber = tournament.nextRoundReadyNumber ?? tournament.currentRoundNumber + 1
+
+  const survivors = await prisma.tournamentPlayer.findMany({
+    where: { tournamentId, status: 'WAITING_NEXT_ROUND' },
+    select: { userId: true, eliminationOrder: true },
+  })
+  const winners = survivors.map((s) => s.userId)
+
+  if (winners.length <= 1) {
+    rootLogger.warn({
+      msg: 'tournament_proceed_to_next_round_insufficient_winners',
+      tournamentId,
+      nextRoundNumber,
+      winners: winners.length,
+    })
+    await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: {
+        nextRoundReadyDeadline: null,
+        nextRoundReadyNumber: null,
+      },
+    })
+    return false
+  }
+
+  const seed = seedFromTournamentId(`${tournamentId}:${nextRoundNumber}`)
   const next = buildRoundFromSurvivors(winners, seed)
   const isFinal = winners.length <= 3 && winners.length >= 2
 
   await prisma.tournamentPlayer.updateMany({
-    where: { tournamentId: tournament.id, userId: { in: winners } },
+    where: { tournamentId, userId: { in: winners } },
     data: { status: 'ACTIVE' },
   })
 
   await prisma.tournament.update({
-    where: { id: tournament.id },
-    data: { currentRoundNumber: round.roundNumber + 1 },
+    where: { id: tournamentId },
+    data: {
+      status: 'ROUND_IN_PROGRESS',
+      currentRoundNumber: nextRoundNumber,
+      nextRoundReadyDeadline: null,
+      nextRoundReadyNumber: null,
+    },
   })
 
-  io.to(`tournament:${tournament.id}`).emit('TOURNAMENT_NEXT_ROUND', {
-    tournamentId: tournament.id,
-    roundNumber: round.roundNumber + 1,
+  io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_ROUND_READY_CLOSED', {
+    tournamentId,
+    roundNumber: nextRoundNumber,
+  })
+  io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_NEXT_ROUND', {
+    tournamentId,
+    roundNumber: nextRoundNumber,
   })
 
   await spawnRoundTables(
     io,
-    tournament.id,
-    round.roundNumber + 1,
+    tournamentId,
+    nextRoundNumber,
     next,
     isFinal,
     tournament.blindSmall,
     tournament.blindBig,
   )
-  return 'next_round_spawned'
+  return true
 }
 
 export async function notifyTournamentTableFinished(

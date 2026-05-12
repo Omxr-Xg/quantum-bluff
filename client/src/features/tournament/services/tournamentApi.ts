@@ -96,3 +96,41 @@ export async function startTournamentHost(id: string) {
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json();
 }
+
+export type TournamentRoundReadyState = {
+  open: boolean;
+  roundNumber: number | null;
+  deadline: string | null;
+  surviving: string[];
+  readyUserIds: string[];
+  requiredCount: number;
+  allReady: boolean;
+  isFinal: boolean;
+};
+
+export async function fetchTournamentRoundReady(
+  id: string,
+): Promise<TournamentRoundReadyState> {
+  const r = await fetch(`${API()}/${encodeURIComponent(id)}/round-ready`, {
+    headers: authHeaders(),
+  });
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<TournamentRoundReadyState>;
+}
+
+export async function setTournamentRoundReady(
+  id: string,
+  ready: boolean,
+): Promise<{ ok: boolean; state: TournamentRoundReadyState; proceeded: boolean }> {
+  const r = await fetch(`${API()}/${encodeURIComponent(id)}/round-ready`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ ready }),
+  });
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<{
+    ok: boolean;
+    state: TournamentRoundReadyState;
+    proceeded: boolean;
+  }>;
+}

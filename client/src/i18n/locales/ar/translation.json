@@ -1536,7 +1536,18 @@
       "linkTournament": "البطولة",
       "linkLobby": "الردهة",
       "title": "في انتظار الطاولة",
-      "subtitle": "ستُفتح لك اللعبة تلقائياً عندما تصبح طاولتك جاهزة."
+      "subtitle": "ستُفتح لك اللعبة تلقائياً عندما تصبح طاولتك جاهزة.",
+      "readyTitle": "هل أنت جاهز للجولة {{round}}؟",
+      "readySubtitle": "يجب على جميع الناجين تأكيد جاهزيتهم لبدء الجولة التالية.",
+      "readyButton": "أنا جاهز",
+      "readyButtonDone": "جاهز ✓",
+      "readyButtonLoading": "جارٍ الإرسال…",
+      "readyProgress": "{{ready}} / {{total}} جاهزون",
+      "readyTimeout": "بدء تلقائي خلال {{seconds}} ث",
+      "readyTimeoutExpired": "بدء تلقائي قيد التنفيذ…",
+      "readySurvivorsTitle": "الناجون",
+      "readyStatusReady": "جاهز",
+      "readyStatusWaiting": "ينتظر"
     },
     "zipRush": {
       "title": "Zip Rush",

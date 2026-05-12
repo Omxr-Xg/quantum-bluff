@@ -13,6 +13,10 @@ import {
 } from '../tournament/tournament.service.js'
 import { startTournamentFromDb } from '../tournament/tournament.runtime.service.js'
 import {
+  computeReadyState,
+  markRoundReady,
+} from '../tournament/tournament.roundReady.service.js'
+import {
   emitTournamentKicked,
   emitTournamentLobbyListUpdated,
   emitTournamentRosterUpdated,
@@ -150,6 +154,39 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
     const io = getIo(req)
     await startTournamentFromDb(req.params.id, io, { source: 'host' })
     res.json({ ok: true })
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message })
+  }
+})
+
+router.get('/:id/round-ready', authMiddleware, async (req, res) => {
+  try {
+    const state = await computeReadyState(req.params.id)
+    res.json(state)
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message })
+  }
+})
+
+router.post('/:id/round-ready', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const ready = Boolean((req.body as { ready?: unknown })?.ready)
+    const io = getIo(req)
+    const result = await markRoundReady(io, req.params.id, userId, ready)
+    if (!result.ok) {
+      return res.status(409).json({
+        error: 'Fenêtre ready-check non ouverte ou joueur non éligible',
+        code: 'ROUND_READY_NOT_OPEN',
+        state: result.state,
+      })
+    }
+    res.json({
+      ok: true,
+      state: result.state,
+      proceeded: result.proceeded,
+    })
   } catch (e) {
     res.status(400).json({ error: (e as Error).message })
   }

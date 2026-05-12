@@ -1570,7 +1570,18 @@
       "linkTournament": "Tournoi",
       "linkLobby": "Lobby",
       "title": "En attente de table",
-      "subtitle": "Ouverture automatique dès que la table est prête."
+      "subtitle": "Ouverture automatique dès que la table est prête.",
+      "readyTitle": "Prêt pour la manche {{round}} ?",
+      "readySubtitle": "Tous les survivants doivent se déclarer prêts pour lancer la suite.",
+      "readyButton": "Je suis prêt",
+      "readyButtonDone": "Prêt ✓",
+      "readyButtonLoading": "Envoi…",
+      "readyProgress": "{{ready}} / {{total}} prêts",
+      "readyTimeout": "Démarrage automatique dans {{seconds}} s",
+      "readyTimeoutExpired": "Démarrage automatique en cours…",
+      "readySurvivorsTitle": "Survivants",
+      "readyStatusReady": "Prêt",
+      "readyStatusWaiting": "En attente"
     },
     "zipRush": {
       "title": "Zip Rush",
