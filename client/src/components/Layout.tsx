@@ -1085,7 +1085,19 @@ export function Layout({ children }: LayoutProps) {
     </div>
   );
 
-  const menuContent = isGameHudPage ? gameMenuContent : (
+  /** Page config bot : barre haute allégée (accueil reste à gauche dans la barre standalone). */
+  const botConfigMenuContent = (
+    <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center justify-end gap-1.5 overflow-visible sm:w-auto sm:shrink-0 md:gap-2">
+      <LanguageSwitcher buttonClassName={languageButtonClass} />
+      {lobbyMoneyAndProfile}
+    </div>
+  );
+
+  const menuContent = isGameHudPage
+    ? gameMenuContent
+    : isBotConfigPage
+      ? botConfigMenuContent
+      : (
     <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-visible max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end md:gap-2">
       <LanguageSwitcher buttonClassName={languageButtonClass} />
       {lobbyMoneyAndProfile}
@@ -1139,8 +1151,20 @@ export function Layout({ children }: LayoutProps) {
   const shellClass =
     lobbyDocumentScroll && !isCasinoFullBleed
       ? /* Pas de min-h-[100dvh] ni flex-1 sur l’enfant : sinon zone vide en bas (fond document sans dégradés lobby). */
-        `flex w-full min-w-0 flex-col overflow-x-clip overflow-y-visible ${shellBg}`
-      : `flex h-[100dvh] max-h-[100dvh] min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden ${shellBg}`;
+        `flex w-full min-w-0 flex-col overflow-x-clip overflow-y-visible pb-[env(safe-area-inset-bottom,0px)] ${shellBg}`
+      : `box-border flex h-[100dvh] max-h-[100dvh] min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden pb-[env(safe-area-inset-bottom,0px)] ${shellBg}`;
+
+  const topPadHamburger =
+    "pt-[calc(3.5rem+env(safe-area-inset-top,0px))] md:pt-[calc(4rem+env(safe-area-inset-top,0px))]";
+  /** Sous la barre système (encoche / statut), sans double marge si barre de jeu fixe. */
+  const topPadMainScroll = topBarPaddingForHamburger
+    ? topPadHamburger
+    : showStandaloneTopBar
+      ? ""
+      : "pt-[env(safe-area-inset-top,0px)]";
+  const topPadDocScroll = topBarPaddingForHamburger
+    ? topPadHamburger
+    : "pt-[env(safe-area-inset-top,0px)]";
 
   return (
     <div className={shellClass}>
@@ -1148,7 +1172,9 @@ export function Layout({ children }: LayoutProps) {
       <GlobalCustomScrollbars />
       <TopBarProvider menuContent={showIntegratedTopBar ? menuContent : null}>
       {showStandaloneTopBar && (
-        <div className={`${isGameHudPage ? "fixed left-0 right-0 top-0" : "sticky top-0"} z-[250] w-full bg-transparent`}>
+        <div
+          className={`${isGameHudPage ? "fixed left-0 right-0 top-0" : "sticky top-0"} z-[250] w-full bg-transparent pt-[env(safe-area-inset-top,0px)]`}
+        >
           <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-8 lg:px-10">
             {isGameHudPage ? (
               gameHudControls
@@ -1169,7 +1195,7 @@ export function Layout({ children }: LayoutProps) {
         </div>
       )}
       {showHamburgerMenu && (
-        <div className="fixed end-2 top-2 z-[250] flex items-center gap-1 sm:end-4 sm:top-4 sm:gap-2">
+        <div className="fixed end-2 top-[calc(0.5rem+env(safe-area-inset-top,0px))] z-[250] flex items-center gap-1 sm:end-4 sm:top-[calc(1rem+env(safe-area-inset-top,0px))] sm:gap-2">
           {/* Partie : emplacement pour le menu ☰ (portail depuis Game.tsx) + notif + réglages — aligné à droite, même logique que le lobby */}
           {isGamePage && (
             <div id="game-top-menu-slot" className="relative shrink-0" />
@@ -1537,7 +1563,7 @@ export function Layout({ children }: LayoutProps) {
         ))}
       </AnimatePresence>
       {notification && (
-        <div className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100%-2rem)] sm:w-full">
+        <div className="fixed right-5 top-[calc(1.25rem+env(safe-area-inset-top,0px))] z-[9999] max-w-sm w-[calc(100%-2rem)] sm:w-full">
           {notification.kind === "friend_message" ? (
             <div className="bg-slate-900/95 border border-cyan-500/80 shadow-2xl rounded-2xl px-4 py-4 backdrop-blur-md animate-in slide-in-from-right-5 duration-300">
               <div className="flex items-start gap-3">
@@ -1648,7 +1674,7 @@ export function Layout({ children }: LayoutProps) {
       <div
         className={`w-full min-w-0 overflow-x-clip overflow-y-visible ${
           isCasinoFullBleed
-            ? "flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden pt-0 [&>*:last-child]:flex [&>*:last-child]:min-h-0 [&>*:last-child]:flex-1 [&>*:last-child]:flex-col"
+            ? "box-border flex min-h-0 flex-1 flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] [&>*:last-child]:flex [&>*:last-child]:min-h-0 [&>*:last-child]:flex-1 [&>*:last-child]:flex-col"
             : lobbyDocumentScroll
               ? "w-full min-w-0"
               : "min-h-0 flex-1"
@@ -1657,15 +1683,11 @@ export function Layout({ children }: LayoutProps) {
         {isCasinoFullBleed ? (
           children
         ) : lobbyDocumentScroll ? (
-          <div
-            className={`w-full min-w-0 ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
-          >
-            {children}
-          </div>
+          <div className={`w-full min-w-0 ${topPadDocScroll}`}>{children}</div>
         ) : (
           <div
             data-native-scrollbar="true"
-            className={`app-main-scroll h-full min-h-0 w-full min-w-0 overflow-x-hidden overflow-y-auto ${topBarPaddingForHamburger ? "pt-14 md:pt-16" : ""}`}
+            className={`app-main-scroll h-full min-h-0 w-full min-w-0 overflow-x-hidden overflow-y-auto ${topPadMainScroll}`}
           >
             {children}
           </div>

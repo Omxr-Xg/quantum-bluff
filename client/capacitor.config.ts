@@ -23,7 +23,11 @@ const config: CapacitorConfig = {
     allowMixedContent: true,
   },
   ios: {
-    contentInset: 'automatic',
+    /**
+     * `automatic` applique déjà des insets côté WKWebView ; avec `viewport-fit=cover` et nos
+     * `env(safe-area-inset-*)` dans le CSS, ça doublait la marge en haut sur iPhone.
+     */
+    contentInset: 'never',
     scheme: 'Quantum Bluff',
   },
   plugins: {

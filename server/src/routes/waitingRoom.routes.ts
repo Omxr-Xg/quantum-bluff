@@ -52,7 +52,8 @@ const waitingRoomHostLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
   max: 15,
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives. Réessaie dans quelques minutes.', code: 'RATE_LIMITED' },
 });
 
 const formatWaitingRoomPayload = (room: {
@@ -827,15 +828,26 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
     });
 
     if (!room) {
-      return res.status(404).json({ error: 'Salle non trouvée' });
+      return res.status(404).json({
+        error: 'Salle non trouvée',
+        code: 'WAITING_ROOM_NOT_FOUND',
+      });
     }
 
     if (room.hostId !== userId) {
-      return res.status(403).json({ error: 'Seul l\'hôte peut démarrer' });
+      return res.status(403).json({
+        error: 'Seul l\'hôte peut démarrer',
+        code: 'WAITING_ROOM_START_NOT_HOST',
+      });
     }
 
     if (room.players.length < 2) {
-      return res.status(400).json({ error: 'Pas assez de joueurs' });
+      return res.status(400).json({
+        error: 'Pas assez de joueurs',
+        code: 'WAITING_ROOM_NOT_ENOUGH_PLAYERS',
+        minPlayers: 2,
+        current: room.players.length,
+      });
     }
 
     const allReady = room.players.every(p => p.isReady);
@@ -852,7 +864,8 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
       }
       return res.status(400).json({
         error: 'Tous les joueurs ne sont pas prêts',
-        notReadyPlayers: notReadyPlayers.map(p => p.name)
+        code: 'WAITING_ROOM_NOT_ALL_READY',
+        notReadyPlayers: notReadyPlayers.map(p => p.name),
       });
     }
 

@@ -449,14 +449,58 @@ export function WaitingRoom() {
         body: JSON.stringify({ userId }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const msg = err?.error || t('waitingRoom.cannotStart');
-        if (msg === "Tous les joueurs ne sont pas prêts" && Array.isArray(err?.notReadyPlayers) && err.notReadyPlayers.length > 0) {
-          setStartError(`${t('waitingRoom.notAllReady')} : ${err.notReadyPlayers.join(", ")} ${t('waitingRoom.mustBeReady')}`);
-        } else if (msg === "Tous les joueurs ne sont pas prêts") {
-          setStartError(t('waitingRoom.startErrorNotReady'));
+        const ct = res.headers.get("content-type") ?? "";
+        let err: Record<string, unknown> = {};
+        if (ct.includes("application/json")) {
+          err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         } else {
-          setRoomError(msg);
+          const text = await res.text().catch(() => "");
+          err = text.trim() ? { error: text.trim().slice(0, 500) } : {};
+        }
+        const code = typeof err.code === "string" ? err.code : "";
+        const rawMsg =
+          (typeof err.error === "string" && err.error) ||
+          (typeof err.message === "string" && err.message) ||
+          "";
+
+        const notReadyNames = Array.isArray(err.notReadyPlayers)
+          ? (err.notReadyPlayers as unknown[]).filter((n): n is string => typeof n === "string")
+          : [];
+
+        const isNotAllReady =
+          code === "WAITING_ROOM_NOT_ALL_READY" ||
+          rawMsg === "Tous les joueurs ne sont pas prêts" ||
+          rawMsg === "Not all players are ready";
+
+        if (isNotAllReady && notReadyNames.length > 0) {
+          setStartError(
+            `${t("waitingRoom.notAllReady")} : ${notReadyNames.join(", ")} ${t("waitingRoom.mustBeReady")}`,
+          );
+        } else if (isNotAllReady) {
+          setStartError(t("waitingRoom.startErrorNotReady"));
+        } else if (code === "WAITING_ROOM_START_NOT_HOST") {
+          setStartError(t("waitingRoom.startErrorNotHost"));
+        } else if (code === "WAITING_ROOM_NOT_FOUND" || res.status === 404) {
+          setStartError(t("waitingRoom.startErrorRoomNotFound"));
+        } else if (code === "WAITING_ROOM_NOT_ENOUGH_PLAYERS") {
+          setStartError(t("waitingRoom.startErrorNeedTwoPlayers"));
+        } else if (code === "START_INSUFFICIENT_CHIPS") {
+          const reqAmt = typeof err.required === "number" ? err.required : null;
+          const curAmt = typeof err.current === "number" ? err.current : null;
+          setStartError(
+            t("waitingRoom.startErrorInsufficientChips", {
+              required: reqAmt ?? "?",
+              current: curAmt ?? "?",
+            }),
+          );
+        } else if (code === "RATE_LIMITED" || res.status === 429) {
+          setStartError(t("waitingRoom.startErrorRateLimited"));
+        } else if (code === "CASH_OPEN_DEBIT_FAILED") {
+          setStartError(t("waitingRoom.startErrorCashDebit"));
+        } else if (rawMsg) {
+          setStartError(rawMsg);
+        } else {
+          setStartError(t("waitingRoom.cannotStart"));
         }
         return;
       }
@@ -468,7 +512,7 @@ export function WaitingRoom() {
       leaveRoom(rawRoomId);
       navigate(data.gameId ? `/game?gameId=${data.gameId}` : "/game");
     } catch (e) {
-      setRoomError(e instanceof Error ? e.message : t('waitingRoom.cannotStart'));
+      setStartError(e instanceof Error ? e.message : t("waitingRoom.cannotStart"));
     } finally {
       setStarting(false);
     }

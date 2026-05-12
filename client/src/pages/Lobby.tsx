@@ -983,16 +983,15 @@ export function Lobby() {
               </div>
 
               <div className="rounded-2xl border border-amber-400/15 bg-amber-950/40 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-                <h2 className="mb-2 text-xl font-bold text-white">Tournois Texas Hold&apos;em</h2>
-                <p className="mb-4 text-sm text-amber-100/80">
-                  Tables virtuelles, élimination directe, récompenses XP et jetons.
-                </p>
+                <h2 className="mb-2 text-xl font-bold text-white">{t("lobby.tournamentTeaserTitle")}</h2>
+                <p className="mb-4 text-sm text-amber-100/80">{t("lobby.tournamentTeaserBody")}</p>
                 <button
                   type="button"
                   onClick={() => navigate("/tournaments")}
                   className="w-full rounded-xl border border-amber-300/25 bg-amber-900/70 py-3 font-bold text-white transition hover:border-amber-200/40 hover:bg-amber-800/80 md:py-4"
+                  aria-label={t("lobby.tournamentTeaserCta")}
                 >
-                  Ouvrir le lobby tournoi
+                  {t("lobby.tournamentTeaserCta")}
                 </button>
               </div>
 
@@ -1254,7 +1253,7 @@ export function Lobby() {
             setLobbyTourOpen(true);
           }
         }}
-        className="fixed bottom-5 left-5 z-[260] flex h-12 w-12 items-center justify-center rounded-full border-2 border-purple-400/90 bg-purple-950/95 text-lg font-bold text-purple-100 shadow-xl backdrop-blur-sm transition hover:border-purple-300 hover:bg-purple-800/95 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+        className="fixed left-5 z-[260] flex h-12 w-12 items-center justify-center rounded-full border-2 border-purple-400/90 bg-purple-950/95 text-lg font-bold text-purple-100 shadow-xl backdrop-blur-sm transition hover:border-purple-300 hover:bg-purple-800/95 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))]"
         aria-label={t('lobby.help.openAria')}
         title={t('lobby.help.openAria')}
       >
