@@ -367,7 +367,7 @@
     "waitingFor": "في انتظار {{name}}",
     "nextHandReadyTitle": "اللاعبون الجاهزون",
     "allReady": "الجميع جاهز",
-    "nextHandAutoReadyIn": "بدء تلقائي خلال {{seconds}} ثانية",
+    "nextHandAutoReadyIn": "الإقصاء AFK خلال {{seconds}} ثانية",
     "check": "تحقق",
     "call": "متابعة {{amount}}",
     "callLabel": "متابعة",
@@ -1539,18 +1539,7 @@
       "linkTournament": "البطولة",
       "linkLobby": "الردهة",
       "title": "في انتظار الطاولة",
-      "subtitle": "ستُفتح لك اللعبة تلقائياً عندما تصبح طاولتك جاهزة.",
-      "readyTitle": "هل أنت جاهز للجولة {{round}}؟",
-      "readySubtitle": "يجب على جميع الناجين تأكيد جاهزيتهم لبدء الجولة التالية.",
-      "readyButton": "أنا جاهز",
-      "readyButtonDone": "جاهز ✓",
-      "readyButtonLoading": "جارٍ الإرسال…",
-      "readyProgress": "{{ready}} / {{total}} جاهزون",
-      "readyTimeout": "بدء تلقائي خلال {{seconds}} ث",
-      "readyTimeoutExpired": "بدء تلقائي قيد التنفيذ…",
-      "readySurvivorsTitle": "الناجون",
-      "readyStatusReady": "جاهز",
-      "readyStatusWaiting": "ينتظر"
+      "subtitle": "ستُفتح لك اللعبة تلقائياً عندما تصبح طاولتك جاهزة."
     },
     "zipRush": {
       "title": "Zip Rush",

@@ -367,7 +367,7 @@
     "waitingFor": "Очікування {{name}}",
     "nextHandReadyTitle": "Готові гравці",
     "allReady": "Усі готові",
-    "nextHandAutoReadyIn": "Автостарт через {{seconds}} с",
+    "nextHandAutoReadyIn": "AFK-кік через {{seconds}} с",
     "check": "Чек",
     "call": "Колл {{amount}}",
     "callLabel": "Колл",
@@ -1543,18 +1543,7 @@
       "linkTournament": "Турнір",
       "linkLobby": "Лобі",
       "title": "Очікування столу",
-      "subtitle": "Тебе автоматично підключить до гри, щойно стіл буде готовий.",
-      "readyTitle": "Готовий до раунду {{round}}?",
-      "readySubtitle": "Усі вцілілі повинні підтвердити готовність, щоб почати наступний раунд.",
-      "readyButton": "Я готовий",
-      "readyButtonDone": "Готовий ✓",
-      "readyButtonLoading": "Надсилання…",
-      "readyProgress": "{{ready}} / {{total}} готових",
-      "readyTimeout": "Автостарт через {{seconds}} с",
-      "readyTimeoutExpired": "Автостарт триває…",
-      "readySurvivorsTitle": "Вцілілі",
-      "readyStatusReady": "Готовий",
-      "readyStatusWaiting": "Очікує"
+      "subtitle": "Тебе автоматично підключить до гри, щойно стіл буде готовий."
     },
     "zipRush": {
       "title": "Zip Rush",

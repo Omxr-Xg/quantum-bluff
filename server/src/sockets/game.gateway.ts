@@ -2625,19 +2625,79 @@ export class GameGateway {
     if (!(game instanceof CashGameController)) return;
     if (game.getWalletLedger() !== "none") return;
     if (game.getGameTable() != null) return; // une main est déjà en cours
+
     const survivors = game.getSurvivorsWithChips();
     if (survivors.length < 2) return;
 
-    // Pousse l'état "tout le monde prêt" au cas où la déconnexion les avait sortis.
-    for (const s of survivors) {
-      game.setNextHandReady(s.userId, true);
-    }
-    this.io.to(gameId).emit("CASH_NEXT_HAND_READY_UPDATED", {
-      readyUserIds: game.getNextHandReadyUserIds(),
-      allReady: game.isAllNextHandPlayersReady(),
-      autoReady: true,
-    });
+    const readySet = new Set(game.getNextHandReadyUserIds());
+    let kept = survivors.filter((s) => readySet.has(s.userId));
+    let afkIds = survivors
+      .filter((s) => !readySet.has(s.userId))
+      .map((s) => s.userId);
 
+    /* Cas 0 prêt : le joueur avec le plus de jetons l'emporte
+     * (départage par userId pour determinisme). */
+    if (kept.length === 0) {
+      const winner = [...survivors].sort(
+        (a, b) => b.chips - a.chips || a.userId.localeCompare(b.userId),
+      )[0]!;
+      kept = [winner];
+      afkIds = survivors
+        .filter((s) => s.userId !== winner.userId)
+        .map((s) => s.userId);
+    }
+
+    /* Élimination en mémoire + DB pour les AFK. */
+    for (const uid of afkIds) game.forceClearSeatForUser(uid);
+    if (afkIds.length > 0) {
+      try {
+        const { recordTournamentEliminationsIfAny } = await import(
+          "../tournament/tournament.runtime.service.js"
+        );
+        await recordTournamentEliminationsIfAny(gameId, afkIds);
+      } catch (err) {
+        rootLogger.error({
+          msg: "tournament_afk_elimination_record_failed",
+          gameId,
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    /* Notifier les clients AFK (canal `user:` cohérent avec PLAYER_BUSTED existant). */
+    for (const uid of afkIds) {
+      this.io.to(`user:${uid}`).emit("PLAYER_BUSTED", {
+        gameId,
+        userId: uid,
+        reason: "AFK",
+        mode: "cash",
+      });
+    }
+
+    await activeGames.set(gameId, game);
+    await this.broadcastCashGameSnapshot(gameId);
+
+    /* Branche post-élimination. */
+    if (kept.length === 1) {
+      const { onTournamentSingleSurvivor } = await import(
+        "../tournament/tournament.gatewayHook.js"
+      );
+      const tournamentAdvance = await onTournamentSingleSurvivor(
+        this.io,
+        gameId,
+        kept[0]!.userId,
+      );
+      this.io.to(gameId).emit("GAME_ENDED", {
+        gameId,
+        reason: "TOURNAMENT_TABLE_COMPLETE",
+        tournamentId: game.roomId,
+        winnerUserId: kept[0]!.userId,
+        tournamentAdvance,
+      });
+      return;
+    }
+
+    /* ≥2 ready restants → on enchaîne. */
     game.startHand();
     await activeGames.set(gameId, game);
     await this.broadcastCashGameSnapshot(gameId);
