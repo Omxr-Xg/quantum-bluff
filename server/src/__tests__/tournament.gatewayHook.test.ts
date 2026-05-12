@@ -2,12 +2,12 @@ import type { Server } from 'socket.io'
 import { jest } from '@jest/globals'
 
 jest.mock('../tournament/tournament.runtime.service.js', () => ({
-  notifyTournamentTableFinished: jest.fn().mockResolvedValue('tournament_complete'),
+  notifyTournamentTableFinished: jest.fn(async () => 'tournament_complete'),
 }))
 
 jest.mock('../shared/activeGames.js', () => ({
   activeGames: {
-    delete: jest.fn().mockResolvedValue(undefined),
+    delete: jest.fn(async () => undefined),
   },
 }))
 
