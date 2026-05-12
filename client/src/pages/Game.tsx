@@ -1637,12 +1637,15 @@ export function Game() {
   }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating, searchParams]);
 
   useEffect(() => {
-    if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX)) return;
+    /* Toujours annuler le timer de fin de table : sans ça, un passage demi-finale → finale
+     * (deux `game_tournament_*`) laissait actif le timeout « secours » 12s / 3.8s programmé sur l’ancienne
+     * table → navigation forcée vers /waiting (Zip) pendant la finale. */
     pendingTournamentEndedGameIdRef.current = null;
     if (tournamentTransitionTimerRef.current) {
       clearTimeout(tournamentTransitionTimerRef.current);
       tournamentTransitionTimerRef.current = null;
     }
+    if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX)) return;
     setTournamentTableTransition(null);
   }, [gameIdParam]);
 
@@ -1660,6 +1663,10 @@ export function Game() {
     }) => {
       if (!payload?.gameId) return;
       if (String(payload.gameId) === String(gameIdParam)) return;
+      if (tournamentTransitionTimerRef.current) {
+        clearTimeout(tournamentTransitionTimerRef.current);
+        tournamentTransitionTimerRef.current = null;
+      }
       pendingTournamentEndedGameIdRef.current = String(gameIdParam);
       const tid = payload.tournamentId ?? tidFromUrl;
       const q = new URLSearchParams();
