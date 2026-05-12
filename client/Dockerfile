@@ -10,8 +10,16 @@ ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 # CI Kaniko / petits pods : évite OOM pendant le bundling Vite.
 ENV NODE_OPTIONS=--max-old-space-size=4096
+# Image web uniquement : pas de binaire Electron ni de navigateurs Playwright (évite ENOSPC sur runners K8s).
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+# Dépendances d’abord → moins de pics disque (cache npm vidé avant le build Vite).
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps --no-audit --no-fund --omit=optional \
+  && npm cache clean --force
 COPY . .
-RUN npm ci --legacy-peer-deps && npm run build && rm -rf node_modules /root/.npm
+RUN npm run build && rm -rf node_modules /root/.npm
 
 # Étape 2 : Serveur Nginx pour les fichiers statiques (avec support du React Router)
 FROM public.ecr.aws/docker/library/nginx:alpine

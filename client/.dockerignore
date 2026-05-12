@@ -1,6 +1,7 @@
 node_modules
 dist
 dist-electron
+**/dist-electron
 android
 ios
 e2e
@@ -15,3 +16,6 @@ coverage
 npm-debug.log*
 .vite
 *.tsbuildinfo
+app-iconold.png
+*.dmg
+.idea
