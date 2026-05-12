@@ -21,22 +21,23 @@
 
 ## Mises à jour client
 
-### Interface (site chargé dans Electron)
+### Interface dans l’app Electron (DMG / .exe)
 
-L’app de bureau ouvre l’URL publique du jeu (`QB_PUBLIC_URL` / défaut VM). **Chaque déploiement du build Vite sur la VM** est donc pris en compte au prochain chargement (comme dans le navigateur). Aucun nouvel installateur n’est nécessaire pour changer le React / les assets web.
+L’interface est **embarquée** dans l’installeur (`vite build --mode electron`). Pour livrer un nouveau React / assets bureau, il faut **une nouvelle version packagée** + publication dans `server/updates/` (voir ci‑dessous). Le site web sur la VM suit un flux séparé (rebuild du conteneur `frontend`).
 
 ### Installateur Windows / macOS (binaire Electron)
 
-Pour livrer une **nouvelle version de l’app** (Electron, preload, etc.) :
+Pour livrer une **nouvelle version** :
 
 1. Bumper la version et builder le client :
    ```bash
    cd client
    npm run version:patch   # ou version:minor / version:major
-   npm run publish:win     # Windows ; pour Mac : electron-builder --mac --publish always
+   npm run publish:win     # Windows
+   # Mac : npm run build:electron && electron-builder --mac --publish always
    ```
-2. Uploader les artefacts dans `server/updates/` sur la VM : au minimum `latest.yml`, l’`.exe` (ou setup NSIS), et pour Mac `latest-mac.yml` + `.dmg` / zip selon la cible.
-3. Les fichiers `latest*.yml` sont générés par electron-builder. L’app vérifie les mises à jour au lancement puis **toutes les 4 h**. Le joueur doit **accepter** le téléchargement puis, une fois prêt, **choisir** de redémarrer (pas d’installation silencieuse).
+2. Uploader les artefacts dans `server/updates/` sur la VM : au minimum `latest.yml` + `.exe` (Windows), et pour Mac **`latest-mac.yml`** + **`.zip` bloc** (recommandé pour l’auto-update) et/ou le `.dmg` selon ce que `latest-mac.yml` référence.
+3. Les fichiers `latest*.yml` sont générés par electron-builder. L’app **vérifie au lancement** puis **toutes les 4 h**. Si une version plus récente existe : **dialogue** (« Installer » / « Plus tard ») → après acceptation, **téléchargement puis redémarrage automatique** pour appliquer la mise à jour.
 
 ## Vérification
 

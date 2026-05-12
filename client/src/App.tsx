@@ -1,4 +1,10 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  HashRouter,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 
 import { AccessibilityProvider } from "./contexts/AccessibilityContext";
 import { AccessibilityMenuOpenProvider } from "./contexts/AccessibilityMenuOpenContext";
@@ -74,13 +80,22 @@ function GameWithKey() {
   return <Game key={location.pathname + location.search} />;
 }
 
-const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
+const rawBase = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
+/** Vite `base: './'` → `./` : pas de basename pour le routeur. */
+const base =
+  rawBase === '.' || rawBase === './' || rawBase === '' ? '' : rawBase;
 const isCapacitor = typeof window !== 'undefined' && !!(window as Window & { Capacitor?: unknown }).Capacitor;
 const basename = base && !isCapacitor ? base : undefined;
 
+/** Electron packagé : `loadFile` → protocole file: ; BrowserRouter casserait les routes. */
+const Router =
+  typeof window !== 'undefined' && window.location.protocol === 'file:'
+    ? HashRouter
+    : BrowserRouter;
+
 function App() {
   return (
-    <BrowserRouter basename={basename}>
+    <Router basename={basename}>
       <AccessibilityProvider>
         <AccessibilityMenuOpenProvider>
         <TableThemeProvider>
@@ -132,7 +147,7 @@ function App() {
         </TableThemeProvider>
         </AccessibilityMenuOpenProvider>
       </AccessibilityProvider>
-    </BrowserRouter>
+    </Router>
   );
 }
 

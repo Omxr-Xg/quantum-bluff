@@ -23,10 +23,12 @@ autoUpdater.setFeedURL({
 
 /**
  * Mises à jour — deux niveaux :
- * 1) Interface (React) : la fenêtre charge l’URL distante (QB_PUBLIC_URL) → un déploiement VM
- *    du build Vite est visible au prochain lancement / rechargement (cache navigateur habituel).
+ * 1) Interface (React) : en build packagé, la fenêtre charge le bundle Vite embarqué (dist/index.html)
+ *    pour refléter le contenu du DMG / de l’installeur. L’API reste celle définie au build (--mode electron).
+ *    En dev, la fenêtre charge le serveur Vite (localhost).
  * 2) Installateur Electron (.exe / .dmg) : electron-updater lit …/updates/latest.yml (et équivalent Mac).
- *    Il faut publier de nouveaux artefacts + bumper client/package.json version (voir Docs/DEPLOY.md).
+ *    Dialogue demandant l’accord → téléchargement → installation et redémarrage automatiques.
+ *    Publier les artefacts sur la VM + bumper client/package.json version (voir Docs/DEPLOY.md).
  */
 if (app.isPackaged) {
   autoUpdater.autoDownload = false;
@@ -50,11 +52,15 @@ function createWindow() {
     }
   });
 
-  const appUrl =
-    process.env.NODE_ENV === 'development'
-      ? (process.env.ELECTRON_DEV_URL || 'http://localhost:5175/vmProjetIntegrateurgrp10-0/')
-      : `${defaultProdOrigin.replace(/\/$/, '')}/`;
-  win.loadURL(appUrl);
+  if (process.env.NODE_ENV === 'development') {
+    const devUrl =
+      process.env.ELECTRON_DEV_URL || 'http://localhost:5175/vmProjetIntegrateurgrp10-0/';
+    win.loadURL(devUrl);
+  } else if (app.isPackaged) {
+    win.loadFile(path.join(__dirname, 'dist', 'index.html'));
+  } else {
+    win.loadURL(`${defaultProdOrigin.replace(/\/$/, '')}/`);
+  }
 
   if (process.env.NODE_ENV === 'development') {
     win.webContents.openDevTools();
@@ -88,10 +94,8 @@ autoUpdater.on('update-available', async (info) => {
     title: 'Mise à jour de Quantum Bluff',
     message: `Une nouvelle version (${info.version}) est disponible.`,
     detail:
-      'L’application doit se mettre à jour pour profiter des dernières corrections et améliorations. ' +
-      'Souhaitez-vous télécharger et installer cette mise à jour maintenant ? ' +
-      'Vous pourrez choisir le moment du redémarrage une fois le téléchargement terminé.',
-    buttons: ['Mettre à jour', 'Plus tard'],
+      'Souhaitez-vous la télécharger et installer maintenant ? L’application redémarrera automatiquement.',
+    buttons: ['Installer', 'Plus tard'],
     defaultId: 0,
     cancelId: 1,
   };
@@ -100,7 +104,7 @@ autoUpdater.on('update-available', async (info) => {
     : await dialog.showMessageBox(opts);
 
   if (response !== 0) {
-    log.info('Utilisateur a reporté la mise à jour');
+    log.info('Mise à jour refusée par l’utilisateur');
     return;
   }
   try {
@@ -110,8 +114,9 @@ autoUpdater.on('update-available', async (info) => {
     const errOpts = {
       type: 'error',
       title: 'Mise à jour',
-      message: 'Le téléchargement de la mise à jour a échoué.',
-      detail: 'Vérifiez votre connexion et réessayez plus tard (menu ou prochain lancement).',
+      message: 'Le téléchargement a échoué.',
+      detail:
+        'Vérifie ta connexion et réessaie au prochain lancement ou depuis le menu.',
       buttons: ['OK'],
     };
     if (parent) await dialog.showMessageBox(parent, errOpts);
@@ -131,26 +136,13 @@ autoUpdater.on('download-progress', (progressObj) => {
   log.info(`Téléchargement: ${Math.round(progressObj.percent)}%`);
 });
 
-autoUpdater.on('update-downloaded', async (info) => {
-  log.info('Mise à jour téléchargée:', info.version);
-  const parent =
-    mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
-  const opts = {
-    type: 'info',
-    title: 'Mise à jour prête',
-    message: `La version ${info.version} est prête à être installée.`,
-    detail:
-      'Pour terminer l’installation, l’application doit redémarrer. ' +
-      'Vous pouvez le faire maintenant ou plus tard au prochain lancement.',
-    buttons: ['Redémarrer maintenant', 'Plus tard'],
-    defaultId: 0,
-    cancelId: 1,
-  };
-  const { response } = parent
-    ? await dialog.showMessageBox(parent, opts)
-    : await dialog.showMessageBox(opts);
-  if (response === 0) {
-    autoUpdater.quitAndInstall();
+autoUpdater.on('update-downloaded', (info) => {
+  log.info('Mise à jour téléchargée, installation:', info.version);
+  // L’utilisateur a déjà accepté dans update-available — redémarrage pour appliquer.
+  try {
+    autoUpdater.quitAndInstall(false, true);
+  } catch (e) {
+    log.error('quitAndInstall', e);
   }
 });
 

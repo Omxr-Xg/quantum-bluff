@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const basePath =
     env.VITE_BASE_PATH ??
-    (mode === 'capacitor' ? '/' : '/vmProjetIntegrateurgrp10-0/');
+    (mode === 'capacitor' || mode === 'electron' ? '/' : '/vmProjetIntegrateurgrp10-0/');
   const basePathWithoutTrailingSlash = basePath === '/' ? '' : basePath.replace(/\/$/, '');
 
   const capacitorEnvDefine =
@@ -172,8 +172,8 @@ export default defineConfig(({ mode }) => {
     plugins: [
       basePathRedirectPlugin,
       react(),
-      // Pas de service worker Capacitor (WebView) : évite conflits avec le natif.
-      ...(mode === 'capacitor' ? [] : [pwaPlugin]),
+      // Pas de service worker Capacitor / Electron (file://) : évite conflits ou échecs d’enregistrement.
+      ...(mode === 'capacitor' || mode === 'electron' ? [] : [pwaPlugin]),
     ],
     build: {
       sourcemap: false,
