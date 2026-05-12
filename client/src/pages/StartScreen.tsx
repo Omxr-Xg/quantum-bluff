@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles, Crown, Gem, Zap, Spade, Heart, Diamond, Club } from "lucide-react";
-import { QuantumBluffLogo } from "../assets/logo";
+import startScreenLogo from "../../app-icon.png";
 import i18n from "../i18n/config";
 import { getAuthItem } from "../utils/authStorage";
 
@@ -206,9 +206,10 @@ export function StartScreen() {
 
           {/* Logo - FIXE */}
           <div className="relative">
-            <QuantumBluffLogo
+            <img
+              src={startScreenLogo}
               alt="Quantum Bluff"
-              className="relative h-36 w-36 brightness-110 sm:h-44 sm:w-44" // Légèrement plus lumineux
+              className="relative h-36 w-36 brightness-110 sm:h-44 sm:w-44 rounded-3xl object-contain"
               style={{
                 filter: 'drop-shadow(0 0 30px rgba(59, 130, 246, 0.42))'
               }}
