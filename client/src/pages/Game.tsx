@@ -510,6 +510,9 @@ export function Game() {
   const [interHandResultsVisible, setInterHandResultsVisible] = useState(false);
   const [nextHandReadyUserIds, setNextHandReadyUserIds] = useState<string[]>([]);
   const [allNextHandReady, setAllNextHandReady] = useState(false);
+  /** Deadline absolue (epoch ms) du ready-check inter-mains tournoi (auto-ready). */
+  const [nextHandReadyDeadline, setNextHandReadyDeadline] = useState<number | null>(null);
+  const [nextHandReadySecondsLeft, setNextHandReadySecondsLeft] = useState<number | null>(null);
   const myNextHandReady =
     userId && nextHandReadyUserIds.some((u) => String(u) === String(userId));
   const [spectatorWantsToRejoin, setSpectatorWantsToRejoin] = useState(false);
@@ -967,6 +970,14 @@ export function Game() {
           p.id === "human" || String(p.id) === String(userId) ? { ...p, chips: newBalance } : p,
         ),
       );
+    } else {
+      // Cash multi : le header affiche `pokerDisplayTotal = cashLiquidOffTableRef + stack`.
+      // `addDevMoney` met à jour le solde serveur + localStorage, mais sans rafraîchir
+      // la part hors-table le header reste figé sur l’ancien total.
+      if (Boolean(gameIdParam) && !isSpectating) {
+        cashLiquidOffTableRef.current = newBalance;
+        emitPokerWalletDisplay();
+      }
     }
     setAddSuccess(true);
     setTimeout(() => closeAddMoney(), 800);
@@ -2361,13 +2372,24 @@ export function Game() {
       setCashCountdownEndsAt(null);
       setNextHandReadyUserIds([]);
       setAllNextHandReady(false);
+      setNextHandReadyDeadline(null);
+      setNextHandReadySecondsLeft(null);
       if (state.cashSeats) setCashSeats(state.cashSeats);
     };
     socket.on("CASH_WAITING_PLAYERS", onCashWaiting);
 
-    const onNextHandReadyUpdated = (data: { readyUserIds?: string[]; allReady?: boolean }) => {
+    const onNextHandReadyUpdated = (data: {
+      readyUserIds?: string[];
+      allReady?: boolean;
+      readyDeadline?: number | null;
+    }) => {
       setNextHandReadyUserIds(Array.isArray(data.readyUserIds) ? data.readyUserIds : []);
       setAllNextHandReady(Boolean(data.allReady));
+      const dl =
+        typeof data.readyDeadline === "number" && Number.isFinite(data.readyDeadline)
+          ? data.readyDeadline
+          : null;
+      setNextHandReadyDeadline(dl);
     };
     socket.on("CASH_NEXT_HAND_READY_UPDATED", onNextHandReadyUpdated);
     const onQueueStatus = (data: { queued: boolean }) => setSpectatorWantsToRejoin(data.queued);
@@ -2948,6 +2970,23 @@ export function Game() {
     }, delayMs);
     return () => window.clearTimeout(id);
   }, [cashWaitingPlayers, SHOWDOWN_REVEAL_MS, showdownRevealSkipped]);
+
+  /** Tournoi inter-mains : tick 1s sur le compte à rebours d'auto-ready, en parallèle de
+   * `nextHandReadyDeadline` (deadline absolue serveur). On nettoie dès qu'on sort
+   * de l'inter-mains ou que la deadline disparaît (tous prêts / auto-ready). */
+  useEffect(() => {
+    if (!nextHandReadyDeadline) {
+      setNextHandReadySecondsLeft(null);
+      return;
+    }
+    const compute = () => {
+      const ms = nextHandReadyDeadline - Date.now();
+      setNextHandReadySecondsLeft(Math.max(0, Math.ceil(ms / 1000)));
+    };
+    compute();
+    const id = window.setInterval(compute, 500);
+    return () => window.clearInterval(id);
+  }, [nextHandReadyDeadline]);
 
   useEffect(() => {
     if (gameIdParam) return;
@@ -4957,10 +4996,17 @@ export function Game() {
                 <div className="border-t border-slate-700 pt-3">
                   <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
                     <span>{t("game.nextHandReadyTitle", "Joueurs prêts")}</span>
-                    <span>
-                      {allNextHandReady
-                        ? t("game.allReady", "Tout le monde est prêt")
-                        : t("game.waiting", "En attente…")}
+                    <span className="flex items-center gap-2">
+                      {nextHandReadySecondsLeft != null && !allNextHandReady ? (
+                        <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 font-semibold text-amber-200 tabular-nums">
+                          {t("game.nextHandAutoReadyIn", "Démarrage auto dans {{seconds}}s", { seconds: nextHandReadySecondsLeft })}
+                        </span>
+                      ) : null}
+                      <span>
+                        {allNextHandReady
+                          ? t("game.allReady", "Tout le monde est prêt")
+                          : t("game.waiting", "En attente…")}
+                      </span>
                     </span>
                   </div>
 

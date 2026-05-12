@@ -83,6 +83,12 @@ export class GameGateway {
   private userToSocket: Map<string, string> = new Map();
   private antiCheat = new AntiCheatMonitor(8, 3000);
   private disconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  /** Tournoi : auto-ready inter-mains (par table). On garde l'absolute deadline pour permettre
+   *  un re-emit cohérent à la reconnexion d'un client. */
+  private tournamentHandReadyTimers: Map<string, NodeJS.Timeout> = new Map();
+  private tournamentHandReadyDeadlines: Map<string, number> = new Map();
+  /** Délai d'auto-ready inter-mains tournoi (ms). */
+  private static readonly TOURNAMENT_HAND_READY_AUTO_MS = 30_000;
   private async logRoomState(
     room: string,
     label: string,
@@ -1168,6 +1174,7 @@ export class GameGateway {
               this.io.to(gameId).emit("CASH_NEXT_HAND_READY_UPDATED", {
                 readyUserIds: game.getNextHandReadyUserIds(),
                 allReady: game.isAllNextHandPlayersReady(),
+                readyDeadline: this.getTournamentInterHandReadyDeadline(gameId),
               });
             });
           } catch (err) {
@@ -1442,9 +1449,11 @@ export class GameGateway {
             this.io.to(gameId).emit("CASH_NEXT_HAND_READY_UPDATED", {
               readyUserIds: result.readyUserIds,
               allReady: result.allReady,
+              readyDeadline: this.getTournamentInterHandReadyDeadline(gameId),
             });
 
             if (result.allReady) {
+              this.clearTournamentInterHandAutoReady(gameId);
               game.startHand();
               await this.broadcastCashGameSnapshot(gameId);
               this.io.to(gameId).emit("HAND_STATE_CHANGED", {
@@ -1512,6 +1521,37 @@ export class GameGateway {
                   );
                   s.emit("GAME_UPDATE", snapshot);
                   s.emit("GAME_STATE_UPDATED", snapshot);
+                }
+                /* Si une fenêtre ready-check inter-mains tournoi est en cours, renvoie
+                 * son état (avec deadline) au client qui se reconnecte — sinon il manquera
+                 * l'overlay « Prêt » jusqu'au prochain trigger serveur. */
+                if (
+                  pokerGame.getWalletLedger() === "none" &&
+                  pokerGame.getGameTable() == null
+                ) {
+                  const survivorCount = pokerGame
+                    .getSurvivorsWithChips()
+                    .length;
+                  if (survivorCount >= 2) {
+                    // Reboot serveur : si le timer en mémoire est perdu mais l'état
+                    // inter-mains est persistant côté contrôleur, on ré-arme pour ne
+                    // pas bloquer la table indéfiniment.
+                    if (
+                      this.getTournamentInterHandReadyDeadline(gameId) == null
+                    ) {
+                      this.scheduleTournamentInterHandAutoReady(gameId);
+                    }
+                    const snap = pokerGame.getSanitizedState();
+                    socket.emit("CASH_WAITING_PLAYERS", {
+                      cashSeats: snap.cashSeats,
+                    });
+                    socket.emit("CASH_NEXT_HAND_READY_UPDATED", {
+                      readyUserIds: pokerGame.getNextHandReadyUserIds(),
+                      allReady: pokerGame.isAllNextHandPlayersReady(),
+                      readyDeadline:
+                        this.getTournamentInterHandReadyDeadline(gameId),
+                    });
+                  }
                 }
               } else if (pokerGame instanceof GameTable) {
                 const url = sanitizePublicAvatarUrl(data.avatarUrl);
@@ -2391,6 +2431,7 @@ export class GameGateway {
           cashGame.getStopWhenSingleSurvivor() &&
           survivors.length === 1
         ) {
+          this.clearTournamentInterHandAutoReady(gameId);
           await activeGames.set(gameId, cashGame);
           await this.broadcastCashGameSnapshot(gameId);
           const { onTournamentSingleSurvivor } = await import(
@@ -2408,25 +2449,18 @@ export class GameGateway {
             winnerUserId: survivors[0]!.userId,
             tournamentAdvance,
           });
-        } else if (cashGame.startNextHandIfMultiSurvivors()) {
-          await activeGames.set(gameId, cashGame);
-          await this.broadcastCashGameSnapshot(gameId);
-          this.resetTimer(gameId);
-          this.io.to(gameId).emit("HAND_STATE_CHANGED", {
-            gameId,
-            phase: cashGame.state.phase,
-            handRuntimePhase: cashGame.state.handRuntimePhase,
-            handEndReason: cashGame.state.handEndReason,
-            handId: cashGame.state.handId,
-          });
         } else {
+          /* Tournoi : ready-check inter-mains identique au cash (les joueurs cliquent « Prêt »
+           * avant la prochaine main), avec auto-ready 30s pour couvrir l'AFK / crash. */
           const snap = cashGame.getSanitizedState();
           this.io.to(gameId).emit("CASH_WAITING_PLAYERS", {
             cashSeats: snap.cashSeats,
           });
+          this.scheduleTournamentInterHandAutoReady(gameId);
           this.io.to(gameId).emit("CASH_NEXT_HAND_READY_UPDATED", {
             readyUserIds: cashGame.getNextHandReadyUserIds(),
             allReady: cashGame.isAllNextHandPlayersReady(),
+            readyDeadline: this.getTournamentInterHandReadyDeadline(gameId),
           });
         }
       } else {
@@ -2553,5 +2587,67 @@ export class GameGateway {
     this.turnStartTimes.delete(gameId);
 
     this.bumpTurnTimerEpoch(gameId);
+  }
+
+  /**
+   * Tournoi : programme le timer d'auto-ready inter-mains. Au déclenchement, on force
+   * tous les survivants à "Prêt" et on enchaîne la main suivante (idempotent — protège
+   * de l'AFK / crash). Annulé dès que tous les joueurs ont cliqué Prêt eux-mêmes ou
+   * que la table se dissout / passe en GAME_ENDED.
+   */
+  private scheduleTournamentInterHandAutoReady(gameId: string): void {
+    this.clearTournamentInterHandAutoReady(gameId);
+    const deadline = Date.now() + GameGateway.TOURNAMENT_HAND_READY_AUTO_MS;
+    this.tournamentHandReadyDeadlines.set(gameId, deadline);
+    const t = setTimeout(() => {
+      void this.autoStartNextTournamentHand(gameId).catch((err) => {
+        console.error("[TOURNAMENT][INTER_HAND] auto-ready failed", err);
+      });
+    }, GameGateway.TOURNAMENT_HAND_READY_AUTO_MS);
+    this.tournamentHandReadyTimers.set(gameId, t);
+  }
+
+  private clearTournamentInterHandAutoReady(gameId: string): void {
+    const t = this.tournamentHandReadyTimers.get(gameId);
+    if (t) clearTimeout(t);
+    this.tournamentHandReadyTimers.delete(gameId);
+    this.tournamentHandReadyDeadlines.delete(gameId);
+  }
+
+  /** Deadline absolue (epoch ms) du timer auto-ready inter-mains tournoi, si actif. */
+  getTournamentInterHandReadyDeadline(gameId: string): number | null {
+    return this.tournamentHandReadyDeadlines.get(gameId) ?? null;
+  }
+
+  private async autoStartNextTournamentHand(gameId: string): Promise<void> {
+    this.clearTournamentInterHandAutoReady(gameId);
+    const game = await activeGames.get(gameId);
+    if (!(game instanceof CashGameController)) return;
+    if (game.getWalletLedger() !== "none") return;
+    if (game.getGameTable() != null) return; // une main est déjà en cours
+    const survivors = game.getSurvivorsWithChips();
+    if (survivors.length < 2) return;
+
+    // Pousse l'état "tout le monde prêt" au cas où la déconnexion les avait sortis.
+    for (const s of survivors) {
+      game.setNextHandReady(s.userId, true);
+    }
+    this.io.to(gameId).emit("CASH_NEXT_HAND_READY_UPDATED", {
+      readyUserIds: game.getNextHandReadyUserIds(),
+      allReady: game.isAllNextHandPlayersReady(),
+      autoReady: true,
+    });
+
+    game.startHand();
+    await activeGames.set(gameId, game);
+    await this.broadcastCashGameSnapshot(gameId);
+    this.io.to(gameId).emit("HAND_STATE_CHANGED", {
+      gameId,
+      phase: game.state.phase,
+      handRuntimePhase: game.state.handRuntimePhase,
+      handEndReason: game.state.handEndReason,
+      handId: game.state.handId,
+    });
+    this.resetTimer(gameId);
   }
 }
