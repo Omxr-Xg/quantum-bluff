@@ -31,7 +31,11 @@ import { useTopBar } from '../contexts/TopBarContext';
 import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { OPEN_RATE_GAME_EVENT, STORAGE_RATE_GAME_PROMPT_SHOWN } from "../constants/storageKeys";
 import { apiUrl } from "../utils/apiBase";
-import { getUserBalance, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
+import {
+  getUserBalance,
+  BALANCE_CHANGED_EVENT,
+  updateUserBalance,
+} from "../utils/userProfile";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 import { DailyChallenges } from "../components/DailyChallenges";
 import { getAuthItem } from "../utils/authStorage";
@@ -125,6 +129,9 @@ export function Lobby() {
   const [rechargeKey, setRechargeKey] = useState(0);
 
   const handleRechargeSuccess = (newBalance: number) => {
+    // Source de vérité = localStorage + BALANCE_CHANGED_EVENT (écouté par Layout).
+    // Sans ça, le header (Layout) gardait l'ancien solde jusqu'au prochain focus / nav.
+    updateUserBalance(newBalance);
     setBalance(newBalance);
     setRechargeKey(prev => prev + 1);
     addToast("Recharge effectuée.", "success");

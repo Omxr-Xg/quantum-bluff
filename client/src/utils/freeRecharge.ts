@@ -4,6 +4,7 @@
 
 import { getAuthItem } from './authStorage'
 import { apiUrl } from './apiBase'
+import { updateUserBalance } from './userProfile'
 
 /** À garder aligné avec `server/src/freeRecharge/freeRecharge.types.ts` (affichage UI). */
 export const FREE_RECHARGE_AMOUNT = 500
@@ -108,5 +109,11 @@ export async function claimFreeRecharge(): Promise<FreeRechargeClaimResult> {
     )
   }
 
-  return data as FreeRechargeClaimResult
+  const result = data as FreeRechargeClaimResult
+  // Persiste tout de suite côté client : sans ça, le header (Layout) reste sur
+  // l’ancien solde tant qu’un focus / navigation n’a pas déclenché un GET balance.
+  if (typeof result.newBalance === 'number' && Number.isFinite(result.newBalance)) {
+    updateUserBalance(result.newBalance)
+  }
+  return result
 }

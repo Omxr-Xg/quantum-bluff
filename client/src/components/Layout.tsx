@@ -39,6 +39,7 @@ import {
   BALANCE_CHANGED_EVENT,
   BALANCE_GAIN_FLASH_EVENT,
   POKER_WALLET_DISPLAY_EVENT,
+  updateUserBalance,
 } from "../utils/userProfile";
 import {
   fetchAvailableGiftCodes,
@@ -592,6 +593,11 @@ export function Layout({ children }: LayoutProps) {
       if (result) {
         setCodesSuccess(result.message);
         setCodeInput("");
+        if (typeof result.newBalance === "number" && Number.isFinite(result.newBalance)) {
+          // Persiste + déclenche BALANCE_CHANGED_EVENT pour synchroniser tous les listeners
+          // (Layout, Lobby, etc.) au lieu de ne mettre à jour que l'état local.
+          updateUserBalance(result.newBalance);
+        }
         setBalance(result.newBalance);
 
         // Reload codes and history
@@ -1343,6 +1349,9 @@ export function Layout({ children }: LayoutProps) {
           });
         }}
         onClaimed={(newBalance) => {
+          if (typeof newBalance === "number" && Number.isFinite(newBalance)) {
+            updateUserBalance(newBalance);
+          }
           setBalance(newBalance);
           setDailyLoginAvailable(false);
           playSfx("success");
