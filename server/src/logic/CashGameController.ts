@@ -854,6 +854,7 @@ export class CashGameController implements IGameSession {
     if (this.gameTable.state.phase === 'SHOWDOWN') {
       this.logRuntimeEvent('HAND_END')
     }
+    this.snapshotSeq += 1
   }
 
   getPlayerState(playerId: string): Player | undefined {

@@ -1750,17 +1750,19 @@ export function Game() {
         id?: string;
         snapshotSeq?: number;
       };
-      /* Clé stricte : le serveur bump `updatedAt` à chaque mutation. L’ancienne clé (phase+version+tour)
-       * pouvait fusionner deux états réels différents → client qui ignorait un GAME_UPDATE et restait bloqué
-       * (fréquent en table finale / all-in / fin de main). */
+      /* Signature de déduplication : ne jamais se limiter à id+updatedAt — deux états distincts
+       * peuvent partager le même ISO ms, ou currentTurn peut changer sans nouveau timestamp côté moteur.
+       * Omettre phase/tour/pot/version provoquait des socket_update_ignored_same_snapshot et un UI bloqué
+       * (ex. preflop, currentTurn vide jusqu’au refresh). */
       const snapSeq =
         typeof stMeta.snapshotSeq === "number" && Number.isFinite(stMeta.snapshotSeq)
           ? stMeta.snapshotSeq
           : "no-seq";
-      const socketSnapshotSig =
+      const updatedAtKey =
         typeof stMeta.updatedAt === "string" && stMeta.updatedAt.length > 0
-          ? `${stMeta.id ?? gameState.handId ?? "no-id"}:${stMeta.updatedAt}`
-          : `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}:${typeof stMeta.streetVersion === "number" ? stMeta.streetVersion : "no-sv"}:${typeof stMeta.pot === "number" ? stMeta.pot : "no-pot"}:${stMeta.handRuntimePhase ?? "no-hrp"}:seq:${snapSeq}`;
+          ? stMeta.updatedAt
+          : "no-ts";
+      const socketSnapshotSig = `${stMeta.id ?? gameState.handId ?? "no-id"}:${updatedAtKey}:${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}:${typeof stMeta.streetVersion === "number" ? stMeta.streetVersion : "no-sv"}:${typeof stMeta.pot === "number" ? stMeta.pot : "no-pot"}:${stMeta.handRuntimePhase ?? "no-hrp"}:seq:${snapSeq}`;
       if (socketSnapshotSig === lastAppliedSocketSnapshotSigRef.current) {
   console.log('[FRONT][GAME] socket_update_ignored_same_snapshot', {
     socketSnapshotSig,

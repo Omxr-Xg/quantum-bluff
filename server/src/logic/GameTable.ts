@@ -539,6 +539,7 @@ export class GameTable {
     this.pendingFirstToActAfterLiveWindow = null
     this.state.currentTurn = first
     this.state.handRuntimePhase = 'BETTING_ACTIVE'
+    this.bumpVersion()
   }
 
   /** Premier à jouer sur une nouvelle rue : ordre poker postflop standard. */
