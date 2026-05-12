@@ -13,15 +13,38 @@ module.exports = {
     '/services.old/',
     'test_cleanup\\.ts$'  // script manuel DA4 (nécessite DB), pas un test unitaire
   ],
+  /** Périmètre « logique métier » testable unitairement (hors I/O massifs listés). */
   collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/**/__tests__/**',
-    '!src/tests.old/**',
-    '!src/services.old/**'
+    'src/logic/**/*.ts',
+    '!src/logic/botAI.ts',
+    '!src/logic/blackjackSessionStore.ts',
+    /** Tables runtime volumineuses : couvertes par tests dédiés (`CashGameController.seats`, blackjack), hors métrique globale. */
+    '!src/logic/CashGameController.ts',
+    '!src/logic/BlackjackTableController.ts',
+    'src/tournament/bracket/**/*.ts',
+    'src/tournament/tournament.entryFee.ts',
+    'src/tournament/tournament.constants.ts',
+    'src/tournament/tournament.create.validation.ts',
+    'src/tournament/tournament.seed.ts',
+    'src/tournament/tournament.reward.service.ts',
+    'src/tournament/tournament.gatewayHook.ts',
+    'src/utils/chips.ts',
+    'src/utils/antiCheat.ts',
+    'src/utils/avatarUrl.ts',
+    'src/utils/secretAnswer.ts',
+    'src/validation/**/*.ts',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'cobertura'],
+  coverageThreshold: {
+    global: {
+      lines: 80,
+      statements: 80,
+      functions: 80,
+      /** Les branches restent plus basses (schemas Zod, poker runtime). */
+      branches: 65,
+    },
+  },
   reporters: [
     'default',
     ['jest-junit', { outputDirectory: './', outputName: 'junit.xml' }]

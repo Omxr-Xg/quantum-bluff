@@ -366,3 +366,19 @@ SELECT balance_after FROM wallet_ledger_entries WHERE reason = 'FREE_RECHARGE' L
 - [ ] Intégration avec DailyLogin OK
 - [ ] Tests d'edge-case passent
 
+---
+
+## Couverture Jest (serveur)
+
+Depuis la racine du dépôt ou `server/` :
+
+```bash
+cd server
+npm run test:coverage
+```
+
+- Rapport HTML : `server/coverage/lcov-report/index.html`
+- La configuration impose des seuils globaux (lignes / statements / fonctions ≥ 80 %, branches ≥ 65 %) sur un périmètre défini dans [`server/jest.config.cjs`](../server/jest.config.cjs) (`collectCoverageFrom`), centré sur la logique métier (logic, tournoi partiel, utils ciblés, validation). Les grosses surfaces I/O (`routes/`, `sockets/game.gateway.ts`, etc.) et certains contrôleurs volumineux hors périmètre sont exclus de cette métrique mais restent couverts par des tests dédiés ailleurs.
+
+**Politique :** ne pas baisser les seuils ni élargir les exclusions sans décision explicite (ticket / revue) ; préférer ajouter des tests dans le périmètre ou corriger du code mort.
+
