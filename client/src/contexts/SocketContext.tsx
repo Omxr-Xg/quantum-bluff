@@ -353,13 +353,16 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       'LOAN_REQUEST_REJECTED',
     ] as const
     const walletEvents = ['LOAN_CREATED', 'LOAN_REPAYMENT_PROGRESS', 'LOAN_COMPLETED'] as const
+    const tournamentWalletEvents = ['TOURNAMENT_COMPLETED', 'TOURNAMENT_CANCELLED'] as const
 
     notifyOnly.forEach((ev) => socket.on(ev, invalidateLoanList))
     walletEvents.forEach((ev) => socket.on(ev, invalidateLoanListAndSyncBalance))
+    tournamentWalletEvents.forEach((ev) => socket.on(ev, invalidateLoanListAndSyncBalance))
 
     return () => {
       notifyOnly.forEach((ev) => socket.off(ev, invalidateLoanList))
       walletEvents.forEach((ev) => socket.off(ev, invalidateLoanListAndSyncBalance))
+      tournamentWalletEvents.forEach((ev) => socket.off(ev, invalidateLoanListAndSyncBalance))
     }
   }, [socket, isAdmin])
 

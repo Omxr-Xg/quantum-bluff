@@ -208,6 +208,7 @@ export function Layout({ children }: LayoutProps) {
         location.pathname.startsWith("/blackjack/lobby") ||
         location.pathname.startsWith("/blackjack/table") ||
         blackjackMultiInLobby ||
+        location.pathname.startsWith("/tournaments") ||
         isGamePagePath;
       fetchBalanceFromServer({ authoritative }).then(setBalance);
     }
@@ -292,6 +293,7 @@ export function Layout({ children }: LayoutProps) {
           location.pathname === "/blackjack" ||
           location.pathname.startsWith("/blackjack/lobby") ||
           location.pathname.startsWith("/blackjack/table") ||
+          location.pathname.startsWith("/tournaments") ||
           isGamePagePath;
         fetchBalanceFromServer({ authoritative }).then(setBalance);
       } else {

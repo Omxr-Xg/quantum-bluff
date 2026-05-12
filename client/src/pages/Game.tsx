@@ -545,6 +545,9 @@ export function Game() {
 
   const cashBalanceSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cashBalanceFetchInFlightRef = useRef(false);
+  /** Reconnexion table tournoi : la partie peut ne pas être dans activeGames au premier JOIN_GAME (course création / réseau). */
+  const emitTournamentJoinRef = useRef<(() => void) | null>(null);
+  const tournamentJoinNotFoundAttemptsRef = useRef(0);
 
   const scheduleCashBalanceServerSync = useCallback(() => {
     if (!gameIdParam || isBotMode || isSpectating) return;
@@ -1599,6 +1602,17 @@ export function Game() {
 
     const onError = (payload: { code?: string; message?: string }) => {
       if (payload?.code === "GAME_NOT_FOUND") {
+        if (
+          gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX) &&
+          (userId || isSpectating) &&
+          tournamentJoinNotFoundAttemptsRef.current < 10
+        ) {
+          tournamentJoinNotFoundAttemptsRef.current += 1;
+          const n = tournamentJoinNotFoundAttemptsRef.current;
+          const delay = Math.min(4000, 100 + n * n * 55);
+          window.setTimeout(() => emitTournamentJoinRef.current?.(), delay);
+          return;
+        }
         const tid = searchParams.get("tournamentId");
         if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX) && tid) {
           navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
@@ -1626,6 +1640,10 @@ export function Game() {
       tournamentTransitionTimerRef.current = null;
     }
     setTournamentTableTransition(null);
+  }, [gameIdParam]);
+
+  useEffect(() => {
+    tournamentJoinNotFoundAttemptsRef.current = 0;
   }, [gameIdParam]);
 
   useEffect(() => {
@@ -2145,6 +2163,8 @@ export function Game() {
 
         clearTournamentTransitionTimer();
         void fetchBalanceFromServer({ authoritative: true });
+        window.setTimeout(() => void fetchBalanceFromServer({ authoritative: true }), 700);
+        window.setTimeout(() => void fetchBalanceFromServer({ authoritative: true }), 2200);
 
         if (advance === "tournament_complete") {
           setTournamentTableTransition({ variant: "champion", tournamentId: tid });
@@ -2308,10 +2328,12 @@ export function Game() {
         }
       }
     };
+    emitTournamentJoinRef.current = emitJoinRoom;
     socket.on("connect", emitJoinRoom);
     emitJoinRoom();
 
     return () => {
+      emitTournamentJoinRef.current = null;
       socket.off("connect", emitJoinRoom);
       socket.off("GAME_UPDATE", onGameUpdateMain);
       socket.off("GAME_STATE_UPDATED", onGameStateUpdated);
