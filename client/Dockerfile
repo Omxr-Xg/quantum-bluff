@@ -8,6 +8,8 @@ FROM public.ecr.aws/docker/library/node:22-alpine AS build
 WORKDIR /app
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
+# CI Kaniko / petits pods : évite OOM pendant le bundling Vite.
+ENV NODE_OPTIONS=--max-old-space-size=4096
 COPY . .
 RUN npm ci --legacy-peer-deps && npm run build && rm -rf node_modules /root/.npm
 

@@ -179,6 +179,7 @@ docker:build:
       printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$AUTH" \
         > /kaniko/.docker/config.json
     - /kaniko/executor
+        --compressed-caching=false
         --context "${CI_PROJECT_DIR}/server"
         --dockerfile "${CI_PROJECT_DIR}/server/Dockerfile"
         --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
@@ -204,6 +205,9 @@ docker:build:client:
   variables:
     # Surchargeable dans GitLab → Settings → CI/CD → Variables (ex. préfixe API derrière nginx).
     VITE_API_URL: "/vmProjetIntegrateurgrp10-0"
+    # Réduit les pics RAM Kaniko (snapshot) sur runners K8s serrés.
+    KUBERNETES_MEMORY_REQUEST: "2Gi"
+    KUBERNETES_MEMORY_LIMIT: "4Gi"
   script:
     - mkdir -p /kaniko/.docker
     - AUTH=$(printf "%s:%s" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
@@ -211,6 +215,7 @@ docker:build:client:
       printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$AUTH" \
         > /kaniko/.docker/config.json
     - /kaniko/executor
+        --compressed-caching=false
         --context "${CI_PROJECT_DIR}/client"
         --dockerfile "${CI_PROJECT_DIR}/client/Dockerfile"
         --build-arg "VITE_API_URL=${VITE_API_URL}"
@@ -240,6 +245,7 @@ docker:build:ai-service:
       printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$AUTH" \
         > /kaniko/.docker/config.json
     - /kaniko/executor
+        --compressed-caching=false
         --context "${CI_PROJECT_DIR}/server/ai-service"
         --dockerfile "${CI_PROJECT_DIR}/server/ai-service/Dockerfile"
         --destination "${CI_REGISTRY_IMAGE}:ai-${CI_COMMIT_SHORT_SHA}"
