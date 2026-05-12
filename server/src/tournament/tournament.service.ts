@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs'
+import { createWalletLedgerMovement } from '../casino/services/walletLedger.service.js'
 import { prisma } from '../config/database.js'
 import type { TournamentVisibility } from '../generated/prisma/index.js'
 import { activeGames } from '../shared/activeGames.js'
@@ -99,15 +100,31 @@ export async function joinTournament(
       if (!ok) throw new Error('Code incorrect')
     }
     const fee = tournamentEntryFeeChips(t.initialStack)
+    const beforeRow = await tx.user.findUnique({
+      where: { id: userId },
+      select: { chips: true },
+    })
+    if (!beforeRow) throw new Error('Utilisateur introuvable')
     const dec = await tx.user.updateMany({
       where: { id: userId, chips: { gte: fee } },
       data: { chips: { decrement: fee } },
     })
     if (dec.count === 0) {
-      const u = await tx.user.findUnique({ where: { id: userId }, select: { chips: true } })
-      if (!u) throw new Error('Utilisateur introuvable')
       throw new Error('Jetons insuffisants.')
     }
+    const afterRow = await tx.user.findUnique({
+      where: { id: userId },
+      select: { chips: true },
+    })
+    const balanceAfterJoin = afterRow?.chips ?? beforeRow.chips - fee
+    await createWalletLedgerMovement(tx, {
+      userId,
+      reason: 'TOURNAMENT_BUY_IN',
+      balanceBefore: beforeRow.chips,
+      balanceAfter: balanceAfterJoin,
+      gameType: 'tournament',
+      roundId: tournamentId,
+    })
     await tx.tournamentPlayer.create({
       data: { tournamentId, userId, status: 'REGISTERED' },
     })
@@ -133,9 +150,27 @@ export async function leaveTournament(
     const fee = tournamentEntryFeeChips(t.initialStack)
     const r = await tx.tournamentPlayer.deleteMany({ where: { tournamentId, userId } })
     if (r.count > 0) {
+      const beforeRow = await tx.user.findUnique({
+        where: { id: userId },
+        select: { chips: true },
+      })
+      const balanceBeforeLeave = beforeRow?.chips ?? 0
       await tx.user.update({
         where: { id: userId },
         data: { chips: { increment: fee } },
+      })
+      const afterRow = await tx.user.findUnique({
+        where: { id: userId },
+        select: { chips: true },
+      })
+      const balanceAfterLeave = afterRow?.chips ?? balanceBeforeLeave + fee
+      await createWalletLedgerMovement(tx, {
+        userId,
+        reason: 'TOURNAMENT_BUY_IN_REFUND',
+        balanceBefore: balanceBeforeLeave,
+        balanceAfter: balanceAfterLeave,
+        gameType: 'tournament',
+        roundId: tournamentId,
       })
       left = true
     }
@@ -161,9 +196,27 @@ export async function kickTournamentPlayer(tournamentId: string, targetUserId: s
     const fee = tournamentEntryFeeChips(t.initialStack)
     const r = await tx.tournamentPlayer.deleteMany({ where: { tournamentId, userId: uid } })
     if (r.count === 0) throw new Error('Joueur non inscrit à ce tournoi')
+    const beforeRow = await tx.user.findUnique({
+      where: { id: uid },
+      select: { chips: true },
+    })
+    const balanceBeforeKick = beforeRow?.chips ?? 0
     await tx.user.update({
       where: { id: uid },
       data: { chips: { increment: fee } },
+    })
+    const afterRow = await tx.user.findUnique({
+      where: { id: uid },
+      select: { chips: true },
+    })
+    const balanceAfterKick = afterRow?.chips ?? balanceBeforeKick + fee
+    await createWalletLedgerMovement(tx, {
+      userId: uid,
+      reason: 'TOURNAMENT_BUY_IN_REFUND',
+      balanceBefore: balanceBeforeKick,
+      balanceAfter: balanceAfterKick,
+      gameType: 'tournament',
+      roundId: tournamentId,
     })
   })
 }

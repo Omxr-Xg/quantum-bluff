@@ -766,7 +766,11 @@
       "CASH_POKER_BUY_IN": "Cash poker — buy-in",
       "CASH_POKER_REBUY": "Cash poker — rebuy",
       "CASH_POKER_CASHOUT": "Cash poker — retiro",
-      "CASH_POKER_HAND_RESULT": "Cash poker — resultado de mano"
+      "CASH_POKER_HAND_RESULT": "Cash poker — resultado de mano",
+      "TOURNAMENT_BUY_IN": "Torneo — buy-in",
+      "TOURNAMENT_BUY_IN_REFUND": "Torneo — reembolso del buy-in",
+      "TOURNAMENT_PRIZE": "Torneo — premio",
+      "TOURNAMENT_CANCEL_REFUND": "Torneo cancelado — reembolso del buy-in"
     }
   },
   "pokerChat": {

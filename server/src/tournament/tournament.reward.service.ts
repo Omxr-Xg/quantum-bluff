@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '../generated/prisma/index.js'
+import { createWalletLedgerMovement } from '../casino/services/walletLedger.service.js'
 import { levelFromExperience } from '../logic/gamification.js'
 import { rootLogger } from '../observability/logger.js'
 import { tournamentEntryFeeChips } from './tournament.entryFee.js'
@@ -88,9 +89,27 @@ export async function applyChipsWinnerIfMissing(
     rootLogger.info({ msg: 'tournament_reward_chips_already_applied', tournamentId, winnerUserId })
     return 'already'
   }
+  const beforeRow = await prisma.user.findUnique({
+    where: { id: winnerUserId },
+    select: { chips: true },
+  })
+  const balanceBefore = beforeRow?.chips ?? 0
   await prisma.user.update({
     where: { id: winnerUserId },
     data: { chips: { increment: chipsAmount } },
+  })
+  const afterRow = await prisma.user.findUnique({
+    where: { id: winnerUserId },
+    select: { chips: true },
+  })
+  const balanceAfter = afterRow?.chips ?? balanceBefore + chipsAmount
+  await createWalletLedgerMovement(prisma, {
+    userId: winnerUserId,
+    reason: 'TOURNAMENT_PRIZE',
+    balanceBefore,
+    balanceAfter,
+    gameType: 'tournament',
+    roundId: tournamentId,
   })
   return 'granted'
 }

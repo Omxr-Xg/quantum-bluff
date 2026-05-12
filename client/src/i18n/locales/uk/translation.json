@@ -766,7 +766,11 @@
       "CASH_POKER_BUY_IN": "Кеш-покер — бай-ін",
       "CASH_POKER_REBUY": "Кеш-покер — ребай",
       "CASH_POKER_CASHOUT": "Кеш-покер — вихід з грошима",
-      "CASH_POKER_HAND_RESULT": "Кеш-покер — результат роздачі"
+      "CASH_POKER_HAND_RESULT": "Кеш-покер — результат роздачі",
+      "TOURNAMENT_BUY_IN": "Турнір — бай-ін",
+      "TOURNAMENT_BUY_IN_REFUND": "Турнір — повернення бай-іну",
+      "TOURNAMENT_PRIZE": "Турнір — призові",
+      "TOURNAMENT_CANCEL_REFUND": "Турнір скасовано — повернення бай-іну"
     }
   },
   "pokerChat": {

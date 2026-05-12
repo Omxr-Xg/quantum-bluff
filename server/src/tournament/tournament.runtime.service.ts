@@ -1,5 +1,6 @@
 import type { Server } from 'socket.io'
 import type { Prisma } from '../generated/prisma/index.js'
+import { createWalletLedgerMovement } from '../casino/services/walletLedger.service.js'
 import { prisma } from '../config/database.js'
 import { rootLogger } from '../observability/logger.js'
 import { buildOpeningRound, buildRoundFromSurvivors } from './bracket/TournamentBracketBuilder.js'
@@ -467,9 +468,27 @@ export async function startTournamentFromDb(
     const fee = tournamentEntryFeeChips(tournament.initialStack)
     await prisma.$transaction(async (tx) => {
       for (const p of tournament.players) {
+        const beforeRow = await tx.user.findUnique({
+          where: { id: p.userId },
+          select: { chips: true },
+        })
+        const balanceBefore = beforeRow?.chips ?? 0
         await tx.user.update({
           where: { id: p.userId },
           data: { chips: { increment: fee } },
+        })
+        const afterRow = await tx.user.findUnique({
+          where: { id: p.userId },
+          select: { chips: true },
+        })
+        const balanceAfter = afterRow?.chips ?? balanceBefore + fee
+        await createWalletLedgerMovement(tx, {
+          userId: p.userId,
+          reason: 'TOURNAMENT_CANCEL_REFUND',
+          balanceBefore,
+          balanceAfter,
+          gameType: 'tournament',
+          roundId: tournamentId,
         })
       }
       await tx.tournament.update({

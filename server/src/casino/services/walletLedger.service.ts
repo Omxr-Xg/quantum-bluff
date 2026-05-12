@@ -85,3 +85,36 @@ export async function appendWalletLedgerEntry(
   })
 }
 
+/** Mouvement de solde sans contexte casino (tournois, promos simples, etc.) — historique GET /api/auth/balance-history. */
+export type SimpleWalletLedgerInput = {
+  userId: string
+  reason: string
+  balanceBefore: number
+  balanceAfter: number
+  gameType?: string | null
+  roundId?: string | null
+}
+
+export async function createWalletLedgerMovement(
+  db: WalletLedgerDb,
+  input: SimpleWalletLedgerInput,
+): Promise<void> {
+  const delegate = db.walletLedgerEntry as { create?: (args: unknown) => Promise<unknown> }
+  if (!delegate?.create) return
+  const before = Math.floor(Number(input.balanceBefore))
+  const after = Math.floor(Number(input.balanceAfter))
+  const amount = after - before
+  await delegate.create({
+    data: {
+      userId: input.userId,
+      reason: input.reason,
+      amount,
+      balanceBefore: before,
+      balanceAfter: after,
+      gameType: input.gameType ?? undefined,
+      roundId: input.roundId ?? undefined,
+      settlementState: 'SETTLED',
+    },
+  })
+}
+

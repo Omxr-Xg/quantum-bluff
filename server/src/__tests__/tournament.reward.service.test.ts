@@ -76,14 +76,20 @@ describe('applyChipsWinnerIfMissing', () => {
     expect(prisma.tournamentRewardLedger.create).not.toHaveBeenCalled()
   })
 
-  it('increments chips when ledger grants', async () => {
+  it('increments chips when ledger grants and writes wallet ledger', async () => {
+    const walletCreate = jest.fn().mockResolvedValue({})
     const prisma = {
       tournamentRewardLedger: {
         create: jest.fn().mockResolvedValue({}),
       },
       user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce({ chips: 1000 })
+          .mockResolvedValueOnce({ chips: 1100 }),
         update: jest.fn().mockResolvedValue({}),
       },
+      walletLedgerEntry: { create: walletCreate },
     }
     await expect(
       applyChipsWinnerIfMissing(prisma as never, 't1', 'u1', 100),
@@ -94,6 +100,18 @@ describe('applyChipsWinnerIfMissing', () => {
         data: { chips: { increment: 100 } },
       }),
     )
+    expect(walletCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'u1',
+        reason: 'TOURNAMENT_PRIZE',
+        balanceBefore: 1000,
+        balanceAfter: 1100,
+        gameType: 'tournament',
+        roundId: 't1',
+        amount: 100,
+        settlementState: 'SETTLED',
+      }),
+    })
   })
 })
 
@@ -136,8 +154,14 @@ describe('grantTournamentRewardsIfMissing', () => {
       $transaction: jest.fn(async (fn: (tx: unknown) => Promise<void>) => {
         const tx = {
           tournamentRewardLedger: { create: jest.fn().mockResolvedValue({}) },
+          walletLedgerEntry: { create: jest.fn().mockResolvedValue({}) },
           user: {
-            findUnique: jest.fn().mockResolvedValue({ experience: 0 }),
+            findUnique: jest
+              .fn()
+              .mockResolvedValueOnce({ experience: 0 })
+              .mockResolvedValueOnce({ experience: 0 })
+              .mockResolvedValueOnce({ chips: 5000 })
+              .mockResolvedValueOnce({ chips: 5200 }),
             update: jest.fn().mockResolvedValue({}),
           },
         }

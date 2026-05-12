@@ -766,7 +766,11 @@
       "CASH_POKER_BUY_IN": "بوكر نقدي — شراء",
       "CASH_POKER_REBUY": "بوكر نقدي — إعادة شراء",
       "CASH_POKER_CASHOUT": "بوكر نقدي — صرف",
-      "CASH_POKER_HAND_RESULT": "بوكر نقدي — نتيجة اليد"
+      "CASH_POKER_HAND_RESULT": "بوكر نقدي — نتيجة اليد",
+      "TOURNAMENT_BUY_IN": "بطولة — رسوم الدخول",
+      "TOURNAMENT_BUY_IN_REFUND": "بطولة — استرداد رسوم الدخول",
+      "TOURNAMENT_PRIZE": "بطولة — جائزة",
+      "TOURNAMENT_CANCEL_REFUND": "بطولة ملغاة — استرداد رسوم الدخول"
     }
   },
   "pokerChat": {
