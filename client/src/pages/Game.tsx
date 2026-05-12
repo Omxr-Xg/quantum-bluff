@@ -1684,9 +1684,17 @@ export function Game() {
       }
       pendingTournamentEndedGameIdRef.current = String(gameIdParam);
       const tid = payload.tournamentId ?? tidFromUrl;
+      const gid = String(payload.gameId);
+      if (tid) {
+        const w = new URLSearchParams();
+        w.set("nextGameId", gid);
+        navigate(`/tournaments/${encodeURIComponent(tid)}/waiting?${w.toString()}`, {
+          replace: true,
+        });
+        return;
+      }
       const q = new URLSearchParams();
-      q.set("gameId", payload.gameId);
-      if (tid) q.set("tournamentId", tid);
+      q.set("gameId", gid);
       navigate(`/game?${q.toString()}`, { replace: true });
     };
     socket.on("TOURNAMENT_TABLE_ASSIGNED", onTournamentTableAssigned);
@@ -2207,7 +2215,10 @@ export function Game() {
             if (tournamentScheduledNavEpochRef.current !== navTicket) return;
             tournamentTransitionTimerRef.current = null;
             setTournamentTableTransition(null);
-            navigate(`/tournaments/${encodeURIComponent(tid)}/results`, { replace: true });
+            navigate(
+              `/tournaments/${encodeURIComponent(tid)}/waiting?tournamentResults=1`,
+              { replace: true },
+            );
           }, 4200);
           return;
         }
@@ -2220,12 +2231,12 @@ export function Game() {
             tournamentTransitionTimerRef.current = null;
             setTournamentTableTransition(null);
             navigate(`/tournaments/${encodeURIComponent(tid)}/waiting`, { replace: true });
-          }, 3800);
+          }, 5000);
           return;
         }
 
         if (advance === "next_round_spawned") {
-          /* Nouvelle table : navigation dès TOURNAMENT_TABLE_ASSIGNED ; secours → salle d’attente. */
+          /* Nouvelle table : passage par la salle d’attente (Zip) ≥5s puis partie ; secours → Zip sans gameId. */
           setTournamentTableTransition({ variant: "won_next_table", tournamentId: tid });
           const navTicketN = tournamentScheduledNavEpochRef.current;
           tournamentTransitionTimerRef.current = setTimeout(() => {
