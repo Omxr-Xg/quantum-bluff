@@ -13,7 +13,10 @@ import { useTournamentSocket } from "../hooks/useTournamentSocket";
 import { TOURNAMENT_MIN_PLAYERS } from "../tournamentConstants";
 import { getAuthItem } from "../../../utils/authStorage";
 import { useToast } from "../../../contexts/ToastContext";
-import { fetchBalanceFromServer } from "../../../utils/userProfile";
+import {
+  fetchBalanceFromServer,
+  updateUserBalance,
+} from "../../../utils/userProfile";
 import { getPlayerAvatar } from "../../../utils/avatars";
 import { ImageWithFallback } from "../../../components/figma/ImageWithFallback";
 
@@ -478,12 +481,22 @@ export function TournamentRoom() {
                       disabled={!canSubmitJoin}
                       onClick={async () => {
                         try {
-                          await joinTournament(
+                          const res = await joinTournament(
                             id,
                             joinNeedsCode ? joinCode.trim() : undefined,
                           );
                           setJoinCode("");
-                          await fetchBalanceFromServer({ authoritative: true });
+                          /* Le serveur renvoie le solde post-débit : on l'applique
+                           * sans dépendre du fetchBalanceFromServer (qui peut perdre
+                           * la course si la navigation se déclenche entre-temps). */
+                          if (
+                            typeof res?.newBalance === "number" &&
+                            Number.isFinite(res.newBalance)
+                          ) {
+                            updateUserBalance(res.newBalance);
+                          } else {
+                            await fetchBalanceFromServer({ authoritative: true });
+                          }
                           await reload();
                         } catch (e) {
                           setErr((e as Error).message);
@@ -510,8 +523,15 @@ export function TournamentRoom() {
                     className={btnGhost}
                     onClick={async () => {
                       try {
-                        await leaveTournament(id);
-                        await fetchBalanceFromServer({ authoritative: true });
+                        const res = await leaveTournament(id);
+                        if (
+                          typeof res?.newBalance === "number" &&
+                          Number.isFinite(res.newBalance)
+                        ) {
+                          updateUserBalance(res.newBalance);
+                        } else {
+                          await fetchBalanceFromServer({ authoritative: true });
+                        }
                         await reload();
                       } catch (e) {
                         setErr((e as Error).message);

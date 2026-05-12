@@ -80,7 +80,7 @@ router.post('/:id/join', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
-    const { joined } = await joinTournament(
+    const { joined, newBalance } = await joinTournament(
       req.params.id,
       userId,
       (req.body as { code?: string })?.code,
@@ -91,7 +91,7 @@ router.post('/:id/join', authMiddleware, async (req, res) => {
         await emitTournamentRosterUpdated(io, req.params.id, { kind: 'join', userId })
       }
     }
-    res.json({ ok: true })
+    res.json({ ok: true, newBalance })
   } catch (e) {
     res.status(400).json({ error: (e as Error).message })
   }
@@ -101,14 +101,14 @@ router.post('/:id/leave', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
-    const { left } = await leaveTournament(req.params.id, userId)
+    const { left, newBalance } = await leaveTournament(req.params.id, userId)
     if (left) {
       const io = req.app.get('io') as Server | undefined
       if (io) {
         await emitTournamentRosterUpdated(io, req.params.id, { kind: 'leave', userId })
       }
     }
-    res.json({ ok: true })
+    res.json({ ok: true, newBalance })
   } catch (e) {
     res.status(400).json({ error: (e as Error).message })
   }

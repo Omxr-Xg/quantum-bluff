@@ -2252,12 +2252,19 @@ export function Game() {
         }
 
         if (advance === "pending_other_tables") {
+          /* Premier joueur à finir sa table : on l'envoie sur la page d'attente
+           * (ZipRush mini-game) le temps que les autres tables finissent. Sans
+           * navigation explicite ici, le joueur reste bloqué sur /game vu que
+           * le ready-check inter-rounds qui s'en chargeait avant a été supprimé. */
           setTournamentTableTransition({ variant: "won_waiting", tournamentId: tid });
           const navTicketW = tournamentScheduledNavEpochRef.current;
           tournamentTransitionTimerRef.current = setTimeout(() => {
             if (tournamentScheduledNavEpochRef.current !== navTicketW) return;
             tournamentTransitionTimerRef.current = null;
             setTournamentTableTransition(null);
+            navigate(`/tournaments/${encodeURIComponent(tid)}/waiting`, {
+              replace: true,
+            });
           }, 5000);
           return;
         }

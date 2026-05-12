@@ -59,23 +59,33 @@ export async function createTournament(body: Record<string, unknown>) {
   return r.json() as Promise<{ id: string }>;
 }
 
-export async function joinTournament(id: string, code?: string) {
+export type TournamentJoinLeaveResponse = {
+  ok: boolean;
+  newBalance: number | null;
+};
+
+export async function joinTournament(
+  id: string,
+  code?: string,
+): Promise<TournamentJoinLeaveResponse> {
   const r = await fetch(`${API()}/${encodeURIComponent(id)}/join`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ code }),
   });
   if (!r.ok) throw new Error(await readApiError(r));
-  return r.json();
+  return r.json() as Promise<TournamentJoinLeaveResponse>;
 }
 
-export async function leaveTournament(id: string) {
+export async function leaveTournament(
+  id: string,
+): Promise<TournamentJoinLeaveResponse> {
   const r = await fetch(`${API()}/${encodeURIComponent(id)}/leave`, {
     method: "POST",
     headers: authHeaders(),
   });
   if (!r.ok) throw new Error(await readApiError(r));
-  return r.json();
+  return r.json() as Promise<TournamentJoinLeaveResponse>;
 }
 
 export async function kickTournamentPlayer(tournamentId: string, targetUserId: string) {

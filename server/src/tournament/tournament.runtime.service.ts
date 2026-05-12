@@ -240,7 +240,19 @@ async function finalizeTournament(
       detail: e instanceof Error ? e.message : String(e),
     })
   }
-  const completedPayload = { tournamentId, winnerUserId }
+  /* Lit le solde post-crédit pour le pousser au gagnant : évite la course
+   * "client refetch arrive avant que la transaction grant soit visible". */
+  let winnerNewChips: number | null = null
+  try {
+    const u = await prisma.user.findUnique({
+      where: { id: winnerUserId },
+      select: { chips: true },
+    })
+    winnerNewChips = u?.chips ?? null
+  } catch {
+    /* non bloquant */
+  }
+  const completedPayload = { tournamentId, winnerUserId, winnerNewChips }
   io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_COMPLETED', completedPayload)
   io.to(`user:${winnerUserId}`).emit('TOURNAMENT_COMPLETED', completedPayload)
 }

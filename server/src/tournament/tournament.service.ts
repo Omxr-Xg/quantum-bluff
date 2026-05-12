@@ -73,12 +73,16 @@ export async function joinTournament(
   tournamentId: string,
   userId: string,
   joinCode?: string | null,
-): Promise<{ joined: boolean }> {
+): Promise<{ joined: boolean; newBalance: number | null }> {
   const existing = await prisma.tournamentPlayer.findUnique({
     where: { tournamentId_userId: { tournamentId, userId } },
   })
-  if (existing) return { joined: false }
+  if (existing) {
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { chips: true } })
+    return { joined: false, newBalance: u?.chips ?? null }
+  }
 
+  let newBalance: number | null = null
   await prisma.$transaction(async (tx) => {
     const t = await tx.tournament.findUnique({ where: { id: tournamentId } })
     if (!t) throw new Error('Tournoi introuvable')
@@ -107,12 +111,19 @@ export async function joinTournament(
     await tx.tournamentPlayer.create({
       data: { tournamentId, userId, status: 'REGISTERED' },
     })
+    /* Solde post-débit pour update client immédiat sans race fetchBalanceFromServer. */
+    const u = await tx.user.findUnique({ where: { id: userId }, select: { chips: true } })
+    newBalance = u?.chips ?? null
   })
-  return { joined: true }
+  return { joined: true, newBalance }
 }
 
-export async function leaveTournament(tournamentId: string, userId: string): Promise<{ left: boolean }> {
+export async function leaveTournament(
+  tournamentId: string,
+  userId: string,
+): Promise<{ left: boolean; newBalance: number | null }> {
   let left = false
+  let newBalance: number | null = null
   await prisma.$transaction(async (tx) => {
     const t = await tx.tournament.findUnique({ where: { id: tournamentId } })
     if (!t) throw new Error('Tournoi introuvable')
@@ -128,8 +139,10 @@ export async function leaveTournament(tournamentId: string, userId: string): Pro
       })
       left = true
     }
+    const u = await tx.user.findUnique({ where: { id: userId }, select: { chips: true } })
+    newBalance = u?.chips ?? null
   })
-  return { left }
+  return { left, newBalance }
 }
 
 /** Retire un inscrit pendant les inscriptions (réservé à l’hôte — vérifié par la route). */

@@ -347,22 +347,47 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       void fetchBalanceFromServer({ authoritative: true })
     }
 
+    /* TOURNAMENT_COMPLETED inclut winnerNewChips quand le gagnant est le user
+     * courant : on applique tout de suite (évite la course refetch / la flotte
+     * de retries côté Game.tsx) et on enchaîne quand même un refetch pour XP
+     * et invalidation cache loans. */
+    const onTournamentCompleted = (data?: {
+      winnerUserId?: string
+      winnerNewChips?: number | null
+    }) => {
+      invalidateLoanList()
+      const myId = getAuthItem('userId')
+      const isWinner =
+        data?.winnerUserId != null &&
+        myId != null &&
+        String(data.winnerUserId) === String(myId)
+      if (
+        isWinner &&
+        typeof data?.winnerNewChips === 'number' &&
+        Number.isFinite(data.winnerNewChips)
+      ) {
+        updateUserBalance(data.winnerNewChips)
+      }
+      void fetchBalanceFromServer({ authoritative: true })
+    }
+
     const notifyOnly = [
       'LOAN_REQUEST_RECEIVED',
       'LOAN_REQUEST_ACCEPTED',
       'LOAN_REQUEST_REJECTED',
     ] as const
     const walletEvents = ['LOAN_CREATED', 'LOAN_REPAYMENT_PROGRESS', 'LOAN_COMPLETED'] as const
-    const tournamentWalletEvents = ['TOURNAMENT_COMPLETED', 'TOURNAMENT_CANCELLED'] as const
 
     notifyOnly.forEach((ev) => socket.on(ev, invalidateLoanList))
     walletEvents.forEach((ev) => socket.on(ev, invalidateLoanListAndSyncBalance))
-    tournamentWalletEvents.forEach((ev) => socket.on(ev, invalidateLoanListAndSyncBalance))
+    socket.on('TOURNAMENT_COMPLETED', onTournamentCompleted)
+    socket.on('TOURNAMENT_CANCELLED', invalidateLoanListAndSyncBalance)
 
     return () => {
       notifyOnly.forEach((ev) => socket.off(ev, invalidateLoanList))
       walletEvents.forEach((ev) => socket.off(ev, invalidateLoanListAndSyncBalance))
-      tournamentWalletEvents.forEach((ev) => socket.off(ev, invalidateLoanListAndSyncBalance))
+      socket.off('TOURNAMENT_COMPLETED', onTournamentCompleted)
+      socket.off('TOURNAMENT_CANCELLED', invalidateLoanListAndSyncBalance)
     }
   }, [socket, isAdmin])
 
