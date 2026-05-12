@@ -1674,6 +1674,7 @@ export function Game() {
       tournamentId?: string;
       gameId?: string;
       roundNumber?: number;
+      isFinalTable?: boolean;
     }) => {
       if (!payload?.gameId) return;
       if (String(payload.gameId) === String(gameIdParam)) return;
@@ -1686,11 +1687,19 @@ export function Game() {
       const tid = payload.tournamentId ?? tidFromUrl;
       const gid = String(payload.gameId);
       if (tid) {
-        const w = new URLSearchParams();
-        w.set("nextGameId", gid);
-        navigate(`/tournaments/${encodeURIComponent(tid)}/waiting?${w.toString()}`, {
-          replace: true,
-        });
+        if (payload.isFinalTable === true) {
+          const w = new URLSearchParams();
+          w.set("nextGameId", gid);
+          w.set("finalZip", "1");
+          navigate(`/tournaments/${encodeURIComponent(tid)}/waiting?${w.toString()}`, {
+            replace: true,
+          });
+        } else {
+          const q = new URLSearchParams();
+          q.set("gameId", gid);
+          q.set("tournamentId", tid);
+          navigate(`/game?${q.toString()}`, { replace: true });
+        }
         return;
       }
       const q = new URLSearchParams();
@@ -1739,14 +1748,19 @@ export function Game() {
         pot?: number;
         handRuntimePhase?: string;
         id?: string;
+        snapshotSeq?: number;
       };
       /* Clé stricte : le serveur bump `updatedAt` à chaque mutation. L’ancienne clé (phase+version+tour)
        * pouvait fusionner deux états réels différents → client qui ignorait un GAME_UPDATE et restait bloqué
        * (fréquent en table finale / all-in / fin de main). */
+      const snapSeq =
+        typeof stMeta.snapshotSeq === "number" && Number.isFinite(stMeta.snapshotSeq)
+          ? stMeta.snapshotSeq
+          : "no-seq";
       const socketSnapshotSig =
         typeof stMeta.updatedAt === "string" && stMeta.updatedAt.length > 0
           ? `${stMeta.id ?? gameState.handId ?? "no-id"}:${stMeta.updatedAt}`
-          : `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}:${typeof stMeta.streetVersion === "number" ? stMeta.streetVersion : "no-sv"}:${typeof stMeta.pot === "number" ? stMeta.pot : "no-pot"}:${stMeta.handRuntimePhase ?? "no-hrp"}`;
+          : `${gameState.handId ?? "no-hand"}:${gameState.phase ?? "no-phase"}:${typeof gameState.actionVersion === "number" ? gameState.actionVersion : "no-ver"}:${gameState.currentTurn ?? "no-turn"}:${(gameState.communityCards ?? []).filter((c) => c != null).length}:${gameState.showdownWinnerId ?? "no-winner"}:${typeof stMeta.streetVersion === "number" ? stMeta.streetVersion : "no-sv"}:${typeof stMeta.pot === "number" ? stMeta.pot : "no-pot"}:${stMeta.handRuntimePhase ?? "no-hrp"}:seq:${snapSeq}`;
       if (socketSnapshotSig === lastAppliedSocketSnapshotSigRef.current) {
   console.log('[FRONT][GAME] socket_update_ignored_same_snapshot', {
     socketSnapshotSig,
@@ -1827,13 +1841,15 @@ export function Game() {
         setShowTransition(false);
         lastScheduledShowdownTransitionSigRef.current = "";
       }
-      /** Garde AVANT toute mutation : évite d'appliquer WAITING (tous isActive false) juste après SHOWDOWN. */
+      /** Garde AVANT toute mutation : évite d'appliquer WAITING (tous isActive false) juste après SHOWDOWN.
+       * Tournoi (virtual) : ne pas bloquer — sinon la main suivante peut ne jamais s’afficher sans refresh. */
       const previousHandIdBeforeUpdate = handIdRef.current;
       if (
         incomingPhase === "init" &&
         gameState.phase === "WAITING" &&
         previousHandIdBeforeUpdate &&
-        Date.now() - lastShowdownSnapshotAtRef.current < 3000
+        Date.now() - lastShowdownSnapshotAtRef.current < 3000 &&
+        !gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX)
       ) {
         return;
       }
@@ -2215,10 +2231,7 @@ export function Game() {
             if (tournamentScheduledNavEpochRef.current !== navTicket) return;
             tournamentTransitionTimerRef.current = null;
             setTournamentTableTransition(null);
-            navigate(
-              `/tournaments/${encodeURIComponent(tid)}/waiting?tournamentResults=1`,
-              { replace: true },
-            );
+            navigate(`/tournaments/${encodeURIComponent(tid)}/results`, { replace: true });
           }, 4200);
           return;
         }
@@ -2230,13 +2243,12 @@ export function Game() {
             if (tournamentScheduledNavEpochRef.current !== navTicketW) return;
             tournamentTransitionTimerRef.current = null;
             setTournamentTableTransition(null);
-            navigate(`/tournaments/${encodeURIComponent(tid)}/waiting`, { replace: true });
           }, 5000);
           return;
         }
 
         if (advance === "next_round_spawned") {
-          /* Nouvelle table : passage par la salle d’attente (Zip) ≥5s puis partie ; secours → Zip sans gameId. */
+          /* Table suivante : assignation directe sauf finale (Zip + finalZip) ; secours → salle d’attente sans délai Zip forcé. */
           setTournamentTableTransition({ variant: "won_next_table", tournamentId: tid });
           const navTicketN = tournamentScheduledNavEpochRef.current;
           tournamentTransitionTimerRef.current = setTimeout(() => {
@@ -3298,6 +3310,41 @@ export function Game() {
     isSpectating,
     socket,
     userId,
+  ]);
+
+  /** Tournoi multijoueur : resync HTTP si l’état reste bloqué sur HAND_COMPLETE (évite refresh manuel). */
+  useEffect(() => {
+    if (!gameIdParam || isBotMode || gameOverReason) return;
+    if (!gameIdParam.startsWith(TOURNAMENT_GAME_ID_PREFIX)) return;
+    if (serverHandRuntimePhase !== "HAND_COMPLETE") return;
+    const token = getAuthItem("token");
+    if (!userId || !token || isSpectating) return;
+    let cancelled = false;
+    const t = window.setTimeout(() => {
+      if (cancelled) return;
+      void fetch(
+        `${apiUrl(`/api/game/${encodeURIComponent(gameIdParam)}`)}?playerId=${encodeURIComponent(userId)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .then((st) => {
+          if (!st || cancelled) return;
+          lastAppliedSocketSnapshotSigRef.current = "";
+          applySocketGameUpdateRef.current?.(st as Record<string, unknown>);
+        })
+        .catch(() => {});
+    }, 8500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [
+    gameIdParam,
+    isBotMode,
+    serverHandRuntimePhase,
+    gameOverReason,
+    userId,
+    isSpectating,
   ]);
 
   useEffect(() => {
@@ -5125,19 +5172,21 @@ export function Game() {
               {t("hiddenBets.title")}
             </button>
           ) : null}
-          <button
-            type="button"
-            onClick={() => {
-              if (spectatorWantsToRejoin) {
-                socket?.emit("SPECTATOR_QUEUE_LEAVE", { gameId: gameIdParam });
-              } else {
-                socket?.emit("SPECTATOR_QUEUE_JOIN", { gameId: gameIdParam });
-              }
-            }}
-            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${spectatorWantsToRejoin ? "bg-amber-600 hover:bg-amber-500 text-white" : "bg-emerald-600 hover:bg-emerald-500 text-white"}`}
-          >
-            {spectatorWantsToRejoin ? t("game.cancelRejoinNextHand") : t("game.rejoinNextHand")}
-          </button>
+          {!gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX) ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (spectatorWantsToRejoin) {
+                  socket?.emit("SPECTATOR_QUEUE_LEAVE", { gameId: gameIdParam });
+                } else {
+                  socket?.emit("SPECTATOR_QUEUE_JOIN", { gameId: gameIdParam });
+                }
+              }}
+              className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${spectatorWantsToRejoin ? "bg-amber-600 hover:bg-amber-500 text-white" : "bg-emerald-600 hover:bg-emerald-500 text-white"}`}
+            >
+              {spectatorWantsToRejoin ? t("game.cancelRejoinNextHand") : t("game.rejoinNextHand")}
+            </button>
+          ) : null}
         </div>
       )}
 

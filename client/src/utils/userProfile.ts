@@ -26,6 +26,8 @@ const STORAGE_KEYS = {
 
 /** Émis après chaque changement de balance locale (localStorage). Le Layout peut s’y abonner. */
 export const BALANCE_CHANGED_EVENT = 'quantum-bluff-balance-changed';
+/** Détail : `{ delta: number }` — gain de jetons portefeuille (affiche +Δ à côté du solde). */
+export const BALANCE_GAIN_FLASH_EVENT = "quantum-bluff-balance-gain-flash";
 /** Partie cash : solde affiché = portefeuille API + jetons au siège (`detail.total`, ou `null` pour réinitialiser). */
 export const POKER_WALLET_DISPLAY_EVENT = 'quantum-bluff-poker-wallet-display';
 export const PROFILE_CHANGED_EVENT = 'quantum-bluff-profile-changed';
@@ -86,9 +88,16 @@ export function getUserBalance(): number {
 }
 
 export function updateUserBalance(newBalance: number): void {
+  const prev = getUserBalance();
   const safe = Math.max(0, Math.floor(newBalance));
   setAuthItem(STORAGE_KEYS.BALANCE, safe.toString());
   notifyBalanceChanged();
+  const gain = safe - prev;
+  if (gain > 0 && typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(BALANCE_GAIN_FLASH_EVENT, { detail: { delta: gain } }),
+    );
+  }
 }
 
 /** Add amount to current balance and persist. Returns new balance. */

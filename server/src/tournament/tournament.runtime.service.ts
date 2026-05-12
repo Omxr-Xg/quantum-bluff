@@ -69,12 +69,14 @@ async function emitTableAssigned(
   userIds: string[],
   gameId: string,
   roundNumber: number,
+  isFinalTable: boolean,
 ): Promise<void> {
   for (const uid of userIds) {
     io.to(`user:${uid}`).emit('TOURNAMENT_TABLE_ASSIGNED', {
       tournamentId,
       gameId,
       roundNumber,
+      isFinalTable,
     })
   }
 }
@@ -308,7 +310,7 @@ async function spawnRoundTables(
       bigBlind: blindBig,
     })
 
-    await emitTableAssigned(io, tournamentId, tab.playerIds, gameId, roundNumber)
+    await emitTableAssigned(io, tournamentId, tab.playerIds, gameId, roundNumber, isFinal)
   }
 }
 

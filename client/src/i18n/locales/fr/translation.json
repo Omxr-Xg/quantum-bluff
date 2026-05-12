@@ -34,6 +34,7 @@
     "logout": "Déconnexion",
     "balance": "{{balance}}",
     "addMoney": "Ajouter des jetons",
+    "walletGainFlash": "+{{amount}} jetons",
     "addMoneyTitle": "Ajouter au solde",
     "captchaQuestion": "Combien font {{a}} + {{b}} ?",
     "captchaPlaceholder": "Votre réponse",

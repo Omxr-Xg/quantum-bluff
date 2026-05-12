@@ -37,6 +37,7 @@ import {
   clearAuthStorage,
   fetchDailyLoginStatus,
   BALANCE_CHANGED_EVENT,
+  BALANCE_GAIN_FLASH_EVENT,
   POKER_WALLET_DISPLAY_EVENT,
 } from "../utils/userProfile";
 import {
@@ -140,6 +141,9 @@ export function Layout({ children }: LayoutProps) {
   const [friendQuickReply, setFriendQuickReply] = useState("");
   const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
   const [balance, setBalance] = useState(getUserBalance());
+  /** Feedback court +N jetons (portefeuille) après gain / recharge. */
+  const [walletGainFlash, setWalletGainFlash] = useState<number | null>(null);
+  const walletGainFlashClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Sur /game (cash), le solde affiché peut inclure la stack au siège (événement émis par Game.tsx). */
   const [pokerDisplayTotal, setPokerDisplayTotal] = useState<number | null>(null);
   const [showAddMoney, setShowAddMoney] = useState(false);
@@ -234,6 +238,29 @@ export function Layout({ children }: LayoutProps) {
     window.addEventListener(BALANCE_CHANGED_EVENT, sync);
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, sync);
   }, []);
+
+  useEffect(() => {
+    if (isAdminShell) return;
+    const onGain = (e: Event) => {
+      const d = (e as CustomEvent<{ delta?: number }>).detail;
+      const raw = typeof d?.delta === "number" ? Math.floor(d.delta) : 0;
+      if (raw <= 0) return;
+      setWalletGainFlash((prev) => (prev ?? 0) + raw);
+      if (walletGainFlashClearRef.current) window.clearTimeout(walletGainFlashClearRef.current);
+      walletGainFlashClearRef.current = window.setTimeout(() => {
+        setWalletGainFlash(null);
+        walletGainFlashClearRef.current = null;
+      }, 5500);
+    };
+    window.addEventListener(BALANCE_GAIN_FLASH_EVENT, onGain);
+    return () => {
+      window.removeEventListener(BALANCE_GAIN_FLASH_EVENT, onGain);
+      if (walletGainFlashClearRef.current) {
+        window.clearTimeout(walletGainFlashClearRef.current);
+        walletGainFlashClearRef.current = null;
+      }
+    };
+  }, [isAdminShell]);
 
   /** Vérifie côté serveur si la récompense de connexion quotidienne est disponible ; ouvre la modale une fois par jour à la première visite hors écrans auth. */
   useEffect(() => {
@@ -978,8 +1005,18 @@ export function Layout({ children }: LayoutProps) {
         title={t("lobby.addMoney")}
       >
         <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.1rem] md:w-[1.1rem]" />
-        <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
-          {headerBalance.toLocaleString()}
+        <span className="flex min-w-0 max-w-[min(52vw,14rem)] items-baseline gap-1.5 sm:max-w-none">
+          <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
+            {headerBalance.toLocaleString()}
+          </span>
+          {walletGainFlash != null && walletGainFlash > 0 ? (
+            <span
+              className="shrink-0 whitespace-nowrap text-[0.65rem] font-bold leading-none tabular-nums text-emerald-400 md:text-xs"
+              aria-live="polite"
+            >
+              {t("lobby.walletGainFlash", { amount: walletGainFlash.toLocaleString() })}
+            </span>
+          ) : null}
         </span>
         <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
       </button>
@@ -1031,8 +1068,18 @@ export function Layout({ children }: LayoutProps) {
         aria-label={t("lobby.addMoney")}
       >
         <ChipIcon size="sm" className="h-4 w-4 shrink-0 brightness-110 md:h-[1.1rem] md:w-[1.1rem]" />
-        <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
-          {headerBalance.toLocaleString()}
+        <span className="flex min-w-0 max-w-[min(52vw,14rem)] items-baseline gap-1.5 sm:max-w-none">
+          <span className="min-w-0 truncate whitespace-nowrap text-xs font-bold leading-none tabular-nums text-amber-50 md:text-[0.95rem]">
+            {headerBalance.toLocaleString()}
+          </span>
+          {walletGainFlash != null && walletGainFlash > 0 ? (
+            <span
+              className="shrink-0 whitespace-nowrap text-[0.65rem] font-bold leading-none tabular-nums text-emerald-400 md:text-xs"
+              aria-live="polite"
+            >
+              {t("lobby.walletGainFlash", { amount: walletGainFlash.toLocaleString() })}
+            </span>
+          ) : null}
         </span>
         <Plus className="h-4 w-4 shrink-0 text-amber-200/90 md:h-[1.1rem] md:w-[1.1rem]" strokeWidth={2.4} aria-hidden />
       </button>

@@ -87,6 +87,8 @@ export interface GameState {
   streetVersion?: number
   /** Horodatage ISO de la dernière mutation serveur. */
   updatedAt?: string
+  /** Cash multijoueur : compteur monotonic entre mains (état sans gameTable) pour éviter collisions de dédup client. */
+  snapshotSeq?: number
   /** Dernière action joueur (journal multijoueur, alignée sur actionVersion). */
   lastHandAction?: {
     playerId: string

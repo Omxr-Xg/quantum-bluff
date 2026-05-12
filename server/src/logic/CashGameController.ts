@@ -109,6 +109,8 @@ export class CashGameController implements IGameSession {
     process.env.POKER_RUNTIME_DEBUG_LOGS === '1'
   /** Jetons en début de main courante (siège), par userId — pour delta portefeuille / ledger. */
   private lastHandStartingChipsByUserId: Map<string, number> = new Map()
+  /** Bump après fin de main / démarrage main : snapshots entre deux mains ont une clé client unique. */
+  private snapshotSeq = 0
 
   /** Enregistré par la gateway pour diffuser l’état après fermeture fenêtre live. */
   setOnLiveBetWindowClosed(cb: () => void): void {
@@ -413,6 +415,7 @@ export class CashGameController implements IGameSession {
     if (occupied.length < 2) {
       this.gameTable = null
       this.runtimePhase = 'WAITING_PLAYERS'
+      this.snapshotSeq += 1
       return
     }
 
@@ -446,6 +449,7 @@ export class CashGameController implements IGameSession {
 })
     this.handNumber++
     this.runtimePhase = 'HAND_IN_PROGRESS'
+    this.snapshotSeq += 1
     this.logRuntimeEvent('HAND_START')
   }
 
@@ -579,6 +583,7 @@ export class CashGameController implements IGameSession {
     this.countdownTimer = null
     this.runtimePhase = 'WAITING_READY'
     this.nextHandReadyUserIds.clear()
+    this.snapshotSeq += 1
     return { playerStacks: balanceSnapshot, seatCashOuts }
   }
 
@@ -798,6 +803,7 @@ export class CashGameController implements IGameSession {
     const hiddenBetState = this.buildHiddenBetState()
     return {
       ...base,
+      snapshotSeq: this.snapshotSeq,
       turnTimeLimitSec,
       cashCountdownRemainingSec,
       spectatorRejoinQueue: Array.from(this.spectatorRejoinQueue),

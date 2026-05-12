@@ -34,6 +34,7 @@
     "logout": "Logout",
     "balance": "{{balance}}",
     "addMoney": "Add chips",
+    "walletGainFlash": "+{{amount}} chips",
     "addMoneyTitle": "Add to balance",
     "captchaQuestion": "What is {{a}} + {{b}}?",
     "captchaPlaceholder": "Your answer",
