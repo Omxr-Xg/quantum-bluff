@@ -31,6 +31,27 @@ describe('CashGameController — init', () => {
   })
 })
 
+describe('CashGameController — effectiveSitBuyInAmount (salle d’attente vs sit)', () => {
+  test('gros portefeuille est plafonné à 10k', () => {
+    const c = new CashGameController({
+      id: 'g',
+      roomId: 'r',
+      defaultBuyIn: 100,
+    })
+    expect(c.effectiveSitBuyInAmount(506_958)).toBe(10_000)
+  })
+
+  test('respecte le plancher defaultBuyIn quand le wallet est élevé mais < 10k', () => {
+    const c = new CashGameController({
+      id: 'g',
+      roomId: 'r',
+      defaultBuyIn: 500,
+    })
+    expect(c.effectiveSitBuyInAmount(800)).toBe(800)
+    expect(c.effectiveSitBuyInAmount(400)).toBe(500)
+  })
+})
+
 describe('CashGameController — sit / leave / rebuy', () => {
   test.each(Array.from({ length: 9 }, (_, i) => i))('sit sur siège %i', (seatIndex) => {
     const c = make()

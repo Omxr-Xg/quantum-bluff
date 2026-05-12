@@ -103,14 +103,15 @@ export async function grantTournamentRewardsIfMissing(prisma: PrismaClient, tour
   const t = await prisma.tournament.findUnique({
     where: { id: tournamentId },
     include: {
-      players: { select: { userId: true, finalRank: true } },
+      players: { select: { userId: true, finalRank: true, status: true } },
     },
   })
   if (!t || t.status !== 'COMPLETED') return
   const fee = tournamentEntryFeeChips(t.initialStack)
   const participantCount = t.players.length
   const prize = participantCount * fee
-  const winner = t.players.find((p) => p.finalRank === 1)
+  const winner =
+    t.players.find((p) => p.finalRank === 1) ?? t.players.find((p) => p.status === 'WINNER')
   if (!winner) {
     rootLogger.warn({ msg: 'tournament_reward_no_winner_row', tournamentId })
     return

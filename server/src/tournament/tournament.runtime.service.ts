@@ -119,9 +119,28 @@ async function assignFinalRanksAndWinnerStatus(
       finalTablePlayerIds: true,
     },
   })
-  const finalIds = (t?.finalTablePlayerIds as string[] | null) ?? null
+  const raw = t?.finalTablePlayerIds as unknown
+  const finalIds = Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string' && x.length > 0) : null
+
   if (!finalIds || finalIds.length < 2) {
-    rootLogger.warn({ msg: 'tournament_finalize_missing_final_snapshot', tournamentId })
+    rootLogger.warn({
+      msg: 'tournament_finalize_missing_final_snapshot',
+      tournamentId,
+      detail: 'fallback_minimal_winner_rank',
+    })
+    await prisma.tournamentPlayer.update({
+      where: { tournamentId_userId: { tournamentId, userId: winnerUserId } },
+      data: { finalRank: 1, status: 'WINNER' },
+    })
+    await prisma.tournamentPlayer.updateMany({
+      where: {
+        tournamentId,
+        userId: { not: winnerUserId },
+        finalRank: null,
+        status: 'ELIMINATED',
+      },
+      data: { finalRank: 99 },
+    })
     return
   }
 
@@ -206,7 +225,9 @@ async function finalizeTournament(
     where: { id: tournamentId },
     data: { status: 'COMPLETED' },
   })
-  io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_COMPLETED', { tournamentId, winnerUserId })
+  const completedPayload = { tournamentId, winnerUserId }
+  io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_COMPLETED', completedPayload)
+  io.to(`user:${winnerUserId}`).emit('TOURNAMENT_COMPLETED', completedPayload)
   try {
     await grantTournamentRewardsIfMissing(prisma, tournamentId)
   } catch (e) {

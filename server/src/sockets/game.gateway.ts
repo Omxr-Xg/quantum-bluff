@@ -1165,6 +1165,10 @@ export class GameGateway {
                 s.emit("GAME_UPDATE", snapshot);
                 s.emit("GAME_STATE_UPDATED", snapshot);
               }
+              this.io.to(gameId).emit("CASH_NEXT_HAND_READY_UPDATED", {
+                readyUserIds: game.getNextHandReadyUserIds(),
+                allReady: game.isAllNextHandPlayersReady(),
+              });
             });
           } catch (err) {
             if (err instanceof PokerTableLockedError) {

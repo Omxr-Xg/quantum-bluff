@@ -630,6 +630,12 @@ export class CashGameController implements IGameSession {
       }
     }
     this.seats[seatIndex] = { seatIndex, userId, username, chips: amount, avatarUrl: avatarUrl ?? null }
+    // Entre deux mains : chaque nouvel assis réinitialise les « prêt », sinon des joueurs déjà
+    // cochés peuvent laisser croire côté client que la table est prête alors qu’un arrivant
+    // (rejoin / siège libre) doit encore confirmer — ou l’inverse (UI bloquée).
+    if (!this.gameTable) {
+      this.nextHandReadyUserIds.clear()
+    }
     return { ok: true }
   }
 

@@ -907,7 +907,7 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
       room.players.map((rp) => ({
         userId: rp.user.id,
         username: rp.user.username,
-        chips: Math.max(minBal, intChips(rp.user.chips ?? 0)),
+        chips: cashGame.effectiveSitBuyInAmount(intChips(rp.user.chips ?? 0)),
         avatarUrl: rp.avatarUrl ?? null,
       }))
     );
