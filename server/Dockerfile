@@ -1,4 +1,5 @@
-FROM public.ecr.aws/docker/library/node:20-alpine
+# Miroir Google des Docker Official Images (évite TOOMANYREQUESTS sur public.ecr.aws / docker.io en CI).
+FROM mirror.gcr.io/library/node:20-alpine
 
 WORKDIR /app
 # Un seul chown sur le répertoire de travail — pas de parcours de node_modules.

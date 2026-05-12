@@ -2,9 +2,9 @@
 # Kaniko snapshotte après chaque RUN : un RUN npm ci seul fige un énorme node_modules
 # et fait souvent OOM sur des runners K8s peu dimensionnés. Une seule couche :
 # install → build → suppression de node_modules avant snapshot.
-# Sur runners K8s partagés, docker.io (pulls anonymes) déclenche souvent TOOMANYREQUESTS ;
-# le miroir Docker Official Images sur AWS Public ECR évite ce plafond.
-FROM public.ecr.aws/docker/library/node:22-alpine AS build
+# Sur runners K8s partagés : docker.io et public.ecr.aws peuvent renvoyer TOOMANYREQUESTS ;
+# `mirror.gcr.io/library/*` = miroir Google des Docker Official Images.
+FROM mirror.gcr.io/library/node:22-alpine AS build
 WORKDIR /app
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
@@ -22,7 +22,7 @@ COPY . .
 RUN npm run build && rm -rf node_modules /root/.npm
 
 # Étape 2 : Serveur Nginx pour les fichiers statiques (avec support du React Router)
-FROM public.ecr.aws/docker/library/nginx:alpine
+FROM mirror.gcr.io/library/nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 
 RUN echo "server {" > /etc/nginx/conf.d/default.conf && \

@@ -1,8 +1,9 @@
 variables:
-  # Sur runners K8s partagés, les pulls anonymes docker.io (node/postgres/trivy) déclenchent souvent TOOMANYREQUESTS.
-  # Images node/postgres : miroir Docker Official sur ECR. Trivy : image officielle aquasecurity sur ECR Public.
-  NODE_IMAGE: public.ecr.aws/docker/library/node:20
-  POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:15
+  # Sur runners K8s partagés : docker.io (anonyme) et public.ecr.aws peuvent renvoyer TOOMANYREQUESTS.
+  # `mirror.gcr.io/library/*` = miroir Google des Docker Official Images (node, postgres, nginx…).
+  NODE_IMAGE: mirror.gcr.io/library/node:20
+  POSTGRES_IMAGE: mirror.gcr.io/library/postgres:15
+  # Trivy : rester sur ECR Public (image hors library/) ; si rate limit, passer en allow_failure ou image interne.
   TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.58.1
   # Sans ça, le cache GitLab sur `.npm/` reste vide : chaque job retélécharge les paquets.
   NPM_CONFIG_CACHE: "${CI_PROJECT_DIR}/.npm"
