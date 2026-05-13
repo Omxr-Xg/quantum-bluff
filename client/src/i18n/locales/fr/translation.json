@@ -1740,6 +1740,42 @@
       "youBadge": "Toi",
       "chipsWinner": "+{{amount}} jetons"
     },
+    "bets": {
+      "title": "Paris cachés · Vainqueur du tournoi",
+      "marketClosed": "Marché clos",
+      "totalPool": "dans la cagnotte",
+      "totalBets": "{{count}} paris placés",
+      "totalBets_one": "{{count}} pari placé",
+      "totalBets_other": "{{count}} paris placés",
+      "explainer": "Mise entre {{min}} et {{max}} jetons. Cote en temps réel — à la fin, la cagnotte est partagée proportionnellement entre ceux qui ont misé sur le vrai vainqueur.",
+      "loading": "Chargement des paris…",
+      "noCandidates": "Aucun joueur inscrit pour le moment.",
+      "odds": "Cote",
+      "candidateStake": "misés",
+      "candidateBetCount": "{{count}} parieurs",
+      "candidateBetCount_one": "{{count}} parieur",
+      "candidateBetCount_other": "{{count}} parieurs",
+      "candidateStatus": {
+        "ELIMINATED": "Éliminé",
+        "KICKED": "Exclu",
+        "WINNER": "Vainqueur",
+        "DISQUALIFIED": "Disqualifié"
+      },
+      "pickCandidate": "Choisis un joueur ci-dessus.",
+      "selectedHint": "Tu paries sur : {{name}}",
+      "stakeLabel": "Montant misé",
+      "stakeRange": "Min {{min}} · Max {{max}}",
+      "placeCta": "Parier",
+      "placed": "Pari placé : {{amount}} jetons.",
+      "notLoggedIn": "Connecte-toi pour parier.",
+      "myBetsTitle": "Mes paris",
+      "status": {
+        "PENDING": "En attente",
+        "WON": "Gagné",
+        "LOST": "Perdu",
+        "REFUNDED": "Remboursé"
+      }
+    },
     "teleporter": {
       "toastStarted": "Le tournoi commence !",
       "countdownOne": "Le tournoi « {{name}} » commence dans 1 minute !",

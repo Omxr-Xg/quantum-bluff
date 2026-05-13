@@ -1705,6 +1705,42 @@
       "youBadge": "Tú",
       "chipsWinner": "+{{amount}} fichas"
     },
+    "bets": {
+      "title": "Apuestas ocultas · Ganador del torneo",
+      "marketClosed": "Mercado cerrado",
+      "totalPool": "en el bote",
+      "totalBets": "{{count}} apuestas realizadas",
+      "totalBets_one": "{{count}} apuesta realizada",
+      "totalBets_other": "{{count}} apuestas realizadas",
+      "explainer": "Apuesta entre {{min}} y {{max}} fichas. Cuotas en tiempo real — al final, el bote se reparte entre quienes acertaron al ganador, en proporción a su apuesta.",
+      "loading": "Cargando apuestas…",
+      "noCandidates": "Aún no hay jugadores inscritos.",
+      "odds": "Cuota",
+      "candidateStake": "apostadas",
+      "candidateBetCount": "{{count}} apostantes",
+      "candidateBetCount_one": "{{count}} apostante",
+      "candidateBetCount_other": "{{count}} apostantes",
+      "candidateStatus": {
+        "ELIMINATED": "Eliminado",
+        "KICKED": "Expulsado",
+        "WINNER": "Ganador",
+        "DISQUALIFIED": "Descalificado"
+      },
+      "pickCandidate": "Elige un jugador arriba.",
+      "selectedHint": "Apuestas por: {{name}}",
+      "stakeLabel": "Cantidad apostada",
+      "stakeRange": "Mín {{min}} · Máx {{max}}",
+      "placeCta": "Apostar",
+      "placed": "Apuesta realizada: {{amount}} fichas.",
+      "notLoggedIn": "Inicia sesión para apostar.",
+      "myBetsTitle": "Mis apuestas",
+      "status": {
+        "PENDING": "Pendiente",
+        "WON": "Ganada",
+        "LOST": "Perdida",
+        "REFUNDED": "Reembolsada"
+      }
+    },
     "teleporter": {
       "toastStarted": "¡El torneo comienza!",
       "countdownOne": "El torneo «{{name}}» comienza en 1 minuto!",

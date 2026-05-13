@@ -19,6 +19,7 @@ import {
 } from "../../../utils/userProfile";
 import { getPlayerAvatar } from "../../../utils/avatars";
 import { ImageWithFallback } from "../../../components/figma/ImageWithFallback";
+import { TournamentWinnerBetsPanel } from "../components/TournamentWinnerBetsPanel";
 
 type PlayerRow = {
   userId: string;
@@ -64,6 +65,8 @@ export function TournamentRoom() {
   const [err, setErr] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState("");
   const [kickingUserId, setKickingUserId] = useState<string | null>(null);
+  /* Bump pour forcer un refetch du pool de paris cachés (socket-driven). */
+  const [betsRefreshKey, setBetsRefreshKey] = useState(0);
 
   useEffect(() => {
     setData(null);
@@ -173,6 +176,14 @@ export function TournamentRoom() {
       addToast(t("tournament.room.kickedToast"), "warning");
       void fetchBalanceFromServer({ authoritative: true });
       void reload();
+    },
+    onWinnerBetPoolUpdated: () => {
+      setBetsRefreshKey((k) => k + 1);
+    },
+    onWinnerBetsResolved: () => {
+      /* Solde modifié au moment du payout : refetch puis bump pour le panel. */
+      void fetchBalanceFromServer({ authoritative: true });
+      setBetsRefreshKey((k) => k + 1);
     },
   });
 
@@ -449,6 +460,18 @@ export function TournamentRoom() {
                     );
                   })}
                 </ul>
+              </div>
+            )}
+
+            {!cancelled && (
+              <div className="mb-6">
+                <TournamentWinnerBetsPanel
+                  tournamentId={id}
+                  authUserId={authUserId ?? null}
+                  tournamentStatus={status}
+                  winnerUserId={winner?.userId ?? null}
+                  refreshKey={betsRefreshKey}
+                />
               </div>
             )}
 

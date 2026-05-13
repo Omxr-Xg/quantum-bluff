@@ -10,6 +10,10 @@ import { grantTournamentRewardsIfMissing } from './tournament.reward.service.js'
 import { seedFromTournamentId } from './tournament.seed.js'
 import { TOURNAMENT_MIN_PLAYERS } from './tournament.create.validation.js'
 import { emitTournamentLiveSpectateChanged } from './tournament.roster.events.js'
+import {
+  refundPendingTournamentBetsForCancellation,
+  resolveTournamentWinnerBets,
+} from './winnerBets/tournamentWinnerBet.service.js'
 
 /** `scheduled` : heure de départ atteinte — pas assez de monde → annulation. `host` : clic hôte — pas assez → erreur API, tournoi inchangé. */
 export type TournamentStartSource = 'host' | 'scheduled'
@@ -241,6 +245,24 @@ async function finalizeTournament(
       detail: e instanceof Error ? e.message : String(e),
     })
   }
+  /* Résolution des paris « vainqueur » : parimutuel. Doit se faire APRÈS
+   * grant pour ne pas brouiller l'ordre des mouvements ledger, et AVANT
+   * l'emit COMPLETED pour que le client recharge un solde final correct. */
+  let betsResolved = 0
+  let betsPaidOut = 0
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      return resolveTournamentWinnerBets(tx, tournamentId, winnerUserId)
+    })
+    betsResolved = result.resolvedCount
+    betsPaidOut = result.totalPaidOut
+  } catch (e) {
+    rootLogger.error({
+      msg: 'tournament_resolve_winner_bets_failed',
+      tournamentId,
+      detail: e instanceof Error ? e.message : String(e),
+    })
+  }
   /* Lit le solde post-crédit pour le pousser au gagnant : évite la course
    * "client refetch arrive avant que la transaction grant soit visible". */
   let winnerNewChips: number | null = null
@@ -256,6 +278,14 @@ async function finalizeTournament(
   const completedPayload = { tournamentId, winnerUserId, winnerNewChips }
   io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_COMPLETED', completedPayload)
   io.to(`user:${winnerUserId}`).emit('TOURNAMENT_COMPLETED', completedPayload)
+  if (betsResolved > 0) {
+    io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_WINNER_BETS_RESOLVED', {
+      tournamentId,
+      winnerUserId,
+      resolvedCount: betsResolved,
+      totalPaidOut: betsPaidOut,
+    })
+  }
 }
 
 async function spawnRoundTables(
@@ -495,10 +525,17 @@ export async function startTournamentFromDb(
         where: { id: tournamentId },
         data: { status: 'CANCELLED' },
       })
+      /* Annulation : on rembourse tous les paris cachés PENDING (intégralité de la mise). */
+      await refundPendingTournamentBetsForCancellation(tx, tournamentId)
     })
     io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_CANCELLED', {
       tournamentId,
       reason: 'INSUFFICIENT_PLAYERS',
+    })
+    io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_WINNER_BETS_RESOLVED', {
+      tournamentId,
+      winnerUserId: null,
+      cancelled: true,
     })
     emitTournamentLiveSpectateChanged(io, tournamentId)
     return

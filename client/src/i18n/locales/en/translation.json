@@ -1734,6 +1734,42 @@
       "youBadge": "You",
       "chipsWinner": "+{{amount}} chips"
     },
+    "bets": {
+      "title": "Hidden bets · Tournament winner",
+      "marketClosed": "Market closed",
+      "totalPool": "in the pot",
+      "totalBets": "{{count}} bets placed",
+      "totalBets_one": "{{count}} bet placed",
+      "totalBets_other": "{{count}} bets placed",
+      "explainer": "Stake between {{min}} and {{max}} chips. Live odds — the pot is shared between everyone who bet on the actual winner, proportional to their stake.",
+      "loading": "Loading bets…",
+      "noCandidates": "No players registered yet.",
+      "odds": "Odds",
+      "candidateStake": "wagered",
+      "candidateBetCount": "{{count}} bettors",
+      "candidateBetCount_one": "{{count}} bettor",
+      "candidateBetCount_other": "{{count}} bettors",
+      "candidateStatus": {
+        "ELIMINATED": "Eliminated",
+        "KICKED": "Kicked",
+        "WINNER": "Winner",
+        "DISQUALIFIED": "Disqualified"
+      },
+      "pickCandidate": "Pick a player above.",
+      "selectedHint": "You're betting on: {{name}}",
+      "stakeLabel": "Stake amount",
+      "stakeRange": "Min {{min}} · Max {{max}}",
+      "placeCta": "Place bet",
+      "placed": "Bet placed: {{amount}} chips.",
+      "notLoggedIn": "Sign in to place a bet.",
+      "myBetsTitle": "My bets",
+      "status": {
+        "PENDING": "Pending",
+        "WON": "Won",
+        "LOST": "Lost",
+        "REFUNDED": "Refunded"
+      }
+    },
     "teleporter": {
       "toastStarted": "The tournament is starting!",
       "countdownOne": "Tournament “{{name}}” starts in 1 minute!",

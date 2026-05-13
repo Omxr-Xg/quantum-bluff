@@ -23,6 +23,16 @@ type Handlers = {
   onKicked?: (p: { tournamentId: string }) => void;
   /** Fin de table / nouvelle manche : rafraîchir les liens spectate (parties réellement actives). */
   onLiveTablesChanged?: (p: { tournamentId: string }) => void;
+  /** Le pool de paris cachés (vainqueur tournoi) a changé : refetch pool. */
+  onWinnerBetPoolUpdated?: (p: { tournamentId: string }) => void;
+  /** Tous les paris cachés (vainqueur tournoi) ont été résolus : refetch mine + pool. */
+  onWinnerBetsResolved?: (p: {
+    tournamentId: string;
+    winnerUserId: string | null;
+    resolvedCount?: number;
+    totalPaidOut?: number;
+    cancelled?: boolean;
+  }) => void;
 };
 
 export type UseTournamentSocketArgs = Handlers & {
@@ -96,6 +106,26 @@ export function useTournamentSocket(
       if (payload.tournamentId === tournamentId && tournamentId)
         ref.current.onLiveTablesChanged?.({ tournamentId });
     };
+    const betPool = (payload: { tournamentId?: string }) => {
+      if (payload.tournamentId === tournamentId && tournamentId)
+        ref.current.onWinnerBetPoolUpdated?.({ tournamentId });
+    };
+    const betsResolved = (payload: {
+      tournamentId?: string;
+      winnerUserId?: string | null;
+      resolvedCount?: number;
+      totalPaidOut?: number;
+      cancelled?: boolean;
+    }) => {
+      if (payload.tournamentId === tournamentId && tournamentId)
+        ref.current.onWinnerBetsResolved?.({
+          tournamentId,
+          winnerUserId: payload.winnerUserId ?? null,
+          resolvedCount: payload.resolvedCount,
+          totalPaidOut: payload.totalPaidOut,
+          cancelled: payload.cancelled,
+        });
+    };
 
     socket.on("TOURNAMENT_TABLE_ASSIGNED", a);
     socket.on("TOURNAMENT_NEXT_ROUND", n);
@@ -105,6 +135,8 @@ export function useTournamentSocket(
     socket.on("TOURNAMENT_ROSTER_UPDATED", roster);
     socket.on("TOURNAMENT_KICKED", kicked);
     socket.on("TOURNAMENT_LIVE_TABLES_CHANGED", liveTables);
+    socket.on("TOURNAMENT_WINNER_BET_POOL_UPDATED", betPool);
+    socket.on("TOURNAMENT_WINNER_BETS_RESOLVED", betsResolved);
     return () => {
       if (socket.connected) {
         socket.emit("LEAVE_TOURNAMENT_ROOM", { tournamentId });
@@ -118,6 +150,8 @@ export function useTournamentSocket(
       socket.off("TOURNAMENT_ROSTER_UPDATED", roster);
       socket.off("TOURNAMENT_KICKED", kicked);
       socket.off("TOURNAMENT_LIVE_TABLES_CHANGED", liveTables);
+      socket.off("TOURNAMENT_WINNER_BET_POOL_UPDATED", betPool);
+      socket.off("TOURNAMENT_WINNER_BETS_RESOLVED", betsResolved);
     };
   }, [tournamentId, socket, shouldJoin]);
 }

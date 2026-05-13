@@ -57,6 +57,7 @@ import { setDraining } from './observability/readinessDrain.js'
 import { recoverBlackjackRuntimeAtBoot } from './blackjack/recovery/blackjackRecovery.service.js'
 import adminPokerRuntimeRoutes from './routes/admin.poker.runtime.routes.js'
 import tournamentRoutes from './routes/tournament.routes.js'
+import tournamentWinnerBetsRoutes from './routes/tournamentWinnerBets.routes.js'
 import { initTournamentScheduler } from './tournament/tournament.scheduler.js'
 import { recoverTournamentsAtBoot } from './tournament/tournament.recovery.service.js'
 import adminRouletteOverrideRoutes from './routes/admin.roulette.override.routes.js'
@@ -227,6 +228,7 @@ app.use('/api/friends', friendLoanRoutes)
 app.use('/api/friends', invitationRoutes)
 app.use('/api/waiting-room', waitingRoomRoutes)
 app.use('/api/tournaments', tournamentRoutes)
+app.use('/api/tournaments', tournamentWinnerBetsRoutes)
 app.use('/api/game', gameApiRoutes)
 app.use('/api/bot', botApiLimiter, botRoutes)
 app.use('/api/slot', slotApiLimiter, slotRoutes)

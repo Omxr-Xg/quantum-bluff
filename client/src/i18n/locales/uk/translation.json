@@ -1712,6 +1712,42 @@
       "youBadge": "Ти",
       "chipsWinner": "+{{amount}} жетонів"
     },
+    "bets": {
+      "title": "Приховані ставки · Переможець турніру",
+      "marketClosed": "Ринок закрито",
+      "totalPool": "у банку",
+      "totalBets": "Зроблено ставок: {{count}}",
+      "totalBets_one": "{{count}} ставка",
+      "totalBets_other": "{{count}} ставок",
+      "explainer": "Ставка від {{min}} до {{max}} жетонів. Коефіцієнти в реальному часі — банк ділиться між тими, хто вгадав переможця, пропорційно ставкам.",
+      "loading": "Завантаження ставок…",
+      "noCandidates": "Жодного зареєстрованого гравця.",
+      "odds": "Коеф.",
+      "candidateStake": "поставлено",
+      "candidateBetCount": "Гравців-ставок: {{count}}",
+      "candidateBetCount_one": "{{count}} гравець",
+      "candidateBetCount_other": "{{count}} гравців",
+      "candidateStatus": {
+        "ELIMINATED": "Вибув",
+        "KICKED": "Виключений",
+        "WINNER": "Переможець",
+        "DISQUALIFIED": "Дискваліфікований"
+      },
+      "pickCandidate": "Обери гравця вище.",
+      "selectedHint": "Ти ставиш на: {{name}}",
+      "stakeLabel": "Сума ставки",
+      "stakeRange": "Мін {{min}} · Макс {{max}}",
+      "placeCta": "Поставити",
+      "placed": "Ставка прийнята: {{amount}} жетонів.",
+      "notLoggedIn": "Увійди, щоб робити ставки.",
+      "myBetsTitle": "Мої ставки",
+      "status": {
+        "PENDING": "Очікує",
+        "WON": "Виграно",
+        "LOST": "Програно",
+        "REFUNDED": "Повернено"
+      }
+    },
     "teleporter": {
       "toastStarted": "Турнір починається!",
       "countdownOne": "Турнір «{{name}}» почнеться за 1 хвилину!",

@@ -1710,6 +1710,42 @@
       "youBadge": "أنت",
       "chipsWinner": "+{{amount}} رمز"
     },
+    "bets": {
+      "title": "رهانات خفية · الفائز بالبطولة",
+      "marketClosed": "السوق مغلق",
+      "totalPool": "في المجموع",
+      "totalBets": "{{count}} رهانات",
+      "totalBets_one": "{{count}} رهان",
+      "totalBets_other": "{{count}} رهانات",
+      "explainer": "راهن بين {{min}} و{{max}} رمزًا. تتغير الاحتمالات لحظيًا، ويُقسَم المجموع في النهاية بين كل من راهن على الفائز الحقيقي بالتناسب مع رهانهم.",
+      "loading": "جاري تحميل الرهانات…",
+      "noCandidates": "لا يوجد لاعبون مسجلون بعد.",
+      "odds": "الاحتمال",
+      "candidateStake": "تم رهانها",
+      "candidateBetCount": "{{count}} مراهنون",
+      "candidateBetCount_one": "{{count}} مراهن",
+      "candidateBetCount_other": "{{count}} مراهنون",
+      "candidateStatus": {
+        "ELIMINATED": "خرج",
+        "KICKED": "مطرود",
+        "WINNER": "الفائز",
+        "DISQUALIFIED": "مستبعَد"
+      },
+      "pickCandidate": "اختر لاعبًا أعلاه.",
+      "selectedHint": "أنت تراهن على: {{name}}",
+      "stakeLabel": "قيمة الرهان",
+      "stakeRange": "الأدنى {{min}} · الأعلى {{max}}",
+      "placeCta": "راهن",
+      "placed": "تم وضع الرهان: {{amount}} رمز.",
+      "notLoggedIn": "سجِّل دخولك لوضع رهان.",
+      "myBetsTitle": "رهاناتي",
+      "status": {
+        "PENDING": "بانتظار",
+        "WON": "فائز",
+        "LOST": "خاسر",
+        "REFUNDED": "تم الاسترداد"
+      }
+    },
     "teleporter": {
       "toastStarted": "تبدأ البطولة!",
       "countdownOne": "البطولة «{{name}}» تبدأ خلال دقيقة!",
