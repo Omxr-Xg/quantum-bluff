@@ -23,7 +23,10 @@ import {
   Gift,
   CalendarDays,
   AlertCircle,
+  Banknote,
+  CheckCircle2,
 } from "lucide-react";
+import { validateIban, formatIban, normalizeIban } from "../utils/iban";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
@@ -36,6 +39,7 @@ import {
   fetchBalanceFromServer,
   clearAuthStorage,
   fetchDailyLoginStatus,
+  requestWithdrawal,
   BALANCE_CHANGED_EVENT,
   BALANCE_GAIN_FLASH_EVENT,
   POKER_WALLET_DISPLAY_EVENT,
@@ -76,6 +80,31 @@ import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
+const WITHDRAW_PRESETS = [100, 500, 1000, 2500, 5000];
+/** Montant minimum a retirer (en jetons). */
+const WITHDRAW_MIN_AMOUNT = 100;
+/** Taux de conversion retrait : 10 jetons = 1 €. */
+const WITHDRAW_CHIPS_PER_EUR = 10;
+
+/** Convertit un nombre de jetons en euros pour l'affichage (2 decimales). */
+function chipsToEur(chips: number): number {
+  if (!Number.isFinite(chips) || chips <= 0) return 0;
+  return Math.round((chips / WITHDRAW_CHIPS_PER_EUR) * 100) / 100;
+}
+
+/** Formatte un montant en € selon la locale courante. */
+function formatEur(eur: number, locale: string): string {
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(eur);
+  } catch {
+    return `${eur.toFixed(2)} €`;
+  }
+}
 type BalanceHistoryEntry = {
   id: string;
   createdAt: string;
@@ -150,7 +179,19 @@ export function Layout({ children }: LayoutProps) {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showDailyLogin, setShowDailyLogin] = useState(false);
   const [dailyLoginAvailable, setDailyLoginAvailable] = useState(false);
-  const [balanceModalTab, setBalanceModalTab] = useState<"history" | "topup" | "codes">("topup");
+  const [balanceModalTab, setBalanceModalTab] = useState<
+    "history" | "topup" | "codes" | "withdraw"
+  >("topup");
+  /* Onglet retrait : montant en jetons, IBAN saisi (formate), titulaire,
+   * et flag de succes pour basculer sur l'ecran de confirmation. */
+  const [withdrawAmount, setWithdrawAmount] = useState<number | null>(null);
+  const [withdrawIban, setWithdrawIban] = useState("");
+  const [withdrawHolder, setWithdrawHolder] = useState("");
+  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  /** Snapshot du montant retire pour l'ecran de confirmation (apres reset). */
+  const [withdrawCompletedAmount, setWithdrawCompletedAmount] = useState<number | null>(null);
   const [addMoneyAmount, setAddMoneyAmount] = useState<number | null>(null);
   const [promoCode, setPromoCode] = useState("");
   const [promoDiscount, setPromoDiscount] = useState<PromoDiscountInfo>(null);
@@ -626,6 +667,13 @@ export function Layout({ children }: LayoutProps) {
     setCardExpiry("");
     setCardCvv("");
     setAddSuccess(false);
+    setWithdrawAmount(null);
+    setWithdrawIban("");
+    setWithdrawHolder("");
+    setWithdrawSuccess(false);
+    setWithdrawSubmitting(false);
+    setWithdrawError(null);
+    setWithdrawCompletedAmount(null);
     if (getAuthItem("token")) {
       fetchBalanceFromServer().then(setBalance);
     } else {
@@ -682,6 +730,40 @@ export function Layout({ children }: LayoutProps) {
     setTimeout(closeAddMoney, 800);
   };
 
+  /* Soumission d'une demande de retrait. La validation IBAN est strictement
+   * structurelle (longueur + clef mod-97) cote client ; le serveur fait
+   * une revalidation legere (longueur + chars) puis decremente le solde
+   * dans une transaction protegee anti-overdraft (where chips >= amount).
+   * La monnaie etant virtuelle, aucun virement bancaire reel n'est emis. */
+  const submitWithdrawal = async () => {
+    if (withdrawSubmitting) return;
+    if (withdrawAmount == null || withdrawAmount < WITHDRAW_MIN_AMOUNT) return;
+    if (withdrawAmount > balance) return;
+    const check = validateIban(withdrawIban);
+    if (!check.ok) return;
+    if (withdrawHolder.trim().length < 2) return;
+    setWithdrawSubmitting(true);
+    setWithdrawError(null);
+    const requested = withdrawAmount;
+    const result = await requestWithdrawal({
+      amount: requested,
+      iban: check.normalized,
+      holder: withdrawHolder.trim(),
+    });
+    setWithdrawSubmitting(false);
+    if (!result.ok) {
+      setWithdrawError(result.error);
+      return;
+    }
+    setBalance(result.chips);
+    setWithdrawCompletedAmount(requested);
+    setWithdrawSuccess(true);
+    playSfx("success");
+    /* Rafraichit l'historique pour que le retrait apparaisse direct. */
+    void loadBalanceHistory();
+    setTimeout(closeAddMoney, 2200);
+  };
+
   const isGamePage = location.pathname === "/game" || location.pathname.startsWith("/game?");
   const isBlackjackGamePage = location.pathname.startsWith("/blackjack/table");
   const isGameHudPage = isGamePage || isBlackjackGamePage;
@@ -703,13 +785,17 @@ export function Layout({ children }: LayoutProps) {
     addMoneyAmount > 0 &&
     (isFreePaymentTopUp || isFakeCardComplete(cardDigits, cardExpiry, cardCvv, cardName));
   const addMoneyModalHeightClass =
-    balanceModalTab === "history"
-      ? "h-[24rem]"
-      : addSuccess
-        ? "h-[20rem]"
-        : addMoneyAmount != null
-          ? "h-[38rem]"
-          : "h-[18rem]";
+    balanceModalTab === "withdraw"
+      ? withdrawSuccess
+        ? "h-[22rem]"
+        : "h-[44rem]"
+      : balanceModalTab === "history"
+        ? "h-[24rem]"
+        : addSuccess
+          ? "h-[20rem]"
+          : addMoneyAmount != null
+            ? "h-[38rem]"
+            : "h-[18rem]";
   const path = location.pathname;
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
   const isBotConfigPage = path.includes("bot-configuration");
@@ -1369,10 +1455,24 @@ export function Layout({ children }: LayoutProps) {
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
             <div className="relative z-10 flex h-full min-h-0 flex-col">
             <div className="flex shrink-0 items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-amber-100">
-                {t("lobby.addMoneyTitle")}
+              <h3
+                className={`text-xl font-bold ${
+                  balanceModalTab === "withdraw" ? "text-emerald-100" : "text-amber-100"
+                }`}
+              >
+                {balanceModalTab === "withdraw"
+                  ? t("lobby.withdrawTitle")
+                  : t("lobby.addMoneyTitle")}
               </h3>
-              <button type="button" onClick={closeAddMoney} className="p-1 text-amber-100/55 transition hover:text-amber-50">
+              <button
+                type="button"
+                onClick={closeAddMoney}
+                className={`p-1 transition ${
+                  balanceModalTab === "withdraw"
+                    ? "text-emerald-100/55 hover:text-emerald-50"
+                    : "text-amber-100/55 hover:text-amber-50"
+                }`}
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1387,6 +1487,20 @@ export function Layout({ children }: LayoutProps) {
                 }`}
               >
                 {t("lobby.balanceTabTopUp")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBalanceModalTab("withdraw");
+                  setWithdrawSuccess(false);
+                }}
+                className={`min-h-[2.75rem] flex-1 rounded-full border px-4 py-2 text-sm font-bold tracking-wide transition ${
+                  balanceModalTab === "withdraw"
+                    ? "border-emerald-200/55 bg-emerald-400/12 text-emerald-100 shadow-[0_0_22px_rgba(16,185,129,0.22),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-emerald-200/20"
+                    : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-emerald-300/24 hover:text-emerald-100"
+                }`}
+              >
+                {t("lobby.balanceTabWithdraw")}
               </button>
               <button
                 type="button"
@@ -1549,6 +1663,251 @@ export function Layout({ children }: LayoutProps) {
                   </div>
                 )}
               </div>
+            ) : balanceModalTab === "withdraw" ? (
+              (() => {
+                const ibanCheck = validateIban(withdrawIban);
+                const amountValid =
+                  withdrawAmount != null &&
+                  Number.isFinite(withdrawAmount) &&
+                  withdrawAmount >= WITHDRAW_MIN_AMOUNT;
+                const amountExceedsBalance =
+                  withdrawAmount != null && withdrawAmount > balance;
+                const holderValid = withdrawHolder.trim().length >= 2;
+                const canSubmitWithdraw =
+                  !withdrawSubmitting &&
+                  amountValid &&
+                  !amountExceedsBalance &&
+                  ibanCheck.ok &&
+                  holderValid;
+
+                const ibanMessageKey: string | null =
+                  withdrawIban.length === 0
+                    ? null
+                    : ibanCheck.ok
+                      ? "lobby.withdrawIbanValid"
+                      : ibanCheck.code === "tooShort"
+                        ? "lobby.withdrawIbanTooShort"
+                        : ibanCheck.code === "tooLong"
+                          ? "lobby.withdrawIbanTooLong"
+                          : ibanCheck.code === "wrongLength"
+                            ? "lobby.withdrawIbanWrongLength"
+                            : ibanCheck.code === "invalidChars"
+                              ? "lobby.withdrawIbanInvalidChars"
+                              : ibanCheck.code === "unknownCountry"
+                                ? "lobby.withdrawIbanUnknownCountry"
+                                : "lobby.withdrawIbanInvalidChecksum";
+
+                if (withdrawSuccess) {
+                  const successChips = withdrawCompletedAmount ?? withdrawAmount ?? 0;
+                  const successEur = chipsToEur(successChips);
+                  return (
+                    <div className="flex flex-col items-center gap-3 py-6 text-center">
+                      <CheckCircle2 className="h-12 w-12 text-emerald-300" aria-hidden />
+                      <p className="text-emerald-200 font-semibold">
+                        {t("lobby.withdrawSuccessTitle")}
+                      </p>
+                      <p className="max-w-xs text-sm text-slate-300">
+                        {t("lobby.withdrawSuccessBody", {
+                          amount: successChips.toLocaleString(),
+                          eur: formatEur(successEur, i18n.language),
+                          iban: formatIban(withdrawIban),
+                        })}
+                      </p>
+                    </div>
+                  );
+                }
+
+                const eurEquivalent = chipsToEur(withdrawAmount ?? 0);
+                return (
+                  <div className="space-y-3">
+                    {/* Montant */}
+                    <div>
+                      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          {t("lobby.withdrawAmountLabel")}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          {t("lobby.withdrawRateHint", {
+                            chips: WITHDRAW_CHIPS_PER_EUR,
+                          })}
+                        </p>
+                      </div>
+                      <div className="mb-2 grid grid-cols-5 gap-1.5 sm:gap-2">
+                        {WITHDRAW_PRESETS.map((amount) => {
+                          const disabled = amount > balance;
+                          return (
+                            <button
+                              key={amount}
+                              type="button"
+                              onClick={() => setWithdrawAmount(amount)}
+                              disabled={disabled}
+                              className={`rounded-full border px-1.5 py-2 text-xs font-bold tabular-nums transition sm:px-3 sm:text-sm ${
+                                withdrawAmount === amount
+                                  ? "border-emerald-200/60 bg-emerald-400/15 text-emerald-100 shadow-[0_0_16px_rgba(16,185,129,0.16)]"
+                                  : disabled
+                                    ? "cursor-not-allowed border-white/5 bg-white/[0.02] text-slate-600"
+                                    : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-emerald-300/28 hover:text-emerald-100"
+                              }`}
+                            >
+                              {amount.toLocaleString()}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={WITHDRAW_MIN_AMOUNT}
+                        max={balance}
+                        step={50}
+                        value={withdrawAmount ?? ""}
+                        onChange={(e) => {
+                          const raw = e.target.value === "" ? null : Number(e.target.value);
+                          setWithdrawAmount(
+                            raw == null || Number.isNaN(raw)
+                              ? null
+                              : Math.max(0, Math.floor(raw)),
+                          );
+                        }}
+                        placeholder={t("lobby.withdrawAmountPlaceholder", {
+                          min: WITHDRAW_MIN_AMOUNT,
+                        })}
+                        className="w-full rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 text-slate-50 placeholder-slate-500 focus:outline-none focus:border-emerald-300/55 focus:ring-1 focus:ring-emerald-300/35 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        aria-label={t("lobby.withdrawAmountLabel")}
+                      />
+                      <div className="mt-1 flex items-center justify-between gap-2 text-[11px]">
+                        <span className="text-slate-500">
+                          {t("lobby.withdrawAvailableBalance", {
+                            amount: balance.toLocaleString(),
+                          })}
+                        </span>
+                        {withdrawAmount != null && withdrawAmount > 0 && (
+                          <span className="font-semibold tabular-nums text-emerald-200">
+                            ≈ {formatEur(eurEquivalent, i18n.language)}
+                          </span>
+                        )}
+                      </div>
+                      {amountExceedsBalance && (
+                        <p className="mt-1 text-[11px] text-rose-300">
+                          {t("lobby.withdrawAmountExceedsBalance")}
+                        </p>
+                      )}
+                      {!amountExceedsBalance &&
+                        withdrawAmount != null &&
+                        !amountValid && (
+                          <p className="mt-1 text-[11px] text-rose-300">
+                            {t("lobby.withdrawMinAmount", {
+                              min: WITHDRAW_MIN_AMOUNT,
+                            })}
+                          </p>
+                        )}
+                    </div>
+
+                    {/* Titulaire */}
+                    <div>
+                      <label
+                        htmlFor="withdraw-holder"
+                        className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400"
+                      >
+                        {t("lobby.withdrawHolderLabel")}
+                      </label>
+                      <input
+                        id="withdraw-holder"
+                        type="text"
+                        autoComplete="name"
+                        maxLength={80}
+                        value={withdrawHolder}
+                        onChange={(e) => setWithdrawHolder(e.target.value)}
+                        placeholder={t("lobby.withdrawHolderPlaceholder")}
+                        className="w-full rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 text-slate-50 placeholder-slate-500 focus:outline-none focus:border-emerald-300/55 focus:ring-1 focus:ring-emerald-300/35"
+                      />
+                    </div>
+
+                    {/* IBAN */}
+                    <div>
+                      <label
+                        htmlFor="withdraw-iban"
+                        className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400"
+                      >
+                        {t("lobby.withdrawIbanLabel")}
+                      </label>
+                      <input
+                        id="withdraw-iban"
+                        type="text"
+                        autoComplete="off"
+                        spellCheck={false}
+                        inputMode="text"
+                        value={formatIban(withdrawIban)}
+                        onChange={(e) => setWithdrawIban(normalizeIban(e.target.value))}
+                        placeholder="FR76 1234 5678 9012 3456 7890 123"
+                        aria-invalid={withdrawIban.length > 0 && !ibanCheck.ok}
+                        className={`w-full rounded-lg border bg-slate-950/40 px-3 py-2 font-mono text-sm uppercase tracking-wider text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-1 ${
+                          withdrawIban.length === 0
+                            ? "border-white/10 focus:border-emerald-300/55 focus:ring-emerald-300/35"
+                            : ibanCheck.ok
+                              ? "border-emerald-400/55 focus:border-emerald-300/70 focus:ring-emerald-300/40"
+                              : "border-rose-500/55 focus:border-rose-400/70 focus:ring-rose-400/30"
+                        }`}
+                      />
+                      {ibanMessageKey && (
+                        <p
+                          className={`mt-1 flex items-center gap-1.5 text-xs ${
+                            ibanCheck.ok ? "text-emerald-300" : "text-rose-300"
+                          }`}
+                        >
+                          {ibanCheck.ok ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                          ) : (
+                            <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                          <span>
+                            {t(ibanMessageKey, {
+                              country: ibanCheck.country ?? "",
+                            })}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => void submitWithdrawal()}
+                      disabled={!canSubmitWithdraw}
+                      className="w-full rounded-full border border-emerald-200/35 bg-emerald-400/14 py-2 font-bold text-emerald-100 transition hover:bg-emerald-400/22 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500"
+                    >
+                      {withdrawSubmitting ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {t("lobby.withdrawSubmitting")}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-2">
+                          <Banknote className="h-4 w-4" aria-hidden />
+                          {t("lobby.withdrawConfirm")}
+                          {withdrawAmount != null && withdrawAmount > 0 && (
+                            <span className="font-normal text-emerald-200/85">
+                              · {formatEur(eurEquivalent, i18n.language)}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </button>
+
+                    {withdrawError && (
+                      <p className="flex items-center gap-1.5 text-xs text-rose-300">
+                        <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+                        <span>
+                          {t("lobby.withdrawErrorPrefix")} {withdrawError}
+                        </span>
+                      </p>
+                    )}
+
+                    <p className="text-[11px] leading-relaxed text-slate-500">
+                      {t("lobby.withdrawDisclaimer")}
+                    </p>
+                  </div>
+                );
+              })()
             ) : addSuccess ? (
               <p className="text-emerald-300 font-medium text-center py-4">{t("lobby.captchaSuccess")}</p>
             ) : (

@@ -233,6 +233,58 @@ export async function addDevMoney(
   }
 }
 
+/**
+ * Demande un retrait : decremente le solde cote serveur, ecrit une entree
+ * de ledger « WITHDRAWAL_REQUEST » et met a jour le solde local.
+ *
+ * Note : la monnaie etant virtuelle, aucun virement bancaire reel n'est
+ * declenche. Le serveur valide neanmoins le montant (> 0, <= solde courant)
+ * et la structure IBAN basique pour eviter les abus.
+ */
+export async function requestWithdrawal(input: {
+  amount: number;
+  iban: string;
+  holder: string;
+}): Promise<{ ok: true; chips: number } | { ok: false; error: string }> {
+  const safeAmount = Math.max(0, Math.floor(input.amount));
+  if (safeAmount <= 0) return { ok: false, error: "invalid_amount" };
+  const token = getAuthItem("token");
+  if (!token) return { ok: false, error: "not_authenticated" };
+  try {
+    const res = await fetch(apiUrl("/api/auth/withdraw-money"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        amount: safeAmount,
+        iban: input.iban,
+        holder: input.holder,
+        secret: "dev",
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: typeof data?.error === "string" ? data.error : `http_${res.status}`,
+      };
+    }
+    const chips =
+      typeof data?.chips === "number"
+        ? Math.max(0, Math.floor(data.chips))
+        : getUserBalance();
+    updateUserBalance(chips);
+    return { ok: true, chips };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "network_error",
+    };
+  }
+}
+
 /** @deprecated Utiliser fetchBalanceFromServer. Ne plus pousser de balance client vers le serveur (sécurité). */
 export async function syncBalanceToServer(): Promise<void> {
   await fetchBalanceFromServer();

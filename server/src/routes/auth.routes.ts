@@ -733,6 +733,73 @@ router.post('/add-dev-money', authMiddleware, async (req, res) => {
   }
 })
 
+// POST /api/auth/withdraw-money - Demande de retrait (debite le solde, ecrit un ledger)
+// Sequel de /add-dev-money : pas de monnaie reelle, pas de virement bancaire reel,
+// mais on validate la structure IBAN et on decremente le solde via une transaction
+// avec garde "amount <= chips" pour eviter les soldes negatifs en cas de concurrence.
+router.post('/withdraw-money', authMiddleware, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const secret = typeof req.body?.secret === 'string' ? req.body.secret.trim().toLowerCase() : ''
+    if (secret !== 'dev') return res.status(403).json({ error: 'Validation requise' })
+
+    const rawAmount = typeof req.body?.amount === 'number' ? req.body.amount : Number(req.body?.amount)
+    const amount = Math.min(999999, Math.max(1, Math.floor(Number(rawAmount))))
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Montant invalide' })
+    }
+
+    const ibanRaw = typeof req.body?.iban === 'string' ? req.body.iban : ''
+    const iban = ibanRaw.replace(/[\s-]+/g, '').toUpperCase()
+    if (iban.length < 15 || iban.length > 34 || !/^[A-Z]{2}[A-Z0-9]+$/.test(iban)) {
+      return res.status(400).json({ error: 'IBAN invalide' })
+    }
+
+    const holderRaw = typeof req.body?.holder === 'string' ? req.body.holder.trim() : ''
+    if (holderRaw.length < 2) {
+      return res.status(400).json({ error: 'Titulaire requis' })
+    }
+
+    /* Decrement avec garde anti-overdraft. Si chips < amount, le `where`
+     * ne matchera aucune ligne et l'update echouera proprement. */
+    const before = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { chips: true },
+    })
+    if (!before) return res.status(404).json({ error: 'Utilisateur non trouvé' })
+    if (before.chips < amount) return res.status(400).json({ error: 'Solde insuffisant' })
+
+    const updated = await prisma.user.update({
+      where: { id: userId, chips: { gte: amount } },
+      data: { chips: { decrement: amount } },
+      select: { chips: true },
+    }).catch(() => null)
+    if (!updated) return res.status(409).json({ error: 'Solde insuffisant (concurrence)' })
+
+    /* On ne stocke pas l'IBAN complet dans le ledger (PII / privacy) :
+     * uniquement les 4 derniers caracteres pour traceabilite. */
+    const ibanTail = iban.slice(-4)
+    await prisma.walletLedgerEntry.create({
+      data: {
+        userId,
+        amount: -amount,
+        reason: 'WITHDRAWAL_REQUEST',
+        gameType: 'wallet',
+        roundId: `iban_****${ibanTail}`,
+        balanceBefore: before.chips,
+        balanceAfter: updated.chips,
+        settlementState: 'SETTLED',
+      },
+    })
+
+    res.json({ ok: true, chips: updated.chips })
+  } catch (error) {
+    console.error('withdraw-money error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // DÉPRÉCIÉ : Ne plus accepter de balance envoyée par le client (risque de triche)
 router.post('/sync-balance', authMiddleware, async (_req, res) => {
   res.status(410).json({ error: 'Endpoint désactivé pour sécurité. Utilisez GET /api/auth/balance.' })
