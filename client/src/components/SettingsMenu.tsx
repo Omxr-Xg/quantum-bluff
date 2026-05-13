@@ -10,7 +10,6 @@ import {
 } from "../contexts/TableThemeContext";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 import { Slider } from "./ui/slider";
-import { Switch } from "./ui/switch";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { CustomScrollArea } from "./CustomScrollArea";
 
@@ -187,15 +186,24 @@ export function SettingsMenu({
                       <p className="text-gray-400 text-sm">{t("settings.musicHint")}</p>
                     </div>
                   </div>
-                  <Switch
-                    checked={bgmEnabled}
-                    onCheckedChange={(checked) => {
-                      toggleBgm(checked);
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleBgm(!bgmEnabled);
                       playSfx("uiClick");
                     }}
-                    className="mt-1 data-[state=checked]:bg-amber-500 data-[state=unchecked]:bg-slate-600"
+                    className={`relative w-16 h-8 rounded-full transition-all ${
+                      bgmEnabled ? "bg-green-600" : "bg-slate-600"
+                    }`}
+                    aria-pressed={bgmEnabled}
                     aria-label={t("settings.musicTitle")}
-                  />
+                  >
+                    <span
+                      className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
+                        bgmEnabled ? "translate-x-8" : ""
+                      }`}
+                    />
+                  </button>
                 </div>
                 <div className="mt-5 flex items-center gap-4">
                   <Slider
@@ -225,15 +233,25 @@ export function SettingsMenu({
                       <p className="text-gray-400 text-sm">{t("settings.sfxHint")}</p>
                     </div>
                   </div>
-                  <Switch
-                    checked={sfxEnabled}
-                    onCheckedChange={(checked) => {
-                      toggleSfx(checked);
-                      if (checked) playSfx("success");
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !sfxEnabled;
+                      toggleSfx(next);
+                      if (next) playSfx("success");
                     }}
-                    className="mt-1 data-[state=checked]:bg-cyan-500 data-[state=unchecked]:bg-slate-600"
+                    className={`relative w-16 h-8 rounded-full transition-all ${
+                      sfxEnabled ? "bg-green-600" : "bg-slate-600"
+                    }`}
+                    aria-pressed={sfxEnabled}
                     aria-label={t("settings.sfxTitle")}
-                  />
+                  >
+                    <span
+                      className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
+                        sfxEnabled ? "translate-x-8" : ""
+                      }`}
+                    />
+                  </button>
                 </div>
                 <div className="mt-5 flex items-center gap-4">
                   <Slider
