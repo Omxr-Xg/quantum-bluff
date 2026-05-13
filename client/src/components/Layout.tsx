@@ -74,8 +74,7 @@ import {
 import { useIsMobile } from "./ui/use-mobile";
 import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
-import { api, useSendFriendMessageMutation } from "../services/api";
-import { store } from "../store";
+import { useSendFriendMessageMutation } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
 
@@ -170,6 +169,8 @@ export function Layout({ children }: LayoutProps) {
   } | null>(null);
   const [friendQuickReply, setFriendQuickReply] = useState("");
   const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
+  /** Dédup FRIEND_MESSAGE (reconnexion / double emit). */
+  const recentFriendMessageKeysRef = useRef<Set<string>>(new Set());
   const [balance, setBalance] = useState(getUserBalance());
   /** Feedback court +N jetons (portefeuille) après gain / recharge. */
   const [walletGainFlash, setWalletGainFlash] = useState<number | null>(null);
@@ -456,8 +457,16 @@ export function Layout({ children }: LayoutProps) {
     };
 
     const handleFriendMessage = (payload: unknown) => {
-      const data = payload as { senderId: string; sender?: { username?: string }; content?: string };
-      const senderUsername = data.sender?.username ?? "un ami";
+      const data = payload as {
+        id?: string;
+        senderId: string;
+        createdAt?: string;
+        sender?: { username?: string };
+        content?: string;
+      };
+      const me = (getAuthItem("userId") ?? getAuthItem("userid") ?? "").trim();
+      if (me && data.senderId === me) return;
+
       const content = data.content ?? "";
       const preview = content.length > 80 ? content.slice(0, 80) + "…" : content;
 
@@ -468,6 +477,20 @@ export function Layout({ children }: LayoutProps) {
         params.get("tab") === "messages" &&
         params.get("with") === data.senderId;
       if (alreadyViewing) return;
+
+      const dedupKey =
+        data.id && String(data.id).length > 0
+          ? `id:${data.id}`
+          : `fp:${data.senderId}:${data.createdAt ?? ""}:${(data.content ?? "").slice(0, 48)}`;
+      const seen = recentFriendMessageKeysRef.current;
+      if (seen.has(dedupKey)) return;
+      seen.add(dedupKey);
+      while (seen.size > 50) {
+        const first = seen.values().next().value;
+        if (first != null) seen.delete(first);
+      }
+
+      const senderUsername = data.sender?.username ?? "un ami";
 
       setNotification({
         id: Date.now(),
@@ -529,10 +552,6 @@ export function Layout({ children }: LayoutProps) {
         receiverId,
         content: text,
       }).unwrap();
-      store.dispatch(api.util.invalidateTags([{ type: "FriendMessage", id: receiverId }]));
-      window.dispatchEvent(
-        new CustomEvent("refetch-friend-messages", { detail: { friendId: receiverId } }),
-      );
       playSfx("uiSelect");
       setNotification(null);
       setFriendQuickReply("");

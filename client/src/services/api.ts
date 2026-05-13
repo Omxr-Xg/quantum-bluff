@@ -216,7 +216,15 @@ export const api = createApi({
     }),
 
     sendFriendMessage: builder.mutation<
-      { id: string; senderId: string; receiverId: string; content: string; createdAt: string },
+      {
+        id: string;
+        senderId: string;
+        receiverId: string;
+        content: string;
+        createdAt: string;
+        sender?: { id: string; username: string };
+        receiver?: { id: string; username: string };
+      },
       { receiverId: string; content: string }
     >({
       query: (body) => ({
@@ -225,6 +233,58 @@ export const api = createApi({
         body,
       }),
       invalidatesTags: (_, __, { receiverId }) => [{ type: 'FriendMessage', id: receiverId }],
+      async onQueryStarted({ receiverId, content }, { dispatch, queryFulfilled }) {
+        const me = (getAuthItem('userId') ?? getAuthItem('userid') ?? '').trim()
+        if (!me) return
+
+        const displayName =
+          (getAuthItem('username') ?? getAuthItem('quantum_bluff_username') ?? '').trim() || '…'
+        const tmpId = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+
+        const patchResult = dispatch(
+          api.util.updateQueryData(
+            'getFriendMessages',
+            { userId: me, friendId: receiverId },
+            (draft) => {
+              draft.push({
+                id: tmpId,
+                senderId: me,
+                receiverId,
+                content,
+                createdAt: new Date().toISOString(),
+                sender: { id: me, username: displayName },
+                receiver: { id: receiverId, username: '…' },
+              })
+            },
+          ),
+        )
+
+        try {
+          const { data: row } = await queryFulfilled
+          dispatch(
+            api.util.updateQueryData(
+              'getFriendMessages',
+              { userId: me, friendId: receiverId },
+              (draft) => {
+                const i = draft.findIndex((m) => m.id === tmpId)
+                if (i === -1) return
+                const prev = draft[i]
+                draft[i] = {
+                  id: row.id,
+                  senderId: row.senderId,
+                  receiverId: row.receiverId,
+                  content: row.content,
+                  createdAt: row.createdAt,
+                  sender: row.sender ?? prev.sender,
+                  receiver: row.receiver ?? prev.receiver,
+                }
+              },
+            ),
+          )
+        } catch {
+          patchResult.undo()
+        }
+      },
     }),
 
     getPlayerStats: builder.query<PlayerStats, string>({

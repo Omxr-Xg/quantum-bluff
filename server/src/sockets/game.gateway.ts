@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { Server, Socket } from "socket.io";
 import { activeGames } from "../shared/activeGames.js";
 import { activeBlackjackGames } from "../shared/activeBlackjackGames.js";
@@ -450,6 +451,9 @@ export class GameGateway {
               return;
             }
 
+            if (socket.gameId && socket.gameId !== gameId) {
+              socket.leave(socket.gameId);
+            }
             socket.join(gameId);
             socket.gameId = gameId;
 
@@ -1082,7 +1086,7 @@ export class GameGateway {
 
       socket.on(
         "GAME_CHAT",
-        (data: {
+        async (data: {
           gameId: string;
           playerId: string;
           playerName: string;
@@ -1101,9 +1105,46 @@ export class GameGateway {
           if (socket.userId !== playerId) return;
           const censored = censorChatLinks(String(content));
           if (isChatContentEffectivelyEmpty(censored)) return;
-          socket.broadcast
-            .to(gameId)
-            .emit("GAME_CHAT", { playerId, playerName, content: censored, type });
+
+          const sanitizeChatDisplayName = (raw: unknown): string => {
+            const s = String(raw ?? "");
+            let out = "";
+            for (let i = 0; i < s.length && out.length < 48; i++) {
+              const c = s.charCodeAt(i);
+              if (c < 32 || c === 127) continue;
+              out += s[i]!;
+            }
+            return out.trim();
+          };
+
+          const uid = socket.userId;
+          let resolvedName = "Joueur";
+          if (uid) {
+            try {
+              const user = await prisma.user.findUnique({
+                where: { id: uid },
+                select: { username: true },
+              });
+              const fromDb = user?.username?.trim();
+              if (fromDb && fromDb.length > 0) {
+                resolvedName = fromDb;
+              } else {
+                resolvedName = sanitizeChatDisplayName(playerName) || "Joueur";
+              }
+            } catch {
+              resolvedName = sanitizeChatDisplayName(playerName) || "Joueur";
+            }
+          }
+
+          const id = randomUUID();
+          socket.broadcast.to(gameId).emit("GAME_CHAT", {
+            id,
+            gameId,
+            playerId,
+            playerName: resolvedName,
+            content: censored,
+            type,
+          });
         },
       );
 

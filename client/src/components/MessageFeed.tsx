@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChatReactionIcon, isChatReactionId } from "./chatReactionDisplay";
 
 interface ChatMessage {
-  id: number;
+  id: number | string;
   player: string;
   content: string;
   type: "emoji" | "text";
@@ -15,7 +15,13 @@ interface MessageFeedProps {
 }
 
 // 1. NOUVEAU SOUS-COMPOSANT : Gère la vie d'un seul message (entrée, attente, sortie animée)
-function ToastMessage({ message, onRemove }: { message: ChatMessage; onRemove: (id: number) => void }) {
+function ToastMessage({
+  message,
+  onRemove,
+}: {
+  message: ChatMessage;
+  onRemove: (id: number | string) => void;
+}) {
   const { t } = useTranslation();
   const [isLeaving, setIsLeaving] = useState(false);
   const displayName = message.player === "Vous" || message.player === "you" ? t('game.you') : message.player;
@@ -100,7 +106,7 @@ export function MessageFeed({ messages }: MessageFeedProps) {
   }, [messages]);
 
   // Fonction passée aux enfants pour qu'ils s'auto-détruisent
-  const handleRemove = useCallback((id: number) => {
+  const handleRemove = useCallback((id: number | string) => {
     setLocalMessages((prev) => prev.filter((m) => m.id !== id));
   }, []);
 

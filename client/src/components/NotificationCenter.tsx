@@ -50,6 +50,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
   /** Demandes de prêt reçues (prêteur) depuis la dernière visite Amis — aligné sur GET /pending-social. */
   const [serverLoanBadge, setServerLoanBadge] = useState(0);
   const [localNotices, setLocalNotices] = useState<LocalNoticePayload[]>([]);
+  const recentFriendMessageKeysRef = useRef<Set<string>>(new Set());
 
   const { data: friendRequests, refetch: refetchRequests } = useGetFriendRequestsQuery(
     userId ?? "",
@@ -145,17 +146,32 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     const handleFriendRequest = () => { refetchRequests(); };
     const handleFriendAccepted = () => { refetchRequests(); };
     const handleFriendMessage = (data: {
+      id?: string;
       senderId: string;
+      createdAt?: string;
       sender?: { username?: string };
       content?: string;
     }) => {
-      // Suppress when already viewing that conversation
+      if (userId && data.senderId === userId) return;
+
       const params = new URLSearchParams(window.location.search);
       const alreadyViewing =
         window.location.pathname === "/friends" &&
         params.get("tab") === "messages" &&
         params.get("with") === data.senderId;
       if (alreadyViewing) return;
+
+      const dedupKey =
+        data.id && String(data.id).length > 0
+          ? `id:${data.id}`
+          : `fp:${data.senderId}:${data.createdAt ?? ""}:${(data.content ?? "").slice(0, 48)}`;
+      const seen = recentFriendMessageKeysRef.current;
+      if (seen.has(dedupKey)) return;
+      seen.add(dedupKey);
+      while (seen.size > 50) {
+        const first = seen.values().next().value;
+        if (first != null) seen.delete(first);
+      }
 
       setUnreadMessages((prev) => {
         const filtered = prev.filter((m) => m.senderId !== data.senderId);
@@ -179,7 +195,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
       socket.off("FRIEND_REQUEST_ACCEPTED", handleFriendAccepted);
       socket.off("FRIEND_MESSAGE", handleFriendMessage);
     };
-  }, [socket, refetchRequests]);
+  }, [socket, refetchRequests, userId]);
 
   // Clear unread messages for a sender when navigating to their conversation
   useEffect(() => {

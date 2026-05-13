@@ -65,9 +65,7 @@ import { getPokerTableAvatar } from "../utils/avatars";
 import { getAuthItem } from "../utils/authStorage";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import {
-  shouldBotReplyToHuman,
   shouldBotTauntAfterAction,
-  pickBotReplyToHuman,
   pickBotTauntAfterAction,
 } from "../utils/botTableChat";
 import { censorChatLinks, isChatContentEffectivelyEmpty } from "../utils/chatLinkCensor";
@@ -90,7 +88,7 @@ type Card = ClientCard;
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 
 interface ChatMessage {
-  id: number;
+  id: number | string;
   player: string;
   content: string;
   type: "emoji" | "text";
@@ -346,6 +344,10 @@ export function Game() {
   );
   const [isBotThinking, setIsBotThinking] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const recentGameChatIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    recentGameChatIdsRef.current.clear();
+  }, [gameIdParam]);
   const [handActionLog, setHandActionLog] = useState<{ id: string; line: string }[]>([]);
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
   const hasPlayerActedRef = useRef(false);
@@ -1596,15 +1598,36 @@ export function Game() {
   useEffect(() => {
   if (!socket || !gameIdParam) return;
 
-    const onChatMessage = (data: { playerId: string; playerName: string; content: string; type: "emoji" | "text" }) => {
-      const id = Date.now();
+    const onChatMessage = (data: {
+      id?: string;
+      gameId?: string;
+      playerId: string;
+      playerName: string;
+      content: string;
+      type: "emoji" | "text";
+    }) => {
+      if (data.gameId != null && data.gameId !== gameIdParam) return;
+
+      const dedupKey =
+        data.id && data.id.length > 0
+          ? data.id
+          : `legacy:${data.playerId}:${data.content}:${data.type}`;
+      if (recentGameChatIdsRef.current.has(dedupKey)) return;
+      recentGameChatIdsRef.current.add(dedupKey);
+      while (recentGameChatIdsRef.current.size > 50) {
+        const first = recentGameChatIdsRef.current.values().next().value;
+        if (first != null) recentGameChatIdsRef.current.delete(first);
+      }
+
+      const id: number | string =
+        data.id && data.id.length > 0 ? data.id : `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       const isMe = String(data.playerId) === String(userId);
       const newMessage: ChatMessage = {
-        id: id,
+        id,
         player: isMe ? "Vous" : data.playerName,
         content: data.content,
         type: data.type,
-        timestamp: id,
+        timestamp: typeof id === "number" ? id : Date.now(),
         isLeaving: false,
       };
       setChatMessages((prev) => [...prev, newMessage]);
@@ -4211,14 +4234,14 @@ export function Game() {
       addToast(t("game.chatLinkBlocked", "Les liens ne sont pas autorisés dans le chat."), "error");
       return;
     }
-    const id = Date.now();
+    const id: number | string = `local_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     const myName = playersState.find((p) => p.id === userId || p.id === "human")?.name ?? "Vous";
     const newMessage: ChatMessage = {
-      id: id,
+      id,
       player: "Vous",
       content: outgoing,
       type: type,
-      timestamp: id,
+      timestamp: Date.now(),
       isLeaving: false,
     };
 
@@ -4245,21 +4268,6 @@ export function Game() {
         setChatMessages((prev) => prev.filter((msg) => msg.id !== id));
       }, 500);
     }, 4000);
-
-    if (mode === "bot") {
-      const chatGen = localHandGenerationRef.current;
-      const bots = playersStateRef.current.filter((p): p is BotPlayer => "isBot" in p && p.isBot);
-      if (bots.length > 0) {
-        const replier = bots[Math.floor(Math.random() * bots.length)]!;
-        if (shouldBotReplyToHuman(replier.difficulty)) {
-          const line = pickBotReplyToHuman(replier.difficulty, type, outgoing);
-          pushFadingChatLine(replier.name, line.content, line.type, {
-            generation: chatGen,
-            delayMs: 900 + Math.floor(Math.random() * 1400),
-          });
-        }
-      }
-    }
   };
 
   useEffect(() => {

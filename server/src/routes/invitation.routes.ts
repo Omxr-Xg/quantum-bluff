@@ -316,9 +316,8 @@ messagesRouter.post('/', friendMessageSendLimiter, async (req, res) => {
         sender: message.sender,
         receiver: message.receiver
       }
-      for (const uid of new Set([receiverIdStr, senderId])) {
-        io.to(`user:${uid}`).emit('FRIEND_MESSAGE', payload)
-      }
+      /* Émettre uniquement au destinataire : l'expéditeur met à jour via la réponse REST. */
+      io.to(`user:${receiverIdStr}`).emit('FRIEND_MESSAGE', payload)
     }
 
     return res.json(message)

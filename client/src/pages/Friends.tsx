@@ -415,11 +415,12 @@ export function Friends() {
     if (!socket || !userId || !selectedChat) return;
 
     const handleFriendMessage = (data: { senderId: string; receiverId: string }) => {
+      if (userId && data.senderId === userId) return;
       if (
         (data.senderId === selectedChat && data.receiverId === userId) ||
         (data.receiverId === selectedChat && data.senderId === userId)
       ) {
-        refetchMessages();
+        void refetchMessages();
       }
     };
 
