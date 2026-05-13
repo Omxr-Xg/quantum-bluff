@@ -1279,6 +1279,8 @@ export function Lobby() {
         refs={lobbyTourRefs}
         setMainTab={setMainTab}
         mainTabKey={lobbyMainTab}
+        finishLabelOverride={t("lobby.help.finishToTutorial")}
+        onFinish={() => navigate("/tutorial/game")}
       />
 
     </div>

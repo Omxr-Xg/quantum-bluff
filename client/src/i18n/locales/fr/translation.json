@@ -150,6 +150,7 @@
       "previous": "Précédent",
       "skip": "Passer",
       "finish": "Terminer",
+      "finishToTutorial": "Continuer : ta première main",
       "stepOf": "Étape {{current}} / {{total}}",
       "botTitle": "Jouer contre un bot",
       "botBody": "Entraînez-vous seul : choisissez le nombre de bots et la difficulté, puis lancez une partie.",
@@ -1749,6 +1750,161 @@
       "loadFailed": "Impossible de charger les defis.",
       "claimFailed": "Impossible de recuperer la recompense.",
       "claimNetwork": "Erreur reseau lors de la recuperation."
+    }
+  },
+  "tutorial": {
+    "game": {
+      "title": "Ta première main de Texas Hold'em",
+      "subtitle": "Une partie scénarisée contre un bot — aucun jeton de ton compte n'est utilisé.",
+      "you": "Toi",
+      "opponent": "Bot d'entraînement",
+      "pot": "Pot",
+      "skip": "Passer le tutoriel",
+      "next": "Suivant",
+      "prev": "Précédent",
+      "finish": "Retour au lobby",
+      "stepOf": "Étape {{current}} / {{total}}",
+      "position": {
+        "btnSb": "BTN · SB",
+        "bb": "BB",
+        "dealer": "Donneur"
+      },
+      "phase": {
+        "intro": "Intro",
+        "seats": "Sièges",
+        "blinds": "Blindes",
+        "deal": "Distribution",
+        "preflop": "Pré-flop",
+        "flop": "Flop",
+        "turn": "Turn",
+        "river": "River",
+        "showdown": "Abattage",
+        "outro": "Fin"
+      },
+      "actions": {
+        "title": "Tes actions",
+        "fold": "Coucher",
+        "check": "Parole",
+        "call": "Suivre",
+        "bet": "Miser",
+        "raise": "Relancer",
+        "allin": "Tapis"
+      },
+      "cta": {
+        "fold": "Clique sur « Coucher » pour passer ton tour.",
+        "check": "Clique sur « Parole » pour passer sans miser.",
+        "call": "Clique sur « Suivre » pour payer la mise en cours.",
+        "bet": "Clique sur « Miser {{amount}} » pour ouvrir le tour.",
+        "raise": "Clique sur « Relancer {{amount}} » pour passer à la vitesse supérieure."
+      },
+      "rankings": {
+        "title": "Classement des mains (du plus faible au plus fort)",
+        "yours": "Ta main",
+        "highCard": "Carte haute",
+        "pair": "Paire",
+        "twoPair": "Deux paires",
+        "threeKind": "Brelan",
+        "straight": "Quinte (suite)",
+        "flush": "Couleur",
+        "fullHouse": "Full",
+        "fourKind": "Carré",
+        "straightFlush": "Quinte flush",
+        "royalFlush": "Quinte flush royale"
+      },
+      "steps": {
+        "intro": {
+          "title": "Bienvenue à la table",
+          "body": "Au Texas Hold'em, l'objectif est de faire la meilleure main de 5 cartes parmi tes 2 cartes privées et les 5 cartes communes. On va jouer une main complète ensemble : préflop, flop, turn, river et abattage."
+        },
+        "seats": {
+          "title": "La table : 2 sièges",
+          "body": "Tu es en bas, le bot est en face. Pour ce tutoriel on joue en heads-up (1 contre 1). En vraie partie on peut être 2 à 9 à la table."
+        },
+        "dealer": {
+          "title": "Le bouton « dealer »",
+          "body": "Le rond blanc « D » désigne le donneur de la main. Il change de joueur à chaque main. En heads-up, le bouton paie la petite blinde et parle en premier préflop, puis en dernier sur les autres tours."
+        },
+        "blinds": {
+          "title": "Les blindes : mises obligatoires",
+          "body": "Avant même de voir les cartes, deux joueurs paient des « blindes » : la petite (SB = 10) et la grosse (BB = 20). Ici tu paies la petite blinde, le bot paie la grosse. Pot de départ : 30."
+        },
+        "deal": {
+          "title": "Tes cartes privées (hole cards)",
+          "body": "On reçoit 2 cartes que toi seul vois : ici A♥ K♥. Une excellente main de départ — l'as et le roi de la même couleur, idéal pour gagner gros."
+        },
+        "preflopExplain": {
+          "title": "Tes options préflop",
+          "body": "Tu as trois choix : coucher (abandonner la main), suivre (payer pour rester) ou relancer (mettre plus). Avec A♥ K♥ on relance presque toujours."
+        },
+        "preflopRaise": {
+          "title": "Relance à 60",
+          "body": "Une ouverture classique est 3 fois la BB, soit 60. Ça met de la pression et construit le pot avec une bonne main."
+        },
+        "preflopBotCalls": {
+          "title": "Le bot suit",
+          "body": "Le bot paie la différence pour rester dans la main. Le pot grimpe à 120. Direction : le flop."
+        },
+        "flop": {
+          "title": "Le flop : 3 cartes communes",
+          "body": "Le donneur retourne 3 cartes au milieu : 2♥ 7♥ K♣. Ces cartes appartiennent à tout le monde — on combine avec ses 2 cartes privées pour faire la meilleure main de 5."
+        },
+        "flopRead": {
+          "title": "Tu as la top paire + tirage couleur",
+          "body": "Avec ton K♥ tu fais une paire de Rois (la meilleure paire possible). En plus, tu as 4 cartes ♥ (A♥ K♥ + 2♥ 7♥) : encore une carte ♥ et tu touches la « couleur »."
+        },
+        "flopBet": {
+          "title": "Mise de continuité : 80",
+          "body": "C'est le standard : on continue à représenter une main forte. Un cbet de l'ordre de la moitié à 2/3 du pot suffit."
+        },
+        "flopBotCalls": {
+          "title": "Le bot suit",
+          "body": "Encore un call. Le pot est maintenant à 280. On passe au turn."
+        },
+        "turn": {
+          "title": "Le turn : 4e carte commune",
+          "body": "Une nouvelle carte commune : J♥. Le board fait maintenant 2♥ 7♥ K♣ J♥."
+        },
+        "turnFlush": {
+          "title": "Couleur complétée !",
+          "body": "Avec A♥ K♥ + 2♥ 7♥ J♥ sur le board, tu as 5 cartes ♥ : c'est une couleur à l'as ! C'est l'une des mains les plus fortes. Tu vas devoir construire un gros pot."
+        },
+        "turnRaise": {
+          "title": "Sur-relance à 350",
+          "body": "Le bot a misé 100 pour essayer de te faire fuir ton tirage. Tu touches déjà la couleur : tu relances pour 3,5× pour engloutir ses jetons."
+        },
+        "turnBotCalls": {
+          "title": "Le bot paie",
+          "body": "Le bot a une paire forte de son côté et ne lâche pas. Pot : 980. River en approche."
+        },
+        "river": {
+          "title": "La river : 5e carte commune",
+          "body": "Dernière carte commune : 3♠. Elle ne change pas le board pour toi — tu gardes ta couleur à l'as."
+        },
+        "riverBet": {
+          "title": "Mise de valeur : 400",
+          "body": "Tu sais que le bot a probablement une paire ou un brelan. Mise généreuse pour qu'il paie : c'est ce qu'on appelle une « value bet »."
+        },
+        "riverBotCalls": {
+          "title": "Le bot paie l'addition",
+          "body": "Pot final : 1780. On passe à l'abattage (showdown)."
+        },
+        "showdownReveal": {
+          "title": "Abattage : on retourne les cartes",
+          "body": "Le bot avait K♠ Q♠ : juste une paire de Rois avec une Dame en kicker. Pas mauvais, mais pas suffisant face à ta couleur."
+        },
+        "rankings": {
+          "title": "L'échelle des mains",
+          "body": "Voici l'ordre du plus faible au plus fort. Ta couleur (en surbrillance) bat la paire du bot. À chaque main, le joueur avec le rang le plus élevé remporte le pot."
+        },
+        "showdownWin": {
+          "title": "Tu remportes le pot !",
+          "body": "1780 jetons reviennent à ta pile. Bien joué."
+        },
+        "outro": {
+          "title": "Bravo, tu as fini le tutoriel",
+          "body": "Tu connais maintenant l'essentiel : positions, blindes, préflop, flop, turn, river, classement des mains et abattage. Lance une vraie partie contre un bot depuis le lobby quand tu veux."
+        }
+      }
     }
   }
 }

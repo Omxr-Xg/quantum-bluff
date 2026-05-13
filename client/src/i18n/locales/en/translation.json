@@ -150,6 +150,7 @@
       "previous": "Back",
       "skip": "Skip",
       "finish": "Done",
+      "finishToTutorial": "Next: your first hand",
       "stepOf": "Step {{current}} / {{total}}",
       "botTitle": "Play vs bot",
       "botBody": "Practice alone: pick number of bots and difficulty, then start a game.",
@@ -1750,5 +1751,160 @@
     "maxBet100": "Bets < $100",
     "players4Plus": "4+ Players",
     "noBots": "No Bots"
+  },
+  "tutorial": {
+    "game": {
+      "title": "Your first Texas Hold'em hand",
+      "subtitle": "A scripted match against a bot — no real chips from your account are spent.",
+      "you": "You",
+      "opponent": "Practice bot",
+      "pot": "Pot",
+      "skip": "Skip tutorial",
+      "next": "Next",
+      "prev": "Back",
+      "finish": "Back to lobby",
+      "stepOf": "Step {{current}} / {{total}}",
+      "position": {
+        "btnSb": "BTN · SB",
+        "bb": "BB",
+        "dealer": "Dealer"
+      },
+      "phase": {
+        "intro": "Intro",
+        "seats": "Seats",
+        "blinds": "Blinds",
+        "deal": "Deal",
+        "preflop": "Pre-flop",
+        "flop": "Flop",
+        "turn": "Turn",
+        "river": "River",
+        "showdown": "Showdown",
+        "outro": "End"
+      },
+      "actions": {
+        "title": "Your actions",
+        "fold": "Fold",
+        "check": "Check",
+        "call": "Call",
+        "bet": "Bet",
+        "raise": "Raise",
+        "allin": "All-in"
+      },
+      "cta": {
+        "fold": "Click \"Fold\" to give up the hand.",
+        "check": "Click \"Check\" to pass without betting.",
+        "call": "Click \"Call\" to match the current bet.",
+        "bet": "Click \"Bet {{amount}}\" to open this round.",
+        "raise": "Click \"Raise {{amount}}\" to put on more pressure."
+      },
+      "rankings": {
+        "title": "Hand rankings (lowest to highest)",
+        "yours": "Your hand",
+        "highCard": "High card",
+        "pair": "Pair",
+        "twoPair": "Two pair",
+        "threeKind": "Three of a kind",
+        "straight": "Straight",
+        "flush": "Flush",
+        "fullHouse": "Full house",
+        "fourKind": "Four of a kind",
+        "straightFlush": "Straight flush",
+        "royalFlush": "Royal flush"
+      },
+      "steps": {
+        "intro": {
+          "title": "Welcome to the table",
+          "body": "In Texas Hold'em, you make the best 5-card hand from your 2 private cards plus the 5 community cards. We'll play one full hand together: pre-flop, flop, turn, river, and showdown."
+        },
+        "seats": {
+          "title": "The table: 2 seats",
+          "body": "You sit at the bottom, the bot is across from you. This tutorial is heads-up (1 vs 1). In real games, tables can have 2 to 9 players."
+        },
+        "dealer": {
+          "title": "The dealer button",
+          "body": "The white \"D\" disc marks the dealer of the hand. It rotates each hand. Heads-up, the button posts the small blind and acts first pre-flop, then last on every other street."
+        },
+        "blinds": {
+          "title": "The blinds: forced bets",
+          "body": "Before any card is dealt, two players post \"blinds\": small (SB = 10) and big (BB = 20). Here you post the small, the bot posts the big. Starting pot: 30."
+        },
+        "deal": {
+          "title": "Your hole cards",
+          "body": "You receive 2 private cards only you see: here A♥ K♥. A premium hand — Ace and King of the same suit, perfect to win big."
+        },
+        "preflopExplain": {
+          "title": "Your pre-flop options",
+          "body": "You have three choices: fold (give up), call (pay to stay), or raise (bet more). With A♥ K♥ we almost always raise."
+        },
+        "preflopRaise": {
+          "title": "Raise to 60",
+          "body": "A standard open is 3× the BB, so 60. It builds the pot with a strong hand and pressures the opponent."
+        },
+        "preflopBotCalls": {
+          "title": "The bot calls",
+          "body": "The bot pays the difference to stay in. The pot is now 120. On to the flop."
+        },
+        "flop": {
+          "title": "The flop: 3 community cards",
+          "body": "The dealer reveals 3 cards in the middle: 2♥ 7♥ K♣. These are shared by everyone — you combine them with your 2 hole cards to make the best 5-card hand."
+        },
+        "flopRead": {
+          "title": "You hit top pair + flush draw",
+          "body": "With your K♥ you make a pair of Kings (the best pair possible). Plus you have 4 ♥ cards (A♥ K♥ + 2♥ 7♥): one more ♥ and you hit the flush."
+        },
+        "flopBet": {
+          "title": "Continuation bet: 80",
+          "body": "Standard play: keep representing a strong hand. A c-bet around half pot to two-thirds is enough."
+        },
+        "flopBotCalls": {
+          "title": "The bot calls",
+          "body": "Another call. Pot is now 280. On to the turn."
+        },
+        "turn": {
+          "title": "The turn: 4th community card",
+          "body": "A new community card: J♥. The board now reads 2♥ 7♥ K♣ J♥."
+        },
+        "turnFlush": {
+          "title": "Flush completed!",
+          "body": "With A♥ K♥ + 2♥ 7♥ J♥ on the board, you have 5 ♥ cards: an ace-high flush! One of the strongest hands. Time to grow the pot."
+        },
+        "turnRaise": {
+          "title": "Raise to 350",
+          "body": "The bot bet 100 to try to push you off your draw. You already have the flush: raise 3.5× to scoop more chips."
+        },
+        "turnBotCalls": {
+          "title": "The bot calls",
+          "body": "The bot has a strong pair and won't fold. Pot: 980. River coming."
+        },
+        "river": {
+          "title": "The river: 5th community card",
+          "body": "Last community card: 3♠. It doesn't change your hand — you keep your ace-high flush."
+        },
+        "riverBet": {
+          "title": "Value bet: 400",
+          "body": "You know the bot probably has a pair or trips. Big sizing to get max value: this is called a \"value bet\"."
+        },
+        "riverBotCalls": {
+          "title": "The bot pays the bill",
+          "body": "Final pot: 1780. Time for showdown."
+        },
+        "showdownReveal": {
+          "title": "Showdown: cards revealed",
+          "body": "The bot had K♠ Q♠: just a pair of Kings with a Queen kicker. Not bad, but not enough vs your flush."
+        },
+        "rankings": {
+          "title": "The hand-rank ladder",
+          "body": "Lowest to highest. Your flush (highlighted) beats the bot's pair. Each hand, the higher-ranked hand wins the pot."
+        },
+        "showdownWin": {
+          "title": "You win the pot!",
+          "body": "1780 chips go back to your stack. Well played."
+        },
+        "outro": {
+          "title": "You've finished the tutorial",
+          "body": "You now know the basics: positions, blinds, pre-flop, flop, turn, river, hand rankings, and showdown. Jump into a real bot game from the lobby anytime."
+        }
+      }
+    }
   }
 }

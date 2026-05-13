@@ -720,12 +720,12 @@ export function Layout({ children }: LayoutProps) {
     path.startsWith("/blackjack/table");
   /** Scroll sur la fenêtre (document) : évite le double scroll conteneur interne + contenu. */
   const lobbyDocumentScroll =
-    path === "/lobby" || path === "/tutorial-lobby";
+    path === "/lobby" || path === "/tutorial/game";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
     path.includes("waiting-room") ||
-    path.includes("tutorial-lobby") ||
+    path.startsWith("/tutorial/") ||
     path === "/minigames" ||
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
