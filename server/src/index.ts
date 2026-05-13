@@ -426,10 +426,18 @@ registerGracefulShutdown()
 
 ;(async () => {
   try {
+    rootLogger.info({ msg: 'server_boot_step', step: 'connect_db_start' })
     await connectDB()
+    rootLogger.info({ msg: 'server_boot_step', step: 'connect_db_done' })
+    rootLogger.info({ msg: 'server_boot_step', step: 'readiness_state_start' })
     await logDegradedStateAtBoot()
+    rootLogger.info({ msg: 'server_boot_step', step: 'readiness_state_done' })
+    rootLogger.info({ msg: 'server_boot_step', step: 'blackjack_recovery_start' })
     await recoverBlackjackRuntimeAtBoot()
+    rootLogger.info({ msg: 'server_boot_step', step: 'blackjack_recovery_done' })
+    rootLogger.info({ msg: 'server_boot_step', step: 'tournament_recovery_start' })
     await recoverTournamentsAtBoot(io)
+    rootLogger.info({ msg: 'server_boot_step', step: 'tournament_recovery_done' })
 
     httpServer.listen(PORT, () => {
       rootLogger.info({

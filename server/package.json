@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "nodemon --exec tsx src/index.ts",
+    "dev": "nodemon --watch src --watch prisma --ext ts,json,prisma --ignore src/generated --exec tsx src/devBoot.ts",
     "postinstall": "prisma generate",
     "build": "prisma generate && tsc && cp -r src/generated dist/",
     "lint": "eslint . --no-cache",
