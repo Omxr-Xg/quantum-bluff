@@ -244,8 +244,8 @@ export function BlackjackMultiCasinoTable({
             borderColor: "rgba(212, 175, 55, 0.28)",
           }}
         >
-          <div
-            className="relative h-[clamp(27rem,min(80dvh,92svh),40rem)] overflow-hidden rounded-[2rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_110px_rgba(0,0,0,0.38),inset_0_12px_32px_rgba(255,255,255,0.045)] sm:h-[clamp(23rem,62dvh,35rem)] sm:rounded-[2.5rem]"
+            <div
+              className="relative h-[clamp(27rem,min(80dvh,92svh),40rem)] overflow-hidden rounded-[2rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_110px_rgba(0,0,0,0.38),inset_0_12px_32px_rgba(255,255,255,0.045)] sm:h-[clamp(23rem,58dvh,34rem)] sm:rounded-[2.5rem] lg:h-[clamp(22rem,54dvh,32rem)] xl:h-[clamp(23rem,58dvh,34rem)] [@media_(min-width:1024px)_and_(max-height:820px)]:h-[clamp(20rem,50dvh,29rem)]"
             style={{
               background: `
                 radial-gradient(ellipse 115% 78% at 50% 18%, rgba(255,255,255,0.08) 0%, transparent 50%),
@@ -296,7 +296,7 @@ export function BlackjackMultiCasinoTable({
               </p>
             </div>
 
-            <div className="relative z-10 mt-1 flex flex-col items-center sm:mt-5 md:mt-6">
+            <div className="relative z-10 mt-1 flex flex-col items-center sm:mt-4 md:mt-5 [@media_(min-width:1024px)_and_(max-height:820px)]:mt-2">
               <div className="mb-1 flex items-center gap-2 sm:mb-2">
                 <span className="rounded-md border border-white/20 bg-black/30 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/90 shadow">
                   {t("bjMulti.dealer")}
@@ -308,7 +308,7 @@ export function BlackjackMultiCasinoTable({
                   ) : null}
                 </div>
               </div>
-              <div className="flex min-h-[4.25rem] items-center justify-center pl-3 sm:min-h-[5.75rem] sm:pl-4">
+              <div className="flex min-h-[4.25rem] items-center justify-center pl-3 sm:min-h-[5.25rem] sm:pl-4 [@media_(min-width:1024px)_and_(max-height:820px)]:min-h-[4.5rem]">
                 {state.dealerCards.length === 0 ? (
                   <div className="pointer-events-none opacity-0" aria-hidden>
                     <PlayingCard hidden />
@@ -347,7 +347,7 @@ export function BlackjackMultiCasinoTable({
               </div>
             </div>
 
-            <div className="relative z-10 mx-auto mt-2 flex w-full min-w-0 max-w-full flex-wrap md:flex-nowrap overflow-x-auto md:overflow-visible items-end justify-center gap-1.5 px-1.5 pb-10 sm:mt-7 sm:gap-4 sm:px-2 sm:pb-6 md:mt-9 lg:mt-10 scroll-smooth snap-x snap-mandatory scrollbar-hide">
+            <div className="relative z-10 mx-auto mt-2 flex w-full min-w-0 max-w-full flex-wrap md:flex-nowrap overflow-x-auto md:overflow-visible items-end justify-center gap-1.5 px-1.5 pb-8 sm:mt-5 sm:gap-4 sm:px-2 sm:pb-5 md:mt-7 lg:mt-8 [@media_(min-width:1024px)_and_(max-height:820px)]:mt-4 [@media_(min-width:1024px)_and_(max-height:820px)]:pb-3 scroll-smooth snap-x snap-mandatory scrollbar-hide">
               {sortedSeats.map((s) => {
                 const isYou = s.userId === userId;
                 const seatAvatar = getPlayerAvatar(s.username, s.userId, userId, s.avatarUrl);
