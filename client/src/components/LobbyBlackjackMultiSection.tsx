@@ -17,6 +17,7 @@ import {
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
+import { useNumberFieldInput, NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
 import { useGetFriendsQuery } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
@@ -84,6 +85,8 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
   const [newName, setNewName] = useState("");
   const [newMax, setNewMax] = useState(5);
   const [newMinBet, setNewMinBet] = useState(10);
+  const newMaxField = useNumberFieldInput({ value: newMax, onChange: setNewMax, min: 2, max: 7 });
+  const newMinBetField = useNumberFieldInput({ value: newMinBet, onChange: setNewMinBet, min: 10 });
   const [newVis, setNewVis] = useState<BjVisibility>("PUBLIC");
   const [busy, setBusy] = useState<string | null>(null);
   const [invitedFriendIds, setInvitedFriendIds] = useState<string[]>([]);
@@ -581,9 +584,12 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
             type="number"
             min={2}
             max={7}
-            value={newMax}
-            onChange={(e) => setNewMax(Number(e.target.value))}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-white backdrop-blur-md"
+            value={newMaxField.inputValue}
+            onChange={newMaxField.handleChange}
+            onFocus={newMaxField.handleFocus}
+            onBlur={newMaxField.handleBlur}
+            className={`mt-1 w-full rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-white backdrop-blur-md ${newMaxField.isInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
+            aria-invalid={newMaxField.isInvalid}
           />
         </label>
         <label className="mt-3 block text-sm text-slate-300">
@@ -591,9 +597,12 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
           <input
             type="number"
             min={10}
-            value={newMinBet}
-            onChange={(e) => setNewMinBet(Number(e.target.value))}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-white backdrop-blur-md"
+            value={newMinBetField.inputValue}
+            onChange={newMinBetField.handleChange}
+            onFocus={newMinBetField.handleFocus}
+            onBlur={newMinBetField.handleBlur}
+            className={`mt-1 w-full rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-white backdrop-blur-md ${newMinBetField.isInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
+            aria-invalid={newMinBetField.isInvalid}
           />
         </label>
         <label className="mt-3 block text-sm text-slate-300">
@@ -617,7 +626,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
           </button>
           <button
             type="button"
-            disabled={creating}
+            disabled={creating || newMaxField.isInvalid || newMinBetField.isInvalid}
             onClick={createRoom}
             className="inline-flex items-center gap-2 rounded-xl border border-rose-300/15 bg-rose-950/70 px-5 py-2.5 font-bold text-white hover:border-rose-200/25 hover:bg-rose-900/80 disabled:opacity-50"
           >

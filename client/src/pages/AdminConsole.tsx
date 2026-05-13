@@ -1236,9 +1236,22 @@ export function AdminConsole() {
                     <input
                       type="number"
                       value={codeForm.amount}
-                      onChange={(e) => setCodeForm({ ...codeForm, amount: parseInt(e.target.value) || 0 })}
+                      onFocus={(e) => {
+                        if (e.currentTarget.value === "0") e.currentTarget.select();
+                      }}
+                      onChange={(e) => {
+                        /* Saisie libre : on accepte n'importe quel chiffre ;
+                         * la bordure passe au rouge si la valeur est < 1. */
+                        const raw = e.target.value === "" ? 0 : Number.parseInt(e.target.value, 10);
+                        setCodeForm({ ...codeForm, amount: Number.isFinite(raw) ? raw : 0 });
+                      }}
                       min="1"
-                      className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                      className={`w-full rounded-lg border bg-slate-900 px-3 py-2 text-white focus:outline-none ${
+                        codeForm.amount < 1
+                          ? "border-red-500 focus:border-red-500"
+                          : "border-slate-600 focus:border-blue-500"
+                      }`}
+                      aria-invalid={codeForm.amount < 1}
                     />
                   </div>
                 </div>

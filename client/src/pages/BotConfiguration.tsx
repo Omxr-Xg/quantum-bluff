@@ -79,7 +79,7 @@ export function BotConfiguration() {
   // En mode expert, l’utilisateur ne peut pas choisir les jetons des bots,
   // donc on ignore la validation côté UI.
   const invalidBotChips =
-    numberOfBots !== null && !isExpert && botChips.slice(0, numberOfBots).some((c) => c < MIN_CHIPS);
+    numberOfBots !== null && !isExpert && botChips.slice(0, numberOfBots).some((c) => c < MIN_CHIPS || c > 100_000);
   const canStartGame = hasCompleteSelection && !invalidBotChips;
 
   const handleStartGame = async () => {
@@ -327,7 +327,7 @@ export function BotConfiguration() {
               ) : (
                 Array.from({ length: selectedBotCount }, (_, i) => {
                   const val = botChips[i];
-                  const isInvalid = val < MIN_CHIPS;
+                  const isInvalid = val < MIN_CHIPS || val > 100_000;
                   return (
                     <div key={i} className="flex items-center gap-4">
                       <div className="flex items-center gap-2 min-w-[120px]">
@@ -345,18 +345,26 @@ export function BotConfiguration() {
                           max={100000}
                           step={100}
                           value={val}
+                          onFocus={(e) => {
+                            if (e.currentTarget.value === "0") e.currentTarget.select();
+                          }}
                           onChange={(e) => {
+                            /* Saisie libre : on n'applique aucun clamp en cours
+                             * de frappe. La validation visuelle (rouge) et la
+                             * desactivation du bouton de demarrage se chargent
+                             * du reste. */
                             const raw = e.target.value === "" ? 0 : Number(e.target.value);
-                            const val = Number.isNaN(raw) ? 0 : Math.min(100000, Math.max(0, raw));
+                            const next = Number.isFinite(raw) ? raw : 0;
                             setBotChips((prev) => {
-                              const next = [...prev];
-                              next[i] = val;
-                              return next;
+                              const arr = [...prev];
+                              arr[i] = next;
+                              return arr;
                             });
                           }}
                           className={`flex-1 rounded-lg border bg-white/[0.055] px-4 py-2 text-sm text-white transition-colors [appearance:textfield] backdrop-blur-md focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
                             isInvalid ? "border-red-500 focus:border-red-500" : "border-white/10 focus:border-blue-300/40"
                           }`}
+                          aria-invalid={isInvalid}
                         />
                         {isInvalid && (
                           <div className="relative flex items-center gap-1">

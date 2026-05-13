@@ -3,6 +3,7 @@
  */
 import type { PrismaClient } from '../generated/prisma/index.js'
 import { SLOT_MAX_BET_CAP, SLOT_MIN_BET } from './slotMachine.js'
+import { BLACKJACK_MAX_BET_CAP } from './blackjack.js'
 import { ROULETTE_MAX_BET_CAP, ROULETTE_MAX_TOTAL_STAKE } from './roulette.js'
 
 /** XP total requis pour atteindre le niveau L (L >= 1). T(1)=0, T(2)=100, T(3)=300, … formule 50*L*(L-1). */
@@ -39,9 +40,10 @@ export function getEffectiveSlotMaxBet(level: number): number {
   return Math.min(SLOT_MAX_BET_CAP, Math.max(SLOT_MIN_BET, Math.floor(baseCap + t * span)))
 }
 
-/** Plafond mise blackjack : même courbe que le slot. */
+/** Plafond mise blackjack : fixe = `BLACKJACK_MAX_BET_CAP` (1000) quel que soit le niveau. */
 export function getEffectiveBlackjackMaxBet(level: number): number {
-  return getEffectiveSlotMaxBet(level)
+  void level
+  return BLACKJACK_MAX_BET_CAP
 }
 
 export function getEffectiveRouletteMaxPerLine(level: number): number {

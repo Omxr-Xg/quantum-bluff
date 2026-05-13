@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
+import { useNumberFieldInput, NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
 import { apiUrl } from "../utils/apiBase";
 import {
   updateUserBalance,
@@ -434,19 +435,12 @@ export function BlackjackMultiTable() {
     };
   }, [socket, gameId, addToast, applyRuntimeCode, navigate, t]);
 
-  const handleBetChange = (value: number) => {
-    if (!isNaN(value) && isFinite(value)) {
-      const min = state?.minBet || 1;
-      const max = bjMaxDisplay;
-      setBetInput(Math.min(Math.max(value, min), max));
-    }
-  };
-
-  const handleBetBlur = () => {
-    const min = state?.minBet || 1;
-    const max = bjMaxDisplay;
-    setBetInput(Math.min(Math.max(betInput, min), max));
-  };
+  const betField = useNumberFieldInput({
+    value: betInput,
+    onChange: setBetInput,
+    min: state?.minBet || 1,
+    max: bjMaxDisplay,
+  });
 
   if (loading || !state) {
     return (
@@ -491,14 +485,16 @@ export function BlackjackMultiTable() {
                     type="number"
                     min={state.minBet}
                     max={bjMaxDisplay}
-                    value={betInput}
-                    onChange={(e) => handleBetChange(Number(e.target.value))}
-                    onBlur={handleBetBlur}
-                    className="rounded-xl border-2 border-amber-700/50 bg-black/50 px-4 py-3 text-center font-mono text-lg text-white shadow-inner focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                    value={betField.inputValue}
+                    onChange={betField.handleChange}
+                    onFocus={betField.handleFocus}
+                    onBlur={betField.handleBlur}
+                    className={`rounded-xl border-2 border-amber-700/50 bg-black/50 px-4 py-3 text-center font-mono text-lg text-white shadow-inner focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 ${betField.isInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
+                    aria-invalid={betField.isInvalid}
                   />
                 </label>
                 <NeonButton
-                  disabled={runtimeDisableActions || acting}
+                  disabled={runtimeDisableActions || acting || betField.isInvalid}
                   onClick={postBet}
                   variant="green"
                   className={`${btnBase} w-full sm:w-auto`}

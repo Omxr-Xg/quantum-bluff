@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useDeviceType } from "./ui/use-mobile";
+import { useNumberFieldInput, NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
 import { ChipIcon } from "./ChipIcon";
 import {
   quoteHiddenBet,
@@ -104,6 +105,7 @@ export function HiddenBetsPanel({
   const [classKey, setClassKey] = useState<string>("STRAIGHT");
   const [rank, setRank] = useState<string>("A");
   const [amount, setAmount] = useState(50);
+  const amountField = useNumberFieldInput({ value: amount, onChange: setAmount, min: 10, max: 10000 });
   const [isPlacing, setIsPlacing] = useState(false);
   const [quoteOdds, setQuoteOdds] = useState<number | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -795,13 +797,12 @@ export function HiddenBetsPanel({
                     type="number"
                     min={10}
                     max={10000}
-                    value={amount}
-                    onChange={(e) =>
-                      setAmount(
-                        Math.min(10000, Math.max(10, parseInt(e.target.value, 10) || 0))
-                      )
-                    }
-                    className="w-full bg-transparent text-white p-2 focus:outline-none"
+                    value={amountField.inputValue}
+                    onChange={amountField.handleChange}
+                    onFocus={amountField.handleFocus}
+                    onBlur={amountField.handleBlur}
+                    className={`w-full bg-transparent text-white p-2 focus:outline-none ${amountField.isInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
+                    aria-invalid={amountField.isInvalid}
                   />
                 </div>
               </div>
