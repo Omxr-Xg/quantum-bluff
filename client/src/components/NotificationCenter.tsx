@@ -15,6 +15,10 @@ import {
   LOCAL_NOTICE_REMOVE_EVENT,
   type LocalNoticePayload,
 } from "../utils/localNotices";
+import {
+  FRIEND_CHAT_REPLIED_EVENT,
+  getActiveFriendChat,
+} from "../utils/activeFriendChat";
 
 interface UnreadMessage {
   senderId: string;
@@ -154,6 +158,11 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     }) => {
       if (userId && data.senderId === userId) return;
 
+      /* Conversation déjà ouverte ⇒ pas d'unread (la bell ne doit pas signaler
+       * un message qu'on est en train de lire). Source primaire : module global
+       * activeFriendChat ; fallback URL pour le cas où Friends ne soit pas
+       * encore mount. */
+      if (getActiveFriendChat() === data.senderId) return;
       const params = new URLSearchParams(window.location.search);
       const alreadyViewing =
         window.location.pathname === "/friends" &&
@@ -207,6 +216,19 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
       }
     }
   }, [location]);
+
+  /* Réponse envoyée dans une conversation : retire l'unread du sender concerné
+   * — l'utilisateur a déjà traité le message, plus besoin de l'afficher dans la
+   * cloche. */
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const friendId = (ev as CustomEvent<{ friendId?: string }>).detail?.friendId;
+      if (!friendId) return;
+      setUnreadMessages((prev) => prev.filter((m) => m.senderId !== friendId));
+    };
+    window.addEventListener(FRIEND_CHAT_REPLIED_EVENT, handler);
+    return () => window.removeEventListener(FRIEND_CHAT_REPLIED_EVENT, handler);
+  }, []);
 
   // Close the panel on route change
   useEffect(() => {

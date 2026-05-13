@@ -21,6 +21,7 @@ import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
+import { useNumberFieldInput, NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
 import { useToast } from "../contexts/ToastContext";
 import { useTopBar } from "../contexts/TopBarContext";
 
@@ -44,6 +45,10 @@ import { getFriendLoanApiErrorMessage } from "../utils/friendLoanApiError";
 import { censorChatLinks, isChatContentEffectivelyEmpty } from "../utils/chatLinkCensor";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
+import {
+  notifyFriendChatReplied,
+  setActiveFriendChat,
+} from "../utils/activeFriendChat";
 
 type FriendsTab = "friends" | "messages" | "loans";
 type FriendStatusFilter = "all" | "online" | "offline";
@@ -158,8 +163,22 @@ export function Friends() {
     }
   }, [searchParams]);
 
+  /* Publie au monde la conversation actuellement ouverte : Layout / NotificationCenter
+   * s'en servent pour décider de NE PAS pousser une notif si le sender = celui qu'on
+   * regarde. Reset au unmount = pas de chat actif (l'utilisateur n'est plus sur Friends). */
+  useEffect(() => {
+    setActiveFriendChat(selectedChat);
+    return () => setActiveFriendChat(null);
+  }, [selectedChat]);
+
   const [loanModal, setLoanModal] = useState<{ id: string; username: string } | null>(null);
   const [loanAmount, setLoanAmount] = useState(500);
+  const loanAmountField = useNumberFieldInput({
+    value: loanAmount,
+    onChange: setLoanAmount,
+    min: 100,
+    max: 1_000_000,
+  });
   const [loanRate, setLoanRate] = useState<number>(30);
 
   const [createLoanRequest, { isLoading: creatingLoan }] = useCreateFriendLoanRequestMutation();
@@ -456,6 +475,8 @@ export function Friends() {
         content: censored,
       }).unwrap();
       setMessageInput("");
+      /* J'ai répondu : plus besoin de garder une notif/un unread pour ce contact. */
+      notifyFriendChatReplied(selectedChat);
     } catch (err: unknown) {
       const e = err as { data?: { error?: string } | string; status?: number };
       const serverMsg = typeof e?.data === 'object' && e?.data?.error ? e.data.error : null;
@@ -872,9 +893,12 @@ export function Friends() {
               type="number"
               min={100}
               max={1000000}
-              value={loanAmount}
-              onChange={(e) => setLoanAmount(Number(e.target.value) || 0)}
-              className={`mb-4 w-full px-4 py-3 ${pokerInput}`}
+              value={loanAmountField.inputValue}
+              onChange={loanAmountField.handleChange}
+              onFocus={loanAmountField.handleFocus}
+              onBlur={loanAmountField.handleBlur}
+              className={`mb-4 w-full px-4 py-3 ${pokerInput} ${loanAmountField.isInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
+              aria-invalid={loanAmountField.isInvalid}
             />
             <label className="mb-1 block text-sm text-gray-300">{t("friends.loans.repaymentRate")}</label>
             <select
@@ -902,7 +926,7 @@ export function Friends() {
             </div>
             <button
               type="button"
-              disabled={creatingLoan || loanAmount < 100}
+              disabled={creatingLoan || loanAmountField.isInvalid}
               onClick={async () => {
                 try {
                   await createLoanRequest({

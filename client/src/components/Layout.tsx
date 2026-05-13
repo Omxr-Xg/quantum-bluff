@@ -75,8 +75,13 @@ import { useIsMobile } from "./ui/use-mobile";
 import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
 import { useSendFriendMessageMutation } from "../services/api";
+import { NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
+import {
+  FRIEND_CHAT_REPLIED_EVENT,
+  getActiveFriendChat,
+} from "../utils/activeFriendChat";
 
 const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 const WITHDRAW_PRESETS = [100, 500, 1000, 2500, 5000];
@@ -470,7 +475,11 @@ export function Layout({ children }: LayoutProps) {
       const content = data.content ?? "";
       const preview = content.length > 80 ? content.slice(0, 80) + "…" : content;
 
-      // Suppress if already viewing this conversation
+      /* Suppression : on n'envoie PAS de notif si la conversation avec ce sender
+       * est ouverte. On regarde deux sources :
+       *  1. le state global publié par Friends.tsx (source de vérité instantanée) ;
+       *  2. fallback sur l'URL au cas où Friends ne se soit pas encore mount. */
+      if (getActiveFriendChat() === data.senderId) return;
       const params = new URLSearchParams(window.location.search);
       const alreadyViewing =
         window.location.pathname === "/friends" &&
@@ -543,6 +552,23 @@ export function Layout({ children }: LayoutProps) {
     return () => clearTimeout(timer);
   }, [notification]);
 
+  /* Si on a répondu dans la conversation à ce sender, on retire immédiatement
+   * la notification "friend_message" qui le concerne — pas de raison d'attendre
+   * le timer de 5 s, on n'a plus besoin de ce rappel. */
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const friendId = (ev as CustomEvent<{ friendId?: string }>).detail?.friendId;
+      if (!friendId) return;
+      setNotification((cur) => {
+        if (!cur) return cur;
+        if (cur.kind === "friend_message" && cur.senderId === friendId) return null;
+        return cur;
+      });
+    };
+    window.addEventListener(FRIEND_CHAT_REPLIED_EVENT, handler);
+    return () => window.removeEventListener(FRIEND_CHAT_REPLIED_EVENT, handler);
+  }, []);
+
   const submitFriendQuickReply = useCallback(async () => {
     if (!notification || notification.kind !== "friend_message") return;
     const text = friendQuickReply.trim();
@@ -558,6 +584,12 @@ export function Layout({ children }: LayoutProps) {
         content,
       }).unwrap();
       playSfx("uiSelect");
+      /* J'ai répondu via la quick-reply : retire l'unread bell pour ce sender. */
+      window.dispatchEvent(
+        new CustomEvent(FRIEND_CHAT_REPLIED_EVENT, {
+          detail: { friendId: receiverId },
+        }),
+      );
     } catch (err: unknown) {
       const e = err as { data?: { error?: string } | string; status?: number };
       const serverMsg = typeof e?.data === "object" && e?.data?.error ? e.data.error : null;
@@ -1776,27 +1808,39 @@ export function Layout({ children }: LayoutProps) {
                           );
                         })}
                       </div>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={WITHDRAW_MIN_AMOUNT}
-                        max={balance}
-                        step={50}
-                        value={withdrawAmount ?? ""}
-                        onChange={(e) => {
-                          const raw = e.target.value === "" ? null : Number(e.target.value);
-                          setWithdrawAmount(
-                            raw == null || Number.isNaN(raw)
-                              ? null
-                              : Math.max(0, Math.floor(raw)),
-                          );
-                        }}
-                        placeholder={t("lobby.withdrawAmountPlaceholder", {
-                          min: WITHDRAW_MIN_AMOUNT,
-                        })}
-                        className="w-full rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 text-slate-50 placeholder-slate-500 focus:outline-none focus:border-emerald-300/55 focus:ring-1 focus:ring-emerald-300/35 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        aria-label={t("lobby.withdrawAmountLabel")}
-                      />
+                      {(() => {
+                        const wInvalid =
+                          withdrawAmount != null &&
+                          (withdrawAmount < WITHDRAW_MIN_AMOUNT || withdrawAmount > balance);
+                        return (
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={WITHDRAW_MIN_AMOUNT}
+                            max={balance}
+                            step={50}
+                            value={withdrawAmount ?? ""}
+                            onFocus={(e) => {
+                              if (e.currentTarget.value === "0") e.currentTarget.select();
+                            }}
+                            onChange={(e) => {
+                              /* Saisie libre : on stocke la valeur brute sans clamp pour
+                               * que l'utilisateur puisse, p. ex., taper "1" -> "10" -> "100".
+                               * La validation visuelle + le bouton "Retirer" lock la chose. */
+                              const raw = e.target.value === "" ? null : Number(e.target.value);
+                              setWithdrawAmount(
+                                raw == null || !Number.isFinite(raw) ? null : Math.floor(raw),
+                              );
+                            }}
+                            placeholder={t("lobby.withdrawAmountPlaceholder", {
+                              min: WITHDRAW_MIN_AMOUNT,
+                            })}
+                            className={`w-full rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 text-slate-50 placeholder-slate-500 focus:outline-none focus:border-emerald-300/55 focus:ring-1 focus:ring-emerald-300/35 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${wInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
+                            aria-label={t("lobby.withdrawAmountLabel")}
+                            aria-invalid={wInvalid}
+                          />
+                        );
+                      })()}
                       <div className="mt-1 flex items-center justify-between gap-2 text-[11px]">
                         <span className="text-slate-500">
                           {t("lobby.withdrawAvailableBalance", {
