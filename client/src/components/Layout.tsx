@@ -534,7 +534,8 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     if (!notification) return;
 
-    const delayMs = notification.kind === "friend_message" ? 60_000 : 5000;
+    /* Message ami : 5 s sans action ; autres toasts layout : 5 s aussi. */
+    const delayMs = 5000;
     const timer = setTimeout(() => {
       setNotification(null);
     }, delayMs);
@@ -546,15 +547,17 @@ export function Layout({ children }: LayoutProps) {
     if (!notification || notification.kind !== "friend_message") return;
     const text = friendQuickReply.trim();
     if (!text || sendingFriendReply) return;
+    const receiverId = notification.senderId;
+    const content = text;
+    /* Fermeture immédiate à l'envoi ; l'optimistic RTK met à jour la conversation. */
+    setNotification(null);
+    setFriendQuickReply("");
     try {
-      const receiverId = notification.senderId;
       await sendFriendMessage({
         receiverId,
-        content: text,
+        content,
       }).unwrap();
       playSfx("uiSelect");
-      setNotification(null);
-      setFriendQuickReply("");
     } catch (err: unknown) {
       const e = err as { data?: { error?: string } | string; status?: number };
       const serverMsg = typeof e?.data === "object" && e?.data?.error ? e.data.error : null;
