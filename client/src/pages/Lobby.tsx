@@ -1688,6 +1688,23 @@ export function Lobby() {
                     )}
                   </div>
                 </div>
+                </div>
+
+                <div className="rounded-2xl border border-amber-400/15 bg-amber-950/40 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+                  <h2 className="mb-2 flex items-center gap-3 text-xl font-bold text-white">
+                    <Trophy className="h-7 w-7 text-amber-200" aria-hidden />
+                    {t("lobby.tournamentTeaserTitle")}
+                  </h2>
+                  <p className="mb-4 text-sm text-amber-100/80">{t("lobby.tournamentTeaserBody")}</p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/tournaments")}
+                    className="w-full rounded-xl border border-amber-300/25 bg-amber-900/70 py-3 font-bold text-white transition hover:border-amber-200/40 hover:bg-amber-800/80 md:py-4"
+                    aria-label={t("lobby.tournamentTeaserCta")}
+                  >
+                    {t("lobby.tournamentTeaserCta")}
+                  </button>
+                </div>
               </div>
 
               {/* Section Tournois — meme structure que Serveur Multi-joueurs :
