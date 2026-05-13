@@ -25,6 +25,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
+import { useNumberFieldInput, NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
 import {
   fetchTournaments,
   fetchLiveSpectateTournaments,
@@ -223,6 +224,50 @@ export function Lobby() {
   const gamesMemo = useMemo(() => gamesInProgress, [gamesInProgress]);
   const openTournamentsMemo = useMemo(() => openTournaments, [openTournaments]);
   const liveTournamentsMemo = useMemo(() => liveTournaments, [liveTournaments]);
+
+  /* Inputs numeriques : saisie libre + bordure rouge si invalide. */
+  const smallBlindField = useNumberFieldInput({
+    value: createSmallBlind,
+    onChange: setCreateSmallBlind,
+    min: 1,
+    max: 10000,
+  });
+  const bigBlindField = useNumberFieldInput({
+    value: createBigBlind,
+    onChange: setCreateBigBlind,
+    min: 1,
+    max: 10000,
+  });
+  const minBalanceField = useNumberFieldInput({
+    value: createMinBalance,
+    onChange: setCreateMinBalance,
+    min: 0,
+    max: 1_000_000,
+  });
+  const tournamentMaxPlayersField = useNumberFieldInput({
+    value: tournamentMaxPlayers,
+    onChange: setTournamentMaxPlayers,
+    min: TOURNAMENT_MIN_PLAYERS,
+    max: TOURNAMENT_MAX_PLAYERS,
+  });
+  const tournamentStackField = useNumberFieldInput({
+    value: tournamentInitialStack,
+    onChange: setTournamentInitialStack,
+    min: 100,
+    max: 100_000_000,
+  });
+  const tournamentSmallBlindField = useNumberFieldInput({
+    value: tournamentBlindSmall,
+    onChange: setTournamentBlindSmall,
+    min: 1,
+    max: 10_000_000,
+  });
+  const tournamentBigBlindField = useNumberFieldInput({
+    value: tournamentBlindBig,
+    onChange: setTournamentBlindBig,
+    min: 1,
+    max: 10_000_000,
+  });
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -657,11 +702,18 @@ export function Lobby() {
 
   const MIN_BALANCE = 100;
   const isMinBalanceInvalid = createMinBalance < MIN_BALANCE;
+  /* Blinds invalides : bornes serveur ; on rejette aussi un SB > BB. */
+  const isBlindsInvalid =
+    smallBlindField.isInvalid ||
+    bigBlindField.isInvalid ||
+    createSmallBlind > createBigBlind;
   const canCreateServer =
     createVisibility !== null &&
     createMaxPlayers !== null &&
     !creating &&
-    !isMinBalanceInvalid;
+    !isMinBalanceInvalid &&
+    !minBalanceField.isInvalid &&
+    !isBlindsInvalid;
 
   const handleCreateServer = async () => {
     if (!userId) return;
@@ -844,21 +896,10 @@ export function Lobby() {
               >
                 {t('lobby.title')}
               </h1>
-              {/* Slogan : juste sous le titre, avant le welcome (visible sur >=sm).
+              {/* Slogan : juste sous le titre (visible sur >=sm).
                * Point final retire ici uniquement pour un rendu en-tete plus aere. */}
               <p className="mt-0.5 hidden truncate text-[0.7rem] font-light italic tracking-[0.16em] text-cyan-200/70 sm:block md:text-xs md:tracking-[0.18em]">
                 {t('app.slogan').replace(/[.\u06D4\u3002]+$/u, '')}
-              </p>
-              <p
-                className={`truncate text-sm transition-colors duration-700 md:text-base ${
-                  lobbyMainTab === "poker"
-                    ? "text-slate-300/75"
-                    : lobbyMainTab === "minigames"
-                      ? "text-emerald-200/65"
-                      : "text-rose-200/65"
-                }`}
-              >
-                {t('lobby.welcome', { username: username || 'Joueur' })}
               </p>
             </div>
           </div>
@@ -872,9 +913,10 @@ export function Lobby() {
           </div>
         </div>
 
-        {/* Modal Créer un serveur - FIX MOBILE SCROLL */}
+        {/* Modal Créer un serveur - FIX MOBILE SCROLL.
+         * Backdrop flou + assombri pour focus visuel sur le panneau. */}
         {showCreateModal && (
-          <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center overflow-y-auto p-4" onClick={() => setShowCreateModal(false)}>
+          <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowCreateModal(false)}>
             <div className="my-auto mx-2 w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-white">{t('lobby.createServerTitle')}</h3>
@@ -1057,10 +1099,13 @@ export function Lobby() {
                           type="number"
                           min={1}
                           max={10000}
-                          value={createSmallBlind}
-                          onChange={(e) => setCreateSmallBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
-                          className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          value={smallBlindField.inputValue}
+                          onChange={smallBlindField.handleChange}
+                          onFocus={smallBlindField.handleFocus}
+                          onBlur={smallBlindField.handleBlur}
+                          className={`w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${smallBlindField.isInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
                           aria-label={t('lobby.smallBlind')}
+                          aria-invalid={smallBlindField.isInvalid}
                         />
                       </div>
                       <div>
@@ -1085,10 +1130,13 @@ export function Lobby() {
                           type="number"
                           min={1}
                           max={10000}
-                          value={createBigBlind}
-                          onChange={(e) => setCreateBigBlind(Math.max(1, Math.min(10000, Number(e.target.value) || 2)))}
-                          className="w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          value={bigBlindField.inputValue}
+                          onChange={bigBlindField.handleChange}
+                          onFocus={bigBlindField.handleFocus}
+                          onBlur={bigBlindField.handleBlur}
+                          className={`w-full rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${bigBlindField.isInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
                           aria-label={t('lobby.minRaise')}
+                          aria-invalid={bigBlindField.isInvalid}
                         />
                         <p className="text-slate-500 text-xs mt-1">{t('lobby.minRaiseHint')}</p>
                       </div>
@@ -1116,16 +1164,15 @@ export function Lobby() {
                             min={0}
                             max={1000000}
                             step={100}
-                            value={createMinBalance}
-                            onChange={(e) => {
-                              const raw = e.target.value === "" ? 0 : Number(e.target.value);
-                              const val = Number.isNaN(raw) ? 0 : Math.min(1000000, Math.max(0, raw));
-                              setCreateMinBalance(val);
-                            }}
-                            className={`flex-1 rounded-lg border bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
-                              isMinBalanceInvalid ? "border-red-500" : "border-white/10"
+                            value={minBalanceField.inputValue}
+                            onChange={minBalanceField.handleChange}
+                            onFocus={minBalanceField.handleFocus}
+                            onBlur={minBalanceField.handleBlur}
+                            className={`flex-1 rounded-lg border border-white/10 bg-white/[0.055] px-4 py-2 text-sm text-white [appearance:textfield] backdrop-blur-md [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                              (minBalanceField.isInvalid || isMinBalanceInvalid) ? NUMBER_FIELD_INVALID_CLASS : ""
                             }`}
                             aria-label={t('lobby.minBalance')}
+                            aria-invalid={minBalanceField.isInvalid || isMinBalanceInvalid}
                           />
                           {isMinBalanceInvalid && (
                             <div className="relative flex items-center gap-1">
@@ -1162,10 +1209,11 @@ export function Lobby() {
           </div>
         )}
 
-        {/* Modal "Creer un tournoi" : compact (nom + rapide/normale), puis etendu (champs). */}
+        {/* Modal "Creer un tournoi" : compact (nom + rapide/normale), puis etendu (champs).
+         * Backdrop flou + assombri pour focus visuel sur le panneau. */}
         {showTournamentCreate && (
           <div
-            className="fixed inset-0 z-[100] flex items-start md:items-center justify-center overflow-y-auto p-4"
+            className="fixed inset-0 z-[100] flex items-start md:items-center justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md animate-in fade-in duration-200"
             onClick={closeTournamentModal}
           >
             <div
@@ -1291,9 +1339,12 @@ export function Lobby() {
                         type="number"
                         min={TOURNAMENT_MIN_PLAYERS}
                         max={TOURNAMENT_MAX_PLAYERS}
-                        value={tournamentMaxPlayers}
-                        onChange={(e) => setTournamentMaxPlayers(clampTournamentMaxPlayers(e.target.value))}
-                        className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30"
+                        value={tournamentMaxPlayersField.inputValue}
+                        onChange={tournamentMaxPlayersField.handleChange}
+                        onFocus={tournamentMaxPlayersField.handleFocus}
+                        onBlur={tournamentMaxPlayersField.handleBlur}
+                        className={`w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30 ${tournamentMaxPlayersField.isInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
+                        aria-invalid={tournamentMaxPlayersField.isInvalid}
                       />
                     </div>
                     <div>
@@ -1309,11 +1360,12 @@ export function Lobby() {
                         min={100}
                         max={100_000_000}
                         step={100}
-                        value={tournamentInitialStack}
-                        onChange={(e) =>
-                          setTournamentInitialStack(Math.max(100, Number.parseInt(e.target.value, 10) || 100))
-                        }
-                        className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30"
+                        value={tournamentStackField.inputValue}
+                        onChange={tournamentStackField.handleChange}
+                        onFocus={tournamentStackField.handleFocus}
+                        onBlur={tournamentStackField.handleBlur}
+                        className={`w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30 ${tournamentStackField.isInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
+                        aria-invalid={tournamentStackField.isInvalid}
                       />
                     </div>
                   </div>
@@ -1332,11 +1384,12 @@ export function Lobby() {
                         type="number"
                         min={1}
                         max={10_000_000}
-                        value={tournamentBlindSmall}
-                        onChange={(e) =>
-                          setTournamentBlindSmall(Math.max(1, Number.parseInt(e.target.value, 10) || 1))
-                        }
-                        className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30"
+                        value={tournamentSmallBlindField.inputValue}
+                        onChange={tournamentSmallBlindField.handleChange}
+                        onFocus={tournamentSmallBlindField.handleFocus}
+                        onBlur={tournamentSmallBlindField.handleBlur}
+                        className={`w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30 ${tournamentSmallBlindField.isInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
+                        aria-invalid={tournamentSmallBlindField.isInvalid}
                       />
                     </div>
                     <div>
@@ -1351,9 +1404,12 @@ export function Lobby() {
                         type="number"
                         min={1}
                         max={10_000_000}
-                        value={tournamentBlindBig}
-                        onChange={(e) => setTournamentBlindBig(Math.max(1, Number.parseInt(e.target.value, 10) || 1))}
-                        className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30"
+                        value={tournamentBigBlindField.inputValue}
+                        onChange={tournamentBigBlindField.handleChange}
+                        onFocus={tournamentBigBlindField.handleFocus}
+                        onBlur={tournamentBigBlindField.handleBlur}
+                        className={`w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30 ${tournamentBigBlindField.isInvalid ? NUMBER_FIELD_INVALID_CLASS : ""}`}
+                        aria-invalid={tournamentBigBlindField.isInvalid}
                       />
                     </div>
                   </div>
