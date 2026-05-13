@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Loader2, Sparkles, Crown, Gem, Zap, Spade, Heart, Diamond, Club } from "lucide-react";
+import { Loader2, Sparkles, Crown, Gem, Spade, Heart, Diamond, Club } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import i18n from "../i18n/config";
 import { getAuthItem } from "../utils/authStorage";
@@ -184,8 +184,9 @@ export function StartScreen() {
         ))}
       </div>
 
-      {/* Contenu principal - centré verticalement et horizontalement */}
-      <div className="relative z-10 flex min-h-[100dvh] w-full flex-col items-center justify-center p-6 py-8 sm:min-h-full sm:p-8 sm:py-12">
+      {/* Contenu principal - centré verticalement et horizontalement,
+       * legerement descendu (pt > pb) pour respirer sous la barre OS / encoche. */}
+      <div className="relative z-10 flex min-h-[100dvh] w-full flex-col items-center justify-center p-6 pt-20 pb-8 sm:min-h-full sm:p-8 sm:pt-28 sm:pb-12">
         {/* Logo avec effets sophistiqués - BLEU NUIT */}
         <div className="relative mb-7 sm:mb-12">
           {/* Glow pulsant */}
@@ -218,7 +219,7 @@ export function StartScreen() {
 
         {/* Titre avec gradient animé - BLEU NUIT */}
         <div className="mb-3 text-center sm:mb-4">
-          <h1 className="mb-2 text-center text-5xl font-bold sm:text-7xl">
+          <h1 className="mb-1 text-center text-5xl font-bold leading-[1.05] sm:mb-1.5 sm:text-7xl">
             <span
               className="bg-gradient-to-r from-blue-200 via-cyan-100 to-blue-300 bg-clip-text text-transparent animate-gradient-flow"
               style={{
@@ -229,15 +230,14 @@ export function StartScreen() {
               Quantum Bluff
             </span>
           </h1>
-          <div className="flex items-center justify-center gap-2 text-slate-300"> {/* Texte plus clair */}
-            <Zap className="h-4 w-4 animate-pulse text-blue-300 sm:h-5 sm:w-5" />
-            <p className="text-base font-light tracking-wide sm:text-xl sm:tracking-wider">{t('startScreen.tagline')}</p>
-            <Zap className="h-4 w-4 animate-pulse text-blue-300 sm:h-5 sm:w-5" style={{ animationDelay: "0.5s" }} />
+          {/* Slogan : colle au titre, style italique elegant + filets degrades. */}
+          <div className="flex items-center justify-center gap-2.5 sm:gap-3">
+            <span className="h-px w-6 bg-gradient-to-r from-transparent to-cyan-300/55 sm:w-10" />
+            <p className="text-[0.78rem] font-light italic tracking-[0.18em] text-cyan-100/85 sm:text-sm sm:tracking-[0.22em]">
+              {t('app.slogan')}
+            </p>
+            <span className="h-px w-6 bg-gradient-to-l from-transparent to-cyan-300/55 sm:w-10" />
           </div>
-          {/* Slogan — sous le tagline, plus discret, italique. */}
-          <p className="mt-2 text-sm italic tracking-wide text-cyan-200/70 sm:mt-3 sm:text-base">
-            {t('app.slogan')}
-          </p>
         </div>
 
         {/* Ligne décorative - BLEU NUIT */}

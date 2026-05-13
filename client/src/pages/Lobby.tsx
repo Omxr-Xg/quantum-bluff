@@ -844,6 +844,11 @@ export function Lobby() {
               >
                 {t('lobby.title')}
               </h1>
+              {/* Slogan : juste sous le titre, avant le welcome (visible sur >=sm).
+               * Point final retire ici uniquement pour un rendu en-tete plus aere. */}
+              <p className="mt-0.5 hidden truncate text-[0.7rem] font-light italic tracking-[0.16em] text-cyan-200/70 sm:block md:text-xs md:tracking-[0.18em]">
+                {t('app.slogan').replace(/[.\u06D4\u3002]+$/u, '')}
+              </p>
               <p
                 className={`truncate text-sm transition-colors duration-700 md:text-base ${
                   lobbyMainTab === "poker"
@@ -854,10 +859,6 @@ export function Lobby() {
                 }`}
               >
                 {t('lobby.welcome', { username: username || 'Joueur' })}
-              </p>
-              {/* Slogan : visible sur >=sm pour ne pas surcharger les petits ecrans. */}
-              <p className="mt-0.5 hidden truncate text-xs italic tracking-wide text-cyan-200/60 sm:block md:text-sm">
-                {t('app.slogan')}
               </p>
             </div>
           </div>

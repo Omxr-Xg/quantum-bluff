@@ -39,10 +39,14 @@ export const LoaderProvider = ({ children }: { children: ReactNode }) => {
           <p className="relative text-blue-100 text-lg font-medium animate-pulse tracking-wide">
             {message}
           </p>
-          {/* Slogan — sous le message, plus discret, italique. */}
-          <p className="relative mt-3 max-w-[20rem] px-4 text-center text-sm italic tracking-wide text-cyan-200/60 sm:text-base">
-            {t('app.slogan')}
-          </p>
+          {/* Slogan : style italique elegant aligne sur la StartScreen. */}
+          <div className="relative mt-4 flex items-center justify-center gap-2.5 sm:gap-3">
+            <span className="h-px w-6 bg-gradient-to-r from-transparent to-cyan-300/45 sm:w-9" />
+            <p className="text-[0.78rem] font-light italic tracking-[0.18em] text-cyan-100/75 sm:text-sm sm:tracking-[0.22em]">
+              {t('app.slogan')}
+            </p>
+            <span className="h-px w-6 bg-gradient-to-l from-transparent to-cyan-300/45 sm:w-9" />
+          </div>
         </div>
       )}
     </LoaderContext.Provider>
