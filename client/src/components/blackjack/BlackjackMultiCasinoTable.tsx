@@ -451,7 +451,7 @@ export function BlackjackMultiCasinoTable({
           </div>
         </div>
 
-        <div className="relative z-20 mx-auto mt-4 max-w-3xl rounded-[2rem] border border-white/10 bg-slate-950/55 px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md sm:mt-6 sm:py-4 sm:px-8">
+        <div className="relative z-30 mx-auto mt-5 max-w-3xl rounded-[2rem] border border-white/10 bg-slate-950/70 px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md sm:mt-7 sm:py-4 sm:px-8 [@media_(min-width:1024px)_and_(max-height:820px)]:mt-4">
           {children}
         </div>
       </div>
