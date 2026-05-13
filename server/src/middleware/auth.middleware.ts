@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import { extractBearerToken, verifyToken } from '../auth/jwt.service.js'
 import { isBlacklisted } from '../auth/tokenBlacklist.js'
+import { prisma } from '../config/database.js'
 import { env } from '../config/env.js'
 
 function debugAuth(message: string, details?: Record<string, unknown>) {
@@ -40,6 +41,16 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     }
 
     debugAuth('ok', { userId: decoded.userId })
+
+    const userExists = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true },
+    })
+    if (!userExists) {
+      debugAuth('rejected: token user not found', { userId: decoded.userId })
+      return res.status(401).json({ error: 'Session expirée, reconnecte-toi' })
+    }
+
     req.userId = decoded.userId
 
     return next()
