@@ -3,6 +3,9 @@
     "seeMore": "Показати більше",
     "chooseLanguage": "Змінити мову"
   },
+  "app": {
+    "slogan": "Кожна перемога починається з блефу."
+  },
   "networkOverlay": {
     "serverUnreachableTitle": "Немає з'єднання з сервером",
     "serverUnreachableHint": "Перевір інтернет або чи запущений бекенд.",
@@ -84,9 +87,15 @@
     "blackjackPlay": "Грати в блекджек",
     "blackjackSoloHint": "Той самий стіл, що й «Створити стіл»: гра лише для вас, без інших гравців.",
     "blackjackMultiLobby": "Багатокористувацькі столи (лобі)",
-    "tournamentTeaserTitle": "Турніри Texas Hold'em",
-    "tournamentTeaserBody": "Віртуальні столи, олімпійська система, досвід та фішки.",
-    "tournamentTeaserCta": "Відкрити лобі турнірів",
+    "tournamentBlockTitle": "Турніри",
+    "tournamentWaiting": "Турніри в очікуванні",
+    "tournamentInProgress": "Турніри в процесі",
+    "noTournamentsAvailable": "Немає доступних турнірів",
+    "tournamentBlinds": "Блайнди {{small}}/{{big}}",
+    "tournamentTables_one": "{{count}} стіл",
+    "tournamentTables_few": "{{count}} столи",
+    "tournamentTables_many": "{{count}} столів",
+    "tournamentTables_other": "{{count}} столів",
     "devValidation": "Введіть \"dev\" для підтвердження",
     "fakePaymentDisclaimer": "Лише демо-оплата — реального списання з картки немає.",
     "fakePaymentChipsLine": "Пакет: {{count}} фішок",
@@ -1689,7 +1698,7 @@
       "title": "Підсумок",
       "subtitle": "Фінальні місця та зароблений досвід",
       "backRoom": "Сторінка турніру",
-      "backList": "Усі турніри",
+      "backLobby": "Назад у лобі",
       "pending": "Таблиця з’явиться після завершення турніру.",
       "colRank": "Місце",
       "colPlayer": "Гравець",

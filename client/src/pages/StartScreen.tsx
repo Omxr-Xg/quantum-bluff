@@ -234,6 +234,10 @@ export function StartScreen() {
             <p className="text-base font-light tracking-wide sm:text-xl sm:tracking-wider">{t('startScreen.tagline')}</p>
             <Zap className="h-4 w-4 animate-pulse text-blue-300 sm:h-5 sm:w-5" style={{ animationDelay: "0.5s" }} />
           </div>
+          {/* Slogan — sous le tagline, plus discret, italique. */}
+          <p className="mt-2 text-sm italic tracking-wide text-cyan-200/70 sm:mt-3 sm:text-base">
+            {t('app.slogan')}
+          </p>
         </div>
 
         {/* Ligne décorative - BLEU NUIT */}

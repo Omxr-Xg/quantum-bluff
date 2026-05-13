@@ -1,6 +1,6 @@
 import { createContext, useState, useContext, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
-// 1. On définit ce que notre cerveau sait faire
 interface LoaderContextType {
   isLoading: boolean;
   message: string;
@@ -10,8 +10,8 @@ interface LoaderContextType {
 
 const LoaderContext = createContext<LoaderContextType | undefined>(undefined);
 
-// 2. On crée le composant Provider qui va envelopper l'application
 export const LoaderProvider = ({ children }: { children: ReactNode }) => {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -28,8 +28,7 @@ export const LoaderProvider = ({ children }: { children: ReactNode }) => {
   return (
     <LoaderContext.Provider value={{ isLoading, message, showLoader, hideLoader }}>
       {children}
-      
-      {/* 3. L'INTERFACE VISUELLE DU LOADER (Tailwind) */}
+
       {isLoading && (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[#020716]/92 backdrop-blur-md transition-opacity">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_45%_at_50%_35%,rgba(37,99,235,0.22),transparent_60%),linear-gradient(165deg,#020716_0%,#061326_48%,#02040c_100%)]" />
@@ -39,6 +38,10 @@ export const LoaderProvider = ({ children }: { children: ReactNode }) => {
           </div>
           <p className="relative text-blue-100 text-lg font-medium animate-pulse tracking-wide">
             {message}
+          </p>
+          {/* Slogan — sous le message, plus discret, italique. */}
+          <p className="relative mt-3 max-w-[20rem] px-4 text-center text-sm italic tracking-wide text-cyan-200/60 sm:text-base">
+            {t('app.slogan')}
           </p>
         </div>
       )}

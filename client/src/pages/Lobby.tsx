@@ -22,14 +22,24 @@ import {
   Sparkles,
   Disc,
   SquareStack,
+  Trophy,
 } from "lucide-react";
+import { useSocket } from "../hooks/useSocket";
+import {
+  fetchTournaments,
+  fetchLiveSpectateTournaments,
+  createTournament,
+} from "../features/tournament/services/tournamentApi";
+import {
+  TOURNAMENT_MIN_PLAYERS,
+  TOURNAMENT_MAX_PLAYERS,
+} from "../features/tournament/tournamentConstants";
 import lobbyHeaderIcon from "../../app-icon.png";
 import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
 import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
-import { OPEN_RATE_GAME_EVENT, STORAGE_RATE_GAME_PROMPT_SHOWN } from "../constants/storageKeys";
 import { apiUrl } from "../utils/apiBase";
 import {
   getUserBalance,
@@ -40,6 +50,29 @@ import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSec
 import { DailyChallenges } from "../components/DailyChallenges";
 import { getAuthItem } from "../utils/authStorage";
 import { FreeRechargeButton } from '../components/FreeRechargeButton';
+
+/* Helpers de formatage de la date de depart d'un tournoi (datetime-local). */
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function dateToStartAtLocal(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function defaultTournamentStartLocal(): string {
+  return dateToStartAtLocal(new Date(Date.now() + 60 * 60 * 1000));
+}
+
+function startAtLocalFromNowPlusMinutes(minutes: number): string {
+  return dateToStartAtLocal(new Date(Date.now() + minutes * 60 * 1000));
+}
+
+function clampTournamentMaxPlayers(raw: string): number {
+  const v = Number.parseInt(raw, 10);
+  if (Number.isNaN(v)) return TOURNAMENT_MIN_PLAYERS;
+  return Math.min(TOURNAMENT_MAX_PLAYERS, Math.max(TOURNAMENT_MIN_PLAYERS, v));
+}
 
 function readLobbyTabFromUrl(): "poker" | "minigames" | "blackjack" {
   if (typeof window === "undefined") return "poker";
@@ -86,6 +119,29 @@ interface GameInProgressItem {
   canJoin: boolean;
 }
 
+interface TournamentOpenItem {
+  id: string;
+  name: string;
+  startAt: string;
+  maxPlayers: number;
+  blindSmall: number;
+  blindBig: number;
+  _count: { players: number };
+}
+
+interface TournamentLiveTable {
+  gameId: string;
+  roundNumber: number;
+  playerCount: number;
+}
+
+interface TournamentLiveItem {
+  tournamentId: string;
+  name: string;
+  status: string;
+  tables: TournamentLiveTable[];
+}
+
 export function Lobby() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -116,6 +172,25 @@ export function Lobby() {
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
   const [gamesInProgress, setGamesInProgress] = useState<GameInProgressItem[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
+  const [openTournaments, setOpenTournaments] = useState<TournamentOpenItem[]>([]);
+  const [liveTournaments, setLiveTournaments] = useState<TournamentLiveItem[]>([]);
+  const [tournamentsLoading, setTournamentsLoading] = useState(true);
+  const [tournamentsError, setTournamentsError] = useState<string | null>(null);
+  /* Modal "Creer un tournoi" : compact par defaut (nom + rapide/normale).
+   * `tournamentExpanded` revele les champs detailles (SB, BB, joueurs, date...). */
+  const [showTournamentCreate, setShowTournamentCreate] = useState(false);
+  const [tournamentExpanded, setTournamentExpanded] = useState(false);
+  const [tournamentName, setTournamentName] = useState("");
+  const [tournamentVisibility, setTournamentVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
+  const [tournamentJoinCode, setTournamentJoinCode] = useState("");
+  const [tournamentMaxPlayers, setTournamentMaxPlayers] = useState(8);
+  const [tournamentInitialStack, setTournamentInitialStack] = useState(2000);
+  const [tournamentBlindSmall, setTournamentBlindSmall] = useState(10);
+  const [tournamentBlindBig, setTournamentBlindBig] = useState(20);
+  const [tournamentStartAtLocal, setTournamentStartAtLocal] = useState(defaultTournamentStartLocal);
+  const [tournamentCreating, setTournamentCreating] = useState(false);
+  const [tournamentCreateError, setTournamentCreateError] = useState<string | null>(null);
+  const { socket } = useSocket();
   const [lobbyTourOpen, setLobbyTourOpen] = useState(false);
   const [lobbyTourStep, setLobbyTourStep] = useState(0);
   const lobbyTourOpenRef = useRef(false);
@@ -146,6 +221,8 @@ export function Lobby() {
   // Performance: memoize rooms for map operations
   const roomsMemo = useMemo(() => rooms, [rooms]);
   const gamesMemo = useMemo(() => gamesInProgress, [gamesInProgress]);
+  const openTournamentsMemo = useMemo(() => openTournaments, [openTournaments]);
+  const liveTournamentsMemo = useMemo(() => liveTournaments, [liveTournaments]);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -228,14 +305,6 @@ export function Lobby() {
         headers: authHeaders(),
       });
       setLobbyTutorialFirstRun("no");
-    } catch {
-      /* ignore */
-    }
-    try {
-      if (!localStorage.getItem(STORAGE_RATE_GAME_PROMPT_SHOWN)) {
-        localStorage.setItem(STORAGE_RATE_GAME_PROMPT_SHOWN, "1");
-        window.dispatchEvent(new CustomEvent(OPEN_RATE_GAME_EVENT));
-      }
     } catch {
       /* ignore */
     }
@@ -367,6 +436,208 @@ export function Lobby() {
     window.addEventListener("refetch-waiting-rooms", onRefetchWaitingRooms);
     return () => window.removeEventListener("refetch-waiting-rooms", onRefetchWaitingRooms);
   }, [fetchRooms]);
+
+  /* Tournois : on charge en parallele la liste des tournois ouverts (lobby
+   * d'inscription) et ceux deja en cours (live spectate). Source de verite
+   * identique a la page /tournaments ; rafraichissement par evenement socket
+   * `TOURNAMENT_LOBBY_LIST_UPDATED` + fallback polling 10s. */
+  const fetchTournamentsBoth = useCallback(async () => {
+    try {
+      const [open, live] = await Promise.all([
+        fetchTournaments(),
+        fetchLiveSpectateTournaments(),
+      ]);
+      setOpenTournaments(Array.isArray(open) ? (open as TournamentOpenItem[]) : []);
+      setLiveTournaments(Array.isArray(live) ? (live as TournamentLiveItem[]) : []);
+      setTournamentsError(null);
+    } catch (e) {
+      setTournamentsError(e instanceof Error ? e.message : t("common.error"));
+    } finally {
+      setTournamentsLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    void fetchTournamentsBoth();
+    const iv = setInterval(fetchTournamentsBoth, 10_000);
+    return () => clearInterval(iv);
+  }, [fetchTournamentsBoth]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const joinLobby = () => {
+      if (socket.connected) socket.emit("JOIN_TOURNAMENT_LOBBY");
+    };
+    const onListUpdated = () => {
+      void fetchTournamentsBoth();
+    };
+    joinLobby();
+    socket.on("connect", joinLobby);
+    socket.on("TOURNAMENT_LOBBY_LIST_UPDATED", onListUpdated);
+    return () => {
+      socket.off("connect", joinLobby);
+      socket.off("TOURNAMENT_LOBBY_LIST_UPDATED", onListUpdated);
+      if (socket.connected) socket.emit("LEAVE_TOURNAMENT_LOBBY");
+    };
+  }, [socket, fetchTournamentsBoth]);
+
+  const resetTournamentForm = useCallback(() => {
+    setTournamentName("");
+    setTournamentVisibility("PUBLIC");
+    setTournamentJoinCode("");
+    setTournamentMaxPlayers(8);
+    setTournamentInitialStack(2000);
+    setTournamentBlindSmall(10);
+    setTournamentBlindBig(20);
+    setTournamentStartAtLocal(defaultTournamentStartLocal());
+    setTournamentCreateError(null);
+    setTournamentExpanded(false);
+  }, []);
+
+  const openTournamentModal = useCallback(() => {
+    resetTournamentForm();
+    setShowTournamentCreate(true);
+  }, [resetTournamentForm]);
+
+  const closeTournamentModal = useCallback(() => {
+    if (tournamentCreating) return;
+    setShowTournamentCreate(false);
+    setTournamentCreateError(null);
+  }, [tournamentCreating]);
+
+  const autoTournamentName = useCallback(
+    () =>
+      t("tournament.arena.quickName", {
+        time: new Date().toLocaleTimeString(),
+      }),
+    [t],
+  );
+
+  /** Validation alignee sur le backend pour eviter les divergences cote serveur. */
+  const validateTournamentForm = useCallback((): string | null => {
+    if (tournamentVisibility === "PRIVATE" && tournamentJoinCode.trim().length < 4) {
+      return t("tournament.arena.valJoinCode");
+    }
+    if (
+      !Number.isFinite(tournamentMaxPlayers) ||
+      Math.floor(tournamentMaxPlayers) !== tournamentMaxPlayers ||
+      tournamentMaxPlayers < TOURNAMENT_MIN_PLAYERS ||
+      tournamentMaxPlayers > TOURNAMENT_MAX_PLAYERS
+    ) {
+      return t("tournament.arena.valMaxPlayers", {
+        min: TOURNAMENT_MIN_PLAYERS,
+        max: TOURNAMENT_MAX_PLAYERS,
+      });
+    }
+    const start = new Date(tournamentStartAtLocal);
+    if (Number.isNaN(start.getTime())) return t("tournament.arena.valStartInvalid");
+    if (start.getTime() < Date.now() - 15_000) {
+      return t("tournament.arena.valStartFuture");
+    }
+    if (
+      !Number.isFinite(tournamentInitialStack) ||
+      Math.floor(tournamentInitialStack) !== tournamentInitialStack ||
+      tournamentInitialStack < 100 ||
+      tournamentInitialStack > 100_000_000
+    ) {
+      return t("tournament.arena.valStack");
+    }
+    if (
+      !Number.isFinite(tournamentBlindSmall) ||
+      !Number.isFinite(tournamentBlindBig) ||
+      Math.floor(tournamentBlindSmall) !== tournamentBlindSmall ||
+      Math.floor(tournamentBlindBig) !== tournamentBlindBig
+    ) {
+      return t("tournament.arena.valBlinds");
+    }
+    if (tournamentBlindSmall < 1 || tournamentBlindBig < 1) return t("tournament.arena.valBlinds");
+    if (tournamentBlindSmall > 10_000_000 || tournamentBlindBig > 10_000_000) {
+      return t("tournament.arena.valBlindsMax");
+    }
+    if (tournamentBlindSmall > tournamentBlindBig) return t("tournament.arena.valSbBb");
+    return null;
+  }, [
+    t,
+    tournamentVisibility,
+    tournamentJoinCode,
+    tournamentMaxPlayers,
+    tournamentStartAtLocal,
+    tournamentInitialStack,
+    tournamentBlindSmall,
+    tournamentBlindBig,
+  ]);
+
+  /** Creation rapide : valeurs par defaut + depart dans ~60s. Le nom saisi est conserve. */
+  const handleQuickCreateTournament = useCallback(async () => {
+    if (tournamentCreating) return;
+    setTournamentCreating(true);
+    setTournamentCreateError(null);
+    try {
+      const { id } = await createTournament({
+        name: tournamentName.trim() || autoTournamentName(),
+        visibility: "PUBLIC",
+        maxPlayers: 8,
+        initialStack: 2000,
+        startAt: new Date(Date.now() + 60_000).toISOString(),
+        blindSmall: 10,
+        blindBig: 20,
+      });
+      setShowTournamentCreate(false);
+      resetTournamentForm();
+      navigate(`/tournaments/${id}`);
+    } catch (e) {
+      setTournamentCreateError(e instanceof Error ? e.message : t("common.error"));
+    } finally {
+      setTournamentCreating(false);
+    }
+  }, [tournamentCreating, tournamentName, autoTournamentName, navigate, resetTournamentForm, t]);
+
+  /** Creation detaillee : valide puis envoie tous les parametres saisis. */
+  const handleSubmitTournament = useCallback(async () => {
+    if (tournamentCreating) return;
+    const v = validateTournamentForm();
+    if (v) {
+      setTournamentCreateError(v);
+      return;
+    }
+    setTournamentCreating(true);
+    setTournamentCreateError(null);
+    try {
+      const body: Record<string, unknown> = {
+        name: tournamentName.trim() || autoTournamentName(),
+        visibility: tournamentVisibility,
+        maxPlayers: tournamentMaxPlayers,
+        initialStack: tournamentInitialStack,
+        blindSmall: tournamentBlindSmall,
+        blindBig: tournamentBlindBig,
+        startAt: new Date(tournamentStartAtLocal).toISOString(),
+      };
+      if (tournamentVisibility === "PRIVATE") body.joinCode = tournamentJoinCode.trim();
+      const { id } = await createTournament(body);
+      setShowTournamentCreate(false);
+      resetTournamentForm();
+      navigate(`/tournaments/${id}`);
+    } catch (e) {
+      setTournamentCreateError(e instanceof Error ? e.message : t("common.error"));
+    } finally {
+      setTournamentCreating(false);
+    }
+  }, [
+    tournamentCreating,
+    validateTournamentForm,
+    tournamentName,
+    autoTournamentName,
+    tournamentVisibility,
+    tournamentMaxPlayers,
+    tournamentInitialStack,
+    tournamentBlindSmall,
+    tournamentBlindBig,
+    tournamentStartAtLocal,
+    tournamentJoinCode,
+    navigate,
+    resetTournamentForm,
+    t,
+  ]);
 
   const handlePlayBot = () => {
     navigate("/bot-configuration");
@@ -583,6 +854,10 @@ export function Lobby() {
                 }`}
               >
                 {t('lobby.welcome', { username: username || 'Joueur' })}
+              </p>
+              {/* Slogan : visible sur >=sm pour ne pas surcharger les petits ecrans. */}
+              <p className="mt-0.5 hidden truncate text-xs italic tracking-wide text-cyan-200/60 sm:block md:text-sm">
+                {t('app.slogan')}
               </p>
             </div>
           </div>
@@ -886,6 +1161,266 @@ export function Lobby() {
           </div>
         )}
 
+        {/* Modal "Creer un tournoi" : compact (nom + rapide/normale), puis etendu (champs). */}
+        {showTournamentCreate && (
+          <div
+            className="fixed inset-0 z-[100] flex items-start md:items-center justify-center overflow-y-auto p-4"
+            onClick={closeTournamentModal}
+          >
+            <div
+              className={`my-auto mx-2 w-full ${tournamentExpanded ? "max-w-xl" : "max-w-md"} rounded-2xl border border-amber-300/20 bg-slate-950/75 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl transition-all`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-amber-300" />
+                  {t("tournament.arena.modalTitle")}
+                </h3>
+                <button
+                  type="button"
+                  onClick={closeTournamentModal}
+                  className="text-slate-400 hover:text-white p-1 disabled:opacity-50"
+                  disabled={tournamentCreating}
+                  aria-label={t("common.close")}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Nom du tournoi (commun aux 2 modes) */}
+              <div className="mb-5">
+                <label htmlFor="lobby-tournament-name" className="mb-2 block text-sm font-medium text-slate-300">
+                  {t("tournament.arena.labelName")}
+                </label>
+                <input
+                  id="lobby-tournament-name"
+                  type="text"
+                  maxLength={80}
+                  value={tournamentName}
+                  onChange={(e) => setTournamentName(e.target.value)}
+                  placeholder={t("tournament.arena.namePlaceholder")}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30"
+                  autoComplete="off"
+                />
+              </div>
+
+              {/* Mode compact : 2 grands boutons. Cliquer "Normale" -> revele les champs. */}
+              {!tournamentExpanded ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={handleQuickCreateTournament}
+                    disabled={tournamentCreating}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-amber-200/45 bg-amber-700/80 py-3 font-bold text-white shadow-[0_0_28px_rgba(251,191,36,0.18)] transition hover:border-amber-200/60 hover:bg-amber-600/90 disabled:opacity-50"
+                    aria-label={t("tournament.arena.quickCreate")}
+                  >
+                    {tournamentCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+                    {t("tournament.arena.quickCreate")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTournamentCreateError(null);
+                      setTournamentExpanded(true);
+                    }}
+                    disabled={tournamentCreating}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] py-3 font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-50"
+                    aria-label={t("tournament.arena.modalTitle")}
+                  >
+                    {t("tournament.arena.modalTitle")}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Visibilite */}
+                  <div className="mb-5">
+                    <label className="text-slate-300 text-sm font-medium block mb-3">
+                      {t("tournament.arena.labelVisibility")}
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setTournamentVisibility("PUBLIC")}
+                        className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all border-2 ${
+                          tournamentVisibility === "PUBLIC"
+                            ? "bg-green-600/20 border-green-500 text-green-400"
+                            : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
+                        }`}
+                      >
+                        <Globe className="w-5 h-5" />
+                        {t("tournament.arena.visibilityPublic")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTournamentVisibility("PRIVATE")}
+                        className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all border-2 ${
+                          tournamentVisibility === "PRIVATE"
+                            ? "bg-red-600/20 border-red-400/80 text-red-200"
+                            : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
+                        }`}
+                      >
+                        <Lock className="w-5 h-5" />
+                        {t("tournament.arena.visibilityPrivate")}
+                      </button>
+                    </div>
+                    {tournamentVisibility === "PRIVATE" && (
+                      <input
+                        type="text"
+                        value={tournamentJoinCode}
+                        onChange={(e) => setTournamentJoinCode(e.target.value)}
+                        placeholder={t("tournament.arena.labelJoinCode")}
+                        className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white placeholder:text-slate-500 outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30"
+                        autoComplete="off"
+                        maxLength={32}
+                      />
+                    )}
+                  </div>
+
+                  {/* Joueurs max + stack */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                    <div>
+                      <label
+                        htmlFor="lobby-tournament-maxplayers"
+                        className="text-slate-300 text-sm font-medium block mb-2"
+                      >
+                        {t("tournament.arena.labelMaxPlayers")} ({TOURNAMENT_MIN_PLAYERS}-{TOURNAMENT_MAX_PLAYERS})
+                      </label>
+                      <input
+                        id="lobby-tournament-maxplayers"
+                        type="number"
+                        min={TOURNAMENT_MIN_PLAYERS}
+                        max={TOURNAMENT_MAX_PLAYERS}
+                        value={tournamentMaxPlayers}
+                        onChange={(e) => setTournamentMaxPlayers(clampTournamentMaxPlayers(e.target.value))}
+                        className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="lobby-tournament-stack"
+                        className="text-slate-300 text-sm font-medium block mb-2"
+                      >
+                        {t("tournament.arena.labelStack")}
+                      </label>
+                      <input
+                        id="lobby-tournament-stack"
+                        type="number"
+                        min={100}
+                        max={100_000_000}
+                        step={100}
+                        value={tournamentInitialStack}
+                        onChange={(e) =>
+                          setTournamentInitialStack(Math.max(100, Number.parseInt(e.target.value, 10) || 100))
+                        }
+                        className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Blinds */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                    <div>
+                      <label
+                        htmlFor="lobby-tournament-sb"
+                        className="text-slate-300 text-sm font-medium block mb-2"
+                      >
+                        {t("tournament.arena.labelSmallBlind")}
+                      </label>
+                      <input
+                        id="lobby-tournament-sb"
+                        type="number"
+                        min={1}
+                        max={10_000_000}
+                        value={tournamentBlindSmall}
+                        onChange={(e) =>
+                          setTournamentBlindSmall(Math.max(1, Number.parseInt(e.target.value, 10) || 1))
+                        }
+                        className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="lobby-tournament-bb"
+                        className="text-slate-300 text-sm font-medium block mb-2"
+                      >
+                        {t("tournament.arena.labelBigBlind")}
+                      </label>
+                      <input
+                        id="lobby-tournament-bb"
+                        type="number"
+                        min={1}
+                        max={10_000_000}
+                        value={tournamentBlindBig}
+                        onChange={(e) => setTournamentBlindBig(Math.max(1, Number.parseInt(e.target.value, 10) || 1))}
+                        className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Depart + presets */}
+                  <div className="mb-5">
+                    <label
+                      htmlFor="lobby-tournament-start"
+                      className="text-slate-300 text-sm font-medium block mb-2"
+                    >
+                      {t("tournament.arena.labelStart")}
+                    </label>
+                    <input
+                      id="lobby-tournament-start"
+                      type="datetime-local"
+                      value={tournamentStartAtLocal}
+                      onChange={(e) => setTournamentStartAtLocal(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/30"
+                    />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {[1, 5, 15, 60].map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setTournamentStartAtLocal(startAtLocalFromNowPlusMinutes(m))}
+                          className="rounded-lg border border-white/10 bg-white/[0.045] px-2.5 py-1 text-xs text-slate-300 hover:border-white/20 hover:bg-white/[0.08]"
+                        >
+                          {t("tournament.arena.plusMinutes", { minutes: m })}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTournamentExpanded(false);
+                        setTournamentCreateError(null);
+                      }}
+                      disabled={tournamentCreating}
+                      className="flex-1 rounded-xl border border-white/10 bg-white/[0.045] py-3 font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-50"
+                    >
+                      {t("tournament.arena.cancel")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSubmitTournament}
+                      disabled={tournamentCreating}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200/45 bg-amber-700/80 py-3 font-bold text-white shadow-[0_0_28px_rgba(251,191,36,0.18)] transition hover:border-amber-200/60 hover:bg-amber-600/90 disabled:opacity-50"
+                    >
+                      {tournamentCreating && <Loader2 className="w-5 h-5 animate-spin" />}
+                      {tournamentCreating ? t("tournament.arena.submitting") : t("tournament.arena.submit")}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {tournamentCreateError && (
+                <p className="mt-3 text-sm text-red-300 text-center" role="alert">
+                  {tournamentCreateError}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 🆕 FREE RECHARGE BUTTON */}
         <div className="mb-6 max-w-sm mx-auto empty:hidden">
           <FreeRechargeButton
@@ -993,18 +1528,10 @@ export function Lobby() {
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-amber-400/15 bg-amber-950/40 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-                <h2 className="mb-2 text-xl font-bold text-white">{t("lobby.tournamentTeaserTitle")}</h2>
-                <p className="mb-4 text-sm text-amber-100/80">{t("lobby.tournamentTeaserBody")}</p>
-                <button
-                  type="button"
-                  onClick={() => navigate("/tournaments")}
-                  className="w-full rounded-xl border border-amber-300/25 bg-amber-900/70 py-3 font-bold text-white transition hover:border-amber-200/40 hover:bg-amber-800/80 md:py-4"
-                  aria-label={t("lobby.tournamentTeaserCta")}
-                >
-                  {t("lobby.tournamentTeaserCta")}
-                </button>
-              </div>
+              {/* Grille 2 colonnes : Serveurs Multi-joueurs (gauche) + Tournois (droite).
+               * Memes proportions (liste d'attente + en cours) pour les deux blocs.
+               * En mobile/petit ecran, ils s'empilent (serveur d'abord). */}
+              <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2">
 
               {/* Section Serveur Multi-joueurs */}
               <div ref={tourRefMultiplayer} className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
@@ -1162,6 +1689,124 @@ export function Lobby() {
                   </div>
                 </div>
               </div>
+
+              {/* Section Tournois — meme structure que Serveur Multi-joueurs :
+               * bouton de creation/redirection, liste des tournois en attente,
+               * liste des tournois en cours (spectate). */}
+              <div className="rounded-2xl border border-amber-400/15 bg-amber-950/30 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+                <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
+                  <Trophy className="w-8 h-8 text-amber-200" />
+                  {t('lobby.tournamentBlockTitle')}
+                </h2>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={openTournamentModal}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300/25 bg-amber-900/70 py-3 font-bold text-white shadow-lg shadow-black/20 transition hover:border-amber-200/40 hover:bg-amber-800/80 md:py-4"
+                    aria-label={t('tournament.arena.create')}
+                  >
+                    <Trophy className="w-5 h-5" />
+                    {t('tournament.arena.create')}
+                  </button>
+
+                  {/* Tournois en attente d'inscription */}
+                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
+                    <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.tournamentWaiting')}</p>
+                    {tournamentsLoading && openTournamentsMemo.length === 0 ? (
+                      <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
+                      </p>
+                    ) : tournamentsError ? (
+                      <p className="text-red-400 text-center py-2 text-sm">{tournamentsError}</p>
+                    ) : openTournamentsMemo.length === 0 ? (
+                      <p className="text-gray-500 text-center py-2">{t('lobby.noTournamentsAvailable')}</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {openTournamentsMemo.map((tour) => (
+                          <li
+                            key={tour.id}
+                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-white font-medium truncate">{tour.name}</p>
+                              <p className="text-gray-400 text-xs">
+                                {t('lobby.playersCount', { count: tour._count.players, max: tour.maxPlayers })}
+                                {' · '}
+                                {t('lobby.tournamentBlinds', { small: tour.blindSmall, big: tour.blindBig })}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
+                              <button
+                                onClick={() => navigate(`/tournaments/${tour.id}`)}
+                                className="shrink-0 bg-amber-700 hover:bg-amber-600 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                                aria-label={t('lobby.join')}
+                              >
+                                {t('lobby.join')}
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Tournois en cours (spectate possible) */}
+                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
+                    <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.tournamentInProgress')}</p>
+                    {tournamentsLoading && liveTournamentsMemo.length === 0 ? (
+                      <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
+                      </p>
+                    ) : liveTournamentsMemo.length === 0 ? (
+                      <p className="text-gray-500 text-center py-2">{t('lobby.noTournamentsAvailable')}</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {liveTournamentsMemo.map((tour) => {
+                          const firstTable = tour.tables[0];
+                          return (
+                            <li
+                              key={tour.tournamentId}
+                              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-white font-medium truncate">{tour.name}</p>
+                                <p className="text-gray-400 text-xs">
+                                  {t('lobby.tournamentTables', { count: tour.tables.length })}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
+                                <button
+                                  onClick={() => navigate(`/tournaments/${tour.tournamentId}`)}
+                                  className="shrink-0 bg-amber-700 hover:bg-amber-600 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+                                  aria-label={t('lobby.join')}
+                                >
+                                  {t('lobby.join')}
+                                </button>
+                                {firstTable ? (
+                                  <button
+                                    onClick={() =>
+                                      navigate(
+                                        `/game?gameId=${encodeURIComponent(firstTable.gameId)}&spectate=1&tournamentId=${encodeURIComponent(tour.tournamentId)}`,
+                                      )
+                                    }
+                                    className="shrink-0 bg-slate-700/80 hover:bg-slate-600/90 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
+                                    aria-label={t('lobby.spectate')}
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    {t('lobby.spectate')}
+                                  </button>
+                                ) : null}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              </div>{/* /grid 2-col serveur + tournois */}
             </div>
           )}
 

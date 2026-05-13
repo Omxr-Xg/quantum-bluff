@@ -33,7 +33,6 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LoaderProvider } from "./contexts/LoaderContext";
 
 import { MiniGames } from './pages/MiniGames';
-import { TournamentLobby } from "./features/tournament/pages/TournamentLobby";
 import { TournamentRoom } from "./features/tournament/pages/TournamentRoom";
 import { TournamentWaiting } from "./features/tournament/pages/TournamentWaiting";
 import { TournamentResults } from "./features/tournament/pages/TournamentResults";
@@ -121,7 +120,6 @@ function App() {
             <Route path="/blackjack/table/:gameId" element={<ProtectedRoute><BlackjackMultiTable /></ProtectedRoute>} />
             <Route path="/waiting-room" element={<ProtectedRoute><WaitingRoom /></ProtectedRoute>} />
 
-            <Route path="/tournaments" element={<ProtectedRoute><TournamentLobby /></ProtectedRoute>} />
             <Route path="/tournaments/:id/results" element={<ProtectedRoute><TournamentResults /></ProtectedRoute>} />
             <Route path="/tournaments/:id" element={<ProtectedRoute><TournamentRoom /></ProtectedRoute>} />
             <Route path="/tournaments/:id/waiting" element={<ProtectedRoute><TournamentWaiting /></ProtectedRoute>} />

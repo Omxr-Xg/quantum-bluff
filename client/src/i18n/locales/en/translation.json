@@ -3,6 +3,9 @@
     "seeMore": "See more",
     "chooseLanguage": "Change language"
   },
+  "app": {
+    "slogan": "Every victory starts with a bluff."
+  },
   "networkOverlay": {
     "serverUnreachableTitle": "No connection to the server",
     "serverUnreachableHint": "Check your internet connection or that the backend is running.",
@@ -144,9 +147,13 @@
     "blackjackPlay": "Play blackjack",
     "blackjackSoloHint": "Same table as « create a table »: a game just for you, with no other players.",
     "blackjackMultiLobby": "Multiplayer tables (lobby)",
-    "tournamentTeaserTitle": "Texas Hold’em tournaments",
-    "tournamentTeaserBody": "Virtual tables, single elimination, XP and chip rewards.",
-    "tournamentTeaserCta": "Open tournament lobby",
+    "tournamentBlockTitle": "Tournaments",
+    "tournamentWaiting": "Waiting tournaments",
+    "tournamentInProgress": "Tournaments in progress",
+    "noTournamentsAvailable": "No tournaments available",
+    "tournamentBlinds": "Blinds {{small}}/{{big}}",
+    "tournamentTables_one": "{{count}} table",
+    "tournamentTables_other": "{{count}} tables",
     "help": {
       "openAria": "Lobby help",
       "title": "Lobby guide",
@@ -1713,7 +1720,7 @@
       "title": "Results",
       "subtitle": "Final standings and experience earned",
       "backRoom": "Tournament page",
-      "backList": "All tournaments",
+      "backLobby": "Back to lobby",
       "pending": "The leaderboard will be available once the tournament is finished.",
       "colRank": "Place",
       "colPlayer": "Player",

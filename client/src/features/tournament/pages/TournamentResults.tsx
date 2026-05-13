@@ -88,10 +88,10 @@ export function TournamentResults() {
           </Link>
           <span className="text-white/25">·</span>
           <Link
-            to="/tournaments"
+            to="/lobby"
             className="text-white/50 transition hover:text-violet-200"
           >
-            {t("tournament.results.backList")}
+            {t("tournament.results.backLobby")}
           </Link>
         </div>
 

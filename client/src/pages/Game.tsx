@@ -69,6 +69,55 @@ import {
   pickBotTauntAfterAction,
 } from "../utils/botTableChat";
 import { censorChatLinks, isChatContentEffectivelyEmpty } from "../utils/chatLinkCensor";
+import {
+  OPEN_RATE_GAME_EVENT,
+  STORAGE_MATCHES_PLAYED_COUNT,
+  STORAGE_MATCHES_COUNTED_IDS,
+} from "../constants/storageKeys";
+
+/** Toutes les `RATE_GAME_PROMPT_EVERY` parties terminées, on propose la notation. */
+const RATE_GAME_PROMPT_EVERY = 5;
+/** Garde la liste des derniers gameId comptés sous une taille raisonnable. */
+const MATCHES_COUNTED_IDS_MAX = 100;
+
+/** Incrémente le compteur local de matchs joués pour le user courant et déclenche
+ * le prompt de notation tous les {@link RATE_GAME_PROMPT_EVERY} matchs.
+ *
+ * Anti-doublon : un même `gameId` n'est compté qu'une fois (sessions multi-onglets,
+ * réémissions `GAME_ENDED`, etc.). En cas d'indisponibilité du `localStorage`,
+ * on no-op silencieusement pour ne pas casser la navigation post-partie. */
+function recordCompletedMatchAndMaybePromptRating(gameId: string | null | undefined): void {
+  if (typeof window === "undefined") return;
+  const gid = (gameId ?? "").toString().trim();
+  if (!gid) return;
+  try {
+    const rawIds = localStorage.getItem(STORAGE_MATCHES_COUNTED_IDS);
+    let seen: string[] = [];
+    if (rawIds) {
+      try {
+        const parsed = JSON.parse(rawIds);
+        if (Array.isArray(parsed)) seen = parsed.filter((v): v is string => typeof v === "string");
+      } catch {
+        seen = [];
+      }
+    }
+    if (seen.includes(gid)) return;
+    seen.push(gid);
+    if (seen.length > MATCHES_COUNTED_IDS_MAX) {
+      seen = seen.slice(seen.length - MATCHES_COUNTED_IDS_MAX);
+    }
+    localStorage.setItem(STORAGE_MATCHES_COUNTED_IDS, JSON.stringify(seen));
+    const prevRaw = localStorage.getItem(STORAGE_MATCHES_PLAYED_COUNT);
+    const prev = Number.parseInt(prevRaw ?? "0", 10);
+    const next = (Number.isFinite(prev) ? Math.max(0, prev) : 0) + 1;
+    localStorage.setItem(STORAGE_MATCHES_PLAYED_COUNT, String(next));
+    if (next > 0 && next % RATE_GAME_PROMPT_EVERY === 0) {
+      window.dispatchEvent(new CustomEvent(OPEN_RATE_GAME_EVENT));
+    }
+  } catch {
+    /* localStorage indisponible (mode privé Safari, etc.) — silencieux. */
+  }
+}
 
 /** Aligné sur `server/src/shared/practiceBotGames.ts` — parties bots via `/api/game/bot/start`. */
 const PRACTICE_BOT_GAME_ID_PREFIX = "practice-bot-";
@@ -2214,6 +2263,11 @@ export function Game() {
         | "next_round_spawned"
         | "tournament_complete";
     }) => {
+      /* Compteur "matchs joués" : seul un participant (non-spectateur) le voit
+       * augmenter. Anti-doublon par gameId, et prompt de notation tous les 5. */
+      if (!isSpectating) {
+        recordCompletedMatchAndMaybePromptRating(data.gameId);
+      }
       if (data.reason === "TOURNAMENT_TABLE_COMPLETE" && data.tournamentId) {
         const endedGid = String(data.gameId);
         const matchesTable =

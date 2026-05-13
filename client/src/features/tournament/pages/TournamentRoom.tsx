@@ -191,16 +191,10 @@ export function TournamentRoom() {
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <Link
-            to="/tournaments"
+            to="/lobby"
             className="inline-flex items-center gap-2 text-sm text-violet-300/90 transition hover:text-violet-200"
           >
             <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-            {t("tournament.room.backList")}
-          </Link>
-          <Link
-            to="/lobby"
-            className="inline-flex items-center gap-2 text-sm text-white/50 transition hover:text-violet-200"
-          >
             {t("tournament.room.backLobby")}
           </Link>
         </div>

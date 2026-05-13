@@ -3,6 +3,9 @@
     "seeMore": "Voir plus",
     "chooseLanguage": "Changer de langue"
   },
+  "app": {
+    "slogan": "Chaque victoire commence par un bluff."
+  },
   "networkOverlay": {
     "serverUnreachableTitle": "Pas de connexion au serveur",
     "serverUnreachableHint": "Vérifie ta connexion internet ou que le backend est démarré.",
@@ -144,9 +147,13 @@
     "blackjackPlay": "Jouer au blackjack",
     "blackjackSoloHint": "Même table que « créer une table » : partie lancée pour vous seul, sans autres joueurs.",
     "blackjackMultiLobby": "Tables multijoueur (salon)",
-    "tournamentTeaserTitle": "Tournois Texas Hold'em",
-    "tournamentTeaserBody": "Tables virtuelles, élimination directe, récompenses XP et jetons.",
-    "tournamentTeaserCta": "Ouvrir le lobby tournoi",
+    "tournamentBlockTitle": "Tournois",
+    "tournamentWaiting": "Tournois en attente",
+    "tournamentInProgress": "Tournois en cours",
+    "noTournamentsAvailable": "Aucun tournoi disponible",
+    "tournamentBlinds": "Blinds {{small}}/{{big}}",
+    "tournamentTables_one": "{{count}} table",
+    "tournamentTables_other": "{{count}} tables",
     "help": {
       "openAria": "Aide du lobby",
       "title": "Guide du lobby",
@@ -1719,7 +1726,7 @@
       "title": "Classement",
       "subtitle": "Places finales et expérience gagnée",
       "backRoom": "Page du tournoi",
-      "backList": "Tous les tournois",
+      "backLobby": "Retour au lobby",
       "pending": "Le classement sera disponible une fois le tournoi terminé.",
       "colRank": "Place",
       "colPlayer": "Joueur",
