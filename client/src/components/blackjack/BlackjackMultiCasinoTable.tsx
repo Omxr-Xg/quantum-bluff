@@ -175,20 +175,13 @@ export function BlackjackMultiCasinoTable({
     const updateScale = () => {
       if (timeout !== undefined) clearTimeout(timeout);
       timeout = setTimeout(() => {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        let newScale = 1;
-        if (width < 640) {
-          newScale = 0.85;
-        } else if (width < 1024) {
-          newScale = 0.95;
-        } else {
-          newScale = 1;
-        }
-        // Écrans "desktop compacts" (ex: MacBook Air 13") : on réduit légèrement même si la largeur est grande.
-        if (height < 900) newScale = Math.min(newScale, 0.96);
-        if (height < 820) newScale = Math.min(newScale, 0.92);
-        if (height < 760) newScale = Math.min(newScale, 0.88);
+        const availableWidth = Math.max(320, window.innerWidth - 32);
+        const availableHeight = Math.max(360, window.innerHeight - 190);
+        const baseSceneWidth = 920;
+        const baseSceneHeight = 720;
+        const widthScale = availableWidth / baseSceneWidth;
+        const heightScale = availableHeight / baseSceneHeight;
+        const newScale = Math.max(0.52, Math.min(1, widthScale, heightScale));
 
         /** Chrome : zoom réduit la boîte ; Safari/WebKit : transform:scale() ne la réduit pas → débordement. */
         const zoomSupported = (() => {
