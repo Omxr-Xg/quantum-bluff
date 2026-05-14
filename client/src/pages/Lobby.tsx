@@ -23,6 +23,7 @@ import {
   Disc,
   SquareStack,
   Trophy,
+  AlertTriangle,
 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useNumberFieldInput, NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
@@ -102,6 +103,7 @@ interface WaitingRoomItem {
   minBalance?: number | null;
   smallBlind?: number | null;
   bigBlind?: number | null;
+  blockedPlayers?: { id: string; username: string }[];
 }
 
 interface GameInProgressItem {
@@ -112,6 +114,7 @@ interface GameInProgressItem {
   maxPlayers: number;
   phase: string;
   canJoin: boolean;
+  blockedPlayers?: { id: string; username: string }[];
 }
 
 interface TournamentOpenItem {
@@ -165,6 +168,10 @@ export function Lobby() {
   /** Nom affiché de la salle ; vide = nom par défaut (ex. « Salle de … » / traduction). */
   const [createRoomName, setCreateRoomName] = useState("");
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
+  const [blockedRoomWarning, setBlockedRoomWarning] = useState<{
+    names: string[];
+    onContinue: () => void;
+  } | null>(null);
   const [gamesInProgress, setGamesInProgress] = useState<GameInProgressItem[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
   const [openTournaments, setOpenTournaments] = useState<TournamentOpenItem[]>([]);
@@ -772,20 +779,29 @@ export function Lobby() {
     }
   };
 
+  const openBlockedRoomWarning = (blockedPlayers: { username: string }[] | undefined, onContinue: () => void) => {
+    const names = (blockedPlayers ?? []).map((player) => player.username).filter(Boolean);
+    if (names.length === 0) {
+      onContinue();
+      return;
+    }
+    setBlockedRoomWarning({ names, onContinue });
+  };
+
   const handleJoinRoom = (roomId: string, room?: WaitingRoomItem) => {
     if (room?.minBalance && room.minBalance > 0 && balance < room.minBalance) {
       addToast(`Jetons insuffisants — il faut au moins ${room.minBalance} jetons pour cette salle.`, 'error');
       return;
     }
-    navigate(`/waiting-room?roomId=${roomId}`);
+    openBlockedRoomWarning(room?.blockedPlayers, () => navigate(`/waiting-room?roomId=${roomId}`));
   };
 
-  const handleJoinGame = (gameId: string) => {
-    navigate(`/game?gameId=${gameId}`);
+  const handleJoinGame = (game: GameInProgressItem) => {
+    openBlockedRoomWarning(game.blockedPlayers, () => navigate(`/game?gameId=${game.gameId}`));
   };
 
-  const handleSpectateGame = (gameId: string) => {
-    navigate(`/game?gameId=${gameId}&spectate=1`);
+  const handleSpectateGame = (game: GameInProgressItem) => {
+    openBlockedRoomWarning(game.blockedPlayers, () => navigate(`/game?gameId=${game.gameId}&spectate=1`));
   };
 
   return (
@@ -906,6 +922,46 @@ export function Lobby() {
             {menuContent}
           </div>
         </div>
+
+        {blockedRoomWarning && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
+            <div className="w-full max-w-md rounded-2xl border border-amber-300/20 bg-slate-950/90 p-6 shadow-2xl shadow-black/50">
+              <div className="mb-4 flex items-start gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-amber-300/25 bg-amber-950/50">
+                  <AlertTriangle className="h-6 w-6 text-amber-200" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">{t("lobby.blockedRoomWarningTitle")}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-300">
+                    {t("lobby.blockedRoomWarningBody", {
+                      names: blockedRoomWarning.names.join(", "),
+                    })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setBlockedRoomWarning(null)}
+                  className="rounded-full border border-white/10 bg-white/[0.055] px-4 py-2.5 font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const action = blockedRoomWarning.onContinue;
+                    setBlockedRoomWarning(null);
+                    action();
+                  }}
+                  className="rounded-full border border-amber-300/20 bg-amber-700 px-4 py-2.5 font-semibold text-white transition hover:bg-amber-600"
+                >
+                  {t("lobby.blockedRoomWarningContinue")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal Créer un serveur - FIX MOBILE SCROLL.
          * Backdrop flou + assombri pour focus visuel sur le panneau. */}
@@ -1662,7 +1718,7 @@ export function Lobby() {
                                 </span>
                               ) : isPrivate && !isHost ? (
                                 <button
-                                  onClick={() => handleRequestJoin(room.id)}
+                                  onClick={() => openBlockedRoomWarning(room.blockedPlayers, () => void handleRequestJoin(room.id))}
                                   disabled={requestingRoom === room.id}
                                   className="shrink-0 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 disabled:cursor-not-allowed text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
                                   aria-label={t('lobby.requestJoin')}
@@ -1717,7 +1773,7 @@ export function Lobby() {
                             <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
                               {g.canJoin && (
                                 <button
-                                  onClick={() => handleJoinGame(g.gameId)}
+                                  onClick={() => handleJoinGame(g)}
                                   className="shrink-0 bg-blue-900 hover:bg-blue-800 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
                                   aria-label={t('lobby.join')}
                                 >
@@ -1725,7 +1781,7 @@ export function Lobby() {
                                 </button>
                               )}
                               <button
-                                onClick={() => handleSpectateGame(g.gameId)}
+                                onClick={() => handleSpectateGame(g)}
                                 className="shrink-0 bg-slate-700/80 hover:bg-slate-600/90 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
                                 aria-label={t('lobby.spectate')}
                               >
