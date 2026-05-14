@@ -49,7 +49,8 @@
 \contentsline {subsection}{\numberline {12.3}Integrity of authorship and AI assistance}{19}{subsection.12.3}%
 \contentsline {section}{\numberline {13}Individual Contributions}{20}{section.13}%
 \contentsline {subsection}{\numberline {13.1}Omar -- project management and architecture alignment}{20}{subsection.13.1}%
-\contentsline {subsection}{\numberline {13.2}Other contributors}{20}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.2}Linda -- security, real-time features and UI/UX}{20}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.3}Other contributors}{20}{subsection.13.3}%
 \contentsline {section}{\numberline {14}Limitations and Future Work}{21}{section.14}%
 \contentsline {subsection}{\numberline {14.1}Current limitations}{21}{subsection.14.1}%
 \contentsline {subsection}{\numberline {14.2}Future improvements}{21}{subsection.14.2}%

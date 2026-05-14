@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.2.13)  14 MAY 2026 21:08
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.2.13)  14 MAY 2026 21:34
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -557,12 +557,12 @@ Package hyperref Info: Link coloring OFF on input line 72.
 \@outlinefile=\write3
 \openout3 = `rapport.out'.
 
-<logo_unistra.png, id=406, 1.00375pt x 1.00375pt>
+<logo_unistra.png, id=410, 1.00375pt x 1.00375pt>
 File: logo_unistra.png Graphic file (type png)
 <use logo_unistra.png>
 Package pdftex.def Info: logo_unistra.png  used on input line 84.
 (pdftex.def)             Requested size: 114.8396pt x 115.2689pt.
-<logo_quantum_bluff.png, id=407, 1.00375pt x 1.00375pt>
+<logo_quantum_bluff.png, id=411, 1.00375pt x 1.00375pt>
 File: logo_quantum_bluff.png Graphic file (type png)
 <use logo_quantum_bluff.png>
 Package pdftex.def Info: logo_quantum_bluff.png  used on input line 89.
@@ -864,7 +864,7 @@ r/m/n/10.95 (-20) . Socket.IO
 
 ]
 LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 5
-30.
+35.
  (c:/texlive/2025/texmf-dist/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
@@ -879,7 +879,7 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 [24
 
 ]
-Overfull \hbox (5.69946pt too wide) in paragraph at lines 576--577
+Overfull \hbox (5.69946pt too wide) in paragraph at lines 581--582
 \T1/lmr/m/n/10.95 (-20) Structured logic notes: $\T1/lmtt/m/n/10.95 Docs / deta
 il _ logique / backend / 01 _ poker _ moteur . md$\T1/lmr/m/n/10.95 (-20) , $\T
 1/lmtt/m/n/10.95 Docs / detail _
@@ -892,7 +892,7 @@ il _ logique / backend / 01 _ poker _ moteur . md$\T1/lmr/m/n/10.95 (-20) , $\T
 {c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc}{c:/texlive/2025/t
 exmf-dist/fonts/enc/dvips/lm/lm-rm.enc}{c:/texlive/2025/texmf-dist/fonts/enc/dv
 ips/lm/lm-mathex.enc}]
-Overfull \hbox (24.46889pt too wide) in paragraph at lines 610--611
+Overfull \hbox (24.46889pt too wide) in paragraph at lines 615--616
 []\T1/lmr/m/n/10.95 (-20) Builds the re-main-ing deck ex-clud-ing known hero an
 d com-mu-nity cards (\T1/lmtt/m/n/10.95 buildDeckExcluding\T1/lmr/m/n/10.95 (-2
 0) ). 
@@ -901,21 +901,21 @@ d com-mu-nity cards (\T1/lmtt/m/n/10.95 buildDeckExcluding\T1/lmr/m/n/10.95 (-2
 [27
 
 ]
-Overfull \hbox (3.48564pt too wide) in paragraph at lines 652--653
+Overfull \hbox (3.48564pt too wide) in paragraph at lines 657--658
 \T1/lmr/m/n/10.95 (-20) Both $\T1/lmtt/m/n/10.95 server / src / logic / Evaluat
 or . ts$ \T1/lmr/m/n/10.95 (-20) and $\T1/lmtt/m/n/10.95 client / src / utils /
  pokerHandCategory . ts$ \T1/lmr/m/n/10.95 (-20) use
  []
 
 [28]
-Overfull \hbox (80.91992pt too wide) in paragraph at lines 667--668
+Overfull \hbox (80.91992pt too wide) in paragraph at lines 672--673
 \T1/lmr/m/n/10.95 (-20) Live mar-kets use tab-u-lated dec-i-mal odds keyed by t
 a-ble pa-ram-e-ters. For in-stance, $\T1/lmtt/m/n/10.95 oddsPlayerWinsCurrentHa
 nd$
  []
 
 
-Overfull \hbox (26.26303pt too wide) in paragraph at lines 671--672
+Overfull \hbox (26.26303pt too wide) in paragraph at lines 676--677
 $\T1/lmtt/m/n/10.95 Docs / intern / HIDDEN _ BETS _ SPEC . md$\T1/lmr/m/n/10.95
  (-20) , $\T1/lmtt/m/n/10.95 Docs / detail _ logique / backend / 07 _ hidden _ 
 bets _ moteur .
@@ -926,14 +926,14 @@ bets _ moteur .
 ] [30
 
 ]
-Overfull \hbox (123.9339pt too wide) in paragraph at lines 691--692
+Overfull \hbox (123.9339pt too wide) in paragraph at lines 696--697
 \T1/lmtt/m/n/10.95 server / src / routes / blackjackMulti . routes . ts$\T1/lmr
 /m/n/10.95 (-20) , con-trollers un-der $\T1/lmtt/m/n/10.95 server / src / logic
  / BlackjackTableController .
  []
 
 
-Overfull \hbox (40.63487pt too wide) in paragraph at lines 695--696
+Overfull \hbox (40.63487pt too wide) in paragraph at lines 700--701
 $\T1/lmtt/m/n/10.95 Docs / detail _ logique / backend / 03 _ blackjack _ solo _
  moteur . md$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 Docs / detail _ logi
 que / backend /
@@ -944,7 +944,7 @@ que / backend /
 ] [32
 
 ]
-Overfull \hbox (71.80376pt too wide) in paragraph at lines 771--773
+Overfull \hbox (71.80376pt too wide) in paragraph at lines 776--778
 \T1/lmr/m/n/10.95 (-20) server en-forces caps (\T1/lmtt/m/n/10.95 ROULETTE_MAX_
 BET_CAP\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_TOTAL_STAKE\T1
 /lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_BETS_PER_SPIN\T1/lmr/m/n
@@ -952,7 +952,7 @@ BET_CAP\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_TOTAL_STAKE\T1
  []
 
 
-Overfull \hbox (19.55493pt too wide) in paragraph at lines 776--777
+Overfull \hbox (19.55493pt too wide) in paragraph at lines 781--782
 \T1/lmtt/m/n/10.95 md$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 Docs / deta
 il _ logique / backend / 06 _ slot _ moteur . md$\T1/lmr/m/n/10.95 (-20) , $\T1
 /lmtt/m/n/10.95 Docs / final _ report / ROULETTE . adoc$\T1/lmr/m/n/10.95 (-20)
@@ -960,14 +960,14 @@ il _ logique / backend / 06 _ slot _ moteur . md$\T1/lmr/m/n/10.95 (-20) , $\T1
  []
 
 [33]
-Overfull \hbox (1.37303pt too wide) in paragraph at lines 783--784
+Overfull \hbox (1.37303pt too wide) in paragraph at lines 788--789
 \T1/lmr/m/n/10.95 (-20) Friends UI: $\T1/lmtt/m/n/10.95 client / src / pages / 
 Friends . tsx$\T1/lmr/m/n/10.95 (-20) . REST: $\T1/lmtt/m/n/10.95 server / src 
 / routes / friends . routes .
  []
 
 
-Overfull \hbox (29.00368pt too wide) in paragraph at lines 783--784
+Overfull \hbox (29.00368pt too wide) in paragraph at lines 788--789
 \T1/lmtt/m/n/10.95 ts$\T1/lmr/m/n/10.95 (-20) ; poker in-vi-ta-tions $\T1/lmtt/
 m/n/10.95 server / src / routes / invitation . routes . ts$ \T1/lmr/m/n/10.95 (
 -20) (also un-der $\T1/lmtt/m/n/10.95 /api / invitations$\T1/lmr/m/n/10.95 (-20
@@ -977,7 +977,7 @@ m/n/10.95 server / src / routes / invitation . routes . ts$ \T1/lmr/m/n/10.95 (
 [34
 
 ]
-Overfull \hbox (7.13153pt too wide) in paragraph at lines 794--795
+Overfull \hbox (7.13153pt too wide) in paragraph at lines 799--800
 \T1/lmtt/m/n/10.95 dailyLogin/$\T1/lmr/m/n/10.95 (-20) ) with ded-i-cated route
 rs. Pub-lic leader-boards: $\T1/lmtt/m/n/10.95 server / src / routes / leaderbo
 ard .
@@ -1000,13 +1000,13 @@ LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `rapport.out' has not changed.
-(rerunfilecheck)             Checksum: 6B810DDFB26F53D3EB80F2051B3C2E3F;19928.
+(rerunfilecheck)             Checksum: FC50AD1E7C6889846E6828ABB934F661;20239.
  ) 
 Here is how much of TeX's memory you used:
- 15032 strings out of 467533
- 239129 string characters out of 5423668
+ 15034 strings out of 467533
+ 239161 string characters out of 5423668
  704960 words of memory out of 5000000
- 43324 multiletter control sequences out of 15000+600000
+ 43325 multiletter control sequences out of 15000+600000
  713007 words of font info for 199 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  75i,12n,79p,1194b,622s stack positions out of 10000i,1000n,20000p,200000b,200000s
@@ -1021,10 +1021,10 @@ exlive/2025/texmf-dist/fonts/type1/public/lm/lmssbx10.pfb><c:/texlive/2025/texm
 f-dist/fonts/type1/public/lm/lmsy10.pfb><c:/texlive/2025/texmf-dist/fonts/type1
 /public/lm/lmtt10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmtti10
 .pfb>
-Output written on rapport.pdf (47 pages, 387537 bytes).
+Output written on rapport.pdf (47 pages, 388799 bytes).
 PDF statistics:
- 1035 PDF objects out of 1200 (max. 8388607)
- 946 compressed objects within 10 object streams
- 187 named destinations out of 1000 (max. 500000)
- 50475 words of extra memory for PDF output out of 51595 (max. 10000000)
+ 1041 PDF objects out of 1200 (max. 8388607)
+ 952 compressed objects within 10 object streams
+ 188 named destinations out of 1000 (max. 500000)
+ 50483 words of extra memory for PDF output out of 51595 (max. 10000000)
 
