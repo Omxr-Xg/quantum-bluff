@@ -2,6 +2,54 @@ import { createServer, type Server as HttpServer } from "node:http";
 import { AddressInfo } from "node:net";
 import { Server as SocketIOServer } from "socket.io";
 import { io as createClient, Socket as ClientSocket } from "socket.io-client";
+
+jest.mock("../config/database.js", () => {
+  const tx = {
+    user: {
+      findUnique: jest.fn().mockResolvedValue({ chips: 100_000, username: "Test user" }),
+      update: jest.fn().mockResolvedValue({}),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+  };
+
+  const prisma = {
+    user: {
+      findUnique: jest.fn().mockImplementation(({ where }: { where?: { id?: string } } = {}) =>
+        Promise.resolve({
+          id: where?.id ?? "u1",
+          username: where?.id ?? "u1",
+          chips: 100_000,
+          bannedUntil: null,
+        }),
+      ),
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn().mockResolvedValue({}),
+    },
+    waitingRoom: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    joinRequest: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
+    tournament: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
+    tournamentPlayer: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
+    $transaction: jest.fn(async (callback: (txArg: typeof tx) => unknown) => callback(tx)),
+  };
+
+  return {
+    prisma,
+    pgPool: {
+      query: jest.fn(),
+      end: jest.fn(),
+    },
+  };
+});
+
 import { GameGateway } from "../sockets/game.gateway.js";
 import { CashGameController } from "../logic/CashGameController.js";
 import { activeGames } from "../shared/activeGames.js";
@@ -9,7 +57,6 @@ import { disposeActiveGamesForTests } from "../shared/activeGames.js";
 import { pokerStateStore } from "../shared/pokerStateStore.js";
 import type { PokerRuntimeSnapshot } from "../poker/store/pokerStateStore.js";
 import { generateToken } from "../auth/jwt.service.js";
-import { prisma } from "../config/database.js";
 
 function waitForEvent<T>(
   socket: ClientSocket,
@@ -86,23 +133,6 @@ describe("GameGateway realtime integration", () => {
   const clients: ClientSocket[] = [];
 
   beforeAll(async () => {
-    await prisma.user.createMany({
-      data: [
-        {
-          id: "u1",
-          username: "socket-test-u1",
-          email: "socket-test-u1@example.test",
-          password: "test-password",
-        },
-        {
-          id: "u2",
-          username: "socket-test-u2",
-          email: "socket-test-u2@example.test",
-          password: "test-password",
-        },
-      ],
-      skipDuplicates: true,
-    });
     httpServer = createServer();
     ioServer = new SocketIOServer(httpServer, {
       cors: { origin: "*" },
@@ -124,7 +154,6 @@ describe("GameGateway realtime integration", () => {
     await new Promise<void>((resolve) => ioServer.close(() => resolve()));
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));
     disposeActiveGamesForTests();
-    await prisma.user.deleteMany({ where: { id: { in: ["u1", "u2"] } } });
   });
 
   async function connectAs(userId: string): Promise<ClientSocket> {
