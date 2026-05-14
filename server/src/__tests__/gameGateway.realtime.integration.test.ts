@@ -1,14 +1,62 @@
 import { createServer, type Server as HttpServer } from "node:http";
 import { AddressInfo } from "node:net";
-import jwt from "jsonwebtoken";
 import { Server as SocketIOServer } from "socket.io";
 import { io as createClient, Socket as ClientSocket } from "socket.io-client";
+
+jest.mock("../config/database.js", () => {
+  const tx = {
+    user: {
+      findUnique: jest.fn().mockResolvedValue({ chips: 100_000, username: "Test user" }),
+      update: jest.fn().mockResolvedValue({}),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+  };
+
+  const prisma = {
+    user: {
+      findUnique: jest.fn().mockImplementation(({ where }: { where?: { id?: string } } = {}) =>
+        Promise.resolve({
+          id: where?.id ?? "u1",
+          username: where?.id ?? "u1",
+          chips: 100_000,
+          bannedUntil: null,
+        }),
+      ),
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn().mockResolvedValue({}),
+    },
+    waitingRoom: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    joinRequest: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
+    tournament: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
+    tournamentPlayer: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
+    $transaction: jest.fn(async (callback: (txArg: typeof tx) => unknown) => callback(tx)),
+  };
+
+  return {
+    prisma,
+    pgPool: {
+      query: jest.fn(),
+      end: jest.fn(),
+    },
+  };
+});
+
 import { GameGateway } from "../sockets/game.gateway.js";
 import { CashGameController } from "../logic/CashGameController.js";
 import { activeGames } from "../shared/activeGames.js";
 import { disposeActiveGamesForTests } from "../shared/activeGames.js";
 import { pokerStateStore } from "../shared/pokerStateStore.js";
 import type { PokerRuntimeSnapshot } from "../poker/store/pokerStateStore.js";
+import { generateToken } from "../auth/jwt.service.js";
 
 function waitForEvent<T>(
   socket: ClientSocket,
@@ -109,10 +157,7 @@ describe("GameGateway realtime integration", () => {
   });
 
   async function connectAs(userId: string): Promise<ClientSocket> {
-    const token = jwt.sign(
-      { userId },
-      process.env.JWT_SECRET || "quantum_bluff_secret",
-    );
+    const token = generateToken({ userId });
     const client = createClient(baseUrl, {
       transports: ["websocket"],
       auth: { token },

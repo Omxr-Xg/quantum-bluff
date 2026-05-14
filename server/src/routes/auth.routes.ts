@@ -4,7 +4,7 @@ import sanitizeHtml from 'sanitize-html'
 import { z } from 'zod'
 import { pgPool, prisma } from '../config/database.js'
 import { env } from '../config/env.js'
-import { registerSchema, loginSchema, resetPasswordSchema } from '../validation/auth.validation.js'
+import { registerSchema, loginSchema, resetPasswordSchema, strongPasswordSchema } from '../validation/auth.validation.js'
 import { resolveCountryFromRequest } from '../utils/registerCountryFromRequest.js'
 import { evaluateRegisterAgeGate, parseIsoDateOfBirth, eligibilityUnblockAtUtc, isBeforeEligibilityDay } from '../utils/registerAgeGate.js'
 import { normalizeSecretAnswer } from '../utils/secretAnswer.js'
@@ -376,7 +376,7 @@ router.post('/reset-password', recoveryLimiter, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, secretQuestionId: true, secretAnswerHash: true },
+      select: { id: true, secretQuestionId: true, secretAnswerHash: true, totpSecret: true },
     })
     if (!user) {
       return res.status(404).json({ error: 'Aucun compte associé à cet email.' })
@@ -387,6 +387,15 @@ router.post('/reset-password', recoveryLimiter, async (req, res) => {
     const ok = await bcrypt.compare(normalizeSecretAnswer(secretAnswer), user.secretAnswerHash)
     if (!ok) {
       return res.status(401).json({ error: 'Réponse secrète incorrecte.' })
+    }
+    if (user.totpSecret) {
+      const code = typeof req.body?.totpCode === 'string' ? req.body.totpCode.replace(/\s/g, '') : ''
+      if (!code || code.length !== 6) {
+        return res.status(401).json({ error: 'Code 2FA requis', requires2FA: true })
+      }
+      if (!verifyTotpToken(user.totpSecret, code)) {
+        return res.status(401).json({ error: 'Code 2FA incorrect' })
+      }
     }
     const hashedPassword = await bcrypt.hash(newPassword, 10)
     await prisma.user.update({
@@ -445,6 +454,14 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     if (!validPassword) {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
+    }
+
+    if (user.bannedUntil && user.bannedUntil > new Date()) {
+      return res.status(403).json({
+        error: `Compte suspendu jusqu'au ${user.bannedUntil.toLocaleString('fr-FR')}.`,
+        code: 'ACCOUNT_SUSPENDED',
+        bannedUntil: user.bannedUntil.toISOString(),
+      })
     }
 
     if (user.totpSecret) {
@@ -513,7 +530,7 @@ const profileUpdateSchema = z.object({
   username: z.string().trim().min(3).max(20).optional(),
   email: z.string().trim().email().optional(),
   currentPassword: z.string().optional(),
-  newPassword: z.string().min(6).max(100).optional(),
+  newPassword: strongPasswordSchema.optional(),
 })
 
 /**

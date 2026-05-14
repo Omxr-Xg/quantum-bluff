@@ -123,12 +123,16 @@ const formatWaitingRoomPayload = (room: {
 // Fonction utilitaire pour nettoyer le nom de la salle
 //const sanitizeRoomName = (roomName: string) => sanitizeHtml(roomName);
 
+function getAuthenticatedUserId(req: express.Request): string | null {
+  return typeof req.userId === 'string' && req.userId.trim() ? req.userId : null
+}
+
 // GET /api/waiting-room - Liste toutes les salles disponibles
 // Filtre : au moins 1 joueur actif, créées dans la dernière heure
 // Salles PRIVATE : visibles uniquement par l'hôte et ses amis
-router.get('/', waitingRoomListLimiter, async (req, res) => {
+router.get('/', waitingRoomListLimiter, authMiddleware, async (req, res) => {
   try {
-    const userId = req.query.userId as string | undefined;
+    const userId = getAuthenticatedUserId(req) ?? undefined;
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const rooms = await prisma.waitingRoom.findMany({
       where: {
@@ -251,9 +255,9 @@ const GAME_MAX_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 // GET /api/waiting-room/games-in-progress - Parties en cours (Rejoindre si place, Spectateur)
 // Salles PRIVATE : visibles par l'hôte, ses amis, ou toute personne ayant un ami dans la partie
-router.get('/games-in-progress', waitingRoomListLimiter, async (req, res) => {
+router.get('/games-in-progress', waitingRoomListLimiter, authMiddleware, async (req, res) => {
   try {
-    const userId = req.query.userId as string | undefined;
+    const userId = getAuthenticatedUserId(req) ?? undefined;
     const rooms = await prisma.waitingRoom.findMany({
       where: { status: 'IN_GAME', gameId: { not: null } },
       include: {
@@ -332,13 +336,14 @@ router.get('/games-in-progress', waitingRoomListLimiter, async (req, res) => {
 });
 
 // POST /api/waiting-room/create - Créer une nouvelle salle
-router.post('/create', waitingRoomCreateLimiter, async (req, res) => {
+router.post('/create', waitingRoomCreateLimiter, authMiddleware, async (req, res) => {
   try {
-    const { hostId, roomName, maxPlayers = 5, visibility = 'PUBLIC', smallBlind, bigBlind, minBalance, turbo, avatarUrl: hostAvatarRaw } = req.body;
+    const hostId = getAuthenticatedUserId(req);
+    const { roomName, maxPlayers = 5, visibility = 'PUBLIC', smallBlind, bigBlind, minBalance, turbo, avatarUrl: hostAvatarRaw } = req.body;
     const hostAvatarUrl = sanitizePublicAvatarUrl(hostAvatarRaw)
 
-    if (typeof hostId !== 'string' || hostId.trim().length === 0) {
-      return res.status(400).json({ error: 'hostId invalide ou manquant' });
+    if (!hostId) {
+      return res.status(401).json({ error: 'Non authentifié' });
     }
 
     if (roomName != null && typeof roomName !== 'string') {
@@ -431,7 +436,7 @@ router.post('/create', waitingRoomCreateLimiter, async (req, res) => {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[waiting-room/create] Erreur création salle', {
-      hostId: req.body?.hostId,
+      hostId: req.userId,
       visibility: req.body?.visibility,
       maxPlayers: req.body?.maxPlayers,
       detail: msg,
@@ -499,10 +504,10 @@ router.post('/rematch', waitingRoomHostLimiter, authMiddleware, async (req, res)
 });
 
 // GET /api/waiting-room/:roomId - Détails d'une salle
-router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
+router.get('/:roomId', waitingRoomListLimiter, authMiddleware, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const viewerId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
+    const viewerId = getAuthenticatedUserId(req) ?? undefined;
 
     const room = await prisma.waitingRoom.findUnique({
       where: { id: roomId },
@@ -567,11 +572,16 @@ router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
 });
 
 // POST /api/waiting-room/:roomId/join - Rejoindre une salle
-router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
+router.post('/:roomId/join', waitingRoomJoinLimiter, authMiddleware, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId, avatarUrl: joinAvatarRaw, confirmBlockedWarning } = req.body;
+    const userId = getAuthenticatedUserId(req);
+    const { avatarUrl: joinAvatarRaw, confirmBlockedWarning } = req.body;
     const joinAvatarUrl = sanitizePublicAvatarUrl(joinAvatarRaw)
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
 
     // Vérifier que la salle existe et est en WAITING
     const room = await prisma.waitingRoom.findUnique({
@@ -713,14 +723,14 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
 });
 
 // POST /api/waiting-room/:roomId/leave - Quitter une salle
-router.post('/:roomId/leave', waitingRoomActionLimiter, async (req, res) => {
+router.post('/:roomId/leave', waitingRoomActionLimiter, authMiddleware, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId } = req.body;
+    const userId = getAuthenticatedUserId(req);
     const io = req.app.get('io') as import('socket.io').Server | undefined;
 
-    if (typeof userId !== 'string' || userId.trim().length === 0) {
-      return res.status(400).json({ error: 'userId invalide ou manquant' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Non authentifié' });
     }
 
     const roomBefore = await prisma.waitingRoom.findUnique({
@@ -845,10 +855,15 @@ router.post('/:roomId/leave', waitingRoomActionLimiter, async (req, res) => {
 });
 
 // PUT /api/waiting-room/:roomId/ready - Changer statut prêt
-router.put('/:roomId/ready', waitingRoomActionLimiter, async (req, res) => {
+router.put('/:roomId/ready', waitingRoomActionLimiter, authMiddleware, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId, isReady } = req.body;
+    const userId = getAuthenticatedUserId(req);
+    const { isReady } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
 
     const player = await prisma.roomPlayer.update({
       where: {
@@ -886,10 +901,15 @@ router.put('/:roomId/ready', waitingRoomActionLimiter, async (req, res) => {
 
 // POST /api/waiting-room/:roomId/start - Démarrer la partie
 // POST /api/waiting-room/:roomId/start - Démarrer la partie
-router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
+router.post('/:roomId/start', waitingRoomHostLimiter, authMiddleware, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId, turnTimeoutMs, turbo } = req.body;
+    const userId = getAuthenticatedUserId(req);
+    const { turnTimeoutMs, turbo } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
 
     const room = await prisma.waitingRoom.findUnique({
       where: { id: roomId },
@@ -1081,10 +1101,15 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
 
 // POST /api/waiting-room/:roomId/request-join - Demander à rejoindre une salle privée
 // Salle PRIVATE : ami de l'hôte ou ami d'un joueur déjà dans la salle
-router.post('/:roomId/request-join', waitingRoomJoinLimiter, async (req, res) => {
+router.post('/:roomId/request-join', waitingRoomJoinLimiter, authMiddleware, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId, confirmBlockedWarning } = req.body;
+    const userId = getAuthenticatedUserId(req);
+    const { confirmBlockedWarning } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
 
     const room = await prisma.waitingRoom.findUnique({
       where: { id: roomId },
@@ -1189,10 +1214,13 @@ router.post('/:roomId/request-join', waitingRoomJoinLimiter, async (req, res) =>
 });
 
 // GET /api/waiting-room/:roomId/join-requests - Liste des demandes (host only)
-router.get('/:roomId/join-requests', waitingRoomHostLimiter, async (req, res) => {
+router.get('/:roomId/join-requests', waitingRoomHostLimiter, authMiddleware, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const hostId = req.query.hostId as string;
+    const hostId = getAuthenticatedUserId(req);
+    if (!hostId) {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
 
     const room = await prisma.waitingRoom.findUnique({ where: { id: roomId } });
     if (!room) {
@@ -1234,10 +1262,13 @@ router.get('/:roomId/join-requests', waitingRoomHostLimiter, async (req, res) =>
 });
 
 // POST /api/waiting-room/:roomId/join-requests/:requestId/accept
-router.post('/:roomId/join-requests/:requestId/accept', waitingRoomHostLimiter, async (req, res) => {
+router.post('/:roomId/join-requests/:requestId/accept', waitingRoomHostLimiter, authMiddleware, async (req, res) => {
   try {
     const { roomId, requestId } = req.params;
-    const { hostId } = req.body;
+    const hostId = getAuthenticatedUserId(req);
+    if (!hostId) {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
 
     const room = await prisma.waitingRoom.findUnique({
       where: { id: roomId },
@@ -1302,10 +1333,13 @@ router.post('/:roomId/join-requests/:requestId/accept', waitingRoomHostLimiter, 
 });
 
 // POST /api/waiting-room/:roomId/join-requests/:requestId/reject
-router.post('/:roomId/join-requests/:requestId/reject', waitingRoomHostLimiter, async (req, res) => {
+router.post('/:roomId/join-requests/:requestId/reject', waitingRoomHostLimiter, authMiddleware, async (req, res) => {
   try {
     const { requestId } = req.params;
-    const { hostId } = req.body;
+    const hostId = getAuthenticatedUserId(req);
+    if (!hostId) {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
 
     const joinRequest = await prisma.joinRequest.findUnique({
       where: { id: requestId },
@@ -1339,13 +1373,13 @@ router.post('/:roomId/join-requests/:requestId/reject', waitingRoomHostLimiter, 
 });
 
 // DELETE /api/waiting-room/:roomId - Suppression manuelle par l'hôte (nettoyage de salles inactives)
-router.delete('/:roomId', waitingRoomHostLimiter, async (req, res) => {
+router.delete('/:roomId', waitingRoomHostLimiter, authMiddleware, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId } = req.body as { userId?: string };
+    const userId = getAuthenticatedUserId(req);
 
     if (!userId) {
-      return res.status(400).json({ error: 'userId requis' });
+      return res.status(401).json({ error: 'Non authentifié' });
     }
 
     const room = await prisma.waitingRoom.findUnique({

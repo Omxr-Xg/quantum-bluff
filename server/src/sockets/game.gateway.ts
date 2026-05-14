@@ -4,7 +4,6 @@ import { activeGames } from "../shared/activeGames.js";
 import { activeBlackjackGames } from "../shared/activeBlackjackGames.js";
 import { blackjackStateStore } from "../shared/blackjackStateStore.js";
 import { pokerStateStore } from "../shared/pokerStateStore.js";
-import jwt from "jsonwebtoken";
 import { logSuspiciousAction } from "../utils/securityLogger.js";
 import { AntiCheatMonitor } from "../utils/antiCheat.js";
 import { prisma } from "../config/database.js";
@@ -63,6 +62,8 @@ import {
   setUserActivity,
 } from "../services/presence.service.js";
 import { TOURNAMENT_LOBBY_SOCKET_ROOM } from "../tournament/tournament.roster.events.js";
+import { verifyToken } from "../auth/jwt.service.js";
+import { isBlacklisted } from "../auth/tokenBlacklist.js";
 
 // 👇 B4 : IMPORT DU SERVICE ANTI-TRICHE 👇
 import { AntiCheatService } from "../services/antiCheat.service.js";
@@ -157,32 +158,67 @@ export class GameGateway {
         return next(new Error("Token manquant"));
       }
 
-      try {
-        const decoded = jwt.verify(
-          token,
-          process.env.JWT_SECRET || "quantum_bluff_secret",
-        ) as { userId: string };
+      void (async () => {
+        try {
+          if (await isBlacklisted(token)) {
+            rootLogger.warn({
+              msg: "socket_auth_blacklisted_token",
+              socketId: socket.id,
+            });
+            return next(new Error("Token révoqué"));
+          }
 
-        socket.userId = decoded.userId;
-        rootLogger.debug({
-          msg: "socket_auth_ok",
-          userId: socket.userId,
-          socketId: socket.id,
-        });
-        next();
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Token invalide";
-        rootLogger.warn({
-          msg: "socket_auth_invalid_token",
-          socketId: socket.id,
-          detail: msg,
-        });
-        logSuspiciousAction("INVALID_TOKEN", {
-          socketId: socket.id,
-          details: "Token socket invalide",
-        });
-        next(new Error("Token invalide"));
-      }
+          const decoded = verifyToken(token);
+          if (decoded.role === "admin") {
+            rootLogger.warn({
+              msg: "socket_auth_admin_token_rejected",
+              socketId: socket.id,
+            });
+            return next(new Error("Token joueur requis"));
+          }
+
+          const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            select: { id: true, bannedUntil: true },
+          });
+          if (!user) {
+            rootLogger.warn({
+              msg: "socket_auth_user_not_found",
+              userId: decoded.userId,
+              socketId: socket.id,
+            });
+            return next(new Error("Session expirée"));
+          }
+          if (user.bannedUntil && user.bannedUntil > new Date()) {
+            rootLogger.warn({
+              msg: "socket_auth_user_suspended",
+              userId: decoded.userId,
+              socketId: socket.id,
+            });
+            return next(new Error("Compte suspendu"));
+          }
+
+          socket.userId = decoded.userId;
+          rootLogger.debug({
+            msg: "socket_auth_ok",
+            userId: socket.userId,
+            socketId: socket.id,
+          });
+          next();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Token invalide";
+          rootLogger.warn({
+            msg: "socket_auth_invalid_token",
+            socketId: socket.id,
+            detail: msg,
+          });
+          logSuspiciousAction("INVALID_TOKEN", {
+            socketId: socket.id,
+            details: "Token socket invalide",
+          });
+          next(new Error("Token invalide"));
+        }
+      })();
     });
   }
 
@@ -222,8 +258,8 @@ export class GameGateway {
         });
       }
 
-      socket.on("JOIN_USER_ROOM", ({ userId }: { userId?: string }) => {
-        if (!userId) return;
+      socket.on("JOIN_USER_ROOM", () => {
+        if (!socket.userId) return;
 
         Array.from(socket.rooms).forEach((room) => {
           if (room.startsWith("user:")) {
@@ -231,8 +267,8 @@ export class GameGateway {
           }
         });
 
-        socket.join(`user:${userId}`);
-        console.log(`✅ Utilisateur ${userId} a rejoint sa room personnelle`);
+        socket.join(`user:${socket.userId}`);
+        console.log(`✅ Utilisateur ${socket.userId} a rejoint sa room personnelle`);
       });
 
       socket.on("USER_ACTIVITY_CHANGED", ({ activity }: { activity?: string }) => {
@@ -283,8 +319,28 @@ export class GameGateway {
 
       socket.on(
         "join-room",
-        ({ roomId }: { roomId?: string; userId?: string }) => {
-          if (!roomId) return;
+        async ({ roomId }: { roomId?: string; userId?: string }) => {
+          if (!roomId || !socket.userId) return;
+          const room = await prisma.waitingRoom.findUnique({
+            where: { id: roomId },
+            include: { players: { select: { userId: true } } },
+          });
+          if (!room) return;
+          const isMember =
+            room.hostId === socket.userId ||
+            room.players.some((player) => player.userId === socket.userId);
+          const hasAcceptedJoinRequest = await prisma.joinRequest.findFirst({
+            where: { roomId, userId: socket.userId, status: "ACCEPTED" },
+            select: { id: true },
+          });
+          if (room.visibility !== "PUBLIC" && !isMember && !hasAcceptedJoinRequest) {
+            logSuspiciousAction("UNAUTHORIZED_ROOM_SUBSCRIBE", {
+              userId: socket.userId,
+              socketId: socket.id,
+              details: { roomId },
+            });
+            return;
+          }
           socket.join(roomId);
           console.log(`🚪 Socket ${socket.id} joined waiting room ${roomId}`);
         },
@@ -312,6 +368,17 @@ export class GameGateway {
             });
             if (!room || room.status !== "WAITING" || room.hostId !== inviterId)
               return;
+
+            const blocked = await prisma.userBlock.findFirst({
+              where: {
+                OR: [
+                  { blockerId: inviterId, blockedId: invitedUserId },
+                  { blockerId: invitedUserId, blockedId: inviterId },
+                ],
+              },
+              select: { id: true },
+            });
+            if (blocked) return;
 
             const invitation = await prisma.gameInvitation.upsert({
               where: {
@@ -370,6 +437,17 @@ export class GameGateway {
             });
             if (!room || room.status !== "WAITING" || room.hostId !== inviterId)
               return;
+
+            const blocked = await prisma.userBlock.findFirst({
+              where: {
+                OR: [
+                  { blockerId: inviterId, blockedId: invitedUserId },
+                  { blockerId: invitedUserId, blockedId: inviterId },
+                ],
+              },
+              select: { id: true },
+            });
+            if (blocked) return;
 
             const friendship = await prisma.friendship.findFirst({
               where: {

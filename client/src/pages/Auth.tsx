@@ -55,6 +55,8 @@ export function Auth() {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loginTotpCode, setLoginTotpCode] = useState("");
+  const [loginRequiresTotp, setLoginRequiresTotp] = useState(false);
   const [username, setUsername] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -67,6 +69,8 @@ export function Auth() {
   const [forgotSecretAnswer, setForgotSecretAnswer] = useState("");
   const [forgotNewPassword, setForgotNewPassword] = useState("");
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [forgotTotpCode, setForgotTotpCode] = useState("");
+  const [forgotRequiresTotp, setForgotRequiresTotp] = useState(false);
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
   const [resetSuccessBanner, setResetSuccessBanner] = useState(false);
   
@@ -108,7 +112,10 @@ export function Auth() {
 
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const isEmailValid = EMAIL_REGEX.test(email.trim());
-  const isLoginFormValid = email.length > 0 && password.length > 0;
+  const isLoginFormValid =
+    email.length > 0 &&
+    password.length > 0 &&
+    (!loginRequiresTotp || loginTotpCode.length === 6);
   const forgotPasswordCriteria = {
     length: forgotNewPassword.length >= 8,
     uppercase: /[A-Z]/.test(forgotNewPassword),
@@ -153,7 +160,11 @@ export function Auth() {
     try {
       showLoader(t("auth.loggingIn"));
 
-      const response = await login({ email: email.trim(), password }).unwrap();
+      const response = await login({
+        email: email.trim(),
+        password,
+        ...(loginTotpCode.trim() ? { totpCode: loginTotpCode.trim() } : {}),
+      }).unwrap();
 
       const token = response.token;
 
@@ -188,8 +199,11 @@ export function Auth() {
 
       navigate(typeof from === "string" ? from : "/lobby", { replace: true });
 
-    } catch {
-      // handled
+    } catch (err: unknown) {
+      const data = err && typeof err === "object" && "data" in err
+        ? (err as { data?: { requires2FA?: boolean } }).data
+        : undefined;
+      if (data?.requires2FA) setLoginRequiresTotp(true);
     } finally {
       hideLoader();
     }
@@ -243,6 +257,8 @@ export function Auth() {
   const goBackToEmail = () => {
     setStep("email");
     setPassword("");
+    setLoginTotpCode("");
+    setLoginRequiresTotp(false);
     setUsername("");
     setConfirmPassword("");
     setSecretAnswer("");
@@ -253,6 +269,8 @@ export function Auth() {
     setForgotSecretAnswer("");
     setForgotNewPassword("");
     setForgotConfirmPassword("");
+    setForgotTotpCode("");
+    setForgotRequiresTotp(false);
     setResetPasswordError(null);
   };
 
@@ -262,6 +280,7 @@ export function Auth() {
     setRecoveryError(null);
     setRecoveryQuestionId(null);
     setResetPasswordError(null);
+    setForgotRequiresTotp(false);
     recoveryQuestion({ email: email.trim() })
       .unwrap()
       .then((r) => {
@@ -294,15 +313,21 @@ export function Auth() {
         email: email.trim(),
         secretAnswer: forgotSecretAnswer.trim(),
         newPassword: forgotNewPassword,
+        ...(forgotTotpCode.trim() ? { totpCode: forgotTotpCode.trim() } : {}),
       }).unwrap();
       setStep("login");
       setPassword("");
       setForgotSecretAnswer("");
       setForgotNewPassword("");
       setForgotConfirmPassword("");
+      setForgotTotpCode("");
+      setForgotRequiresTotp(false);
       setResetSuccessBanner(true);
     } catch (err: unknown) {
-      const data = err && typeof err === "object" && "data" in err ? (err as { data?: { error?: string } }).data : undefined;
+      const data = err && typeof err === "object" && "data" in err
+        ? (err as { data?: { error?: string; requires2FA?: boolean } }).data
+        : undefined;
+      if (data?.requires2FA) setForgotRequiresTotp(true);
       setResetPasswordError(data?.error ?? t("common.error"));
     } finally {
       hideLoader();
@@ -524,6 +549,25 @@ export function Auth() {
                   {t("auth.forgotPassword")}
                 </button>
               </div>
+              {loginRequiresTotp && (
+                <div>
+                  <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">
+                    Code 2FA
+                  </label>
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-cyan-300" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={loginTotpCode}
+                      onChange={(e) => setLoginTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="123456"
+                      className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-blue-400/20 focus:border-blue-400"
+                    />
+                  </div>
+                </div>
+              )}
               {loginError && (
                 <div className="text-red-400 text-sm text-center">
                   {"data" in loginError
@@ -644,6 +688,25 @@ export function Auth() {
                       <p className="text-red-400 text-[10px] mt-1 ml-1">{t("auth.passwordMismatch")}</p>
                     )}
                   </div>
+                  {forgotRequiresTotp && (
+                    <div>
+                      <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">
+                        Code 2FA
+                      </label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-cyan-300" />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          value={forgotTotpCode}
+                          onChange={(e) => setForgotTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          placeholder="123456"
+                          className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-blue-400/20 focus:border-blue-400"
+                        />
+                      </div>
+                    </div>
+                  )}
                   {resetPasswordError && (
                     <div className="text-red-400 text-sm text-center">{resetPasswordError}</div>
                   )}

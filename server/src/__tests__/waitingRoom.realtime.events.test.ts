@@ -16,6 +16,13 @@ jest.mock('../config/database.js', () => {
   return { prisma }
 })
 
+jest.mock('../middleware/auth.middleware.js', () => ({
+  authMiddleware: (req: express.Request & { userId?: string }, _res: express.Response, next: express.NextFunction) => {
+    req.userId = typeof req.body?.userId === 'string' ? req.body.userId : 'u1'
+    next()
+  },
+}))
+
 import waitingRoomRoutes from '../routes/waitingRoom.routes.js'
 import { prisma } from '../config/database.js'
 
