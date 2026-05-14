@@ -1,0 +1,52 @@
+\contentsline {section}{\numberline {1}Introduction}{1}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Context and Objectives}{1}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Scope of this document}{1}{subsection.1.2}%
+\contentsline {section}{\numberline {2}Project Evolution}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Initial specifications (poker-first)}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Scope expansion (casino, tournaments, social, progression)}{2}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Why the narrative moved from ``catalog'' to ``appendices''}{2}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Project Management}{3}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Initial V-model phase}{3}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Transition to an agile-inspired workflow (Jira, Scrum practices)}{3}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Planning, coordination, and reporting}{3}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Product management mechanics}{3}{subsection.3.4}%
+\contentsline {section}{\numberline {4}Development Tools and Technologies}{4}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Frontend and backend}{4}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Database and infrastructure}{4}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Version control and collaboration}{4}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Testing and deployment}{4}{subsection.4.4}%
+\contentsline {section}{\numberline {5}Use of Artificial Intelligence}{5}{section.5}%
+\contentsline {subsection}{\numberline {5.1}In-product AI: poker bots}{5}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}AI-assisted engineering (tooling)}{5}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Limits and verification}{5}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Platform Functionalities}{6}{section.6}%
+\contentsline {section}{\numberline {7}System Architecture}{8}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Monorepo layout}{8}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Real-time communication}{8}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Persistence and integrity}{8}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Diagram}{8}{subsection.7.4}%
+\contentsline {section}{\numberline {8}Security, Testing and Stability}{9}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Authentication and abuse controls}{9}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Testing and debugging}{9}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Performance and stability}{9}{subsection.8.3}%
+\contentsline {section}{\numberline {9}Technical Challenges}{10}{section.9}%
+\contentsline {section}{\numberline {10}Individual Contributions}{11}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Omar -- project management and architecture alignment}{11}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Other contributors}{11}{subsection.10.2}%
+\contentsline {section}{\numberline {11}Limitations and Future Work}{12}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Current limitations}{12}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Future improvements}{12}{subsection.11.2}%
+\contentsline {section}{\numberline {12}Conclusion}{13}{section.12}%
+\contentsline {section}{\numberline {A}Appendix A: Repository map and routing}{13}{appendix.A}%
+\contentsline {section}{\numberline {B}Appendix B: Poker engine and cash game}{13}{appendix.B}%
+\contentsline {section}{\numberline {C}Appendix C: Bot AI and practice integration}{13}{appendix.C}%
+\contentsline {section}{\numberline {D}Appendix D: Probabilities, Quantum HUD, and Monte Carlo helper}{13}{appendix.D}%
+\contentsline {section}{\numberline {E}Appendix E: Hidden betting system}{14}{appendix.E}%
+\contentsline {section}{\numberline {F}Appendix F: Tournaments and winner side bets}{14}{appendix.F}%
+\contentsline {section}{\numberline {G}Appendix G: Blackjack solo and multiplayer}{14}{appendix.G}%
+\contentsline {section}{\numberline {H}Appendix H: Slot machine, roulette, and casino wallet}{14}{appendix.H}%
+\contentsline {section}{\numberline {I}Appendix I: Social graph, invitations, and peer loans}{14}{appendix.I}%
+\contentsline {section}{\numberline {J}Appendix J: Progression, challenges, and leaderboards}{15}{appendix.J}%
+\contentsline {section}{\numberline {K}Appendix K: Authentication, profiles, and i18n}{15}{appendix.K}%
+\contentsline {section}{\numberline {L}Appendix L: Operations, Redis, CI, and packaging}{15}{appendix.L}%
+\contentsline {section}{\numberline {M}Appendix M: External and large internal references}{15}{appendix.M}%
