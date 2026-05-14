@@ -71,6 +71,8 @@ model User {
   receivedRequests       FriendRequest[] @relation("Receiver")
   friendshipsAsUser1     Friendship[]    @relation("User1")
   friendshipsAsUser2     Friendship[]    @relation("User2")
+  blockedUsers           UserBlock[]      @relation("UserBlocksSent")
+  blockedByUsers         UserBlock[]      @relation("UserBlocksReceived")
   sentFriendMessages     FriendMessage[] @relation("MessageSender")
   receivedFriendMessages FriendMessage[] @relation("MessageReceiver")
 
@@ -240,6 +242,21 @@ model Friendship {
   @@unique([user1Id, user2Id])
   @@index([user1Id])
   @@index([user2Id])
+}
+
+model UserBlock {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("UserBlocksSent", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("UserBlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("user_blocks")
 }
 
 // ============================================

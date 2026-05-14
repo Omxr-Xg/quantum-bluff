@@ -27,6 +27,23 @@ function normalizeFriendActivity(activity?: string | null): string | undefined {
   return value
 }
 
+function orderedFriendshipIds(a: string, b: string): { user1Id: string; user2Id: string } {
+  return a < b ? { user1Id: a, user2Id: b } : { user1Id: b, user2Id: a }
+}
+
+async function hasBlockBetween(userId: string, otherUserId: string): Promise<boolean> {
+  const block = await prisma.userBlock.findFirst({
+    where: {
+      OR: [
+        { blockerId: userId, blockedId: otherUserId },
+        { blockerId: otherUserId, blockedId: userId },
+      ],
+    },
+    select: { id: true },
+  })
+  return Boolean(block)
+}
+
 const friendSearchLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
@@ -47,6 +64,13 @@ const friendResponseLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false
+})
+
+const friendSocialActionLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
 })
 
 const friendMessageReadLimiter = rateLimit({
@@ -379,8 +403,25 @@ router.get('/search', friendSearchLimiter, async (req, res) => {
   query = sanitizeHtml(query)
 
   try {
+    const requesterId = String(req.userId ?? '').trim()
+    const blockRows = requesterId
+      ? await prisma.userBlock.findMany({
+          where: {
+            OR: [{ blockerId: requesterId }, { blockedId: requesterId }],
+          },
+          select: { blockerId: true, blockedId: true },
+        })
+      : []
+    const blockedIds = new Set(
+      blockRows.map((row) =>
+        row.blockerId === requesterId ? row.blockedId : row.blockerId,
+      ),
+    )
     const users = await prisma.user.findMany({
       where: {
+        id: {
+          notIn: [requesterId, ...blockedIds].filter(Boolean),
+        },
         username: {
           contains: query,
           mode: 'insensitive'
@@ -438,6 +479,10 @@ router.post('/request', friendRequestLimiter, async (req, res) => {
 
     if (receiver.id === senderId) {
       return res.status(400).json({ error: 'Impossible de s’ajouter soi-même' })
+    }
+
+    if (await hasBlockBetween(String(senderId), String(receiver.id))) {
+      return res.status(403).json({ error: 'Impossible d’envoyer une demande à cet utilisateur' })
     }
 
     const existingFriendship = await prisma.friendship.findFirst({
@@ -640,6 +685,13 @@ router.put('/request/:requestId', friendResponseLimiter, async (req, res) => {
       return res.status(403).json({ error: 'Accès interdit' })
     }
 
+    if (
+      status === 'ACCEPTED' &&
+      (await hasBlockBetween(String(request.senderId), String(request.receiverId)))
+    ) {
+      return res.status(403).json({ error: 'Impossible d’accepter cette demande' })
+    }
+
     const updatedRequest = await prisma.friendRequest.update({
       where: { id: requestId },
       data: { status }
@@ -705,6 +757,142 @@ router.put('/request/:requestId', friendResponseLimiter, async (req, res) => {
     return res.json(updatedRequest)
   } catch (error) {
     console.error('PUT /api/friends/request/:requestId error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// GET /api/friends/blocked - Liste des utilisateurs bloqués
+router.get('/blocked', friendSocialActionLimiter, async (req, res) => {
+  const userId = String(req.userId ?? '').trim()
+  if (!userId) {
+    return res.status(401).json({ error: 'Non authentifié' })
+  }
+
+  try {
+    const rows = await prisma.userBlock.findMany({
+      where: { blockerId: userId },
+      include: {
+        blocked: {
+          select: {
+            id: true,
+            username: true,
+            level: true,
+            avatarUrl: true,
+            avatarHasBinary: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return res.json(
+      rows.map((row) => ({
+        id: row.id,
+        blockedAt: row.createdAt,
+        user: {
+          ...row.blocked,
+          avatarUrl: clientAvatarUrlFromUser(row.blocked),
+        },
+      })),
+    )
+  } catch (error) {
+    console.error('GET /api/friends/blocked error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// DELETE /api/friends/:friendId - Retirer un ami sans le bloquer
+router.delete('/:friendId', friendSocialActionLimiter, async (req, res) => {
+  const userId = String(req.userId ?? '').trim()
+  const friendId = String(req.params.friendId ?? '').trim()
+  if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+  if (!friendId || friendId === userId) return res.status(400).json({ error: 'Ami invalide' })
+
+  try {
+    const { user1Id, user2Id } = orderedFriendshipIds(userId, friendId)
+    await prisma.friendship.deleteMany({ where: { user1Id, user2Id } })
+    const io = req.app.get('io') as Server | undefined
+    io?.to(`user:${userId}`).emit('FRIEND_LIST_UPDATED', { friendId })
+    io?.to(`user:${friendId}`).emit('FRIEND_LIST_UPDATED', { friendId: userId })
+    return res.json({ ok: true })
+  } catch (error) {
+    console.error('DELETE /api/friends/:friendId error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// POST /api/friends/block - Bloquer un utilisateur et supprimer les liens sociaux directs
+router.post('/block', friendSocialActionLimiter, async (req, res) => {
+  const blockerId = String(req.userId ?? '').trim()
+  const blockedId = String(req.body?.blockedUserId ?? '').trim()
+  if (!blockerId) return res.status(401).json({ error: 'Non authentifié' })
+  if (!blockedId || blockedId === blockerId) {
+    return res.status(400).json({ error: 'Utilisateur invalide' })
+  }
+
+  try {
+    const blocked = await prisma.user.findUnique({
+      where: { id: blockedId },
+      select: { id: true },
+    })
+    if (!blocked) return res.status(404).json({ error: 'Utilisateur introuvable' })
+
+    const { user1Id, user2Id } = orderedFriendshipIds(blockerId, blockedId)
+    await prisma.$transaction([
+      prisma.userBlock.upsert({
+        where: { blockerId_blockedId: { blockerId, blockedId } },
+        create: { blockerId, blockedId },
+        update: {},
+      }),
+      prisma.friendship.deleteMany({ where: { user1Id, user2Id } }),
+      prisma.friendRequest.deleteMany({
+        where: {
+          OR: [
+            { senderId: blockerId, receiverId: blockedId },
+            { senderId: blockedId, receiverId: blockerId },
+          ],
+        },
+      }),
+      prisma.gameInvitation.deleteMany({
+        where: {
+          OR: [
+            { senderId: blockerId, receiverId: blockedId },
+            { senderId: blockedId, receiverId: blockerId },
+          ],
+        },
+      }),
+      prisma.blackjackRoomInvitation.deleteMany({
+        where: {
+          OR: [
+            { senderId: blockerId, receiverId: blockedId },
+            { senderId: blockedId, receiverId: blockerId },
+          ],
+        },
+      }),
+    ])
+
+    const io = req.app.get('io') as Server | undefined
+    io?.to(`user:${blockerId}`).emit('FRIEND_LIST_UPDATED', { friendId: blockedId })
+    io?.to(`user:${blockedId}`).emit('FRIEND_LIST_UPDATED', { friendId: blockerId })
+    return res.json({ ok: true })
+  } catch (error) {
+    console.error('POST /api/friends/block error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// DELETE /api/friends/block/:blockedUserId - Débloquer un utilisateur
+router.delete('/block/:blockedUserId', friendSocialActionLimiter, async (req, res) => {
+  const blockerId = String(req.userId ?? '').trim()
+  const blockedId = String(req.params.blockedUserId ?? '').trim()
+  if (!blockerId) return res.status(401).json({ error: 'Non authentifié' })
+  if (!blockedId) return res.status(400).json({ error: 'Utilisateur invalide' })
+
+  try {
+    await prisma.userBlock.deleteMany({ where: { blockerId, blockedId } })
+    return res.json({ ok: true })
+  } catch (error) {
+    console.error('DELETE /api/friends/block/:blockedUserId error:', error)
     return res.status(500).json({ error: 'Erreur serveur' })
   }
 })

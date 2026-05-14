@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, Zap, Clock } from "lucide-react";
+import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, Zap, Clock, AlertTriangle } from "lucide-react";
 import { ChipIcon } from "../components/ChipIcon";
 import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
 import { fetchBalanceFromServer, getUserAvatar } from "../utils/userProfile";
-import { useGetFriendsQuery } from "../services/api";
+import { useGetBlockedUsersQuery, useGetFriendsQuery } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
 import { apiUrl } from "../utils/apiBase";
 import { getPlayerAvatar } from "../utils/avatars";
@@ -44,6 +44,9 @@ export function WaitingRoom() {
   const [roomMinBalance, setRoomMinBalance] = useState<number | null>(null);
   const [roomLoading, setRoomLoading] = useState(true);
   const [roomError, setRoomError] = useState<string | null>(null);
+  const [blockedWarningAccepted, setBlockedWarningAccepted] = useState(false);
+  const [blockedRoomWarning, setBlockedRoomWarning] = useState<{ names: string[] } | null>(null);
+  const [blockedPresenceWarning, setBlockedPresenceWarning] = useState<{ id: string; name: string } | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [myIsReady, setMyIsReady] = useState(false);
@@ -58,6 +61,8 @@ export function WaitingRoom() {
   const [joinRequests, setJoinRequests] = useState<JoinRequestItem[]>([]);
   const [processingRequest, setProcessingRequest] = useState<string | null>(null);
   const roomPollInFlightRef = useRef(false);
+  const seenPlayerIdsRef = useRef<Set<string> | null>(null);
+  const warnedBlockedPresenceIdsRef = useRef<Set<string>>(new Set());
   /** Évite POST /leave au démontage après départ explicite ou lancement partie (salle IN_GAME). */
   const skipPersistedLeaveOnUnmountRef = useRef(false);
 
@@ -68,6 +73,7 @@ export function WaitingRoom() {
     hostId?: string;
     minBalance?: number | null;
     players?: Array<{ id: string; username: string; level?: number; isReady?: boolean; avatarUrl?: string | null }>;
+    blockedPlayers?: Array<{ id: string; username: string }>;
   }) => {
     setRoomName(room.name || "");
     setRoomVisibility(room.visibility || 'PUBLIC');
@@ -90,6 +96,9 @@ export function WaitingRoom() {
   }, [userId]);
 
   const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
+  const { data: blockedUsers = [], isLoading: blockedUsersLoading } = useGetBlockedUsersQuery(undefined, {
+    skip: !userId,
+  });
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -98,7 +107,38 @@ export function WaitingRoom() {
 
   useEffect(() => {
     skipPersistedLeaveOnUnmountRef.current = false;
+    seenPlayerIdsRef.current = null;
+    warnedBlockedPresenceIdsRef.current = new Set();
+    setBlockedPresenceWarning(null);
   }, [rawRoomId]);
+
+  useEffect(() => {
+    if (roomLoading || blockedUsersLoading) return;
+    const currentIds = new Set(players.map((player) => player.id));
+    const previousIds = seenPlayerIdsRef.current;
+
+    if (!previousIds) {
+      seenPlayerIdsRef.current = currentIds;
+      return;
+    }
+
+    const blockedIds = new Set(blockedUsers.map((entry) => entry.user.id));
+    const enteredBlockedPlayer = players.find(
+      (player) =>
+        blockedIds.has(player.id) &&
+        !previousIds.has(player.id) &&
+        !warnedBlockedPresenceIdsRef.current.has(player.id),
+    );
+    seenPlayerIdsRef.current = currentIds;
+
+    if (enteredBlockedPlayer) {
+      warnedBlockedPresenceIdsRef.current.add(enteredBlockedPlayer.id);
+      setBlockedPresenceWarning({
+        id: enteredBlockedPlayer.id,
+        name: enteredBlockedPlayer.name,
+      });
+    }
+  }, [players, blockedUsers, roomLoading, blockedUsersLoading]);
 
   const postWaitingRoomLeavePersisted = useCallback((roomIdToLeave: string, uid: string) => {
     if (!roomIdToLeave || roomIdToLeave.startsWith("room_")) return;
@@ -180,7 +220,9 @@ export function WaitingRoom() {
 
   const fetchRoom = useCallback(
     async (id: string) => {
-      const url = apiUrl(`/api/waiting-room/${id}`);
+      const url = userId
+        ? `${apiUrl(`/api/waiting-room/${id}`)}?userId=${encodeURIComponent(userId)}`
+        : apiUrl(`/api/waiting-room/${id}`);
       const res = await fetch(url);
       if (res.status === 410) {
         const msg = await extractErrorMessage(
@@ -192,7 +234,7 @@ export function WaitingRoom() {
       if (!res.ok) return null;
       return res.json();
     },
-    [extractErrorMessage, t]
+    [extractErrorMessage, t, userId]
   );
 
   useEffect(() => {
@@ -262,11 +304,20 @@ export function WaitingRoom() {
         }
 
         const inRoom = room.players?.some((p: { id: string }) => p.id === userId);
+        const blockedPlayers = Array.isArray(room.blockedPlayers) ? room.blockedPlayers : [];
+        if (!inRoom && blockedPlayers.length > 0 && !blockedWarningAccepted) {
+          setBlockedRoomWarning({
+            names: blockedPlayers.map((player: { username: string }) => player.username).filter(Boolean),
+          });
+          applyRoomSnapshot(room);
+          setRoomLoading(false);
+          return;
+        }
         const joinUrl = apiUrl(`/api/waiting-room/${rawRoomId}/join`);
         const joinRes = await fetch(joinUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, avatarUrl: getUserAvatar() }),
+          body: JSON.stringify({ userId, avatarUrl: getUserAvatar(), confirmBlockedWarning: blockedWarningAccepted }),
         });
         if (cancelled) return;
         if (!joinRes.ok) {
@@ -294,7 +345,7 @@ export function WaitingRoom() {
     return () => {
       cancelled = true;
     };
-  }, [userId, username, rawRoomId, navigate, fetchRoom, applyRoomSnapshot, extractErrorMessage, t]);
+  }, [userId, username, rawRoomId, navigate, fetchRoom, applyRoomSnapshot, extractErrorMessage, t, blockedWarningAccepted]);
 
   useEffect(() => {
     if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;
@@ -595,6 +646,76 @@ export function WaitingRoom() {
 
   return (
     <div className="w-full min-h-full app-shell-bg overflow-x-hidden">
+      {blockedRoomWarning ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-2xl border border-amber-300/20 bg-slate-950/90 p-6 shadow-2xl shadow-black/50">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-amber-300/25 bg-amber-950/50">
+                <AlertTriangle className="h-6 w-6 text-amber-200" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{t("lobby.blockedRoomWarningTitle")}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-slate-300">
+                  {t("lobby.blockedRoomWarningBody", { names: blockedRoomWarning.names.join(", ") })}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => navigate("/lobby")}
+                className="rounded-full border border-white/10 bg-white/[0.055] px-4 py-2.5 font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBlockedRoomWarning(null);
+                  setBlockedWarningAccepted(true);
+                  setRoomLoading(true);
+                }}
+                className="rounded-full border border-amber-300/20 bg-amber-700 px-4 py-2.5 font-semibold text-white transition hover:bg-amber-600"
+              >
+                {t("lobby.blockedRoomWarningContinue")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {blockedPresenceWarning ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-2xl border border-amber-300/20 bg-slate-950/90 p-6 shadow-2xl shadow-black/50">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-amber-300/25 bg-amber-950/50">
+                <AlertTriangle className="h-6 w-6 text-amber-200" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{t("waitingRoom.blockedMemberEnteredTitle")}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-slate-300">
+                  {t("waitingRoom.blockedMemberEnteredBody", { name: blockedPresenceWarning.name })}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => void handleLeaveRoom()}
+                className="rounded-full border border-red-300/20 bg-red-700 px-4 py-2.5 font-semibold text-white transition hover:bg-red-600"
+              >
+                {t("waitingRoom.blockedMemberLeave")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setBlockedPresenceWarning(null)}
+                className="rounded-full border border-amber-300/20 bg-amber-700 px-4 py-2.5 font-semibold text-white transition hover:bg-amber-600"
+              >
+                {t("waitingRoom.blockedMemberStay")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="w-full min-w-0 p-4 sm:p-6">
         {defeatBanner ? (
           <div

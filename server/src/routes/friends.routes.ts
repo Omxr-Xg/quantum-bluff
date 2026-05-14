@@ -28,6 +28,42 @@ const invitationRespondLimiter = rateLimit({
   legacyHeaders: false
 })
 
+async function hasBlockBetween(userId: string, otherUserId: string): Promise<boolean> {
+  const block = await prisma.userBlock.findFirst({
+    where: {
+      OR: [
+        { blockerId: userId, blockedId: otherUserId },
+        { blockerId: otherUserId, blockedId: userId },
+      ],
+    },
+    select: { id: true },
+  })
+  return Boolean(block)
+}
+
+async function getBlockedPlayersForViewer(
+  viewerId: string,
+  players: Array<{ userId: string; user?: { username?: string } | null }>,
+): Promise<Array<{ id: string; username: string }>> {
+  const playerIds = players.map((p) => p.userId).filter((id) => id && id !== viewerId)
+  if (playerIds.length === 0) return []
+
+  const blocks = await prisma.userBlock.findMany({
+    where: {
+      blockerId: viewerId,
+      blockedId: { in: playerIds },
+    },
+    select: { blockedId: true },
+  })
+  const blockedIds = new Set(blocks.map((block) => block.blockedId))
+  return players
+    .filter((player) => blockedIds.has(player.userId))
+    .map((player) => ({
+      id: player.userId,
+      username: player.user?.username || 'Utilisateur bloqué',
+    }))
+}
+
 router.use(authMiddleware)
 
 // POST /api/invitations/send - Envoyer une invitation
@@ -55,6 +91,10 @@ router.post('/send', invitationSendLimiter, async (req, res) => {
 
     const alreadyInRoom = room.players.some((p) => p.userId === receiverId)
     if (alreadyInRoom) return res.status(400).json({ error: 'Le joueur est déjà dans la salle' })
+
+    if (await hasBlockBetween(senderId, receiverId)) {
+      return res.status(403).json({ error: 'Impossible d’inviter cet utilisateur' })
+    }
 
     const invitation = await prisma.gameInvitation.upsert({
       where: { roomId_receiverId: { roomId, receiverId } },
@@ -109,11 +149,22 @@ router.get('/received', invitationReadLimiter, async (req, res) => {
 router.post('/:id/accept', invitationRespondLimiter, async (req, res) => {
   const userId = req.userId!
   const { id } = req.params
+  const confirmBlockedWarning = req.body?.confirmBlockedWarning === true
 
   try {
     const invitation = await prisma.gameInvitation.findUnique({
       where: { id },
-      include: { room: { include: { players: true } } },
+      include: {
+        room: {
+          include: {
+            players: {
+              include: {
+                user: { select: { username: true } },
+              },
+            },
+          },
+        },
+      },
     })
 
     if (!invitation) return res.status(404).json({ error: 'Invitation introuvable' })
@@ -122,6 +173,19 @@ router.post('/:id/accept', invitationRespondLimiter, async (req, res) => {
     if (invitation.room.status !== 'WAITING') return res.status(400).json({ error: 'La partie a déjà commencé' })
     if (invitation.room.players.length >= invitation.room.maxPlayers) {
       return res.status(400).json({ error: 'Salle pleine' })
+    }
+
+    if (await hasBlockBetween(userId, invitation.senderId)) {
+      return res.status(403).json({ error: 'Impossible d’accepter cette invitation' })
+    }
+
+    const blockedPlayers = await getBlockedPlayersForViewer(userId, invitation.room.players)
+    if (blockedPlayers.length > 0 && !confirmBlockedWarning) {
+      return res.status(409).json({
+        error: 'Cette salle contient un utilisateur que vous avez bloqué.',
+        code: 'BLOCKED_USER_IN_ROOM',
+        blockedPlayers,
+      })
     }
 
     const alreadyIn = invitation.room.players.some((p) => p.userId === userId)

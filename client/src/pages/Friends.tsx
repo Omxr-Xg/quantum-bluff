@@ -12,9 +12,13 @@ import {
   RefreshCw,
   Search,
   Send,
+  ShieldBan,
+  Flag,
   Trophy,
+  UserMinus,
   UserPlus,
   Users,
+  Unlock,
   X,
 } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
@@ -34,6 +38,11 @@ import {
   useGetFriendMessagesQuery,
   useSendFriendMessageMutation,
   useCreateFriendLoanRequestMutation,
+  useRemoveFriendMutation,
+  useBlockUserMutation,
+  useUnblockUserMutation,
+  useGetBlockedUsersQuery,
+  useReportPlayerMutation,
 } from "../services/api";
 import { FriendLoansPanel } from "../components/FriendLoansPanel";
 import {
@@ -50,10 +59,11 @@ import {
   setActiveFriendChat,
 } from "../utils/activeFriendChat";
 
-type FriendsTab = "friends" | "messages" | "loans";
+type FriendsTab = "friends" | "messages" | "loans" | "blocked";
 type FriendStatusFilter = "all" | "online" | "offline";
 type FriendSort = "recent" | "oldest" | "alpha";
 type RequestSort = "recent" | "oldest" | "alpha";
+type ReportReason = "INAPPROPRIATE_LANGUAGE" | "CHEATING" | "HARASSMENT" | "SPAM" | "OTHER";
 
 const pokerGlassCard =
   "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
@@ -150,6 +160,14 @@ export function Friends() {
   const [friendStatusFilter, setFriendStatusFilter] = useState<FriendStatusFilter>("all");
   const [friendSort, setFriendSort] = useState<FriendSort>("recent");
   const [requestSort, setRequestSort] = useState<RequestSort>("recent");
+  const [confirmAction, setConfirmAction] = useState<
+    | { kind: "remove"; id: string; username: string }
+    | { kind: "block"; id: string; username: string }
+    | null
+  >(null);
+  const [reportTarget, setReportTarget] = useState<{ id: string; username: string } | null>(null);
+  const [reportReason, setReportReason] = useState<ReportReason>("INAPPROPRIATE_LANGUAGE");
+  const [reportDetail, setReportDetail] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -201,8 +219,20 @@ export function Friends() {
     skip: !userId
   });
 
+  const {
+    data: blockedUsers = [],
+    refetch: refetchBlockedUsers,
+    isLoading: loadingBlockedUsers,
+  } = useGetBlockedUsersQuery(undefined, {
+    skip: !userId,
+  });
+
   const [sendRequest, { isLoading: sendingRequest }] = useSendFriendRequestMutation();
   const [respondRequest] = useRespondToFriendRequestMutation();
+  const [removeFriend, { isLoading: removingFriend }] = useRemoveFriendMutation();
+  const [blockUser, { isLoading: blockingUser }] = useBlockUserMutation();
+  const [unblockUser, { isLoading: unblockingUser }] = useUnblockUserMutation();
+  const [reportPlayer, { isLoading: reportingPlayer }] = useReportPlayerMutation();
 
   const { data: searchData, isLoading: searching } = useSearchUsersQuery(friendUsername, {
     skip: friendUsername.trim().length < 2 || !showAddFriend
@@ -240,6 +270,7 @@ export function Friends() {
     { key: "friends" as const, label: t("friends.tabFriends"), Icon: Users },
     { key: "messages" as const, label: t("friends.tabMessages"), Icon: MessageCircle },
     { key: "loans" as const, label: t("friends.tabLoans"), Icon: Coins },
+    { key: "blocked" as const, label: t("friends.tabBlocked"), Icon: ShieldBan },
   ];
 
   useEffect(() => {
@@ -377,6 +408,56 @@ export function Friends() {
       await refetchRequests();
     } catch (err) {
       console.error("Erreur:", err);
+    }
+  };
+
+  const runConfirmedFriendAction = async () => {
+    if (!confirmAction) return;
+    try {
+      if (confirmAction.kind === "remove") {
+        await removeFriend(confirmAction.id).unwrap();
+        addToast(t("friends.removeSuccess", { username: confirmAction.username }), "success");
+      } else {
+        await blockUser(confirmAction.id).unwrap();
+        addToast(t("friends.blockSuccess", { username: confirmAction.username }), "success");
+        await refetchBlockedUsers();
+      }
+      if (selectedChat === confirmAction.id) closeChat();
+      setConfirmAction(null);
+      await refetchFriends();
+      await refetchRequests();
+    } catch (err: unknown) {
+      const message =
+        (err as { data?: { error?: string } })?.data?.error ||
+        (confirmAction.kind === "remove" ? t("friends.removeError") : t("friends.blockError"));
+      addToast(message, "error");
+    }
+  };
+
+  const handleUnblock = async (blockedUserId: string, username: string) => {
+    try {
+      await unblockUser(blockedUserId).unwrap();
+      addToast(t("friends.unblockSuccess", { username }), "success");
+      await refetchBlockedUsers();
+    } catch (err: unknown) {
+      addToast((err as { data?: { error?: string } })?.data?.error || t("friends.unblockError"), "error");
+    }
+  };
+
+  const submitReport = async () => {
+    if (!reportTarget) return;
+    try {
+      await reportPlayer({
+        reportedUserId: reportTarget.id,
+        reason: reportReason,
+        detail: reportDetail.trim() || undefined,
+      }).unwrap();
+      addToast(t("friends.reportSuccess", { username: reportTarget.username }), "success");
+      setReportTarget(null);
+      setReportReason("INAPPROPRIATE_LANGUAGE");
+      setReportDetail("");
+    } catch (err: unknown) {
+      addToast((err as { data?: { error?: string } })?.data?.error || t("friends.reportError"), "error");
     }
   };
 
@@ -777,11 +858,11 @@ export function Friends() {
                         </div>
                       </div>
 
-                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
                         <button
                           type="button"
                           onClick={() => openChat(friend.id)}
-                          className={`flex items-center justify-center gap-2 px-4 py-2.5 ${pokerMutedButton}`}
+                          className={`flex items-center justify-center gap-2 px-4 py-2.5 lg:col-span-2 ${pokerMutedButton}`}
                         >
                           <MessageCircle className="h-4 w-4 shrink-0" />
                           {t("friends.chat")}
@@ -793,10 +874,34 @@ export function Friends() {
                             setLoanAmount(500);
                             setLoanRate(30);
                           }}
-                          className="flex items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-950/45 px-4 py-2.5 font-semibold text-cyan-100 transition-all hover:border-cyan-200/35 hover:bg-cyan-900/45"
+                          className="flex items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-950/45 px-4 py-2.5 font-semibold text-cyan-100 transition-all hover:border-cyan-200/35 hover:bg-cyan-900/45 lg:col-span-3"
                         >
                           <Coins className="h-4 w-4 shrink-0" />
                           {t("friends.loans.requestLoan")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmAction({ kind: "remove", id: friend.id, username: friend.username })}
+                          className="flex items-center justify-center gap-2 rounded-xl border border-amber-300/20 bg-amber-950/35 px-4 py-2.5 font-semibold text-amber-100 transition-all hover:border-amber-200/35 hover:bg-amber-900/40 lg:col-span-2"
+                        >
+                          <UserMinus className="h-4 w-4 shrink-0" />
+                          {t("friends.removeFriend")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmAction({ kind: "block", id: friend.id, username: friend.username })}
+                          className="flex items-center justify-center gap-2 rounded-xl border border-red-300/20 bg-red-950/35 px-4 py-2.5 font-semibold text-red-100 transition-all hover:border-red-200/35 hover:bg-red-900/40 lg:col-span-2"
+                        >
+                          <ShieldBan className="h-4 w-4 shrink-0" />
+                          {t("friends.blockUser")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReportTarget({ id: friend.id, username: friend.username })}
+                          className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.055] px-4 py-2.5 font-semibold text-slate-200 transition-all hover:border-white/20 hover:bg-white/[0.08]"
+                        >
+                          <Flag className="h-4 w-4 shrink-0" />
+                          {t("friends.reportUser")}
                         </button>
                       </div>
                     </div>
@@ -870,8 +975,184 @@ export function Friends() {
             <FriendLoansPanel userId={userId} />
           </div>
         ) : null}
+
+        {activeTab === "blocked" && userId ? (
+          <div className={`p-5 sm:p-6 ${pokerGlassCard}`}>
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-red-300/20 bg-red-950/40">
+                <ShieldBan className="h-5 w-5 text-red-200" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{t("friends.blockedTitle")}</h2>
+                <p className="text-sm text-slate-400">{t("friends.blockedSubtitle")}</p>
+              </div>
+            </div>
+
+            {loadingBlockedUsers ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-300" />
+              </div>
+            ) : blockedUsers.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {blockedUsers.map((entry) => (
+                  <div key={entry.id} className={`flex items-center justify-between gap-4 p-4 ${pokerInnerCard}`}>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-red-300/25 bg-red-950/45">
+                        {getPlayerAvatar(entry.user.username, entry.user.id, userId, entry.user.avatarUrl) ? (
+                          <ImageWithFallback
+                            src={getPlayerAvatar(entry.user.username, entry.user.id, userId, entry.user.avatarUrl)}
+                            alt=""
+                            className="h-12 w-12 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-lg font-bold text-white">{entry.user.username.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-white">{entry.user.username}</p>
+                        <p className="text-xs text-slate-400">{t("friends.blockedAt", { date: new Date(entry.blockedAt).toLocaleDateString(i18n.language) })}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleUnblock(entry.user.id, entry.user.username)}
+                      disabled={unblockingUser}
+                      className="flex shrink-0 items-center gap-2 rounded-xl border border-blue-300/15 bg-blue-950/75 px-4 py-2.5 font-semibold text-white transition hover:border-blue-200/25 hover:bg-blue-900/80 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {unblockingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlock className="h-4 w-4" />}
+                      {t("friends.unblock")}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-12 text-center text-slate-400">{t("friends.noBlockedUsers")}</p>
+            )}
+          </div>
+        ) : null}
         </main>
       </div>
+
+      {confirmAction ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className={`w-full max-w-md p-6 ${pokerGlassCard}`}>
+            <div className="mb-4 flex items-center gap-3">
+              <div className={`flex h-12 w-12 items-center justify-center rounded-full border ${
+                confirmAction.kind === "block"
+                  ? "border-red-300/25 bg-red-950/45"
+                  : "border-amber-300/25 bg-amber-950/45"
+              }`}>
+                {confirmAction.kind === "block" ? (
+                  <ShieldBan className="h-6 w-6 text-red-200" />
+                ) : (
+                  <UserMinus className="h-6 w-6 text-amber-200" />
+                )}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">
+                  {confirmAction.kind === "block" ? t("friends.blockConfirmTitle") : t("friends.removeConfirmTitle")}
+                </h2>
+                <p className="text-sm text-slate-400">
+                  {confirmAction.kind === "block"
+                    ? t("friends.blockConfirmBody", { username: confirmAction.username })
+                    : t("friends.removeConfirmBody", { username: confirmAction.username })}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmAction(null)}
+                className={`px-4 py-2.5 ${pokerMutedButton}`}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void runConfirmedFriendAction()}
+                disabled={removingFriend || blockingUser}
+                className={`flex items-center justify-center gap-2 rounded-full px-4 py-2.5 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  confirmAction.kind === "block"
+                    ? "border border-red-300/20 bg-red-700 hover:bg-red-600"
+                    : "border border-amber-300/20 bg-amber-700 hover:bg-amber-600"
+                }`}
+              >
+                {removingFriend || blockingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {confirmAction.kind === "block" ? t("friends.blockUser") : t("friends.removeFriend")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {reportTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className={`w-full max-w-lg p-6 ${pokerGlassCard}`}>
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-red-300/20 bg-red-950/35">
+                  <Flag className="h-6 w-6 text-red-200" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="truncate text-xl font-bold text-white">
+                    {t("friends.reportTitle", { username: reportTarget.username })}
+                  </h2>
+                  <p className="text-sm text-slate-400">{t("friends.reportSubtitle")}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReportTarget(null)}
+                className="rounded-lg border border-white/10 bg-white/[0.06] p-2 text-white hover:bg-white/[0.1]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <label className="mb-1.5 block text-sm font-semibold text-slate-300">{t("friends.reportReason")}</label>
+            <select
+              value={reportReason}
+              onChange={(event) => setReportReason(event.target.value as ReportReason)}
+              className={`mb-4 w-full px-4 py-3 ${pokerInput}`}
+            >
+              {(["INAPPROPRIATE_LANGUAGE", "CHEATING", "HARASSMENT", "SPAM", "OTHER"] as ReportReason[]).map((reason) => (
+                <option key={reason} value={reason}>
+                  {t(`friends.reportReasons.${reason}`)}
+                </option>
+              ))}
+            </select>
+
+            <label className="mb-1.5 block text-sm font-semibold text-slate-300">{t("friends.reportDetail")}</label>
+            <textarea
+              value={reportDetail}
+              onChange={(event) => setReportDetail(event.target.value)}
+              maxLength={2000}
+              rows={5}
+              placeholder={t("friends.reportDetailPlaceholder")}
+              className={`mb-4 w-full resize-none px-4 py-3 ${pokerInput}`}
+            />
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setReportTarget(null)}
+                className={`px-4 py-2.5 ${pokerMutedButton}`}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitReport()}
+                disabled={reportingPlayer}
+                className="flex items-center justify-center gap-2 rounded-full border border-red-300/20 bg-red-700 px-4 py-2.5 font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {reportingPlayer ? <Loader2 className="h-4 w-4 animate-spin" /> : <Flag className="h-4 w-4" />}
+                {t("friends.sendReport")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {loanModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
