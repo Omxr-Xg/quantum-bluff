@@ -376,7 +376,7 @@ router.post('/reset-password', recoveryLimiter, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, secretQuestionId: true, secretAnswerHash: true },
+      select: { id: true, secretQuestionId: true, secretAnswerHash: true, totpSecret: true },
     })
     if (!user) {
       return res.status(404).json({ error: 'Aucun compte associé à cet email.' })
@@ -387,6 +387,15 @@ router.post('/reset-password', recoveryLimiter, async (req, res) => {
     const ok = await bcrypt.compare(normalizeSecretAnswer(secretAnswer), user.secretAnswerHash)
     if (!ok) {
       return res.status(401).json({ error: 'Réponse secrète incorrecte.' })
+    }
+    if (user.totpSecret) {
+      const code = typeof req.body?.totpCode === 'string' ? req.body.totpCode.replace(/\s/g, '') : ''
+      if (!code || code.length !== 6) {
+        return res.status(401).json({ error: 'Code 2FA requis', requires2FA: true })
+      }
+      if (!verifyTotpToken(user.totpSecret, code)) {
+        return res.status(401).json({ error: 'Code 2FA incorrect' })
+      }
     }
     const hashedPassword = await bcrypt.hash(newPassword, 10)
     await prisma.user.update({

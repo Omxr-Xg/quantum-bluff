@@ -13,6 +13,17 @@ jest.mock('../config/database.js', () => {
   return { prisma }
 })
 
+jest.mock('../middleware/auth.middleware.js', () => ({
+  authMiddleware: (req: express.Request & { userId?: string }, res: express.Response, next: express.NextFunction) => {
+    const userId = req.headers['x-test-user-id']
+    if (typeof userId !== 'string' || !userId) {
+      return res.status(401).json({ error: 'Non authentifié' })
+    }
+    req.userId = userId
+    next()
+  },
+}))
+
 import waitingRoomRoutes from '../routes/waitingRoom.routes.js'
 import { prisma } from '../config/database.js'
 
@@ -50,7 +61,8 @@ describe('waiting room create route', () => {
 
     const response = await request(app)
       .post('/api/waiting-room/create')
-      .send({ hostId: 'u1', roomName: 'Salle test', maxPlayers: 5, visibility: 'PUBLIC' })
+      .set('x-test-user-id', 'u1')
+      .send({ hostId: 'attacker', roomName: 'Salle test', maxPlayers: 5, visibility: 'PUBLIC' })
       .expect(200)
 
     expect(response.body).toEqual(
@@ -64,11 +76,11 @@ describe('waiting room create route', () => {
     )
   })
 
-  test('returns 400 when hostId is missing', async () => {
+  test('returns 401 when authentication is missing', async () => {
     await request(app)
       .post('/api/waiting-room/create')
       .send({ roomName: 'Salle test' })
-      .expect(400)
+      .expect(401)
   })
 
   test('returns 404 when host user does not exist', async () => {
@@ -76,6 +88,7 @@ describe('waiting room create route', () => {
 
     await request(app)
       .post('/api/waiting-room/create')
+      .set('x-test-user-id', 'missing-user')
       .send({ hostId: 'missing-user', roomName: 'Salle test', maxPlayers: 4 })
       .expect(404)
   })
@@ -83,6 +96,7 @@ describe('waiting room create route', () => {
   test('returns 400 when maxPlayers is out of range', async () => {
     await request(app)
       .post('/api/waiting-room/create')
+      .set('x-test-user-id', 'u1')
       .send({ hostId: 'u1', roomName: 'Salle test', maxPlayers: 6 })
       .expect(400)
   })
@@ -112,6 +126,7 @@ describe('waiting room create route', () => {
 
     await request(app)
       .post('/api/waiting-room/create')
+      .set('x-test-user-id', 'u1')
       .send({ hostId: 'u1', roomName: '   \t  ', maxPlayers: 5, visibility: 'PUBLIC' })
       .expect(200)
 

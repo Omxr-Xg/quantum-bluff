@@ -122,7 +122,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: env.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
@@ -152,10 +152,6 @@ const limiter = rateLimitWithMetrics({
   skip: (req: Request) => {
     const p = req.path
     if (req.method === 'GET' && (p === '/api/auth/balance' || p === '/api/auth/balance-history')) {
-      return true
-    }
-    /** Console / outils admin : beaucoup de GET successifs ; le JWT admin est vérifié sur chaque route. */
-    if (p.startsWith('/api/admin')) {
       return true
     }
     return false
@@ -298,6 +294,11 @@ app.get('/api/health', async (_req, res) => {
 })
 
 app.get('/metrics', async (req, res) => {
+  if (env.isProduction && !env.metricsBearerToken) {
+    res.status(404).end()
+    return
+  }
+
   if (env.metricsBearerToken) {
     const auth = req.headers.authorization
     if (auth !== `Bearer ${env.metricsBearerToken}`) {
@@ -310,13 +311,15 @@ app.get('/metrics', async (req, res) => {
   res.end(await metrics.getMetricsText())
 })
 
-app.use(
-  '/api-docs',
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec, {
-    customCss: '.swagger-ui .topbar { display: none }',
-  })
-)
+if (!env.isProduction) {
+  app.use(
+    '/api-docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      customCss: '.swagger-ui .topbar { display: none }',
+    })
+  )
+}
 
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const msg = err instanceof Error ? err.message : String(err)
