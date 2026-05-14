@@ -69,12 +69,6 @@ function startAtLocalFromNowPlusMinutes(minutes: number): string {
   return dateToStartAtLocal(new Date(Date.now() + minutes * 60 * 1000));
 }
 
-function clampTournamentMaxPlayers(raw: string): number {
-  const v = Number.parseInt(raw, 10);
-  if (Number.isNaN(v)) return TOURNAMENT_MIN_PLAYERS;
-  return Math.min(TOURNAMENT_MAX_PLAYERS, Math.max(TOURNAMENT_MIN_PLAYERS, v));
-}
-
 function readLobbyTabFromUrl(): "poker" | "minigames" | "blackjack" {
   if (typeof window === "undefined") return "poker";
   try {
