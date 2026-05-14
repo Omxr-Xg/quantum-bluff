@@ -177,6 +177,27 @@ export class GameGateway {
             return next(new Error("Token joueur requis"));
           }
 
+          const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            select: { id: true, bannedUntil: true },
+          });
+          if (!user) {
+            rootLogger.warn({
+              msg: "socket_auth_user_not_found",
+              userId: decoded.userId,
+              socketId: socket.id,
+            });
+            return next(new Error("Session expirée"));
+          }
+          if (user.bannedUntil && user.bannedUntil > new Date()) {
+            rootLogger.warn({
+              msg: "socket_auth_user_suspended",
+              userId: decoded.userId,
+              socketId: socket.id,
+            });
+            return next(new Error("Compte suspendu"));
+          }
+
           socket.userId = decoded.userId;
           rootLogger.debug({
             msg: "socket_auth_ok",
