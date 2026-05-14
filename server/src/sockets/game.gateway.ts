@@ -60,6 +60,7 @@ import {
   isUserOnline,
   markUserOffline,
   markUserOnline,
+  setUserActivity,
 } from "../services/presence.service.js";
 import { TOURNAMENT_LOBBY_SOCKET_ROOM } from "../tournament/tournament.roster.events.js";
 
@@ -232,6 +233,17 @@ export class GameGateway {
 
         socket.join(`user:${userId}`);
         console.log(`✅ Utilisateur ${userId} a rejoint sa room personnelle`);
+      });
+
+      socket.on("USER_ACTIVITY_CHANGED", ({ activity }: { activity?: string }) => {
+        if (!socket.userId || typeof activity !== "string") return;
+        void setUserActivity(socket.userId, activity).then(() => {
+          this.io.emit("FRIEND_STATUS_CHANGED", {
+            userId: socket.userId,
+            status: "online",
+            activity,
+          });
+        });
       });
 
       socket.on(

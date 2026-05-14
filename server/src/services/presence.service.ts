@@ -3,6 +3,7 @@ import { env } from '../config/env.js'
 import { rootLogger } from '../observability/logger.js'
 
 const KEY_PREFIX = 'quantum:presence:user:'
+const ACTIVITY_PREFIX = 'quantum:presence:activity:'
 /** TTL Redis sur l’ensemble des sockets d’un user (rafraîchi à chaque connexion). */
 const PRESENCE_TTL_SEC = Math.max(
   60,
@@ -10,6 +11,7 @@ const PRESENCE_TTL_SEC = Math.max(
 )
 
 const memorySockets = new Map<string, Set<string>>()
+const memoryActivity = new Map<string, string>()
 
 function memKey(userId: string) {
   return userId
@@ -19,13 +21,14 @@ function memKey(userId: string) {
  * Marque un socket comme connecté pour cet utilisateur (multi-instances / multi-onglets).
  */
 export async function markUserOnline(userId: string, socketId: string): Promise<void> {
+  let set = memorySockets.get(memKey(userId))
+  if (!set) {
+    set = new Set()
+    memorySockets.set(memKey(userId), set)
+  }
+  set.add(socketId)
+
   if (env.isJest) {
-    let set = memorySockets.get(memKey(userId))
-    if (!set) {
-      set = new Set()
-      memorySockets.set(memKey(userId), set)
-    }
-    set.add(socketId)
     return
   }
 
@@ -42,12 +45,16 @@ export async function markUserOnline(userId: string, socketId: string): Promise<
 }
 
 export async function markUserOffline(userId: string, socketId: string): Promise<void> {
-  if (env.isJest) {
-    const set = memorySockets.get(memKey(userId))
-    if (set) {
-      set.delete(socketId)
-      if (set.size === 0) memorySockets.delete(memKey(userId))
+  const set = memorySockets.get(memKey(userId))
+  if (set) {
+    set.delete(socketId)
+    if (set.size === 0) {
+      memorySockets.delete(memKey(userId))
+      memoryActivity.delete(memKey(userId))
     }
+  }
+
+  if (env.isJest) {
     return
   }
 
@@ -57,6 +64,7 @@ export async function markUserOffline(userId: string, socketId: string): Promise
     const n = await redisClient.scard(key)
     if (n === 0) {
       await redisClient.del(key)
+      await redisClient.del(`${ACTIVITY_PREFIX}${userId}`)
     }
   } catch (err) {
     rootLogger.warn({
@@ -77,6 +85,34 @@ export async function isUserOnline(userId: string): Promise<boolean> {
     const n = await redisClient.scard(key)
     return n > 0
   } catch {
-    return false
+    const set = memorySockets.get(memKey(userId))
+    return Boolean(set && set.size > 0)
+  }
+}
+
+export async function setUserActivity(userId: string, activity: string): Promise<void> {
+  const safeActivity = activity.trim().slice(0, 48) || 'Salon poker'
+  memoryActivity.set(memKey(userId), safeActivity)
+
+  if (env.isJest) return
+
+  try {
+    const key = `${ACTIVITY_PREFIX}${userId}`
+    await redisClient.set(key, safeActivity, 'EX', PRESENCE_TTL_SEC)
+  } catch {
+    // La mémoire locale garde l'activité en dev si Redis n'est pas disponible.
+  }
+}
+
+export async function getUserActivity(userId: string): Promise<string | null> {
+  if (env.isJest) {
+    return memoryActivity.get(memKey(userId)) ?? null
+  }
+
+  try {
+    const activity = await redisClient.get(`${ACTIVITY_PREFIX}${userId}`)
+    return activity || memoryActivity.get(memKey(userId)) || null
+  } catch {
+    return memoryActivity.get(memKey(userId)) ?? null
   }
 }
