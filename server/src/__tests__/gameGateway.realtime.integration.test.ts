@@ -9,6 +9,7 @@ import { disposeActiveGamesForTests } from "../shared/activeGames.js";
 import { pokerStateStore } from "../shared/pokerStateStore.js";
 import type { PokerRuntimeSnapshot } from "../poker/store/pokerStateStore.js";
 import { generateToken } from "../auth/jwt.service.js";
+import { prisma } from "../config/database.js";
 
 function waitForEvent<T>(
   socket: ClientSocket,
@@ -85,6 +86,23 @@ describe("GameGateway realtime integration", () => {
   const clients: ClientSocket[] = [];
 
   beforeAll(async () => {
+    await prisma.user.createMany({
+      data: [
+        {
+          id: "u1",
+          username: "socket-test-u1",
+          email: "socket-test-u1@example.test",
+          password: "test-password",
+        },
+        {
+          id: "u2",
+          username: "socket-test-u2",
+          email: "socket-test-u2@example.test",
+          password: "test-password",
+        },
+      ],
+      skipDuplicates: true,
+    });
     httpServer = createServer();
     ioServer = new SocketIOServer(httpServer, {
       cors: { origin: "*" },
@@ -106,6 +124,7 @@ describe("GameGateway realtime integration", () => {
     await new Promise<void>((resolve) => ioServer.close(() => resolve()));
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));
     disposeActiveGamesForTests();
+    await prisma.user.deleteMany({ where: { id: { in: ["u1", "u2"] } } });
   });
 
   async function connectAs(userId: string): Promise<ClientSocket> {

@@ -10,7 +10,7 @@ describe('validation schemas', () => {
       const r = registerSchema.safeParse({
         email: 'a@b.co',
         username: 'alice',
-        password: 'secret12',
+        password: 'Secret12!',
         dateOfBirth: '2000-01-15',
         secretQuestionId: 1,
         secretAnswer: 'Paris',
@@ -22,7 +22,7 @@ describe('validation schemas', () => {
         registerSchema.safeParse({
           email: 'bad',
           username: 'alice',
-          password: 'secret12',
+          password: 'Secret12!',
           dateOfBirth: '2000-01-15',
           secretQuestionId: 1,
           secretAnswer: 'Paris',
@@ -38,7 +38,7 @@ describe('validation schemas', () => {
         resetPasswordSchema.safeParse({
           email: 'a@b.co',
           secretAnswer: 'x',
-          newPassword: '123456',
+          newPassword: 'Secret12!',
         }).success,
       ).toBe(true)
     })
