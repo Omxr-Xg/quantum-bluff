@@ -19,6 +19,38 @@ function isAttachedGameLive(gameId: string | null | undefined): boolean {
   return Boolean(activeGames.getSync(gameId));
 }
 
+type BlockedRoomPlayer = { id: string; username: string }
+
+async function getBlockedPlayersForViewer(
+  viewerId: string | undefined,
+  players: Array<{ userId: string; user?: { username?: string } | null }>,
+): Promise<BlockedRoomPlayer[]> {
+  if (!viewerId) return []
+  const playerIds = players.map((p) => p.userId).filter((id) => id && id !== viewerId)
+  if (playerIds.length === 0) return []
+
+  const blocks = await prisma.userBlock.findMany({
+    where: {
+      blockerId: viewerId,
+      blockedId: { in: playerIds },
+    },
+    select: { blockedId: true },
+  })
+  const blockedIds = new Set(blocks.map((b) => b.blockedId))
+  return players
+    .filter((p) => blockedIds.has(p.userId))
+    .map((p) => ({ id: p.userId, username: p.user?.username || 'Utilisateur bloqué' }))
+}
+
+async function getBlockedUserIds(viewerId: string | undefined): Promise<Set<string>> {
+  if (!viewerId) return new Set()
+  const blocks = await prisma.userBlock.findMany({
+    where: { blockerId: viewerId },
+    select: { blockedId: true },
+  })
+  return new Set(blocks.map((block) => block.blockedId))
+}
+
 const waitingRoomListLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
@@ -121,7 +153,11 @@ router.get('/', waitingRoomListLimiter, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
+    const blockedUserIds = await getBlockedUserIds(userId);
     let filteredRooms = rooms.filter(room => room.players.length >= 1);
+    if (userId) {
+      filteredRooms = filteredRooms.filter((room) => !blockedUserIds.has(room.hostId));
+    }
     if (userId) {
       const myFriends = new Set<string>();
       const friendships = await prisma.friendship.findMany({
@@ -150,7 +186,9 @@ router.get('/', waitingRoomListLimiter, async (req, res) => {
         if (myJoinRequestRoomIds.has(room.id)) return true;
         if (room.hostId === userId) return true;
         if (myFriends.has(room.hostId)) return true;
-        const playerIds = room.players.map(p => p.userId).filter(Boolean);
+        const playerIds = room.players
+          .map(p => p.userId)
+          .filter((pid) => pid && !blockedUserIds.has(pid));
         const hasFriendInRoom = playerIds.some(pid => myFriends.has(pid));
         return hasFriendInRoom;
       });
@@ -158,30 +196,32 @@ router.get('/', waitingRoomListLimiter, async (req, res) => {
       filteredRooms = filteredRooms.filter(room => room.visibility === 'PUBLIC');
     }
 
-    const formattedRooms = filteredRooms
-      .map(room => ({
-      id: room.id,
-      name: room.name,
-      hostId: room.hostId,
-      maxPlayers: room.maxPlayers,
-      visibility: room.visibility,
-      status: room.status,
-      turbo: room.turbo,
-      players: room.players
-        .filter((p): p is typeof p & { user: NonNullable<typeof p.user> } => p.user != null)
-        .map(p => ({
-        id: p.user.id,
-        username: p.user.username,
-        level: p.user.level,
-        isReady: p.isReady,
-        position: p.position,
-        avatarUrl: p.avatarUrl ?? clientAvatarUrlFromUser(p.user),
+    const formattedRooms = await Promise.all(
+      filteredRooms.map(async (room) => ({
+        id: room.id,
+        name: room.name,
+        hostId: room.hostId,
+        maxPlayers: room.maxPlayers,
+        visibility: room.visibility,
+        status: room.status,
+        turbo: room.turbo,
+        players: room.players
+          .filter((p): p is typeof p & { user: NonNullable<typeof p.user> } => p.user != null)
+          .map(p => ({
+          id: p.user.id,
+          username: p.user.username,
+          level: p.user.level,
+          isReady: p.isReady,
+          position: p.position,
+          avatarUrl: p.avatarUrl ?? clientAvatarUrlFromUser(p.user),
+        })),
+        playerCount: room.players.length,
+        minBalance: room.minBalance ?? null,
+        smallBlind: room.smallBlind ?? null,
+        bigBlind: room.bigBlind ?? null,
+        blockedPlayers: await getBlockedPlayersForViewer(userId, room.players),
       })),
-      playerCount: room.players.length,
-      minBalance: room.minBalance ?? null,
-      smallBlind: room.smallBlind ?? null,
-      bigBlind: room.bigBlind ?? null,
-    }));
+    );
 
     res.json(formattedRooms);
   } catch (error) {
@@ -216,12 +256,15 @@ router.get('/games-in-progress', waitingRoomListLimiter, async (req, res) => {
     const userId = req.query.userId as string | undefined;
     const rooms = await prisma.waitingRoom.findMany({
       where: { status: 'IN_GAME', gameId: { not: null } },
-      select: { id: true, name: true, gameId: true, maxPlayers: true, updatedAt: true, visibility: true, hostId: true },
+      include: {
+        players: { include: { user: { select: { username: true } } } },
+      },
       orderBy: { createdAt: 'desc' }
     });
     const result = [];
     const now = Date.now();
     let myFriends: Set<string> = new Set();
+    const blockedUserIds = await getBlockedUserIds(userId);
     if (userId) {
       const friendships = await prisma.friendship.findMany({
         where: { OR: [{ user1Id: userId }, { user2Id: userId }] }
@@ -232,6 +275,7 @@ router.get('/games-in-progress', waitingRoomListLimiter, async (req, res) => {
     }
     for (const room of rooms) {
       if (!room.gameId) continue;
+      if (userId && blockedUserIds.has(room.hostId)) continue;
       if (!activeGames.getSync(room.gameId)) continue;
       if (room.visibility === 'PRIVATE') {
         if (!userId) continue;
@@ -243,9 +287,9 @@ router.get('/games-in-progress', waitingRoomListLimiter, async (req, res) => {
             const game = await activeGames.get(room.gameId);
             if (game instanceof CashGameController) {
               const seats = (game as CashGameController).getOccupiedSeats();
-              hasFriendInGame = seats.some(s => s.userId != null && myFriends.has(s.userId));
+              hasFriendInGame = seats.some(s => s.userId != null && !blockedUserIds.has(s.userId) && myFriends.has(s.userId));
             } else if (game?.state?.players) {
-              hasFriendInGame = game.state.players.some((p: { id?: string }) => p.id && myFriends.has(p.id));
+              hasFriendInGame = game.state.players.some((p: { id?: string }) => p.id && !blockedUserIds.has(p.id) && myFriends.has(p.id));
             }
           } catch {
             void 0; // jeu absent du cache ou erreur lecture — on exclut si pas d’ami détecté
@@ -272,7 +316,8 @@ router.get('/games-in-progress', waitingRoomListLimiter, async (req, res) => {
         playerCount: occupiedCount,
         maxPlayers: maxSeats,
         phase: game.state.phase ?? 'WAITING',
-        canJoin
+        canJoin,
+        blockedPlayers: await getBlockedPlayersForViewer(userId, room.players),
       });
       } catch (roomErr) {
         console.warn('Erreur salle', room.id, room.gameId, roomErr);
@@ -457,6 +502,7 @@ router.post('/rematch', waitingRoomHostLimiter, authMiddleware, async (req, res)
 router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
+    const viewerId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
 
     const room = await prisma.waitingRoom.findUnique({
       where: { id: roomId },
@@ -486,6 +532,13 @@ router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
       });
     }
 
+    if (viewerId) {
+      const blockedUserIds = await getBlockedUserIds(viewerId);
+      if (blockedUserIds.has(room.hostId)) {
+        return res.status(404).json({ error: 'Salle non trouvée' });
+      }
+    }
+
     res.json({
       id: room.id,
       name: room.name,
@@ -497,6 +550,7 @@ router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
       minBalance: room.minBalance ?? null,
       smallBlind: room.smallBlind ?? null,
       bigBlind: room.bigBlind ?? null,
+      blockedPlayers: await getBlockedPlayersForViewer(viewerId, room.players),
       players: room.players.map(p => ({
         id: p.user.id,
         username: p.user.username,
@@ -516,13 +570,19 @@ router.get('/:roomId', waitingRoomListLimiter, async (req, res) => {
 router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId, avatarUrl: joinAvatarRaw } = req.body;
+    const { userId, avatarUrl: joinAvatarRaw, confirmBlockedWarning } = req.body;
     const joinAvatarUrl = sanitizePublicAvatarUrl(joinAvatarRaw)
 
     // Vérifier que la salle existe et est en WAITING
     const room = await prisma.waitingRoom.findUnique({
       where: { id: roomId },
-      include: { players: true }
+      include: {
+        players: {
+          include: {
+            user: { select: { username: true } },
+          },
+        },
+      }
     });
 
     if (!room) {
@@ -534,6 +594,11 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
         error: 'Cette partie est terminée ou n’est plus disponible.',
         code: 'ROOM_GAME_ENDED',
       });
+    }
+
+    const blockedUserIds = await getBlockedUserIds(userId);
+    if (blockedUserIds.has(room.hostId)) {
+      return res.status(404).json({ error: 'Salle non trouvée' });
     }
 
     if (room.status !== 'WAITING') {
@@ -574,6 +639,15 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, async (req, res) => {
       const io0 = req.app.get('io') as import('socket.io').Server | undefined;
       io0?.to(roomId).emit('WAITING_ROOM_UPDATED', payload);
       return res.json(payload);
+    }
+
+    const blockedPlayers = await getBlockedPlayersForViewer(userId, room.players);
+    if (blockedPlayers.length > 0 && confirmBlockedWarning !== true) {
+      return res.status(409).json({
+        error: 'Cette salle contient un utilisateur que vous avez bloqué.',
+        code: 'BLOCKED_USER_IN_ROOM',
+        blockedPlayers,
+      });
     }
 
     if (room.visibility === 'PRIVATE' && room.hostId !== userId) {
@@ -1010,14 +1084,25 @@ router.post('/:roomId/start', waitingRoomHostLimiter, async (req, res) => {
 router.post('/:roomId/request-join', waitingRoomJoinLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId } = req.body;
+    const { userId, confirmBlockedWarning } = req.body;
 
     const room = await prisma.waitingRoom.findUnique({
       where: { id: roomId },
-      include: { players: true }
+      include: {
+        players: {
+          include: {
+            user: { select: { username: true } },
+          },
+        },
+      }
     });
 
     if (!room) {
+      return res.status(404).json({ error: 'Salle non trouvée' });
+    }
+
+    const blockedUserIds = await getBlockedUserIds(userId);
+    if (blockedUserIds.has(room.hostId)) {
       return res.status(404).json({ error: 'Salle non trouvée' });
     }
 
@@ -1061,6 +1146,15 @@ router.post('/:roomId/request-join', waitingRoomJoinLimiter, async (req, res) =>
 
     if (room.players.some(p => p.userId === userId)) {
       return res.status(400).json({ error: 'Déjà dans la salle' });
+    }
+
+    const blockedPlayers = await getBlockedPlayersForViewer(userId, room.players);
+    if (blockedPlayers.length > 0 && confirmBlockedWarning !== true) {
+      return res.status(409).json({
+        error: 'Cette salle contient un utilisateur que vous avez bloqué.',
+        code: 'BLOCKED_USER_IN_ROOM',
+        blockedPlayers,
+      });
     }
 
     const user = await prisma.user.findUnique({
