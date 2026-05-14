@@ -74,6 +74,16 @@ describe('waiting room create route', () => {
         players: expect.any(Array),
       })
     )
+    expect(prisma.waitingRoom.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          hostId: 'u1',
+          players: expect.objectContaining({
+            create: expect.objectContaining({ userId: 'u1' }),
+          }),
+        }),
+      }),
+    )
   })
 
   test('returns 401 when authentication is missing', async () => {
