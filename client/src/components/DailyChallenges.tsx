@@ -106,18 +106,18 @@ export function DailyChallenges() {
   };
 
   const heading = (
-    <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-      <Target className="w-6 h-6 text-amber-200/90 shrink-0" aria-hidden />
+    <h2 className="mb-2 flex items-center gap-2 text-lg font-bold text-white xl:text-xl">
+      <Target className="h-5 w-5 shrink-0 text-amber-200/90 xl:h-6 xl:w-6" aria-hidden />
       {t("dailyChallenges.title")}
     </h2>
   );
 
   if (loading) {
     return (
-      <div className="relative overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl">
+      <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl xl:p-4">
         <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.07] via-blue-950/[0.12] to-transparent" />
-        <div className="relative z-10">
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         {heading}
         <p className="text-gray-400 text-sm">{t("dailyChallenges.loading")}</p>
         </div>
@@ -126,10 +126,10 @@ export function DailyChallenges() {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl xl:p-4">
       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.07] via-blue-950/[0.12] to-transparent" />
-      <div className="relative z-10">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
       {heading}
 
       {challenges.length === 0 && (
@@ -139,7 +139,7 @@ export function DailyChallenges() {
         <p className="text-red-400 text-xs mt-2">{t(errorKey)}</p>
       )}
 
-      <div className="space-y-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
         {challenges.map((c) => {
           const percent =
             c.goal > 0 ? Math.min(100, (c.progress / c.goal) * 100) : 0;
@@ -147,26 +147,26 @@ export function DailyChallenges() {
           return (
             <div
               key={c.code}
-              className={`p-3 rounded-lg border transition ${
+              className={`rounded-lg border p-2 transition ${
                 c.completed
                   ? "border-emerald-400/25 bg-emerald-950/25"
                   : "border-white/10 bg-white/[0.045] backdrop-blur-md"
               }`}
             >
-              <div className="flex justify-between items-center text-sm mb-1">
-                <span className="text-white flex items-center gap-2">
+              <div className="mb-1 flex items-center justify-between gap-2 text-xs xl:text-sm">
+                <span className="flex min-w-0 items-center gap-1.5 text-white">
                   {c.completed && (
-                    <CheckCircle className="w-4 h-4 text-green-400 shrink-0" aria-hidden />
+                    <CheckCircle className="h-3.5 w-3.5 shrink-0 text-green-400" aria-hidden />
                   )}
-                  {t(c.i18nKey)}
+                  <span className="truncate">{t(c.i18nKey)}</span>
                 </span>
 
-                <span className="text-gray-400">
+                <span className="shrink-0 text-gray-400">
                   {c.progress}/{c.goal}
                 </span>
               </div>
 
-              <div className="relative w-full py-1">
+              <div className="relative w-full py-0.5">
                 <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-amber-300/14 blur-md" />
                 <div
                   className="relative h-1 overflow-hidden rounded-full border border-amber-200/24 bg-slate-950/60 backdrop-blur-sm"
@@ -187,7 +187,7 @@ export function DailyChallenges() {
                   />
                 </div>
               </div>
-              <div className="text-amber-100/85 text-xs mt-2">
+              <div className="mt-1.5 text-[11px] text-amber-100/85 xl:text-xs">
                 {t("dailyChallenges.rewardWithChips", {
                   amount: c.rewardTokens,
                 })}
@@ -196,7 +196,7 @@ export function DailyChallenges() {
               {c.completed && !c.claimed && (
                 <button
                   type="button"
-                  className="mt-3 w-full bg-green-500 py-2 rounded hover:bg-green-600 transition"
+                  className="mt-2 w-full rounded bg-green-500 py-1.5 text-sm transition hover:bg-green-600"
                   onClick={() => void handleClaim(c.code)}
                 >
                   {t("dailyChallenges.claimReward")}
@@ -204,7 +204,7 @@ export function DailyChallenges() {
               )}
 
               {c.claimed && (
-                <div className="text-green-400 text-xs mt-2 flex items-center gap-1.5">
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-green-400">
                   <CheckCircle className="w-3.5 h-3.5 shrink-0" aria-hidden />
                   {t("dailyChallenges.claimed")}
                 </div>

@@ -1473,7 +1473,7 @@ export function Lobby() {
         )}
 
         {/* 🆕 FREE RECHARGE BUTTON */}
-        <div className="mb-6 max-w-sm mx-auto empty:hidden">
+        <div className="mb-3 max-w-sm mx-auto empty:hidden lg:mb-2">
           <FreeRechargeButton
             key={rechargeKey}
             onClaimed={handleRechargeSuccess}
@@ -1482,9 +1482,9 @@ export function Lobby() {
         </div>
 
         {/* MAIN GRID - IMPROVED GAP */}
-        <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:items-stretch">
+        <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:h-[calc(100dvh-9.75rem)] lg:grid-cols-[minmax(0,2.35fr)_minmax(19rem,0.82fr)] lg:items-stretch lg:gap-4 lg:overflow-hidden">
           {/* Colonne jeux : onglets au-dessus du contenu uniquement (pas au-dessus défis / amis) */}
-          <div className="md:col-span-2 lg:col-span-2 space-y-6 lg:flex lg:flex-col lg:space-y-0 lg:gap-6">
+          <div className="md:col-span-2 lg:col-span-1 space-y-6 lg:flex lg:min-h-0 lg:flex-col lg:space-y-0 lg:gap-4">
             <nav
               ref={lobbyTabsRef}
               className={`flex w-full overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
@@ -1562,11 +1562,11 @@ export function Lobby() {
             </nav>
 
           {lobbyMainTab === "poker" && (
-            <div className="space-y-6 lg:flex lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-6">
+            <div className="space-y-6 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">
               {/* Section Jouer contre Bot */}
-              <div ref={tourRefBot} className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-                <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
-                  <Bot className="w-8 h-8 text-blue-200"/>
+              <div ref={tourRefBot} className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:shrink-0">
+                <h2 className="text-xl text-white font-bold flex items-center gap-3 mb-3 xl:text-2xl">
+                  <Bot className="w-7 h-7 text-blue-200 xl:h-8 xl:w-8"/>
                   {t('lobby.playBot')}
                 </h2>
 
@@ -1582,16 +1582,16 @@ export function Lobby() {
               {/* Grille 2 colonnes : Serveurs Multi-joueurs (gauche) + Tournois (droite).
                * Memes proportions (liste d'attente + en cours) pour les deux blocs.
                * En mobile/petit ecran, ils s'empilent (serveur d'abord). */}
-              <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 lg:min-h-0 lg:flex-1 lg:gap-4">
 
               {/* Section Serveur Multi-joueurs */}
-              <div ref={tourRefMultiplayer} className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-                <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
-                  <Server className="w-8 h-8 text-cyan-200"/>
+              <div ref={tourRefMultiplayer} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+                <h2 className="text-xl text-white font-bold flex items-center gap-3 mb-3 xl:text-2xl">
+                  <Server className="w-7 h-7 text-cyan-200 xl:h-8 xl:w-8"/>
                   {t('lobby.multiplayerServers')}
                 </h2>
 
-                <div className="space-y-3">
+                <div className="flex min-h-0 flex-1 flex-col gap-3">
                   <button
                     onClick={openCreateModal}
                     disabled={!userId || creating}
@@ -1603,7 +1603,7 @@ export function Lobby() {
                   </button>
 
                   {/* Salles d'attente */}
-                  <div ref={tourRefWaiting} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
+                  <div ref={tourRefWaiting} className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
                     <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.waitingRooms')}</p>
                     {roomsLoading && roomsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
@@ -1614,7 +1614,7 @@ export function Lobby() {
                     ) : roomsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
                     ) : (
-                      <ul className="space-y-2">
+                      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                         {roomsMemo.map((room) => {
                           const isHost = userId && room.hostId === userId;
                           const isFull = room.playerCount >= room.maxPlayers;
@@ -1693,7 +1693,7 @@ export function Lobby() {
                   </div>
 
                   {/* Parties en cours */}
-                  <div ref={tourRefGames} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
+                  <div ref={tourRefGames} className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
                     <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.gamesInProgress')}</p>
                     {gamesLoading && gamesMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
@@ -1702,7 +1702,7 @@ export function Lobby() {
                     ) : gamesMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
                     ) : (
-                      <ul className="space-y-2">
+                      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                         {gamesMemo.map((g) => (
                           <li
                             key={g.gameId}
@@ -1744,13 +1744,13 @@ export function Lobby() {
               {/* Section Tournois — meme structure que Serveur Multi-joueurs :
                * bouton de creation/redirection, liste des tournois en attente,
                * liste des tournois en cours (spectate). */}
-              <div className="rounded-2xl border border-amber-400/15 bg-amber-950/30 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-                <h2 className="text-2xl text-white font-bold flex items-center gap-3 mb-4">
-                  <Trophy className="w-8 h-8 text-amber-200" />
+              <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-amber-400/15 bg-amber-950/30 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+                <h2 className="text-xl text-white font-bold flex items-center gap-3 mb-3 xl:text-2xl">
+                  <Trophy className="w-7 h-7 text-amber-200 xl:h-8 xl:w-8" />
                   {t('lobby.tournamentBlockTitle')}
                 </h2>
 
-                <div className="space-y-3">
+                <div className="flex min-h-0 flex-1 flex-col gap-3">
                   <button
                     onClick={openTournamentModal}
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300/25 bg-amber-900/70 py-3 font-bold text-white shadow-lg shadow-black/20 transition hover:border-amber-200/40 hover:bg-amber-800/80 md:py-4"
@@ -1761,7 +1761,7 @@ export function Lobby() {
                   </button>
 
                   {/* Tournois en attente d'inscription */}
-                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
+                  <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
                     <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.tournamentWaiting')}</p>
                     {tournamentsLoading && openTournamentsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
@@ -1772,7 +1772,7 @@ export function Lobby() {
                     ) : openTournamentsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2">{t('lobby.noTournamentsAvailable')}</p>
                     ) : (
-                      <ul className="space-y-2">
+                      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                         {openTournamentsMemo.map((tour) => (
                           <li
                             key={tour.id}
@@ -1802,7 +1802,7 @@ export function Lobby() {
                   </div>
 
                   {/* Tournois en cours (spectate possible) */}
-                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
+                  <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
                     <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.tournamentInProgress')}</p>
                     {tournamentsLoading && liveTournamentsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
@@ -1811,7 +1811,7 @@ export function Lobby() {
                     ) : liveTournamentsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2">{t('lobby.noTournamentsAvailable')}</p>
                     ) : (
-                      <ul className="space-y-2">
+                      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                         {liveTournamentsMemo.map((tour) => {
                           const firstTable = tour.tables[0];
                           return (
@@ -1935,12 +1935,12 @@ export function Lobby() {
           {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
           <div
             ref={tourRefFriends}
-            className="md:col-span-2 lg:col-span-1 space-y-6 self-start max-lg:pt-6 lg:flex lg:h-full lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-6 lg:pt-0 lg:sticky lg:top-4 lg:z-10"
+            className="md:col-span-2 lg:col-span-1 space-y-5 self-start max-lg:pt-6 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-4 lg:overflow-hidden lg:pt-0 lg:z-10"
           >
-            <div ref={tourRefDaily}>
+            <div ref={tourRefDaily} className="lg:shrink-0 lg:overflow-hidden">
               <DailyChallenges />
             </div>
-            <div className="lg:flex-1">
+            <div className="lg:min-h-0 lg:flex-1">
               <FriendsList />
             </div>
           </div>
