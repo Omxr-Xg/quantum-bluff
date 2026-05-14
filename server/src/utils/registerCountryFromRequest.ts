@@ -33,7 +33,10 @@ export function readCountryFromProxyHeaders(req: Request): string | null {
 
 /**
  * Résout le pays pour les règles d’âge à l’inscription : en-têtes proxy d’abord, puis lookup public
- * (ipapi.co) si l’IP est exploitable. En local sans IP publique, retourne `null` → règle « reste du monde » (18 ans).
+ * (ipapi.co puis ipwho.is) si l’IP est exploitable.
+ *
+ * Limite inévitable : un VPN « Arabie saoudite » dont la **sortie réelle** est géolocalisée hors SA
+ * (très fréquent) ne sera pas détecté comme SA. Seule l’IP vue par le serveur compte.
  */
 export async function resolveCountryFromRequest(req: Request): Promise<string | null> {
   const fromHeaders = readCountryFromProxyHeaders(req)
@@ -51,17 +54,44 @@ export async function resolveCountryFromRequest(req: Request): Promise<string | 
   try {
     const ac = new AbortController()
     const t = setTimeout(() => ac.abort(), 2800)
-    const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/country/`, {
-      signal: ac.signal,
-      headers: { 'User-Agent': 'QuantumBluff/1.0 (register)' },
-    })
-    clearTimeout(t)
-    if (!res.ok) return null
-    const text = (await res.text()).trim()
-    if (TWO_LETTER.test(text)) return text.toUpperCase()
+    try {
+      const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/country/`, {
+        signal: ac.signal,
+        headers: { 'User-Agent': 'QuantumBluff/1.0 (register)' },
+      })
+      if (res.ok) {
+        const text = (await res.text()).trim()
+        if (TWO_LETTER.test(text)) return text.toUpperCase()
+      }
+    } finally {
+      clearTimeout(t)
+    }
   } catch {
     /* ignore */
   }
+
+  /* Second fournisseur si ipapi.co rate / limite — améliore la couverture des IP VPN. */
+  try {
+    const ac = new AbortController()
+    const t = setTimeout(() => ac.abort(), 2800)
+    try {
+      const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
+        signal: ac.signal,
+        headers: { Accept: 'application/json', 'User-Agent': 'QuantumBluff/1.0 (register)' },
+      })
+      if (res.ok) {
+        const j = (await res.json()) as { success?: boolean; country_code?: string }
+        if (j && j.success === false) return null
+        const cc = typeof j?.country_code === 'string' ? j.country_code.trim().toUpperCase() : ''
+        if (TWO_LETTER.test(cc)) return cc
+      }
+    } finally {
+      clearTimeout(t)
+    }
+  } catch {
+    /* ignore */
+  }
+
   return null
 }
 
