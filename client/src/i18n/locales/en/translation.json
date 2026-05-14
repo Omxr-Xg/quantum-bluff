@@ -4,7 +4,8 @@
     "chooseLanguage": "Change language"
   },
   "app": {
-    "slogan": "Every victory starts with a bluff."
+    "slogan": "Every victory starts with a bluff.",
+    "loadingDefaultMessage": "Loading…"
   },
   "networkOverlay": {
     "serverUnreachableTitle": "No connection to the server",

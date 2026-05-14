@@ -7,11 +7,12 @@ import i18n from "../i18n/config";
 import { getAuthItem } from "../utils/authStorage";
 
 export function StartScreen() {
-  const { t } = useTranslation();
+  /** Splash + boot copy in English; does not overwrite the user’s app language. */
+  const { t } = useTranslation(undefined, { lng: "en" });
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [loadingText, setLoadingText] = useState(() => i18n.t("startScreen.init"));
+  const [loadingText, setLoadingText] = useState(() => i18n.getFixedT("en")("startScreen.init"));
 
   useEffect(() => {
     const token = getAuthItem("token");
@@ -21,6 +22,7 @@ export function StartScreen() {
   }, [navigate]);
 
   useEffect(() => {
+    const translate = i18n.getFixedT("en");
     const keys = [
       { time: 0, key: "startScreen.init" as const, progress: 0 },
       { time: 500, key: "startScreen.shuffling" as const, progress: 20 },
@@ -33,7 +35,7 @@ export function StartScreen() {
     keys.forEach(({ time, key, progress }) => {
       timeouts.push(
         setTimeout(() => {
-          setLoadingText(i18n.t(key));
+          setLoadingText(translate(key));
           setLoadingProgress(progress);
         }, time),
       );

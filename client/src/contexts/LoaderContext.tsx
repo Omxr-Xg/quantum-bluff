@@ -11,11 +11,12 @@ interface LoaderContextType {
 const LoaderContext = createContext<LoaderContextType | undefined>(undefined);
 
 export const LoaderProvider = ({ children }: { children: ReactNode }) => {
-  const { t } = useTranslation();
+  /** English-only overlay: does not change global i18n / localStorage language. */
+  const { t } = useTranslation(undefined, { lng: 'en' });
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  const showLoader = (msg = 'Chargement en cours...') => {
+  const showLoader = (msg = t('app.loadingDefaultMessage')) => {
     setMessage(msg);
     setIsLoading(true);
   };

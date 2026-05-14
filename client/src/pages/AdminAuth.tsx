@@ -6,7 +6,7 @@ import { apiUrl } from "../utils/apiBase";
 import { getAuthItem, setAuthItem } from "../utils/authStorage";
 
 export function AdminAuth() {
-  const { t } = useTranslation();
+  const { t } = useTranslation(undefined, { lng: 'en' });
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");

@@ -46,7 +46,8 @@ const AUTH_QUOTES: readonly { text: string; author: string }[] = [
 ];
 
 export function Auth() {
-  const { t } = useTranslation();
+  /** Guest auth UI in English; global language (e.g. after logout) stays in user preference. */
+  const { t } = useTranslation(undefined, { lng: 'en' });
   
   // Initialisation du loader
   const { showLoader, hideLoader } = useLoader();
@@ -150,7 +151,7 @@ export function Auth() {
     setResetSuccessBanner(false);
 
     try {
-      showLoader(t("auth.loggingIn") || "Connexion en cours...");
+      showLoader(t("auth.loggingIn"));
 
       const response = await login({ email: email.trim(), password }).unwrap();
 
@@ -198,7 +199,7 @@ export function Auth() {
     e.preventDefault();
     if (!isRegisterFormValid) return;
     try {
-      showLoader(t("auth.registering") || "Création de votre compte...");
+      showLoader(t("auth.registering"));
       const response = await register({
         username: username.trim(),
         email: email.trim(),
