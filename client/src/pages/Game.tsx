@@ -273,6 +273,9 @@ export function Game() {
   const gameIdParam = searchParams.get("gameId");
   const isSpectating = searchParams.get("spectate") === "1";
   const isBotMode = mode === "bot";
+  const isTournamentTable = Boolean(
+    gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX),
+  );
   const { userId } = useUser();
   const { feltBackgroundUrl } = useTableTheme();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
@@ -582,6 +585,24 @@ export function Game() {
   }, [userId]);
 
   const emitPokerWalletDisplay = useCallback(() => {
+    if (isTournamentTable) {
+      if (isSpectating || !userIdRef.current) {
+        window.dispatchEvent(
+          new CustomEvent(POKER_WALLET_DISPLAY_EVENT, { detail: { total: null } }),
+        );
+        return;
+      }
+      const uid = String(userIdRef.current);
+      const inHand = playersStateRef.current.find((p) => String(p.id) === uid);
+      if (!inHand) return;
+      window.dispatchEvent(
+        new CustomEvent(POKER_WALLET_DISPLAY_EVENT, {
+          detail: { total: intChips(inHand.chips) },
+        }),
+      );
+      return;
+    }
+
     const isCashMulti =
       Boolean(gameIdParam) && !isBotMode && !isSpectating && Boolean(userIdRef.current);
     if (!isCashMulti) {
@@ -601,7 +622,7 @@ export function Game() {
     window.dispatchEvent(
       new CustomEvent(POKER_WALLET_DISPLAY_EVENT, { detail: { total: liq + stack } }),
     );
-  }, [gameIdParam, isBotMode, isSpectating]);
+  }, [gameIdParam, isBotMode, isSpectating, isTournamentTable]);
 
   const cashBalanceSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cashBalanceFetchInFlightRef = useRef(false);
@@ -610,7 +631,7 @@ export function Game() {
   const tournamentJoinNotFoundAttemptsRef = useRef(0);
 
   const scheduleCashBalanceServerSync = useCallback(() => {
-    if (!gameIdParam || isBotMode || isSpectating) return;
+    if (!gameIdParam || isBotMode || isSpectating || isTournamentTable) return;
     if (cashBalanceSyncTimerRef.current) clearTimeout(cashBalanceSyncTimerRef.current);
     cashBalanceSyncTimerRef.current = window.setTimeout(() => {
       cashBalanceSyncTimerRef.current = null;
@@ -625,11 +646,18 @@ export function Game() {
           cashBalanceFetchInFlightRef.current = false;
         });
     }, 2200);
-  }, [gameIdParam, isBotMode, isSpectating, emitPokerWalletDisplay]);
+  }, [gameIdParam, isBotMode, isSpectating, isTournamentTable, emitPokerWalletDisplay]);
 
   useEffect(() => {
+    if (isTournamentTable) {
+      cashLiquidOffTableRef.current = null;
+      if (cashBalanceSyncTimerRef.current) clearTimeout(cashBalanceSyncTimerRef.current);
+      emitPokerWalletDisplay();
+      return;
+    }
+
     const isCashMulti =
-      Boolean(gameIdParam) && !isBotMode && !isSpectating && Boolean(userId);
+      Boolean(gameIdParam) && !isBotMode && !isSpectating && !isTournamentTable && Boolean(userId);
     if (!isCashMulti) {
       cashLiquidOffTableRef.current = null;
       if (cashBalanceSyncTimerRef.current) clearTimeout(cashBalanceSyncTimerRef.current);
@@ -653,14 +681,14 @@ export function Game() {
       cancelled = true;
       if (cashBalanceSyncTimerRef.current) clearTimeout(cashBalanceSyncTimerRef.current);
     };
-  }, [gameIdParam, isBotMode, isSpectating, userId, emitPokerWalletDisplay]);
+  }, [gameIdParam, isBotMode, isSpectating, isTournamentTable, userId, emitPokerWalletDisplay]);
 
   useEffect(() => {
     emitPokerWalletDisplay();
   }, [playersState, cashSeats, emitPokerWalletDisplay]);
 
   useEffect(() => {
-    if (!socket || !gameIdParam || isBotMode || isSpectating) return;
+    if (!socket || !gameIdParam || isBotMode || isSpectating || isTournamentTable) return;
     const onBurst = () => scheduleCashBalanceServerSync();
     socket.on("GAME_UPDATE", onBurst);
     socket.on("GAME_STATE_UPDATED", onBurst);
@@ -670,7 +698,7 @@ export function Game() {
       socket.off("GAME_STATE_UPDATED", onBurst);
       socket.off("POT_DISTRIBUTED", onBurst);
     };
-  }, [socket, gameIdParam, isBotMode, isSpectating, scheduleCashBalanceServerSync]);
+  }, [socket, gameIdParam, isBotMode, isSpectating, isTournamentTable, scheduleCashBalanceServerSync]);
 
   type TableTicketRow = {
     id: string;
