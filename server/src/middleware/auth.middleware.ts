@@ -44,11 +44,19 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
     const userExists = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true },
+      select: { id: true, bannedUntil: true },
     })
     if (!userExists) {
       debugAuth('rejected: token user not found', { userId: decoded.userId })
       return res.status(401).json({ error: 'Session expirée, reconnecte-toi' })
+    }
+    if (userExists.bannedUntil && userExists.bannedUntil > new Date()) {
+      debugAuth('rejected: user banned', { userId: decoded.userId })
+      return res.status(403).json({
+        error: `Compte suspendu jusqu'au ${userExists.bannedUntil.toLocaleString('fr-FR')}.`,
+        code: 'ACCOUNT_SUSPENDED',
+        bannedUntil: userExists.bannedUntil.toISOString(),
+      })
     }
 
     req.userId = decoded.userId
