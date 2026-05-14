@@ -52,6 +52,14 @@ interface FriendRequest {
   sender: User
 }
 
+interface BlockedUser {
+  id: string
+  blockedAt: string
+  user: User
+}
+
+type PlayerReportReason = 'INAPPROPRIATE_LANGUAGE' | 'CHEATING' | 'HARASSMENT' | 'SPAM' | 'OTHER'
+
 type UpdateProfilePayload = {
   avatarUrl?: string | null
   username?: string
@@ -93,7 +101,7 @@ const staggeredBaseQuery = retry(baseQuery, {
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: staggeredBaseQuery,
-  tagTypes: ['User', 'Game', 'Friend', 'FriendRequest', 'FriendMessage', 'FriendLoan'],
+  tagTypes: ['User', 'Game', 'Friend', 'FriendRequest', 'FriendMessage', 'FriendLoan', 'BlockedUser'],
   endpoints: (builder) => ({
     login: builder.mutation({
       query: (credentials) => ({
@@ -205,6 +213,50 @@ export const api = createApi({
       query: (userId) => `/friends/${userId}`,
       providesTags: (result) =>
         result ? result.map(({ id }) => ({ type: 'Friend', id } as const)) : ['Friend'],
+    }),
+
+    removeFriend: builder.mutation<{ ok: boolean }, string>({
+      query: (friendId) => ({
+        url: `/friends/${encodeURIComponent(friendId)}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Friend', 'FriendRequest'],
+    }),
+
+    blockUser: builder.mutation<{ ok: boolean }, string>({
+      query: (blockedUserId) => ({
+        url: '/friends/block',
+        method: 'POST',
+        body: { blockedUserId },
+      }),
+      invalidatesTags: ['Friend', 'FriendRequest', 'FriendMessage', 'BlockedUser'],
+    }),
+
+    unblockUser: builder.mutation<{ ok: boolean }, string>({
+      query: (blockedUserId) => ({
+        url: `/friends/block/${encodeURIComponent(blockedUserId)}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['BlockedUser'],
+    }),
+
+    getBlockedUsers: builder.query<BlockedUser[], void>({
+      query: () => '/friends/blocked',
+      providesTags: (result) =>
+        result
+          ? result.map(({ user }) => ({ type: 'BlockedUser', id: user.id } as const))
+          : ['BlockedUser'],
+    }),
+
+    reportPlayer: builder.mutation<
+      { ok: boolean },
+      { reportedUserId: string; reason: PlayerReportReason; detail?: string; gameId?: string | null }
+    >({
+      query: (body) => ({
+        url: '/reports/player',
+        method: 'POST',
+        body,
+      }),
     }),
 
     getFriendMessages: builder.query<
@@ -365,6 +417,11 @@ export const {
   useGetFriendRequestsQuery,
   useRespondToFriendRequestMutation,
   useGetFriendsQuery,
+  useRemoveFriendMutation,
+  useBlockUserMutation,
+  useUnblockUserMutation,
+  useGetBlockedUsersQuery,
+  useReportPlayerMutation,
   useGetFriendMessagesQuery,
   useSendFriendMessageMutation,
   useGetPlayerStatsQuery,
