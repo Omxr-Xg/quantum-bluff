@@ -60,7 +60,7 @@ export function StartScreen() {
       <div className="absolute inset-0">
         {/* Gradient de base */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_70%_at_50%_-10%,rgba(30,64,175,0.24),transparent_55%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]"></div>
-        
+
         {/* Motif géométrique subtil - BLEU NUIT */}
         <div 
           className="absolute inset-0 opacity-[0.03]"

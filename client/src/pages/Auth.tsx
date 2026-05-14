@@ -22,6 +22,29 @@ type Step = "email" | "login" | "register" | "forgotPassword";
 
 const SECRET_QUESTION_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
+const AUTH_QUOTES: readonly { text: string; author: string }[] = [
+  { text: "Poker is not about the cards you hold, but the story you make others believe.", author: "Daniel Negreanu" },
+  { text: "The smarter you seem, the easier it is to bluff.", author: "Doyle Brunson" },
+  { text: "Confidence is the most dangerous card at the table.", author: "Phil Ivey" },
+  { text: "Every great victory begins with uncertainty.", author: "Sun Tzu" },
+  { text: "The finest player knows when to fold, when to strike, and when to deceive.", author: "Chip Reese" },
+  { text: "Bluffing is the art of turning fear into power.", author: "Phil Hellmuth" },
+  { text: "A weak hand played perfectly defeats a strong hand played poorly.", author: "Mike Sexton" },
+  { text: "In poker, silence is often louder than words.", author: "Amarillo Slim" },
+  { text: "Fortune favors the player who controls the table, not the cards.", author: "Stu Ungar" },
+  { text: "The best bluff is the one nobody notices.", author: "Johnny Moss" },
+  { text: "Never reveal your full game. Mystery wins more pots than strength.", author: "Doyle Brunson" },
+  { text: "A true player wins long before the cards are shown.", author: "Daniel Negreanu" },
+  { text: "Pressure creates mistakes. Bluffing creates pressure.", author: "Phil Ivey" },
+  { text: "Every hand is a battle between logic and emotion.", author: "Chris Ferguson" },
+  { text: "A gentleman never shows all his cards.", author: "Inspired by Dostoevsky" },
+  { text: "Poker rewards patience, punishes ego, and respects courage.", author: "Mike Caro" },
+  { text: "The table belongs to the player who controls the rhythm.", author: "Phil Galfond" },
+  { text: "Bluff rarely works once. Mastery is making it work twice.", author: "Tom Dwan" },
+  { text: "Luck wins hands. Strategy wins legends.", author: "Quantum Bluff" },
+  { text: "Every victory starts with a bluff.", author: "Quantum Bluff" },
+];
+
 export function Auth() {
   const { t } = useTranslation();
   
@@ -63,6 +86,11 @@ export function Auth() {
       min: isoDateUtc(new Date(Date.UTC(today.getUTCFullYear() - 120, today.getUTCMonth(), today.getUTCDate()))),
     };
   }, []);
+
+  const authQuotePick = useMemo(
+    () => AUTH_QUOTES[Math.floor(Math.random() * AUTH_QUOTES.length)],
+    [],
+  );
 
   useEffect(() => {
     if (getAuthItem("token")) {
@@ -344,7 +372,7 @@ export function Auth() {
         </div>
 
         <div
-          className="rounded-2xl p-6 sm:p-8 transition-all duration-300 backdrop-blur-xl"
+          className="rounded-2xl p-6 sm:p-8 transition-all duration-300 backdrop-blur-lg"
           style={{
             background:
               "linear-gradient(145deg, rgba(7,16,34,0.88), rgba(10,24,48,0.76)) padding-box, linear-gradient(145deg, rgba(96,165,250,0.18), rgba(103,232,249,0.62), rgba(37,99,235,0.28)) border-box",
@@ -831,6 +859,11 @@ export function Auth() {
             </form>
           )}
         </div>
+
+        <blockquote className="mt-8 border-t border-slate-600/35 pt-6 text-center">
+          <p className="text-sm leading-relaxed text-slate-400 sm:text-[0.9375rem]">{authQuotePick.text}</p>
+          <footer className="mt-2.5 text-xs text-slate-500">— {authQuotePick.author}</footer>
+        </blockquote>
       </div>
 
       <style>{`
