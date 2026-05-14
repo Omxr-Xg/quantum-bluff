@@ -1,6 +1,5 @@
 import { createServer, type Server as HttpServer } from "node:http";
 import { AddressInfo } from "node:net";
-import jwt from "jsonwebtoken";
 import { Server as SocketIOServer } from "socket.io";
 import { io as createClient, Socket as ClientSocket } from "socket.io-client";
 import { GameGateway } from "../sockets/game.gateway.js";
@@ -9,6 +8,7 @@ import { activeGames } from "../shared/activeGames.js";
 import { disposeActiveGamesForTests } from "../shared/activeGames.js";
 import { pokerStateStore } from "../shared/pokerStateStore.js";
 import type { PokerRuntimeSnapshot } from "../poker/store/pokerStateStore.js";
+import { generateToken } from "../auth/jwt.service.js";
 
 function waitForEvent<T>(
   socket: ClientSocket,
@@ -109,10 +109,7 @@ describe("GameGateway realtime integration", () => {
   });
 
   async function connectAs(userId: string): Promise<ClientSocket> {
-    const token = jwt.sign(
-      { userId },
-      process.env.JWT_SECRET || "quantum_bluff_secret",
-    );
+    const token = generateToken({ userId });
     const client = createClient(baseUrl, {
       transports: ["websocket"],
       auth: { token },
