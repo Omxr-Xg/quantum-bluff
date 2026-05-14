@@ -1,29 +1,23 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database.js';
 import { AntiCheatService } from '../services/antiCheat.service.js';
-import jwt from 'jsonwebtoken';
 import { rootLogger } from '../observability/index.js';
-
-// Alignement sur le secret global du projet
-const JWT_SECRET = process.env.JWT_SECRET || 'quantum_bluff_secret';
+import { extractBearerToken, verifyToken } from '../auth/jwt.service.js';
+import { isBlacklisted } from '../auth/tokenBlacklist.js';
 
 export const antiCheatMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // 1. Uniquement via le Header Authorization (plus de cookies non parsés)
-    const authHeader = req.headers.authorization;
-    const token = (authHeader && authHeader.startsWith('Bearer ')) ? authHeader.split(' ')[1] : undefined;
+    const token = extractBearerToken(req.headers.authorization) ?? undefined;
 
     let userId: string | undefined;
 
     if (token) {
       try {
-        const decoded = jwt.verify(token, JWT_SECRET) as {
-          id?: string
-          userId?: string
-          sub?: string
+        if (!(await isBlacklisted(token))) {
+          const decoded = verifyToken(token)
+          userId = decoded.role === 'admin' ? undefined : decoded.userId
         }
-        const raw = decoded.userId ?? decoded.id ?? decoded.sub
-        userId = raw != null ? String(raw).trim() : undefined
       } catch {
         // Token invalide : on ignore silencieusement
       }

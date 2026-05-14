@@ -12,7 +12,7 @@ const rootEnvPath = path.resolve(envModuleDir, '../../../.env')
 
 dotenv.config({
   path: [serverEnvPath, rootEnvPath],
-  override: true,
+  override: process.env.NODE_ENV !== 'production',
 })
 
 type NodeEnv = 'development' | 'test' | 'production'
@@ -267,7 +267,7 @@ export const env = {
   freeTopupPromoCode: (() => {
     const raw =
       process.env.FREE_TOPUP_PROMO_CODE ?? process.env.BALANCE_RESET_PROMO_CODE
-    if (raw === undefined || raw.trim() === '') return 'QUANTUM'
+    if (raw === undefined || raw.trim() === '') return isProduction ? '' : 'QUANTUM'
     return raw.trim().toUpperCase()
   })(),
 } as const
