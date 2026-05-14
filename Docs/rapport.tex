@@ -11,9 +11,15 @@
 \usepackage{fancyhdr}
 \usepackage{caption}
 \usepackage{booktabs}
+\usepackage{amsmath}
 \usepackage{longtable}
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
+\makeatletter
+% Chaque \section numérotée commence sur une page (sauf la première du corps).
+\pretocmd{\section}{\ifnum\c@section>\z@\clearpage\fi}{}{}
+\makeatother
 
 % Marges type mémoire / rapport d'ingénierie
 \geometry{
@@ -28,9 +34,12 @@
 \hypersetup{
   pdftitle={Quantum Bluff -- Final Project Report},
   pdfauthor={University of Strasbourg -- L3 Computer Science},
+  pdfsubject={Capstone software engineering report},
+  pdfkeywords={multiplayer games, Texas Hold'em, WebSocket, TypeScript, React, Node.js, Prisma, Redis, security},
   linktoc=all,
   bookmarksopen=true,
 }
+\setcounter{tocdepth}{2}
 
 % Interligne confortable (corps du texte)
 \onehalfspacing
@@ -92,6 +101,10 @@
   {\large\bfseries University of Strasbourg\par}
   \vspace{0.25cm}
   {\normalsize Bachelor of Science in Computer Science (L3)\par}
+  \vspace{0.55cm}
+  {\small Supervised project --- reference specification: \texttt{Docs/Cahier\_de\_charge\_6A\_PI.pdf}\par}
+  \vspace{0.35cm}
+  {\small Academic supervisor: \textit{[to be completed by the team]}\par}
 
   \vspace{1.8cm}
   \begin{minipage}{0.78\textwidth}
@@ -103,6 +116,8 @@
 
   \vfill
   {\large\textbf{Academic year 2025--2026}\par}
+  \vspace{0.35cm}
+  {\normalsize Document generated: 14 May 2026\par}
 \end{titlepage}
 
 \newpage
@@ -110,8 +125,54 @@
 \pagenumbering{roman}
 \setcounter{page}{1}
 
+\phantomsection
+\section*{Abstract}
+\addcontentsline{toc}{section}{Abstract}
+
+\noindent
+Quantum Bluff is a capstone web platform produced for the third-year Bachelor's degree in Computer Science (L3) at the University of Strasbourg. It combines an authoritative Texas Hold'em stack with extended casino-style modules (solo and multiplayer blackjack, slots, European roulette), structured tournaments with ancillary winner markets, social features (friends, invitations, peer loans), and progression systems (XP, daily challenges, leaderboards). This report explains how delivery evolved from an initial V-model framing to an agile-inspired workflow; which engineering tools preserved modularity and testability; and how runtime architecture separates the React client, Express REST endpoints, a Socket.IO gateway, Prisma-backed persistence, and Redis-backed coordination. Security controls (JWT and optional TOTP, segmented rate limits, idempotency on sensitive mutations, anti-cheat hooks) and an automated test harness are summarized alongside appendices that map each major domain to repository artefacts. The product uses \textbf{virtual chips} for pedagogical demonstration; it does not implement real-money gambling.
+
+\medskip
+\phantomsection
+\section*{Résumé}
+\addcontentsline{toc}{section}{Résumé (français)}
+
+\noindent
+Quantum Bluff est une plateforme web temps réel développée dans le cadre du projet de fin d'études de L3 informatique à l'Université de Strasbourg. Elle couvre le poker Texas Hold'em (tables cash, bots, paris latents), des modules type casino (blackjack solo et multijoueur, machine à sous, roulette européenne), des tournois structurés avec marchés annexes sur le vainqueur, des fonctions sociales (amis, invitations, prêts entre joueurs) et de la progression (XP, défis quotidiens, classements). Ce rapport présente l'évolution de la gestion de projet (phase en V initiale puis itérations inspirées du Scrum), les choix technologiques, l'architecture logicielle, la sécurité et les résultats des tests automatisés. Des annexes indexent les chemins du dépôt pour chaque sous-système. Le système repose sur une \textbf{monnaie virtuelle} à visée pédagogique et ne constitue pas un service de jeu d'argent réel.
+
+\medskip
+\noindent\textbf{Keywords:} multiplayer games, Texas Hold'em, real-time web, WebSocket, TypeScript, React, Node.js, Express, Prisma, PostgreSQL, Redis, Socket.IO, software engineering, security, automated testing.
+
+\noindent\textbf{Mots-clés :} jeux multijoueurs, Texas Hold'em, web temps réel, WebSocket, TypeScript, React, Node.js, Express, Prisma, PostgreSQL, Redis, Socket.IO, génie logiciel, sécurité, tests automatisés.
+
+\newpage
+\phantomsection
+\section*{List of abbreviations}
+\addcontentsline{toc}{section}{List of abbreviations}
+
+\begin{tabular}{@{}p{2.6cm}p{11.6cm}@{}}
+API & Application Programming Interface (HTTP/JSON in this project). \\
+CI/CD & Continuous integration and continuous deployment (GitLab CI at repository root). \\
+HUD & Heads-up display: in-table probability and hand-category feedback. \\
+JWT & JSON Web Token used for HTTP and Socket.IO authentication. \\
+ORM & Object--relational mapping (Prisma). \\
+REST & Representational state transfer style for \path{/api/*} routes. \\
+RTK & Redux Toolkit and RTK Query for client-side data fetching. \\
+TOTP & Time-based one-time password (optional second factor). \\
+TTL & Time-to-live for cached or in-memory sessions. \\
+UI/UX & User interface and user experience layers in the React SPA. \\
+2FA & Two-factor authentication (TOTP in production paths). \\
+\end{tabular}
+
+\newpage
 \renewcommand{\contentsname}{Table of contents}
 \tableofcontents
+
+\newpage
+\listoffigures
+
+\newpage
+\listoftables
 
 \newpage
 \pagenumbering{arabic}
@@ -132,9 +193,23 @@ Security and reliability were first-class constraints from the outset: JWT authe
 
 \subsection{Scope of this document}
 
-This report summarizes \textbf{management evolution}, \textbf{tooling}, \textbf{delivered capabilities}, and \textbf{architecture}. Exhaustive technical narratives (bots, probabilities, tournaments, hidden bets, etc.) are deferred to \textbf{Appendices A--M} to avoid repetition. Repository-relative file paths use \verb|\path{...}| notation.
+This report summarizes \textbf{management evolution}, \textbf{tooling}, \textbf{delivered capabilities}, and \textbf{architecture}. Exhaustive technical narratives (bots, probabilities, tournaments, hidden bets, etc.) are deferred to \textbf{Appendices A--M} to avoid repetition. Repository-relative file paths use \verb|\path{...}| notation. The front matter includes an abstract (English and French), a list of abbreviations, the table of contents, and lists of figures and tables.
 
-\newpage
+\section{Methodology, traceability, and reading guide}
+\label{sec:methodology}
+
+\subsection{Traceability to the initial specification}
+
+The baseline expectations for the Bachelor project are captured in the repository specification \path{Docs/Cahier_de_charge_6A_PI.pdf}. The delivered system \textbf{extends} that poker-centric charter: all original poker-facing commitments (cash tables, bots, HUD, hidden bets, real-time play) remain grounded in server authority, while additional modules (casino mini-games, tournaments, social lending, progression) were integrated under the same engineering constraints (tests, rate limits, transactional chip movements). Where the PDF and the code diverge, \textbf{the implementation and this report defer to the repository as the operational source of truth}, with internal notes under \path{Docs/detail_logique/} providing rationale.
+
+\subsection{Evidence hierarchy}
+
+Claims in the body are intentionally \textbf{outcome-oriented}. File paths anchor verifiable detail. Long-form auto-generated material (for example \path{Docs/Rapport_final/RAPPORT_TECHNIQUE_COMPLET.md}) is treated as an \textit{index}: useful for breadth, but not cited as automatically validated against every line of code.
+
+\subsection{How validation is reported}
+
+Automated suites and manual smoke scenarios are summarized in Section~\ref{sec:security} and cross-checked against \path{Docs/RAPPORT_TESTS.md} and \path{Docs/rapport-validation.md}. Playwright end-to-end tests live under \path{client/e2e/}. CI behaviour is defined in \path{.gitlab-ci.yml}.
+
 \section{Project Evolution}
 \label{sec:evolution}
 
@@ -150,7 +225,6 @@ The delivered system adds: \textbf{Blackjack} solo and \textbf{multi-table} lobb
 
 The codebase grew across \textbf{client}, \textbf{server}, \textbf{database}, and \textbf{docs/} technical notes. Listing every subsystem in prose would duplicate \path{docs/ARCHITECTURE.md} and the structured logic notes under \path{Docs/detail_logique/}. The body therefore stays outcome-oriented; appendices map each major subsystem to code anchors.
 
-\newpage
 \section{Project Management}
 \label{sec:management}
 
@@ -170,7 +244,6 @@ Coordination relied on: recurring meetings (\textasciitilde{}twice per week), sh
 
 Backlog prioritization balanced user-visible value (new game modes, social features) against enabling work (Redis adapter, rate limits, recovery jobs, observability). Cross-cutting concerns (security, idempotency, anti-cheat) were escalated early to avoid late integration risk.
 
-\newpage
 \section{Development Tools and Technologies}
 \label{sec:tools}
 
@@ -192,7 +265,6 @@ Git repository with GitLab CI configuration at \path{.gitlab-ci.yml}. Documentat
 
 Client: Vitest, Playwright (\path{client/e2e/}). Server: Jest and Supertest (\path{server/src/__tests__/}). Desktop/mobile packaging: Electron and Capacitor scripts in \path{client/package.json}.
 
-\newpage
 \section{Use of Artificial Intelligence}
 \label{sec:ai}
 
@@ -208,11 +280,10 @@ Team members used modern \textbf{coding assistants} (e.g., IDE-integrated LLMs) 
 
 Bots are \textbf{not} opaque learned models in production: they are inspectable code paths. Assistant-generated snippets were never merged without human review and test signal.
 
-\newpage
 \section{Platform Functionalities}
 \label{sec:functionalities}
 
-Table~\ref{tab:inventory} lists major domains. Details appear only once, in the referenced appendix, to prevent duplication.
+Table~\ref{tab:inventory} lists major domains. Details appear only once, in the referenced appendix, to prevent duplication. \textbf{Appendices~\ref{app:map}--\ref{app:sources}} also record implemented formulas: closed-form \textbf{slot RTP} and unified \textbf{roulette RTP}, Monte Carlo equity with an error bound for the \textbf{Quantum HUD}, \textbf{Quantum Combi} exact probability plus its place in the hand-ranking cascade, and the source files where each is coded.
 
 \begin{longtable}{@{}p{2.2cm}p{4.2cm}p{3.0cm}p{3.8cm}@{}}
 \caption{High-level functional inventory (representative surfaces).}\label{tab:inventory}\\
@@ -243,7 +314,6 @@ Demo & Example and deal teaching routes & \path{/game-example}, \path{/game-deal
 A11y & Accessibility, table theming, ambient audio & \path{client/src/contexts/AccessibilityContext.tsx}, \path{TableThemeContext.tsx}, \path{MusicContext.tsx} & Appendix~\ref{app:map} \\
 \end{longtable}
 
-\newpage
 \section{System Architecture}
 \label{sec:architecture}
 
@@ -259,6 +329,10 @@ Socket.IO uses path \texttt{/socket.io}. Authentication mirrors REST JWT validat
 
 Prisma models capture users, games, tournaments, loans, hidden bet tickets, wallet ledger rows, and more (see \path{server/prisma/schema.prisma}). Critical monetary flows favor server-side orchestration and short transactions.
 
+\subsection{Data model overview (Prisma)}
+
+The persistence layer is relational PostgreSQL accessed through Prisma. Representative entities include: \texttt{User} (credentials, profile, chips, XP fields, avatar storage keys), \texttt{Game}/seat models for poker tables, \texttt{BlackjackRoom} and related seat/invitation models for multiplayer blackjack, tournament tables for bracket state and winner-bet tickets, \texttt{Friendship} and messaging hooks, loan and ledger tables for social/casino flows, and audit-friendly structures for wallet history. Full cardinality and migration history are only authoritative in \path{server/prisma/schema.prisma} and the migration folder.
+
 \subsection{Diagram}
 
 Figure~\ref{fig:flow} summarizes the request path. For a publication-quality diagram, export a Mermaid figure from \path{docs/ARCHITECTURE.md} to PNG and include it with \verb|\includegraphics|.
@@ -270,7 +344,17 @@ Figure~\ref{fig:flow} summarizes the request path. For a publication-quality dia
 \caption{High-level runtime flow (placeholder box; replace with exported diagram if desired).}\label{fig:flow}
 \end{figure}
 
-\newpage
+\section{Deployment and operational runbook}
+\label{sec:deploy}
+
+\subsection{Local development stack}
+
+The root script \texttt{npm run dev} (see \path{package.json}) launches PostgreSQL through \path{database/docker-compose.yml}, a lightweight helper script (\path{scripts/dev-ai.js}), the Node/Express server (\path{server/}), and the Vite client (\path{client/}) under \texttt{concurrently}. Redis should be available for rate limiting, action logging, and the Socket.IO Redis adapter when exercising multi-instance paths (\path{server/src/config/socketIoRedis.ts}). First-time setup, tester onboarding, and troubleshooting are documented in \path{README.md}, \path{Docs/SETUP_TESTEUR.md}, and \path{Docs/QUICK_TEST_GUIDE.md}.
+
+\subsection{Production and desktop delivery}
+
+VM-oriented deployment (Node, PostgreSQL, Redis, PM2), environment files, and Electron auto-update mechanics are described in \path{Docs/DEPLOY.md}. Mobile/desktop packaging scripts are exposed from \path{client/package.json} (Capacitor and Electron targets). Reverse-proxy samples appear under \path{nginx/} when applicable.
+
 \section{Security, Testing and Stability}
 \label{sec:security}
 
@@ -282,11 +366,33 @@ JWT on HTTP and sockets; optional TOTP 2FA (\path{server/src/routes/twofa.routes
 
 Broad automated coverage on server and client; Playwright smoke tests. Additional manual scenarios are documented under \path{Docs/POKER_SCENARIOS.md} and related files.
 
+\subsection{Automated test inventory and CI (reference snapshot)}
+
+Table~\ref{tab:tests} aggregates counts recorded in \path{Docs/RAPPORT_TESTS.md} (March~2026 snapshot). Teams should re-run Jest and Vitest after major refactors and update the markdown source of truth.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Layer & Runner & Suite files & Tests \\
+\midrule
+Backend (\path{server/}) & Jest & 12 & 257 \\
+Frontend (\path{client/}) & Vitest & 6 & 20 \\
+\midrule
+\textbf{Total automated} & --- & 18 & \textbf{277} \\
+\bottomrule
+\end{tabular}
+\caption{Automated test inventory (representative snapshot; see \texttt{Docs/RAPPORT\_TESTS.md}).}\label{tab:tests}
+\end{table}
+
+\noindent
+GitLab CI configuration at \path{.gitlab-ci.yml} encodes build and test gates for merge requests. A consolidated validation narrative for bot flows and UI smoke checks appears in \path{Docs/rapport-validation.md}.
+
 \subsection{Performance and stability}
 
 Redis-backed Socket.IO adapter, structured logging, Prometheus metrics endpoint, readiness endpoints, graceful shutdown hooks (\path{server/src/index.ts}).
 
-\newpage
 \section{Technical Challenges}
 \label{sec:challenges}
 
@@ -298,7 +404,21 @@ Redis-backed Socket.IO adapter, structured logging, Prometheus metrics endpoint,
 
 \textbf{Internationalization without clobbering user preference:} guest screens (StartScreen, Auth, global loader) force English using \texttt{react-i18next} with a fixed \texttt{lng: 'en'} override so the global language stored for authenticated use is unchanged (\path{client/src/pages/Auth.tsx}, \path{client/src/contexts/LoaderContext.tsx}).
 
-\newpage
+\section{Ethics, privacy, and academic integrity}
+\label{sec:ethics}
+
+\subsection{Virtual economy and regulatory framing}
+
+Quantum Bluff uses \textbf{in-game virtual chips} for learning and demonstration. It is not a licensed real-money gambling operator; features that resemble casino products are implemented in an \textbf{academic engineering} context and should be evaluated as software artefacts, not as a commercial gaming offer.
+
+\subsection{Personal data}
+
+Accounts store identifiers needed for authentication and gameplay (email, username, hashed password, optional TOTP secrets, profile metadata). Operators deploying a public instance must align hosting, retention, and breach notification with applicable law (including GDPR for EU users). This report does not replace a data protection impact assessment.
+
+\subsection{Integrity of authorship and AI assistance}
+
+Section~\ref{sec:ai} states how large language models were used as drafting assistants. All merged code remained subject to human review, tests, and repository governance. Each author is expected to sign off on their contribution statement in Section~\ref{sec:contributions}.
+
 \section{Individual Contributions}
 \label{sec:contributions}
 
@@ -308,10 +428,27 @@ Organizational narrative: Section~\ref{sec:management}. Beyond ceremonies and ba
 
 \subsection{Other contributors}
 
-\textit{Je ne connais pas, je n'ai pas accès (information non présente dans le dépôt).}\\
-The repository does not contain signed-off, per-person effort logs, story point assignments, or validated textual attributions beyond this report's author field. Replace this block with team-approved text if provided.
+The repository does not contain signed-off, per-person effort logs, story point assignments, or validated textual attributions beyond Omar's narrative above. To satisfy examination requirements, the table below must be \textbf{completed and countersigned by the team} (replace placeholder cells).
 
-\newpage
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}p{2.6cm}p{4.6cm}p{5.8cm}@{}}
+\toprule
+Member & Primary areas (self-declared) & Verifiable artefacts (commits, MRs, modules) \\
+\midrule
+Linda & \textit{[to complete]} & \textit{[to complete]} \\
+Massi & \textit{[to complete]} & \textit{[to complete]} \\
+Abdoulaye & \textit{[to complete]} & \textit{[to complete]} \\
+Soheil & \textit{[to complete]} & \textit{[to complete]} \\
+Mohamed & \textit{[to complete]} & \textit{[to complete]} \\
+Azra & \textit{[to complete]} & \textit{[to complete]} \\
+Yigit & \textit{[to complete]} & \textit{[to complete]} \\
+\bottomrule
+\end{tabular}
+\caption{Individual contributions (template --- team must fill before submission).}\label{tab:contrib}
+\end{table}
+
 \section{Limitations and Future Work}
 \label{sec:limitations}
 
@@ -327,74 +464,282 @@ The repository does not contain signed-off, per-person effort logs, story point 
 
 Hardening continuous deployment secrets, expanding observability dashboards, deeper bot modeling (still code-first), and richer tournament analytics.
 
-\newpage
 \section{Conclusion}
 
 Quantum Bluff exceeded its initial poker-only charter by integrating multiple casino modes, tournaments, social lending, progression systems, and operational hardening while keeping a monorepo with clear separation between UI, API, and authoritative game logic. The project demonstrates that a student team can approach industry-like constraints---real-time state, monetary integrity, security, and observability---when management explicitly trades early waterfall rigidity for controlled agile iteration.
 
-\appendix
+Lessons retained for similar efforts: (1)~anchor scope changes to \textbf{recoverable increments} (feature flags, migrations, recovery jobs); (2)~treat generated documentation as \textbf{hypotheses} until cross-read against code; (3)~keep \textbf{security and idempotency} on the critical path rather than as end-of-project polish.
 
-\section{Appendix A: Repository map and routing}
+\clearpage
+\phantomsection
+\section*{Acknowledgements}
+\addcontentsline{toc}{section}{Acknowledgements}
+
+\noindent
+The team thanks the University of Strasbourg Computer Science faculty for supervising the L3 capstone framework, the open-source maintainers of the libraries listed in Section~\ref{sec:tools}, and peers who provided feedback during playtests. Replace or extend this paragraph with institution-specific acknowledgements as required by the course booklet.
+
+\appendix
+\clearpage
+
+\section{Repository map and routing}
 \label{app:map}
 
-Client routes are declared in \path{client/src/App.tsx} (public: \path{/}, \path{/auth}, \path{/auth/admin}; authenticated: lobby, games, tournaments, profile, friends, etc.). Global providers stack in \path{client/src/main.tsx} (Redux, sockets, HUD, hidden bets, audio, toasts, user). Server REST mounts and health/metrics endpoints are wired in \path{server/src/index.ts}. A narrative overview also exists in \path{docs/ARCHITECTURE.md}.
+\subsection{Programmed routing and shell}
 
-\section{Appendix B: Poker engine and cash game}
+Client routes are declared in \path{client/src/App.tsx}: public splash and auth (\path{/}, \path{/auth}, \path{/auth/admin}); authenticated gameplay and hub routes under \path{ProtectedRoute} with \path{Layout} (lobby, poker, blackjack, tournaments, mini-games, profile, friends, admin console). Admin routes use \path{AdminProtectedRoute}. Global providers stack in \path{client/src/main.tsx} (error boundary, loader, Redux, toasts, user, socket, Quantum HUD, hidden bets, audio) with an additional nested loader/invitation shell in \path{App.tsx}. Server REST mounts, rate-limit tiers, and health/metrics endpoints are wired in \path{server/src/index.ts}. A narrative overview also exists in \path{docs/ARCHITECTURE.md}.
+
+\section{Poker engine and cash game}
 \label{app:poker}
 
-Authoritative table logic centers on \path{server/src/logic/GameTable.ts} and \path{server/src/logic/CashGameController.ts}. Client gameplay UI is concentrated in \path{client/src/pages/Game.tsx} with reusable table components under \path{client/src/components/}. See \path{Docs/detail_logique/backend/01_poker_moteur.md} and \path{Docs/detail_logique/backend/02_cashgame_controller.md}.
+\subsection{What was programmed}
 
-\section{Appendix C: Bot AI and practice integration}
+Authoritative table logic lives in \path{server/src/logic/GameTable.ts} (seats, streets, pot and side pots, action legality, showdown ordering) and \path{server/src/logic/CashGameController.ts} (chip debits/credits, transitions between phases). Hand evaluation and category ordering use \path{server/src/logic/Evaluator.ts}. Real-time delivery and timers (e.g.\ \texttt{TURN\_TIMER} with 20\,s auto-fold/check) are implemented in \path{server/src/sockets/game.gateway.ts} together with anti-cheat hooks. The client implements presentation and input in \path{client/src/pages/Game.tsx} and reusable components under \path{client/src/components/} (\texttt{PokerTable}, \texttt{ActionButtons}, \texttt{CommunityCards}, chat, HUD hooks). \textbf{All wagering state changes are validated and applied on the server}; the client never ``decides'' the winner.
+
+\subsection{Rules enforced}
+
+Texas Hold'em flow from blinds through preflop, flop, turn, river, and showdown; fold, check, call, raise semantics; minimum raise increments; side pots when players are all-in for different amounts. Waiting-room creation and join flows are handled by dedicated routes (\path{server/src/routes/waitingRoom.routes.ts}, \path{server/src/routes/game.api.routes.ts}) coordinated with the gateway.
+
+\subsection{Further reading}
+
+Structured logic notes: \path{Docs/detail_logique/backend/01_poker_moteur.md}, \path{Docs/detail_logique/backend/02_cashgame_controller.md}.
+
+\section{Bot AI and practice integration}
 \label{app:bots}
 
-Bot difficulty enums are enforced at route validation. Core heuristics live in \path{server/src/logic/botAI.ts} with HTTP orchestration in \path{server/src/services/botAi.service.ts} and practice chaining in \path{server/src/poker/services/practiceBotTurns.service.ts}. Additional design notes: \path{Docs/IA_EXPERT_BOT.md}.
+\subsection{Programmed pipeline}
 
-\section{Appendix D: Probabilities, Quantum HUD, and Monte Carlo helper}
+\texttt{POST /api/bot/action} (\path{server/src/routes/bot.routes.ts}) validates difficulty and cards, then calls \path{server/src/logic/botAI.ts}. Practice tables chain bot turns through \path{server/src/poker/services/practiceBotTurns.service.ts}; HTTP orchestration and optional expert delegation sit in \path{server/src/services/botAi.service.ts}. Four difficulties are supported: \texttt{easy}, \texttt{medium}, \texttt{hard}, \texttt{expert}.
+
+\subsection{Strength signal and decisions}
+
+Let $H$ be the scalar hand score returned by \texttt{getHandValue} for the bot's visible cards (two to seven cards). The code normalizes
+\[
+\sigma = \min\Bigl(1,\,\max\bigl(0,\, H/S_{\max}\bigr)\Bigr),
+\qquad
+S_{\max} = 9\cdot 15^{5} + 14\cdot 15^{4},
+\]
+matching the encoding used by \path{server/src/logic/Evaluator.ts}. Each difficulty combines $\sigma$ with pot odds (\texttt{callAmount}, \texttt{potSize}), heads-up vs.\ multiway flags, and pseudo-random draws to return \texttt{FOLD}, \texttt{CALL}, \texttt{CHECK}, or \texttt{RAISE} with an optional raise amount (chips rounded via \path{intChips}). The easy tier, for example, injects naive bluffs on a free street with fixed probability and biases calls when facing small bets with medium strength.
+
+\subsection{Further reading}
+
+Design notes: \path{Docs/IA_EXPERT_BOT.md}.
+
+\section{Probabilities, Quantum HUD, and Monte Carlo helper}
 \label{app:hud}
 
-The HUD consumes derived probabilities and hand categories via \path{client/src/contexts/QuantumHUDContext.tsx} and \path{client/src/components/QuantumHUD.tsx}. Client-side Monte Carlo equity estimation is implemented in \path{client/src/utils/pokerMonteCarloEquity.ts}. Hand taxonomy and combination positioning for UX are additionally documented in \path{Docs/final_report/QUANTUM_COMBI.adoc}. These UI estimates are distinct from server-side settlement logic for wagering products.
+\subsection{Division of responsibilities}
 
-\section{Appendix E: Hidden betting system}
+The \textbf{Quantum HUD} (\path{client/src/components/QuantumHUD.tsx}, context \path{client/src/contexts/QuantumHUDContext.tsx}) displays \textit{estimates} for the authenticated player. These are computed client-side for responsiveness and are \textbf{not} used to settle real-money outcomes (the product uses virtual chips). Server-side hidden-bet pricing uses separate tabular services (Appendix~\ref{app:hidden}).
+
+\subsection{Monte Carlo equity estimator}
+
+Implementation file: \path{client/src/utils/pokerMonteCarloEquity.ts}. Let $N$ be the number of iterations (default $N=2000$, constant \texttt{MONTE\_CARLO\_DEFAULT\_ITERATIONS}). For each iteration the code:
+\begin{enumerate}
+\item Builds the remaining deck excluding known hero and community cards (\texttt{buildDeckExcluding}).
+\item Draws, without replacement, the missing board cards and $2\times n_{\mathrm{opp}}$ opponent hole cards using a partial Fisher--Yates swap sampler (\texttt{drawWithoutReplacement}).
+\item Evaluates the hero and each opponent seven-card hand with \texttt{evaluateSevenEval} (same taxonomy as the server evaluator).
+\item Splits the simulated pot equally among all players that achieve the best score.
+\end{enumerate}
+If $S_t \in \{0, 1/k\}$ is the hero's share on iteration $t$ when $k$ players tie for the best score, the reported equity is
+\[
+\hat{e} = \frac{1}{N}\sum_{t=1}^{N} S_t .
+\]
+A histogram of category indices (0--9) is accumulated in parallel for UX badges.
+
+\subsection{Monte Carlo error budget (HUD analogue to RTP)}
+
+The HUD does \textbf{not} implement a house-banked game: there is no monetary \textbf{RTP} in the casino sense. The quantity $\hat{e}$ is an \textbf{equity} estimate (expected share of the pot at showdown under uniform completion of unknown cards). If $e$ denotes the true value of that expectation under the model, then $\mathrm{E}[\hat{e}]=e$ (each draw is independent and fair with respect to the remaining deck). Because $0\le S_t\le 1$,
+\[
+\mathrm{Var}(S_t)\le \frac{1}{4},
+\qquad
+\mathrm{Var}(\hat{e})=\frac{\mathrm{Var}(S_t)}{N},
+\qquad
+\mathrm{SE}(\hat{e})\le \frac{1}{2\sqrt{N}}.
+\]
+With the shipped default $N=2000$, $\mathrm{SE}(\hat{e})\le 1/(2\sqrt{2000})\approx 0.01118$ (about $1.1$ equity points at most in the worst-case variance bound).
+
+\subsection{Quantum Combi---exact enumeration formula}
+
+The promotional ``Quantum Combi'' category (documented for players in \path{Docs/final_report/QUANTUM_COMBI.adoc}) requires ranks $\{3,5,6,7,10\}$ each to appear \textbf{at least once} among the seven cards (two private + five community). All $\binom{52}{7}$ seven-card subsets are equally likely:
+\[
+\binom{52}{7} = 133784560 .
+\]
+For each rank $r$ in that set, let $A_r$ be the event ``no card of rank $r$ among the seven''; then $|A_r|=\binom{48}{7}$. By the principle of inclusion--exclusion over five ranks,
+\[
+\Bigl|\bigcup_{r} A_r\Bigr|
+  = \sum_{k=1}^{5} (-1)^{k+1}\binom{5}{k}\binom{52-4k}{7}
+  = 133002736 .
+\]
+Hence the favourable count is $133784560-133002736 = 781824$ and
+\[
+P(\text{Quantum Combi}) = \frac{781824}{133784560} \approx 0.00584 \approx 0.584\%.
+\]
+
+\subsection{Quantum Combi in the hand-ranking ladder (server and HUD)}
+
+Both \path{server/src/logic/Evaluator.ts} and \path{client/src/utils/pokerHandCategory.ts} use the same \textbf{best-of-seven} cascade. Categories are integers $0$ (high card) through $9$ (straight flush); a larger packed score beats a smaller one. After ruling out straight flush ($9$), four-of-a-kind ($8$), and full house ($7$), the code tests \textbf{Quantum Combi before flush or straight}. Quantum applies iff every rank in $\{3,5,6,7,10\}$ appears at least once in the seven rank values (Ace is coded as $14$). Let $V$ be the multiset of those seven values; subtract one occurrence of each mandatory rank; sort the remaining values descending and take the top two as kickers $(\kappa_1,\kappa_2)$. The score is
+\[
+\texttt{packScore}(6,\kappa_1,\kappa_2) = 6\cdot 15^{5} + \kappa_1\cdot 15^{4} + \kappa_2\cdot 15^{3},
+\]
+padding unused kicker slots with zeros in the implementation. Only if Quantum fails does the evaluator continue to flush ($5$), straight ($4$), three-of-a-kind, two pair, one pair, high card. Thus Quantum is positioned \textbf{strictly between full house and flush}, as a design choice documented in \path{Docs/final_report/QUANTUM_COMBI.adoc}.
+
+\section{Hidden betting system}
 \label{app:hidden}
 
-Hidden bets combine market definitions, ticket lifecycle, and resolver routines under \path{server/src/poker/hiddenBets/}. HTTP surface: \path{server/src/routes/hiddenBets.routes.ts}. Deep specifications: \path{Docs/intern/HIDDEN_BETS_SPEC.md}, \path{Docs/detail_logique/backend/07_hidden_bets_moteur.md}.
+\subsection{Programmed architecture}
 
-\section{Appendix F: Tournaments and winner side bets}
+Hidden side markets are implemented under \path{server/src/poker/hiddenBets/}: typed markets and snapshots (\path{markets.ts}, \path{types.ts}), pricing tables (\path{pricing/pricingTables.ts}, \path{pricingTables.v1.ts}), live heuristics (\path{pricing/livePricing.ts}), quote and placement services, ledger context, and street-aware resolvers (\path{resolver/hiddenBetResolver.ts}). HTTP routes are mounted in \path{server/src/routes/hiddenBets.routes.ts}.
+
+\subsection{Odds and tables (example)}
+
+Live markets use tabulated decimal odds keyed by table parameters. For instance, \path{oddsPlayerWinsCurrentHand} maps the number of active players $n\in[2,9]$ to a fixed grid (e.g.\ $n=2 \rightarrow 1.9$, $n=5 \rightarrow 3.0$, $n=9 \rightarrow 4.6$); companion functions cover showdown vs.\ fold endings. These values are \textbf{heuristic} prices distanced from the pre-hand model (see code comments \texttt{hidden-bets-live-v1}), not Monte Carlo outputs from the HUD.
+
+\subsection{Further reading}
+
+\path{Docs/intern/HIDDEN_BETS_SPEC.md}, \path{Docs/detail_logique/backend/07_hidden_bets_moteur.md}.
+
+\section{Tournaments and winner side bets}
 \label{app:tournament}
 
-Tournament services, scheduler, and recovery live under \path{server/src/tournament/}. Winner-bet services: \path{server/src/tournament/winnerBets/tournamentWinnerBet.service.ts} with routes composed under \path{/api/tournaments}. Client feature module: \path{client/src/features/tournament/}. The waiting-room experience embeds a lightweight skill mini-game (\path{ZipRushMiniGame.tsx}) to retain engagement between bracket transitions. Reference notes: \path{Docs/intern/TOURNAMENT_FLOW_REAL_VS_EXPECTED.md}.
+\subsection{Programmed modules}
 
-\section{Appendix G: Blackjack solo and multiplayer}
+Tournament lifecycle (registration, waiting room, table assignment, blind escalation, elimination, results) is implemented under \path{server/src/tournament/} with recovery jobs invoked at server boot (\path{server/src/index.ts}). Winner-side markets reuse wallet patterns in \path{server/src/tournament/winnerBets/tournamentWinnerBet.service.ts}. The client feature pack lives in \path{client/src/features/tournament/} (waiting room, in-tournament table, results, winner-bet panel). A lightweight \texttt{ZipRushMiniGame} retains players during queue phases.
+
+\subsection{Further reading}
+
+\path{Docs/intern/TOURNAMENT_FLOW_REAL_VS_EXPECTED.md}.
+
+\section{Blackjack solo and multiplayer}
 \label{app:bj}
 
-Solo blackjack routes: \path{server/src/routes/blackjack.routes.ts}. Multi-table orchestration: \path{server/src/routes/blackjackMulti.routes.ts} with state stores and recovery under \path{server/src/blackjack/}. UI: \path{client/src/pages/Blackjack.tsx}, lobby/table pages, and \path{client/src/components/blackjack/}. Notes: \path{Docs/detail_logique/backend/03_blackjack_solo_moteur.md}, \path{Docs/detail_logique/backend/04_blackjack_multi_moteur.md}.
+\subsection{Solo blackjack engine}
 
-\section{Appendix H: Slot machine, roulette, and casino wallet}
+Authoritative rules are implemented in \path{server/src/logic/blackjack.ts}. The server uses a six-deck shoe (\texttt{DECKS = 6}), shuffled in-place with Fisher--Yates (\texttt{shuffleShoe}). Card values follow standard rules: faces and tens count as $10$, aces count as $11$ when possible without exceeding $21$, otherwise as $1$. The dealer draws until the hard/soft total is at least $17$; because aces are valued optimistically, the dealer \textbf{stands on soft 17} (e.g.\ A+6). Natural blackjack pays a $3{:}2$ bonus on the stake (implemented as integer chip rounding per \path{intChips}); other wins pay $1{:}1$; pushes return the stake. Double down is permitted only with exactly two player cards and issues one extra card.
+
+Solo routes: \path{server/src/routes/blackjack.routes.ts}. Multiplayer rooms and seats: \path{server/src/routes/blackjackMulti.routes.ts}, controllers under \path{server/src/logic/BlackjackTableController.ts}, in-memory runtime maps with recovery under \path{server/src/blackjack/}. UI: \path{client/src/pages/Blackjack.tsx}, lobby/table flows, components in \path{client/src/components/blackjack/}.
+
+\subsection{Further reading}
+
+\path{Docs/detail_logique/backend/03_blackjack_solo_moteur.md}, \path{Docs/detail_logique/backend/04_blackjack_multi_moteur.md}.
+
+\section{Slot machine, roulette, and casino wallet}
 \label{app:casino}
 
-Game logic modules: \path{server/src/logic/slotMachine.ts}, \path{server/src/logic/roulette.ts}. REST routers: \path{server/src/routes/slot.routes.ts}, \path{server/src/routes/roulette.routes.ts}. Wallet ledger services under \path{server/src/casino/} and \path{server/src/wallet/}. Extra docs: \path{Docs/detail_logique/backend/06_slot_moteur.md}, \path{Docs/detail_logique/backend/05_roulette_moteur.md}, \path{Docs/final_report/SLOT_MACHINE.adoc}, \path{Docs/final_report/ROULETTE.adoc}.
+\subsection{Three-reel slot model}
 
-\section{Appendix I: Social graph, invitations, and peer loans}
+The server module \path{server/src/logic/slotMachine.ts} draws three independent reels. Symbol weights are
+\[
+w_{\mathrm{cherry}}=32,\;
+w_{\mathrm{lemon}}=24,\;
+w_{\mathrm{bell}}=18,\;
+w_{\mathrm{seven}}=14,\;
+w_{\mathrm{diamond}}=8,\qquad
+W=\sum_i w_i = 96 .
+\]
+One reel satisfies $\operatorname{Pr}[R{=}i]=w_i/W$. Triples satisfy $\operatorname{Pr}(R_1{=}R_2{=}R_3{=}s)=(w_s/W)^3$. Triple $s$ pays total return multiplier $m_s\in\{5,8,10,15,20\}$ on the stake; an \textbf{exact pair} (two equal symbols, third different) pays multiplier $1$ (stake returned, zero net profit); otherwise the payout multiplier is $0$. RNG is injectable (\texttt{RandomIntFn}, default \texttt{crypto.randomInt} via \path{server/src/rng/rng.service.ts}).
+
+\subsection{Complete slot RTP (closed form, current constants)}
+
+Let $X=\texttt{winAmount}/\texttt{bet}$ be the \textbf{gross return multiplier} (total coins returned by the machine, including the stake on a push). Write $R_1,R_2,R_3$ for the three reel symbols.
+
+\paragraph{Triple (three of a kind).}
+\[
+\operatorname{Pr}(\text{triple of }s)=\Bigl(\frac{w_s}{W}\Bigr)^3,
+\qquad
+\operatorname{Pr}(\text{any triple})=\sum_s \Bigl(\frac{w_s}{W}\Bigr)^3=\frac{\sum_s w_s^3}{W^3}.
+\]
+Numerically $\sum_s w_s^3 = 32768+13824+5832+2744+512 = 55680$ and $W^3=96^3=884736$, hence
+\[
+\operatorname{Pr}(\text{any triple})=\frac{55680}{884736}\approx 0.0629\;(6.29\%).
+\]
+
+\paragraph{Exact pair (not a triple).}
+For a doubled symbol $A$,
+\[
+\operatorname{Pr}(\text{pair with }A\text{ doubled})=\frac{3\,w_A^2\,(W-w_A)}{W^3},
+\qquad
+\operatorname{Pr}(\text{any pair})=\sum_A \frac{3\,w_A^2\,(W-w_A)}{W^3}.
+\]
+Numerically $\sum_A 3w_A^2(W-w_A)=461952$, so $\operatorname{Pr}(\text{pair})=461952/884736\approx 0.5221\;(52.21\%)$.
+
+\paragraph{Lose.}
+\[
+\operatorname{Pr}(\text{lose})=1-\operatorname{Pr}(\text{triple})-\operatorname{Pr}(\text{pair})\approx 0.4149\;(41.49\%).
+\]
+
+\paragraph{Expected multiplier and RTP.}
+Because outcomes partition $\{\text{lose},\text{pair},\text{triples}\}$,
+\[
+\mathrm{E}[X]
+  =\sum_s \Bigl(\frac{w_s}{W}\Bigr)^3 m_s + \operatorname{Pr}(\text{pair})\cdot 1
+  =\frac{\sum_s m_s w_s^3 + 461952}{884736}.
+\]
+Here $\sum_s m_s w_s^3 = 5\cdot32768 + 8\cdot13824 + 10\cdot5832 + 15\cdot2744 + 20\cdot512 = 384152$, so
+\[
+\mathrm{E}[X]=\frac{384152+461952}{884736}=\frac{846104}{884736}\approx 0.9563.
+\]
+The \textbf{return-to-player (RTP)} expressed as a percentage of the stake is $100\,\mathrm{E}[X]\approx 95.63\%$. The \textbf{house edge} on the stake is $1-\mathrm{E}[X]\approx 4.37\%$. The expected \textbf{net} gain per spin is $\mathrm{E}[G]=\mathrm{E}[\texttt{winAmount}-\texttt{bet}]=\texttt{bet}\,(\mathrm{E}[X]-1)\approx -0.0437\times\texttt{bet}$.
+
+\paragraph{Variance (optional diagnostic).}
+With the same $X$, the AsciiDoc reference reports $\mathrm{Var}(X)\approx 3.12$ (standard deviation $\approx 1.77$); hence $\mathrm{Var}(G)=\texttt{bet}^2\,\mathrm{Var}(X)$ for a flat bet. See \path{Docs/SLOT_MACHINE.adoc} for the full derivation.
+
+\subsection{European roulette model}
+
+The server module \path{server/src/logic/roulette.ts} draws a single winning integer uniformly from $\{0,\ldots,36\}$ (\texttt{crypto.randomInt} through the same RNG service). Payouts follow the European \textbf{total-return} multipliers on the stake for winning pockets (straight $36$, split $18$, street $12$, corner $9$, six-line $6$, dozen/column $3$, even-money $2$). Zero causes outside bets to lose unless covered.
+
+\subsection{Complete roulette RTP (all proportional inside bets)}
+
+Consider any bet line that covers exactly $k$ distinct winning pockets ($1\le k\le 18$ on the proportional ladder used in code) with European gross multiplier $m=36/k$ applied to the stake when one of those pockets hits. Because each pocket has probability $1/37$,
+\[
+\mathrm{E}\Bigl[\frac{\texttt{payout}}{\texttt{bet}}\Bigr]=\frac{k}{37}\cdot m=\frac{k}{37}\cdot\frac{36}{k}=\frac{36}{37}\approx 0.97297.
+\]
+Hence every such line has the same \textbf{RTP}${}=36/37\approx 97.297\%$ of the stake returned as gross payout in expectation, and the same \textbf{house edge}${}=1/37\approx 2.703\%$ on the stake. The expected \textbf{net} gain per unit staked on a single line is
+\[
+\frac{k}{37}\cdot m - 1 = -\frac{1}{37}.
+\]
+When several independent bet lines are placed on one spin, expectation adds across lines; the server enforces caps (\texttt{ROULETTE\_MAX\_BET\_CAP}, \texttt{ROULETTE\_MAX\_TOTAL\_STAKE}, \texttt{ROULETTE\_MAX\_BETS\_PER\_SPIN}) before settlement. Wheel animation order is \texttt{EUROPEAN\_WHEEL\_ORDER}. Full payout tables: \path{Docs/final_report/ROULETTE.adoc}.
+
+\subsection{Wallet and ledger}
+
+Casino flows integrate with wallet/ledger helpers under \path{server/src/casino/} and \path{server/src/wallet/}. Additional narrative: \path{Docs/detail_logique/backend/05_roulette_moteur.md}, \path{Docs/detail_logique/backend/06_slot_moteur.md}, \path{Docs/final_report/ROULETTE.adoc}.
+
+\section{Social graph, invitations, and peer loans}
 \label{app:social}
 
-Friends and messaging surfaces: \path{client/src/pages/Friends.tsx}. REST: \path{server/src/routes/friends.routes.ts}, game invitations via \path{server/src/routes/invitation.routes.ts} (also mounted at \path{/api/invitations}), loan routes mounted with friends (\path{server/src/routes/friendLoan.routes.ts}). Service layer: \path{server/src/services/friendLoan.service.ts} with socket emissions \path{server/src/services/friendLoan.emit.ts}. Note: \path{Docs/detail_logique/backend/09_friend_loans_moteur.md}.
+\subsection{Programmed surfaces}
 
-\section{Appendix J: Progression, challenges, and leaderboards}
+Friends UI: \path{client/src/pages/Friends.tsx}. REST: \path{server/src/routes/friends.routes.ts}; poker invitations \path{server/src/routes/invitation.routes.ts} (also under \path{/api/invitations}); blackjack room invitations share patterns with the lobby. Peer loans: \path{server/src/routes/friendLoan.routes.ts}, business logic in \path{server/src/services/friendLoan.service.ts}, real-time updates via \path{server/src/services/friendLoan.emit.ts} and socket listeners on the client.
+
+\subsection{Further reading}
+
+\path{Docs/detail_logique/backend/09_friend_loans_moteur.md}.
+
+\section{Progression, challenges, and leaderboards}
 \label{app:prog}
 
-Gamification hooks in logic (\path{server/src/logic/gamification.ts}) and dedicated routes for daily challenges and login streak (\path{server/src/dailyChallenges/}, \path{server/src/dailyLogin/}). Leaderboard router: \path{server/src/routes/leaderboard.routes.ts}. Summary: \path{Docs/detail_logique/backend/10_gamification_moteur.md}.
+\subsection{Programmed logic}
 
-\section{Appendix K: Authentication, profiles, and i18n}
+Shared rules in \path{server/src/logic/gamification.ts} (XP curves, badge triggers). Daily challenges and login streak are isolated modules (\path{server/src/dailyChallenges/}, \path{server/src/dailyLogin/}) with dedicated routers. Public leaderboards: \path{server/src/routes/leaderboard.routes.ts}; client pages under \path{/leaderboard} and profile summaries.
+
+\subsection{Further reading}
+
+\path{Docs/detail_logique/backend/10_gamification_moteur.md}.
+
+\section{Authentication, profiles, and i18n}
 \label{app:auth}
 
-Auth REST: \path{server/src/routes/auth.routes.ts}; TOTP: \path{server/src/routes/twofa.routes.ts}. Client auth UI: \path{client/src/pages/Auth.tsx}. Profile editing and avatars: \path{client/src/pages/EditProfile.tsx} with storage fields on \texttt{User} in Prisma. Five translation bundles under \path{client/src/i18n/locales/}.
+\subsection{Programmed security and profiles}
 
-\section{Appendix L: Operations, Redis, CI, and packaging}
+JWT issuance and verification on \path{server/src/routes/auth.routes.ts}; password hashing (bcrypt) and validation schemas (Zod). Optional TOTP 2FA: \path{server/src/routes/twofa.routes.ts}. Client auth flows: \path{client/src/pages/Auth.tsx}. Profile and avatar uploads: \path{client/src/pages/EditProfile.tsx} with binary fields or URLs on the Prisma \texttt{User} model. Internationalization bundles live in \path{client/src/i18n/locales/} (five languages); guest-only screens force English overlays where documented in Section~\ref{sec:challenges}.
+
+\section{Operations, Redis, CI, and packaging}
 \label{app:ops}
 
-Redis clients for Socket.IO adapter: \path{server/src/config/socketIoRedis.ts}. Observability: \path{server/src/observability/}. CI: \path{.gitlab-ci.yml}. Desktop/mobile: Capacitor/Electron targets in \path{client/package.json}. Admin console: \path{client/src/pages/AdminConsole.tsx} with server routes \path{server/src/routes/adminConsole.routes.ts}. Dev-only admin tools are gated by \texttt{!env.isProduction} in \path{server/src/index.ts}.
+\subsection{Programmed operations}
 
-\section{Appendix M: External and large internal references}
+Redis clients for Socket.IO horizontal scale-out: \path{server/src/config/socketIoRedis.ts}. Rate limiting and action logs share Redis primitives configured in \path{server/src/index.ts}. Observability helpers: \path{server/src/observability/}. CI pipeline: \path{.gitlab-ci.yml}. Desktop/mobile packaging scripts in \path{client/package.json} (Electron, Capacitor). Admin web console: \path{client/src/pages/AdminConsole.tsx} with \path{server/src/routes/adminConsole.routes.ts}. Dangerous admin/dev routes are compiled out or gated when \texttt{env.isProduction} is true.
+
+\section{External references and compendium}
 \label{app:sources}
 
 \begin{itemize}
@@ -403,6 +748,70 @@ Redis clients for Socket.IO adapter: \path{server/src/config/socketIoRedis.ts}. 
 \item Security dossiers: \path{Docs/Architecture/SECURITE_A_TO_Z.md}, \path{Docs/security/}.
 \item HTTP and socket maps: \path{Docs/detail_logique/network/01_http_api_map.md}, \path{Docs/detail_logique/network/02_socket_events_map.md}.
 \item Combination analysis report: \path{Docs/final_report/QUANTUM_COMBI.adoc}.
+\item Slot RTP and outcome algebra (AsciiDoc): \path{Docs/SLOT_MACHINE.adoc}.
+\item Roulette payouts and expectation: \path{Docs/final_report/ROULETTE.adoc}.
 \end{itemize}
+
+\clearpage
+\begin{thebibliography}{99}
+
+\bibitem{react19}
+Meta. \textit{React documentation} (React 19). \url{https://react.dev/} (accessed May 2026).
+
+\bibitem{typescript}
+Microsoft. \textit{TypeScript handbook.} \url{https://www.typescriptlang.org/docs/} (accessed May 2026).
+
+\bibitem{vite}
+Vite contributors. \textit{Vite guide.} \url{https://vite.dev/guide/} (accessed May 2026).
+
+\bibitem{nodejs}
+OpenJS Foundation. \textit{Node.js runtime documentation.} \url{https://nodejs.org/docs/latest/api/} (accessed May 2026).
+
+\bibitem{express}
+OpenJS Foundation. \textit{Express web framework.} \url{https://expressjs.com/} (accessed May 2026).
+
+\bibitem{socketio}
+Socket.IO project. \textit{Socket.IO server and client (v4).} \url{https://socket.io/docs/v4/} (accessed May 2026).
+
+\bibitem{prisma}
+Prisma Data Inc. \textit{Prisma ORM documentation.} \url{https://www.prisma.io/docs} (accessed May 2026).
+
+\bibitem{postgresql}
+PostgreSQL Global Development Group. \textit{PostgreSQL documentation.} \url{https://www.postgresql.org/docs/} (accessed May 2026).
+
+\bibitem{redis}
+Redis Ltd. \textit{Redis documentation.} \url{https://redis.io/docs/} (accessed May 2026).
+
+\bibitem{redux}
+Redux team. \textit{Redux Toolkit and RTK Query.} \url{https://redux-toolkit.js.org/} (accessed May 2026).
+
+\bibitem{i18next}
+i18next authors. \textit{i18next documentation.} \url{https://www.i18next.com/} (accessed May 2026).
+
+\bibitem{zod}
+Zod maintainers. \textit{Zod schema validation.} \url{https://zod.dev/} (accessed May 2026).
+
+\bibitem{jest}
+OpenJS Foundation. \textit{Jest testing framework.} \url{https://jestjs.io/} (accessed May 2026).
+
+\bibitem{vitest}
+Vitest contributors. \textit{Vitest.} \url{https://vitest.dev/} (accessed May 2026).
+
+\bibitem{playwright}
+Microsoft. \textit{Playwright end-to-end testing.} \url{https://playwright.dev/} (accessed May 2026).
+
+\bibitem{tailwind}
+Tailwind Labs. \textit{Tailwind CSS documentation.} \url{https://tailwindcss.com/docs} (accessed May 2026).
+
+\bibitem{scrumguide}
+Schwaber, K., Sutherland, J. \textit{The Scrum Guide} (2020). \url{https://scrumguides.org/scrum-guide.html} (accessed May 2026).
+
+\bibitem{gitlabci}
+GitLab Inc. \textit{GitLab CI/CD documentation.} \url{https://docs.gitlab.com/ee/ci/} (accessed May 2026).
+
+\bibitem{unistra}
+Université de Strasbourg. \textit{Faculté des mathématiques et informatique.} \url{https://mathinfo.unistra.fr/} (accessed May 2026).
+
+\end{thebibliography}
 
 \end{document}

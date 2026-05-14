@@ -1,52 +1,104 @@
+\contentsline {section}{Abstract}{i}{section*.2}%
+\contentsline {section}{Résumé (français)}{i}{section*.4}%
+\contentsline {section}{List of abbreviations}{ii}{section*.6}%
 \contentsline {section}{\numberline {1}Introduction}{1}{section.1}%
 \contentsline {subsection}{\numberline {1.1}Context and Objectives}{1}{subsection.1.1}%
 \contentsline {subsection}{\numberline {1.2}Scope of this document}{1}{subsection.1.2}%
-\contentsline {section}{\numberline {2}Project Evolution}{2}{section.2}%
-\contentsline {subsection}{\numberline {2.1}Initial specifications (poker-first)}{2}{subsection.2.1}%
-\contentsline {subsection}{\numberline {2.2}Scope expansion (casino, tournaments, social, progression)}{2}{subsection.2.2}%
-\contentsline {subsection}{\numberline {2.3}Why the narrative moved from ``catalog'' to ``appendices''}{2}{subsection.2.3}%
-\contentsline {section}{\numberline {3}Project Management}{3}{section.3}%
-\contentsline {subsection}{\numberline {3.1}Initial V-model phase}{3}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}Transition to an agile-inspired workflow (Jira, Scrum practices)}{3}{subsection.3.2}%
-\contentsline {subsection}{\numberline {3.3}Planning, coordination, and reporting}{3}{subsection.3.3}%
-\contentsline {subsection}{\numberline {3.4}Product management mechanics}{3}{subsection.3.4}%
-\contentsline {section}{\numberline {4}Development Tools and Technologies}{4}{section.4}%
-\contentsline {subsection}{\numberline {4.1}Frontend and backend}{4}{subsection.4.1}%
-\contentsline {subsection}{\numberline {4.2}Database and infrastructure}{4}{subsection.4.2}%
-\contentsline {subsection}{\numberline {4.3}Version control and collaboration}{4}{subsection.4.3}%
-\contentsline {subsection}{\numberline {4.4}Testing and deployment}{4}{subsection.4.4}%
-\contentsline {section}{\numberline {5}Use of Artificial Intelligence}{5}{section.5}%
-\contentsline {subsection}{\numberline {5.1}In-product AI: poker bots}{5}{subsection.5.1}%
-\contentsline {subsection}{\numberline {5.2}AI-assisted engineering (tooling)}{5}{subsection.5.2}%
-\contentsline {subsection}{\numberline {5.3}Limits and verification}{5}{subsection.5.3}%
-\contentsline {section}{\numberline {6}Platform Functionalities}{6}{section.6}%
-\contentsline {section}{\numberline {7}System Architecture}{8}{section.7}%
-\contentsline {subsection}{\numberline {7.1}Monorepo layout}{8}{subsection.7.1}%
-\contentsline {subsection}{\numberline {7.2}Real-time communication}{8}{subsection.7.2}%
-\contentsline {subsection}{\numberline {7.3}Persistence and integrity}{8}{subsection.7.3}%
-\contentsline {subsection}{\numberline {7.4}Diagram}{8}{subsection.7.4}%
-\contentsline {section}{\numberline {8}Security, Testing and Stability}{9}{section.8}%
-\contentsline {subsection}{\numberline {8.1}Authentication and abuse controls}{9}{subsection.8.1}%
-\contentsline {subsection}{\numberline {8.2}Testing and debugging}{9}{subsection.8.2}%
-\contentsline {subsection}{\numberline {8.3}Performance and stability}{9}{subsection.8.3}%
-\contentsline {section}{\numberline {9}Technical Challenges}{10}{section.9}%
-\contentsline {section}{\numberline {10}Individual Contributions}{11}{section.10}%
-\contentsline {subsection}{\numberline {10.1}Omar -- project management and architecture alignment}{11}{subsection.10.1}%
-\contentsline {subsection}{\numberline {10.2}Other contributors}{11}{subsection.10.2}%
-\contentsline {section}{\numberline {11}Limitations and Future Work}{12}{section.11}%
-\contentsline {subsection}{\numberline {11.1}Current limitations}{12}{subsection.11.1}%
-\contentsline {subsection}{\numberline {11.2}Future improvements}{12}{subsection.11.2}%
-\contentsline {section}{\numberline {12}Conclusion}{13}{section.12}%
-\contentsline {section}{\numberline {A}Appendix A: Repository map and routing}{13}{appendix.A}%
-\contentsline {section}{\numberline {B}Appendix B: Poker engine and cash game}{13}{appendix.B}%
-\contentsline {section}{\numberline {C}Appendix C: Bot AI and practice integration}{13}{appendix.C}%
-\contentsline {section}{\numberline {D}Appendix D: Probabilities, Quantum HUD, and Monte Carlo helper}{13}{appendix.D}%
-\contentsline {section}{\numberline {E}Appendix E: Hidden betting system}{14}{appendix.E}%
-\contentsline {section}{\numberline {F}Appendix F: Tournaments and winner side bets}{14}{appendix.F}%
-\contentsline {section}{\numberline {G}Appendix G: Blackjack solo and multiplayer}{14}{appendix.G}%
-\contentsline {section}{\numberline {H}Appendix H: Slot machine, roulette, and casino wallet}{14}{appendix.H}%
-\contentsline {section}{\numberline {I}Appendix I: Social graph, invitations, and peer loans}{14}{appendix.I}%
-\contentsline {section}{\numberline {J}Appendix J: Progression, challenges, and leaderboards}{15}{appendix.J}%
-\contentsline {section}{\numberline {K}Appendix K: Authentication, profiles, and i18n}{15}{appendix.K}%
-\contentsline {section}{\numberline {L}Appendix L: Operations, Redis, CI, and packaging}{15}{appendix.L}%
-\contentsline {section}{\numberline {M}Appendix M: External and large internal references}{15}{appendix.M}%
+\contentsline {section}{\numberline {2}Methodology, traceability, and reading guide}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Traceability to the initial specification}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Evidence hierarchy}{2}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}How validation is reported}{2}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Project Evolution}{3}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Initial specifications (poker-first)}{3}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Scope expansion (casino, tournaments, social, progression)}{3}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Why the narrative moved from ``catalog'' to ``appendices''}{3}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Project Management}{4}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Initial V-model phase}{4}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Transition to an agile-inspired workflow (Jira, Scrum practices)}{4}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Planning, coordination, and reporting}{4}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Product management mechanics}{4}{subsection.4.4}%
+\contentsline {section}{\numberline {5}Development Tools and Technologies}{5}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Frontend and backend}{5}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Database and infrastructure}{5}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Version control and collaboration}{5}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Testing and deployment}{5}{subsection.5.4}%
+\contentsline {section}{\numberline {6}Use of Artificial Intelligence}{6}{section.6}%
+\contentsline {subsection}{\numberline {6.1}In-product AI: poker bots}{6}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}AI-assisted engineering (tooling)}{6}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Limits and verification}{6}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Platform Functionalities}{7}{section.7}%
+\contentsline {section}{\numberline {8}System Architecture}{9}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Monorepo layout}{9}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Real-time communication}{9}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Persistence and integrity}{9}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Data model overview (Prisma)}{9}{subsection.8.4}%
+\contentsline {subsection}{\numberline {8.5}Diagram}{9}{subsection.8.5}%
+\contentsline {section}{\numberline {9}Deployment and operational runbook}{11}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Local development stack}{11}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Production and desktop delivery}{11}{subsection.9.2}%
+\contentsline {section}{\numberline {10}Security, Testing and Stability}{12}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Authentication and abuse controls}{12}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Testing and debugging}{12}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Automated test inventory and CI (reference snapshot)}{12}{subsection.10.3}%
+\contentsline {subsection}{\numberline {10.4}Performance and stability}{12}{subsection.10.4}%
+\contentsline {section}{\numberline {11}Technical Challenges}{13}{section.11}%
+\contentsline {section}{\numberline {12}Ethics, privacy, and academic integrity}{14}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Virtual economy and regulatory framing}{14}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Personal data}{14}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}Integrity of authorship and AI assistance}{14}{subsection.12.3}%
+\contentsline {section}{\numberline {13}Individual Contributions}{15}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Omar -- project management and architecture alignment}{15}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Other contributors}{15}{subsection.13.2}%
+\contentsline {section}{\numberline {14}Limitations and Future Work}{16}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Current limitations}{16}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}Future improvements}{16}{subsection.14.2}%
+\contentsline {section}{\numberline {15}Conclusion}{17}{section.15}%
+\contentsline {section}{Acknowledgements}{18}{section*.14}%
+\contentsline {section}{\numberline {A}Repository map and routing}{19}{appendix.A}%
+\contentsline {subsection}{\numberline {A.1}Programmed routing and shell}{19}{subsection.A.1}%
+\contentsline {section}{\numberline {B}Poker engine and cash game}{20}{appendix.B}%
+\contentsline {subsection}{\numberline {B.1}What was programmed}{20}{subsection.B.1}%
+\contentsline {subsection}{\numberline {B.2}Rules enforced}{20}{subsection.B.2}%
+\contentsline {subsection}{\numberline {B.3}Further reading}{20}{subsection.B.3}%
+\contentsline {section}{\numberline {C}Bot AI and practice integration}{21}{appendix.C}%
+\contentsline {subsection}{\numberline {C.1}Programmed pipeline}{21}{subsection.C.1}%
+\contentsline {subsection}{\numberline {C.2}Strength signal and decisions}{21}{subsection.C.2}%
+\contentsline {subsection}{\numberline {C.3}Further reading}{21}{subsection.C.3}%
+\contentsline {section}{\numberline {D}Probabilities, Quantum HUD, and Monte Carlo helper}{22}{appendix.D}%
+\contentsline {subsection}{\numberline {D.1}Division of responsibilities}{22}{subsection.D.1}%
+\contentsline {subsection}{\numberline {D.2}Monte Carlo equity estimator}{22}{subsection.D.2}%
+\contentsline {subsection}{\numberline {D.3}Monte Carlo error budget (HUD analogue to RTP)}{22}{subsection.D.3}%
+\contentsline {subsection}{\numberline {D.4}Quantum Combi---exact enumeration formula}{23}{subsection.D.4}%
+\contentsline {subsection}{\numberline {D.5}Quantum Combi in the hand-ranking ladder (server and HUD)}{23}{subsection.D.5}%
+\contentsline {section}{\numberline {E}Hidden betting system}{24}{appendix.E}%
+\contentsline {subsection}{\numberline {E.1}Programmed architecture}{24}{subsection.E.1}%
+\contentsline {subsection}{\numberline {E.2}Odds and tables (example)}{24}{subsection.E.2}%
+\contentsline {subsection}{\numberline {E.3}Further reading}{24}{subsection.E.3}%
+\contentsline {section}{\numberline {F}Tournaments and winner side bets}{25}{appendix.F}%
+\contentsline {subsection}{\numberline {F.1}Programmed modules}{25}{subsection.F.1}%
+\contentsline {subsection}{\numberline {F.2}Further reading}{25}{subsection.F.2}%
+\contentsline {section}{\numberline {G}Blackjack solo and multiplayer}{26}{appendix.G}%
+\contentsline {subsection}{\numberline {G.1}Solo blackjack engine}{26}{subsection.G.1}%
+\contentsline {subsection}{\numberline {G.2}Further reading}{26}{subsection.G.2}%
+\contentsline {section}{\numberline {H}Slot machine, roulette, and casino wallet}{27}{appendix.H}%
+\contentsline {subsection}{\numberline {H.1}Three-reel slot model}{27}{subsection.H.1}%
+\contentsline {subsection}{\numberline {H.2}Complete slot RTP (closed form, current constants)}{27}{subsection.H.2}%
+\contentsline {paragraph}{Triple (three of a kind).}{27}{section*.15}%
+\contentsline {paragraph}{Exact pair (not a triple).}{27}{section*.16}%
+\contentsline {paragraph}{Lose.}{27}{section*.17}%
+\contentsline {paragraph}{Expected multiplier and RTP.}{27}{section*.18}%
+\contentsline {paragraph}{Variance (optional diagnostic).}{28}{section*.19}%
+\contentsline {subsection}{\numberline {H.3}European roulette model}{28}{subsection.H.3}%
+\contentsline {subsection}{\numberline {H.4}Complete roulette RTP (all proportional inside bets)}{28}{subsection.H.4}%
+\contentsline {subsection}{\numberline {H.5}Wallet and ledger}{28}{subsection.H.5}%
+\contentsline {section}{\numberline {I}Social graph, invitations, and peer loans}{29}{appendix.I}%
+\contentsline {subsection}{\numberline {I.1}Programmed surfaces}{29}{subsection.I.1}%
+\contentsline {subsection}{\numberline {I.2}Further reading}{29}{subsection.I.2}%
+\contentsline {section}{\numberline {J}Progression, challenges, and leaderboards}{30}{appendix.J}%
+\contentsline {subsection}{\numberline {J.1}Programmed logic}{30}{subsection.J.1}%
+\contentsline {subsection}{\numberline {J.2}Further reading}{30}{subsection.J.2}%
+\contentsline {section}{\numberline {K}Authentication, profiles, and i18n}{31}{appendix.K}%
+\contentsline {subsection}{\numberline {K.1}Programmed security and profiles}{31}{subsection.K.1}%
+\contentsline {section}{\numberline {L}Operations, Redis, CI, and packaging}{32}{appendix.L}%
+\contentsline {subsection}{\numberline {L.1}Programmed operations}{32}{subsection.L.1}%
+\contentsline {section}{\numberline {M}External references and compendium}{33}{appendix.M}%
