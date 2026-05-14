@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChipIcon } from "./ChipIcon";
-import logoSrc from "../assets/logo-personnel.png";
+import tableNappeImage from "../assets/nappe/NA1.png";
 import { getPokerTableAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { PokerCard } from "./PokerCard";
@@ -137,7 +137,7 @@ export function PokerTable({
       >
         {/* ─── TABLE ───────────────────────────────────────────────────────── */}
         <div
-          className={`relative w-full h-full border-[clamp(3px,1vw,8px)] ${isMobile ? "rounded-[40%/25%]" : "rounded-full"}`}
+          className={`relative w-full h-full overflow-hidden border-[clamp(3px,1vw,8px)] ${isMobile ? "rounded-[40%/25%]" : "rounded-full"}`}
           style={{
             backgroundImage: `${feltGradient}, url(${feltBackgroundUrl})`,
             backgroundSize: "cover, cover",
@@ -150,36 +150,27 @@ export function PokerTable({
               "inset 0 8px 24px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06), 0 12px 32px rgba(0,0,0,0.4)",
           }}
         >
-          {/* Logo central */}
+          {/* Motif nappe — bord à bord sous le jeu */}
           <div
-            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            className={`pointer-events-none absolute inset-0 z-0 ${isMobile ? "rounded-[40%/25%]" : "rounded-full"}`}
             aria-hidden="true"
+            style={{
+              opacity: 0.14,
+              filter: "blur(0.5px) grayscale(85%)",
+            }}
           >
-            <div
-              className="rounded-full overflow-hidden w-[25%] aspect-square max-w-[220px] max-h-[220px]"
-              style={{
-                opacity: 0.12,
-                filter: "blur(1px) grayscale(100%)",
-                transform: "translateY(10px)",
-              }}
-            >
-              <img
-                src={logoSrc}
-                alt="Quantum Bluff"
-                className="w-full h-full object-contain"
-              />
-            </div>
+            <img src={tableNappeImage} alt="" className="h-full w-full object-cover" />
           </div>
 
           {/* Community cards */}
-          <div className={`absolute ${isMobile ? 'top-[38%]' : 'top-[18%]'} left-1/2 -translate-x-1/2 flex justify-center`}>
+          <div className={`absolute z-10 ${isMobile ? 'top-[38%]' : 'top-[18%]'} left-1/2 -translate-x-1/2 flex justify-center`}>
             {children}
           </div>
 
           {/* Cartes brûlées */}
           {burnedCardsCount > 0 && (
             <div
-              className={`absolute ${isMobile ? "right-[1%] top-[1%]" : "right-[2%] top-[15%]"} pointer-events-none`}
+              className={`absolute z-10 ${isMobile ? "right-[1%] top-[1%]" : "right-[2%] top-[15%]"} pointer-events-none`}
               title={t("game.burned")}
               aria-label={t("game.burnedCount", { count: burnedCardsCount })}
             >

@@ -5,7 +5,7 @@ import { PokerCard } from "../PokerCard";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { getPlayerAvatar } from "../../utils/avatars";
 import { useTableTheme } from "../../contexts/TableThemeContext";
-import logoSrc from "../../assets/logo-personnel.png";
+import tableNappeImage from "../../assets/nappe/NA1.png";
 import dealerBjAvatar from "../../assets/avatars/D1.png";
 
 export type BjCard = { rank: string; suit: string };
@@ -256,20 +256,18 @@ export function BlackjackMultiCasinoTable({
             }}
           >
             <div
-              className="pointer-events-none absolute inset-0 opacity-[0.14] mix-blend-overlay"
+              className={`pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] opacity-[0.12] saturate-0`}
+              aria-hidden
+            >
+              <img src={tableNappeImage} alt="" className="h-full w-full object-cover" />
+            </div>
+            <div
+              className="pointer-events-none absolute inset-0 z-[1] opacity-[0.14] mix-blend-overlay"
               style={{
                 backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
               }}
             />
-            <div className="pointer-events-none absolute inset-3 rounded-[1rem] border border-[#c9a227]/25 shadow-[inset_0_0_40px_rgba(0,0,0,0.2)] sm:inset-4 sm:rounded-[1.35rem]" />
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
-              <img
-                src={logoSrc}
-                alt=""
-                className="h-[34%] max-h-44 w-auto opacity-[0.075] saturate-0"
-              />
-            </div>
-
+            <div className="pointer-events-none absolute inset-3 z-[1] rounded-[1rem] border border-[#c9a227]/25 shadow-[inset_0_0_40px_rgba(0,0,0,0.2)] sm:inset-4 sm:rounded-[1.35rem]" />
             <div className="relative z-10 flex flex-col items-center gap-0.5 px-4 pt-2 text-center sm:gap-1 sm:pt-6">
               <div className="inline-flex flex-wrap items-center justify-center gap-2">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#c9a227]/40 bg-black/35 px-4 py-1.5 shadow-lg backdrop-blur-sm">
