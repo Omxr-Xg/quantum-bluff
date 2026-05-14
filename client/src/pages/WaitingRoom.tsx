@@ -9,6 +9,7 @@ import { fetchBalanceFromServer, getUserAvatar } from "../utils/userProfile";
 import { useGetBlockedUsersQuery, useGetFriendsQuery } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
 import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
@@ -65,6 +66,14 @@ export function WaitingRoom() {
   const warnedBlockedPresenceIdsRef = useRef<Set<string>>(new Set());
   /** Évite POST /leave au démontage après départ explicite ou lancement partie (salle IN_GAME). */
   const skipPersistedLeaveOnUnmountRef = useRef(false);
+
+  const authHeaders = useCallback(() => {
+    const token = getAuthItem("token");
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }, []);
 
   const applyRoomSnapshot = useCallback((room: {
     name?: string;
@@ -144,20 +153,13 @@ export function WaitingRoom() {
     if (!roomIdToLeave || roomIdToLeave.startsWith("room_")) return;
     const url = apiUrl(`/api/waiting-room/${roomIdToLeave}/leave`);
     const body = JSON.stringify({ userId: uid });
-    try {
-      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-        if (navigator.sendBeacon(url, new Blob([body], { type: "application/json" }))) return;
-      }
-    } catch {
-      /* sendBeacon indisponible ou refusé → fetch */
-    }
     void fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body,
       keepalive: true,
     }).catch(() => {});
-  }, []);
+  }, [authHeaders]);
 
   useEffect(() => {
     setFriendInviteStatus((prev) => {
@@ -223,7 +225,7 @@ export function WaitingRoom() {
       const url = userId
         ? `${apiUrl(`/api/waiting-room/${id}`)}?userId=${encodeURIComponent(userId)}`
         : apiUrl(`/api/waiting-room/${id}`);
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: authHeaders() });
       if (res.status === 410) {
         const msg = await extractErrorMessage(
           res,
@@ -234,7 +236,7 @@ export function WaitingRoom() {
       if (!res.ok) return null;
       return res.json();
     },
-    [extractErrorMessage, t, userId]
+    [authHeaders, extractErrorMessage, t, userId]
   );
 
   useEffect(() => {
@@ -265,7 +267,7 @@ export function WaitingRoom() {
           const createUrl = apiUrl("/api/waiting-room/create");
           const res = await fetch(createUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: authHeaders(),
             body: JSON.stringify({
               hostId: userId,
               roomName: t("lobby.roomOf", { name: username || t("lobby.defaultPlayerName") }),
@@ -316,7 +318,7 @@ export function WaitingRoom() {
         const joinUrl = apiUrl(`/api/waiting-room/${rawRoomId}/join`);
         const joinRes = await fetch(joinUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders(),
           body: JSON.stringify({ userId, avatarUrl: getUserAvatar(), confirmBlockedWarning: blockedWarningAccepted }),
         });
         if (cancelled) return;
@@ -345,7 +347,7 @@ export function WaitingRoom() {
     return () => {
       cancelled = true;
     };
-  }, [userId, username, rawRoomId, navigate, fetchRoom, applyRoomSnapshot, extractErrorMessage, t, blockedWarningAccepted]);
+  }, [userId, username, rawRoomId, navigate, fetchRoom, applyRoomSnapshot, extractErrorMessage, t, blockedWarningAccepted, authHeaders]);
 
   useEffect(() => {
     if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;
@@ -433,13 +435,13 @@ export function WaitingRoom() {
     if (!rawRoomId || !userId || !isCreator || roomVisibility !== 'PRIVATE') return;
     try {
       const url = `${apiUrl(`/api/waiting-room/${rawRoomId}/join-requests`)}?hostId=${userId}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setJoinRequests(data);
       }
     } catch { /* ignore */ }
-  }, [rawRoomId, userId, isCreator, roomVisibility]);
+  }, [rawRoomId, userId, isCreator, roomVisibility, authHeaders]);
 
   useEffect(() => {
     fetchJoinRequests();
@@ -463,7 +465,7 @@ export function WaitingRoom() {
       const url = apiUrl(`/api/waiting-room/${rawRoomId}/join-requests/${requestId}/accept`);
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ hostId: userId }),
       });
       if (res.ok) void fetchJoinRequests();
@@ -478,7 +480,7 @@ export function WaitingRoom() {
       const url = apiUrl(`/api/waiting-room/${rawRoomId}/join-requests/${requestId}/reject`);
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ hostId: userId }),
       });
       if (res.ok) void fetchJoinRequests();
@@ -513,7 +515,7 @@ export function WaitingRoom() {
       const url = apiUrl(`/api/waiting-room/${rawRoomId}/ready`);
       fetch(url, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ userId, isReady: true }),
       }).catch(() => {});
     }
@@ -527,7 +529,7 @@ export function WaitingRoom() {
       const url = apiUrl(`/api/waiting-room/${rawRoomId}/start`);
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ userId }),
       });
       if (!res.ok) {
@@ -608,7 +610,7 @@ export function WaitingRoom() {
         const url = apiUrl(`/api/waiting-room/${rawRoomId}/leave`);
         await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders(),
           body: JSON.stringify({ userId }),
         });
       } catch { /* no-op */ }
