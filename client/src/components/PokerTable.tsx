@@ -76,7 +76,7 @@ export function PokerTable({
   highlightCardKeys,
 }: PokerTableProps) {
   const { t } = useTranslation();
-  const { feltGradient, feltBorder } = useTableTheme();
+  const { feltGradient, feltBorder, feltBackgroundUrl } = useTableTheme();
   const isShowdown = phase === "showdown";
 
   const deviceType = useDeviceType();
@@ -139,7 +139,10 @@ export function PokerTable({
         <div
           className={`relative w-full h-full border-[clamp(3px,1vw,8px)] ${isMobile ? "rounded-[40%/25%]" : "rounded-full"}`}
           style={{
-            background: feltGradient,
+            backgroundImage: `${feltGradient}, url(${feltBackgroundUrl})`,
+            backgroundSize: "cover, cover",
+            backgroundPosition: "center, center",
+            backgroundRepeat: "no-repeat, no-repeat",
             borderColor: feltBorder,
             borderStyle: "solid",
             transform: `rotateX(${isMobile ? "20deg" : isTablet ? "22deg" : "25deg"})`,

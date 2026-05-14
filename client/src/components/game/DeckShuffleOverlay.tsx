@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
-import { UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTableTheme } from "../../contexts/TableThemeContext";
+import dealerShuffleAvatar from "../../assets/avatars/D1.png";
 
 /** Dos de carte compact pour les mains du croupier. */
 function MiniCardBack({ className = "" }: { className?: string }) {
@@ -86,10 +86,10 @@ export function DeckShuffleOverlay({ shuffleCount, title }: DeckShuffleOverlayPr
               >
                 <div className="relative flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-full border-2 border-amber-400/50 bg-gradient-to-b from-slate-800 to-slate-950 shadow-[0_12px_40px_rgba(0,0,0,0.5),inset_0_2px_0_rgba(255,255,255,0.12)] sm:h-[6.25rem] sm:w-[6.25rem]">
                   <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-amber-500/10 via-transparent to-transparent" />
-                  <UserRound
-                    className="relative z-[1] h-[52%] w-[52%] text-amber-100/90 drop-shadow-md sm:h-[50%] sm:w-[50%]"
-                    strokeWidth={1.35}
-                    aria-hidden
+                  <img
+                    src={dealerShuffleAvatar}
+                    alt={t("game.dealer", "Donneur")}
+                    className="relative z-[1] h-[78%] w-[78%] rounded-full object-cover shadow-inner ring-2 ring-black/25 sm:h-[76%] sm:w-[76%]"
                   />
                   <div className="absolute bottom-[14%] left-1/2 z-[2] flex -translate-x-1/2 gap-0.5" aria-hidden>
                     <span className="h-1.5 w-2.5 rounded-[1px] bg-red-900 shadow-sm" />

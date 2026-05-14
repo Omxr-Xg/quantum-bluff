@@ -1151,6 +1151,13 @@
       "vegasPurple": "Vegas purple",
       "darkBlue": "Deep blue"
     },
+    "tableFeltBackgroundHint": "Choose the felt backdrop (under the color tint). Used behind the poker table, bot games, and blackjack.",
+    "tableFeltBackground": {
+      "ba1": "Backdrop 1",
+      "ba2": "Backdrop 2",
+      "ba3": "Backdrop 3",
+      "ba4": "Backdrop 4"
+    },
     "rateGameCta": "Rate the game"
   },
   "adminConsole": {

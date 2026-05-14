@@ -1133,6 +1133,13 @@
       "vegasPurple": "بنفسجي بأسلوب فيغاس",
       "darkBlue": "أزرق داكن"
     },
+    "tableFeltBackgroundHint": "اختر الصورة تحت لون البساط (البوكر، اللعب ضد البوتات، وشاشات البلاك جاك).",
+    "tableFeltBackground": {
+      "ba1": "خلفية 1",
+      "ba2": "خلفية 2",
+      "ba3": "خلفية 3",
+      "ba4": "خلفية 4"
+    },
     "rateGameCta": "قيّم اللعبة"
   },
   "adminConsole": {

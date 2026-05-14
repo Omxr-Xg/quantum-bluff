@@ -6,6 +6,7 @@ import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { getPlayerAvatar } from "../../utils/avatars";
 import { useTableTheme } from "../../contexts/TableThemeContext";
 import logoSrc from "../../assets/logo-personnel.png";
+import dealerBjAvatar from "../../assets/avatars/D1.png";
 
 export type BjCard = { rank: string; suit: string };
 
@@ -166,7 +167,7 @@ export function BlackjackMultiCasinoTable({
   children: ReactNode;
 }) {
   const { t } = useTranslation();
-  const { feltGradient, feltBorder } = useTableTheme();
+  const { feltGradient, feltBorder, feltBackgroundUrl } = useTableTheme();
   const [containerStyle, setContainerStyle] = useState<CSSProperties>({});
 
   useEffect(() => {
@@ -240,12 +241,16 @@ export function BlackjackMultiCasinoTable({
             <div
               className="relative h-[clamp(27rem,min(80dvh,92svh),40rem)] overflow-hidden rounded-[2rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_110px_rgba(0,0,0,0.38),inset_0_12px_32px_rgba(255,255,255,0.045)] sm:h-[clamp(23rem,58dvh,34rem)] sm:rounded-[2.5rem] lg:h-[clamp(22rem,54dvh,32rem)] xl:h-[clamp(23rem,58dvh,34rem)] [@media_(min-width:1024px)_and_(max-height:820px)]:h-[clamp(20rem,50dvh,29rem)]"
             style={{
-              background: `
+              backgroundImage: `
                 radial-gradient(ellipse 115% 78% at 50% 18%, rgba(255,255,255,0.08) 0%, transparent 50%),
                 radial-gradient(ellipse 85% 55% at 50% 100%, rgba(0,0,0,0.48) 0%, transparent 52%),
                 linear-gradient(90deg, rgba(0,0,0,0.28), transparent 18%, transparent 82%, rgba(0,0,0,0.28)),
-                ${feltGradient}
+                ${feltGradient},
+                url(${feltBackgroundUrl})
               `,
+              backgroundSize: "auto, auto, auto, cover, cover",
+              backgroundPosition: "center, center, center, center, center",
+              backgroundRepeat: "no-repeat, no-repeat, no-repeat, no-repeat, no-repeat",
               borderColor: feltBorder,
               borderStyle: "solid",
             }}
@@ -290,7 +295,14 @@ export function BlackjackMultiCasinoTable({
             </div>
 
             <div className="relative z-10 mt-1 flex flex-col items-center sm:mt-4 md:mt-5 [@media_(min-width:1024px)_and_(max-height:820px)]:mt-2">
-              <div className="mb-1 flex items-center gap-2 sm:mb-2">
+              <div className="mb-1 flex flex-wrap items-center justify-center gap-2 sm:mb-2">
+                <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 border-[#c9a227]/50 bg-black/35 shadow-lg ring-1 ring-black/25 sm:h-10 sm:w-10">
+                  <ImageWithFallback
+                    src={dealerBjAvatar}
+                    alt={t("bjMulti.dealer")}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
                 <span className="rounded-md border border-white/20 bg-black/30 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/90 shadow">
                   {t("bjMulti.dealer")}
                 </span>

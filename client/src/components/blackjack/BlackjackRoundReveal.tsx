@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { handValueFromCards, type BjTableState } from "./BlackjackMultiCasinoTable";
+import { ImageWithFallback } from "../figma/ImageWithFallback";
+import dealerBjAvatar from "../../assets/avatars/D1.png";
 
 export type BjRoundSummaryRow = {
   userId: string;
@@ -63,10 +65,22 @@ export function BlackjackRoundReveal({
                   : t("bjMulti.outcomeYouLose")}
             </p>
           ) : null}
-          <p className="mt-1 text-[11px] text-emerald-200/75">
-            {t("bjMulti.dealer")}:{" "}
-            <span className="font-mono font-semibold text-emerald-100">{dealerLabel}</span>
-          </p>
+          <div className="mt-2 flex items-center justify-center gap-2 text-[11px] text-emerald-200/75">
+            <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-[#c9a227]/40 bg-black/40 shadow">
+              <ImageWithFallback
+                src={dealerBjAvatar}
+                alt={t("bjMulti.dealer")}
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <p>
+              <span className="font-bold uppercase tracking-wide text-emerald-200/90">
+                {t("bjMulti.dealer")}
+              </span>
+              {": "}
+              <span className="font-mono font-semibold text-emerald-100">{dealerLabel}</span>
+            </p>
+          </div>
         </div>
 
         <div className="max-h-[min(55vh,420px)] overflow-y-auto px-3 py-3 sm:px-4">

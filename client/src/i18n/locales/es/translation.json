@@ -1128,6 +1128,13 @@
       "vegasPurple": "Morado estilo Vegas",
       "darkBlue": "Azul oscuro"
     },
+    "tableFeltBackgroundHint": "Elige la imagen bajo el tinte del tapete (póker, partidas contra bots y pantallas de blackjack).",
+    "tableFeltBackground": {
+      "ba1": "Fondo 1",
+      "ba2": "Fondo 2",
+      "ba3": "Fondo 3",
+      "ba4": "Fondo 4"
+    },
     "rateGameCta": "Valorar el juego"
   },
   "adminConsole": {

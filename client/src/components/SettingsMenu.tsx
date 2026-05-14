@@ -5,6 +5,8 @@ import { useAccessibility } from "../contexts/AccessibilityContext";
 import { useAudio } from "../contexts/MusicContext";
 import {
   type TableThemeId,
+  TABLE_FELT_BACKGROUND_IDS,
+  TABLE_FELT_BACKGROUND_URLS,
   TABLE_FELT_GRADIENTS,
   useTableTheme,
 } from "../contexts/TableThemeContext";
@@ -49,7 +51,8 @@ export function SettingsMenu({
     colorblindType,
     setColorblindType,
   } = useAccessibility();
-  const { tableTheme, setTableTheme } = useTableTheme();
+  const { tableTheme, setTableTheme, feltBackgroundId, setFeltBackgroundId } =
+    useTableTheme();
   const {
     bgmEnabled,
     bgmVolume,
@@ -167,6 +170,39 @@ export function SettingsMenu({
                     </span>
                   </button>
                 ))}
+              </div>
+
+              <div className="space-y-4 border-t border-white/10 pt-6">
+                <p className="text-slate-300 text-sm">
+                  {t("settings.tableFeltBackgroundHint")}
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {TABLE_FELT_BACKGROUND_IDS.map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        setFeltBackgroundId(id);
+                        playSfx("uiSelect");
+                      }}
+                      className={`flex flex-col gap-2 rounded-xl border-2 p-4 text-left transition ${
+                        feltBackgroundId === id
+                          ? "border-amber-200/55 bg-amber-400/10 ring-1 ring-amber-200/20 shadow-[0_0_22px_rgba(245,158,11,0.14)]"
+                          : "border-white/10 bg-white/[0.04] hover:border-blue-200/24"
+                      }`}
+                    >
+                      <div
+                        className="h-14 w-full rounded-lg border border-black/20 bg-cover bg-center shadow-inner"
+                        style={{
+                          backgroundImage: `url(${TABLE_FELT_BACKGROUND_URLS[id]})`,
+                        }}
+                      />
+                      <span className="text-sm font-semibold text-white">
+                        {t(`settings.tableFeltBackground.${id}`)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}

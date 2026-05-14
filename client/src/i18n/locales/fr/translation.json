@@ -1151,6 +1151,13 @@
       "vegasPurple": "Violet style Vegas",
       "darkBlue": "Bleu foncé"
     },
+    "tableFeltBackgroundHint": "Choisissez l’image sous la teinte du tapis (poker, partie contre bot et écrans blackjack).",
+    "tableFeltBackground": {
+      "ba1": "Fond 1",
+      "ba2": "Fond 2",
+      "ba3": "Fond 3",
+      "ba4": "Fond 4"
+    },
     "rateGameCta": "Noter le jeu"
   },
   "adminConsole": {

@@ -74,6 +74,7 @@ import {
   STORAGE_MATCHES_PLAYED_COUNT,
   STORAGE_MATCHES_COUNTED_IDS,
 } from "../constants/storageKeys";
+import { useTableTheme } from "../contexts/TableThemeContext";
 
 /** Toutes les `RATE_GAME_PROMPT_EVERY` parties terminées, on propose la notation. */
 const RATE_GAME_PROMPT_EVERY = 5;
@@ -273,6 +274,7 @@ export function Game() {
   const isSpectating = searchParams.get("spectate") === "1";
   const isBotMode = mode === "bot";
   const { userId } = useUser();
+  const { feltBackgroundUrl } = useTableTheme();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
   const difficultyParam = (searchParams.get("difficulty") || "moyen").toLowerCase();
   // Mode bot : le solde compte (header / DB) ne bouge pas sauf difficulté « expert » (URL: difficulty=expert).
@@ -693,6 +695,8 @@ export function Game() {
   } | null>(null);
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const flopAnimatedRef = useRef(false);
+  /** Timeouts dévoilement flop 3 cartes (table locale) — annulés si resync / nouvelle main. */
+  const localFlopDealTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const pushFadingChatLine = useCallback(
     (
@@ -1328,6 +1332,9 @@ export function Game() {
   const dealFlop = useCallback((runOutOnly?: boolean) => {
     setPhase("flop");
     if (!runOutOnly) resetBetsAndSetFirstToAct(getPostflopFirstActIndex());
+    localFlopDealTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    localFlopDealTimeoutsRef.current = [];
+    const gen = localHandGenerationRef.current;
     const newDeck = [...deckRef.current];
     newDeck.shift();
     const flopCards: Card[] = [];
@@ -1339,7 +1346,8 @@ export function Game() {
     setDeck(newDeck);
     flopCards.forEach((card, i) => {
       const slot = i;
-      setTimeout(() => {
+      const tid = setTimeout(() => {
+        if (gen !== localHandGenerationRef.current) return;
         setCommunityCardsState((prev) => {
           const next = [...prev];
           next[slot] = card;
@@ -1347,6 +1355,7 @@ export function Game() {
           return next;
         });
       }, i * 800);
+      localFlopDealTimeoutsRef.current.push(tid);
     });
   }, []);
 
@@ -1524,6 +1533,10 @@ export function Game() {
     const contribs: Record<string, number> = {};
     initial.forEach((p) => { contribs[String(p.id)] = p.bet ?? 0; });
     handContributionsRef.current = contribs;
+    flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    flopAnimateTimeoutsRef.current = [];
+    localFlopDealTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    localFlopDealTimeoutsRef.current = [];
     setCommunityCardsState([null, null, null, null, null]);
     setHandActionLog([]);
     setBurnedCardsCount(0);
@@ -1632,6 +1645,8 @@ export function Game() {
             setTimeout(() => setCommunityCardsState([arr[0]!, arr[1]!, arr[2]!, null, null]), 1600)
           );
         } else {
+          flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
+          flopAnimateTimeoutsRef.current = [];
           setCommunityCardsState(arr);
         }
       }
@@ -2085,6 +2100,8 @@ export function Game() {
             const t2 = setTimeout(() => setCommunityCardsState(arr), 1600);
             flopAnimateTimeoutsRef.current = [t1, t2];
           } else {
+            flopAnimateTimeoutsRef.current.forEach((t) => clearTimeout(t));
+            flopAnimateTimeoutsRef.current = [];
             setCommunityCardsState(arr);
           }
         } 
@@ -4330,7 +4347,20 @@ export function Game() {
   }, [searchParams]);
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col relative">
+    <div
+      className={`w-full min-h-screen flex flex-col relative overflow-hidden ${
+        isBotMode ? "" : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
+      }`}
+    >
+      {isBotMode && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `linear-gradient(to bottom right, rgb(15 23 42 / 0.88), rgb(30 41 59 / 0.82), rgb(15 23 42 / 0.9)), url(${feltBackgroundUrl})`,
+          }}
+        />
+      )}
       {gameIdParam &&
         !isBotMode &&
         showdownResult &&
