@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { pgPool, prisma } from '../config/database.js'
 import { env } from '../config/env.js'
 import { registerSchema, loginSchema, resetPasswordSchema } from '../validation/auth.validation.js'
+import { resolveCountryFromRequest } from '../utils/registerCountryFromRequest.js'
+import { evaluateRegisterAgeGate, parseIsoDateOfBirth, eligibilityUnblockAtUtc, isBeforeEligibilityDay } from '../utils/registerAgeGate.js'
 import { normalizeSecretAnswer } from '../utils/secretAnswer.js'
 import rateLimit from 'express-rate-limit'
 import { logSuspiciousAction } from '../utils/securityLogger.js'
@@ -187,13 +189,14 @@ router.post('/register', registerLimiter, async (req, res) => {
     })
   }
 
-  let { email, password, username, secretQuestionId, secretAnswer } = parsed.data
+  let { email, password, username, secretQuestionId, secretAnswer, dateOfBirth } = parsed.data
 
   email = sanitizeHtml(email)
   username = sanitizeHtml(username)
+  const emailKey = email.trim().toLowerCase()
+  const now = new Date()
 
   try {
-
     const existingEmail = await prisma.user.findUnique({
       where: { email },
       select: { id: true },
@@ -201,6 +204,63 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     if (existingEmail) {
       return res.status(400).json({ error: 'Email déjà utilisé' })
+    }
+
+    const ageBlock = await prisma.emailRegistrationAgeBlocklist.findUnique({
+      where: { email: emailKey },
+      select: { unblockAt: true },
+    })
+    if (ageBlock) {
+      if (isBeforeEligibilityDay(now, ageBlock.unblockAt)) {
+        return res.status(403).json({
+          error:
+            'Cet e-mail ne peut pas être utilisé pour s’inscrire avant la date d’éligibilité liée à votre âge.',
+          code: 'REGISTER_EMAIL_AGE_BLACKLISTED',
+          unblockAt: ageBlock.unblockAt.toISOString(),
+        })
+      }
+      await prisma.emailRegistrationAgeBlocklist.delete({ where: { email: emailKey } }).catch(() => {
+        /* concurrent delete */
+      })
+    }
+
+    const countryCode = await resolveCountryFromRequest(req)
+    const gate = evaluateRegisterAgeGate(dateOfBirth, countryCode, now)
+    if (!gate.ok) {
+      const messages: Record<string, string> = {
+        REGISTER_DATE_INVALID: 'Date de naissance invalide.',
+        REGISTER_GAMBLING_FORBIDDEN:
+          'Les jeux d’argent en ligne ne sont pas autorisés depuis votre pays (Arabie saoudite ou Iran).',
+        REGISTER_AGE_US_21:
+          'Aux États-Unis, l’accès aux jeux d’argent en ligne est réservé aux personnes de 21 ans ou plus.',
+        REGISTER_AGE_MIN_18: 'Vous devez avoir au moins 18 ans pour créer un compte.',
+      }
+      const status = gate.code === 'REGISTER_GAMBLING_FORBIDDEN' ? 403 : 400
+
+      if (gate.code === 'REGISTER_AGE_US_21' || gate.code === 'REGISTER_AGE_MIN_18') {
+        const dobUtc = parseIsoDateOfBirth(dateOfBirth)
+        if (dobUtc) {
+          const minYears = gate.code === 'REGISTER_AGE_US_21' ? 21 : 18
+          const candidate = eligibilityUnblockAtUtc(dobUtc, minYears)
+          const prev = await prisma.emailRegistrationAgeBlocklist.findUnique({
+            where: { email: emailKey },
+            select: { unblockAt: true },
+          })
+          const merged = new Date(
+            Math.max(candidate.getTime(), prev?.unblockAt.getTime() ?? 0),
+          )
+          await prisma.emailRegistrationAgeBlocklist.upsert({
+            where: { email: emailKey },
+            create: { email: emailKey, unblockAt: merged },
+            update: { unblockAt: merged },
+          })
+        }
+      }
+
+      return res.status(status).json({
+        error: messages[gate.code] ?? 'Inscription refusée.',
+        code: gate.code,
+      })
     }
 
     const existingUsername = await prisma.user.findUnique({
@@ -222,6 +282,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         password: hashedPassword,
         secretQuestionId,
         secretAnswerHash,
+        dateOfBirth: gate.dobUtc,
       },
       include: { playerStats: true }
     })
@@ -240,6 +301,8 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     const token = generateToken({ userId: user.id })
     const g = await getGamificationBundle(prisma, user.id)
+
+    await prisma.emailRegistrationAgeBlocklist.deleteMany({ where: { email: emailKey } }).catch(() => {})
 
     res.status(201).json({
       token,

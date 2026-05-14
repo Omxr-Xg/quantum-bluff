@@ -6,7 +6,7 @@ import { defaultAvatarUrl } from "../assets/logo";
 import { getUserProfile, saveUserProfile } from "../utils/userProfile";
 import { AvatarGallery } from "../components/AvatarGallery";
 import { useUpdateProfileAvatarMutation } from "../services/api";
-import { fileToAvatarDataUrl } from "../utils/avatarUpload";
+import { fileToAvatarDataUrl, presetAvatarToDataUrl } from "../utils/avatarUpload";
 import { getAuthItem, setAuthItem } from "../utils/authStorage";
 
 const editGlassCard =
@@ -91,8 +91,13 @@ export function EditProfile() {
       let usernameToPersist = formData.username.trim();
       let emailToPersist = formData.email.trim();
       if (token) {
+        /* Les presets sont des URLs Vite bundlées (ex. /assets/FA1-abc123.png) :
+         * `sanitizePublicAvatarUrl` côté serveur ne les accepte pas (uniquement
+         * data:, http(s):, ou /api/auth/avatars/{uuid}). On les convertit donc
+         * en data URL avant l'envoi pour que le serveur puisse les ingérer. */
+        const avatarUrlForApi = await presetAvatarToDataUrl(profileImage);
         const result = await updateProfileAvatar({
-          avatarUrl: profileImage,
+          avatarUrl: avatarUrlForApi,
           username: usernameToPersist,
           email: emailToPersist,
           currentPassword: formData.currentPassword || undefined,

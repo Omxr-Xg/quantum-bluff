@@ -11,6 +11,7 @@ describe('validation schemas', () => {
         email: 'a@b.co',
         username: 'alice',
         password: 'secret12',
+        dateOfBirth: '2000-01-15',
         secretQuestionId: 1,
         secretAnswer: 'Paris',
       })
@@ -22,6 +23,7 @@ describe('validation schemas', () => {
           email: 'bad',
           username: 'alice',
           password: 'secret12',
+          dateOfBirth: '2000-01-15',
           secretQuestionId: 1,
           secretAnswer: 'Paris',
         }).success,

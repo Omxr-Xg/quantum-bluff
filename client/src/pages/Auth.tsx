@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Heart } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Heart, Calendar } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import {
   useCheckEmailMutation,
@@ -12,6 +12,7 @@ import {
 } from "../services/api";
 import { persistGamificationFromAuthUser } from "../utils/gamificationStorage";
 import { getAuthItem, removeAuthItem, setAuthItem } from "../utils/authStorage";
+import { translateRegisterApiError, isoDateUtc } from "../utils/authRegisterErrors";
 
 // Hook loader
 import { useLoader } from "../contexts/LoaderContext";
@@ -36,6 +37,7 @@ export function Auth() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [secretQuestionId, setSecretQuestionId] = useState<number>(1);
   const [secretAnswer, setSecretAnswer] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [recoveryQuestionId, setRecoveryQuestionId] = useState<number | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [forgotSecretAnswer, setForgotSecretAnswer] = useState("");
@@ -53,6 +55,14 @@ export function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/lobby";
+
+  const dobBounds = useMemo(() => {
+    const today = new Date();
+    return {
+      max: isoDateUtc(today),
+      min: isoDateUtc(new Date(Date.UTC(today.getUTCFullYear() - 120, today.getUTCMonth(), today.getUTCDate()))),
+    };
+  }, []);
 
   useEffect(() => {
     if (getAuthItem("token")) {
@@ -80,6 +90,7 @@ export function Auth() {
   const isRegisterFormValid =
     username.length >= 3 &&
     isEmailValid &&
+    /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) &&
     Object.values(passwordCriteria).every(Boolean) &&
     password === confirmPassword &&
     secretAnswer.trim().length >= 2;
@@ -164,6 +175,7 @@ export function Auth() {
         username: username.trim(),
         email: email.trim(),
         password,
+        dateOfBirth,
         secretQuestionId,
         secretAnswer: secretAnswer.trim(),
       }).unwrap();
@@ -206,6 +218,7 @@ export function Auth() {
     setConfirmPassword("");
     setSecretAnswer("");
     setSecretQuestionId(1);
+    setDateOfBirth("");
     setRecoveryQuestionId(null);
     setRecoveryError(null);
     setForgotSecretAnswer("");
@@ -664,6 +677,27 @@ export function Auth() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">
+                  {t("auth.dateOfBirth")}
+                </label>
+                <div className="relative group">
+                  <Calendar
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#717171] group-focus-within:text-cyan-300"
+                    aria-hidden
+                  />
+                  <input
+                    type="date"
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    min={dobBounds.min}
+                    max={dobBounds.max}
+                    required
+                    className="w-full bg-transparent border border-[#414141] rounded-lg pl-12 pr-4 py-3.5 text-white transition-all focus:outline-none focus:ring-1 focus:ring-blue-400/20 focus:border-blue-400 [color-scheme:dark]"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-2 ml-1">{t("auth.dateOfBirthHint")}</p>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#717171] uppercase tracking-wider mb-2 ml-1">
                   {t("auth.password")}
                 </label>
                 <div className="relative group">
@@ -773,9 +807,7 @@ export function Auth() {
               </div>
               {registerError && (
                 <div className="text-red-400 text-sm text-center">
-                  {"data" in registerError
-                    ? (registerError as { data?: { error?: string } }).data?.error
-                    : t("auth.registerError")}
+                  {translateRegisterApiError(registerError, t)}
                 </div>
               )}
               <button

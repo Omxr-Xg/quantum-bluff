@@ -39,6 +39,8 @@ model User {
   lastIp                   String? // Dernière IP connue pour détecter les multi-comptes
   antiCheatAlerts          Int       @default(0) // Compteur d'alertes (bot, spam...)
   bannedUntil              DateTime? // Si défini et dans le futur, le compte est bloqué
+  /// Date de naissance (jour civil, stockée en UTC à minuit) — inscription / conformité d’âge selon le pays.
+  dateOfBirth DateTime?
   /// Tutoriel interactif du lobby terminé ou ignoré (une fois par compte).
   lobbyTutorialCompletedAt DateTime?
   /// Dernière fois que le joueur a ouvert l’écran Amis : sert aux compteurs messages/prêts « depuis ta dernière visite » (pas de localStorage).
@@ -126,6 +128,16 @@ model User {
   @@index([chips])
   @@index([experience])
   @@index([lastLoginRewardDayKey])
+}
+
+/// E-mail dont l’inscription a été refusée pour âge insuffisant : bloqué jusqu’à `unblockAt` (jour du 18e ou 21e anniversaire UTC, selon le cas enregistré).
+model EmailRegistrationAgeBlocklist {
+  email     String   @id
+  unblockAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([unblockAt])
 }
 
 /// Avis joueur (étoiles + commentaire optionnel), collecté depuis le client.

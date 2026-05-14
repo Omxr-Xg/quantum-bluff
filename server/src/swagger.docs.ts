@@ -36,14 +36,18 @@ void 0;
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, password, username]
+ *             required: [email, password, username, dateOfBirth, secretQuestionId, secretAnswer]
  *             properties:
  *               email: { type: string, format: email }
  *               password: { type: string }
  *               username: { type: string }
+ *               dateOfBirth: { type: string, description: "AAAA-MM-JJ" }
+ *               secretQuestionId: { type: integer }
+ *               secretAnswer: { type: string }
  *     responses:
  *       201: { description: Compte créé, retourne token et user }
- *       400: { description: Validation échouée ou email/username déjà utilisé }
+ *       400: { description: Validation échouée, âge insuffisant, ou email/username déjà utilisé }
+ *       403: { description: Juridiction interdite (jeux d'argent non autorisés) }
  *       429: { description: Trop de tentatives }
  */
 void 0;
