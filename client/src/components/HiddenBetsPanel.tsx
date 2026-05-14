@@ -145,6 +145,7 @@ export function HiddenBetsPanel({
   const { userId: currentUserId } = useUser();
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
+  const isTablet = deviceType === "tablet";
   const [position, setPosition] = useState({ x: 20, y: 96 });
   const dragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -421,11 +422,11 @@ export function HiddenBetsPanel({
     }
   };
 
-  const panelClassName = isMobile
-    ? "fixed z-[60] left-2 right-2 top-20 md:top-24 max-h-[85vh] overflow-y-auto bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl"
+  const panelClassName = (isMobile || isTablet)
+    ? "fixed z-[60] left-2 right-2 top-20 max-h-[80vh] max-w-lg mx-auto overflow-y-auto bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl"
     : "fixed z-[60] w-80 md:w-96 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl";
 
-  const panelStyle = isMobile ? undefined : { left: position.x, top: position.y };
+  const panelStyle = (isMobile || isTablet) ? undefined : { left: position.x, top: position.y };
 
   const windowOkPre = Boolean(gameId && hiddenBetWindowOpen && hiddenBetNextHandId);
   const windowOkLive = Boolean(

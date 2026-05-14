@@ -5224,11 +5224,11 @@ export function Game() {
         </div>
       )}
 
-      <div className={isMobile ? "relative flex-1 flex flex-col" : "pointer-events-none fixed inset-0 z-0"}>
+      <div className={(isMobile || isTablet) ? "relative flex-1 flex flex-col" : "pointer-events-none fixed inset-0 z-0"}>
          {/* TABLE */}
         <div
         ref={tourRefTable}
-        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 pb-[9rem] w-full -mt-14 -translate-y-4' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-20'}`}
+        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 pb-[8rem] w-full -mt-6' : isTablet ? 'flex-1 px-4 pt-[3.5rem] pb-[8rem] w-full' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-20'}`}
         >
         <PokerTable
         players={tablePlayers}
