@@ -33,120 +33,146 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Testing and deployment}{5}{subsection.5.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6}Use of Artificial Intelligence}{6}{section.6}\protected@file@percent }
 \newlabel{sec:ai}{{6}{6}{Use of Artificial Intelligence}{section.6}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}In-product AI: poker bots}{6}{subsection.6.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}AI-assisted engineering (tooling)}{6}{subsection.6.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Limits and verification}{6}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Programmed in-game poker AI (bots)}{6}{subsection.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Expert tier: Python oracle and local oracle}{6}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Expert neural policy (PyTorch MLP, optional service)}{6}{subsection.6.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Flux de données à travers la politique MLP expert (\texttt  {ExpertPolicy}): 4 transformations linéaires successives, \textbf  {196} neurones après la couche d'entrée (96+64+32+4), puis post-traitement métier avant réponse HTTP.}}{7}{figure.caption.10}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:ai-mlp}{{1}{7}{Flux de données à travers la politique MLP expert (\texttt {ExpertPolicy}): 4 transformations linéaires successives, \textbf {196} neurones après la couche d'entrée (96+64+32+4), puis post-traitement métier avant réponse HTTP}{figure.caption.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}AI-assisted engineering (tooling)}{7}{subsection.6.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.5}Limits and verification}{7}{subsection.6.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Diagramme de flux décisionnel côté Node pour le niveau \texttt  {expert} (orchestration \texttt  {botAi.service.ts}, repli heuristique, durcissement).}}{8}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:ai-flow}{{2}{8}{Diagramme de flux décisionnel côté Node pour le niveau \texttt {expert} (orchestration \texttt {botAi.service.ts}, repli heuristique, durcissement)}{figure.caption.11}{}}
 \gdef \LT@i {\LT@entry 
     {1}{68.59596pt}\LT@entry 
     {1}{131.50148pt}\LT@entry 
     {1}{97.35826pt}\LT@entry 
     {1}{114.12054pt}}
-\@writefile{toc}{\contentsline {section}{\numberline {7}Platform Functionalities}{7}{section.7}\protected@file@percent }
-\newlabel{sec:functionalities}{{7}{7}{Platform Functionalities}{section.7}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces High-level functional inventory (representative surfaces).}}{7}{table.1}\protected@file@percent }
-\newlabel{tab:inventory}{{1}{7}{High-level functional inventory (representative surfaces)}{table.1}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {8}System Architecture}{9}{section.8}\protected@file@percent }
-\newlabel{sec:architecture}{{8}{9}{System Architecture}{section.8}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Monorepo layout}{9}{subsection.8.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {8.2}Real-time communication}{9}{subsection.8.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Persistence and integrity}{9}{subsection.8.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {8.4}Data model overview (Prisma)}{9}{subsection.8.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {8.5}Diagram}{9}{subsection.8.5}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces High-level runtime flow (placeholder box; replace with exported diagram if desired).}}{10}{figure.caption.10}\protected@file@percent }
-\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{fig:flow}{{1}{10}{High-level runtime flow (placeholder box; replace with exported diagram if desired)}{figure.caption.10}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {9}Deployment and operational runbook}{11}{section.9}\protected@file@percent }
-\newlabel{sec:deploy}{{9}{11}{Deployment and operational runbook}{section.9}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {9.1}Local development stack}{11}{subsection.9.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {9.2}Production and desktop delivery}{11}{subsection.9.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {10}Security, Testing and Stability}{12}{section.10}\protected@file@percent }
-\newlabel{sec:security}{{10}{12}{Security, Testing and Stability}{section.10}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {10.1}Authentication and abuse controls}{12}{subsection.10.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {10.2}Testing and debugging}{12}{subsection.10.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {10.3}Automated test inventory and CI (reference snapshot)}{12}{subsection.10.3}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Automated test inventory (representative snapshot; see \texttt  {Docs/RAPPORT\_TESTS.md}).}}{12}{table.caption.11}\protected@file@percent }
-\newlabel{tab:tests}{{2}{12}{Automated test inventory (representative snapshot; see \texttt {Docs/RAPPORT\_TESTS.md})}{table.caption.11}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {10.4}Performance and stability}{12}{subsection.10.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {11}Technical Challenges}{13}{section.11}\protected@file@percent }
-\newlabel{sec:challenges}{{11}{13}{Technical Challenges}{section.11}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {12}Ethics, privacy, and academic integrity}{14}{section.12}\protected@file@percent }
-\newlabel{sec:ethics}{{12}{14}{Ethics, privacy, and academic integrity}{section.12}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {12.1}Virtual economy and regulatory framing}{14}{subsection.12.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {12.2}Personal data}{14}{subsection.12.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {12.3}Integrity of authorship and AI assistance}{14}{subsection.12.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {13}Individual Contributions}{15}{section.13}\protected@file@percent }
-\newlabel{sec:contributions}{{13}{15}{Individual Contributions}{section.13}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {13.1}Omar -- project management and architecture alignment}{15}{subsection.13.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {13.2}Other contributors}{15}{subsection.13.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Individual contributions (template --- team must fill before submission).}}{15}{table.caption.12}\protected@file@percent }
-\newlabel{tab:contrib}{{3}{15}{Individual contributions (template --- team must fill before submission)}{table.caption.12}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {14}Limitations and Future Work}{16}{section.14}\protected@file@percent }
-\newlabel{sec:limitations}{{14}{16}{Limitations and Future Work}{section.14}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {14.1}Current limitations}{16}{subsection.14.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {14.2}Future improvements}{16}{subsection.14.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {15}Conclusion}{17}{section.15}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{Acknowledgements}{18}{section*.14}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {A}Repository map and routing}{19}{appendix.A}\protected@file@percent }
-\newlabel{app:map}{{A}{19}{Repository map and routing}{appendix.A}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Programmed routing and shell}{19}{subsection.A.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {B}Poker engine and cash game}{20}{appendix.B}\protected@file@percent }
-\newlabel{app:poker}{{B}{20}{Poker engine and cash game}{appendix.B}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}What was programmed}{20}{subsection.B.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Rules enforced}{20}{subsection.B.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.3}Further reading}{20}{subsection.B.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {C}Bot AI and practice integration}{21}{appendix.C}\protected@file@percent }
-\newlabel{app:bots}{{C}{21}{Bot AI and practice integration}{appendix.C}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}Programmed pipeline}{21}{subsection.C.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Strength signal and decisions}{21}{subsection.C.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.3}Further reading}{21}{subsection.C.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {D}Probabilities, Quantum HUD, and Monte Carlo helper}{22}{appendix.D}\protected@file@percent }
-\newlabel{app:hud}{{D}{22}{Probabilities, Quantum HUD, and Monte Carlo helper}{appendix.D}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {D.1}Division of responsibilities}{22}{subsection.D.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {D.2}Monte Carlo equity estimator}{22}{subsection.D.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {D.3}Monte Carlo error budget (HUD analogue to RTP)}{22}{subsection.D.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {D.4}Quantum Combi---exact enumeration formula}{23}{subsection.D.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {D.5}Quantum Combi in the hand-ranking ladder (server and HUD)}{23}{subsection.D.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {E}Hidden betting system}{24}{appendix.E}\protected@file@percent }
-\newlabel{app:hidden}{{E}{24}{Hidden betting system}{appendix.E}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {E.1}Programmed architecture}{24}{subsection.E.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {E.2}Odds and tables (example)}{24}{subsection.E.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {E.3}Further reading}{24}{subsection.E.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {F}Tournaments and winner side bets}{25}{appendix.F}\protected@file@percent }
-\newlabel{app:tournament}{{F}{25}{Tournaments and winner side bets}{appendix.F}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {F.1}Programmed modules}{25}{subsection.F.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {F.2}Further reading}{25}{subsection.F.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {G}Blackjack solo and multiplayer}{26}{appendix.G}\protected@file@percent }
-\newlabel{app:bj}{{G}{26}{Blackjack solo and multiplayer}{appendix.G}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {G.1}Solo blackjack engine}{26}{subsection.G.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {G.2}Further reading}{26}{subsection.G.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {H}Slot machine, roulette, and casino wallet}{27}{appendix.H}\protected@file@percent }
-\newlabel{app:casino}{{H}{27}{Slot machine, roulette, and casino wallet}{appendix.H}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {H.1}Three-reel slot model}{27}{subsection.H.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {H.2}Complete slot RTP (closed form, current constants)}{27}{subsection.H.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Triple (three of a kind).}{27}{section*.15}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Exact pair (not a triple).}{27}{section*.16}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Lose.}{27}{section*.17}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Expected multiplier and RTP.}{27}{section*.18}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Variance (optional diagnostic).}{28}{section*.19}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {H.3}European roulette model}{28}{subsection.H.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {H.4}Complete roulette RTP (all proportional inside bets)}{28}{subsection.H.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {H.5}Wallet and ledger}{28}{subsection.H.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {I}Social graph, invitations, and peer loans}{29}{appendix.I}\protected@file@percent }
-\newlabel{app:social}{{I}{29}{Social graph, invitations, and peer loans}{appendix.I}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {I.1}Programmed surfaces}{29}{subsection.I.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {I.2}Further reading}{29}{subsection.I.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {J}Progression, challenges, and leaderboards}{30}{appendix.J}\protected@file@percent }
-\newlabel{app:prog}{{J}{30}{Progression, challenges, and leaderboards}{appendix.J}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {J.1}Programmed logic}{30}{subsection.J.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {J.2}Further reading}{30}{subsection.J.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {K}Authentication, profiles, and i18n}{31}{appendix.K}\protected@file@percent }
-\newlabel{app:auth}{{K}{31}{Authentication, profiles, and i18n}{appendix.K}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {K.1}Programmed security and profiles}{31}{subsection.K.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {L}Operations, Redis, CI, and packaging}{32}{appendix.L}\protected@file@percent }
-\newlabel{app:ops}{{L}{32}{Operations, Redis, CI, and packaging}{appendix.L}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {L.1}Programmed operations}{32}{subsection.L.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {M}External references and compendium}{33}{appendix.M}\protected@file@percent }
-\newlabel{app:sources}{{M}{33}{External references and compendium}{appendix.M}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Platform Functionalities}{9}{section.7}\protected@file@percent }
+\newlabel{sec:functionalities}{{7}{9}{Platform Functionalities}{section.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces High-level functional inventory (representative surfaces).}}{9}{table.1}\protected@file@percent }
+\newlabel{tab:inventory}{{1}{9}{High-level functional inventory (representative surfaces)}{table.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}System Architecture}{11}{section.8}\protected@file@percent }
+\newlabel{sec:architecture}{{8}{11}{System Architecture}{section.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Monorepo layout}{11}{subsection.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.2}Structured tournaments (outline)}{11}{subsection.8.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Real-time communication}{11}{subsection.8.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.4}Persistence and integrity}{11}{subsection.8.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.5}Data model overview (Prisma)}{11}{subsection.8.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.6}Diagram}{12}{subsection.8.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Flux d'exécution monorepo : interface $\rightarrow $ API / WebSocket $\rightarrow $ passerelle et services $\rightarrow $ données.}}{12}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:flow}{{3}{12}{Flux d'exécution monorepo : interface $\rightarrow $ API / WebSocket $\rightarrow $ passerelle et services $\rightarrow $ données}{figure.caption.12}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {9}Deployment and operational runbook}{13}{section.9}\protected@file@percent }
+\newlabel{sec:deploy}{{9}{13}{Deployment and operational runbook}{section.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.1}Local development stack}{13}{subsection.9.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.2}Production and desktop delivery}{13}{subsection.9.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.3}Electron and Capacitor artefacts}{13}{subsection.9.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {10}Security, Testing and Stability}{14}{section.10}\protected@file@percent }
+\newlabel{sec:security}{{10}{14}{Security, Testing and Stability}{section.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.1}Authentication and abuse controls}{14}{subsection.10.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.2}Testing and debugging}{14}{subsection.10.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.3}Automated test inventory and CI (reference snapshot)}{14}{subsection.10.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Automated unit and integration test inventory (May~2026 snapshot).}}{14}{table.caption.13}\protected@file@percent }
+\newlabel{tab:tests}{{2}{14}{Automated unit and integration test inventory (May~2026 snapshot)}{table.caption.13}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.4}Code coverage policy (server)}{14}{subsection.10.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Server Jest coverage aggregate on \texttt  {collectCoverageFrom} (May~2026; \texttt  {npm run test:coverage} in \texttt  {server/}).}}{14}{table.caption.14}\protected@file@percent }
+\newlabel{tab:coverage}{{3}{14}{Server Jest coverage aggregate on \texttt {collectCoverageFrom} (May~2026; \texttt {npm run test:coverage} in \texttt {server/})}{table.caption.14}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.5}Performance and stability}{15}{subsection.10.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {11}Technical Challenges}{16}{section.11}\protected@file@percent }
+\newlabel{sec:challenges}{{11}{16}{Technical Challenges}{section.11}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {12}Ethics, privacy, and academic integrity}{17}{section.12}\protected@file@percent }
+\newlabel{sec:ethics}{{12}{17}{Ethics, privacy, and academic integrity}{section.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.1}Virtual economy and regulatory framing}{17}{subsection.12.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.2}Personal data}{17}{subsection.12.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.3}Integrity of authorship and AI assistance}{17}{subsection.12.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {13}Individual Contributions}{18}{section.13}\protected@file@percent }
+\newlabel{sec:contributions}{{13}{18}{Individual Contributions}{section.13}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {13.1}Omar -- project management and architecture alignment}{18}{subsection.13.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {13.2}Yigit -- Debugging and Quality Assurance}{18}{subsection.13.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {13.3}Other contributors}{18}{subsection.13.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Individual contributions: expanded statements for Omar and Yigit appear as subsections above; other rows remain self-declared placeholders until completed.}}{19}{table.caption.15}\protected@file@percent }
+\newlabel{tab:contrib}{{4}{19}{Individual contributions: expanded statements for Omar and Yigit appear as subsections above; other rows remain self-declared placeholders until completed}{table.caption.15}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {14}Limitations and Future Work}{20}{section.14}\protected@file@percent }
+\newlabel{sec:limitations}{{14}{20}{Limitations and Future Work}{section.14}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {14.1}Current limitations}{20}{subsection.14.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {14.2}Future improvements}{20}{subsection.14.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {15}Conclusion}{21}{section.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{Acknowledgements}{22}{section*.17}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {A}Repository map and routing}{23}{appendix.A}\protected@file@percent }
+\newlabel{app:map}{{A}{23}{Repository map and routing}{appendix.A}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Programmed routing and shell}{23}{subsection.A.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B}Poker engine and cash game}{24}{appendix.B}\protected@file@percent }
+\newlabel{app:poker}{{B}{24}{Poker engine and cash game}{appendix.B}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}What was programmed}{24}{subsection.B.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Rules enforced}{24}{subsection.B.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.3}Further reading}{24}{subsection.B.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {C}Bot AI and practice integration}{25}{appendix.C}\protected@file@percent }
+\newlabel{app:bots}{{C}{25}{Bot AI and practice integration}{appendix.C}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}Programmed pipeline}{25}{subsection.C.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Strength signal and decisions}{25}{subsection.C.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.3}Dispatch surface}{25}{subsection.C.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.4}Expert tier: optional Python service}{25}{subsection.C.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.5}Expert oracle path (TypeScript, no network)}{26}{subsection.C.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.6}Further reading}{26}{subsection.C.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {D}Probabilities, Quantum HUD, and Monte Carlo helper}{27}{appendix.D}\protected@file@percent }
+\newlabel{app:hud}{{D}{27}{Probabilities, Quantum HUD, and Monte Carlo helper}{appendix.D}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.1}Division of responsibilities}{27}{subsection.D.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.2}Monte Carlo equity estimator}{27}{subsection.D.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.3}Monte Carlo error budget (HUD analogue to RTP)}{27}{subsection.D.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.4}Quantum Combi---exact enumeration formula}{28}{subsection.D.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.5}Quantum Combi in the hand-ranking ladder (server and HUD)}{28}{subsection.D.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {E}Hidden betting system}{29}{appendix.E}\protected@file@percent }
+\newlabel{app:hidden}{{E}{29}{Hidden betting system}{appendix.E}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.1}Programmed architecture}{29}{subsection.E.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.2}Odds and tables (example)}{29}{subsection.E.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.3}Further reading}{29}{subsection.E.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {F}Tournaments and winner side bets}{30}{appendix.F}\protected@file@percent }
+\newlabel{app:tournament}{{F}{30}{Tournaments and winner side bets}{appendix.F}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {F.1}Runtime architecture (layers)}{30}{subsection.F.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {F.2}Bracket geometry and table sizing}{30}{subsection.F.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {F.3}Seeded shuffle (deterministic bracket RNG)}{31}{subsection.F.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {F.4}Further reading}{31}{subsection.F.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {G}Blackjack solo and multiplayer}{32}{appendix.G}\protected@file@percent }
+\newlabel{app:bj}{{G}{32}{Blackjack solo and multiplayer}{appendix.G}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {G.1}Solo blackjack engine}{32}{subsection.G.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {G.2}HTTP and multi-table surfaces}{32}{subsection.G.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {G.3}Further reading}{32}{subsection.G.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {H}Slot machine, roulette, and casino wallet}{33}{appendix.H}\protected@file@percent }
+\newlabel{app:casino}{{H}{33}{Slot machine, roulette, and casino wallet}{appendix.H}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {H.1}Three-reel slot model}{33}{subsection.H.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {H.2}Complete slot RTP (closed form, current constants)}{33}{subsection.H.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Triple (three of a kind).}{33}{section*.18}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Exact pair (not a triple).}{33}{section*.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Lose.}{33}{section*.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Expected multiplier and RTP.}{33}{section*.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Variance (optional diagnostic).}{34}{section*.22}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {H.3}European roulette model}{34}{subsection.H.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {H.4}Complete roulette RTP (all proportional inside bets)}{34}{subsection.H.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {H.5}Wallet and ledger}{34}{subsection.H.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {I}Social graph, invitations, and peer loans}{35}{appendix.I}\protected@file@percent }
+\newlabel{app:social}{{I}{35}{Social graph, invitations, and peer loans}{appendix.I}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.1}Programmed surfaces}{35}{subsection.I.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.2}Further reading}{35}{subsection.I.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {J}Progression, challenges, and leaderboards}{36}{appendix.J}\protected@file@percent }
+\newlabel{app:prog}{{J}{36}{Progression, challenges, and leaderboards}{appendix.J}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {J.1}Programmed logic}{36}{subsection.J.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {J.2}Further reading}{36}{subsection.J.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {K}Authentication, profiles, and i18n}{37}{appendix.K}\protected@file@percent }
+\newlabel{app:auth}{{K}{37}{Authentication, profiles, and i18n}{appendix.K}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {K.1}Programmed security and profiles}{37}{subsection.K.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {L}Operations, Redis, CI, and packaging}{38}{appendix.L}\protected@file@percent }
+\newlabel{app:ops}{{L}{38}{Operations, Redis, CI, and packaging}{appendix.L}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {L.1}Programmed operations}{38}{subsection.L.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {L.2}Kaniko container builds (GitLab CI)}{38}{subsection.L.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {L.3}Electron and Capacitor build matrix}{38}{subsection.L.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {M}Test coverage metrics and definitions}{39}{appendix.M}\protected@file@percent }
+\newlabel{app:coverage}{{M}{39}{Test coverage metrics and definitions}{appendix.M}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {M.1}Jest ratios}{39}{subsection.M.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {M.2}Vitest ratios (client)}{39}{subsection.M.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {M.3}Relation to tournaments}{39}{subsection.M.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {M.4}Further reading}{39}{subsection.M.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {N}External references and compendium}{40}{appendix.N}\protected@file@percent }
+\newlabel{app:sources}{{N}{40}{External references and compendium}{appendix.N}{}}
 \bibcite{react19}{1}
 \bibcite{typescript}{2}
 \bibcite{vite}{3}
@@ -166,4 +192,4 @@
 \bibcite{scrumguide}{17}
 \bibcite{gitlabci}{18}
 \bibcite{unistra}{19}
-\gdef \@abspage@last{42}
+\gdef \@abspage@last{50}

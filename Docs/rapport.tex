@@ -12,6 +12,9 @@
 \usepackage{caption}
 \usepackage{booktabs}
 \usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric}
 \usepackage{longtable}
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
@@ -77,17 +80,15 @@
 \begin{titlepage}
   \thispagestyle{empty}
   \centering
-  \vspace*{0.5cm}
+  \vspace*{0.6cm}
 
-  \begin{minipage}[t]{0.42\textwidth}
-    \centering
-    \includegraphics[width=0.62\textwidth]{logo_unistra.png}
-  \end{minipage}
-  \hfill
-  \begin{minipage}[t]{0.42\textwidth}
-    \centering
-    \includegraphics[width=0.62\textwidth]{logo_quantum_bluff.png}
-  \end{minipage}
+  % Logos : Quantum Bluff (bord gauche du texte) --- Unistra (bord droit).
+  \noindent
+  \hbox to \textwidth{%
+    \includegraphics[height=3.0cm,keepaspectratio]{logo_quantum_bluff.png}%
+    \hfill
+    \includegraphics[height=3.0cm,keepaspectratio]{logo_unistra.png}%
+  }
 
   \vspace{2.8cm}
   {\color{HeadingRule}\rule{0.82\textwidth}{0.7pt}}
@@ -104,7 +105,7 @@
   \vspace{0.55cm}
   {\small Supervised project --- reference specification: \texttt{Docs/Cahier\_de\_charge\_6A\_PI.pdf}\par}
   \vspace{0.35cm}
-  {\small Academic supervisor: \textit{[to be completed by the team]}\par}
+  {\small Academic supervisor / Encadrant pédagogique: Jason Golda\par}
 
   \vspace{1.8cm}
   \begin{minipage}{0.78\textwidth}
@@ -259,18 +260,88 @@ Local PostgreSQL via \path{database/docker-compose.yml}. Redis for multi-instanc
 
 \subsection{Version control and collaboration}
 
-Git repository with GitLab CI configuration at \path{.gitlab-ci.yml}. Documentation and logic notes live under \path{Docs/} (including \path{docs/ARCHITECTURE.md} and \path{Docs/detail_logique/}).
+Git repository with GitLab CI configuration at \path{.gitlab-ci.yml}. Beyond unit tests and security scans, the \texttt{docker-build} stage uses \textbf{Kaniko} (\texttt{gcr.io/kaniko-project/executor:v1.23.2-debug}) to build and push OCI images \textbf{without a Docker daemon} on GitLab runners: jobs \texttt{docker:build} (server), \texttt{docker:build:client} (Vite frontend with \texttt{VITE\_API\_URL} build-arg), and \texttt{docker:build:ai-service} publish to the project's GitLab Container Registry for VM pull-based deployment. Documentation and logic notes live under \path{Docs/} (including \path{docs/ARCHITECTURE.md} and \path{Docs/detail_logique/}).
 
 \subsection{Testing and deployment}
 
-Client: Vitest, Playwright (\path{client/e2e/}). Server: Jest and Supertest (\path{server/src/__tests__/}). Desktop/mobile packaging: Electron and Capacitor scripts in \path{client/package.json}.
+Client: Vitest (\path{client/vite.config.ts} coverage over \texttt{src/**/*}), Playwright (\path{client/e2e/}). Server: Jest with Supertest integration suites (\path{server/src/__tests__/}). Desktop/mobile packaging: \textbf{Electron} (electron-builder) and \textbf{Capacitor}~8 for native shells; scripts in \path{client/package.json} produce \textbf{Windows installer (\texttt{.exe} NSIS)}, \textbf{macOS disk image (\texttt{.dmg})} and companion artefacts, and \textbf{Linux} targets (\texttt{AppImage}, \texttt{.deb}); Capacitor opens \textbf{iOS} (\texttt{xcodeproj}) and \textbf{Android} (\texttt{gradle}) projects after \texttt{npm run build:cap} and \texttt{cap sync}. See Section~\ref{sec:deploy} and Appendix~\ref{app:ops}.
 
 \section{Use of Artificial Intelligence}
 \label{sec:ai}
 
-\subsection{In-product AI: poker bots}
+\subsection{Programmed in-game poker AI (bots)}
 
-The shipped product includes \textbf{heuristic poker bots} with configurable difficulty. Core decision logic lives in \path{server/src/logic/botAI.ts}, orchestrated HTTP services in \path{server/src/services/botAi.service.ts}, and practice-mode integration (\path{server/src/poker/services/practiceBotTurns.service.ts}). Difficulty is part of the validated API contract (\path{server/src/routes/bot.routes.ts}).
+The product ships \textbf{four deterministic difficulty tiers}---\texttt{easy}, \texttt{medium}, \texttt{hard}, \texttt{expert}---implemented entirely in TypeScript (\path{server/src/logic/botAI.ts}) and exposed through \path{server/src/routes/bot.routes.ts}. Each decision receives the visible hole cards, community cards, pot geometry (\texttt{potSize}, \texttt{callAmount}, \texttt{minRaise}), stacks, seat index, and player count. A shared primitive maps any partial board to a scalar strength by normalising the evaluator score against the theoretical maximum ($S_{\max}$ in Appendix~\ref{app:bots}). Easy and medium tiers inject tunable randomness (loose calls, naive bluffs); hard tightens fold thresholds; \textbf{expert} adds deeper pot-odds heuristics before any optional remote call.
+
+\subsection{Expert tier: Python oracle and local oracle}
+
+\path{server/src/services/botAi.service.ts} wraps \texttt{decideBotAction}. For \texttt{expert}, the service first tries an \textbf{optional HTTP micro-service} when \texttt{AI\_SERVICE\_URL} is set: it POSTs a compact JSON payload (holes, board, stacks, street, etc.) to \texttt{/predict/poker}, validates the JSON response with \textbf{Zod} (\texttt{action}, \texttt{amount}, \texttt{confidence}, \texttt{style}, \texttt{reason}), converts \texttt{ALL\_IN} into legal raise/call/fold semantics, and logs latency. If the URL is unset, the HTTP call fails, or validation fails, the server \textbf{falls back} to the pure-TypeScript \texttt{expertBotDecision}.
+
+When hole cards of opponents are known (practice/oracle contexts), \texttt{expertOracleDecision} compares the hero strength to a \textbf{composite opponent strength} built from sorted opponent strengths $\{s_1\ge\cdots\ge s_n\}$: for $n\ge 3$ it blends the best and median components with a player-count-dependent weight $w$ (Appendix~\ref{app:bots}), then applies pot-odds and pressure ratios to choose value raises, bluffs, calls, or folds. This path avoids the ``always fold'' failure mode of heuristics that ignore revealed cards.
+
+\subsection{Expert neural policy (PyTorch MLP, optional service)}
+
+When \texttt{AI\_SERVICE\_URL} points to the FastAPI bundle under \path{server/ai-service/}, the expert path can run a \textbf{trained multilayer perceptron} (\texttt{ExpertPolicy} in \path{server/ai-service/poker/train.py}, weights serialised to \path{server/ai-service/model/expert_bot.pt}). The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} numeric descriptors (streets, equity, pot odds, SPR, board texture, action frequencies, etc.). The network stacks \textbf{four linear layers} separated by ReLU: $36\to 96 \to 64 \to 32 \to 4$ logits. Counting post-input activation units (hidden $+$ output heads) gives \textbf{$96+64+32+4=196$ neurons}. Dropout ($p{=}0.06$ then $0.04$) is applied after the first two hidden blocks during training only. The four outputs correspond to the internal action indices distilled from the expert teacher (\path{expert_rules.py}); inference-time mixing with heuristics and temperature sampling is described in \path{server/ai-service/poker/decision.py}. The compact trainable weight count in the linear stack is \textbf{11\,972} scalar parameters (weights plus biases). Figures~\ref{fig:ai-mlp} and~\ref{fig:ai-flow} show \textbf{flowcharts}: tensor pipeline inside the expert policy, then the Node$\leftrightarrow$Python decision path with branching. The compact trainable weight count in the linear stack is \textbf{11\,972} scalar parameters (weights plus biases).
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  >=Stealth,
+  flow/.style={rectangle, draw=black!65, rounded corners=2.5pt, align=center, minimum width=0.78\textwidth, inner ysep=5pt, inner xsep=6pt},
+  lab/.style={font=\scriptsize, text=black!75},
+]
+\node[flow, fill=blue!5] (n0) {\textbf{1. Entrée} — payload JSON \texttt{/predict/poker} (cartes visibles, pot, \texttt{toCall}, stacks, rue, historique court).};
+\node[flow, fill=blue!10, below=4mm of n0] (n1) {\textbf{2. Vectorisation} — \texttt{build\_features} $\rightarrow$ vecteur $\mathbf{x}$ de dimension \textbf{36} (\texttt{FEATURE\_NAMES}).};
+\node[flow, fill=blue!14, below=4mm of n1] (n2) {\textbf{3. Couche dense 1} — matrice $W_1$: $\mathbf{h}_1 = \mathrm{ReLU}(W_1\mathbf{x}+\mathbf{b}_1)$, \textbf{96} unités ; dropout $p{=}0{,}06$ (entraînement).};
+\node[flow, fill=blue!14, below=4mm of n2] (n3) {\textbf{4. Couche dense 2} — $\mathbf{h}_2 = \mathrm{ReLU}(W_2\mathbf{h}_1+\mathbf{b}_2)$, \textbf{64} unités ; dropout $p{=}0{,}04$ (entraînement).};
+\node[flow, fill=blue!14, below=4mm of n3] (n4) {\textbf{5. Couche dense 3} — $\mathbf{h}_3 = \mathrm{ReLU}(W_3\mathbf{h}_2+\mathbf{b}_3)$, \textbf{32} unités.};
+\node[flow, fill=HeadingRule!16, below=4mm of n4] (n5) {\textbf{6. Tête de sortie} — logits $\boldsymbol{\ell}=W_4\mathbf{h}_3+\mathbf{b}_4 \in \mathbb{R}^{4}$ (indices alignés sur FOLD / CALL\_CHECK / RAISE / ALL\_IN).};
+\node[flow, fill=green!10, below=4mm of n5] (n6) {\textbf{7. Décision \texttt{decision.py}} — fusion scores professeur / heuristique, softmax, tirage à température, légalisation montant (raise / all-in).};
+\node[flow, fill=yellow!12, below=4mm of n6] (n7) {\textbf{8. Sortie} — JSON \texttt{action}, \texttt{amount}, \texttt{confidence}, \texttt{style}, \texttt{reason} vers Node.};
+\draw[->, thick] (n0) -- (n1);
+\draw[->, thick] (n1) -- (n2);
+\draw[->, thick] (n2) -- (n3);
+\draw[->, thick] (n3) -- (n4);
+\draw[->, thick] (n4) -- (n5);
+\draw[->, thick] (n5) -- (n6);
+\draw[->, thick] (n6) -- (n7);
+\node[lab, anchor=east, xshift=-2mm] at (n2.west) {$36\!\to\!96$};
+\node[lab, anchor=east, xshift=-2mm] at (n3.west) {$96\!\to\!64$};
+\node[lab, anchor=east, xshift=-2mm] at (n4.west) {$64\!\to\!32$};
+\node[lab, anchor=east, xshift=-2mm] at (n5.west) {$32\!\to\!4$};
+\end{tikzpicture}
+\caption{Flux de données à travers la politique MLP expert (\texttt{ExpertPolicy}): 4 transformations linéaires successives, \textbf{196} neurones après la couche d'entrée (96+64+32+4), puis post-traitement métier avant réponse HTTP.}\label{fig:ai-mlp}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  >=Stealth,
+  blk/.style={rectangle, draw=black!65, rounded corners=2pt, align=center, inner sep=5pt, text width=6.2cm},
+  dia/.style={diamond, draw=black!70, aspect=2.3, inner sep=0pt, align=center, text width=2.4cm, minimum height=1.1cm},
+]
+\node[blk, fill=gray!8, text width=0.88\textwidth] (start) {\textbf{Départ} — tour de bot, difficulté \texttt{expert} (\texttt{POST /api/bot/action}).};
+\node[dia, below=5mm of start] (durl) {\textbf{\texttt{AI\_SERVICE\_URL}} défini ?};
+\node[blk, fill=orange!15, below left=6mm and 2mm of durl] (tsfb) {\textbf{Branche non} — \texttt{expertBotDecision} (TypeScript pur, 0 neurone).};
+\node[blk, fill=cyan!12, below right=6mm and 2mm of durl] (http) {\textbf{Branche oui} — \texttt{fetch} POST \texttt{/predict/poker} (timeout \texttt{AbortController}).};
+\node[dia, below=6mm of http] (dok) {HTTP 200 + JSON valide ?};
+\node[blk, fill=orange!15, below left=7mm and 0mm of dok] (tsfb2) {\textbf{Échec / timeout} — repli \texttt{expertBotDecision}.};
+\node[blk, fill=green!12, below right=7mm and 0mm of dok] (zod) {\textbf{Succès} — Zod, \texttt{convertAllIn}, \texttt{sanitizeBotDecision}, \texttt{applyPokerAction}.};
+\node[blk, fill=gray!10, below=12mm of durl |- tsfb2.south] (end) {\textbf{Fin} — action appliquée côté serveur autoritaire ; log \texttt{expert\_ai\_decision} si service Python utilisé.};
+\draw[->, thick] (start) -- (durl);
+\draw[->, thick] (durl) -- node[above left, font=\scriptsize] {non} (tsfb);
+\draw[->, thick] (durl) -- node[above right, font=\scriptsize] {oui} (http);
+\draw[->, thick] (http) -- (dok);
+\draw[->, thick] (dok) -- node[left, font=\scriptsize] {non} (tsfb2);
+\draw[->, thick] (dok) -- node[right, font=\scriptsize] {oui} (zod);
+\draw[->, thick] (tsfb) |- (end);
+\draw[->, thick] (tsfb2) |- (end);
+\draw[->, thick] (zod) |- (end);
+\end{tikzpicture}
+\caption{Diagramme de flux décisionnel côté Node pour le niveau \texttt{expert} (orchestration \texttt{botAi.service.ts}, repli heuristique, durcissement).}\label{fig:ai-flow}
+\end{figure}
 
 \subsection{AI-assisted engineering (tooling)}
 
@@ -278,12 +349,12 @@ Team members used modern \textbf{coding assistants} (e.g., IDE-integrated LLMs) 
 
 \subsection{Limits and verification}
 
-Bots are \textbf{not} opaque learned models in production: they are inspectable code paths. Assistant-generated snippets were never merged without human review and test signal.
+The \texttt{easy}/\texttt{medium}/\texttt{hard} tiers and the TypeScript \texttt{expert} fallback contain \textbf{no trainable neurons}: they are hand-crafted policies. Only the optional Python bundle instantiates the MLP in Figure~\ref{fig:ai-mlp}. Regardless of path, bot traffic is \textbf{rate-limited}, responses pass through \textbf{Zod and sanitisation} before touching authoritative state, and assistant-generated repository edits were never merged without human review and automated tests.
 
 \section{Platform Functionalities}
 \label{sec:functionalities}
 
-Table~\ref{tab:inventory} lists major domains. Details appear only once, in the referenced appendix, to prevent duplication. \textbf{Appendices~\ref{app:map}--\ref{app:sources}} also record implemented formulas: closed-form \textbf{slot RTP} and unified \textbf{roulette RTP}, Monte Carlo equity with an error bound for the \textbf{Quantum HUD}, \textbf{Quantum Combi} exact probability plus its place in the hand-ranking cascade, and the source files where each is coded.
+Table~\ref{tab:inventory} lists major domains. Details appear only once, in the referenced appendix, to prevent duplication. \textbf{Appendices~\ref{app:map}--\ref{app:sources}} also record implemented formulas: closed-form \textbf{slot RTP} and unified \textbf{roulette RTP}, Monte Carlo equity with an error bound for the \textbf{Quantum HUD}, \textbf{Quantum Combi} exact probability plus its place in the hand-ranking cascade, \textbf{tournament bracket} sizing and RNG, \textbf{code coverage} definitions, and the source files where each is coded.
 
 \begin{longtable}{@{}p{2.2cm}p{4.2cm}p{3.0cm}p{3.8cm}@{}}
 \caption{High-level functional inventory (representative surfaces).}\label{tab:inventory}\\
@@ -321,6 +392,10 @@ A11y & Accessibility, table theming, ambient audio & \path{client/src/contexts/A
 
 The repository splits into \path{client/} (Vite SPA), \path{server/} (Express + Socket.IO gateway), and \path{database/} (local Postgres). Client bootstraps providers in \path{client/src/main.tsx} and routes in \path{client/src/App.tsx}. Server composes middlewares and REST mounts in \path{server/src/index.ts}, then attaches \path{server/src/sockets/game.gateway.ts} to the HTTP server.
 
+\subsection{Structured tournaments (outline)}
+
+Multi-table Texas Hold'em tournaments are \textbf{first-class server domain}: Prisma-backed registration and fees (\path{server/src/tournament/tournament.service.ts}), a periodic \textbf{scheduler} that auto-starts due events (\path{server/src/tournament/tournament.scheduler.ts}), runtime orchestration that builds bracket rounds and assigns \texttt{GameTable} instances (\path{server/src/tournament/tournament.runtime.service.ts}), deterministic \textbf{table splitting} and re-seating (\path{server/src/tournament/bracket/}), winner-bet settlement (\path{server/src/tournament/winnerBets/}), and boot-time \textbf{recovery} (\path{server/src/tournament/tournament.recovery.service.ts}). The client module \path{client/src/features/tournament/} binds waiting room, in-tournament play, results, and ZipRush. Exact bracket arithmetic, RNG seeding, and coverage metrics are in Appendices~\ref{app:tournament} and~\ref{app:coverage}.
+
 \subsection{Real-time communication}
 
 Socket.IO uses path \texttt{/socket.io}. Authentication mirrors REST JWT validation (\path{server/src/middleware/socketAuth.middleware.ts}). Redis adapter enables horizontal scale-out when Redis is available.
@@ -335,13 +410,26 @@ The persistence layer is relational PostgreSQL accessed through Prisma. Represen
 
 \subsection{Diagram}
 
-Figure~\ref{fig:flow} summarizes the request path. For a publication-quality diagram, export a Mermaid figure from \path{docs/ARCHITECTURE.md} to PNG and include it with \verb|\includegraphics|.
+Figure~\ref{fig:flow} shows a \textbf{runtime flow diagram} (logical path, not deployment topology). For more detail, see \path{docs/ARCHITECTURE.md}.
 
 \begin{figure}[htbp]
 \centering
-\fbox{\parbox{0.85\textwidth}{\centering\vspace{2.2cm}
-\textit{(Placeholder) Client UI $\rightarrow$ REST \texttt{/api/*} and Socket.IO $\rightarrow$ GameGateway $\rightarrow$ domain services $\rightarrow$ Prisma/Redis.}\vspace{2.2cm}}}
-\caption{High-level runtime flow (placeholder box; replace with exported diagram if desired).}\label{fig:flow}
+\begin{tikzpicture}[
+  font=\footnotesize,
+  >=Stealth,
+  archstep/.style={rectangle, draw=black!65, rounded corners=2pt, align=center, inner sep=5pt, minimum width=0.82\textwidth},
+]
+\node[archstep, fill=blue!6] (c) {\textbf{1. Client (React/Vite)} — pages, RTK Query, contexts (socket, HUD, user).};
+\node[archstep, fill=blue!10, below=4mm of c] (a) {\textbf{2. Transports} — REST \texttt{/api/*} (JWT) et Socket.IO \texttt{/socket.io} (même jeton).};
+\node[archstep, fill=blue!14, below=4mm of a] (g) {\textbf{3. Passerelle Node} — Express (middlewares, rate limits) + \texttt{GameGateway} (événements temps réel, timers).};
+\node[archstep, fill=blue!18, below=4mm of g] (s) {\textbf{4. Services métier} — poker, blackjack, tournois, casino, amis, progression, etc.};
+\node[archstep, fill=HeadingRule!14, below=4mm of s] (p) {\textbf{5. Persistance \& coordination} — Prisma $\rightarrow$ PostgreSQL ; Redis (rate limit, adapter Socket.IO, logs).};
+\draw[->, thick] (c) -- (a);
+\draw[->, thick] (a) -- (g);
+\draw[->, thick] (g) -- (s);
+\draw[->, thick] (s) -- (p);
+\end{tikzpicture}
+\caption{Flux d'exécution monorepo : interface $\rightarrow$ API / WebSocket $\rightarrow$ passerelle et services $\rightarrow$ données.}\label{fig:flow}
 \end{figure}
 
 \section{Deployment and operational runbook}
@@ -353,7 +441,11 @@ The root script \texttt{npm run dev} (see \path{package.json}) launches PostgreS
 
 \subsection{Production and desktop delivery}
 
-VM-oriented deployment (Node, PostgreSQL, Redis, PM2), environment files, and Electron auto-update mechanics are described in \path{Docs/DEPLOY.md}. Mobile/desktop packaging scripts are exposed from \path{client/package.json} (Capacitor and Electron targets). Reverse-proxy samples appear under \path{nginx/} when applicable.
+VM-oriented deployment (Node, PostgreSQL, Redis, PM2), environment files, and Electron auto-update mechanics are described in \path{Docs/DEPLOY.md}. The pipeline builds runnable \textbf{container images} on \texttt{develop}, \texttt{main}, and \texttt{release/*} using \textbf{Kaniko}: each job runs \texttt{/kaniko/executor} with \texttt{--context} pointing to \path{server/}, \path{client/}, or (on \texttt{release/*} only) the Python AI bundle under \path{server/ai-service/}, authenticates to the GitLab registry via \texttt{/kaniko/.docker/config.json}, and pushes immutable SHA-tagged images plus rolling \texttt{:latest}, \texttt{:client-latest}, or \texttt{:ai-latest} aliases so the VM can \texttt{docker pull} without rebuilding from source on the host. Reverse-proxy samples appear under \path{nginx/} when applicable.
+
+\subsection{Electron and Capacitor artefacts}
+
+The same React UI is built under three Vite modes: default web, \texttt{--mode electron}, and \texttt{--mode capacitor}. \textbf{Electron} (\path{client/electron.cjs}, \path{electron-builder} in \path{client/package.json}) targets \textbf{Windows} (NSIS $\rightarrow$ \texttt{.exe} installer), \textbf{macOS} (\texttt{.dmg} / signed artefacts per builder defaults), and \textbf{Linux} (\texttt{AppImage} and \texttt{.deb} as configured under \texttt{build.linux.target}). Published updates are served from the generic URL declared in \texttt{build.publish} for auto-update (\texttt{electron-updater}). \textbf{Capacitor} wraps the static build for \textbf{iOS} and \textbf{Android}: \texttt{npm run cap:sync} copies web assets into native projects; \texttt{cap:ios} / \texttt{cap:android} open Xcode and Android Studio. Repository scripts \path{scripts/package-ios-rendu.sh} and \path{scripts/package-android-rendu.sh} support course delivery packaging. Appendix~\ref{app:ops} lists the npm entry points.
 
 \section{Security, Testing and Stability}
 \label{sec:security}
@@ -364,30 +456,52 @@ JWT on HTTP and sockets; optional TOTP 2FA (\path{server/src/routes/twofa.routes
 
 \subsection{Testing and debugging}
 
-Broad automated coverage on server and client; Playwright smoke tests. Additional manual scenarios are documented under \path{Docs/POKER_SCENARIOS.md} and related files.
+Broad automated coverage on server and client; Playwright smoke tests under \path{client/e2e/}. Additional manual scenarios are documented under \path{Docs/POKER_SCENARIOS.md} and related files.
 
 \subsection{Automated test inventory and CI (reference snapshot)}
 
-Table~\ref{tab:tests} aggregates counts recorded in \path{Docs/RAPPORT_TESTS.md} (March~2026 snapshot). Teams should re-run Jest and Vitest after major refactors and update the markdown source of truth.
+Table~\ref{tab:tests} reflects a \textbf{May~2026} run (\texttt{cd server \&\& npm test}, \texttt{cd client \&\& npx vitest run}). Historical line counts also appear in \path{Docs/RAPPORT_TESTS.md}; refresh that file after large suite changes.
 
 \begin{table}[htbp]
 \centering
 \small
 \begin{tabular}{@{}lccc@{}}
 \toprule
-Layer & Runner & Suite files & Tests \\
+Layer & Runner & Test files / suites & Tests passed \\
 \midrule
-Backend (\path{server/}) & Jest & 12 & 257 \\
-Frontend (\path{client/}) & Vitest & 6 & 20 \\
+Backend (\path{server/}) & Jest & 51 & 520 \\
+Frontend (\path{client/}) & Vitest & 13 & 83 \\
 \midrule
-\textbf{Total automated} & --- & 18 & \textbf{277} \\
+\textbf{Total unit/integration} & --- & 64 & \textbf{603} \\
 \bottomrule
 \end{tabular}
-\caption{Automated test inventory (representative snapshot; see \texttt{Docs/RAPPORT\_TESTS.md}).}\label{tab:tests}
+\caption{Automated unit and integration test inventory (May~2026 snapshot).}\label{tab:tests}
+\end{table}
+
+\subsection{Code coverage policy (server)}
+
+Jest collects coverage only on \textbf{logic-heavy paths} listed in \path{server/jest.config.cjs} (\texttt{collectCoverageFrom}: poker/tournament bracket utilities, validation, selected \path{src/utils}, etc.; some monolithic controllers are excluded so the metric tracks maintainable units). \textbf{Global thresholds} require at least $80\%$ lines, statements, and functions, and $65\%$ branches, or CI fails. Table~\ref{tab:coverage} shows the latest measured aggregate on that scope. Appendix~\ref{app:coverage} defines the coverage ratios and relates them to tournament bracket tests.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Layer & Lines & Statements & Functions & Branches \\
+\midrule
+Server (Jest scoped paths) & 86.56\% & 83.69\% & 88.75\% & 67.90\% \\
+\midrule
+Required minimum (threshold) & 80.00\% & 80.00\% & 80.00\% & 65.00\% \\
+\bottomrule
+\end{tabular}
+\caption{Server Jest coverage aggregate on \texttt{collectCoverageFrom} (May~2026; \texttt{npm run test:coverage} in \texttt{server/}).}\label{tab:coverage}
 \end{table}
 
 \noindent
-GitLab CI configuration at \path{.gitlab-ci.yml} encodes build and test gates for merge requests. A consolidated validation narrative for bot flows and UI smoke checks appears in \path{Docs/rapport-validation.md}.
+\textbf{Client:} running \texttt{vitest run --coverage} over the whole \texttt{src/} tree yields a \textbf{low global percentage} (\textasciitilde{}4\% lines in a May~2026 run) because most UI and socket flows are covered by Playwright, manual poker scenarios, and integration with the live API rather than by isolated Vitest files. Per-file reports under \path{client/coverage/} still highlight modules with strong unit tests (e.g.\ \path{iban}, \path{avatars}).
+
+\noindent
+GitLab CI configuration at \path{.gitlab-ci.yml} encodes build and test gates for merge requests; the \texttt{docker-build} stage uses \textbf{Kaniko} for reproducible, rootless image builds pushed to the GitLab Container Registry. A consolidated validation narrative for bot flows and UI smoke checks appears in \path{Docs/rapport-validation.md}.
 
 \subsection{Performance and stability}
 
@@ -426,9 +540,19 @@ Section~\ref{sec:ai} states how large language models were used as drafting assi
 
 Organizational narrative: Section~\ref{sec:management}. Beyond ceremonies and backlog arbitration, Omar coordinated \textbf{cross-cutting technical commitments}: early adoption of Redis for Socket.IO horizontal scale-out and rate limiting, alignment between Prisma schema changes and gameplay features, and risk reviews before widening scope (tournaments, casino mini-games, loans). Interface with the appointed technical lead focused on sequencing risky merges (socket gateway, recovery jobs) away from demo deadlines.
 
+\subsection{Yigit -- Debugging and Quality Assurance}
+
+Yigit mainly contributed to debugging, testing and quality assurance throughout the development of Quantum Bluff. A large part of his work focused on identifying gameplay issues, reproducing bugs and validating the stability of the platform after new implementations. He participated actively in testing multiplayer poker games, tournaments and mobile responsive interfaces in order to ensure that the application remained functional and stable in different gameplay situations.
+
+One of his main contributions concerned tournament synchronization and hand transition debugging. Several issues appeared during development, especially after showdown phases, during automatic hand restarts and final table transitions. Yigit worked on testing different edge cases, reproducing synchronization problems and validating the implemented fixes. Additional tests were performed to ensure that tournaments could continue correctly without requiring page refreshes and that action buttons remained functional after each hand.
+
+He also contributed significantly to responsive design improvements on mobile devices. Different interface problems were identified during testing, including overlapping buttons, unreadable token displays and spacing issues between the poker table and gameplay controls. Yigit helped optimize the layout for smaller screens while preserving the overall user experience and keeping the desktop version stable.
+
+In addition, he participated in Git integration, merge request validation and final testing sessions before deployment. His work helped improve the overall reliability, usability and quality of the final version of Quantum Bluff.
+
 \subsection{Other contributors}
 
-The repository does not contain signed-off, per-person effort logs, story point assignments, or validated textual attributions beyond Omar's narrative above. To satisfy examination requirements, the table below must be \textbf{completed and countersigned by the team} (replace placeholder cells).
+The repository does not contain signed-off, per-person effort logs, story point assignments, or validated textual attributions beyond the narratives above for Omar and Yigit. To satisfy examination requirements, the table below must still be \textbf{completed and countersigned by the team} for remaining members (replace placeholder cells).
 
 \begin{table}[htbp]
 \centering
@@ -443,10 +567,10 @@ Abdoulaye & \textit{[to complete]} & \textit{[to complete]} \\
 Soheil & \textit{[to complete]} & \textit{[to complete]} \\
 Mohamed & \textit{[to complete]} & \textit{[to complete]} \\
 Azra & \textit{[to complete]} & \textit{[to complete]} \\
-Yigit & \textit{[to complete]} & \textit{[to complete]} \\
+Yigit & Debugging, QA, tournaments, responsive UI, Git/MR reviews & See narrative above; playtests on \path{client/src/pages/Game.tsx}, \path{client/src/features/tournament/}, deployment regressions \\
 \bottomrule
 \end{tabular}
-\caption{Individual contributions (template --- team must fill before submission).}\label{tab:contrib}
+\caption{Individual contributions: expanded statements for Omar and Yigit appear as subsections above; other rows remain self-declared placeholders until completed.}\label{tab:contrib}
 \end{table}
 
 \section{Limitations and Future Work}
@@ -476,7 +600,7 @@ Lessons retained for similar efforts: (1)~anchor scope changes to \textbf{recove
 \addcontentsline{toc}{section}{Acknowledgements}
 
 \noindent
-The team thanks the University of Strasbourg Computer Science faculty for supervising the L3 capstone framework, the open-source maintainers of the libraries listed in Section~\ref{sec:tools}, and peers who provided feedback during playtests. Replace or extend this paragraph with institution-specific acknowledgements as required by the course booklet.
+The team thanks \textbf{Jason Golda} for academic supervision of this L3 capstone, the University of Strasbourg Computer Science faculty for the project framework, the open-source maintainers of the libraries listed in Section~\ref{sec:tools}, and peers who provided feedback during playtests. Replace or extend this paragraph with institution-specific acknowledgements as required by the course booklet.
 
 \appendix
 \clearpage
@@ -508,7 +632,7 @@ Structured logic notes: \path{Docs/detail_logique/backend/01_poker_moteur.md}, \
 
 \subsection{Programmed pipeline}
 
-\texttt{POST /api/bot/action} (\path{server/src/routes/bot.routes.ts}) validates difficulty and cards, then calls \path{server/src/logic/botAI.ts}. Practice tables chain bot turns through \path{server/src/poker/services/practiceBotTurns.service.ts}; HTTP orchestration and optional expert delegation sit in \path{server/src/services/botAi.service.ts}. Four difficulties are supported: \texttt{easy}, \texttt{medium}, \texttt{hard}, \texttt{expert}.
+Figures~\ref{fig:ai-mlp} and~\ref{fig:ai-flow} in the main report depict the optional PyTorch policy ($36\to96\to64\to32\to4$, \textbf{196} post-input units, \textbf{11\,972} trainable scalars in the linear stack) and the Node/Python pipeline. This appendix keeps the algebraic detail for heuristics and oracle mode. \texttt{POST /api/bot/action} (\path{server/src/routes/bot.routes.ts}) validates difficulty and cards, then calls \path{server/src/logic/botAI.ts}. Practice tables chain bot turns through \path{server/src/poker/services/practiceBotTurns.service.ts}; HTTP orchestration and optional expert delegation sit in \path{server/src/services/botAi.service.ts}. Four difficulties are supported: \texttt{easy}, \texttt{medium}, \texttt{hard}, \texttt{expert}.
 
 \subsection{Strength signal and decisions}
 
@@ -519,6 +643,24 @@ Let $H$ be the scalar hand score returned by \texttt{getHandValue} for the bot's
 S_{\max} = 9\cdot 15^{5} + 14\cdot 15^{4},
 \]
 matching the encoding used by \path{server/src/logic/Evaluator.ts}. Each difficulty combines $\sigma$ with pot odds (\texttt{callAmount}, \texttt{potSize}), heads-up vs.\ multiway flags, and pseudo-random draws to return \texttt{FOLD}, \texttt{CALL}, \texttt{CHECK}, or \texttt{RAISE} with an optional raise amount (chips rounded via \path{intChips}). The easy tier, for example, injects naive bluffs on a free street with fixed probability and biases calls when facing small bets with medium strength.
+
+\subsection{Dispatch surface}
+
+\texttt{decideBotAction} in \path{server/src/logic/botAI.ts} switches on \texttt{difficulty} and routes to \texttt{easyBotDecision}, \texttt{mediumBotDecision}, \texttt{hardBotDecision}, or \texttt{expertBotDecision}. The HTTP layer (\path{server/src/services/botAi.service.ts}) may intercept \texttt{expert} to call an external model first.
+
+\subsection{Expert tier: optional Python service}
+
+When \texttt{AI\_SERVICE\_URL} is configured, \path{botAi.service.ts} issues \texttt{POST .../predict/poker} with a JSON payload built by \texttt{buildAiPayload} (compact card encoding, street, stacks, pot, position, optional opponent holes for oracle debugging). The JSON body is validated through \texttt{aiResponseSchema} (Zod): allowed actions include \texttt{ALL\_IN}, which is lowered to a legal \texttt{RAISE}/\texttt{CALL}/\texttt{FOLD} via \texttt{convertAllIn}. Timeouts use \texttt{AbortController} and \texttt{env.aiServiceTimeoutMs}; structured logs record \texttt{expert\_ai\_decision} with latency and style. Any failure reverts to \texttt{expertBotDecision}.
+
+\subsection{Expert oracle path (TypeScript, no network)}
+
+For revealed opponent holes, \texttt{expertOracleDecision} computes hero strength $\sigma_{\mathrm{hero}}=\texttt{normalizedHandStrength}(\text{hero},\text{board})$ and opponent strengths $\sigma_i$ for each known hole pair. Sort $\sigma_{(1)}\ge\cdots\ge\sigma_{(n)}$. For $n\le 2$ let $S_{\mathrm{opp}}=\sigma_{(1)}$. For $n\ge 3$ the code uses \texttt{compositeOpponentNormalizedStrength}:
+\[
+S_{\mathrm{opp}} = w\,\sigma_{(1)} + (1-w)\,\sigma_{(\lfloor n/2\rfloor)},
+\qquad
+w = \min\bigl(0.68,\,\max\bigl(0.35,\,0.56 - 0.05\,(n-3)\bigr)\bigr),
+\]
+so the policy blends the strongest visible villain with a median-like opponent instead of assuming everyone holds the nuts. The edge $\Delta=\sigma_{\mathrm{hero}}-S_{\mathrm{opp}}$ is compared to pot odds $\texttt{callAmount}/(\texttt{potSize}+\texttt{callAmount})$ and stack pressure $\texttt{callAmount}/\texttt{playerChips}$ to emit stylised lines (\texttt{value}, \texttt{bluff}, \texttt{pot\_control}, \texttt{discipline}, etc.).
 
 \subsection{Further reading}
 
@@ -601,9 +743,31 @@ Live markets use tabulated decimal odds keyed by table parameters. For instance,
 \section{Tournaments and winner side bets}
 \label{app:tournament}
 
-\subsection{Programmed modules}
+\subsection{Runtime architecture (layers)}
 
-Tournament lifecycle (registration, waiting room, table assignment, blind escalation, elimination, results) is implemented under \path{server/src/tournament/} with recovery jobs invoked at server boot (\path{server/src/index.ts}). Winner-side markets reuse wallet patterns in \path{server/src/tournament/winnerBets/tournamentWinnerBet.service.ts}. The client feature pack lives in \path{client/src/features/tournament/} (waiting room, in-tournament table, results, winner-bet panel). A lightweight \texttt{ZipRushMiniGame} retains players during queue phases.
+\begin{enumerate}
+\item \textbf{API and validation} --- \path{server/src/routes/tournament.routes.ts} (and related mounts in \path{server/src/index.ts}) expose creation, join, start, and spectator flows. Input normalisation lives in \path{tournament.create.validation.ts} (player counts, blind structure, schedule). Private tournaments hash join codes with bcrypt (\path{tournament.service.ts}).
+\item \textbf{Persistence} --- Prisma models \texttt{Tournament}, \texttt{TournamentPlayer}, \texttt{TournamentRound}, \texttt{TournamentTable}, etc., store lifecycle, elimination order, and links to underlying \texttt{gameId} values that reuse the cash-game engine.
+\item \textbf{Scheduler} --- \path{tournament.scheduler.ts} registers a timer every $\Delta T = 10$\,s (via \texttt{setInterval}). On each tick it loads tournaments with \texttt{status = REGISTRATION\_OPEN} and \texttt{startAt <= now} (bounded batch) and calls \path{startTournamentFromDb} with the Socket.IO server instance obtained from \path{app.get('io')}.
+\item \textbf{Runtime orchestration} --- \path{tournament.runtime.service.ts} coordinates bracket materialisation: it calls \path{buildOpeningRound} / \path{buildRoundFromSurvivors}, creates concrete \texttt{GameTable} instances through \path{tournamentTableFactory.ts}, emits \texttt{TOURNAMENT\_TABLE\_ASSIGNED} to per-user rooms, records eliminations when bust-out events arrive (\path{recordTournamentEliminationsIfAny}), and advances the state machine (\texttt{pending\_other\_tables}, \texttt{next\_round\_spawned}, \texttt{tournament\_complete}).
+\item \textbf{Winner side bets} --- \path{winnerBets/tournamentWinnerBet.service.ts} handles ticket placement, settlement with tournament cancellation, and coordination with the wallet ledger.
+\item \textbf{Recovery} --- \path{tournament.recovery.service.ts} reconciles partially written bracket rows after crashes (invoked from server bootstrap).
+\item \textbf{Gateway hooks} --- \path{tournament.gatewayHook.ts} bridges table-level socket events into tournament bookkeeping.
+\item \textbf{Client} --- \path{client/src/features/tournament/} implements waiting room, ZipRush, in-tournament HUD, results, and winner-bet UI; routes under \path{/tournaments/...}.
+\end{enumerate}
+
+\subsection{Bracket geometry and table sizing}
+
+Let $m$ be the number of active players in a round ($m\ge 2$). \path{computeTableSizesForRound} in \path{server/src/tournament/bracket/tableSizes.ts} returns an integer partition $[s_1,\ldots,s_k]$ such that $\sum_i s_i = m$, each $2\le s_i\le 9$, using fixed templates for $m\le 9$ (e.g.\ $m=4\rightarrow[2,2]$, $m=7\rightarrow[4,3]$) and, for $m\ge 10$,
+\[
+k=\Bigl\lceil\frac{m}{9}\Bigr\rceil,\qquad
+s_i \in \Bigl\{\Bigl\lfloor\frac{m}{k}\Bigr\rfloor,\,\Bigl\lceil\frac{m}{k}\Bigr\rceil\Bigr\}
+\]
+with the remainder distributed one seat at a time (see implementation). \path{assertTableSizesValid} enforces $\sum s_i=m$ and per-table bounds.
+
+\subsection{Seeded shuffle (deterministic bracket RNG)}
+
+\path{buildOpeningRound} and \path{buildRoundFromSurvivors} in \path{TournamentBracketBuilder.ts} take a 32-bit integer \texttt{seed}. They derive a PRNG \texttt{mulberry32(seed)} producing $u_n\in(0,1)$ and apply Fisher--Yates shuffling so that the same \texttt{(playerIds, seed)} always yields the same table assignment (reproducible tests). The generator follows the published mulberry32 recurrence (32-bit integer state, \texttt{Math.imul} mixes, bitwise rotations) as in the source file; the returned uniform is $u = ((t\oplus(t\gg 14))\gg 0)/2^{32}$.
 
 \subsection{Further reading}
 
@@ -615,6 +779,8 @@ Tournament lifecycle (registration, waiting room, table assignment, blind escala
 \subsection{Solo blackjack engine}
 
 Authoritative rules are implemented in \path{server/src/logic/blackjack.ts}. The server uses a six-deck shoe (\texttt{DECKS = 6}), shuffled in-place with Fisher--Yates (\texttt{shuffleShoe}). Card values follow standard rules: faces and tens count as $10$, aces count as $11$ when possible without exceeding $21$, otherwise as $1$. The dealer draws until the hard/soft total is at least $17$; because aces are valued optimistically, the dealer \textbf{stands on soft 17} (e.g.\ A+6). Natural blackjack pays a $3{:}2$ bonus on the stake (implemented as integer chip rounding per \path{intChips}); other wins pay $1{:}1$; pushes return the stake. Double down is permitted only with exactly two player cards and issues one extra card.
+
+\subsection{HTTP and multi-table surfaces}
 
 Solo routes: \path{server/src/routes/blackjack.routes.ts}. Multiplayer rooms and seats: \path{server/src/routes/blackjackMulti.routes.ts}, controllers under \path{server/src/logic/BlackjackTableController.ts}, in-memory runtime maps with recovery under \path{server/src/blackjack/}. UI: \path{client/src/pages/Blackjack.tsx}, lobby/table flows, components in \path{client/src/components/blackjack/}.
 
@@ -737,7 +903,40 @@ JWT issuance and verification on \path{server/src/routes/auth.routes.ts}; passwo
 
 \subsection{Programmed operations}
 
-Redis clients for Socket.IO horizontal scale-out: \path{server/src/config/socketIoRedis.ts}. Rate limiting and action logs share Redis primitives configured in \path{server/src/index.ts}. Observability helpers: \path{server/src/observability/}. CI pipeline: \path{.gitlab-ci.yml}. Desktop/mobile packaging scripts in \path{client/package.json} (Electron, Capacitor). Admin web console: \path{client/src/pages/AdminConsole.tsx} with \path{server/src/routes/adminConsole.routes.ts}. Dangerous admin/dev routes are compiled out or gated when \texttt{env.isProduction} is true.
+Redis clients for Socket.IO horizontal scale-out: \path{server/src/config/socketIoRedis.ts}. Rate limiting and action logs share Redis primitives configured in \path{server/src/index.ts}. Observability helpers: \path{server/src/observability/}. CI pipeline: \path{.gitlab-ci.yml}. Admin web console: \path{client/src/pages/AdminConsole.tsx} with \path{server/src/routes/adminConsole.routes.ts}. Dangerous admin/dev routes are compiled out or gated when \texttt{env.isProduction} is true.
+
+\subsection{Kaniko container builds (GitLab CI)}
+
+The \texttt{docker-build} stage invokes \textbf{Kaniko} executor \texttt{v1.23.2-debug} with an empty container \texttt{entrypoint} so the shell can call \texttt{/kaniko/executor}. \textbf{(1)}~\texttt{docker:build}---\path{server/Dockerfile}, context \path{server/}, destinations \texttt{\$\{CI\_REGISTRY\_IMAGE\}:\$\{CI\_COMMIT\_SHORT\_SHA\}} and \texttt{:latest}; runs on \texttt{develop}, \texttt{main}, and \texttt{release/*}. \textbf{(2)}~\texttt{docker:build:client}---\path{client/Dockerfile}, build-arg \texttt{VITE\_API\_URL} (override in GitLab CI/CD variables for behind-nginx paths), \texttt{KUBERNETES\_MEMORY\_REQUEST}/\texttt{LIMIT} raised to reduce OOM during Kaniko layer snapshots; destinations \texttt{:client-\$\{CI\_COMMIT\_SHORT\_SHA\}} and \texttt{:client-latest}; same branch rules as~(1). \textbf{(3)}~\texttt{docker:build:ai-service}---context \path{server/ai-service/}, FastAPI stack for the optional poker prediction endpoint; destinations \texttt{:ai-\$\{CI\_COMMIT\_SHORT\_SHA\}} and \texttt{:ai-latest}; \textbf{only} \texttt{release/*} (commented in YAML to spare runner disk on \texttt{develop}/\texttt{main}). All three jobs use \texttt{--compressed-caching=false} for predictable memory on small Kubernetes runners. \path{client/Dockerfile} documents Kaniko-oriented Dockerfile layering (grouped \texttt{RUN} steps) to avoid oversized intermediate snapshots after \texttt{npm ci}.
+
+\subsection{Electron and Capacitor build matrix}
+
+The npm scripts are declared in \path{client/package.json} (see \texttt{build} block for electron-builder). \texttt{npm run build:electron} runs Vite in \texttt{electron} mode; \texttt{electron:build:win}, \texttt{electron:build:mac}, \texttt{electron:build:linux}, and \texttt{electron:build:all} invoke \texttt{electron-builder} with the corresponding platform flags. Windows uses NSIS (\texttt{.exe} installer); macOS uses the default mac target (typically \texttt{.dmg} plus update artefacts); Linux emits \texttt{AppImage} and \texttt{.deb} as declared under \texttt{build.linux.target}. \texttt{publish:win} / \texttt{publish:mac} add \texttt{--publish always} for CI/CD uploads to the generic update server configured in \texttt{build.publish}.
+
+\textbf{Capacitor:} \texttt{npm run build:cap} then \texttt{npx @capacitor/cli sync} copies web assets into \texttt{android/} and \texttt{ios/} native shells (\texttt{@capacitor/android}, \texttt{@capacitor/ios}~8.3.0). \texttt{npm run cap:android} / \texttt{cap:ios} open the native IDEs; \texttt{cap:run:*} supports live-reload against a LAN API host for device testing.
+
+\section{Test coverage metrics and definitions}
+\label{app:coverage}
+
+\subsection{Jest ratios}
+
+Let $L$ be the set of executable lines inside \texttt{collectCoverageFrom} in \path{server/jest.config.cjs}. For each metric $M\in\{\mathrm{lines},\mathrm{statements},\mathrm{functions},\mathrm{branches}\}$,
+\[
+\mathrm{cov}_M = \frac{\text{\# elements of }M\text{ hit during tests}}{\text{\# elements of }M\text{ instrumented}}.
+\]
+CI enforces $\mathrm{cov}_{\mathrm{lines}}\ge 0.80$, $\mathrm{cov}_{\mathrm{statements}}\ge 0.80$, $\mathrm{cov}_{\mathrm{functions}}\ge 0.80$, and $\mathrm{cov}_{\mathrm{branches}}\ge 0.65$. A May~2026 local run reported $(\mathrm{cov}_{\mathrm{lines}},\mathrm{cov}_{\mathrm{statements}},\mathrm{cov}_{\mathrm{functions}},\mathrm{cov}_{\mathrm{branches}})=(86.56\%,83.69\%,88.75\%,67.90\%)$ on that scope. Heavy files such as \path{server/src/logic/botAI.ts} and large controllers are deliberately excluded from the denominator so the metric tracks testable business modules (see comments in the Jest config).
+
+\subsection{Vitest ratios (client)}
+
+Vitest with Istanbul uses the same hit/total idea over \texttt{client/src/**/*.{ts,tsx}} minus tests (see \path{client/vite.config.ts}). Because most screens depend on sockets and browser APIs, the \textbf{global} line coverage stays low unless many components receive dedicated tests; quality is also asserted through Playwright flows and manual regression lists.
+
+\subsection{Relation to tournaments}
+
+Bracket helpers (\path{tableSizes.ts}, \path{TournamentBracketBuilder.ts}) sit inside the Jest coverage glob; their golden tests contribute directly to the aggregate in Table~\ref{tab:coverage}. See Appendix~\ref{app:tournament} for the mathematics they implement.
+
+\subsection{Further reading}
+
+\path{Docs/test_coverage.md}, \path{Docs/TESTING_GUIDE.md}, \path{Docs/RAPPORT_TESTS.md}.
 
 \section{External references and compendium}
 \label{app:sources}
