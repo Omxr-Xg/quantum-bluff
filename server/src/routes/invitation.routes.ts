@@ -3,7 +3,7 @@ import type { Server } from 'socket.io'
 import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
-import { isUserOnline } from '../services/presence.service.js'
+import { getUserActivity, isUserOnline } from '../services/presence.service.js'
 import {
   searchUserSchema,
   friendRequestSchema,
@@ -17,6 +17,15 @@ import {
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 
 const router = express.Router()
+
+function normalizeFriendActivity(activity?: string | null): string | undefined {
+  if (!activity) return undefined
+  const value = activity.trim()
+  if (!value || value === 'Lobby' || value === 'Salon' || value === 'Mini-jeux') {
+    return undefined
+  }
+  return value
+}
 
 const friendSearchLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -748,6 +757,37 @@ router.get('/:userId', async (req, res) => {
     })
 
     const userIdStr = String(userId)
+    const friendIds = friendships.map((friendship) =>
+      String(friendship.user1Id) === userIdStr ? friendship.user2Id : friendship.user1Id,
+    )
+    const [pokerSeats, blackjackSeats] = await Promise.all([
+      prisma.roomPlayer.findMany({
+        where: { userId: { in: friendIds } },
+        include: { room: { select: { name: true, status: true } } },
+        orderBy: { joinedAt: 'desc' },
+      }),
+      prisma.blackjackRoomSeat.findMany({
+        where: { userId: { in: friendIds } },
+        include: { room: { select: { name: true, status: true } } },
+        orderBy: { joinedAt: 'desc' },
+      }),
+    ])
+
+    const activityByUserId = new Map<string, string>()
+    for (const seat of pokerSeats) {
+      if (activityByUserId.has(seat.userId)) continue
+      activityByUserId.set(
+        seat.userId,
+        seat.room.status === 'IN_GAME' ? 'Poker' : 'Salon poker',
+      )
+    }
+    for (const seat of blackjackSeats) {
+      if (activityByUserId.has(seat.userId)) continue
+      activityByUserId.set(
+        seat.userId,
+        seat.room.status === 'PLAYING' ? 'Blackjack' : 'Salon blackjack',
+      )
+    }
     const friends = (
       await Promise.all(
         friendships.map(async (friendship) => {
@@ -755,11 +795,16 @@ router.get('/:userId', async (req, res) => {
             String(friendship.user1Id) === userIdStr
               ? friendship.user2
               : friendship.user1
+          const liveActivity = await getUserActivity(String(friend.id))
           return {
             ...friend,
             avatarUrl: clientAvatarUrlFromUser(friend),
             friendshipCreatedAt: friendship.createdAt,
             isOnline: await isUserOnline(String(friend.id)),
+            currentActivity:
+              normalizeFriendActivity(liveActivity) ||
+              activityByUserId.get(String(friend.id)) ||
+              'Salon poker',
           }
         }),
       )

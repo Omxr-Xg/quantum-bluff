@@ -386,6 +386,29 @@ export function Layout({ children }: LayoutProps) {
   }, [isConnected, connect, isAdminShell]);
 
   useEffect(() => {
+    if (isAdminShell || !isConnected) return;
+
+    const path = location.pathname;
+    const params = new URLSearchParams(location.search);
+    const lobbyTab = params.get("tab");
+    const minigame = params.get("game");
+    let activity = "Salon poker";
+    if (path === "/game") activity = "Poker";
+    else if (path === "/waiting-room") activity = "Salon poker";
+    else if (path === "/lobby" && lobbyTab === "blackjack") activity = "Salon blackjack";
+    else if (path === "/lobby" && (lobbyTab === "minigames" || lobbyTab === "roulette")) activity = "Salon mini-jeux";
+    else if (path.startsWith("/blackjack/table")) activity = "Blackjack";
+    else if (path.startsWith("/blackjack/lobby")) activity = "Salon blackjack";
+    else if (path === "/blackjack") activity = "Blackjack";
+    else if (path === "/minigames" && minigame === "slots") activity = "Machine à sous";
+    else if (path === "/minigames") activity = "Roulette";
+    else if (path.startsWith("/tournaments")) activity = "Tournoi";
+    else if (path === "/friends") activity = "Amis";
+
+    socket.emit("USER_ACTIVITY_CHANGED", { activity });
+  }, [isAdminShell, isConnected, location.pathname, location.search]);
+
+  useEffect(() => {
     const handler = (e: Event) => navigate((e as CustomEvent<string>).detail);
     window.addEventListener("navigate-to", handler);
     return () => window.removeEventListener("navigate-to", handler);

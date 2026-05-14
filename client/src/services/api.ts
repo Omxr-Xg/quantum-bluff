@@ -16,6 +16,7 @@ interface User {
   avatarUrl?: string | null
   isOnline?: boolean
   friendshipCreatedAt?: string
+  currentActivity?: string
   playerStats?: {
     totalWins: number
     totalGames: number
@@ -359,6 +360,7 @@ export const {
   useCreateGameMutation,
   useJoinGameMutation,
   useSearchUsersQuery,
+  useLazySearchUsersQuery,
   useSendFriendRequestMutation,
   useGetFriendRequestsQuery,
   useRespondToFriendRequestMutation,
