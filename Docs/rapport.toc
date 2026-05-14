@@ -32,74 +32,74 @@
 \contentsline {subsection}{\numberline {8.2}Real-time communication}{9}{subsection.8.2}%
 \contentsline {subsection}{\numberline {8.3}Persistence and integrity}{10}{subsection.8.3}%
 \contentsline {subsection}{\numberline {8.4}Data model overview (Prisma)}{10}{subsection.8.4}%
-\contentsline {subsection}{\numberline {8.5}Diagram}{10}{subsection.8.5}%
-\contentsline {section}{\numberline {9}Deployment and operational runbook}{11}{section.9}%
-\contentsline {subsection}{\numberline {9.1}Local development stack}{11}{subsection.9.1}%
-\contentsline {subsection}{\numberline {9.2}Production and desktop delivery}{11}{subsection.9.2}%
-\contentsline {section}{\numberline {10}Security, Testing and Stability}{12}{section.10}%
-\contentsline {subsection}{\numberline {10.1}Authentication and anti-cheat}{12}{subsection.10.1}%
-\contentsline {subsection}{\numberline {10.2}Testing and debugging}{13}{subsection.10.2}%
-\contentsline {subsection}{\numberline {10.3}Automated test inventory and CI (reference snapshot)}{13}{subsection.10.3}%
-\contentsline {subsection}{\numberline {10.4}Performance and stability}{13}{subsection.10.4}%
-\contentsline {section}{\numberline {11}Technical Challenges}{14}{section.11}%
-\contentsline {subsection}{\numberline {11.1}Implemented solutions}{14}{subsection.11.1}%
-\contentsline {section}{\numberline {12}Ethics, privacy, and academic integrity}{17}{section.12}%
-\contentsline {subsection}{\numberline {12.1}Virtual economy and regulatory framing}{17}{subsection.12.1}%
-\contentsline {subsection}{\numberline {12.2}Personal data}{17}{subsection.12.2}%
-\contentsline {subsection}{\numberline {12.3}Integrity of authorship and AI assistance}{17}{subsection.12.3}%
-\contentsline {section}{\numberline {13}Individual Contributions}{18}{section.13}%
-\contentsline {subsection}{\numberline {13.1}Omar -- project management and architecture alignment}{18}{subsection.13.1}%
-\contentsline {subsection}{\numberline {13.2}Other contributors}{18}{subsection.13.2}%
-\contentsline {section}{\numberline {14}Limitations and Future Work}{19}{section.14}%
-\contentsline {subsection}{\numberline {14.1}Current limitations}{19}{subsection.14.1}%
-\contentsline {subsection}{\numberline {14.2}Future improvements}{19}{subsection.14.2}%
-\contentsline {section}{\numberline {15}Conclusion}{20}{section.15}%
-\contentsline {section}{Acknowledgements}{21}{section*.14}%
-\contentsline {section}{\numberline {A}Repository map and routing}{22}{appendix.A}%
-\contentsline {subsection}{\numberline {A.1}Programmed routing and shell}{22}{subsection.A.1}%
-\contentsline {section}{\numberline {B}Poker engine and cash game}{23}{appendix.B}%
-\contentsline {subsection}{\numberline {B.1}What was programmed}{23}{subsection.B.1}%
-\contentsline {subsection}{\numberline {B.2}Rules enforced}{23}{subsection.B.2}%
-\contentsline {subsection}{\numberline {B.3}Further reading}{23}{subsection.B.3}%
-\contentsline {section}{\numberline {C}Bot AI and practice integration}{24}{appendix.C}%
-\contentsline {subsection}{\numberline {C.1}Programmed pipeline}{24}{subsection.C.1}%
-\contentsline {subsection}{\numberline {C.2}Strength signal and decisions}{24}{subsection.C.2}%
-\contentsline {subsection}{\numberline {C.3}Further reading}{24}{subsection.C.3}%
-\contentsline {section}{\numberline {D}Probabilities, Quantum HUD, and Monte Carlo helper}{25}{appendix.D}%
-\contentsline {subsection}{\numberline {D.1}Division of responsibilities}{25}{subsection.D.1}%
-\contentsline {subsection}{\numberline {D.2}Monte Carlo equity estimator}{25}{subsection.D.2}%
-\contentsline {subsection}{\numberline {D.3}Monte Carlo error budget (HUD analogue to RTP)}{25}{subsection.D.3}%
-\contentsline {subsection}{\numberline {D.4}Quantum Combi---exact enumeration formula}{26}{subsection.D.4}%
-\contentsline {subsection}{\numberline {D.5}Quantum Combi in the hand-ranking ladder (server and HUD)}{26}{subsection.D.5}%
-\contentsline {section}{\numberline {E}Hidden betting system}{27}{appendix.E}%
-\contentsline {subsection}{\numberline {E.1}Programmed architecture}{27}{subsection.E.1}%
-\contentsline {subsection}{\numberline {E.2}Odds and tables (example)}{27}{subsection.E.2}%
-\contentsline {subsection}{\numberline {E.3}Further reading}{27}{subsection.E.3}%
-\contentsline {section}{\numberline {F}Tournaments and winner side bets}{28}{appendix.F}%
-\contentsline {subsection}{\numberline {F.1}Programmed modules}{28}{subsection.F.1}%
-\contentsline {subsection}{\numberline {F.2}Further reading}{28}{subsection.F.2}%
-\contentsline {section}{\numberline {G}Blackjack solo and multiplayer}{29}{appendix.G}%
-\contentsline {subsection}{\numberline {G.1}Solo blackjack engine}{29}{subsection.G.1}%
-\contentsline {subsection}{\numberline {G.2}Further reading}{29}{subsection.G.2}%
-\contentsline {section}{\numberline {H}Slot machine, roulette, and casino wallet}{30}{appendix.H}%
-\contentsline {subsection}{\numberline {H.1}Three-reel slot model}{30}{subsection.H.1}%
-\contentsline {subsection}{\numberline {H.2}Complete slot RTP (closed form, current constants)}{30}{subsection.H.2}%
-\contentsline {paragraph}{Triple (three of a kind).}{30}{section*.15}%
-\contentsline {paragraph}{Exact pair (not a triple).}{30}{section*.16}%
-\contentsline {paragraph}{Lose.}{30}{section*.17}%
-\contentsline {paragraph}{Expected multiplier and RTP.}{30}{section*.18}%
-\contentsline {paragraph}{Variance (optional diagnostic).}{31}{section*.19}%
-\contentsline {subsection}{\numberline {H.3}European roulette model}{31}{subsection.H.3}%
-\contentsline {subsection}{\numberline {H.4}Complete roulette RTP (all proportional inside bets)}{31}{subsection.H.4}%
-\contentsline {subsection}{\numberline {H.5}Wallet and ledger}{31}{subsection.H.5}%
-\contentsline {section}{\numberline {I}Social graph, invitations, and peer loans}{32}{appendix.I}%
-\contentsline {subsection}{\numberline {I.1}Programmed surfaces}{32}{subsection.I.1}%
-\contentsline {subsection}{\numberline {I.2}Further reading}{32}{subsection.I.2}%
-\contentsline {section}{\numberline {J}Progression, challenges, and leaderboards}{33}{appendix.J}%
-\contentsline {subsection}{\numberline {J.1}Programmed logic}{33}{subsection.J.1}%
-\contentsline {subsection}{\numberline {J.2}Further reading}{33}{subsection.J.2}%
-\contentsline {section}{\numberline {K}Authentication, profiles, and i18n}{34}{appendix.K}%
-\contentsline {subsection}{\numberline {K.1}Programmed security and profiles}{34}{subsection.K.1}%
-\contentsline {section}{\numberline {L}Operations, Redis, CI, and packaging}{35}{appendix.L}%
-\contentsline {subsection}{\numberline {L.1}Programmed operations}{35}{subsection.L.1}%
-\contentsline {section}{\numberline {M}External references and compendium}{36}{appendix.M}%
+\contentsline {subsection}{\numberline {8.5}Diagram}{11}{subsection.8.5}%
+\contentsline {section}{\numberline {9}Deployment and operational runbook}{12}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Local development stack}{12}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Production and desktop delivery}{12}{subsection.9.2}%
+\contentsline {section}{\numberline {10}Security, Testing and Stability}{13}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Authentication and anti-cheat}{13}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Testing and debugging}{14}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Automated test inventory and CI (reference snapshot)}{15}{subsection.10.3}%
+\contentsline {subsection}{\numberline {10.4}Performance and stability}{15}{subsection.10.4}%
+\contentsline {section}{\numberline {11}Technical Challenges}{16}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Implemented solutions}{16}{subsection.11.1}%
+\contentsline {section}{\numberline {12}Ethics, privacy, and academic integrity}{19}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Virtual economy and regulatory framing}{19}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Personal data}{19}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}Integrity of authorship and AI assistance}{19}{subsection.12.3}%
+\contentsline {section}{\numberline {13}Individual Contributions}{20}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Omar -- project management and architecture alignment}{20}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Other contributors}{20}{subsection.13.2}%
+\contentsline {section}{\numberline {14}Limitations and Future Work}{21}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Current limitations}{21}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}Future improvements}{21}{subsection.14.2}%
+\contentsline {section}{\numberline {15}Conclusion}{22}{section.15}%
+\contentsline {section}{Acknowledgements}{23}{section*.14}%
+\contentsline {section}{\numberline {A}Repository map and routing}{24}{appendix.A}%
+\contentsline {subsection}{\numberline {A.1}Programmed routing and shell}{24}{subsection.A.1}%
+\contentsline {section}{\numberline {B}Poker engine and cash game}{25}{appendix.B}%
+\contentsline {subsection}{\numberline {B.1}What was programmed}{25}{subsection.B.1}%
+\contentsline {subsection}{\numberline {B.2}Rules enforced}{25}{subsection.B.2}%
+\contentsline {subsection}{\numberline {B.3}Further reading}{25}{subsection.B.3}%
+\contentsline {section}{\numberline {C}Bot AI and practice integration}{26}{appendix.C}%
+\contentsline {subsection}{\numberline {C.1}Programmed pipeline}{26}{subsection.C.1}%
+\contentsline {subsection}{\numberline {C.2}Strength signal and decisions}{26}{subsection.C.2}%
+\contentsline {subsection}{\numberline {C.3}Further reading}{26}{subsection.C.3}%
+\contentsline {section}{\numberline {D}Probabilities, Quantum HUD, and Monte Carlo helper}{27}{appendix.D}%
+\contentsline {subsection}{\numberline {D.1}Division of responsibilities}{27}{subsection.D.1}%
+\contentsline {subsection}{\numberline {D.2}Monte Carlo equity estimator}{27}{subsection.D.2}%
+\contentsline {subsection}{\numberline {D.3}Monte Carlo error budget (HUD analogue to RTP)}{27}{subsection.D.3}%
+\contentsline {subsection}{\numberline {D.4}Quantum Combi---exact enumeration formula}{28}{subsection.D.4}%
+\contentsline {subsection}{\numberline {D.5}Quantum Combi in the hand-ranking ladder (server and HUD)}{28}{subsection.D.5}%
+\contentsline {section}{\numberline {E}Hidden betting system}{29}{appendix.E}%
+\contentsline {subsection}{\numberline {E.1}Programmed architecture}{29}{subsection.E.1}%
+\contentsline {subsection}{\numberline {E.2}Odds and tables (example)}{29}{subsection.E.2}%
+\contentsline {subsection}{\numberline {E.3}Further reading}{29}{subsection.E.3}%
+\contentsline {section}{\numberline {F}Tournaments and winner side bets}{30}{appendix.F}%
+\contentsline {subsection}{\numberline {F.1}Programmed modules}{30}{subsection.F.1}%
+\contentsline {subsection}{\numberline {F.2}Further reading}{30}{subsection.F.2}%
+\contentsline {section}{\numberline {G}Blackjack solo and multiplayer}{31}{appendix.G}%
+\contentsline {subsection}{\numberline {G.1}Solo blackjack engine}{31}{subsection.G.1}%
+\contentsline {subsection}{\numberline {G.2}Further reading}{31}{subsection.G.2}%
+\contentsline {section}{\numberline {H}Slot machine, roulette, and casino wallet}{32}{appendix.H}%
+\contentsline {subsection}{\numberline {H.1}Three-reel slot model}{32}{subsection.H.1}%
+\contentsline {subsection}{\numberline {H.2}Complete slot RTP (closed form, current constants)}{32}{subsection.H.2}%
+\contentsline {paragraph}{Triple (three of a kind).}{32}{section*.15}%
+\contentsline {paragraph}{Exact pair (not a triple).}{32}{section*.16}%
+\contentsline {paragraph}{Lose.}{32}{section*.17}%
+\contentsline {paragraph}{Expected multiplier and RTP.}{32}{section*.18}%
+\contentsline {paragraph}{Variance (optional diagnostic).}{33}{section*.19}%
+\contentsline {subsection}{\numberline {H.3}European roulette model}{33}{subsection.H.3}%
+\contentsline {subsection}{\numberline {H.4}Complete roulette RTP (all proportional inside bets)}{33}{subsection.H.4}%
+\contentsline {subsection}{\numberline {H.5}Wallet and ledger}{33}{subsection.H.5}%
+\contentsline {section}{\numberline {I}Social graph, invitations, and peer loans}{34}{appendix.I}%
+\contentsline {subsection}{\numberline {I.1}Programmed surfaces}{34}{subsection.I.1}%
+\contentsline {subsection}{\numberline {I.2}Further reading}{34}{subsection.I.2}%
+\contentsline {section}{\numberline {J}Progression, challenges, and leaderboards}{35}{appendix.J}%
+\contentsline {subsection}{\numberline {J.1}Programmed logic}{35}{subsection.J.1}%
+\contentsline {subsection}{\numberline {J.2}Further reading}{35}{subsection.J.2}%
+\contentsline {section}{\numberline {K}Authentication, profiles, and i18n}{36}{appendix.K}%
+\contentsline {subsection}{\numberline {K.1}Programmed security and profiles}{36}{subsection.K.1}%
+\contentsline {section}{\numberline {L}Operations, Redis, CI, and packaging}{37}{appendix.L}%
+\contentsline {subsection}{\numberline {L.1}Programmed operations}{37}{subsection.L.1}%
+\contentsline {section}{\numberline {M}External references and compendium}{38}{appendix.M}%
