@@ -15,6 +15,10 @@ export function useWaitingRoomInvitationAccept() {
   const navigate = useNavigate();
   const { socket, dismissInvitation } = useSocket();
   const [pending, setPending] = useState<GameInvitationNotification | null>(null);
+  const [blockedWarning, setBlockedWarning] = useState<{
+    invitation: GameInvitationNotification;
+    names: string[];
+  } | null>(null);
   const [confirming, setConfirming] = useState(false);
 
   const onlineGameId = (() => {
@@ -28,7 +32,7 @@ export function useWaitingRoomInvitationAccept() {
   }, [onlineGameId]);
 
   const runAccept = useCallback(
-    async (inv: GameInvitationNotification) => {
+    async (inv: GameInvitationNotification, options?: { confirmBlockedWarning?: boolean }) => {
       const token = getAuthItem("token");
       const isBj = inv.game === "blackjack";
       const sp = new URLSearchParams(window.location.search);
@@ -52,6 +56,9 @@ export function useWaitingRoomInvitationAccept() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({
+          ...(options?.confirmBlockedWarning ? { confirmBlockedWarning: true } : {}),
+        }),
       });
       if (res.ok) {
         dismissInvitation(inv.invitationId);
@@ -59,6 +66,22 @@ export function useWaitingRoomInvitationAccept() {
           navigate(`/lobby?tab=blackjack&bjRoom=${inv.roomId}`);
         } else {
           navigate(`/waiting-room?roomId=${inv.roomId}`);
+        }
+        return;
+      }
+
+      if (!isBj && res.status === 409) {
+        const payload = (await res.json().catch(() => null)) as {
+          code?: string;
+          blockedPlayers?: { username?: string }[];
+        } | null;
+        if (payload?.code === "BLOCKED_USER_IN_ROOM") {
+          setBlockedWarning({
+            invitation: inv,
+            names: (payload.blockedPlayers ?? [])
+              .map((player) => player.username)
+              .filter((name): name is string => Boolean(name)),
+          });
         }
       }
     },
@@ -91,11 +114,29 @@ export function useWaitingRoomInvitationAccept() {
     if (!confirming) setPending(null);
   }, [confirming]);
 
+  const confirmBlockedWarningAndAccept = useCallback(() => {
+    if (!blockedWarning) return;
+    const inv = blockedWarning.invitation;
+    setConfirming(true);
+    void runAccept(inv, { confirmBlockedWarning: true }).finally(() => {
+      setConfirming(false);
+      setBlockedWarning(null);
+    });
+  }, [blockedWarning, runAccept]);
+
+  const cancelBlockedWarning = useCallback(() => {
+    if (!confirming) setBlockedWarning(null);
+  }, [confirming]);
+
   return {
     leavePromptInvitation: pending,
+    blockedWarningInvitation: blockedWarning?.invitation ?? null,
+    blockedWarningNames: blockedWarning?.names ?? [],
     confirmingLeave: confirming,
     requestAccept,
     confirmLeaveAndAccept,
     cancelLeavePrompt,
+    confirmBlockedWarningAndAccept,
+    cancelBlockedWarning,
   };
 }
