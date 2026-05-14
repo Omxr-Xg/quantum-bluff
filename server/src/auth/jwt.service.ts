@@ -58,7 +58,7 @@ export function extractBearerToken(raw: unknown): string | null {
     return token || null
   }
 
-  return value
+  return null
 }
 
 const signOptions: SignOptions = {
