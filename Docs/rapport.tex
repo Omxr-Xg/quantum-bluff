@@ -385,6 +385,90 @@ Demo & Example and deal teaching routes & \path{/game-example}, \path{/game-deal
 A11y & Accessibility, table theming, ambient audio & \path{client/src/contexts/AccessibilityContext.tsx}, \path{TableThemeContext.tsx}, \path{MusicContext.tsx} & Appendix~\ref{app:map} \\
 \end{longtable}
 
+\subsection{Casino Games and AI Bot Integration}
+\label{sec:casino-ai}
+
+\subsubsection{Scope and functionality}
+
+Beyond poker, Quantum Bluff integrates three casino games---blackjack (solo and multiplayer), European roulette (37-pocket wheel), and a three-reel slot machine---plus a four-tier AI bot system (easy, medium, hard, expert) for practice and entertainment. Each casino game is engineered with closed-form return-to-player (RTP) calculations: slots deliver $95.63\%$ RTP (house edge $4.37\%$), roulette delivers $97.297\%$ RTP (house edge $2.703\%$ per bet line), and blackjack approximates $99.3\%$ RTP under basic strategy. All outcomes are computed server-side, persisted to an immutable wallet ledger, and broadcast to clients via WebSocket; clients never ``decide'' results.
+
+The AI bot framework provides practice opponents across all four poker difficulty tiers. Bots participate in cash games (sit-and-go), tournament tables, and practice-only tables. They synthesize hand strength heuristics (normalized sigma), pot odds, stack pressure, and per-tier decision templates (bluff vs.\ value) to produce strategically coherent play. The expert tier optionally delegates to an external PyTorch model for advanced decision-making; on network failure, it gracefully reverts to the hard tier.
+
+\subsubsection{Architecture: authoritative server and real-time delivery}
+
+The casino subsystem follows the same authoritative server pattern as poker:
+
+\begin{enumerate}
+\item \textbf{Client submission}: player places a bet (blackjack, roulette, or slot spin) or bot decides action via WebSocket event (e.g.\ \texttt{PLACE\_ROULETTE\_BETS}, \texttt{SPIN\_SLOT}).
+\item \textbf{Server validation}: backend validates bet size, balance sufficiency, and game state consistency within a Prisma transaction.
+\item \textbf{Outcome computation}: server uses injected RNG (\path{server/src/rng/rng.service.ts}) to draw the outcome (roulette pocket, slot symbols, blackjack card); for bots, it calls \texttt{decideBotAction} with normalized hand strength.
+\item \textbf{Ledger recording}: a wallet ledger entry (\texttt{GAME\_WIN} or \texttt{GAME\_LOSS}) is created atomically with the balance update, capturing user ID, reason, amounts, and ISO timestamp.
+\item \textbf{WebSocket broadcast}: outcome is emitted to the player's room (e.g.\ \texttt{ROULETTE\_RESULT \{ pocket, payouts \}}) so the client renders the result without delay.
+\item \textbf{Snapshot persistence}: game state (dealer hand, final balances) is snapshotted to PostgreSQL for crash recovery.
+\end{enumerate}
+
+This architecture guarantees consistency: outcome and ledger entry commit together, or neither commits. Clients cannot force outcomes; they can only place bets and observe server decisions.
+
+\subsubsection{AI bot decision algorithm and complexity analysis}
+
+The core of the bot framework is the \textbf{normalized hand strength} (sigma) computation and multi-tier decision dispatch. Let the bot's visible cards (two to seven) yield a raw hand evaluation score $H$ via \texttt{getHandValue}. The code normalizes to the unit interval:
+\[
+\sigma = \min\Bigl(1,\,\max\bigl(0,\,\frac{H}{S_{\max}}\bigr)\Bigr),
+\quad
+S_{\max} = 9 \cdot 15^5 + 14 \cdot 15^4,
+\]
+where $S_{\max}$ is the theoretical best hand (straight flush with top kickers). This ensures $\sigma \in [0, 1]$ regardless of the board texture or number of opponents.
+
+The bot then dispatches to a tier-specific decision function:
+\[
+\texttt{decideBotAction}(\sigma, \texttt{potOdds}, \texttt{stackPressure}, \text{tier}) \to \{\texttt{FOLD}, \texttt{CALL}, \texttt{CHECK}, \texttt{RAISE}\}
+\]
+
+Each tier has distinct complexity:
+\begin{itemize}
+\item \textbf{Easy}: compares $\sigma$ to a fixed threshold; injects naive bluffs with probability $p_{\text{bluff}} = 0.15$ on free streets. Complexity: $\mathbf{O(1)}$.
+\item \textbf{Medium}: integrates pot odds $\text{callAmount} / (\text{potSize} + \text{callAmount})$; adjusts bluff frequency by position (button $p=0.20$, under-the-gun $p=0.08$). Complexity: $\mathbf{O(1)}$.
+\item \textbf{Hard}: maintains opponent hand range estimates (map of recent action patterns). Decision compares $\sigma$ against estimated opponent strength distribution. Complexity: $\mathbf{O(n)}$ where $n \le 8$ (number of opponents).
+\item \textbf{Expert}: HTTP POST to external model (\texttt{.../predict/poker}) with JSON payload (compact card encoding, street, stacks, position). Zod-validated response; timeout (default 2000\,ms) reverts to hard tier. Complexity: $\mathbf{O(1)}$ on the bot side (async); external model latency is hidden.
+\end{itemize}
+
+All tiers converge on the same sigma input, enabling principled interpolation from naive to advanced strategy. The hard tier's $O(n)$ opponent tracking is acceptable because $n$ is small (typical tables have 2--9 players).
+
+\subsubsection{Integration with poker and tournaments}
+
+Casino games are separate from the poker state machine but share the wallet ledger and user authentication. Bots can be inserted into poker cash games (via \path{server/src/routes/waitingRoom.routes.ts}) or tournament tables (via \path{server/src/tournament/tournamentTableFactory.ts}) by specifying a difficulty tier at table creation. The same bot decision logic applies; the only difference is the hand context (hole cards, board, position) provided by the GameTable or BlackjackTableController runtime.
+
+Full algorithmic details, RTP derivations, and per-tier heuristics are provided in Appendix~\ref{app:bots} (Bot AI), Appendix~\ref{app:bj} (blackjack), and Appendix~\ref{app:casino} (slots and roulette).
+
+\subsection{Rewards, Banking, and Transactions}
+\label{sec:rewards-banking}
+
+\subsubsection{Scope and architecture}
+
+The rewards and banking system orchestrates chip circulation, XP progression, and peer-to-peer lending across all game modes: poker cash games, casino games, tournaments, and social loans. All transactions are recorded immutably in a \textbf{wallet ledger} (\path{server/src/casino/services/walletLedger.service.ts}) with cryptographic integrity hashing (SHA-256), ensuring forensic auditability and regulatory compliance. The system enforces \textbf{server-side authority}---clients never compute balance changes; they request actions and receive confirmed outcomes via WebSocket. Every chip movement is atomic: ledger entry and balance update commit together via Prisma transactions, or neither commits.
+
+\subsubsection{Gamification: XP curves, levels, and badge unlocks}
+
+Player progression is governed by accumulated experience points (XP) and a deterministic level curve. The core formula is:
+
+\[
+\text{XP threshold for level } L = 50 \cdot L \cdot (L - 1), \quad L \in \{1, 2, \ldots, 99\}
+\]
+
+XP is awarded per action: poker (12 XP/hand + 20 bonus on win), blackjack (5 XP + 10 bonus), roulette/slots (4 XP + 8--10 bonus), tournaments (500 / 400 / 300 / 50 XP for placement). Badge unlocks are level-driven (10 tiers: novice→legend). Effective betting limits scale by level to prevent new players from wagering excessively: slot max bet grows from 500 to 5000 chips as level increases (capped at 25).
+
+\subsubsection{Wallet ledger and atomic transactions}
+
+Every chip movement---game win/loss, loan disbursement, loan repayment, tournament prize---creates an immutable \texttt{WalletLedgerEntry} row in PostgreSQL. Fields include: userId, reason (e.g.\ \texttt{GAME\_WIN}, \texttt{TOURNAMENT\_PRIZE}, \texttt{LOAN\_FUNDED\_OUT}), amount, balanceBefore / balanceAfter, roundId (for traceability), integrityHash (SHA-256 of all fields + versions), and settlementState (\texttt{SETTLED} or \texttt{PENDING}). For a casino game, the sequence is: (1)~validate bet size and balance, (2)~compute RNG outcome, (3)~within \texttt{prisma.\$transaction}: update \texttt{User.chips}, create ledger entry, compute integrity hash. This guarantees that ledger and balance are always synchronized.
+
+\subsubsection{Tournament rewards and peer loans}
+
+Tournament prize pools sum all entry fees (typically 10\% of initial stack). Winners receive the pool; all participants receive placement-based XP. Reward grants are idempotent via a \texttt{TournamentRewardLedger} unique constraint, enabling crash recovery. Peer-to-peer loans between friends specify a principal $P$ and repayment rate $r\% \in \{10, 15, \ldots, 50\}$. The system converts $r$ to an annual interest via a lookup table (e.g.\ 10\% repayment → 30\% interest). When the borrower wins chips, the server automatically diverts a slice to the lender: $\text{slice} = \min(\text{remaining due}, \lfloor \text{grossWin} \cdot (r/100) \rfloor)$, capped at the amount owed. Repayment is mandatory; the loan settles atomically. Constraints: borrower and lender must be friends, borrower can have at most one active loan, lender must have sufficient chips at acceptance, rate-limited to 40 operations per 10 minutes.
+
+\subsubsection{Integration with daily challenges and login streaks}
+
+Daily challenges and login streaks (separate modules in \path{server/src/dailyChallenges/}, \path{server/src/dailyLogin/}) award XP using the same \texttt{awardXp} function, feeding into the gamification bundle. Client displays these in \path{/profile} and \path{/leaderboard} routes.
+
 \section{System Architecture}
 \label{sec:architecture}
 
@@ -588,6 +672,15 @@ He also contributed significantly to responsive design improvements on mobile de
 
 In addition, he participated in Git integration, merge request validation and final testing sessions before deployment. His work helped improve the overall reliability, usability and quality of the final version of Quantum Bluff.
 
+\subsection{Azra}
+
+
+Azra contributed to the Quantum Bluff project on several technical and visual aspects of development. She helped structure the backend architecture by modeling the game's main entities in TypeScript, as well as developing the card management engine and certain distribution rules inspired by classic casino mechanics. She also participated in configuring the tournament system and its associated rules.
+
+On the front end, she worked on the graphic design of several elements of the project, including playing cards and some mini-game interfaces such as roulette and slot machines. She also contributed to improving the application's accessibility by integrating a colorblind mode and fixing responsive design issues on the multiplayer interfaces.
+
+Finally, she contributed to several user experience features, such as daily login rewards, the free virtual token recharge system, and promotional codes. She also played a significant role in the testing, bug fixing, and overall stability improvement phases of the project before its production launch.
+
 \subsection{Other contributors}
 
 The repository does not contain signed-off, per-person effort logs, story point assignments, or validated textual attributions beyond the narratives above for Omar and Yigit. To satisfy examination requirements, the table below must still be \textbf{completed and countersigned by the team} for remaining members (replace placeholder cells).
@@ -685,6 +778,35 @@ matching the encoding used by \path{server/src/logic/Evaluator.ts}. Each difficu
 \subsection{Dispatch surface}
 
 \texttt{decideBotAction} in \path{server/src/logic/botAI.ts} switches on \texttt{difficulty} and routes to \texttt{easyBotDecision}, \texttt{mediumBotDecision}, \texttt{hardBotDecision}, or \texttt{expertBotDecision}. The HTTP layer (\path{server/src/services/botAi.service.ts}) may intercept \texttt{expert} to call an external model first.
+
+\subsection{Decision dispatch and bot tier routing}
+
+The function \texttt{decideBotAction}(\texttt{sigma}, \texttt{potOdds}, \texttt{stackPressure}, \texttt{difficulty}) accepts the normalized hand strength and situation parameters, then switches to the appropriate tier:
+\begin{verbatim}
+decideBotAction(sigma, potOdds, stackPressure, difficulty) {
+  switch (difficulty) {
+    case 'easy': return easyBotDecision(sigma, potOdds);
+    case 'medium': return mediumBotDecision(sigma, potOdds, stackPressure);
+    case 'hard': return hardBotDecision(sigma, potOdds, stackPressure);
+    case 'expert': return expertBotDecision(...);
+  }
+}
+\end{verbatim}
+Each function returns \texttt{FOLD}, \texttt{CALL}, \texttt{CHECK}, or \texttt{RAISE} with an optional raise amount. For the expert tier, the HTTP layer (\path{server/src/services/botAi.service.ts}) may intercept and call an external model first; on timeout or failure, it reverts to hard tier.
+
+\subsection{Bot tier specifics and complexity}
+
+\paragraph{Easy tier.}
+Strategy: fixed bluff probability on free streets (check or bet with zero cost to call); calls liberally with $\sigma \ge 0.3$. Decision logic: \texttt{if } $\sigma >$ \texttt{threshold, return RAISE; else FOLD}. Complexity: $\mathbf{O(1)}$ constant-time decision.
+
+\paragraph{Medium tier.}
+Strategy: integrates pot odds into sigma; compares $\sigma$ to the call-to-pot ratio $\texttt{callAmount} / (\texttt{potSize} + \texttt{callAmount})$. Bluff frequency adjusts by position (button more aggressive at $p_{\text{bluff}} = 0.20$; under the gun more conservative at $p = 0.08$). Complexity: $\mathbf{O(1)}$ constant-time.
+
+\paragraph{Hard tier.}
+Strategy: adds opponent hand range tracking; maintains a map of recent player actions (check, call, raise) to infer strength ranges. Decision compares $\sigma$ against estimated opponent strength distribution via weighted averages. Complexity: $\mathbf{O(n)}$ where $n \le 8$ is the number of tracked opponents (typical tables have 2--9 players).
+
+\paragraph{Expert tier.}
+Strategy: delegates to external PyTorch model via HTTP POST. Payload includes compact card encoding, current street, stacks, pot size, and position. Fallback to hard tier if service unavailable or timeout (default 2000\,ms). Complexity: $\mathbf{O(1)}$ on the bot side (HTTP call is async); external model inference latency is hidden from the decision.
 
 \subsection{Expert tier: optional Python service}
 
@@ -816,7 +938,23 @@ with the remainder distributed one seat at a time (see implementation). \path{as
 
 \subsection{Solo blackjack engine}
 
-Authoritative rules are implemented in \path{server/src/logic/blackjack.ts}. The server uses a six-deck shoe (\texttt{DECKS = 6}), shuffled in-place with Fisher--Yates (\texttt{shuffleShoe}). Card values follow standard rules: faces and tens count as $10$, aces count as $11$ when possible without exceeding $21$, otherwise as $1$. The dealer draws until the hard/soft total is at least $17$; because aces are valued optimistically, the dealer \textbf{stands on soft 17} (e.g.\ A+6). Natural blackjack pays a $3{:}2$ bonus on the stake (implemented as integer chip rounding per \path{intChips}); other wins pay $1{:}1$; pushes return the stake. Double down is permitted only with exactly two player cards and issues one extra card.
+Authoritative rules are implemented in \path{server/src/logic/blackjack.ts}. The server uses a six-deck shoe (\texttt{DECKS = 6}), shuffled in-place with Fisher--Yates (\texttt{shuffleShoe}). Card values follow standard rules: faces and tens count as $10$; aces count as $11$ when possible without exceeding $21$, otherwise as $1$. The dealer \textbf{stands on soft 17} (e.g.\ ace-six totaling $17$) and draws on hard $17$ and below. Natural blackjack (ace plus ten-value card dealt as the initial hand) pays $3{:}2$ on the stake; all other wins pay $1{:}1$; pushes (tie) return the stake to the player. Double down is permitted on exactly two player cards and issues one additional card; no further draws after doubling. No surrender option.
+
+\subsubsection{Payout structure and expected value}
+
+Let the player's stake be $B$ chips. Outcomes and payouts:
+\begin{itemize}
+\item \textbf{Natural blackjack}: player receives stake $B$ plus winnings $1.5 B$ (total return: $2.5 B$).
+\item \textbf{Regular win}: player receives stake $B$ plus winnings $B$ (total return: $2 B$).
+\item \textbf{Push}: player receives stake $B$ (total return: $B$).
+\item \textbf{Loss}: player receives $0$ (total return: $0$).
+\end{itemize}
+
+Under proper basic strategy (not enforced by the server; the player may make suboptimal plays), the expected return to player is approximately $99.5\%$ against a single-deck game. With the server's six-deck shoe and no card counting, realistic RTP is approximately $99.3\%$. The exact value depends on the player's strategy deviations and bet sequencing.
+
+\subsubsection{State and recovery}
+
+Game state (dealer hand, player total, bet amount, action history) is persisted to PostgreSQL after each action via \path{server/src/blackjack/recovery/blackjackSnapshot.repository.ts}. In case of crash, the system reloads the snapshot and replays to restore the exact table state.
 
 \subsection{HTTP and multi-table surfaces}
 
@@ -907,6 +1045,35 @@ When several independent bet lines are placed on one spin, expectation adds acro
 
 Casino flows integrate with wallet/ledger helpers under \path{server/src/casino/} and \path{server/src/wallet/}. Additional narrative: \path{Docs/detail_logique/backend/05_roulette_moteur.md}, \path{Docs/detail_logique/backend/06_slot_moteur.md}, \path{Docs/final_report/ROULETTE.adoc}.
 
+\subsection{RNG injection and deterministic testing}
+
+All casino games use the RNG service (\path{server/src/rng/rng.service.ts}) for random draws. In production, the default is \texttt{crypto.randomInt}, providing cryptographic entropy from the OS. For testing and audit purposes, RNG is injectable: callers may pass a mock deterministic function (e.g.\ a seeded Mersenne Twister or constant sequence) to verify game logic without randomness. This allows unit tests to assert exact payout sequences and simplifies debugging of edge cases.
+
+\subsection{Ledger integration and fairness guarantees}
+
+Every casino outcome (slot spin, roulette pocket, blackjack result) is recorded atomically in the wallet ledger (\path{server/src/casino/services/walletLedger.service.ts}) with an immutable entry tagged \texttt{GAME\_WIN} or \texttt{GAME\_LOSS}, including:
+\begin{itemize}
+\item \texttt{userId}: the player
+\item \texttt{reason}: e.g.\ \texttt{SLOT\_WIN}, \texttt{ROULETTE\_LOSS}
+\item \texttt{balanceBefore}, \texttt{balanceAfter}: chip ledger state
+\item \texttt{amount}: net gain or loss in chips
+\item \texttt{gameType}: \texttt{'casino'}
+\item \texttt{roundId}: unique game identifier (spin ID / hand ID)
+\item \texttt{createdAt}: ISO timestamp
+\end{itemize}
+
+All ledger updates are wrapped in Prisma transactions; balance updates and ledger inserts occur atomically or not at all. This immutable audit trail enables forensic analysis, chargeback investigation, and regulatory compliance.
+
+\subsection{Anti-cheat and outcome validation}
+
+The server validates outcome feasibility before crediting:
+\begin{itemize}
+\item Slot bets must satisfy \texttt{SLOT\_MIN\_BET} $ \le \texttt{bet} \le$ \texttt{SLOT\_MAX\_BET}.
+\item Roulette bets must respect \texttt{ROULETTE\_MAX\_BET\_CAP} per line and \texttt{ROULETTE\_MAX\_TOTAL\_STAKE} per spin.
+\item Blackjack bets must be consistent between initial bet and any double-down.
+\end{itemize}
+Client-side display receives only the outcome, never the pre-draw state or seed; clients cannot manipulate outcomes. WebSocket messages are validated and timestamped server-side; replay attacks are mitigated by idempotent action IDs.
+
 \section{Social graph, invitations, and peer loans}
 \label{app:social}
 
@@ -928,6 +1095,31 @@ Shared rules in \path{server/src/logic/gamification.ts} (XP curves, badge trigge
 \subsection{Further reading}
 
 \path{Docs/detail_logique/backend/10_gamification_moteur.md}.
+
+\section{Rewards, Banking, and Transactions}
+\label{app:rewards}
+
+\subsection{Gamification: XP curves, levels, and badge unlocks}
+
+The core XP formula is:
+
+\[
+\text{XP threshold for level } L = 50 \cdot L \cdot (L - 1), \quad L \in \{1, 2, \ldots, 99\}
+\]
+
+Implementation in \path{server/src/logic/gamification.ts}. XP awards per game mode: poker (hand vs.\ bot: 12 XP + 20 bonus on win; showdown vs.\ human: 35 XP win / 10 loss), blackjack (5 XP + 10 bonus on win), roulette/slots (4 XP + 8--10 bonus on win), tournaments (500 / 400 / 300 / 50 XP per placement). Badge unlocks are level-driven: 10 tiers (novice→legend) defined in \texttt{BADGE\_CATALOG}. Level-gated betting limits: slot max bet scales from 500 to 5000 chips (capped at level 25); blackjack fixed at 1000; roulette per-line at 500, total stake 3000. Enforcement functions: \texttt{getEffectiveSlotMaxBet}, \texttt{getEffectiveBlackjackMaxBet}, \texttt{getEffectiveRouletteMaxPerLine}.
+
+\subsection{Wallet ledger: immutable transaction record}
+
+Every chip movement (game win/loss, loan disbursement, tournament prize) creates an immutable \texttt{WalletLedgerEntry} row in PostgreSQL (\path{server/src/casino/services/walletLedger.service.ts}). Fields: userId, reason (e.g.\ \texttt{GAME\_WIN}, \texttt{TOURNAMENT\_PRIZE}, \texttt{LOAN\_REPAYMENT\_IN}), amount, balanceBefore / balanceAfter, roundId, actionId, gameType, integrityHash (SHA-256 of all fields + version numbers), settlementState (\texttt{SETTLED} or \texttt{PENDING}), createdAt. All ledger updates are wrapped in Prisma transactions; balance updates and ledger inserts occur atomically or not at all. Integrity hash allows forensic verification: any tampering invalidates the hash.
+
+\subsection{Tournament rewards and peer loans}
+
+Tournament prize pools sum all entry fees (typically 10\% of initial stack). Winner receives the pool as a single ledger entry (\texttt{TOURNAMENT\_PRIZE}); all participants receive placement-based XP. Reward grants are idempotent via \texttt{TournamentRewardLedger} unique constraint (\path{server/src/tournament/tournament.reward.service.ts}), enabling crash recovery. Peer-to-peer loans between friends specify principal $P$ and repayment rate $r\% \in \{10, 15, 20, 25, 30, 40, 50\}$ (see \path{server/src/logic/friendLoan.interest.ts}). System converts $r$ to annual interest via lookup table: 10\%→30\%, 15\%→24\%, 20\%→18\%, 25\%→14\%, 30\%→10\%, 40\%→7\%, 50\%→5\%. When borrower wins chips, server automatically diverts slice to lender: $\text{slice} = \min(\text{remaining\_due}, \lfloor \text{grossWin} \cdot (r/100) \rfloor)$. Repayment is mandatory; loan settles atomically. Constraints (enforced in \path{server/src/services/friendLoan.service.ts}): borrower and lender must be friends, borrower can have at most one active loan, lender must have sufficient chips at acceptance, max one pending request between same pair, rate-limited to 40 operations per 10 minutes.
+
+\subsection{Further reading}
+
+\path{Docs/detail_logique/backend/10_gamification_moteur.md} (XP and badge mechanics). \path{server/src/logic/friendLoan.interest.ts}, \path{server/src/routes/friendLoan.routes.ts}, \path{server/src/services/friendLoan.service.ts} (peer loan implementation).
 
 \section{Authentication, profiles, and i18n}
 \label{app:auth}
