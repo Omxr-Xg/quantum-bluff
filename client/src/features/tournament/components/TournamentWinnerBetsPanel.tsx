@@ -31,6 +31,7 @@ import {
 } from "../../../utils/userProfile";
 import { useToast } from "../../../contexts/ToastContext";
 import { ImageWithFallback } from "../../../components/figma/ImageWithFallback";
+import { useSocket } from "../../../hooks/useSocket";
 
 type Props = {
   tournamentId: string;
@@ -75,6 +76,7 @@ export function TournamentWinnerBetsPanel({
 }: Props) {
   const { t } = useTranslation();
   const { addToast } = useToast();
+  const { socket } = useSocket();
   const [pool, setPool] = useState<TournamentBetPoolSnapshot | null>(null);
   const [myBets, setMyBets] = useState<MyTournamentBetRow[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -114,6 +116,45 @@ export function TournamentWinnerBetsPanel({
     void reloadPool();
     void reloadMine();
   }, [reloadPool, reloadMine, refreshKey]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const joinTournamentRoom = () => {
+      if (socket.connected) {
+        socket.emit("JOIN_TOURNAMENT_ROOM", { tournamentId });
+      }
+    };
+
+    const onPoolUpdated = (payload: {
+      tournamentId?: string;
+      pool?: TournamentBetPoolSnapshot | null;
+    }) => {
+      if (payload?.tournamentId !== tournamentId) return;
+      if (payload.pool) {
+        setPool(payload.pool);
+      } else {
+        void reloadPool();
+      }
+      void reloadMine();
+    };
+
+    const onBetsResolved = (payload: { tournamentId?: string }) => {
+      if (payload?.tournamentId !== tournamentId) return;
+      void reloadPool();
+      void reloadMine();
+    };
+
+    joinTournamentRoom();
+    socket.on("connect", joinTournamentRoom);
+    socket.on("TOURNAMENT_WINNER_BET_POOL_UPDATED", onPoolUpdated);
+    socket.on("TOURNAMENT_WINNER_BETS_RESOLVED", onBetsResolved);
+    return () => {
+      socket.off("connect", joinTournamentRoom);
+      socket.off("TOURNAMENT_WINNER_BET_POOL_UPDATED", onPoolUpdated);
+      socket.off("TOURNAMENT_WINNER_BETS_RESOLVED", onBetsResolved);
+    };
+  }, [socket, tournamentId, reloadPool, reloadMine]);
 
   /* Marché fermé localement quand le tournoi est terminé/annulé.
    * Le serveur applique aussi son propre verrou : ceinture + bretelles. */
