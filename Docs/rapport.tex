@@ -521,6 +521,16 @@ Daily challenges and login streaks (separate modules in \path{server/src/dailyCh
 
 The repository splits into \path{client/} (Vite SPA), \path{server/} (Express + Socket.IO gateway), and \path{database/} (local Postgres). Client bootstraps providers in \path{client/src/main.tsx} and routes in \path{client/src/App.tsx}. Server composes middlewares and REST mounts in \path{server/src/index.ts}, then attaches \path{server/src/sockets/game.gateway.ts} to the HTTP server. Appendix~\ref{app:map} provides the repository map.
 
+\subsection{Central architectural model}
+
+Quantum Bluff is organized around a \textbf{layered authoritative architecture}. The React client is responsible for navigation, rendering, forms, local interaction state and immediate feedback. It never owns final gameplay decisions: poker actions, casino outcomes, tournament progression, wallet movements, hidden-bet settlement and rewards are all validated and applied on the server.
+
+The backend is split into two entry surfaces. REST endpoints handle durable commands such as authentication, profile updates, wallet-related operations, tournament creation, social actions and history queries. Socket.IO handles live interactions such as joining tables, submitting turn actions, broadcasting sanitized snapshots, notifying tournament assignments and updating social presence. Both surfaces share the same identity model: JWT verification, role separation, suspension checks, rate limits and domain-level validation.
+
+Behind these entry points, domain services isolate the main responsibilities: poker and cash-game rules, blackjack tables, casino mini-games, tournament orchestration, hidden bets, social features, rewards and wallet accounting. Persistent state is stored in PostgreSQL through Prisma, while Redis is used for short-lived coordination: token blacklist, rate limiting, Socket.IO horizontal broadcasting and operational fallbacks. This separation keeps the system readable: UI code displays state, gateway code routes events, domain services enforce rules, and the database remains the source of truth for identity, balances, history and audit trails.
+
+Appendix~\ref{app:architecture} provides the full architecture diagram; Appendix~\ref{app:db} shows the relational data model behind the persistence layer.
+
 \subsection{Structured tournaments (outline)}
 
 Multi-table Texas Hold'em tournaments are \textbf{first-class server domain}: Prisma-backed registration and fees (\path{server/src/tournament/tournament.service.ts}), a periodic \textbf{scheduler} that auto-starts due events (\path{server/src/tournament/tournament.scheduler.ts}), runtime orchestration that builds bracket rounds and assigns \texttt{GameTable} instances (\path{server/src/tournament/tournament.runtime.service.ts}), deterministic \textbf{table splitting} and re-seating (\path{server/src/tournament/bracket/}), winner-bet settlement (\path{server/src/tournament/winnerBets/}), and boot-time \textbf{recovery} (\path{server/src/tournament/tournament.recovery.service.ts}). The client module \path{client/src/features/tournament/} binds waiting room, in-tournament play, results, and ZipRush. Exact bracket arithmetic, RNG seeding, and coverage metrics are in Appendices~\ref{app:tournament} and~\ref{app:coverage}.
@@ -606,7 +616,7 @@ The persistence layer is relational PostgreSQL accessed through Prisma. Represen
 
 \subsection{Diagram}
 
-Figure~\ref{fig:flow} shows a \textbf{runtime flow diagram} (logical path, not deployment topology). For more detail, see \path{docs/ARCHITECTURE.md}, Appendix~\ref{app:map}, and Appendix~\ref{app:realtime}.
+Figure~\ref{fig:flow} shows a \textbf{runtime flow diagram} (logical path, not deployment topology). For more detail, see \path{docs/ARCHITECTURE.md}, Appendix~\ref{app:map}, Appendix~\ref{app:architecture}, and Appendix~\ref{app:realtime}.
 
 \begin{figure}[htbp]
 \centering
@@ -894,6 +904,128 @@ The team thanks \textbf{Jason Golda} for academic supervision of this L3 capston
 \subsection{Programmed routing and shell}
 
 Client routes are declared in \path{client/src/App.tsx}: public splash and auth (\path{/}, \path{/auth}, \path{/auth/admin}); authenticated gameplay and hub routes under \path{ProtectedRoute} with \path{Layout} (lobby, poker, blackjack, tournaments, mini-games, profile, friends, admin console). Admin routes use \path{AdminProtectedRoute}. Global providers stack in \path{client/src/main.tsx} (error boundary, loader, Redux, toasts, user, socket, Quantum HUD, hidden bets, audio) with an additional nested loader/invitation shell in \path{App.tsx}. Server REST mounts, rate-limit tiers, and health/metrics endpoints are wired in \path{server/src/index.ts}. A narrative overview also exists in \path{docs/ARCHITECTURE.md}.
+
+\section{Architecture diagram}
+\label{app:architecture}
+
+\subsection{Layered runtime architecture}
+
+Figure~\ref{fig:appendix-architecture} summarizes the logical architecture used by Quantum Bluff. The important design rule is separation of responsibility: the client renders and sends intentions; the backend authenticates, validates and applies rules; domain services execute game and economy logic; PostgreSQL and Redis provide durable state and coordination.
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  x=1cm,
+  y=1cm,
+  box/.style={
+    rectangle,
+    rounded corners=2mm,
+    draw=HeadingRule,
+    fill=blue!5,
+    align=center,
+    minimum width=3.7cm,
+    minimum height=1.0cm,
+    font=\small
+  },
+  svc/.style={
+    rectangle,
+    rounded corners=2mm,
+    draw=black!55,
+    fill=gray!8,
+    align=center,
+    minimum width=3.2cm,
+    minimum height=0.9cm,
+    font=\scriptsize
+  },
+  data/.style={
+    rectangle,
+    rounded corners=2mm,
+    draw=green!45!black,
+    fill=green!8,
+    align=center,
+    minimum width=3.4cm,
+    minimum height=0.95cm,
+    font=\scriptsize
+  },
+  guard/.style={
+    rectangle,
+    rounded corners=2mm,
+    draw=orange!65!black,
+    fill=orange!10,
+    align=center,
+    minimum width=3.5cm,
+    minimum height=0.9cm,
+    font=\scriptsize
+  },
+  arrow/.style={-{Latex[length=2.5mm]}, thick},
+  event/.style={-{Latex[length=2.5mm]}, thick, dashed}
+]
+
+% Row 1: client surface
+\node[box, fill=cyan!8] (web) at (0,0) {\textbf{Web client}\\React 19 + Vite\\pages, components};
+\node[box, fill=cyan!8] (desktop) at (4.4,0) {\textbf{Desktop/mobile shells}\\Electron\\Capacitor};
+\node[box, fill=cyan!8] (state) at (8.8,0) {\textbf{Client state}\\RTK Query\\contexts, i18n};
+
+% Row 2: transport and edge
+\node[box, fill=orange!10] (rest) at (1.8,-1.7) {\textbf{REST API}\\\texttt{/api/*}\\commands, queries};
+\node[box, fill=orange!10] (socket) at (6.2,-1.7) {\textbf{Socket.IO}\\\texttt{/socket.io}\\live events};
+\node[guard] (edge) at (10.6,-1.7) {\textbf{Backend edge}\\JWT, CORS, Helmet\\rate limits};
+
+% Row 3: gateway and domain services
+\node[box, fill=blue!12] (express) at (1.0,-3.4) {\textbf{Express}\\routers\\middlewares};
+\node[box, fill=blue!12] (gateway) at (5.1,-3.4) {\textbf{Game gateway}\\rooms, timers\\snapshots};
+\node[svc] (auth) at (9.2,-3.4) {Auth / profile\\TOTP, avatars\\admin checks};
+
+\node[svc] (poker) at (0,-5.0) {Poker engine\\GameTable\\cash tables};
+\node[svc] (casino) at (3.2,-5.0) {Casino engines\\blackjack\\slots, roulette};
+\node[svc] (tournaments) at (6.4,-5.0) {Tournaments\\brackets\\winner bets};
+\node[svc] (social) at (9.6,-5.0) {Social / rewards\\friends, loans\\XP, ledger};
+
+% Row 4: data and infrastructure
+\node[data] (pg) at (1.6,-6.8) {\textbf{PostgreSQL}\\Prisma schema\\durable source of truth};
+\node[data] (redis) at (5.6,-6.8) {\textbf{Redis}\\blacklist, rate limits\\Socket.IO adapter};
+\node[data] (ops) at (9.6,-6.8) {\textbf{Operations}\\logs, metrics\\health, CI/CD};
+
+\draw[arrow] (web) -- (rest);
+\draw[arrow] (desktop) -- (rest);
+\draw[arrow] (state) -- (socket);
+\draw[arrow] (rest) -- (express);
+\draw[arrow] (socket) -- (gateway);
+\draw[arrow] (edge) -- (express);
+\draw[arrow] (edge) -- (gateway);
+\draw[arrow] (express) -- (auth);
+\draw[arrow] (gateway) -- (auth);
+\draw[arrow] (express) -- (poker);
+\draw[arrow] (gateway) -- (poker);
+\draw[arrow] (express) -- (casino);
+\draw[arrow] (gateway) -- (casino);
+\draw[arrow] (gateway) -- (tournaments);
+\draw[arrow] (express) -- (social);
+\draw[arrow] (poker) -- (pg);
+\draw[arrow] (casino) -- (pg);
+\draw[arrow] (tournaments) -- (pg);
+\draw[arrow] (social) -- (pg);
+\draw[event] (edge) -- (redis);
+\draw[event] (gateway) -- (redis);
+\draw[event] (express) -- (ops);
+\draw[event] (gateway) -- (ops);
+\draw[event] (gateway.north) .. controls +(0,1.2) and +(0,-1.2) .. node[right, font=\scriptsize]{sanitized snapshots / notifications} (state.south);
+\end{tikzpicture}%
+}
+\caption{Layered architecture diagram: UI shells and client state, REST/Socket.IO transport, backend edge controls, domain services, PostgreSQL persistence, Redis coordination and operational monitoring.}
+\label{fig:appendix-architecture}
+\end{figure}
+
+\subsection{Reading the diagram}
+
+\begin{itemize}
+\item \textbf{Client layer}: renders the lobby, tables, profiles and modals; it caches state but does not decide outcomes or balances.
+\item \textbf{Transport layer}: REST carries durable commands and queries; Socket.IO carries low-latency gameplay and notification events.
+\item \textbf{Backend edge}: applies JWT identity, role separation, CORS/Helmet, rate limits and request validation before domain code runs.
+\item \textbf{Domain layer}: poker, blackjack, casino, tournament, social and reward services enforce rules and prepare database mutations.
+\item \textbf{Infrastructure layer}: PostgreSQL stores durable state, Redis coordinates short-lived distributed concerns, and operational hooks expose health, metrics and deployment feedback.
+\end{itemize}
 
 \section{Relational database model}
 \label{app:db}
