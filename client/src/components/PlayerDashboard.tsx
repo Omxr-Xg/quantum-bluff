@@ -96,7 +96,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   const isAllIn = maxRaise > 0 && raiseAmount >= maxRaise;
   const canRaise = isMyTurn && !actionsDisabled && !isLoading && !hasFolded && !hasActed && maxRaise > 0;
   const primaryActionButtonClass =
-    "min-w-0 flex-1 px-3 py-2.5 text-[0.8rem] lg:flex-none lg:min-w-[176px] lg:px-[2.2rem] lg:py-[1.1rem] lg:text-[1.1rem]";
+    "w-full px-3 py-2.5 text-[0.8rem] md:px-4 md:py-3 md:text-[0.85rem] xl:w-auto xl:flex-none xl:min-w-[176px] xl:px-[2.2rem] xl:py-[1.1rem] xl:text-[1.1rem]";
 
   useEffect(() => {
     setRaiseAmount((prev) => clampRaise(prev));
@@ -169,7 +169,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
   return (
     <div
       ref={ref}
-      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.2rem)] left-0 right-0 w-full transition-all duration-300 lg:bottom-12 ${
+      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.2rem)] left-0 right-0 w-full transition-all duration-300 md:bottom-6 xl:bottom-12 ${
         raisePopoverOpen || combinationsHelpOpen ? "z-[120]" : "z-40"
       } pointer-events-none`}
     >
@@ -211,7 +211,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
         <div className="flex flex-wrap justify-center items-end gap-2 xl:grid xl:grid-cols-[minmax(16rem,1fr)_auto_minmax(16rem,1fr)] xl:gap-5">
 
           {/* ACTION BUTTONS — Row 1 on mobile (full width), center column on desktop */}
-          <div className="w-full flex justify-center gap-1.5 xl:order-2 xl:w-auto xl:justify-self-center xl:gap-3">
+          <div className="w-full grid grid-cols-3 gap-1.5 xl:order-2 xl:flex xl:w-auto xl:justify-self-center xl:gap-3">
             <NeonButton
               onClick={onFold}
               disabled={actionsDisabled || !isMyTurn || isLoading || hasFolded || hasActed}
@@ -248,7 +248,7 @@ export const PlayerDashboard = forwardRef<HTMLDivElement, PlayerDashboardProps>(
             )}
 
             <div
-              className="relative flex-1 md:flex-none"
+              className="relative w-full xl:w-auto xl:flex-none"
               onMouseEnter={handleRaiseMouseEnter}
               onMouseLeave={handleRaiseMouseLeave}
             >
