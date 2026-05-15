@@ -1,3 +1,3 @@
 \contentsline {figure}{\numberline {1}{\ignorespaces Flux de données à travers la politique MLP expert (\texttt {ExpertPolicy}): 4 transformations linéaires successives, \textbf {196} neurones après la couche d'entrée (96+64+32+4), puis post-traitement métier avant réponse HTTP.}}{7}{figure.caption.10}%
 \contentsline {figure}{\numberline {2}{\ignorespaces Diagramme de flux décisionnel côté Node pour le niveau \texttt {expert} (orchestration \texttt {botAi.service.ts}, repli heuristique, durcissement).}}{8}{figure.caption.11}%
-\contentsline {figure}{\numberline {3}{\ignorespaces Flux d'exécution monorepo : interface $\rightarrow $ API / WebSocket $\rightarrow $ passerelle et services $\rightarrow $ données.}}{15}{figure.caption.12}%
+\contentsline {figure}{\numberline {3}{\ignorespaces Flux d'exécution monorepo : interface $\rightarrow $ API / WebSocket $\rightarrow $ passerelle et services $\rightarrow $ données.}}{19}{figure.caption.12}%

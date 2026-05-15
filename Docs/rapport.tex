@@ -385,6 +385,47 @@ Demo & Example and deal teaching routes & \path{/game-example}, \path{/game-deal
 A11y & Accessibility, table theming, ambient audio & \path{client/src/contexts/AccessibilityContext.tsx}, \path{TableThemeContext.tsx}, \path{MusicContext.tsx} & Appendix~\ref{app:map} \\
 \end{longtable}
 
+\subsection{Poker and Tournament System}
+\label{sec:poker-tournament}
+
+\subsubsection{Functional overview}
+
+The Poker Tournament System provides a complete competitive multiplayer experience: players register with entry fees (10\% of initial stack), are assigned to tournament tables via deterministic bracket generation, participate in elimination rounds, and receive placement-based rewards and XP. The tournament engine operates as a deterministic finite-state machine with four distinct phases: \texttt{REGISTRATION\_OPEN}, \texttt{STARTING}, \texttt{IN\_PROGRESS}, and \texttt{COMPLETED}. Tournament brackets are reproducible: identical player sets and seeds always generate identical table assignments through seeded Fisher--Yates shuffling.
+
+\subsubsection{Four-phase tournament lifecycle}
+
+\begin{center}
+\begin{tabular}{|l|p{6cm}|}
+\hline
+\textbf{Phase} & \textbf{Activities} \\
+\hline
+\texttt{REGISTRATION\_OPEN} & Players join and entry fees (10\% of stack) are deducted atomically. Fees accumulate into a centralized prize pool. Player state: \texttt{REGISTERED}. \\
+\hline
+\texttt{STARTING} & Bracket is generated deterministically. Player assignment is seeded and reproducible. Tables are dynamically sized (2--9 players each). Player state: \texttt{ACTIVE}. \\
+\hline
+\texttt{IN\_PROGRESS} & Multiple poker games execute concurrently at separate tables. Losers are eliminated and ranked. Winners advance to the next round. \\
+\hline
+\texttt{COMPLETED} & Final rankings determine XP rewards and prize distribution. All mutations are atomic via Prisma transactions. \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsubsection{Multi-pot settlement: fairness under all-in}
+
+A critical algorithm in tournament systems is fair pot distribution when players commit different chip amounts. Consider three players all-in at amounts 100, 150, 200. The pot must be split into \textit{main pot} (100 $\times$ 3 chips, eligible for all) and \textit{side pots} (50 $\times$ 2, then 50 $\times$ 1), ensuring no player receives chips they did not contribute. The algorithm operates as follows:
+
+\begin{enumerate}
+\item Extract unique bet levels in sorted order: $\{100, 150, 200\}$.
+\item For each level $\ell$, compute increment $\Delta_i = \ell_i - \ell_{i-1}$ and pool contribution $\Delta_i \times n_{\text{players}}$.
+\item Distribute each pool only among players who contributed at that level.
+\end{enumerate}
+
+This \textbf{deterministic splitting} ensures mathematical fairness across complex multi-way all-in scenarios. Implementation and proofs are in Appendix~\ref{app:tournament}.
+
+\subsubsection{Security and performance}
+
+Entry fees are deducted atomically within Prisma transactions, eliminating race conditions on balance. The seeded PRNG (Mulberry32, described in Appendix~\ref{app:tournament}) guarantees reproducible brackets from identical seeds. Action deduplication (composite key: handId + actionId) prevents duplicate chip mutations from packet retransmissions. Complete game snapshots are persisted to PostgreSQL after every action; on server restart, snapshots are restored and queued actions replayed to reconstruct state deterministically. Tournament bracket sizing adapts dynamically to player counts (2--9 per table); for 8 players, tables are $[4, 4]$; for 9, $[5, 4]$, and so on. See Appendix~\ref{app:tournament} for bracket arithmetic, RNG seeding, poker hand evaluation, and state recovery mechanics.
+
 \subsection{Casino Games and AI Bot Integration}
 \label{sec:casino-ai}
 
@@ -481,14 +522,75 @@ The repository splits into \path{client/} (Vite SPA), \path{server/} (Express + 
 Multi-table Texas Hold'em tournaments are \textbf{first-class server domain}: Prisma-backed registration and fees (\path{server/src/tournament/tournament.service.ts}), a periodic \textbf{scheduler} that auto-starts due events (\path{server/src/tournament/tournament.scheduler.ts}), runtime orchestration that builds bracket rounds and assigns \texttt{GameTable} instances (\path{server/src/tournament/tournament.runtime.service.ts}), deterministic \textbf{table splitting} and re-seating (\path{server/src/tournament/bracket/}), winner-bet settlement (\path{server/src/tournament/winnerBets/}), and boot-time \textbf{recovery} (\path{server/src/tournament/tournament.recovery.service.ts}). The client module \path{client/src/features/tournament/} binds waiting room, in-tournament play, results, and ZipRush. Exact bracket arithmetic, RNG seeding, and coverage metrics are in Appendices~\ref{app:tournament} and~\ref{app:coverage}.
 
 \subsection{Real-time communication}
+\label{sec:realtime}
 
 Real-time communication is implemented with Socket.IO on the \texttt{/socket.io} path. The design follows an \textbf{authoritative server} model: the browser can request an action, but the server decides whether the user is authenticated, whether the action is legal, how chips move, and which sanitized state each participant is allowed to see. This is essential for a poker platform, because private cards, turn order, pot resolution and hidden side bets must never be trusted to the client.
 
-The socket handshake uses the same identity model as the REST API. A player token is sent either through \texttt{handshake.auth.token} or through an \texttt{Authorization: Bearer ...} header, then validated by \path{server/src/middleware/socketAuth.middleware.ts} and the gateway-level checks in \path{server/src/sockets/game.gateway.ts}. The server verifies token revocation, JWT issuer/audience/type, role separation (admin tokens are rejected on player sockets), user existence, and active suspension status before attaching the authenticated user id to the socket. Once connected, each user joins a private room \texttt{user:\{userId\}} for targeted events such as invitations, tournament assignments, warnings, and social notifications.
+\subsubsection{Authentication and identity model}
 
-Game state synchronization is organized around Socket.IO rooms. A poker or blackjack table has its own room; lobby and tournament features use dedicated rooms or user-targeted emissions. On join and reconnect, the gateway sends a full sanitized snapshot instead of relying only on incremental events. For poker, active runtime controllers are stored through \path{server/src/shared/activeGames.ts}, while serializable table snapshots are pushed to \path{server/src/shared/pokerStateStore.ts}. For blackjack, recovery and snapshot logic is implemented under \path{server/src/blackjack/recovery/} and \path{server/src/blackjack/services/}. This makes the client resilient to refreshes, temporary disconnections and process-level recovery paths.
+The socket handshake uses the same identity model as the REST API. A player token is sent either through \texttt{handshake.auth.token} or through an \texttt{Authorization: Bearer ...} header, then validated by \path{server/src/middleware/socketAuth.middleware.ts} and the gateway-level checks in \path{server/src/sockets/game.gateway.ts}. The server verifies:
 
-Synchronization also protects confidentiality. The server computes a different snapshot depending on the receiving socket: a seated player receives their own private hand, while spectators or other players receive a sanitized view. Broadcast helpers such as \path{server/src/sockets/gameIo.registry.ts} and the gateway methods emit both legacy and current event names where needed (\texttt{GAME\_UPDATE}, \texttt{GAME\_STATE\_UPDATED}) so older UI flows remain compatible during refactors. Redis support extends Socket.IO to multi-instance deployments through \path{server/src/config/socketIoRedis.ts}; when Redis is unavailable, the application keeps a local fallback for development and degraded operation.
+\begin{enumerate}
+\item \textbf{Token existence}: missing tokens are rejected immediately.
+\item \textbf{Revocation status}: tokens present in the blacklist (e.g., after logout) are rejected.
+\item \textbf{JWT signature and claims}: token issuer, audience, and type are validated.
+\item \textbf{Role separation}: admin tokens are explicitly rejected; only player tokens are accepted.
+\item \textbf{User existence}: the user must exist in the database.
+\item \textbf{Suspension status}: if \texttt{user.bannedUntil > now}, the connection is terminated.
+\end{enumerate}
+
+Once authenticated, the socket stores the \texttt{userId} and the socket is added to a private room \texttt{user:\{userId\}} for targeted unicast events (invitations, tournament assignments, warnings, social notifications). User presence is tracked: \path{server/src/services/presence.service.ts} records online/offline status and current activity (e.g., ``playing poker'', ``idle''), enabling friend status broadcasts.
+
+\subsubsection{Room organization and broadcasting}
+
+Game state synchronization is organized around Socket.IO rooms with well-defined scopes:
+
+\begin{itemize}
+\item \textbf{Private user room}: \texttt{user:\{userId\}} — targeted unicast events (status changes, invitations).
+\item \textbf{Game tables}: \texttt{gameId} — all players and spectators at a poker or blackjack table.
+\item \textbf{Waiting rooms}: \texttt{roomId} — pre-game lobbies where players select stakes and await start.
+\item \textbf{Tournament rooms}: \texttt{tournament:\{tournamentId\}} — bracket announcements, eliminations, results.
+\item \textbf{Tournament lobby}: \texttt{TOURNAMENT\_LOBBY} — global tournament discovery and roster updates.
+\end{itemize}
+
+Broadcasting emits events to all sockets in a room via \texttt{io.to(room).emit(...)}. Targeted unicast uses \texttt{io.to(\texttt{`user:\{userId\}`}).emit(...)}. The gateway maintains backward compatibility by emitting both legacy (\texttt{GAME\_UPDATE}) and current (\texttt{GAME\_STATE\_UPDATED}) event names during refactors, allowing older client flows to remain functional.
+
+\subsubsection{Snapshot synchronization and reconnection resilience}
+
+On join and reconnect, the gateway sends a full sanitized snapshot instead of relying only on incremental events. This ensures that:
+
+\begin{enumerate}
+\item \textbf{Complete state}: even if a client missed events during a disconnect, it receives the full game state.
+\item \textbf{Deterministic view}: the snapshot is role-specific (player sees their private hand; spectator sees empty hand array).
+\item \textbf{Resumption}: the client can immediately resume play or spectating without state ambiguity.
+\end{enumerate}
+
+For poker, active runtime controllers are stored in-memory through \path{server/src/shared/activeGames.ts}, while serializable table snapshots are persisted to \path{server/src/shared/pokerStateStore.ts}. For blackjack, snapshots and recovery logic live under \path{server/src/blackjack/recovery/} and \path{server/src/blackjack/services/}. If a server restarts, the stored snapshots are reloaded and queued actions are replayed, reconstructing the exact state before the crash.
+
+\subsubsection{Confidentiality and role-based state views}
+
+The server computes a \textit{different} snapshot depending on the receiving socket. A seated player receives their own private hand, while spectators or other players receive a sanitized view:
+
+\begin{verbatim}
+snapshot.players = snapshot.players.map((player) => ({
+  ...player,
+  cards: (requestingUserId === player.id) ? player.cards : []
+}))
+\end{verbatim}
+
+This ensures no information leakage: folded hands remain hidden, private cards are visible only to their owner, and the client cannot craft a request to peek at other hands.
+
+\subsubsection{Distributed scaling with Redis pub/sub}
+
+Redis support extends Socket.IO to multi-instance deployments through \path{server/src/config/socketIoRedis.ts}. The Socket.IO adapter uses Redis as a pub/sub backbone:
+
+\begin{enumerate}
+\item \textbf{Pub client}: publishes events from one server instance.
+\item \textbf{Sub client}: subscribes to events from all other instances.
+\item \textbf{Room sync}: a room broadcast on instance A reaches all sockets in that room, even if they are connected to instance B or C.
+\end{enumerate}
+
+When Redis is unavailable, the application maintains a local fallback: broadcasts work only within the same instance, suitable for development and graceful degradation. Full implementation details, table locking, and anti-cheat patterns are in Appendix~\ref{app:realtime}.
 
 \subsection{Persistence and integrity}
 
@@ -532,6 +634,51 @@ The root script \texttt{npm run dev} (see \path{package.json}) launches PostgreS
 \subsection{Production and desktop delivery}
 
 VM-oriented deployment (Node, PostgreSQL, Redis, PM2), environment files, and Electron auto-update mechanics are described in \path{Docs/DEPLOY.md}. The pipeline builds runnable \textbf{container images} on \texttt{develop}, \texttt{main}, and \texttt{release/*} using \textbf{Kaniko}: each job runs \texttt{/kaniko/executor} with \texttt{--context} pointing to \path{server/}, \path{client/}, or (on \texttt{release/*} only) the Python AI bundle under \path{server/ai-service/}, authenticates to the GitLab registry via \texttt{/kaniko/.docker/config.json}, and pushes immutable SHA-tagged images plus rolling \texttt{:latest}, \texttt{:client-latest}, or \texttt{:ai-latest} aliases so the VM can \texttt{docker pull} without rebuilding from source on the host. Reverse-proxy samples appear under \path{nginx/} when applicable.
+
+\subsection{CI/CD pipeline and autonomous VM updates (GitLab Runner Shell mode)}
+
+The Quantum Bluff project uses a \textbf{multi-stage GitLab CI pipeline} (\path{.gitlab-ci.yml}) configured for \textbf{five stages}: verify (linting and unit tests), test-security (npm audit and Trivy scanning), build (transpilation), docker-build (Kaniko image construction), and deploy (staging and production).
+
+\subsubsection{Five pipeline stages}
+
+\paragraph{1. Verify:} On \texttt{develop} and \texttt{main} branches, \textbf{backend:verify} runs Jest tests with coverage in a PostgreSQL 15 service; \textbf{frontend:verify} runs Vitest on the client; \textbf{database:test} smoke-tests the database. On \texttt{feature/*} and \texttt{fix/*} branches, \textbf{backend:lint} performs lightweight linting only.
+
+\paragraph{2. Test-Security:} \textbf{security:npm} audits lockfiles for high/critical vulnerabilities; \textbf{security:trivy} scans the filesystem with Trivy (skipping \texttt{node\_modules}, \texttt{dist}, platform folders). Both allow failure to avoid blocking deployments.
+
+\paragraph{3. Build:} On \texttt{main} and \texttt{release/*}, \textbf{backend:build} generates Prisma client and transpiles to \texttt{server/dist/}; \textbf{frontend:build} bundles the Vite/React app to \texttt{client/dist/}.
+
+\paragraph{4. Docker-Build:} Kaniko builds three images: \textbf{docker:build} (backend tagged \texttt{:latest}), \textbf{docker:build:client} (frontend tagged \texttt{:client-latest} with \texttt{VITE\_API\_URL} build argument), and \textbf{docker:build:ai-service} (Python service, release/* only). All images are pushed to the GitLab Container Registry.
+
+\paragraph{5. Deploy:} \textbf{deploy:staging} automatically runs on \texttt{develop}; \textbf{deploy:production} requires manual approval on \texttt{main}.
+
+\subsubsection{GitLab Runner in Shell mode: the autonomous agent}
+
+The critical breakthrough that makes VM updates \textbf{fully autonomous} is a **GitLab Runner** installed directly on the deployment VM, configured in \textbf{Shell executor mode}. This solves the firewall constraint: the university's strict inbound policy blocks external connections to the VM. The Runner uses a \textbf{pull-based polling mechanism}:
+
+\begin{enumerate}
+\item \textbf{Polling:} Every 3 seconds, the Runner queries GitLab: "Are there new commits on \texttt{develop} or \texttt{main}?" instead of waiting for GitLab to push notifications inbound.
+\item \textbf{Tag-based routing:} The deploy jobs in \texttt{.gitlab-ci.yml} use the tag \texttt{runner-vm-quantum}, telling GitLab: "Only the Runner with this tag can execute these jobs." This ensures the job stays in the queue until the VM's Runner claims it.
+\item \textbf{Shell executor:} The Runner is configured with executor type \texttt{shell}, executing scripts directly on the VM. Docker socket access is granted via \texttt{sudo usermod -aG docker gitlab-runner}.
+\end{enumerate}
+
+\subsubsection{Automated deployment sequence}
+
+When the Runner claims a deploy job, it executes the shell script sequentially:
+
+\begin{enumerate}
+\item \textbf{Docker authentication:} \texttt{echo "\$CI\_REGISTRY\_PASSWORD" | docker login -u "\$CI\_REGISTRY\_USER" --password-stdin "\$CI\_REGISTRY"} — uses GitLab CI secrets to authenticate to the private registry.
+\item \textbf{Dynamic .env generation:} Reconstructs \texttt{.env} from secure GitLab variables (\texttt{\$JWT\_SECRET}, \texttt{\$DATABASE\_URL}), ensuring secrets never exist in source code.
+\item \textbf{Hot pull and restart:} \texttt{docker compose pull} fetches latest images, then \texttt{docker compose up -d --force-recreate} recreates containers with zero downtime.
+\item \textbf{Database migrations:} \texttt{npx prisma migrate deploy} applies schema changes automatically inside the backend container.
+\end{enumerate}
+
+\subsubsection{Zero-downtime updates and autonomous operation}
+
+The \texttt{--force-recreate} flag on \texttt{docker compose up} tears down and recreates containers without affecting load balancing or WebSocket connections. The result is \textbf{fully autonomous CI/CD}: every \texttt{git push} to \texttt{develop} automatically stages code within seconds; every merge to \texttt{main} with manual approval deploys to production. The Runner polls for work, retrieves encrypted secrets from GitLab, and applies updates entirely within the VM's local context—no manual SSH, no cron jobs, no webhook proxies.
+
+\subsubsection{Further reading}
+
+\path{.gitlab-ci.yml}, \path{Docs/DEPLOY.md}, \path{server/Dockerfile}, \path{client/Dockerfile}, \path{docker-compose.prod.yml}.
 
 \subsection{Electron and Capacitor artefacts}
 
@@ -903,6 +1050,157 @@ Live markets use tabulated decimal odds keyed by table parameters. For instance,
 \section{Tournaments and winner side bets}
 \label{app:tournament}
 
+\subsection{Poker hand evaluation and tournament algorithms}
+
+\subsubsection{Algorithm: Mulberry32 seeded PRNG}
+
+Tournament bracket reproducibility depends on deterministic pseudorandom number generation. The Mulberry32 algorithm (32-bit integer state) produces uniform random values in $(0,1)$:
+
+\begin{verbatim}
+export function mulberry32(seed: number): () => number {
+  return function () {
+    let t = (seed += 0x6d2b79f5)
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+\end{verbatim}
+
+\noindent Identical seeds generate identical sequences, enabling replay and testing. The magic constants (0x6d2b79f5, 0xffffffff masks, rotation widths 7, 15, 14) come from the published Mulberry32 recurrence and ensure good mixing properties across the 32-bit state space.
+
+\subsubsection{Algorithm: Fisher--Yates shuffle}
+
+Player assignment to tables uses Fisher--Yates shuffling seeded with Mulberry32:
+
+\begin{verbatim}
+export function shuffleWithRng<T>(arr: T[], rng: () => number): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+\end{verbatim}
+
+\noindent This produces an unbiased uniform shuffle in $O(n)$ time. Combined with the seeded PRNG, it guarantees that \texttt{(playerIds, tournamentSeed)} deterministically yields the same table layout, enabling reproducible testing and replay.
+
+\subsubsection{Algorithm: Tournament bracket builder}
+
+\begin{verbatim}
+export function buildOpeningRound(playerIds: string[], seed: number) {
+  const rng = mulberry32(seed >>> 0)
+  const shuffled = shuffleWithRng(playerIds, rng)
+  const sizes = computeTableSizesForRound(playerIds.length)
+  const tables = []
+  let offset = 0
+  for (let t = 0; t < sizes.length; t++) {
+    tables.push({
+      tableIndex: t,
+      playerIds: shuffled.slice(offset, offset + sizes[t]),
+    })
+    offset += sizes[t]
+  }
+  return { tables }
+}
+\end{verbatim}
+
+\noindent The bracket builder combines seeded randomness with dynamic table sizing to produce fair, reproducible initial assignments. Tables are sized to fit 2--9 players each; for example, 10 players distribute as $[5, 5]$, and 25 players as $[9, 9, 7]$.
+
+\subsubsection{Algorithm: Poker hand evaluation}
+
+Determining the best five-card hand from seven cards (two private + five community) without brute-force enumeration:
+
+\begin{verbatim}
+export function evaluateHand(sevenCards: Card[]): HandRanking {
+  const rankFreq = new Map<number, number>()
+  sevenCards.forEach(card => {
+    rankFreq.set(card.value, (rankFreq.get(card.value) ?? 0) + 1)
+  })
+  const suitCounts = sevenCards.reduce((acc, card) => {
+    acc[card.suit] = (acc[card.suit] ?? 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+  const isFlush = Object.values(suitCounts).some(count => count >= 5)
+  const sortedValues = [...new Set(sevenCards.map(c => c.value))]
+    .sort((a, b) => a - b)
+  const isStraight = checkConsecutive(sortedValues)
+  if (rankFreq.has(4)) return { name: 'Quads', rank: 8 }
+  if (rankFreq.has(3) && rankFreq.has(2))
+    return { name: 'Full House', rank: 7 }
+  if (isFlush) return { name: 'Flush', rank: 6 }
+  if (isStraight) return { name: 'Straight', rank: 5 }
+  // ... (continues with Three of a kind, Two pair, Pair, High card)
+}
+\end{verbatim}
+
+\noindent This O(n) algorithm runs once per hand showdown. By counting rank frequencies and suit occurrences, it avoids the combinatorial explosion of checking all $\binom{7}{5}=21$ five-card subsets.
+
+\subsubsection{Algorithm: Action deduplication cache}
+
+Network retransmissions and client retries may send the same action multiple times. Deduplication prevents duplicate chip mutations:
+
+\begin{verbatim}
+class ActionDedupCache {
+  private cache: Map<string, unknown> = new Map()
+  async process(handId: string, actionId: string,
+                processor: () => Promise<unknown>) {
+    const key = `${handId}:${actionId}`
+    if (this.cache.has(key)) {
+      return this.cache.get(key)
+    }
+    const result = await processor()
+    this.cache.set(key, result)
+    return result
+  }
+}
+\end{verbatim}
+
+\noindent The composite key \texttt{handId:actionId} uniquely identifies each player action. A cache hit returns the previous result without re-executing; a miss executes the processor and caches the result. This ensures idempotency: resending the same action produces the same outcome without doubling the effect.
+
+\subsubsection{Algorithm: Multi-pot settlement}
+
+When players go all-in at different amounts, a single pot is unfair. The algorithm computes side pots:
+
+\begin{verbatim}
+export function settlePots(players: Player[], winnerIds: string[]) {
+  const betLevels = [...new Set(
+    players.map(p => p.totalPutInThisHand ?? 0)
+  )].sort((a, b) => a - b)
+  const pots = []
+  let prevLevel = 0
+  for (const level of betLevels) {
+    const increment = level - prevLevel
+    pots.push({
+      amount: increment * players.length,
+      eligibleWinners: winnerIds
+    })
+    prevLevel = level
+  }
+  const distribution = {}
+  for (const pot of pots) {
+    const sharePerWinner = Math.floor(pot.amount / pot.eligibleWinners.length)
+    for (const winnerId of pot.eligibleWinners) {
+      distribution[winnerId] = (distribution[winnerId] ?? 0) + sharePerWinner
+    }
+  }
+  return distribution
+}
+\end{verbatim}
+
+\noindent Example: three players all-in at 100, 150, 200 chips. Bet levels are $\{100, 150, 200\}$. The main pot is $100 \times 3 = 300$ (all three eligible). Side pot 1 is $(150-100) \times 3 = 150$ (only the two who contributed 150+). Side pot 2 is $(200-150) \times 3 = 150$ (only the one who contributed 200). This ensures no player receives chips they didn't contribute.
+
+\subsubsection{Performance and correctness}
+
+\begin{itemize}
+\item Hand evaluation: $O(n)$ per showdown, $n=7$ cards.
+\item Bracket generation: $O(m \log m)$ for $m$ players (Fisher--Yates shuffle).
+\item Action deduplication: $O(1)$ cache lookup.
+\item Multi-pot settlement: $O(k)$ for $k$ unique bet levels (typically $k\le 3$).
+\item Memory: 2~KB per table, deterministic reproducibility via seeded RNG.
+\end{itemize}
+
 \subsection{Runtime architecture (layers)}
 
 \begin{enumerate}
@@ -929,9 +1227,252 @@ with the remainder distributed one seat at a time (see implementation). \path{as
 
 \path{buildOpeningRound} and \path{buildRoundFromSurvivors} in \path{TournamentBracketBuilder.ts} take a 32-bit integer \texttt{seed}. They derive a PRNG \texttt{mulberry32(seed)} producing $u_n\in(0,1)$ and apply Fisher--Yates shuffling so that the same \texttt{(playerIds, seed)} always yields the same table assignment (reproducible tests). The generator follows the published mulberry32 recurrence (32-bit integer state, \texttt{Math.imul} mixes, bitwise rotations) as in the source file; the returned uniform is $u = ((t\oplus(t\gg 14))\gg 0)/2^{32}$.
 
+\subsection{Real-time gameplay and tournament dataflow}
+
+The tournament orchestration interleaves with concurrent poker games as follows:
+
+\begin{enumerate}
+\item \textbf{Player action}: Client emits \texttt{PLAYER\_ACTION} (check, bet, fold, call, raise) via WebSocket.
+\item \textbf{Validation and deduplication}: Backend validates action legality (correct turn, sufficient chips, valid amount). Action deduplication cache (composite key: \texttt{handId:actionId}) prevents reprocessing on retransmission.
+\item \textbf{State mutation}: \texttt{GameTable} updates internal state (pot, street progression, elimination status).
+\item \textbf{Broadcast}: Server broadcasts sanitized \texttt{GAME\_STATE\_SYNC} to all table participants (hiding folded hands from non-showdown participants).
+\item \textbf{Hand resolution}: At showdown, \texttt{evaluateHand} determines the best five-card hand from each player's two private cards plus the five community cards.
+\item \textbf{Pot settlement}: \texttt{settlePots} distributes chips to winners, handling side pots from all-in amounts.
+\item \textbf{Wallet ledger}: Each chip movement is appended to the immutable \texttt{WalletLedgerEntry} table (player ID, reason, amount, balanceBefore/After, SHA-256 integrity hash).
+\item \textbf{Tournament elimination}: If a player's chip stack reaches zero, they are marked \texttt{ELIMINATED} and ranked based on elimination order.
+\item \textbf{Round advancement}: Once all concurrent tables at a round complete, \path{tournament.runtime.service.ts} calls \path{buildRoundFromSurvivors} to seed the next round and reassign survivors to new tables.
+\item \textbf{Final ranking}: When only one player remains, the tournament transitions to \texttt{COMPLETED}, prizes are distributed, and XP is awarded based on final ranking.
+\end{enumerate}
+
+This deterministic dataflow ensures consistency: identical player lineups, bet sequences, and RNG seeds always produce identical outcomes, enabling replay, testing, and fairness audits.
+
+\subsection{State recovery after crashes}
+
+The complete \texttt{GameState} snapshot is persisted to PostgreSQL after \textbf{every} action via \path{server/src/shared/pokerStateStore.ts}. The snapshot includes:
+
+\begin{itemize}
+\item Player stacks and positions.
+\item Community cards (or empty if pre-flop).
+\item Current bet amounts and pot.
+\item Action history (sequence of checks, bets, folds).
+\item Elimination order (if any).
+\item Deduplication cache (to prevent re-execution of actions).
+\end{itemize}
+
+On server restart or crash:
+
+\begin{enumerate}
+\item \textbf{Bootstrap}: \path{tournament.recovery.service.ts} loads the latest snapshot from PostgreSQL.
+\item \textbf{Replay}: Queued actions (e.g., in Redis or in-memory buffer) are replayed from the snapshot state in order, using the same hand evaluation, deduplication logic, and deterministic RNG.
+\item \textbf{Validation}: After replay, the server verifies that reconstructed balances match ledger checksums (SHA-256 integrity hashes).
+\item \textbf{Resume}: The tournament resumes from the exact state it left off, transparent to players.
+\end{enumerate}
+
+Deterministic RNG, deduplication caching, and full snapshot persistence together guarantee that the same sequence of player actions always produces the same chip distribution and ledger entries, enabling reliable recovery from any failure point.
+
 \subsection{Further reading}
 
 \path{Docs/intern/TOURNAMENT_FLOW_REAL_VS_EXPECTED.md}.
+
+\section{Real-Time Communication and WebSocket Architecture}
+\label{app:realtime}
+
+\subsection{JWT authentication middleware and token validation flow}
+
+Socket authentication occurs in \path{server/src/middleware/socketAuth.middleware.ts} during the Socket.IO handshake. The middleware extracts the JWT from either \texttt{socket.handshake.auth.token} or from the \texttt{Authorization: Bearer ...} header:
+
+\begin{verbatim}
+io.use((socket: AuthenticatedSocket, next) => {
+  const authToken = socket.handshake.auth?.token
+  const headerAuth = socket.handshake.headers?.authorization
+  const token = authToken ||
+    (typeof headerAuth === 'string' ? headerAuth.split(' ')[1] : undefined)
+
+  if (!token) return next(new Error('Token manquant'))
+
+  if (await isBlacklisted(token))
+    return next(new Error('Token révoqué'))
+
+  const decoded = verifyToken(token)
+
+  if (decoded.role === 'admin')
+    return next(new Error('Token joueur requis'))
+
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.userId },
+    select: { id: true, bannedUntil: true }
+  })
+
+  if (!user) return next(new Error('Session expirée'))
+  if (user.bannedUntil && user.bannedUntil > new Date())
+    return next(new Error('Compte suspendu'))
+
+  socket.userId = decoded.userId
+  next()
+})
+\end{verbatim}
+
+\noindent This checklist ensures that:
+
+\begin{enumerate}
+\item Missing tokens are rejected before JWT verification.
+\item Revoked tokens (e.g., after logout or password reset) deny access.
+\item Admin tokens cannot be used for regular gameplay (privilege separation).
+\item User records are still valid in the database.
+\item The user account is not under suspension.
+\item The socket is enriched with the authenticated \texttt{userId}.
+\end{enumerate}
+
+Once authenticated, the socket joins a private user room \texttt{user:\{userId\}} and the user is marked online via \path{server/src/services/presence.service.ts}. Subsequent user presence changes (activity updates, login/logout) trigger \texttt{FRIEND\_STATUS\_CHANGED} broadcasts to all online friends.
+
+\subsection{Room organization and state broadcasting patterns}
+
+Socket.IO rooms segment players, spectators, and administrative channels. The primary room types are:
+
+\paragraph{User room (\texttt{user:\{userId\}}):} Each authenticated user joins exactly one private room. Events emitted here include tournament assignments, friend requests, loan notifications, and presence updates. This ensures targeted unicast delivery without exposing events to other players.
+
+\paragraph{Game table room (\texttt{gameId}):} All players and spectators at a poker or blackjack table join this room. When a player takes an action (bet, check, fold), the server broadcasts the updated game state to all room participants via:
+
+\begin{verbatim}
+io.to(gameId).emit('GAME_STATE_UPDATED', sanitizedSnapshot)
+\end{verbatim}
+
+\noindent The snapshot is computed differently for each participant: seated players see their own hole cards, spectators see empty hand arrays, and opponents see folded hands as unavailable.
+
+\paragraph{Waiting room (\texttt{roomId}):} Lobbies where players select stakes and await game start. Room visibility (PUBLIC, PRIVATE, FRIENDS\_ONLY) is enforced: unauthorized users cannot join even if they craft a socket request.
+
+\paragraph{Tournament rooms (\texttt{tournament:\{tournamentId\}}, \texttt{TOURNAMENT\_LOBBY}):} Used for bracket announcements, round transitions, elimination notifications, and winner-bet settlements. Players can subscribe to specific tournaments they are registered in; the TOURNAMENT\_LOBBY broadcasts global roster updates.
+
+Broadcasting is \textbf{idempotent and safe}: if a client misses an event due to temporary disconnection, the next full snapshot will resynchronize state. Legacy event names (\texttt{GAME\_UPDATE}) and current names (\texttt{GAME\_STATE\_UPDATED}) are both emitted during transitions to maintain backward compatibility.
+
+\subsection{Snapshot synchronization and disconnection resilience}
+
+State recovery after temporary disconnection or page refresh relies on three mechanisms:
+
+\subsubsection{In-memory runtime state}
+
+Active games are stored in a runtime registry (\path{server/src/shared/activeGames.ts}), mapping \texttt{gameId} $\to$ \texttt{GameTable} or \texttt{CashGameController}. Each controller maintains the current hand state (player stacks, community cards, pot, action history). On reconnect, the gateway queries this registry to retrieve the latest state without database round-trips.
+
+\subsubsection{Serializable snapshots}
+
+For durability, snapshots are also pushed to a persistent store (\path{server/src/shared/pokerStateStore.ts}). These snapshots record the complete game state after every action, enabling recovery if the server process restarts:
+
+\begin{enumerate}
+\item Client sends action (e.g., bet 100 chips).
+\item Server validates action and updates runtime state.
+\item Server writes snapshot to PostgreSQL.
+\item Server broadcasts updated snapshot to all room participants.
+\item On reconnect, server loads the latest snapshot and resumes play.
+\end{enumerate}
+
+\subsubsection{Full snapshot on join/reconnect}
+
+Instead of relying on incremental event playback, the gateway immediately sends a full sanitized snapshot when a socket joins or reconnects:
+
+\begin{verbatim}
+const snapshot = game.getSanitizedState(requestingUserId, isSpectator)
+socket.emit('GAME_UPDATE', snapshot)
+socket.emit('GAME_STATE_UPDATED', snapshot)
+\end{verbatim}
+
+\noindent This ensures that any queued or missed events are superseded by a complete state refresh.
+
+\subsection{Table locking and action serialization}
+
+Concurrent player actions at the same table can cause race conditions (e.g., two players raising simultaneously, or a player betting and folding in the same tick). To prevent this, the gateway uses fine-grained table locks:
+
+\begin{verbatim}
+await withPokerTableLock(gameId, `cashbet:${userId}`, async () => {
+  await applyPokerAction({
+    gameId,
+    userId,
+    action: 'RAISE',
+    amount: 50
+  })
+})
+\end{verbatim}
+
+\noindent The lock key is \texttt{\{gameId\}:\{action\_type\}:\{userId\}}. While a lock is held:
+
+\begin{enumerate}
+\item All other actions on that game are queued.
+\item The current action executes atomically: state update + broadcast + ledger write.
+\item After release, the next queued action proceeds.
+\end{enumerate}
+
+This serialization ensures that chip mutations are atomic and ordered, preventing double-betting or race-condition exploits. Lock timeouts (e.g., 5 seconds) guard against deadlock if a handler crashes.
+
+\subsection{Anti-cheat monitoring and action deduplication}
+
+Player actions may be retransmitted due to network jitter or client retry logic. To prevent duplicate mutations, the gateway maintains an \textbf{action deduplication cache}:
+
+\begin{verbatim}
+class ActionDedupCache {
+  private cache: Map<string, unknown> = new Map()
+
+  async process(handId: string, actionId: string,
+                processor: () => Promise<unknown>) {
+    const key = `${handId}:${actionId}`
+    if (this.cache.has(key))
+      return this.cache.get(key)  // Cache hit: return previous result
+
+    const result = await processor()
+    this.cache.set(key, result)    // Cache miss: execute & store
+    return result
+  }
+}
+\end{verbatim}
+
+\noindent If a client resends the same action (same handId and actionId), the cache returns the previous outcome without re-executing the processor. This is crucial for ensuring idempotency: resending a bet does not cause double-deduction.
+
+The \texttt{AntiCheatMonitor} (in \path{server/src/utils/antiCheat.ts}) also tracks suspicious patterns:
+
+\begin{itemize}
+\item \textbf{Rapid action spam}: $>8$ actions within 3000 ms triggers a warning.
+\item \textbf{Turn timer violations}: if a player acts before the turn timer expires, or acts after a timeout, it is logged.
+\item \textbf{Impossible action combinations}: e.g., checking and then raising in the same action sequence.
+\item \textbf{Invalid amounts}: bets exceeding stack size or non-positive amounts.
+\end{itemize}
+
+Flagged actions are logged via \path{server/src/utils/securityLogger.js} for review; serious violations may trigger account suspension.
+
+\subsection{Redis pub/sub adapter for multi-instance deployments}
+
+When multiple server instances run behind a load balancer, Socket.IO alone cannot broadcast a room message from instance A to sockets connected to instance B. Redis bridges this gap:
+
+\subsubsection{Single instance (development fallback)}
+
+Without Redis, broadcasts reach only sockets on the current instance. Suitable for local development but insufficient for production.
+
+\subsubsection{Multi-instance with Redis}
+
+The Socket.IO Redis adapter (\path{server/src/config/socketIoRedis.ts}) creates dedicated pub/sub clients:
+
+\begin{verbatim}
+export function createSocketIoRedisClients() {
+  const pubClient = new Redis(redisUrl, {
+    retryStrategy: (times) => Math.min(times * 50, 2000),
+    maxRetriesPerRequest: 20
+  })
+  const subClient = pubClient.duplicate()
+
+  return { pubClient, subClient }
+}
+\end{verbatim}
+
+\noindent When instance A broadcasts to room \texttt{tournament:abc}, the Redis adapter:
+
+\begin{enumerate}
+\item Publishes a message to the Redis channel \texttt{socket.io\_tournament:abc}.
+\item All instances (A, B, C, \ldots) subscribe to this channel.
+\item Each instance forwards the message to its local sockets in that room.
+\end{enumerate}
+
+This enables seamless horizontal scaling: new instances can join the cluster without reconfiguring existing ones. Redis connection failures are handled gracefully: if Redis is unavailable, the application reverts to local-only broadcasting, preserving availability for existing clients.
+
+\subsection{Further reading}
+
+\path{server/src/sockets/game.gateway.ts}, \path{server/src/middleware/socketAuth.middleware.ts}, \path{server/src/config/socketIoRedis.ts}, \path{Docs/ARCHITECTURE.md}.
 
 \section{Blackjack solo and multiplayer}
 \label{app:bj}
