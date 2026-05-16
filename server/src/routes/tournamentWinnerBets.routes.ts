@@ -62,10 +62,12 @@ router.post('/:id/bets', authMiddleware, async (req, res) => {
       predictedWinnerUserId,
       stake,
     })
+    const pool = await getTournamentWinnerBetPool(req.params.id)
     const io = getIo(req)
     if (io) {
       io.to(`tournament:${req.params.id}`).emit('TOURNAMENT_WINNER_BET_POOL_UPDATED', {
         tournamentId: req.params.id,
+        pool,
       })
     }
     res.status(201).json({ ok: true, bet: result.bet, newBalance: result.newBalance })

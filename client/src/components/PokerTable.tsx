@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ChipIcon } from "./ChipIcon";
 import tableNappeImage from "../assets/nappe/NA1.png";
@@ -83,6 +83,26 @@ export function PokerTable({
   const isMobile  = deviceType === "mobile";
   const isTablet  = deviceType === "tablet";
 
+  // Detect portrait orientation for tablet (re-checks on resize/orientation change)
+  const [isPortrait, setIsPortrait] = useState(() =>
+    typeof window !== "undefined" ? window.innerHeight > window.innerWidth : true
+  );
+  useEffect(() => {
+    const onResize = () => setIsPortrait(window.innerHeight > window.innerWidth);
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+
+  // On tablet: portrait uses mobile-style layout, landscape uses desktop-style
+  const isTabletPortrait  = isTablet && isPortrait;
+  const isTabletLandscape = isTablet && !isPortrait;
+  // Use mobile positions on: mobile OR tablet-portrait
+  const useMobilePositions = isMobile || isTabletPortrait;
+
   // Positions calculées pour TOUS les sièges (même index = même position)
   const seatCountForLayout =
     typeof layoutSeatCount === "number" && layoutSeatCount > 0
@@ -90,7 +110,7 @@ export function PokerTable({
       : players.length > 0
         ? players.length
         : 1;
-  const allPositions = calculatePlayerPositions(seatCountForLayout, isMobile, isTablet);
+  const allPositions = calculatePlayerPositions(seatCountForLayout, useMobilePositions, isTabletLandscape);
 
   /**
    * Convertit des coordonnées px (relatives au centre, issues de calculatePlayerPositions)
@@ -125,8 +145,14 @@ export function PokerTable({
           maxWidth: "90vw",
           aspectRatio: "2 / 3",
           overflow: "visible",
-        } : isTablet ? {
-          width: "clamp(400px, 80vw, 700px)",
+        } : isTabletPortrait ? {
+          // Tablet portrait: taller table like mobile but slightly bigger
+          width: "min(78vw, 480px)",
+          aspectRatio: "2 / 3",
+          overflow: "visible",
+        } : isTabletLandscape ? {
+          // Tablet landscape: wide ellipse table, optimise horizontal space
+          width: "min(88vw, 860px)",
           aspectRatio: `${BASE_TABLE_WIDTH} / ${BASE_TABLE_HEIGHT}`,
           overflow: "visible",
         } : {
@@ -137,7 +163,7 @@ export function PokerTable({
       >
         {/* ─── TABLE ───────────────────────────────────────────────────────── */}
         <div
-          className={`relative w-full h-full overflow-hidden border-[clamp(3px,1vw,8px)] ${isMobile ? "rounded-[40%/25%]" : "rounded-full"}`}
+          className={`relative w-full h-full overflow-hidden border-[clamp(3px,1vw,8px)] ${(isMobile || isTabletPortrait) ? "rounded-[40%/25%]" : "rounded-full"}`}
           style={{
             backgroundImage: `${feltGradient}, url(${feltBackgroundUrl})`,
             backgroundSize: "cover, cover",
@@ -145,14 +171,14 @@ export function PokerTable({
             backgroundRepeat: "no-repeat, no-repeat",
             borderColor: feltBorder,
             borderStyle: "solid",
-            transform: `rotateX(${isMobile ? "20deg" : isTablet ? "22deg" : "25deg"})`,
+            transform: `rotateX(${(isMobile || isTabletPortrait) ? "20deg" : isTabletLandscape ? "22deg" : "25deg"})`,
             boxShadow:
               "inset 0 8px 24px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06), 0 12px 32px rgba(0,0,0,0.4)",
           }}
         >
           {/* Motif nappe — bord à bord sous le jeu */}
           <div
-            className={`pointer-events-none absolute inset-0 z-0 ${isMobile ? "rounded-[40%/25%]" : "rounded-full"}`}
+            className={`pointer-events-none absolute inset-0 z-0 ${(isMobile || isTabletPortrait) ? "rounded-[40%/25%]" : "rounded-full"}`}
             aria-hidden="true"
             style={{
               opacity: 0.14,
@@ -163,14 +189,14 @@ export function PokerTable({
           </div>
 
           {/* Community cards */}
-          <div className={`absolute z-10 ${isMobile ? 'top-[38%]' : 'top-[18%]'} left-1/2 -translate-x-1/2 flex justify-center`}>
+          <div className={`absolute z-10 ${(isMobile || isTabletPortrait) ? 'top-[38%]' : 'top-[18%]'} left-1/2 -translate-x-1/2 flex justify-center`}>
             {children}
           </div>
 
           {/* Cartes brûlées */}
           {burnedCardsCount > 0 && (
             <div
-              className={`absolute z-10 ${isMobile ? "right-[1%] top-[1%]" : "right-[2%] top-[15%]"} pointer-events-none`}
+              className={`absolute z-10 ${(isMobile || isTabletPortrait) ? "right-[1%] top-[1%]" : "right-[2%] top-[15%]"} pointer-events-none`}
               title={t("game.burned")}
               aria-label={t("game.burnedCount", { count: burnedCardsCount })}
             >
@@ -210,8 +236,10 @@ export function PokerTable({
             const pos = allPositions[player.position];
             if (!pos) return null;
 
-            const effectiveHalfWidth  = isMobile ? 190 : BASE_TABLE_WIDTH  / 2;
-            const effectiveHalfHeight = isMobile ? 250 : BASE_TABLE_HEIGHT / 2;
+            // Portrait (mobile or tablet-portrait): use mobile coordinate space (2/3 ratio)
+            // Landscape: use desktop coordinate space (950:420 ratio)
+            const effectiveHalfWidth  = useMobilePositions ? 190 : BASE_TABLE_WIDTH  / 2;
+            const effectiveHalfHeight = useMobilePositions ? 250 : BASE_TABLE_HEIGHT / 2;
             const xPct = toPercent(pos.x, effectiveHalfWidth);
             const yPct = toPercent(pos.y, effectiveHalfHeight);
             const isHeroSeat =
@@ -223,7 +251,7 @@ export function PokerTable({
               isHeroSeat || isHeroName || player.position === 0;
             const shouldReserveOpponentCards =
               !isHeroDisplay && player.position !== 0;
-            const displayName = isMobile ? player.name.slice(0, 10) : player.name;
+            const displayName = (isMobile || isTablet) ? player.name.slice(0, 12) : player.name;
             const actionLabel = player.hasFolded
               ? t("game.foldedLabel")
               : player.lastAction;
@@ -243,18 +271,24 @@ export function PokerTable({
               ? "w-[clamp(3.1rem,7vw,4.6rem)] h-[clamp(3.1rem,7vw,4.6rem)]"
               : isMobile
                 ? "w-[clamp(2rem,5vw,2.8rem)] h-[clamp(2rem,5vw,2.8rem)]"
-                : "w-[clamp(2.6rem,5vw,3.75rem)] h-[clamp(2.6rem,5vw,3.75rem)]";
+                : isTablet
+                  ? "w-[clamp(2.2rem,4vw,3.1rem)] h-[clamp(2.2rem,4vw,3.1rem)]"
+                  : "w-[clamp(2.6rem,5vw,3.75rem)] h-[clamp(2.6rem,5vw,3.75rem)]";
 
             return (
               <div
                 key={player.id}
                 className="absolute h-0 w-0 pointer-events-auto"
                 style={{
-                  left: isMobile
+                  left: (isMobile || isTabletPortrait)
                     ? `clamp(2%, calc(50% + ${xPct}%), 98%)`
+                    : isTabletLandscape
+                    ? `clamp(3%, calc(50% + ${xPct}%), 97%)`
                     : `calc(50% + ${xPct}%)`,
-                  top: isMobile
+                  top: (isMobile || isTabletPortrait)
                     ? `clamp(4%, calc(50% + ${yPct}%), 96%)`
+                    : isTabletLandscape
+                    ? `clamp(3%, calc(50% + ${yPct}%), 97%)`
                     : `calc(50% + ${yPct}%)`,
                   zIndex: player.position === 0 ? 20 : 10,
                 }}
@@ -377,14 +411,14 @@ export function PokerTable({
                                   key={index}
                                   className="relative origin-top transition-all duration-300"
                                   style={{
-                                    marginLeft: index > 0 ? (isMobile ? "3px" : "8px") : "0",
-                                    transform: `rotate(${index === 0 ? -5 : 6}deg)${isMobile ? "" : " scale(1.2)"}`,
+                                    marginLeft: index > 0 ? ((isMobile || isTabletPortrait) ? "3px" : "8px") : "0",
+                                    transform: `rotate(${index === 0 ? -5 : 6}deg)${(isMobile || isTabletPortrait) ? "" : " scale(1.2)"}`,
                                   }}
                                 >
                                   <PokerCard
                                     suit={card.suit}
                                     value={card.value}
-                                    size={isMobile ? "sm" : "md"}
+                                    size={isMobile ? "sm" : isTabletPortrait ? "sm" : "md"}
                                     colorblindMode={colorblindMode}
                                     highlight={Boolean(
                                       highlightCardKeys?.size &&

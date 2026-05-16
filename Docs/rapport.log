@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.2.13)  15 MAY 2026 00:45
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.2.13)  16 MAY 2026 18:52
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -293,24 +293,313 @@ LaTeX Info: Redefining \Relbar on input line 970.
 LaTeX Info: Redefining \[ on input line 2950.
 LaTeX Info: Redefining \] on input line 2951.
 )
-(c:/texlive/2025/texmf-dist/tex/latex/tools/longtable.sty
+(c:/texlive/2025/texmf-dist/tex/latex/amsfonts/amssymb.sty
+Package: amssymb 2013/01/14 v3.01 AMS font symbols
+
+(c:/texlive/2025/texmf-dist/tex/latex/amsfonts/amsfonts.sty
+Package: amsfonts 2013/01/14 v3.01 Basic AMSFonts support
+\symAMSa=\mathgroup4
+\symAMSb=\mathgroup5
+LaTeX Font Info:    Redeclaring math symbol \hbar on input line 98.
+LaTeX Font Info:    Overwriting math alphabet `\mathfrak' in version `bold'
+(Font)                  U/euf/m/n --> U/euf/b/n on input line 106.
+))
+(c:/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty
+(c:/texlive/2025/texmf-dist/tex/latex/pgf/basiclayer/pgf.sty
+(c:/texlive/2025/texmf-dist/tex/latex/pgf/utilities/pgfrcs.sty
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgfutil-common.tex
+\pgfutil@everybye=\toks29
+\pgfutil@tempdima=\dimen190
+\pgfutil@tempdimb=\dimen191
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgfutil-latex.def
+\pgfutil@abb=\box56
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgfrcs.code.tex
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/pgf.revision.tex)
+Package: pgfrcs 2025-08-29 v3.1.11a (3.1.11a)
+))
+Package: pgf 2025-08-29 v3.1.11a (3.1.11a)
+
+(c:/texlive/2025/texmf-dist/tex/latex/pgf/basiclayer/pgfcore.sty
+(c:/texlive/2025/texmf-dist/tex/latex/pgf/systemlayer/pgfsys.sty
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/systemlayer/pgfsys.code.tex
+Package: pgfsys 2025-08-29 v3.1.11a (3.1.11a)
+
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex
+\pgfkeys@pathtoks=\toks30
+\pgfkeys@temptoks=\toks31
+
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgfkeyslibraryfiltered.co
+de.tex
+\pgfkeys@tmptoks=\toks32
+))
+\pgf@x=\dimen192
+\pgf@y=\dimen193
+\pgf@xa=\dimen194
+\pgf@ya=\dimen195
+\pgf@xb=\dimen196
+\pgf@yb=\dimen197
+\pgf@xc=\dimen198
+\pgf@yc=\dimen199
+\pgf@xd=\dimen256
+\pgf@yd=\dimen257
+\w@pgf@writea=\write3
+\r@pgf@reada=\read2
+\c@pgf@counta=\count307
+\c@pgf@countb=\count308
+\c@pgf@countc=\count309
+\c@pgf@countd=\count310
+\t@pgf@toka=\toks33
+\t@pgf@tokb=\toks34
+\t@pgf@tokc=\toks35
+\pgf@sys@id@count=\count311
+ (c:/texlive/2025/texmf-dist/tex/generic/pgf/systemlayer/pgf.cfg
+File: pgf.cfg 2025-08-29 v3.1.11a (3.1.11a)
+)
+Driver file for pgf: pgfsys-pdftex.def
+
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-pdftex.def
+File: pgfsys-pdftex.def 2025-08-29 v3.1.11a (3.1.11a)
+
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-common-pdf.def
+File: pgfsys-common-pdf.def 2025-08-29 v3.1.11a (3.1.11a)
+)))
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/systemlayer/pgfsyssoftpath.code.tex
+File: pgfsyssoftpath.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfsyssoftpath@smallbuffer@items=\count312
+\pgfsyssoftpath@bigbuffer@items=\count313
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/systemlayer/pgfsysprotocol.code.tex
+File: pgfsysprotocol.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)) (c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcore.code.tex
+Package: pgfcore 2025-08-29 v3.1.11a (3.1.11a)
+
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathutil.code.tex)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathparser.code.tex
+\pgfmath@dimen=\dimen258
+\pgfmath@count=\count314
+\pgfmath@box=\box57
+\pgfmath@toks=\toks36
+\pgfmath@stack@operand=\toks37
+\pgfmath@stack@operation=\toks38
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.code.tex)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.basic.code.te
+x)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.trigonometric
+.code.tex)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.random.code.t
+ex)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.comparison.co
+de.tex)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.base.code.tex
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.round.code.te
+x)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.misc.code.tex
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.integerarithm
+etics.code.tex)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathcalc.code.tex)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex
+\c@pgfmathroundto@lastzeros=\count315
+))
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfint.code.tex)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex
+File: pgfcorepoints.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@picminx=\dimen259
+\pgf@picmaxx=\dimen260
+\pgf@picminy=\dimen261
+\pgf@picmaxy=\dimen262
+\pgf@pathminx=\dimen263
+\pgf@pathmaxx=\dimen264
+\pgf@pathminy=\dimen265
+\pgf@pathmaxy=\dimen266
+\pgf@xx=\dimen267
+\pgf@xy=\dimen268
+\pgf@yx=\dimen269
+\pgf@yy=\dimen270
+\pgf@zx=\dimen271
+\pgf@zy=\dimen272
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.cod
+e.tex
+File: pgfcorepathconstruct.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@path@lastx=\dimen273
+\pgf@path@lasty=\dimen274
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.te
+x
+File: pgfcorepathusage.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@shorten@end@additional=\dimen275
+\pgf@shorten@start@additional=\dimen276
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorescopes.code.tex
+File: pgfcorescopes.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfpic=\box58
+\pgf@hbox=\box59
+\pgf@layerbox@main=\box60
+\pgf@picture@serial@count=\count316
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code
+.tex
+File: pgfcoregraphicstate.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgflinewidth=\dimen277
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.c
+ode.tex
+File: pgfcoretransformations.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@pt@x=\dimen278
+\pgf@pt@y=\dimen279
+\pgf@pt@temp=\dimen280
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex
+File: pgfcorequick.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreobjects.code.tex
+File: pgfcoreobjects.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathprocessing.co
+de.tex
+File: pgfcorepathprocessing.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex
+File: pgfcorearrows.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfarrowsep=\dimen281
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreshade.code.tex
+File: pgfcoreshade.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@max=\dimen282
+\pgf@sys@shading@range@num=\count317
+\pgf@shadingcount=\count318
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreimage.code.tex
+File: pgfcoreimage.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreexternal.code.tex
+File: pgfcoreexternal.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfexternal@startupbox=\box61
+) (c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorelayers.code.tex
+File: pgfcorelayers.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransparency.code
+.tex
+File: pgfcoretransparency.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepatterns.code.tex
+File: pgfcorepatterns.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+) (c:/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorerdf.code.tex
+File: pgfcorerdf.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+))) (c:/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.te
+x
+File: pgfmoduleshapes.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfnodeparttextbox=\box62
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduleplot.code.tex
+File: pgfmoduleplot.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(c:/texlive/2025/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-0-65.st
+y
+Package: pgfcomp-version-0-65 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@nodesepstart=\dimen283
+\pgf@nodesepend=\dimen284
+)
+(c:/texlive/2025/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-1-18.st
+y
+Package: pgfcomp-version-1-18 2025-08-29 v3.1.11a (3.1.11a)
+)) (c:/texlive/2025/texmf-dist/tex/latex/pgf/utilities/pgffor.sty
+(c:/texlive/2025/texmf-dist/tex/latex/pgf/utilities/pgfkeys.sty
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex))
+(c:/texlive/2025/texmf-dist/tex/latex/pgf/math/pgfmath.sty
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex))
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex
+Package: pgffor 2025-08-29 v3.1.11a (3.1.11a)
+\pgffor@iter=\dimen285
+\pgffor@skip=\dimen286
+\pgffor@stack=\toks39
+\pgffor@toks=\toks40
+))
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex
+Package: tikz 2025-08-29 v3.1.11a (3.1.11a)
+
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers.co
+de.tex
+File: pgflibraryplothandlers.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@plot@mark@count=\count319
+\pgfplotmarksize=\dimen287
+)
+\tikz@lastx=\dimen288
+\tikz@lasty=\dimen289
+\tikz@lastxsaved=\dimen290
+\tikz@lastysaved=\dimen291
+\tikz@lastmovetox=\dimen292
+\tikz@lastmovetoy=\dimen293
+\tikzleveldistance=\dimen294
+\tikzsiblingdistance=\dimen295
+\tikz@figbox=\box63
+\tikz@figbox@bg=\box64
+\tikz@tempbox=\box65
+\tikz@tempbox@bg=\box66
+\tikztreelevel=\count320
+\tikznumberofchildren=\count321
+\tikznumberofcurrentchild=\count322
+\tikz@fig@count=\count323
+
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmodulematrix.code.tex
+File: pgfmodulematrix.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfmatrixcurrentrow=\count324
+\pgfmatrixcurrentcolumn=\count325
+\pgf@matrix@numberofcolumns=\count326
+)
+\tikz@expandcount=\count327
+
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarytopaths.code.tex
+File: tikzlibrarytopaths.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)))
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.cod
+e.tex
+File: pgflibraryarrows.meta.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfarrowinset=\dimen296
+\pgfarrowlength=\dimen297
+\pgfarrowwidth=\dimen298
+\pgfarrowlinewidth=\dimen299
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarypositioning.code.tex
+File: tikzlibrarypositioning.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarycalc.code.tex
+File: tikzlibrarycalc.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryshapes.geometric.code.tex
+File: tikzlibraryshapes.geometric.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+
+(c:/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.g
+eometric.code.tex
+File: pgflibraryshapes.geometric.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)) (c:/texlive/2025/texmf-dist/tex/latex/tools/longtable.sty
 Package: longtable 2025-10-13 v4.24 Multi-page Table package (DPC)
 \LTleft=\skip69
 \LTright=\skip70
 \LTpre=\skip71
 \LTpost=\skip72
-\LTchunksize=\count307
-\LTcapwidth=\dimen190
-\LT@head=\box56
-\LT@firsthead=\box57
-\LT@foot=\box58
-\LT@lastfoot=\box59
-\LT@gbox=\box60
-\LT@cols=\count308
-\LT@rows=\count309
-\c@LT@tables=\count310
-\c@LT@chunks=\count311
-\LT@p@ftn=\toks29
+\LTchunksize=\count328
+\LTcapwidth=\dimen300
+\LT@head=\box67
+\LT@firsthead=\box68
+\LT@foot=\box69
+\LT@lastfoot=\box70
+\LT@gbox=\box71
+\LT@cols=\count329
+\LT@rows=\count330
+\c@LT@tables=\count331
+\c@LT@chunks=\count332
+\LT@p@ftn=\toks41
 )
 (c:/texlive/2025/texmf-dist/tex/latex/url/url.sty
 \Urlmuskip=\muskip18
@@ -357,15 +646,15 @@ Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 (c:/texlive/2025/texmf-dist/tex/latex/kvoptions/kvoptions.sty
 Package: kvoptions 2022-06-15 v3.15 Key value format for package options (HO)
 ))
-\c@section@level=\count312
+\c@section@level=\count333
 )
 (c:/texlive/2025/texmf-dist/tex/generic/stringenc/stringenc.sty
 Package: stringenc 2019/11/29 v1.12 Convert strings between diff. encodings (HO
 )
 )
-\@linkdim=\dimen191
-\Hy@linkcounter=\count313
-\Hy@pagecounter=\count314
+\@linkdim=\dimen301
+\Hy@linkcounter=\count334
+\Hy@pagecounter=\count335
 
 (c:/texlive/2025/texmf-dist/tex/latex/hyperref/pd1enc.def
 File: pd1enc.def 2026-01-29 v7.01p Hyperref: PDFDocEncoding definition (HO)
@@ -375,7 +664,7 @@ Now handling font encoding PD1 ...
 (c:/texlive/2025/texmf-dist/tex/generic/intcalc/intcalc.sty
 Package: intcalc 2019/12/15 v1.3 Expandable calculations with integers (HO)
 )
-\Hy@SavedSpaceFactor=\count315
+\Hy@SavedSpaceFactor=\count336
 
 (c:/texlive/2025/texmf-dist/tex/latex/hyperref/puenc.def
 File: puenc.def 2026-01-29 v7.01p Hyperref: PDF Unicode definition (HO)
@@ -389,9 +678,9 @@ Package hyperref Info: Plain pages OFF on input line 4216.
 Package hyperref Info: Backreferencing OFF on input line 4221.
 Package hyperref Info: Implicit mode ON; LaTeX internals redefined.
 Package hyperref Info: Bookmarks ON on input line 4468.
-\c@Hy@tempcnt=\count316
+\c@Hy@tempcnt=\count337
 LaTeX Info: Redefining \url on input line 4807.
-\XeTeXLinkMargin=\dimen192
+\XeTeXLinkMargin=\dimen302
 
 (c:/texlive/2025/texmf-dist/tex/generic/bitset/bitset.sty
 Package: bitset 2019/12/09 v1.3 Handle bit-vector datatype (HO)
@@ -400,9 +689,9 @@ Package: bitset 2019/12/09 v1.3 Handle bit-vector datatype (HO)
 Package: bigintcalc 2019/12/15 v1.5 Expandable calculations on big integers (HO
 )
 ))
-\Fld@menulength=\count317
-\Field@Width=\dimen193
-\Fld@charsize=\dimen194
+\Fld@menulength=\count338
+\Field@Width=\dimen303
+\Fld@charsize=\dimen304
 Package hyperref Info: Hyper figures OFF on input line 6084.
 Package hyperref Info: Link nesting OFF on input line 6089.
 Package hyperref Info: Hyper index ON on input line 6092.
@@ -410,16 +699,16 @@ Package hyperref Info: backreferencing OFF on input line 6099.
 Package hyperref Info: Link coloring OFF on input line 6104.
 Package hyperref Info: Link coloring with OCG OFF on input line 6109.
 Package hyperref Info: PDF/A mode OFF on input line 6114.
-\Hy@abspage=\count318
-\c@Item=\count319
-\c@Hfootnote=\count320
+\Hy@abspage=\count339
+\c@Item=\count340
+\c@Hfootnote=\count341
 )
 Package hyperref Info: Driver (autodetected): hpdftex.
 
 (c:/texlive/2025/texmf-dist/tex/latex/hyperref/hpdftex.def
 File: hpdftex.def 2026-01-29 v7.01p Hyperref driver for pdfTeX
-\Fld@listcount=\count321
-\c@bookmark@seq@number=\count322
+\Fld@listcount=\count342
+\c@bookmark@seq@number=\count343
 
 (c:/texlive/2025/texmf-dist/tex/latex/rerunfilecheck/rerunfilecheck.sty
 Package: rerunfilecheck 2025-06-21 v1.11 Rerun checks for auxiliary files (HO)
@@ -432,8 +721,8 @@ Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
 )
 \Hy@SectionHShift=\skip73
 )
-Package hyperref Info: Option `bookmarksopen' set `true' on input line 41.
-LaTeX Font Info:    Trying to load font information for T1+lmr on input line 72
+Package hyperref Info: Option `bookmarksopen' set `true' on input line 44.
+LaTeX Font Info:    Trying to load font information for T1+lmr on input line 75
 .
 
 (c:/texlive/2025/texmf-dist/tex/latex/lm/t1lmr.fd
@@ -441,39 +730,39 @@ File: t1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 (c:/texlive/2025/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 File: l3backend-pdftex.def 2025-10-09 L3 backend support: PDF output (pdfTeX)
-\l__color_backend_stack_int=\count323
+\l__color_backend_stack_int=\count344
 )
 (./rapport.aux)
 \openout1 = `rapport.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 72.
-LaTeX Font Info:    ... okay on input line 72.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 72.
-LaTeX Font Info:    ... okay on input line 72.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 72.
-LaTeX Font Info:    ... okay on input line 72.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 72.
-LaTeX Font Info:    ... okay on input line 72.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 72.
-LaTeX Font Info:    ... okay on input line 72.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 72.
-LaTeX Font Info:    ... okay on input line 72.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 72.
-LaTeX Font Info:    ... okay on input line 72.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 72.
-LaTeX Font Info:    ... okay on input line 72.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 72.
-LaTeX Font Info:    ... okay on input line 72.
-LaTeX Info: Redefining \microtypecontext on input line 72.
-Package microtype Info: Applying patch `item' on input line 72.
-Package microtype Info: Applying patch `toc' on input line 72.
-Package microtype Info: Applying patch `eqnum' on input line 72.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Info: Redefining \microtypecontext on input line 75.
+Package microtype Info: Applying patch `item' on input line 75.
+Package microtype Info: Applying patch `toc' on input line 75.
+Package microtype Info: Applying patch `eqnum' on input line 75.
 
 
-Package microtype Warning: Unable to apply patch `footnote' on input line 72.
+Package microtype Warning: Unable to apply patch `footnote' on input line 75.
 
-Package microtype Info: Applying patch `verbatim' on input line 72.
-LaTeX Info: Redefining \microtypesetup on input line 72.
+Package microtype Info: Applying patch `verbatim' on input line 75.
+LaTeX Info: Redefining \microtypesetup on input line 75.
 Package microtype Info: Generating PDF output.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using default protrusion set `alltext'.
@@ -490,17 +779,17 @@ File: mt-cmr.cfg 2013/05/19 v2.2 microtype config. file: Computer Modern Roman
 )
 (c:/texlive/2025/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count324
-\scratchdimen=\dimen195
-\scratchbox=\box61
-\nofMPsegments=\count325
-\nofMParguments=\count326
-\everyMPshowfont=\toks30
-\MPscratchCnt=\count327
-\MPscratchDim=\dimen196
-\MPnumerator=\count328
-\makeMPintoPDFobject=\count329
-\everyMPtoPDFconversion=\toks31
+\scratchcounter=\count345
+\scratchdimen=\dimen305
+\scratchbox=\box72
+\nofMPsegments=\count346
+\nofMParguments=\count347
+\everyMPshowfont=\toks42
+\MPscratchCnt=\count348
+\MPscratchDim=\dimen306
+\MPnumerator=\count349
+\makeMPintoPDFobject=\count350
+\everyMPtoPDFconversion=\toks43
 ) (c:/texlive/2025/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
 Package: epstopdf-base 2020-01-24 v2.11 Base part for package epstopdf
 Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
@@ -551,27 +840,27 @@ Package caption Info: longtable package is loaded.
 Package: ltcaption 2021/01/08 v1.4c longtable captions (AR)
 )
 Package caption Info: End \AtBeginDocument code.
-Package hyperref Info: Link coloring OFF on input line 72.
+Package hyperref Info: Link coloring OFF on input line 75.
  (./rapport.out)
 (./rapport.out)
-\@outlinefile=\write3
-\openout3 = `rapport.out'.
+\@outlinefile=\write4
+\openout4 = `rapport.out'.
 
-<logo_unistra.png, id=426, 1.00375pt x 1.00375pt>
-File: logo_unistra.png Graphic file (type png)
-<use logo_unistra.png>
-Package pdftex.def Info: logo_unistra.png  used on input line 84.
-(pdftex.def)             Requested size: 114.8396pt x 115.2689pt.
-<logo_quantum_bluff.png, id=427, 1.00375pt x 1.00375pt>
+<logo_quantum_bluff.png, id=642, 1027.84pt x 1027.84pt>
 File: logo_quantum_bluff.png Graphic file (type png)
 <use logo_quantum_bluff.png>
-Package pdftex.def Info: logo_quantum_bluff.png  used on input line 89.
-(pdftex.def)             Requested size: 114.8396pt x 115.2689pt.
+Package pdftex.def Info: logo_quantum_bluff.png  used on input line 88.
+(pdftex.def)             Requested size: 85.3499pt x 85.35826pt.
+<logo_unistra.png, id=643, 602.25pt x 602.25pt>
+File: logo_unistra.png Graphic file (type png)
+<use logo_unistra.png>
+Package pdftex.def Info: logo_unistra.png  used on input line 90.
+(pdftex.def)             Requested size: 85.35284pt x 85.35826pt.
 Package microtype Info: Character `029' is missing
 (microtype)             in font `T1/lmr/m/sc/14.4'.
 (microtype)             Ignoring protrusion settings for this character.
 LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 1
-05.
+06.
  (c:/texlive/2025/texmf-dist/tex/latex/lm/t1lmtt.fd
 File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
@@ -580,69 +869,86 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
 LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 1
-15.
+16.
 
 (c:/texlive/2025/texmf-dist/tex/latex/lm/ot1lmr.fd
 File: ot1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OML+lmm on input line 1
-15.
+16.
 
 (c:/texlive/2025/texmf-dist/tex/latex/lm/omllmm.fd
 File: omllmm.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OMS+lmsy on input line 
-115.
+116.
 
 (c:/texlive/2025/texmf-dist/tex/latex/lm/omslmsy.fd
 File: omslmsy.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OMX+lmex on input line 
-115.
+116.
 
 (c:/texlive/2025/texmf-dist/tex/latex/lm/omxlmex.fd
 File: omxlmex.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10.95> on input line 115.
+(Font)              <10.95> on input line 116.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <8> on input line 115.
+(Font)              <8> on input line 116.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <6> on input line 115.
- [1
+(Font)              <6> on input line 116.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 116
+.
+
+(c:/texlive/2025/texmf-dist/tex/latex/amsfonts/umsa.fd
+File: umsa.fd 2013/01/14 v3.01 AMS symbols A
+)
+(c:/texlive/2025/texmf-dist/tex/latex/microtype/mt-msa.cfg
+File: mt-msa.cfg 2006/02/04 v1.1 microtype config. file: AMS symbols (a) (RS)
+)
+LaTeX Font Info:    Trying to load font information for U+msb on input line 116
+.
+
+(c:/texlive/2025/texmf-dist/tex/latex/amsfonts/umsb.fd
+File: umsb.fd 2013/01/14 v3.01 AMS symbols B
+)
+(c:/texlive/2025/texmf-dist/tex/latex/microtype/mt-msb.cfg
+File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
+) [1
 
 {c:/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/texlive/2025/
-texmf-dist/fonts/enc/dvips/lm/lm-ec.enc} <./logo_unistra.png (PNG copy)> <./log
-o_quantum_bluff.png (PNG copy)>] [1] [2] (./rapport.toc [3] [4] [5])
-\tf@toc=\write4
-\openout4 = `rapport.toc'.
+texmf-dist/fonts/enc/dvips/lm/lm-ec.enc} <./logo_quantum_bluff.png> <./logo_uni
+stra.png (PNG copy)>] [1] [2] (./rapport.toc [3] [4] [5] [6])
+\tf@toc=\write5
+\openout5 = `rapport.toc'.
 
- [6] (./rapport.lof)
-\tf@lof=\write5
-\openout5 = `rapport.lof'.
-
- [7]
-(./rapport.lot
-Overfull \hbox (1.24628pt too wide) in paragraph at lines 2--2
- [][] [][]\T1/lmr/m/n/10.95 (-20) Automated test in-ven-tory (rep-re-sen-ta-tiv
-e snap-shot; see \T1/lmtt/m/n/10.95 Docs/RAPPORT_TESTS.md\T1/lmr/m/n/10.95 (-20
-) ).[] [][]  
+ [7] (./rapport.lof
+Overfull \hbox (12.81032pt too wide) in paragraph at lines 1--1
+ \T1/lmr/m/n/10.95 (-20) ma-tions linéaires suc-ces-sives, \T1/lmr/bx/n/10.95 (
+-20) 196 \T1/lmr/m/n/10.95 (-20) neu-rones après la couche d'entrée (96+64+32+4
+), 
  []
 
 )
-\tf@lot=\write6
-\openout6 = `rapport.lot'.
+\tf@lof=\write6
+\openout6 = `rapport.lof'.
 
- [8]
+ [8{c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc}]
+(./rapport.lot)
+\tf@lot=\write7
+\openout7 = `rapport.lot'.
+
+ [9]
 pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has 
 been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.198 \section
+l.199 \section
               {Methodology, traceability, and reading guide} [1] [2
 
 ]
-Overfull \hbox (83.6591pt too wide) in paragraph at lines 222--223
+Overfull \hbox (83.6591pt too wide) in paragraph at lines 223--224
 \T1/lmtt/m/n/10.95 Blackjack . tsx$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.9
 5 client / src / pages / BlackjackMultiLobby . tsx$\T1/lmr/m/n/10.95 (-20) , $\
 T1/lmtt/m/n/10.95 client / src / pages / BlackjackMultiTable .
@@ -654,19 +960,26 @@ T1/lmtt/m/n/10.95 client / src / pages / BlackjackMultiTable .
 
 ] [5
 
-]
-Overfull \hbox (2.34547pt too wide) in paragraph at lines 273--274
-\T1/lmtt/m/n/10.95 services / botAi . service . ts$\T1/lmr/m/n/10.95 (-20) , an
-d practice-mode in-te-gra-tion ($\T1/lmtt/m/n/10.95 server / src / poker / serv
-ices /
+] [6]
+Overfull \hbox (5.50868pt too wide) in paragraph at lines 280--281
+[]\T1/lmr/m/n/10.95 (-20) When hole cards of op-po-nents are known (prac-tice/o
+racle con-texts), \T1/lmtt/m/n/10.95 expertOracleDecision
  []
 
-[6
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <9> on input line 295.
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <5> on input line 295.
+LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <9> not available
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 300.
 
-]
-LaTeX Font Info:    Trying to load font information for T1+lmss on input line 2
-89.
- (c:/texlive/2025/texmf-dist/tex/latex/lm/t1lmss.fd
+Overfull \hbox (122.06004pt too wide) in paragraph at lines 313--314
+ [][] 
+ []
+
+LaTeX Font Info:    Trying to load font information for T1+lmss on input line 3
+14.
+(c:/texlive/2025/texmf-dist/tex/latex/lm/t1lmss.fd
 File: t1lmss.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 Package microtype Info: Loading generic protrusion settings for font family
@@ -674,271 +987,577 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
 
-Underfull \hbox (badness 10000) in paragraph at lines 298--298
+Overfull \hbox (117.64093pt too wide) in paragraph at lines 342--343
+ [][] 
+ []
+
+[7
+
+{c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc}{c:/texlive/2025/t
+exmf-dist/fonts/enc/dvips/lm/lm-rm.enc}] [8] [9]
+Underfull \hbox (badness 10000) in paragraph at lines 369--369
 []|$\T1/lmtt/m/n/10.95 /game$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Overfull \hbox (18.61894pt too wide) in paragraph at lines 299--299
+Overfull \hbox (18.61894pt too wide) in paragraph at lines 370--370
 []|$\T1/lmtt/m/n/10.95 /bot-[]configuration$| 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 301--301
+Underfull \hbox (badness 10000) in paragraph at lines 372--372
 []|\T1/lmr/m/n/10.95 (+20) In-game panel,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 302--302
+Underfull \hbox (badness 10000) in paragraph at lines 373--373
 []|$\T1/lmtt/m/n/10.95 /blackjack$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 302--302
+Underfull \hbox (badness 10000) in paragraph at lines 373--373
 \T1/lmtt/m/n/10.95 /blackjack /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 302--302
+Underfull \hbox (badness 10000) in paragraph at lines 373--373
 \T1/lmtt/m/n/10.95 lobby$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 302--302
+Underfull \hbox (badness 10000) in paragraph at lines 373--373
 \T1/lmtt/m/n/10.95 /blackjack /
  []
 
 
-Underfull \hbox (badness 3240) in paragraph at lines 304--304
+Underfull \hbox (badness 3240) in paragraph at lines 375--375
 []|\T1/lmr/m/n/10.95 (+20) Waiting, play, re-sults,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 304--304
+Underfull \hbox (badness 10000) in paragraph at lines 375--375
 []|$\T1/lmtt/m/n/10.95 /tournaments / . .
  []
 
 
-Underfull \hbox (badness 2134) in paragraph at lines 305--305
+Underfull \hbox (badness 2134) in paragraph at lines 376--376
 []|$\T1/lmtt/m/n/10.95 /friends$\T1/lmr/m/n/10.95 (+20) , lobby
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 306--306
+Underfull \hbox (badness 10000) in paragraph at lines 377--377
 \T1/lmr/m/n/10.95 (+20) lenges, lo-gin streak,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 306--306
+Underfull \hbox (badness 10000) in paragraph at lines 377--377
 []|$\T1/lmtt/m/n/10.95 /profile$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 307--307
+Underfull \hbox (badness 10000) in paragraph at lines 378--378
 []|$\T1/lmtt/m/n/10.95 /auth$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 5681) in paragraph at lines 308--308
+Underfull \hbox (badness 5681) in paragraph at lines 379--379
 []|\T1/lmr/m/n/10.95 (+20) Operator web con-sole
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 310--310
+Underfull \hbox (badness 10000) in paragraph at lines 381--381
 []|$\T1/lmtt/m/n/10.95 client / src /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 310--310
+Underfull \hbox (badness 10000) in paragraph at lines 381--381
 \T1/lmtt/m/n/10.95 components /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 310--310
+Underfull \hbox (badness 10000) in paragraph at lines 381--381
 \T1/lmtt/m/n/10.95 Layout . tsx$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 311--311
+Underfull \hbox (badness 10000) in paragraph at lines 382--382
 []|\T1/lmr/m/n/10.95 (+20) Lobby/settings
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 312--312
+Underfull \hbox (badness 10000) in paragraph at lines 383--383
 []|\T1/lmr/m/n/10.95 (+20) Tournament
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 312--312
+Underfull \hbox (badness 10000) in paragraph at lines 383--383
 []|$\T1/lmtt/m/n/10.95 client / src /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 312--312
+Underfull \hbox (badness 10000) in paragraph at lines 383--383
 \T1/lmtt/m/n/10.95 features /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 312--312
+Underfull \hbox (badness 10000) in paragraph at lines 383--383
 \T1/lmtt/m/n/10.95 tournament /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 312--312
+Underfull \hbox (badness 10000) in paragraph at lines 383--383
 \T1/lmtt/m/n/10.95 components /
  []
 
 
-Overfull \hbox (2.59735pt too wide) in paragraph at lines 312--312
+Overfull \hbox (2.59735pt too wide) in paragraph at lines 383--383
 \T1/lmtt/m/n/10.95 ZipRushMiniGame .
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 313--313
+Underfull \hbox (badness 10000) in paragraph at lines 384--384
 []|$\T1/lmtt/m/n/10.95 /game-[]example$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 314--314
+Underfull \hbox (badness 10000) in paragraph at lines 385--385
 []|$\T1/lmtt/m/n/10.95 client / src /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 314--314
+Underfull \hbox (badness 10000) in paragraph at lines 385--385
 \T1/lmtt/m/n/10.95 contexts /
  []
 
 
-Overfull \hbox (31.05357pt too wide) in paragraph at lines 314--314
+Overfull \hbox (31.05357pt too wide) in paragraph at lines 385--385
 \T1/lmtt/m/n/10.95 AccessibilityContext .
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 314--314
+Underfull \hbox (badness 10000) in paragraph at lines 385--385
 \T1/lmtt/m/n/10.95 tsx$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Overfull \hbox (13.80737pt too wide) in paragraph at lines 314--314
+Overfull \hbox (13.80737pt too wide) in paragraph at lines 385--385
 \T1/lmtt/m/n/10.95 TableThemeContext .
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 314--314
+Underfull \hbox (badness 10000) in paragraph at lines 385--385
 \T1/lmtt/m/n/10.95 tsx$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 314--314
+Underfull \hbox (badness 10000) in paragraph at lines 385--385
 \T1/lmtt/m/n/10.95 MusicContext .
  []
 
-ignored error: Infinite glue shrinkage found in box being split [7
-
-] [8]
-[9
-
-] [10{c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc}] [11
+ignored error: Infinite glue shrinkage found in box being split [10
 
 ]
-LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10> on input line 384.
-LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <7> on input line 384.
-LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <5> on input line 384.
+LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 3
+96.
 
-[12
-
-] [13
-
-] [14
-
-] [15
-
-]
-LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 4
-79.
- (c:/texlive/2025/texmf-dist/tex/latex/lm/ts1lmr.fd
+(c:/texlive/2025/texmf-dist/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-)
-[16
+) [11{c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc}] [12] [13]
+Overfull \hbox (60.23495pt too wide) in paragraph at lines 484--485
+\T1/lmtt/m/n/10.95 waitingRoom . routes . ts$\T1/lmr/m/n/10.95 (-20) ) or tour-
+na-ment ta-bles (via $\T1/lmtt/m/n/10.95 server / src / tournament / tournament
+TableFactory .
+ []
 
-{c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc}] [17
+[14{c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc}] [15] [16]
+Overfull \hbox (14.14577pt too wide) in paragraph at lines 536--537
+\T1/lmr/m/n/10.95 (-20) seating ($\T1/lmtt/m/n/10.95 server / src / tournament 
+/ bracket/$\T1/lmr/m/n/10.95 (-20) ), winner-bet set-tle-ment ($\T1/lmtt/m/n/10
+.95 server / src / tournament /
+ []
 
-] [18
-
+[17
 
 ]
-[19
+Overfull \hbox (10.21738pt too wide) in paragraph at lines 575--576
+ [][] 
+ []
+
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <10> on input line 576.
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <7> on input line 576.
+[18] [19]
+Overfull \hbox (21.84567pt too wide) in paragraph at lines 588--589
+\T1/lmr/bx/n/10.95 (-20) tainer im-ages \T1/lmr/m/n/10.95 (-20) on \T1/lmtt/m/n
+/10.95 develop\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 main\T1/lmr/m/n/10.9
+5 (-20) , and \T1/lmtt/m/n/10.95 release/* \T1/lmr/m/n/10.95 (-20) us-ing \T1/l
+mr/bx/n/10.95 (-20) Kaniko\T1/lmr/m/n/10.95 (-20) : each job runs \T1/lmtt/m/n/
+10.95 /kaniko/executor
+ []
+
+
+Overfull \hbox (39.30661pt too wide) in paragraph at lines 588--589
+\T1/lmr/m/n/10.95 (-20) un-der $\T1/lmtt/m/n/10.95 server / ai-[]service/$\T1/l
+mr/m/n/10.95 (-20) , au-then-ti-cates to the Git-Lab reg-istry via \T1/lmtt/m/n
+/10.95 /kaniko/.docker/config.json\T1/lmr/m/n/10.95 (-20) ,
+ []
+
+
+Overfull \hbox (13.13254pt too wide) in paragraph at lines 588--589
+\T1/lmr/m/n/10.95 (-20) and pushes im-mutable SHA-tagged im-ages plus rolling \
+T1/lmtt/m/n/10.95 :latest\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 :client-l
+atest\T1/lmr/m/n/10.95 (-20) , or \T1/lmtt/m/n/10.95 :ai-latest
+ []
+
+[20
 
 ]
-Overfull \hbox (5.69946pt too wide) in paragraph at lines 525--526
+Overfull \hbox (10.52452pt too wide) in paragraph at lines 612--613
+[]\T1/lmr/bx/n/10.95 (-20) Tag-based rout-ing: \T1/lmr/m/n/10.95 (-20) The de-p
+loy jobs in \T1/lmtt/m/n/10.95 .gitlab-ci.yml \T1/lmr/m/n/10.95 (-20) use the t
+ag \T1/lmtt/m/n/10.95 runner-vm-quantum\T1/lmr/m/n/10.95 (-20) ,
+ []
+
+
+Overfull \hbox (91.91438pt too wide) in paragraph at lines 621--622
+[]\T1/lmr/bx/n/10.95 (-20) Docker au-then-ti-ca-tion: \T1/lmtt/m/n/10.95 echo "
+$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER"
+ []
+
+
+Overfull \hbox (18.43741pt too wide) in paragraph at lines 622--623
+[]\T1/lmr/bx/n/10.95 (-20) Dynamic .env gen-er-a-tion: \T1/lmr/m/n/10.95 (-20) 
+Re-con-structs \T1/lmtt/m/n/10.95 .env \T1/lmr/m/n/10.95 (-20) from se-cure Git
+-Lab vari-ables (\T1/lmtt/m/n/10.95 $JWT_SECRET\T1/lmr/m/n/10.95 (-20) ,
+ []
+
+[21]
+Overfull \hbox (21.24051pt too wide) in paragraph at lines 633--634
+$\T1/lmtt/m/n/10.95 .gitlab-[]ci . yml$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/
+10.95 Docs / DEPLOY . md$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 server /
+ Dockerfile$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 client / Dockerfile$\
+T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 docker-[]compose .
+ []
+
+
+Overfull \hbox (3.68637pt too wide) in paragraph at lines 637--638
+\T1/lmtt/m/n/10.95 capacitor\T1/lmr/m/n/10.95 (-20) . \T1/lmr/bx/n/10.95 (-20) 
+Elec-tron \T1/lmr/m/n/10.95 (-20) ($\T1/lmtt/m/n/10.95 client / electron . cjs$
+\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 electron-[]builder$ \T1/lmr/m/n/1
+0.95 (-20) in $\T1/lmtt/m/n/10.95 client / package . json$\T1/lmr/m/n/10.95 (-2
+0) )
+ []
+
+[22]
+Overfull \hbox (71.89911pt too wide) in paragraph at lines 676--677
+\T1/lmr/m/n/10.95 (-20) Jest col-lects cov-er-age only on \T1/lmr/bx/n/10.95 (-
+20) logic-heavy paths \T1/lmr/m/n/10.95 (-20) listed in $\T1/lmtt/m/n/10.95 ser
+ver / jest . config . cjs$ \T1/lmr/m/n/10.95 (-20) (\T1/lmtt/m/n/10.95 collectC
+overageFrom\T1/lmr/m/n/10.95 (-20) :
+ []
+
+
+Underfull \hbox (badness 1845) in paragraph at lines 690--690
+[]\T1/lmss/bx/n/10 (+20) Table 3: |\T1/lmr/m/n/10 (+20) Server Jest cov-er-age 
+ag-gre-gate on \T1/lmtt/m/n/10 collectCoverageFrom \T1/lmr/m/n/10 (+20) (May 20
+26; \T1/lmtt/m/n/10 npm run
+ []
+
+[23
+
+] [24] [25
+
+] [26
+
+] [27
+
+] [28]
+Overfull \hbox (7.68884pt too wide) in paragraph at lines 789--790
+\T1/lmr/m/n/10.95 (-20) mod-el-ing (still code-first), richer tour-na-ment an-a
+-lyt-ics, and re-plac-ing sim-u-lated iden-tity/payment
+ []
+
+[29
+
+] [30
+
+] [31
+
+
+] [32
+
+] [33
+
+]
+Underfull \hbox (badness 10000) in paragraph at lines 992--992
+[]|\T1/lmtt/m/n/10.95 User\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 UserStat
+s\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 992--992
+\T1/lmtt/m/n/10.95 PlayerStats\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 994--994
+[]|\T1/lmtt/m/n/10.95 Tournament\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 994--994
+\T1/lmtt/m/n/10.95 TournamentPlayer\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 994--994
+\T1/lmtt/m/n/10.95 TournamentRound\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 994--994
+\T1/lmtt/m/n/10.95 TournamentTable\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 995--995
+[]|\T1/lmtt/m/n/10.95 WalletLedgerEntry\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 995--995
+\T1/lmtt/m/n/10.95 TournamentRewardLedger\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 996--996
+[]|\T1/lmtt/m/n/10.95 Friendship\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 996--996
+\T1/lmtt/m/n/10.95 FriendRequest\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 996--996
+\T1/lmtt/m/n/10.95 FriendMessage\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 996--996
+\T1/lmtt/m/n/10.95 LoanRequest\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 Loan
+\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 2012) in paragraph at lines 996--997
+\T1/lmr/m/n/10.95 (+20) through ex-plicit join ta-bles and
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 997--997
+[]|\T1/lmtt/m/n/10.95 BlackjackRoom\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 997--997
+\T1/lmtt/m/n/10.95 BlackjackRoomSeat\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 997--997
+\T1/lmtt/m/n/10.95 BlackjackRoomSnapshot\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 998--998
+[]|\T1/lmtt/m/n/10.95 HiddenBetTicket\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 998--998
+\T1/lmtt/m/n/10.95 HiddenBetSelection\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Overfull \hbox (1.33803pt too wide) in paragraph at lines 998--998
+\T1/lmtt/m/n/10.95 HiddenBetHandResolution| 
+ []
+
+
+Underfull \hbox (badness 1412) in paragraph at lines 998--999
+[]|\T1/lmr/m/n/10.95 (+20) A ticket be-longs to a user and
+ []
+
+ignored error: Infinite glue shrinkage found in box being split [34
+
+] [35]
+Overfull \hbox (5.69946pt too wide) in paragraph at lines 1015--1016
 \T1/lmr/m/n/10.95 (-20) Structured logic notes: $\T1/lmtt/m/n/10.95 Docs / deta
 il _ logique / backend / 01 _ poker _ moteur . md$\T1/lmr/m/n/10.95 (-20) , $\T
 1/lmtt/m/n/10.95 Docs / detail _
  []
 
-[20
+[36
 
-] [21
+] [37
 
-{c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc}{c:/texlive/2025/t
-exmf-dist/fonts/enc/dvips/lm/lm-rm.enc}{c:/texlive/2025/texmf-dist/fonts/enc/dv
-ips/lm/lm-mathex.enc}]
-Overfull \hbox (24.46889pt too wide) in paragraph at lines 559--560
+]
+Overfull \hbox (144.7102pt too wide) in paragraph at lines 1073--1074
+\T1/lmr/m/n/10.95 (-20) For re-vealed op-po-nent holes, \T1/lmtt/m/n/10.95 expe
+rtOracleDecision \T1/lmr/m/n/10.95 (-20) com-putes hero strength $\OML/lmm/m/it
+/10.95 ^^[[] \OT1/lmr/m/n/10.95 (-20) = []([]\OML/lmm/m/it/10.95 ; []\OT1/lmr/m
+/n/10.95 (-20) )$
+ []
+
+[38] [39]
+Overfull \hbox (24.46889pt too wide) in paragraph at lines 1096--1097
 []\T1/lmr/m/n/10.95 (-20) Builds the re-main-ing deck ex-clud-ing known hero an
 d com-mu-nity cards (\T1/lmtt/m/n/10.95 buildDeckExcluding\T1/lmr/m/n/10.95 (-2
 0) ). 
  []
 
-[22
+[40
 
 ]
-Overfull \hbox (3.48564pt too wide) in paragraph at lines 601--602
+Overfull \hbox (3.48564pt too wide) in paragraph at lines 1138--1139
 \T1/lmr/m/n/10.95 (-20) Both $\T1/lmtt/m/n/10.95 server / src / logic / Evaluat
 or . ts$ \T1/lmr/m/n/10.95 (-20) and $\T1/lmtt/m/n/10.95 client / src / utils /
  pokerHandCategory . ts$ \T1/lmr/m/n/10.95 (-20) use
  []
 
-[23]
-Overfull \hbox (80.91992pt too wide) in paragraph at lines 616--617
+[41]
+Overfull \hbox (80.91992pt too wide) in paragraph at lines 1153--1154
 \T1/lmr/m/n/10.95 (-20) Live mar-kets use tab-u-lated dec-i-mal odds keyed by t
 a-ble pa-ram-e-ters. For in-stance, $\T1/lmtt/m/n/10.95 oddsPlayerWinsCurrentHa
 nd$
  []
 
 
-Overfull \hbox (26.26303pt too wide) in paragraph at lines 620--621
+Overfull \hbox (26.26303pt too wide) in paragraph at lines 1157--1158
 $\T1/lmtt/m/n/10.95 Docs / intern / HIDDEN _ BETS _ SPEC . md$\T1/lmr/m/n/10.95
  (-20) , $\T1/lmtt/m/n/10.95 Docs / detail _ logique / backend / 07 _ hidden _ 
 bets _ moteur .
  []
 
-[24
+[42
 
-] [25
+] [43
+
+] [44] [45]
+Overfull \hbox (7.38348pt too wide) in paragraph at lines 1362--1362
+[]    \T1/lmtt/m/n/10.95 const sharePerWinner = Math.floor(pot.amount / pot.eli
+gibleWinners.length)[] 
+ []
+
+
+Overfull \hbox (1.63475pt too wide) in paragraph at lines 1362--1362
+[]      \T1/lmtt/m/n/10.95 distribution[winnerId] = (distribution[winnerId] ?? 
+0) + sharePerWinner[] 
+ []
+
+[46]
+Overfull \hbox (70.57886pt too wide) in paragraph at lines 1382--1383
+\T1/lmr/m/n/10.95 (-20) crete \T1/lmtt/m/n/10.95 GameTable \T1/lmr/m/n/10.95 (-
+20) in-stances through $\T1/lmtt/m/n/10.95 tournamentTableFactory . ts$\T1/lmr/
+m/n/10.95 (-20) , emits \T1/lmtt/m/n/10.95 TOURNAMENT_TABLE_ASSIGNED
+ []
+
+
+Overfull \hbox (96.82083pt too wide) in paragraph at lines 1382--1383
+\T1/lmr/m/n/10.95 (-20) to per-user rooms, records elim-i-na-tions when bust-ou
+t events ar-rive ($\T1/lmtt/m/n/10.95 recordTournamentEliminationsIfAny$\T1/lmr
+/m/n/10.95 (-20) ),
+ []
+
+
+Overfull \hbox (81.55453pt too wide) in paragraph at lines 1382--1383
+\T1/lmr/m/n/10.95 (-20) and ad-vances the state ma-chine (\T1/lmtt/m/n/10.95 pe
+nding_other_tables\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 next_round_spawn
+ed\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 tournament_complete\T1/lmr/m/n/1
+0.95 (-20) ). 
+ []
+
+[47]
+Overfull \hbox (10.9218pt too wide) in paragraph at lines 1395--1397
+\T1/lmr/m/n/10.95 (-20) with the re-main-der dis-tributed one seat at a time (s
+ee im-ple-men-ta-tion). $\T1/lmtt/m/n/10.95 assertTableSizesValid$
+ []
+
+
+Overfull \hbox (2.21297pt too wide) in paragraph at lines 1400--1401
+$\T1/lmtt/m/n/10.95 buildOpeningRound$ \T1/lmr/m/n/10.95 (-20) and $\T1/lmtt/m/
+n/10.95 buildRoundFromSurvivors$ \T1/lmr/m/n/10.95 (-20) in $\T1/lmtt/m/n/10.95
+ TournamentBracketBuilder . ts$ \T1/lmr/m/n/10.95 (-20) take
+ []
+
+
+Overfull \hbox (4.70401pt too wide) in paragraph at lines 1408--1409
+\T1/lmr/m/n/10.95 (-20) cient chips, valid amount). Ac-tion dedu-pli-ca-tion ca
+che (com-pos-ite key: \T1/lmtt/m/n/10.95 handId:actionId\T1/lmr/m/n/10.95 (-20)
+ )
+ []
+
+[48]
+Overfull \hbox (0.44197pt too wide) in paragraph at lines 1416--1417
+[]\T1/lmr/bx/n/10.95 (-20) Final rank-ing\T1/lmr/m/n/10.95 (-20) : When only on
+e player re-mains, the tour-na-ment tran-si-tions to \T1/lmtt/m/n/10.95 COMPLET
+ED\T1/lmr/m/n/10.95 (-20) ,
+ []
+
+[49] [50]
+Overfull \hbox (66.78091pt too wide) in paragraph at lines 1454--1455
+\T1/lmr/m/n/10.95 (-20) ing the Socket.IO hand-shake. The mid-dle-ware ex-tract
+s the JWT from ei-ther \T1/lmtt/m/n/10.95 socket.handshake.auth.token
+ []
+
+[51
 
 ]
-Overfull \hbox (123.9339pt too wide) in paragraph at lines 640--641
+LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <10.95> not available
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 1504.
+
+Overfull \hbox (4.15419pt too wide) in paragraph at lines 1516--1517
+ []\T1/lmr/bx/n/10.95 (-20) Tournament rooms (\T1/lmtt/b/n/10.95 tournament:{to
+urnamentId}\T1/lmr/bx/n/10.95 (-20) , \T1/lmtt/b/n/10.95 TOURNAMENT_LOBBY\T1/lm
+r/bx/n/10.95 (-20) ):[] \T1/lmr/m/n/10.95 (-20) Used for bracket
+ []
+
+[52]
+Overfull \hbox (36.5479pt too wide) in paragraph at lines 1530--1531
+\T1/lmr/m/n/10.95 (-20) For dura-bil-ity, snap-shots are also pushed to a per-s
+is-tent store ($\T1/lmtt/m/n/10.95 server / src / shared / pokerStateStore .
+ []
+
+[53] [54]
+Overfull \hbox (9.01683pt too wide) in paragraph at lines 1647--1648
+$\T1/lmtt/m/n/10.95 server / src / sockets / game . gateway . ts$\T1/lmr/m/n/10
+.95 (-20) , $\T1/lmtt/m/n/10.95 server / src / middleware / socketAuth . middle
+ware .
+ []
+
+[55]
+Overfull \hbox (123.9339pt too wide) in paragraph at lines 1674--1675
 \T1/lmtt/m/n/10.95 server / src / routes / blackjackMulti . routes . ts$\T1/lmr
 /m/n/10.95 (-20) , con-trollers un-der $\T1/lmtt/m/n/10.95 server / src / logic
  / BlackjackTableController .
  []
 
 
-Overfull \hbox (40.63487pt too wide) in paragraph at lines 644--645
+Overfull \hbox (40.63487pt too wide) in paragraph at lines 1678--1679
 $\T1/lmtt/m/n/10.95 Docs / detail _ logique / backend / 03 _ blackjack _ solo _
  moteur . md$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 Docs / detail _ logi
 que / backend /
  []
 
-[26
+[56
 
-] [27
+] [57] [58
 
 ]
-Overfull \hbox (71.80376pt too wide) in paragraph at lines 720--722
+Overfull \hbox (71.80376pt too wide) in paragraph at lines 1754--1756
 \T1/lmr/m/n/10.95 (-20) server en-forces caps (\T1/lmtt/m/n/10.95 ROULETTE_MAX_
 BET_CAP\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_TOTAL_STAKE\T1
 /lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_BETS_PER_SPIN\T1/lmr/m/n
@@ -946,67 +1565,126 @@ BET_CAP\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_TOTAL_STAKE\T1
  []
 
 
-Overfull \hbox (19.55493pt too wide) in paragraph at lines 725--726
+Overfull \hbox (19.55493pt too wide) in paragraph at lines 1759--1760
 \T1/lmtt/m/n/10.95 md$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 Docs / deta
 il _ logique / backend / 06 _ slot _ moteur . md$\T1/lmr/m/n/10.95 (-20) , $\T1
 /lmtt/m/n/10.95 Docs / final _ report / ROULETTE . adoc$\T1/lmr/m/n/10.95 (-20)
  . 
  []
 
-[28]
-Overfull \hbox (1.37303pt too wide) in paragraph at lines 732--733
+[59]
+Overfull \hbox (23.70872pt too wide) in paragraph at lines 1785--1786
+[]\T1/lmr/m/n/10.95 (-20) Roulette bets must re-spect \T1/lmtt/m/n/10.95 ROULET
+TE_MAX_BET_CAP \T1/lmr/m/n/10.95 (-20) per line and \T1/lmtt/m/n/10.95 ROULETTE
+_MAX_TOTAL_STAKE
+ []
+
+[60]
+Overfull \hbox (1.37303pt too wide) in paragraph at lines 1795--1796
 \T1/lmr/m/n/10.95 (-20) Friends UI: $\T1/lmtt/m/n/10.95 client / src / pages / 
 Friends . tsx$\T1/lmr/m/n/10.95 (-20) . REST: $\T1/lmtt/m/n/10.95 server / src 
 / routes / friends . routes .
  []
 
 
-Overfull \hbox (29.00368pt too wide) in paragraph at lines 732--733
+Overfull \hbox (29.00368pt too wide) in paragraph at lines 1795--1796
 \T1/lmtt/m/n/10.95 ts$\T1/lmr/m/n/10.95 (-20) ; poker in-vi-ta-tions $\T1/lmtt/
 m/n/10.95 server / src / routes / invitation . routes . ts$ \T1/lmr/m/n/10.95 (
 -20) (also un-der $\T1/lmtt/m/n/10.95 /api / invitations$\T1/lmr/m/n/10.95 (-20
 ) );
  []
 
-[29
+[61
 
 ]
-Overfull \hbox (7.13153pt too wide) in paragraph at lines 743--744
+Overfull \hbox (7.13153pt too wide) in paragraph at lines 1806--1807
 \T1/lmtt/m/n/10.95 dailyLogin/$\T1/lmr/m/n/10.95 (-20) ) with ded-i-cated route
 rs. Pub-lic leader-boards: $\T1/lmtt/m/n/10.95 server / src / routes / leaderbo
 ard .
  []
 
-[30
-
-] [31
-
-] [32
+[62
 
 ]
-Overfull \hbox (25.02728pt too wide) in paragraph at lines 774--775
+Overfull \hbox (18.90468pt too wide) in paragraph at lines 1827--1828
+\T1/lmr/m/n/10.95 (-20) mutable \T1/lmtt/m/n/10.95 WalletLedgerEntry \T1/lmr/m/
+n/10.95 (-20) row in Post-greSQL ($\T1/lmtt/m/n/10.95 server / src / casino / s
+ervices / walletLedger .
+ []
+
+
+Overfull \hbox (5.10796pt too wide) in paragraph at lines 1827--1828
+\T1/lmtt/m/n/10.95 service . ts$\T1/lmr/m/n/10.95 (-20) ). Fields: userId, rea-
+son (e.g. \T1/lmtt/m/n/10.95 GAME_WIN\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.
+95 TOURNAMENT_PRIZE\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 LOAN_REPAYMENT_
+IN\T1/lmr/m/n/10.95 (-20) ),
+ []
+
+
+Overfull \hbox (8.75098pt too wide) in paragraph at lines 1835--1836
+\T1/lmtt/m/n/10.95 server / src / logic / friendLoan . interest . ts$\T1/lmr/m/
+n/10.95 (-20) , $\T1/lmtt/m/n/10.95 server / src / routes / friendLoan . routes
+ . ts$\T1/lmr/m/n/10.95 (-20) ,
+ []
+
+[63
+
+] [64] [65
+
+]
+Overfull \hbox (8.51945pt too wide) in paragraph at lines 1853--1854
+\T1/lmtt/m/n/10.95 Dockerfile$\T1/lmr/m/n/10.95 (-20) , con-text $\T1/lmtt/m/n/
+10.95 server/$\T1/lmr/m/n/10.95 (-20) , des-ti-na-tions \T1/lmtt/m/n/10.95 ${CI
+_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}
+ []
+
+
+Overfull \hbox (38.19624pt too wide) in paragraph at lines 1857--1858
+\T1/lmtt/m/n/10.95 npm run build:electron \T1/lmr/m/n/10.95 (-20) runs Vite in 
+\T1/lmtt/m/n/10.95 electron \T1/lmr/m/n/10.95 (-20) mode; \T1/lmtt/m/n/10.95 el
+ectron:build:win\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 electron:build:mac
+\T1/lmr/m/n/10.95 (-20) ,
+ []
+
+[66
+
+]
+Overfull \hbox (72.00797pt too wide) in paragraph at lines 1869--1871
+\T1/lmr/m/n/10.95 (-20) May 2026 lo-cal run re-ported $\OT1/lmr/m/n/10.95 (-20)
+ ([][]\OML/lmm/m/it/10.95 ; [][]; [][]; [][]\OT1/lmr/m/n/10.95 (-20) ) = (86\OM
+L/lmm/m/it/10.95 :\OT1/lmr/m/n/10.95 (-20) 56%\OML/lmm/m/it/10.95 ; \OT1/lmr/m/
+n/10.95 (-20) 83\OML/lmm/m/it/10.95 :\OT1/lmr/m/n/10.95 (-20) 69%\OML/lmm/m/it/
+10.95 ; \OT1/lmr/m/n/10.95 (-20) 88\OML/lmm/m/it/10.95 :\OT1/lmr/m/n/10.95 (-20
+) 75%\OML/lmm/m/it/10.95 ; \OT1/lmr/m/n/10.95 (-20) 67\OML/lmm/m/it/10.95 :\OT1
+/lmr/m/n/10.95 (-20) 90%)$
+ []
+
+[67
+
+]
+Overfull \hbox (25.02728pt too wide) in paragraph at lines 1895--1896
 \T1/lmr/m/n/10.95 (-20) shot logic lives un-der $\T1/lmtt/m/n/10.95 server / sr
 c / blackjack / recovery/$ \T1/lmr/m/n/10.95 (-20) and $\T1/lmtt/m/n/10.95 serv
 er / src / blackjack / services/$\T1/lmr/m/n/10.95 (-20) .
  []
 
-[33
+[68
 
 ]
-Overfull \hbox (11.58562pt too wide) in paragraph at lines 792--793
+Overfull \hbox (11.58562pt too wide) in paragraph at lines 1913--1914
 \T1/lmr/m/n/10.95 (-20) The project is or-ga-nized into do-main mod-ules shar-i
 ng one run-time ar-chi-tec-ture: Re-act/TypeScript
  []
 
 
-Overfull \hbox (0.60112pt too wide) in paragraph at lines 794--795
+Overfull \hbox (0.60112pt too wide) in paragraph at lines 1915--1916
 []\T1/lmr/m/n/10.95 (-20) Poker uses server-side ta-ble au-thor-ity. Ac-tions f
 low through $\T1/lmtt/m/n/10.95 server / src / poker / services /
  []
 
-[34] [35] [36
+[69] [70] [71
 
-] [37
+] [72
 
 
 ] (./rapport.aux)
@@ -1015,31 +1693,38 @@ LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `rapport.out' has not changed.
-(rerunfilecheck)             Checksum: 2924F3A911C81188F82D5C6B4D3AF30C;21242.
+(rerunfilecheck)             Checksum: 93C17B7A683D6575A47A856FF401708E;34503.
  ) 
 Here is how much of TeX's memory you used:
- 15044 strings out of 467533
- 239319 string characters out of 5423668
- 705038 words of memory out of 5000000
- 43330 multiletter control sequences out of 15000+600000
- 713101 words of font info for 200 fonts, out of 8000000 for 9000
+ 27501 strings out of 467533
+ 503238 string characters out of 5423668
+ 937043 words of memory out of 5000000
+ 55236 multiletter control sequences out of 15000+600000
+ 751539 words of font info for 280 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,12n,79p,1194b,622s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 84i,12n,94p,1458b,890s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmbx10.pfb><c:/texlive/2025
 /texmf-dist/fonts/type1/public/lm/lmbx12.pfb><c:/texlive/2025/texmf-dist/fonts/
-type1/public/lm/lmcsc10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/l
-mex10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmmi10.pfb><c:/texl
-ive/2025/texmf-dist/fonts/type1/public/lm/lmmi8.pfb><c:/texlive/2025/texmf-dist
-/fonts/type1/public/lm/lmr10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public
-/lm/lmr8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmri10.pfb><c:/t
-exlive/2025/texmf-dist/fonts/type1/public/lm/lmssbx10.pfb><c:/texlive/2025/texm
-f-dist/fonts/type1/public/lm/lmsy10.pfb><c:/texlive/2025/texmf-dist/fonts/type1
-/public/lm/lmtt10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmtti10
-.pfb>
-Output written on rapport.pdf (46 pages, 379702 bytes).
+type1/public/lm/lmbx8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmb
+x9.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmcsc10.pfb><c:/texliv
+e/2025/texmf-dist/fonts/type1/public/lm/lmex10.pfb><c:/texlive/2025/texmf-dist/
+fonts/type1/public/lm/lmmi10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public
+/lm/lmmi8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmmi9.pfb><c:/t
+exlive/2025/texmf-dist/fonts/type1/public/lm/lmmib10.pfb><c:/texlive/2025/texmf
+-dist/fonts/type1/public/lm/lmr10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/p
+ublic/lm/lmr6.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmr8.pfb><c
+:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmr9.pfb><c:/texlive/2025/texmf
+-dist/fonts/type1/public/lm/lmri10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/
+public/lm/lmssbx10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmsy10
+.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmsy8.pfb><c:/texlive/20
+25/texmf-dist/fonts/type1/public/lm/lmsy9.pfb><c:/texlive/2025/texmf-dist/fonts
+/type1/public/lm/lmtk10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/l
+mtt10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmtt9.pfb><c:/texli
+ve/2025/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
+Output written on rapport.pdf (82 pages, 1082722 bytes).
 PDF statistics:
- 1064 PDF objects out of 1200 (max. 8388607)
- 976 compressed objects within 10 object streams
- 191 named destinations out of 1000 (max. 500000)
- 50515 words of extra memory for PDF output out of 51595 (max. 10000000)
+ 1891 PDF objects out of 2073 (max. 8388607)
+ 1735 compressed objects within 18 object streams
+ 386 named destinations out of 1000 (max. 500000)
+ 72455 words of extra memory for PDF output out of 74296 (max. 10000000)
 

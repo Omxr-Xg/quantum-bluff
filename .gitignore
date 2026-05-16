@@ -34,3 +34,11 @@ scripts/ios/ExportOptions.plist
 # Fichiers de cache Python
 __pycache__/
 *.pyc
+
+# LaTeX (Docs/rapport) — artefacts régénérés par ./Docs/compile-rapport.sh ; ne pas versionner (évite conflits au pull).
+Docs/rapport.aux
+Docs/rapport.log
+Docs/rapport.out
+Docs/rapport.toc
+Docs/rapport.lot
+Docs/rapport.lof
