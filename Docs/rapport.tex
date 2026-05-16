@@ -794,12 +794,11 @@ I also implemented and stabilized a large part of the social experience. This in
 
 On the frontend side, I contributed heavily to the final user experience: lobby layout, desktop fit, removal of unnecessary scrollbars, profile and avatar behavior, poker table layout, blackjack, roulette, mini-games, settings, audio controls and responsive fixes. I also helped with debugging, merge conflict resolution, CI pipeline fixes, PDF/report finalization and repeated end-to-end validation before the final delivery. Overall, my work was mostly cross-functional: connecting backend behavior, real-time synchronization, security rules and interface polish into features that users could actually use.
 
-
 \subsection{Mohamed -- Technical Leader}
 
 I worked as the \textbf{Technical Leader}. My role mainly consisted of coordinating the development of several core systems and contributing to both the frontend and backend parts of the platform in order to maintain a stable and consistent multiplayer experience.
 
-I contributed to the finalization of the user interface and game design by improving responsiveness across Desktop and Android platforms. I also worked on multiplayer animations, round transitions, and automatic pot calculations to improve gameplay fluidity and synchronization. In parallel, I participated in the visual design preparation of future mini-games such as the Slot Machine and Roulette through Figma prototypes.
+I contributed to the finalization of the user interface and game design by improving responsiveness across desktop and Android platforms. I also worked on multiplayer animations, round transitions, and automatic pot calculations to improve gameplay fluidity and synchronization. In parallel, I participated in the visual design preparation of future mini-games such as the Slot Machine and Roulette through Figma prototypes.
 
 I contributed to defining the tournament rules and implementing the tournament system, while also working with the project leader Omar on fixing bugs and improving system stability during testing phases.
 
@@ -808,7 +807,6 @@ On the security side, I worked on anti-cheat and moderation mechanisms, includin
 I additionally contributed to infrastructure stability and production deployment by configuring the production virtual machine, improving API protection through stricter CORS policies and rate limiting, and connecting the CI/CD pipeline to automated deployment workflows. I also participated in the debugging phase by identifying and fixing critical issues related to gameplay stability and multiplayer synchronization.
 
 Finally, I participated in tournament playtesting sessions under real conditions and contributed to player retention systems such as daily rewards and cooldown mechanisms.
-
 
 \subsection{Other contributors}
 
@@ -821,16 +819,16 @@ The repository does not contain signed-off, per-person effort logs or story poin
 \toprule
 Member & Primary areas (self-declared) & Verifiable artefacts (commits, MRs, modules) \\
 \midrule
-Linda & Security, network, deployment safeguards, CI/CD review & \path{CODEOWNERS}: security/network/docker/config/.gitlab ownership; critical files and CI/CD review paths \\
+Linda & Security, network, deployment safeguards, CI/CD review & See narrative above; security hardening, real-time social features, UI/UX polish and final validation \\
 Abdoulaye & Database modeling, Prisma schema, migrations, SQL/database validation & \path{CODEOWNERS}: database, migrations, SQL, Prisma schema and database test ownership \\
 Soheil & Backend logic, services, tests, poker evaluation support & \path{CODEOWNERS}: backend/API/services ownership; references in evaluator and backend test fixtures \\
-Mohamed & Frontend technical lead, React pages/components, architecture coordination & \path{CODEOWNERS}: frontend/components/pages ownership; architecture and critical file review paths \\
+Mohamed & Technical leadership, multiplayer UX, tournaments, security, deployment & See narrative above; UI finalization, tournament system, anti-cheat/moderation, production VM and CI/CD deployment workflows \\
 Massi & DevOps infrastructure, WebSocket networking, Nginx routing, Docker/CI, Electron packaging & See narrative above; Socket.IO integration, deployment configuration, CI/CD automation, Electron packaging and stabilization work \\
 Azra & Backend modeling, card/game logic, visual design, accessibility, UX features & See narrative above; work around game entities, card logic, mini-game interfaces, accessibility and reward/recharge flows \\
 Yigit & Debugging, QA, tournaments, responsive UI, Git/MR reviews & See narrative above; playtests on \path{client/src/pages/Game.tsx}, \path{client/src/features/tournament/}, mobile layouts and deployment regressions \\
 \bottomrule
 \end{tabular}
-\caption{Individual contributions: expanded statements for Omar, Massi, Yigit and Azra appear as subsections above; other rows are summarized from repository ownership notes and should be countersigned by the team.}\label{tab:contrib}
+\caption{Individual contributions: expanded statements for Omar, Massi, Yigit, Azra, Linda and Mohamed appear as subsections above; remaining rows are summarized from repository ownership notes and should be countersigned by the team.}\label{tab:contrib}
 \end{table}
 
 \section{Limitations and Future Work}
