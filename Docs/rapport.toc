@@ -82,127 +82,128 @@
 \contentsline {subsection}{\numberline {12.3}Integrity of authorship and AI assistance}{26}{subsection.12.3}%
 \contentsline {section}{\numberline {13}Individual Contributions}{27}{section.13}%
 \contentsline {subsection}{\numberline {13.1}Omar -- project management and architecture alignment}{27}{subsection.13.1}%
-\contentsline {subsection}{\numberline {13.2}Yigit -- Debugging, Quality Assurance and Gameplay Stability}{27}{subsection.13.2}%
-\contentsline {subsection}{\numberline {13.3}Azra -- Backend Modeling, Visual Design and User Experience Features}{27}{subsection.13.3}%
-\contentsline {subsection}{\numberline {13.4}Linda -- security, real-time features and UI/UX}{28}{subsection.13.4}%
-\contentsline {subsection}{\numberline {13.5}Other contributors}{28}{subsection.13.5}%
-\contentsline {section}{\numberline {14}Limitations and Future Work}{29}{section.14}%
-\contentsline {subsection}{\numberline {14.1}Current limitations}{29}{subsection.14.1}%
-\contentsline {subsection}{\numberline {14.2}Future improvements}{29}{subsection.14.2}%
-\contentsline {section}{\numberline {15}Conclusion}{30}{section.15}%
-\contentsline {section}{Acknowledgements}{31}{section*.21}%
-\contentsline {section}{\numberline {A}Repository map and routing}{32}{appendix.A}%
-\contentsline {subsection}{\numberline {A.1}Programmed routing and shell}{32}{subsection.A.1}%
-\contentsline {section}{\numberline {B}Architecture diagram}{33}{appendix.B}%
-\contentsline {subsection}{\numberline {B.1}Layered runtime architecture}{33}{subsection.B.1}%
-\contentsline {subsection}{\numberline {B.2}Reading the diagram}{33}{subsection.B.2}%
-\contentsline {section}{\numberline {C}Relational database model}{34}{appendix.C}%
-\contentsline {subsection}{\numberline {C.1}Relational mode and source of truth}{34}{subsection.C.1}%
-\contentsline {subsection}{\numberline {C.2}Main relational groups}{34}{subsection.C.2}%
-\contentsline {section}{\numberline {D}Poker engine and cash game}{36}{appendix.D}%
-\contentsline {subsection}{\numberline {D.1}What was programmed}{36}{subsection.D.1}%
-\contentsline {subsection}{\numberline {D.2}Rules enforced}{36}{subsection.D.2}%
-\contentsline {subsection}{\numberline {D.3}Further reading}{36}{subsection.D.3}%
-\contentsline {section}{\numberline {E}Bot AI and practice integration}{37}{appendix.E}%
-\contentsline {subsection}{\numberline {E.1}Programmed pipeline}{37}{subsection.E.1}%
-\contentsline {subsection}{\numberline {E.2}Strength signal and decisions}{37}{subsection.E.2}%
-\contentsline {subsection}{\numberline {E.3}Dispatch surface}{37}{subsection.E.3}%
-\contentsline {subsection}{\numberline {E.4}Decision dispatch and bot tier routing}{37}{subsection.E.4}%
-\contentsline {subsection}{\numberline {E.5}Bot tier specifics and complexity}{38}{subsection.E.5}%
-\contentsline {paragraph}{Easy tier.}{38}{section*.24}%
-\contentsline {paragraph}{Medium tier.}{38}{section*.25}%
-\contentsline {paragraph}{Hard tier.}{38}{section*.26}%
-\contentsline {paragraph}{Expert tier.}{38}{section*.27}%
-\contentsline {subsection}{\numberline {E.6}Expert tier: optional Python service}{38}{subsection.E.6}%
-\contentsline {subsection}{\numberline {E.7}Expert oracle path (TypeScript, no network)}{38}{subsection.E.7}%
-\contentsline {subsection}{\numberline {E.8}Further reading}{39}{subsection.E.8}%
-\contentsline {section}{\numberline {F}Probabilities, Quantum HUD, and Monte Carlo helper}{40}{appendix.F}%
-\contentsline {subsection}{\numberline {F.1}Division of responsibilities}{40}{subsection.F.1}%
-\contentsline {subsection}{\numberline {F.2}Monte Carlo equity estimator}{40}{subsection.F.2}%
-\contentsline {subsection}{\numberline {F.3}Monte Carlo error budget (HUD analogue to RTP)}{40}{subsection.F.3}%
-\contentsline {subsection}{\numberline {F.4}Quantum Combi---exact enumeration formula}{41}{subsection.F.4}%
-\contentsline {subsection}{\numberline {F.5}Quantum Combi in the hand-ranking ladder (server and HUD)}{41}{subsection.F.5}%
-\contentsline {section}{\numberline {G}Hidden betting system}{42}{appendix.G}%
-\contentsline {subsection}{\numberline {G.1}Programmed architecture}{42}{subsection.G.1}%
-\contentsline {subsection}{\numberline {G.2}Odds and tables (example)}{42}{subsection.G.2}%
-\contentsline {subsection}{\numberline {G.3}Further reading}{42}{subsection.G.3}%
-\contentsline {section}{\numberline {H}Tournaments and winner side bets}{43}{appendix.H}%
-\contentsline {subsection}{\numberline {H.1}Tournament system diagram}{43}{subsection.H.1}%
-\contentsline {subsection}{\numberline {H.2}Poker hand evaluation and tournament algorithms}{43}{subsection.H.2}%
-\contentsline {subsubsection}{\numberline {H.2.1}Algorithm: Mulberry32 seeded PRNG}{43}{subsubsection.H.2.1}%
-\contentsline {subsubsection}{\numberline {H.2.2}Algorithm: Fisher--Yates shuffle}{44}{subsubsection.H.2.2}%
-\contentsline {subsubsection}{\numberline {H.2.3}Algorithm: Tournament bracket builder}{44}{subsubsection.H.2.3}%
-\contentsline {subsubsection}{\numberline {H.2.4}Algorithm: Poker hand evaluation}{45}{subsubsection.H.2.4}%
-\contentsline {subsubsection}{\numberline {H.2.5}Algorithm: Action deduplication cache}{45}{subsubsection.H.2.5}%
-\contentsline {subsubsection}{\numberline {H.2.6}Algorithm: Multi-pot settlement}{46}{subsubsection.H.2.6}%
-\contentsline {subsubsection}{\numberline {H.2.7}Performance and correctness}{47}{subsubsection.H.2.7}%
-\contentsline {subsection}{\numberline {H.3}Runtime architecture (layers)}{47}{subsection.H.3}%
-\contentsline {subsection}{\numberline {H.4}Bracket geometry and table sizing}{48}{subsection.H.4}%
-\contentsline {subsection}{\numberline {H.5}Seeded shuffle (deterministic bracket RNG)}{48}{subsection.H.5}%
-\contentsline {subsection}{\numberline {H.6}Real-time gameplay and tournament dataflow}{48}{subsection.H.6}%
-\contentsline {subsection}{\numberline {H.7}State recovery after crashes}{49}{subsection.H.7}%
-\contentsline {subsection}{\numberline {H.8}Further reading}{50}{subsection.H.8}%
-\contentsline {section}{\numberline {I}Real-Time Communication and WebSocket Architecture}{51}{appendix.I}%
-\contentsline {subsection}{\numberline {I.1}JWT authentication middleware and token validation flow}{51}{subsection.I.1}%
-\contentsline {subsection}{\numberline {I.2}Room organization and state broadcasting patterns}{52}{subsection.I.2}%
-\contentsline {paragraph}{User room (\texttt {user:\{userId\}}):}{52}{section*.29}%
-\contentsline {paragraph}{Game table room (\texttt {gameId}):}{52}{section*.30}%
-\contentsline {paragraph}{Waiting room (\texttt {roomId}):}{52}{section*.31}%
-\contentsline {paragraph}{Tournament rooms (\texttt {tournament:\{tournamentId\}}, \texttt {TOURNAMENT\_LOBBY}):}{52}{section*.32}%
-\contentsline {subsection}{\numberline {I.3}Snapshot synchronization and disconnection resilience}{52}{subsection.I.3}%
-\contentsline {subsubsection}{\numberline {I.3.1}In-memory runtime state}{53}{subsubsection.I.3.1}%
-\contentsline {subsubsection}{\numberline {I.3.2}Serializable snapshots}{53}{subsubsection.I.3.2}%
-\contentsline {subsubsection}{\numberline {I.3.3}Full snapshot on join/reconnect}{53}{subsubsection.I.3.3}%
-\contentsline {subsection}{\numberline {I.4}Table locking and action serialization}{53}{subsection.I.4}%
-\contentsline {subsection}{\numberline {I.5}Anti-cheat monitoring and action deduplication}{54}{subsection.I.5}%
-\contentsline {subsection}{\numberline {I.6}Redis pub/sub adapter for multi-instance deployments}{55}{subsection.I.6}%
-\contentsline {subsubsection}{\numberline {I.6.1}Single instance (development fallback)}{55}{subsubsection.I.6.1}%
-\contentsline {subsubsection}{\numberline {I.6.2}Multi-instance with Redis}{55}{subsubsection.I.6.2}%
-\contentsline {subsection}{\numberline {I.7}Further reading}{55}{subsection.I.7}%
-\contentsline {section}{\numberline {J}Blackjack solo and multiplayer}{56}{appendix.J}%
-\contentsline {subsection}{\numberline {J.1}Solo blackjack engine}{56}{subsection.J.1}%
-\contentsline {subsubsection}{\numberline {J.1.1}Payout structure and expected value}{56}{subsubsection.J.1.1}%
-\contentsline {subsubsection}{\numberline {J.1.2}State and recovery}{56}{subsubsection.J.1.2}%
-\contentsline {subsection}{\numberline {J.2}HTTP and multi-table surfaces}{56}{subsection.J.2}%
-\contentsline {subsection}{\numberline {J.3}Further reading}{57}{subsection.J.3}%
-\contentsline {section}{\numberline {K}Slot machine, roulette, and casino wallet}{58}{appendix.K}%
-\contentsline {subsection}{\numberline {K.1}Three-reel slot model}{58}{subsection.K.1}%
-\contentsline {subsection}{\numberline {K.2}Complete slot RTP (closed form, current constants)}{58}{subsection.K.2}%
-\contentsline {paragraph}{Triple (three of a kind).}{58}{section*.33}%
-\contentsline {paragraph}{Exact pair (not a triple).}{58}{section*.34}%
-\contentsline {paragraph}{Lose.}{58}{section*.35}%
-\contentsline {paragraph}{Expected multiplier and RTP.}{58}{section*.36}%
-\contentsline {paragraph}{Variance (optional diagnostic).}{59}{section*.37}%
-\contentsline {subsection}{\numberline {K.3}European roulette model}{59}{subsection.K.3}%
-\contentsline {subsection}{\numberline {K.4}Complete roulette RTP (all proportional inside bets)}{59}{subsection.K.4}%
-\contentsline {subsection}{\numberline {K.5}Wallet and ledger}{59}{subsection.K.5}%
-\contentsline {subsection}{\numberline {K.6}RNG injection and deterministic testing}{60}{subsection.K.6}%
-\contentsline {subsection}{\numberline {K.7}Ledger integration and fairness guarantees}{60}{subsection.K.7}%
-\contentsline {subsection}{\numberline {K.8}Anti-cheat and outcome validation}{60}{subsection.K.8}%
-\contentsline {section}{\numberline {L}Social graph, invitations, and peer loans}{61}{appendix.L}%
-\contentsline {subsection}{\numberline {L.1}Programmed surfaces}{61}{subsection.L.1}%
-\contentsline {subsection}{\numberline {L.2}Further reading}{61}{subsection.L.2}%
-\contentsline {section}{\numberline {M}Progression, challenges, and leaderboards}{62}{appendix.M}%
-\contentsline {subsection}{\numberline {M.1}Programmed logic}{62}{subsection.M.1}%
-\contentsline {subsection}{\numberline {M.2}Further reading}{62}{subsection.M.2}%
-\contentsline {section}{\numberline {N}Rewards, Banking, and Transactions}{63}{appendix.N}%
-\contentsline {subsection}{\numberline {N.1}Gamification: XP curves, levels, and badge unlocks}{63}{subsection.N.1}%
-\contentsline {subsection}{\numberline {N.2}Wallet ledger: immutable transaction record}{63}{subsection.N.2}%
-\contentsline {subsection}{\numberline {N.3}Tournament rewards and peer loans}{63}{subsection.N.3}%
-\contentsline {subsection}{\numberline {N.4}Further reading}{64}{subsection.N.4}%
-\contentsline {section}{\numberline {O}Authentication, profiles, and i18n}{65}{appendix.O}%
-\contentsline {subsection}{\numberline {O.1}Programmed security and profiles}{65}{subsection.O.1}%
-\contentsline {section}{\numberline {P}Operations, Redis, CI, and packaging}{66}{appendix.P}%
-\contentsline {subsection}{\numberline {P.1}Programmed operations}{66}{subsection.P.1}%
-\contentsline {subsection}{\numberline {P.2}Kaniko container builds (GitLab CI)}{66}{subsection.P.2}%
-\contentsline {subsection}{\numberline {P.3}Electron and Capacitor build matrix}{66}{subsection.P.3}%
-\contentsline {section}{\numberline {Q}Test coverage metrics and definitions}{67}{appendix.Q}%
-\contentsline {subsection}{\numberline {Q.1}Jest ratios}{67}{subsection.Q.1}%
-\contentsline {subsection}{\numberline {Q.2}Vitest ratios (client)}{67}{subsection.Q.2}%
-\contentsline {subsection}{\numberline {Q.3}Relation to tournaments}{67}{subsection.Q.3}%
-\contentsline {subsection}{\numberline {Q.4}Further reading}{67}{subsection.Q.4}%
-\contentsline {section}{\numberline {R}Real-time, security, and implemented solution details}{68}{appendix.R}%
-\contentsline {subsection}{\numberline {R.1}Real-time communication details}{68}{subsection.R.1}%
-\contentsline {subsection}{\numberline {R.2}Authentication and anti-cheat details}{68}{subsection.R.2}%
-\contentsline {subsection}{\numberline {R.3}Implemented solution details}{69}{subsection.R.3}%
-\contentsline {section}{\numberline {S}External references and compendium}{71}{appendix.S}%
+\contentsline {subsection}{\numberline {13.2}Massi -- DevOps Infrastructure, Real-Time Networking, and Cross-Platform Delivery}{27}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.3}Yigit -- Debugging, Quality Assurance and Gameplay Stability}{27}{subsection.13.3}%
+\contentsline {subsection}{\numberline {13.4}Azra -- Backend Modeling, Visual Design and User Experience Features}{28}{subsection.13.4}%
+\contentsline {subsection}{\numberline {13.5}Linda -- security, real-time features and UI/UX}{28}{subsection.13.5}%
+\contentsline {subsection}{\numberline {13.6}Other contributors}{29}{subsection.13.6}%
+\contentsline {section}{\numberline {14}Limitations and Future Work}{30}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Current limitations}{30}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}Future improvements}{30}{subsection.14.2}%
+\contentsline {section}{\numberline {15}Conclusion}{31}{section.15}%
+\contentsline {section}{Acknowledgements}{32}{section*.21}%
+\contentsline {section}{\numberline {A}Repository map and routing}{33}{appendix.A}%
+\contentsline {subsection}{\numberline {A.1}Programmed routing and shell}{33}{subsection.A.1}%
+\contentsline {section}{\numberline {B}Architecture diagram}{34}{appendix.B}%
+\contentsline {subsection}{\numberline {B.1}Layered runtime architecture}{34}{subsection.B.1}%
+\contentsline {subsection}{\numberline {B.2}Reading the diagram}{34}{subsection.B.2}%
+\contentsline {section}{\numberline {C}Relational database model}{35}{appendix.C}%
+\contentsline {subsection}{\numberline {C.1}Relational mode and source of truth}{35}{subsection.C.1}%
+\contentsline {subsection}{\numberline {C.2}Main relational groups}{35}{subsection.C.2}%
+\contentsline {section}{\numberline {D}Poker engine and cash game}{37}{appendix.D}%
+\contentsline {subsection}{\numberline {D.1}What was programmed}{37}{subsection.D.1}%
+\contentsline {subsection}{\numberline {D.2}Rules enforced}{37}{subsection.D.2}%
+\contentsline {subsection}{\numberline {D.3}Further reading}{37}{subsection.D.3}%
+\contentsline {section}{\numberline {E}Bot AI and practice integration}{38}{appendix.E}%
+\contentsline {subsection}{\numberline {E.1}Programmed pipeline}{38}{subsection.E.1}%
+\contentsline {subsection}{\numberline {E.2}Strength signal and decisions}{38}{subsection.E.2}%
+\contentsline {subsection}{\numberline {E.3}Dispatch surface}{38}{subsection.E.3}%
+\contentsline {subsection}{\numberline {E.4}Decision dispatch and bot tier routing}{38}{subsection.E.4}%
+\contentsline {subsection}{\numberline {E.5}Bot tier specifics and complexity}{39}{subsection.E.5}%
+\contentsline {paragraph}{Easy tier.}{39}{section*.24}%
+\contentsline {paragraph}{Medium tier.}{39}{section*.25}%
+\contentsline {paragraph}{Hard tier.}{39}{section*.26}%
+\contentsline {paragraph}{Expert tier.}{39}{section*.27}%
+\contentsline {subsection}{\numberline {E.6}Expert tier: optional Python service}{39}{subsection.E.6}%
+\contentsline {subsection}{\numberline {E.7}Expert oracle path (TypeScript, no network)}{39}{subsection.E.7}%
+\contentsline {subsection}{\numberline {E.8}Further reading}{40}{subsection.E.8}%
+\contentsline {section}{\numberline {F}Probabilities, Quantum HUD, and Monte Carlo helper}{41}{appendix.F}%
+\contentsline {subsection}{\numberline {F.1}Division of responsibilities}{41}{subsection.F.1}%
+\contentsline {subsection}{\numberline {F.2}Monte Carlo equity estimator}{41}{subsection.F.2}%
+\contentsline {subsection}{\numberline {F.3}Monte Carlo error budget (HUD analogue to RTP)}{41}{subsection.F.3}%
+\contentsline {subsection}{\numberline {F.4}Quantum Combi---exact enumeration formula}{42}{subsection.F.4}%
+\contentsline {subsection}{\numberline {F.5}Quantum Combi in the hand-ranking ladder (server and HUD)}{42}{subsection.F.5}%
+\contentsline {section}{\numberline {G}Hidden betting system}{43}{appendix.G}%
+\contentsline {subsection}{\numberline {G.1}Programmed architecture}{43}{subsection.G.1}%
+\contentsline {subsection}{\numberline {G.2}Odds and tables (example)}{43}{subsection.G.2}%
+\contentsline {subsection}{\numberline {G.3}Further reading}{43}{subsection.G.3}%
+\contentsline {section}{\numberline {H}Tournaments and winner side bets}{44}{appendix.H}%
+\contentsline {subsection}{\numberline {H.1}Tournament system diagram}{44}{subsection.H.1}%
+\contentsline {subsection}{\numberline {H.2}Poker hand evaluation and tournament algorithms}{44}{subsection.H.2}%
+\contentsline {subsubsection}{\numberline {H.2.1}Algorithm: Mulberry32 seeded PRNG}{44}{subsubsection.H.2.1}%
+\contentsline {subsubsection}{\numberline {H.2.2}Algorithm: Fisher--Yates shuffle}{45}{subsubsection.H.2.2}%
+\contentsline {subsubsection}{\numberline {H.2.3}Algorithm: Tournament bracket builder}{45}{subsubsection.H.2.3}%
+\contentsline {subsubsection}{\numberline {H.2.4}Algorithm: Poker hand evaluation}{46}{subsubsection.H.2.4}%
+\contentsline {subsubsection}{\numberline {H.2.5}Algorithm: Action deduplication cache}{46}{subsubsection.H.2.5}%
+\contentsline {subsubsection}{\numberline {H.2.6}Algorithm: Multi-pot settlement}{47}{subsubsection.H.2.6}%
+\contentsline {subsubsection}{\numberline {H.2.7}Performance and correctness}{48}{subsubsection.H.2.7}%
+\contentsline {subsection}{\numberline {H.3}Runtime architecture (layers)}{48}{subsection.H.3}%
+\contentsline {subsection}{\numberline {H.4}Bracket geometry and table sizing}{49}{subsection.H.4}%
+\contentsline {subsection}{\numberline {H.5}Seeded shuffle (deterministic bracket RNG)}{49}{subsection.H.5}%
+\contentsline {subsection}{\numberline {H.6}Real-time gameplay and tournament dataflow}{49}{subsection.H.6}%
+\contentsline {subsection}{\numberline {H.7}State recovery after crashes}{50}{subsection.H.7}%
+\contentsline {subsection}{\numberline {H.8}Further reading}{51}{subsection.H.8}%
+\contentsline {section}{\numberline {I}Real-Time Communication and WebSocket Architecture}{52}{appendix.I}%
+\contentsline {subsection}{\numberline {I.1}JWT authentication middleware and token validation flow}{52}{subsection.I.1}%
+\contentsline {subsection}{\numberline {I.2}Room organization and state broadcasting patterns}{53}{subsection.I.2}%
+\contentsline {paragraph}{User room (\texttt {user:\{userId\}}):}{53}{section*.29}%
+\contentsline {paragraph}{Game table room (\texttt {gameId}):}{53}{section*.30}%
+\contentsline {paragraph}{Waiting room (\texttt {roomId}):}{53}{section*.31}%
+\contentsline {paragraph}{Tournament rooms (\texttt {tournament:\{tournamentId\}}, \texttt {TOURNAMENT\_LOBBY}):}{53}{section*.32}%
+\contentsline {subsection}{\numberline {I.3}Snapshot synchronization and disconnection resilience}{53}{subsection.I.3}%
+\contentsline {subsubsection}{\numberline {I.3.1}In-memory runtime state}{54}{subsubsection.I.3.1}%
+\contentsline {subsubsection}{\numberline {I.3.2}Serializable snapshots}{54}{subsubsection.I.3.2}%
+\contentsline {subsubsection}{\numberline {I.3.3}Full snapshot on join/reconnect}{54}{subsubsection.I.3.3}%
+\contentsline {subsection}{\numberline {I.4}Table locking and action serialization}{54}{subsection.I.4}%
+\contentsline {subsection}{\numberline {I.5}Anti-cheat monitoring and action deduplication}{55}{subsection.I.5}%
+\contentsline {subsection}{\numberline {I.6}Redis pub/sub adapter for multi-instance deployments}{56}{subsection.I.6}%
+\contentsline {subsubsection}{\numberline {I.6.1}Single instance (development fallback)}{56}{subsubsection.I.6.1}%
+\contentsline {subsubsection}{\numberline {I.6.2}Multi-instance with Redis}{56}{subsubsection.I.6.2}%
+\contentsline {subsection}{\numberline {I.7}Further reading}{56}{subsection.I.7}%
+\contentsline {section}{\numberline {J}Blackjack solo and multiplayer}{57}{appendix.J}%
+\contentsline {subsection}{\numberline {J.1}Solo blackjack engine}{57}{subsection.J.1}%
+\contentsline {subsubsection}{\numberline {J.1.1}Payout structure and expected value}{57}{subsubsection.J.1.1}%
+\contentsline {subsubsection}{\numberline {J.1.2}State and recovery}{57}{subsubsection.J.1.2}%
+\contentsline {subsection}{\numberline {J.2}HTTP and multi-table surfaces}{57}{subsection.J.2}%
+\contentsline {subsection}{\numberline {J.3}Further reading}{58}{subsection.J.3}%
+\contentsline {section}{\numberline {K}Slot machine, roulette, and casino wallet}{59}{appendix.K}%
+\contentsline {subsection}{\numberline {K.1}Three-reel slot model}{59}{subsection.K.1}%
+\contentsline {subsection}{\numberline {K.2}Complete slot RTP (closed form, current constants)}{59}{subsection.K.2}%
+\contentsline {paragraph}{Triple (three of a kind).}{59}{section*.33}%
+\contentsline {paragraph}{Exact pair (not a triple).}{59}{section*.34}%
+\contentsline {paragraph}{Lose.}{59}{section*.35}%
+\contentsline {paragraph}{Expected multiplier and RTP.}{59}{section*.36}%
+\contentsline {paragraph}{Variance (optional diagnostic).}{60}{section*.37}%
+\contentsline {subsection}{\numberline {K.3}European roulette model}{60}{subsection.K.3}%
+\contentsline {subsection}{\numberline {K.4}Complete roulette RTP (all proportional inside bets)}{60}{subsection.K.4}%
+\contentsline {subsection}{\numberline {K.5}Wallet and ledger}{60}{subsection.K.5}%
+\contentsline {subsection}{\numberline {K.6}RNG injection and deterministic testing}{61}{subsection.K.6}%
+\contentsline {subsection}{\numberline {K.7}Ledger integration and fairness guarantees}{61}{subsection.K.7}%
+\contentsline {subsection}{\numberline {K.8}Anti-cheat and outcome validation}{61}{subsection.K.8}%
+\contentsline {section}{\numberline {L}Social graph, invitations, and peer loans}{62}{appendix.L}%
+\contentsline {subsection}{\numberline {L.1}Programmed surfaces}{62}{subsection.L.1}%
+\contentsline {subsection}{\numberline {L.2}Further reading}{62}{subsection.L.2}%
+\contentsline {section}{\numberline {M}Progression, challenges, and leaderboards}{63}{appendix.M}%
+\contentsline {subsection}{\numberline {M.1}Programmed logic}{63}{subsection.M.1}%
+\contentsline {subsection}{\numberline {M.2}Further reading}{63}{subsection.M.2}%
+\contentsline {section}{\numberline {N}Rewards, Banking, and Transactions}{64}{appendix.N}%
+\contentsline {subsection}{\numberline {N.1}Gamification: XP curves, levels, and badge unlocks}{64}{subsection.N.1}%
+\contentsline {subsection}{\numberline {N.2}Wallet ledger: immutable transaction record}{64}{subsection.N.2}%
+\contentsline {subsection}{\numberline {N.3}Tournament rewards and peer loans}{64}{subsection.N.3}%
+\contentsline {subsection}{\numberline {N.4}Further reading}{65}{subsection.N.4}%
+\contentsline {section}{\numberline {O}Authentication, profiles, and i18n}{66}{appendix.O}%
+\contentsline {subsection}{\numberline {O.1}Programmed security and profiles}{66}{subsection.O.1}%
+\contentsline {section}{\numberline {P}Operations, Redis, CI, and packaging}{67}{appendix.P}%
+\contentsline {subsection}{\numberline {P.1}Programmed operations}{67}{subsection.P.1}%
+\contentsline {subsection}{\numberline {P.2}Kaniko container builds (GitLab CI)}{67}{subsection.P.2}%
+\contentsline {subsection}{\numberline {P.3}Electron and Capacitor build matrix}{67}{subsection.P.3}%
+\contentsline {section}{\numberline {Q}Test coverage metrics and definitions}{68}{appendix.Q}%
+\contentsline {subsection}{\numberline {Q.1}Jest ratios}{68}{subsection.Q.1}%
+\contentsline {subsection}{\numberline {Q.2}Vitest ratios (client)}{68}{subsection.Q.2}%
+\contentsline {subsection}{\numberline {Q.3}Relation to tournaments}{68}{subsection.Q.3}%
+\contentsline {subsection}{\numberline {Q.4}Further reading}{68}{subsection.Q.4}%
+\contentsline {section}{\numberline {R}Real-time, security, and implemented solution details}{69}{appendix.R}%
+\contentsline {subsection}{\numberline {R.1}Real-time communication details}{69}{subsection.R.1}%
+\contentsline {subsection}{\numberline {R.2}Authentication and anti-cheat details}{69}{subsection.R.2}%
+\contentsline {subsection}{\numberline {R.3}Implemented solution details}{70}{subsection.R.3}%
+\contentsline {section}{\numberline {S}External references and compendium}{72}{appendix.S}%

@@ -1,4 +1,4 @@
 \contentsline {table}{\numberline {1}{\ignorespaces High-level functional inventory (representative surfaces).}}{10}{table.1}%
 \contentsline {table}{\numberline {2}{\ignorespaces Automated unit and integration test inventory (May~2026 snapshot).}}{23}{table.caption.18}%
 \contentsline {table}{\numberline {3}{\ignorespaces Server Jest coverage aggregate on \texttt {collectCoverageFrom} (May~2026; \texttt {npm run test:coverage} in \texttt {server/}).}}{24}{table.caption.19}%
-\contentsline {table}{\numberline {4}{\ignorespaces Main relational groups in the Prisma schema.}}{34}{table.4}%
+\contentsline {table}{\numberline {4}{\ignorespaces Main relational groups in the Prisma schema.}}{35}{table.4}%

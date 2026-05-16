@@ -743,6 +743,14 @@ Section~\ref{sec:ai} states how large language models were used as drafting assi
 
 Organizational narrative: Section~\ref{sec:management}. Beyond ceremonies and backlog arbitration, I coordinated \textbf{cross-cutting technical commitments}: early adoption of Redis for Socket.IO horizontal scale-out and rate limiting, alignment between Prisma schema changes and gameplay features, and risk reviews before widening scope (tournaments, casino mini-games, loans). I also worked with the appointed technical lead to sequence risky merges, such as the socket gateway and recovery jobs, away from demo deadlines.
 
+\subsection{Massi -- DevOps Infrastructure, Real-Time Networking, and Cross-Platform Delivery}
+
+I contributed to Quantum Bluff by working on DevOps infrastructure, real-time networking, deployment automation and cross-platform delivery. On the networking side, I helped design and stabilize the WebSocket/Socket.IO communication layer used by the poker tables and live gameplay flows. This included reconnection behavior, timeout handling, and client-side socket integration so that short network interruptions would not immediately break the player experience.
+
+I also worked on the production infrastructure around reverse proxying, containerization and deployment. This included Nginx routing concerns for HTTP and WebSocket traffic, Docker-based service isolation, PostgreSQL and Redis deployment boundaries, and CI/CD automation through GitLab Runner. The goal was to make the platform deployable in a controlled environment while keeping database migrations, environment generation and service restarts reproducible.
+
+Finally, I contributed to cross-platform packaging and release preparation. I worked on the Electron desktop target, Windows installer generation, and the structural setup needed to package the React application outside the browser. I also participated in bug hunting and stabilization work, especially around cross-origin issues, chat input handling and real-time state synchronization.
+
 \subsection{Yigit -- Debugging, Quality Assurance and Gameplay Stability}
 
 I mainly contributed to debugging, testing and quality assurance throughout the development of Quantum Bluff. My work focused on identifying gameplay issues, reproducing bugs precisely, and validating that new implementations did not introduce regressions in the main user flows. I actively tested multiplayer poker games, tournaments and mobile responsive interfaces to ensure that the platform remained stable in realistic gameplay situations.
@@ -770,7 +778,7 @@ I also worked on the friends and lobby experience: friend search, add-friend mod
 
 \subsection{Other contributors}
 
-Additional individual contribution statements for Massi, Abdoulaye, Soheil and Mohamed are managed separately by the team. This report does not assign detailed technical ownership to those members without their explicit validation, in order to keep the attribution section accurate and academically honest.
+Additional individual contribution statements for Abdoulaye, Soheil and Mohamed are managed separately by the team. This report does not assign detailed technical ownership to those members without their explicit validation, in order to keep the attribution section accurate and academically honest.
 
 \section{Limitations and Future Work}
 \label{sec:limitations}
