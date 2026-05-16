@@ -823,6 +823,14 @@ Section~\ref{sec:ai} states how large language models were used as drafting assi
 
 Organizational narrative: Section~\ref{sec:management}. Beyond ceremonies and backlog arbitration, I coordinated \textbf{cross-cutting technical commitments}: early adoption of Redis for Socket.IO horizontal scale-out and rate limiting, alignment between Prisma schema changes and gameplay features, and risk reviews before widening scope (tournaments, casino mini-games, loans). I also worked with the appointed technical lead to sequence risky merges, such as the socket gateway and recovery jobs, away from demo deadlines.
 
+\subsection{Massi -- DevOps Infrastructure, Real-Time Networking, and Cross-Platform Delivery}
+
+I contributed to Quantum Bluff by working on DevOps infrastructure, real-time networking, deployment automation and cross-platform delivery. On the networking side, I helped design and stabilize the WebSocket/Socket.IO communication layer used by the poker tables and live gameplay flows. This included reconnection behavior, timeout handling, and client-side socket integration so that short network interruptions would not immediately break the player experience.
+
+I also worked on the production infrastructure around reverse proxying, containerization and deployment. This included Nginx routing concerns for HTTP and WebSocket traffic, Docker-based service isolation, PostgreSQL and Redis deployment boundaries, and CI/CD automation through GitLab Runner. The goal was to make the platform deployable in a controlled environment while keeping database migrations, environment generation and service restarts reproducible.
+
+Finally, I contributed to cross-platform packaging and release preparation. I worked on the Electron desktop target, Windows installer generation, and the structural setup needed to package the React application outside the browser. I also participated in bug hunting and stabilization work, especially around cross-origin issues, chat input handling and real-time state synchronization.
+
 \subsection{Yigit -- Debugging, Quality Assurance and Gameplay Stability}
 
 I mainly contributed to debugging, testing and quality assurance throughout the development of Quantum Bluff. My work focused on identifying gameplay issues, reproducing bugs precisely, and validating that new implementations did not introduce regressions in the main user flows. I actively tested multiplayer poker games, tournaments and mobile responsive interfaces to ensure that the platform remained stable in realistic gameplay situations.
@@ -844,7 +852,7 @@ Finally, I contributed to several user experience and retention features, such a
 
 \subsection{Other contributors}
 
-The repository does not contain signed-off, per-person effort logs, story point assignments, or validated textual attributions beyond the narratives above for Omar, Yigit and Azra. To satisfy examination requirements, the table below must still be \textbf{completed and countersigned by the team} for remaining members (replace placeholder cells).
+The repository does not contain signed-off, per-person effort logs, story point assignments, or validated textual attributions beyond the narratives above for Omar, Massi, Yigit and Azra. To satisfy examination requirements, the table below must still be \textbf{completed and countersigned by the team} for remaining members (replace placeholder cells).
 
 \begin{table}[htbp]
 \centering
@@ -854,15 +862,15 @@ The repository does not contain signed-off, per-person effort logs, story point 
 Member & Primary areas (self-declared) & Verifiable artefacts (commits, MRs, modules) \\
 \midrule
 Linda & \textit{[to complete]} & \textit{[to complete]} \\
-Massi & \textit{[to complete]} & \textit{[to complete]} \\
 Abdoulaye & \textit{[to complete]} & \textit{[to complete]} \\
 Soheil & \textit{[to complete]} & \textit{[to complete]} \\
 Mohamed & \textit{[to complete]} & \textit{[to complete]} \\
+Massi & DevOps infrastructure, WebSocket networking, Nginx routing, Docker/CI, Electron packaging & See narrative above; Socket.IO integration, deployment configuration, CI/CD automation, Electron packaging and stabilization work \\
 Azra & Backend modeling, card/game logic, visual design, accessibility, UX features & See narrative above; work around game entities, card logic, mini-game interfaces, accessibility and reward/recharge flows \\
 Yigit & Debugging, QA, tournaments, responsive UI, Git/MR reviews & See narrative above; playtests on \path{client/src/pages/Game.tsx}, \path{client/src/features/tournament/}, mobile layouts and deployment regressions \\
 \bottomrule
 \end{tabular}
-\caption{Individual contributions: expanded statements for Omar, Yigit and Azra appear as subsections above; other rows remain self-declared placeholders until completed.}\label{tab:contrib}
+\caption{Individual contributions: expanded statements for Omar, Massi, Yigit and Azra appear as subsections above; other rows remain self-declared placeholders until completed.}\label{tab:contrib}
 \end{table}
 
 \section{Limitations and Future Work}
