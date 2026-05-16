@@ -134,17 +134,7 @@
 Quantum Bluff is a capstone web platform produced for the third-year Bachelor's degree in Computer Science (L3) at the University of Strasbourg. It combines an authoritative Texas Hold'em stack with extended casino-style modules (solo and multiplayer blackjack, slots, European roulette), structured tournaments with ancillary winner markets, social features (friends, invitations, peer loans), and progression systems (XP, daily challenges, leaderboards). This report explains how delivery evolved from an initial V-model framing to an agile-inspired workflow; which engineering tools preserved modularity and testability; and how runtime architecture separates the React client, Express REST endpoints, a Socket.IO gateway, Prisma-backed persistence, and Redis-backed coordination. Security controls (JWT and optional TOTP, segmented rate limits, idempotency on sensitive mutations, anti-cheat hooks) and an automated test harness are summarized alongside appendices that map each major domain to repository artefacts. The product uses \textbf{virtual chips} for pedagogical demonstration; it does not implement real-money gambling.
 
 \medskip
-\phantomsection
-\section*{Résumé}
-\addcontentsline{toc}{section}{Résumé (français)}
-
-\noindent
-Quantum Bluff est une plateforme web temps réel développée dans le cadre du projet de fin d'études de L3 informatique à l'Université de Strasbourg. Elle couvre le poker Texas Hold'em (tables cash, bots, paris latents), des modules type casino (blackjack solo et multijoueur, machine à sous, roulette européenne), des tournois structurés avec marchés annexes sur le vainqueur, des fonctions sociales (amis, invitations, prêts entre joueurs) et de la progression (XP, défis quotidiens, classements). Ce rapport présente l'évolution de la gestion de projet (phase en V initiale puis itérations inspirées du Scrum), les choix technologiques, l'architecture logicielle, la sécurité et les résultats des tests automatisés. Des annexes indexent les chemins du dépôt pour chaque sous-système. Le système repose sur une \textbf{monnaie virtuelle} à visée pédagogique et ne constitue pas un service de jeu d'argent réel.
-
-\medskip
 \noindent\textbf{Keywords:} multiplayer games, Texas Hold'em, real-time web, WebSocket, TypeScript, React, Node.js, Express, Prisma, PostgreSQL, Redis, Socket.IO, software engineering, security, automated testing.
-
-\noindent\textbf{Mots-clés :} jeux multijoueurs, Texas Hold'em, web temps réel, WebSocket, TypeScript, React, Node.js, Express, Prisma, PostgreSQL, Redis, Socket.IO, génie logiciel, sécurité, tests automatisés.
 
 \newpage
 \phantomsection
@@ -194,7 +184,7 @@ Security and reliability were first-class constraints from the outset: JWT authe
 
 \subsection{Scope of this document}
 
-This report summarizes \textbf{management evolution}, \textbf{tooling}, \textbf{delivered capabilities}, and \textbf{architecture}. Exhaustive technical narratives (bots, probabilities, tournaments, hidden bets, real-time synchronization, security details, etc.) are deferred to the \textbf{appendices} to avoid repetition. Repository-relative file paths use \verb|\path{...}| notation. The front matter includes an abstract (English and French), a list of abbreviations, the table of contents, and lists of figures and tables.
+This report summarizes \textbf{management evolution}, \textbf{tooling}, \textbf{delivered capabilities}, and \textbf{architecture}. Exhaustive technical narratives (bots, probabilities, tournaments, hidden bets, real-time synchronization, security details, etc.) are deferred to the \textbf{appendices} to avoid repetition. Repository-relative file paths use \verb|\path{...}| notation. The front matter includes an English abstract, a list of abbreviations, the table of contents, and lists of figures and tables.
 
 \section{Methodology, traceability, and reading guide}
 \label{sec:methodology}
@@ -241,9 +231,21 @@ After an intensive early phase (approximately \textbf{two months} of V-model-ori
 
 Coordination relied on: recurring meetings (\textasciitilde{}twice per week), shared technical documentation under \path{Docs/}, internal validation sessions, and continuous integration feedback via \path{.gitlab-ci.yml} at the repository root. Work was distributed dynamically across frontend, backend, and infrastructure tasks because multiplayer features require tight coupling between UI state, socket events, and persistence.
 
+\subsection{Planning and Gantt evolution}
+
+The initial Gantt chart separated specification, architecture, implementation, testing and reporting in a mostly sequential way. This matched the early V-model framing, but the actual project quickly became more iterative: poker runtime work, UI integration, WebSocket behavior, database migrations and deployment constraints had to be tested together rather than at the end. The planning therefore evolved into shorter delivery cycles: first a playable poker baseline, then real-time stabilization, then casino/tournament/social extensions, then security hardening, CI/CD and final documentation.
+
+The main planning adjustment was to move high-risk technical work earlier. Redis integration, Socket.IO rooms, Prisma schema changes, recovery services, security middleware and CI fixes were treated as blocking foundations, while visual polish and secondary flows were scheduled after the core runtime became stable. This reduced late surprises and made it possible to keep a demonstrable product during the final weeks.
+
 \subsection{Product management mechanics}
 
 Backlog prioritization balanced user-visible value (new game modes, social features) against enabling work (Redis adapter, rate limits, recovery jobs, observability). Cross-cutting concerns (security, idempotency, anti-cheat) were escalated early to avoid late integration risk.
+
+\subsection{Response to human and coordination difficulties}
+
+The team faced typical project constraints: uneven availability, changing technical confidence across members, merge conflicts, and moments where one feature depended on another person's backend, frontend or database work. The response was pragmatic rather than formal: risky tasks were discussed in meetings, integration problems were moved into GitLab merge requests, and members with more context helped unblock others through reviews, pair debugging and shared documentation. When a strict role split became inefficient, the team accepted cross-functional work so that security, real-time behavior, UI fixes and deployment could progress together.
+
+This flexibility was especially important near the deadline. Instead of freezing the project after the first complete version, the team continued to correct pipeline failures, merge conflicts, report inconsistencies and runtime bugs. The final organization was therefore closer to a controlled agile workflow than to the initial linear plan: ownership remained visible, but the priority was to keep the product buildable, testable and explainable.
 
 \section{Development Tools and Technologies}
 \label{sec:tools}
@@ -293,14 +295,14 @@ The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} n
   flow/.style={rectangle, draw=black!65, rounded corners=2.5pt, align=center, minimum width=0.78\textwidth, inner ysep=5pt, inner xsep=6pt},
   lab/.style={font=\scriptsize, text=black!75},
 ]
-\node[flow, fill=blue!5] (n0) {\textbf{1. Entrée} — payload JSON \texttt{/predict/poker} (cartes visibles, pot, \texttt{toCall}, stacks, rue, historique court).};
-\node[flow, fill=blue!10, below=4mm of n0] (n1) {\textbf{2. Vectorisation} — \texttt{build\_features} $\rightarrow$ vecteur $\mathbf{x}$ de dimension \textbf{36} (\texttt{FEATURE\_NAMES}).};
-\node[flow, fill=blue!14, below=4mm of n1] (n2) {\textbf{3. Couche dense 1} — matrice $W_1$: $\mathbf{h}_1 = \mathrm{ReLU}(W_1\mathbf{x}+\mathbf{b}_1)$, \textbf{96} unités ; dropout $p{=}0{,}06$ (entraînement).};
-\node[flow, fill=blue!14, below=4mm of n2] (n3) {\textbf{4. Couche dense 2} — $\mathbf{h}_2 = \mathrm{ReLU}(W_2\mathbf{h}_1+\mathbf{b}_2)$, \textbf{64} unités ; dropout $p{=}0{,}04$ (entraînement).};
-\node[flow, fill=blue!14, below=4mm of n3] (n4) {\textbf{5. Couche dense 3} — $\mathbf{h}_3 = \mathrm{ReLU}(W_3\mathbf{h}_2+\mathbf{b}_3)$, \textbf{32} unités.};
-\node[flow, fill=HeadingRule!16, below=4mm of n4] (n5) {\textbf{6. Tête de sortie} — logits $\boldsymbol{\ell}=W_4\mathbf{h}_3+\mathbf{b}_4 \in \mathbb{R}^{4}$ (indices alignés sur FOLD / CALL\_CHECK / RAISE / ALL\_IN).};
-\node[flow, fill=green!10, below=4mm of n5] (n6) {\textbf{7. Décision \texttt{decision.py}} — fusion scores professeur / heuristique, softmax, tirage à température, légalisation montant (raise / all-in).};
-\node[flow, fill=yellow!12, below=4mm of n6] (n7) {\textbf{8. Sortie} — JSON \texttt{action}, \texttt{amount}, \texttt{confidence}, \texttt{style}, \texttt{reason} vers Node.};
+\node[flow, fill=blue!5] (n0) {\textbf{1. Input} -- JSON payload to \texttt{/predict/poker} (visible cards, pot, \texttt{toCall}, stacks, street, short history).};
+\node[flow, fill=blue!10, below=4mm of n0] (n1) {\textbf{2. Feature vector} -- \texttt{build\_features} $\rightarrow$ vector $\mathbf{x}$ with \textbf{36} values (\texttt{FEATURE\_NAMES}).};
+\node[flow, fill=blue!14, below=4mm of n1] (n2) {\textbf{3. Dense layer 1} -- matrix $W_1$: $\mathbf{h}_1 = \mathrm{ReLU}(W_1\mathbf{x}+\mathbf{b}_1)$, \textbf{96} units; dropout $p{=}0.06$ during training.};
+\node[flow, fill=blue!14, below=4mm of n2] (n3) {\textbf{4. Dense layer 2} -- $\mathbf{h}_2 = \mathrm{ReLU}(W_2\mathbf{h}_1+\mathbf{b}_2)$, \textbf{64} units; dropout $p{=}0.04$ during training.};
+\node[flow, fill=blue!14, below=4mm of n3] (n4) {\textbf{5. Dense layer 3} -- $\mathbf{h}_3 = \mathrm{ReLU}(W_3\mathbf{h}_2+\mathbf{b}_3)$, \textbf{32} units.};
+\node[flow, fill=HeadingRule!16, below=4mm of n4] (n5) {\textbf{6. Output head} -- logits $\boldsymbol{\ell}=W_4\mathbf{h}_3+\mathbf{b}_4 \in \mathbb{R}^{4}$ aligned with FOLD / CALL\_CHECK / RAISE / ALL\_IN.};
+\node[flow, fill=green!10, below=4mm of n5] (n6) {\textbf{7. Decision in \texttt{decision.py}} -- teacher/heuristic score mixing, softmax, temperature sampling, legal amount conversion.};
+\node[flow, fill=yellow!12, below=4mm of n6] (n7) {\textbf{8. Output} -- JSON \texttt{action}, \texttt{amount}, \texttt{confidence}, \texttt{style}, \texttt{reason} returned to Node.};
 \draw[->, thick] (n0) -- (n1);
 \draw[->, thick] (n1) -- (n2);
 \draw[->, thick] (n2) -- (n3);
@@ -313,7 +315,7 @@ The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} n
 \node[lab, anchor=east, xshift=-2mm] at (n4.west) {$64\!\to\!32$};
 \node[lab, anchor=east, xshift=-2mm] at (n5.west) {$32\!\to\!4$};
 \end{tikzpicture}
-\caption{Flux de données du prototype MLP expert (\texttt{ExpertPolicy}): vecteur de 36 caractéristiques, couches denses, puis post-traitement métier avant réponse HTTP.}\label{fig:ai-mlp}
+\caption{Data flow through the expert MLP prototype (\texttt{ExpertPolicy}): 36-feature vector, dense layers, then domain-specific post-processing before the HTTP response.}\label{fig:ai-mlp}
 \end{figure}
 
 \begin{figure}[htbp]
@@ -324,25 +326,25 @@ The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} n
   blk/.style={rectangle, draw=black!65, rounded corners=2pt, align=center, inner sep=5pt, text width=6.2cm},
   dia/.style={diamond, draw=black!70, aspect=2.3, inner sep=0pt, align=center, text width=2.4cm, minimum height=1.1cm},
 ]
-\node[blk, fill=gray!8, text width=0.88\textwidth] (start) {\textbf{Départ} — tour de bot, difficulté \texttt{expert} (\texttt{POST /api/bot/action}).};
-\node[dia, below=5mm of start] (durl) {\textbf{\texttt{AI\_SERVICE\_URL}} défini ?};
-\node[blk, fill=orange!15, below left=6mm and 2mm of durl] (tsfb) {\textbf{Branche non} — \texttt{expertBotDecision} (TypeScript pur, 0 neurone).};
-\node[blk, fill=cyan!12, below right=6mm and 2mm of durl] (http) {\textbf{Branche oui} — \texttt{fetch} POST \texttt{/predict/poker} (timeout \texttt{AbortController}).};
-\node[dia, below=6mm of http] (dok) {HTTP 200 + JSON valide ?};
-\node[blk, fill=orange!15, below left=7mm and 0mm of dok] (tsfb2) {\textbf{Échec / timeout} — repli \texttt{expertBotDecision}.};
-\node[blk, fill=green!12, below right=7mm and 0mm of dok] (zod) {\textbf{Succès} — Zod, \texttt{convertAllIn}, \texttt{sanitizeBotDecision}, \texttt{applyPokerAction}.};
-\node[blk, fill=gray!10, below=12mm of durl |- tsfb2.south] (end) {\textbf{Fin} — action appliquée côté serveur autoritaire ; log \texttt{expert\_ai\_decision} si service Python utilisé.};
+\node[blk, fill=gray!8, text width=0.88\textwidth] (start) {\textbf{Start} -- bot turn, \texttt{expert} difficulty (\texttt{POST /api/bot/action}).};
+\node[dia, below=5mm of start] (durl) {\textbf{\texttt{AI\_SERVICE\_URL}} set?};
+\node[blk, fill=orange!15, below left=6mm and 2mm of durl] (tsfb) {\textbf{No branch} -- \texttt{expertBotDecision} (pure TypeScript, no trainable neuron).};
+\node[blk, fill=cyan!12, below right=6mm and 2mm of durl] (http) {\textbf{Yes branch} -- \texttt{fetch} POST \texttt{/predict/poker} with \texttt{AbortController} timeout.};
+\node[dia, below=6mm of http] (dok) {HTTP 200 + valid JSON?};
+\node[blk, fill=orange!15, below left=7mm and 0mm of dok] (tsfb2) {\textbf{Failure / timeout} -- fallback to \texttt{expertBotDecision}.};
+\node[blk, fill=green!12, below right=7mm and 0mm of dok] (zod) {\textbf{Success} -- Zod, \texttt{convertAllIn}, \texttt{sanitizeBotDecision}, \texttt{applyPokerAction}.};
+\node[blk, fill=gray!10, below=12mm of durl |- tsfb2.south] (end) {\textbf{End} -- action applied by the authoritative server; \texttt{expert\_ai\_decision} logged when Python is used.};
 \draw[->, thick] (start) -- (durl);
-\draw[->, thick] (durl) -- node[above left, font=\scriptsize] {non} (tsfb);
-\draw[->, thick] (durl) -- node[above right, font=\scriptsize] {oui} (http);
+\draw[->, thick] (durl) -- node[above left, font=\scriptsize] {no} (tsfb);
+\draw[->, thick] (durl) -- node[above right, font=\scriptsize] {yes} (http);
 \draw[->, thick] (http) -- (dok);
-\draw[->, thick] (dok) -- node[left, font=\scriptsize] {non} (tsfb2);
-\draw[->, thick] (dok) -- node[right, font=\scriptsize] {oui} (zod);
+\draw[->, thick] (dok) -- node[left, font=\scriptsize] {no} (tsfb2);
+\draw[->, thick] (dok) -- node[right, font=\scriptsize] {yes} (zod);
 \draw[->, thick] (tsfb) |- (end);
 \draw[->, thick] (tsfb2) |- (end);
 \draw[->, thick] (zod) |- (end);
 \end{tikzpicture}
-\caption{Diagramme de flux décisionnel côté Node pour le niveau \texttt{expert} (orchestration \texttt{botAi.service.ts}, repli heuristique, durcissement).}\label{fig:ai-flow}
+\caption{Node-side decision flow for the \texttt{expert} tier: \texttt{botAi.service.ts} orchestration, heuristic fallback and response hardening.}\label{fig:ai-flow}
 \end{figure}
 
 \subsection{AI-assisted engineering (tooling)}
@@ -566,16 +568,16 @@ Figure~\ref{fig:flow} shows a \textbf{runtime flow diagram} (logical path, not d
   archstep/.style={rectangle, draw=black!65, rounded corners=2pt, align=center, inner sep=5pt, minimum width=0.82\textwidth},
 ]
 \node[archstep, fill=blue!6] (c) {\textbf{1. Client (React/Vite)} — pages, RTK Query, contexts (socket, HUD, user).};
-\node[archstep, fill=blue!10, below=4mm of c] (a) {\textbf{2. Transports} — REST \texttt{/api/*} (JWT) et Socket.IO \texttt{/socket.io} (même jeton).};
-\node[archstep, fill=blue!14, below=4mm of a] (g) {\textbf{3. Passerelle Node} — Express (middlewares, rate limits) + \texttt{GameGateway} (événements temps réel, timers).};
-\node[archstep, fill=blue!18, below=4mm of g] (s) {\textbf{4. Services métier} — poker, blackjack, tournois, casino, amis, progression, etc.};
-\node[archstep, fill=HeadingRule!14, below=4mm of s] (p) {\textbf{5. Persistance \& coordination} — Prisma $\rightarrow$ PostgreSQL ; Redis (rate limit, adapter Socket.IO, logs).};
+\node[archstep, fill=blue!10, below=4mm of c] (a) {\textbf{2. Transports} -- REST \texttt{/api/*} (JWT) and Socket.IO \texttt{/socket.io} (same token model).};
+\node[archstep, fill=blue!14, below=4mm of a] (g) {\textbf{3. Node edge} -- Express middlewares/rate limits + \texttt{GameGateway} real-time events and timers.};
+\node[archstep, fill=blue!18, below=4mm of g] (s) {\textbf{4. Domain services} -- poker, blackjack, tournaments, casino, friends, progression, etc.};
+\node[archstep, fill=HeadingRule!14, below=4mm of s] (p) {\textbf{5. Persistence \& coordination} -- Prisma $\rightarrow$ PostgreSQL; Redis for rate limits, Socket.IO adapter and logs.};
 \draw[->, thick] (c) -- (a);
 \draw[->, thick] (a) -- (g);
 \draw[->, thick] (g) -- (s);
 \draw[->, thick] (s) -- (p);
 \end{tikzpicture}
-\caption{Flux d'exécution monorepo : interface $\rightarrow$ API / WebSocket $\rightarrow$ passerelle et services $\rightarrow$ données.}\label{fig:flow}
+\caption{Monorepo execution flow: user interface $\rightarrow$ API / WebSocket $\rightarrow$ backend edge and services $\rightarrow$ data layer.}\label{fig:flow}
 \end{figure}
 
 \section{Deployment and operational runbook}
@@ -798,7 +800,28 @@ Additional individual contribution statements for Abdoulaye, Soheil and Mohamed 
 
 \subsection{Future improvements}
 
-Hardening continuous deployment secrets, expanding observability dashboards, deeper bot modeling (still code-first), richer tournament analytics, and replacing simulated identity/payment flows with certified providers if the project ever moves beyond an academic prototype. The related starting points are Appendices~\ref{app:ops}, \ref{app:bots}, \ref{app:tournament}, and~\ref{app:auth}.
+Table~\ref{tab:future-work} gives a quantified view of realistic improvements beyond the academic prototype. Estimates assume one developer already familiar with the codebase; parallel work could shorten calendar time but would still require review and integration.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}p{4.4cm}p{6.6cm}p{2.1cm}@{}}
+\toprule
+Improvement & Scope & Estimated effort \\
+\midrule
+Production security review & Threat model, secret rotation policy, dependency review, stricter deployment variables, manual abuse scenarios & 1--2 weeks \\
+Observability dashboard & Structured metrics dashboards, alert rules, WebSocket health panels, Redis/PostgreSQL runtime indicators & 1 week \\
+Full end-to-end test campaign & Playwright coverage for lobby-to-game flows, invitations, tournaments, blocked-user warnings and recovery paths & 2 weeks \\
+External identity/email providers & Real email delivery, account verification, password reset hardening, provider configuration and privacy review & 2--3 weeks \\
+Certified payment/banking integration & Replace simulated top-ups with a compliant provider, audit trails, legal review and failure handling & 4--6 weeks \\
+Advanced bot evaluation & Controlled self-play dataset, evaluation metrics, comparison against heuristics, clearer model documentation & 2--3 weeks \\
+Tournament analytics & Post-tournament statistics, player history, richer admin insights and exportable summaries & 1--2 weeks \\
+\bottomrule
+\end{tabular}
+\caption{Quantified future work estimates for a production-oriented continuation.}\label{tab:future-work}
+\end{table}
+
+The highest-priority continuation would be security review and broader end-to-end testing, because these reduce operational risk before adding new features. Certified identity or payment flows should only be considered if the project leaves its academic, virtual-chip context.
 
 \section{Conclusion}
 

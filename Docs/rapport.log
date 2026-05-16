@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.2.13)  16 MAY 2026 19:17
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.2.13)  16 MAY 2026 19:41
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -846,12 +846,12 @@ Package hyperref Info: Link coloring OFF on input line 75.
 \@outlinefile=\write4
 \openout4 = `rapport.out'.
 
-<logo_quantum_bluff.png, id=646, 1027.84pt x 1027.84pt>
+<logo_quantum_bluff.png, id=650, 1027.84pt x 1027.84pt>
 File: logo_quantum_bluff.png Graphic file (type png)
 <use logo_quantum_bluff.png>
 Package pdftex.def Info: logo_quantum_bluff.png  used on input line 88.
 (pdftex.def)             Requested size: 85.3499pt x 85.35826pt.
-<logo_unistra.png, id=647, 602.25pt x 602.25pt>
+<logo_unistra.png, id=651, 602.25pt x 602.25pt>
 File: logo_unistra.png Graphic file (type png)
 <use logo_unistra.png>
 Package pdftex.def Info: logo_unistra.png  used on input line 90.
@@ -937,11 +937,11 @@ pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has
 been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.199 \section
+l.189 \section
               {Methodology, traceability, and reading guide} [1] [2
 
 ]
-Overfull \hbox (83.6591pt too wide) in paragraph at lines 223--224
+Overfull \hbox (83.6591pt too wide) in paragraph at lines 213--214
 \T1/lmtt/m/n/10.95 Blackjack . tsx$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.9
 5 client / src / pages / BlackjackMultiLobby . tsx$\T1/lmr/m/n/10.95 (-20) , $\
 T1/lmtt/m/n/10.95 client / src / pages / BlackjackMultiTable .
@@ -951,31 +951,31 @@ T1/lmtt/m/n/10.95 client / src / pages / BlackjackMultiTable .
 
 ] [4
 
-] [5
+] [5] [6
 
-] [6]
-Overfull \hbox (5.50868pt too wide) in paragraph at lines 280--281
+] [7]
+Overfull \hbox (5.50868pt too wide) in paragraph at lines 282--283
 []\T1/lmr/m/n/10.95 (-20) When hole cards of op-po-nents are known (prac-tice/o
 racle con-texts), \T1/lmtt/m/n/10.95 expertOracleDecision
  []
 
-[7
+[8
 
 {c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc}{c:/texlive/2025/t
 exmf-dist/fonts/enc/dvips/lm/lm-rm.enc}]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <9> on input line 297.
+(Font)              <9> on input line 299.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <5> on input line 297.
+(Font)              <5> on input line 299.
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <9> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 302.
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 304.
 
-Overfull \hbox (122.06004pt too wide) in paragraph at lines 315--316
+Overfull \hbox (71.76779pt too wide) in paragraph at lines 317--318
  [][] 
  []
 
 LaTeX Font Info:    Trying to load font information for T1+lmss on input line 3
-16.
+18.
 (c:/texlive/2025/texmf-dist/tex/latex/lm/t1lmss.fd
 File: t1lmss.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
@@ -984,205 +984,205 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
 
-Overfull \hbox (117.64093pt too wide) in paragraph at lines 344--345
+Overfull \hbox (117.64093pt too wide) in paragraph at lines 346--347
  [][] 
  []
 
-[8] [9]
-Underfull \hbox (badness 10000) in paragraph at lines 371--371
+[9] [10]
+Underfull \hbox (badness 10000) in paragraph at lines 373--373
 []|$\T1/lmtt/m/n/10.95 /game$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Overfull \hbox (18.61894pt too wide) in paragraph at lines 372--372
+Overfull \hbox (18.61894pt too wide) in paragraph at lines 374--374
 []|$\T1/lmtt/m/n/10.95 /bot-[]configuration$| 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 374--374
+Underfull \hbox (badness 10000) in paragraph at lines 376--376
 []|\T1/lmr/m/n/10.95 (+20) In-game panel,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 375--375
+Underfull \hbox (badness 10000) in paragraph at lines 377--377
 []|$\T1/lmtt/m/n/10.95 /blackjack$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 375--375
+Underfull \hbox (badness 10000) in paragraph at lines 377--377
 \T1/lmtt/m/n/10.95 /blackjack /
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 375--375
-\T1/lmtt/m/n/10.95 lobby$\T1/lmr/m/n/10.95 (+20) ,
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 375--375
-\T1/lmtt/m/n/10.95 /blackjack /
- []
-
-
-Underfull \hbox (badness 3240) in paragraph at lines 377--377
-[]|\T1/lmr/m/n/10.95 (+20) Waiting, play, re-sults,
  []
 
 
 Underfull \hbox (badness 10000) in paragraph at lines 377--377
+\T1/lmtt/m/n/10.95 lobby$\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 377--377
+\T1/lmtt/m/n/10.95 /blackjack /
+ []
+
+
+Underfull \hbox (badness 3240) in paragraph at lines 379--379
+[]|\T1/lmr/m/n/10.95 (+20) Waiting, play, re-sults,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 379--379
 []|$\T1/lmtt/m/n/10.95 /tournaments / . .
  []
 
 
-Underfull \hbox (badness 2134) in paragraph at lines 378--378
+Underfull \hbox (badness 2134) in paragraph at lines 380--380
 []|$\T1/lmtt/m/n/10.95 /friends$\T1/lmr/m/n/10.95 (+20) , lobby
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 379--379
+Underfull \hbox (badness 10000) in paragraph at lines 381--381
 \T1/lmr/m/n/10.95 (+20) lenges, lo-gin streak,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 379--379
+Underfull \hbox (badness 10000) in paragraph at lines 381--381
 []|$\T1/lmtt/m/n/10.95 /profile$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 380--380
+Underfull \hbox (badness 10000) in paragraph at lines 382--382
 []|$\T1/lmtt/m/n/10.95 /auth$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 5681) in paragraph at lines 381--381
+Underfull \hbox (badness 5681) in paragraph at lines 383--383
 []|\T1/lmr/m/n/10.95 (+20) Operator web con-sole
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 383--383
+Underfull \hbox (badness 10000) in paragraph at lines 385--385
 []|$\T1/lmtt/m/n/10.95 client / src /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 383--383
+Underfull \hbox (badness 10000) in paragraph at lines 385--385
 \T1/lmtt/m/n/10.95 components /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 383--383
+Underfull \hbox (badness 10000) in paragraph at lines 385--385
 \T1/lmtt/m/n/10.95 Layout . tsx$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 384--384
+Underfull \hbox (badness 10000) in paragraph at lines 386--386
 []|\T1/lmr/m/n/10.95 (+20) Lobby/settings
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 385--385
+Underfull \hbox (badness 10000) in paragraph at lines 387--387
 []|\T1/lmr/m/n/10.95 (+20) Tournament
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 385--385
+Underfull \hbox (badness 10000) in paragraph at lines 387--387
 []|$\T1/lmtt/m/n/10.95 client / src /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 385--385
+Underfull \hbox (badness 10000) in paragraph at lines 387--387
 \T1/lmtt/m/n/10.95 features /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 385--385
+Underfull \hbox (badness 10000) in paragraph at lines 387--387
 \T1/lmtt/m/n/10.95 tournament /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 385--385
+Underfull \hbox (badness 10000) in paragraph at lines 387--387
 \T1/lmtt/m/n/10.95 components /
  []
 
 
-Overfull \hbox (2.59735pt too wide) in paragraph at lines 385--385
+Overfull \hbox (2.59735pt too wide) in paragraph at lines 387--387
 \T1/lmtt/m/n/10.95 ZipRushMiniGame .
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 386--386
+Underfull \hbox (badness 10000) in paragraph at lines 388--388
 []|$\T1/lmtt/m/n/10.95 /game-[]example$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 387--387
+Underfull \hbox (badness 10000) in paragraph at lines 389--389
 []|$\T1/lmtt/m/n/10.95 client / src /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 387--387
+Underfull \hbox (badness 10000) in paragraph at lines 389--389
 \T1/lmtt/m/n/10.95 contexts /
  []
 
 
-Overfull \hbox (31.05357pt too wide) in paragraph at lines 387--387
+Overfull \hbox (31.05357pt too wide) in paragraph at lines 389--389
 \T1/lmtt/m/n/10.95 AccessibilityContext .
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 387--387
+Underfull \hbox (badness 10000) in paragraph at lines 389--389
 \T1/lmtt/m/n/10.95 tsx$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Overfull \hbox (13.80737pt too wide) in paragraph at lines 387--387
+Overfull \hbox (13.80737pt too wide) in paragraph at lines 389--389
 \T1/lmtt/m/n/10.95 TableThemeContext .
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 387--387
+Underfull \hbox (badness 10000) in paragraph at lines 389--389
 \T1/lmtt/m/n/10.95 tsx$\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 387--387
+Underfull \hbox (badness 10000) in paragraph at lines 389--389
 \T1/lmtt/m/n/10.95 MusicContext .
  []
 
-ignored error: Infinite glue shrinkage found in box being split [10
+ignored error: Infinite glue shrinkage found in box being split [11
 
 ]
-LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 3
-98.
+LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 4
+00.
 
 (c:/texlive/2025/texmf-dist/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-) [11{c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc}] [12] [13]
-Overfull \hbox (60.23495pt too wide) in paragraph at lines 486--487
+) [12{c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc}] [13] [14]
+Overfull \hbox (60.23495pt too wide) in paragraph at lines 488--489
 \T1/lmtt/m/n/10.95 waitingRoom . routes . ts$\T1/lmr/m/n/10.95 (-20) ) or tour-
 na-ment ta-bles (via $\T1/lmtt/m/n/10.95 server / src / tournament / tournament
 TableFactory .
  []
 
-[14{c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc}] [15] [16]
-Overfull \hbox (14.14577pt too wide) in paragraph at lines 538--539
+[15{c:/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc}] [16] [17]
+Overfull \hbox (14.14577pt too wide) in paragraph at lines 540--541
 \T1/lmr/m/n/10.95 (-20) seating ($\T1/lmtt/m/n/10.95 server / src / tournament 
 / bracket/$\T1/lmr/m/n/10.95 (-20) ), winner-bet set-tle-ment ($\T1/lmtt/m/n/10
 .95 server / src / tournament /
  []
 
-[17
+[18
 
 ]
-Overfull \hbox (10.21738pt too wide) in paragraph at lines 577--578
+Overfull \hbox (16.28345pt too wide) in paragraph at lines 579--580
  [][] 
  []
 
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10> on input line 578.
+(Font)              <10> on input line 580.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <7> on input line 578.
-[18] [19]
-Overfull \hbox (21.84567pt too wide) in paragraph at lines 590--591
+(Font)              <7> on input line 580.
+[19] [20]
+Overfull \hbox (21.84567pt too wide) in paragraph at lines 592--593
 \T1/lmr/bx/n/10.95 (-20) tainer im-ages \T1/lmr/m/n/10.95 (-20) on \T1/lmtt/m/n
 /10.95 develop\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 main\T1/lmr/m/n/10.9
 5 (-20) , and \T1/lmtt/m/n/10.95 release/* \T1/lmr/m/n/10.95 (-20) us-ing \T1/l
@@ -1191,43 +1191,43 @@ mr/bx/n/10.95 (-20) Kaniko\T1/lmr/m/n/10.95 (-20) : each job runs \T1/lmtt/m/n/
  []
 
 
-Overfull \hbox (39.30661pt too wide) in paragraph at lines 590--591
+Overfull \hbox (39.30661pt too wide) in paragraph at lines 592--593
 \T1/lmr/m/n/10.95 (-20) un-der $\T1/lmtt/m/n/10.95 server / ai-[]service/$\T1/l
 mr/m/n/10.95 (-20) , au-then-ti-cates to the Git-Lab reg-istry via \T1/lmtt/m/n
 /10.95 /kaniko/.docker/config.json\T1/lmr/m/n/10.95 (-20) ,
  []
 
 
-Overfull \hbox (13.13254pt too wide) in paragraph at lines 590--591
+Overfull \hbox (13.13254pt too wide) in paragraph at lines 592--593
 \T1/lmr/m/n/10.95 (-20) and pushes im-mutable SHA-tagged im-ages plus rolling \
 T1/lmtt/m/n/10.95 :latest\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 :client-l
 atest\T1/lmr/m/n/10.95 (-20) , or \T1/lmtt/m/n/10.95 :ai-latest
  []
 
-[20
+[21
 
 ]
-Overfull \hbox (10.52452pt too wide) in paragraph at lines 614--615
+Overfull \hbox (10.52452pt too wide) in paragraph at lines 616--617
 []\T1/lmr/bx/n/10.95 (-20) Tag-based rout-ing: \T1/lmr/m/n/10.95 (-20) The de-p
 loy jobs in \T1/lmtt/m/n/10.95 .gitlab-ci.yml \T1/lmr/m/n/10.95 (-20) use the t
 ag \T1/lmtt/m/n/10.95 runner-vm-quantum\T1/lmr/m/n/10.95 (-20) ,
  []
 
 
-Overfull \hbox (91.91438pt too wide) in paragraph at lines 623--624
+Overfull \hbox (91.91438pt too wide) in paragraph at lines 625--626
 []\T1/lmr/bx/n/10.95 (-20) Docker au-then-ti-ca-tion: \T1/lmtt/m/n/10.95 echo "
 $CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER"
  []
 
 
-Overfull \hbox (18.43741pt too wide) in paragraph at lines 624--625
+Overfull \hbox (18.43741pt too wide) in paragraph at lines 626--627
 []\T1/lmr/bx/n/10.95 (-20) Dynamic .env gen-er-a-tion: \T1/lmr/m/n/10.95 (-20) 
 Re-con-structs \T1/lmtt/m/n/10.95 .env \T1/lmr/m/n/10.95 (-20) from se-cure Git
 -Lab vari-ables (\T1/lmtt/m/n/10.95 $JWT_SECRET\T1/lmr/m/n/10.95 (-20) ,
  []
 
-[21]
-Overfull \hbox (21.24051pt too wide) in paragraph at lines 635--636
+[22]
+Overfull \hbox (21.24051pt too wide) in paragraph at lines 637--638
 $\T1/lmtt/m/n/10.95 .gitlab-[]ci . yml$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/
 10.95 Docs / DEPLOY . md$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 server /
  Dockerfile$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 client / Dockerfile$\
@@ -1235,7 +1235,7 @@ T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 docker-[]compose .
  []
 
 
-Overfull \hbox (3.68637pt too wide) in paragraph at lines 639--640
+Overfull \hbox (3.68637pt too wide) in paragraph at lines 641--642
 \T1/lmtt/m/n/10.95 capacitor\T1/lmr/m/n/10.95 (-20) . \T1/lmr/bx/n/10.95 (-20) 
 Elec-tron \T1/lmr/m/n/10.95 (-20) ($\T1/lmtt/m/n/10.95 client / electron . cjs$
 \T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 electron-[]builder$ \T1/lmr/m/n/1
@@ -1243,8 +1243,8 @@ Elec-tron \T1/lmr/m/n/10.95 (-20) ($\T1/lmtt/m/n/10.95 client / electron . cjs$
 0) )
  []
 
-[22]
-Overfull \hbox (71.89911pt too wide) in paragraph at lines 678--679
+[23]
+Overfull \hbox (71.89911pt too wide) in paragraph at lines 680--681
 \T1/lmr/m/n/10.95 (-20) Jest col-lects cov-er-age only on \T1/lmr/bx/n/10.95 (-
 20) logic-heavy paths \T1/lmr/m/n/10.95 (-20) listed in $\T1/lmtt/m/n/10.95 ser
 ver / jest . config . cjs$ \T1/lmr/m/n/10.95 (-20) (\T1/lmtt/m/n/10.95 collectC
@@ -1252,306 +1252,325 @@ overageFrom\T1/lmr/m/n/10.95 (-20) :
  []
 
 
-Underfull \hbox (badness 1845) in paragraph at lines 692--692
+Underfull \hbox (badness 1845) in paragraph at lines 694--694
 []\T1/lmss/bx/n/10 (+20) Table 3: |\T1/lmr/m/n/10 (+20) Server Jest cov-er-age 
 ag-gre-gate on \T1/lmtt/m/n/10 collectCoverageFrom \T1/lmr/m/n/10 (+20) (May 20
 26; \T1/lmtt/m/n/10 npm run
  []
 
-[23
+[24
 
-] [24] [25
-
-] [26
+] [25] [26
 
 ] [27
 
-] [28] [29]
-Overfull \hbox (7.68884pt too wide) in paragraph at lines 801--802
-\T1/lmr/m/n/10.95 (-20) mod-el-ing (still code-first), richer tour-na-ment an-a
--lyt-ics, and re-plac-ing sim-u-lated iden-tity/payment
+] [28
+
+] [29] [30]
+Underfull \hbox (badness 10000) in paragraph at lines 813--813
+[]\T1/lmr/m/n/10 (+20) Structured met-rics dash-boards, alert
  []
 
-[30
 
-] [31
+Underfull \hbox (badness 6141) in paragraph at lines 813--813
+\T1/lmr/m/n/10 (+20) rules, Web-Socket health pan-els, Re-
+ []
 
-] [32
+
+Underfull \hbox (badness 2229) in paragraph at lines 814--814
+[]\T1/lmr/m/n/10 (+20) Full end-to-end test cam-
+ []
 
 
-] [33
+Underfull \hbox (badness 10000) in paragraph at lines 815--815
+[]\T1/lmr/m/n/10 (+20) External iden-tity/email
+ []
+
+
+Underfull \hbox (badness 1990) in paragraph at lines 816--816
+[]\T1/lmr/m/n/10 (+20) Certified pay-ment/banking
+ []
+
+[31
+
+] [32] [33
 
 ] [34
 
+
+] [35
+
+] [36
+
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 1004--1004
+Underfull \hbox (badness 10000) in paragraph at lines 1027--1027
 []|\T1/lmtt/m/n/10.95 User\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 UserStat
 s\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1004--1004
+Underfull \hbox (badness 10000) in paragraph at lines 1027--1027
 \T1/lmtt/m/n/10.95 PlayerStats\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1006--1006
+Underfull \hbox (badness 10000) in paragraph at lines 1029--1029
 []|\T1/lmtt/m/n/10.95 Tournament\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1006--1006
+Underfull \hbox (badness 10000) in paragraph at lines 1029--1029
 \T1/lmtt/m/n/10.95 TournamentPlayer\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1006--1006
+Underfull \hbox (badness 10000) in paragraph at lines 1029--1029
 \T1/lmtt/m/n/10.95 TournamentRound\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1006--1006
+Underfull \hbox (badness 10000) in paragraph at lines 1029--1029
 \T1/lmtt/m/n/10.95 TournamentTable\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1007--1007
+Underfull \hbox (badness 10000) in paragraph at lines 1030--1030
 []|\T1/lmtt/m/n/10.95 WalletLedgerEntry\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1007--1007
+Underfull \hbox (badness 10000) in paragraph at lines 1030--1030
 \T1/lmtt/m/n/10.95 TournamentRewardLedger\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1008--1008
+Underfull \hbox (badness 10000) in paragraph at lines 1031--1031
 []|\T1/lmtt/m/n/10.95 Friendship\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1008--1008
+Underfull \hbox (badness 10000) in paragraph at lines 1031--1031
 \T1/lmtt/m/n/10.95 FriendRequest\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1008--1008
+Underfull \hbox (badness 10000) in paragraph at lines 1031--1031
 \T1/lmtt/m/n/10.95 FriendMessage\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1008--1008
+Underfull \hbox (badness 10000) in paragraph at lines 1031--1031
 \T1/lmtt/m/n/10.95 LoanRequest\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 Loan
 \T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 2012) in paragraph at lines 1008--1009
+Underfull \hbox (badness 2012) in paragraph at lines 1031--1032
 \T1/lmr/m/n/10.95 (+20) through ex-plicit join ta-bles and
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1009--1009
+Underfull \hbox (badness 10000) in paragraph at lines 1032--1032
 []|\T1/lmtt/m/n/10.95 BlackjackRoom\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1009--1009
+Underfull \hbox (badness 10000) in paragraph at lines 1032--1032
 \T1/lmtt/m/n/10.95 BlackjackRoomSeat\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1009--1009
+Underfull \hbox (badness 10000) in paragraph at lines 1032--1032
 \T1/lmtt/m/n/10.95 BlackjackRoomSnapshot\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1010--1010
+Underfull \hbox (badness 10000) in paragraph at lines 1033--1033
 []|\T1/lmtt/m/n/10.95 HiddenBetTicket\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1010--1010
+Underfull \hbox (badness 10000) in paragraph at lines 1033--1033
 \T1/lmtt/m/n/10.95 HiddenBetSelection\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Overfull \hbox (1.33803pt too wide) in paragraph at lines 1010--1010
+Overfull \hbox (1.33803pt too wide) in paragraph at lines 1033--1033
 \T1/lmtt/m/n/10.95 HiddenBetHandResolution| 
  []
 
 
-Underfull \hbox (badness 1412) in paragraph at lines 1010--1011
+Underfull \hbox (badness 1412) in paragraph at lines 1033--1034
 []|\T1/lmr/m/n/10.95 (+20) A ticket be-longs to a user and
  []
 
-ignored error: Infinite glue shrinkage found in box being split [35
+ignored error: Infinite glue shrinkage found in box being split [37
 
-] [36]
-Overfull \hbox (5.69946pt too wide) in paragraph at lines 1027--1028
+] [38]
+Overfull \hbox (5.69946pt too wide) in paragraph at lines 1050--1051
 \T1/lmr/m/n/10.95 (-20) Structured logic notes: $\T1/lmtt/m/n/10.95 Docs / deta
 il _ logique / backend / 01 _ poker _ moteur . md$\T1/lmr/m/n/10.95 (-20) , $\T
 1/lmtt/m/n/10.95 Docs / detail _
  []
 
-[37
+[39
 
-] [38
+] [40
 
 ]
-Overfull \hbox (144.7102pt too wide) in paragraph at lines 1085--1086
+Overfull \hbox (144.7102pt too wide) in paragraph at lines 1108--1109
 \T1/lmr/m/n/10.95 (-20) For re-vealed op-po-nent holes, \T1/lmtt/m/n/10.95 expe
 rtOracleDecision \T1/lmr/m/n/10.95 (-20) com-putes hero strength $\OML/lmm/m/it
 /10.95 ^^[[] \OT1/lmr/m/n/10.95 (-20) = []([]\OML/lmm/m/it/10.95 ; []\OT1/lmr/m
 /n/10.95 (-20) )$
  []
 
-[39] [40]
-Overfull \hbox (24.46889pt too wide) in paragraph at lines 1108--1109
+[41] [42]
+Overfull \hbox (24.46889pt too wide) in paragraph at lines 1131--1132
 []\T1/lmr/m/n/10.95 (-20) Builds the re-main-ing deck ex-clud-ing known hero an
 d com-mu-nity cards (\T1/lmtt/m/n/10.95 buildDeckExcluding\T1/lmr/m/n/10.95 (-2
 0) ). 
  []
 
-[41
+[43
 
 ]
-Overfull \hbox (3.48564pt too wide) in paragraph at lines 1150--1151
+Overfull \hbox (3.48564pt too wide) in paragraph at lines 1173--1174
 \T1/lmr/m/n/10.95 (-20) Both $\T1/lmtt/m/n/10.95 server / src / logic / Evaluat
 or . ts$ \T1/lmr/m/n/10.95 (-20) and $\T1/lmtt/m/n/10.95 client / src / utils /
  pokerHandCategory . ts$ \T1/lmr/m/n/10.95 (-20) use
  []
 
-[42]
-Overfull \hbox (80.91992pt too wide) in paragraph at lines 1165--1166
+[44]
+Overfull \hbox (80.91992pt too wide) in paragraph at lines 1188--1189
 \T1/lmr/m/n/10.95 (-20) Live mar-kets use tab-u-lated dec-i-mal odds keyed by t
 a-ble pa-ram-e-ters. For in-stance, $\T1/lmtt/m/n/10.95 oddsPlayerWinsCurrentHa
 nd$
  []
 
 
-Overfull \hbox (26.26303pt too wide) in paragraph at lines 1169--1170
+Overfull \hbox (26.26303pt too wide) in paragraph at lines 1192--1193
 $\T1/lmtt/m/n/10.95 Docs / intern / HIDDEN _ BETS _ SPEC . md$\T1/lmr/m/n/10.95
  (-20) , $\T1/lmtt/m/n/10.95 Docs / detail _ logique / backend / 07 _ hidden _ 
 bets _ moteur .
  []
 
-[43
+[45
 
-] [44
+] [46
 
-] [45] [46]
-Overfull \hbox (7.38348pt too wide) in paragraph at lines 1374--1374
+] [47] [48]
+Overfull \hbox (7.38348pt too wide) in paragraph at lines 1397--1397
 []    \T1/lmtt/m/n/10.95 const sharePerWinner = Math.floor(pot.amount / pot.eli
 gibleWinners.length)[] 
  []
 
 
-Overfull \hbox (1.63475pt too wide) in paragraph at lines 1374--1374
+Overfull \hbox (1.63475pt too wide) in paragraph at lines 1397--1397
 []      \T1/lmtt/m/n/10.95 distribution[winnerId] = (distribution[winnerId] ?? 
 0) + sharePerWinner[] 
  []
 
-[47]
-Overfull \hbox (70.57886pt too wide) in paragraph at lines 1394--1395
+[49]
+Overfull \hbox (70.57886pt too wide) in paragraph at lines 1417--1418
 \T1/lmr/m/n/10.95 (-20) crete \T1/lmtt/m/n/10.95 GameTable \T1/lmr/m/n/10.95 (-
 20) in-stances through $\T1/lmtt/m/n/10.95 tournamentTableFactory . ts$\T1/lmr/
 m/n/10.95 (-20) , emits \T1/lmtt/m/n/10.95 TOURNAMENT_TABLE_ASSIGNED
  []
 
 
-Overfull \hbox (96.82083pt too wide) in paragraph at lines 1394--1395
+Overfull \hbox (96.82083pt too wide) in paragraph at lines 1417--1418
 \T1/lmr/m/n/10.95 (-20) to per-user rooms, records elim-i-na-tions when bust-ou
 t events ar-rive ($\T1/lmtt/m/n/10.95 recordTournamentEliminationsIfAny$\T1/lmr
 /m/n/10.95 (-20) ),
  []
 
 
-Overfull \hbox (81.55453pt too wide) in paragraph at lines 1394--1395
+Overfull \hbox (81.55453pt too wide) in paragraph at lines 1417--1418
 \T1/lmr/m/n/10.95 (-20) and ad-vances the state ma-chine (\T1/lmtt/m/n/10.95 pe
 nding_other_tables\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 next_round_spawn
 ed\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 tournament_complete\T1/lmr/m/n/1
 0.95 (-20) ). 
  []
 
-[48]
-Overfull \hbox (10.9218pt too wide) in paragraph at lines 1407--1409
+[50]
+Overfull \hbox (10.9218pt too wide) in paragraph at lines 1430--1432
 \T1/lmr/m/n/10.95 (-20) with the re-main-der dis-tributed one seat at a time (s
 ee im-ple-men-ta-tion). $\T1/lmtt/m/n/10.95 assertTableSizesValid$
  []
 
 
-Overfull \hbox (2.21297pt too wide) in paragraph at lines 1412--1413
+Overfull \hbox (2.21297pt too wide) in paragraph at lines 1435--1436
 $\T1/lmtt/m/n/10.95 buildOpeningRound$ \T1/lmr/m/n/10.95 (-20) and $\T1/lmtt/m/
 n/10.95 buildRoundFromSurvivors$ \T1/lmr/m/n/10.95 (-20) in $\T1/lmtt/m/n/10.95
  TournamentBracketBuilder . ts$ \T1/lmr/m/n/10.95 (-20) take
  []
 
 
-Overfull \hbox (4.70401pt too wide) in paragraph at lines 1420--1421
+Overfull \hbox (4.70401pt too wide) in paragraph at lines 1443--1444
 \T1/lmr/m/n/10.95 (-20) cient chips, valid amount). Ac-tion dedu-pli-ca-tion ca
 che (com-pos-ite key: \T1/lmtt/m/n/10.95 handId:actionId\T1/lmr/m/n/10.95 (-20)
  )
  []
 
-[49]
-Overfull \hbox (0.44197pt too wide) in paragraph at lines 1428--1429
+[51]
+Overfull \hbox (0.44197pt too wide) in paragraph at lines 1451--1452
 []\T1/lmr/bx/n/10.95 (-20) Final rank-ing\T1/lmr/m/n/10.95 (-20) : When only on
 e player re-mains, the tour-na-ment tran-si-tions to \T1/lmtt/m/n/10.95 COMPLET
 ED\T1/lmr/m/n/10.95 (-20) ,
  []
 
-[50] [51]
-Overfull \hbox (66.78091pt too wide) in paragraph at lines 1466--1467
+[52] [53]
+Overfull \hbox (66.78091pt too wide) in paragraph at lines 1489--1490
 \T1/lmr/m/n/10.95 (-20) ing the Socket.IO hand-shake. The mid-dle-ware ex-tract
 s the JWT from ei-ther \T1/lmtt/m/n/10.95 socket.handshake.auth.token
  []
 
-[52
+[54
 
 ]
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <10.95> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 1516.
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 1539.
 
-Overfull \hbox (4.15419pt too wide) in paragraph at lines 1528--1529
+Overfull \hbox (4.15419pt too wide) in paragraph at lines 1551--1552
  []\T1/lmr/bx/n/10.95 (-20) Tournament rooms (\T1/lmtt/b/n/10.95 tournament:{to
 urnamentId}\T1/lmr/bx/n/10.95 (-20) , \T1/lmtt/b/n/10.95 TOURNAMENT_LOBBY\T1/lm
 r/bx/n/10.95 (-20) ):[] \T1/lmr/m/n/10.95 (-20) Used for bracket
  []
 
-[53]
-Overfull \hbox (36.5479pt too wide) in paragraph at lines 1542--1543
+[55]
+Overfull \hbox (36.5479pt too wide) in paragraph at lines 1565--1566
 \T1/lmr/m/n/10.95 (-20) For dura-bil-ity, snap-shots are also pushed to a per-s
 is-tent store ($\T1/lmtt/m/n/10.95 server / src / shared / pokerStateStore .
  []
 
-[54] [55]
-Overfull \hbox (9.01683pt too wide) in paragraph at lines 1659--1660
+[56] [57]
+Overfull \hbox (9.01683pt too wide) in paragraph at lines 1682--1683
 $\T1/lmtt/m/n/10.95 server / src / sockets / game . gateway . ts$\T1/lmr/m/n/10
 .95 (-20) , $\T1/lmtt/m/n/10.95 server / src / middleware / socketAuth . middle
 ware .
  []
 
-[56]
-Overfull \hbox (123.9339pt too wide) in paragraph at lines 1686--1687
+[58]
+Overfull \hbox (123.9339pt too wide) in paragraph at lines 1709--1710
 \T1/lmtt/m/n/10.95 server / src / routes / blackjackMulti . routes . ts$\T1/lmr
 /m/n/10.95 (-20) , con-trollers un-der $\T1/lmtt/m/n/10.95 server / src / logic
  / BlackjackTableController .
  []
 
 
-Overfull \hbox (40.63487pt too wide) in paragraph at lines 1690--1691
+Overfull \hbox (40.63487pt too wide) in paragraph at lines 1713--1714
 $\T1/lmtt/m/n/10.95 Docs / detail _ logique / backend / 03 _ blackjack _ solo _
  moteur . md$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 Docs / detail _ logi
 que / backend /
  []
 
-[57
+[59
 
-] [58] [59
+] [60] [61
 
 ]
-Overfull \hbox (71.80376pt too wide) in paragraph at lines 1766--1768
+Overfull \hbox (71.80376pt too wide) in paragraph at lines 1789--1791
 \T1/lmr/m/n/10.95 (-20) server en-forces caps (\T1/lmtt/m/n/10.95 ROULETTE_MAX_
 BET_CAP\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_TOTAL_STAKE\T1
 /lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_BETS_PER_SPIN\T1/lmr/m/n
@@ -1559,55 +1578,55 @@ BET_CAP\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_TOTAL_STAKE\T1
  []
 
 
-Overfull \hbox (19.55493pt too wide) in paragraph at lines 1771--1772
+Overfull \hbox (19.55493pt too wide) in paragraph at lines 1794--1795
 \T1/lmtt/m/n/10.95 md$\T1/lmr/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 Docs / deta
 il _ logique / backend / 06 _ slot _ moteur . md$\T1/lmr/m/n/10.95 (-20) , $\T1
 /lmtt/m/n/10.95 Docs / final _ report / ROULETTE . adoc$\T1/lmr/m/n/10.95 (-20)
  . 
  []
 
-[60]
-Overfull \hbox (23.70872pt too wide) in paragraph at lines 1797--1798
+[62]
+Overfull \hbox (23.70872pt too wide) in paragraph at lines 1820--1821
 []\T1/lmr/m/n/10.95 (-20) Roulette bets must re-spect \T1/lmtt/m/n/10.95 ROULET
 TE_MAX_BET_CAP \T1/lmr/m/n/10.95 (-20) per line and \T1/lmtt/m/n/10.95 ROULETTE
 _MAX_TOTAL_STAKE
  []
 
-[61]
-Overfull \hbox (1.37303pt too wide) in paragraph at lines 1807--1808
+[63]
+Overfull \hbox (1.37303pt too wide) in paragraph at lines 1830--1831
 \T1/lmr/m/n/10.95 (-20) Friends UI: $\T1/lmtt/m/n/10.95 client / src / pages / 
 Friends . tsx$\T1/lmr/m/n/10.95 (-20) . REST: $\T1/lmtt/m/n/10.95 server / src 
 / routes / friends . routes .
  []
 
 
-Overfull \hbox (29.00368pt too wide) in paragraph at lines 1807--1808
+Overfull \hbox (29.00368pt too wide) in paragraph at lines 1830--1831
 \T1/lmtt/m/n/10.95 ts$\T1/lmr/m/n/10.95 (-20) ; poker in-vi-ta-tions $\T1/lmtt/
 m/n/10.95 server / src / routes / invitation . routes . ts$ \T1/lmr/m/n/10.95 (
 -20) (also un-der $\T1/lmtt/m/n/10.95 /api / invitations$\T1/lmr/m/n/10.95 (-20
 ) );
  []
 
-[62
+[64
 
 ]
-Overfull \hbox (7.13153pt too wide) in paragraph at lines 1818--1819
+Overfull \hbox (7.13153pt too wide) in paragraph at lines 1841--1842
 \T1/lmtt/m/n/10.95 dailyLogin/$\T1/lmr/m/n/10.95 (-20) ) with ded-i-cated route
 rs. Pub-lic leader-boards: $\T1/lmtt/m/n/10.95 server / src / routes / leaderbo
 ard .
  []
 
-[63
+[65
 
 ]
-Overfull \hbox (18.90468pt too wide) in paragraph at lines 1839--1840
+Overfull \hbox (18.90468pt too wide) in paragraph at lines 1862--1863
 \T1/lmr/m/n/10.95 (-20) mutable \T1/lmtt/m/n/10.95 WalletLedgerEntry \T1/lmr/m/
 n/10.95 (-20) row in Post-greSQL ($\T1/lmtt/m/n/10.95 server / src / casino / s
 ervices / walletLedger .
  []
 
 
-Overfull \hbox (5.10796pt too wide) in paragraph at lines 1839--1840
+Overfull \hbox (5.10796pt too wide) in paragraph at lines 1862--1863
 \T1/lmtt/m/n/10.95 service . ts$\T1/lmr/m/n/10.95 (-20) ). Fields: userId, rea-
 son (e.g. \T1/lmtt/m/n/10.95 GAME_WIN\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.
 95 TOURNAMENT_PRIZE\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 LOAN_REPAYMENT_
@@ -1615,35 +1634,35 @@ IN\T1/lmr/m/n/10.95 (-20) ),
  []
 
 
-Overfull \hbox (8.75098pt too wide) in paragraph at lines 1847--1848
+Overfull \hbox (8.75098pt too wide) in paragraph at lines 1870--1871
 \T1/lmtt/m/n/10.95 server / src / logic / friendLoan . interest . ts$\T1/lmr/m/
 n/10.95 (-20) , $\T1/lmtt/m/n/10.95 server / src / routes / friendLoan . routes
  . ts$\T1/lmr/m/n/10.95 (-20) ,
  []
 
-[64
+[66
 
-] [65] [66
+] [67] [68
 
 ]
-Overfull \hbox (8.51945pt too wide) in paragraph at lines 1865--1866
+Overfull \hbox (8.51945pt too wide) in paragraph at lines 1888--1889
 \T1/lmtt/m/n/10.95 Dockerfile$\T1/lmr/m/n/10.95 (-20) , con-text $\T1/lmtt/m/n/
 10.95 server/$\T1/lmr/m/n/10.95 (-20) , des-ti-na-tions \T1/lmtt/m/n/10.95 ${CI
 _REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}
  []
 
 
-Overfull \hbox (38.19624pt too wide) in paragraph at lines 1869--1870
+Overfull \hbox (38.19624pt too wide) in paragraph at lines 1892--1893
 \T1/lmtt/m/n/10.95 npm run build:electron \T1/lmr/m/n/10.95 (-20) runs Vite in 
 \T1/lmtt/m/n/10.95 electron \T1/lmr/m/n/10.95 (-20) mode; \T1/lmtt/m/n/10.95 el
 ectron:build:win\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 electron:build:mac
 \T1/lmr/m/n/10.95 (-20) ,
  []
 
-[67
+[69
 
 ]
-Overfull \hbox (72.00797pt too wide) in paragraph at lines 1881--1883
+Overfull \hbox (72.00797pt too wide) in paragraph at lines 1904--1906
 \T1/lmr/m/n/10.95 (-20) May 2026 lo-cal run re-ported $\OT1/lmr/m/n/10.95 (-20)
  ([][]\OML/lmm/m/it/10.95 ; [][]; [][]; [][]\OT1/lmr/m/n/10.95 (-20) ) = (86\OM
 L/lmm/m/it/10.95 :\OT1/lmr/m/n/10.95 (-20) 56%\OML/lmm/m/it/10.95 ; \OT1/lmr/m/
@@ -1653,32 +1672,32 @@ n/10.95 (-20) 83\OML/lmm/m/it/10.95 :\OT1/lmr/m/n/10.95 (-20) 69%\OML/lmm/m/it/
 /lmr/m/n/10.95 (-20) 90%)$
  []
 
-[68
+[70
 
 ]
-Overfull \hbox (25.02728pt too wide) in paragraph at lines 1907--1908
+Overfull \hbox (25.02728pt too wide) in paragraph at lines 1930--1931
 \T1/lmr/m/n/10.95 (-20) shot logic lives un-der $\T1/lmtt/m/n/10.95 server / sr
 c / blackjack / recovery/$ \T1/lmr/m/n/10.95 (-20) and $\T1/lmtt/m/n/10.95 serv
 er / src / blackjack / services/$\T1/lmr/m/n/10.95 (-20) .
  []
 
-[69
+[71
 
 ]
-Overfull \hbox (11.58562pt too wide) in paragraph at lines 1925--1926
+Overfull \hbox (11.58562pt too wide) in paragraph at lines 1948--1949
 \T1/lmr/m/n/10.95 (-20) The project is or-ga-nized into do-main mod-ules shar-i
 ng one run-time ar-chi-tec-ture: Re-act/TypeScript
  []
 
 
-Overfull \hbox (0.60112pt too wide) in paragraph at lines 1927--1928
+Overfull \hbox (0.60112pt too wide) in paragraph at lines 1950--1951
 []\T1/lmr/m/n/10.95 (-20) Poker uses server-side ta-ble au-thor-ity. Ac-tions f
 low through $\T1/lmtt/m/n/10.95 server / src / poker / services /
  []
 
-[70] [71] [72
+[72] [73] [74
 
-] [73
+] [75
 
 
 ] (./rapport.aux)
@@ -1687,14 +1706,14 @@ LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `rapport.out' has not changed.
-(rerunfilecheck)             Checksum: 0AB0419D9E58E0ADA572FE8A2089D483;34990.
+(rerunfilecheck)             Checksum: 52094183766957816F2DF0C84EFC8CAE;35357.
  ) 
 Here is how much of TeX's memory you used:
- 27506 strings out of 467533
- 503305 string characters out of 5423668
- 936029 words of memory out of 5000000
- 55237 multiletter control sequences out of 15000+600000
- 751640 words of font info for 281 fonts, out of 8000000 for 9000
+ 27519 strings out of 467533
+ 503464 string characters out of 5423668
+ 936109 words of memory out of 5000000
+ 55239 multiletter control sequences out of 15000+600000
+ 751972 words of font info for 285 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  84i,12n,94p,1458b,890s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmbx10.pfb><c:/texlive/2025
@@ -1715,10 +1734,10 @@ public/lm/lmssbx10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmsy10
 /type1/public/lm/lmtk10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/l
 mtt10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/lm/lmtt9.pfb><c:/texli
 ve/2025/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on rapport.pdf (83 pages, 1085325 bytes).
+Output written on rapport.pdf (85 pages, 1087302 bytes).
 PDF statistics:
- 1902 PDF objects out of 2073 (max. 8388607)
- 1745 compressed objects within 18 object streams
- 388 named destinations out of 1000 (max. 500000)
- 72463 words of extra memory for PDF output out of 74296 (max. 10000000)
+ 1917 PDF objects out of 2073 (max. 8388607)
+ 1758 compressed objects within 18 object streams
+ 391 named destinations out of 1000 (max. 500000)
+ 72471 words of extra memory for PDF output out of 74296 (max. 10000000)
 
