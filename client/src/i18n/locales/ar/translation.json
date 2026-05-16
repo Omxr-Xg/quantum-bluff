@@ -119,7 +119,7 @@
     "balanceTabGiftAria": "رموز هدايا",
     "balanceTabHistoryAria": "السجل",
     "withdrawTitle": "سحب الأموال",
-    "withdrawRateHint": "{{chips}} رقاقة = 1 €",
+    "withdrawRateHint": "{{chips}} رقاقة = {{eur}}",
     "withdrawErrorPrefix": "فشل السحب:",
     "withdrawAmountLabel": "المبلغ المراد سحبه",
     "withdrawAmountPlaceholder": "الحد الأدنى {{min}} رقاقة",

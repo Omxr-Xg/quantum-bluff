@@ -6,13 +6,15 @@ export type PromoDiscountInfo = {
   discountValue: number;
 } | null;
 
-/** Montant TTC simulé (100 jetons ≈ 1 €).
+const BUY_CHIPS_PER_EUR = 10;
+
+/** Montant TTC simulé (10 jetons = 1 €).
  *  Applique une réduction selon le type: fixe en € ou pourcentage. */
 export function simulatedEurFromChips(
   chips: number,
   discount: PromoDiscountInfo,
 ): number {
-  const baseEur = Math.round((chips / 100) * 100) / 100;
+  const baseEur = Math.round((chips / BUY_CHIPS_PER_EUR) * 100) / 100;
 
   if (!discount) return baseEur;
 
@@ -205,7 +207,7 @@ export function FakeCardTopUpFields({
     !!promoFreeCheckout ||
     (promoDiscount?.discountValue !== undefined &&
       simulatedEurFromChips(addMoneyAmount, promoDiscount) === 0);
-  const baseEur = Math.round((addMoneyAmount / 100) * 100) / 100;
+  const baseEur = Math.round((addMoneyAmount / BUY_CHIPS_PER_EUR) * 100) / 100;
   const eur = simulatedEurFromChips(addMoneyAmount, promoDiscount);
   const discountAmount = baseEur - eur;
   const gap = compact ? "gap-2" : "gap-3";

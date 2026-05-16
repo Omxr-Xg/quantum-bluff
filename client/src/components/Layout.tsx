@@ -87,13 +87,13 @@ const ADD_MONEY_PRESETS = [100, 1000, 2000, 3000, 5000];
 const WITHDRAW_PRESETS = [100, 500, 1000, 2500, 5000];
 /** Montant minimum a retirer (en jetons). */
 const WITHDRAW_MIN_AMOUNT = 100;
-/** Taux de conversion retrait : 10 jetons = 1 €. */
-const WITHDRAW_CHIPS_PER_EUR = 10;
+/** Taux de conversion retrait : 10 jetons = 0,80 €. */
+const WITHDRAW_EUR_PER_CHIP = 0.08;
 
 /** Convertit un nombre de jetons en euros pour l'affichage (2 decimales). */
 function chipsToEur(chips: number): number {
   if (!Number.isFinite(chips) || chips <= 0) return 0;
-  return Math.round((chips / WITHDRAW_CHIPS_PER_EUR) * 100) / 100;
+  return Math.round((chips * WITHDRAW_EUR_PER_CHIP) * 100) / 100;
 }
 
 /** Formatte un montant en € selon la locale courante. */
@@ -1805,7 +1805,8 @@ export function Layout({ children }: LayoutProps) {
                         </p>
                         <p className="text-[11px] text-slate-500">
                           {t("lobby.withdrawRateHint", {
-                            chips: WITHDRAW_CHIPS_PER_EUR,
+                            chips: 10,
+                            eur: formatEur(10 * WITHDRAW_EUR_PER_CHIP, i18n.language),
                           })}
                         </p>
                       </div>

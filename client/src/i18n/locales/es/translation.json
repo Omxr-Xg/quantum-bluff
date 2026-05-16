@@ -64,7 +64,7 @@
     "balanceTabGiftAria": "Códigos regalo",
     "balanceTabHistoryAria": "Historial",
     "withdrawTitle": "Retirar dinero",
-    "withdrawRateHint": "{{chips}} fichas = 1 €",
+    "withdrawRateHint": "{{chips}} fichas = {{eur}}",
     "withdrawErrorPrefix": "Error de retiro:",
     "withdrawAmountLabel": "Importe a retirar",
     "withdrawAmountPlaceholder": "Mín. {{min}} fichas",

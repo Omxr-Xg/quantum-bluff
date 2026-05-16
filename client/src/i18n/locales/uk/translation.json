@@ -117,7 +117,7 @@
     "balanceTabGiftAria": "Подарункові коди",
     "balanceTabHistoryAria": "Історія",
     "withdrawTitle": "Зняти кошти",
-    "withdrawRateHint": "{{chips}} фішок = 1 €",
+    "withdrawRateHint": "{{chips}} фішок = {{eur}}",
     "withdrawErrorPrefix": "Помилка зняття:",
     "withdrawAmountLabel": "Сума зняття",
     "withdrawAmountPlaceholder": "Мін. {{min}} фішок",
