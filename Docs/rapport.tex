@@ -295,7 +295,7 @@ The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} n
 
 \begin{figure}[htbp]
 \centering
-\resizebox{0.94\textwidth}{!}{%
+\resizebox{0.88\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\footnotesize,
   >=Stealth,
@@ -328,7 +328,7 @@ The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} n
 
 \begin{figure}[htbp]
 \centering
-\resizebox{0.94\textwidth}{!}{%
+\resizebox{0.88\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\footnotesize,
   >=Stealth,
@@ -405,6 +405,8 @@ A11y & Accessibility, table theming, ambient audio & \path{client/src/contexts/A
 \subsubsection{Functional overview}
 
 Poker is implemented as an \textbf{authoritative server game}: the client sends intentions, while the server validates turns, blinds, raises, folds, pots, side pots and showdown results. The tournament layer reuses this poker engine and adds registration, entry fees, seeded bracket generation, table assignment, elimination tracking, final rewards and winner side bets. The full poker engine and tournament lifecycle are detailed in Appendices~\ref{app:poker} and~\ref{app:tournament}.
+
+Quantum Bluff also extends the standard Texas Hold'em ranking with an exclusive hand category: \textbf{Quantum Combi}. It is obtained when the seven available cards contain at least one 3, 5, 6, 7 and 10, regardless of suits. The ranks were chosen as a project signature: 3 refers to the third year of the Bachelor's degree, 6 to the sixth semester, 5 to the five letters of ``bluff'', and 7 to the seven letters of ``quantum''. The hand beats a flush but loses to a full house: this keeps the iconic premium hands of poker above the custom rule, while still making the project-specific combination strong enough to be visible and memorable in gameplay. The exact probability calculation and comparison with standard poker hands are given in Appendix~\ref{app:hud}.
 
 \begin{itemize}
 \item \textbf{Poker core}: \path{GameTable.ts} and \path{CashGameController.ts} enforce legal actions and chip movement.
@@ -1202,9 +1204,36 @@ Hence the favourable count is $133784560-133002736 = 781824$ and
 P(\text{Quantum Combi}) = \frac{781824}{133784560} \approx 0.00584 \approx 0.584\%.
 \]
 
+\subsection{Seven-card hand probabilities and ranking context}
+
+The standard seven-card Texas Hold'em frequencies are computed over the same denominator $\binom{52}{7}=133\,784\,560$. Table~\ref{tab:seven-card-probabilities} gives the classical distribution before introducing the project-specific Quantum Combi rule.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Hand category & Seven-card combinations & Probability \\
+\midrule
+Straight flush & 41\,584 & 0.0311\% \\
+Four of a kind & 224\,848 & 0.1681\% \\
+Full house & 3\,473\,184 & 2.5961\% \\
+Flush & 4\,047\,644 & 3.0255\% \\
+Straight & 6\,180\,020 & 4.6194\% \\
+Three of a kind & 6\,461\,620 & 4.8299\% \\
+Two pair & 31\,433\,400 & 23.4955\% \\
+One pair & 58\,627\,800 & 43.8225\% \\
+High card & 23\,294\,460 & 17.4119\% \\
+\bottomrule
+\end{tabular}
+\caption{Classical seven-card poker hand frequencies used as the probability context for positioning the custom Quantum Combi category.}\label{tab:seven-card-probabilities}
+\end{table}
+
+The raw Quantum Combi condition has probability $0.584\%$, which is rarer than a classical flush and also rarer than a full house. Its final position in the game is therefore a \textbf{design decision}, not a strict rarity-only ordering. The team placed it \textbf{above flush} so that the exclusive project hand has meaningful value, but \textbf{below full house} to preserve the familiar hierarchy of premium poker hands and avoid making a rank-set novelty override one of the most recognizable traditional combinations.
+
 \subsection{Quantum Combi in the hand-ranking ladder (server and HUD)}
 
-Both \path{server/src/logic/Evaluator.ts} and \path{client/src/utils/pokerHandCategory.ts} use the same \textbf{best-of-seven} cascade. Categories are integers $0$ (high card) through $9$ (straight flush); a larger packed score beats a smaller one. After ruling out straight flush ($9$), four-of-a-kind ($8$), and full house ($7$), the code tests \textbf{Quantum Combi before flush or straight}. Quantum applies iff every rank in $\{3,5,6,7,10\}$ appears at least once in the seven rank values (Ace is coded as $14$). Let $V$ be the multiset of those seven values; subtract one occurrence of each mandatory rank; sort the remaining values descending and take the top two as kickers $(\kappa_1,\kappa_2)$. The score is
+Both \path{server/src/logic/Evaluator.ts} and \path{client/src/utils/pokerHandCategory.ts} use the same \textbf{best-of-seven} cascade. Categories are integers $0$ (high card) through $9$ (straight flush); a larger packed score beats a smaller one. After ruling out straight flush ($9$), four-of-a-kind ($8$), and full house ($7$), the code tests \textbf{Quantum Combi before flush or straight}. Quantum applies iff every rank in $\{3,5,6,7,10\}$ appears at least once in the seven rank values (Ace is coded as $14$). If two players both make Quantum Combi, the tie-break compares the two remaining kickers after removing one 3, one 5, one 6, one 7 and one 10. Let $V$ be the multiset of those seven values; subtract one occurrence of each mandatory rank; sort the remaining values descending and take the top two as kickers $(\kappa_1,\kappa_2)$. The score is
 \[
 \texttt{packScore}(6,\kappa_1,\kappa_2) = 6\cdot 15^{5} + \kappa_1\cdot 15^{4} + \kappa_2\cdot 15^{3},
 \]
