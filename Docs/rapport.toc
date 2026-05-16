@@ -26,8 +26,8 @@
 \contentsline {subsection}{\numberline {6.1}Programmed in-game poker AI (bots)}{7}{subsection.6.1}%
 \contentsline {subsection}{\numberline {6.2}Expert tier: Python oracle and local oracle}{7}{subsection.6.2}%
 \contentsline {subsection}{\numberline {6.3}Expert neural policy (PyTorch MLP, optional service)}{7}{subsection.6.3}%
-\contentsline {subsection}{\numberline {6.4}AI-assisted engineering (tooling)}{9}{subsection.6.4}%
-\contentsline {subsection}{\numberline {6.5}Limits and verification}{9}{subsection.6.5}%
+\contentsline {subsection}{\numberline {6.4}AI-assisted engineering (tooling)}{8}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Limits and verification}{8}{subsection.6.5}%
 \contentsline {section}{\numberline {7}Platform Functionalities}{10}{section.7}%
 \contentsline {subsection}{\numberline {7.1}Poker and Tournament System}{11}{subsection.7.1}%
 \contentsline {subsubsection}{\numberline {7.1.1}Functional overview}{11}{subsubsection.7.1.1}%

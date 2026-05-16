@@ -281,7 +281,9 @@ When hole cards of opponents are known (practice/oracle contexts), \texttt{exper
 
 \subsection{Expert neural policy (PyTorch MLP, optional service)}
 
-When \texttt{AI\_SERVICE\_URL} points to the FastAPI bundle under \path{server/ai-service/}, the expert path can run a \textbf{trained multilayer perceptron} (\texttt{ExpertPolicy} in \path{server/ai-service/poker/train.py}, weights serialised to \path{server/ai-service/model/expert_bot.pt}). The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} numeric descriptors (streets, equity, pot odds, SPR, board texture, action frequencies, etc.). The network stacks \textbf{four linear layers} separated by ReLU: $36\to 96 \to 64 \to 32 \to 4$ logits. Counting post-input activation units (hidden $+$ output heads) gives \textbf{$96+64+32+4=196$ neurons}. Dropout ($p{=}0.06$ then $0.04$) is applied after the first two hidden blocks during training only. The four outputs correspond to the internal action indices distilled from the expert teacher (\path{expert_rules.py}); inference-time mixing with heuristics and temperature sampling is described in \path{server/ai-service/poker/decision.py}. The compact trainable weight count in the linear stack is \textbf{11\,972} scalar parameters (weights plus biases). Figures~\ref{fig:ai-mlp} and~\ref{fig:ai-flow} show \textbf{flowcharts}: tensor pipeline inside the expert policy, then the Node$\leftrightarrow$Python decision path with branching. Appendix~\ref{app:bots} contains the heuristic fallback and dispatch details.
+When \texttt{AI\_SERVICE\_URL} points to the FastAPI bundle under \path{server/ai-service/}, the expert path can run a \textbf{small supervised MLP prototype} (\texttt{ExpertPolicy} in \path{server/ai-service/poker/train.py}, weights serialised to \path{server/ai-service/model/expert_bot.pt}). This is not presented as a research-grade poker solver or reinforcement-learning agent. Its role is narrower: it experiments with a learned approximation of the handcrafted expert teacher while keeping a deterministic TypeScript fallback available at all times.
+
+The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} numeric descriptors (streets, equity, pot odds, SPR, board texture, action frequencies, etc.). The network stacks \textbf{four linear layers} separated by ReLU: $36\to 96 \to 64 \to 32 \to 4$ logits. Counting post-input activation units (hidden $+$ output heads) gives \textbf{$96+64+32+4=196$ neurons}. Dropout ($p{=}0.06$ then $0.04$) is applied after the first two hidden blocks during training only. The four outputs correspond to internal action labels produced by the expert-rule teacher (\path{expert_rules.py}); inference-time mixing with heuristics and temperature sampling is described in \path{server/ai-service/poker/decision.py}. The compact trainable weight count in the linear stack is \textbf{11\,972} scalar parameters (weights plus biases). Figures~\ref{fig:ai-mlp} and~\ref{fig:ai-flow} show the tensor pipeline and the Node$\leftrightarrow$Python decision path. Appendix~\ref{app:bots} contains the heuristic fallback and dispatch details.
 
 \begin{figure}[htbp]
 \centering
@@ -311,7 +313,7 @@ When \texttt{AI\_SERVICE\_URL} points to the FastAPI bundle under \path{server/a
 \node[lab, anchor=east, xshift=-2mm] at (n4.west) {$64\!\to\!32$};
 \node[lab, anchor=east, xshift=-2mm] at (n5.west) {$32\!\to\!4$};
 \end{tikzpicture}
-\caption{Flux de données à travers la politique MLP expert (\texttt{ExpertPolicy}): 4 transformations linéaires successives, \textbf{196} neurones après la couche d'entrée (96+64+32+4), puis post-traitement métier avant réponse HTTP.}\label{fig:ai-mlp}
+\caption{Flux de données du prototype MLP expert (\texttt{ExpertPolicy}): vecteur de 36 caractéristiques, couches denses, puis post-traitement métier avant réponse HTTP.}\label{fig:ai-mlp}
 \end{figure}
 
 \begin{figure}[htbp]
@@ -452,7 +454,7 @@ The casino subsystem follows the same authoritative server pattern as poker:
 \item \textbf{Snapshot persistence}: game state (dealer hand, final balances) is snapshotted to PostgreSQL for crash recovery.
 \end{enumerate}
 
-This architecture guarantees consistency: outcome and ledger entry commit together, or neither commits. Clients cannot force outcomes; they can only place bets and observe server decisions. The same transaction pattern is expanded in Appendix~\ref{app:rewards}.
+This architecture keeps outcome and ledger updates tied to the same server transaction: in normal operation they commit together, or neither commit. Clients cannot force outcomes; they can only place bets and observe server decisions. The same transaction pattern is expanded in Appendix~\ref{app:rewards}.
 
 \subsubsection{AI bot decision algorithm and complexity analysis}
 
@@ -504,7 +506,7 @@ XP is awarded per action: poker (12 XP/hand + 20 bonus on win), blackjack (5 XP 
 
 \subsubsection{Wallet ledger and atomic transactions}
 
-Every chip movement---game win/loss, loan disbursement, loan repayment, tournament prize---creates an immutable \texttt{WalletLedgerEntry} row in PostgreSQL. Fields include: userId, reason (e.g.\ \texttt{GAME\_WIN}, \texttt{TOURNAMENT\_PRIZE}, \texttt{LOAN\_FUNDED\_OUT}), amount, balanceBefore / balanceAfter, roundId (for traceability), integrityHash (SHA-256 of all fields + versions), and settlementState (\texttt{SETTLED} or \texttt{PENDING}). For a casino game, the sequence is: (1)~validate bet size and balance, (2)~compute RNG outcome, (3)~within \texttt{prisma.\$transaction}: update \texttt{User.chips}, create ledger entry, compute integrity hash. This guarantees that ledger and balance are always synchronized; Appendix~\ref{app:rewards} lists the persisted fields.
+Every chip movement---game win/loss, loan disbursement, loan repayment, tournament prize---creates an immutable \texttt{WalletLedgerEntry} row in PostgreSQL. Fields include: userId, reason (e.g.\ \texttt{GAME\_WIN}, \texttt{TOURNAMENT\_PRIZE}, \texttt{LOAN\_FUNDED\_OUT}), amount, balanceBefore / balanceAfter, roundId (for traceability), integrityHash (SHA-256 of all fields + versions), and settlementState (\texttt{SETTLED} or \texttt{PENDING}). For a casino game, the sequence is: (1)~validate bet size and balance, (2)~compute RNG outcome, (3)~within \texttt{prisma.\$transaction}: update \texttt{User.chips}, create ledger entry, compute integrity hash. This keeps the ledger and displayed balance aligned with the server source of truth; Appendix~\ref{app:rewards} lists the persisted fields.
 
 \subsubsection{Tournament rewards and peer loans}
 
@@ -713,13 +715,13 @@ Redis-backed Socket.IO adapter, structured logging, Prometheus metrics endpoint,
 
 \subsection{Implemented solutions}
 
-The final implementation is a modular real-time gaming platform rather than a single poker page. React handles the user interface, Express exposes REST APIs, Socket.IO delivers live events, Prisma/PostgreSQL stores durable state, and Redis supports coordination, rate limits, token revocation and distributed sockets.
+The final implementation is best understood as a modular real-time gaming platform, not as a single poker screen with extra pages attached. React handles the user interface, Express exposes REST APIs, Socket.IO delivers live events, Prisma/PostgreSQL stores durable state, and Redis supports coordination, rate limits, token revocation and distributed sockets.
 
-The most important solution is server authority. Poker, blackjack, roulette, slots, tournaments, hidden bets, rewards and social money flows are validated and settled on the server; the client only displays state and sends user intentions. Chip-changing actions use persistence and ledger-oriented patterns so the database remains the source of truth. This same principle is applied to private poker cards, blocked-user warnings, invitations, reports, XP, badges, daily challenges and leaderboard updates.
+The main design decision is server authority. Poker, blackjack, roulette, slots, tournaments, hidden bets, rewards and social money flows are validated and settled on the server; the client displays state and sends user intentions. Chip-changing actions use persistence and ledger-oriented patterns so the database remains the source of truth. The same principle is applied to private poker cards, blocked-user warnings, invitations, reports, XP, badges, daily challenges and leaderboard updates.
 
 The platform was extended with social and retention modules: friends, invitations, blocking/reporting, lobby warnings, peer loans, tournaments, winner side bets, XP, badges, daily challenges, leaderboards, gift codes and recharge flows. The lobby became the central operational screen after login, while gameplay pages remain specialized for poker, blackjack, roulette and slot machine flows.
 
-Validation and tests were added around the most sensitive solutions: authentication schemas, trusted waiting-room identity, socket authentication, runtime snapshots, game logic and tournament utilities. The complete module-to-file mapping is intentionally kept in the appendices so the body remains readable: Appendices~\ref{app:map}, \ref{app:poker}, \ref{app:realtime}, \ref{app:social}, \ref{app:prog}, \ref{app:rewards}, and~\ref{app:coverage}.
+Validation and tests were added around the most sensitive areas: authentication schemas, trusted waiting-room identity, socket authentication, runtime snapshots, game logic and tournament utilities. The body keeps the project readable; the appendices act as the technical evidence trail: Appendices~\ref{app:map}, \ref{app:poker}, \ref{app:realtime}, \ref{app:social}, \ref{app:prog}, \ref{app:rewards}, and~\ref{app:coverage}.
 
 \section{Ethics, privacy, and academic integrity}
 \label{sec:ethics}
@@ -741,7 +743,7 @@ Section~\ref{sec:ai} states how large language models were used as drafting assi
 
 \subsection{Omar -- project management and architecture alignment}
 
-Organizational narrative: Section~\ref{sec:management}. Beyond ceremonies and backlog arbitration, I coordinated \textbf{cross-cutting technical commitments}: early adoption of Redis for Socket.IO horizontal scale-out and rate limiting, alignment between Prisma schema changes and gameplay features, and risk reviews before widening scope (tournaments, casino mini-games, loans). I also worked with the appointed technical lead to sequence risky merges, such as the socket gateway and recovery jobs, away from demo deadlines.
+Organizational narrative: Section~\ref{sec:management}. Beyond meetings and backlog arbitration, I coordinated \textbf{cross-cutting technical commitments}: early adoption of Redis for Socket.IO horizontal scale-out and rate limiting, alignment between Prisma schema changes and gameplay features, and risk reviews before widening scope (tournaments, casino mini-games, loans). I also worked with the appointed technical lead to sequence risky merges, such as the socket gateway and recovery jobs, away from demo deadlines.
 
 \subsection{Massi -- DevOps Infrastructure, Real-Time Networking, and Cross-Platform Delivery}
 
@@ -772,9 +774,11 @@ Finally, I contributed to several user experience and retention features, such a
 
 \subsection{Linda -- security, real-time features and UI/UX}
 
-I worked on backend integration, real-time features, security and UI/UX. My main technical contributions were game routes, blinds configuration, waiting-room fixes, player-state debugging, socket authentication, JWT hardening, stronger password rules, rate limits and anti-cheat checks.
+I had a transversal role across backend integration, real-time features, security hardening and UI/UX. On the backend side, I worked on game routes, blinds configuration, waiting-room fixes, player-state debugging and several security-critical paths: socket authentication, JWT hardening, stronger password rules, suspended-user checks, rate limits, admin route protection and anti-cheat alerts.
 
-I also worked on the friends and lobby experience: friend search, add-friend modal, friend cards, chat access, remove friend, block/unblock, user reports, invitations, live notifications, activity status and blocked-user warnings. On the UI side, I improved the lobby layout, reduced empty space and scrollbars, and contributed to profile/avatar, poker table, blackjack, roulette, mini-games, settings and responsive layout improvements.
+I also implemented and stabilized a large part of the social experience. This included friend search, add-friend flows, friend cards, chat access from the lobby, remove friend, block/unblock, user reports, invitation handling, live notifications, activity status and warnings when joining rooms containing blocked users. These changes required both REST API work and Socket.IO behavior, because the social features had to remain live without page refreshes.
+
+On the frontend side, I contributed heavily to the final user experience: lobby layout, desktop fit, removal of unnecessary scrollbars, profile and avatar behavior, poker table layout, blackjack, roulette, mini-games, settings, audio controls and responsive fixes. I also helped with debugging, merge conflict resolution, CI pipeline fixes, PDF/report finalization and repeated end-to-end validation before the final delivery. Overall, my work was mostly cross-functional: connecting backend behavior, real-time synchronization, security rules and interface polish into features that users could actually use.
 
 \subsection{Other contributors}
 
