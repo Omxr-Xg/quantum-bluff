@@ -188,6 +188,10 @@ UI/UX & User interface and user experience layers in the React SPA. \\
 
 Quantum Bluff was developed as part of the final third-year Bachelor's degree project (L3 Computer Science, French academic system) at the University of Strasbourg. The objective was to deliver a \textbf{real-time multiplayer gaming platform} with a professional-grade engineering posture: modular architecture, automated testing, observability hooks, security hardening, and collaborative delivery under time constraints.
 
+\subsection{General project presentation and target audience}
+
+Quantum Bluff is positioned as a \textbf{premium social casino experience} built around poker, casino-inspired mini-games, tournaments, progression and social interaction, while remaining strictly based on virtual chips. The target audience is composed of adult players, especially users in the \textbf{26--35 age range}, as well as older users who enjoy the atmosphere of casino games but do not necessarily want to visit a physical casino. This explains the visual direction: dark blue tones, gold accents, glassmorphism, polished animations and a prestigious interface intended to evoke the elegance of a casino lounge without the constraints, intimidation or risks associated with real-money gambling.
+
 The \textbf{initial product intent} (before scope expansion) was a Texas Hold'em poker platform: practice mode against AI with multiple difficulty levels, multiplayer cash tables (public/private), configurable blinds, minimum buy-in rules, a probability-oriented HUD, and a \textbf{hidden side-bet} subsystem. The technical goals included authoritative server-side rules, transactional chip movements, WebSocket-scale event delivery, and operational readiness (health checks, metrics, recovery paths). The related technical appendices are Appendix~\ref{app:poker}, Appendix~\ref{app:bots}, Appendix~\ref{app:hud}, Appendix~\ref{app:hidden}, and Appendix~\ref{app:realtime}.
 
 Security and reliability were first-class constraints from the outset: JWT authentication, optional TOTP 2FA, anti-cheat and rate-limiting layers, idempotent handling for sensitive mutations, and schema validation on critical API paths. Implementation details are grouped in Appendix~\ref{app:auth}, Appendix~\ref{app:realtime}, and Appendix~\ref{app:ops}.
@@ -235,11 +239,15 @@ The project began with a \textbf{V-model style} framing: business requirement ga
 
 \subsection{Transition to an agile-inspired workflow (Jira, Scrum practices)}
 
-After an intensive early phase (approximately \textbf{two months} of V-model-oriented execution on a \textbf{four-month} calendar), the team concluded that strict phase separation slowed integration of new gameplay and infrastructure ideas. The organization shifted toward an \textbf{iterative, Scrum-inspired workflow}: \textbf{Jira} for epics, user stories, and time-boxed sprints; backlog ordering by \textbf{value vs.\ risk}; twice-weekly synchronization meetings for decisions, unblockers, and demo-ready increments. The project manager studied agile practice material (including \textit{Scrum Life}) to align rituals with the team's reality rather than copying a textbook process wholesale.
+After an intensive early phase (approximately \textbf{two months} of V-model-oriented execution on a \textbf{four-month} calendar), the team concluded that strict phase separation slowed integration of new gameplay and infrastructure ideas. The project initially faced coordination difficulties between frontend and backend development: several gameplay structures, especially card representations and game-state models, evolved differently on the client and server sides. This created synchronization problems, inconsistent payloads, and integration overhead during multiplayer feature development.
+
+To reduce these issues, the organization shifted toward an \textbf{iterative, Scrum-inspired workflow}: \textbf{Jira} for epics, harmonized user stories, and time-boxed sprints; backlog ordering by \textbf{value vs.\ risk}; twice-weekly synchronization meetings for decisions, unblockers, and demo-ready increments. Instead of validating isolated technical tasks, sprint objectives were progressively redefined around complete user-visible features with testable outcomes at the end of each iteration. This evolution was one of the main reasons behind the transition from the initial V-model framing toward a more agile organization. The project manager studied agile practice material (including \textit{Scrum Life}) to align rituals with the team's reality rather than copying a textbook process wholesale.
 
 \subsection{Planning, coordination, and reporting}
 
 Coordination relied on: recurring meetings (\textasciitilde{}twice per week), shared technical documentation under \path{Docs/}, internal validation sessions, and continuous integration feedback via \path{.gitlab-ci.yml} at the repository root. Work was distributed dynamically across frontend, backend, and infrastructure tasks because multiplayer features require tight coupling between UI state, socket events, and persistence.
+
+The team also faced workload-management challenges because the project overlapped with university exams and other academic responsibilities. During periods of reduced motivation or high pressure, additional synchronization and motivation meetings were organized to maintain momentum, prevent task isolation, and keep responsibilities visible. From a management perspective, one objective was to transform repetitive implementation work into opportunities for experimentation and technical reflection. For example, the AI bot system became a way to reuse concepts studied in the parallel Artificial Intelligence course, connecting academic learning with practical engineering implementation while improving the technical depth of the final platform.
 
 \subsection{Product management mechanics}
 
@@ -287,6 +295,7 @@ The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} n
 
 \begin{figure}[htbp]
 \centering
+\resizebox{0.94\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\footnotesize,
   >=Stealth,
@@ -313,11 +322,13 @@ The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} n
 \node[lab, anchor=east, xshift=-2mm] at (n4.west) {$64\!\to\!32$};
 \node[lab, anchor=east, xshift=-2mm] at (n5.west) {$32\!\to\!4$};
 \end{tikzpicture}
-\caption{Flux de données du prototype MLP expert (\texttt{ExpertPolicy}): vecteur de 36 caractéristiques, couches denses, puis post-traitement métier avant réponse HTTP.}\label{fig:ai-mlp}
+}
+\caption{Flux de données à travers la politique MLP expert (\texttt{ExpertPolicy}): 4 transformations linéaires successives, \textbf{196} neurones après la couche d'entrée (96+64+32+4), puis post-traitement métier avant réponse HTTP.}\label{fig:ai-mlp}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
+\resizebox{0.94\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\footnotesize,
   >=Stealth,
@@ -342,6 +353,7 @@ The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} n
 \draw[->, thick] (tsfb2) |- (end);
 \draw[->, thick] (zod) |- (end);
 \end{tikzpicture}
+}
 \caption{Diagramme de flux décisionnel côté Node pour le niveau \texttt{expert} (orchestration \texttt{botAi.service.ts}, repli heuristique, durcissement).}\label{fig:ai-flow}
 \end{figure}
 
@@ -715,13 +727,13 @@ Redis-backed Socket.IO adapter, structured logging, Prometheus metrics endpoint,
 
 \subsection{Implemented solutions}
 
-The final implementation is best understood as a modular real-time gaming platform, not as a single poker screen with extra pages attached. React handles the user interface, Express exposes REST APIs, Socket.IO delivers live events, Prisma/PostgreSQL stores durable state, and Redis supports coordination, rate limits, token revocation and distributed sockets.
+The project was completed by decomposing the platform into domain modules while keeping one consistent runtime architecture: React for presentation, Express for REST APIs, Socket.IO for live state, Prisma/PostgreSQL for durable data, and Redis for coordination. This avoids a single monolithic ``game page'' and lets poker, blackjack, casino mini-games, tournaments, social features and progression evolve under the same server-authoritative model. The module map is in Appendix~\ref{app:map}.
 
-The main design decision is server authority. Poker, blackjack, roulette, slots, tournaments, hidden bets, rewards and social money flows are validated and settled on the server; the client displays state and sends user intentions. Chip-changing actions use persistence and ledger-oriented patterns so the database remains the source of truth. The same principle is applied to private poker cards, blocked-user warnings, invitations, reports, XP, badges, daily challenges and leaderboard updates.
+The most important implementation choice was to keep gameplay, chip movement and settlement on the server. Poker clients only send intentions; poker, hidden bets, tournaments, casino outcomes, rewards and peer loans are validated by domain services before any balance or ledger mutation is committed. Reconnection is handled through room-based events plus full sanitized snapshots, so clients can recover from missed WebSocket events without reconstructing private state themselves. See Appendices~\ref{app:poker}, \ref{app:hidden}, \ref{app:tournament}, and~\ref{app:realtime}.
 
-The platform was extended with social and retention modules: friends, invitations, blocking/reporting, lobby warnings, peer loans, tournaments, winner side bets, XP, badges, daily challenges, leaderboards, gift codes and recharge flows. The lobby became the central operational screen after login, while gameplay pages remain specialized for poker, blackjack, roulette and slot machine flows.
+The same pattern applies to the extended modules. Casino games are isolated behind their own service layers; tournaments separate registration, table assignment, progression and reward settlement; social features combine REST persistence with socket notifications; progression and daily rewards remain server-validated. Security is deliberately layered across HTTP middleware, socket authentication, gateway checks, rate limits, idempotency and anti-cheat alerts. Monetary integrity is enforced through Prisma transactions and immutable wallet ledger entries. Further implementation detail is moved to Appendix~\ref{app:implemented-solutions}.
 
-Validation and tests were added around the most sensitive areas: authentication schemas, trusted waiting-room identity, socket authentication, runtime snapshots, game logic and tournament utilities. The body keeps the project readable; the appendices act as the technical evidence trail: Appendices~\ref{app:map}, \ref{app:poker}, \ref{app:realtime}, \ref{app:social}, \ref{app:prog}, \ref{app:rewards}, and~\ref{app:coverage}.
+Finally, the project added validation and test coverage around these solutions: schema tests for authentication, integration tests for waiting-room identity trust, and gateway tests for authenticated real-time snapshots. The remaining improvements would be a formal threat model, broader end-to-end coverage and a polished observability dashboard; measurable targets are listed in Section~\ref{sec:limitations}. Appendix~\ref{app:coverage} gives the coverage definitions.
 
 \section{Ethics, privacy, and academic integrity}
 \label{sec:ethics}
@@ -782,7 +794,26 @@ On the frontend side, I contributed heavily to the final user experience: lobby 
 
 \subsection{Other contributors}
 
-Additional individual contribution statements for Abdoulaye, Soheil and Mohamed are managed separately by the team. This report does not assign detailed technical ownership to those members without their explicit validation, in order to keep the attribution section accurate and academically honest.
+The repository does not contain signed-off, per-person effort logs or story point assignments for every teammate. The table below therefore combines the expanded narratives above with repository ownership notes such as \path{CODEOWNERS}; it should still be countersigned by the team before final submission.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}p{2.6cm}p{4.6cm}p{5.8cm}@{}}
+\toprule
+Member & Primary areas (self-declared) & Verifiable artefacts (commits, MRs, modules) \\
+\midrule
+Linda & Security, network, deployment safeguards, CI/CD review & \path{CODEOWNERS}: security/network/docker/config/.gitlab ownership; critical files and CI/CD review paths \\
+Abdoulaye & Database modeling, Prisma schema, migrations, SQL/database validation & \path{CODEOWNERS}: database, migrations, SQL, Prisma schema and database test ownership \\
+Soheil & Backend logic, services, tests, poker evaluation support & \path{CODEOWNERS}: backend/API/services ownership; references in evaluator and backend test fixtures \\
+Mohamed & Frontend technical lead, React pages/components, architecture coordination & \path{CODEOWNERS}: frontend/components/pages ownership; architecture and critical file review paths \\
+Massi & DevOps infrastructure, WebSocket networking, Nginx routing, Docker/CI, Electron packaging & See narrative above; Socket.IO integration, deployment configuration, CI/CD automation, Electron packaging and stabilization work \\
+Azra & Backend modeling, card/game logic, visual design, accessibility, UX features & See narrative above; work around game entities, card logic, mini-game interfaces, accessibility and reward/recharge flows \\
+Yigit & Debugging, QA, tournaments, responsive UI, Git/MR reviews & See narrative above; playtests on \path{client/src/pages/Game.tsx}, \path{client/src/features/tournament/}, mobile layouts and deployment regressions \\
+\bottomrule
+\end{tabular}
+\caption{Individual contributions: expanded statements for Omar, Massi, Yigit and Azra appear as subsections above; other rows are summarized from repository ownership notes and should be countersigned by the team.}\label{tab:contrib}
+\end{table}
 
 \section{Limitations and Future Work}
 \label{sec:limitations}
@@ -798,7 +829,17 @@ Additional individual contribution statements for Abdoulaye, Soheil and Mohamed 
 
 \subsection{Future improvements}
 
-Hardening continuous deployment secrets, expanding observability dashboards, deeper bot modeling (still code-first), richer tournament analytics, and replacing simulated identity/payment flows with certified providers if the project ever moves beyond an academic prototype. The related starting points are Appendices~\ref{app:ops}, \ref{app:bots}, \ref{app:tournament}, and~\ref{app:auth}.
+The next improvements are intentionally scoped as measurable increments rather than open-ended wishes:
+
+\begin{itemize}
+\item \textbf{End-to-end testing:} add 8--10 Playwright scenarios covering the full lobby-to-game journey (login, create room, join poker table, create tournament, play blackjack, claim reward), targeting roughly \textbf{+15\% additional critical-flow coverage} within \textbf{2 weeks}.
+\item \textbf{Recovery and observability:} add a Grafana-style dashboard for Socket.IO rooms, failed actions, tournament recovery and wallet mutations, targeting recovery diagnosis in \textbf{under 5 minutes} and reducing manual log inspection during incidents.
+\item \textbf{Real-time scaling:} validate a \textbf{3-node Redis-backed Socket.IO deployment} with sticky sessions and room broadcasts, then compare reconnection time against the current single-instance setup.
+\item \textbf{Tournament analytics:} add tournament-level KPIs (average round duration, bust-out order, table wait time, winner-bet volume) within \textbf{1--2 weeks}, starting from the existing tournament tables and ledger events.
+\item \textbf{Certified identity/payment providers:} if the project leaves the academic prototype context, replace simulated top-ups and internal verification with certified providers for Google verification, OTP delivery and banking/payment flows. This depends on external compliance approval rather than only development time.
+\end{itemize}
+
+The related starting points are Appendices~\ref{app:ops}, \ref{app:bots}, \ref{app:tournament}, \ref{app:auth}, and~\ref{app:user-guide}.
 
 \section{Conclusion}
 
@@ -1869,6 +1910,56 @@ The \texttt{docker-build} stage invokes \textbf{Kaniko} executor \texttt{v1.23.2
 The npm scripts are declared in \path{client/package.json} (see \texttt{build} block for electron-builder). \texttt{npm run build:electron} runs Vite in \texttt{electron} mode; \texttt{electron:build:win}, \texttt{electron:build:mac}, \texttt{electron:build:linux}, and \texttt{electron:build:all} invoke \texttt{electron-builder} with the corresponding platform flags. Windows uses NSIS (\texttt{.exe} installer); macOS uses the default mac target (typically \texttt{.dmg} plus update artefacts); Linux emits \texttt{AppImage} and \texttt{.deb} as declared under \texttt{build.linux.target}. \texttt{publish:win} / \texttt{publish:mac} add \texttt{--publish always} for CI/CD uploads to the generic update server configured in \texttt{build.publish}.
 
 \textbf{Capacitor:} \texttt{npm run build:cap} then \texttt{npx @capacitor/cli sync} copies web assets into \texttt{android/} and \texttt{ios/} native shells (\texttt{@capacitor/android}, \texttt{@capacitor/ios}~8.3.0). \texttt{npm run cap:android} / \texttt{cap:ios} open the native IDEs; \texttt{cap:run:*} supports live-reload against a LAN API host for device testing.
+
+\section{Detailed implemented solutions}
+\label{app:implemented-solutions}
+
+\subsection{Domain decomposition}
+
+The implemented solution decomposes the product into modules while preserving a shared runtime architecture. The React client handles navigation, presentation, forms, table interaction and user feedback. The Express API exposes stable REST endpoints. Socket.IO carries live events. Prisma/PostgreSQL stores durable state, and Redis supports coordination, rate limiting, token revocation and distributed socket delivery.
+
+\subsection{Authoritative gameplay and synchronization}
+
+Poker actions are routed through \path{server/src/poker/services/pokerActionOrchestrator.service.ts} and the gateway; table controllers under \path{server/src/logic/} keep the authoritative model. Hidden bets are separated under \path{server/src/poker/hiddenBets/}, which lets side markets be priced, placed and resolved without leaking private poker information to the browser.
+
+Synchronization combines room-based events, full snapshots and recovery stores. Important table updates are broadcast to Socket.IO rooms, while reconnecting clients receive complete sanitized snapshots. Poker runtime snapshots are serialized through \path{server/src/poker/services/pokerStateSync.service.ts} and stored behind \path{server/src/shared/pokerStateStore.ts}; blackjack has its own snapshot repository and boot-time recovery service.
+
+\subsection{Extended modules}
+
+Casino games are isolated behind their own routes and services instead of being mixed into the poker engine. Slot and roulette use dedicated logic modules, payout calculation, stake caps and wallet updates. Blackjack exists in solo and multiplayer forms, with table rooms, seats, snapshots and recovery services under \path{server/src/blackjack/}.
+
+Tournaments separate registration, waiting state, table assignment, runtime progression, finalization and rewards. Tournament screens live under \path{client/src/features/tournament/}; server-side orchestration lives under \path{server/src/tournament/}. Winner side bets are implemented as a tournament service so settlement remains tied to the real tournament result.
+
+Social and lobby features combine durable REST operations with socket notifications: invitations, friend status changes, lobby activity, warnings, reports and peer loans remain persisted instead of being client-only events. Progression features (XP, badges, daily challenges, login streaks, leaderboards, gift codes and free recharge) are similarly isolated while still routing eligibility and balance-changing effects through the server.
+
+\subsection{Security, monetary integrity and validation}
+
+Security is redundant by design: HTTP middleware, socket middleware, gateway checks and domain services re-check sensitive assumptions in their own layer. Forged REST bodies cannot replace JWT identity, forged socket payloads cannot act for another player, and suspended accounts are rejected at login, REST middleware and socket connection time.
+
+Chip-changing operations use Prisma transactions, wallet ledger entries, idempotency keys and domain-specific settlement services. This pattern appears in casino modules, hidden-bet placement/resolution, tournament rewards and social loan flows. Client-side balances are treated as cached UI; the database and server services remain the source of truth.
+
+\section{Quick User Guide}
+\label{app:user-guide}
+
+\subsection{Player flow}
+
+\begin{enumerate}
+\item \textbf{Create or open an account}: the user starts from \path{/auth}, signs in, and reaches the protected lobby.
+\item \textbf{Choose a game mode}: the lobby groups poker rooms, blackjack, roulette/slots, tournaments, friends and daily challenges.
+\item \textbf{Join poker}: the user can create or join a waiting room, then enters \path{/game}; actions are displayed as buttons and validated by the server.
+\item \textbf{Play tournaments}: the user opens the tournament area, joins an available tournament, waits for table assignment, then follows automatic round transitions until elimination or victory.
+\item \textbf{Use casino mini-games}: blackjack, roulette and slots are available from the lobby/mini-games screens; all bets use virtual chips only.
+\item \textbf{Follow progression}: profile and leaderboard screens show XP, level, badges, stats, rewards and daily challenges.
+\item \textbf{Use social features}: the friends page supports requests, messages, invitations and peer-loan interactions.
+\end{enumerate}
+
+\subsection{Admin and support flow}
+
+\begin{itemize}
+\item \textbf{Admin console}: authorized admins access \path{/admin/console} to inspect reports, gift codes, monitoring-oriented information and moderation data.
+\item \textbf{Feedback and reports}: players can submit feedback or reports; these are persisted for later review instead of remaining client-only messages.
+\item \textbf{Safety note}: the product uses simulated payments and virtual chips. It is not connected to real bank cards, real bank accounts or real-money gambling providers.
+\end{itemize}
 
 \section{Test coverage metrics and definitions}
 \label{app:coverage}

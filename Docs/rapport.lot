@@ -1,4 +1,5 @@
-\contentsline {table}{\numberline {1}{\ignorespaces High-level functional inventory (representative surfaces).}}{10}{table.1}%
-\contentsline {table}{\numberline {2}{\ignorespaces Automated unit and integration test inventory (May~2026 snapshot).}}{23}{table.caption.18}%
-\contentsline {table}{\numberline {3}{\ignorespaces Server Jest coverage aggregate on \texttt {collectCoverageFrom} (May~2026; \texttt {npm run test:coverage} in \texttt {server/}).}}{24}{table.caption.19}%
-\contentsline {table}{\numberline {4}{\ignorespaces Main relational groups in the Prisma schema.}}{35}{table.4}%
+\contentsline {table}{\numberline {1}{\ignorespaces High-level functional inventory (representative surfaces).}}{11}{table.1}%
+\contentsline {table}{\numberline {2}{\ignorespaces Automated unit and integration test inventory (May~2026 snapshot).}}{24}{table.caption.18}%
+\contentsline {table}{\numberline {3}{\ignorespaces Server Jest coverage aggregate on \texttt {collectCoverageFrom} (May~2026; \texttt {npm run test:coverage} in \texttt {server/}).}}{25}{table.caption.19}%
+\contentsline {table}{\numberline {4}{\ignorespaces Individual contributions: expanded statements for Omar, Massi, Yigit and Azra appear as subsections above; other rows are summarized from repository ownership notes and should be countersigned by the team.}}{30}{table.caption.20}%
+\contentsline {table}{\numberline {5}{\ignorespaces Main relational groups in the Prisma schema.}}{37}{table.5}%
