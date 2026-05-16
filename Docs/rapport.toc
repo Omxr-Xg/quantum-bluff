@@ -87,10 +87,11 @@
 \contentsline {subsection}{\numberline {13.3}Yigit -- Debugging, Quality Assurance and Gameplay Stability}{28}{subsection.13.3}%
 \contentsline {subsection}{\numberline {13.4}Azra -- Backend Modeling, Visual Design and User Experience Features}{29}{subsection.13.4}%
 \contentsline {subsection}{\numberline {13.5}Linda -- security, real-time features and UI/UX}{29}{subsection.13.5}%
-\contentsline {subsection}{\numberline {13.6}Other contributors}{30}{subsection.13.6}%
-\contentsline {section}{\numberline {14}Limitations and Future Work}{31}{section.14}%
-\contentsline {subsection}{\numberline {14.1}Current limitations}{31}{subsection.14.1}%
-\contentsline {subsection}{\numberline {14.2}Future improvements}{31}{subsection.14.2}%
+\contentsline {subsection}{\numberline {13.6}Mohamed -- Technical Leader}{30}{subsection.13.6}%
+\contentsline {subsection}{\numberline {13.7}Other contributors}{30}{subsection.13.7}%
+\contentsline {section}{\numberline {14}Limitations and Future Work}{32}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Current limitations}{32}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}Future improvements}{32}{subsection.14.2}%
 \contentsline {section}{\numberline {15}Conclusion}{33}{section.15}%
 \contentsline {section}{Acknowledgements}{34}{section*.22}%
 \contentsline {section}{\numberline {A}Repository map and routing}{35}{appendix.A}%
@@ -166,53 +167,53 @@
 \contentsline {subsubsection}{\numberline {J.1.1}Payout structure and expected value}{59}{subsubsection.J.1.1}%
 \contentsline {subsubsection}{\numberline {J.1.2}State and recovery}{59}{subsubsection.J.1.2}%
 \contentsline {subsection}{\numberline {J.2}HTTP and multi-table surfaces}{59}{subsection.J.2}%
-\contentsline {subsection}{\numberline {J.3}Further reading}{60}{subsection.J.3}%
-\contentsline {section}{\numberline {K}Slot machine, roulette, and casino wallet}{61}{appendix.K}%
-\contentsline {subsection}{\numberline {K.1}Three-reel slot model}{61}{subsection.K.1}%
-\contentsline {subsection}{\numberline {K.2}Complete slot RTP (closed form, current constants)}{61}{subsection.K.2}%
-\contentsline {paragraph}{Triple (three of a kind).}{61}{section*.34}%
-\contentsline {paragraph}{Exact pair (not a triple).}{61}{section*.35}%
-\contentsline {paragraph}{Lose.}{61}{section*.36}%
-\contentsline {paragraph}{Expected multiplier and RTP.}{61}{section*.37}%
-\contentsline {paragraph}{Variance (optional diagnostic).}{62}{section*.38}%
-\contentsline {subsection}{\numberline {K.3}European roulette model}{62}{subsection.K.3}%
-\contentsline {subsection}{\numberline {K.4}Complete roulette RTP (all proportional inside bets)}{62}{subsection.K.4}%
-\contentsline {subsection}{\numberline {K.5}Wallet and ledger}{62}{subsection.K.5}%
-\contentsline {subsection}{\numberline {K.6}RNG injection and deterministic testing}{63}{subsection.K.6}%
-\contentsline {subsection}{\numberline {K.7}Ledger integration and fairness guarantees}{63}{subsection.K.7}%
-\contentsline {subsection}{\numberline {K.8}Anti-cheat and outcome validation}{63}{subsection.K.8}%
-\contentsline {section}{\numberline {L}Social graph, invitations, and peer loans}{64}{appendix.L}%
-\contentsline {subsection}{\numberline {L.1}Programmed surfaces}{64}{subsection.L.1}%
-\contentsline {subsection}{\numberline {L.2}Further reading}{64}{subsection.L.2}%
-\contentsline {section}{\numberline {M}Progression, challenges, and leaderboards}{65}{appendix.M}%
-\contentsline {subsection}{\numberline {M.1}Programmed logic}{65}{subsection.M.1}%
-\contentsline {subsection}{\numberline {M.2}Further reading}{65}{subsection.M.2}%
-\contentsline {section}{\numberline {N}Rewards, Banking, and Transactions}{66}{appendix.N}%
-\contentsline {subsection}{\numberline {N.1}Gamification: XP curves, levels, and badge unlocks}{66}{subsection.N.1}%
-\contentsline {subsection}{\numberline {N.2}Wallet ledger: immutable transaction record}{66}{subsection.N.2}%
-\contentsline {subsection}{\numberline {N.3}Tournament rewards and peer loans}{66}{subsection.N.3}%
-\contentsline {subsection}{\numberline {N.4}Further reading}{67}{subsection.N.4}%
-\contentsline {section}{\numberline {O}Authentication, profiles, and i18n}{68}{appendix.O}%
-\contentsline {subsection}{\numberline {O.1}Programmed security and profiles}{68}{subsection.O.1}%
-\contentsline {section}{\numberline {P}Operations, Redis, CI, and packaging}{69}{appendix.P}%
-\contentsline {subsection}{\numberline {P.1}Programmed operations}{69}{subsection.P.1}%
-\contentsline {subsection}{\numberline {P.2}Kaniko container builds (GitLab CI)}{69}{subsection.P.2}%
-\contentsline {subsection}{\numberline {P.3}Electron and Capacitor build matrix}{69}{subsection.P.3}%
-\contentsline {section}{\numberline {Q}Detailed implemented solutions}{70}{appendix.Q}%
-\contentsline {subsection}{\numberline {Q.1}Domain decomposition}{70}{subsection.Q.1}%
-\contentsline {subsection}{\numberline {Q.2}Authoritative gameplay and synchronization}{70}{subsection.Q.2}%
-\contentsline {subsection}{\numberline {Q.3}Extended modules}{70}{subsection.Q.3}%
-\contentsline {subsection}{\numberline {Q.4}Security, monetary integrity and validation}{70}{subsection.Q.4}%
-\contentsline {section}{\numberline {R}Quick User Guide}{72}{appendix.R}%
-\contentsline {subsection}{\numberline {R.1}Player flow}{72}{subsection.R.1}%
-\contentsline {subsection}{\numberline {R.2}Admin and support flow}{72}{subsection.R.2}%
-\contentsline {section}{\numberline {S}Test coverage metrics and definitions}{73}{appendix.S}%
-\contentsline {subsection}{\numberline {S.1}Jest ratios}{73}{subsection.S.1}%
-\contentsline {subsection}{\numberline {S.2}Vitest ratios (client)}{73}{subsection.S.2}%
-\contentsline {subsection}{\numberline {S.3}Relation to tournaments}{73}{subsection.S.3}%
-\contentsline {subsection}{\numberline {S.4}Further reading}{73}{subsection.S.4}%
-\contentsline {section}{\numberline {T}Real-time, security, and implemented solution details}{74}{appendix.T}%
-\contentsline {subsection}{\numberline {T.1}Real-time communication details}{74}{subsection.T.1}%
-\contentsline {subsection}{\numberline {T.2}Authentication and anti-cheat details}{74}{subsection.T.2}%
-\contentsline {subsection}{\numberline {T.3}Implemented solution details}{75}{subsection.T.3}%
-\contentsline {section}{\numberline {U}External references and compendium}{77}{appendix.U}%
+\contentsline {subsection}{\numberline {J.3}Further reading}{59}{subsection.J.3}%
+\contentsline {section}{\numberline {K}Slot machine, roulette, and casino wallet}{60}{appendix.K}%
+\contentsline {subsection}{\numberline {K.1}Three-reel slot model}{60}{subsection.K.1}%
+\contentsline {subsection}{\numberline {K.2}Complete slot RTP (closed form, current constants)}{60}{subsection.K.2}%
+\contentsline {paragraph}{Triple (three of a kind).}{60}{section*.34}%
+\contentsline {paragraph}{Exact pair (not a triple).}{60}{section*.35}%
+\contentsline {paragraph}{Lose.}{60}{section*.36}%
+\contentsline {paragraph}{Expected multiplier and RTP.}{60}{section*.37}%
+\contentsline {paragraph}{Variance (optional diagnostic).}{61}{section*.38}%
+\contentsline {subsection}{\numberline {K.3}European roulette model}{61}{subsection.K.3}%
+\contentsline {subsection}{\numberline {K.4}Complete roulette RTP (all proportional inside bets)}{61}{subsection.K.4}%
+\contentsline {subsection}{\numberline {K.5}Wallet and ledger}{61}{subsection.K.5}%
+\contentsline {subsection}{\numberline {K.6}RNG injection and deterministic testing}{62}{subsection.K.6}%
+\contentsline {subsection}{\numberline {K.7}Ledger integration and fairness guarantees}{62}{subsection.K.7}%
+\contentsline {subsection}{\numberline {K.8}Anti-cheat and outcome validation}{62}{subsection.K.8}%
+\contentsline {section}{\numberline {L}Social graph, invitations, and peer loans}{63}{appendix.L}%
+\contentsline {subsection}{\numberline {L.1}Programmed surfaces}{63}{subsection.L.1}%
+\contentsline {subsection}{\numberline {L.2}Further reading}{63}{subsection.L.2}%
+\contentsline {section}{\numberline {M}Progression, challenges, and leaderboards}{64}{appendix.M}%
+\contentsline {subsection}{\numberline {M.1}Programmed logic}{64}{subsection.M.1}%
+\contentsline {subsection}{\numberline {M.2}Further reading}{64}{subsection.M.2}%
+\contentsline {section}{\numberline {N}Rewards, Banking, and Transactions}{65}{appendix.N}%
+\contentsline {subsection}{\numberline {N.1}Gamification: XP curves, levels, and badge unlocks}{65}{subsection.N.1}%
+\contentsline {subsection}{\numberline {N.2}Wallet ledger: immutable transaction record}{65}{subsection.N.2}%
+\contentsline {subsection}{\numberline {N.3}Tournament rewards and peer loans}{65}{subsection.N.3}%
+\contentsline {subsection}{\numberline {N.4}Further reading}{66}{subsection.N.4}%
+\contentsline {section}{\numberline {O}Authentication, profiles, and i18n}{67}{appendix.O}%
+\contentsline {subsection}{\numberline {O.1}Programmed security and profiles}{67}{subsection.O.1}%
+\contentsline {section}{\numberline {P}Operations, Redis, CI, and packaging}{68}{appendix.P}%
+\contentsline {subsection}{\numberline {P.1}Programmed operations}{68}{subsection.P.1}%
+\contentsline {subsection}{\numberline {P.2}Kaniko container builds (GitLab CI)}{68}{subsection.P.2}%
+\contentsline {subsection}{\numberline {P.3}Electron and Capacitor build matrix}{68}{subsection.P.3}%
+\contentsline {section}{\numberline {Q}Detailed implemented solutions}{69}{appendix.Q}%
+\contentsline {subsection}{\numberline {Q.1}Domain decomposition}{69}{subsection.Q.1}%
+\contentsline {subsection}{\numberline {Q.2}Authoritative gameplay and synchronization}{69}{subsection.Q.2}%
+\contentsline {subsection}{\numberline {Q.3}Extended modules}{69}{subsection.Q.3}%
+\contentsline {subsection}{\numberline {Q.4}Security, monetary integrity and validation}{69}{subsection.Q.4}%
+\contentsline {section}{\numberline {R}Quick User Guide}{71}{appendix.R}%
+\contentsline {subsection}{\numberline {R.1}Player flow}{71}{subsection.R.1}%
+\contentsline {subsection}{\numberline {R.2}Admin and support flow}{71}{subsection.R.2}%
+\contentsline {section}{\numberline {S}Test coverage metrics and definitions}{72}{appendix.S}%
+\contentsline {subsection}{\numberline {S.1}Jest ratios}{72}{subsection.S.1}%
+\contentsline {subsection}{\numberline {S.2}Vitest ratios (client)}{72}{subsection.S.2}%
+\contentsline {subsection}{\numberline {S.3}Relation to tournaments}{72}{subsection.S.3}%
+\contentsline {subsection}{\numberline {S.4}Further reading}{72}{subsection.S.4}%
+\contentsline {section}{\numberline {T}Real-time, security, and implemented solution details}{73}{appendix.T}%
+\contentsline {subsection}{\numberline {T.1}Real-time communication details}{73}{subsection.T.1}%
+\contentsline {subsection}{\numberline {T.2}Authentication and anti-cheat details}{73}{subsection.T.2}%
+\contentsline {subsection}{\numberline {T.3}Implemented solution details}{74}{subsection.T.3}%
+\contentsline {section}{\numberline {U}External references and compendium}{76}{appendix.U}%
