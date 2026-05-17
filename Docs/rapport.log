@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.5.14)  17 MAY 2026 16:01
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.5.14)  17 MAY 2026 16:51
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -969,16 +969,16 @@ ignored: Infinite glue shrinkage found in box being split [2] [3] (./rapport.toc
 \tf@toc=\write5
 \openout5 = `rapport.toc'.
 
- [8] (./rapport.lof)
+ [8] (./rapport.lof [9{/usr/local/texlive/2026basic/texmf-dist/fonts/enc/dvips/
+lm/lm-mathsy.enc}])
 \tf@lof=\write6
 \openout6 = `rapport.lof'.
 
- [9{/usr/local/texlive/2026basic/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc}] 
-(./rapport.lot)
+ [10] (./rapport.lot)
 \tf@lot=\write7
 \openout7 = `rapport.lot'.
 
- [10]
+ [11]
 pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has 
 been already used, duplicate ignored
 <to be read again> 
@@ -1467,15 +1467,61 @@ Overfull \hbox (8.26031pt too wide) in paragraph at lines 2086--2087
 ] [68
 
 ]
-<user-workflow-diagram.png, id=1812, 1027.84pt x 578.16pt>
+<user-workflow-diagram.png, id=1846, 1027.84pt x 578.16pt>
 File: user-workflow-diagram.png Graphic file (type png)
 <use user-workflow-diagram.png>
 Package pdftex.def Info: user-workflow-diagram.png  used on input line 2143.
 (pdftex.def)             Requested size: 418.96548pt x 235.6709pt.
+<screenshot-admin-console.png, id=1855, 1027.84pt x 580.1675pt>
+File: screenshot-admin-console.png Graphic file (type png)
+<use screenshot-admin-console.png>
+Package pdftex.def Info: screenshot-admin-console.png  used on input line 2155.
+
+(pdftex.def)             Requested size: 418.96548pt x 236.4892pt.
  [69
 
-] [70 <./user-workflow-diagram.png>] [71] [72]
-Overfull \hbox (72.00797pt too wide) in paragraph at lines 2235--2237
+]
+<screenshot-poker-table.png, id=1868, 1027.84pt x 635.37375pt>
+File: screenshot-poker-table.png Graphic file (type png)
+<use screenshot-poker-table.png>
+Package pdftex.def Info: screenshot-poker-table.png  used on input line 2162.
+(pdftex.def)             Requested size: 418.96548pt x 258.9925pt.
+<screenshot-lobby.png, id=1869, 1027.84pt x 580.1675pt>
+File: screenshot-lobby.png Graphic file (type png)
+<use screenshot-lobby.png>
+Package pdftex.def Info: screenshot-lobby.png  used on input line 2169.
+(pdftex.def)             Requested size: 418.96548pt x 236.4892pt.
+<screenshot-tournament.png, id=1870, 1027.84pt x 902.37125pt>
+File: screenshot-tournament.png Graphic file (type png)
+<use screenshot-tournament.png>
+Package pdftex.def Info: screenshot-tournament.png  used on input line 2176.
+(pdftex.def)             Requested size: 418.96548pt x 367.82663pt.
+<screenshot-blackjack.png, id=1871, 1027.84pt x 670.505pt>
+File: screenshot-blackjack.png Graphic file (type png)
+<use screenshot-blackjack.png>
+Package pdftex.def Info: screenshot-blackjack.png  used on input line 2183.
+(pdftex.def)             Requested size: 418.96548pt x 273.31279pt.
+<screenshot-leaderboard.png, id=1872, 1027.84pt x 580.1675pt>
+File: screenshot-leaderboard.png Graphic file (type png)
+<use screenshot-leaderboard.png>
+Package pdftex.def Info: screenshot-leaderboard.png  used on input line 2190.
+(pdftex.def)             Requested size: 418.96548pt x 236.4892pt.
+<screenshot-profile-page.png, id=1873, 1027.84pt x 675.52374pt>
+File: screenshot-profile-page.png Graphic file (type png)
+<use screenshot-profile-page.png>
+Package pdftex.def Info: screenshot-profile-page.png  used on input line 2197.
+(pdftex.def)             Requested size: 418.96548pt x 275.35854pt.
+<screenshot-profile-avatars.png, id=1874, 1027.84pt x 721.69624pt>
+File: screenshot-profile-avatars.png Graphic file (type png)
+<use screenshot-profile-avatars.png>
+Package pdftex.def Info: screenshot-profile-avatars.png  used on input line 220
+4.
+(pdftex.def)             Requested size: 418.96548pt x 294.17947pt.
+ [70 <./user-workflow-diagram.png>] [71 <./screenshot-admin-console.png> <./scr
+eenshot-poker-table.png>] [72 <./screenshot-lobby.png>] [73 <./screenshot-tourn
+ament.png>] [74 <./screenshot-blackjack.png> <./screenshot-leaderboard.png>] [7
+5 <./screenshot-profile-page.png> <./screenshot-profile-avatars.png>]
+Overfull \hbox (72.00797pt too wide) in paragraph at lines 2225--2227
 \T1/lmr/m/n/10.95 (-20) May 2026 lo-cal run re-ported $\OT1/lmr/m/n/10.95 (-20)
  ([][]\OML/lmm/m/it/10.95 ; [][]; [][]; [][]\OT1/lmr/m/n/10.95 (-20) ) = (86\OM
 L/lmm/m/it/10.95 :\OT1/lmr/m/n/10.95 (-20) 56%\OML/lmm/m/it/10.95 ; \OT1/lmr/m/
@@ -1485,13 +1531,13 @@ n/10.95 (-20) 83\OML/lmm/m/it/10.95 :\OT1/lmr/m/n/10.95 (-20) 69%\OML/lmm/m/it/
 /lmr/m/n/10.95 (-20) 90%)$
  []
 
-[73
-
-] [74
-
-] [75] [76
+[76
 
 ] [77
+
+] [78] [79
+
+] [80
 
 
 ] (./rapport.aux)
@@ -1500,14 +1546,14 @@ LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `rapport.out' has not changed.
-(rerunfilecheck)             Checksum: 1E8D7E0C3B6744D9121982DC610C3328;39323.
+(rerunfilecheck)             Checksum: C97CA1E3F6A66EE40087DB6345C00F45;39323.
  ) 
 Here is how much of TeX's memory you used:
- 27676 strings out of 469006
- 510096 string characters out of 5454813
- 936034 words of memory out of 5000000
- 55069 multiletter control sequences out of 15000+600000
- 759312 words of font info for 319 fonts, out of 8000000 for 9000
+ 27764 strings out of 469006
+ 512257 string characters out of 5454813
+ 940679 words of memory out of 5000000
+ 55127 multiletter control sequences out of 15000+600000
+ 760644 words of font info for 331 fonts, out of 8000000 for 9000
  319 hyphenation exceptions out of 8191
  84i,13n,94p,1428b,942s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2026basic/texmf-dist/fonts/type1/public/lm/lmbx10.pfb></u
@@ -1533,10 +1579,10 @@ c/texmf-dist/fonts/type1/public/lm/lmtt10.pfb></usr/local/texlive/2026basic/tex
 mf-dist/fonts/type1/public/lm/lmtt8.pfb></usr/local/texlive/2026basic/texmf-dis
 t/fonts/type1/public/lm/lmtt9.pfb></usr/local/texlive/2026basic/texmf-dist/font
 s/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on rapport.pdf (88 pages, 3398942 bytes).
+Output written on rapport.pdf (92 pages, 4002604 bytes).
 PDF statistics:
- 2121 PDF objects out of 2487 (max. 8388607)
- 1951 compressed objects within 20 object streams
- 439 named destinations out of 1000 (max. 500000)
- 74660 words of extra memory for PDF output out of 89155 (max. 10000000)
+ 2186 PDF objects out of 2487 (max. 8388607)
+ 2003 compressed objects within 21 object streams
+ 445 named destinations out of 1000 (max. 500000)
+ 74700 words of extra memory for PDF output out of 89155 (max. 10000000)
 

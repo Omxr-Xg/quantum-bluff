@@ -2145,75 +2145,65 @@ Figure~\ref{fig:user-workflow-diagram} summarizes the main player journey from r
 \label{fig:user-workflow-diagram}
 \end{figure}
 
-\subsection{UI screenshot placeholders}
+\subsection{Representative UI captures}
 \label{subsec:ui-screenshot-placeholders}
 
-The following placeholders reserve space for final interface screenshots. Each capture should be taken from the current deployed or demo-ready build, preferably with realistic but non-sensitive test data. The goal is to show the user-facing result of the platform, not internal implementation details.
+Figure~\ref{fig:ui-admin-console} shows the deployed \textbf{admin web console} (\path{/admin/console}). Figure~\ref{fig:ui-poker-table} shows an active \textbf{Texas Hold'em} table against a bot opponent. Figure~\ref{fig:ui-lobby} shows the \textbf{main lobby hub}. Figure~\ref{fig:ui-tournament} shows a \textbf{tournament} registration/waiting view (scheduled event, blinds/stack, hidden winner-side bets). Figure~\ref{fig:ui-blackjack} shows the \textbf{solo blackjack} table during the betting phase. Figure~\ref{fig:ui-leaderboard} shows \textbf{public leaderboards} with mode tabs (general XP, poker, casino), rank table and the viewer's rank banner. Figure~\ref{fig:ui-profile-page} summarizes the \textbf{player profile}: identity, progression (XP, level, streak), virtual chip balance, badge catalogue and headline statistics. Figure~\ref{fig:ui-profile-avatars} shows \textbf{profile photo configuration}: upload constraints and the catalogue of \textbf{24} selectable preset avatars (plus custom image import). The captures below come from a demo-ready build with non-sensitive test data and illustrate user-visible outcomes rather than internal implementation detail.
 
 \begin{figure}[htbp]
 \centering
-\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
-\centering
-\textbf{Poker table UI screenshot placeholder}\\[0.4em]
-Capture an active Texas Hold'em table with community cards, player seats, current chips, action buttons, pot area and the Quantum HUD visible.
-\end{minipage}}
-\caption{Placeholder for the poker table interface screenshot.}
-\label{fig:ui-poker-placeholder}
+\includegraphics[width=0.95\textwidth,keepaspectratio]{screenshot-admin-console.png}
+\caption{Administration dashboard (\texttt{/admin/console}): \textit{Players} tab with search, aggregate user count, reminder that passwords are stored as one-way hashes, chip balances, and moderation actions (suspend, ban, reactivate). Other tabs expose live poker, blackjack rooms, tournaments, waiting rooms, poker history (DB), ratings, reports and gift codes.}
+\label{fig:ui-admin-console}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
-\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
-\centering
-\textbf{Main lobby UI screenshot placeholder}\\[0.4em]
-Capture the main navigation hub showing access to poker, casino games, tournaments, social features, rewards and profile/progression areas.
-\end{minipage}}
-\caption{Placeholder for the main lobby interface screenshot.}
-\label{fig:ui-lobby-placeholder}
+\includegraphics[width=0.95\textwidth,keepaspectratio]{screenshot-poker-table.png}
+\caption{Texas Hold'em table (practice vs.\ bot): pre-flop state with dealer/SB/BB markers, hole cards, central pot, action bar (\textit{Fold} / \textit{Check} / \textit{Raise}), hand-history snippet, chip balance in the shell header and probability HUD entry via \textit{Probs}.}
+\label{fig:ui-poker-table}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
-\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
-\centering
-\textbf{Tournament UI screenshot placeholder}\\[0.4em]
-Capture either the tournament waiting room, an active tournament table, or the tournament results screen with bracket/progression information visible.
-\end{minipage}}
-\caption{Placeholder for the tournament interface screenshot.}
-\label{fig:ui-tournament-placeholder}
+\includegraphics[width=0.95\textwidth,keepaspectratio]{screenshot-lobby.png}
+\caption{Main lobby (\textit{Quantum Bluff} shell): mode tabs (Texas Hold'em, Blackjack, Mini-games), \textit{Play vs Bot}, multiplayer server lists (waiting rooms / games in progress), tournament lists with creation entry points, daily challenges with chip rewards, friends panel and global shell controls (balance, profile, settings).}
+\label{fig:ui-lobby}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
-\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
-\centering
-\textbf{Blackjack UI screenshot placeholder}\\[0.4em]
-Capture the blackjack table with player hand, dealer hand, bet controls, action buttons and displayed result or current round state.
-\end{minipage}}
-\caption{Placeholder for the blackjack interface screenshot.}
-\label{fig:ui-blackjack-placeholder}
+\includegraphics[width=0.95\textwidth,keepaspectratio]{screenshot-tournament.png}
+\caption{Tournament lobby (waiting/registration): event title and scheduled start, status badges (\textit{Registration open}, visibility), blinds and starting stack, registration progress (e.g.\ seats filled), \textit{Hidden bets} panel for winner-side staking with pot summary, and primary actions (\textit{Join}, host-oriented \textit{Start now}).}
+\label{fig:ui-tournament}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
-\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
-\centering
-\textbf{Leaderboard UI screenshot placeholder}\\[0.4em]
-Capture the leaderboard or progression view with rankings, XP/level information, badges or player statistics visible.
-\end{minipage}}
-\caption{Placeholder for the leaderboard and progression interface screenshot.}
-\label{fig:ui-leaderboard-placeholder}
+\includegraphics[width=0.95\textwidth,keepaspectratio]{screenshot-blackjack.png}
+\caption{Solo blackjack table (\textit{Betting} phase before deal): status strip (hand counter, phase), published min/max stakes, dealer and player seating chrome, bet amount entry and \textit{Place bet} action, with global shell controls (chip balance, quit, audio/help shortcuts).}
+\label{fig:ui-blackjack}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
-\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
+\includegraphics[width=0.95\textwidth,keepaspectratio]{screenshot-leaderboard.png}
+\caption{Leaderboards (\texttt{/leaderboard}): segmented views for general XP, poker-specific and casino-specific rankings; table columns for rank, player handle, experience points and level; banner showing the signed-in player's rank; row highlight for the current user.}
+\label{fig:ui-leaderboard}
+\end{figure}
+
+\begin{figure}[htbp]
 \centering
-\textbf{Admin panel UI screenshot placeholder}\\[0.4em]
-Capture the protected admin console with moderation, reports, monitoring-oriented information or gift-code management visible. Use test data only.
-\end{minipage}}
-\caption{Placeholder for the admin panel interface screenshot.}
-\label{fig:ui-admin-placeholder}
+\includegraphics[width=0.95\textwidth,keepaspectratio]{screenshot-profile-page.png}
+\caption{Profile hub (\texttt{/profile}): summary card with avatar, level badge, handle and email, streak/XP ribbon, available chip balance and \textit{Edit profile} entry; \textit{Badges} grid contrasting unlocked tiers with level-gated tiers; aggregate statistics (winnings, matches played/won/lost).}
+\label{fig:ui-profile-page}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth,keepaspectratio]{screenshot-profile-avatars.png}
+\caption{Profile editor --- avatar selection: circular preview, \textit{Choose a photo} upload entry with stated constraints (JPG/PNG/GIF, max 5\,MB), and a grid of \textbf{24} built-in preset portraits; players may pick a preset or supply their own image.}
+\label{fig:ui-profile-avatars}
 \end{figure}
 
 \subsection{Admin and support flow}

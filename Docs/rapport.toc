@@ -214,14 +214,14 @@
 \contentsline {section}{\numberline {R}Quick User Guide}{69}{appendix.R}%
 \contentsline {subsection}{\numberline {R.1}Player flow}{69}{subsection.R.1}%
 \contentsline {subsection}{\numberline {R.2}Mini user workflow diagram}{69}{subsection.R.2}%
-\contentsline {subsection}{\numberline {R.3}UI screenshot placeholders}{69}{subsection.R.3}%
-\contentsline {subsection}{\numberline {R.4}Admin and support flow}{69}{subsection.R.4}%
-\contentsline {section}{\numberline {S}Test coverage metrics and definitions}{73}{appendix.S}%
-\contentsline {subsection}{\numberline {S.1}Jest ratios}{73}{subsection.S.1}%
-\contentsline {subsection}{\numberline {S.2}Vitest ratios (client)}{73}{subsection.S.2}%
-\contentsline {subsection}{\numberline {S.3}Relation to tournaments}{73}{subsection.S.3}%
-\contentsline {subsection}{\numberline {S.4}Further reading}{73}{subsection.S.4}%
-\contentsline {section}{\numberline {T}Real-time and security details}{74}{appendix.T}%
-\contentsline {subsection}{\numberline {T.1}Real-time communication details}{74}{subsection.T.1}%
-\contentsline {subsection}{\numberline {T.2}Authentication and anti-cheat details}{74}{subsection.T.2}%
-\contentsline {section}{\numberline {U}External references and compendium}{76}{appendix.U}%
+\contentsline {subsection}{\numberline {R.3}Representative UI captures}{69}{subsection.R.3}%
+\contentsline {subsection}{\numberline {R.4}Admin and support flow}{70}{subsection.R.4}%
+\contentsline {section}{\numberline {S}Test coverage metrics and definitions}{76}{appendix.S}%
+\contentsline {subsection}{\numberline {S.1}Jest ratios}{76}{subsection.S.1}%
+\contentsline {subsection}{\numberline {S.2}Vitest ratios (client)}{76}{subsection.S.2}%
+\contentsline {subsection}{\numberline {S.3}Relation to tournaments}{76}{subsection.S.3}%
+\contentsline {subsection}{\numberline {S.4}Further reading}{76}{subsection.S.4}%
+\contentsline {section}{\numberline {T}Real-time and security details}{77}{appendix.T}%
+\contentsline {subsection}{\numberline {T.1}Real-time communication details}{77}{subsection.T.1}%
+\contentsline {subsection}{\numberline {T.2}Authentication and anti-cheat details}{77}{subsection.T.2}%
+\contentsline {section}{\numberline {U}External references and compendium}{79}{appendix.U}%
