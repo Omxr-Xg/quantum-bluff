@@ -1,7 +1,13 @@
 \contentsline {figure}{\numberline {1}{\ignorespaces Data flow through the expert MLP policy (\texttt {ExpertPolicy}): four successive linear transformations, \textbf {196} post-input neurons (96+64+32+4), then domain-specific post-processing before the HTTP response.}}{9}{figure.caption.10}%
-\contentsline {figure}{\numberline {2}{\ignorespaces Node-side decision flow for the \texttt {expert} bot tier: optional Python service call, heuristic fallback, validation and authoritative action application.}}{9}{figure.caption.11}%
-\contentsline {figure}{\numberline {3}{\ignorespaces Monorepo runtime flow: interface $\rightarrow $ API / WebSocket $\rightarrow $ gateway and services $\rightarrow $ data layer.}}{20}{figure.caption.12}%
-\contentsline {figure}{\numberline {4}{\ignorespaces Layered architecture diagram: UI shells and client state, REST/Socket.IO transport, backend edge controls, domain services, PostgreSQL persistence, Redis coordination and operational monitoring.}}{37}{figure.caption.24}%
-\contentsline {figure}{\numberline {5}{\ignorespaces Simplified relational model: \texttt {User} is the central parent for gameplay, wallet, social, tournament, casino and progression data.}}{38}{figure.caption.25}%
-\contentsline {figure}{\numberline {6}{\ignorespaces Tournament lifecycle: registration, deterministic bracket generation, parallel poker tables, eliminations, next-round creation, completion and side-bet settlement.}}{48}{figure.caption.31}%
-\contentsline {figure}{\numberline {7}{\ignorespaces Mini user workflow: authentication, lobby entry, gameplay selection, social interaction, progression/reward consultation, exit and replay loops.}}{74}{figure.caption.41}%
+\contentsline {figure}{\numberline {2}{\ignorespaces Node-side decision flow for the \texttt {expert} bot tier: optional Python service call, heuristic fallback, validation and action application.}}{9}{figure.caption.11}%
+\contentsline {figure}{\numberline {3}{\ignorespaces Monorepo runtime flow: interface $\rightarrow $ API / WebSocket $\rightarrow $ gateway and services $\rightarrow $ data layer.}}{18}{figure.caption.12}%
+\contentsline {figure}{\numberline {4}{\ignorespaces Layered architecture diagram: UI shells and client state, REST/Socket.IO transport, backend edge controls, domain services, PostgreSQL persistence, Redis coordination and operational monitoring.}}{34}{figure.caption.25}%
+\contentsline {figure}{\numberline {5}{\ignorespaces Simplified relational model: \texttt {User} is the central parent for gameplay, wallet, social, tournament, casino and progression data.}}{35}{figure.caption.26}%
+\contentsline {figure}{\numberline {6}{\ignorespaces Tournament lifecycle: registration, deterministic bracket generation, parallel poker tables, eliminations, next-round creation, completion and side-bet settlement.}}{45}{figure.caption.32}%
+\contentsline {figure}{\numberline {7}{\ignorespaces Mini user workflow: authentication, lobby entry, gameplay selection, social interaction, progression/reward consultation, exit and replay loops.}}{70}{figure.caption.42}%
+\contentsline {figure}{\numberline {8}{\ignorespaces Placeholder for the poker table interface screenshot.}}{70}{figure.caption.43}%
+\contentsline {figure}{\numberline {9}{\ignorespaces Placeholder for the main lobby interface screenshot.}}{70}{figure.caption.44}%
+\contentsline {figure}{\numberline {10}{\ignorespaces Placeholder for the tournament interface screenshot.}}{71}{figure.caption.45}%
+\contentsline {figure}{\numberline {11}{\ignorespaces Placeholder for the blackjack interface screenshot.}}{71}{figure.caption.46}%
+\contentsline {figure}{\numberline {12}{\ignorespaces Placeholder for the leaderboard and progression interface screenshot.}}{71}{figure.caption.47}%
+\contentsline {figure}{\numberline {13}{\ignorespaces Placeholder for the admin panel interface screenshot.}}{71}{figure.caption.48}%

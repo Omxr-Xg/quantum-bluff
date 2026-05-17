@@ -131,7 +131,7 @@
 \addcontentsline{toc}{section}{Abstract}
 
 \noindent
-Quantum Bluff is a capstone web platform produced for the third-year Bachelor's degree in Computer Science (L3) at the University of Strasbourg. It combines an authoritative Texas Hold'em stack with extended casino-style modules (solo and multiplayer blackjack, slots, European roulette), structured tournaments with ancillary winner markets, social features (friends, invitations, peer loans), and progression systems (XP, daily challenges, leaderboards). This report explains how delivery evolved from an initial V-model framing to an agile-inspired workflow; which engineering tools preserved modularity and testability; and how runtime architecture separates the React client, Express REST endpoints, a Socket.IO gateway, Prisma-backed persistence, and Redis-backed coordination. Security controls (JWT and optional TOTP, segmented rate limits, idempotency on sensitive mutations, anti-cheat hooks) and an automated test harness are summarized alongside appendices that map each major domain to repository artefacts. The product uses \textbf{virtual chips} for pedagogical demonstration; it does not implement real-money gambling.
+Quantum Bluff is a capstone web platform produced for the third-year Bachelor's degree in Computer Science (L3) at the University of Strasbourg. It combines server-validated Texas Hold'em with casino-style modules (solo and multiplayer blackjack, slots, European roulette), structured tournaments, winner side markets, social features, and progression systems. This report explains how delivery evolved from an initial V-model framing to an agile-inspired workflow; which engineering tools preserved modularity and testability; and how the runtime separates the React client, Express APIs, live gateway, PostgreSQL persistence, and distributed support services. Security controls and automated tests are summarized alongside appendices for each major domain. The product uses \textbf{virtual chips} for pedagogical demonstration; it does not implement real-money gambling.
 
 \medskip
 \phantomsection
@@ -151,19 +151,64 @@ Quantum Bluff est une plateforme web temps réel développée dans le cadre du p
 \section*{List of abbreviations}
 \addcontentsline{toc}{section}{List of abbreviations}
 
-\begin{tabular}{@{}p{2.6cm}p{11.6cm}@{}}
-API & Application Programming Interface (HTTP/JSON in this project). \\
-CI/CD & Continuous integration and continuous deployment (GitLab CI at repository root). \\
-HUD & Heads-up display: in-table probability and hand-category feedback. \\
-JWT & JSON Web Token used for HTTP and Socket.IO authentication. \\
+{\small
+\begin{longtable}{@{}p{3cm}p{11.15cm}@{}}
+\endfirsthead
+\endhead
+\endfoot
+\endlastfoot
+2FA & Two-factor authentication (see TOTP). \\
+AI & Artificial intelligence (in-game bots; optional PyTorch policy; assistant tooling for engineering and documentation). \\
+API & Application Programming Interface (\path{/api/*} HTTP/JSON surfaces). \\
+APK & Android Package (mobile build artefact produced via Gradle in the Capacitor workflow). \\
+BB & Big blind (Texas Hold'em blind configuration). \\
+CI/CD & Continuous integration and continuous deployment (GitLab CI pipeline at repository root). \\
+CORS & Cross-Origin Resource Sharing (browser and native WebView origins, Helmet allowlists). \\
+CSS & Cascading Style Sheets (Tailwind CSS and component styling). \\
+GDPR & General Data Protection Regulation (EU privacy expectations referenced for deployments). \\
+HTML & HyperText Markup Language (sanitized server/client content). \\
+HTTP / HTTPS & Hypertext Transfer Protocol (plain and TLS-backed transport for REST and static assets). \\
+HUD & Heads-up display (Quantum HUD: probability and hand-category feedback). \\
+i18n & Internationalization (five locale bundles in the client). \\
+IP & Internet Protocol address (anti-cheat signals such as multi-account analysis). \\
+ISO & Usually ISO~8601-style timestamps on ledger and audit fields. \\
+JSON & JavaScript Object Notation (HTTP payloads and AI service contracts). \\
+JWT & JSON Web Token (REST and Socket.IO authentication). \\
+Kaniko & Rootless OCI image builder used in GitLab CI (no privileged Docker daemon on runners). \\
+L3 & Third-year Bachelor cycle (French ``Licence 3'' Computer Science). \\
+MLP & Multi-layer perceptron (supervised expert-bot prototype in the optional Python service). \\
+MOA & \textit{Maître d'ouvrage} --- needs, prioritization and specification track (project terminology). \\
+MOE & \textit{Maître d'œuvre} --- implementation / engineering track (project terminology). \\
+NGINX & Reverse proxy and TLS termination in VM deployments (HTTP and WebSocket routing). \\
+npm & Node package manager (workspace scripts, audits, Electron/Capacitor tooling). \\
+NSIS & Nullsoft Scriptable Install System (Windows Electron installer produced by electron-builder). \\
+OCI & Open Container Initiative image format (immutable registry artefacts tagged by Git commit SHA). \\
 ORM & Object--relational mapping (Prisma). \\
-REST & Representational state transfer style for \path{/api/*} routes. \\
-RTK & Redux Toolkit and RTK Query for client-side data fetching. \\
+PM2 & Production Node.js process manager referenced for VM-oriented deployments. \\
+PostgreSQL & Open-source relational database (authoritative persistence via Prisma). \\
+Redis & In-memory data store (rate limits, token revocation, Socket.IO Redis adapter, coordination). \\
+ReLU & Rectified Linear Unit activation in the expert MLP figures. \\
+REST & Representational state transfer style for durable commands on \path{/api/*}. \\
+RNG & Random number generator (casino outcomes, tournament bracket seeding). \\
+RTP & Return to player percentage (closed-form casino economics). \\
+RTK & Redux Toolkit and RTK Query (client-side fetching and caching). \\
+SB & Small blind (Texas Hold'em blind configuration). \\
+SHA-256 & Secure Hash Algorithm with 256-bit digest (wallet ledger integrity chaining). \\
+SMS & Short Message Service (real SMS OTP delivery explicitly out of scope). \\
+Socket.IO & WebSocket-oriented real-time framework used by the gateway (\path{/socket.io}). \\
+SPA & Single-page application (React + Vite client). \\
+SPR & Stack-to-pot ratio (feature signal for bot policies). \\
+SQL & Structured Query Language (schema evolution via Prisma migrations). \\
+SSH & Secure Shell (operational access to hosts; CI reduces routine manual SSH use). \\
 TOTP & Time-based one-time password (optional second factor). \\
-TTL & Time-to-live for cached or in-memory sessions. \\
-UI/UX & User interface and user experience layers in the React SPA. \\
-2FA & Two-factor authentication (TOTP in production paths). \\
-\end{tabular}
+TTL & Time-to-live for cached or ephemeral Redis/session-related entries. \\
+Trivy & Filesystem/container vulnerability scanner in the CI security stage. \\
+UI/UX & User interface and user experience layers. \\
+VM & Virtual machine hosting production containers behind NGINX. \\
+WebSocket & Full-duplex TCP channel for live gameplay updates (also exercised via Socket.IO). \\
+XP & Experience points (progression, badges and rewards economy). \\
+\end{longtable}
+}
 
 \newpage
 \renewcommand{\contentsname}{Table of contents}
@@ -192,7 +237,7 @@ Quantum Bluff was developed as part of the final third-year Bachelor's degree pr
 
 Quantum Bluff is positioned as a \textbf{premium social casino experience} built around poker, casino-inspired mini-games, tournaments, progression and social interaction, while remaining strictly based on virtual chips. The target audience is composed of adult players, especially users in the \textbf{26--35 age range}, as well as older users who enjoy the atmosphere of casino games but do not necessarily want to visit a physical casino. This explains the visual direction: dark blue tones, gold accents, glassmorphism, polished animations and a prestigious interface intended to evoke the elegance of a casino lounge without the constraints, intimidation or risks associated with real-money gambling.
 
-The \textbf{initial product intent} (before scope expansion) was a Texas Hold'em poker platform: practice mode against AI with multiple difficulty levels, multiplayer cash tables (public/private), configurable blinds, minimum buy-in rules, a probability-oriented HUD, and a \textbf{hidden side-bet} subsystem. The technical goals included authoritative server-side rules, transactional chip movements, WebSocket-scale event delivery, and operational readiness (health checks, metrics, recovery paths). The related technical appendices are Appendix~\ref{app:poker}, Appendix~\ref{app:bots}, Appendix~\ref{app:hud}, Appendix~\ref{app:hidden}, and Appendix~\ref{app:realtime}.
+The \textbf{initial product intent} was a Texas Hold'em poker platform: AI practice, multiplayer cash tables, configurable blinds, minimum buy-in rules, a probability-oriented HUD, and a \textbf{hidden side-bet} subsystem. The technical goals were server-validated rules, transactional chip movements, live event delivery, and operational readiness. The related appendices are Appendix~\ref{app:poker}, Appendix~\ref{app:bots}, Appendix~\ref{app:hud}, Appendix~\ref{app:hidden}, and Appendix~\ref{app:realtime}.
 
 Security and reliability were first-class constraints from the outset: JWT authentication, optional TOTP 2FA, anti-cheat and rate-limiting layers, idempotent handling for sensitive mutations, and schema validation on critical API paths. Implementation details are grouped in Appendix~\ref{app:auth}, Appendix~\ref{app:realtime}, and Appendix~\ref{app:ops}.
 
@@ -220,7 +265,7 @@ Automated suites and manual smoke scenarios are summarized in Section~\ref{sec:s
 
 \subsection{Initial specifications (poker-first)}
 
-The early scope targeted: Texas Hold'em cash games; \textbf{AI practice} with four difficulty tiers (\texttt{easy}, \texttt{medium}, \texttt{hard}, \texttt{expert}); public/private multiplayer rooms with SB/BB configuration and minimum balance rules; \textbf{real-time} updates via Socket.IO; a \textbf{Quantum HUD} for win-equity and hand-category feedback; and \textbf{hidden bets} resolved server-side. See Appendices~\ref{app:poker}, \ref{app:bots}, \ref{app:hud}, \ref{app:hidden}, and~\ref{app:realtime}.
+The early scope targeted Texas Hold'em cash games, four AI difficulty tiers, public/private rooms, SB/BB configuration, minimum balance rules, live table updates, the Quantum HUD, and server-resolved hidden bets. See Appendices~\ref{app:poker}, \ref{app:bots}, \ref{app:hud}, \ref{app:hidden}, and~\ref{app:realtime}.
 
 \subsection{Scope expansion (casino, tournaments, social, progression)}
 
@@ -235,7 +280,27 @@ The codebase grew across frontend, backend, database and technical documentation
 
 \subsection{Initial V-model phase}
 
-The project began with a \textbf{V-model style} framing: business requirement gathering with end users in mind, benchmarking comparable products, brainstorming sessions \textbf{validated collectively} by the team, and a written requirements package plus an initial Gantt chart. A \textbf{technical lead} was appointed to structure the MOE (implementation) track while the project manager covered the MOA (needs, prioritization, specification) track until the specification baseline stabilized.
+The project began with a \textbf{V-model style} framing: business requirement gathering with end users in mind, benchmarking comparable products, brainstorming sessions \textbf{validated collectively} by the team, and a written requirements package whose milestones were aligned with a \textbf{milestone-oriented Gantt-style schedule} during active planning (the original chart export is \textbf{no longer available}, but milestone intent remains traceable via dated Jira epics and GitLab merge activity). A \textbf{technical lead} was appointed to structure the MOE (implementation) track while the project manager covered the MOA (needs, prioritization, specification) track until the specification baseline stabilized.
+
+\subsection{Time management: milestone schedule, roadmap and backlog discipline}
+
+Exam boards explicitly reward visible temporal hygiene---not only enthusiasm---meaning artefacts such as a maintained roadmap, dated milestones and user-facing increments mapped onto calendars. Quantum Bluff operated under three intertwined artefacts:
+
+\begin{enumerate}
+\item \textbf{Milestone schedule (Gantt-style)} anchored supervisory checkpoints while the chart existed (spec freeze windows, integration demos, hardening gates); deviations triggered backlog cuts rather than silent slips without rationale. Reviewers can corroborate timing through \textbf{Jira history}, tagged releases and merge-request timestamps rather than a standalone diagram in this PDF.
+\item \textbf{Rolling roadmap slices} translated milestones into weekly intentions (\textit{ramp-up} vs.\ feature bursts vs.\ polish), complementing the sprint backlog once agile rituals dominated.
+\item \textbf{User stories in Jira} carried acceptance cues linked to epics so sprint contents stayed traceable from milestone themes down to merge requests.
+\end{enumerate}
+
+\textbf{Phasing narrative (self-assessed cadence).} The calendar blended deliberate foundations with iterative delivery:
+
+\begin{itemize}
+\item \textbf{Approximately two weeks} focused on onboarding and competence ramp-up (repository norms, toolchain fluency, early guarded merges).
+\item \textbf{Roughly one calendar month} concentrated on core coding foundations (server-validated poker flows, gateway skeletons, persistence contracts) before widening casino/tournament scope.
+\item After that pivot, execution emphasised \textbf{agile-inspired iteration}: renewed benchmarking of comparable products, backlog refinement into user stories, coding increments followed by \textbf{integration testing}, demos aligned with milestone expectations and short \textbf{retrospectives} to capture lessons (payload mismatches, flaky sockets, scope creep) before the next sprint.
+\end{itemize}
+
+Taken together, these elements evidence \textbf{organised time stewardship}: milestones originally tied to a concrete schedule backbone, stories grounded in needs discovery, and corrective retrospectives rather than ad-hoc improvisation alone---even though the team no longer ships the archived Gantt file itself.
 
 \subsection{Transition to an agile-inspired workflow (Jira, Scrum practices)}
 
@@ -249,22 +314,36 @@ Coordination relied on recurring meetings (\textasciitilde{}twice per week), sha
 
 The team also faced workload-management challenges because the project overlapped with university exams and other academic responsibilities. During periods of reduced motivation or high pressure, additional synchronization and motivation meetings were organized to maintain momentum, prevent task isolation, and keep responsibilities visible. From a management perspective, one objective was to transform repetitive implementation work into opportunities for experimentation and technical reflection. For example, the AI bot system became a way to reuse concepts studied in the parallel Artificial Intelligence course, connecting academic learning with practical engineering implementation while improving the technical depth of the final platform.
 
+\subsection{Human and team lessons learned}
+
+Beyond the implementation itself, Quantum Bluff taught the team important lessons about collaboration, communication and long-term organization. Coordinating several interconnected systems developed in parallel was difficult at first: frontend and backend components sometimes evolved with different assumptions around game-state structures, synchronization and payload formats. This pushed the team toward clearer communication practices, shared user stories and more frequent validation sessions.
+
+The project also showed how hard it is to estimate complexity in real-time software. Features that initially appeared simple, such as tournament synchronization, disconnection recovery or multiplayer state consistency, required more design, testing and debugging than expected. This helped the team better understand technical debt, incremental delivery and the importance of keeping the architecture maintainable as scope evolves.
+
+From a human perspective, maintaining motivation during long development phases was equally important. Exams and other academic responsibilities created periods of fatigue, so the team used extra coordination meetings to redistribute workload, maintain progress visibility and keep the project dynamic. Over time, implementation tasks also became learning opportunities, especially through concepts reused from artificial intelligence, software engineering, databases and distributed systems courses. Overall, Quantum Bluff became not only a technical project, but also a practical experience in teamwork, adaptability and problem-solving under evolving constraints.
+
 \subsection{Product management mechanics}
 
-Backlog prioritization balanced user-visible value (new game modes, social features) against enabling work (Redis adapter, rate limits, recovery jobs, observability). Cross-cutting concerns (security, idempotency, anti-cheat) were escalated early to avoid late integration risk.
+Backlog prioritization balanced user-visible value against enabling work such as rate limits, recovery jobs and observability. Security, idempotency and anti-cheat concerns were escalated early to avoid late integration risk.
+
+\subsection{Project manager role and accountability}
+
+The project manager (PM) owned the \textbf{needs and prioritization} thread in parallel with the technical lead's engineering thread: keeping the backlog legible, anchoring recurring synchronisation rituals, and arbitrating scope when new gameplay ideas collided with integration risk or university exam periods. The PM pushed for \textbf{increment outcomes that were demonstrable} (features a reviewer could exercise) rather than stacks of isolated tasks, escalated data-integrity and abuse-prevention concerns early, and recorded decisions so schema shifts or gateway changes did not stall contributors waiting for informal consensus.
+
+The PM also coordinated \textbf{delivery-facing commitments} with supervision expectations (report structure, rehearsal demos, automated coverage targets) without substituting for technical judgment in merge requests: architectural trade-offs remained peer-reviewed in code, while the PM guarded coherence across poker, casino modules, tournaments and operations. Omar served as PM throughout; his technical contributions are summarized in Section~\ref{sec:contributions}.
 
 \section{Development Tools and Technologies}
 \label{sec:tools}
 
 \subsection{Frontend and backend}
 
-\textbf{Client side.} The frontend is a React and TypeScript single-page application built with Vite. This choice gave the team a fast development loop, typed components, and a clean way to split the application into gameplay pages, lobby flows, profile screens, administration screens and reusable UI components. Tailwind CSS and Radix UI primitives were used to keep the interface consistent while still allowing custom casino-themed layouts. Redux Toolkit with RTK Query centralizes API calls, while the Socket.IO client handles live gameplay, invitations and presence updates. Route and provider mapping is summarized in Appendix~\ref{app:map}.
+\textbf{Client side.} The frontend is a React and TypeScript single-page application built with Vite. It gives a fast development loop, typed components, and a clean split between gameplay pages, lobby flows, profile screens, administration screens and shared UI. Tailwind CSS and Radix UI support the casino-themed interface, while Redux Toolkit with RTK Query centralizes API calls. Route and provider mapping is summarized in Appendix~\ref{app:map}.
 
-\textbf{Server side.} The backend is a Node.js and Express application with Socket.IO for real-time traffic. It exposes REST endpoints for durable commands such as authentication, profiles, wallet actions, tournaments and social features, and uses WebSockets for live table updates. Prisma gives typed access to PostgreSQL, which remains the durable source of truth. Redis is used where temporary coordination is needed: rate limits, token revocation, Socket.IO horizontal broadcasting and operational fallbacks. Security-related tools include Zod validation, JWT authentication, bcrypt password hashing and HTML sanitization where user content may be displayed. Socket and authentication details are expanded in Appendices~\ref{app:realtime} and~\ref{app:auth}.
+\textbf{Server side.} The backend is a Node.js and Express application. REST covers durable commands such as authentication, profiles, wallet actions, tournaments and social features; WebSockets cover live table updates. Prisma gives typed access to PostgreSQL, the durable source of truth, while Redis supports temporary runtime concerns such as rate limits, token revocation and distributed broadcasts. Security-related tools include Zod, JWT, bcrypt and HTML sanitization. Socket and authentication details are expanded in Appendices~\ref{app:realtime} and~\ref{app:auth}.
 
 \subsection{Database and infrastructure}
 
-PostgreSQL stores users, balances, games, tournament state, social relationships, reports, rewards and audit-friendly records such as wallet ledger entries. Redis is deliberately not used as the main database: it supports short-lived and distributed behavior, while PostgreSQL keeps the authoritative history. Docker Compose supports local development, and the VM deployment uses containerized services behind Nginx with HTTPS and WebSocket forwarding. Operational setup is detailed in Appendix~\ref{app:ops}.
+PostgreSQL stores users, balances, games, tournament state, social relationships, reports, rewards and wallet ledger entries. Redis is deliberately not used as the main database; it only supports short-lived or distributed behavior. Docker Compose supports local development, and VM deployment uses containerized services behind Nginx. Operational setup is detailed in Appendix~\ref{app:ops}.
 
 \subsection{Version control and collaboration}
 
@@ -342,7 +421,7 @@ The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} n
 \node[dia, below=6mm of http] (dok) {HTTP 200 + valid JSON?};
 \node[blk, fill=orange!15, below left=7mm and 0mm of dok] (tsfb2) {\textbf{Failure / timeout} — fallback to \texttt{expertBotDecision}.};
 \node[blk, fill=green!12, below right=7mm and 0mm of dok] (zod) {\textbf{Success} — Zod, \texttt{convertAllIn}, \texttt{sanitizeBotDecision}, \texttt{applyPokerAction}.};
-\node[blk, fill=gray!10, below=12mm of durl |- tsfb2.south] (end) {\textbf{End} — action applied by the authoritative server; \texttt{expert\_ai\_decision} logged when the Python service is used.};
+\node[blk, fill=gray!10, below=12mm of durl |- tsfb2.south] (end) {\textbf{End} — validated action applied; \texttt{expert\_ai\_decision} logged when the Python service is used.};
 \draw[->, thick] (start) -- (durl);
 \draw[->, thick] (durl) -- node[above left, font=\scriptsize] {no} (tsfb);
 \draw[->, thick] (durl) -- node[above right, font=\scriptsize] {yes} (http);
@@ -354,16 +433,33 @@ The vectoriser \path{features.py} exports \texttt{FEATURE\_NAMES}: \textbf{36} n
 \draw[->, thick] (zod) |- (end);
 \end{tikzpicture}
 }
-\caption{Node-side decision flow for the \texttt{expert} bot tier: optional Python service call, heuristic fallback, validation and authoritative action application.}\label{fig:ai-flow}
+\caption{Node-side decision flow for the \texttt{expert} bot tier: optional Python service call, heuristic fallback, validation and action application.}\label{fig:ai-flow}
 \end{figure}
 
-\subsection{AI-assisted engineering (tooling)}
+\subsection{Use of AI assistants for code and documentation}
 
-Team members used modern \textbf{coding assistants} (e.g., IDE-integrated LLMs) for drafting, refactors, and documentation. Generated output was treated as \textbf{untrusted}: reviewed in merge requests, validated by automated tests, and rejected when it contradicted server authority or security invariants.
+The team used modern AI assistants during the project as \textbf{support tools}, not as autonomous authors. On the engineering side, they helped generate first drafts of utility code, propose refactors, explain unfamiliar errors, compare implementation approaches and accelerate repetitive tasks such as type adjustments, test scaffolding or documentation cleanup. This was especially useful when working across several domains at once: poker logic, tournament orchestration, sockets, database models, deployment notes and report polishing.
+
+AI assistants were also used for \textbf{text production and editing}. They helped restructure dense technical explanations, improve English phrasing, shorten repetitive sections, prepare appendix descriptions, and transform implementation notes into clearer academic prose. This support made the final report more readable, but the content remained based on the team's implementation, tests, diagrams and project decisions.
+
+All AI-generated output was treated as \textbf{untrusted by default}. Code suggestions were reviewed by team members, adapted to the existing architecture, and validated through tests or manual checks before being kept. Text suggestions were edited to avoid overclaiming, remove unsupported statements, and preserve the academic context of the project. The team did not accept AI output when it contradicted server-side validation, security constraints, virtual-chip framing, or the actual behavior of the application.
+
+\subsection{Enumerated uses of artificial intelligence}
+
+The inventory below is exhaustive relative to the shipped codebase and this report's claims:
+
+\begin{enumerate}
+\item \textbf{TypeScript poker bots:} four handcrafted tiers (\texttt{easy}, \texttt{medium}, \texttt{hard}, \texttt{expert}) using normalized strength, pot geometry and tier-specific randomness (Appendix~\ref{app:bots}).
+\item \textbf{Expert heuristic core:} \texttt{expertBotDecision} as the always-available policy when no remote model succeeds.
+\item \textbf{Oracle / teaching path:} \texttt{expertOracleDecision} when opponent hole cards are known.
+\item \textbf{Optional HTTP bot service:} FastAPI bundle under \path{ai-service}, endpoint \texttt{/predict/poker}, contract validated with Zod before any chip movement.
+\item \textbf{Supervised PyTorch MLP:} \texttt{ExpertPolicy} plus \path{features.py} descriptors and teacher-driven labels (\path{expert_rules.py}, \path{decision.py}); weights serialised as \path{expert_bot.pt}; Figures~\ref{fig:ai-mlp}--\ref{fig:ai-flow}.
+\item \textbf{Generative AI assistants (LLMs):} drafting/refactoring of application code, scripts and tests; restructuring and English polishing of internal notes and this report; never merged or submitted without human review and automated checks where applicable.
+\end{enumerate}
 
 \subsection{Limits and verification}
 
-The \texttt{easy}/\texttt{medium}/\texttt{hard} tiers and the TypeScript \texttt{expert} fallback contain \textbf{no trainable neurons}: they are hand-crafted policies. Only the optional Python bundle instantiates the MLP in Figure~\ref{fig:ai-mlp}. Regardless of path, bot traffic is \textbf{rate-limited}, responses pass through \textbf{Zod and sanitisation} before touching authoritative state, and assistant-generated repository edits were never merged without human review and automated tests.
+The \texttt{easy}/\texttt{medium}/\texttt{hard} tiers and the TypeScript \texttt{expert} fallback contain \textbf{no trainable neurons}: they are hand-crafted policies. Only the optional Python bundle instantiates the MLP in Figure~\ref{fig:ai-mlp}. Regardless of path, bot traffic is rate-limited, responses pass through Zod and sanitisation, and assistant-generated repository edits were never merged without human review and automated tests.
 
 \section{Platform Functionalities}
 \label{sec:functionalities}
@@ -406,14 +502,14 @@ A11y & Accessibility, table theming, ambient audio & Settings and table contexts
 
 \subsubsection{Functional overview}
 
-Poker is implemented as an \textbf{authoritative server game}: the client sends intentions, while the server validates turns, blinds, raises, folds, pots, side pots and showdown results. The tournament layer reuses this poker engine and adds registration, entry fees, seeded bracket generation, table assignment, elimination tracking, final rewards and winner side bets. The full poker engine and tournament lifecycle are detailed in Appendices~\ref{app:poker} and~\ref{app:tournament}.
+Poker is implemented with server-side rule enforcement: the client sends intentions, while the backend validates turns, blinds, raises, folds, pots, side pots and showdown results. Tournaments reuse this engine and add registration, fees, seeded brackets, table assignment, eliminations, rewards and winner side bets. Details are in Appendices~\ref{app:poker} and~\ref{app:tournament}.
 
 Quantum Bluff also extends the standard Texas Hold'em ranking with an exclusive hand category: \textbf{Quantum Combi}. It is obtained when the seven available cards contain at least one 3, 5, 6, 7 and 10, regardless of suits. The ranks were chosen as a project signature: 3 refers to the third year of the Bachelor's degree, 6 to the sixth semester, 5 to the five letters of ``bluff'', and 7 to the seven letters of ``quantum''. The hand beats a flush but loses to a full house: this keeps the iconic premium hands of poker above the custom rule, while still making the project-specific combination strong enough to be visible and memorable in gameplay. The exact probability calculation and comparison with standard poker hands are given in Appendix~\ref{app:hud}.
 
 \begin{itemize}
 \item \textbf{Poker core}: backend table and cash-game controllers enforce legal actions and chip movement.
 \item \textbf{Tournament orchestration}: dedicated tournament services create rounds, tables and transitions.
-\item \textbf{Real time}: Socket.IO rooms notify players about table assignment, next rounds, eliminations and completion.
+\item \textbf{Real time}: live events notify players about table assignment, next rounds, eliminations and completion.
 \item \textbf{Reproducibility}: Mulberry32 + Fisher--Yates gives the same bracket for the same players and seed.
 \end{itemize}
 
@@ -427,7 +523,7 @@ Quantum Bluff also extends the standard Texas Hold'em ranking with an exclusive 
 \texttt{REGISTRATION\_OPEN} & Players join and entry fees (10\% of stack) are deducted atomically. Fees accumulate into a centralized prize pool. Player state: \texttt{REGISTERED}. \\
 \texttt{STARTING} & Bracket is generated deterministically. Player assignment is seeded and reproducible. Tables are dynamically sized (2--9 players each). Player state: \texttt{ACTIVE}. \\
 \texttt{IN\_PROGRESS} & Multiple poker games execute concurrently at separate tables. Losers are eliminated and ranked. Winners advance to the next round. \\
-\texttt{COMPLETED} & Final rankings determine XP rewards and prize distribution. All mutations are atomic via Prisma transactions. \\
+\texttt{COMPLETED} & Final rankings determine XP rewards and prize distribution through atomic updates. \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -446,7 +542,7 @@ This deterministic splitting keeps all-in situations fair and testable. Implemen
 
 \subsubsection{Security and performance}
 
-Entry fees, rewards and winner-bet settlements run inside Prisma transactions. Action deduplication (\texttt{handId + actionId}) prevents duplicate mutations after packet retransmission. Game snapshots are persisted after actions and can be restored after restart. Table sizes adapt to player count (for example $[4,4]$ for 8 players and $[5,4]$ for 9 players). Appendix~\ref{app:tournament} gives the bracket arithmetic, RNG seeding and tournament flow diagram.
+Entry fees, rewards and winner-bet settlements use atomic database updates. Action deduplication (\texttt{handId + actionId}) prevents duplicate mutations after retransmission. Snapshots support restart recovery, and table sizes adapt to player count (for example $[4,4]$ for 8 players and $[5,4]$ for 9 players). Appendix~\ref{app:tournament} gives the bracket arithmetic, RNG seeding and tournament flow diagram.
 
 \subsection{Casino Games and AI Bot Integration}
 \label{sec:casino-ai}
@@ -457,20 +553,20 @@ Beyond poker, Quantum Bluff integrates three casino games---blackjack (solo and 
 
 The AI bot framework provides practice opponents across all four poker difficulty tiers. Bots participate in cash games (sit-and-go), tournament tables, and practice-only tables. They synthesize hand strength heuristics (normalized sigma), pot odds, stack pressure, and per-tier decision templates (bluff vs.\ value) to produce strategically coherent play. The expert tier optionally delegates to an external PyTorch model for advanced decision-making; on network failure, it gracefully reverts to the hard tier.
 
-\subsubsection{Architecture: authoritative server and real-time delivery}
+\subsubsection{Architecture: validation and live delivery}
 
-The casino subsystem follows the same authoritative server pattern as poker:
+The casino subsystem follows the same validation pattern as poker:
 
 \begin{enumerate}
 \item \textbf{Client submission}: player places a bet (blackjack, roulette, or slot spin) or bot decides action via WebSocket event (e.g.\ \texttt{PLACE\_ROULETTE\_BETS}, \texttt{SPIN\_SLOT}).
-\item \textbf{Server validation}: backend validates bet size, balance sufficiency, and game state consistency within a Prisma transaction.
+\item \textbf{Server validation}: backend validates bet size, balance sufficiency, and game state consistency atomically.
 \item \textbf{Outcome computation}: the server uses injected RNG to draw the outcome (roulette pocket, slot symbols, blackjack card); for bots, it calls \texttt{decideBotAction} with normalized hand strength.
 \item \textbf{Ledger recording}: a wallet ledger entry (\texttt{GAME\_WIN} or \texttt{GAME\_LOSS}) is created atomically with the balance update, capturing user ID, reason, amounts, and ISO timestamp.
 \item \textbf{WebSocket broadcast}: outcome is emitted to the player's room (e.g.\ \texttt{ROULETTE\_RESULT \{ pocket, payouts \}}) so the client renders the result without delay.
 \item \textbf{Snapshot persistence}: game state (dealer hand, final balances) is snapshotted to PostgreSQL for crash recovery.
 \end{enumerate}
 
-This architecture keeps outcome and ledger updates tied to the same server transaction: in normal operation they commit together, or neither commit. Clients cannot force outcomes; they can only place bets and observe server decisions. The same transaction pattern is expanded in Appendix~\ref{app:rewards}.
+This keeps outcome and ledger updates tied together: in normal operation they commit together, or neither commit. Clients can place bets and observe results, but cannot force outcomes. The same settlement pattern is expanded in Appendix~\ref{app:rewards}.
 
 \subsubsection{AI bot decision algorithm and complexity analysis}
 
@@ -508,7 +604,7 @@ Full algorithmic details, RTP derivations, and per-tier heuristics are provided 
 
 \subsubsection{Scope and architecture}
 
-The rewards and wallet system orchestrates chip circulation, XP progression, and peer-to-peer lending across all game modes: poker cash games, casino games, tournaments, and social loans. All transactions are recorded immutably in a \textbf{wallet ledger} with cryptographic integrity hashing (SHA-256), providing audit-style traceability for the virtual economy. The system enforces \textbf{server-side authority}---clients never compute balance changes; they request actions and receive confirmed outcomes via WebSocket. Every chip movement is atomic: ledger entry and balance update commit together via Prisma transactions, or neither commits. See Appendix~\ref{app:rewards} for ledger fields and settlement examples.
+The rewards and wallet system orchestrates chip circulation, XP progression, and peer-to-peer lending across poker, casino games, tournaments and social loans. All chip movements are recorded in a \textbf{wallet ledger} with SHA-256 integrity hashing, providing audit-style traceability for the virtual economy. Clients never compute balance changes; they request actions and receive confirmed outcomes. Ledger entry and balance update commit together, or neither commits. See Appendix~\ref{app:rewards} for persisted fields and settlement examples.
 
 \subsubsection{Gamification: XP curves, levels, and badge unlocks}
 
@@ -522,7 +618,7 @@ XP is awarded per action: poker (12 XP/hand + 20 bonus on win), blackjack (5 XP 
 
 \subsubsection{Wallet ledger and atomic transactions}
 
-Every chip movement---game win/loss, loan disbursement, loan repayment, tournament prize---creates an immutable \texttt{WalletLedgerEntry} row in PostgreSQL. Fields include: userId, reason (e.g.\ \texttt{GAME\_WIN}, \texttt{TOURNAMENT\_PRIZE}, \texttt{LOAN\_FUNDED\_OUT}), amount, balanceBefore / balanceAfter, roundId (for traceability), integrityHash (SHA-256 of all fields + versions), and settlementState (\texttt{SETTLED} or \texttt{PENDING}). For a casino game, the sequence is: (1)~validate bet size and balance, (2)~compute RNG outcome, (3)~within \texttt{prisma.\$transaction}: update \texttt{User.chips}, create ledger entry, compute integrity hash. This keeps the ledger and displayed balance aligned with the server source of truth; Appendix~\ref{app:rewards} lists the persisted fields.
+Every chip movement---game win/loss, loan disbursement, loan repayment, tournament prize---creates an immutable \texttt{WalletLedgerEntry}. Fields include user, reason, amount, before/after balances, optional round identifier, integrity hash and settlement state. For a casino game, the sequence is: validate bet and balance, compute the outcome, then update chips and ledger together. This keeps the ledger and displayed balance aligned with the database source of truth; Appendix~\ref{app:rewards} lists the persisted fields.
 
 \subsubsection{Tournament rewards and peer loans}
 
@@ -541,11 +637,11 @@ The repository splits into a Vite single-page frontend, an Express/Socket.IO bac
 
 \subsection{Central architectural model}
 
-Quantum Bluff is organized around a \textbf{layered authoritative architecture}. The React client is responsible for navigation, rendering, forms, local interaction state and immediate feedback. It never owns final gameplay decisions: poker actions, casino outcomes, tournament progression, wallet movements, hidden-bet settlement and rewards are all validated and applied on the server.
+Quantum Bluff is organized around a \textbf{layered architecture}. The React client handles navigation, rendering, forms and immediate feedback. Gameplay decisions, casino outcomes, tournament progression, wallet movements, hidden-bet settlement and rewards are validated in backend services.
 
-The backend is split into two entry surfaces. REST endpoints handle durable commands such as authentication, profile updates, wallet-related operations, tournament creation, social actions and history queries. Socket.IO handles live interactions such as joining tables, submitting turn actions, broadcasting sanitized snapshots, notifying tournament assignments and updating social presence. Both surfaces share the same identity model: JWT verification, role separation, suspension checks, rate limits and domain-level validation.
+The backend is split into two entry surfaces. REST endpoints handle durable commands such as authentication, profile updates, wallet operations, tournament creation, social actions and history queries. The real-time gateway handles table joins, turn actions, sanitized snapshots, tournament assignments and presence updates. Both surfaces share JWT verification, role separation, suspension checks, rate limits and domain-level validation.
 
-Behind these entry points, domain services isolate the main responsibilities: poker and cash-game rules, blackjack tables, casino mini-games, tournament orchestration, hidden bets, social features, rewards and wallet accounting. Persistent state is stored in PostgreSQL through Prisma, while Redis is used for short-lived coordination: token blacklist, rate limiting, Socket.IO horizontal broadcasting and operational fallbacks. This separation keeps the system readable: UI code displays state, gateway code routes events, domain services enforce rules, and the database remains the source of truth for identity, balances, history and audit trails.
+Behind these entry points, domain services isolate poker rules, blackjack, casino mini-games, tournaments, hidden bets, social features, rewards and wallet accounting. PostgreSQL stores durable state through Prisma; Redis supports short-lived runtime concerns such as token blacklist, rate limiting and distributed broadcasts. This separation keeps UI rendering, event routing, domain rules and persisted history distinct.
 
 Appendix~\ref{app:architecture} provides the full architecture diagram; Appendix~\ref{app:db} shows the relational data model behind the persistence layer.
 
@@ -556,15 +652,15 @@ Multi-table Texas Hold'em tournaments are a \textbf{first-class server domain}: 
 \subsection{Real-time communication}
 \label{sec:realtime}
 
-Quantum Bluff uses Socket.IO for live gameplay, lobby updates, invitations, tournament events and social notifications. The browser sends intentions, but the server remains authoritative: it validates the authenticated user, the game state, the turn order, the chip balance and the action legality before broadcasting any result.
+Quantum Bluff uses live socket events for gameplay, lobby updates, invitations, tournament events and social notifications. The browser sends intentions; the backend validates identity, game state, turn order, chip balance and action legality before broadcasting any result.
 
-Synchronization is based on rooms and snapshots. Each user has a private \texttt{user:\{userId\}} room, while poker tables, blackjack tables and tournaments use dedicated rooms for shared updates. On join or reconnect, the server sends a complete sanitized snapshot instead of relying only on incremental events. This makes reconnection easier for the player and avoids rebuilding a game from stale partial events.
+Synchronization is based on private/shared channels and sanitized snapshots. On join or reconnect, the server sends a complete state view instead of relying only on incremental events, which avoids rebuilding a game from stale partial updates.
 
-Confidentiality is also handled on the server. A seated player receives their own private cards, while other players and spectators receive a sanitized view. Redis support allows Socket.IO events to work across several server instances. The full event model, table locking, reconnection behavior and security checks are detailed in Appendix~\ref{app:realtime}.
+Confidentiality is handled in the same layer: seated players receive their own private cards, while other players and spectators receive sanitized views. Multi-instance delivery, table locking, reconnection behavior and security checks are detailed in Appendix~\ref{app:realtime}.
 
 \subsection{Persistence and integrity}
 
-Prisma models capture users, games, tournaments, loans, hidden bet tickets, wallet ledger rows, and more. Critical monetary flows favor server-side orchestration and short transactions. Appendix~\ref{app:rewards} explains the ledger side of these models.
+Prisma models capture users, games, tournaments, loans, hidden bet tickets, wallet ledger rows and related data. Critical monetary flows favor short database transactions. Appendix~\ref{app:rewards} explains the ledger side of these models.
 
 \subsection{Data model overview (Prisma)}
 
@@ -741,7 +837,7 @@ GitLab CI encodes build and test gates for merge requests; the \texttt{docker-bu
 
 \subsection{Performance and stability}
 
-Redis-backed Socket.IO adapter, structured logging, Prometheus metrics endpoint, readiness endpoints and graceful shutdown hooks support stability. See Appendices~\ref{app:realtime} and~\ref{app:ops}.
+Distributed socket delivery, structured logging, Prometheus metrics, readiness endpoints and graceful shutdown hooks support stability. See Appendices~\ref{app:realtime} and~\ref{app:ops}.
 
 \section{Technical Challenges}
 \label{sec:challenges}
@@ -756,11 +852,11 @@ Redis-backed Socket.IO adapter, structured logging, Prometheus metrics endpoint,
 
 \subsection{Implemented solutions}
 
-The project was completed by decomposing the platform into domain modules while keeping one consistent runtime architecture: React for presentation, Express for REST APIs, Socket.IO for live state, Prisma/PostgreSQL for durable data, and Redis for coordination. This avoids a single monolithic ``game page'' and lets poker, blackjack, casino mini-games, tournaments, social features and progression evolve under the same server-authoritative model. The module map is in Appendix~\ref{app:map}.
+The project was completed by decomposing the platform into domain modules while keeping one consistent runtime architecture: React for presentation, Express for REST APIs, sockets for live state, PostgreSQL for durable data, and Redis for runtime coordination. This avoids a single monolithic ``game page'' and lets poker, blackjack, casino mini-games, tournaments, social features and progression evolve under one validation model. The module map is in Appendix~\ref{app:map}.
 
 The most important implementation choice was to keep gameplay, chip movement and settlement on the server. Poker clients only send intentions; poker, hidden bets, tournaments, casino outcomes, rewards and peer loans are validated by domain services before any balance or ledger mutation is committed. Reconnection is handled through room-based events plus full sanitized snapshots, so clients can recover from missed WebSocket events without reconstructing private state themselves. See Appendices~\ref{app:poker}, \ref{app:hidden}, \ref{app:tournament}, and~\ref{app:realtime}.
 
-The same pattern applies to the extended modules. Casino games are isolated behind their own service layers; tournaments separate registration, table assignment, progression and reward settlement; social features combine REST persistence with socket notifications; progression and daily rewards remain server-validated. Security is deliberately layered across HTTP middleware, socket authentication, gateway checks, rate limits, idempotency and anti-cheat alerts. Monetary integrity is enforced through Prisma transactions and immutable wallet ledger entries. Further implementation detail is moved to Appendix~\ref{app:implemented-solutions}.
+The same pattern applies to extended modules: casino games have dedicated services; tournaments separate registration, assignment, progression and rewards; social features combine persistence with notifications; progression and daily rewards remain backend-validated. Security layers HTTP middleware, socket authentication, gateway checks, rate limits, idempotency and anti-cheat alerts. Monetary integrity relies on short database transactions and immutable ledger entries. Further detail is moved to Appendix~\ref{app:implemented-solutions}.
 
 Finally, the project added validation and test coverage around these solutions: schema tests for authentication, integration tests for waiting-room identity trust, and gateway tests for authenticated real-time snapshots. The remaining improvements would be a formal threat model, broader end-to-end coverage and a polished observability dashboard; measurable targets are listed in Section~\ref{sec:limitations}. Appendix~\ref{app:coverage} gives the coverage definitions.
 
@@ -782,78 +878,43 @@ Section~\ref{sec:ai} states how large language models were used as drafting assi
 \section{Individual Contributions}
 \label{sec:contributions}
 
+\noindent\textit{Each member narrative below is capped at roughly half a printed page to match the programme guideline on individual statements.}
+
 \subsection{Omar -- project management and architecture alignment}
 
-Organizational narrative: Section~\ref{sec:management}. Beyond meetings and backlog arbitration, I coordinated \textbf{cross-cutting technical commitments}: early adoption of Redis for Socket.IO horizontal scale-out and rate limiting, alignment between Prisma schema changes and gameplay features, and risk reviews before widening scope (tournaments, casino mini-games, loans). I also worked with the appointed technical lead to sequence risky merges, such as the socket gateway and recovery jobs, away from demo deadlines.
+Organizational narrative: Section~\ref{sec:management}. I coordinated \textbf{cross-cutting delivery}: distributed live play, rate limiting, alignment between schema migrations and gameplay features, and risk reviews before widening scope (tournaments, casino modules, loans), together with the technical lead's sequencing of gateway and recovery work.
 
-I also supervised the quality objective around automated test coverage. My role was to keep the backend coverage target as close as possible to the 80\% threshold expected by the project, identify weakly covered modules, and make sure tests were added before final validation. This effort succeeded in bringing the measured server coverage above the required baseline, as reported in Section~\ref{sec:security} and Appendix~\ref{app:coverage}.
+I drove the backend \textbf{automated coverage} objective toward the programme expectation ($\sim$80\%): prioritising tests on weak modules and blocking ``coverage debt'' merges before final validation (Section~\ref{sec:security}, Appendix~\ref{app:coverage}).
 
 \subsection{Massi -- DevOps Infrastructure, Real-Time Networking, and Cross-Platform Delivery}
 
-I contributed to Quantum Bluff by working on DevOps infrastructure, real-time networking, deployment automation and cross-platform delivery. On the networking side, I helped design and stabilize the WebSocket/Socket.IO communication layer used by the poker tables and live gameplay flows. This included reconnection behavior, timeout handling, and client-side socket integration so that short network interruptions would not immediately break the player experience.
-
-I also worked on the production infrastructure around reverse proxying, containerization and deployment. This included Nginx routing concerns for HTTP and WebSocket traffic, Docker-based service isolation, PostgreSQL and Redis deployment boundaries, and CI/CD automation through GitLab Runner. The goal was to make the platform deployable in a controlled environment while keeping database migrations, environment generation and service restarts reproducible.
-
-Finally, I contributed to cross-platform packaging and release preparation. I worked on the Electron desktop target, Windows installer generation, and the structural setup needed to package the React application outside the browser. I also participated in bug hunting and stabilization work, especially around cross-origin issues, chat input handling and real-time state synchronization.
+I focused on \textbf{Socket.IO} behaviour (reconnection, timeouts, client wiring), production topology (\textbf{Nginx}, Docker isolation, PostgreSQL/Redis boundaries, GitLab Runner Shell deployments), and \textbf{Electron} packaging including Windows installers. I contributed to stabilisation around cross-origin issues, chat inputs and live state drift alongside reproducible migrations and restarts.
 
 \subsection{Yigit -- Debugging, Quality Assurance and Gameplay Stability}
 
-I mainly contributed to debugging, testing and quality assurance throughout the development of Quantum Bluff. My work focused on identifying gameplay issues, reproducing bugs precisely, and validating that new implementations did not introduce regressions in the main user flows. I actively tested multiplayer poker games, tournaments and mobile responsive interfaces to ensure that the platform remained stable in realistic gameplay situations.
-
-One of my main contributions concerned tournament synchronization and hand transition debugging. Several issues appeared during development, especially after showdown phases, automatic hand restarts and final table transitions. I tested edge cases, reproduced synchronization problems, and validated the implemented fixes until tournaments could continue correctly without requiring page refreshes. I also checked that action buttons, player states and table transitions remained functional after each hand.
-
-I also contributed significantly to responsive design improvements on mobile devices. During testing, I identified interface problems such as overlapping buttons, unreadable token displays and spacing issues between the poker table and gameplay controls. I helped optimize the layout for smaller screens while preserving the overall user experience and avoiding regressions on the desktop version.
-
-In addition, I participated in Git integration, merge request validation and final testing sessions before deployment. This contribution helped improve the overall reliability, usability and quality of the final version of Quantum Bluff, especially on features that required real-time synchronization and repeated user interaction.
+I concentrated on \textbf{QA} across multiplayer poker, tournaments and responsive layouts: reproducing defects, validating fixes without regressions, and stressing tournament transitions (showdown, automatic next hand, final table). I reported mobile UI problems (overlapping controls, chip readability, table/toolbar spacing), helped tune responsive layouts, and supported merge-request reviews plus pre-release playtests.
 
 \subsection{Azra -- Backend Modeling, Visual Design and User Experience Features}
 
-
-I contributed to Quantum Bluff on both technical and visual aspects of the application. On the backend side, I helped structure the project by modeling important game entities in TypeScript and by participating in the implementation of card management logic and distribution rules inspired by classic casino mechanics. I also contributed to the tournament system by helping define its configuration, rules and expected gameplay behavior.
-
-On the frontend side, I worked on the graphic design of several visible elements of the project, including playing cards and parts of the mini-game interfaces such as roulette and slot machines. These contributions helped make the application more recognizable and more consistent with the casino atmosphere of Quantum Bluff. I also contributed to accessibility improvements by working on colorblind mode support and by helping fix responsive design issues on multiplayer interfaces.
-
-Finally, I contributed to several user experience and retention features, such as daily login rewards, the free virtual token recharge system and promotional codes. I also participated in testing, bug fixing and stability improvements before deployment. My work helped strengthen the visual identity of the project while improving the comfort, accessibility and completeness of the final user experience.
+I modelled \textbf{game entities} and card logic on the backend, contributed to \textbf{tournament} configuration and rules, and produced visual assets (cards; roulette/slot surfaces) for a coherent casino identity. I improved \textbf{accessibility} (colour-blind mode), fixed responsive issues on multiplayer screens, and shipped retention-oriented UX (daily login rewards, recharge helpers, promotional codes) with testing through stabilisation.
 
 \subsection{Linda -- Security, Real-Time Features and UI/UX}
 
-I had a transversal role across backend integration, real-time features, security hardening and UI/UX. On the backend side, I worked on game routes, blinds configuration, waiting-room fixes, player-state debugging and several security-critical paths: socket authentication, JWT hardening, stronger password rules, suspended-user checks, rate limits, admin route protection and anti-cheat alerts.
+I implemented \textbf{security-sensitive} paths (JWT and socket auth, password/admin protections, rate limits, anti-cheat alerts) alongside gameplay routes, blinds and waiting-room fixes. I delivered \textbf{social features} end-to-end (friends, lobby chat, invitations, blocks, reports, notifications, blocked-room warnings) across REST and sockets.
 
-I also implemented and stabilized a large part of the social experience. This included friend search, add-friend flows, friend cards, chat access from the lobby, remove friend, block/unblock, user reports, invitation handling, live notifications, activity status and warnings when joining rooms containing blocked users. These changes required both REST API work and Socket.IO behavior, because the social features had to remain live without page refreshes.
-
-On the frontend side, I contributed heavily to the final user experience: lobby layout, desktop fit, removal of unnecessary scrollbars, profile and avatar behavior, poker table layout, blackjack, roulette, mini-games, settings, audio controls and responsive fixes. I also helped with debugging, merge conflict resolution, CI pipeline fixes, PDF/report finalization and repeated end-to-end validation before the final delivery. Overall, my work was mostly cross-functional: connecting backend behavior, real-time synchronization, security rules and interface polish into features that users could actually use.
+On the \textbf{frontend}, I polished lobby/profile/table layouts, blackjack/roulette/mini-games, settings and audio; I resolved merge conflicts, repaired CI regressions, assisted PDF/report finalisation and ran repeated end-to-end validation before delivery.
 
 \subsection{Mohamed -- Technical Leader}
 
-I worked as the \textbf{Technical Leader}. My role mainly consisted of coordinating the development of several core systems and contributing to both the frontend and backend parts of the platform in order to maintain a stable and consistent multiplayer experience.
-
-I contributed to the finalization of the user interface and game design by improving responsiveness across desktop and Android platforms. I also worked on multiplayer animations, round transitions, and automatic pot calculations to improve gameplay fluidity and synchronization. In parallel, I participated in the visual design preparation of future mini-games such as the Slot Machine and Roulette through Figma prototypes.
-
-I contributed to defining the tournament rules and implementing the tournament system, while also working with the project leader Omar on fixing bugs and improving system stability during testing phases.
-
-On the security side, I worked on anti-cheat and moderation mechanisms, including multi-account detection based on IP analysis and heuristic bot detection using player response times. I also contributed to the implementation of a global banning middleware and secured administration API routes used for sanction monitoring and moderation tasks.
-
-I additionally contributed to infrastructure stability and production deployment by configuring the production virtual machine, improving API protection through stricter CORS policies and rate limiting, and connecting the CI/CD pipeline to automated deployment workflows. I also participated in the debugging phase by identifying and fixing critical issues related to gameplay stability and multiplayer synchronization.
-
-Finally, I participated in tournament playtesting sessions under real conditions and contributed to player retention systems such as daily rewards and cooldown mechanisms.
+As \textbf{technical lead} I coordinated multiplayer UX (animations, rounds, pot updates), \textbf{tournament} delivery alongside the PM during stabilisation, and early visual specs for mini-games. I shipped \textbf{anti-cheat/moderation} pieces (IP-based multi-account hints, reaction-time heuristics, global bans, secured admin APIs), configured the production VM, tightened \textbf{CORS} and rate limits, wired \textbf{CI/CD} deployment automation, and contributed retention systems (daily rewards, cooldowns) validated through live tournament sessions.
 
 \subsection{Abdoulaye -- Database Architecture, Backend Integration and Stabilization}
 
-I mainly contributed to the database architecture, backend integration and cross-platform stabilization of Quantum Bluff. My first responsibilities focused on the design and maintenance of the database layer using PostgreSQL and Prisma ORM. I worked on schema evolution, migrations, indexing and data persistence so that gameplay, social features and user progression could rely on consistent relational data.
-
-I also contributed to the ERD database schema, waiting-room models, friend-system relations, statistics management and game-history structures. Several optimization and integrity tasks were carried out to improve query efficiency and maintain consistency between users, rooms and gameplay records. This work helped keep the persistence layer aligned with the multiplayer logic and the reporting needs of the platform.
-
-I participated in infrastructure and deployment preparation by working on Prisma configuration, Docker database setup, backup scripts and seed generation for development and testing environments. I also contributed to discussions around separating authentication and game databases in order to improve security, maintainability and system resilience.
-
-On the frontend and user-experience side, I contributed to interface flows including login and registration pages, poker table integration, lobby navigation, accessibility settings, audio configuration and table customization. I also participated in usability feedback and testing by identifying UI issues, accessibility limitations and gameplay synchronization problems during multiplayer sessions.
-
-Beyond technical implementation, I regularly contributed to project coordination through task follow-up, documentation updates, reporting and testing organization. I helped monitor stabilization progress during the beta phase and participated in debugging and validation efforts across multiple platforms, including web, Electron and Capacitor builds. Overall, my contribution combined database engineering, backend support, testing, deployment preparation and interface integration to improve the stability and maintainability of the Quantum Bluff platform.
+I owned \textbf{PostgreSQL/Prisma} evolution (migrations, indexing, ERD, waiting-room and friend models, statistics/game history), Docker DB setup, seeds/backups and discussions on separating auth/game data for resilience. I integrated login/register flows, poker lobby/table surfaces, accessibility/audio/table preferences, and coordinated beta validation across web, Electron and Capacitor with documentation updates.
 
 \subsection{Soheil -- Backend Support and Testing}
 
-I contributed to the project mainly through backend support, code review and testing activities. My work focused on helping validate service behavior, checking backend logic during integration phases, and participating in debugging when issues appeared around gameplay flows or API interactions.
-
-I also contributed to the quality assurance effort by reviewing selected backend changes, helping identify regressions, and supporting the team during final stabilization. My contribution was more limited in scope than the main feature owners, but it helped reinforce the reliability of the backend and test validation process before delivery.
+I supported backend validation through targeted reviews, regression hunts during integration and gameplay/API debugging; contribution breadth was intentionally smaller than feature owners but reinforced reliability before delivery.
 
 \subsection{Contribution summary table}
 
@@ -892,21 +953,46 @@ Yigit & Debugging, QA, tournaments, responsive UI, Git/MR reviews & See narrativ
 
 \subsection{Future improvements}
 
-The next improvements are intentionally scoped as measurable increments rather than open-ended wishes:
+The next improvements are intentionally scoped as measurable increments rather than open-ended wishes. \textbf{Person-days (pd)} denote one contributor focused for a full day; ranges assume familiarity with the repo and include review buffer.
 
 \begin{itemize}
-\item \textbf{End-to-end testing:} add 8--10 Playwright scenarios covering the full lobby-to-game journey (login, create room, join poker table, create tournament, play blackjack, claim reward), targeting roughly \textbf{+15\% additional critical-flow coverage} within \textbf{2 weeks}.
-\item \textbf{Recovery and observability:} add a Grafana-style dashboard for Socket.IO rooms, failed actions, tournament recovery and wallet mutations, targeting recovery diagnosis in \textbf{under 5 minutes} and reducing manual log inspection during incidents.
-\item \textbf{Real-time scaling:} validate a \textbf{3-node Redis-backed Socket.IO deployment} with sticky sessions and room broadcasts, then compare reconnection time against the current single-instance setup.
-\item \textbf{Tournament analytics:} add tournament-level KPIs (average round duration, bust-out order, table wait time, winner-bet volume) within \textbf{1--2 weeks}, starting from the existing tournament tables and ledger events.
-\item \textbf{Certified identity/payment providers:} if the project leaves the academic prototype context, replace simulated top-ups and internal verification with certified providers for Google verification, OTP delivery and banking/payment flows. This depends on external compliance approval rather than only development time.
+\item \textbf{End-to-end testing:} add 8--10 Playwright scenarios (login, room creation, poker table, tournament, blackjack, reward claim), targeting roughly \textbf{+15\% critical-flow coverage}; \textbf{$\sim$8--12\,pd} spread over about two calendar weeks with parallel lectures.
+\item \textbf{Recovery and observability (real-time):} Grafana-style dashboards plus exported \textbf{live metrics} (tournament queue depth, socket failures, wallet mutation errors). Targets: incident triage \textbf{under 5 minutes} and \textbf{first automated alert within 60 seconds} on configured thresholds (Redis adapter health, scheduler backlog); \textbf{$\sim$6--10\,pd} including instrumentation.
+\item \textbf{Multi-instance deployment (Socket.IO scaling):} validate \textbf{three nodes} with sticky sessions and distributed fan-out; measurable exit criteria: \textbf{zero dropped gameplay events} on the reference load profile, \textbf{client re-association under 3 seconds} after node failover, and \textbf{P95 socket latency overhead $\leq$20\,\%} versus a single instance; \textbf{$\sim$10--15\,pd}.
+\item \textbf{Gameplay synchronisation and latency:} budget the path \emph{validated poker action $\rightarrow$ subscriber emission} for \textbf{P95 $\leq$150\,ms} under a documented synthetic load (6--10 seats per table), and \textbf{state catch-up after reconnect $\leq$2\,s} under nominal conditions; \textbf{$\sim$5--8\,pd} (profiling, queues, payload sizing).
+\item \textbf{Tournament capacity:} load-test registration and scheduler paths toward \textbf{$\geq$20 concurrently active tournaments} \emph{or} \textbf{$\geq$500 cumulative open registrations}, while keeping \textbf{scheduler drift bounded to $\leq$60\,s} outside declared maintenance windows; \textbf{$\sim$8--12\,pd}.
+\item \textbf{Test coverage (measurable uplift):} complement UI journeys with \textbf{+10 percentage-points} of server \emph{branch} coverage on tournament/socket/wallet modules versus the last archived snapshot, \emph{or} sustain \textbf{$\geq$85\,\%} branches on those folders; \textbf{$\sim$6--10\,pd}.
+\item \textbf{Tournament analytics:} KPI endpoints/UI (round duration, bust order, table wait, winner-bet volume); \textbf{$\sim$6--10\,pd} from existing tables and ledger events.
+\item \textbf{Technical debt (loader duplication):} collapse the dual \texttt{LoaderProvider} shells; \textbf{$\sim$0.5--1\,pd}.
+\item \textbf{Certified identity/payment providers:} calendar dominated by provider onboarding and compliance; once contracts exist, \textbf{$\sim$15--25\,pd} for OAuth/OIDC flows, SMS OTP wiring and PCI-scoped payment stubs---excluding legal review and audits.
 \end{itemize}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}p{6.4cm}p{6.8cm}@{}}
+\toprule
+Theme & Indicative engineering effort \\
+\midrule
+Playwright critical journeys & 8--12 person-days \\
+Observability + real-time alerting & 6--10 person-days \\
+Multi-instance Socket.IO (measured SLOs) & 10--15 person-days \\
+Gameplay sync / latency budgets & 5--8 person-days \\
+Tournament capacity (load + scheduler bounds) & 8--12 person-days \\
+Targeted branch coverage (tournament/socket/wallet) & 6--10 person-days \\
+Tournament KPI surfaces & 6--10 person-days \\
+Loader/provider deduplication & 0.5--1 person-day \\
+Certified ID / payments (post-vendor) & 15--25 person-days + external compliance \\
+\bottomrule
+\end{tabular}
+\caption{Rough effort envelope for future improvements (Section~\ref{sec:limitations}); estimates are planning aids, not quotations.}\label{tab:future-effort}
+\end{table}
 
 The related starting points are Appendices~\ref{app:ops}, \ref{app:bots}, \ref{app:tournament}, \ref{app:auth}, and~\ref{app:user-guide}.
 
 \section{Conclusion}
 
-Quantum Bluff exceeded its initial poker-only charter by integrating multiple casino modes, tournaments, social lending, progression systems, and operational hardening while keeping a monorepo with clear separation between UI, API, and authoritative game logic. The project demonstrates that a student team can approach industry-like constraints---real-time state, monetary integrity, security, and observability---when management explicitly trades early waterfall rigidity for controlled agile iteration. The appendix set acts as the technical index for these domains, especially Appendices~\ref{app:poker}--\ref{app:ops}.
+Quantum Bluff exceeded its initial poker-only charter by integrating multiple casino modes, tournaments, social lending, progression systems, and operational hardening while keeping a monorepo with clear separation between UI, API, and game logic. The project demonstrates that a student team can approach industry-like constraints---real-time state, monetary integrity, security, and observability---when management explicitly trades early waterfall rigidity for controlled agile iteration. The appendix set acts as the technical index for these domains, especially Appendices~\ref{app:poker}--\ref{app:ops}.
 
 Lessons retained for similar efforts: (1)~anchor scope changes to \textbf{recoverable increments} (feature flags, migrations, recovery jobs); (2)~treat generated documentation as \textbf{hypotheses} until cross-read against code; (3)~keep \textbf{security and idempotency} on the critical path rather than as end-of-project polish.
 
@@ -2010,27 +2096,27 @@ The npm scripts are declared in \path{package.json} (see \texttt{build} block fo
 
 \subsection{Domain decomposition}
 
-The implemented solution decomposes the product into modules while preserving a shared runtime architecture. The React client handles navigation, presentation, forms, table interaction and user feedback. The Express API exposes stable REST endpoints. Socket.IO carries live events. Prisma/PostgreSQL stores durable state, and Redis supports coordination, rate limiting, token revocation and distributed socket delivery.
+The implemented solution decomposes the product into modules while preserving one runtime model. The React client handles presentation and interaction, Express exposes REST endpoints, live events travel through sockets, PostgreSQL stores durable state, and Redis supports rate limiting, token revocation and distributed delivery.
 
 \subsection{Authoritative gameplay and synchronization}
 
-Poker actions are routed through \path{pokerActionOrchestrator.service.ts} and the gateway; table controllers under \path{logic} keep the authoritative model. Hidden bets are separated under \path{hiddenBets}, which lets side markets be priced, placed and resolved without leaking private poker information to the browser.
+Poker actions are routed through an orchestration layer and table controllers keep the rule model. Hidden bets are separated from the poker engine, allowing side markets to be priced, placed and resolved without leaking private information to the browser.
 
-Synchronization combines room-based events, full snapshots and recovery stores. Important table updates are broadcast to Socket.IO rooms, while reconnecting clients receive complete sanitized snapshots. Poker runtime snapshots are serialized through \path{pokerStateSync.service.ts} and stored behind \path{pokerStateStore.ts}; blackjack has its own snapshot repository and boot-time recovery service.
+Synchronization combines live events, full snapshots and recovery stores. Important updates are broadcast to the relevant participants, while reconnecting clients receive complete sanitized snapshots. Poker and blackjack use separate snapshot/recovery paths.
 
 \subsection{Extended modules}
 
-Casino games are isolated behind their own routes and services instead of being mixed into the poker engine. Slot and roulette use dedicated logic modules, payout calculation, stake caps and wallet updates. Blackjack exists in solo and multiplayer forms, with table rooms, seats, snapshots and recovery services under \path{blackjack}.
+Casino games are isolated behind their own services instead of being mixed into the poker engine. Slot and roulette use dedicated payout logic, stake caps and wallet updates. Blackjack exists in solo and multiplayer forms with table state, snapshots and recovery.
 
-Tournaments separate registration, waiting state, table assignment, runtime progression, finalization and rewards. Tournament screens live under \path{tournament}; server-side orchestration lives under \path{tournament}. Winner side bets are implemented as a tournament service so settlement remains tied to the real tournament result.
+Tournaments separate registration, waiting state, table assignment, runtime progression, finalization and rewards. Winner side bets are handled within that domain so settlement remains tied to the real tournament result.
 
 Social and lobby features combine durable REST operations with socket notifications: invitations, friend status changes, lobby activity, warnings, reports and peer loans remain persisted instead of being client-only events. Progression features (XP, badges, daily challenges, login streaks, leaderboards, gift codes and free recharge) are similarly isolated while still routing eligibility and balance-changing effects through the server.
 
 \subsection{Security, monetary integrity and validation}
 
-Security is redundant by design: HTTP middleware, socket middleware, gateway checks and domain services re-check sensitive assumptions in their own layer. Forged REST bodies cannot replace JWT identity, forged socket payloads cannot act for another player, and suspended accounts are rejected at login, REST middleware and socket connection time.
+Security is layered by design: HTTP middleware, socket checks and domain services re-check sensitive assumptions. Forged REST bodies cannot replace JWT identity, socket payloads cannot act for another player, and suspended accounts are rejected across entry points.
 
-Chip-changing operations use Prisma transactions, wallet ledger entries, idempotency keys and domain-specific settlement services. This pattern appears in casino modules, hidden-bet placement/resolution, tournament rewards and social loan flows. Client-side balances are treated as cached UI; the database and server services remain the source of truth.
+Chip-changing operations use database transactions, wallet ledger entries, idempotency keys and domain-specific settlement services. This pattern appears in casino modules, hidden bets, tournament rewards and social loans. Client-side balances are treated as cached UI; persisted state remains the source of truth.
 
 \section{Quick User Guide}
 \label{app:user-guide}
@@ -2057,6 +2143,77 @@ Figure~\ref{fig:user-workflow-diagram} summarizes the main player journey from r
 \includegraphics[width=0.95\textwidth,keepaspectratio]{user-workflow-diagram.png}
 \caption{Mini user workflow: authentication, lobby entry, gameplay selection, social interaction, progression/reward consultation, exit and replay loops.}
 \label{fig:user-workflow-diagram}
+\end{figure}
+
+\subsection{UI screenshot placeholders}
+\label{subsec:ui-screenshot-placeholders}
+
+The following placeholders reserve space for final interface screenshots. Each capture should be taken from the current deployed or demo-ready build, preferably with realistic but non-sensitive test data. The goal is to show the user-facing result of the platform, not internal implementation details.
+
+\begin{figure}[htbp]
+\centering
+\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
+\centering
+\textbf{Poker table UI screenshot placeholder}\\[0.4em]
+Capture an active Texas Hold'em table with community cards, player seats, current chips, action buttons, pot area and the Quantum HUD visible.
+\end{minipage}}
+\caption{Placeholder for the poker table interface screenshot.}
+\label{fig:ui-poker-placeholder}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
+\centering
+\textbf{Main lobby UI screenshot placeholder}\\[0.4em]
+Capture the main navigation hub showing access to poker, casino games, tournaments, social features, rewards and profile/progression areas.
+\end{minipage}}
+\caption{Placeholder for the main lobby interface screenshot.}
+\label{fig:ui-lobby-placeholder}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
+\centering
+\textbf{Tournament UI screenshot placeholder}\\[0.4em]
+Capture either the tournament waiting room, an active tournament table, or the tournament results screen with bracket/progression information visible.
+\end{minipage}}
+\caption{Placeholder for the tournament interface screenshot.}
+\label{fig:ui-tournament-placeholder}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
+\centering
+\textbf{Blackjack UI screenshot placeholder}\\[0.4em]
+Capture the blackjack table with player hand, dealer hand, bet controls, action buttons and displayed result or current round state.
+\end{minipage}}
+\caption{Placeholder for the blackjack interface screenshot.}
+\label{fig:ui-blackjack-placeholder}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
+\centering
+\textbf{Leaderboard UI screenshot placeholder}\\[0.4em]
+Capture the leaderboard or progression view with rankings, XP/level information, badges or player statistics visible.
+\end{minipage}}
+\caption{Placeholder for the leaderboard and progression interface screenshot.}
+\label{fig:ui-leaderboard-placeholder}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\fbox{\begin{minipage}[c][3.8cm][c]{0.88\textwidth}
+\centering
+\textbf{Admin panel UI screenshot placeholder}\\[0.4em]
+Capture the protected admin console with moderation, reports, monitoring-oriented information or gift-code management visible. Use test data only.
+\end{minipage}}
+\caption{Placeholder for the admin panel interface screenshot.}
+\label{fig:ui-admin-placeholder}
 \end{figure}
 
 \subsection{Admin and support flow}

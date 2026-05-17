@@ -1,7 +1,8 @@
-\contentsline {table}{\numberline {1}{\ignorespaces High-level functional inventory (representative surfaces).}}{11}{table.1}%
-\contentsline {table}{\numberline {2}{\ignorespaces Build targets for the web, desktop and mobile versions of Quantum Bluff.}}{23}{table.caption.18}%
-\contentsline {table}{\numberline {3}{\ignorespaces Automated unit and integration test inventory (May~2026 snapshot).}}{24}{table.caption.19}%
-\contentsline {table}{\numberline {4}{\ignorespaces Server Jest coverage aggregate on \texttt {collectCoverageFrom} (May~2026; \texttt {npm run test:coverage} on the backend).}}{25}{table.caption.20}%
-\contentsline {table}{\numberline {5}{\ignorespaces Individual contributions: expanded statements appear as subsections above and are summarized here by primary technical area.}}{32}{table.caption.21}%
-\contentsline {table}{\numberline {6}{\ignorespaces Main relational groups in the Prisma schema.}}{38}{table.6}%
-\contentsline {table}{\numberline {7}{\ignorespaces Classical seven-card poker hand frequencies used as the probability context for positioning the custom Quantum Combi category.}}{45}{table.caption.30}%
+\contentsline {table}{\numberline {2}{\ignorespaces High-level functional inventory (representative surfaces).}}{11}{table.2}%
+\contentsline {table}{\numberline {3}{\ignorespaces Build targets for the web, desktop and mobile versions of Quantum Bluff.}}{21}{table.caption.18}%
+\contentsline {table}{\numberline {4}{\ignorespaces Automated unit and integration test inventory (May~2026 snapshot).}}{22}{table.caption.19}%
+\contentsline {table}{\numberline {5}{\ignorespaces Server Jest coverage aggregate on \texttt {collectCoverageFrom} (May~2026; \texttt {npm run test:coverage} on the backend).}}{23}{table.caption.20}%
+\contentsline {table}{\numberline {6}{\ignorespaces Individual contributions: expanded statements appear as subsections above and are summarized here by primary technical area.}}{28}{table.caption.21}%
+\contentsline {table}{\numberline {7}{\ignorespaces Rough effort envelope for future improvements (Section~\ref {sec:limitations}); estimates are planning aids, not quotations.}}{30}{table.caption.22}%
+\contentsline {table}{\numberline {8}{\ignorespaces Main relational groups in the Prisma schema.}}{35}{table.8}%
+\contentsline {table}{\numberline {9}{\ignorespaces Classical seven-card poker hand frequencies used as the probability context for positioning the custom Quantum Combi category.}}{42}{table.caption.31}%
