@@ -89,8 +89,8 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {8.5}Persistence and integrity}{18}{subsection.8.5}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {8.6}Data model overview (Prisma)}{18}{subsection.8.6}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {8.7}Diagram}{18}{subsection.8.7}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Monorepo runtime flow: interface $\rightarrow $ API / WebSocket $\rightarrow $ gateway and services $\rightarrow $ data layer.}}{18}{figure.caption.12}\protected@file@percent }
-\newlabel{fig:flow}{{3}{18}{Monorepo runtime flow: interface $\rightarrow $ API / WebSocket $\rightarrow $ gateway and services $\rightarrow $ data layer}{figure.caption.12}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Monorepo layers: client UI, REST/Socket.IO transports, Node gateway, domain services, PostgreSQL and Redis.}}{18}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:flow}{{3}{18}{Monorepo layers: client UI, REST/Socket.IO transports, Node gateway, domain services, PostgreSQL and Redis}{figure.caption.12}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {9}Deployment and operational runbook}{19}{section.9}\protected@file@percent }
 \newlabel{sec:deploy}{{9}{19}{Deployment and operational runbook}{section.9}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {9.1}Local development stack}{19}{subsection.9.1}\protected@file@percent }
@@ -159,9 +159,9 @@
 \newlabel{fig:appendix-architecture}{{4}{34}{Layered architecture diagram: UI shells and client state, REST/Socket.IO transport, backend edge controls, domain services, PostgreSQL persistence, Redis coordination and operational monitoring}{figure.caption.25}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Reading the diagram}{34}{subsection.B.2}\protected@file@percent }
 \gdef \LT@iii {\LT@entry 
-    {1}{97.04872pt}\LT@entry 
-    {1}{142.88284pt}\LT@entry 
-    {1}{179.56198pt}}
+    {1}{94.2037pt}\LT@entry 
+    {1}{164.22241pt}\LT@entry 
+    {1}{175.29381pt}}
 \@writefile{toc}{\contentsline {section}{\numberline {C}Relational database model}{35}{appendix.C}\protected@file@percent }
 \newlabel{app:db}{{C}{35}{Relational database model}{appendix.C}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {C.1}Relational mode and source of truth}{35}{subsection.C.1}\protected@file@percent }
@@ -194,11 +194,11 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {F.1}Division of responsibilities}{41}{subsection.F.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {F.2}Monte Carlo equity estimator}{41}{subsection.F.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {F.3}Monte Carlo error budget (HUD analogue to RTP)}{41}{subsection.F.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {F.4}Quantum Combi---exact enumeration formula}{41}{subsection.F.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {F.4}Quantum Combi---exact enumeration formula}{42}{subsection.F.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {F.5}Seven-card hand probabilities and ranking context}{42}{subsection.F.5}\protected@file@percent }
 \@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Classical seven-card poker hand frequencies used as the probability context for positioning the custom Quantum Combi category.}}{42}{table.caption.31}\protected@file@percent }
 \newlabel{tab:seven-card-probabilities}{{9}{42}{Classical seven-card poker hand frequencies used as the probability context for positioning the custom Quantum Combi category}{table.caption.31}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {F.6}Quantum Combi in the hand-ranking ladder (server and HUD)}{42}{subsection.F.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {F.6}Quantum Combi in the hand-ranking ladder (server and HUD)}{43}{subsection.F.6}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {G}Hidden betting system}{44}{appendix.G}\protected@file@percent }
 \newlabel{app:hidden}{{G}{44}{Hidden betting system}{appendix.G}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {G.1}Programmed architecture}{44}{subsection.G.1}\protected@file@percent }
@@ -303,8 +303,8 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {R.4}Admin and support flow}{70}{subsection.R.4}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Administration dashboard (\texttt  {/admin/console}): \textit  {Players} tab with search, aggregate user count, reminder that passwords are stored as one-way hashes, chip balances, and moderation actions (suspend, ban, reactivate). Other tabs expose live poker, blackjack rooms, tournaments, waiting rooms, poker history (DB), ratings, reports and gift codes.}}{71}{figure.caption.43}\protected@file@percent }
 \newlabel{fig:ui-admin-console}{{8}{71}{Administration dashboard (\texttt {/admin/console}): \textit {Players} tab with search, aggregate user count, reminder that passwords are stored as one-way hashes, chip balances, and moderation actions (suspend, ban, reactivate). Other tabs expose live poker, blackjack rooms, tournaments, waiting rooms, poker history (DB), ratings, reports and gift codes}{figure.caption.43}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Texas Hold'em table (practice vs.\ bot): pre-flop state with dealer/SB/BB markers, hole cards, central pot, action bar (\textit  {Fold} / \textit  {Check} / \textit  {Raise}), hand-history snippet, chip balance in the shell header and probability HUD entry via \textit  {Probs}.}}{71}{figure.caption.44}\protected@file@percent }
-\newlabel{fig:ui-poker-table}{{9}{71}{Texas Hold'em table (practice vs.\ bot): pre-flop state with dealer/SB/BB markers, hole cards, central pot, action bar (\textit {Fold} / \textit {Check} / \textit {Raise}), hand-history snippet, chip balance in the shell header and probability HUD entry via \textit {Probs}}{figure.caption.44}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Texas Hold'em table (multi-seat vs.\ bots): \textit  {Flop} street with exposed board cards, turn/river placeholders, burn-pile indicator, central pot and dealer/SB/BB badges; folded seats greyed out; hero turn with stake-aware actions (\textit  {Fold} / \textit  {Call} / \textit  {Raise}), action log, shell chip balance and \textit  {Probs} HUD entry.}}{71}{figure.caption.44}\protected@file@percent }
+\newlabel{fig:ui-poker-table}{{9}{71}{Texas Hold'em table (multi-seat vs.\ bots): \textit {Flop} street with exposed board cards, turn/river placeholders, burn-pile indicator, central pot and dealer/SB/BB badges; folded seats greyed out; hero turn with stake-aware actions (\textit {Fold} / \textit {Call} / \textit {Raise}), action log, shell chip balance and \textit {Probs} HUD entry}{figure.caption.44}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Main lobby (\textit  {Quantum Bluff} shell): mode tabs (Texas Hold'em, Blackjack, Mini-games), \textit  {Play vs Bot}, multiplayer server lists (waiting rooms / games in progress), tournament lists with creation entry points, daily challenges with chip rewards, friends panel and global shell controls (balance, profile, settings).}}{72}{figure.caption.45}\protected@file@percent }
 \newlabel{fig:ui-lobby}{{10}{72}{Main lobby (\textit {Quantum Bluff} shell): mode tabs (Texas Hold'em, Blackjack, Mini-games), \textit {Play vs Bot}, multiplayer server lists (waiting rooms / games in progress), tournament lists with creation entry points, daily challenges with chip rewards, friends panel and global shell controls (balance, profile, settings)}{figure.caption.45}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Tournament lobby (waiting/registration): event title and scheduled start, status badges (\textit  {Registration open}, visibility), blinds and starting stack, registration progress (e.g.\ seats filled), \textit  {Hidden bets} panel for winner-side staking with pot summary, and primary actions (\textit  {Join}, host-oriented \textit  {Start now}).}}{73}{figure.caption.46}\protected@file@percent }

@@ -129,9 +129,9 @@
 \contentsline {subsection}{\numberline {F.1}Division of responsibilities}{41}{subsection.F.1}%
 \contentsline {subsection}{\numberline {F.2}Monte Carlo equity estimator}{41}{subsection.F.2}%
 \contentsline {subsection}{\numberline {F.3}Monte Carlo error budget (HUD analogue to RTP)}{41}{subsection.F.3}%
-\contentsline {subsection}{\numberline {F.4}Quantum Combi---exact enumeration formula}{41}{subsection.F.4}%
+\contentsline {subsection}{\numberline {F.4}Quantum Combi---exact enumeration formula}{42}{subsection.F.4}%
 \contentsline {subsection}{\numberline {F.5}Seven-card hand probabilities and ranking context}{42}{subsection.F.5}%
-\contentsline {subsection}{\numberline {F.6}Quantum Combi in the hand-ranking ladder (server and HUD)}{42}{subsection.F.6}%
+\contentsline {subsection}{\numberline {F.6}Quantum Combi in the hand-ranking ladder (server and HUD)}{43}{subsection.F.6}%
 \contentsline {section}{\numberline {G}Hidden betting system}{44}{appendix.G}%
 \contentsline {subsection}{\numberline {G.1}Programmed architecture}{44}{subsection.G.1}%
 \contentsline {subsection}{\numberline {G.2}Odds and tables (example)}{44}{subsection.G.2}%

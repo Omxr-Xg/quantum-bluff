@@ -16,7 +16,12 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric}
 \usepackage{longtable}
-\usepackage{url}
+\IfFileExists{xurl.sty}{%
+  \usepackage{xurl}%
+}{%
+  \PassOptionsToPackage{hyphens}{url}%
+  \usepackage{url}%
+}
 \usepackage[hidelinks]{hyperref}
 \usepackage{etoolbox}
 \makeatletter
@@ -32,6 +37,9 @@
   right=2.5cm,
   bindingoffset=0cm,
 }
+% Limite les débordements horizontaux (lignes fines, chemins \path, maths inline).
+\setlength{\emergencystretch}{2.8em}
+\tolerance=1600
 
 % Liens et métadonnées PDF
 \hypersetup{
@@ -675,7 +683,7 @@ Figure~\ref{fig:flow} shows a \textbf{runtime flow diagram} (logical path, not d
 \begin{tikzpicture}[
   font=\footnotesize,
   >=Stealth,
-  archstep/.style={rectangle, draw=black!65, rounded corners=2pt, align=center, inner sep=5pt, minimum width=0.82\textwidth},
+  archstep/.style={rectangle, draw=black!65, rounded corners=2pt, align=center, inner sep=5pt, minimum width=0.82\textwidth, text width=0.76\textwidth},
 ]
 \node[archstep, fill=blue!6] (c) {\textbf{1. Client (React/Vite)} — pages, RTK Query, contexts (socket, HUD, user).};
 \node[archstep, fill=blue!10, below=4mm of c] (a) {\textbf{2. Transports} — REST \texttt{/api/*} (JWT) et Socket.IO \texttt{/socket.io} (même jeton).};
@@ -687,7 +695,7 @@ Figure~\ref{fig:flow} shows a \textbf{runtime flow diagram} (logical path, not d
 \draw[->, thick] (g) -- (s);
 \draw[->, thick] (s) -- (p);
 \end{tikzpicture}
-\caption{Monorepo runtime flow: interface $\rightarrow$ API / WebSocket $\rightarrow$ gateway and services $\rightarrow$ data layer.}\label{fig:flow}
+\caption{Monorepo layers: client UI, REST/Socket.IO transports, Node gateway, domain services, PostgreSQL and Redis.}\label{fig:flow}
 \end{figure}
 
 \section{Deployment and operational runbook}
@@ -732,7 +740,7 @@ The key deployment improvement is a \textbf{GitLab Runner} installed directly on
 When the Runner claims a deploy job, it executes the shell script sequentially:
 
 \begin{enumerate}
-\item \textbf{Docker authentication:} \texttt{echo "\$CI\_REGISTRY\_PASSWORD" | docker login -u "\$CI\_REGISTRY\_USER" --password-stdin "\$CI\_REGISTRY"} — uses GitLab CI secrets to authenticate to the private registry.
+\item \textbf{Docker authentication:} CI injects registry credentials; the job runs \texttt{docker login} against \texttt{\$CI\_REGISTRY} (password via stdin) before pulls.
 \item \textbf{Dynamic .env generation:} Reconstructs \texttt{.env} from secure GitLab variables (\texttt{\$JWT\_SECRET}, \texttt{\$DATABASE\_URL}), ensuring secrets never exist in source code.
 \item \textbf{Hot pull and restart:} \texttt{docker compose pull} fetches latest images, then \texttt{docker compose up -d --force-recreate} recreates containers with reduced manual downtime.
 \item \textbf{Database migrations:} \texttt{npx prisma migrate deploy} applies schema changes automatically inside the backend container.
@@ -1181,7 +1189,7 @@ Quantum Bluff uses a \textbf{relational PostgreSQL database} accessed through Pr
 
 \subsection{Main relational groups}
 
-\begin{longtable}{@{}p{3.2cm}p{4.6cm}p{6.1cm}@{}}
+\begin{longtable}{@{}p{3.1cm}p{5.35cm}p{5.95cm}@{}}
 \caption{Main relational groups in the Prisma schema.}\label{tab:db-relational-groups}\\
 \toprule
 Domain & Main tables & Relation pattern \\
@@ -1197,7 +1205,7 @@ Tournament & \texttt{Tournament}, \texttt{TournamentPlayer}, \texttt{TournamentR
 Wallet and rewards & \texttt{WalletLedgerEntry}, \texttt{TournamentRewardLedger}, \texttt{GiftCode}, \texttt{GiftCodeUsage} & Each chip-changing operation creates auditable rows tied to a user and reason. \\
 Social and loans & \texttt{Friendship}, \texttt{FriendRequest}, \texttt{FriendMessage}, \texttt{LoanRequest}, \texttt{Loan}, \texttt{LoanRepayment} & User-to-user relations are modeled through explicit join tables and named Prisma relations. \\
 Casino and blackjack & \texttt{BlackjackRoom}, \texttt{BlackjackRoomSeat}, \texttt{BlackjackRoomSnapshot}, \texttt{CasinoStats} & Rooms have seats and snapshots; casino statistics remain attached to the user. \\
-Hidden bets & \texttt{HiddenBetTicket}, \texttt{HiddenBetSelection}, \texttt{HiddenBetHandResolution} & A ticket belongs to a user and game/hand, with child selection rows and resolution records. \\
+Hidden bets & \shortstack[l]{\texttt{HiddenBetTicket}\\\texttt{HiddenBetSelection}\\\texttt{HiddenBetHandResolution}} & A ticket belongs to a user and game/hand, with child selection rows and resolution records. \\
 \bottomrule
 \end{longtable}
 
@@ -1272,13 +1280,17 @@ When \texttt{AI\_SERVICE\_URL} is configured, \path{botAi.service.ts} issues \te
 
 \subsection{Expert oracle path (TypeScript, no network)}
 
-For revealed opponent holes, \texttt{expertOracleDecision} computes hero strength $\sigma_{\mathrm{hero}}=\texttt{normalizedHandStrength}(\text{hero},\text{board})$ and opponent strengths $\sigma_i$ for each known hole pair. Sort $\sigma_{(1)}\ge\cdots\ge\sigma_{(n)}$. For $n\le 2$ let $S_{\mathrm{opp}}=\sigma_{(1)}$. For $n\ge 3$ the code uses \texttt{compositeOpponentNormalizedStrength}:
+For revealed opponent holes, \texttt{expertOracleDecision} compares normalized strengths. Hero strength is
+\[
+\sigma_{\mathrm{hero}}=\texttt{normalizedHandStrength}(\text{hero},\text{board}).
+\]
+For each known opponent hole pair the service obtains $\sigma_i$, then sorts $\sigma_{(1)}\ge\cdots\ge\sigma_{(n)}$. If $n\le 2$, set $S_{\mathrm{opp}}=\sigma_{(1)}$. If $n\ge 3$, \texttt{compositeOpponentNormalizedStrength} combines extremes via
 \[
 S_{\mathrm{opp}} = w\,\sigma_{(1)} + (1-w)\,\sigma_{(\lfloor n/2\rfloor)},
 \qquad
 w = \min\bigl(0.68,\,\max\bigl(0.35,\,0.56 - 0.05\,(n-3)\bigr)\bigr),
 \]
-so the policy blends the strongest visible villain with a median-like opponent instead of assuming everyone holds the nuts. The edge $\Delta=\sigma_{\mathrm{hero}}-S_{\mathrm{opp}}$ is compared to pot odds $\texttt{callAmount}/(\texttt{potSize}+\texttt{callAmount})$ and stack pressure $\texttt{callAmount}/\texttt{playerChips}$ to emit stylised lines (\texttt{value}, \texttt{bluff}, \texttt{pot\_control}, \texttt{discipline}, etc.).
+so the policy blends the strongest visible villain with a median-like opponent instead of assuming everyone holds the nuts. The edge $\Delta=\sigma_{\mathrm{hero}}-S_{\mathrm{opp}}$ is compared to pot odds and stack pressure ratios built from \texttt{callAmount}, \texttt{potSize}, and \texttt{playerChips} to emit stylised lines (\texttt{value}, \texttt{bluff}, \texttt{pot\_control}, \texttt{discipline}, etc.).
 
 \subsection{Further reading}
 
@@ -1295,7 +1307,7 @@ The \textbf{Quantum HUD} (\path{QuantumHUD.tsx}, context \path{QuantumHUDContext
 
 Implementation file: \path{pokerMonteCarloEquity.ts}. Let $N$ be the number of iterations (default $N=2000$, constant \texttt{MONTE\_CARLO\_DEFAULT\_ITERATIONS}). For each iteration the code:
 \begin{enumerate}
-\item Builds the remaining deck excluding known hero and community cards (\texttt{buildDeckExcluding}).
+\item Builds the remaining deck excluding hero and community cards (helper \texttt{buildDeckExcluding}).
 \item Draws, without replacement, the missing board cards and $2\times n_{\mathrm{opp}}$ opponent hole cards using a partial Fisher--Yates swap sampler (\texttt{drawWithoutReplacement}).
 \item Evaluates the hero and each opponent seven-card hand with \texttt{evaluateSevenEval} (same taxonomy as the server evaluator).
 \item Splits the simulated pot equally among all players that achieve the best score.
@@ -1379,7 +1391,7 @@ Hidden side markets are implemented under \path{hiddenBets}: typed markets and s
 
 \subsection{Odds and tables (example)}
 
-Live markets use tabulated decimal odds keyed by table parameters. For instance, \path{oddsPlayerWinsCurrentHand} maps the number of active players $n\in[2,9]$ to a fixed grid (e.g.\ $n=2 \rightarrow 1.9$, $n=5 \rightarrow 3.0$, $n=9 \rightarrow 4.6$); companion functions cover showdown vs.\ fold endings. These values are \textbf{heuristic} prices distanced from the pre-hand model (see code comments \texttt{hidden-bets-live-v1}), not Monte Carlo outputs from the HUD.
+Live markets use tabulated decimal odds keyed by table parameters. For instance, function \path{oddsPlayerWinsCurrentHand}\linebreak maps the number of active players $n\in[2,9]$ to a fixed grid (e.g.\ $n=2 \rightarrow 1.9$, $n=5 \rightarrow 3.0$, $n=9 \rightarrow 4.6$); companion functions cover showdown vs.\ fold endings. These values are \textbf{heuristic} prices distanced from the pre-hand model (see code comments \texttt{hidden-bets-live-v1}), not Monte Carlo outputs from the HUD.
 
 \subsection{Further reading}
 
@@ -1585,9 +1597,11 @@ export function settlePots(players: Player[], winnerIds: string[]) {
   }
   const distribution = {}
   for (const pot of pots) {
-    const sharePerWinner = Math.floor(pot.amount / pot.eligibleWinners.length)
+    const sharePerWinner = Math.floor(
+      pot.amount / pot.eligibleWinners.length)
     for (const winnerId of pot.eligibleWinners) {
-      distribution[winnerId] = (distribution[winnerId] ?? 0) + sharePerWinner
+      distribution[winnerId] =
+        (distribution[winnerId] ?? 0) + sharePerWinner
     }
   }
   return distribution
@@ -1608,16 +1622,22 @@ export function settlePots(players: Player[], winnerIds: string[]) {
 
 \subsection{Runtime architecture (layers)}
 
+{\small
 \begin{enumerate}
 \item \textbf{API and validation} --- \path{tournament.routes.ts} (and related mounts in \path{index.ts}) expose creation, join, start, and spectator flows. Input normalisation lives in \path{tournament.create.validation.ts} (player counts, blind structure, schedule). Private tournaments hash join codes with bcrypt (\path{tournament.service.ts}).
 \item \textbf{Persistence} --- Prisma models \texttt{Tournament}, \texttt{TournamentPlayer}, \texttt{TournamentRound}, \texttt{TournamentTable}, etc., store lifecycle, elimination order, and links to underlying \texttt{gameId} values that reuse the cash-game engine.
 \item \textbf{Scheduler} --- \path{tournament.scheduler.ts} registers a timer every $\Delta T = 10$\,s (via \texttt{setInterval}). On each tick it loads tournaments with \texttt{status = REGISTRATION\_OPEN} and \texttt{startAt <= now} (bounded batch) and calls \path{startTournamentFromDb} with the Socket.IO server instance obtained from \path{app.get('io')}.
-\item \textbf{Runtime orchestration} --- \path{tournament.runtime.service.ts} coordinates bracket materialisation: it calls \path{buildOpeningRound} / \path{buildRoundFromSurvivors}, creates concrete \texttt{GameTable} instances through \path{tournamentTableFactory.ts}, emits \texttt{TOURNAMENT\_TABLE\_ASSIGNED} to per-user rooms, records eliminations when bust-out events arrive (\path{recordTournamentEliminationsIfAny}), and advances the state machine (\texttt{pending\_other\_tables}, \texttt{next\_round\_spawned}, \texttt{tournament\_complete}).
+\item \textbf{Runtime orchestration} --- \path{tournament.runtime.service.ts} coordinates bracket materialisation.
+  \begin{itemize}
+  \item Builds rounds via \path{buildOpeningRound} / \path{buildRoundFromSurvivors} and materialises concrete \texttt{GameTable} instances through \path{tournamentTableFactory.ts}.
+  \item Emits \texttt{TOURNAMENT\_TABLE\_ASSIGNED} to per-user rooms; records eliminations on bust-out (\path{recordTournamentEliminationsIfAny}); advances \texttt{pending\_other\_tables}, \texttt{next\_round\_spawned}, and \texttt{tournament\_complete}.
+  \end{itemize}
 \item \textbf{Winner side bets} --- \path{tournamentWinnerBet.service.ts} handles ticket placement, settlement with tournament cancellation, and coordination with the wallet ledger.
 \item \textbf{Recovery} --- \path{tournament.recovery.service.ts} reconciles partially written bracket rows after crashes (invoked from server bootstrap).
 \item \textbf{Gateway hooks} --- \path{tournament.gatewayHook.ts} bridges table-level socket events into tournament bookkeeping.
 \item \textbf{Client} --- \path{tournament} implements waiting room, ZipRush, in-tournament HUD, results, and winner-bet UI; routes under \path{/tournaments/...}.
 \end{enumerate}
+}
 
 \subsection{Bracket geometry and table sizing}
 
@@ -2083,7 +2103,15 @@ Redis clients for Socket.IO horizontal scale-out: \path{socketIoRedis.ts}. Rate 
 
 \subsection{Kaniko container builds (GitLab CI)}
 
-The \texttt{docker-build} stage invokes \textbf{Kaniko} executor \texttt{v1.23.2-debug} with an empty container \texttt{entrypoint} so the shell can call \texttt{/kaniko/executor}. \textbf{(1)}~\texttt{docker:build}---\path{Dockerfile}, context \path{server}, destinations \texttt{\$\{CI\_REGISTRY\_IMAGE\}:\$\{CI\_COMMIT\_SHORT\_SHA\}} and \texttt{:latest}; runs on \texttt{develop}, \texttt{main}, and \texttt{release/*}. \textbf{(2)}~\texttt{docker:build:client}---\path{Dockerfile}, build-arg \texttt{VITE\_API\_URL} (override in GitLab CI/CD variables for behind-nginx paths), \texttt{KUBERNETES\_MEMORY\_REQUEST}/\texttt{LIMIT} raised to reduce OOM during Kaniko layer snapshots; destinations \texttt{:client-\$\{CI\_COMMIT\_SHORT\_SHA\}} and \texttt{:client-latest}; same branch rules as~(1). \textbf{(3)}~\texttt{docker:build:ai-service}---context \path{ai-service}, FastAPI stack for the optional poker prediction endpoint; destinations \texttt{:ai-\$\{CI\_COMMIT\_SHORT\_SHA\}} and \texttt{:ai-latest}; \textbf{only} \texttt{release/*} (commented in YAML to spare runner disk on \texttt{develop}/\texttt{main}). All three jobs use \texttt{--compressed-caching=false} for predictable memory on small Kubernetes runners. \path{Dockerfile} documents Kaniko-oriented Dockerfile layering (grouped \texttt{RUN} steps) to avoid oversized intermediate snapshots after \texttt{npm ci}.
+The \texttt{docker-build} stage invokes \textbf{Kaniko} executor \texttt{v1.23.2-debug} with an empty container \texttt{entrypoint} so the shell can call \texttt{/kaniko/executor}.
+
+\begin{enumerate}
+\item \textbf{Backend (\texttt{docker:build}).} \path{Dockerfile} with context \path{server}. Images are tagged with the short commit SHA and \texttt{:latest}. Runs on \texttt{develop}, \texttt{main}, and \texttt{release/*}.
+\item \textbf{Frontend (\texttt{docker:build:client}).} Same \path{Dockerfile} workflow with build-arg \texttt{VITE\_API\_URL} (override in CI/CD when serving behind nginx). \texttt{KUBERNETES\_MEMORY\_REQUEST} and \texttt{LIMIT} are raised to reduce OOM during layer snapshots. Tags use the \texttt{:client-*} prefix (SHA and \texttt{client-latest}). Branch rules match~(1).
+\item \textbf{AI service (\texttt{docker:build:ai-service}).} Context \path{ai-service} (FastAPI helper for the optional poker prediction route). Tags use the \texttt{:ai-*} prefix. Restricted to \texttt{release/*} in YAML so \texttt{develop}/\texttt{main} runs do not consume extra runner disk.
+\end{enumerate}
+
+All three jobs pass \texttt{--compressed-caching=false} for predictable memory on small Kubernetes runners. Comments in \path{Dockerfile} document Kaniko-friendly layering (grouped \texttt{RUN} commands) so intermediate snapshots stay smaller after \texttt{npm ci}.
 
 \subsection{Electron and Capacitor build matrix}
 
@@ -2148,7 +2176,7 @@ Figure~\ref{fig:user-workflow-diagram} summarizes the main player journey from r
 \subsection{Representative UI captures}
 \label{subsec:ui-screenshot-placeholders}
 
-Figure~\ref{fig:ui-admin-console} shows the deployed \textbf{admin web console} (\path{/admin/console}). Figure~\ref{fig:ui-poker-table} shows an active \textbf{Texas Hold'em} table against a bot opponent. Figure~\ref{fig:ui-lobby} shows the \textbf{main lobby hub}. Figure~\ref{fig:ui-tournament} shows a \textbf{tournament} registration/waiting view (scheduled event, blinds/stack, hidden winner-side bets). Figure~\ref{fig:ui-blackjack} shows the \textbf{solo blackjack} table during the betting phase. Figure~\ref{fig:ui-leaderboard} shows \textbf{public leaderboards} with mode tabs (general XP, poker, casino), rank table and the viewer's rank banner. Figure~\ref{fig:ui-profile-page} summarizes the \textbf{player profile}: identity, progression (XP, level, streak), virtual chip balance, badge catalogue and headline statistics. Figure~\ref{fig:ui-profile-avatars} shows \textbf{profile photo configuration}: upload constraints and the catalogue of \textbf{24} selectable preset avatars (plus custom image import). The captures below come from a demo-ready build with non-sensitive test data and illustrate user-visible outcomes rather than internal implementation detail.
+Figure~\ref{fig:ui-admin-console} shows the deployed \textbf{admin web console} (\path{/admin/console}). Figure~\ref{fig:ui-poker-table} shows an active \textbf{Texas Hold'em} table with \textbf{multiple bot opponents} on a post-flop street. Figure~\ref{fig:ui-lobby} shows the \textbf{main lobby hub}. Figure~\ref{fig:ui-tournament} shows a \textbf{tournament} registration/waiting view (scheduled event, blinds/stack, hidden winner-side bets). Figure~\ref{fig:ui-blackjack} shows the \textbf{solo blackjack} table during the betting phase. Figure~\ref{fig:ui-leaderboard} shows \textbf{public leaderboards} with mode tabs (general XP, poker, casino), rank table and the viewer's rank banner. Figure~\ref{fig:ui-profile-page} summarizes the \textbf{player profile}: identity, progression (XP, level, streak), virtual chip balance, badge catalogue and headline statistics. Figure~\ref{fig:ui-profile-avatars} shows \textbf{profile photo configuration}: upload constraints and the catalogue of \textbf{24} selectable preset avatars (plus custom image import). The captures below come from a demo-ready build with non-sensitive test data and illustrate user-visible outcomes rather than internal implementation detail.
 
 \begin{figure}[htbp]
 \centering
@@ -2160,7 +2188,7 @@ Figure~\ref{fig:ui-admin-console} shows the deployed \textbf{admin web console} 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.95\textwidth,keepaspectratio]{screenshot-poker-table.png}
-\caption{Texas Hold'em table (practice vs.\ bot): pre-flop state with dealer/SB/BB markers, hole cards, central pot, action bar (\textit{Fold} / \textit{Check} / \textit{Raise}), hand-history snippet, chip balance in the shell header and probability HUD entry via \textit{Probs}.}
+\caption{Texas Hold'em table (multi-seat vs.\ bots): \textit{Flop} street with exposed board cards, turn/river placeholders, burn-pile indicator, central pot and dealer/SB/BB badges; folded seats greyed out; hero turn with stake-aware actions (\textit{Fold} / \textit{Call} / \textit{Raise}), action log, shell chip balance and \textit{Probs} HUD entry.}
 \label{fig:ui-poker-table}
 \end{figure}
 
@@ -2223,7 +2251,14 @@ Let $L$ be the set of executable lines inside \texttt{collectCoverageFrom} in \p
 \[
 \mathrm{cov}_M = \frac{\text{\# elements of }M\text{ hit during tests}}{\text{\# elements of }M\text{ instrumented}}.
 \]
-CI enforces $\mathrm{cov}_{\mathrm{lines}}\ge 0.80$, $\mathrm{cov}_{\mathrm{statements}}\ge 0.80$, $\mathrm{cov}_{\mathrm{functions}}\ge 0.80$, and $\mathrm{cov}_{\mathrm{branches}}\ge 0.65$. A May~2026 local run reported $(\mathrm{cov}_{\mathrm{lines}},\mathrm{cov}_{\mathrm{statements}},\mathrm{cov}_{\mathrm{functions}},\mathrm{cov}_{\mathrm{branches}})=(86.56\%,83.69\%,88.75\%,67.90\%)$ on that scope. Heavy files such as \path{botAI.ts} and large controllers are deliberately excluded from the denominator so the metric tracks testable business modules (see comments in the Jest config).
+CI enforces $\mathrm{cov}_{\mathrm{lines}},\mathrm{cov}_{\mathrm{statements}},\mathrm{cov}_{\mathrm{functions}}\ge 0.80$ and $\mathrm{cov}_{\mathrm{branches}}\ge 0.65$. A May~2026 local run on that scope reported:
+\begin{align*}
+\mathrm{cov}_{\mathrm{lines}} &= 86.56\%, &
+\mathrm{cov}_{\mathrm{statements}} &= 83.69\%,\\
+\mathrm{cov}_{\mathrm{functions}} &= 88.75\%, &
+\mathrm{cov}_{\mathrm{branches}} &= 67.90\%.
+\end{align*}
+Heavy files such as \path{botAI.ts} and large controllers are deliberately excluded from the denominator so the metric tracks testable business modules (see comments in the Jest config).
 
 \subsection{Vitest ratios (client)}
 

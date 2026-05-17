@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.5.14)  17 MAY 2026 16:51
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.5.14)  17 MAY 2026 17:34
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -757,8 +757,8 @@ Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
 )
 \Hy@SectionHShift=\skip73
 )
-Package hyperref Info: Option `bookmarksopen' set `true' on input line 44.
-LaTeX Font Info:    Trying to load font information for T1+lmr on input line 75
+Package hyperref Info: Option `bookmarksopen' set `true' on input line 52.
+LaTeX Font Info:    Trying to load font information for T1+lmr on input line 83
 .
  (/usr/local/texlive/2026basic/texmf-dist/tex/latex/lm/t1lmr.fd
 File: t1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
@@ -770,31 +770,31 @@ File: l3backend-pdftex.def 2025-10-09 L3 backend support: PDF output (pdfTeX)
 ) (./rapport.aux)
 \openout1 = `rapport.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 75.
-LaTeX Font Info:    ... okay on input line 75.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 75.
-LaTeX Font Info:    ... okay on input line 75.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 75.
-LaTeX Font Info:    ... okay on input line 75.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 75.
-LaTeX Font Info:    ... okay on input line 75.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 75.
-LaTeX Font Info:    ... okay on input line 75.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 75.
-LaTeX Font Info:    ... okay on input line 75.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 75.
-LaTeX Font Info:    ... okay on input line 75.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 75.
-LaTeX Font Info:    ... okay on input line 75.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 75.
-LaTeX Font Info:    ... okay on input line 75.
-LaTeX Info: Redefining \microtypecontext on input line 75.
-Package microtype Info: Applying patch `item' on input line 75.
-Package microtype Info: Applying patch `toc' on input line 75.
-Package microtype Info: Applying patch `eqnum' on input line 75.
-Package microtype Info: Applying patch `footnote' on input line 75.
-Package microtype Info: Applying patch `verbatim' on input line 75.
-LaTeX Info: Redefining \microtypesetup on input line 75.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 83.
+LaTeX Font Info:    ... okay on input line 83.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 83.
+LaTeX Font Info:    ... okay on input line 83.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 83.
+LaTeX Font Info:    ... okay on input line 83.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 83.
+LaTeX Font Info:    ... okay on input line 83.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 83.
+LaTeX Font Info:    ... okay on input line 83.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 83.
+LaTeX Font Info:    ... okay on input line 83.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 83.
+LaTeX Font Info:    ... okay on input line 83.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 83.
+LaTeX Font Info:    ... okay on input line 83.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 83.
+LaTeX Font Info:    ... okay on input line 83.
+LaTeX Info: Redefining \microtypecontext on input line 83.
+Package microtype Info: Applying patch `item' on input line 83.
+Package microtype Info: Applying patch `toc' on input line 83.
+Package microtype Info: Applying patch `eqnum' on input line 83.
+Package microtype Info: Applying patch `footnote' on input line 83.
+Package microtype Info: Applying patch `verbatim' on input line 83.
+LaTeX Info: Redefining \microtypesetup on input line 83.
 Package microtype Info: Generating PDF output.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using default protrusion set `alltext'.
@@ -875,7 +875,7 @@ Package caption Info: longtable package is loaded.
 Package: ltcaption 2021/01/08 v1.4c longtable captions (AR)
 )
 Package caption Info: End \AtBeginDocument code.
-Package hyperref Info: Link coloring OFF on input line 75.
+Package hyperref Info: Link coloring OFF on input line 83.
 
 (./rapport.out) (./rapport.out)
 \@outlinefile=\write4
@@ -884,18 +884,18 @@ Package hyperref Info: Link coloring OFF on input line 75.
 <app-icon-transparent.png, id=718, 1027.84pt x 1027.84pt>
 File: app-icon-transparent.png Graphic file (type png)
 <use app-icon-transparent.png>
-Package pdftex.def Info: app-icon-transparent.png  used on input line 88.
+Package pdftex.def Info: app-icon-transparent.png  used on input line 96.
 (pdftex.def)             Requested size: 85.3499pt x 85.35826pt.
 <logo_unistra.png, id=720, 602.25pt x 602.25pt>
 File: logo_unistra.png Graphic file (type png)
 <use logo_unistra.png>
-Package pdftex.def Info: logo_unistra.png  used on input line 90.
+Package pdftex.def Info: logo_unistra.png  used on input line 98.
 (pdftex.def)             Requested size: 85.35284pt x 85.35826pt.
 Package microtype Info: Character `029' is missing
 (microtype)             in font `T1/lmr/m/sc/14.4'.
 (microtype)             Ignoring protrusion settings for this character.
 LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 1
-06.
+14.
 
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/lm/t1lmtt.fd
 File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
@@ -905,36 +905,36 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
 LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 1
-16.
+24.
 
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/lm/ot1lmr.fd
 File: ot1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OML+lmm on input line 1
-16.
+24.
 
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/lm/omllmm.fd
 File: omllmm.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OMS+lmsy on input line 
-116.
+124.
 
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/lm/omslmsy.fd
 File: omslmsy.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OMX+lmex on input line 
-116.
+124.
 
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/lm/omxlmex.fd
 File: omxlmex.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10.95> on input line 116.
+(Font)              <10.95> on input line 124.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <8> on input line 116.
+(Font)              <8> on input line 124.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <6> on input line 116.
-LaTeX Font Info:    Trying to load font information for U+msa on input line 116
+(Font)              <6> on input line 124.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 124
 .
 
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/amsfonts/umsa.fd
@@ -943,7 +943,7 @@ File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/microtype/mt-msa.cfg
 File: mt-msa.cfg 2006/02/04 v1.1 microtype config. file: AMS symbols (a) (RS)
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 116
+LaTeX Font Info:    Trying to load font information for U+msb on input line 124
 .
 
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/amsfonts/umsb.fd
@@ -958,19 +958,18 @@ File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
 r/local/texlive/2026basic/texmf-dist/fonts/enc/dvips/lm/lm-ec.enc} <./app-icon-
 transparent.png> <./logo_unistra.png (PNG copy)>] [1]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10> on input line 162.
+(Font)              <10> on input line 170.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <7> on input line 162.
+(Font)              <7> on input line 170.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <5> on input line 162.
+(Font)              <5> on input line 170.
 
 ignored: Infinite glue shrinkage found in box being split [2] [3] (./rapport.toc
 [4] [5] [6] [7])
 \tf@toc=\write5
 \openout5 = `rapport.toc'.
 
- [8] (./rapport.lof [9{/usr/local/texlive/2026basic/texmf-dist/fonts/enc/dvips/
-lm/lm-mathsy.enc}])
+ [8] (./rapport.lof [9])
 \tf@lof=\write6
 \openout6 = `rapport.lof'.
 
@@ -983,38 +982,32 @@ pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has
 been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.248 \section
+l.256 \section
               {Methodology, traceability, and reading guide} [1] [2
 
 ] [3
 
 ]
-LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 2
-98.
+LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 3
+06.
 
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-)
-Overfull \hbox (42.4052pt too wide) in paragraph at lines 299--300
-\T1/lmr/m/n/10.95 (-20) validated poker flows, gate-way skele-tons, per-sis-ten
-ce con-tracts) be-fore widen-ing casino/tournament
- []
+) [4
 
-[4
-
-{/usr/local/texlive/2026basic/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc}]
-[5] [6] [7
+{/usr/local/texlive/2026basic/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc}] [5] [6
+] [7
 
 ]
-Overfull \hbox (5.50868pt too wide) in paragraph at lines 367--368
-[]\T1/lmr/m/n/10.95 (-20) When hole cards of op-po-nents are known (prac-tice/o
-racle con-texts), \T1/lmtt/m/n/10.95 expertOracleDecision
+Underfull \hbox (badness 10000) in paragraph at lines 375--376
+[]\T1/lmr/m/n/10.95 (+20) When hole cards of op-po-nents are known (prac-tice/o
+racle con-texts),
  []
 
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <9> on input line 404.
+(Font)              <9> on input line 412.
 LaTeX Font Info:    Trying to load font information for T1+lmss on input line 4
-05.
+13.
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/lm/t1lmss.fd
 File: t1lmss.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
@@ -1025,45 +1018,39 @@ Package microtype Info: Loading generic protrusion settings for font family
  [8
 
 {/usr/local/texlive/2026basic/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc}{/usr
-/local/texlive/2026basic/texmf-dist/fonts/enc/dvips/lm/lm-rm.enc}]
+/local/texlive/2026basic/texmf-dist/fonts/enc/dvips/lm/lm-rm.enc}{/usr/local/te
+xlive/2026basic/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc}]
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <9> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 435.
- [9]
-Overfull \hbox (33.36745pt too wide) in paragraph at lines 455--456
-[]\T1/lmr/bx/n/10.95 (-20) Optional HTTP bot ser-vice: \T1/lmr/m/n/10.95 (-20) 
-FastAPI bun-dle un-der $\T1/lmtt/m/n/10.95 ai-[]service$\T1/lmr/m/n/10.95 (-20)
- , end-point \T1/lmtt/m/n/10.95 /predict/poker\T1/lmr/m/n/10.95 (-20) ,
- []
-
-[10]
-Underfull \hbox (badness 10000) in paragraph at lines 484--484
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 443.
+ [9] [10]
+Underfull \hbox (badness 10000) in paragraph at lines 492--492
 []|$\T1/lmtt/m/n/10 /blackjack$\T1/lmr/m/n/10 (+20) , $\T1/lmtt/m/n/10 /blackja
 ck /
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 484--484
+Underfull \hbox (badness 10000) in paragraph at lines 492--492
 \T1/lmtt/m/n/10 lobby$\T1/lmr/m/n/10 (+20) , $\T1/lmtt/m/n/10 /blackjack / tabl
 e/ :
  []
 
 
-Underfull \hbox (badness 2556) in paragraph at lines 486--486
+Underfull \hbox (badness 2556) in paragraph at lines 494--494
 []|\T1/lmr/m/n/10 (+20) Waiting, play, re-sults,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 488--488
+Underfull \hbox (badness 10000) in paragraph at lines 496--496
 \T1/lmr/m/n/10 (+20) lenges, lo-gin streak,
  []
 
 
-Underfull \hbox (badness 4441) in paragraph at lines 490--490
+Underfull \hbox (badness 4441) in paragraph at lines 498--498
 []|\T1/lmr/m/n/10 (+20) Operator web con-sole
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 494--494
+Underfull \hbox (badness 10000) in paragraph at lines 502--502
 []|\T1/lmr/m/n/10 (+20) Tournament
  []
 
@@ -1072,50 +1059,32 @@ Underfull \hbox (badness 10000) in paragraph at lines 494--494
 ] [12] [13] [14{/usr/local/texlive/2026basic/texmf-dist/fonts/enc/dvips/lm/lm-m
 athex.enc}] [15] [16] [17
 
-]
-Overfull \hbox (10.21738pt too wide) in paragraph at lines 689--690
- [][] 
- []
-
-[18] [19
+] [18] [19
 
 ]
-Overfull \hbox (10.52452pt too wide) in paragraph at lines 726--727
-[]\T1/lmr/bx/n/10.95 (-20) Tag-based rout-ing: \T1/lmr/m/n/10.95 (-20) The de-p
-loy jobs in \T1/lmtt/m/n/10.95 .gitlab-ci.yml \T1/lmr/m/n/10.95 (-20) use the t
-ag \T1/lmtt/m/n/10.95 runner-vm-quantum\T1/lmr/m/n/10.95 (-20) ,
- []
-
-
-Overfull \hbox (91.91438pt too wide) in paragraph at lines 735--736
-[]\T1/lmr/bx/n/10.95 (-20) Docker au-then-ti-ca-tion: \T1/lmtt/m/n/10.95 echo "
-$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER"
- []
-
-
-Overfull \hbox (18.43741pt too wide) in paragraph at lines 736--737
-[]\T1/lmr/bx/n/10.95 (-20) Dynamic .env gen-er-a-tion: \T1/lmr/m/n/10.95 (-20) 
-Re-con-structs \T1/lmtt/m/n/10.95 .env \T1/lmr/m/n/10.95 (-20) from se-cure Git
--Lab vari-ables (\T1/lmtt/m/n/10.95 $JWT_SECRET\T1/lmr/m/n/10.95 (-20) ,
+Underfull \hbox (badness 5802) in paragraph at lines 734--735
+[]\T1/lmr/bx/n/10.95 (+20) Tag-based rout-ing: \T1/lmr/m/n/10.95 (+20) The de-p
+loy jobs in \T1/lmtt/m/n/10.95 .gitlab-ci.yml \T1/lmr/m/n/10.95 (+20) use the t
+ag
  []
 
 [20]
-Underfull \hbox (badness 10000) in paragraph at lines 766--766
+Underfull \hbox (badness 10000) in paragraph at lines 774--774
 []\T1/lmtt/m/n/8 npm run
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 767--767
+Underfull \hbox (badness 10000) in paragraph at lines 775--775
 []\T1/lmtt/m/n/8 npm run
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 768--768
+Underfull \hbox (badness 10000) in paragraph at lines 776--776
 []\T1/lmtt/m/n/8 npm run
  []
 
 [21]
-Underfull \hbox (badness 1845) in paragraph at lines 829--829
+Underfull \hbox (badness 1845) in paragraph at lines 837--837
 []\T1/lmss/bx/n/10 (+20) Table 5: |\T1/lmr/m/n/10 (+20) Server Jest cov-er-age 
 ag-gre-gate on \T1/lmtt/m/n/10 collectCoverageFrom \T1/lmr/m/n/10 (+20) (May 20
 26; \T1/lmtt/m/n/10 npm run
@@ -1130,39 +1099,39 @@ ag-gre-gate on \T1/lmtt/m/n/10 collectCoverageFrom \T1/lmr/m/n/10 (+20) (May 20
 ] [26
 
 ]
-Underfull \hbox (badness 1715) in paragraph at lines 933--933
+Underfull \hbox (badness 1715) in paragraph at lines 941--941
 []\T1/lmr/m/n/10 (+20) Technical lead-er-ship, mul-ti-
  []
 
 
-Underfull \hbox (badness 3078) in paragraph at lines 933--934
+Underfull \hbox (badness 3078) in paragraph at lines 941--942
 []\T1/lmr/m/n/10 (+20) See nar-ra-tive above; UI fi-nal-iza-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 933--934
+Underfull \hbox (badness 10000) in paragraph at lines 941--942
 \T1/lmr/m/n/10 (+20) tion, tour-na-ment sys-tem, anti-
  []
 
 
-Underfull \hbox (badness 2310) in paragraph at lines 933--934
+Underfull \hbox (badness 2310) in paragraph at lines 941--942
 \T1/lmr/m/n/10 (+20) cheat/moderation, pro-duc-tion VM
  []
 
 
-Underfull \hbox (badness 6047) in paragraph at lines 935--936
+Underfull \hbox (badness 6047) in paragraph at lines 943--944
 \T1/lmr/m/n/10 (+20) game en-ti-ties, card logic, mini-
  []
 
 
-Underfull \hbox (badness 2165) in paragraph at lines 936--936
+Underfull \hbox (badness 2165) in paragraph at lines 944--944
 \T1/lmr/m/n/10 (+20) re-spon-sive UI, Git/MR re-
  []
 
 [27] [28] [29
 
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 982--982
+Underfull \hbox (badness 10000) in paragraph at lines 990--990
 []\T1/lmr/m/n/10 (+20) Targeted branch cov-er-age (tour-na-
  []
 
@@ -1176,105 +1145,82 @@ Underfull \hbox (badness 10000) in paragraph at lines 982--982
 ] [34
 
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 1194--1194
-[]|\T1/lmtt/m/n/10.95 User\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 UserStat
-s\T1/lmr/m/n/10.95 (+20) ,
+Underfull \hbox (badness 10000) in paragraph at lines 1203--1203
+[]|\T1/lmtt/m/n/10.95 GameHistory\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 G
+ameAction\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1194--1194
-\T1/lmtt/m/n/10.95 PlayerStats\T1/lmr/m/n/10.95 (+20) ,
+Underfull \hbox (badness 10000) in paragraph at lines 1203--1203
+\T1/lmtt/m/n/10.95 GameResult\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 Waiti
+ngRoom\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1196--1196
+Underfull \hbox (badness 10000) in paragraph at lines 1204--1204
 []|\T1/lmtt/m/n/10.95 Tournament\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1196--1196
+Underfull \hbox (badness 10000) in paragraph at lines 1204--1204
 \T1/lmtt/m/n/10.95 TournamentPlayer\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1196--1196
+Underfull \hbox (badness 10000) in paragraph at lines 1204--1204
 \T1/lmtt/m/n/10.95 TournamentRound\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1196--1196
+Underfull \hbox (badness 10000) in paragraph at lines 1204--1204
 \T1/lmtt/m/n/10.95 TournamentTable\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1197--1197
+Underfull \hbox (badness 10000) in paragraph at lines 1205--1205
+[]|\T1/lmr/m/n/10.95 (+20) Wallet and re-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1205--1205
 []|\T1/lmtt/m/n/10.95 WalletLedgerEntry\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1197--1197
+Underfull \hbox (badness 10000) in paragraph at lines 1205--1205
 \T1/lmtt/m/n/10.95 TournamentRewardLedger\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1198--1198
-[]|\T1/lmtt/m/n/10.95 Friendship\T1/lmr/m/n/10.95 (+20) ,
+Underfull \hbox (badness 10000) in paragraph at lines 1206--1206
+[]|\T1/lmtt/m/n/10.95 Friendship\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 Fr
+iendRequest\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1198--1198
-\T1/lmtt/m/n/10.95 FriendRequest\T1/lmr/m/n/10.95 (+20) ,
+Underfull \hbox (badness 1742) in paragraph at lines 1206--1206
+\T1/lmtt/m/n/10.95 FriendMessage\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 Lo
+anRequest\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1198--1198
-\T1/lmtt/m/n/10.95 FriendMessage\T1/lmr/m/n/10.95 (+20) ,
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 1198--1198
-\T1/lmtt/m/n/10.95 LoanRequest\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 Loan
-\T1/lmr/m/n/10.95 (+20) ,
- []
-
-
-Underfull \hbox (badness 2012) in paragraph at lines 1198--1199
-\T1/lmr/m/n/10.95 (+20) through ex-plicit join ta-bles and
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 1199--1199
+Underfull \hbox (badness 10000) in paragraph at lines 1207--1207
 []|\T1/lmtt/m/n/10.95 BlackjackRoom\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1199--1199
+Underfull \hbox (badness 10000) in paragraph at lines 1207--1207
 \T1/lmtt/m/n/10.95 BlackjackRoomSeat\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1199--1199
+Underfull \hbox (badness 10000) in paragraph at lines 1207--1207
 \T1/lmtt/m/n/10.95 BlackjackRoomSnapshot\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1200--1200
-[]|\T1/lmtt/m/n/10.95 HiddenBetTicket\T1/lmr/m/n/10.95 (+20) ,
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 1200--1200
-\T1/lmtt/m/n/10.95 HiddenBetSelection\T1/lmr/m/n/10.95 (+20) ,
- []
-
-
-Overfull \hbox (1.33803pt too wide) in paragraph at lines 1200--1200
-\T1/lmtt/m/n/10.95 HiddenBetHandResolution| 
- []
-
-
-Underfull \hbox (badness 1412) in paragraph at lines 1200--1201
-[]|\T1/lmr/m/n/10.95 (+20) A ticket be-longs to a user and
+Underfull \hbox (badness 1147) in paragraph at lines 1208--1209
+\T1/lmr/m/n/10.95 (+20) game/hand, with child se-lec-tion
  []
 
 
@@ -1284,113 +1230,58 @@ ignored: Infinite glue shrinkage found in box being split [35
 
 ] [38
 
-]
-Overfull \hbox (144.7102pt too wide) in paragraph at lines 1275--1276
-\T1/lmr/m/n/10.95 (-20) For re-vealed op-po-nent holes, \T1/lmtt/m/n/10.95 expe
-rtOracleDecision \T1/lmr/m/n/10.95 (-20) com-putes hero strength $\OML/lmm/m/it
-/10.95 ^^[[] \OT1/lmr/m/n/10.95 (-20) = []([]\OML/lmm/m/it/10.95 ; []\OT1/lmr/m
-/n/10.95 (-20) )$
- []
-
-[39] [40]
-Overfull \hbox (24.46889pt too wide) in paragraph at lines 1298--1299
-[]\T1/lmr/m/n/10.95 (-20) Builds the re-main-ing deck ex-clud-ing known hero an
-d com-mu-nity cards (\T1/lmtt/m/n/10.95 buildDeckExcluding\T1/lmr/m/n/10.95 (-2
-0) ). 
+] [39] [40]
+Underfull \hbox (badness 6125) in paragraph at lines 1310--1311
+[]\T1/lmr/m/n/10.95 (+20) Builds the re-main-ing deck ex-clud-ing hero and com-
+mu-nity cards (helper
  []
 
 [41
 
 ] [42] [43]
-Overfull \hbox (80.91992pt too wide) in paragraph at lines 1382--1383
-\T1/lmr/m/n/10.95 (-20) Live mar-kets use tab-u-lated dec-i-mal odds keyed by t
-a-ble pa-ram-e-ters. For in-stance, $\T1/lmtt/m/n/10.95 oddsPlayerWinsCurrentHa
-nd$
+Underfull \hbox (badness 10000) in paragraph at lines 1394--1395
+\T1/lmtt/m/n/10.95 oddsPlayerWinsCurrentHand$
  []
 
 [44
 
 ] [45
 
-] [46] [47]
-Overfull \hbox (7.38348pt too wide) in paragraph at lines 1595--1595
-[]    \T1/lmtt/m/n/10.95 const sharePerWinner = Math.floor(pot.amount / pot.eli
-gibleWinners.length)[] 
- []
-
-[48]
-Overfull \hbox (1.63475pt too wide) in paragraph at lines 1595--1595
-[]      \T1/lmtt/m/n/10.95 distribution[winnerId] = (distribution[winnerId] ?? 
-0) + sharePerWinner[] 
+] [46] [47] [48]
+Underfull \hbox (badness 5533) in paragraph at lines 1628--1629
+[]\T1/lmr/bx/n/10 (+20) Persistence \T1/lmr/m/n/10 (+20) --- Prisma mod-els \T1
+/lmtt/m/n/10 Tournament\T1/lmr/m/n/10 (+20) , \T1/lmtt/m/n/10 TournamentPlayer\
+T1/lmr/m/n/10 (+20) , \T1/lmtt/m/n/10 TournamentRound\T1/lmr/m/n/10 (+20) ,
  []
 
 
-Overfull \hbox (70.57886pt too wide) in paragraph at lines 1615--1616
-\T1/lmr/m/n/10.95 (-20) crete \T1/lmtt/m/n/10.95 GameTable \T1/lmr/m/n/10.95 (-
-20) in-stances through $\T1/lmtt/m/n/10.95 tournamentTableFactory . ts$\T1/lmr/
-m/n/10.95 (-20) , emits \T1/lmtt/m/n/10.95 TOURNAMENT_TABLE_ASSIGNED
- []
-
-
-Overfull \hbox (96.82083pt too wide) in paragraph at lines 1615--1616
-\T1/lmr/m/n/10.95 (-20) to per-user rooms, records elim-i-na-tions when bust-ou
-t events ar-rive ($\T1/lmtt/m/n/10.95 recordTournamentEliminationsIfAny$\T1/lmr
-/m/n/10.95 (-20) ),
- []
-
-
-Overfull \hbox (81.55453pt too wide) in paragraph at lines 1615--1616
-\T1/lmr/m/n/10.95 (-20) and ad-vances the state ma-chine (\T1/lmtt/m/n/10.95 pe
-nding_other_tables\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 next_round_spawn
-ed\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 tournament_complete\T1/lmr/m/n/1
-0.95 (-20) ). 
+Underfull \hbox (badness 2635) in paragraph at lines 1633--1634
+[]\T1/lmr/m/n/10 (+20) Emits \T1/lmtt/m/n/10 TOURNAMENT_TABLE_ASSIGNED \T1/lmr/
+m/n/10 (+20) to per-user rooms; records elim-i-na-tions on
  []
 
 [49]
-Overfull \hbox (10.9218pt too wide) in paragraph at lines 1628--1630
-\T1/lmr/m/n/10.95 (-20) with the re-main-der dis-tributed one seat at a time (s
-ee im-ple-men-ta-tion). $\T1/lmtt/m/n/10.95 assertTableSizesValid$
+Underfull \hbox (badness 10000) in paragraph at lines 1648--1650
+\T1/lmr/m/n/10.95 (+20) with the re-main-der dis-tributed one seat at a time (s
+ee im-ple-men-ta-tion).
  []
 
 
-Overfull \hbox (2.21297pt too wide) in paragraph at lines 1633--1634
-$\T1/lmtt/m/n/10.95 buildOpeningRound$ \T1/lmr/m/n/10.95 (-20) and $\T1/lmtt/m/
-n/10.95 buildRoundFromSurvivors$ \T1/lmr/m/n/10.95 (-20) in $\T1/lmtt/m/n/10.95
- TournamentBracketBuilder . ts$ \T1/lmr/m/n/10.95 (-20) take
+Underfull \hbox (badness 2277) in paragraph at lines 1661--1662
+[]\T1/lmr/bx/n/10.95 (+20) Validation and dedu-pli-ca-tion\T1/lmr/m/n/10.95 (+2
+0) : Back-end val-i-dates ac-tion le-gal-ity (cor-rect
  []
 
-
-Overfull \hbox (4.70401pt too wide) in paragraph at lines 1641--1642
-\T1/lmr/m/n/10.95 (-20) cient chips, valid amount). Ac-tion dedu-pli-ca-tion ca
-che (com-pos-ite key: \T1/lmtt/m/n/10.95 handId:actionId\T1/lmr/m/n/10.95 (-20)
- )
- []
-
-[50]
-Overfull \hbox (0.44197pt too wide) in paragraph at lines 1649--1650
-[]\T1/lmr/bx/n/10.95 (-20) Final rank-ing\T1/lmr/m/n/10.95 (-20) : When only on
-e player re-mains, the tour-na-ment tran-si-tions to \T1/lmtt/m/n/10.95 COMPLET
-ED\T1/lmr/m/n/10.95 (-20) ,
- []
-
-
-Overfull \hbox (36.91064pt too wide) in paragraph at lines 1656--1657
-\T1/lmr/m/n/10.95 (-20) The com-plete \T1/lmtt/m/n/10.95 GameState \T1/lmr/m/n/
-10.95 (-20) snap-shot is per-sisted to Post-greSQL af-ter \T1/lmr/bx/n/10.95 (-
-20) ev-ery \T1/lmr/m/n/10.95 (-20) ac-tion via $\T1/lmtt/m/n/10.95 pokerStateSt
-ore .
- []
-
-[51] [52] [53
+[50] [51] [52] [53
 
 ]
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <10.95> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 1737.
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 1757.
 
-Overfull \hbox (4.15419pt too wide) in paragraph at lines 1749--1750
- []\T1/lmr/bx/n/10.95 (-20) Tournament rooms (\T1/lmtt/b/n/10.95 tournament:{to
-urnamentId}\T1/lmr/bx/n/10.95 (-20) , \T1/lmtt/b/n/10.95 TOURNAMENT_LOBBY\T1/lm
-r/bx/n/10.95 (-20) ):[] \T1/lmr/m/n/10.95 (-20) Used for bracket
+Underfull \hbox (badness 1460) in paragraph at lines 1769--1770
+ []\T1/lmr/bx/n/10.95 (+20) Tournament rooms (\T1/lmtt/b/n/10.95 tournament:{to
+urnamentId}\T1/lmr/bx/n/10.95 (+20) , \T1/lmtt/b/n/10.95 TOURNAMENT_LOBBY\T1/lm
+r/bx/n/10.95 (+20) ):[] \T1/lmr/m/n/10.95 (+20) Used for
  []
 
 [54] [55] [56] [57] [58
@@ -1398,68 +1289,43 @@ r/bx/n/10.95 (-20) ):[] \T1/lmr/m/n/10.95 (-20) Used for bracket
 ] [59
 
 ]
-Overfull \hbox (71.80376pt too wide) in paragraph at lines 1987--1989
-\T1/lmr/m/n/10.95 (-20) server en-forces caps (\T1/lmtt/m/n/10.95 ROULETTE_MAX_
-BET_CAP\T1/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_TOTAL_STAKE\T1
-/lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_BETS_PER_SPIN\T1/lmr/m/n
-/10.95 (-20) )
+Underfull \hbox (badness 1320) in paragraph at lines 2007--2009
+\T1/lmr/m/n/10.95 (+20) lines; the server en-forces caps (\T1/lmtt/m/n/10.95 RO
+ULETTE_MAX_BET_CAP\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 ROULETTE_MAX_TOT
+AL_STAKE\T1/lmr/m/n/10.95 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 2007--2009
+\T1/lmtt/m/n/10.95 ROULETTE_MAX_BETS_PER_SPIN\T1/lmr/m/n/10.95 (+20) ) be-fore 
+set-tle-ment. Wheel an-i-ma-tion or-der is
  []
 
 [60]
-Overfull \hbox (23.70872pt too wide) in paragraph at lines 2018--2019
-[]\T1/lmr/m/n/10.95 (-20) Roulette bets must re-spect \T1/lmtt/m/n/10.95 ROULET
-TE_MAX_BET_CAP \T1/lmr/m/n/10.95 (-20) per line and \T1/lmtt/m/n/10.95 ROULETTE
-_MAX_TOTAL_STAKE
+Underfull \hbox (badness 10000) in paragraph at lines 2038--2039
+[]\T1/lmr/m/n/10.95 (+20) Roulette bets must re-spect \T1/lmtt/m/n/10.95 ROULET
+TE_MAX_BET_CAP \T1/lmr/m/n/10.95 (+20) per line and
  []
 
-[61]
-Overfull \hbox (1.32727pt too wide) in paragraph at lines 2028--2029
-\T1/lmr/m/n/10.95 (-20) Friends UI: $\T1/lmtt/m/n/10.95 Friends . tsx$\T1/lmr/m
-/n/10.95 (-20) . REST: $\T1/lmtt/m/n/10.95 friends . routes . ts$\T1/lmr/m/n/10
-.95 (-20) ; poker in-vi-ta-tions $\T1/lmtt/m/n/10.95 invitation . routes .
- []
-
-[62
+[61] [62
 
 ] [63
 
-]
-Overfull \hbox (26.78723pt too wide) in paragraph at lines 2068--2069
-$\T1/lmtt/m/n/10.95 10 _ gamification _ moteur . md$ \T1/lmr/m/n/10.95 (-20) (X
-P and badge me-chan-ics). $\T1/lmtt/m/n/10.95 friendLoan . interest . ts$\T1/lm
-r/m/n/10.95 (-20) , $\T1/lmtt/m/n/10.95 friendLoan .
- []
-
-[64
+] [64
 
 ] [65] [66
 
 ]
-Overfull \hbox (92.3528pt too wide) in paragraph at lines 2086--2087
-\T1/lmtt/m/n/10.95 VITE_API_URL \T1/lmr/m/n/10.95 (-20) (over-ride in Git-Lab C
-I/CD vari-ables for behind-nginx paths), \T1/lmtt/m/n/10.95 KUBERNETES_MEMORY_R
-EQUEST\T1/lmr/m/n/10.95 (-20) /\T1/lmtt/m/n/10.95 LIMIT
+Underfull \hbox (badness 10000) in paragraph at lines 2110--2111
+[]\T1/lmr/bx/n/10.95 (+20) Frontend (\T1/lmtt/b/n/10.95 docker:build:client\T1/
+lmr/bx/n/10.95 (+20) ). \T1/lmr/m/n/10.95 (+20) Same $\T1/lmtt/m/n/10.95 Docker
+file$ \T1/lmr/m/n/10.95 (+20) work-flow with
  []
 
 
-Overfull \hbox (36.28065pt too wide) in paragraph at lines 2086--2087
-\T1/lmr/m/n/10.95 (-20) raised to re-duce OOM dur-ing Kaniko layer snap-shots; 
-des-ti-na-tions \T1/lmtt/m/n/10.95 :client-${CI_COMMIT_SHORT_SHA}
- []
-
-
-Overfull \hbox (94.36156pt too wide) in paragraph at lines 2086--2087
-\T1/lmtt/m/n/10.95 ai-[]service$\T1/lmr/m/n/10.95 (-20) , FastAPI stack for the
- op-tional poker pre-dic-tion end-point; des-ti-na-tions \T1/lmtt/m/n/10.95 :ai
--${CI_COMMIT_SHORT_SHA}
- []
-
-
-Overfull \hbox (8.26031pt too wide) in paragraph at lines 2086--2087
-\T1/lmr/m/n/10.95 (-20) and \T1/lmtt/m/n/10.95 :ai-latest\T1/lmr/m/n/10.95 (-20
-) ; \T1/lmr/bx/n/10.95 (-20) only \T1/lmtt/m/n/10.95 release/* \T1/lmr/m/n/10.9
-5 (-20) (com-mented in YAML to spare run-ner disk on \T1/lmtt/m/n/10.95 develop
-\T1/lmr/m/n/10.95 (-20) /\T1/lmtt/m/n/10.95 main\T1/lmr/m/n/10.95 (-20) ).
+Underfull \hbox (badness 6575) in paragraph at lines 2110--2111
+\T1/lmr/m/n/10.95 (+20) build-arg \T1/lmtt/m/n/10.95 VITE_API_URL \T1/lmr/m/n/1
+0.95 (+20) (over-ride in CI/CD when serv-ing be-hind ng-inx).
  []
 
 [67
@@ -1467,71 +1333,60 @@ Overfull \hbox (8.26031pt too wide) in paragraph at lines 2086--2087
 ] [68
 
 ]
-<user-workflow-diagram.png, id=1846, 1027.84pt x 578.16pt>
+<user-workflow-diagram.png, id=1850, 1027.84pt x 578.16pt>
 File: user-workflow-diagram.png Graphic file (type png)
 <use user-workflow-diagram.png>
-Package pdftex.def Info: user-workflow-diagram.png  used on input line 2143.
+Package pdftex.def Info: user-workflow-diagram.png  used on input line 2171.
 (pdftex.def)             Requested size: 418.96548pt x 235.6709pt.
-<screenshot-admin-console.png, id=1855, 1027.84pt x 580.1675pt>
+<screenshot-admin-console.png, id=1859, 1027.84pt x 580.1675pt>
 File: screenshot-admin-console.png Graphic file (type png)
 <use screenshot-admin-console.png>
-Package pdftex.def Info: screenshot-admin-console.png  used on input line 2155.
+Package pdftex.def Info: screenshot-admin-console.png  used on input line 2183.
 
 (pdftex.def)             Requested size: 418.96548pt x 236.4892pt.
  [69
 
 ]
-<screenshot-poker-table.png, id=1868, 1027.84pt x 635.37375pt>
+<screenshot-poker-table.png, id=1871, 1027.84pt x 609.27625pt>
 File: screenshot-poker-table.png Graphic file (type png)
 <use screenshot-poker-table.png>
-Package pdftex.def Info: screenshot-poker-table.png  used on input line 2162.
-(pdftex.def)             Requested size: 418.96548pt x 258.9925pt.
-<screenshot-lobby.png, id=1869, 1027.84pt x 580.1675pt>
+Package pdftex.def Info: screenshot-poker-table.png  used on input line 2190.
+(pdftex.def)             Requested size: 418.96548pt x 248.35457pt.
+<screenshot-lobby.png, id=1872, 1027.84pt x 580.1675pt>
 File: screenshot-lobby.png Graphic file (type png)
 <use screenshot-lobby.png>
-Package pdftex.def Info: screenshot-lobby.png  used on input line 2169.
+Package pdftex.def Info: screenshot-lobby.png  used on input line 2197.
 (pdftex.def)             Requested size: 418.96548pt x 236.4892pt.
-<screenshot-tournament.png, id=1870, 1027.84pt x 902.37125pt>
+<screenshot-tournament.png, id=1873, 1027.84pt x 902.37125pt>
 File: screenshot-tournament.png Graphic file (type png)
 <use screenshot-tournament.png>
-Package pdftex.def Info: screenshot-tournament.png  used on input line 2176.
+Package pdftex.def Info: screenshot-tournament.png  used on input line 2204.
 (pdftex.def)             Requested size: 418.96548pt x 367.82663pt.
-<screenshot-blackjack.png, id=1871, 1027.84pt x 670.505pt>
+<screenshot-blackjack.png, id=1874, 1027.84pt x 670.505pt>
 File: screenshot-blackjack.png Graphic file (type png)
 <use screenshot-blackjack.png>
-Package pdftex.def Info: screenshot-blackjack.png  used on input line 2183.
+Package pdftex.def Info: screenshot-blackjack.png  used on input line 2211.
 (pdftex.def)             Requested size: 418.96548pt x 273.31279pt.
-<screenshot-leaderboard.png, id=1872, 1027.84pt x 580.1675pt>
+<screenshot-leaderboard.png, id=1875, 1027.84pt x 580.1675pt>
 File: screenshot-leaderboard.png Graphic file (type png)
 <use screenshot-leaderboard.png>
-Package pdftex.def Info: screenshot-leaderboard.png  used on input line 2190.
+Package pdftex.def Info: screenshot-leaderboard.png  used on input line 2218.
 (pdftex.def)             Requested size: 418.96548pt x 236.4892pt.
-<screenshot-profile-page.png, id=1873, 1027.84pt x 675.52374pt>
+<screenshot-profile-page.png, id=1876, 1027.84pt x 675.52374pt>
 File: screenshot-profile-page.png Graphic file (type png)
 <use screenshot-profile-page.png>
-Package pdftex.def Info: screenshot-profile-page.png  used on input line 2197.
+Package pdftex.def Info: screenshot-profile-page.png  used on input line 2225.
 (pdftex.def)             Requested size: 418.96548pt x 275.35854pt.
-<screenshot-profile-avatars.png, id=1874, 1027.84pt x 721.69624pt>
+<screenshot-profile-avatars.png, id=1877, 1027.84pt x 721.69624pt>
 File: screenshot-profile-avatars.png Graphic file (type png)
 <use screenshot-profile-avatars.png>
-Package pdftex.def Info: screenshot-profile-avatars.png  used on input line 220
-4.
+Package pdftex.def Info: screenshot-profile-avatars.png  used on input line 223
+2.
 (pdftex.def)             Requested size: 418.96548pt x 294.17947pt.
  [70 <./user-workflow-diagram.png>] [71 <./screenshot-admin-console.png> <./scr
 eenshot-poker-table.png>] [72 <./screenshot-lobby.png>] [73 <./screenshot-tourn
 ament.png>] [74 <./screenshot-blackjack.png> <./screenshot-leaderboard.png>] [7
-5 <./screenshot-profile-page.png> <./screenshot-profile-avatars.png>]
-Overfull \hbox (72.00797pt too wide) in paragraph at lines 2225--2227
-\T1/lmr/m/n/10.95 (-20) May 2026 lo-cal run re-ported $\OT1/lmr/m/n/10.95 (-20)
- ([][]\OML/lmm/m/it/10.95 ; [][]; [][]; [][]\OT1/lmr/m/n/10.95 (-20) ) = (86\OM
-L/lmm/m/it/10.95 :\OT1/lmr/m/n/10.95 (-20) 56%\OML/lmm/m/it/10.95 ; \OT1/lmr/m/
-n/10.95 (-20) 83\OML/lmm/m/it/10.95 :\OT1/lmr/m/n/10.95 (-20) 69%\OML/lmm/m/it/
-10.95 ; \OT1/lmr/m/n/10.95 (-20) 88\OML/lmm/m/it/10.95 :\OT1/lmr/m/n/10.95 (-20
-) 75%\OML/lmm/m/it/10.95 ; \OT1/lmr/m/n/10.95 (-20) 67\OML/lmm/m/it/10.95 :\OT1
-/lmr/m/n/10.95 (-20) 90%)$
- []
-
-[76
+5 <./screenshot-profile-page.png> <./screenshot-profile-avatars.png>] [76
 
 ] [77
 
@@ -1549,13 +1404,13 @@ Package rerunfilecheck Info: File `rapport.out' has not changed.
 (rerunfilecheck)             Checksum: C97CA1E3F6A66EE40087DB6345C00F45;39323.
  ) 
 Here is how much of TeX's memory you used:
- 27764 strings out of 469006
- 512257 string characters out of 5454813
- 940679 words of memory out of 5000000
- 55127 multiletter control sequences out of 15000+600000
- 760644 words of font info for 331 fonts, out of 8000000 for 9000
+ 27785 strings out of 469006
+ 512545 string characters out of 5454813
+ 940818 words of memory out of 5000000
+ 55133 multiletter control sequences out of 15000+600000
+ 761464 words of font info for 338 fonts, out of 8000000 for 9000
  319 hyphenation exceptions out of 8191
- 84i,13n,94p,1428b,942s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 84i,13n,94p,1258b,942s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2026basic/texmf-dist/fonts/type1/public/lm/lmbx10.pfb></u
 sr/local/texlive/2026basic/texmf-dist/fonts/type1/public/lm/lmbx12.pfb></usr/lo
 cal/texlive/2026basic/texmf-dist/fonts/type1/public/lm/lmbx8.pfb></usr/local/te
@@ -1579,10 +1434,10 @@ c/texmf-dist/fonts/type1/public/lm/lmtt10.pfb></usr/local/texlive/2026basic/tex
 mf-dist/fonts/type1/public/lm/lmtt8.pfb></usr/local/texlive/2026basic/texmf-dis
 t/fonts/type1/public/lm/lmtt9.pfb></usr/local/texlive/2026basic/texmf-dist/font
 s/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on rapport.pdf (92 pages, 4002604 bytes).
+Output written on rapport.pdf (92 pages, 4017648 bytes).
 PDF statistics:
- 2186 PDF objects out of 2487 (max. 8388607)
- 2003 compressed objects within 21 object streams
- 445 named destinations out of 1000 (max. 500000)
- 74700 words of extra memory for PDF output out of 89155 (max. 10000000)
+ 2189 PDF objects out of 2487 (max. 8388607)
+ 2006 compressed objects within 21 object streams
+ 448 named destinations out of 1000 (max. 500000)
+ 76748 words of extra memory for PDF output out of 89155 (max. 10000000)
 
