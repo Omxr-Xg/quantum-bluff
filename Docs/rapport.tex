@@ -85,7 +85,7 @@
   % Logos : Quantum Bluff (bord gauche du texte) --- Unistra (bord droit).
   \noindent
   \hbox to \textwidth{%
-    \includegraphics[height=3.0cm,keepaspectratio]{logo_quantum_bluff.png}%
+    \includegraphics[height=3.0cm,keepaspectratio]{app-icon-transparent.png}%
     \hfill
     \includegraphics[height=3.0cm,keepaspectratio]{logo_unistra.png}%
   }
@@ -118,7 +118,7 @@
   \vfill
   {\large\textbf{Academic year 2025--2026}\par}
   \vspace{0.35cm}
-  {\normalsize Document generated: 14 May 2026\par}
+  {\normalsize Document generated: 17 May 2026\par}
 \end{titlepage}
 
 \newpage
@@ -501,12 +501,12 @@ Casino games are separate from the poker state machine but share the wallet ledg
 
 Full algorithmic details, RTP derivations, and per-tier heuristics are provided in Appendix~\ref{app:bots} (Bot AI), Appendix~\ref{app:bj} (blackjack), and Appendix~\ref{app:casino} (slots and roulette).
 
-\subsection{Rewards, Banking, and Transactions}
+\subsection{Rewards, Wallet, and Transactions}
 \label{sec:rewards-banking}
 
 \subsubsection{Scope and architecture}
 
-The rewards and banking system orchestrates chip circulation, XP progression, and peer-to-peer lending across all game modes: poker cash games, casino games, tournaments, and social loans. All transactions are recorded immutably in a \textbf{wallet ledger} (\path{server/src/casino/services/walletLedger.service.ts}) with cryptographic integrity hashing (SHA-256), ensuring forensic auditability and regulatory compliance. The system enforces \textbf{server-side authority}---clients never compute balance changes; they request actions and receive confirmed outcomes via WebSocket. Every chip movement is atomic: ledger entry and balance update commit together via Prisma transactions, or neither commits. See Appendix~\ref{app:rewards} for ledger fields and settlement examples.
+The rewards and banking system orchestrates chip circulation, XP progression, and peer-to-peer lending across all game modes: poker cash games, casino games, tournaments, and social loans. All transactions are recorded immutably in a \textbf{wallet ledger} (\path{server/src/casino/services/walletLedger.service.ts}) with cryptographic integrity hashing (SHA-256), providing audit-style traceability for the virtual economy. The system enforces \textbf{server-side authority}---clients never compute balance changes; they request actions and receive confirmed outcomes via WebSocket. Every chip movement is atomic: ledger entry and balance update commit together via Prisma transactions, or neither commits. See Appendix~\ref{app:rewards} for ledger fields and settlement examples.
 
 \subsubsection{Gamification: XP curves, levels, and badge unlocks}
 
@@ -603,7 +603,7 @@ The root script \texttt{npm run dev} (see \path{package.json}) launches PostgreS
 
 VM-oriented deployment (Node, PostgreSQL, Redis, PM2), environment files, and Electron auto-update mechanics are described in \path{Docs/DEPLOY.md}. The pipeline builds runnable \textbf{container images} on \texttt{develop}, \texttt{main}, and \texttt{release/*} using \textbf{Kaniko}: each job runs \texttt{/kaniko/executor} with \texttt{--context} pointing to \path{server/}, \path{client/}, or (on \texttt{release/*} only) the Python AI bundle under \path{server/ai-service/}, authenticates to the GitLab registry via \texttt{/kaniko/.docker/config.json}, and pushes immutable SHA-tagged images plus rolling \texttt{:latest}, \texttt{:client-latest}, or \texttt{:ai-latest} aliases so the VM can \texttt{docker pull} without rebuilding from source on the host. Reverse-proxy samples appear under \path{nginx/} when applicable. Appendix~\ref{app:ops} links the deployment artefacts.
 
-\subsection{CI/CD pipeline and autonomous VM updates (GitLab Runner Shell mode)}
+\subsection{CI/CD pipeline and VM updates with GitLab Runner Shell mode}
 
 The Quantum Bluff project uses a \textbf{multi-stage GitLab CI pipeline} (\path{.gitlab-ci.yml}) configured for \textbf{five stages}: verify (linting and unit tests), test-security (npm audit and Trivy scanning), build (transpilation), docker-build (Kaniko image construction), and deploy (staging and production). Appendix~\ref{app:ops} records the CI/ops entry points, while Appendix~\ref{app:coverage} defines coverage metrics.
 
@@ -619,9 +619,9 @@ The Quantum Bluff project uses a \textbf{multi-stage GitLab CI pipeline} (\path{
 
 \paragraph{5. Deploy:} \textbf{deploy:staging} automatically runs on \texttt{develop}; \textbf{deploy:production} requires manual approval on \texttt{main}.
 
-\subsubsection{GitLab Runner in Shell mode: the autonomous agent}
+\subsubsection{GitLab Runner in Shell mode: pull-based deployment agent}
 
-The critical breakthrough that makes VM updates \textbf{fully autonomous} is a **GitLab Runner** installed directly on the deployment VM, configured in \textbf{Shell executor mode}. This solves the firewall constraint: the university's strict inbound policy blocks external connections to the VM. The Runner uses a \textbf{pull-based polling mechanism}:
+The key deployment improvement is a \textbf{GitLab Runner} installed directly on the deployment VM, configured in \textbf{Shell executor mode}. This reduces manual deployment work while respecting the firewall constraint: the university's strict inbound policy blocks external connections to the VM. The Runner uses a \textbf{pull-based polling mechanism}:
 
 \begin{enumerate}
 \item \textbf{Polling:} Every 3 seconds, the Runner queries GitLab: "Are there new commits on \texttt{develop} or \texttt{main}?" instead of waiting for GitLab to push notifications inbound.
@@ -636,13 +636,13 @@ When the Runner claims a deploy job, it executes the shell script sequentially:
 \begin{enumerate}
 \item \textbf{Docker authentication:} \texttt{echo "\$CI\_REGISTRY\_PASSWORD" | docker login -u "\$CI\_REGISTRY\_USER" --password-stdin "\$CI\_REGISTRY"} — uses GitLab CI secrets to authenticate to the private registry.
 \item \textbf{Dynamic .env generation:} Reconstructs \texttt{.env} from secure GitLab variables (\texttt{\$JWT\_SECRET}, \texttt{\$DATABASE\_URL}), ensuring secrets never exist in source code.
-\item \textbf{Hot pull and restart:} \texttt{docker compose pull} fetches latest images, then \texttt{docker compose up -d --force-recreate} recreates containers with zero downtime.
+\item \textbf{Hot pull and restart:} \texttt{docker compose pull} fetches latest images, then \texttt{docker compose up -d --force-recreate} recreates containers with reduced manual downtime.
 \item \textbf{Database migrations:} \texttt{npx prisma migrate deploy} applies schema changes automatically inside the backend container.
 \end{enumerate}
 
-\subsubsection{Zero-downtime updates and autonomous operation}
+\subsubsection{Automated updates and reduced manual intervention}
 
-The \texttt{--force-recreate} flag on \texttt{docker compose up} tears down and recreates containers without affecting load balancing or WebSocket connections. The result is \textbf{fully autonomous CI/CD}: every \texttt{git push} to \texttt{develop} automatically stages code within seconds; every merge to \texttt{main} with manual approval deploys to production. The Runner polls for work, retrieves encrypted secrets from GitLab, and applies updates entirely within the VM's local context—no manual SSH, no cron jobs, no webhook proxies. Operational fallbacks and Redis-related constraints are referenced in Appendix~\ref{app:ops}.
+The \texttt{--force-recreate} flag on \texttt{docker compose up} tears down and recreates containers from freshly pulled images. The result is \textbf{automated deployment}: every \texttt{git push} to \texttt{develop} can stage code quickly, while production deployment on \texttt{main} still requires manual approval. The Runner polls for work, retrieves encrypted secrets from GitLab, and applies updates within the VM's local context, reducing the need for manual SSH sessions, cron jobs or webhook proxies. Operational fallbacks and Redis-related constraints are referenced in Appendix~\ref{app:ops}.
 
 \subsubsection{Further reading}
 
@@ -650,7 +650,32 @@ The \texttt{--force-recreate} flag on \texttt{docker compose up} tears down and 
 
 \subsection{Electron and Capacitor artefacts}
 
-The same React UI is built under three Vite modes: default web, \texttt{--mode electron}, and \texttt{--mode capacitor}. \textbf{Electron} (\path{client/electron.cjs}, \path{electron-builder} in \path{client/package.json}) targets \textbf{Windows} (NSIS $\rightarrow$ \texttt{.exe} installer), \textbf{macOS} (\texttt{.dmg} / signed artefacts per builder defaults), and \textbf{Linux} (\texttt{AppImage} and \texttt{.deb} as configured under \texttt{build.linux.target}). Published updates are served from the generic URL declared in \texttt{build.publish} for auto-update (\texttt{electron-updater}). \textbf{Capacitor} wraps the static build for \textbf{iOS} and \textbf{Android}: \texttt{npm run cap:sync} copies web assets into native projects; \texttt{cap:ios} / \texttt{cap:android} open Xcode and Android Studio. Repository scripts \path{scripts/package-ios-rendu.sh} and \path{scripts/package-android-rendu.sh} support course delivery packaging. Appendix~\ref{app:ops} lists the npm entry points.
+Quantum Bluff was designed as a \textbf{multi-platform application} without maintaining separate native clients. The web version remains the reference target; the same React/TypeScript interface is then packaged through \textbf{Electron} for desktop systems and \textbf{Capacitor} for mobile shells. This strategy keeps authentication, lobby, poker tables, tournaments, casino games, friends, profile, rewards and administration screens consistent across environments, while all accounts, chip balances, history and social data remain centralized on the backend.
+
+The same React UI is built under three Vite modes: default web, \texttt{--mode electron}, and \texttt{--mode capacitor}. \textbf{Electron} (\path{client/electron.cjs}, \path{electron-builder} in \path{client/package.json}) targets \textbf{Windows} (NSIS $\rightarrow$ \texttt{.exe} installer), \textbf{macOS} (\texttt{.dmg} / signed artefacts per builder defaults), and \textbf{Linux} (\texttt{AppImage} and \texttt{.deb} as configured under \texttt{build.linux.target}). Published updates are served from the generic URL declared in \texttt{build.publish} for auto-update (\texttt{electron-updater}).
+
+\textbf{Capacitor} wraps the static build for \textbf{iOS} and \textbf{Android} using \path{client/capacitor.config.ts}. \texttt{npm run build:cap} creates the mobile-oriented web build, and \texttt{npm run cap:sync} copies it into the native projects under \path{client/android/} and \path{client/ios/}. Mobile WebViews require extra care around backend URLs, socket origins and CORS because they may run from origins such as \texttt{capacitor://localhost}; the backend therefore includes native WebView origins in its allowed deployment configuration. Repository scripts \path{scripts/package-ios-rendu.sh} and \path{scripts/package-android-rendu.sh} support course delivery packaging.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{2.5cm}p{3.4cm}p{3.2cm}p{4.2cm}@{}}
+\toprule
+Target & Main command & Generated artefact & Main repository files \\
+\midrule
+Web & \texttt{npm run build} & Static Vite build in \path{client/dist/} & \path{client/src/}, \path{client/vite.config.ts} \\
+Windows desktop & \texttt{npm run electron:build:win} & NSIS \texttt{.exe} installer & \path{client/electron.cjs}, \path{client/package.json} \\
+macOS desktop & \texttt{npm run electron:build:mac} & macOS app / \texttt{.dmg} & \path{client/electron.cjs}, \path{client/package.json} \\
+Linux desktop & \texttt{npm run electron:build:linux} & \texttt{AppImage} and \texttt{.deb} & \path{client/electron.cjs}, \path{client/package.json} \\
+Android & \texttt{npm run cap:android} & Android Studio project / APK via Gradle & \path{client/capacitor.config.ts}, \path{client/android/} \\
+iOS & \texttt{npm run cap:ios} & Xcode project / archive & \path{client/capacitor.config.ts}, \path{client/ios/} \\
+\bottomrule
+\end{tabular}
+\caption{Build targets for the web, desktop and mobile versions of Quantum Bluff.}\label{tab:platform-builds}
+\end{table}
+
+The benefit is consistency and maintainability: a poker table fix, tournament UI change or profile improvement is implemented once in the React codebase and then reused across web, desktop and mobile packaging targets. The limitation is release engineering overhead: desktop signing, update publication, Android Studio/Xcode builds, WebView behavior and platform-specific network configuration still require dedicated validation. Appendix~\ref{app:ops} lists the npm entry points.
 
 \section{Security, Testing and Stability}
 \label{sec:security}
@@ -759,6 +784,8 @@ Section~\ref{sec:ai} states how large language models were used as drafting assi
 
 Organizational narrative: Section~\ref{sec:management}. Beyond meetings and backlog arbitration, I coordinated \textbf{cross-cutting technical commitments}: early adoption of Redis for Socket.IO horizontal scale-out and rate limiting, alignment between Prisma schema changes and gameplay features, and risk reviews before widening scope (tournaments, casino mini-games, loans). I also worked with the appointed technical lead to sequence risky merges, such as the socket gateway and recovery jobs, away from demo deadlines.
 
+I also supervised the quality objective around automated test coverage. My role was to keep the backend coverage target as close as possible to the 80\% threshold expected by the project, identify weakly covered modules, and make sure tests were added before final validation. This effort succeeded in bringing the measured server coverage above the required baseline, as reported in Section~\ref{sec:security} and Appendix~\ref{app:coverage}.
+
 \subsection{Massi -- DevOps Infrastructure, Real-Time Networking, and Cross-Platform Delivery}
 
 I contributed to Quantum Bluff by working on DevOps infrastructure, real-time networking, deployment automation and cross-platform delivery. On the networking side, I helped design and stabilize the WebSocket/Socket.IO communication layer used by the poker tables and live gameplay flows. This included reconnection behavior, timeout handling, and client-side socket integration so that short network interruptions would not immediately break the player experience.
@@ -786,7 +813,7 @@ On the frontend side, I worked on the graphic design of several visible elements
 
 Finally, I contributed to several user experience and retention features, such as daily login rewards, the free virtual token recharge system and promotional codes. I also participated in testing, bug fixing and stability improvements before deployment. My work helped strengthen the visual identity of the project while improving the comfort, accessibility and completeness of the final user experience.
 
-\subsection{Linda -- security, real-time features and UI/UX}
+\subsection{Linda -- Security, Real-Time Features and UI/UX}
 
 I had a transversal role across backend integration, real-time features, security hardening and UI/UX. On the backend side, I worked on game routes, blinds configuration, waiting-room fixes, player-state debugging and several security-critical paths: socket authentication, JWT hardening, stronger password rules, suspended-user checks, rate limits, admin route protection and anti-cheat alerts.
 
@@ -808,9 +835,27 @@ I additionally contributed to infrastructure stability and production deployment
 
 Finally, I participated in tournament playtesting sessions under real conditions and contributed to player retention systems such as daily rewards and cooldown mechanisms.
 
-\subsection{Other contributors}
+\subsection{Abdoulaye -- Database Architecture, Backend Integration and Stabilization}
 
-The repository does not contain signed-off, per-person effort logs or story point assignments for every teammate. The table below therefore combines the expanded narratives above with repository ownership notes such as \path{CODEOWNERS}; it should still be countersigned by the team before final submission.
+I mainly contributed to the database architecture, backend integration and cross-platform stabilization of Quantum Bluff. My first responsibilities focused on the design and maintenance of the database layer using PostgreSQL and Prisma ORM. I worked on schema evolution, migrations, indexing and data persistence so that gameplay, social features and user progression could rely on consistent relational data.
+
+I also contributed to the ERD database schema, waiting-room models, friend-system relations, statistics management and game-history structures. Several optimization and integrity tasks were carried out to improve query efficiency and maintain consistency between users, rooms and gameplay records. This work helped keep the persistence layer aligned with the multiplayer logic and the reporting needs of the platform.
+
+I participated in infrastructure and deployment preparation by working on Prisma configuration, Docker database setup, backup scripts and seed generation for development and testing environments. I also contributed to discussions around separating authentication and game databases in order to improve security, maintainability and system resilience.
+
+On the frontend and user-experience side, I contributed to interface flows including login and registration pages, poker table integration, lobby navigation, accessibility settings, audio configuration and table customization. I also participated in usability feedback and testing by identifying UI issues, accessibility limitations and gameplay synchronization problems during multiplayer sessions.
+
+Beyond technical implementation, I regularly contributed to project coordination through task follow-up, documentation updates, reporting and testing organization. I helped monitor stabilization progress during the beta phase and participated in debugging and validation efforts across multiple platforms, including web, Electron and Capacitor builds. Overall, my contribution combined database engineering, backend support, testing, deployment preparation and interface integration to improve the stability and maintainability of the Quantum Bluff platform.
+
+\subsection{Soheil -- Backend Support and Testing}
+
+I contributed to the project mainly through backend support, code review and testing activities. My work focused on helping validate service behavior, checking backend logic during integration phases, and participating in debugging when issues appeared around gameplay flows or API interactions.
+
+I also contributed to the quality assurance effort by reviewing selected backend changes, helping identify regressions, and supporting the team during final stabilization. My contribution was more limited in scope than the main feature owners, but it helped reinforce the reliability of the backend and test validation process before delivery.
+
+\subsection{Contribution summary table}
+
+The table below summarizes the expanded contribution narratives and links them to representative technical areas in the repository.
 
 \begin{table}[htbp]
 \centering
@@ -820,15 +865,15 @@ The repository does not contain signed-off, per-person effort logs or story poin
 Member & Primary areas (self-declared) & Verifiable artefacts (commits, MRs, modules) \\
 \midrule
 Linda & Security, network, deployment safeguards, CI/CD review & See narrative above; security hardening, real-time social features, UI/UX polish and final validation \\
-Abdoulaye & Database modeling, Prisma schema, migrations, SQL/database validation & \path{CODEOWNERS}: database, migrations, SQL, Prisma schema and database test ownership \\
-Soheil & Backend logic, services, tests, poker evaluation support & \path{CODEOWNERS}: backend/API/services ownership; references in evaluator and backend test fixtures \\
+Abdoulaye & Database architecture, Prisma, backend integration, stabilization & See narrative above; schema evolution, migrations, ERD, waiting-room/friend relations, testing, deployment preparation and cross-platform validation \\
+Soheil & Backend support, selected reviews, tests and debugging & See narrative above; backend validation support, regression checks and final stabilization assistance \\
 Mohamed & Technical leadership, multiplayer UX, tournaments, security, deployment & See narrative above; UI finalization, tournament system, anti-cheat/moderation, production VM and CI/CD deployment workflows \\
 Massi & DevOps infrastructure, WebSocket networking, Nginx routing, Docker/CI, Electron packaging & See narrative above; Socket.IO integration, deployment configuration, CI/CD automation, Electron packaging and stabilization work \\
 Azra & Backend modeling, card/game logic, visual design, accessibility, UX features & See narrative above; work around game entities, card logic, mini-game interfaces, accessibility and reward/recharge flows \\
 Yigit & Debugging, QA, tournaments, responsive UI, Git/MR reviews & See narrative above; playtests on \path{client/src/pages/Game.tsx}, \path{client/src/features/tournament/}, mobile layouts and deployment regressions \\
 \bottomrule
 \end{tabular}
-\caption{Individual contributions: expanded statements for Omar, Massi, Yigit, Azra, Linda and Mohamed appear as subsections above; remaining rows are summarized from repository ownership notes and should be countersigned by the team.}\label{tab:contrib}
+\caption{Individual contributions: expanded statements appear as subsections above and are summarized here by primary technical area.}\label{tab:contrib}
 \end{table}
 
 \section{Limitations and Future Work}
@@ -1394,16 +1439,20 @@ export function evaluateHand(sevenCards: Card[]): HandRanking {
   const sortedValues = [...new Set(sevenCards.map(c => c.value))]
     .sort((a, b) => a - b)
   const isStraight = checkConsecutive(sortedValues)
+  const hasQuantumCombi = [3, 5, 6, 7, 10]
+    .every(rank => rankFreq.has(rank))
   if (rankFreq.has(4)) return { name: 'Quads', rank: 8 }
   if (rankFreq.has(3) && rankFreq.has(2))
     return { name: 'Full House', rank: 7 }
-  if (isFlush) return { name: 'Flush', rank: 6 }
-  if (isStraight) return { name: 'Straight', rank: 5 }
+  if (hasQuantumCombi)
+    return { name: 'Quantum Combi', rank: 6 }
+  if (isFlush) return { name: 'Flush', rank: 5 }
+  if (isStraight) return { name: 'Straight', rank: 4 }
   // ... (continues with Three of a kind, Two pair, Pair, High card)
 }
 \end{verbatim}
 
-\noindent This O(n) algorithm runs once per hand showdown. By counting rank frequencies and suit occurrences, it avoids the combinatorial explosion of checking all $\binom{7}{5}=21$ five-card subsets.
+\noindent This O(n) algorithm runs once per hand showdown. By counting rank frequencies and suit occurrences, it avoids the combinatorial explosion of checking all $\binom{7}{5}=21$ five-card subsets. The simplified cascade includes the project-specific \textbf{Quantum Combi} rule in the same position as the implementation narrative: after full house and before flush.
 
 \subsubsection{Algorithm: Action deduplication cache}
 
@@ -1871,7 +1920,7 @@ Every casino outcome (slot spin, roulette pocket, blackjack result) is recorded 
 \item \texttt{createdAt}: ISO timestamp
 \end{itemize}
 
-All ledger updates are wrapped in Prisma transactions; balance updates and ledger inserts occur atomically or not at all. This immutable audit trail enables forensic analysis, chargeback investigation, and regulatory compliance.
+All ledger updates are wrapped in Prisma transactions; balance updates and ledger inserts occur atomically or not at all. This immutable audit trail supports balance debugging, moderation review and audit-style verification inside the virtual-chip economy.
 
 \subsection{Anti-cheat and outcome validation}
 
@@ -1905,7 +1954,7 @@ Shared rules in \path{server/src/logic/gamification.ts} (XP curves, badge trigge
 
 \path{Docs/detail_logique/backend/10_gamification_moteur.md}.
 
-\section{Rewards, Banking, and Transactions}
+\section{Rewards, Wallet, and Transactions}
 \label{app:rewards}
 
 \subsection{Gamification: XP curves, levels, and badge unlocks}
@@ -1996,6 +2045,38 @@ Chip-changing operations use Prisma transactions, wallet ledger entries, idempot
 \item \textbf{Use social features}: the friends page supports requests, messages, invitations and peer-loan interactions.
 \end{enumerate}
 
+\subsection{Mini user workflow diagram}
+\label{subsec:user-workflow-placeholder}
+
+Figure~\ref{fig:user-workflow-placeholder} is reserved for a compact visual summary of the main user journey. It should show the path from authentication to the lobby, then the three principal branches: gameplay, social interaction, and progression/rewards. The purpose of this diagram is not to duplicate the technical architecture, but to give a non-technical reader a quick understanding of how a player moves through Quantum Bluff.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  >=Stealth,
+  wfstep/.style={rectangle, draw=HeadingRule, rounded corners=2mm, align=center, minimum width=2.5cm, minimum height=8mm, fill=blue!5},
+  branch/.style={rectangle, draw=black!55, rounded corners=2mm, align=center, minimum width=2.8cm, minimum height=8mm, fill=gray!8},
+  note/.style={rectangle, draw=orange!70!black, dashed, rounded corners=2mm, align=center, minimum width=9.5cm, minimum height=7mm, fill=orange!6}
+]
+\node[wfstep] (auth) {Login / Register};
+\node[wfstep, right=8mm of auth] (lobby) {Main lobby};
+\node[branch, below left=8mm and 0mm of lobby] (game) {Play\\poker, casino\\tournaments};
+\node[branch, below=8mm of lobby] (social) {Interact\\friends, invites\\loans};
+\node[branch, below right=8mm and 0mm of lobby] (progress) {Progress\\XP, rewards\\leaderboard};
+\node[note, below=10mm of social] (placeholder) {Placeholder: replace or refine with the final rendered user workflow diagram before submission.};
+\draw[->, thick] (auth) -- (lobby);
+\draw[->, thick] (lobby) -- (game);
+\draw[->, thick] (lobby) -- (social);
+\draw[->, thick] (lobby) -- (progress);
+\draw[->, dashed] (game) -- (placeholder);
+\draw[->, dashed] (social) -- (placeholder);
+\draw[->, dashed] (progress) -- (placeholder);
+\end{tikzpicture}
+\caption{Placeholder mini user workflow: authentication, lobby entry, gameplay, social interaction and progression/reward loops.}
+\label{fig:user-workflow-placeholder}
+\end{figure}
+
 \subsection{Admin and support flow}
 
 \begin{itemize}
@@ -2027,7 +2108,7 @@ Bracket helpers (\path{tableSizes.ts}, \path{TournamentBracketBuilder.ts}) sit i
 
 \path{Docs/test_coverage.md}, \path{Docs/TESTING_GUIDE.md}, \path{Docs/RAPPORT_TESTS.md}.
 
-\section{Real-time, security, and implemented solution details}
+\section{Real-time and security details}
 \label{app:rt-security-solutions}
 
 \subsection{Real-time communication details}
@@ -2053,20 +2134,6 @@ The same identity policy applies to WebSockets. \path{server/src/middleware/sock
 Anti-cheat is layered. \path{server/src/middleware/antiCheat.middleware.ts} blocks active bans, records the last observed IP address and delegates suspicious-pattern detection to \path{server/src/services/antiCheat.service.ts}. The service can raise alerts for multi-account patterns and unrealistically fast reactions. At game level, \path{server/src/utils/antiCheat.ts} tracks action bursts and helps refuse excessive gameplay actions.
 
 Operational safeguards complete the baseline: Helmet and CORS allowlists in \path{server/src/index.ts}, segmented rate limits for sensitive endpoints, idempotency middleware for sensitive mutations in \path{server/src/middleware/idempotency.middleware.ts}, separated admin routes, blocked-user filtering, blocked-room warnings and persisted player reports for moderation review.
-
-\subsection{Implemented solution details}
-
-The project is organized into domain modules sharing one runtime architecture: React/TypeScript client, Express REST API, Socket.IO gateway, Prisma/PostgreSQL persistence and Redis coordination. The client renders state and gathers user input; the server validates rules, computes outcomes, applies wallet changes and broadcasts sanitized results.
-
-Poker uses server-side table authority. Actions flow through \path{server/src/poker/services/pokerActionOrchestrator.service.ts} and the gateway; table logic lives under \path{server/src/logic/}. Hidden bets are isolated under \path{server/src/poker/hiddenBets/}, with separate pricing, placement, settlement and ledger logic tied to poker street transitions.
-
-Blackjack, roulette and slots are separated from the poker engine. Blackjack has solo and multiplayer flows under \path{server/src/blackjack/}; roulette and slot logic use dedicated modules and API routes. Outcomes, stake validation, payout calculation and wallet updates remain server-side.
-
-Tournaments separate creation, registration, waiting state, table assignment, progression, elimination, finalization and rewards. Client screens live under \path{client/src/features/tournament/}, while orchestration lives under \path{server/src/tournament/}. Winner side bets are handled by dedicated tournament services so settlement follows the real tournament result.
-
-Social features combine durable REST operations and live Socket.IO updates: friends, invitations, remove friend, block/unblock, reports, chat access, activity status and blocked-user warnings. Progression features such as XP, badges, daily challenges, login streaks, leaderboards, gift codes and recharge flows are separate modules with server-side eligibility and balance validation.
-
-Monetary integrity follows one rule: client balances are display data, while the server and database are the source of truth. Chip-changing operations use server-side settlement, Prisma persistence, ledger-oriented records, idempotency where needed and domain-specific reward or payout services.
 
 \section{External references and compendium}
 \label{app:sources}
