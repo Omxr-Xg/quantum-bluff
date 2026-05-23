@@ -1968,7 +1968,7 @@ export function Lobby() {
           {lobbyMainTab === "blackjack" && (
             <div
               ref={tourRefBlackjack}
-              className="min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto pr-0.5 scrollbar-hide sm:pr-1 lg:flex lg:flex-col lg:gap-6 lg:space-y-0"
+              className="min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto pb-4 pr-0.5 scrollbar-hide sm:pr-1 lg:flex lg:flex-col lg:gap-6 lg:space-y-0"
               style={lobbyAlignmentStyle}
             >
               <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
