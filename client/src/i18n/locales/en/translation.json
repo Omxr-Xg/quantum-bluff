@@ -725,16 +725,16 @@
         "name": "Novice"
       },
       "regular": {
-        "name": "Regular"
+        "name": "Player"
       },
       "rising": {
-        "name": "Rising star"
+        "name": "Bluffer"
       },
       "skilled": {
-        "name": "Skilled"
+        "name": "Strategist"
       },
       "veteran": {
-        "name": "Veteran"
+        "name": "High Roller"
       },
       "expert": {
         "name": "Expert"

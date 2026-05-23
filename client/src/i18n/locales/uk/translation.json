@@ -680,16 +680,16 @@
         "name": "Новачок"
       },
       "regular": {
-        "name": "Звичний"
+        "name": "Гравець"
       },
       "rising": {
-        "name": "Зірка"
+        "name": "Блефер"
       },
       "skilled": {
-        "name": "Досвідчений"
+        "name": "Стратег"
       },
       "veteran": {
-        "name": "Ветеран"
+        "name": "High Roller"
       },
       "expert": {
         "name": "Експерт"

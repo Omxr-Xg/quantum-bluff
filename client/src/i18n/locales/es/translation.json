@@ -678,16 +678,16 @@
         "name": "Novato"
       },
       "regular": {
-        "name": "Regular"
+        "name": "Jugador"
       },
       "rising": {
-        "name": "Estrella"
+        "name": "Faroleador"
       },
       "skilled": {
-        "name": "Hábil"
+        "name": "Estratega"
       },
       "veteran": {
-        "name": "Veterano"
+        "name": "High Roller"
       },
       "expert": {
         "name": "Experto"

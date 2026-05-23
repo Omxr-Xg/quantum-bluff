@@ -8,19 +8,10 @@ import {
   getDailyLoginStatus,
   isDailyLoginError,
 } from './dailyLogin.service.js'
-
-/** Colonne / table absente : migrations Prisma non appliquées sur cette base. */
-function prismaKnownCode(error: unknown): string | null {
-  if (!error || typeof error !== 'object') return null
-  const e = error as { name?: string; code?: string }
-  if (e.name === 'PrismaClientKnownRequestError' && typeof e.code === 'string') {
-    return e.code
-  }
-  return null
-}
+import { prismaKnownRequestCode } from '../utils/prismaKnownRequestCode.js'
 
 function isSchemaOutdatedPrismaError(error: unknown): boolean {
-  const code = prismaKnownCode(error)
+  const code = prismaKnownRequestCode(error)
   // P2022 colonne absente, P2021 table absente, P2010 échec SQL brut (souvent même cause)
   return code === 'P2022' || code === 'P2021' || code === 'P2010'
 }

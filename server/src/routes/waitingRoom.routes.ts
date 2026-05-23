@@ -10,8 +10,12 @@ import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js';
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js';
 import sanitizeHtml from 'sanitize-html';
 import rateLimit from 'express-rate-limit';
+import { prismaKnownRequestCode } from '../utils/prismaKnownRequestCode.js';
 
 const router = express.Router();
+
+/** évite une tempête de logs si la liste des salles est polluée très souvent */
+let warnedMissingUserBlocksTable = false;
 
 /** Partie poker encore présente dans le runtime (cache local). */
 function isAttachedGameLive(gameId: string | null | undefined): boolean {
@@ -29,13 +33,28 @@ async function getBlockedPlayersForViewer(
   const playerIds = players.map((p) => p.userId).filter((id) => id && id !== viewerId)
   if (playerIds.length === 0) return []
 
-  const blocks = await prisma.userBlock.findMany({
-    where: {
-      blockerId: viewerId,
-      blockedId: { in: playerIds },
-    },
-    select: { blockedId: true },
-  })
+  let blocks: { blockedId: string }[]
+  try {
+    blocks = await prisma.userBlock.findMany({
+      where: {
+        blockerId: viewerId,
+        blockedId: { in: playerIds },
+      },
+      select: { blockedId: true },
+    })
+  } catch (e) {
+    if (prismaKnownRequestCode(e) === 'P2021') {
+      if (!warnedMissingUserBlocksTable) {
+        warnedMissingUserBlocksTable = true;
+        console.warn(
+          '[waiting-room] Table `user_blocks` absente — exécutez `cd server && npx prisma migrate deploy`. ' +
+          'Blocages utilisateur ignorés jusqu’à migration.',
+        );
+      }
+      return []
+    }
+    throw e
+  }
   const blockedIds = new Set(blocks.map((b) => b.blockedId))
   return players
     .filter((p) => blockedIds.has(p.userId))
@@ -44,10 +63,25 @@ async function getBlockedPlayersForViewer(
 
 async function getBlockedUserIds(viewerId: string | undefined): Promise<Set<string>> {
   if (!viewerId) return new Set()
-  const blocks = await prisma.userBlock.findMany({
-    where: { blockerId: viewerId },
-    select: { blockedId: true },
-  })
+  let blocks: { blockedId: string }[]
+  try {
+    blocks = await prisma.userBlock.findMany({
+      where: { blockerId: viewerId },
+      select: { blockedId: true },
+    })
+  } catch (e) {
+    if (prismaKnownRequestCode(e) === 'P2021') {
+      if (!warnedMissingUserBlocksTable) {
+        warnedMissingUserBlocksTable = true;
+        console.warn(
+          '[waiting-room] Table `user_blocks` absente — exécutez `cd server && npx prisma migrate deploy`. ' +
+          'Blocages utilisateur ignorés jusqu’à migration.',
+        );
+      }
+      return new Set()
+    }
+    throw e
+  }
   return new Set(blocks.map((block) => block.blockedId))
 }
 

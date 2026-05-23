@@ -1079,14 +1079,14 @@ Level 99: 482,550 XP (max level)
 | Badge | Level Required | Description |
 |-------|--------------|-------------|
 | Novice | 2 | New player |
-| Regular | 3 | Regular player |
-| Rising | 5 | Rising star |
-| Skilled | 7 | Skilled player |
-| Veteran | 10 | Veteran |
-| Expert | 12 | Expert |
-| Elite | 15 | Elite |
-| Master | 18 | Master |
-| Champion | 22 | Champion |
+| Player | 3 | Regular at the tables |
+| Bluffer | 5 | Bluffing mindset |
+| Strategist | 7 | Tactical play |
+| High Roller | 10 | Big-stakes flair |
+| Expert | 12 | Expert skill |
+| Elite | 15 | Elite tier |
+| Master | 18 | Full mastery |
+| Champion | 22 | Champion status |
 | Legend | 25 | Legendary |
 
 **Auto-Unlock**
@@ -1579,12 +1579,12 @@ Tournaments (20%): 2000 chips → 2-4 tournaments @ 500-1000
 
 | Level | Milestone | Badges |
 |--------|-----------|--------|
-| Lvl 1-3 | First 100 hands poker | Novice → Regular |
-| Lvl 5 | First big win casino | Rising |
-| Lvl 10 | First tournament cash | Veteran |
+| Lvl 1-3 | First 100 hands poker | Novice → Player |
+| Lvl 5 | First big win casino | Bluffer |
+| Lvl 10 | First tournament cash | High Roller |
 | Lvl 15 | 1000 total XP | Elite |
 | Lvl 25 | 5000 total XP | Legend |
-| Lvl 50 | 50,000 total XP | Master (variant) |
+| Lvl 50 | 50,000 total XP | XP climb continues (bet caps rise) |
 
 ---
 

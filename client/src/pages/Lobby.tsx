@@ -884,11 +884,14 @@ export function Lobby() {
 
       <div className="relative z-10 w-full min-w-0">
 
-        {/* HEADER - FIX MOBILE (sm breakpoint) */}
-        <div className="mb-10 flex w-full flex-col items-center justify-between gap-4 overflow-visible sm:flex-row sm:gap-6">
+        {/* HEADER — min-height fixe pour éviter saut de layout au changement d’onglet */}
+        <div className="mb-10 flex min-h-[5.25rem] w-full flex-col items-center justify-between gap-4 overflow-visible sm:min-h-[5.75rem] sm:flex-row sm:gap-6">
 
           {/* Côté Gauche (Logo + Titre) */}
-          <div ref={tourRefHeader} className="flex w-full shrink-0 items-center gap-3 sm:gap-4 sm:w-auto">
+          <div
+            ref={tourRefHeader}
+            className="flex min-h-[4.75rem] w-full shrink-0 items-center gap-3 sm:min-h-[5rem] sm:gap-4 sm:w-auto sm:justify-start md:min-h-[5.25rem]"
+          >
             <img
               src={lobbyHeaderIcon}
               alt="Quantum Bluff"
@@ -896,7 +899,7 @@ export function Lobby() {
             />
             <div className="flex-1 min-w-0">
               <h1
-                className={`truncate text-2xl font-bold transition-colors duration-700 md:text-4xl ${
+                className={`min-h-[2.25rem] truncate text-2xl font-bold leading-tight transition-[background-image,color] duration-300 md:min-h-[2.75rem] md:text-4xl ${
                   lobbyMainTab === "poker"
                     ? "bg-gradient-to-r from-slate-100 via-blue-200 to-cyan-200 bg-clip-text text-transparent"
                     : lobbyMainTab === "minigames"
@@ -907,8 +910,9 @@ export function Lobby() {
                 {t('lobby.title')}
               </h1>
               {/* Slogan : juste sous le titre (visible sur >=sm).
-               * Point final retire ici uniquement pour un rendu en-tete plus aere. */}
-              <p className="mt-0.5 hidden truncate text-[0.7rem] font-light italic tracking-[0.16em] text-cyan-200/70 sm:block md:text-xs md:tracking-[0.18em]">
+               * Point final retire ici uniquement pour un rendu en-tete plus aere.
+               * min-height réserve toujours la ligne même si la couleur dépend peu du tab */}
+              <p className="mt-0.5 hidden min-h-[1.125rem] truncate text-[0.7rem] font-light italic tracking-[0.16em] text-cyan-200/70 opacity-95 sm:block md:text-xs md:tracking-[0.18em]">
                 {t('app.slogan').replace(/[.\u06D4\u3002]+$/u, '')}
               </p>
             </div>
@@ -1543,7 +1547,7 @@ export function Lobby() {
           <div className="md:col-span-2 lg:col-span-1 space-y-6 lg:flex lg:min-h-0 lg:flex-col lg:space-y-0 lg:gap-4">
             <nav
               ref={lobbyTabsRef}
-              className={`flex w-full overflow-x-auto scrollbar-hide gap-1.5 rounded-2xl border p-1.5 shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-700 md:gap-2 md:p-2 ${
+              className={`flex h-14 w-full shrink-0 items-stretch gap-1.5 overflow-x-auto rounded-2xl border p-1.5 scrollbar-hide shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-300 md:h-[4.25rem] md:gap-2 md:p-2 ${
                 lobbyMainTab === "poker"
                   ? "border-white/10 bg-slate-950/55"
                   : lobbyMainTab === "minigames"
@@ -1558,60 +1562,60 @@ export function Lobby() {
                 role="tab"
                 aria-selected={lobbyMainTab === "poker"}
                 onClick={() => setMainTab("poker")}
-                className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
+                className={`relative flex h-full min-w-0 flex-1 flex-row items-center justify-center gap-2 rounded-xl px-2 py-1 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:gap-2.5 sm:px-3 ${
                   lobbyMainTab === "poker"
-                    ? "bg-gradient-to-br from-blue-950/90 via-slate-900/80 to-slate-950/80 text-blue-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_16px_36px_rgba(0,0,0,0.22)] ring-1 ring-blue-300/20"
-                    : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
+                    ? "bg-gradient-to-br from-blue-950/90 via-slate-900/80 to-slate-950/80 text-blue-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-blue-300/22"
+                    : "text-slate-500 ring-1 ring-inset ring-transparent hover:bg-white/[0.06] hover:text-slate-300"
                 }`}
               >
                 <Spade
-                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "poker" ? "text-blue-200 drop-shadow-[0_0_8px_rgba(59,130,246,0.35)]" : ""}`}
+                  className={`h-5 w-5 shrink-0 ${lobbyMainTab === "poker" ? "text-blue-200 drop-shadow-[0_0_8px_rgba(59,130,246,0.35)]" : ""}`}
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">
+                <span className="truncate font-serif text-xs font-bold tracking-wide md:text-sm">
                   {t("lobby.tabPoker")}
                 </span>
               </button>
-              <div className="hidden w-px self-stretch bg-slate-600/40 md:block" aria-hidden />
+              <div className="hidden w-px shrink-0 self-stretch bg-slate-600/40 md:block" aria-hidden />
               <button
                 type="button"
                 role="tab"
                 aria-selected={lobbyMainTab === "blackjack"}
                 onClick={() => setMainTab("blackjack")}
-                className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
+                className={`relative flex h-full min-w-0 flex-1 flex-row items-center justify-center gap-2 rounded-xl px-2 py-1 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:gap-2.5 sm:px-3 ${
                   lobbyMainTab === "blackjack"
-                    ? "bg-gradient-to-br from-rose-900/75 via-rose-950/55 to-slate-950/80 text-rose-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_16px_36px_rgba(0,0,0,0.22)] ring-1 ring-rose-300/20"
-                    : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
+                    ? "bg-gradient-to-br from-rose-900/75 via-rose-950/55 to-slate-950/80 text-rose-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-rose-300/22"
+                    : "text-slate-500 ring-1 ring-inset ring-transparent hover:bg-white/[0.06] hover:text-slate-300"
                 }`}
               >
                 <Club
-                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "blackjack" ? "text-rose-200 drop-shadow-[0_0_10px_rgba(244,63,94,0.35)]" : ""}`}
+                  className={`h-5 w-5 shrink-0 ${lobbyMainTab === "blackjack" ? "text-rose-200 drop-shadow-[0_0_10px_rgba(244,63,94,0.35)]" : ""}`}
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">
+                <span className="truncate font-serif text-xs font-bold tracking-wide md:text-sm">
                   {t("lobby.tabBlackjack")}
                 </span>
               </button>
-              <div className="hidden w-px self-stretch bg-slate-600/40 md:block" aria-hidden />
+              <div className="hidden w-px shrink-0 self-stretch bg-slate-600/40 md:block" aria-hidden />
               <button
                 type="button"
                 role="tab"
                 aria-selected={lobbyMainTab === "minigames"}
                 onClick={() => setMainTab("minigames")}
-                className={`relative flex min-h-[3rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-500 md:min-h-0 md:flex-row md:gap-2 md:py-3 ${
+                className={`relative flex h-full min-w-0 flex-1 flex-row items-center justify-center gap-2 rounded-xl px-2 py-1 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:gap-2.5 sm:px-3 ${
                   lobbyMainTab === "minigames"
-                    ? "bg-gradient-to-br from-emerald-800/45 via-emerald-950/45 to-slate-950/80 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_16px_36px_rgba(0,0,0,0.22)] ring-1 ring-emerald-300/20"
-                    : "text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
+                    ? "bg-gradient-to-br from-emerald-800/45 via-emerald-950/45 to-slate-950/80 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-emerald-300/22"
+                    : "text-slate-500 ring-1 ring-inset ring-transparent hover:bg-white/[0.06] hover:text-slate-300"
                 }`}
               >
                 <Sparkles
-                  className={`h-5 w-5 shrink-0 md:h-6 md:w-6 ${lobbyMainTab === "minigames" ? "text-emerald-200 drop-shadow-[0_0_10px_rgba(16,185,129,0.35)]" : ""}`}
+                  className={`h-5 w-5 shrink-0 ${lobbyMainTab === "minigames" ? "text-emerald-200 drop-shadow-[0_0_10px_rgba(16,185,129,0.35)]" : ""}`}
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="font-serif text-xs font-bold tracking-wide md:text-sm">
+                <span className="truncate font-serif text-xs font-bold tracking-wide md:text-sm">
                   {t("lobby.tabMinigames")}
                 </span>
               </button>
@@ -1919,7 +1923,10 @@ export function Lobby() {
 
           {/* Onglet Mini-jeux - CONDITIONAL RENDER */}
           {lobbyMainTab === "minigames" && (
-            <div ref={tourRefMinigames} className="flex w-full flex-col gap-5">
+            <div
+              ref={tourRefMinigames}
+              className="flex min-h-0 flex-1 flex-col gap-5 overflow-x-hidden overflow-y-auto pr-0.5 scrollbar-hide sm:pr-1"
+            >
               <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
                 <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
                   <Disc className="h-8 w-8 shrink-0 text-emerald-300" strokeWidth={2.2} aria-hidden />
@@ -1961,7 +1968,7 @@ export function Lobby() {
           {lobbyMainTab === "blackjack" && (
             <div
               ref={tourRefBlackjack}
-              className="space-y-6 lg:flex lg:flex-col lg:space-y-0 lg:gap-6"
+              className="min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto pr-0.5 scrollbar-hide sm:pr-1 lg:flex lg:flex-col lg:gap-6 lg:space-y-0"
               style={lobbyAlignmentStyle}
             >
               <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">

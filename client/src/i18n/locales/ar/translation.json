@@ -682,16 +682,16 @@
         "name": "مبتدئ"
       },
       "regular": {
-        "name": "منتظم"
+        "name": "لاعب"
       },
       "rising": {
-        "name": "نجم صاعد"
+        "name": "ماكر"
       },
       "skilled": {
-        "name": "ماهر"
+        "name": "استراتيجي"
       },
       "veteran": {
-        "name": "محارب قديم"
+        "name": "High Roller"
       },
       "expert": {
         "name": "خبير"

@@ -1080,15 +1080,15 @@ Niveau 99: 482,550 XP (max level)
 | Badge | Niveau Requis | Description |
 |-------|--------------|-------------|
 | Novice | 2 | Nouveau joueur |
-| Regular | 3 | Régulier |
-| Rising | 5 | En montée |
-| Skilled | 7 | Compétent |
-| Veteran | 10 | Vétéran |
-| Expert | 12 | Expert |
-| Elite | 15 | Élite |
-| Master | 18 | Maître |
-| Champion | 22 | Champion |
-| Legend | 25 | Légendaire |
+| Joueur | 3 | Habitué des tables |
+| Bluffeur | 5 | Sens du jeu et du faux jet |
+| Stratège | 7 | Lecture de table |
+| High Roller | 10 | Style grosses enjeux |
+| Expert | 12 | Maîtrise avancée |
+| Élite | 15 | Rang d’élite |
+| Maître | 18 | Maîtrise complète |
+| Champion | 22 | Réussite de haut niveau |
+| Légende | 25 | Statut mythique |
 
 **Déblocage Automatique**
 - Atteindre seuil niveau → badge instantanément added
@@ -1580,12 +1580,12 @@ Tournaments (20%): 2000 jetons → 2-4 tournois @ 500-1000
 
 | Niveau | Milestone | Badges |
 |--------|-----------|--------|
-| Lvl 1-3 | First 100 hands poker | Novice → Regular |
-| Lvl 5 | First big win casino | Rising |
-| Lvl 10 | First tournament cash | Veteran |
-| Lvl 15 | 1000 total XP | Elite |
-| Lvl 25 | 5000 total XP | Legend |
-| Lvl 50 | 50,000 total XP | Master (variant) |
+| Lvl 1-3 | First 100 hands poker | Novice → Joueur |
+| Lvl 5 | First big win casino | Bluffeur |
+| Lvl 10 | First tournament cash | High Roller |
+| Lvl 15 | 1000 total XP | Élite |
+| Lvl 25 | 5000 total XP | Légende |
+| Lvl 50 | 50,000 XP cumulée | Progression XP (plafonds casino montent encore) |
 
 ---
 
