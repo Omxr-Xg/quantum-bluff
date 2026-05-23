@@ -108,7 +108,8 @@ export function PlayingCard({
   className?: string;
   style?: CSSProperties;
 }) {
-  const responsiveClasses = `!w-[min(3.3rem,16vw)] sm:!w-[min(4rem,20vw)] !h-auto aspect-[63/88] shrink-0 ${className}`;
+  /** Téléphone : ~2× l’ancienne taille (`3.3rem`/16vw) ; à partir de `md`, taille table classique. */
+  const responsiveClasses = `!w-[min(6.65rem,min(42vw,10rem))] !h-auto aspect-[63/88] shrink-0 md:!w-[min(4.35rem,22vw)] lg:!w-[min(4.15rem,20vw)] ${className}`;
 
   if (hidden || !card || card.suit === "?" || card.rank === "?") {
     return (
@@ -160,11 +161,14 @@ export function BlackjackMultiCasinoTable({
   userId,
   playerEffectiveMaxBet,
   children,
+  rootClassName = "",
 }: {
   state: BjTableState;
   userId: string | null;
   playerEffectiveMaxBet: number;
   children: ReactNode;
+  /** Ex. flex-1 min-h-0 pour remplir la colonne jeu sur la page table. */
+  rootClassName?: string;
 }) {
   const { t } = useTranslation();
   const { feltGradient, feltBorder, feltBackgroundUrl } = useTableTheme();
@@ -176,13 +180,21 @@ export function BlackjackMultiCasinoTable({
     const updateScale = () => {
       if (timeout !== undefined) clearTimeout(timeout);
       timeout = setTimeout(() => {
-        const availableWidth = Math.max(320, window.innerWidth - 32);
-        const availableHeight = Math.max(360, window.innerHeight - 190);
-        const baseSceneWidth = 920;
-        const baseSceneHeight = 720;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        /** Plus d’espace utile sur petit écran (barre jeu + safe area déjà dans pt du shell). */
+        const headerReserve = w < 640 ? 118 : w < 900 ? 150 : 190;
+        const availableWidth = Math.max(280, w - 16);
+        const availableHeight = Math.max(300, h - headerReserve);
+        /** Scène de référence plus petite sur téléphone → scale plus grand = table plus lisible. */
+        /** Aligné avec le tapis en ~92dvh : base plus haute → moins de downscale parasite. */
+        const narrowPhone = w < 480;
+        const isPhoneWidth = w < 640;
+        const baseSceneWidth = narrowPhone ? 700 : isPhoneWidth ? 820 : 980;
+        const baseSceneHeight = narrowPhone ? 680 : isPhoneWidth ? 760 : 880;
         const widthScale = availableWidth / baseSceneWidth;
         const heightScale = availableHeight / baseSceneHeight;
-        const newScale = Math.max(0.52, Math.min(1, widthScale, heightScale));
+        const newScale = Math.max(0.52, Math.min(1.05, widthScale, heightScale));
 
         /** Chrome : zoom réduit la boîte ; Safari/WebKit : transform:scale() ne la réduit pas → débordement. */
         const zoomSupported = (() => {
@@ -199,10 +211,12 @@ export function BlackjackMultiCasinoTable({
         if (zoomSupported) {
           setContainerStyle({ zoom: newScale });
         } else {
-          // Safari/WebKit: fallback équivalent à zoom via transform.
+          /** Compense partiellement l’espace vertical « perdu » sous scale (WebKit mobile). */
+          const spacerBottom = `${Math.max(0, Math.round((baseSceneHeight - availableHeight / newScale) * 0.32))}px`;
           setContainerStyle({
             transform: `scale(${newScale})`,
             transformOrigin: "top center",
+            marginBottom: spacerBottom,
           });
         }
       }, 100);
@@ -225,13 +239,13 @@ export function BlackjackMultiCasinoTable({
   const dealerTot = dealerDisplayTotal(state.dealerCards, state.dealerHoleHidden);
 
   return (
-    <div className="relative w-full overflow-x-hidden">
+    <div className={`relative flex min-h-0 w-full flex-1 flex-col overflow-x-hidden ${rootClassName}`}>
       <div 
-        className="mx-auto w-[min(100%,54rem)] min-w-0 px-3 pb-6 sm:px-4"
+        className="mx-auto w-full min-h-0 min-w-0 max-w-none flex-1 px-1 pb-3 sm:px-3 sm:pb-6 md:px-4 md:pb-8"
         style={containerStyle}
       >
         <div
-          className="relative overflow-hidden rounded-[2.4rem] border-[10px] p-2 shadow-[0_32px_80px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.08)] sm:rounded-[3rem] sm:border-[12px] sm:p-3"
+          className="relative overflow-hidden rounded-[2rem] border-[clamp(8px,2.2vw,10px)] p-1.5 shadow-[0_32px_80px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.08)] sm:rounded-[3rem] sm:border-[12px] sm:p-3"
           style={{
             background:
               "linear-gradient(145deg, rgba(2,6,23,0.98) 0%, rgba(12,18,32,0.98) 45%, rgba(50,35,15,0.94) 100%)",
@@ -239,7 +253,7 @@ export function BlackjackMultiCasinoTable({
           }}
         >
             <div
-              className="relative h-[clamp(28rem,min(82dvh,92svh),40rem)] overflow-hidden rounded-[2rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_110px_rgba(0,0,0,0.38),inset_0_12px_32px_rgba(255,255,255,0.045)] sm:h-[clamp(24rem,60dvh,34rem)] sm:rounded-[2.5rem] lg:h-[clamp(23rem,56dvh,32rem)] xl:h-[clamp(24rem,60dvh,34rem)] [@media_(min-width:1024px)_and_(max-height:820px)]:h-[clamp(21rem,52dvh,29rem)]"
+              className="relative h-[max(26rem,min(94dvh,96svh,calc(100dvh-10rem)))] min-h-[26rem] overflow-hidden rounded-[2rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_110px_rgba(0,0,0,0.38),inset_0_12px_32px_rgba(255,255,255,0.045)] sm:rounded-[2.5rem] [@media_(min-width:1024px)_and_(max-height:820px)]:h-[max(24rem,min(88dvh,calc(100dvh-9rem)))]"
             style={{
               backgroundImage: `
                 radial-gradient(ellipse 115% 78% at 50% 18%, rgba(255,255,255,0.08) 0%, transparent 50%),
@@ -364,7 +378,7 @@ export function BlackjackMultiCasinoTable({
                 return (
                   <div
                     key={s.userId}
-                    className={`flex min-w-[126px] max-w-[188px] flex-1 flex-col items-center snap-center sm:min-w-[160px] ${
+                    className={`flex min-w-[min(154px,44vw)] max-w-[188px] flex-1 flex-col items-center snap-center sm:min-w-[160px] ${
                       turn ? "z-20" : "z-10 opacity-95"
                     }`}
                     style={{
