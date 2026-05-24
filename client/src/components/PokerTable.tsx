@@ -189,48 +189,50 @@ export function PokerTable({
           </div>
 
           {/* Community cards */}
-          <div className={`absolute z-10 ${(isMobile || isTabletPortrait) ? 'top-[44%]' : 'top-[23%]'} left-1/2 -translate-x-1/2 flex justify-center`}>
+          <div className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 justify-center">
             {children}
           </div>
 
-          {/* Cartes brûlées */}
-          {burnedCardsCount > 0 && (
-            <div
-              className={`pointer-events-none absolute z-10 ${
-                isMobile || isTabletPortrait
-                  ? "bottom-[13%] left-[5%] right-auto top-auto flex flex-col items-start"
-                  : "right-[2%] top-[15%]"
-              }`}
-              title={t("game.burned")}
-              aria-label={t("game.burnedCount", { count: burnedCardsCount })}
-            >
-              <div className="relative">
-                <div className="absolute -inset-2 rounded-xl bg-black/20 blur-md" />
-                <div className="relative flex -space-x-2">
-                  {Array.from({ length: Math.min(burnedCardsCount, 4) }).map(
-                    (_, i) => (
-                      <PokerCard
-                        key={i}
-                        suit="spades"
-                        value="A"
-                        size={isMobile ? "xs" : "sm"}
-                        faceDown
-                        className={`shadow-xl border border-white/10 ${
-                          i % 2 === 0 ? "-rotate-6" : "rotate-3"
-                        }`}
-                      />
-                    )
-                  )}
-                </div>
-                <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-300/30 bg-black/45 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200/90">
-                  <span>{t("game.burned")}</span>
-                  <span>({burnedCardsCount})</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
         {/* ─── FIN TABLE ───────────────────────────────────────────────────── */}
+
+        {/* Cartes brûlées — hors du masque de table, affichées comme un petit paquet. */}
+        {burnedCardsCount > 0 && (
+          <div
+            className={`pointer-events-none absolute z-30 ${
+              isMobile || isTabletPortrait
+                ? "left-[7%] top-[36%]"
+                : "right-[8%] top-[39%]"
+            }`}
+            title={t("game.burned")}
+            aria-label={t("game.burnedCount", { count: burnedCardsCount })}
+          >
+            <div className="relative h-12 w-11 sm:h-14 sm:w-12">
+              <div className="absolute -inset-3 rounded-2xl bg-black/25 blur-md" />
+              {Array.from({ length: Math.min(burnedCardsCount, 3) }).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute left-1/2 top-1/2"
+                  style={{
+                    transform: `translate(-50%, -50%) translate(${i * 3}px, ${i * -3}px) rotate(${-10 + i * 6}deg)`,
+                    zIndex: i,
+                  }}
+                >
+                  <PokerCard
+                    suit="spades"
+                    value="A"
+                    size={isMobile ? "xs" : "sm"}
+                    faceDown
+                    className="border border-white/10 shadow-xl"
+                  />
+                </div>
+              ))}
+              <div className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-300/20 bg-slate-950/85 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-100/85 shadow-lg">
+                {t("game.burned")}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ─── PLAYERS ─────────────────────────────────────────────────────── */}
         {/*  Positionné en absolute sur le même wrapper que la table           */}
@@ -269,16 +271,16 @@ export function PokerTable({
             const timerProgress = (timerLeft / timerDuration) * 100;
             const timerArcLength = 100;
             const timerArcOffset = timerArcLength - timerProgress;
-            const showHeroTimer =
-              isHeroDisplay && heroTimerActive && heroTimerTimeLeft != null;
-            /** Héros (vous / siège héros) : inchangé. Adversaires & bots : ×1,5 vs taille précédente. */
+            const showSeatTimer =
+              player.isActive && heroTimerActive && heroTimerTimeLeft != null && !player.hasFolded;
+            /** Avatars compacts : proches de l'ancien rendu, sans couvrir trop de table. */
             const avatarSizeClass = isHeroDisplay
-              ? "w-[clamp(4.65rem,10.5vw,6.9rem)] h-[clamp(4.65rem,10.5vw,6.9rem)]"
+              ? "w-[clamp(4rem,8.5vw,5.7rem)] h-[clamp(4rem,8.5vw,5.7rem)]"
               : isMobile
-                ? "w-[clamp(4.5rem,11.25vw,6.3rem)] h-[clamp(4.5rem,11.25vw,6.3rem)]"
+                ? "w-[clamp(3.1rem,8vw,4.35rem)] h-[clamp(3.1rem,8vw,4.35rem)]"
                 : isTablet
-                  ? "w-[clamp(4.95rem,9vw,6.975rem)] h-[clamp(4.95rem,9vw,6.975rem)]"
-                  : "w-[clamp(5.85rem,11.25vw,8.4375rem)] h-[clamp(5.85rem,11.25vw,8.4375rem)]";
+                  ? "w-[clamp(3.4rem,6.2vw,4.75rem)] h-[clamp(3.4rem,6.2vw,4.75rem)]"
+                  : "w-[clamp(4rem,7.6vw,5.65rem)] h-[clamp(4rem,7.6vw,5.65rem)]";
 
             const avatarBorderClass = isHeroDisplay ? "border-2" : "border-[3px]";
 
@@ -359,7 +361,37 @@ export function PokerTable({
                         player.id
                       );
 
-                    const avatarNode = clickable ? (
+                    const seatBadges =
+                      player.isDealer || player.role === "SB" || player.role === "BB" ? (
+                        <div className="pointer-events-none absolute -right-1.5 -top-1.5 z-50 flex items-center gap-0.5">
+                          {player.isDealer && (
+                            <div
+                              className="flex h-5 w-5 items-center justify-center rounded-full border border-amber-200/80 bg-gradient-to-br from-slate-800 via-slate-950 to-black text-[9px] font-black text-amber-100 shadow-[0_0_10px_rgba(251,191,36,0.35),0_4px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/40 md:h-6 md:w-6 md:text-[10px]"
+                              title={t("game.dealer")}
+                            >
+                              D
+                            </div>
+                          )}
+                          {player.role === "SB" && (
+                            <div
+                              className="-ml-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-amber-300/70 bg-gradient-to-br from-amber-700 via-amber-950 to-slate-950 px-1 text-[8px] font-black text-amber-100 shadow-[0_0_10px_rgba(245,158,11,0.28),0_4px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/40 md:h-6 md:min-w-6 md:text-[9px]"
+                              title={t("lobby.smallBlind")}
+                            >
+                              SB
+                            </div>
+                          )}
+                          {player.role === "BB" && (
+                            <div
+                              className="-ml-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-cyan-200/65 bg-gradient-to-br from-cyan-900 via-slate-950 to-black px-1 text-[8px] font-black text-cyan-100 shadow-[0_0_10px_rgba(34,211,238,0.28),0_4px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/40 md:h-6 md:min-w-6 md:text-[9px]"
+                              title={t("lobby.bigBlind")}
+                            >
+                              BB
+                            </div>
+                          )}
+                        </div>
+                      ) : null;
+
+                    const avatarBaseNode = clickable ? (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -375,14 +407,11 @@ export function PokerTable({
                     ) : (
                       <div className={shellClass}>{avatarInner}</div>
                     );
-
-                    if (!isHeroDisplay) return avatarNode;
-
-                    return (
-                      <div className="relative flex items-center justify-center">
-                        {showHeroTimer && (
+                    const avatarNode = (
+                      <div className="relative overflow-visible">
+                        {showSeatTimer && (
                           <svg
-                            className={`pointer-events-none absolute -inset-[0.93rem] z-20 h-[calc(100%+1.86rem)] w-[calc(100%+1.86rem)] overflow-visible ${
+                            className={`pointer-events-none absolute -inset-[0.72rem] z-40 h-[calc(100%+1.44rem)] w-[calc(100%+1.44rem)] overflow-visible ${
                               timerLeft <= 5 ? "animate-pulse" : ""
                             }`}
                             viewBox="0 0 100 100"
@@ -409,6 +438,15 @@ export function PokerTable({
                             />
                           </svg>
                         )}
+                        {avatarBaseNode}
+                        {seatBadges}
+                      </div>
+                    );
+
+                    if (!isHeroDisplay) return avatarNode;
+
+                    return (
+                      <div className="relative flex items-center justify-center">
                         <div className="relative z-10">{avatarNode}</div>
                         <div className="pointer-events-none absolute left-1/2 top-[58%] z-30 flex -translate-x-1/2 flex-col items-center drop-shadow-2xl md:top-[64%]">
                           {player.cards && player.cards.length > 0 && !player.hasFolded && (
@@ -419,7 +457,7 @@ export function PokerTable({
                                   className="relative origin-top transition-all duration-300"
                                   style={{
                                     marginLeft: index > 0 ? ((isMobile || isTabletPortrait) ? "3px" : "8px") : "0",
-                                    transform: `rotate(${index === 0 ? -5 : 6}deg)${(isMobile || isTabletPortrait) ? "" : " scale(1.2)"}`,
+                                    transform: `rotate(${index === 0 ? -5 : 6}deg)${(isMobile || isTabletPortrait) ? " scale(1.08)" : " scale(1.35)"}`,
                                   }}
                                 >
                                   <PokerCard
@@ -437,7 +475,7 @@ export function PokerTable({
                               ))}
                             </div>
                           )}
-                          <div className="mt-1 flex flex-col items-center gap-0 md:mt-1.5">
+                          <div className="mt-4 flex flex-col items-center gap-0 md:mt-4.5">
                             <div className="relative z-40 min-w-[4.8rem] rounded-md border border-white/10 bg-slate-950/95 px-3 py-1 text-center text-xs font-bold leading-none text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.55)] md:text-sm">
                               {displayName}
                             </div>
@@ -456,13 +494,13 @@ export function PokerTable({
                   {!isHeroDisplay && shouldReserveOpponentCards && (
                     <div className="pointer-events-none absolute left-1/2 top-[68%] z-20 flex -translate-x-1/2 items-start justify-center">
                       {hasVisibleSeatCards && (
-                        <div className="flex items-start justify-center -space-x-2 opacity-95">
+                        <div className="flex items-start justify-center -space-x-3 opacity-95">
                           {player.cards.map((card, index) => (
                             <PokerCard
                               key={index}
                               suit={card.suit}
                               value={card.value}
-                              size="xs"
+                              size="sm"
                               faceDown={!isShowdown}
                               colorblindMode={colorblindMode}
                               className={index === 0 ? "-rotate-6" : "rotate-6"}
@@ -480,24 +518,24 @@ export function PokerTable({
                   )}
 
                   {!isHeroDisplay && (
-                    <div className={`pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-1 ${hasVisibleSeatCards ? "top-[calc(100%+0.85rem)]" : "top-[calc(100%-0.35rem)]"}`}>
+                    <div className={`pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-0 ${hasVisibleSeatCards ? "top-[calc(100%+0.85rem)]" : "top-[calc(100%-0.35rem)]"}`}>
                       <div
-                        className={`max-w-[10.5rem] min-w-[6.45rem] truncate rounded-md border px-4 py-1.5 text-center font-bold leading-none shadow-[0_12px_24px_rgba(0,0,0,0.45)] ${
+                        className={`max-w-[8.25rem] min-w-[5.25rem] truncate rounded-md border px-2.5 py-1 text-center font-bold leading-none shadow-[0_10px_20px_rgba(0,0,0,0.42)] ${
                           player.hasFolded
-                            ? "border-red-400/35 bg-red-950/90 text-[clamp(13.5px,1.5vw,18px)] text-red-200 line-through"
-                            : "border-white/10 bg-slate-950/95 text-[clamp(13.5px,1.5vw,18px)] text-slate-100"
+                            ? "border-red-400/35 bg-red-950/90 text-[clamp(11px,1.1vw,14px)] text-red-200 line-through"
+                            : "border-white/10 bg-slate-950/95 text-[clamp(11px,1.1vw,14px)] text-slate-100"
                         }`}
                       >
                         {displayName}
                       </div>
-                      <div className="inline-flex min-w-[6.45rem] items-center justify-center gap-2 rounded-md border border-slate-600/75 bg-slate-900/95 px-4 py-1.5 text-[clamp(13.5px,1.5vw,18px)] font-bold leading-none tabular-nums text-slate-100 shadow-[0_12px_24px_rgba(0,0,0,0.45)]">
-                        <ChipIcon size="lg" className="shrink-0" />
+                      <div className="-mt-px inline-flex min-w-[5.25rem] items-center justify-center gap-1.5 rounded-md border border-slate-600/75 bg-slate-900/95 px-2.5 py-1 text-[clamp(11px,1.1vw,14px)] font-bold leading-none tabular-nums text-slate-100 shadow-[0_10px_20px_rgba(0,0,0,0.42)]">
+                        <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0" />
                         <span>{player.chips.toLocaleString()}</span>
                       </div>
                     </div>
                   )}
 
-                  {(player.isActive || actionLabel || player.isDealer || player.role === "SB" || player.role === "BB") && (
+                  {(player.isActive || actionLabel) && (
                     <div className="pointer-events-none absolute bottom-[calc(100%+0.35rem)] left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-1">
                       {player.isActive && (
                         <div className="inline-flex items-center gap-0.5 whitespace-nowrap rounded-full border border-yellow-200/55 bg-yellow-300 px-1.5 py-0.5 text-[8px] font-black leading-none text-black shadow-[0_0_12px_rgba(250,204,21,0.35)] md:text-[9px]">
@@ -515,34 +553,6 @@ export function PokerTable({
                           title={actionLabel}
                         >
                           {actionLabel}
-                        </div>
-                      )}
-                      {(player.isDealer || player.role === "SB" || player.role === "BB") && (
-                        <div className="flex flex-wrap items-center justify-center gap-1">
-                          {player.isDealer && (
-                            <div
-                              className="flex h-6 w-6 items-center justify-center rounded-full border border-white/70 bg-white text-[10px] font-black text-slate-800 shadow-md md:h-7 md:w-7 md:text-xs"
-                              title={t("game.dealer")}
-                            >
-                              D
-                            </div>
-                          )}
-                          {player.role === "SB" && (
-                            <div
-                              className="flex h-6 min-w-[1.55rem] items-center justify-center rounded-full border border-amber-200/70 bg-amber-200 px-1 text-[9px] font-black text-amber-950 shadow-md md:h-7 md:text-[10px]"
-                              title={t("lobby.smallBlind")}
-                            >
-                              SB
-                            </div>
-                          )}
-                          {player.role === "BB" && (
-                            <div
-                              className="flex h-6 min-w-[1.55rem] items-center justify-center rounded-full border border-cyan-200/50 bg-slate-900 px-1 text-[9px] font-black text-cyan-100 shadow-md md:h-7 md:text-[10px]"
-                              title={t("lobby.bigBlind")}
-                            >
-                              BB
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
