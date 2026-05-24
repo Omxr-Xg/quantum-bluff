@@ -12,7 +12,8 @@
     "lint": "eslint . --no-cache",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "load-test": "tsx src/scripts/loadTest.ts"
+    "load-test": "tsx src/scripts/loadTest.ts",
+    "load-test:ci": "bash scripts/ci-stress-test.sh"
   },
   "keywords": [],
   "author": "",

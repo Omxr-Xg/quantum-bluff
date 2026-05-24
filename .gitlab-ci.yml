@@ -5,6 +5,7 @@ variables:
   POSTGRES_IMAGE: mirror.gcr.io/library/postgres:15
   # Trivy : rester sur ECR Public (image hors library/) ; si rate limit, passer en allow_failure ou image interne.
   TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.58.1
+  REDIS_IMAGE: mirror.gcr.io/library/redis:7-alpine
   # Sans ça, le cache GitLab sur `.npm/` reste vide : chaque job retélécharge les paquets.
   NPM_CONFIG_CACHE: "${CI_PROJECT_DIR}/.npm"
 
@@ -78,6 +79,39 @@ frontend:verify:
     - npm ci --legacy-peer-deps
     - npm run lint
     - npm test
+  only:
+    - develop
+    - main
+
+# Stress test Socket.IO : serveur réel + N connexions authentifiées (charge réduite en CI).
+backend:load-test:
+  extends:
+    - .node_docker_ci
+  stage: verify
+  needs:
+    - backend:verify
+  services:
+    - name: $POSTGRES_IMAGE
+      alias: postgres
+    - name: $REDIS_IMAGE
+      alias: redis
+  variables:
+    NODE_ENV: development
+    JWT_SECRET: "ci-secret-32chars-minimum-123456"
+    POSTGRES_DB: quantum_test
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_password
+    DATABASE_URL: postgresql://test_user:test_password@postgres:5432/quantum_test
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
+    # Runners K8s : 200 connexions (local : 2000 via défaut du script).
+    LOAD_TEST_CLIENTS: "200"
+    LOAD_TEST_INTERVAL_MS: "10"
+    LOAD_TEST_CONNECT_TIMEOUT_MS: "20000"
+  script:
+    - cd server
+    - npm ci --legacy-peer-deps
+    - npm run load-test:ci
   only:
     - develop
     - main
