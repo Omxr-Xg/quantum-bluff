@@ -224,6 +224,15 @@ export function AdminConsole() {
     try {
       const res = await fetch(apiUrl("/api/admin/console/gift-codes?limit=50"), { headers: authHeaders() });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        clearAuthStorage();
+        navigate("/auth/admin", { replace: true });
+        return;
+      }
+      if (res.status === 404) {
+        setCodeError("Backend à mettre à jour (route gift-codes absente). Relancez le déploiement CI.");
+        return;
+      }
       if (!res.ok) {
         setCodeError((data as { error?: string }).error ?? "Erreur lors du chargement");
         return;
@@ -234,7 +243,7 @@ export function AdminConsole() {
     } finally {
       setCodeLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   const createGiftCode = useCallback(async () => {
     if (!codeForm.code.trim()) {

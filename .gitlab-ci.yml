@@ -314,11 +314,24 @@ deploy:staging:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     
     - echo " Préparation des fichiers de configuration..."
-    - echo "JWT_SECRET=$JWT_SECRET" > .env
-    - echo "DATABASE_URL=$DATABASE_URL" >> .env
-    - echo "QUANTUM_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE" >> .env
-    
-    - cp .env server/.env
+    # Ne pas écraser server/.env (ADMIN_CONSOLE_*, REDIS, etc.) — mettre à jour seulement les clés CI.
+    - touch .env server/.env
+    - |
+      upsert_env() {
+        key="$1"
+        val="$2"
+        file="$3"
+        if grep -q "^${key}=" "$file" 2>/dev/null; then
+          sed -i "s|^${key}=.*|${key}=${val}|" "$file"
+        else
+          printf '%s=%s\n' "$key" "$val" >> "$file"
+        fi
+      }
+      upsert_env JWT_SECRET "$JWT_SECRET" .env
+      upsert_env DATABASE_URL "$DATABASE_URL" .env
+      upsert_env QUANTUM_REGISTRY_IMAGE "$CI_REGISTRY_IMAGE" .env
+      upsert_env JWT_SECRET "$JWT_SECRET" server/.env
+      upsert_env DATABASE_URL "$DATABASE_URL" server/.env
     
     - echo " Docker Compose au rapport !"
     - docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml pull
