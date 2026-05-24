@@ -359,32 +359,12 @@ deploy:staging:
     - develop
     - main
 
+# Déploiement manuel sur main — même script que deploy:staging (runner sur la VM).
+# Ne pas utiliser SSH depuis le runner Kubernetes : le port 22 de la VM n’est pas joignable
+# depuis le cluster GitLab (timeout). Le runner « runner-vm-quantum » tourne déjà sur la VM.
 deploy:production:
   <<: *deploy_hook_retry
-  stage: deploy
-  image:
-    name: docker.io/library/alpine:latest
-    entrypoint: [""]
-  before_script:
-    - echo " Préparation de la connexion SSH..."
-    - apk add --no-cache openssh-client
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
-    - chmod 600 ~/.ssh/id_ed25519
-    - eval $(ssh-agent -s)
-    - ssh-add ~/.ssh/id_ed25519
-    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
-  script:
-    - echo " Création du fichier .env sécurisé..."
-    - echo "JWT_SECRET=$JWT_SECRET" > .env.prod
-    - echo "DATABASE_URL=$DATABASE_URL" >> .env.prod
-    
-    - echo " Envoi du fichier .env sur la VM..."
-    - scp .env.prod $VM_USER@$VM_IP:~/quantum-bluff/.env
-    
-    - echo " Déploiement sur la VM (Production)..."
-    - ssh $VM_USER@$VM_IP "cd ~/quantum-bluff && git pull && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml pull && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml up -d --force-recreate && docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml exec -T backend npx prisma migrate deploy"
+  extends: deploy:staging
   only:
     - main
   when: manual
