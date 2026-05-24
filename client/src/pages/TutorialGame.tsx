@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Activity, Check, ChevronLeft, ChevronRight, Eye, MessageCircle, TrendingUp, X } from "lucide-react";
 import { PokerCard, PokerCardSlot } from "../components/PokerCard";
 import { PokerTable } from "../components/PokerTable";
 import { ChipIcon } from "../components/ChipIcon";
+import { NeonButton } from "../components/NeonButton";
+import { HandCombinationsHelpButton } from "../components/HandCombinationsHelpButton";
 import { TutorialSpotlight } from "../components/tutorial/TutorialSpotlight";
 import {
   HAND_RANKING_LADDER,
@@ -41,6 +43,8 @@ export function TutorialGame() {
   const boardRef = useRef<HTMLElement | null>(null);
   const heroAnchorRef = useRef<HTMLElement | null>(null);
   const botAnchorRef = useRef<HTMLElement | null>(null);
+  const heroCardsAnchorRef = useRef<HTMLElement | null>(null);
+  const botCardsAnchorRef = useRef<HTMLElement | null>(null);
   const dealerAnchorRef = useRef<HTMLElement | null>(null);
   const blindsAnchorRef = useRef<HTMLElement | null>(null);
   const actionsRef = useRef<HTMLElement | null>(null);
@@ -52,8 +56,8 @@ export function TutorialGame() {
         table: tableSectionRef,
         pot: potRef,
         board: boardRef,
-        heroCards: heroAnchorRef,
-        botCards: botAnchorRef,
+        heroCards: heroCardsAnchorRef,
+        botCards: botCardsAnchorRef,
         actions: actionsRef,
         blinds: blindsAnchorRef,
         dealer: dealerAnchorRef,
@@ -65,6 +69,8 @@ export function TutorialGame() {
     );
 
   const targetRef = step.highlight ? refMap[step.highlight] : null;
+  const spotlightPadding =
+    step.highlight === "dealer" || step.highlight === "blinds" || step.highlight === "actions" ? 4 : 8;
 
   const goNext = useCallback(() => {
     setStepIndex((s) => Math.min(TUTORIAL_STEPS.length - 1, s + 1));
@@ -281,10 +287,10 @@ export function TutorialGame() {
             className="pointer-events-none absolute"
             style={{
               left: "50%",
-              top: "82%",
+              top: "79%",
               transform: "translate(-50%, -50%)",
-              width: "min(60%, 320px)",
-              height: "180px",
+              width: "128px",
+              height: "128px",
             }}
             aria-hidden
           />
@@ -295,10 +301,38 @@ export function TutorialGame() {
             className="pointer-events-none absolute"
             style={{
               left: "50%",
-              top: "12%",
+              top: "16%",
               transform: "translate(-50%, -50%)",
-              width: "min(60%, 320px)",
-              height: "150px",
+              width: "140px",
+              height: "140px",
+            }}
+            aria-hidden
+          />
+          <span
+            ref={(el) => {
+              heroCardsAnchorRef.current = el;
+            }}
+            className="pointer-events-none absolute"
+            style={{
+              left: "50%",
+              top: "89%",
+              transform: "translate(-50%, -50%)",
+              width: "min(34%, 185px)",
+              height: "96px",
+            }}
+            aria-hidden
+          />
+          <span
+            ref={(el) => {
+              botCardsAnchorRef.current = el;
+            }}
+            className="pointer-events-none absolute"
+            style={{
+              left: "50%",
+              top: "29%",
+              transform: "translate(-50%, -50%)",
+              width: "min(30%, 155px)",
+              height: "70px",
             }}
             aria-hidden
           />
@@ -311,8 +345,8 @@ export function TutorialGame() {
               left: "50%",
               top: "62%",
               transform: "translate(-50%, -50%)",
-              width: "min(35%, 200px)",
-              height: "60px",
+              width: "86px",
+              height: "42px",
             }}
             aria-hidden
           />
@@ -323,10 +357,10 @@ export function TutorialGame() {
             className="pointer-events-none absolute"
             style={{
               left: "50%",
-              top: "50%",
+              top: "45%",
               transform: "translate(-50%, -50%)",
-              width: "min(70%, 380px)",
-              height: "190px",
+              width: "min(48%, 270px)",
+              height: "160px",
             }}
             aria-hidden
           />
@@ -342,20 +376,21 @@ export function TutorialGame() {
           totalSteps={TUTORIAL_STEPS.length}
         />
 
-        {/* Echelle des classements (visible mais surlignee a l'etape rankings) */}
-        <section
-          ref={(el) => {
-            rankingsRef.current = el;
-          }}
-          className="rounded-2xl border border-slate-700 bg-slate-900/70 p-5"
-        >
-          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-200">
-            {t("tutorial.game.rankings.title")}
-          </h2>
-          <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-            {HAND_RANKING_LADDER.map(rankingItem)}
-          </ul>
-        </section>
+        {step.highlight === "rankings" && (
+          <section
+            ref={(el) => {
+              rankingsRef.current = el;
+            }}
+            className="fixed right-4 top-1/2 z-30 max-h-[min(80vh,34rem)] w-[min(calc(100vw-2rem),24rem)] -translate-y-1/2 overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900/92 p-5 shadow-2xl backdrop-blur-xl max-lg:left-1/2 max-lg:right-auto max-lg:top-auto max-lg:bottom-4 max-lg:-translate-x-1/2 max-lg:translate-y-0"
+          >
+            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-200">
+              {t("tutorial.game.rankings.title")}
+            </h2>
+            <ul className="grid grid-cols-1 gap-1">
+              {HAND_RANKING_LADDER.map(rankingItem)}
+            </ul>
+          </section>
+        )}
       </div>
 
       {/* Spotlight pedagogique */}
@@ -366,6 +401,8 @@ export function TutorialGame() {
         measureKey={stepIndex}
         color="cyan"
         tooltipHeight={showRankingsBody ? 480 : 360}
+        spotlightPadding={spotlightPadding}
+        scrollBlock="center"
       >
         <div className="mb-3 flex items-start justify-between gap-2">
           <span className="rounded-full bg-cyan-600/35 px-2.5 py-0.5 text-xs font-semibold text-cyan-200">
@@ -463,31 +500,28 @@ function ActionPanel({
   const Btn = ({
     action,
     label,
-    color,
+    variant,
     amount,
+    icon,
   }: {
     action: TutorialStep["expectedAction"];
     label: string;
-    color: "red" | "sky" | "emerald" | "amber";
+    variant: "red" | "blue" | "green" | "gold" | "amber";
     amount?: number;
+    icon?: React.ReactNode;
   }) => {
-    const palette = {
-      red: "border-red-500/80 text-red-200 hover:bg-red-500/20",
-      sky: "border-sky-500/80 text-sky-200 hover:bg-sky-500/20",
-      emerald: "border-emerald-500/80 text-emerald-200 hover:bg-emerald-500/20",
-      amber: "border-amber-500/80 text-amber-200 hover:bg-amber-500/20",
-    } as const;
     const enabled = isEnabled(action);
     return (
-      <button
-        type="button"
-        disabled={!enabled}
+      <NeonButton
         onClick={() => onAction(action, amount)}
-        className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-30 ${palette[color]}`}
+        disabled={!enabled}
+        variant={variant}
+        icon={icon}
+        className="w-full justify-center px-3 py-2.5 text-[0.8rem] md:px-4 md:py-3 md:text-[0.85rem] xl:w-auto xl:min-w-[176px] xl:px-[2.2rem] xl:py-[1.1rem] xl:text-[1.1rem]"
       >
         {label}
         {amount != null && <span className="ml-1 tabular-nums">{amount}</span>}
-      </button>
+      </NeonButton>
     );
   };
 
@@ -496,48 +530,63 @@ function ActionPanel({
       ref={(el) => {
         actionsRef.current = el;
       }}
-      className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 shadow"
+      className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.2rem)] left-0 right-0 z-40 w-full transition-all duration-300 md:bottom-6 xl:bottom-12"
     >
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          {t("tutorial.game.actions.title")}
-        </span>
-        <span className="text-[10px] uppercase tracking-wider text-slate-500">
+      <div className="pointer-events-auto mx-auto w-full max-w-[min(1200px,calc(100vw-1rem))] lg:max-w-[min(1200px,calc(100vw-2rem))]">
+        <div className="flex flex-wrap items-end justify-center gap-2 xl:grid xl:grid-cols-[minmax(16rem,1fr)_auto_minmax(16rem,1fr)] xl:gap-5">
+          <div className="w-full grid grid-cols-3 gap-1.5 xl:order-2 xl:flex xl:w-auto xl:justify-self-center xl:gap-3">
+            <Btn action="fold" label={t("tutorial.game.actions.fold")} variant="red" icon={<X className="hidden h-4 w-4 lg:block lg:h-6 lg:w-6" />} />
+            {step.callAmount === 0 ? (
+              <Btn action="check" label={t("tutorial.game.actions.check")} variant="blue" icon={<Check className="hidden h-4 w-4 lg:block lg:h-6 lg:w-6" />} />
+            ) : (
+              <Btn
+                action="call"
+                label={t("tutorial.game.actions.call")}
+                variant="blue"
+                amount={step.callAmount}
+                icon={<Check className="hidden h-4 w-4 lg:block lg:h-6 lg:w-6" />}
+              />
+            )}
+            <Btn
+              action={step.expectedAction === "bet" ? "bet" : "raise"}
+              label={step.expectedAction === "bet" ? t("tutorial.game.actions.bet") : t("tutorial.game.actions.raise")}
+              variant="green"
+              amount={step.raiseTo}
+              icon={<TrendingUp className="hidden h-4 w-4 lg:block lg:h-6 lg:w-6" />}
+            />
+          </div>
+
+          <div className="flex shrink-0 flex-wrap items-end gap-2 drop-shadow-2xl xl:order-1 xl:justify-self-end">
+            <NeonButton disabled variant="blue" icon={<MessageCircle className="h-4 w-4 shrink-0" />} className="px-3 py-2.5 text-xs md:px-5 md:py-3.5">
+              Chat
+            </NeonButton>
+            <HandCombinationsHelpButton />
+          </div>
+
+          <div className="flex shrink-0 flex-wrap items-end gap-1.5 xl:order-3 xl:justify-self-start">
+            <NeonButton disabled variant="gold" icon={<Eye className="h-4 w-4" />} className="px-3 py-2.5 text-xs md:px-5 md:py-3.5">
+              {t("game.bets")}
+            </NeonButton>
+            <NeonButton disabled variant="amber" icon={<Activity className="h-4 w-4" />} className="px-3 py-2.5 text-xs md:px-5 md:py-3.5">
+              {t("game.probabilitiesShort")}
+            </NeonButton>
+          </div>
+        </div>
+
+        {onPrev && (
+          <button
+            type="button"
+            onClick={onPrev}
+            className="mt-2 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            {t("tutorial.game.prev")}
+          </button>
+        )}
+        <span className="sr-only">
           {t("tutorial.game.stepOf", { current: stepIndex + 1, total: totalSteps })}
         </span>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Btn action="fold" label={t("tutorial.game.actions.fold")} color="red" />
-        <Btn action="check" label={t("tutorial.game.actions.check")} color="sky" />
-        <Btn
-          action="call"
-          label={t("tutorial.game.actions.call")}
-          color="sky"
-          amount={step.callAmount}
-        />
-        <Btn
-          action="bet"
-          label={t("tutorial.game.actions.bet")}
-          color="emerald"
-          amount={step.raiseTo}
-        />
-        <Btn
-          action="raise"
-          label={t("tutorial.game.actions.raise")}
-          color="amber"
-          amount={step.raiseTo}
-        />
-      </div>
-      {onPrev && (
-        <button
-          type="button"
-          onClick={onPrev}
-          className="mt-3 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-          {t("tutorial.game.prev")}
-        </button>
-      )}
     </section>
   );
 }

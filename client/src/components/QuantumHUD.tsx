@@ -9,6 +9,7 @@ const LAYOUT_REV = 2;
 /** Largeur cible (px) — panneau compact, repositionnable par glisser l’en-tête */
 const DEFAULT_PANEL_W = 260;
 const EDGE_MARGIN = 12;
+const TOP_NAV_CLEARANCE = 88;
 
 function defaultPosition(): { left: number; top: number } {
   if (typeof window === "undefined") return { left: 400, top: 160 };
@@ -20,7 +21,7 @@ function defaultPosition(): { left: number; top: number } {
   const estH = Math.min(420, Math.max(260, Math.round(vh * 0.42)));
   const left = Math.max(EDGE_MARGIN, vw - panelW - EDGE_MARGIN);
   const top = Math.max(
-    EDGE_MARGIN,
+    TOP_NAV_CLEARANCE,
     Math.round((vh - dashH - estH) / 2),
   );
   return { left, top };
@@ -80,9 +81,10 @@ export function QuantumHUD({
     const vh = window.innerHeight;
     // Reserve space for the relative PlayerDashboard at the bottom on desktop
     const dashH = vw >= 768 ? 96 : 0;
+    const minTop = vw >= 768 ? TOP_NAV_CLEARANCE : EDGE_MARGIN;
     return {
       left: Math.min(Math.max(EDGE_MARGIN, left), vw - w - EDGE_MARGIN),
-      top: Math.min(Math.max(EDGE_MARGIN, top), (vh - dashH) - h - EDGE_MARGIN),
+      top: Math.min(Math.max(minTop, top), (vh - dashH) - h - EDGE_MARGIN),
     };
   }, []);
 

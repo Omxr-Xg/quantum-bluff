@@ -26,36 +26,28 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
-  const boardCardWidth = isTablet ? 48 : 64;
-  const boardGap = isTablet ? 10 : 12;
+  const boardCardWidth = isTablet ? 56 : 56;
+  const boardGap = isTablet ? 6 : 6;
   const labelGap = isMobile ? 2 : isTablet ? 4 : 6;
   
   return (
-    <div
-      className={`absolute ${
-        isMobile ? "top-[51%] -translate-y-1/2" : isTablet ? "top-11" : "top-14"
-      } left-0 right-0 flex justify-center`}
-    >
-      <div
-        className={`flex flex-col items-center ${
-          isMobile ? "gap-3" : isTablet ? "gap-4" : "gap-6"
-        }`}
-      >
+    <div className="relative flex justify-center">
+      <div className="relative flex flex-col items-center">
         {/* POT */}
         <div
           ref={potRef}
-          className={`bg-black/40 backdrop-blur-sm rounded-full ${
-            isMobile ? "px-3 py-1.5" : isTablet ? "px-3.5 py-1.5" : "px-4 py-2"
-          } shadow-[0_0_10px_rgba(0,0,0,0.5)] border border-white/10`}
+          className={`absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-black/40 backdrop-blur-sm ${
+            isMobile ? "px-2 py-0.5" : isTablet ? "px-2.5 py-0.5" : "px-3 py-1"
+          } shadow-[0_0_8px_rgba(0,0,0,0.45)]`}
         >
           <div
             className={`flex items-center justify-center ${
-              isMobile ? "gap-1.5" : isTablet ? "gap-2" : "gap-3"
+                isMobile ? "gap-1" : isTablet ? "gap-1" : "gap-1.5"
             }`}
           >
             <div
               className={`${
-                isMobile ? "text-[12px]" : isTablet ? "text-[14px]" : "text-[15px]"
+                isMobile ? "text-[9px]" : isTablet ? "text-[10px]" : "text-[11px]"
               } text-gray-300 font-bold tracking-wider`}
             >
               POT
@@ -63,7 +55,7 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
 
             <div
               className={`${
-                isMobile ? "h-6 w-6" : isTablet ? "h-8 w-8" : "h-9 w-9"
+                isMobile ? "h-4 w-4" : isTablet ? "h-[1.125rem] w-[1.125rem]" : "h-5 w-5"
               } shrink-0 drop-shadow-md`}
             >
               <QuantumBluffLogo className="h-full w-full object-contain" />
@@ -71,7 +63,7 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
 
             <div
               className={`${
-                isMobile ? "text-lg" : isTablet ? "text-xl" : "text-2xl"
+                isMobile ? "text-xs" : isTablet ? "text-sm" : "text-base"
               } font-extrabold tracking-tight text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]`}
             >
               {pot.toLocaleString()}
@@ -81,7 +73,7 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
 
         {/* Side pots indicator */}
         {sidePots && sidePots.length > 1 && (
-          <div className={`flex flex-wrap justify-center ${isMobile ? "gap-1.5" : "gap-2.5"}`}>
+          <div className={`absolute bottom-full left-1/2 z-20 mb-11 flex -translate-x-1/2 flex-wrap justify-center ${isMobile ? "gap-1.5" : "gap-2.5"}`}>
             {sidePots.map((sp, i) => (
               <div
                 key={i}
@@ -117,7 +109,7 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
         >
           {isMobile ? (
             <>
-              <div className="flex shrink-0 flex-row justify-center gap-x-2 px-2">
+              <div className="flex shrink-0 flex-row justify-center gap-x-1.5 px-2">
                 {cards.map((card, index) => (
                   <motion.div
                     key={index}
@@ -140,14 +132,14 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
                       <PokerCard
                         suit={card.suit}
                         value={card.value}
-                        size="xs"
+                        size="sm"
                         colorblindMode={colorblindMode}
                         highlight={Boolean(
                           highlightCardKeys?.size && highlightCardKeys.has(cardHighlightKey(card)),
                         )}
                       />
                     ) : (
-                      <PokerCardSlot size="xs" />
+                      <PokerCardSlot size="sm" />
                     )}
                   </motion.div>
                 ))}
@@ -185,14 +177,14 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
                     <PokerCard
                       suit={card.suit}
                       value={card.value}
-                      size={isTablet ? "sm" : "md"}
+                      size={isTablet ? "sm" : "board"}
                       colorblindMode={colorblindMode}
                       highlight={Boolean(
                         highlightCardKeys?.size && highlightCardKeys.has(cardHighlightKey(card)),
                       )}
                     />
                   ) : (
-                    <PokerCardSlot size={isTablet ? "sm" : "md"} />
+                    <PokerCardSlot size={isTablet ? "sm" : "board"} />
                   )}
                 </motion.div>
               ))}

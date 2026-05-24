@@ -18,6 +18,8 @@ import {
   Banknote,
   CircleX,
   DoorOpen,
+  GripVertical,
+  History,
   Info,
   Loader2,
   Menu,
@@ -80,6 +82,18 @@ import { useTableTheme } from "../contexts/TableThemeContext";
 const RATE_GAME_PROMPT_EVERY = 5;
 /** Garde la liste des derniers gameId comptés sous une taille raisonnable. */
 const MATCHES_COUNTED_IDS_MAX = 100;
+const INTER_HAND_HISTORY_W = 320;
+const FLOATING_PANEL_EDGE = 12;
+const FLOATING_PANEL_TOP_CLEARANCE = 88;
+
+function defaultInterHandHistoryPosition(): { left: number; top: number } {
+  if (typeof window === "undefined") return { left: 880, top: 136 };
+  const panelW = Math.min(INTER_HAND_HISTORY_W, window.innerWidth - FLOATING_PANEL_EDGE * 2);
+  return {
+    left: Math.max(FLOATING_PANEL_EDGE, window.innerWidth - panelW - FLOATING_PANEL_EDGE),
+    top: Math.max(FLOATING_PANEL_TOP_CLEARANCE, Math.round(window.innerHeight * 0.18)),
+  };
+}
 
 /** Incrémente le compteur local de matchs joués pour le user courant et déclenche
  * le prompt de notation tous les {@link RATE_GAME_PROMPT_EVERY} matchs.
@@ -403,6 +417,7 @@ export function Game() {
     recentGameChatIdsRef.current.clear();
   }, [gameIdParam]);
   const [handActionLog, setHandActionLog] = useState<{ id: string; line: string }[]>([]);
+  const [handActionLogOpen, setHandActionLogOpen] = useState(false);
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
   const hasPlayerActedRef = useRef(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -716,11 +731,75 @@ export function Game() {
   const [interHandTableTickets, setInterHandTableTickets] = useState<TableTicketRow[]>([]);
   const [interHandTableTicketsLoading, setInterHandTableTicketsLoading] = useState(false);
   const [interHandTableTicketsError, setInterHandTableTicketsError] = useState<string | null>(null);
+  const [interHandHistoryOpen, setInterHandHistoryOpen] = useState(false);
+  const [interHandHistoryPos, setInterHandHistoryPos] = useState(defaultInterHandHistoryPosition);
+  const interHandHistoryPanelRef = useRef<HTMLDivElement>(null);
+  const interHandHistoryPosRef = useRef(interHandHistoryPos);
+  const interHandHistoryDragRef = useRef({ dx: 0, dy: 0 });
   const [pricingInfo, setPricingInfo] = useState<{
     ticketId: string;
     pricingBreakdown: unknown;
     pricingInputs: unknown;
   } | null>(null);
+  interHandHistoryPosRef.current = interHandHistoryPos;
+
+  const clampInterHandHistoryPos = useCallback((left: number, top: number) => {
+    if (typeof window === "undefined") return { left, top };
+    const el = interHandHistoryPanelRef.current;
+    const w = el?.offsetWidth ?? Math.min(INTER_HAND_HISTORY_W, window.innerWidth - FLOATING_PANEL_EDGE * 2);
+    const h = el?.offsetHeight ?? 360;
+    const minTop = window.innerWidth >= 768 ? FLOATING_PANEL_TOP_CLEARANCE : FLOATING_PANEL_EDGE;
+    return {
+      left: Math.min(Math.max(FLOATING_PANEL_EDGE, left), window.innerWidth - w - FLOATING_PANEL_EDGE),
+      top: Math.min(Math.max(minTop, top), window.innerHeight - h - FLOATING_PANEL_EDGE),
+    };
+  }, []);
+
+  const handleInterHandHistoryPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if ((e.target as HTMLElement).closest("button")) return;
+      e.preventDefault();
+      const current = interHandHistoryPosRef.current;
+      interHandHistoryDragRef.current = {
+        dx: e.clientX - current.left,
+        dy: e.clientY - current.top,
+      };
+
+      const onMove = (ev: PointerEvent) => {
+        setInterHandHistoryPos(
+          clampInterHandHistoryPos(
+            ev.clientX - interHandHistoryDragRef.current.dx,
+            ev.clientY - interHandHistoryDragRef.current.dy,
+          ),
+        );
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+    },
+    [clampInterHandHistoryPos],
+  );
+
+  useEffect(() => {
+    const onResize = () => setInterHandHistoryPos((p) => clampInterHandHistoryPos(p.left, p.top));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [clampInterHandHistoryPos]);
+
+  useEffect(() => {
+    if (!interHandHistoryOpen) return;
+    const id = requestAnimationFrame(() => {
+      setInterHandHistoryPos((p) => clampInterHandHistoryPos(p.left, p.top));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [interHandHistoryOpen, clampInterHandHistoryPos]);
+
   const flopAnimateTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const flopAnimatedRef = useRef(false);
   /** Timeouts dévoilement flop 3 cartes (table locale) — annulés si resync / nouvelle main. */
@@ -852,6 +931,8 @@ export function Game() {
     setInterHandTableTickets([]);
     setInterHandTableTicketsError(null);
     setPricingInfo(null);
+    setInterHandHistoryOpen(false);
+    setInterHandHistoryPos(defaultInterHandHistoryPosition());
   }, [cashWaitingPlayers]);
 
   const tourRefHeader = useRef<HTMLDivElement>(null);
@@ -2659,7 +2740,18 @@ export function Game() {
   }, [socket]);
 
   useEffect(() => {
-    if (!isMyTurn || !gameInitialized || phase === "init" || phase === "shuffle" || phase === "deal" || phase === "showdown") {
+    const activeTurnPlayer = playersState.find((p) => p.isActive);
+    const shouldRunClientTurnTimer = !gameIdParam || isBotMode;
+
+    if (
+      !shouldRunClientTurnTimer ||
+      !activeTurnPlayer ||
+      !gameInitialized ||
+      phase === "init" ||
+      phase === "shuffle" ||
+      phase === "deal" ||
+      phase === "showdown"
+    ) {
       setTimerActive(false);
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
@@ -2672,8 +2764,7 @@ export function Game() {
       return;
     }
 
-    const hero = playersState.find((p) => p.id === userId || p.id === "human");
-    if (hero?.hasFolded) {
+    if (activeTurnPlayer.hasFolded) {
       setTimerActive(false);
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
@@ -2696,7 +2787,7 @@ export function Game() {
             clearInterval(timerIntervalRef.current);
             timerIntervalRef.current = null;
           }
-          if (!gameIdParam && !autoTimerActionTimeoutRef.current) {
+          if (!gameIdParam && isMyTurn && !autoTimerActionTimeoutRef.current) {
             autoTimerActionTimeoutRef.current = setTimeout(() => {
               autoTimerActionTimeoutRef.current = null;
               setTimerActive(false);
@@ -2708,7 +2799,7 @@ export function Game() {
                 }
               }
             }, 1000);
-          } else if (gameIdParam) {
+          } else {
             setTimerActive(false);
           }
           return 0;
@@ -2727,7 +2818,7 @@ export function Game() {
         autoTimerActionTimeoutRef.current = null;
       }
     };
-  }, [isMyTurn, gameInitialized, phase, callAmount, hasPlayerActed, gameIdParam]);
+  }, [activePlayer?.id, isBotMode, isMyTurn, gameInitialized, phase, callAmount, hasPlayerActed, gameIdParam, playersState]);
 
   useEffect(() => {
     const hero = playersState.find((p) => p.id === userId || p.id === "human");
@@ -5017,90 +5108,6 @@ export function Game() {
               {interHandResultsVisible && (
                 <div className="border-t border-slate-700 pt-3">
                   <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                    <span>{t("hiddenBets.tableResolvedTitle", "Tickets résolus (paris cachés)")}</span>
-                    {interHandTableTicketsLoading && <span>{t("hiddenBets.loading", "Chargement…")}</span>}
-                  </div>
-
-                  {interHandTableTicketsError && (
-                    <p className="text-red-400 text-xs mb-2">{interHandTableTicketsError}</p>
-                  )}
-
-                  {!interHandTableTicketsLoading && interHandTableTickets.length === 0 && (
-                    <p className="text-slate-400 text-xs">
-                      {t("hiddenBets.noTableTickets", "Aucun ticket résolu pour le moment.")}
-                    </p>
-                  )}
-
-                  {!interHandTableTicketsLoading && interHandTableTickets.length > 0 && (
-                    <div className="space-y-2 max-h-[170px] overflow-y-auto pr-1">
-                      {interHandTableTickets.slice(0, 20).map((tk) => {
-                        const uname =
-                          (tk.user?.username ?? tk.userId ?? "").toString() || t("game.unknown", "Inconnu");
-                        const whoLabel =
-                          userId && tk.userId != null && String(tk.userId) === String(userId)
-                            ? t("game.you", "Vous")
-                            : uname;
-                        const odds = typeof tk.quotedOdds === "number" ? tk.quotedOdds : null;
-                        const status =
-                          tk.status === "WON" ? "GAGNÉ" : tk.status === "VOID" ? "ANNULÉ" : "PERDU";
-
-                        const statusClass =
-                          tk.status === "WON"
-                            ? "border-green-500/50 bg-green-900/20"
-                            : tk.status === "VOID"
-                              ? "border-slate-600 bg-slate-700/20"
-                              : "border-red-500/40 bg-red-900/15";
-
-                        return (
-                          <div
-                            key={tk.id}
-                            className={`rounded-lg border px-3 py-2 ${statusClass}`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="text-xs text-white font-semibold truncate">
-                                {whoLabel}
-                              </div>
-                              <div className="text-[10px] text-slate-200">{status}</div>
-                            </div>
-                            <div className="flex items-center justify-between mt-1">
-                              <div className="text-[11px] text-yellow-300 font-bold">
-                                {odds != null ? `x${odds.toFixed(2)}` : "—"}
-                              </div>
-                              <button
-                                type="button"
-                                className="p-0.5 rounded hover:bg-white/10 text-slate-200"
-                                aria-label={t("hiddenBets.oddsInfo", "Infos sur la cote")}
-                                onClick={() => {
-                                  try {
-                                    const parsed = tk.stateSnapshotJson ? JSON.parse(tk.stateSnapshotJson) : null;
-                                    setPricingInfo({
-                                      ticketId: tk.id,
-                                      pricingBreakdown: parsed?.pricingBreakdown ?? null,
-                                      pricingInputs: parsed?.pricingInputs ?? null,
-                                    });
-                                  } catch {
-                                    setPricingInfo({
-                                      ticketId: tk.id,
-                                      pricingBreakdown: null,
-                                      pricingInputs: null,
-                                    });
-                                  }
-                                }}
-                              >
-                                <Info className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {interHandResultsVisible && (
-                <div className="border-t border-slate-700 pt-3">
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
                     <span>{t("game.nextHandReadyTitle", "Joueurs prêts")}</span>
                     <span className="flex items-center gap-2">
                       {nextHandReadySecondsLeft != null && !allNextHandReady ? (
@@ -5204,6 +5211,134 @@ export function Game() {
         </div>
       )}
 
+      <AnimatePresence>
+        {gameIdParam && !isBotMode && cashWaitingPlayers && interHandResultsVisible && interHandHistoryOpen && (
+          <motion.div
+            ref={interHandHistoryPanelRef}
+            role="dialog"
+            aria-label={t("hiddenBets.tableResolvedTitle", "Tickets résolus (paris cachés)")}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.16 }}
+            style={(isMobile || isTablet) ? undefined : { left: interHandHistoryPos.left, top: interHandHistoryPos.top }}
+            className={
+              (isMobile || isTablet)
+                ? "fixed left-3 right-3 top-24 z-[70] max-h-[min(62vh,520px)] overflow-hidden rounded-xl border-2 border-amber-500/70 bg-gradient-to-br from-slate-800/95 to-slate-950/95 shadow-2xl backdrop-blur-md"
+                : "fixed z-[70] w-[min(calc(100vw-1.5rem),320px)] max-h-[min(520px,calc(100vh-2rem))] overflow-hidden rounded-xl border-2 border-amber-500/70 bg-gradient-to-br from-slate-800/95 to-slate-950/95 shadow-2xl backdrop-blur-md"
+            }
+          >
+            <div
+              className="flex cursor-grab touch-none select-none items-center justify-between gap-3 border-b border-slate-700 px-3 py-2.5 active:cursor-grabbing"
+              onPointerDown={handleInterHandHistoryPointerDown}
+            >
+              <div className="flex min-w-0 items-center gap-2 pointer-events-none">
+                <GripVertical className="h-4 w-4 shrink-0 text-amber-300/80" aria-hidden />
+                <History className="h-4 w-4 shrink-0 text-amber-200" aria-hidden />
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-bold text-white">
+                    {t("hiddenBets.tableResolvedTitle", "Tickets résolus (paris cachés)")}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    {interHandTableTicketsLoading
+                      ? t("hiddenBets.loading", "Chargement…")
+                      : t("hiddenBets.ticketCount", {
+                          count: interHandTableTickets.length,
+                          defaultValue: "{{count}} ticket(s)",
+                        })}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInterHandHistoryOpen(false)}
+                className="shrink-0 rounded p-1 text-slate-400 transition hover:bg-white/10 hover:text-white"
+                aria-label={t("settings.close")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="max-h-[calc(min(520px,calc(100vh-2rem))-52px)] overflow-y-auto p-3">
+              {interHandTableTicketsError && (
+                <p className="mb-2 text-xs text-red-400">{interHandTableTicketsError}</p>
+              )}
+
+              {!interHandTableTicketsLoading && !interHandTableTicketsError && interHandTableTickets.length === 0 && (
+                <p className="py-5 text-center text-xs text-slate-400">
+                  {t("hiddenBets.noTableTickets", "Aucun ticket résolu pour le moment.")}
+                </p>
+              )}
+
+              {!interHandTableTicketsLoading && interHandTableTickets.length > 0 && (
+                <div className="space-y-2">
+                  {interHandTableTickets.slice(0, 20).map((tk) => {
+                    const uname =
+                      (tk.user?.username ?? tk.userId ?? "").toString() || t("game.unknown", "Inconnu");
+                    const whoLabel =
+                      userId && tk.userId != null && String(tk.userId) === String(userId)
+                        ? t("game.you", "Vous")
+                        : uname;
+                    const odds = typeof tk.quotedOdds === "number" ? tk.quotedOdds : null;
+                    const status =
+                      tk.status === "WON" ? "GAGNÉ" : tk.status === "VOID" ? "ANNULÉ" : "PERDU";
+
+                    const statusClass =
+                      tk.status === "WON"
+                        ? "border-green-500/50 bg-green-900/20"
+                        : tk.status === "VOID"
+                          ? "border-slate-600 bg-slate-700/20"
+                          : "border-red-500/40 bg-red-900/15";
+
+                    return (
+                      <div
+                        key={tk.id}
+                        className={`rounded-lg border px-3 py-2 ${statusClass}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="truncate text-xs font-semibold text-white">
+                            {whoLabel}
+                          </div>
+                          <div className="text-[10px] text-slate-200">{status}</div>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between">
+                          <div className="text-[11px] font-bold text-yellow-300">
+                            {odds != null ? `x${odds.toFixed(2)}` : "—"}
+                          </div>
+                          <button
+                            type="button"
+                            className="rounded p-0.5 text-slate-200 hover:bg-white/10"
+                            aria-label={t("hiddenBets.oddsInfo", "Infos sur la cote")}
+                            onClick={() => {
+                              try {
+                                const parsed = tk.stateSnapshotJson ? JSON.parse(tk.stateSnapshotJson) : null;
+                                setPricingInfo({
+                                  ticketId: tk.id,
+                                  pricingBreakdown: parsed?.pricingBreakdown ?? null,
+                                  pricingInputs: parsed?.pricingInputs ?? null,
+                                });
+                              } catch {
+                                setPricingInfo({
+                                  ticketId: tk.id,
+                                  pricingBreakdown: null,
+                                  pricingInputs: null,
+                                });
+                              }
+                            }}
+                          >
+                            <Info className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {pricingInfo && (
         <div
           className="fixed inset-0 z-[220] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
@@ -5256,7 +5391,7 @@ export function Game() {
          {/* TABLE */}
         <div
         ref={tourRefTable}
-        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 pb-[8rem] w-full -mt-6' : isTablet ? 'flex-1 px-4 pt-[3.5rem] pb-[8rem] w-full' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-20'}`}
+        className={`flex items-center justify-center relative ${isMobile ? 'flex-1 px-4 pt-0 pb-[8rem] w-full translate-y-2' : isTablet ? 'flex-1 px-4 pt-[3.5rem] pb-[8rem] w-full translate-y-3' : 'pointer-events-auto h-full w-full px-6 pt-0 -translate-y-12'}`}
         >
         <PokerTable
         players={tablePlayers}
@@ -5267,7 +5402,7 @@ export function Game() {
         burnedCardsCount={displayBurnedCardsCount}
         colorblindMode={colorblindMode}
         heroSeatId={heroPlayer?.id ?? null}
-        heroTimerActive={isRoundInteractable && handResult === null && isMyTurn && !hasFoldedFromState && !hasPlayerActed && !isLoading}
+        heroTimerActive={isRoundInteractable && handResult === null && Boolean(activePlayer) && !isLoading}
         heroTimerTimeLeft={timeLeft}
         heroTimerDuration={gameIdParam ? turnTimeLimitSecRef.current : 30}
         enableAvatarInteractions={Boolean(!isBotMode && gameIdParam && userId)}
@@ -5289,7 +5424,12 @@ export function Game() {
         </div>
      </div>
 
-      <HandActionLogPanel entries={handActionLog} collapseWhen={isQuantumOpen} />
+      <HandActionLogPanel
+        entries={handActionLog}
+        collapseWhen={isQuantumOpen}
+        open={handActionLogOpen}
+        onOpenChange={setHandActionLogOpen}
+      />
       <QuantumHUD
         isOpen={isQuantumOpen}
         onToggle={closeQuantumPanel}
@@ -5403,6 +5543,29 @@ export function Game() {
           isHiddenBetsOpen={isPanelOpen}
           isChatOpen={isChatOpen}
         />
+      )}
+
+      {showPlayerActionBar && (
+        <button
+          type="button"
+          onClick={() => setHandActionLogOpen((open) => !open)}
+          title={
+            handActionLogOpen
+              ? t("hiddenBets.hideHistory", "Masquer l'historique")
+              : t("hiddenBets.showHistory", "Afficher l'historique")
+          }
+          aria-label={
+            handActionLogOpen
+              ? t("hiddenBets.hideHistory", "Masquer l'historique")
+              : t("hiddenBets.showHistory", "Afficher l'historique")
+          }
+          aria-expanded={handActionLogOpen}
+          className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] right-3 z-[90] flex h-12 w-12 items-center justify-center rounded-full border-2 border-amber-400 bg-slate-950/90 text-amber-100 shadow-[0_0_14px_rgba(245,158,11,0.55),0_14px_34px_rgba(0,0,0,0.45)] backdrop-blur-md transition hover:bg-amber-500 hover:text-slate-950 md:right-5 ${
+            handActionLogOpen ? "ring-2 ring-amber-200/70" : ""
+          }`}
+        >
+          <History className="h-5 w-5" aria-hidden />
+        </button>
       )}
 
       {isSpectating && !(gameIdParam && !isBotMode && cashSeats.length > 0) && (

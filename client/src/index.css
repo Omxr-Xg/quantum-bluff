@@ -115,6 +115,72 @@ html.doc-scroll-mode body {
   opacity: 0;
 }
 
+/* Poker: mise en avant des cartes gagnantes en fin de manche */
+@keyframes qb-winning-card-lift {
+  0%,
+  100% {
+    transform: translateY(-0.28rem) scale(1.07);
+  }
+  50% {
+    transform: translateY(-0.46rem) scale(1.09);
+  }
+}
+
+@keyframes qb-winning-card-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 16px rgba(253, 224, 71, 0.55),
+      0 12px 28px rgba(0, 0, 0, 0.42);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(251, 191, 36, 0.9),
+      0 0 56px rgba(34, 211, 238, 0.24),
+      0 18px 34px rgba(0, 0, 0, 0.5);
+  }
+}
+
+@keyframes qb-winning-card-aura {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes qb-winning-card-shimmer {
+  0% {
+    opacity: 0;
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  28% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(420%) skewX(-18deg);
+  }
+}
+
+.qb-winning-card {
+  animation:
+    qb-winning-card-lift 1.85s ease-in-out infinite,
+    qb-winning-card-glow 1.55s ease-in-out infinite;
+}
+
+.qb-winning-card-aura {
+  animation: qb-winning-card-aura 1.55s ease-in-out infinite;
+}
+
+.qb-winning-card-shimmer {
+  animation: qb-winning-card-shimmer 1.7s ease-in-out infinite;
+}
+
 /* ==========================================================================
    FILTRES ACCESSIBILITÉ (DALTONISME)
    ========================================================================== */
