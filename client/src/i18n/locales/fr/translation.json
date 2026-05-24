@@ -626,6 +626,7 @@
     "noPendingRequests": "Aucune demande en attente.",
     "syncing": "Synchronisation…",
     "navAria": "Navigation amis",
+    "actions": "Actions",
     "removeFriend": "Retirer",
     "removeConfirmTitle": "Retirer cet ami ?",
     "removeConfirmBody": "{{username}} ne sera plus dans ta liste d’amis. Vous pourrez vous retrouver via la recherche et renvoyer une invitation.",

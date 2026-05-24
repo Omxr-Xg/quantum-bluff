@@ -9,6 +9,7 @@ import {
   Home,
   Loader2,
   MessageCircle,
+  MoreVertical,
   RefreshCw,
   Search,
   Send,
@@ -73,8 +74,6 @@ const pokerButton =
   "rounded-full border border-blue-300/15 bg-blue-950/75 font-semibold text-white shadow-lg shadow-black/20 transition hover:border-blue-200/25 hover:bg-blue-900/80";
 const pokerMutedButton =
   "rounded-full border border-white/10 bg-white/[0.055] font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]";
-const pokerDiscreetAction =
-  "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-slate-500 transition hover:bg-white/[0.04] hover:text-slate-300";
 const pokerInput =
   "rounded-xl border border-white/10 bg-slate-950/55 text-white placeholder-slate-500 transition-all focus:border-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-500/25";
 
@@ -162,6 +161,7 @@ export function Friends() {
   const [friendStatusFilter, setFriendStatusFilter] = useState<FriendStatusFilter>("all");
   const [friendSort, setFriendSort] = useState<FriendSort>("recent");
   const [requestSort, setRequestSort] = useState<RequestSort>("recent");
+  const [openFriendActions, setOpenFriendActions] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<
     | { kind: "remove"; id: string; username: string }
     | { kind: "block"; id: string; username: string }
@@ -818,9 +818,68 @@ export function Friends() {
                   {filteredFriends.map((friend) => (
                     <div
                       key={friend.id}
-                      className={`group relative overflow-hidden p-4 transition-all hover:border-blue-300/25 ${pokerInnerCard}`}
+                      className={`group relative p-4 transition-all hover:border-blue-300/25 ${pokerInnerCard}`}
                     >
                       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-200/40 to-transparent opacity-0 transition group-hover:opacity-100" />
+                      <div
+                        className="absolute right-3 top-3 z-20"
+                        onBlur={(event) => {
+                          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                            setOpenFriendActions((current) => (current === friend.id ? null : current));
+                          }
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenFriendActions((current) => (current === friend.id ? null : friend.id))
+                          }
+                          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-300 shadow-lg shadow-black/20 transition hover:border-blue-200/30 hover:bg-slate-900/80 hover:text-white"
+                          aria-label={t("friends.actions")}
+                          aria-expanded={openFriendActions === friend.id}
+                          title={t("friends.actions")}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+
+                        {openFriendActions === friend.id ? (
+                          <div className="absolute right-0 top-full z-30 mt-2 w-44 rounded-xl border border-white/10 bg-slate-950/95 p-1.5 shadow-[0_18px_42px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmAction({ kind: "remove", id: friend.id, username: friend.username });
+                                setOpenFriendActions(null);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-300 transition hover:bg-white/[0.06] hover:text-amber-200"
+                            >
+                              <UserMinus className="h-4 w-4 shrink-0 opacity-75" />
+                              {t("friends.removeFriend")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmAction({ kind: "block", id: friend.id, username: friend.username });
+                                setOpenFriendActions(null);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-300 transition hover:bg-white/[0.06] hover:text-red-300"
+                            >
+                              <ShieldBan className="h-4 w-4 shrink-0 opacity-75" />
+                              {t("friends.blockUser")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReportTarget({ id: friend.id, username: friend.username });
+                                setOpenFriendActions(null);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-300 transition hover:bg-white/[0.06] hover:text-blue-200"
+                            >
+                              <Flag className="h-4 w-4 shrink-0 opacity-75" />
+                              {t("friends.reportUser")}
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                       <div className="flex items-start gap-4">
                         <div className="relative h-16 w-16 shrink-0">
                           <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60 shadow-[0_0_28px_rgba(59,130,246,0.16)]">
@@ -842,7 +901,7 @@ export function Friends() {
                           />
                         </div>
 
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 pr-10">
                           <div className="mb-2 flex items-start justify-between gap-2">
                             <h3 className="truncate text-xl font-bold text-white">{friend.username}</h3>
                             <span className="shrink-0 rounded-full border border-blue-300/15 bg-blue-950/45 px-2.5 py-1 text-xs font-semibold text-blue-200">
@@ -880,41 +939,6 @@ export function Friends() {
                         >
                           <Coins className="h-4 w-4 shrink-0" />
                           {t("friends.loans.requestLoan")}
-                        </button>
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center justify-end gap-0.5 border-t border-white/[0.06] pt-2">
-                        <button
-                          type="button"
-                          onClick={() => setConfirmAction({ kind: "remove", id: friend.id, username: friend.username })}
-                          className={`${pokerDiscreetAction} hover:text-amber-200/75`}
-                          title={t("friends.removeFriend")}
-                        >
-                          <UserMinus className="h-3 w-3 shrink-0 opacity-70" />
-                          {t("friends.removeFriend")}
-                        </button>
-                        <span className="mx-0.5 text-slate-600/80" aria-hidden="true">
-                          ·
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmAction({ kind: "block", id: friend.id, username: friend.username })}
-                          className={`${pokerDiscreetAction} hover:text-red-300/75`}
-                          title={t("friends.blockUser")}
-                        >
-                          <ShieldBan className="h-3 w-3 shrink-0 opacity-70" />
-                          {t("friends.blockUser")}
-                        </button>
-                        <span className="mx-0.5 text-slate-600/80" aria-hidden="true">
-                          ·
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setReportTarget({ id: friend.id, username: friend.username })}
-                          className={pokerDiscreetAction}
-                          title={t("friends.reportUser")}
-                        >
-                          <Flag className="h-3 w-3 shrink-0 opacity-70" />
-                          {t("friends.reportUser")}
                         </button>
                       </div>
                     </div>
