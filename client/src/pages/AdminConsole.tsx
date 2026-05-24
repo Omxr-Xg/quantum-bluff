@@ -222,7 +222,7 @@ export function AdminConsole() {
     setCodeLoading(true);
     setCodeError(null);
     try {
-      const res = await fetch(apiUrl("/api/gift-codes/admin/list?limit=50"), { headers: authHeaders() });
+      const res = await fetch(apiUrl("/api/admin/console/gift-codes?limit=50"), { headers: authHeaders() });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setCodeError((data as { error?: string }).error ?? "Erreur lors du chargement");
@@ -251,7 +251,7 @@ export function AdminConsole() {
     setCodeSuccess(null);
 
     try {
-      const res = await fetch(apiUrl("/api/gift-codes/admin/create"), {
+      const res = await fetch(apiUrl("/api/admin/console/gift-codes"), {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
@@ -307,7 +307,7 @@ export function AdminConsole() {
         path = `/api/admin/console/games/active-poker?${p.toString()}`;
       } else if (tab === "bj") path = `/api/admin/console/games/blackjack-rooms?${listParams}`;
       else if (tab === "tournaments") path = `/api/admin/console/tournaments?${listParams}`;
-      else if (tab === "waitingRooms") path = `/api/admin/console/waiting-rooms?${listParams}`;
+      else if (tab === "waitingRooms") path = `/api/admin/console/games/waiting-rooms?${listParams}`;
       else if (tab === "reports") path = `/api/admin/console/player-reports?${listParams}`;
       else if (tab === "giftCodes") {
         void loadGiftCodes();
@@ -405,7 +405,7 @@ export function AdminConsole() {
     setError(null);
     try {
       const res = await fetch(
-        apiUrl(`/api/admin/console/waiting-rooms/${encodeURIComponent(roomId)}`),
+        apiUrl(`/api/admin/console/games/waiting-rooms/${encodeURIComponent(roomId)}`),
         { method: "DELETE", headers: authHeaders() },
       );
       const data = await res.json().catch(() => ({}));
