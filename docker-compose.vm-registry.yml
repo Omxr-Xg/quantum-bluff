@@ -2,10 +2,10 @@
 #
 # Prérequis sur la VM :
 #   1. Créer un fichier .env à la racine du repo (ou exporter dans le shell) :
-#        QUANTUM_REGISTRY_IMAGE=registry.gitlab.com/VOTRE_GROUPE/VOTRE_PROJET
-#      (même valeur que CI_REGISTRY_IMAGE dans GitLab → Infrastructure → Container Registry)
+#        QUANTUM_REGISTRY_IMAGE=git.unistra.fr:5050/VOTRE_GROUPE/VOTRE_PROJET
+#      (même valeur que CI_REGISTRY_IMAGE dans GitLab → Deploy → Container Registry)
 #   2. Se connecter au registry :
-#        docker login registry.gitlab.com
+#        docker login git.unistra.fr:5050
 #      (token « read_registry » ou mot de passe + utilisateur GitLab)
 #
 # Déployer / mettre à jour :
