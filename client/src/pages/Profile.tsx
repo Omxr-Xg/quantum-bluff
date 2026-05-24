@@ -288,14 +288,6 @@ export function Profile() {
                     {profileData.currentStreak} {t("profile.wins")}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">{t("profile.bestStreak")}</span>
-                  <span className="font-semibold text-amber-200">7 {t("profile.wins")}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">{t("profile.avgGains")}</span>
-                  <span className="font-semibold text-blue-200">$144</span>
-                </div>
               </div>
             </div>
           </div>

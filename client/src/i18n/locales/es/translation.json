@@ -64,7 +64,7 @@
     "balanceTabGiftAria": "Códigos regalo",
     "balanceTabHistoryAria": "Historial",
     "withdrawTitle": "Retirar dinero",
-    "withdrawRateHint": "{{chips}} fichas = 1 €",
+    "withdrawRateHint": "{{chips}} fichas = {{eur}}",
     "withdrawErrorPrefix": "Error de retiro:",
     "withdrawAmountLabel": "Importe a retirar",
     "withdrawAmountPlaceholder": "Mín. {{min}} fichas",
@@ -678,16 +678,16 @@
         "name": "Novato"
       },
       "regular": {
-        "name": "Regular"
+        "name": "Jugador"
       },
       "rising": {
-        "name": "Estrella"
+        "name": "Faroleador"
       },
       "skilled": {
-        "name": "Hábil"
+        "name": "Estratega"
       },
       "veteran": {
-        "name": "Veterano"
+        "name": "High Roller"
       },
       "expert": {
         "name": "Experto"

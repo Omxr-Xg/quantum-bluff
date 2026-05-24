@@ -137,14 +137,15 @@ app.use(cors(corsOptions))
 app.use(requestIdMiddleware)
 app.use(httpAccessLogMiddleware)
 
+const globalRateLimitMax = env.isProduction ? env.rateLimitGlobalMax : 1000
+
 const limiter = rateLimitWithMetrics({
   windowMs: 15 * 60 * 1000,
   /**
-   * Comptage surtout des réponses non-2xx (skipSuccessfulRequests) ; marge pour clients qui retry après erreurs.
-   * Les lectures de solde sont exclues : avec skipSuccessfulRequests, les rafales concurrentes peuvent quand même
-   * dépasser le plafond avant les décrémentations « finish » — le client poll /balance pendant une partie cash.
+   * Comptage surtout des réponses non-2xx (skipSuccessfulRequests).
+   * Sur VM derrière proxy, les 404/502 (backend pas à jour) comptaient vite → 429 pour tout le monde.
    */
-  limit: env.isProduction ? 400 : 1000,
+  limit: globalRateLimitMax,
   message: { error: 'Trop de requêtes, réessaie plus tard' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -152,6 +153,15 @@ const limiter = rateLimitWithMetrics({
   skip: (req: Request) => {
     const p = req.path
     if (req.method === 'GET' && (p === '/api/auth/balance' || p === '/api/auth/balance-history')) {
+      return true
+    }
+    if (
+      p === '/api/health' ||
+      p === '/api/health/live' ||
+      p === '/api/health/ready' ||
+      p.startsWith('/api/admin/console') ||
+      p.startsWith('/api/gift-codes/admin')
+    ) {
       return true
     }
     return false

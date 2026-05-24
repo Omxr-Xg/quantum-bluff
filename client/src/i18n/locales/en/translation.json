@@ -66,7 +66,7 @@
     "balanceTabGiftAria": "Gift codes",
     "balanceTabHistoryAria": "History",
     "withdrawTitle": "Withdraw money",
-    "withdrawRateHint": "{{chips}} chips = 1 €",
+    "withdrawRateHint": "{{chips}} chips = {{eur}}",
     "withdrawErrorPrefix": "Withdrawal failed:",
     "withdrawAmountLabel": "Amount to withdraw",
     "withdrawAmountPlaceholder": "Min. {{min}} chips",
@@ -725,16 +725,16 @@
         "name": "Novice"
       },
       "regular": {
-        "name": "Regular"
+        "name": "Player"
       },
       "rising": {
-        "name": "Rising star"
+        "name": "Bluffer"
       },
       "skilled": {
-        "name": "Skilled"
+        "name": "Strategist"
       },
       "veteran": {
-        "name": "Veteran"
+        "name": "High Roller"
       },
       "expert": {
         "name": "Expert"

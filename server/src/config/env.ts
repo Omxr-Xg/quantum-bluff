@@ -256,6 +256,7 @@ export const env = {
   aiServiceUrl,
   aiServiceTimeoutMs: getNonNegativeIntegerEnv('AI_SERVICE_TIMEOUT_MS', 450),
   aiServiceEnabled,
+  rateLimitGlobalMax: getNonNegativeIntegerEnv('RATE_LIMIT_GLOBAL_MAX', 1200),
   adminConsoleUsername,
   adminConsolePasswordHash,
   adminConsoleJwtUserId,

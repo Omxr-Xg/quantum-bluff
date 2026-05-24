@@ -73,6 +73,8 @@ const pokerButton =
   "rounded-full border border-blue-300/15 bg-blue-950/75 font-semibold text-white shadow-lg shadow-black/20 transition hover:border-blue-200/25 hover:bg-blue-900/80";
 const pokerMutedButton =
   "rounded-full border border-white/10 bg-white/[0.055] font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]";
+const pokerDiscreetAction =
+  "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-slate-500 transition hover:bg-white/[0.04] hover:text-slate-300";
 const pokerInput =
   "rounded-xl border border-white/10 bg-slate-950/55 text-white placeholder-slate-500 transition-all focus:border-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-500/25";
 
@@ -858,11 +860,11 @@ export function Friends() {
                         </div>
                       </div>
 
-                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <button
                           type="button"
                           onClick={() => openChat(friend.id)}
-                          className={`flex items-center justify-center gap-2 px-4 py-2.5 lg:col-span-2 ${pokerMutedButton}`}
+                          className={`flex items-center justify-center gap-2 px-4 py-2.5 ${pokerMutedButton}`}
                         >
                           <MessageCircle className="h-4 w-4 shrink-0" />
                           {t("friends.chat")}
@@ -874,33 +876,44 @@ export function Friends() {
                             setLoanAmount(500);
                             setLoanRate(30);
                           }}
-                          className="flex items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-950/45 px-4 py-2.5 font-semibold text-cyan-100 transition-all hover:border-cyan-200/35 hover:bg-cyan-900/45 lg:col-span-3"
+                          className="flex items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-950/45 px-4 py-2.5 font-semibold text-cyan-100 transition-all hover:border-cyan-200/35 hover:bg-cyan-900/45"
                         >
                           <Coins className="h-4 w-4 shrink-0" />
                           {t("friends.loans.requestLoan")}
                         </button>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center justify-end gap-0.5 border-t border-white/[0.06] pt-2">
                         <button
                           type="button"
                           onClick={() => setConfirmAction({ kind: "remove", id: friend.id, username: friend.username })}
-                          className="flex items-center justify-center gap-2 rounded-xl border border-amber-300/20 bg-amber-950/35 px-4 py-2.5 font-semibold text-amber-100 transition-all hover:border-amber-200/35 hover:bg-amber-900/40 lg:col-span-2"
+                          className={`${pokerDiscreetAction} hover:text-amber-200/75`}
+                          title={t("friends.removeFriend")}
                         >
-                          <UserMinus className="h-4 w-4 shrink-0" />
+                          <UserMinus className="h-3 w-3 shrink-0 opacity-70" />
                           {t("friends.removeFriend")}
                         </button>
+                        <span className="mx-0.5 text-slate-600/80" aria-hidden="true">
+                          ·
+                        </span>
                         <button
                           type="button"
                           onClick={() => setConfirmAction({ kind: "block", id: friend.id, username: friend.username })}
-                          className="flex items-center justify-center gap-2 rounded-xl border border-red-300/20 bg-red-950/35 px-4 py-2.5 font-semibold text-red-100 transition-all hover:border-red-200/35 hover:bg-red-900/40 lg:col-span-2"
+                          className={`${pokerDiscreetAction} hover:text-red-300/75`}
+                          title={t("friends.blockUser")}
                         >
-                          <ShieldBan className="h-4 w-4 shrink-0" />
+                          <ShieldBan className="h-3 w-3 shrink-0 opacity-70" />
                           {t("friends.blockUser")}
                         </button>
+                        <span className="mx-0.5 text-slate-600/80" aria-hidden="true">
+                          ·
+                        </span>
                         <button
                           type="button"
                           onClick={() => setReportTarget({ id: friend.id, username: friend.username })}
-                          className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.055] px-4 py-2.5 font-semibold text-slate-200 transition-all hover:border-white/20 hover:bg-white/[0.08]"
+                          className={pokerDiscreetAction}
+                          title={t("friends.reportUser")}
                         >
-                          <Flag className="h-4 w-4 shrink-0" />
+                          <Flag className="h-3 w-3 shrink-0 opacity-70" />
                           {t("friends.reportUser")}
                         </button>
                       </div>

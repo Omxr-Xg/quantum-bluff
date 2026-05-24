@@ -19,20 +19,21 @@ export function calculatePlayerPositions(
       positions.push({ x: 0, y: 200 });   // 0: hero
       positions.push({ x: 0, y: -200 });  // 1: top center
     } else if (count === 3) {
-      positions.push({ x: 0, y: -200 });  // 0: top center
-      positions.push({ x: 160, y: 0 });   // 1: right
-      positions.push({ x: -160, y: 0 });  // 2: left
+      // Héros en bas ; 2 ennemis aux coins HAUT gauche/droite (loin du plateau / brûlé)
+      positions.push({ x: 0, y: 200 }); // hero bottom center
+      positions.push({ x: -210, y: -165 }); // left upper — écart ↑ pour éviter le pot / board au centre
+      positions.push({ x: 210, y: -165 }); // right upper
     } else if (count === 4) {
       positions.push({ x: 0, y: 200 });    // 0: hero
       positions.push({ x: 0, y: -200 });   // 1: top center
       positions.push({ x: 160, y: -60 });  // 2: top right
       positions.push({ x: -160, y: -60 }); // 3: top left
     } else if (count === 5) {
-      positions.push({ x: 0, y: -200 });   // 0: top center
-      positions.push({ x: 160, y: -80 });  // 1: top right
-      positions.push({ x: 160, y: 100 });  // 2: bottom right
-      positions.push({ x: -160, y: 100 }); // 3: bottom left
-      positions.push({ x: -160, y: -80 }); // 4: top left
+      positions.push({ x: 0, y: 200 });    // 0: hero bottom
+      positions.push({ x: 0, y: -200 }); // 1: top center
+      positions.push({ x: -160, y: -80 }); // 2: upper left
+      positions.push({ x: 160, y: -80 }); // 3: upper right
+      positions.push({ x: -160, y: 80 }); // 4: flank bas-gauche
     } else if (count === 6) {
       positions.push({ x: 0, y: 200 });     // 0: hero
       positions.push({ x: 0, y: -200 });    // 1: top center
@@ -40,6 +41,16 @@ export function calculatePlayerPositions(
       positions.push({ x: 160, y: 80 });    // 3: bottom right
       positions.push({ x: -160, y: 80 });   // 4: bottom left
       positions.push({ x: -160, y: -100 }); // 5: top left
+    } else {
+      /** Nombre de sièges non couvert ci-dessus (ex. 7 max) — ellipse, siège 0 en bas. */
+      const rx = 170;
+      const ry = 195;
+      const startAngle = Math.PI / 2;
+      const angleStep = (2 * Math.PI) / count;
+      for (let i = 0; i < count; i++) {
+        const a = startAngle - i * angleStep;
+        positions.push({ x: rx * Math.cos(a), y: ry * Math.sin(a) });
+      }
     }
 
     return positions.map((pos, position) => ({ ...pos, position }));

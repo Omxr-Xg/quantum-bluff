@@ -5,6 +5,7 @@ import {
   isCardNumberLuhnValid,
   isFakeCardComplete,
   isFakeCardCvvValid,
+  simulatedEurFromChips,
 } from "./FakeCardTopUpForm";
 
 describe("isCardNumberLuhnValid", () => {
@@ -20,6 +21,13 @@ describe("isCardNumberLuhnValid", () => {
   it("refuse longueur hors 13–19", () => {
     expect(isCardNumberLuhnValid("424242424242")).toBe(false); // 12 chiffres
     expect(isCardNumberLuhnValid("4".repeat(20))).toBe(false);
+  });
+});
+
+describe("simulatedEurFromChips", () => {
+  it("convertit l'achat au taux 1 euro pour 10 jetons", () => {
+    expect(simulatedEurFromChips(10, null)).toBe(1);
+    expect(simulatedEurFromChips(100, null)).toBe(10);
   });
 });
 

@@ -247,7 +247,7 @@ export function HandCombinationsHelpButton({
                         value={c.value}
                         size="xs"
                         colorblindMode={colorblindMode}
-                        className="shrink-0"
+                        className={`shrink-0 ${key === "quantumCombi" ? "origin-center scale-[0.35]" : ""}`}
                       />
                     ))}
                   </div>

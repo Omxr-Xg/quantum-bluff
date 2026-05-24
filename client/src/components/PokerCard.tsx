@@ -25,10 +25,20 @@ interface PokerCardProps {
   colorblindMode?: boolean;
 }
 
+/** Hold’em / tailles par défaut : sous md, board (xs) calculé pour 5 cartes avec léger overlap. Facteur −25 % vs état précédent. */
 const SIZE_MAP: Record<CardSize, { card: string }> = {
-  xs: { card: "w-10 h-[56px]" },
-  sm: { card: "w-12 h-[68px]" },
-  md: { card: "w-16 h-[88px]" },
+  xs: {
+    card:
+      "w-[30px] h-[42px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[calc(((min(86vw,calc(100vw-2rem))+3.5rem)/5)*0.75)]",
+  },
+  sm: {
+    card:
+      "w-9 h-[51px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[min(4.6875rem,min(32.25vw,7.21875rem))]",
+  },
+  md: {
+    card:
+      "w-12 h-[66px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[min(6rem,min(31.5vw,7.875rem))]",
+  },
   lg: { card: "w-20 h-[112px] md:w-28 md:h-[156px]" },
 };
 

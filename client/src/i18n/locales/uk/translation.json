@@ -117,7 +117,7 @@
     "balanceTabGiftAria": "Подарункові коди",
     "balanceTabHistoryAria": "Історія",
     "withdrawTitle": "Зняти кошти",
-    "withdrawRateHint": "{{chips}} фішок = 1 €",
+    "withdrawRateHint": "{{chips}} фішок = {{eur}}",
     "withdrawErrorPrefix": "Помилка зняття:",
     "withdrawAmountLabel": "Сума зняття",
     "withdrawAmountPlaceholder": "Мін. {{min}} фішок",
@@ -680,16 +680,16 @@
         "name": "Новачок"
       },
       "regular": {
-        "name": "Звичний"
+        "name": "Гравець"
       },
       "rising": {
-        "name": "Зірка"
+        "name": "Блефер"
       },
       "skilled": {
-        "name": "Досвідчений"
+        "name": "Стратег"
       },
       "veteran": {
-        "name": "Ветеран"
+        "name": "High Roller"
       },
       "expert": {
         "name": "Експерт"

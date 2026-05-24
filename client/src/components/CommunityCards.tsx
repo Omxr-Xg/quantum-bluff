@@ -26,14 +26,14 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
-  const boardCardWidth = isMobile ? 40 : isTablet ? 48 : 64;
-  const boardGap = isMobile ? 2 : isTablet ? 6 : 8;
+  const boardCardWidth = isTablet ? 48 : 64;
+  const boardGap = isTablet ? 10 : 12;
   const labelGap = isMobile ? 2 : isTablet ? 4 : 6;
   
   return (
     <div
       className={`absolute ${
-        isMobile ? "top-[45%] -translate-y-1/2" : isTablet ? "top-9" : "top-12"
+        isMobile ? "top-[51%] -translate-y-1/2" : isTablet ? "top-11" : "top-14"
       } left-0 right-0 flex justify-center`}
     >
       <div
@@ -45,17 +45,17 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
         <div
           ref={potRef}
           className={`bg-black/40 backdrop-blur-sm rounded-full ${
-            isMobile ? "px-2 py-1" : isTablet ? "px-2.5 py-1" : "px-3 py-1.5"
+            isMobile ? "px-3 py-1.5" : isTablet ? "px-3.5 py-1.5" : "px-4 py-2"
           } shadow-[0_0_10px_rgba(0,0,0,0.5)] border border-white/10`}
         >
           <div
             className={`flex items-center justify-center ${
-              isMobile ? "gap-1" : isTablet ? "gap-1.5" : "gap-2"
+              isMobile ? "gap-1.5" : isTablet ? "gap-2" : "gap-3"
             }`}
           >
             <div
               className={`${
-                isMobile ? "text-[8px]" : isTablet ? "text-[9px]" : "text-[10px]"
+                isMobile ? "text-[12px]" : isTablet ? "text-[14px]" : "text-[15px]"
               } text-gray-300 font-bold tracking-wider`}
             >
               POT
@@ -63,16 +63,16 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
 
             <div
               className={`${
-                isMobile ? "w-4 h-4" : isTablet ? "w-5 h-5" : "w-6 h-6"
-              } flex-shrink-0 drop-shadow-md`}
+                isMobile ? "h-6 w-6" : isTablet ? "h-8 w-8" : "h-9 w-9"
+              } shrink-0 drop-shadow-md`}
             >
-              <QuantumBluffLogo className="w-full h-full object-contain" />
+              <QuantumBluffLogo className="h-full w-full object-contain" />
             </div>
 
             <div
               className={`${
-                isMobile ? "text-xs" : isTablet ? "text-sm" : "text-base"
-              } text-white font-extrabold tracking-tight drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]`}
+                isMobile ? "text-lg" : isTablet ? "text-xl" : "text-2xl"
+              } font-extrabold tracking-tight text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]`}
             >
               {pot.toLocaleString()}
             </div>
@@ -81,18 +81,18 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
 
         {/* Side pots indicator */}
         {sidePots && sidePots.length > 1 && (
-          <div className={`flex ${isMobile ? 'gap-1' : 'gap-2'} flex-wrap justify-center`}>
+          <div className={`flex flex-wrap justify-center ${isMobile ? "gap-1.5" : "gap-2.5"}`}>
             {sidePots.map((sp, i) => (
               <div
                 key={i}
-                className={`bg-black/30 backdrop-blur-sm rounded-full ${
-                  isMobile ? 'px-1.5 py-0.5' : 'px-2 py-0.5'
-                } border border-white/10 flex items-center gap-1`}
+                className={`flex items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-sm ${
+                  isMobile ? "gap-1.5 px-2 py-1" : "gap-2 px-3 py-1"
+                }`}
               >
-                <span className={`${isMobile ? 'text-[7px]' : 'text-[9px]'} text-amber-300 font-bold`}>
+                <span className={`font-bold text-amber-300 ${isMobile ? "text-[11px]" : "text-[13px]"}`}>
                   {i === 0 ? "Main" : `Side ${i}`}
                 </span>
-                <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-white font-bold`}>
+                <span className={`font-bold text-white ${isMobile ? "text-xs" : "text-sm"}`}>
                   {sp.amount.toLocaleString()}
                 </span>
               </div>
@@ -103,76 +103,123 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
         {/* COMMUNITY CARDS + labels (board) */}
         <div
           ref={boardRef}
-          className="grid place-items-center"
-          style={{
-            gridTemplateColumns: `repeat(5, ${boardCardWidth}px)`,
-            columnGap: `${boardGap}px`,
-            rowGap: `${labelGap}px`,
-          }}
+          className={`place-items-center ${isMobile ? "flex flex-col items-center gap-2" : "grid"}`}
+          style={
+            isMobile
+              ? undefined
+              : {
+                  display: "grid",
+                  gridTemplateColumns: `repeat(5, ${boardCardWidth}px)`,
+                  columnGap: `${boardGap}px`,
+                  rowGap: `${labelGap}px`,
+                }
+          }
         >
-          {cards.map((card, index) => (
-            <motion.div
-              key={index}
-              className="flex items-center justify-center"
-              style={{ gridColumn: index + 1, gridRow: 1 }}
-              initial={{ scale: 0, rotateY: 180, opacity: 0 }}
-              animate={
-                card
-                  ? { scale: 1, rotateY: 0, opacity: 1 }
-                  : { scale: 1, opacity: 1 }
-              }
-              transition={{
-                duration: 0.5,
-                ease: "easeOut",
-                type: "spring",
-                stiffness: 200,
-                delay: card ? index * 0.1 : 0,
-              }}
-            >
-              {card ? (
-                <PokerCard
-                  suit={card.suit}
-                  value={card.value}
-                  size={isMobile ? "xs" : isTablet ? "sm" : "md"}
-                  colorblindMode={colorblindMode}
-                  highlight={Boolean(
-                    highlightCardKeys?.size && highlightCardKeys.has(cardHighlightKey(card)),
+          {isMobile ? (
+            <>
+              <div className="flex shrink-0 flex-row justify-center gap-x-2 px-2">
+                {cards.map((card, index) => (
+                  <motion.div
+                    key={index}
+                    className="flex shrink-0 items-center justify-center"
+                    initial={{ scale: 0, rotateY: 180, opacity: 0 }}
+                    animate={
+                      card
+                        ? { scale: 1, rotateY: 0, opacity: 1 }
+                        : { scale: 1, opacity: 1 }
+                    }
+                    transition={{
+                      duration: 0.5,
+                      ease: "easeOut",
+                      type: "spring",
+                      stiffness: 200,
+                      delay: card ? index * 0.1 : 0,
+                    }}
+                  >
+                    {card ? (
+                      <PokerCard
+                        suit={card.suit}
+                        value={card.value}
+                        size="xs"
+                        colorblindMode={colorblindMode}
+                        highlight={Boolean(
+                          highlightCardKeys?.size && highlightCardKeys.has(cardHighlightKey(card)),
+                        )}
+                      />
+                    ) : (
+                      <PokerCardSlot size="xs" />
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+              <div className="mt-0.5 grid w-full max-w-[min(86vw,calc(100vw-2rem))] grid-cols-5 place-items-center text-[8px] font-semibold text-white/70">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <span key={`phase-mobile-${i}`} className="px-px text-center">
+                    {i <= 2 ? "FLOP" : i === 3 ? "TURN" : "RIVER"}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              {cards.map((card, index) => (
+                <motion.div
+                  key={index}
+                  className="flex items-center justify-center"
+                  style={{ gridColumn: index + 1, gridRow: 1 }}
+                  initial={{ scale: 0, rotateY: 180, opacity: 0 }}
+                  animate={
+                    card
+                      ? { scale: 1, rotateY: 0, opacity: 1 }
+                      : { scale: 1, opacity: 1 }
+                  }
+                  transition={{
+                    duration: 0.5,
+                    ease: "easeOut",
+                    type: "spring",
+                    stiffness: 200,
+                    delay: card ? index * 0.1 : 0,
+                  }}
+                >
+                  {card ? (
+                    <PokerCard
+                      suit={card.suit}
+                      value={card.value}
+                      size={isTablet ? "sm" : "md"}
+                      colorblindMode={colorblindMode}
+                      highlight={Boolean(
+                        highlightCardKeys?.size && highlightCardKeys.has(cardHighlightKey(card)),
+                      )}
+                    />
+                  ) : (
+                    <PokerCardSlot size={isTablet ? "sm" : "md"} />
                   )}
-                />
-              ) : (
-                <PokerCardSlot size={isMobile ? "xs" : isTablet ? "sm" : "md"} />
-              )}
-            </motion.div>
-          ))}
+                </motion.div>
+              ))}
 
-          {/* PHASE LABELS */}
-          {[1, 2, 3].map((column) => (
-            <span
-              key={`flop-${column}`}
-              className={`text-center font-semibold text-white/70 ${
-                isMobile ? "text-[8px]" : isTablet ? "text-[9px]" : "text-[10px]"
-              }`}
-              style={{ gridColumn: column, gridRow: 2 }}
-            >
-              FLOP
-            </span>
-          ))}
-          <span
-            className={`text-center font-semibold text-white/70 ${
-              isMobile ? "text-[8px]" : isTablet ? "text-[9px]" : "text-[10px]"
-            }`}
-            style={{ gridColumn: 4, gridRow: 2 }}
-          >
-            TURN
-          </span>
-          <span
-            className={`text-center font-semibold text-white/70 ${
-              isMobile ? "text-[8px]" : isTablet ? "text-[9px]" : "text-[10px]"
-            }`}
-            style={{ gridColumn: 5, gridRow: 2 }}
-          >
-            RIVER
-          </span>
+              {[1, 2, 3].map((column) => (
+                <span
+                  key={`flop-${column}`}
+                  className={`text-center font-semibold text-white/70 ${isTablet ? "text-[9px]" : "text-[10px]"}`}
+                  style={{ gridColumn: column, gridRow: 2 }}
+                >
+                  FLOP
+                </span>
+              ))}
+              <span
+                className={`text-center font-semibold text-white/70 ${isTablet ? "text-[9px]" : "text-[10px]"}`}
+                style={{ gridColumn: 4, gridRow: 2 }}
+              >
+                TURN
+              </span>
+              <span
+                className={`text-center font-semibold text-white/70 ${isTablet ? "text-[9px]" : "text-[10px]"}`}
+                style={{ gridColumn: 5, gridRow: 2 }}
+              >
+                RIVER
+              </span>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -189,20 +189,24 @@ export function PokerTable({
           </div>
 
           {/* Community cards */}
-          <div className={`absolute z-10 ${(isMobile || isTabletPortrait) ? 'top-[38%]' : 'top-[18%]'} left-1/2 -translate-x-1/2 flex justify-center`}>
+          <div className={`absolute z-10 ${(isMobile || isTabletPortrait) ? 'top-[44%]' : 'top-[23%]'} left-1/2 -translate-x-1/2 flex justify-center`}>
             {children}
           </div>
 
           {/* Cartes brûlées */}
           {burnedCardsCount > 0 && (
             <div
-              className={`absolute z-10 ${(isMobile || isTabletPortrait) ? "right-[1%] top-[1%]" : "right-[2%] top-[15%]"} pointer-events-none`}
+              className={`pointer-events-none absolute z-10 ${
+                isMobile || isTabletPortrait
+                  ? "bottom-[13%] left-[5%] right-auto top-auto flex flex-col items-start"
+                  : "right-[2%] top-[15%]"
+              }`}
               title={t("game.burned")}
               aria-label={t("game.burnedCount", { count: burnedCardsCount })}
             >
               <div className="relative">
                 <div className="absolute -inset-2 rounded-xl bg-black/20 blur-md" />
-                <div className={`relative flex -space-x-3 ${isMobile ? 'scale-75 origin-top-right' : ''}`}>
+                <div className="relative flex -space-x-2">
                   {Array.from({ length: Math.min(burnedCardsCount, 4) }).map(
                     (_, i) => (
                       <PokerCard
@@ -267,13 +271,16 @@ export function PokerTable({
             const timerArcOffset = timerArcLength - timerProgress;
             const showHeroTimer =
               isHeroDisplay && heroTimerActive && heroTimerTimeLeft != null;
-            const avatarSizeClass = player.position === 0
-              ? "w-[clamp(3.1rem,7vw,4.6rem)] h-[clamp(3.1rem,7vw,4.6rem)]"
+            /** Héros (vous / siège héros) : inchangé. Adversaires & bots : ×1,5 vs taille précédente. */
+            const avatarSizeClass = isHeroDisplay
+              ? "w-[clamp(4.65rem,10.5vw,6.9rem)] h-[clamp(4.65rem,10.5vw,6.9rem)]"
               : isMobile
-                ? "w-[clamp(2rem,5vw,2.8rem)] h-[clamp(2rem,5vw,2.8rem)]"
+                ? "w-[clamp(4.5rem,11.25vw,6.3rem)] h-[clamp(4.5rem,11.25vw,6.3rem)]"
                 : isTablet
-                  ? "w-[clamp(2.2rem,4vw,3.1rem)] h-[clamp(2.2rem,4vw,3.1rem)]"
-                  : "w-[clamp(2.6rem,5vw,3.75rem)] h-[clamp(2.6rem,5vw,3.75rem)]";
+                  ? "w-[clamp(4.95rem,9vw,6.975rem)] h-[clamp(4.95rem,9vw,6.975rem)]"
+                  : "w-[clamp(5.85rem,11.25vw,8.4375rem)] h-[clamp(5.85rem,11.25vw,8.4375rem)]";
+
+            const avatarBorderClass = isHeroDisplay ? "border-2" : "border-[3px]";
 
             return (
               <div
@@ -317,11 +324,11 @@ export function PokerTable({
                           />
                         ) : (
                           <div
-                            className={`flex items-center justify-center h-full font-bold ${
+                            className={`flex h-full items-center justify-center font-bold ${
                               player.hasFolded
                                 ? "text-red-300 blur-[1px] opacity-50"
                                 : "text-white"
-                            }`}
+                            } ${!isHeroDisplay ? "text-[clamp(1rem,5.5vw,1.65rem)]" : "text-[clamp(0.875rem,3.75vw,1.125rem)]"}`}
                           >
                             {player.name.charAt(0)}
                           </div>
@@ -333,7 +340,7 @@ export function PokerTable({
                       </>
                     );
 
-                    const shellClass = `rounded-full overflow-hidden border-2 transition relative
+                    const shellClass = `rounded-full overflow-hidden transition relative ${avatarBorderClass}
                       ${avatarSizeClass}
                       ${
                         player.hasFolded
@@ -375,7 +382,7 @@ export function PokerTable({
                       <div className="relative flex items-center justify-center">
                         {showHeroTimer && (
                           <svg
-                            className={`pointer-events-none absolute -inset-[0.62rem] z-20 h-[calc(100%+1.24rem)] w-[calc(100%+1.24rem)] overflow-visible ${
+                            className={`pointer-events-none absolute -inset-[0.93rem] z-20 h-[calc(100%+1.86rem)] w-[calc(100%+1.86rem)] overflow-visible ${
                               timerLeft <= 5 ? "animate-pulse" : ""
                             }`}
                             viewBox="0 0 100 100"
@@ -449,7 +456,7 @@ export function PokerTable({
                   {!isHeroDisplay && shouldReserveOpponentCards && (
                     <div className="pointer-events-none absolute left-1/2 top-[68%] z-20 flex -translate-x-1/2 items-start justify-center">
                       {hasVisibleSeatCards && (
-                        <div className="flex items-start justify-center -space-x-3 opacity-95">
+                        <div className="flex items-start justify-center -space-x-2 opacity-95">
                           {player.cards.map((card, index) => (
                             <PokerCard
                               key={index}
@@ -473,18 +480,18 @@ export function PokerTable({
                   )}
 
                   {!isHeroDisplay && (
-                    <div className={`pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-0 ${hasVisibleSeatCards ? "top-[calc(100%+0.85rem)]" : "top-[calc(100%-0.35rem)]"}`}>
+                    <div className={`pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-1 ${hasVisibleSeatCards ? "top-[calc(100%+0.85rem)]" : "top-[calc(100%-0.35rem)]"}`}>
                       <div
-                        className={`min-w-[4.3rem] max-w-[7rem] truncate rounded-md border px-2.5 py-1 text-center text-[clamp(9px,1vw,12px)] font-bold leading-none shadow-[0_8px_18px_rgba(0,0,0,0.45)] ${
+                        className={`max-w-[10.5rem] min-w-[6.45rem] truncate rounded-md border px-4 py-1.5 text-center font-bold leading-none shadow-[0_12px_24px_rgba(0,0,0,0.45)] ${
                           player.hasFolded
-                            ? "border-red-400/35 bg-red-950/90 text-red-200 line-through"
-                            : "border-white/10 bg-slate-950/95 text-slate-100"
+                            ? "border-red-400/35 bg-red-950/90 text-[clamp(13.5px,1.5vw,18px)] text-red-200 line-through"
+                            : "border-white/10 bg-slate-950/95 text-[clamp(13.5px,1.5vw,18px)] text-slate-100"
                         }`}
                       >
                         {displayName}
                       </div>
-                      <div className="inline-flex min-w-[4.3rem] items-center justify-center gap-1.5 rounded-md border border-slate-600/75 bg-slate-900/95 px-2.5 py-1 text-[clamp(9px,1vw,12px)] font-bold leading-none tabular-nums text-slate-100 shadow-[0_8px_18px_rgba(0,0,0,0.45)]">
-                        <ChipIcon size="sm" className="h-3.5 w-3.5 shrink-0" />
+                      <div className="inline-flex min-w-[6.45rem] items-center justify-center gap-2 rounded-md border border-slate-600/75 bg-slate-900/95 px-4 py-1.5 text-[clamp(13.5px,1.5vw,18px)] font-bold leading-none tabular-nums text-slate-100 shadow-[0_12px_24px_rgba(0,0,0,0.45)]">
+                        <ChipIcon size="lg" className="shrink-0" />
                         <span>{player.chips.toLocaleString()}</span>
                       </div>
                     </div>

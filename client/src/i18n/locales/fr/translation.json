@@ -65,7 +65,7 @@
     "balanceTabGiftAria": "Codes cadeaux",
     "balanceTabHistoryAria": "Historique",
     "withdrawTitle": "Retirer de l'argent",
-    "withdrawRateHint": "{{chips}} jetons = 1 €",
+    "withdrawRateHint": "{{chips}} jetons = {{eur}}",
     "withdrawErrorPrefix": "Échec du retrait :",
     "withdrawAmountLabel": "Montant à retirer",
     "withdrawAmountPlaceholder": "Min. {{min}} jetons",
@@ -724,16 +724,16 @@
         "name": "Novice"
       },
       "regular": {
-        "name": "Habitué"
+        "name": "Joueur"
       },
       "rising": {
-        "name": "Étoile montante"
+        "name": "Bluffeur"
       },
       "skilled": {
-        "name": "Confirmé"
+        "name": "Stratège"
       },
       "veteran": {
-        "name": "Vétéran"
+        "name": "High Roller"
       },
       "expert": {
         "name": "Expert"
