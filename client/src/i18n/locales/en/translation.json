@@ -627,6 +627,7 @@
     "noPendingRequests": "No pending requests.",
     "syncing": "Syncing…",
     "navAria": "Friends navigation",
+    "actions": "Actions",
     "removeFriend": "Remove",
     "removeConfirmTitle": "Remove this friend?",
     "removeConfirmBody": "{{username}} will leave your friends list. You can still find each other in search and send a new invitation.",

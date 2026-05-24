@@ -613,6 +613,7 @@
     "noPendingRequests": "Sin solicitudes pendientes.",
     "syncing": "Sincronizando…",
     "navAria": "Navegación de amigos",
+    "actions": "Acciones",
     "loans": {
       "title": "Préstamos entre amigos",
       "requestLoan": "Solicitar préstamo",
