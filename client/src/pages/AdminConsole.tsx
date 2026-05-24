@@ -20,14 +20,18 @@ import {
 import { apiUrl } from "../utils/apiBase";
 import { clearAuthStorage } from "../utils/userProfile";
 import { getAuthItem } from "../utils/authStorage";
+import {
+  createAdminGiftCode,
+  listAdminGiftCodes,
+  parseAdminGiftCodesList,
+  type AdminGiftCodeRow,
+} from "../utils/adminGiftCodes";
 
 type Tab =
   | "users"
   | "history"
   | "poker"
   | "bj"
-  | "waitingRooms"
-  | "tournaments"
   | "ratings"
   | "reports"
   | "giftCodes";
@@ -96,18 +100,6 @@ type BjRoom = {
   adminStatusKey?: string;
 };
 
-type TournamentAdminRow = {
-  id: string;
-  name: string;
-  status: string;
-  maxPlayers: number;
-  initialStack: number;
-  startAt: string;
-  currentRoundNumber: number;
-  host?: { username: string; id: string } | null;
-  _count?: { players: number };
-};
-
 type RatingRow = {
   id: string;
   stars: number;
@@ -125,31 +117,6 @@ type ReportRow = {
   reviewedAt: string | null;
   reporter?: { id: string; username: string; email: string };
   reported?: { id: string; username: string; email: string };
-};
-
-type WaitingRoomAdminRow = {
-  id: string;
-  name: string;
-  hostId: string;
-  status: string;
-  gameId: string | null;
-  maxPlayers: number;
-  visibility: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type GiftCodeRow = {
-  id: string;
-  code: string;
-  amount: number;
-  usageType: string;
-  type: string;
-  description: string | null;
-  expiresAt: string | null;
-  maxUses: number;
-  usedCount: number;
-  createdAt: string;
 };
 
 export function AdminConsole() {
@@ -180,7 +147,7 @@ export function AdminConsole() {
     expiresAt: "",
     maxUses: -1
   });
-  const [giftCodes, setGiftCodes] = useState<GiftCodeRow[]>([]);
+  const [giftCodes, setGiftCodes] = useState<AdminGiftCodeRow[]>([]);
   const [codeLoading, setCodeLoading] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
   const [codeSuccess, setCodeSuccess] = useState<string | null>(null);
@@ -222,7 +189,7 @@ export function AdminConsole() {
     setCodeLoading(true);
     setCodeError(null);
     try {
-      const res = await fetch(apiUrl("/api/admin/console/gift-codes?limit=50"), { headers: authHeaders() });
+      const res = await listAdminGiftCodes();
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
         clearAuthStorage();
@@ -230,14 +197,14 @@ export function AdminConsole() {
         return;
       }
       if (res.status === 404) {
-        setCodeError("Backend à mettre à jour (route gift-codes absente). Relancez le déploiement CI.");
+        setCodeError("Backend à mettre à jour. Relancez le déploiement backend sur la VM.");
         return;
       }
       if (!res.ok) {
         setCodeError((data as { error?: string }).error ?? "Erreur lors du chargement");
         return;
       }
-      setGiftCodes((data as { codes?: GiftCodeRow[] }).codes || []);
+      setGiftCodes(parseAdminGiftCodesList(data));
     } catch {
       setCodeError("Erreur réseau");
     } finally {
@@ -260,21 +227,22 @@ export function AdminConsole() {
     setCodeSuccess(null);
 
     try {
-      const res = await fetch(apiUrl("/api/admin/console/gift-codes"), {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({
-          code: codeForm.code,
-          amount: codeForm.amount,
-          usageType: codeForm.usageType,
-          type: codeForm.type,
-          description: codeForm.description || null,
-          expiresAt: codeForm.expiresAt || null,
-          maxUses: codeForm.maxUses === -1 ? -1 : codeForm.maxUses
-        })
+      const res = await createAdminGiftCode({
+        code: codeForm.code,
+        amount: codeForm.amount,
+        usageType: codeForm.usageType,
+        type: codeForm.type,
+        description: codeForm.description || null,
+        expiresAt: codeForm.expiresAt || null,
+        maxUses: codeForm.maxUses === -1 ? -1 : codeForm.maxUses,
       });
 
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        clearAuthStorage();
+        navigate("/auth/admin", { replace: true });
+        return;
+      }
       if (!res.ok) {
         setCodeError((data as { error?: string }).error ?? "Erreur lors de la création");
         return;
@@ -301,7 +269,7 @@ export function AdminConsole() {
     } finally {
       setCodeLoading(false);
     }
-  }, [codeForm, loadGiftCodes]);
+  }, [codeForm, loadGiftCodes, navigate]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -315,8 +283,6 @@ export function AdminConsole() {
         if (debouncedSearch) p.set("q", debouncedSearch);
         path = `/api/admin/console/games/active-poker?${p.toString()}`;
       } else if (tab === "bj") path = `/api/admin/console/games/blackjack-rooms?${listParams}`;
-      else if (tab === "tournaments") path = `/api/admin/console/tournaments?${listParams}`;
-      else if (tab === "waitingRooms") path = `/api/admin/console/games/waiting-rooms?${listParams}`;
       else if (tab === "reports") path = `/api/admin/console/player-reports?${listParams}`;
       else if (tab === "giftCodes") {
         void loadGiftCodes();
@@ -338,7 +304,7 @@ export function AdminConsole() {
     } finally {
       setLoading(false);
     }
-  }, [tab, listParams, debouncedSearch, t]);
+  }, [tab, listParams, debouncedSearch, t, loadGiftCodes]);
 
   useEffect(() => {
     void load();
@@ -404,25 +370,6 @@ export function AdminConsole() {
       }
       await load();
       await fetchReportUnread();
-    } catch {
-      setError(t("adminConsole.networkError"));
-    }
-  };
-
-  const deleteWaitingRoomAdmin = async (roomId: string) => {
-    if (!window.confirm(t("adminConsole.waitingRoomsDeleteConfirm"))) return;
-    setError(null);
-    try {
-      const res = await fetch(
-        apiUrl(`/api/admin/console/games/waiting-rooms/${encodeURIComponent(roomId)}`),
-        { method: "DELETE", headers: authHeaders() },
-      );
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError((data as { error?: string }).error ?? t("adminConsole.actionError"));
-        return;
-      }
-      await load();
     } catch {
       setError(t("adminConsole.networkError"));
     }
@@ -514,8 +461,6 @@ export function AdminConsole() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "poker", label: t("adminConsole.tabPokerActive") },
     { id: "bj", label: t("adminConsole.tabBlackjack") },
-    { id: "tournaments", label: t("adminConsole.tabTournaments") },
-    { id: "waitingRooms", label: t("adminConsole.tabWaitingRooms") },
     { id: "users", label: t("adminConsole.tabPlayers") },
     { id: "history", label: t("adminConsole.tabHistory") },
     { id: "ratings", label: t("adminConsole.tabRatings") },
@@ -642,13 +587,7 @@ export function AdminConsole() {
               </button>
             )}
           </div>
-          <p className="text-xs text-slate-500 sm:max-w-xs">
-            {tab === "waitingRooms"
-              ? t("adminConsole.filterHintWaitingRooms")
-              : tab === "tournaments"
-                ? t("adminConsole.filterHintTournaments")
-                : t("adminConsole.filterHint")}
-          </p>
+          <p className="text-xs text-slate-500 sm:max-w-xs">{t("adminConsole.filterHint")}</p>
         </div>
 
         {error && (
@@ -779,61 +718,6 @@ export function AdminConsole() {
           </div>
         )}
 
-        {tab === "waitingRooms" && json && listPayload?.items && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
-            <p className="px-3 py-2 text-xs text-slate-400">
-              {totalCount != null ? (
-                <>
-                  {t("adminConsole.totalCount")}: <span className="text-slate-200">{totalCount}</span>
-                </>
-              ) : null}
-            </p>
-            <table className="w-full min-w-[860px] text-left text-sm">
-              <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
-                <tr>
-                  <th className="px-3 py-3">{t("adminConsole.waitingRoomsColName")}</th>
-                  <th className="px-3 py-3">{t("adminConsole.waitingRoomsColHost")}</th>
-                  <th className="px-3 py-3">{t("adminConsole.waitingRoomsColStatus")}</th>
-                  <th className="px-3 py-3">{t("adminConsole.waitingRoomsColGameId")}</th>
-                  <th className="px-3 py-3">{t("adminConsole.waitingRoomsColUpdated")}</th>
-                  <th className="px-3 py-3">{t("adminConsole.colActions")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/80">
-                {(listPayload.items as WaitingRoomAdminRow[]).map((row) => (
-                  <tr key={row.id} className="text-slate-200">
-                    <td className="px-3 py-2">
-                      <span className="font-medium text-white">{row.name}</span>
-                      <div className="font-mono text-[10px] text-slate-500">{row.id}</div>
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs">{row.hostId}</td>
-                    <td className="px-3 py-2">
-                      <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs">{row.status}</span>
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs text-slate-400">{row.gameId ?? "—"}</td>
-                    <td className="px-3 py-2 text-xs text-slate-400">
-                      {new Date(row.updatedAt).toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => void deleteWaitingRoomAdmin(row.id)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-red-600/85 px-2 py-1 text-xs font-semibold text-white hover:bg-red-500"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        {t("adminConsole.waitingRoomsDelete")}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {listPayload.items.length === 0 && (
-              <p className="py-12 text-center text-slate-500">{t("adminConsole.waitingRoomsEmpty")}</p>
-            )}
-          </div>
-        )}
-
         {tab === "bj" && json && listPayload?.items && (
           <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
             <table className="w-full min-w-[860px] text-left text-sm">
@@ -903,68 +787,6 @@ export function AdminConsole() {
             </table>
             {listPayload.items.length === 0 && (
               <p className="py-12 text-center text-slate-500">{t("adminConsole.blackjackEmpty")}</p>
-            )}
-          </div>
-        )}
-
-        {tab === "tournaments" && json && listPayload?.items && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
-            <p className="px-3 py-2 text-xs text-slate-400">{t("adminConsole.tournamentsCreateHint")}</p>
-            <p className="px-3 pb-2 text-xs text-slate-400">
-              {totalCount != null ? (
-                <>
-                  {t("adminConsole.totalCount")}: <span className="text-slate-200">{totalCount}</span>
-                </>
-              ) : null}
-            </p>
-            <table className="w-full min-w-[920px] text-left text-sm">
-              <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
-                <tr>
-                  <th className="px-3 py-3">{t("adminConsole.tournamentsColName")}</th>
-                  <th className="px-3 py-3">{t("adminConsole.tournamentsColStatus")}</th>
-                  <th className="px-3 py-3">{t("adminConsole.tournamentsColPlayers")}</th>
-                  <th className="px-3 py-3">{t("adminConsole.tournamentsColStart")}</th>
-                  <th className="px-3 py-3">{t("adminConsole.tournamentsColCreator")}</th>
-                  <th className="px-3 py-3">{t("adminConsole.colActions")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/80">
-                {(listPayload.items as TournamentAdminRow[]).map((row) => (
-                  <tr key={row.id} className="text-slate-200">
-                    <td className="px-3 py-2">
-                      <span className="font-medium text-white">{row.name}</span>
-                      <div className="font-mono text-[10px] text-slate-500">{row.id}</div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs">
-                        {t(`adminConsole.tournamentStatus.${row.status}`, { defaultValue: row.status })}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      {row._count?.players ?? 0}
-                      <span className="text-slate-500"> / {row.maxPlayers}</span>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-slate-400">
-                      {new Date(row.startAt).toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2">{row.host?.username ?? "—"}</td>
-                    <td className="px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          window.open(playerAppHref(`/tournaments/${encodeURIComponent(row.id)}`), "_blank", "noopener,noreferrer")
-                        }
-                        className="inline-flex items-center gap-1 rounded-lg border border-amber-600/50 bg-amber-950/40 px-2 py-1 text-xs font-semibold text-amber-100 hover:bg-amber-900/50"
-                      >
-                        {t("adminConsole.tournamentOpenApp")}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {listPayload.items.length === 0 && (
-              <p className="py-12 text-center text-slate-500">{t("adminConsole.tournamentsEmpty")}</p>
             )}
           </div>
         )}
@@ -1170,7 +992,7 @@ export function AdminConsole() {
         )}
 
         {tab !== "poker" &&
-          ["users", "history", "bj", "tournaments", "waitingRooms", "ratings", "reports"].includes(tab) &&
+          ["users", "history", "bj", "ratings", "reports"].includes(tab) &&
           json &&
           totalCount != null &&
           totalCount > PAGE_SIZE && (

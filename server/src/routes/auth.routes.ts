@@ -25,6 +25,8 @@ import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { ipKeyGenerator } from 'express-rate-limit'
 import { rateLimitWithMetrics } from '../observability/index.js'
 import { isFreeTopupPromoCode } from '../config/balanceResetPromo.js'
+import { adminConsoleAuthMiddleware } from '../middleware/adminConsole.middleware.js'
+import * as giftCodesService from '../giftCodes/giftCodes.service.js'
 
 function normalizeRateLimitIdentity(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -923,6 +925,54 @@ router.post('/admin/login', adminConsoleLoginLimiter, async (req, res) => {
       role: 'admin' as const,
     },
   })
+})
+
+/** Codes cadeaux console admin — sous /api/auth/admin/* (même JWT que /admin/login, dispo sur toutes les images VM). */
+const adminGiftCodeCreateSchema = z.object({
+  code: z.string().min(1).max(64),
+  amount: z.number().int().min(1),
+  usageType: z.enum(['TOKENS', 'FIXED_DISCOUNT', 'PERCENTAGE_DISCOUNT']),
+  type: z.enum(['ACHIEVEMENT', 'EVENT', 'SEASONAL', 'SPECIAL']),
+  description: z.string().max(500).nullable().optional(),
+  expiresAt: z.string().nullable().optional(),
+  maxUses: z.number().int().optional(),
+})
+
+router.get('/admin/gift-codes', adminConsoleAuthMiddleware, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 100)
+    const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0)
+    const result = await giftCodesService.getAllGiftCodes(limit, offset)
+    return res.json(result)
+  } catch (e) {
+    console.error('[auth] admin gift-codes list', e)
+    return res.status(500).json({ error: 'Impossible de charger les codes cadeaux' })
+  }
+})
+
+router.post('/admin/gift-codes', adminConsoleAuthMiddleware, async (req, res) => {
+  const parsed = adminGiftCodeCreateSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Données invalides' })
+  }
+  const { code, amount, usageType, type, description, expiresAt, maxUses } = parsed.data
+  try {
+    const giftCode = await giftCodesService.createGiftCode({
+      code: code.trim(),
+      amount,
+      usageType,
+      type,
+      description: description ?? null,
+      expiresAt: expiresAt ?? null,
+      maxUses: maxUses ?? -1,
+    })
+    return res.status(201).json(giftCode)
+  } catch (e) {
+    console.error('[auth] admin gift-codes create', e)
+    return res.status(400).json({
+      error: e instanceof Error ? e.message : 'Création impossible',
+    })
+  }
 })
 
 // POST /api/auth/logout - Invalide le token (joueur ou console admin)
