@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto'
-import { Router } from 'express'
+import { Router, type Request, type Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '../config/database.js'
@@ -10,6 +10,7 @@ import { GameTable } from '../logic/GameTable.js'
 import { activeGames } from '../shared/activeGames.js'
 import { activeBlackjackGames } from '../shared/activeBlackjackGames.js'
 import type { ActiveGame } from '../shared/activeGames.js'
+import * as giftCodesService from '../giftCodes/giftCodes.service.js'
 const router = Router()
 
 router.use(adminConsoleAuthMiddleware)
@@ -558,10 +559,11 @@ router.patch('/player-reports/:id/read', async (req, res) => {
   }
 })
 
-router.get('/waiting-rooms', async (req, res) => {
+async function listWaitingRoomsAdmin(req: Request, res: Response): Promise<void> {
   const parsed = listQuery.safeParse(req.query)
   if (!parsed.success) {
-    return res.status(400).json({ error: 'Pagination invalide' })
+    res.status(400).json({ error: 'Pagination invalide' })
+    return
   }
   const { take, skip, q: searchRaw } = parsed.data
   const search = searchRaw?.trim()
@@ -596,17 +598,21 @@ router.get('/waiting-rooms', async (req, res) => {
       }),
       prisma.waitingRoom.count({ where }),
     ])
-    return res.json({ items, total, take, skip })
+    res.json({ items, total, take, skip })
   } catch (e) {
     console.error('[adminConsole] waiting-rooms list', e)
-    return res.status(500).json({ error: 'Erreur serveur' })
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-})
+}
 
-router.delete('/waiting-rooms/:id', async (req, res) => {
+router.get('/waiting-rooms', listWaitingRoomsAdmin)
+router.get('/games/waiting-rooms', listWaitingRoomsAdmin)
+
+async function deleteWaitingRoomAdmin(req: Request, res: Response): Promise<void> {
   const id = req.params.id
   if (!id || id.length > 64) {
-    return res.status(400).json({ error: 'Identifiant invalide' })
+    res.status(400).json({ error: 'Identifiant invalide' })
+    return
   }
   try {
     const room = await prisma.waitingRoom.findUnique({
@@ -614,7 +620,8 @@ router.delete('/waiting-rooms/:id', async (req, res) => {
       select: { id: true, gameId: true },
     })
     if (!room) {
-      return res.status(404).json({ error: 'Salle introuvable' })
+      res.status(404).json({ error: 'Salle introuvable' })
+      return
     }
     if (room.gameId) {
       try {
@@ -624,11 +631,62 @@ router.delete('/waiting-rooms/:id', async (req, res) => {
       }
     }
     await prisma.waitingRoom.delete({ where: { id } })
-    return res.json({ ok: true })
+    res.json({ ok: true })
   } catch (e) {
     console.error('[adminConsole] waiting-room delete', e)
-    return res.status(500).json({
+    res.status(500).json({
       error: e instanceof Error ? e.message : 'Suppression impossible',
+    })
+  }
+}
+
+router.delete('/waiting-rooms/:id', deleteWaitingRoomAdmin)
+router.delete('/games/waiting-rooms/:id', deleteWaitingRoomAdmin)
+
+/** Codes cadeaux admin (même JWT console ; évite /api/gift-codes sur d’anciennes images VM). */
+router.get('/gift-codes', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 100)
+    const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0)
+    const result = await giftCodesService.getAllGiftCodes(limit, offset)
+    return res.json(result)
+  } catch (e) {
+    console.error('[adminConsole] gift-codes list', e)
+    return res.status(500).json({ error: 'Impossible de charger les codes cadeaux' })
+  }
+})
+
+const giftCodeCreateSchema = z.object({
+  code: z.string().min(1).max(64),
+  amount: z.number().int().min(1),
+  usageType: z.enum(['TOKENS', 'FIXED_DISCOUNT', 'PERCENTAGE_DISCOUNT']),
+  type: z.enum(['ACHIEVEMENT', 'EVENT', 'SEASONAL', 'SPECIAL']),
+  description: z.string().max(500).nullable().optional(),
+  expiresAt: z.string().nullable().optional(),
+  maxUses: z.number().int().optional(),
+})
+
+router.post('/gift-codes', async (req, res) => {
+  const parsed = giftCodeCreateSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Données invalides' })
+  }
+  const { code, amount, usageType, type, description, expiresAt, maxUses } = parsed.data
+  try {
+    const giftCode = await giftCodesService.createGiftCode({
+      code: code.trim(),
+      amount,
+      usageType,
+      type,
+      description: description ?? null,
+      expiresAt: expiresAt ?? null,
+      maxUses: maxUses ?? -1,
+    })
+    return res.status(201).json(giftCode)
+  } catch (e) {
+    console.error('[adminConsole] gift-codes create', e)
+    return res.status(400).json({
+      error: e instanceof Error ? e.message : 'Création impossible',
     })
   }
 })

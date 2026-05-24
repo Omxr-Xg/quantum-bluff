@@ -489,12 +489,23 @@ export function Lobby() {
    * `TOURNAMENT_LOBBY_LIST_UPDATED` + fallback polling 10s. */
   const fetchTournamentsBoth = useCallback(async () => {
     try {
-      const [open, live] = await Promise.all([
+      const [openResult, liveResult] = await Promise.allSettled([
         fetchTournaments(),
         fetchLiveSpectateTournaments(),
       ]);
-      setOpenTournaments(Array.isArray(open) ? (open as TournamentOpenItem[]) : []);
-      setLiveTournaments(Array.isArray(live) ? (live as TournamentLiveItem[]) : []);
+
+      if (openResult.status === "rejected") {
+        throw openResult.reason;
+      }
+
+      setOpenTournaments(
+        Array.isArray(openResult.value) ? (openResult.value as TournamentOpenItem[]) : [],
+      );
+      setLiveTournaments(
+        liveResult.status === "fulfilled" && Array.isArray(liveResult.value)
+          ? (liveResult.value as TournamentLiveItem[])
+          : [],
+      );
       setTournamentsError(null);
     } catch (e) {
       setTournamentsError(e instanceof Error ? e.message : t("common.error"));
