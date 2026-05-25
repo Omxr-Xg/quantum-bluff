@@ -21,6 +21,7 @@ import { Profile } from "./pages/Profile";
 import { Friends } from "./pages/Friends";
 import { EditProfile } from "./pages/EditProfile";
 import { TutorialGame } from "./pages/TutorialGame";
+import { Roulette } from "./pages/Roulette";
 import { Blackjack } from "./pages/Blackjack";
 import { BlackjackMultiLobby } from "./pages/BlackjackMultiLobby";
 import { BlackjackMultiTable } from "./pages/BlackjackMultiTable";
@@ -136,6 +137,7 @@ function App() {
             <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
 
             <Route path="/tutorial/game" element={<ProtectedRoute><TutorialGame /></ProtectedRoute>} />
+            <Route path="/tutorial/roulette" element={<ProtectedRoute><Roulette tutorialMode /></ProtectedRoute>} />
 
           </Routes>
         </Layout>

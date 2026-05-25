@@ -383,6 +383,81 @@
       "street": "{{base}}–{{end}} street",
       "sixLine": "{{base}}–{{end}} six-line",
       "corner": "Corner {{nums}}"
+    },
+    "tutorial": {
+      "open": "Roulette tutorial",
+      "close": "Close tutorial",
+      "prev": "Previous",
+      "next": "Next",
+      "finish": "Finish",
+      "stepCounter": "Step {{current}} / {{total}}",
+      "demoSpinToast": "Demo spin played without touching your real balance.",
+      "steps": {
+        "intro": {
+          "title": "Roulette tutorial",
+          "body": "You will learn roulette inside the real game screen, with a demo balance. Tutorial actions do not spend your real chips."
+        },
+        "header": {
+          "title": "Navigation",
+          "body": "The top bar lets you leave roulette and confirms that you are on the roulette table."
+        },
+        "balance": {
+          "title": "Balance",
+          "body": "This counter shows your available chips. In a real round, the spin stakes your bets and automatically credits payouts."
+        },
+        "wheel": {
+          "title": "Wheel and spin",
+          "body": "The wheel receives the server-calculated result. The ball lands on that number, then the result panel updates."
+        },
+        "chips": {
+          "title": "Choose chips",
+          "body": "Tap one or more chips to build the amount you want to place. Available values follow your current level limits."
+        },
+        "pending": {
+          "title": "Stack to place",
+          "body": "This stack is the amount ready to be placed. It stays here until you tap a betting spot on the table."
+        },
+        "straight": {
+          "title": "Straight-up number",
+          "body": "Tapping one number places the whole stack on that exact number. It is the riskiest bet, with the highest payout."
+        },
+        "outside": {
+          "title": "Outside bets",
+          "body": "Red, black, even, odd, low and high cover large groups of numbers. They win more often, with a smaller payout."
+        },
+        "dozens": {
+          "title": "Dozens",
+          "body": "The three dozens cover 1-12, 13-24 and 25-36. Zero belongs to no dozen."
+        },
+        "columns": {
+          "title": "Columns",
+          "body": "Columns follow the vertical alignments on the table. Like dozens, each column covers 12 numbers."
+        },
+        "advanced": {
+          "title": "Inside bets",
+          "body": "This panel groups splits, streets, corners and six-lines. Use it when you want to bet on neighboring numbers."
+        },
+        "controls": {
+          "title": "Total and limits",
+          "body": "This area summarizes the amount placed, the caps, and gives you Undo or Clear all before spinning."
+        },
+        "spin": {
+          "title": "Spin",
+          "body": "Once at least one bet is placed, this button spins the ball. In the tutorial, it only plays a demo."
+        },
+        "result": {
+          "title": "Result",
+          "body": "After the spin, the last number and its color appear here so you can quickly check what landed."
+        },
+        "history": {
+          "title": "History",
+          "body": "History details the round's bets, line-by-line payouts and net result. It helps explain why a bet paid."
+        },
+        "finish": {
+          "title": "Ready to play",
+          "body": "You now know the full flow: build a stack, choose table spots, check the stake, spin, then read the result and history."
+        }
+      }
     }
   },
   "game": {
