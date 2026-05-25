@@ -1090,6 +1090,8 @@
     "backToLobby": "Back to lobby",
     "loadingRoom": "Loading room...",
     "leave": "Leave",
+    "deleteAndLeave": "Delete and leave",
+    "deleteAndLeaveFailed": "Could not delete/leave the room.",
     "connected": "Connected",
     "disconnected": "Disconnected",
     "waitingRoomTitle": "Waiting room",

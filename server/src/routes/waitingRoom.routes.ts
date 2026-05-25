@@ -1438,6 +1438,7 @@ router.delete('/:roomId', waitingRoomHostLimiter, authMiddleware, async (req, re
   try {
     const { roomId } = req.params;
     const userId = getAuthenticatedUserId(req);
+    const io = req.app.get('io') as import('socket.io').Server | undefined;
 
     if (!userId) {
       return res.status(401).json({ error: 'Non authentifié' });
@@ -1458,6 +1459,8 @@ router.delete('/:roomId', waitingRoomHostLimiter, authMiddleware, async (req, re
     // Nettoyer les joueurs de la salle puis supprimer la salle
     await prisma.roomPlayer.deleteMany({ where: { roomId } });
     await prisma.waitingRoom.delete({ where: { id: roomId } });
+    io?.to(roomId).emit('WAITING_ROOM_CLOSED_BY_HOST', { roomId });
+    io?.to(roomId).emit('WAITING_ROOM_UPDATED', null);
 
     return res.json({ message: 'Salle supprimée par l\'hôte' });
   } catch (error) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Users, LogOut, Loader2, AlertCircle, Lock, Globe, Check, X, UserCheck, Zap, Clock, AlertTriangle } from "lucide-react";
+import { UserPlus, Users, Loader2, AlertCircle, Lock, Globe, Check, UserCheck, Zap, Clock, AlertTriangle, Trash2, X } from "lucide-react";
 import { ChipIcon } from "../components/ChipIcon";
 import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
@@ -30,7 +30,7 @@ export function WaitingRoom() {
     return st?.outcome === "lost" && st.message ? st.message : null;
   });
   const { userId, username } = useUser();
-  const { socket, isConnected, joinRoom, leaveRoom } = useSocket();
+  const { socket, joinRoom, leaveRoom } = useSocket();
   const queryParams = new URLSearchParams(location.search);
   const rawRoomId = queryParams.get("roomId");
   const roomId = rawRoomId || `room_${Date.now()}`;
@@ -64,8 +64,6 @@ export function WaitingRoom() {
   const roomPollInFlightRef = useRef(false);
   const seenPlayerIdsRef = useRef<Set<string> | null>(null);
   const warnedBlockedPresenceIdsRef = useRef<Set<string>>(new Set());
-  /** Évite POST /leave au démontage après départ explicite ou lancement partie (salle IN_GAME). */
-  const skipPersistedLeaveOnUnmountRef = useRef(false);
 
   const authHeaders = useCallback(() => {
     const token = getAuthItem("token");
@@ -115,7 +113,6 @@ export function WaitingRoom() {
   }, [rawRoomId]);
 
   useEffect(() => {
-    skipPersistedLeaveOnUnmountRef.current = false;
     seenPlayerIdsRef.current = null;
     warnedBlockedPresenceIdsRef.current = new Set();
     setBlockedPresenceWarning(null);
@@ -148,18 +145,6 @@ export function WaitingRoom() {
       });
     }
   }, [players, blockedUsers, roomLoading, blockedUsersLoading]);
-
-  const postWaitingRoomLeavePersisted = useCallback((roomIdToLeave: string, uid: string) => {
-    if (!roomIdToLeave || roomIdToLeave.startsWith("room_")) return;
-    const url = apiUrl(`/api/waiting-room/${roomIdToLeave}/leave`);
-    const body = JSON.stringify({ userId: uid });
-    void fetch(url, {
-      method: "POST",
-      headers: authHeaders(),
-      body,
-      keepalive: true,
-    }).catch(() => {});
-  }, [authHeaders]);
 
   useEffect(() => {
     setFriendInviteStatus((prev) => {
@@ -354,11 +339,8 @@ export function WaitingRoom() {
     joinRoom(rawRoomId);
     return () => {
       leaveRoom(rawRoomId);
-      if (!skipPersistedLeaveOnUnmountRef.current) {
-        postWaitingRoomLeavePersisted(rawRoomId, userId);
-      }
     };
-  }, [userId, rawRoomId, roomLoading, joinRoom, leaveRoom, postWaitingRoomLeavePersisted]);
+  }, [userId, rawRoomId, roomLoading, joinRoom, leaveRoom]);
 
   useEffect(() => {
     if (!socket || !navigate) return;
@@ -367,7 +349,6 @@ export function WaitingRoom() {
         if (data.gameId && data.players?.length) {
           localStorage.setItem("gamePlayers", JSON.stringify(data.players));
           localStorage.setItem("gameId", data.gameId);
-          skipPersistedLeaveOnUnmountRef.current = true;
           leaveRoom(rawRoomId!);
           navigate(`/game?gameId=${data.gameId}`);
         }
@@ -593,7 +574,6 @@ export function WaitingRoom() {
         localStorage.setItem("gamePlayers", JSON.stringify(data.players));
         localStorage.setItem("gameId", data.gameId || "");
       }
-      skipPersistedLeaveOnUnmountRef.current = true;
       leaveRoom(rawRoomId);
       navigate(data.gameId ? `/game?gameId=${data.gameId}` : "/game");
     } catch (e) {
@@ -603,17 +583,24 @@ export function WaitingRoom() {
     }
   };
 
-  const handleLeaveRoom = async () => {
-    skipPersistedLeaveOnUnmountRef.current = true;
+  const handleDeleteAndLeaveRoom = async () => {
     if (rawRoomId && !rawRoomId.startsWith("room_") && userId) {
       try {
-        const url = apiUrl(`/api/waiting-room/${rawRoomId}/leave`);
-        await fetch(url, {
-          method: "POST",
+        const url = apiUrl(`/api/waiting-room/${rawRoomId}${isCreator ? "" : "/leave"}`);
+        const res = await fetch(url, {
+          method: isCreator ? "DELETE" : "POST",
           headers: authHeaders(),
-          body: JSON.stringify({ userId }),
+          body: isCreator ? undefined : JSON.stringify({ userId }),
         });
-      } catch { /* no-op */ }
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          addToast(data.error || t("waitingRoom.deleteAndLeaveFailed"), "error");
+          return;
+        }
+      } catch {
+        addToast(t("waitingRoom.deleteAndLeaveFailed"), "error");
+        return;
+      }
     }
     leaveRoom(rawRoomId || roomId);
     navigate("/lobby");
@@ -702,7 +689,7 @@ export function WaitingRoom() {
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
-                onClick={() => void handleLeaveRoom()}
+                onClick={() => void handleDeleteAndLeaveRoom()}
                 className="rounded-full border border-red-300/20 bg-red-700 px-4 py-2.5 font-semibold text-white transition hover:bg-red-600"
               >
                 {t("waitingRoom.blockedMemberLeave")}
@@ -727,70 +714,57 @@ export function WaitingRoom() {
             {defeatBanner}
           </div>
         ) : null}
-        <div className="flex items-center justify-between mb-8">
-          <button
-            onClick={handleLeaveRoom}
-            className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl font-semibold transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>{t('waitingRoom.leave')}</span>
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
-              <span className="text-gray-400 text-sm">{isConnected ? t('waitingRoom.connected') : t('waitingRoom.disconnected')}</span>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-green-600 to-green-800 shadow-xl">
+              <Users className="h-8 w-8 text-white" />
             </div>
-            <button
-              type="button"
-              onClick={handleLeaveRoom}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-600 bg-slate-800 text-slate-300 transition hover:border-slate-500 hover:bg-slate-700 hover:text-white"
-              aria-label={t("common.close")}
-              title={t("common.close")}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-800 rounded-full flex items-center justify-center shadow-xl">
-            <Users className="w-8 h-8 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-4xl font-bold text-white">{roomName || t('waitingRoom.waitingRoomTitle')}</h1>
-              {roomVisibility === 'PRIVATE' ? (
-                <span className="flex items-center gap-1 bg-purple-600/30 text-purple-300 text-xs font-semibold px-2 py-1 rounded-full border border-purple-500/40">
-                  <Lock className="w-3 h-3" />
-                  {t('lobby.private')}
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 bg-green-600/30 text-green-300 text-xs font-semibold px-2 py-1 rounded-full border border-green-500/40">
-                  <Globe className="w-3 h-3" />
-                  {t('lobby.public')}
-                </span>
-              )}
-              {roomTurbo ? (
-                <span className="flex items-center gap-1 border border-amber-500/50 bg-amber-600/25 text-amber-200 text-xs font-semibold px-2 py-1 rounded-full">
-                  <Zap className="w-3 h-3" />
-                  {t("waitingRoom.turboMode")}
-                </span>
-              ) : null}
-            </div>
-            {roomMinBalance && roomMinBalance > 0 && (
-              <div className="flex items-center gap-2 text-sm text-slate-400 mt-1">
-                <ChipIcon size="sm" />
-                <span>
-                  {t("waitingRoom.minStakeRequiredBefore")}
-                  <span className="text-amber-400 font-bold">
-                    {" "}
-                    {roomMinBalance.toLocaleString()}{" "}
+            <div className="min-w-0">
+              <div className="mb-1 flex min-w-0 flex-wrap items-center gap-3">
+                <h1 className="min-w-0 break-words text-4xl font-bold text-white">{roomName || t('waitingRoom.waitingRoomTitle')}</h1>
+                {roomVisibility === 'PRIVATE' ? (
+                  <span className="flex items-center gap-1 bg-purple-600/30 text-purple-300 text-xs font-semibold px-2 py-1 rounded-full border border-purple-500/40">
+                    <Lock className="w-3 h-3" />
+                    {t('lobby.private')}
                   </span>
-                  {t("waitingRoom.minStakeRequiredAfter")}
-                </span>
+                ) : (
+                  <span className="flex items-center gap-1 bg-green-600/30 text-green-300 text-xs font-semibold px-2 py-1 rounded-full border border-green-500/40">
+                    <Globe className="w-3 h-3" />
+                    {t('lobby.public')}
+                  </span>
+                )}
+                {roomTurbo ? (
+                  <span className="flex items-center gap-1 border border-amber-500/50 bg-amber-600/25 text-amber-200 text-xs font-semibold px-2 py-1 rounded-full">
+                    <Zap className="w-3 h-3" />
+                    {t("waitingRoom.turboMode")}
+                  </span>
+                ) : null}
               </div>
-            )}
+              {roomMinBalance && roomMinBalance > 0 && (
+                <div className="flex items-center gap-2 text-sm text-slate-400 mt-1">
+                  <ChipIcon size="sm" />
+                  <span>
+                    {t("waitingRoom.minStakeRequiredBefore")}
+                    <span className="text-amber-400 font-bold">
+                      {" "}
+                      {roomMinBalance.toLocaleString()}{" "}
+                    </span>
+                    {t("waitingRoom.minStakeRequiredAfter")}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => void handleDeleteAndLeaveRoom()}
+            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-red-400/35 bg-red-950/55 px-3 text-sm font-semibold text-red-100 transition hover:border-red-300/60 hover:bg-red-900/70 hover:text-white sm:self-start"
+            aria-label={t("waitingRoom.deleteAndLeave")}
+            title={t("waitingRoom.deleteAndLeave")}
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>{t("waitingRoom.deleteAndLeave")}</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -915,11 +915,11 @@ export function Layout({ children }: LayoutProps) {
     path.startsWith("/blackjack/table");
   /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
   const showHamburgerMenu =
-    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage && !isGameHudPage;
+    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage && !isGameHudPage && !isWaitingRoomPage;
   const showLobbyIntegratedBar = showTopBar && isLobby;
   const showFriendsIntegratedBar = showTopBar && path === "/friends";
   const showIntegratedTopBar = showLobbyIntegratedBar || showFriendsIntegratedBar;
-  const showStandaloneTopBar = showTopBar && (isBotConfigPage || isGameHudPage);
+  const showStandaloneTopBar = showTopBar && (isBotConfigPage || isGameHudPage || isWaitingRoomPage);
   /**
    * Padding réservé au menu hamburger fixe (bande en tête) — pas sur /game : la table a déjà son en-tête
    * et seul un bouton paramètres est en coin ; éviter la « barre » vide / décalage en haut.
