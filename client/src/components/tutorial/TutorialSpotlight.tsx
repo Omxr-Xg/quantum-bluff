@@ -84,6 +84,59 @@ function SpotlightRects({
   );
 }
 
+function EmphasisBackdrop({
+  rect,
+  onBackdropClick,
+  padding,
+}: {
+  rect: DOMRect;
+  onBackdropClick: () => void;
+  padding: number;
+}) {
+  const vw = typeof window !== "undefined" ? window.innerWidth : 0;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 0;
+  const l = Math.max(0, rect.left - padding);
+  const t = Math.max(0, rect.top - padding);
+  const r = Math.min(vw, rect.right + padding);
+  const b = Math.min(vh, rect.bottom + padding);
+  const w = Math.max(0, r - l);
+  const h = Math.max(0, b - t);
+  const common = "fixed z-[240] bg-black/58 backdrop-blur-[1px] pointer-events-auto";
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="overlay"
+        className={common}
+        style={{ left: 0, top: 0, width: "100%", height: t }}
+        onClick={onBackdropClick}
+      />
+      <button
+        type="button"
+        aria-label="overlay"
+        className={common}
+        style={{ left: 0, top: t + h, width: "100%", height: Math.max(0, vh - t - h) }}
+        onClick={onBackdropClick}
+      />
+      <button
+        type="button"
+        aria-label="overlay"
+        className={common}
+        style={{ left: 0, top: t, width: l, height: h }}
+        onClick={onBackdropClick}
+      />
+      <button
+        type="button"
+        aria-label="overlay"
+        className={common}
+        style={{ left: l + w, top: t, width: Math.max(0, vw - l - w), height: h }}
+        onClick={onBackdropClick}
+      />
+    </>
+  );
+}
+
 /** Calcule la position du tooltip a partir du rect mis en surbrillance. */
 function computeTooltipPos(
   rect: DOMRect | null,
@@ -238,11 +291,10 @@ export function TutorialSpotlight({
         />
       )}
       {rect && presentation === "emphasis" && (
-        <button
-          type="button"
-          className="fixed inset-0 z-[240] bg-black/70 backdrop-blur-[2px] pointer-events-auto"
-          aria-label="overlay"
-          onClick={onClose}
+        <EmphasisBackdrop
+          rect={rect}
+          onBackdropClick={onClose}
+          padding={spotlightPadding}
         />
       )}
       {rect && presentation === "cutout" && (
