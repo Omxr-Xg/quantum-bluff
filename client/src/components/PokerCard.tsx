@@ -136,7 +136,7 @@ export function PokerCard({
       className={`${s.card} relative bg-transparent rounded-[6px]
         ${
           highlight
-            ? "qb-winning-card isolate z-20 ring-2 ring-amber-100/90"
+            ? "qb-winning-card isolate z-[241] brightness-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.72)]"
             : ""
         }
         transition-transform duration-200 hover:-translate-y-0.5 hover:scale-[1.02]
@@ -144,7 +144,7 @@ export function PokerCard({
     >
       {highlight && (
         <>
-          <div className="qb-winning-card-aura pointer-events-none absolute -inset-2 -z-10 rounded-xl bg-amber-300/25 blur-md" />
+          <div className="qb-winning-card-aura pointer-events-none absolute -inset-1.5 -z-10 rounded-xl bg-amber-300/18 blur-md" />
           <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-[inherit]">
             <div className="qb-winning-card-shimmer absolute -left-1/2 top-0 h-full w-1/2 bg-gradient-to-r from-transparent via-white/55 to-transparent" />
           </div>

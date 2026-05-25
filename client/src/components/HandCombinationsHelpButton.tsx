@@ -123,15 +123,18 @@ const EXAMPLES: Record<CombinationHandKey, { suit: string; value: string }[]> = 
 interface HandCombinationsHelpButtonProps {
   colorblindMode?: boolean;
   onOpenChange?: (open: boolean) => void;
+  openOverride?: boolean;
 }
 
 export function HandCombinationsHelpButton({
   colorblindMode = false,
   onOpenChange,
+  openOverride,
 }: HandCombinationsHelpButtonProps) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const effectiveOpen = openOverride ?? open;
   const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const panelId = "hand-combinations-help-panel";
@@ -156,8 +159,8 @@ export function HandCombinationsHelpButton({
 
   /** Ne pas appeler onOpenChange dans un updater setOpen (effet de bord interdit ; Strict Mode double-invocation). */
   useEffect(() => {
-    onOpenChange?.(open);
-  }, [open, onOpenChange]);
+    onOpenChange?.(effectiveOpen);
+  }, [effectiveOpen, onOpenChange]);
 
   useEffect(() => {
     return () => {
@@ -197,7 +200,7 @@ export function HandCombinationsHelpButton({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {open && (
+      {effectiveOpen && (
         <div
           id={panelId}
           role="region"
@@ -263,7 +266,7 @@ export function HandCombinationsHelpButton({
         icon={<Layers className="h-4 w-4 shrink-0" />}
         onClick={handleClick}
         ariaExpanded={open}
-        ariaControls={open ? panelId : undefined}
+        ariaControls={effectiveOpen ? panelId : undefined}
         title={t("game.combinationsHelp.buttonTitle")}
         className="min-w-0 px-4 py-3 text-xs md:px-5 md:py-3.5"
       >

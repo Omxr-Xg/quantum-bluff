@@ -20,9 +20,10 @@ interface CommunityCardsProps {
   /** Ref sur cartes communes + libellés Flop/Turn/River (tutoriel) */
   boardRef?: Ref<HTMLDivElement>;
   highlightCardKeys?: Set<string>;
+  potEmphasis?: boolean;
 }
 
-export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, potRef, boardRef, highlightCardKeys }: CommunityCardsProps) {
+export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, potRef, boardRef, highlightCardKeys, potEmphasis = false }: CommunityCardsProps) {
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
@@ -38,7 +39,11 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
           ref={potRef}
           className={`absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-black/40 backdrop-blur-sm ${
             isMobile ? "px-2 py-0.5" : isTablet ? "px-2.5 py-0.5" : "px-3 py-1"
-          } shadow-[0_0_8px_rgba(0,0,0,0.45)]`}
+          } shadow-[0_0_8px_rgba(0,0,0,0.45)] transition-all ${
+            potEmphasis
+              ? "z-[242] scale-125 border-amber-100 bg-amber-300/95 text-slate-950 brightness-150 drop-shadow-[0_0_30px_rgba(251,191,36,1)]"
+              : ""
+          }`}
         >
           <div
             className={`flex items-center justify-center ${
