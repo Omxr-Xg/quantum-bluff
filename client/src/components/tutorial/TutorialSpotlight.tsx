@@ -15,7 +15,7 @@ import { createPortal } from "react-dom";
  * GameInteractiveTour et TutorialGame.
  */
 
-const PAD = 10;
+const DEFAULT_PAD = 10;
 
 type SpotlightColor = "cyan" | "purple" | "amber";
 
@@ -29,17 +29,21 @@ function SpotlightRects({
   rect,
   onBackdropClick,
   color,
+  padding,
 }: {
   rect: DOMRect;
   onBackdropClick: () => void;
   color: SpotlightColor;
+  padding: number;
 }) {
-  const l = Math.max(0, rect.left - PAD);
-  const t = Math.max(0, rect.top - PAD);
-  const w = rect.width + PAD * 2;
-  const h = rect.height + PAD * 2;
   const vw = typeof window !== "undefined" ? window.innerWidth : 0;
   const vh = typeof window !== "undefined" ? window.innerHeight : 0;
+  const l = Math.max(0, rect.left - padding);
+  const t = Math.max(0, rect.top - padding);
+  const r = Math.min(vw, rect.right + padding);
+  const b = Math.min(vh, rect.bottom + padding);
+  const w = Math.max(0, r - l);
+  const h = Math.max(0, b - t);
 
   const common =
     "fixed z-[240] bg-black/65 backdrop-blur-[2px] pointer-events-auto transition-opacity";
@@ -87,6 +91,7 @@ function computeTooltipPos(
   rect: DOMRect | null,
   tooltipWidth: number,
   tooltipHeight: number,
+  padding: number,
 ): { left: number; top: number } {
   const margin = 16;
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
@@ -97,10 +102,12 @@ function computeTooltipPos(
     return { left: (vw - tw) / 2, top: (vh - tooltipHeight) / 2 };
   }
 
-  const l = rect.left - PAD;
-  const t = rect.top - PAD;
-  const w = rect.width + PAD * 2;
-  const h = rect.height + PAD * 2;
+  const l = Math.max(0, rect.left - padding);
+  const t = Math.max(0, rect.top - padding);
+  const r = Math.min(vw, rect.right + padding);
+  const b = Math.min(vh, rect.bottom + padding);
+  const w = Math.max(0, r - l);
+  const h = Math.max(0, b - t);
 
   let top = t + h + 16;
   if (top + tooltipHeight > vh - margin) top = t - tooltipHeight - 16;
@@ -122,6 +129,8 @@ export type TutorialSpotlightProps = {
   color?: SpotlightColor;
   tooltipWidth?: number;
   tooltipHeight?: number;
+  spotlightPadding?: number;
+  scrollBlock?: ScrollLogicalPosition;
   /** Contenu de la bulle (titre / corps / boutons fournis par l'appelant). */
   children: ReactNode;
   /** Aria label du tooltip dialog. */
@@ -140,6 +149,8 @@ export function TutorialSpotlight({
   color = "cyan",
   tooltipWidth = 380,
   tooltipHeight = 420,
+  spotlightPadding = DEFAULT_PAD,
+  scrollBlock = "nearest",
   children,
   ariaLabelledBy,
 }: TutorialSpotlightProps) {
@@ -155,14 +166,14 @@ export function TutorialSpotlight({
       setRect(null);
       return;
     }
-    el.scrollIntoView({ block: "nearest", behavior: "auto" });
+    el.scrollIntoView({ block: scrollBlock, inline: "nearest", behavior: "auto" });
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const node = targetRef?.current;
         if (node) setRect(node.getBoundingClientRect());
       });
     });
-  }, [open, targetRef]);
+  }, [open, scrollBlock, targetRef]);
 
   useLayoutEffect(() => {
     measure();
@@ -191,7 +202,7 @@ export function TutorialSpotlight({
 
   if (!open || typeof document === "undefined") return null;
 
-  const pos = computeTooltipPos(rect, tooltipWidth, tooltipHeight);
+  const pos = computeTooltipPos(rect, tooltipWidth, tooltipHeight, spotlightPadding);
 
   return createPortal(
     <>
@@ -203,7 +214,14 @@ export function TutorialSpotlight({
           onClick={onClose}
         />
       )}
-      {rect && <SpotlightRects rect={rect} onBackdropClick={onClose} color={color} />}
+      {rect && (
+        <SpotlightRects
+          rect={rect}
+          onBackdropClick={onClose}
+          color={color}
+          padding={spotlightPadding}
+        />
+      )}
 
       <div
         role="dialog"

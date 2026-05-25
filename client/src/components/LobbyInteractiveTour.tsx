@@ -24,6 +24,7 @@ type StepDef = {
   titleKey: string;
   bodyKey: string;
   mainTab: LobbyMainTab;
+  spotlightPadding?: number;
 };
 
 const STEP_DEFS: StepDef[] = [
@@ -34,7 +35,7 @@ const STEP_DEFS: StepDef[] = [
     mainTab: "poker",
   },
   { highlight: "header", titleKey: "headerTitle", bodyKey: "headerBody", mainTab: "poker" },
-  { highlight: "topBar", titleKey: "topBarTitle", bodyKey: "topBarBody", mainTab: "poker" },
+  { highlight: "topBar", titleKey: "topBarTitle", bodyKey: "topBarBody", mainTab: "poker", spotlightPadding: 0 },
   { highlight: "tabs", titleKey: "tabsTitle", bodyKey: "tabsBody", mainTab: "poker" },
   { highlight: "bot", titleKey: "botTitle", bodyKey: "botBody", mainTab: "poker" },
   {
@@ -60,6 +61,7 @@ const STEP_DEFS: StepDef[] = [
     titleKey: "minigamesTabTitle",
     bodyKey: "minigamesTabBody",
     mainTab: "minigames",
+    spotlightPadding: 0,
   },
   {
     highlight: "blackjackPanel",
@@ -73,7 +75,7 @@ const STEP_DEFS: StepDef[] = [
     bodyKey: "dailyBody",
     mainTab: "poker",
   },
-  { highlight: "friends", titleKey: "friendsTitle", bodyKey: "friendsBody", mainTab: "poker" },
+  { highlight: "friends", titleKey: "friendsTitle", bodyKey: "friendsBody", mainTab: "poker", spotlightPadding: 0 },
   {
     highlight: null,
     titleKey: "tourDoneTitle",
@@ -166,6 +168,7 @@ export function LobbyInteractiveTour({
       measureKey={`${stepSafe}-${mainTabKey}`}
       color="purple"
       tooltipHeight={220}
+      spotlightPadding={stepDef.spotlightPadding ?? 10}
       ariaLabelledBy="lobby-tour-title"
     >
       <div className="mb-3 flex items-start justify-between gap-2">

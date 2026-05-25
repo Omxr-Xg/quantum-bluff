@@ -36,6 +36,18 @@ const CLASS_OPTIONS = [
 ] as const;
 
 const RANK_OPTIONS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"] as const;
+const PANEL_W = 384;
+const PANEL_EDGE = 12;
+const TOP_NAV_CLEARANCE = 88;
+
+function defaultPanelPosition(): { x: number; y: number } {
+  if (typeof window === "undefined") return { x: 20, y: 96 };
+  const w = Math.min(PANEL_W, window.innerWidth - PANEL_EDGE * 2);
+  return {
+    x: Math.max(PANEL_EDGE, window.innerWidth - w - PANEL_EDGE),
+    y: Math.max(TOP_NAV_CLEARANCE, Math.round(window.innerHeight * 0.16)),
+  };
+}
 
 type MarketModePre = "PLAYER_WINS" | "WINNING_HAND_CLASS" | "WINNING_HAND_CONTAINS_RANK";
 type MarketModeLive =
@@ -146,7 +158,7 @@ export function HiddenBetsPanel({
   const deviceType = useDeviceType();
   const isMobile = deviceType === "mobile";
   const isTablet = deviceType === "tablet";
-  const [position, setPosition] = useState({ x: 20, y: 96 });
+  const [position, setPosition] = useState(defaultPanelPosition);
   const dragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
 
@@ -176,6 +188,22 @@ export function HiddenBetsPanel({
   const liveTabSelectable = !preOnlyUi && isFlopOrLater;
 
   const panelJustOpenedRef = useRef(false);
+  const clampPosition = useCallback((x: number, y: number) => {
+    if (typeof window === "undefined") return { x, y };
+    const w = Math.min(PANEL_W, window.innerWidth - PANEL_EDGE * 2);
+    const h = Math.min(680, window.innerHeight - PANEL_EDGE * 2);
+    const minY = window.innerWidth >= 768 ? TOP_NAV_CLEARANCE : PANEL_EDGE;
+    return {
+      x: Math.min(Math.max(PANEL_EDGE, x), window.innerWidth - w - PANEL_EDGE),
+      y: Math.min(Math.max(minY, y), window.innerHeight - h - PANEL_EDGE),
+    };
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setPosition((p) => clampPosition(p.x, p.y));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [clampPosition]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -373,7 +401,7 @@ export function HiddenBetsPanel({
       if (!dragging.current) return;
       const cx = "touches" in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX;
       const cy = "touches" in ev ? ev.touches[0].clientY : (ev as MouseEvent).clientY;
-      setPosition({ x: cx - dragOffset.current.x, y: cy - dragOffset.current.y });
+      setPosition(clampPosition(cx - dragOffset.current.x, cy - dragOffset.current.y));
     };
     const onUp = () => {
       dragging.current = false;
@@ -386,7 +414,7 @@ export function HiddenBetsPanel({
     window.addEventListener("mouseup", onUp);
     window.addEventListener("touchmove", onMove);
     window.addEventListener("touchend", onUp);
-  }, [position]);
+  }, [position, clampPosition]);
 
   const handlePlaceBet = async () => {
     if (!gameId || !quoteMeta || !quoteOdds) return;

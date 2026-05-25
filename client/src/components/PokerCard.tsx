@@ -9,7 +9,7 @@ const SUIT_SHAPE: Record<string, string> = {
   spades: "▲",
 };
 
-type CardSize = "xs" | "sm" | "md" | "lg";
+type CardSize = "xs" | "sm" | "md" | "board" | "lg";
 
 interface PokerCardProps {
   suit: string;
@@ -38,6 +38,10 @@ const SIZE_MAP: Record<CardSize, { card: string }> = {
   md: {
     card:
       "w-12 h-[66px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[min(6rem,min(31.5vw,7.875rem))]",
+  },
+  board: {
+    card:
+      "w-14 h-[78px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[min(6rem,min(31.5vw,7.875rem))]",
   },
   lg: { card: "w-20 h-[112px] md:w-28 md:h-[156px]" },
 };
@@ -132,12 +136,21 @@ export function PokerCard({
       className={`${s.card} relative bg-transparent rounded-[6px]
         ${
           highlight
-            ? "ring-[3px] ring-amber-400 ring-offset-2 ring-offset-black/40 scale-105 shadow-[0_0_14px_rgba(251,191,36,0.55)] z-10"
+            ? "qb-winning-card isolate z-20 ring-2 ring-amber-100/90"
             : ""
         }
         transition-transform duration-200 hover:-translate-y-0.5 hover:scale-[1.02]
         ${className}`}
     >
+      {highlight && (
+        <>
+          <div className="qb-winning-card-aura pointer-events-none absolute -inset-2 -z-10 rounded-xl bg-amber-300/25 blur-md" />
+          <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-[inherit]">
+            <div className="qb-winning-card-shimmer absolute -left-1/2 top-0 h-full w-1/2 bg-gradient-to-r from-transparent via-white/55 to-transparent" />
+          </div>
+        </>
+      )}
+
       {/* 1. L'image de la carte complète (en fond) */}
       <img 
         src={imageSrc} 

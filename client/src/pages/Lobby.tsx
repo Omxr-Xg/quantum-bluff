@@ -1936,11 +1936,9 @@ export function Lobby() {
 
           {/* Onglet Mini-jeux - CONDITIONAL RENDER */}
           {lobbyMainTab === "minigames" && (
-            <div
-              ref={tourRefMinigames}
-              className="flex min-h-0 flex-1 flex-col gap-5 overflow-x-hidden overflow-y-auto pr-0.5 scrollbar-hide sm:pr-1"
-            >
-              <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+            <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pr-0.5 scrollbar-hide sm:pr-1">
+              <div ref={tourRefMinigames} className="flex w-full flex-col gap-5">
+                <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
                 <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
                   <Disc className="h-8 w-8 shrink-0 text-emerald-300" strokeWidth={2.2} aria-hidden />
                   {t("minigames.rouletteTitle")}
@@ -1956,8 +1954,8 @@ export function Lobby() {
                 >
                   {t("minigames.play")}
                 </button>
-              </div>
-              <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+                </div>
+                <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
                 <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
                   <SquareStack className="h-8 w-8 shrink-0 text-cyan-300" strokeWidth={2.2} aria-hidden />
                   {t("minigames.slotTitle")}
@@ -1973,6 +1971,7 @@ export function Lobby() {
                 >
                   {t("minigames.play")}
                 </button>
+                </div>
               </div>
             </div>
           )}
@@ -2010,13 +2009,12 @@ export function Lobby() {
 
           {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
           <div
-            ref={tourRefFriends}
             className="md:col-span-2 lg:col-span-1 space-y-5 self-start max-lg:pt-6 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-4 lg:overflow-hidden lg:pt-0 lg:z-10"
           >
             <div ref={tourRefDaily} className="lg:shrink-0 lg:overflow-hidden">
               <DailyChallenges />
             </div>
-            <div className="lg:min-h-0 lg:flex-1">
+            <div ref={tourRefFriends} className="lg:min-h-0 lg:flex-1">
               <FriendsList />
             </div>
           </div>
