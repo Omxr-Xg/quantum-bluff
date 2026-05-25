@@ -191,7 +191,7 @@ export function HiddenBetsPanel({
   const clampPosition = useCallback((x: number, y: number) => {
     if (typeof window === "undefined") return { x, y };
     const w = Math.min(PANEL_W, window.innerWidth - PANEL_EDGE * 2);
-    const h = Math.min(680, window.innerHeight - PANEL_EDGE * 2);
+    const h = Math.min(620, window.innerHeight - PANEL_EDGE * 2);
     const minY = window.innerWidth >= 768 ? TOP_NAV_CLEARANCE : PANEL_EDGE;
     return {
       x: Math.min(Math.max(PANEL_EDGE, x), window.innerWidth - w - PANEL_EDGE),
@@ -451,8 +451,8 @@ export function HiddenBetsPanel({
   };
 
   const panelClassName = (isMobile || isTablet)
-    ? "fixed z-[60] left-2 right-2 top-20 max-h-[80vh] max-w-lg mx-auto overflow-y-auto bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl"
-    : "fixed z-[60] w-80 md:w-96 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl";
+    ? "fixed z-[60] left-2 right-2 top-20 max-h-[72vh] max-w-lg mx-auto overflow-y-auto bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl"
+    : "fixed z-[60] max-h-[min(620px,calc(100vh-7rem))] w-80 overflow-y-auto bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md rounded-2xl border-2 border-yellow-500 shadow-2xl md:w-96";
 
   const panelStyle = (isMobile || isTablet) ? undefined : { left: position.x, top: position.y };
 
@@ -637,7 +637,7 @@ export function HiddenBetsPanel({
               )}
 
               {!tableTicketsLoading && tableTickets.length > 0 && (
-                <div className="space-y-2 max-h-[170px] overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-[92px] overflow-y-auto pr-1">
                   {tableTickets.map((tk) => {
                     const uname =
                       (tk.user?.username ?? tk.userId ?? "").toString() || t("game.unknown", "Inconnu");

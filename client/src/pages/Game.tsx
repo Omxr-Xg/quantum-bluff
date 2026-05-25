@@ -2741,10 +2741,7 @@ export function Game() {
 
   useEffect(() => {
     const activeTurnPlayer = playersState.find((p) => p.isActive);
-    const shouldRunClientTurnTimer = !gameIdParam || isBotMode;
-
     if (
-      !shouldRunClientTurnTimer ||
       !activeTurnPlayer ||
       !gameInitialized ||
       phase === "init" ||

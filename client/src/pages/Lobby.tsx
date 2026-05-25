@@ -1694,35 +1694,50 @@ export function Lobby() {
                           return (
                           <li
                             key={room.id}
-                            className="rounded-md border border-white/10 bg-white/[0.055] px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                            className="relative rounded-md border border-white/10 bg-white/[0.055] px-1.5 py-1 pr-[13rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md sm:pr-[15rem]"
                           >
-                            <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-1.5">
-                              <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                                <p className="min-w-0 flex-1 truncate text-left text-xs font-medium leading-none text-white sm:text-[13px]">
+                            <div className="min-w-0">
+                              <p className="min-w-0 truncate text-left text-xs font-medium leading-none text-white sm:text-[13px]">
                                   {room.name}
-                                </p>
-                                {isPrivate ? (
-                                  <span className="flex shrink-0 items-center gap-0.5 rounded border border-purple-500/35 bg-purple-600/25 px-1 py-px text-[9px] font-semibold leading-none text-purple-200">
-                                    <Lock className="h-2 w-2" aria-hidden />
-                                    {t('lobby.private')}
+                              </p>
+                              <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-px text-[10px] leading-none text-gray-400">
+                                {room.turbo ? (
+                                  <span className="flex shrink-0 items-center gap-0.5 rounded border border-orange-300/25 bg-orange-600/15 px-1 py-px text-[9px] font-semibold text-orange-200">
+                                    <Zap className="h-2 w-2" aria-hidden />
+                                    {t("lobby.turboBadge")}
                                   </span>
-                                ) : (
-                                  <span className="flex shrink-0 items-center gap-0.5 rounded border border-green-500/35 bg-green-600/25 px-1 py-px text-[9px] font-semibold leading-none text-green-200">
-                                    <Globe className="h-2 w-2" aria-hidden />
-                                    {t('lobby.public')}
+                                ) : null}
+                                <span className="shrink-0 text-[10px] text-gray-400">
+                                  {t('lobby.playersCount', { count: room.playerCount, max: room.maxPlayers })}
+                                </span>
+                                {room.minBalance && room.minBalance > 0 && (
+                                  <span className="shrink-0 text-[10px] text-blue-200/95">
+                                    Min. {room.minBalance.toLocaleString()}
                                   </span>
                                 )}
                               </div>
-                              <div className="flex shrink-0 justify-end whitespace-nowrap">
+                            </div>
+                            <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap">
+                                {isPrivate ? (
+                                  <span className="flex min-h-7 w-24 shrink-0 items-center justify-center gap-0.5 rounded border border-purple-500/35 bg-purple-600/25 px-1 py-1 text-[9px] font-semibold leading-none text-purple-200 sm:w-28 sm:text-[10px]">
+                                    <Lock className="h-2.5 w-2.5" aria-hidden />
+                                    {t('lobby.private')}
+                                  </span>
+                                ) : (
+                                  <span className="flex min-h-7 w-24 shrink-0 items-center justify-center gap-0.5 rounded border border-green-500/35 bg-green-600/25 px-1 py-1 text-[9px] font-semibold leading-none text-green-200 sm:w-28 sm:text-[10px]">
+                                    <Globe className="h-2.5 w-2.5" aria-hidden />
+                                    {t('lobby.public')}
+                                  </span>
+                                )}
                               {isFull ? (
-                                <span className="cursor-not-allowed rounded bg-slate-700 px-1 py-0.5 text-[9px] font-semibold text-gray-500 sm:px-1.5 sm:text-[10px]">
+                                <span className="flex min-h-7 w-24 cursor-not-allowed items-center justify-center rounded bg-slate-700 px-1 py-1 text-[9px] font-semibold text-gray-500 sm:w-28 sm:text-[10px]">
                                   {t('lobby.roomFull')}
                                 </span>
                               ) : isPrivate && !isHost ? (
                                 <button
                                   onClick={() => openBlockedRoomWarning(room.blockedPlayers, () => void handleRequestJoin(room.id))}
                                   disabled={requestingRoom === room.id}
-                                  className="flex max-w-full items-center gap-0.5 rounded bg-purple-600 px-1 py-0.5 text-[9px] font-semibold text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:bg-purple-800 sm:px-1.5 sm:text-[10px]"
+                                  className="flex min-h-7 w-24 max-w-full items-center justify-center gap-0.5 rounded bg-purple-600 px-1 py-1 text-[9px] font-semibold text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:bg-purple-800 sm:w-28 sm:text-[10px]"
                                   aria-label={t('lobby.requestJoin')}
                                 >
                                   {requestingRoom === room.id ? <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin" /> : <Lock className="h-2.5 w-2.5 shrink-0" />}
@@ -1732,7 +1747,7 @@ export function Lobby() {
                                 <button
                                   onClick={() => handleJoinRoom(room.id, room)}
                                   disabled={!hasEnoughChips}
-                                  className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-semibold text-white transition sm:px-1.5 sm:text-[10px] ${
+                                  className={`min-h-7 w-24 shrink-0 rounded px-1 py-1 text-[9px] font-semibold text-white transition sm:w-28 sm:text-[10px] ${
                                     hasEnoughChips
                                       ? 'bg-blue-900 hover:bg-blue-800'
                                       : 'cursor-not-allowed bg-slate-600 opacity-50'
@@ -1742,23 +1757,6 @@ export function Lobby() {
                                 >
                                   {!hasEnoughChips ? `Min. ${room.minBalance}` : t('lobby.join')}
                                 </button>
-                              )}
-                              </div>
-                            </div>
-                            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-px text-[10px] leading-none text-gray-400">
-                              {room.turbo ? (
-                                <span className="flex shrink-0 items-center gap-0.5 rounded border border-orange-300/25 bg-orange-600/15 px-1 py-px text-[9px] font-semibold text-orange-200">
-                                  <Zap className="h-2 w-2" aria-hidden />
-                                  {t("lobby.turboBadge")}
-                                </span>
-                              ) : null}
-                              <span className="shrink-0 text-[10px] text-gray-400">
-                                {t('lobby.playersCount', { count: room.playerCount, max: room.maxPlayers })}
-                              </span>
-                              {room.minBalance && room.minBalance > 0 && (
-                                <span className="shrink-0 text-[10px] text-blue-200/95">
-                                  Min. {room.minBalance.toLocaleString()}
-                                </span>
                               )}
                             </div>
                           </li>

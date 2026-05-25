@@ -109,6 +109,7 @@ async function resolveSeatAvatarUrl(
 export class GameGateway {
   private io: Server;
   private timers: Map<string, NodeJS.Timeout> = new Map();
+  private turnTimerDeadlines: Map<string, number> = new Map();
 
   // 👇 B4 : CHRONOMÈTRE ANTI-BOT 👇
   private turnStartTimes: Map<string, number> = new Map();
@@ -621,6 +622,7 @@ export class GameGateway {
                   s.emit("GAME_UPDATE", snapshot);
                   s.emit("GAME_STATE_UPDATED", snapshot);
                 }
+                void this.ensureTurnTimerForActiveHand(gameId);
               } else if (game instanceof GameTable) {
                 const url = await resolveSeatAvatarUrl(data.avatarUrl, playerId);
                 if (url) {
@@ -638,6 +640,7 @@ export class GameGateway {
                   s.emit("GAME_UPDATE", snapshot);
                   s.emit("GAME_STATE_UPDATED", snapshot);
                 }
+                void this.ensureTurnTimerForActiveHand(gameId);
                 if (isPracticeBotGameId(gameId)) {
                   try {
                     await runPracticeBotTurnsChain(this.io, gameId);
@@ -1628,6 +1631,7 @@ export class GameGateway {
                 handId: game.state.handId,
               });
               this.resetTimer(gameId);
+              this.startTurnTimer(gameId);
             }
           } catch (err) {
             console.error("Erreur CASH_NEXT_HAND_READY:", err);
@@ -2646,6 +2650,20 @@ export class GameGateway {
     return next;
   }
 
+  private async ensureTurnTimerForActiveHand(gameId: string) {
+    const deadline = this.turnTimerDeadlines.get(gameId);
+    if (deadline && deadline > Date.now()) {
+      const timeLeft = Math.max(1, Math.ceil((deadline - Date.now()) / 1000));
+      this.io.to(gameId).emit("TURN_TIMER", { gameId, timeLeft });
+      return;
+    }
+
+    const game = await activeGames.get(gameId);
+    if (!game) return;
+    if (!game.state.currentTurn || game.state.phase === "SHOWDOWN") return;
+    this.startTurnTimer(gameId);
+  }
+
   private startTurnTimer(gameId: string) {
     const existing = this.timers.get(gameId);
     if (existing) {
@@ -2662,6 +2680,7 @@ export class GameGateway {
       const turnMs =
         game instanceof CashGameController ? game.getTurnTimeoutMs() : 30_000;
       const timeLeftSec = Math.round(turnMs / 1000);
+      const deadline = Date.now() + turnMs;
 
       const timer = setTimeout(async () => {
         if (this.turnTimerEpoch.get(gameId) !== epoch) return;
@@ -2734,6 +2753,7 @@ export class GameGateway {
         return;
       }
       this.timers.set(gameId, timer);
+      this.turnTimerDeadlines.set(gameId, deadline);
 
       // 👇 B4 : ANTI-BOT : ON DÉMARRE LE CHRONO ICI 👇
       this.turnStartTimes.set(gameId, Date.now());
@@ -2749,6 +2769,7 @@ export class GameGateway {
     }
     // 👇 B4 : ANTI-BOT : ON VIDE LE CHRONO 👇
     this.turnStartTimes.delete(gameId);
+    this.turnTimerDeadlines.delete(gameId);
 
     this.bumpTurnTimerEpoch(gameId);
   }
