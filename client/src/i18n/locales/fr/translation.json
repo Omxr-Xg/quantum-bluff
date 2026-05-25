@@ -382,6 +382,81 @@
       "street": "{{base}}–{{end}} transversale",
       "sixLine": "{{base}}–{{end}} sixain",
       "corner": "Carré {{nums}}"
+    },
+    "tutorial": {
+      "open": "Tutoriel roulette",
+      "close": "Fermer le tutoriel",
+      "prev": "Précédent",
+      "next": "Suivant",
+      "finish": "Terminer",
+      "stepCounter": "Étape {{current}} / {{total}}",
+      "demoSpinToast": "Spin de démonstration joué sans toucher au solde réel.",
+      "steps": {
+        "intro": {
+          "title": "Tutoriel roulette",
+          "body": "Tu vas apprendre la roulette dans le vrai écran de jeu, avec un solde de démonstration. Les actions du tutoriel ne dépensent pas tes jetons réels."
+        },
+        "header": {
+          "title": "Navigation",
+          "body": "La barre du haut te permet de quitter la roulette et confirme que tu es sur la table roulette."
+        },
+        "balance": {
+          "title": "Solde",
+          "body": "Le compteur affiche les jetons disponibles. En partie réelle, chaque spin bloque la mise puis crédite automatiquement les gains."
+        },
+        "wheel": {
+          "title": "Roue et tirage",
+          "body": "La roue reçoit le résultat calculé par le serveur. La bille s'arrête sur le numéro tiré, puis le panneau de résultat se met à jour."
+        },
+        "chips": {
+          "title": "Choisir des jetons",
+          "body": "Tape un ou plusieurs jetons pour composer la mise que tu veux poser. Les valeurs disponibles respectent les limites du niveau."
+        },
+        "pending": {
+          "title": "Pile à poser",
+          "body": "Cette pile est la somme prête à être placée. Elle reste ici tant que tu n'as pas touché une case du tapis."
+        },
+        "straight": {
+          "title": "Numéro plein",
+          "body": "Toucher un numéro place toute la pile sur ce numéro précis. C'est le pari le plus risqué, mais le plus rémunérateur."
+        },
+        "outside": {
+          "title": "Chances simples",
+          "body": "Rouge, noir, pair, impair, manque et passe couvrent de grands groupes de numéros. Elles gagnent plus souvent, avec un gain plus faible."
+        },
+        "dozens": {
+          "title": "Douzaines",
+          "body": "Les trois douzaines couvrent 1-12, 13-24 et 25-36. Le zéro ne fait partie d'aucune douzaine."
+        },
+        "columns": {
+          "title": "Colonnes",
+          "body": "Les colonnes suivent les alignements verticaux du tapis. Comme les douzaines, elles couvrent 12 numéros."
+        },
+        "advanced": {
+          "title": "Mises intérieures",
+          "body": "Ce panneau regroupe les chevaux, transversales, carrés et sixains. Utilise-le quand tu veux miser sur plusieurs numéros voisins."
+        },
+        "controls": {
+          "title": "Total et limites",
+          "body": "Cette zone résume la somme posée, les plafonds, et donne accès à Annuler ou Tout effacer avant de lancer."
+        },
+        "spin": {
+          "title": "Lancer",
+          "body": "Quand au moins une mise est posée, ce bouton lance la bille. Dans le tutoriel, il joue seulement une démonstration."
+        },
+        "result": {
+          "title": "Résultat",
+          "body": "Après le spin, le dernier numéro et sa couleur apparaissent ici pour vérifier rapidement ce qui est tombé."
+        },
+        "history": {
+          "title": "Historique",
+          "body": "L'historique détaille les mises du tour, les gains ligne par ligne et le résultat net. C'est utile pour comprendre pourquoi une mise a payé."
+        },
+        "finish": {
+          "title": "Prêt à jouer",
+          "body": "Tu connais maintenant le parcours complet : composer une pile, choisir les zones du tapis, contrôler la mise, lancer, puis lire le résultat et l'historique."
+        }
+      }
     }
   },
   "game": {

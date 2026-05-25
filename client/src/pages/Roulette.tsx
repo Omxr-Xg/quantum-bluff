@@ -1,8 +1,8 @@
-import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type RefObject } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation, type TFunction } from "react-i18next";
 import { motion, useMotionValue, animate, type MotionValue } from "motion/react";
-import { ArrowLeft, History, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, HelpCircle, History, Trash2, Undo2, X } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { updateUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 import {
@@ -16,6 +16,7 @@ import { ChipIcon } from "../components/ChipIcon";
 import logoSrc from "../assets/logo-personnel.png";
 import { CustomScrollArea } from "../components/CustomScrollArea";
 import { getAuthItem } from "../utils/authStorage";
+import { TutorialSpotlight } from "../components/tutorial/TutorialSpotlight";
 
 type RouletteChipToken = {
   value: number;
@@ -234,6 +235,71 @@ type SpinHistoryEntry = {
   net: number;
   lines: SpinHistoryLine[];
 };
+
+type RouletteTutorialHighlight =
+  | "header"
+  | "balance"
+  | "wheel"
+  | "chips"
+  | "pending"
+  | "straight"
+  | "dozens"
+  | "columns"
+  | "outside"
+  | "advanced"
+  | "controls"
+  | "spin"
+  | "result"
+  | "history";
+
+type RouletteTutorialStep = {
+  id: string;
+  highlight: RouletteTutorialHighlight | null;
+  titleKey: string;
+  bodyKey: string;
+};
+
+const ROULETTE_TUTORIAL_STEPS: RouletteTutorialStep[] = [
+  { id: "intro", highlight: null, titleKey: "roulette.tutorial.steps.intro.title", bodyKey: "roulette.tutorial.steps.intro.body" },
+  { id: "header", highlight: "header", titleKey: "roulette.tutorial.steps.header.title", bodyKey: "roulette.tutorial.steps.header.body" },
+  { id: "balance", highlight: "balance", titleKey: "roulette.tutorial.steps.balance.title", bodyKey: "roulette.tutorial.steps.balance.body" },
+  { id: "wheel", highlight: "wheel", titleKey: "roulette.tutorial.steps.wheel.title", bodyKey: "roulette.tutorial.steps.wheel.body" },
+  { id: "chips", highlight: "chips", titleKey: "roulette.tutorial.steps.chips.title", bodyKey: "roulette.tutorial.steps.chips.body" },
+  { id: "pending", highlight: "pending", titleKey: "roulette.tutorial.steps.pending.title", bodyKey: "roulette.tutorial.steps.pending.body" },
+  { id: "straight", highlight: "straight", titleKey: "roulette.tutorial.steps.straight.title", bodyKey: "roulette.tutorial.steps.straight.body" },
+  { id: "outside", highlight: "outside", titleKey: "roulette.tutorial.steps.outside.title", bodyKey: "roulette.tutorial.steps.outside.body" },
+  { id: "dozens", highlight: "dozens", titleKey: "roulette.tutorial.steps.dozens.title", bodyKey: "roulette.tutorial.steps.dozens.body" },
+  { id: "columns", highlight: "columns", titleKey: "roulette.tutorial.steps.columns.title", bodyKey: "roulette.tutorial.steps.columns.body" },
+  { id: "advanced", highlight: "advanced", titleKey: "roulette.tutorial.steps.advanced.title", bodyKey: "roulette.tutorial.steps.advanced.body" },
+  { id: "controls", highlight: "controls", titleKey: "roulette.tutorial.steps.controls.title", bodyKey: "roulette.tutorial.steps.controls.body" },
+  { id: "spin", highlight: "spin", titleKey: "roulette.tutorial.steps.spin.title", bodyKey: "roulette.tutorial.steps.spin.body" },
+  { id: "result", highlight: "result", titleKey: "roulette.tutorial.steps.result.title", bodyKey: "roulette.tutorial.steps.result.body" },
+  { id: "history", highlight: "history", titleKey: "roulette.tutorial.steps.history.title", bodyKey: "roulette.tutorial.steps.history.body" },
+  { id: "finish", highlight: null, titleKey: "roulette.tutorial.steps.finish.title", bodyKey: "roulette.tutorial.steps.finish.body" },
+];
+
+const ROULETTE_TUTORIAL_GLOW =
+  "relative z-[241] scale-[1.025] brightness-125 shadow-[0_0_0_1px_rgba(251,191,36,0.45),0_0_28px_rgba(251,191,36,0.78)] ring-2 ring-amber-300/70 transition duration-200";
+
+const ROULETTE_TUTORIAL_SOFT_GLOW =
+  "relative z-[241] brightness-125 drop-shadow-[0_0_22px_rgba(251,191,36,0.75)] transition duration-200";
+
+function demoSpinHistory(tr: TFunction): SpinHistoryEntry {
+  return {
+    id: "roulette-tutorial-demo-spin",
+    spinIndex: 1,
+    at: Date.now(),
+    result: 17,
+    resultColorKey: "black",
+    totalStake: 75,
+    totalPayout: 180,
+    net: 105,
+    lines: [
+      { label: tr("roulette.betDescr.straight", { n: 17 }), stake: 25, payout: 0, mult: 0 },
+      { label: tr("roulette.black"), stake: 50, payout: 100, mult: 2 },
+    ],
+  };
+}
 
 function describeRouletteApiBet(bet: Record<string, unknown>, tr: TFunction): string {
   const type = bet.type;
@@ -603,9 +669,10 @@ type RouletteProps = {
   /** Dans `/minigames`, le retour mène au lobby (onglet mini-jeux) au lieu du lobby seul. */
   backToMinigamesHub?: boolean;
   onBackToMinigamesHub?: () => void;
+  tutorialMode?: boolean;
 };
 
-export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: RouletteProps = {}) {
+export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tutorialMode = false }: RouletteProps = {}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -617,12 +684,12 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
     }
   };
   const { addToast } = useToast();
-  const [chips, setChips] = useState<number | null>(null);
+  const [chips, setChips] = useState<number | null>(() => (tutorialMode ? 2500 : null));
   const [minBet, setMinBet] = useState(10);
   /** Alignés sur le palier bas (niveau 1) jusqu’au chargement config + gamification. */
   const [maxBetPerLine, setMaxBetPerLine] = useState(750);
   const [maxTotalStake, setMaxTotalStake] = useState(5000);
-  const [limitsLoaded, setLimitsLoaded] = useState(false);
+  const [limitsLoaded, setLimitsLoaded] = useState(() => tutorialMode);
   const [wheelOrder, setWheelOrder] = useState<number[]>(DEFAULT_WHEEL);
   /** Somme des jetons tapés avant de poser sur le tapis. */
   const [pendingStake, setPendingStake] = useState(0);
@@ -638,6 +705,20 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   const [spinning, setSpinning] = useState(false);
   const [lastResult, setLastResult] = useState<number | null>(null);
   const [lastColor, setLastColor] = useState<string | null>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const balanceRef = useRef<HTMLDivElement>(null);
+  const chipButtonsRef = useRef<HTMLDivElement>(null);
+  const pendingRef = useRef<HTMLDivElement>(null);
+  const straightRef = useRef<HTMLButtonElement>(null);
+  const dozensRef = useRef<HTMLDivElement>(null);
+  const columnsRef = useRef<HTMLDivElement>(null);
+  const outsideRef = useRef<HTMLDivElement>(null);
+  const advancedRef = useRef<HTMLDetailsElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const spinButtonRef = useRef<HTMLButtonElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<HTMLDivElement>(null);
+  const wheelVisualRef = useRef<HTMLDivElement>(null);
   const wheelSectionRef = useRef<HTMLDivElement>(null);
   const rotation = useMotionValue(0);
   const ballOrbit = useMotionValue(0);
@@ -645,6 +726,9 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   const sixBases = useMemo(() => buildSixLineBases(), []);
   const corners = useMemo(() => buildCornerDefs(), []);
   const splits = useMemo(() => buildSplitPairs(), []);
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
+  const tutorialStep = ROULETTE_TUTORIAL_STEPS[tutorialStepIndex] ?? ROULETTE_TUTORIAL_STEPS[0]!;
+  const tutorialDone = tutorialStepIndex >= ROULETTE_TUTORIAL_STEPS.length - 1;
 
   const loadBalance = useCallback(async () => {
     const token = getAuthItem("token");
@@ -700,9 +784,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   }, []);
 
   useEffect(() => {
+    if (tutorialMode) return;
     void loadConfig();
     void loadBalance();
-  }, [loadConfig, loadBalance]);
+  }, [loadConfig, loadBalance, tutorialMode]);
 
   useEffect(() => {
     try {
@@ -715,11 +800,54 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
     }
   }, [spinHistory]);
 
+  useEffect(() => {
+    if (!tutorialMode) return;
+    if (tutorialStep.highlight === "history") setHistoryOpen(true);
+    if (tutorialStep.highlight === "result" && lastResult === null) {
+      setLastResult(17);
+      setLastColor("black");
+    }
+  }, [lastResult, tutorialMode, tutorialStep.highlight]);
+
   const totalStake = useMemo(() => {
     let s = 0;
     for (const v of bets.values()) s += v;
     return s;
   }, [bets]);
+
+  const tutorialTargetRef = useMemo(() => {
+    const refs = {
+      header: headerRef,
+      balance: balanceRef,
+      wheel: wheelVisualRef,
+      chips: chipButtonsRef,
+      pending: pendingRef,
+      straight: straightRef,
+      dozens: dozensRef,
+      columns: columnsRef,
+      outside: outsideRef,
+      advanced: advancedRef,
+      controls: controlsRef,
+      spin: spinButtonRef,
+      result: resultRef,
+      history: historyRef,
+    } satisfies Record<RouletteTutorialHighlight, RefObject<HTMLElement | null>>;
+    return tutorialStep.highlight ? refs[tutorialStep.highlight] : null;
+  }, [tutorialStep.highlight]);
+
+  const tutorialHighlightClass = useCallback(
+    (highlight: RouletteTutorialHighlight, variant: "strong" | "soft" = "strong") =>
+      tutorialMode && tutorialStep.highlight === highlight
+        ? variant === "soft"
+          ? ROULETTE_TUTORIAL_SOFT_GLOW
+          : ROULETTE_TUTORIAL_GLOW
+        : "",
+    [tutorialMode, tutorialStep.highlight]
+  );
+
+  const closeRouletteTutorial = useCallback(() => {
+    navigate("/minigames?game=roulette", { replace: true });
+  }, [navigate]);
 
   useEffect(() => {
     totalStakeRef.current = totalStake;
@@ -795,6 +923,60 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   }, [bets]);
 
   const spin = async () => {
+    if (tutorialMode) {
+      if (chips === null || spinning) return;
+      if (bets.size === 0) {
+        addToast(t("roulette.noBets"), "error");
+        return;
+      }
+      setSpinning(true);
+      requestAnimationFrame(() => {
+        wheelSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+      });
+      const result = 17;
+      const segmentIndex = Math.max(0, wheelOrder.indexOf(result));
+      const landingAngleDeg = -20;
+      const targetAngle = computeRouletteTargetRotation(rotation.get(), segmentIndex, wheelOrder.length, 4, landingAngleDeg);
+      const ballTarget = computeBallOrbitTarget(ballOrbit.get(), landingAngleDeg, wheelOrder.length, 5, 0.08);
+      await Promise.all([
+        animate(rotation, targetAngle, { duration: 2.2, ease: [0.2, 0.8, 0.2, 1] }),
+        animate(ballOrbit, ballTarget, { duration: 2.7, ease: [0.12, 0.78, 0.22, 1] }),
+      ]);
+      const stake = totalStakeRef.current;
+      const totalPayout = bets.has("black") ? (bets.get("black") ?? 0) * 2 : 0;
+      setLastResult(result);
+      setLastColor("black");
+      spinCounterRef.current += 1;
+      setSpinHistory((prev) => [
+        {
+          id: crypto.randomUUID(),
+          spinIndex: spinCounterRef.current,
+          at: Date.now(),
+          result,
+          resultColorKey: "black",
+          totalStake: stake,
+          totalPayout,
+          net: totalPayout - stake,
+          lines: betsPayload().map((bet) => {
+            const amount = typeof bet.amount === "number" ? bet.amount : 0;
+            const isWinner = bet.type === "black";
+            return {
+              label: describeRouletteApiBet(bet, t),
+              stake: amount,
+              payout: isWinner ? amount * 2 : 0,
+              mult: isWinner ? 2 : 0,
+            };
+          }),
+        },
+        ...prev,
+      ].slice(0, MAX_SPIN_HISTORY));
+      setBets(new Map());
+      setBetHistory([]);
+      setSpinning(false);
+      addToast(t("roulette.tutorial.demoSpinToast"), "success");
+      return;
+    }
+
     const token = getAuthItem("token");
     if (!token || chips === null || spinning) return;
     if (bets.size === 0) {
@@ -970,6 +1152,8 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
   }, [minBet, maxBetPerLine]);
 
   const bettingDisabled = spinning || !limitsLoaded || chips === null;
+  const visibleSpinHistory =
+    tutorialMode && spinHistory.length === 0 ? [demoSpinHistory(t)] : spinHistory;
 
   const feltCellClass = (n: number) => {
     if (n === 0) {
@@ -987,12 +1171,13 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
     return (
       <button
         key={n}
+        ref={n === 17 ? straightRef : undefined}
         type="button"
         disabled={bettingDisabled}
         onClick={() => addToKey(key, pendingStake)}
         className={`${feltCellClass(
           n
-        )} relative flex min-h-[2.55rem] w-full flex-col items-center justify-start overflow-visible rounded-sm border-2 pt-0.5 font-serif text-[11px] font-bold tracking-tight transition hover:brightness-110 hover:ring-1 hover:ring-green-400/35 active:scale-[0.96] disabled:opacity-45 disabled:hover:ring-0 pb-4 sm:min-h-[3.15rem] sm:pb-5 sm:pt-1 sm:text-sm md:min-h-[3.35rem] md:text-base`}
+        )} ${n === 17 ? tutorialHighlightClass("straight") : ""} relative flex min-h-[2.55rem] w-full flex-col items-center justify-start overflow-visible rounded-sm border-2 pt-0.5 font-serif text-[11px] font-bold tracking-tight transition hover:brightness-110 hover:ring-1 hover:ring-green-400/35 active:scale-[0.96] disabled:opacity-45 disabled:hover:ring-0 pb-4 sm:min-h-[3.15rem] sm:pb-5 sm:pt-1 sm:text-sm md:min-h-[3.35rem] md:text-base`}
       >
         <span className="relative z-0 leading-none">{n}</span>
         <PlacedChipsBadge amount={placed} layout="cell" />
@@ -1018,7 +1203,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.55),transparent_58%)]" />
       </div>
 
-      <header className="relative z-10 flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/55 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-xl md:px-5">
+      <header
+        ref={headerRef}
+        className={`relative z-10 flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/55 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-xl md:px-5 ${tutorialHighlightClass("header")}`}
+      >
         <button
           type="button"
           onClick={handleBack}
@@ -1034,7 +1222,22 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
             {t("roulette.title")}
           </span>
         </h1>
-        <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 rounded-full border border-amber-300/15 bg-slate-950/55 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-100 md:max-w-none md:text-base">
+        <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 md:max-w-none">
+        {!tutorialMode ? (
+          <button
+            type="button"
+            onClick={() => navigate("/tutorial/roulette")}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-300/20 bg-slate-950/55 text-amber-100 transition hover:border-amber-200/45 hover:bg-amber-400/10"
+            title={t("roulette.tutorial.open")}
+            aria-label={t("roulette.tutorial.open")}
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
+        ) : null}
+        <div
+          ref={balanceRef}
+          className={`flex min-w-0 shrink-0 items-center justify-end gap-1.5 rounded-full border border-amber-300/15 bg-slate-950/55 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-100 md:text-base ${tutorialHighlightClass("balance")}`}
+        >
           {chips !== null ? (
             <>
               <span className="truncate">{chips.toLocaleString()}</span>
@@ -1043,6 +1246,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
           ) : (
             "—"
           )}
+        </div>
         </div>
       </header>
 
@@ -1068,7 +1272,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                     {t("roulette.noChipsForLimits", { min: minBet, max: maxBetPerLine })}
                   </p>
                 ) : null}
-                <div className="flex flex-row flex-wrap items-end justify-center gap-2 sm:gap-3 lg:flex-col lg:items-center lg:gap-3 lg:px-0.5">
+                <div
+                  ref={chipButtonsRef}
+                  className={`flex flex-row flex-wrap items-end justify-center gap-2 sm:gap-3 lg:flex-col lg:items-center lg:gap-3 lg:px-0.5 ${tutorialHighlightClass("chips")}`}
+                >
                   {availableTokens.map((tok) => (
                     <button
                       key={tok.value}
@@ -1096,7 +1303,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   ))}
                 </div>
                 <div className="mt-auto flex flex-col gap-2 border-t border-slate-600/60 pt-3">
-                  <div className="rounded-lg border border-slate-600 bg-slate-900/70 px-2 py-2">
+                  <div
+                    ref={pendingRef}
+                    className={`rounded-lg border border-slate-600 bg-slate-900/70 px-2 py-2 ${tutorialHighlightClass("pending")}`}
+                  >
                     <span className="block text-center text-[9px] font-semibold uppercase tracking-wider text-slate-500">
                       {t("roulette.pendingStack")}
                     </span>
@@ -1124,7 +1334,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                   "radial-gradient(ellipse 85% 55% at 25% 15%, rgba(16,185,129,0.12) 0%, transparent 55%), radial-gradient(ellipse 100% 80% at 50% 100%, rgba(15,23,42,0.95) 0%, rgba(22,101,52,0.35) 55%, rgba(15,23,42,0.9) 100%), linear-gradient(180deg, rgb(15 23 42 / 0.9) 0%, rgb(15 118 110 / 0.15) 50%, rgb(15 23 42) 100%)",
               }}
             >
-              <div className="mb-2 space-y-2 border-b border-slate-600/50 pb-2 text-sm text-slate-300">
+              <div
+                ref={controlsRef}
+                className={`mb-2 space-y-2 border-b border-slate-600/50 pb-2 text-sm text-slate-300 ${tutorialHighlightClass("controls")}`}
+              >
                 <div className="flex items-center justify-between gap-2">
                   <span>{t("roulette.tableStake")}</span>
                   <span className="text-lg font-bold tabular-nums text-green-400">
@@ -1260,7 +1473,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 </div>
               </div>
 
-              <div className="mb-2 grid grid-cols-3 gap-1">
+              <div
+                ref={dozensRef}
+                className={`mb-2 grid grid-cols-3 gap-1 ${tutorialHighlightClass("dozens")}`}
+              >
                 <button
                   type="button"
                   disabled={bettingDisabled}
@@ -1290,7 +1506,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 </button>
               </div>
 
-              <div className="mb-2 grid grid-cols-3 gap-1">
+              <div
+                ref={columnsRef}
+                className={`mb-2 grid grid-cols-3 gap-1 ${tutorialHighlightClass("columns")}`}
+              >
                 <button
                   type="button"
                   disabled={bettingDisabled}
@@ -1320,7 +1539,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 </button>
               </div>
 
-              <div className="mb-2 grid grid-cols-2 gap-1 sm:grid-cols-3">
+              <div
+                ref={outsideRef}
+                className={`mb-2 grid grid-cols-2 gap-1 sm:grid-cols-3 ${tutorialHighlightClass("outside")}`}
+              >
                 {(["red", "black", "even", "odd", "low", "high"] as const).map((k) => (
                   <button
                     key={k}
@@ -1341,7 +1563,11 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 ))}
               </div>
 
-              <details className="rounded-md border border-slate-600 bg-slate-900/45">
+              <details
+                ref={advancedRef}
+                open={tutorialMode && tutorialStep.highlight === "advanced" ? true : undefined}
+                className={`rounded-md border border-slate-600 bg-slate-900/45 ${tutorialHighlightClass("advanced")}`}
+              >
                 <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-purple-200 hover:bg-slate-800/50">
                   {t("roulette.advancedInside")}
                 </summary>
@@ -1417,10 +1643,11 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
             </div>
 
             <button
+              ref={spinButtonRef}
               type="button"
               disabled={bettingDisabled || bets.size === 0}
               onClick={() => void spin()}
-              className="w-full rounded-full border border-amber-300/35 bg-amber-400/16 py-4 text-lg font-black tracking-[0.08em] text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_14px_34px_rgba(0,0,0,0.34),0_0_24px_rgba(245,158,11,0.10)] transition hover:border-amber-200/55 hover:bg-amber-400/24 hover:text-amber-50 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500 disabled:shadow-none"
+              className={`w-full rounded-full border border-amber-300/35 bg-amber-400/16 py-4 text-lg font-black tracking-[0.08em] text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_14px_34px_rgba(0,0,0,0.34),0_0_24px_rgba(245,158,11,0.10)] transition hover:border-amber-200/55 hover:bg-amber-400/24 hover:text-amber-50 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500 disabled:shadow-none ${tutorialHighlightClass("spin")}`}
             >
               {spinning ? t("roulette.spinning") : t("roulette.spin")}
             </button>
@@ -1431,8 +1658,13 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
               ref={wheelSectionRef}
               className="order-1 flex w-full shrink-0 flex-col items-center rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl scroll-mt-3 sm:p-4 md:scroll-mt-4 lg:order-2 lg:w-[min(100%,clamp(17rem,min(48vw,88vmin),36rem))] lg:max-w-[min(100%,clamp(17rem,min(48vw,88vmin),36rem))] lg:flex-none xl:p-5"
             >
-              <RouletteWheelSvg wheelOrder={wheelOrder} rotation={rotation} ballOrbit={ballOrbit} />
-              <div className="mt-4 min-h-[2.75rem] w-full max-w-xs rounded-lg border border-slate-600 bg-slate-900/60 px-4 py-2 text-center text-sm text-slate-200">
+              <div ref={wheelVisualRef} className={tutorialHighlightClass("wheel", "soft")}>
+                <RouletteWheelSvg wheelOrder={wheelOrder} rotation={rotation} ballOrbit={ballOrbit} />
+              </div>
+              <div
+                ref={resultRef}
+                className={`mt-4 min-h-[2.75rem] w-full max-w-xs rounded-lg border border-slate-600 bg-slate-900/60 px-4 py-2 text-center text-sm text-slate-200 ${tutorialHighlightClass("result")}`}
+              >
                 {lastResult !== null ? (
                   <span>
                     {t("roulette.lastResult", { n: lastResult })}
@@ -1450,9 +1682,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
                 )}
               </div>
               <button
+                ref={historyRef}
                 type="button"
                 onClick={() => setHistoryOpen((open) => !open)}
-                className={`mt-3 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+                className={`mt-3 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition sm:text-sm ${tutorialHighlightClass("history")} ${
                   historyOpen
                     ? "border-cyan-400/60 bg-cyan-500/10 text-cyan-100"
                     : "border-slate-600 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
@@ -1465,10 +1698,10 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
               </button>
               {historyOpen ? (
                 <div className="mt-3 max-h-80 w-full max-w-xl space-y-2.5 overflow-y-auto rounded-xl border border-slate-600/80 bg-slate-900/45 p-3 text-left shadow-lg">
-                  {spinHistory.length === 0 ? (
+                  {visibleSpinHistory.length === 0 ? (
                     <p className="py-4 text-center text-xs text-slate-500">{t("roulette.historyEmpty")}</p>
                   ) : (
-                    spinHistory.map((entry) => {
+                    visibleSpinHistory.map((entry) => {
                       const winningLines = entry.lines.filter((l) => l.payout > 0);
                       return (
                         <div
@@ -1558,6 +1791,67 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub }: R
           </div>
         </div>
       </CustomScrollArea>
+      {tutorialMode ? (
+        <TutorialSpotlight
+          open
+          onClose={closeRouletteTutorial}
+          targetRef={tutorialTargetRef}
+          measureKey={`${tutorialStepIndex}-${tutorialStep.highlight ?? "center"}-${historyOpen}`}
+          color="amber"
+          presentation="emphasis"
+          tooltipWidth={380}
+          tooltipHeight={360}
+          spotlightPadding={14}
+          scrollBlock="center"
+          ariaLabelledBy="roulette-tutorial-title"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
+                {t("roulette.tutorial.stepCounter", {
+                  current: tutorialStepIndex + 1,
+                  total: ROULETTE_TUTORIAL_STEPS.length,
+                })}
+              </p>
+              <h2 id="roulette-tutorial-title" className="mt-1 text-lg font-black text-slate-50">
+                {t(tutorialStep.titleKey)}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={closeRouletteTutorial}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-600 bg-slate-950/60 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+              aria-label={t("roulette.tutorial.close")}
+              title={t("roulette.tutorial.close")}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-slate-300">{t(tutorialStep.bodyKey)}</p>
+          <div className="mt-5 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setTutorialStepIndex((i) => Math.max(0, i - 1))}
+              disabled={tutorialStepIndex === 0}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-950/60 px-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:opacity-35"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              {t("roulette.tutorial.prev")}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (tutorialDone) closeRouletteTutorial();
+                else setTutorialStepIndex((i) => Math.min(ROULETTE_TUTORIAL_STEPS.length - 1, i + 1));
+              }}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-amber-300/40 bg-amber-400/15 px-4 text-sm font-black text-amber-100 transition hover:bg-amber-400/25"
+            >
+              {tutorialDone ? t("roulette.tutorial.finish") : t("roulette.tutorial.next")}
+              {!tutorialDone ? <ChevronRight className="h-4 w-4" /> : null}
+            </button>
+          </div>
+        </TutorialSpotlight>
+      ) : null}
     </div>
   );
 }
