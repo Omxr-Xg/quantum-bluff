@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Users, UserPlus, Loader2, Search, X, Check, MessageCircle } from "lucide-react";
@@ -32,6 +32,7 @@ export function FriendsList() {
   const [searchSuccess, setSearchSuccess] = useState(false);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [triggerSearchUsers, { isFetching: searching }] = useLazySearchUsersQuery();
   const [sendRequest, { isLoading: sendingRequest }] = useSendFriendRequestMutation();
   const [sendMessage, { isLoading: sendingMessage }] = useSendFriendMessageMutation();
@@ -199,6 +200,14 @@ export function FriendsList() {
       socket.off("FRIEND_MESSAGE", handleFriendMessage);
     };
   }, [socket, selectedChat, userId, refetchMessages]);
+
+  useEffect(() => {
+    if (!selectedChat) return;
+    const frame = window.requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ block: "end" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedChat, messages.length]);
 
   return (
     <>
@@ -479,6 +488,7 @@ export function FriendsList() {
                 );
               })
             )}
+            <div ref={messagesEndRef} aria-hidden />
           </div>
 
           <div className="border-t border-white/10 p-5">

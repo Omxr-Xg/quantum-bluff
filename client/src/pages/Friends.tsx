@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -171,6 +171,7 @@ export function Friends() {
   const [reportReason, setReportReason] = useState<ReportReason>("INAPPROPRIATE_LANGUAGE");
   const [reportDetail, setReportDetail] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const tab = searchParams.get("tab");
     const withUserId = searchParams.get("with");
@@ -501,6 +502,14 @@ export function Friends() {
   );
 
   const [sendMessage, { isLoading: sendingMessage }] = useSendFriendMessageMutation();
+
+  useEffect(() => {
+    if (!selectedChat) return;
+    const frame = window.requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ block: "end" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedChat, messages.length]);
 
   useEffect(() => {
     if (!messagesError || !addToast) return;
@@ -1463,6 +1472,7 @@ export function Friends() {
                   );
                 })
               )}
+              <div ref={messagesEndRef} aria-hidden />
             </div>
 
             <div className="border-t border-white/10 p-6">
