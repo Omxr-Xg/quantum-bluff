@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, typ
 import { useNavigate } from "react-router";
 import { useTranslation, type TFunction } from "react-i18next";
 import { motion, useMotionValue, animate, type MotionValue } from "motion/react";
-import { ArrowLeft, ChevronLeft, ChevronRight, HelpCircle, History, Trash2, Undo2, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, History, Trash2, Undo2, X } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { updateUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 import {
@@ -1223,17 +1223,6 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tut
           </span>
         </h1>
         <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 md:max-w-none">
-        {!tutorialMode ? (
-          <button
-            type="button"
-            onClick={() => navigate("/tutorial/roulette")}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-300/20 bg-slate-950/55 text-amber-100 transition hover:border-amber-200/45 hover:bg-amber-400/10"
-            title={t("roulette.tutorial.open")}
-            aria-label={t("roulette.tutorial.open")}
-          >
-            <HelpCircle className="h-4 w-4" />
-          </button>
-        ) : null}
         <div
           ref={balanceRef}
           className={`flex min-w-0 shrink-0 items-center justify-end gap-1.5 rounded-full border border-amber-300/15 bg-slate-950/55 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-100 md:text-base ${tutorialHighlightClass("balance")}`}
@@ -1254,18 +1243,6 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tut
         <p className="mx-auto mb-4 max-w-lg text-center text-[10px] leading-relaxed text-slate-400 sm:mb-5 sm:text-xs md:text-sm">
           {t("roulette.subtitle")}
         </p>
-        {!tutorialMode ? (
-          <div className="mb-4 flex justify-center sm:mb-5">
-            <button
-              type="button"
-              onClick={() => navigate("/tutorial/roulette")}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-amber-300/35 bg-amber-400/14 px-4 py-2 text-sm font-black text-amber-100 shadow-[0_0_20px_rgba(245,158,11,0.12)] transition hover:border-amber-200/60 hover:bg-amber-400/24 hover:text-amber-50"
-            >
-              <HelpCircle className="h-4 w-4" />
-              {t("roulette.tutorial.open")}
-            </button>
-          </div>
-        ) : null}
 
         <div className="mx-auto flex w-full min-w-0 max-w-[min(100%,min(100vw-1.5rem,90rem))] flex-col gap-6 lg:gap-8">
           {/* Desktop : tapis + jetons à gauche, roue à droite (même hauteur). Mobile : roue en premier, puis mises. */}
@@ -1803,6 +1780,17 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tut
           </div>
         </div>
       </CustomScrollArea>
+      {!tutorialMode ? (
+        <button
+          type="button"
+          onClick={() => navigate("/tutorial/roulette")}
+          className="fixed left-5 z-[260] flex h-12 w-12 items-center justify-center rounded-full border-2 border-purple-400/90 bg-purple-950/95 text-lg font-bold text-purple-100 shadow-xl backdrop-blur-sm transition hover:border-purple-300 hover:bg-purple-800/95 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))]"
+          aria-label={t("roulette.tutorial.open")}
+          title={t("roulette.tutorial.open")}
+        >
+          <span aria-hidden className="select-none">?</span>
+        </button>
+      ) : null}
       {tutorialMode ? (
         <TutorialSpotlight
           open
