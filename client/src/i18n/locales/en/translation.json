@@ -1452,6 +1452,8 @@
     "gameInvitations": "Game invitations",
     "friendRequests": "Friend requests",
     "viewRequests": "View requests",
+    "acceptFriend": "Accept",
+    "rejectFriend": "Reject",
     "openConversation": "Open conversation",
     "messageFrom": "Message from {{name}}",
     "quickReplyPlaceholder": "Reply…",

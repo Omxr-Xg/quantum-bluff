@@ -1457,6 +1457,8 @@
     "gameInvitations": "Invitations à jouer",
     "friendRequests": "Demandes d'amis",
     "viewRequests": "Voir les demandes",
+    "acceptFriend": "Accepter",
+    "rejectFriend": "Refuser",
     "openConversation": "Ouvrir la conversation",
     "messageFrom": "Message de {{name}}",
     "quickReplyPlaceholder": "Répondre…",

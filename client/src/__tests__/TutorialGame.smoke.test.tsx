@@ -5,13 +5,29 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { TutorialGame } from "../pages/TutorialGame";
 
-/* jsdom n'implemente pas scrollIntoView ; le spotlight l'appelle pour
- * faire defiler la cible mise en avant -> polyfill no-op. */
+/* jsdom n'implemente ni scrollIntoView ni matchMedia ; les composants
+ * (spotlight, use-mobile) en dependent -> polyfills no-op. */
 beforeAll(() => {
   if (!Element.prototype.scrollIntoView) {
     Element.prototype.scrollIntoView = function scrollIntoView() {
       /* no-op pour les tests jsdom */
     } as Element["scrollIntoView"];
+  }
+  if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    });
   }
 });
 

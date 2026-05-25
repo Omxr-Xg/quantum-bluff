@@ -25,6 +25,8 @@ import {
   AlertCircle,
   Banknote,
   CheckCircle2,
+  Check,
+  UserPlus,
 } from "lucide-react";
 import { validateIban, formatIban, normalizeIban } from "../utils/iban";
 import { AnimatePresence } from "motion/react";
@@ -74,7 +76,7 @@ import {
 import { useIsMobile } from "./ui/use-mobile";
 import { OPEN_RATE_GAME_EVENT } from "../constants/storageKeys";
 import type { SettingsTab } from "../contexts/AccessibilityMenuOpenContext";
-import { useSendFriendMessageMutation } from "../services/api";
+import { useRespondToFriendRequestMutation, useSendFriendMessageMutation } from "../services/api";
 import { NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
@@ -133,6 +135,12 @@ type LayoutNotification =
       senderId: string;
       senderUsername: string;
       preview: string;
+    }
+  | {
+      id: number;
+      kind: "friend_request";
+      requestId: string;
+      senderUsername: string;
     };
 
 interface LayoutProps {
@@ -174,6 +182,7 @@ export function Layout({ children }: LayoutProps) {
   } | null>(null);
   const [friendQuickReply, setFriendQuickReply] = useState("");
   const [sendFriendMessage, { isLoading: sendingFriendReply }] = useSendFriendMessageMutation();
+  const [respondFriendRequest, { isLoading: respondingFriendRequest }] = useRespondToFriendRequestMutation();
   /** Dédup FRIEND_MESSAGE (reconnexion / double emit). */
   const recentFriendMessageKeysRef = useRef<Set<string>>(new Set());
   const [balance, setBalance] = useState(getUserBalance());
@@ -461,14 +470,25 @@ export function Layout({ children }: LayoutProps) {
     if (!socket) return;
 
     const handleFriendRequestReceived = (payload: unknown) => {
-      const username = (payload as { sender?: { username?: string } })?.sender?.username || "un joueur";
-      setNotification({
-        id: Date.now(),
-        kind: "default",
-        message: t('toast.friendRequestFrom', { username }),
-        hint: t('notifications.viewRequests'),
-        onClick: () => navigate('/friends?tab=requests'),
-      });
+      const p = payload as { requestId?: string; sender?: { username?: string } };
+      const username = p?.sender?.username || "un joueur";
+      const requestId = p?.requestId;
+      if (requestId) {
+        setNotification({
+          id: Date.now(),
+          kind: "friend_request",
+          requestId,
+          senderUsername: username,
+        });
+      } else {
+        setNotification({
+          id: Date.now(),
+          kind: "default",
+          message: t('toast.friendRequestFrom', { username }),
+          hint: t('notifications.viewRequests'),
+          onClick: () => navigate('/friends?tab=requests'),
+        });
+      }
       playSfx("notification");
     };
 
@@ -2071,7 +2091,85 @@ export function Layout({ children }: LayoutProps) {
       </AnimatePresence>
       {notification && (
         <div className="fixed right-5 top-[calc(1.25rem+env(safe-area-inset-top,0px))] z-[9999] max-w-sm w-[calc(100%-2rem)] sm:w-full">
-          {notification.kind === "friend_message" ? (
+          {notification.kind === "friend_request" ? (
+            <div className="bg-slate-900/95 border border-emerald-500/70 shadow-2xl rounded-2xl px-4 py-4 backdrop-blur-md animate-in slide-in-from-right-5 duration-300">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 w-10 h-10 rounded-full bg-emerald-600/25 flex items-center justify-center">
+                  <UserPlus className="w-5 h-5 text-emerald-300" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold text-sm mb-2">
+                    {t("toast.friendRequestFrom", { username: notification.senderUsername })}
+                  </p>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={respondingFriendRequest}
+                      onClick={async () => {
+                        playSfx("uiSelect");
+                        try {
+                          await respondFriendRequest({
+                            requestId: notification.requestId,
+                            status: "ACCEPTED",
+                          }).unwrap();
+                        } catch {
+                          /* RTK Query invalide les tags : la cloche se resynchronise */
+                        }
+                        setNotification(null);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Check className="h-4 w-4" aria-hidden />
+                      {t("notifications.acceptFriend")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={respondingFriendRequest}
+                      onClick={async () => {
+                        playSfx("uiSelect");
+                        try {
+                          await respondFriendRequest({
+                            requestId: notification.requestId,
+                            status: "REJECTED",
+                          }).unwrap();
+                        } catch {
+                          /* idem */
+                        }
+                        setNotification(null);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <X className="h-4 w-4" aria-hidden />
+                      {t("notifications.rejectFriend")}
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="mt-2 text-left text-emerald-400/95 text-xs font-medium hover:text-emerald-300"
+                    onClick={() => {
+                      playSfx("uiSelect");
+                      navigate('/friends?tab=requests');
+                      setNotification(null);
+                    }}
+                  >
+                    {t("notifications.viewRequests")} →
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setNotification(null)}
+                  className="shrink-0 text-slate-400 hover:text-white transition-colors"
+                  aria-label={t("networkOverlay.closeLabel")}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : notification.kind === "friend_message" ? (
             <div className="bg-slate-900/95 border border-cyan-500/80 shadow-2xl rounded-2xl px-4 py-4 backdrop-blur-md animate-in slide-in-from-right-5 duration-300">
               <div className="flex items-start gap-3">
                 <div className="shrink-0 w-10 h-10 rounded-full bg-cyan-600/25 flex items-center justify-center">

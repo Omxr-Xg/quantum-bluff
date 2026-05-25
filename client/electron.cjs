@@ -56,10 +56,11 @@ function createWindow() {
     const devUrl =
       process.env.ELECTRON_DEV_URL || 'http://localhost:5175/vmProjetIntegrateurgrp10-0/';
     win.loadURL(devUrl);
-  } else if (app.isPackaged) {
-    win.loadFile(path.join(__dirname, 'dist', 'index.html'));
   } else {
-    win.loadURL(`${defaultProdOrigin.replace(/\/$/, '')}/`);
+    // Toujours charger le bundle embarqué (file://) hors dev pour éviter
+    // la boucle de redirects vue avec BrowserRouter sur l'URL distante
+    // (npm run electron sans packager + AdminProtectedRoute/ProtectedRoute).
+    win.loadFile(path.join(__dirname, 'dist', 'index.html'));
   }
 
   if (process.env.NODE_ENV === 'development') {
