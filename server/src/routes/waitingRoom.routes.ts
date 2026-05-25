@@ -134,7 +134,13 @@ const formatWaitingRoomPayload = (room: {
     isReady: boolean
     position: number
     avatarUrl?: string | null
-    user: { id: string; username: string; level: number }
+    user: {
+      id: string
+      username: string
+      level: number
+      avatarUrl?: string | null
+      avatarHasBinary?: boolean
+    }
   }>
 }) => ({
   id: room.id,
@@ -150,7 +156,11 @@ const formatWaitingRoomPayload = (room: {
     level: p.user.level,
     isReady: p.isReady,
     position: p.position,
-    avatarUrl: p.avatarUrl ?? null,
+    // Fallback : si le snapshot RoomPlayer.avatarUrl est vide (preset bundlé rejeté
+    // par sanitizePublicAvatarUrl, join sans avatar côté client, ancienne salle…),
+    // on retombe sur l'avatar persistant du profil pour rester cohérent avec
+    // ce qui est affiché sur la page Amis.
+    avatarUrl: p.avatarUrl ?? clientAvatarUrlFromUser(p.user),
   })),
 })
 
@@ -442,7 +452,9 @@ router.post('/create', waitingRoomCreateLimiter, authMiddleware, async (req, res
               select: {
                 id: true,
                 username: true,
-                level: true
+                level: true,
+                avatarUrl: true,
+                avatarHasBinary: true,
               }
             }
           }
@@ -464,7 +476,7 @@ router.post('/create', waitingRoomCreateLimiter, authMiddleware, async (req, res
         level: p.user.level,
         isReady: p.isReady,
         position: p.position,
-        avatarUrl: p.avatarUrl ?? null
+        avatarUrl: p.avatarUrl ?? clientAvatarUrlFromUser(p.user)
       }))
     });
   } catch (error) {
@@ -552,7 +564,9 @@ router.get('/:roomId', waitingRoomListLimiter, authMiddleware, async (req, res) 
               select: {
                 id: true,
                 username: true,
-                level: true
+                level: true,
+                avatarUrl: true,
+                avatarHasBinary: true,
               }
             }
           }
@@ -596,7 +610,7 @@ router.get('/:roomId', waitingRoomListLimiter, authMiddleware, async (req, res) 
         level: p.user.level,
         isReady: p.isReady,
         position: p.position,
-        avatarUrl: p.avatarUrl ?? null
+        avatarUrl: p.avatarUrl ?? clientAvatarUrlFromUser(p.user)
       }))
     });
   } catch (error) {
@@ -672,7 +686,9 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, authMiddleware, async (req,
                 select: {
                   id: true,
                   username: true,
-                  level: true
+                  level: true,
+                  avatarUrl: true,
+                  avatarHasBinary: true,
                 }
               }
             }
@@ -738,7 +754,9 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, authMiddleware, async (req,
               select: {
                 id: true,
                 username: true,
-                level: true
+                level: true,
+                avatarUrl: true,
+                avatarHasBinary: true,
               }
             }
           }
@@ -821,7 +839,7 @@ router.post('/:roomId/leave', waitingRoomActionLimiter, authMiddleware, async (r
           players: {
             include: {
               user: {
-                select: { id: true, username: true, level: true }
+                select: { id: true, username: true, level: true, avatarUrl: true, avatarHasBinary: true }
               }
             }
           }
@@ -870,7 +888,7 @@ router.post('/:roomId/leave', waitingRoomActionLimiter, authMiddleware, async (r
           players: {
             include: {
               user: {
-                select: { id: true, username: true, level: true }
+                select: { id: true, username: true, level: true, avatarUrl: true, avatarHasBinary: true }
               }
             }
           }
@@ -916,7 +934,13 @@ router.put('/:roomId/ready', waitingRoomActionLimiter, authMiddleware, async (re
         players: {
           include: {
             user: {
-              select: { id: true, username: true, level: true }
+              select: {
+                id: true,
+                username: true,
+                level: true,
+                avatarUrl: true,
+                avatarHasBinary: true,
+              }
             }
           }
         }
@@ -1037,7 +1061,10 @@ router.post('/:roomId/start', waitingRoomHostLimiter, authMiddleware, async (req
         userId: rp.user.id,
         username: rp.user.username,
         chips: cashGame.effectiveSitBuyInAmount(intChips(rp.user.chips ?? 0)),
-        avatarUrl: rp.avatarUrl ?? null,
+        // Fallback : si le snapshot RoomPlayer.avatarUrl est vide, on prend
+        // l'avatar persistant du profil pour que la photo s'affiche en partie
+        // (cohérent avec la page Amis et la salle d'attente).
+        avatarUrl: rp.avatarUrl ?? clientAvatarUrlFromUser(rp.user),
       }))
     );
     cashGame.startHand();
