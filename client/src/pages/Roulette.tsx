@@ -1658,7 +1658,7 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tut
               ref={wheelSectionRef}
               className="order-1 flex w-full shrink-0 flex-col items-center rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl scroll-mt-3 sm:p-4 md:scroll-mt-4 lg:order-2 lg:w-[min(100%,clamp(17rem,min(48vw,88vmin),36rem))] lg:max-w-[min(100%,clamp(17rem,min(48vw,88vmin),36rem))] lg:flex-none xl:p-5"
             >
-              <div ref={wheelVisualRef} className={tutorialHighlightClass("wheel", "soft")}>
+              <div ref={wheelVisualRef} className={`w-full ${tutorialHighlightClass("wheel", "soft")}`}>
                 <RouletteWheelSvg wheelOrder={wheelOrder} rotation={rotation} ballOrbit={ballOrbit} />
               </div>
               <div
