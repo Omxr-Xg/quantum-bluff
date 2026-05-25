@@ -29,6 +29,13 @@ import avatarTJ1 from "../assets/avatars/TJ1.png";
 /* Avatar dédié aux bots — volontairement hors de `AVATAR_PRESETS` pour ne pas
  * etre proposé à la sélection profil. */
 import avatarBot from "../assets/avatars/B1.png";
+/* Avatar par défaut affiché pour tout joueur qui n'a pas choisi de preset
+ * ni uploadé de photo — volontairement hors de `AVATAR_PRESETS` pour qu'il
+ * ne soit pas sélectionnable. */
+import avatarDefault from "../assets/avatars/NA.png";
+
+/** Avatar utilisé en l'absence de toute photo / preset (joueur "neutre"). */
+export const DEFAULT_AVATAR_URL: string = avatarDefault;
 
 function normalizeRemoteAvatarUrl(remoteAvatarUrl?: string | null): string {
   const trimmed = typeof remoteAvatarUrl === "string" ? remoteAvatarUrl.trim() : "";
@@ -109,11 +116,14 @@ function isLocalPlayerSeat(
 
 /**
  * Avatar affiché pour un joueur à la table ou dans les listes.
- * — Siège local : avatar du profil (`getUserAvatar()`).
+ * — Siège local : avatar du profil (`getUserAvatar()`), avec fallback `NA.png`
+ *   si l'utilisateur n'a rien choisi.
  * — Bot (mode entrainement / tutoriel) : avatar dédié `B1.png`.
  * — Multijoueur : si le serveur a diffusé une URL (`remoteAvatarUrl`), on l’utilise.
- * — Adversaire humain sans URL : **string vide** — le composant consommateur
- *   ré-affiche son propre fallback (initiale, icône).
+ * — Adversaire humain sans URL : avatar par défaut `NA.png`.
+ *
+ * Cette fonction renvoie donc toujours une URL exploitable — les composants
+ * consommateurs n'ont plus besoin de tester `?` puis fallback initiale.
  */
 export function getPlayerAvatar(
   playerName: string,
@@ -122,7 +132,7 @@ export function getPlayerAvatar(
   remoteAvatarUrl?: string | null
 ): string {
   if (isLocalPlayerSeat(playerName, playerId, heroSeatId)) {
-    return getUserAvatar();
+    return getUserAvatar() || avatarDefault;
   }
   if (isBotSeat(playerId)) {
     return avatarBot;
@@ -131,15 +141,15 @@ export function getPlayerAvatar(
   if (trimmed !== "") {
     return trimmed;
   }
-  return "";
+  return avatarDefault;
 }
 
 /**
  * Avatars sur la table de poker :
- * - joueur local : avatar du profil ;
+ * - joueur local : avatar du profil (ou `NA.png` si rien de défini) ;
  * - bot : avatar dédié `B1.png` ;
  * - adversaire humain avec URL serveur (photo uploadée) : on l'utilise ;
- * - adversaire humain sans URL : **string vide** (pas d'avatar).
+ * - adversaire humain sans URL : avatar par défaut `NA.png`.
  */
 export function getPokerTableAvatar(
   playerName: string,
@@ -148,7 +158,7 @@ export function getPokerTableAvatar(
   serverAvatarUrl?: string | null
 ): string {
   if (isLocalPlayerSeat(playerName, playerId, heroSeatId)) {
-    return getUserAvatar();
+    return getUserAvatar() || avatarDefault;
   }
   if (isBotSeat(playerId)) {
     return avatarBot;
@@ -157,5 +167,5 @@ export function getPokerTableAvatar(
   if (trimmed !== "") {
     return trimmed;
   }
-  return "";
+  return avatarDefault;
 }

@@ -5,8 +5,11 @@ import {
   setAuthItem,
 } from "./authStorage";
 import { clearGamificationStorage } from "./gamificationStorage";
+/* Avatar par défaut bundlé localement (Vite) — évite une requête externe
+ * vers `ui-avatars.com` et garantit l'affichage hors-ligne / sur VM isolée. */
+import defaultAvatarAsset from "../assets/avatars/NA.png";
 
-const defaultAvatar = 'https://ui-avatars.com/api/?name=QB&background=10b981&color=fff&size=128';
+const defaultAvatar: string = defaultAvatarAsset;
 
 /** Avatar stocké en chemin API relatif après persistance serveur (BYTEA). */
 export function resolveStoredAvatarUrl(raw: string): string {
