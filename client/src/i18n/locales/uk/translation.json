@@ -1348,6 +1348,8 @@
     "gameInvitations": "Запрошення до гри",
     "friendRequests": "Запити в друзі",
     "viewRequests": "Переглянути запити",
+    "acceptFriend": "Прийняти",
+    "rejectFriend": "Відхилити",
     "openConversation": "Відкрити розмову",
     "messageFrom": "Повідомлення від {{name}}",
     "quickReplyPlaceholder": "Відповісти…",

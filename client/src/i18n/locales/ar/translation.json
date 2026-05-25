@@ -1346,6 +1346,8 @@
     "gameInvitations": "دعوات اللعب",
     "friendRequests": "طلبات الصداقة",
     "viewRequests": "عرض الطلبات",
+    "acceptFriend": "قبول",
+    "rejectFriend": "رفض",
     "openConversation": "فتح المحادثة",
     "messageFrom": "رسالة من {{name}}",
     "quickReplyPlaceholder": "رد…",
