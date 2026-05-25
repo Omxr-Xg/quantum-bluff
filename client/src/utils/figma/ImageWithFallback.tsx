@@ -18,10 +18,12 @@ export const ImageWithFallback = ({ src, alt, className }: ImageWithFallbackProp
   }
   
   return (
-    <img 
-      src={src} 
-      alt={alt} 
+    <img
+      src={src}
+      alt={alt}
       className={className}
+      loading="lazy"
+      decoding="async"
       onError={() => setError(true)}
     />
   );

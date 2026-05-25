@@ -169,6 +169,37 @@ export default defineConfig(({ mode }) => {
       // 2 Mo : couvre le bundle JS principal (~1,8 Mo) tout en laissant de
       // côté les gros avatars 2+ Mo (chargés à la volée par le SW).
       maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
+      runtimeCaching: [
+        {
+          // Avatars utilisateur servis par le backend (/api/auth/avatars/:id).
+          // StaleWhileRevalidate : sert immédiatement la version en cache et
+          // rafraîchit en arrière-plan — l'utilisateur ne voit jamais le
+          // spinner deux fois sur le même avatar, même si la personne a
+          // changé sa photo entre temps.
+          urlPattern: ({ url }) => /\/api\/auth\/avatars\//.test(url.pathname),
+          handler: 'StaleWhileRevalidate',
+          options: {
+            cacheName: 'qb-user-avatars',
+            expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
+            cacheableResponse: { statuses: [0, 200] },
+          },
+        },
+        {
+          // Assets statiques d'images (avatars de preset, logos, cartes…)
+          // dans /assets/*.{png,jpg,jpeg,webp}. L'URL contient un hash de
+          // contenu côté Vite, donc CacheFirst est sûr : le cache est
+          // automatiquement invalidé quand l'asset change (= nouveau hash).
+          urlPattern: ({ url, request }) =>
+            request.destination === 'image' &&
+            /\/assets\/.*\.(?:png|jpg|jpeg|webp)$/i.test(url.pathname),
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'qb-image-assets',
+            expiration: { maxEntries: 300, maxAgeSeconds: 60 * 24 * 60 * 60 },
+            cacheableResponse: { statuses: [0, 200] },
+          },
+        },
+      ],
     },
   });
 

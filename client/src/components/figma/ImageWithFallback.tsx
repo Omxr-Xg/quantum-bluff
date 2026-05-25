@@ -22,6 +22,19 @@ export function ImageWithFallback(props: React.ImgHTMLAttributes<HTMLImageElemen
       </div>
     </div>
   ) : (
-    <img src={src} alt={alt} className={className} style={style} {...rest} onError={handleError} />
+    // loading="lazy" + decoding="async" : le navigateur diffère le download
+    // des images hors viewport et leur décodage est non bloquant — combiné
+    // au runtime caching du service worker, on évite les longs spinners
+    // sur les avatars/logos sur la VM Unistra.
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      style={style}
+      loading={(rest as { loading?: 'lazy' | 'eager' }).loading ?? 'lazy'}
+      decoding={(rest as { decoding?: 'async' | 'sync' | 'auto' }).decoding ?? 'async'}
+      {...rest}
+      onError={handleError}
+    />
   )
 }
