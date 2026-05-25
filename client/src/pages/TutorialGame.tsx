@@ -2,24 +2,21 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Activity, Check, ChevronLeft, ChevronRight, Eye, MessageCircle, TrendingUp, X } from "lucide-react";
-import { PokerCard, PokerCardSlot } from "../components/PokerCard";
 import { PokerTable } from "../components/PokerTable";
-import { ChipIcon } from "../components/ChipIcon";
 import { NeonButton } from "../components/NeonButton";
 import { HandCombinationsHelpButton } from "../components/HandCombinationsHelpButton";
+import { CommunityCards } from "../components/CommunityCards";
 import { TutorialSpotlight } from "../components/tutorial/TutorialSpotlight";
 import {
-  HAND_RANKING_LADDER,
   TUTORIAL_BOT_HAND,
-  TUTORIAL_HERO_FINAL_RANK,
   TUTORIAL_HERO_HAND,
   TUTORIAL_STEPS,
-  type HandRanking,
   type TutorialHighlight,
   type TutorialStep,
 } from "../features/tutorial/tutorialHandScript";
 import { apiFetch, apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
+import { cardHighlightKey } from "../utils/cards";
 
 /**
  * Page tutoriel : main de Texas Hold'em entierement scriptee jouee contre
@@ -48,7 +45,6 @@ export function TutorialGame() {
   const dealerAnchorRef = useRef<HTMLElement | null>(null);
   const blindsAnchorRef = useRef<HTMLElement | null>(null);
   const actionsRef = useRef<HTMLElement | null>(null);
-  const rankingsRef = useRef<HTMLElement | null>(null);
 
   const refMap: Record<Exclude<TutorialHighlight, null>, React.RefObject<HTMLElement | null>> =
     useMemo(
@@ -63,7 +59,7 @@ export function TutorialGame() {
         dealer: dealerAnchorRef,
         heroSeat: heroAnchorRef,
         botSeat: botAnchorRef,
-        rankings: rankingsRef,
+        rankings: actionsRef,
       }),
       [],
     );
@@ -71,6 +67,69 @@ export function TutorialGame() {
   const targetRef = step.highlight ? refMap[step.highlight] : null;
   const spotlightPadding =
     step.highlight === "dealer" || step.highlight === "blinds" || step.highlight === "actions" ? 4 : 8;
+  const isHighlighted = (highlight: TutorialHighlight) => step.highlight === highlight;
+  const tableNeedsLift = Boolean(
+    step.highlight &&
+      ["table", "board", "heroCards", "botCards", "dealer", "blinds", "heroSeat", "botSeat", "pot"].includes(
+        step.highlight,
+      ),
+  );
+  const emphasisClass =
+    "relative z-[241] brightness-125 drop-shadow-[0_0_28px_rgba(251,191,36,0.82)] transition-all duration-300";
+  const anchorBaseClass = "pointer-events-none absolute opacity-0";
+  const pokerTableTutorialEmphasis =
+    step.highlight === "heroSeat" ||
+    step.highlight === "botSeat" ||
+    step.highlight === "heroCards" ||
+    step.highlight === "botCards" ||
+    step.highlight === "dealer" ||
+    step.highlight === "blinds"
+      ? step.highlight
+      : undefined;
+
+  const highlightedCardKeys = useMemo(() => {
+    const keys = new Set<string>();
+    const add = (card: { suit: string; value: string }) => keys.add(cardHighlightKey(card));
+    const addBoardAt = (index: number) => {
+      const card = step.board[index];
+      if (card) add(card);
+    };
+
+    switch (step.key) {
+      case "flop":
+        step.board.forEach(add);
+        break;
+      case "flopRead":
+        add(TUTORIAL_HERO_HAND[1]);
+        addBoardAt(2);
+        add(TUTORIAL_HERO_HAND[0]);
+        addBoardAt(0);
+        addBoardAt(1);
+        break;
+      case "turn":
+        addBoardAt(3);
+        break;
+      case "turnFlush":
+      case "turnRaise":
+      case "turnBotCalls":
+      case "river":
+      case "riverBet":
+      case "riverBotCalls":
+      case "showdownReveal":
+      case "rankings":
+        add(TUTORIAL_HERO_HAND[0]);
+        add(TUTORIAL_HERO_HAND[1]);
+        addBoardAt(0);
+        addBoardAt(1);
+        addBoardAt(3);
+        break;
+      default:
+        if (isHighlighted("board")) step.board.forEach(add);
+        break;
+    }
+
+    return keys.size > 0 ? keys : undefined;
+  }, [step.board, step.key, step.highlight]);
 
   const goNext = useCallback(() => {
     setStepIndex((s) => Math.min(TUTORIAL_STEPS.length - 1, s + 1));
@@ -127,7 +186,7 @@ export function TutorialGame() {
       ]
     : undefined;
 
-  const botCardsRendered = step.showHeroCards
+  const botCardsRendered = step.showBotCards
     ? [
         { suit: TUTORIAL_BOT_HAND[0].suit, value: TUTORIAL_BOT_HAND[0].value },
         { suit: TUTORIAL_BOT_HAND[1].suit, value: TUTORIAL_BOT_HAND[1].value },
@@ -175,33 +234,15 @@ export function TutorialGame() {
     ],
   );
 
-  /* -- Echelle des classements (visible mais surlignee a l'etape rankings) -- */
-  const rankingItem = (rank: HandRanking) => {
-    const isHero = rank === TUTORIAL_HERO_FINAL_RANK;
-    return (
-      <li
-        key={rank}
-        className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
-          isHero
-            ? "border border-amber-400 bg-amber-500/15 font-bold text-amber-100"
-            : "text-slate-300"
-        }`}
-      >
-        <span>{t(`tutorial.game.rankings.${rank}`)}</span>
-        {isHero && (
-          <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] uppercase text-slate-900">
-            {t("tutorial.game.rankings.yours")}
-          </span>
-        )}
-      </li>
-    );
-  };
-
   const showRankingsBody = step.highlight === "rankings";
+  const communityCards = useMemo(
+    () => Array.from({ length: 5 }, (_, i) => step.board[i] ?? null),
+    [step.board],
+  );
 
   return (
     <div className="relative min-h-full w-full overflow-x-hidden app-shell-bg p-4 sm:p-8">
-      <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-6">
+      <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-6">
         <header className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white sm:text-3xl">
@@ -219,30 +260,16 @@ export function TutorialGame() {
           </button>
         </header>
 
-        {/* Pot (au-dessus de la table, comme en jeu reel). */}
-        <div className="flex justify-center">
-          <div
-            ref={(el) => {
-              potRef.current = el;
-            }}
-            className="inline-flex items-center gap-2 rounded-2xl border border-amber-400/50 bg-slate-900/80 px-5 py-2.5 shadow-inner backdrop-blur-md"
-          >
-            <span className="text-xs font-semibold uppercase tracking-wide text-amber-300/80">
-              {t("tutorial.game.pot")}
-            </span>
-            <ChipIcon size="md" />
-            <span className="text-lg font-bold tabular-nums text-amber-100">
-              {step.pot.toLocaleString()}
-            </span>
-          </div>
-        </div>
-
         {/* Table : on rend EXACTEMENT le composant utilise en partie reelle. */}
         <section
           ref={(el) => {
             tableSectionRef.current = el;
           }}
-          className="relative mx-auto w-full"
+          className={`relative mx-auto w-full pb-28 transition-all duration-300 sm:pb-24 ${
+            isShowdownLike ? "-translate-y-8 sm:-translate-y-6" : "-translate-y-2"
+          } ${
+            tableNeedsLift ? "z-[241]" : ""
+          } ${isHighlighted("table") ? emphasisClass : ""}`}
         >
           <PokerTable
             players={players}
@@ -251,30 +278,17 @@ export function TutorialGame() {
             heroTimerActive={false}
             hideHeroChipStack={false}
             layoutSeatCount={2}
+            tutorialEmphasis={pokerTableTutorialEmphasis}
+            highlightCardKeys={highlightedCardKeys}
           >
-            {/* Community cards — passees comme children pour respecter le slot natif. */}
-            <div
-              ref={(el) => {
-                boardRef.current = el;
-              }}
-              className="flex justify-center gap-1.5"
-            >
-              {Array.from({ length: 5 }).map((_, i) => {
-                const c = step.board[i];
-                if (!c) return <PokerCardSlot key={i} size="md" />;
-                return (
-                  <PokerCard
-                    key={`${c.suit}-${c.value}-${i}`}
-                    suit={c.suit}
-                    value={c.value}
-                    size="md"
-                    animated
-                    cardEnter="soft"
-                    animationDelay={i * 0.08}
-                  />
-                );
-              })}
-            </div>
+            <CommunityCards
+              cards={communityCards}
+              pot={step.pot}
+              potRef={potRef}
+              boardRef={boardRef}
+              highlightCardKeys={highlightedCardKeys}
+              potEmphasis={isHighlighted("pot")}
+            />
           </PokerTable>
 
           {/* Anchors invisibles utilises uniquement par le spotlight pour mesurer
@@ -284,7 +298,7 @@ export function TutorialGame() {
             ref={(el) => {
               heroAnchorRef.current = el;
             }}
-            className="pointer-events-none absolute"
+            className={anchorBaseClass}
             style={{
               left: "50%",
               top: "79%",
@@ -298,7 +312,7 @@ export function TutorialGame() {
             ref={(el) => {
               botAnchorRef.current = el;
             }}
-            className="pointer-events-none absolute"
+            className={anchorBaseClass}
             style={{
               left: "50%",
               top: "16%",
@@ -312,7 +326,7 @@ export function TutorialGame() {
             ref={(el) => {
               heroCardsAnchorRef.current = el;
             }}
-            className="pointer-events-none absolute"
+            className={anchorBaseClass}
             style={{
               left: "50%",
               top: "89%",
@@ -326,7 +340,7 @@ export function TutorialGame() {
             ref={(el) => {
               botCardsAnchorRef.current = el;
             }}
-            className="pointer-events-none absolute"
+            className={anchorBaseClass}
             style={{
               left: "50%",
               top: "29%",
@@ -340,7 +354,7 @@ export function TutorialGame() {
             ref={(el) => {
               dealerAnchorRef.current = el;
             }}
-            className="pointer-events-none absolute"
+            className={anchorBaseClass}
             style={{
               left: "50%",
               top: "62%",
@@ -354,7 +368,7 @@ export function TutorialGame() {
             ref={(el) => {
               blindsAnchorRef.current = el;
             }}
-            className="pointer-events-none absolute"
+            className={anchorBaseClass}
             style={{
               left: "50%",
               top: "45%",
@@ -374,23 +388,10 @@ export function TutorialGame() {
           onPrev={stepIndex > 0 ? goPrev : null}
           stepIndex={stepIndex}
           totalSteps={TUTORIAL_STEPS.length}
+          highlighted={isHighlighted("actions")}
+          combinationsOpen={isHighlighted("rankings")}
         />
 
-        {step.highlight === "rankings" && (
-          <section
-            ref={(el) => {
-              rankingsRef.current = el;
-            }}
-            className="fixed right-4 top-1/2 z-30 max-h-[min(80vh,34rem)] w-[min(calc(100vw-2rem),24rem)] -translate-y-1/2 overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900/92 p-5 shadow-2xl backdrop-blur-xl max-lg:left-1/2 max-lg:right-auto max-lg:top-auto max-lg:bottom-4 max-lg:-translate-x-1/2 max-lg:translate-y-0"
-          >
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-200">
-              {t("tutorial.game.rankings.title")}
-            </h2>
-            <ul className="grid grid-cols-1 gap-1">
-              {HAND_RANKING_LADDER.map(rankingItem)}
-            </ul>
-          </section>
-        )}
       </div>
 
       {/* Spotlight pedagogique */}
@@ -399,13 +400,14 @@ export function TutorialGame() {
         onClose={() => void handleSkip()}
         targetRef={targetRef}
         measureKey={stepIndex}
-        color="cyan"
+        color="amber"
         tooltipHeight={showRankingsBody ? 480 : 360}
         spotlightPadding={spotlightPadding}
         scrollBlock="center"
+        presentation="emphasis"
       >
         <div className="mb-3 flex items-start justify-between gap-2">
-          <span className="rounded-full bg-cyan-600/35 px-2.5 py-0.5 text-xs font-semibold text-cyan-200">
+          <span className="rounded-full bg-amber-600/35 px-2.5 py-0.5 text-xs font-semibold text-amber-200">
             {t("tutorial.game.stepOf", {
               current: stepIndex + 1,
               total: TUTORIAL_STEPS.length,
@@ -422,7 +424,7 @@ export function TutorialGame() {
           {t(`tutorial.game.steps.${step.key}.body`)}
         </p>
         {step.expectedAction !== "next" && step.expectedAction !== "finish" && (
-          <p className="mb-3 rounded-lg border border-cyan-700/40 bg-cyan-950/50 px-3 py-2 text-xs text-cyan-200">
+          <p className="mb-3 rounded-lg border border-amber-700/40 bg-amber-950/50 px-3 py-2 text-xs text-amber-200">
             {t(`tutorial.game.cta.${step.expectedAction}`, {
               amount: step.raiseTo ?? "",
             })}
@@ -450,7 +452,7 @@ export function TutorialGame() {
               <button
                 type="button"
                 onClick={goNext}
-                className="flex items-center gap-1 rounded-xl bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500"
+                className="flex items-center gap-1 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-500"
               >
                 {t("tutorial.game.next")}
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -481,6 +483,8 @@ type ActionPanelProps = {
   onPrev: (() => void) | null;
   stepIndex: number;
   totalSteps: number;
+  highlighted: boolean;
+  combinationsOpen: boolean;
 };
 
 function ActionPanel({
@@ -490,6 +494,8 @@ function ActionPanel({
   onPrev,
   stepIndex,
   totalSteps,
+  highlighted,
+  combinationsOpen,
 }: ActionPanelProps) {
   const { t } = useTranslation();
 
@@ -511,13 +517,16 @@ function ActionPanel({
     icon?: React.ReactNode;
   }) => {
     const enabled = isEnabled(action);
+    const visuallyEnabled = enabled || highlighted;
     return (
       <NeonButton
         onClick={() => onAction(action, amount)}
-        disabled={!enabled}
+        disabled={!visuallyEnabled}
         variant={variant}
         icon={icon}
-        className="w-full justify-center px-3 py-2.5 text-[0.8rem] md:px-4 md:py-3 md:text-[0.85rem] xl:w-auto xl:min-w-[176px] xl:px-[2.2rem] xl:py-[1.1rem] xl:text-[1.1rem]"
+        className={`w-full justify-center px-3 py-2.5 text-[0.8rem] md:px-4 md:py-3 md:text-[0.85rem] xl:w-auto xl:min-w-[176px] xl:px-[2.2rem] xl:py-[1.1rem] xl:text-[1.1rem] ${
+          highlighted ? "shadow-[0_0_22px_rgba(251,191,36,0.8)]" : ""
+        }`}
       >
         {label}
         {amount != null && <span className="ml-1 tabular-nums">{amount}</span>}
@@ -530,11 +539,15 @@ function ActionPanel({
       ref={(el) => {
         actionsRef.current = el;
       }}
-      className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.2rem)] left-0 right-0 z-40 w-full transition-all duration-300 md:bottom-6 xl:bottom-12"
+      className={`pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.2rem)] left-0 right-0 w-full transition-all duration-300 md:bottom-6 xl:bottom-12 ${
+        highlighted || combinationsOpen ? "z-[241]" : "z-40"
+      }`}
     >
       <div className="pointer-events-auto mx-auto w-full max-w-[min(1200px,calc(100vw-1rem))] lg:max-w-[min(1200px,calc(100vw-2rem))]">
         <div className="flex flex-wrap items-end justify-center gap-2 xl:grid xl:grid-cols-[minmax(16rem,1fr)_auto_minmax(16rem,1fr)] xl:gap-5">
-          <div className="w-full grid grid-cols-3 gap-1.5 xl:order-2 xl:flex xl:w-auto xl:justify-self-center xl:gap-3">
+          <div className={`w-full grid grid-cols-3 gap-1.5 transition-all duration-300 xl:order-2 xl:flex xl:w-auto xl:justify-self-center xl:gap-3 ${
+            highlighted ? "brightness-125 drop-shadow-[0_0_26px_rgba(251,191,36,0.95)]" : ""
+          }`}>
             <Btn action="fold" label={t("tutorial.game.actions.fold")} variant="red" icon={<X className="hidden h-4 w-4 lg:block lg:h-6 lg:w-6" />} />
             {step.callAmount === 0 ? (
               <Btn action="check" label={t("tutorial.game.actions.check")} variant="blue" icon={<Check className="hidden h-4 w-4 lg:block lg:h-6 lg:w-6" />} />
@@ -556,14 +569,18 @@ function ActionPanel({
             />
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-end gap-2 drop-shadow-2xl xl:order-1 xl:justify-self-end">
+          <div className={`flex shrink-0 flex-wrap items-end gap-2 drop-shadow-2xl transition-opacity xl:order-1 xl:justify-self-end ${
+            highlighted ? "opacity-45" : ""
+          }`}>
             <NeonButton disabled variant="blue" icon={<MessageCircle className="h-4 w-4 shrink-0" />} className="px-3 py-2.5 text-xs md:px-5 md:py-3.5">
               Chat
             </NeonButton>
-            <HandCombinationsHelpButton />
+            <HandCombinationsHelpButton openOverride={combinationsOpen} />
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-end gap-1.5 xl:order-3 xl:justify-self-start">
+          <div className={`flex shrink-0 flex-wrap items-end gap-1.5 transition-opacity xl:order-3 xl:justify-self-start ${
+            highlighted ? "opacity-45" : ""
+          }`}>
             <NeonButton disabled variant="gold" icon={<Eye className="h-4 w-4" />} className="px-3 py-2.5 text-xs md:px-5 md:py-3.5">
               {t("game.bets")}
             </NeonButton>

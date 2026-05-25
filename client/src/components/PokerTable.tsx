@@ -52,6 +52,14 @@ interface PokerTableProps {
   layoutSeatCount?: number;
   /** Clés `suit|value` des cartes à mettre en surbrillance (showdown). */
   highlightCardKeys?: Set<string>;
+  /** Mise en valeur d'un element reel pour le tutoriel de partie. */
+  tutorialEmphasis?:
+    | "heroSeat"
+    | "botSeat"
+    | "heroCards"
+    | "botCards"
+    | "dealer"
+    | "blinds";
 }
 
 // Dimensions de référence — doivent correspondre à tablePositions.ts
@@ -74,6 +82,7 @@ export function PokerTable({
   hideHeroChipStack = false,
   layoutSeatCount,
   highlightCardKeys,
+  tutorialEmphasis,
 }: PokerTableProps) {
   const { t } = useTranslation();
   const { feltGradient, feltBorder, feltBackgroundUrl } = useTableTheme();
@@ -273,6 +282,18 @@ export function PokerTable({
             const timerArcOffset = timerArcLength - timerProgress;
             const showSeatTimer =
               player.isActive && heroTimerActive && heroTimerTimeLeft != null && !player.hasFolded;
+            const tutorialGlow =
+              "z-[241] brightness-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.72)]";
+            const tutorialStrongGlow =
+              "z-[242] scale-125 brightness-125 drop-shadow-[0_0_22px_rgba(251,191,36,0.9)]";
+            const emphasizeHeroSeat = tutorialEmphasis === "heroSeat" && isHeroDisplay;
+            const emphasizeBotSeat = tutorialEmphasis === "botSeat" && !isHeroDisplay;
+            const emphasizeHeroCards = tutorialEmphasis === "heroCards" && isHeroDisplay;
+            const emphasizeBotCards = tutorialEmphasis === "botCards" && !isHeroDisplay;
+            const emphasizeDealer = tutorialEmphasis === "dealer" && player.isDealer;
+            const emphasizeBlinds =
+              tutorialEmphasis === "blinds" && (player.role === "SB" || player.role === "BB");
+            const emphasizeSeatBadge = emphasizeDealer || emphasizeBlinds;
             /** Avatars compacts : proches de l'ancien rendu, sans couvrir trop de table. */
             const avatarSizeClass = isHeroDisplay
               ? "w-[clamp(4rem,8.5vw,5.7rem)] h-[clamp(4rem,8.5vw,5.7rem)]"
@@ -299,7 +320,11 @@ export function PokerTable({
                     : isTabletLandscape
                     ? `clamp(3%, calc(50% + ${yPct}%), 97%)`
                     : `calc(50% + ${yPct}%)`,
-                  zIndex: player.position === 0 ? 20 : 10,
+                  zIndex: emphasizeSeatBadge
+                    ? 245
+                    : player.position === 0
+                      ? 20
+                      : 10,
                 }}
               >
                 <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-visible">
@@ -350,7 +375,8 @@ export function PokerTable({
                           : "bg-slate-950 border-cyan-100/80"
                       }
                       shadow-[0_10px_24px_rgba(0,0,0,0.45)]
-                      ${player.isActive && !isHeroDisplay ? "ring-2 ring-yellow-300/80" : ""}`;
+                      ${player.isActive && !isHeroDisplay ? "ring-2 ring-yellow-300/80" : ""}
+                      ${emphasizeHeroSeat || emphasizeBotSeat ? tutorialStrongGlow : ""}`;
 
                     const clickable =
                       !isHeroSeat &&
@@ -366,7 +392,11 @@ export function PokerTable({
                         <div className="pointer-events-none absolute -right-1.5 -top-1.5 z-50 flex items-center gap-0.5">
                           {player.isDealer && (
                             <div
-                              className="flex h-5 w-5 items-center justify-center rounded-full border border-amber-200/80 bg-gradient-to-br from-slate-800 via-slate-950 to-black text-[9px] font-black text-amber-100 shadow-[0_0_10px_rgba(251,191,36,0.35),0_4px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/40 md:h-6 md:w-6 md:text-[10px]"
+                              className={`flex h-5 w-5 items-center justify-center rounded-full border border-amber-200/80 bg-gradient-to-br from-slate-800 via-slate-950 to-black text-[9px] font-black text-amber-100 shadow-[0_0_10px_rgba(251,191,36,0.35),0_4px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/40 transition-transform md:h-6 md:w-6 md:text-[10px] ${
+                                emphasizeDealer
+                                  ? tutorialStrongGlow
+                                  : ""
+                              }`}
                               title={t("game.dealer")}
                             >
                               D
@@ -374,7 +404,11 @@ export function PokerTable({
                           )}
                           {player.role === "SB" && (
                             <div
-                              className="-ml-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-amber-300/70 bg-gradient-to-br from-amber-700 via-amber-950 to-slate-950 px-1 text-[8px] font-black text-amber-100 shadow-[0_0_10px_rgba(245,158,11,0.28),0_4px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/40 md:h-6 md:min-w-6 md:text-[9px]"
+                              className={`-ml-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-amber-300/70 bg-gradient-to-br from-amber-700 via-amber-950 to-slate-950 px-1 text-[8px] font-black text-amber-100 shadow-[0_0_10px_rgba(245,158,11,0.28),0_4px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/40 transition-transform md:h-6 md:min-w-6 md:text-[9px] ${
+                                emphasizeBlinds
+                                  ? tutorialStrongGlow
+                                  : ""
+                              }`}
                               title={t("lobby.smallBlind")}
                             >
                               SB
@@ -382,7 +416,11 @@ export function PokerTable({
                           )}
                           {player.role === "BB" && (
                             <div
-                              className="-ml-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-cyan-200/65 bg-gradient-to-br from-cyan-900 via-slate-950 to-black px-1 text-[8px] font-black text-cyan-100 shadow-[0_0_10px_rgba(34,211,238,0.28),0_4px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/40 md:h-6 md:min-w-6 md:text-[9px]"
+                              className={`-ml-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-amber-200/65 bg-gradient-to-br from-amber-900 via-slate-950 to-black px-1 text-[8px] font-black text-amber-100 shadow-[0_0_10px_rgba(251,191,36,0.28),0_4px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/40 transition-transform md:h-6 md:min-w-6 md:text-[9px] ${
+                                emphasizeBlinds
+                                  ? tutorialStrongGlow
+                                  : ""
+                              }`}
                               title={t("lobby.bigBlind")}
                             >
                               BB
@@ -466,9 +504,10 @@ export function PokerTable({
                                     size={isMobile ? "sm" : isTabletPortrait ? "sm" : "md"}
                                     colorblindMode={colorblindMode}
                                     highlight={Boolean(
-                                      highlightCardKeys?.size &&
+                                      emphasizeHeroCards ||
+                                        (highlightCardKeys?.size &&
                                         card.suit !== "hidden" &&
-                                        highlightCardKeys.has(cardHighlightKey(card)),
+                                        highlightCardKeys.has(cardHighlightKey(card))),
                                     )}
                                   />
                                 </div>
@@ -505,10 +544,11 @@ export function PokerTable({
                               colorblindMode={colorblindMode}
                               className={index === 0 ? "-rotate-6" : "rotate-6"}
                               highlight={Boolean(
-                                isShowdown &&
+                                emphasizeBotCards ||
+                                  (isShowdown &&
                                   highlightCardKeys?.size &&
                                   card.suit !== "hidden" &&
-                                  highlightCardKeys.has(cardHighlightKey(card)),
+                                  highlightCardKeys.has(cardHighlightKey(card))),
                               )}
                             />
                           ))}

@@ -10,9 +10,7 @@ import { createPortal } from "react-dom";
 
 /**
  * Spotlight overlay reutilisable pour les tutoriels (lobby, jeu, table scriptee).
- * Centralise le calcul de rect, le decoupage en 4 zones autour de l'element vise
- * et le tooltip flottant — code prealablement duplique dans LobbyInteractiveTour,
- * GameInteractiveTour et TutorialGame.
+ * Centralise le calcul de rect, le decoupage visuel et le tooltip flottant.
  */
 
 const DEFAULT_PAD = 10;
@@ -97,26 +95,49 @@ function computeTooltipPos(
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
   const vw = typeof window !== "undefined" ? window.innerWidth : 400;
   const tw = Math.min(tooltipWidth, vw - margin * 2);
+  const th = Math.min(tooltipHeight, vh - margin * 2);
 
   if (!rect) {
-    return { left: (vw - tw) / 2, top: (vh - tooltipHeight) / 2 };
+    return { left: (vw - tw) / 2, top: (vh - th) / 2 };
   }
 
   const l = Math.max(0, rect.left - padding);
   const t = Math.max(0, rect.top - padding);
   const r = Math.min(vw, rect.right + padding);
   const b = Math.min(vh, rect.bottom + padding);
-  const w = Math.max(0, r - l);
-  const h = Math.max(0, b - t);
+  const cx = (l + r) / 2;
+  const cy = (t + b) / 2;
 
-  let top = t + h + 16;
-  if (top + tooltipHeight > vh - margin) top = t - tooltipHeight - 16;
-  if (top < margin) top = margin;
+  const clampLeft = (left: number) => Math.max(margin, Math.min(left, vw - tw - margin));
+  const clampTop = (top: number) => Math.max(margin, Math.min(top, vh - th - margin));
+  const overlapArea = (left: number, top: number) => {
+    const x = Math.max(0, Math.min(left + tw, r) - Math.max(left, l));
+    const y = Math.max(0, Math.min(top + th, b) - Math.max(top, t));
+    return x * y;
+  };
 
-  let left = l + w / 2 - tw / 2;
-  left = Math.max(margin, Math.min(left, vw - tw - margin));
+  const candidates = [
+    { left: cx - tw / 2, top: b + 18, free: vh - b, side: "bottom" },
+    { left: cx - tw / 2, top: t - th - 18, free: t, side: "top" },
+    { left: r + 18, top: cy - th / 2, free: vw - r, side: "right" },
+    { left: l - tw - 18, top: cy - th / 2, free: l, side: "left" },
+    { left: margin, top: margin, free: l + t, side: "top-left" },
+    { left: vw - tw - margin, top: margin, free: vw - r + t, side: "top-right" },
+    { left: margin, top: vh - th - margin, free: l + vh - b, side: "bottom-left" },
+    { left: vw - tw - margin, top: vh - th - margin, free: vw - r + vh - b, side: "bottom-right" },
+  ].map((c) => {
+    const left = clampLeft(c.left);
+    const top = clampTop(c.top);
+    const overlap = overlapArea(left, top);
+    return {
+      left,
+      top,
+      score: overlap * 100 - c.free - (c.side.includes("bottom") ? 8 : 0),
+    };
+  });
 
-  return { left, top };
+  candidates.sort((a, b) => a.score - b.score);
+  return { left: candidates[0]!.left, top: candidates[0]!.top };
 }
 
 export type TutorialSpotlightProps = {
@@ -131,6 +152,7 @@ export type TutorialSpotlightProps = {
   tooltipHeight?: number;
   spotlightPadding?: number;
   scrollBlock?: ScrollLogicalPosition;
+  presentation?: "cutout" | "emphasis";
   /** Contenu de la bulle (titre / corps / boutons fournis par l'appelant). */
   children: ReactNode;
   /** Aria label du tooltip dialog. */
@@ -138,7 +160,7 @@ export type TutorialSpotlightProps = {
 };
 
 /**
- * Spotlight portail : fond noir 4-zones autour de la cible + tooltip flottant.
+ * Spotlight portail : fond noir autour de la cible + tooltip flottant.
  * Tout le contenu pedagogique est fourni via `children` pour rester compose.
  */
 export function TutorialSpotlight({
@@ -151,6 +173,7 @@ export function TutorialSpotlight({
   tooltipHeight = 420,
   spotlightPadding = DEFAULT_PAD,
   scrollBlock = "nearest",
+  presentation = "cutout",
   children,
   ariaLabelledBy,
 }: TutorialSpotlightProps) {
@@ -214,7 +237,15 @@ export function TutorialSpotlight({
           onClick={onClose}
         />
       )}
-      {rect && (
+      {rect && presentation === "emphasis" && (
+        <button
+          type="button"
+          className="fixed inset-0 z-[240] bg-black/70 backdrop-blur-[2px] pointer-events-auto"
+          aria-label="overlay"
+          onClick={onClose}
+        />
+      )}
+      {rect && presentation === "cutout" && (
         <SpotlightRects
           rect={rect}
           onBackdropClick={onClose}
