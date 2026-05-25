@@ -157,10 +157,18 @@ export default defineConfig(({ mode }) => {
       ],
     },
     workbox: {
-      globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+      // On garde le code (js/css/html) et les petits assets en précache ;
+      // les gros avatars PNG (~2 Mo pièce) sont exclus pour éviter de remplir
+      // 76 Mo de cache au premier chargement (saturait la VM Unistra et
+      // provoquait des timeouts en cascade sur les requêtes API juste après).
+      // Ils seront mis en cache à la volée par le runtime du service worker
+      // quand l'utilisateur consultera réellement les pages qui les utilisent.
+      globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
       navigateFallback: `${basePath}index.html`,
       mode: 'development',
-      maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      // 2 Mo : couvre le bundle JS principal (~1,8 Mo) tout en laissant de
+      // côté les gros avatars 2+ Mo (chargés à la volée par le SW).
+      maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
     },
   });
 

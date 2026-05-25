@@ -124,7 +124,14 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const bgm = new Audio(musicSrc);
     bgm.loop = true;
-    bgm.preload = 'auto';
+    // IMPORTANT : `preload='none'` évite de télécharger 4,7 Mo de musique de fond
+    // dès le montage de l'app. Sur une connexion lente (VM Unistra, 4G), ce
+    // download peut saturer la pool de connexions du navigateur et bloquer les
+    // requêtes API juste après (typiquement /api/auth/check-email puis
+    // /api/auth/login → loader infini sur la page de login). Le fichier sera
+    // téléchargé à la demande au premier `bgm.play()` (déclenché par une
+    // action utilisateur explicite).
+    bgm.preload = 'none';
     bgm.volume = bgmVolumeRef.current;
     bgm.addEventListener('pause', () => setBgmPlaying(false));
     bgm.addEventListener('playing', () => setBgmPlaying(true));
@@ -132,7 +139,10 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
     bgmAudioRef.current = bgm;
 
     const victory = new Audio(victorySound);
-    victory.preload = 'auto';
+    // Petit fichier (~125 Ko) : on récupère juste les en-têtes (durée, format)
+    // pour pouvoir le lire instantanément quand un utilisateur gagne, sans
+    // tirer 125 Ko sur la page d'authentification.
+    victory.preload = 'metadata';
     sfxAudioRefs.current.victory = victory;
 
     return () => {
