@@ -38,6 +38,7 @@ import {
   markWinWithPair,
 } from "../dailyChallenges/dailyChallenge.service.js";
 import { sanitizePublicAvatarUrl } from "../utils/avatarUrl.js";
+import { clientAvatarUrlFromUser } from "../utils/userAvatarPublic.js";
 import {
   censorChatLinks,
   isChatContentEffectivelyEmpty,
@@ -71,6 +72,38 @@ import { AntiCheatService } from "../services/antiCheat.service.js";
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   gameId?: string;
+}
+
+/**
+ * Résout l'URL d'avatar à utiliser pour un siège.
+ *
+ * Priorité :
+ * 1. URL fournie par le client (snapshot d'avatar) si elle passe la sanitization.
+ * 2. Sinon, on retombe sur l'avatar persistant du profil (`User.avatarUrl` ou
+ *    image binaire en base), de manière à ce que la photo affichée dans la
+ *    page Amis reste visible en salle d'attente et en partie même si le client
+ *    n'a pas envoyé d'avatar (web first load, preset bundlé rejeté, etc.).
+ *
+ * Retourne `null` si on n'a strictement rien (l'avatar est alors une initiale
+ * côté client via `getPlayerAvatar`).
+ */
+async function resolveSeatAvatarUrl(
+  rawAvatarUrl: unknown,
+  userId: string | null | undefined,
+): Promise<string | null> {
+  const sanitized = sanitizePublicAvatarUrl(rawAvatarUrl);
+  if (sanitized) return sanitized;
+  if (!userId) return null;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, avatarUrl: true, avatarHasBinary: true },
+    });
+    if (!user) return null;
+    return clientAvatarUrlFromUser(user);
+  } catch {
+    return null;
+  }
 }
 
 export class GameGateway {
@@ -561,7 +594,7 @@ export class GameGateway {
                   void this.broadcastCashGameSnapshot(gameId);
                 });
 
-                const url = sanitizePublicAvatarUrl(data.avatarUrl);
+                const url = await resolveSeatAvatarUrl(data.avatarUrl, playerId);
                 if (url) game.setSeatAvatar(playerId, url);
 
                 const socketsInRoom = await this.io.in(gameId).fetchSockets();
@@ -589,7 +622,7 @@ export class GameGateway {
                   s.emit("GAME_STATE_UPDATED", snapshot);
                 }
               } else if (game instanceof GameTable) {
-                const url = sanitizePublicAvatarUrl(data.avatarUrl);
+                const url = await resolveSeatAvatarUrl(data.avatarUrl, playerId);
                 if (url) {
                   const pl = game.getPlayerState(playerId);
                   if (pl) pl.avatar = url;
@@ -1258,7 +1291,7 @@ export class GameGateway {
                 select: { username: true, chips: true },
               });
               const wallet = intChips(user?.chips ?? 0);
-              const avatarUrl = sanitizePublicAvatarUrl(data.avatarUrl);
+              const avatarUrl = await resolveSeatAvatarUrl(data.avatarUrl, userId);
               const result = game.sit(
                 userId,
                 user?.username ?? "Joueur",
@@ -1639,7 +1672,7 @@ export class GameGateway {
               if (player) player.isConnected = true;
 
               if (pokerGame instanceof CashGameController) {
-                const url = sanitizePublicAvatarUrl(data.avatarUrl);
+                const url = await resolveSeatAvatarUrl(data.avatarUrl, socket.userId);
                 if (url) pokerGame.setSeatAvatar(socket.userId, url);
 
                 const socketsInRoom = await this.io.in(gameId).fetchSockets();
@@ -1685,7 +1718,7 @@ export class GameGateway {
                   }
                 }
               } else if (pokerGame instanceof GameTable) {
-                const url = sanitizePublicAvatarUrl(data.avatarUrl);
+                const url = await resolveSeatAvatarUrl(data.avatarUrl, socket.userId);
                 if (url && socket.userId) {
                   const pl = pokerGame.getPlayerState(socket.userId);
                   if (pl) pl.avatar = url;

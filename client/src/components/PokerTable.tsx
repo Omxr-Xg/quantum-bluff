@@ -282,8 +282,6 @@ export function PokerTable({
             const timerArcOffset = timerArcLength - timerProgress;
             const showSeatTimer =
               player.isActive && heroTimerActive && heroTimerTimeLeft != null && !player.hasFolded;
-            const tutorialGlow =
-              "z-[241] brightness-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.72)]";
             const tutorialStrongGlow =
               "z-[242] scale-125 brightness-125 drop-shadow-[0_0_22px_rgba(251,191,36,0.9)]";
             const emphasizeHeroSeat = tutorialEmphasis === "heroSeat" && isHeroDisplay;

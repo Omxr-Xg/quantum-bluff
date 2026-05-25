@@ -13,6 +13,7 @@ import {
   type BlackjackTablePublicState,
 } from '../logic/BlackjackTableController.js'
 import { activeBlackjackGames } from '../shared/activeBlackjackGames.js'
+import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { blackjackStateStore } from '../shared/blackjackStateStore.js'
 import {
   BlackjackTableLockedError,
@@ -745,6 +746,9 @@ router.post('/:roomId/start', authMiddleware, async (req, res) => {
           userId: s.userId,
           username: s.user.username,
           position: s.position,
+          // Avatar persistant du profil — assure que la photo s'affiche en
+          // partie comme dans la page Amis (le client lit `seat.avatarUrl`).
+          avatarUrl: clientAvatarUrlFromUser(s.user),
         }))
 
         const table = new BlackjackTableController({

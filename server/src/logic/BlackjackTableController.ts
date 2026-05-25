@@ -32,12 +32,15 @@ export interface BJSeatRuntime {
   totalBet: number
   doubled: boolean
   playState: BJSeatPlayState
+  /** Avatar à afficher côté client (chemin /api/auth/avatars/:id ou URL legacy). */
+  avatarUrl: string | null
 }
 
 export interface BJTableMemberInput {
   userId: string
   username: string
   position: number
+  avatarUrl?: string | null
 }
 
 export type BJPublicCard = { rank: string; suit: string }
@@ -54,6 +57,8 @@ export interface BJSeatPublic {
   isCurrentTurn: boolean
   /** Valeur affichée (best ≤ 21) pour UI */
   handTotal?: number
+  /** Avatar du joueur (déjà résolu côté serveur). Null si pas d'avatar. */
+  avatarUrl?: string | null
 }
 
 export type BjPayoutSummaryRow = {
@@ -118,6 +123,7 @@ export class BlackjackTableController {
       totalBet: 0,
       doubled: false,
       playState: 'no_bet',
+      avatarUrl: m.avatarUrl ?? null,
     }))
     this.shoe = createShoe()
     shuffleShoe(this.shoe)
@@ -377,6 +383,7 @@ export class BlackjackTableController {
         playState: s.playState,
         isCurrentTurn: this.phase === 'player_turn' && idx === this.currentSeatIndex,
         handTotal: v && !v.bust ? v.total : undefined,
+        avatarUrl: s.avatarUrl,
       }
     })
 
