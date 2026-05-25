@@ -1254,6 +1254,18 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tut
         <p className="mx-auto mb-4 max-w-lg text-center text-[10px] leading-relaxed text-slate-400 sm:mb-5 sm:text-xs md:text-sm">
           {t("roulette.subtitle")}
         </p>
+        {!tutorialMode ? (
+          <div className="mb-4 flex justify-center sm:mb-5">
+            <button
+              type="button"
+              onClick={() => navigate("/tutorial/roulette")}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-amber-300/35 bg-amber-400/14 px-4 py-2 text-sm font-black text-amber-100 shadow-[0_0_20px_rgba(245,158,11,0.12)] transition hover:border-amber-200/60 hover:bg-amber-400/24 hover:text-amber-50"
+            >
+              <HelpCircle className="h-4 w-4" />
+              {t("roulette.tutorial.open")}
+            </button>
+          </div>
+        ) : null}
 
         <div className="mx-auto flex w-full min-w-0 max-w-[min(100%,min(100vw-1.5rem,90rem))] flex-col gap-6 lg:gap-8">
           {/* Desktop : tapis + jetons à gauche, roue à droite (même hauteur). Mobile : roue en premier, puis mises. */}
