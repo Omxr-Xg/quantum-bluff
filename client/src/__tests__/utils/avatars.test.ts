@@ -33,11 +33,12 @@ describe("getPlayerAvatar", () => {
     expect(url1).toBe(urlQb);
   });
 
-  it("renvoie une string vide pour un adversaire HUMAIN sans URL serveur", () => {
-    /* Pas de bot, pas d'URL : le composant consommateur affiche son fallback
-     * (initiale, icone). On ne devine plus d'avatar pour les opposants humains. */
-    expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me")).toBe("");
-    expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me", null)).toBe("");
+  it("renvoie l'avatar NA.png par défaut pour un adversaire HUMAIN sans URL serveur", () => {
+    /* Plus de chaîne vide : on retombe sur `NA.png` (image bundlée) afin que
+     * tous les écrans (table de poker, salle d'attente, liste d'amis, etc.)
+     * affichent un visage par défaut au lieu d'une initiale. */
+    expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me")).toMatch(/NA\.png$/i);
+    expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me", null)).toMatch(/NA\.png$/i);
   });
 
   it("n’utilise pas l’avatar profil pour un adversaire", () => {
@@ -85,8 +86,8 @@ describe("getPokerTableAvatar", () => {
     expect(url).toBe(remote);
   });
 
-  it("renvoie une string vide pour un adversaire HUMAIN sans URL serveur", () => {
-    expect(getPokerTableAvatar("Alice", "uuid-a", "uuid-me", null)).toBe("");
+  it("renvoie l'avatar NA.png par défaut pour un adversaire HUMAIN sans URL serveur", () => {
+    expect(getPokerTableAvatar("Alice", "uuid-a", "uuid-me", null)).toMatch(/NA\.png$/i);
   });
 });
 
