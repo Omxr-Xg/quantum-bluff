@@ -71,7 +71,7 @@ export function PokerTable({
   children,
   communitySafeZone: _communitySafeZone = 180,
   phase,
-  burnedCardsCount = 0,
+  burnedCardsCount: _burnedCardsCount = 0,
   colorblindMode = false,
   heroSeatId = null,
   heroTimerActive = false,
