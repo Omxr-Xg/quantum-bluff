@@ -137,7 +137,14 @@ function EmphasisBackdrop({
   );
 }
 
-/** Calcule la position du tooltip a partir du rect mis en surbrillance. */
+/**
+ * Calcule la position du tooltip à partir du rect mis en surbrillance.
+ *
+ * Stratégie : on veut que la bulle reste **collée à un côté du highlight**
+ * (bottom > top > right > left), pas projetée vers un coin lointain de la
+ * fenêtre. On ne retombe sur les coins que si le highlight est tellement
+ * grand qu'aucun côté ne contient la bulle sans la chevaucher.
+ */
 function computeTooltipPos(
   rect: DOMRect | null,
   tooltipWidth: number,
@@ -145,6 +152,7 @@ function computeTooltipPos(
   padding: number,
 ): { left: number; top: number } {
   const margin = 16;
+  const gap = 18;
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
   const vw = typeof window !== "undefined" ? window.innerWidth : 400;
   const tw = Math.min(tooltipWidth, vw - margin * 2);
@@ -169,28 +177,54 @@ function computeTooltipPos(
     return x * y;
   };
 
-  const candidates = [
-    { left: cx - tw / 2, top: b + 18, free: vh - b, side: "bottom" },
-    { left: cx - tw / 2, top: t - th - 18, free: t, side: "top" },
-    { left: r + 18, top: cy - th / 2, free: vw - r, side: "right" },
-    { left: l - tw - 18, top: cy - th / 2, free: l, side: "left" },
-    { left: margin, top: margin, free: l + t, side: "top-left" },
-    { left: vw - tw - margin, top: margin, free: vw - r + t, side: "top-right" },
-    { left: margin, top: vh - th - margin, free: l + vh - b, side: "bottom-left" },
-    { left: vw - tw - margin, top: vh - th - margin, free: vw - r + vh - b, side: "bottom-right" },
-  ].map((c) => {
-    const left = clampLeft(c.left);
-    const top = clampTop(c.top);
-    const overlap = overlapArea(left, top);
-    return {
-      left,
-      top,
-      score: overlap * 100 - c.free - (c.side.includes("bottom") ? 8 : 0),
-    };
-  });
+  /**
+   * 4 positions adjacentes uniquement, dans l'ordre de préférence.
+   * `fits` = la bulle tient SANS chevaucher le highlight ni dépasser la fenêtre.
+   * Si `fits=true` pour plusieurs, on prend la première dans l'ordre.
+   */
+  const adjacents = [
+    {
+      left: cx - tw / 2,
+      top: b + gap,
+      fits: b + gap + th + margin <= vh,
+    },
+    {
+      left: cx - tw / 2,
+      top: t - th - gap,
+      fits: t - gap - th - margin >= 0,
+    },
+    {
+      left: r + gap,
+      top: cy - th / 2,
+      fits: r + gap + tw + margin <= vw,
+    },
+    {
+      left: l - tw - gap,
+      top: cy - th / 2,
+      fits: l - gap - tw - margin >= 0,
+    },
+  ];
 
-  candidates.sort((a, b) => a.score - b.score);
-  return { left: candidates[0]!.left, top: candidates[0]!.top };
+  const preferred = adjacents.find((c) => c.fits);
+  if (preferred) {
+    return { left: clampLeft(preferred.left), top: clampTop(preferred.top) };
+  }
+
+  /**
+   * Aucun côté ne tient (cas rare : highlight quasiment plein écran).
+   * Fallback : on prend la position adjacente qui minimise le recouvrement
+   * après clamp dans la fenêtre, pour rester aussi proche que possible du
+   * highlight sans complètement le masquer.
+   */
+  const fallback = adjacents
+    .map((c) => {
+      const left = clampLeft(c.left);
+      const top = clampTop(c.top);
+      return { left, top, overlap: overlapArea(left, top) };
+    })
+    .sort((a, b) => a.overlap - b.overlap)[0]!;
+
+  return { left: fallback.left, top: fallback.top };
 }
 
 export type TutorialSpotlightProps = {
