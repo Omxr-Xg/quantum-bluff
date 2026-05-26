@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Users, Loader2, AlertCircle, Lock, Globe, Check, UserCheck, Zap, Clock, AlertTriangle, Trash2, X } from "lucide-react";
+import { UserPlus, Users, Loader2, AlertCircle, Lock, Globe, Check, UserCheck, Zap, Clock, AlertTriangle, Trash2, LogOut, X } from "lucide-react";
 import { ChipIcon } from "../components/ChipIcon";
 import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
@@ -759,11 +759,11 @@ export function WaitingRoom() {
             type="button"
             onClick={() => void handleDeleteAndLeaveRoom()}
             className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-red-400/35 bg-red-950/55 px-3 text-sm font-semibold text-red-100 transition hover:border-red-300/60 hover:bg-red-900/70 hover:text-white sm:self-start"
-            aria-label={t("waitingRoom.deleteAndLeave")}
-            title={t("waitingRoom.deleteAndLeave")}
+            aria-label={isCreator ? t("waitingRoom.deleteAndLeave") : t("waitingRoom.leave")}
+            title={isCreator ? t("waitingRoom.deleteAndLeave") : t("waitingRoom.leave")}
           >
-            <Trash2 className="h-4 w-4" />
-            <span>{t("waitingRoom.deleteAndLeave")}</span>
+            {isCreator ? <Trash2 className="h-4 w-4" /> : <LogOut className="h-4 w-4" />}
+            <span>{isCreator ? t("waitingRoom.deleteAndLeave") : t("waitingRoom.leave")}</span>
           </button>
         </div>
 

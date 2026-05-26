@@ -205,44 +205,6 @@ export function PokerTable({
         </div>
         {/* ─── FIN TABLE ───────────────────────────────────────────────────── */}
 
-        {/* Cartes brûlées — hors du masque de table, affichées comme un petit paquet. */}
-        {burnedCardsCount > 0 && (
-          <div
-            className={`pointer-events-none absolute z-30 ${
-              isMobile || isTabletPortrait
-                ? "left-[7%] top-[36%]"
-                : "right-[8%] top-[39%]"
-            }`}
-            title={t("game.burned")}
-            aria-label={t("game.burnedCount", { count: burnedCardsCount })}
-          >
-            <div className="relative h-12 w-11 sm:h-14 sm:w-12">
-              <div className="absolute -inset-3 rounded-2xl bg-black/25 blur-md" />
-              {Array.from({ length: Math.min(burnedCardsCount, 3) }).map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute left-1/2 top-1/2"
-                  style={{
-                    transform: `translate(-50%, -50%) translate(${i * 3}px, ${i * -3}px) rotate(${-10 + i * 6}deg)`,
-                    zIndex: i,
-                  }}
-                >
-                  <PokerCard
-                    suit="spades"
-                    value="A"
-                    size={isMobile ? "xs" : "sm"}
-                    faceDown
-                    className="border border-white/10 shadow-xl"
-                  />
-                </div>
-              ))}
-              <div className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-300/20 bg-slate-950/85 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-100/85 shadow-lg">
-                {t("game.burned")}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* ─── PLAYERS ─────────────────────────────────────────────────────── */}
         {/*  Positionné en absolute sur le même wrapper que la table           */}
         {/*  → les % sont relatifs aux mêmes dimensions, le scaling est cohérent */}
