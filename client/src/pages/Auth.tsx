@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Heart, Calendar } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Heart, Club, Diamond, CircleDot, Calendar } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import {
   useCheckEmailMutation,
@@ -370,20 +370,38 @@ export function Auth() {
         ></div>
       </div>
 
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
-        <div className="absolute top-[15%] left-[8%] animate-float-card">
-          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <Spade className="h-14 w-14 text-blue-300/40" aria-hidden strokeWidth={1.75} />
-          </div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="auth-float-card auth-float-card-a">
+          <span>A</span>
+          <Spade className="h-9 w-9" aria-hidden strokeWidth={1.5} />
         </div>
-        <div
-          className="absolute top-[55%] right-[12%] animate-float-card-delayed"
-          style={{ animationDelay: "1s" }}
-        >
-          <div className="w-24 h-32 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-2xl border border-blue-300/24 -rotate-12 flex items-center justify-center backdrop-blur-sm">
-            <Heart className="h-14 w-14 text-red-400/50" aria-hidden strokeWidth={1.75} />
-          </div>
+        <div className="auth-float-card auth-float-card-b auth-red-card">
+          <span>K</span>
+          <Heart className="h-9 w-9" aria-hidden strokeWidth={1.5} />
         </div>
+        <div className="auth-float-card auth-float-card-c">
+          <span>Q</span>
+          <Club className="h-9 w-9" aria-hidden strokeWidth={1.5} />
+        </div>
+        <div className="auth-float-card auth-float-card-d auth-red-card">
+          <span>J</span>
+          <Diamond className="h-9 w-9" aria-hidden strokeWidth={1.5} />
+        </div>
+        <div className="auth-card-back auth-card-back-a" aria-hidden />
+        <div className="auth-card-back auth-card-back-b" aria-hidden />
+        <div className="auth-card-back auth-card-back-c" aria-hidden />
+
+        <div className="auth-chip auth-chip-a" aria-hidden>
+          <span /><span /><span />
+        </div>
+        <div className="auth-chip auth-chip-b" aria-hidden>
+          <span /><span /><span /><span />
+        </div>
+        <div className="auth-chip auth-chip-c" aria-hidden>
+          <span /><span /><span /><span />
+        </div>
+        <div className="auth-chip-dot auth-chip-dot-a"><CircleDot className="h-5 w-5" aria-hidden /></div>
+        <div className="auth-chip-dot auth-chip-dot-b"><CircleDot className="h-4 w-4" aria-hidden /></div>
       </div>
 
       <div className="relative z-10 w-full max-w-md">
@@ -932,11 +950,96 @@ export function Auth() {
 
       <style>{`
         @keyframes sh02 { from { opacity: 0; left: 0%; } 50% { opacity: 1; } to { opacity: 0; left: 100%; } }
-        @keyframes float-card { 0%, 100% { transform: translateY(0px) rotate(12deg); } 50% { transform: translateY(-20px) rotate(12deg); } }
-        @keyframes float-card-delayed { 0%, 100% { transform: translateY(0px) rotate(-12deg); } 50% { transform: translateY(-20px) rotate(-12deg); } }
         @keyframes pulse-slow { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.05); } }
-        .animate-float-card { animation: float-card 4s ease-in-out infinite; }
-        .animate-float-card-delayed { animation: float-card-delayed 4s ease-in-out infinite; }
+        @keyframes auth-card-float-a { 0%, 100% { transform: translate3d(0, 0, 0) rotate(12deg); } 50% { transform: translate3d(12px, -24px, 0) rotate(16deg); } }
+        @keyframes auth-card-float-b { 0%, 100% { transform: translate3d(0, 0, 0) rotate(-14deg); } 50% { transform: translate3d(-14px, 20px, 0) rotate(-18deg); } }
+        @keyframes auth-card-float-c { 0%, 100% { transform: translate3d(0, 0, 0) rotate(-8deg); } 50% { transform: translate3d(18px, 18px, 0) rotate(-4deg); } }
+        @keyframes auth-card-float-d { 0%, 100% { transform: translate3d(0, 0, 0) rotate(10deg); } 50% { transform: translate3d(-18px, -18px, 0) rotate(6deg); } }
+        @keyframes auth-chip-float { 0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.5; } 50% { transform: translate3d(0, -16px, 0); opacity: 0.82; } }
+        @keyframes auth-card-back-drift { 0%, 100% { transform: translate3d(0, 0, 0) rotate(var(--r)); } 50% { transform: translate3d(0, -18px, 0) rotate(calc(var(--r) + 4deg)); } }
+        .auth-float-card {
+          position: absolute;
+          display: flex;
+          height: clamp(6.2rem, 10vw, 8.5rem);
+          width: clamp(4.4rem, 7.2vw, 6rem);
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0.45rem;
+          border-radius: 0.8rem;
+          border: 1px solid rgba(226,232,240,0.2);
+          background:
+            linear-gradient(145deg, rgba(248,250,252,0.14), rgba(15,23,42,0.5)),
+            linear-gradient(160deg, rgba(15,23,42,0.82), rgba(30,41,59,0.56));
+          color: rgba(224,242,254,0.72);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 24px 50px rgba(0,0,0,0.34);
+          backdrop-filter: blur(10px);
+        }
+        .auth-float-card span {
+          font-size: clamp(1rem, 1.6vw, 1.35rem);
+          font-weight: 800;
+          line-height: 1;
+        }
+        .auth-red-card { color: rgba(254,202,202,0.74); }
+        .auth-float-card-a { left: 7%; top: 17%; opacity: 0.58; animation: auth-card-float-a 7s ease-in-out infinite; }
+        .auth-float-card-b { right: 8%; top: 19%; opacity: 0.55; animation: auth-card-float-b 7.8s ease-in-out infinite; animation-delay: -2s; }
+        .auth-float-card-c { left: 13%; bottom: 14%; opacity: 0.48; animation: auth-card-float-c 8.4s ease-in-out infinite; animation-delay: -3s; }
+        .auth-float-card-d { right: 14%; bottom: 15%; opacity: 0.48; animation: auth-card-float-d 7.4s ease-in-out infinite; animation-delay: -4s; }
+        .auth-card-back {
+          position: absolute;
+          display: block;
+          height: clamp(4.9rem, 8vw, 6.8rem);
+          width: clamp(3.45rem, 5.6vw, 4.8rem);
+          border-radius: 0.58rem;
+          border: 1px solid rgba(226,232,240,0.16);
+          background:
+            radial-gradient(circle at center, rgba(125,211,252,0.24) 0 14%, transparent 15%),
+            linear-gradient(135deg, transparent 42%, rgba(125,211,252,0.18) 43%, rgba(125,211,252,0.18) 57%, transparent 58%),
+            linear-gradient(45deg, transparent 42%, rgba(125,211,252,0.14) 43%, rgba(125,211,252,0.14) 57%, transparent 58%),
+            linear-gradient(145deg, rgba(15,23,42,0.9), rgba(30,64,175,0.48));
+          background-size: 100% 100%, 100% 100%, auto;
+          opacity: 0.35;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 0 26px rgba(14,165,233,0.08);
+          animation: auth-card-back-drift 7s ease-in-out infinite;
+        }
+        .auth-card-back-a { --r: -18deg; left: 24%; top: 16%; animation-delay: -1s; }
+        .auth-card-back-b { --r: 16deg; right: 24%; bottom: 16%; animation-delay: -3s; }
+        .auth-card-back-c { --r: 8deg; right: 20%; top: 50%; opacity: 0.25; animation-delay: -5s; }
+        .auth-chip {
+          position: absolute;
+          display: grid;
+          gap: 0.16rem;
+          animation: auth-chip-float 5.6s ease-in-out infinite;
+        }
+        .auth-chip span {
+          display: block;
+          height: 0.52rem;
+          width: 3.1rem;
+          border-radius: 9999px;
+          border: 1px solid rgba(251,191,36,0.24);
+          background:
+            linear-gradient(90deg, rgba(251,191,36,0.08), rgba(254,240,138,0.24), rgba(251,191,36,0.08)),
+            rgba(15,23,42,0.42);
+          box-shadow: 0 0 18px rgba(251,191,36,0.08);
+        }
+        .auth-chip-a { left: 20%; top: 38%; animation-delay: -0.8s; }
+        .auth-chip-b { right: 21%; top: 36%; animation-delay: -2.4s; }
+        .auth-chip-c { left: 24%; bottom: 22%; animation-delay: -4s; }
+        .auth-chip-dot {
+          position: absolute;
+          color: rgba(254,240,138,0.52);
+          animation: auth-chip-float 6.2s ease-in-out infinite;
+        }
+        .auth-chip-dot-a { left: 31%; top: 23%; animation-delay: -1.3s; }
+        .auth-chip-dot-b { right: 31%; bottom: 28%; animation-delay: -3.2s; }
+        @media (max-width: 767px) {
+          .auth-float-card-a { left: -2rem; top: 14%; }
+          .auth-float-card-b { right: -2rem; top: 18%; }
+          .auth-float-card-c,
+          .auth-float-card-d,
+          .auth-card-back,
+          .auth-chip { display: none; }
+        }
       `}</style>
     </div>
   );
