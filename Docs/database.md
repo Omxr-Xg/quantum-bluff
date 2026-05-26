@@ -86,7 +86,36 @@ Documentation complète du modèle de données du projet **Quantum Bluff** : sch
 
 Le **Modèle Entité-Association (MEA)** Merise représente les entités (rectangles), leurs attributs et les associations avec cardinalités `(min, max)`.
 
-### 2.1 MEA — Vue macro (toutes entités)
+### 2.1 MEA — Vue minimaliste (cœur du projet)
+
+Vue synthétique : **UTILISATEUR** au centre, 7 entités regroupant les domaines fonctionnels.
+Les sous-entités techniques (snapshots, demandes, jointures, intermédiaires) sont absorbées
+dans leur entité conceptuelle parente. Pour le détail exhaustif, voir la vue macro (§2.2).
+
+```mermaid
+erDiagram
+    UTILISATEUR ||--o| STATS : "possède (0,1)"
+    UTILISATEUR ||--o{ PARTIE_POKER : "joue (0,n)"
+    UTILISATEUR ||--o{ PARTIE_BLACKJACK : "joue (0,n)"
+    UTILISATEUR ||--o{ TOURNOI : "participe / organise (0,n)"
+    UTILISATEUR ||--o{ TRANSACTION : "effectue (0,n)"
+    UTILISATEUR ||--o{ AMI : "lié à (0,n)"
+    UTILISATEUR ||--o{ PRET : "emprunte / prête (0,n)"
+```
+
+| Entité conceptuelle | Tables Prisma regroupées |
+|---------------------|--------------------------|
+| **STATS** | `UserStats`, `PlayerStats`, `CasinoStats`, `FreeRecharge` |
+| **PARTIE_POKER** | `WaitingRoom`, `RoomPlayer`, `JoinRequest`, `GameInvitation`, `GameHistory`, `GameAction`, `GameResult` |
+| **PARTIE_BLACKJACK** | `BlackjackRoom`, `BjRoomSeat`, `BjSnapshot`, `BjInvitation` |
+| **TOURNOI** | `Tournament`, `TournamentPlayer`, `TournamentRound`, `TournamentTable`, `TournamentReward`, `RoundReady`, `WinnerBet` |
+| **TRANSACTION** | `WalletLedger`, `GiftCode`, `GiftCodeUsage`, `DailyChallenge`, `HiddenBetTicket`, `HiddenBetSelection` |
+| **AMI** | `Friendship`, `FriendRequest`, `UserBlock`, `FriendMessage` |
+| **PRET** | `LoanRequest`, `Loan`, `LoanRepayment`, `LoanLedgerEvent` |
+
+---
+
+### 2.2 MEA — Vue macro (toutes entités)
 
 ```mermaid
 erDiagram
@@ -145,7 +174,7 @@ erDiagram
     CODE_CADEAU ||--o{ USAGE_CODE_CADEAU : "consommé par (0,n)"
 ```
 
-### 2.2 Légende Merise — Cardinalités
+### 2.3 Légende Merise — Cardinalités
 
 | Notation | Signification |
 |----------|---------------|
