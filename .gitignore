@@ -15,6 +15,20 @@ build/
 coverage/
 # Build Electron local (centaines de Mo, pas versionné)
 client/dist-electron/
+# Installables / archives (limite GitHub 100 Mo par fichier)
+Game_Versions/*.exe
+Game_Versions/*.dmg
+Game_Versions/*.apk
+Game_Versions/*.ipa
+Game_Versions/*.zip
+Game_Versions/*.yml
+Game_Versions/*.blockmap
+Game_Versions/*.AppImage
+Game_Versions/*.deb
+# Données d'entraînement IA volumineuses (non versionnées)
+server/ai-service/data/expert_training_*_hands.csv
+server/ai-service/data/expert_training_50000_hands.csv
+.venv/
 .DS_Storetsconfig.tsbuildinfo
 server/tsconfig.tsbuildinfo
 server/junit.xml
