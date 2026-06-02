@@ -24,6 +24,7 @@ import {
   SquareStack,
   Trophy,
   AlertTriangle,
+  Diamond,
 } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useNumberFieldInput, NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
@@ -70,12 +71,15 @@ function startAtLocalFromNowPlusMinutes(minutes: number): string {
   return dateToStartAtLocal(new Date(Date.now() + minutes * 60 * 1000));
 }
 
-function readLobbyTabFromUrl(): "poker" | "minigames" | "blackjack" {
+type LobbyMainTab = "poker" | "minigames" | "blackjack" | "belote";
+
+function readLobbyTabFromUrl(): LobbyMainTab {
   if (typeof window === "undefined") return "poker";
   try {
     const tab = new URLSearchParams(window.location.search).get("tab");
     if (tab === "blackjack") return "blackjack";
     if (tab === "minigames" || tab === "roulette") return "minigames";
+    if (tab === "belote") return "belote";
   } catch {
     /* ignore */
   }
@@ -200,7 +204,8 @@ export function Lobby() {
   const [lobbyTutorialFirstRun, setLobbyTutorialFirstRun] = useState<"loading" | "yes" | "no">(
     "loading"
   );
-  const [lobbyMainTab, setLobbyMainTabState] = useState<"poker" | "minigames" | "blackjack">(readLobbyTabFromUrl);
+  const [lobbyMainTab, setLobbyMainTabState] = useState<LobbyMainTab>(readLobbyTabFromUrl);
+  const isBeloteTab = lobbyMainTab === "belote";
   const { addToast } = useToast();
   const [balance, setBalance] = useState<number>(getUserBalance());
   const [rechargeKey, setRechargeKey] = useState(0);
@@ -221,8 +226,8 @@ export function Lobby() {
   }, []);
 
   // Performance: memoize rooms for map operations
-  const roomsMemo = useMemo(() => rooms, [rooms]);
-  const gamesMemo = useMemo(() => gamesInProgress, [gamesInProgress]);
+  const roomsMemo = useMemo(() => (isBeloteTab ? [] : rooms), [isBeloteTab, rooms]);
+  const gamesMemo = useMemo(() => (isBeloteTab ? [] : gamesInProgress), [isBeloteTab, gamesInProgress]);
   const openTournamentsMemo = useMemo(() => openTournaments, [openTournaments]);
   const liveTournamentsMemo = useMemo(() => liveTournaments, [liveTournaments]);
 
@@ -274,11 +279,12 @@ export function Lobby() {
     const tab = searchParams.get("tab");
     if (tab === "blackjack") setLobbyMainTabState("blackjack");
     else if (tab === "minigames" || tab === "roulette") setLobbyMainTabState("minigames");
+    else if (tab === "belote") setLobbyMainTabState("belote");
     else setLobbyMainTabState("poker");
   }, [searchParams]);
 
   const setMainTab = useCallback(
-    (tab: "poker" | "minigames" | "blackjack") => {
+    (tab: LobbyMainTab) => {
       setLobbyMainTabState(tab);
       setSearchParams(
         (prev) => {
@@ -287,6 +293,9 @@ export function Lobby() {
             p.set("tab", "blackjack");
           } else if (tab === "minigames") {
             p.set("tab", "minigames");
+            p.delete("bjRoom");
+          } else if (tab === "belote") {
+            p.set("tab", "belote");
             p.delete("bjRoom");
           } else {
             p.delete("tab");
@@ -697,10 +706,18 @@ export function Lobby() {
   ]);
 
   const handlePlayBot = () => {
+    if (isBeloteTab) {
+      addToast(t("lobby.beloteComingSoon"), "info");
+      return;
+    }
     navigate("/bot-configuration");
   };
 
   const openCreateModal = () => {
+    if (isBeloteTab) {
+      addToast(t("lobby.beloteComingSoon"), "info");
+      return;
+    }
     setShowCreateModal(true);
     setCreateVisibility('PUBLIC');
     setCreateMaxPlayers(5);
@@ -800,6 +817,10 @@ export function Lobby() {
   };
 
   const handleJoinRoom = (roomId: string, room?: WaitingRoomItem) => {
+    if (isBeloteTab) {
+      addToast(t("lobby.beloteComingSoon"), "info");
+      return;
+    }
     if (room?.minBalance && room.minBalance > 0 && balance < room.minBalance) {
       addToast(`Jetons insuffisants — il faut au moins ${room.minBalance} jetons pour cette salle.`, 'error');
       return;
@@ -808,21 +829,48 @@ export function Lobby() {
   };
 
   const handleJoinGame = (game: GameInProgressItem) => {
+    if (isBeloteTab) {
+      addToast(t("lobby.beloteComingSoon"), "info");
+      return;
+    }
     openBlockedRoomWarning(game.blockedPlayers, () => navigate(`/game?gameId=${game.gameId}`));
   };
 
   const handleSpectateGame = (game: GameInProgressItem) => {
+    if (isBeloteTab) {
+      addToast(t("lobby.beloteComingSoon"), "info");
+      return;
+    }
     openBlockedRoomWarning(game.blockedPlayers, () => navigate(`/game?gameId=${game.gameId}&spectate=1`));
   };
+
+  const cardGameAccent = isBeloteTab
+    ? {
+        botIcon: "text-emerald-200",
+        serverIcon: "text-emerald-200",
+        primaryBtn:
+          "border-emerald-300/15 bg-emerald-950/75 hover:border-emerald-200/25 hover:bg-emerald-900/80",
+        joinBtn: "bg-emerald-900 hover:bg-emerald-800",
+        minBalance: "text-emerald-200/95",
+      }
+    : {
+        botIcon: "text-blue-200",
+        serverIcon: "text-cyan-200",
+        primaryBtn: "border-blue-300/15 bg-blue-950/75 hover:border-blue-200/25 hover:bg-blue-900/80",
+        joinBtn: "bg-blue-900 hover:bg-blue-800",
+        minBalance: "text-blue-200/95",
+      };
 
   return (
     <div
       className={`relative w-full min-h-[100dvh] overflow-x-clip overflow-y-visible px-2 py-4 sm:px-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
         lobbyMainTab === "poker"
           ? "bg-[#020716]"
-          : lobbyMainTab === "minigames"
+          : lobbyMainTab === "belote"
             ? "bg-[#02100c]"
-            : "bg-[#100409]"
+            : lobbyMainTab === "minigames"
+              ? "bg-[#120e06]"
+              : "bg-[#100409]"
       }`}
     >
       {/* Fond Texas Hold'em */}
@@ -846,10 +894,10 @@ export function Lobby() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.55),transparent_58%)]" />
       </div>
 
-      {/* Fond Mini-jeux */}
+      {/* Fond Belote — vert */}
       <div
         className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
-        style={{ opacity: lobbyMainTab === "minigames" ? 1 : 0 }}
+        style={{ opacity: lobbyMainTab === "belote" ? 1 : 0 }}
         aria-hidden
       >
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(6,78,59,0.42),transparent_50%),radial-gradient(ellipse_90%_70%_at_100%_50%,rgba(20,83,45,0.10),transparent_45%),linear-gradient(165deg,#02100c_0%,#031b14_40%,#020807_100%)]" />
@@ -871,6 +919,26 @@ export function Lobby() {
           }}
         />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(15,23,42,0.45),transparent_58%)]" />
+      </div>
+
+      {/* Fond Mini-jeux — orangé */}
+      <div
+        className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
+        style={{ opacity: lobbyMainTab === "minigames" ? 1 : 0 }}
+        aria-hidden
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(180,83,9,0.28),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_40%,rgba(120,53,15,0.12),transparent_48%),linear-gradient(165deg,#120e06_0%,#1a1208_46%,#0a0804_100%)]" />
+        <div className="absolute -top-28 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-amber-800/22 blur-[110px]" />
+        <div className="absolute -left-20 top-1/3 h-80 w-80 rounded-full bg-orange-900/14 blur-[90px]" />
+        <div className="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-amber-950/30 blur-[110px]" />
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(251,191,36,0.22) 1px, transparent 0)",
+            backgroundSize: "22px 22px",
+          }}
+        />
       </div>
 
       {/* Fond Blackjack — bordeaux / rose / ardoise */}
@@ -913,9 +981,11 @@ export function Lobby() {
                 className={`min-h-[2.25rem] truncate text-2xl font-bold leading-tight transition-[background-image,color] duration-300 md:min-h-[2.75rem] md:text-4xl ${
                   lobbyMainTab === "poker"
                     ? "bg-gradient-to-r from-slate-100 via-blue-200 to-cyan-200 bg-clip-text text-transparent"
-                    : lobbyMainTab === "minigames"
+                    : lobbyMainTab === "belote"
                       ? "bg-gradient-to-r from-slate-100 via-emerald-200 to-teal-200 bg-clip-text text-transparent"
-                      : "bg-gradient-to-r from-rose-200 via-fuchsia-200 to-slate-200 bg-clip-text text-transparent"
+                      : lobbyMainTab === "minigames"
+                        ? "bg-gradient-to-r from-slate-100 via-amber-200 to-orange-200 bg-clip-text text-transparent"
+                        : "bg-gradient-to-r from-rose-200 via-fuchsia-200 to-slate-200 bg-clip-text text-transparent"
                 }`}
               >
                 {t('lobby.title')}
@@ -1561,9 +1631,11 @@ export function Lobby() {
               className={`flex h-14 w-full shrink-0 items-stretch gap-1.5 overflow-x-auto rounded-2xl border p-1.5 scrollbar-hide shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-300 md:h-[4.25rem] md:gap-2 md:p-2 ${
                 lobbyMainTab === "poker"
                   ? "border-white/10 bg-slate-950/55"
-                  : lobbyMainTab === "minigames"
+                  : lobbyMainTab === "belote"
                     ? "border-white/10 bg-emerald-950/40"
-                    : "border-white/10 bg-rose-950/45"
+                    : lobbyMainTab === "minigames"
+                      ? "border-white/10 bg-orange-950/45"
+                      : "border-white/10 bg-rose-950/45"
               }`}
               role="tablist"
               aria-label={t("lobby.tabListAria")}
@@ -1613,16 +1685,37 @@ export function Lobby() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={lobbyMainTab === "minigames"}
-                onClick={() => setMainTab("minigames")}
+                aria-selected={lobbyMainTab === "belote"}
+                onClick={() => setMainTab("belote")}
                 className={`relative flex h-full min-w-0 flex-1 flex-row items-center justify-center gap-2 rounded-xl px-2 py-1 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:gap-2.5 sm:px-3 ${
-                  lobbyMainTab === "minigames"
+                  lobbyMainTab === "belote"
                     ? "bg-gradient-to-br from-emerald-800/45 via-emerald-950/45 to-slate-950/80 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-emerald-300/22"
                     : "text-slate-500 ring-1 ring-inset ring-transparent hover:bg-white/[0.06] hover:text-slate-300"
                 }`}
               >
+                <Diamond
+                  className={`h-5 w-5 shrink-0 ${lobbyMainTab === "belote" ? "text-emerald-200 drop-shadow-[0_0_10px_rgba(16,185,129,0.35)]" : ""}`}
+                  strokeWidth={2.2}
+                  aria-hidden
+                />
+                <span className="truncate font-serif text-xs font-bold tracking-wide md:text-sm">
+                  {t("lobby.tabBelote")}
+                </span>
+              </button>
+              <div className="hidden w-px shrink-0 self-stretch bg-slate-600/40 md:block" aria-hidden />
+              <button
+                type="button"
+                role="tab"
+                aria-selected={lobbyMainTab === "minigames"}
+                onClick={() => setMainTab("minigames")}
+                className={`relative flex h-full min-w-0 flex-1 flex-row items-center justify-center gap-2 rounded-xl px-2 py-1 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:gap-2.5 sm:px-3 ${
+                  lobbyMainTab === "minigames"
+                    ? "bg-gradient-to-br from-amber-900/55 via-orange-950/50 to-slate-950/80 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-amber-300/22"
+                    : "text-slate-500 ring-1 ring-inset ring-transparent hover:bg-white/[0.06] hover:text-slate-300"
+                }`}
+              >
                 <Sparkles
-                  className={`h-5 w-5 shrink-0 ${lobbyMainTab === "minigames" ? "text-emerald-200 drop-shadow-[0_0_10px_rgba(16,185,129,0.35)]" : ""}`}
+                  className={`h-5 w-5 shrink-0 ${lobbyMainTab === "minigames" ? "text-amber-200 drop-shadow-[0_0_10px_rgba(245,158,11,0.35)]" : ""}`}
                   strokeWidth={2.2}
                   aria-hidden
                 />
@@ -1632,33 +1725,35 @@ export function Lobby() {
               </button>
             </nav>
 
-          {lobbyMainTab === "poker" && (
+          {(lobbyMainTab === "poker" || lobbyMainTab === "belote") && (
             <div className="space-y-6 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">
               {/* Section Jouer contre Bot */}
-              <div ref={tourRefBot} className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:shrink-0">
+              <div ref={lobbyMainTab === "poker" ? tourRefBot : undefined} className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:shrink-0">
                 <h2 className="text-xl text-white font-bold flex items-center gap-3 mb-3 xl:text-2xl">
-                  <Bot className="w-7 h-7 text-blue-200 xl:h-8 xl:w-8"/>
+                  <Bot className={`w-7 h-7 xl:h-8 xl:w-8 ${cardGameAccent.botIcon}`} />
                   {t('lobby.playBot')}
                 </h2>
 
                 <button
                   onClick={handlePlayBot}
-                  className="w-full rounded-xl border border-blue-300/15 bg-blue-950/75 py-3 font-bold text-white shadow-lg shadow-black/20 transition hover:border-blue-200/25 hover:bg-blue-900/80 md:py-4"
+                  className={`w-full rounded-xl border py-3 font-bold text-white shadow-lg shadow-black/20 transition md:py-4 ${cardGameAccent.primaryBtn}`}
                   aria-label={t('lobby.configureAndPlay')}
                 >
                   {t('lobby.configureAndPlay')}
                 </button>
               </div>
 
-              {/* Grille 2 colonnes : Serveurs Multi-joueurs (gauche) + Tournois (droite).
-               * Memes proportions (liste d'attente + en cours) pour les deux blocs.
-               * En mobile/petit ecran, ils s'empilent (serveur d'abord). */}
-              <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 lg:min-h-0 lg:flex-1 lg:gap-4">
+              {/* Grille : multi-joueurs (+ tournois uniquement sur l’onglet poker). */}
+              <div
+                className={`grid grid-cols-1 gap-5 sm:gap-6 lg:min-h-0 lg:flex-1 lg:gap-4 ${
+                  lobbyMainTab === "poker" ? "md:grid-cols-2" : ""
+                }`}
+              >
 
               {/* Section Serveur Multi-joueurs */}
-              <div ref={tourRefMultiplayer} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+              <div ref={lobbyMainTab === "poker" ? tourRefMultiplayer : undefined} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="text-xl text-white font-bold flex items-center gap-3 mb-3 xl:text-2xl">
-                  <Server className="w-7 h-7 text-cyan-200 xl:h-8 xl:w-8"/>
+                  <Server className={`w-7 h-7 xl:h-8 xl:w-8 ${cardGameAccent.serverIcon}`} />
                   {t('lobby.multiplayerServers')}
                 </h2>
 
@@ -1666,7 +1761,7 @@ export function Lobby() {
                   <button
                     onClick={openCreateModal}
                     disabled={!userId || creating}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300/15 bg-blue-950/75 py-3 font-bold text-white shadow-lg shadow-black/20 transition hover:border-blue-200/25 hover:bg-blue-900/80 disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-4"
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl border py-3 font-bold text-white shadow-lg shadow-black/20 transition disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-4 ${cardGameAccent.primaryBtn}`}
                     aria-label={t('lobby.createNewServer')}
                   >
                     {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
@@ -1674,7 +1769,7 @@ export function Lobby() {
                   </button>
 
                   {/* Salles d'attente */}
-                  <div ref={tourRefWaiting} className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
+                  <div ref={lobbyMainTab === "poker" ? tourRefWaiting : undefined} className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
                     <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.waitingRooms')}</p>
                     {roomsLoading && roomsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
@@ -1711,7 +1806,7 @@ export function Lobby() {
                                   {t('lobby.playersCount', { count: room.playerCount, max: room.maxPlayers })}
                                 </span>
                                 {room.minBalance && room.minBalance > 0 && (
-                                  <span className="shrink-0 text-[10px] text-blue-200/95">
+                                  <span className={`shrink-0 text-[10px] ${cardGameAccent.minBalance}`}>
                                     Min. {room.minBalance.toLocaleString()}
                                   </span>
                                 )}
@@ -1749,7 +1844,7 @@ export function Lobby() {
                                   disabled={!hasEnoughChips}
                                   className={`min-h-7 w-24 shrink-0 rounded px-1 py-1 text-[9px] font-semibold text-white transition sm:w-28 sm:text-[10px] ${
                                     hasEnoughChips
-                                      ? 'bg-blue-900 hover:bg-blue-800'
+                                      ? cardGameAccent.joinBtn
                                       : 'cursor-not-allowed bg-slate-600 opacity-50'
                                   }`}
                                   aria-label={t('lobby.join')}
@@ -1766,7 +1861,7 @@ export function Lobby() {
                   </div>
 
                   {/* Parties en cours */}
-                  <div ref={tourRefGames} className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
+                  <div ref={lobbyMainTab === "poker" ? tourRefGames : undefined} className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
                     <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.gamesInProgress')}</p>
                     {gamesLoading && gamesMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
@@ -1787,7 +1882,7 @@ export function Lobby() {
                               {g.canJoin && (
                                 <button
                                   onClick={() => handleJoinGame(g)}
-                                  className="shrink-0 rounded-md bg-blue-900 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-blue-800 sm:px-2 sm:text-[11px]"
+                                  className={`shrink-0 rounded-md px-1.5 py-1 text-[10px] font-semibold text-white transition sm:px-2 sm:text-[11px] ${cardGameAccent.joinBtn}`}
                                   aria-label={t('lobby.join')}
                                 >
                                   {t('lobby.join')}
@@ -1814,9 +1909,7 @@ export function Lobby() {
                 </div>
               </div>
 
-              {/* Section Tournois — meme structure que Serveur Multi-joueurs :
-               * bouton de creation/redirection, liste des tournois en attente,
-               * liste des tournois en cours (spectate). */}
+              {lobbyMainTab === "poker" && (
               <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-amber-400/15 bg-amber-950/30 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="text-xl text-white font-bold flex items-center gap-3 mb-3 xl:text-2xl">
                   <Trophy className="w-7 h-7 text-amber-200 xl:h-8 xl:w-8" />
@@ -1927,8 +2020,9 @@ export function Lobby() {
                   </div>
                 </div>
               </div>
+              )}
 
-              </div>{/* /grid 2-col serveur + tournois */}
+              </div>{/* /grid serveur (+ tournois si poker) */}
             </div>
           )}
 
@@ -1938,7 +2032,7 @@ export function Lobby() {
               <div ref={tourRefMinigames} className="flex w-full flex-col gap-5">
                 <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
                 <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
-                  <Disc className="h-8 w-8 shrink-0 text-emerald-300" strokeWidth={2.2} aria-hidden />
+                  <Disc className="h-8 w-8 shrink-0 text-amber-300" strokeWidth={2.2} aria-hidden />
                   {t("minigames.rouletteTitle")}
                 </h2>
                 <p className="mb-4 text-sm leading-relaxed text-gray-400">
@@ -1947,7 +2041,7 @@ export function Lobby() {
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=roulette")}
-                  className="w-full rounded-xl border border-emerald-300/15 bg-emerald-950/70 py-3 text-base font-bold text-white transition hover:border-emerald-200/25 hover:bg-emerald-900/80"
+                  className="w-full rounded-xl border border-amber-300/15 bg-amber-950/70 py-3 text-base font-bold text-white transition hover:border-amber-200/25 hover:bg-amber-900/80"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}
@@ -1955,7 +2049,7 @@ export function Lobby() {
                 </div>
                 <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
                 <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
-                  <SquareStack className="h-8 w-8 shrink-0 text-cyan-300" strokeWidth={2.2} aria-hidden />
+                  <SquareStack className="h-8 w-8 shrink-0 text-orange-300" strokeWidth={2.2} aria-hidden />
                   {t("minigames.slotTitle")}
                 </h2>
                 <p className="mb-4 text-sm leading-relaxed text-gray-400">
@@ -1964,7 +2058,7 @@ export function Lobby() {
                 <button
                   type="button"
                   onClick={() => navigate("/minigames?game=slots")}
-                  className="w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80"
+                  className="w-full rounded-xl border border-orange-300/15 bg-orange-950/70 py-3 text-base font-bold text-white transition hover:border-orange-200/25 hover:bg-orange-900/80"
                   aria-label={t("minigames.play")}
                 >
                   {t("minigames.play")}

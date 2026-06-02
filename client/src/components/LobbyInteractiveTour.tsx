@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { TutorialSpotlight } from "./tutorial/TutorialSpotlight";
 
-export type LobbyMainTab = "poker" | "minigames" | "blackjack";
+export type LobbyMainTab = "poker" | "minigames" | "blackjack" | "belote";
 
 export type LobbyTourRefs = {
   header: RefObject<HTMLElement | null>;
