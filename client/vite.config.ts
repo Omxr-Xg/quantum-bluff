@@ -165,6 +165,8 @@ export default defineConfig(({ mode }) => {
       // quand l'utilisateur consultera réellement les pages qui les utilisent.
       globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
       navigateFallback: `${basePath}index.html`,
+      // Ne pas renvoyer index.html pour ads.txt (vérification AdSense).
+      navigateFallbackDenylist: [/^\/ads\.txt$/],
       mode: 'development',
       // 2 Mo : couvre le bundle JS principal (~1,8 Mo) tout en laissant de
       // côté les gros avatars 2+ Mo (chargés à la volée par le SW).
