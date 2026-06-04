@@ -739,6 +739,7 @@ model BeloteRoomInvitation {
   receiver User       @relation("BeloteInviteReceiver", fields: [receiverId], references: [id])
 
   @@unique([roomId, receiverId])
+  @@index([senderId])
   @@index([receiverId, status])
   @@map("belote_room_invitations")
 }
