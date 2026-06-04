@@ -701,7 +701,12 @@
     "trump": "Triunfo",
     "pass": "Pasar",
     "take": "Tomar",
-    "passRound2": "Pasar (ronda 2)"
+    "passRound2": "Pasar (ronda 2)",
+    "spectateComingSoon": "El modo espectador de Belote llegará pronto.",
+    "noGamesInProgress": "Ninguna partida en curso con un amigo por ahora.",
+    "phaseBidding": "Subasta",
+    "phasePlaying": "En juego",
+    "phaseDealEnd": "Fin de mano"
   },
   "gamification": {
     "levelShort": "Nivel {{level}}",

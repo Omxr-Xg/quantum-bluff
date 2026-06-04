@@ -823,7 +823,12 @@
     "trump": "Trump",
     "pass": "Pass",
     "take": "Take",
-    "passRound2": "Pass (round 2)"
+    "passRound2": "Pass (round 2)",
+    "spectateComingSoon": "Belote spectator mode is coming soon.",
+    "noGamesInProgress": "No in-progress games with a friend right now.",
+    "phaseBidding": "Bidding",
+    "phasePlaying": "Playing",
+    "phaseDealEnd": "End of deal"
   },
   "gamification": {
     "levelShort": "Level {{level}}",

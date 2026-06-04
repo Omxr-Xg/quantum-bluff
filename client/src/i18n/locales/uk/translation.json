@@ -703,7 +703,12 @@
     "trump": "Козир",
     "pass": "Пас",
     "take": "Взяти",
-    "passRound2": "Пас (раунд 2)"
+    "passRound2": "Пас (раунд 2)",
+    "spectateComingSoon": "Режим глядача Belote незабаром.",
+    "noGamesInProgress": "Немає активних партій з другом зараз.",
+    "phaseBidding": "Торги",
+    "phasePlaying": "Гра",
+    "phaseDealEnd": "Кінець роздачі"
   },
   "gamification": {
     "levelShort": "Рівень {{level}}",

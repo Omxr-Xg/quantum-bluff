@@ -1998,7 +1998,7 @@ export function Lobby() {
           )}
 
           {lobbyMainTab === "belote" && (
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="space-y-6 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">
               <LobbyBeloteSection active />
             </div>
           )}

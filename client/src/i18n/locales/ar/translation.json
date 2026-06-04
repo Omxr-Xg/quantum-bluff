@@ -705,7 +705,12 @@
     "trump": "الحكم",
     "pass": "تمرير",
     "take": "أخذ",
-    "passRound2": "تمرير (الجولة 2)"
+    "passRound2": "تمرير (الجولة 2)",
+    "spectateComingSoon": "وضع المتفرج للبلوت قريبًا.",
+    "noGamesInProgress": "لا توجد مباريات جارية مع صديق حاليًا.",
+    "phaseBidding": "المزايدة",
+    "phasePlaying": "قيد اللعب",
+    "phaseDealEnd": "نهاية الجولة"
   },
   "gamification": {
     "levelShort": "المستوى {{level}}",

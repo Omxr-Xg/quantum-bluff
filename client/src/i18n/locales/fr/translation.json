@@ -822,7 +822,12 @@
     "trump": "Atout",
     "pass": "Passer",
     "take": "Prendre",
-    "passRound2": "Passer (tour 2)"
+    "passRound2": "Passer (tour 2)",
+    "spectateComingSoon": "Le mode spectateur Belote arrive bientôt.",
+    "noGamesInProgress": "Aucune partie en cours avec un ami pour le moment.",
+    "phaseBidding": "Enchères",
+    "phasePlaying": "En jeu",
+    "phaseDealEnd": "Fin de manche"
   },
   "gamification": {
     "levelShort": "Niveau {{level}}",
