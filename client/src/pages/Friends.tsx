@@ -186,26 +186,6 @@ export function Friends() {
   const [reportDetail, setReportDetail] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const tab = searchParams.get("tab");
-    const withUserId = searchParams.get("with");
-    const chatId = searchParams.get("chat");
-    if (tab === "requests") {
-      setActiveTab("friends");
-    } else if (tab === "messages") {
-      setActiveTab("messages");
-      if (withUserId) setSelectedChat(withUserId);
-      else setSelectedChat(null);
-    } else if (chatId && friends?.some((f) => f.id === chatId)) {
-      setActiveTab("friends");
-      setSelectedChat(chatId);
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("chat");
-        return next;
-      });
-    }
-  }, [searchParams, friends, setSearchParams]);
 
   /* Publie au monde la conversation actuellement ouverte : Layout / NotificationCenter
    * s'en servent pour décider de NE PAS pousser une notif si le sender = celui qu'on
@@ -235,6 +215,27 @@ export function Friends() {
   } = useGetFriendsQuery(userId!, {
     skip: !userId
   });
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const withUserId = searchParams.get("with");
+    const chatId = searchParams.get("chat");
+    if (tab === "requests") {
+      setActiveTab("friends");
+    } else if (tab === "messages") {
+      setActiveTab("messages");
+      if (withUserId) setSelectedChat(withUserId);
+      else setSelectedChat(null);
+    } else if (chatId && friends?.some((f) => f.id === chatId)) {
+      setActiveTab("friends");
+      setSelectedChat(chatId);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("chat");
+        return next;
+      });
+    }
+  }, [searchParams, friends, setSearchParams]);
 
   const {
     data: requests,
