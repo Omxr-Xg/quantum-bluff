@@ -32,6 +32,8 @@ import { Leaderboard } from "./pages/Leaderboard";
 import { GameDeal } from "./pages/GameDeal";
 import { GameExample } from "./pages/GameExample";
 import { Layout } from "./components/Layout";
+import { VoiceCallIncomingBanner } from "./components/VoiceCallIncomingBanner";
+import { VoiceCallOutgoingModal } from "./components/VoiceCallOutgoingModal";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LoaderProvider } from "./contexts/LoaderContext";
@@ -149,6 +151,8 @@ function App() {
 
           </Routes>
         </Layout>
+        <VoiceCallIncomingBanner />
+        <VoiceCallOutgoingModal />
         </VoiceProvider>
         </InvitationAcceptProvider>
         </LoaderProvider>

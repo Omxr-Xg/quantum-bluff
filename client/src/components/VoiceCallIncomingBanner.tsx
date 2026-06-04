@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Phone, PhoneOff, Ban, BellOff } from 'lucide-react'
 import { useVoice } from '../contexts/VoiceContext'
@@ -9,16 +10,16 @@ export function VoiceCallIncomingBanner() {
 
   useIncomingCallRingtone(Boolean(incomingCall))
 
-  if (!incomingCall) return null
+  if (!incomingCall || typeof document === 'undefined') return null
 
   const title =
     incomingCall.type === 'group'
       ? t('voice.incomingGroup')
       : t('voice.incomingPrivate')
 
-  return (
+  return createPortal(
     <div
-      className="pointer-events-none fixed inset-x-0 top-[calc(0.5rem+env(safe-area-inset-top,0px))] z-[10000] flex justify-center px-3 sm:px-4"
+      className="pointer-events-none fixed inset-x-0 top-[calc(0.5rem+env(safe-area-inset-top,0px))] z-[100040] flex justify-center px-3 sm:px-4"
       role="alert"
       aria-live="assertive"
     >
@@ -70,6 +71,7 @@ export function VoiceCallIncomingBanner() {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

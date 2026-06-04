@@ -244,9 +244,13 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       cancelOutgoingCall()
       return
     }
-    if (oc.callId && oc.status === 'connecting') {
-      socket.emit('VOICE_CALL_RESPOND', { callId: oc.callId, action: 'reject' })
+    if (oc.callId && (oc.status === 'connecting' || oc.status === 'connected')) {
+      if (oc.status === 'connecting') {
+        socket.emit('VOICE_CALL_RESPOND', { callId: oc.callId, action: 'reject' })
+      }
       setOutgoingCall(null)
+      outgoingCallRef.current = null
+      leaveChannel()
       return
     }
     leaveChannel()
@@ -295,7 +299,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       if (!socket || !incomingCall) return
       incomingCallRef.current = incomingCall
       if (action === 'accept') {
-        setOutgoingCall({
+        const panel: VoiceOutgoingCall = {
           callId: incomingCall.callId,
           channelId: incomingCall.channelId,
           type: incomingCall.type,
@@ -308,7 +312,9 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
           ],
           status: 'connecting',
           isCallee: true,
-        })
+        }
+        outgoingCallRef.current = panel
+        setOutgoingCall(panel)
       }
       socket.emit('VOICE_CALL_RESPOND', { callId: incomingCall.callId, action })
       setIncomingCall(null)
@@ -381,7 +387,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         prepareCallAudio()
         const remote = payload.participants.find((p) => p.userId !== userId)
         if (remote && !outgoingCallRef.current) {
-          setOutgoingCall({
+          const fallback: VoiceOutgoingCall = {
             callId: payload.channelId.replace(/^call:/, ''),
             channelId: payload.channelId,
             type: 'private',
@@ -389,7 +395,9 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
             status: 'connected',
             connectedAt: Date.now(),
             isCallee: true,
-          })
+          }
+          outgoingCallRef.current = fallback
+          setOutgoingCall(fallback)
         }
       }
     }
@@ -468,20 +476,24 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       incomingCallRef.current = null
       const connectedAt = Date.now()
       setOutgoingCall((prev) => {
-        if (prev?.callId && payload.callId && prev.callId !== payload.callId) return prev
+        const prevId = prev?.callId?.trim()
+        const nextId = payload.callId?.trim()
+        if (prevId && nextId && prevId !== nextId) return prev
         if (prev) {
-          return {
+          const next: VoiceOutgoingCall = {
             ...prev,
-            callId: payload.callId,
+            callId: nextId || prev.callId,
             status: 'connected',
-            channelId: payload.channelId,
+            channelId: payload.channelId || prev.channelId,
             connectedAt: prev.connectedAt ?? connectedAt,
           }
+          outgoingCallRef.current = next
+          return next
         }
         if (inc && (!payload.callId || !inc.callId || inc.callId === payload.callId)) {
-          return {
-            callId: payload.callId,
-            channelId: payload.channelId,
+          const next: VoiceOutgoingCall = {
+            callId: payload.callId || inc.callId,
+            channelId: payload.channelId || inc.channelId,
             type: inc.type,
             targets: [
               {
@@ -492,7 +504,10 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
             ],
             status: 'connected',
             connectedAt,
+            isCallee: true,
           }
+          outgoingCallRef.current = next
+          return next
         }
         return prev
       })
@@ -511,6 +526,9 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       setOutgoingCall((prev) => {
         if (!prev) return null
         if (payload.callId && prev.callId && payload.callId !== prev.callId) return prev
+        if (prev.status === 'connecting' || prev.status === 'connected') {
+          return prev
+        }
         return {
           ...prev,
           status: 'unanswered',

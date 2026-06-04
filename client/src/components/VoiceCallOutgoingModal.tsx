@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { GripVertical, Loader2, Phone, PhoneOff, UserX } from 'lucide-react'
 import { useVoice } from '../contexts/VoiceContext'
@@ -130,7 +131,7 @@ export function VoiceCallOutgoingModal() {
     return () => window.clearInterval(id)
   }, [isConnected, connectedAt])
 
-  if (!outgoingCall) return null
+  if (!outgoingCall || typeof document === 'undefined') return null
 
   const primary = outgoingCall.targets[0]
   const primaryName =
@@ -148,11 +149,11 @@ export function VoiceCallOutgoingModal() {
   const isUnanswered = outgoingCall.status === 'unanswered'
   const showHangUp = !isUnanswered
 
-  return (
+  return createPortal(
     <div
       ref={panelRef}
       style={{ left: pos.left, top: pos.top }}
-      className="pointer-events-auto fixed z-[10001] w-[min(17.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-sky-400/35 bg-slate-950/96 shadow-2xl backdrop-blur-md"
+      className="pointer-events-auto fixed z-[100050] w-[min(17.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-sky-400/35 bg-slate-950/96 shadow-2xl backdrop-blur-md"
       role="dialog"
       aria-label={t('voice.outgoingTitle')}
     >
@@ -251,6 +252,7 @@ export function VoiceCallOutgoingModal() {
           <UserX className="h-4 w-4 text-amber-400/80" aria-hidden />
         </div>
       ) : null}
-    </div>
+    </div>,
+    document.body,
   )
 }
