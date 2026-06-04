@@ -7,6 +7,7 @@ echo "📦 Installation des dépendances..."
 npm ci
 
 echo "🗄️ Migration de la base de données..."
+export DIRECT_URL="${DIRECT_URL:-$DATABASE_URL}"
 npx prisma migrate deploy
 
 echo "🔨 Build du projet..."
