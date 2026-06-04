@@ -705,6 +705,7 @@ model BeloteRoomSeat {
 
   @@unique([roomId, userId])
   @@unique([roomId, position])
+  @@index([userId])
   @@map("belote_room_seats")
 }
 
