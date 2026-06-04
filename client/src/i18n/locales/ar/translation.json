@@ -720,6 +720,8 @@
     "waitingTurn": "في انتظار دورك…",
     "playCard": "العب ورقة",
     "chooseTrump": "اختر الطلب",
+    "chooseTrumpFromCard": "انقر على ورقة لاختيار الطلب (لونها)",
+    "legalCardsHint": "البطاقات الرمادية غير مسموحة",
     "orChooseTrump": "أو خذ الطلب",
     "trickEmpty": "الحيلة جارية",
     "cardsInHand": "{{n}} ورقة في اليد",

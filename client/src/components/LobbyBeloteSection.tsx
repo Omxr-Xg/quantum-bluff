@@ -55,7 +55,10 @@ function authHeaders(): HeadersInit {
 }
 
 function phaseLabel(phase: string, t: (k: string) => string): string {
-  if (phase === "BIDDING_ROUND_1" || phase === "BIDDING_ROUND_2") return t("belote.phaseBidding");
+  if (phase === "BIDDING" || phase === "BIDDING_ROUND_1" || phase === "BIDDING_ROUND_2") {
+    return t("belote.phaseBidding");
+  }
+  if (phase === "CONTREE_ROUND") return t("belote.phaseContree");
   if (phase === "PLAYING") return t("belote.phasePlaying");
   if (phase === "DEAL_END") return t("belote.phaseDealEnd");
   return phase;
@@ -78,7 +81,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newVis, setNewVis] = useState<BeloteVisibility>("PUBLIC");
-  const [newTarget, setNewTarget] = useState(1000);
+  const [newTarget, setNewTarget] = useState(1500);
   const [newPassword, setNewPassword] = useState("");
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
 
@@ -252,7 +255,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                 step={100}
                 className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 py-2 text-white"
                 value={newTarget}
-                onChange={(e) => setNewTarget(Number(e.target.value) || 1000)}
+                onChange={(e) => setNewTarget(Number(e.target.value) || 1500)}
               />
             </label>
             <input

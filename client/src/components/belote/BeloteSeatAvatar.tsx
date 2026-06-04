@@ -4,11 +4,15 @@ import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { getPokerTableAvatar } from "../../utils/avatars";
 import { useDeadlineCountdown } from "../../hooks/useDeadlineCountdown";
 
+type BeloteTeamId = "A" | "B";
+
 type Props = {
   username: string;
   userId: string;
   heroUserId: string;
   avatarUrl?: string | null;
+  /** Badge équipe au-dessus de l’avatar (style poker). */
+  team?: BeloteTeamId;
   isYou?: boolean;
   isPartner?: boolean;
   isTurn?: boolean;
@@ -21,11 +25,17 @@ type Props = {
   size?: "sm" | "md" | "hero";
 };
 
+const TEAM_BADGE_CLASS: Record<BeloteTeamId, string> = {
+  A: "border-amber-200/85 bg-gradient-to-br from-amber-600 via-amber-950 to-slate-950 text-amber-50 shadow-[0_0_10px_rgba(251,191,36,0.4),0_4px_10px_rgba(0,0,0,0.55)]",
+  B: "border-cyan-200/80 bg-gradient-to-br from-cyan-600 via-cyan-950 to-slate-950 text-cyan-50 shadow-[0_0_10px_rgba(34,211,238,0.35),0_4px_10px_rgba(0,0,0,0.55)]",
+};
+
 export function BeloteSeatAvatar({
   username,
   userId,
   heroUserId,
   avatarUrl,
+  team,
   isYou = false,
   isPartner = false,
   isTurn = false,
@@ -68,10 +78,31 @@ export function BeloteSeatAvatar({
   const offline = !isPresent && !disconnectedAt && !forfeited;
   const disconnected = Boolean(disconnectedAt) && !forfeited;
 
+  const teamTitle =
+    team === "A" ? t("belote.teamA") : team === "B" ? t("belote.teamB") : undefined;
+
   return (
     <div className="relative flex flex-col items-center">
+      {team ? (
+        <div
+          className="pointer-events-none absolute -top-5 left-1/2 z-[55] flex -translate-x-1/2"
+          title={teamTitle}
+        >
+          <div
+            className={`flex h-5 w-5 items-center justify-center rounded-full border font-black ring-1 ring-black/40 md:h-6 md:w-6 md:text-[11px] text-[10px] ${TEAM_BADGE_CLASS[team]}`}
+            aria-label={teamTitle}
+          >
+            {team}
+          </div>
+        </div>
+      ) : null}
+
       {isTurn && !forfeited ? (
-        <div className="pointer-events-none absolute -top-7 left-1/2 z-50 flex -translate-x-1/2 whitespace-nowrap">
+        <div
+          className={`pointer-events-none absolute left-1/2 z-[54] flex -translate-x-1/2 whitespace-nowrap ${
+            team ? "-top-9 md:-top-10" : "-top-7"
+          }`}
+        >
           <div className="inline-flex items-center gap-0.5 rounded-full border border-yellow-200/55 bg-yellow-300 px-1.5 py-0.5 text-[8px] font-black leading-none text-black shadow-[0_0_12px_rgba(250,204,21,0.35)] md:text-[9px]">
             <Clock className="h-2.5 w-2.5 animate-pulse" />
             {isYou ? t("belote.turnYou") : t("belote.turnPlayer")}

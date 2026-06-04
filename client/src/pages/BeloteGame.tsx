@@ -1,12 +1,13 @@
 import { useCallback, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Clock, Loader2, LogOut } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { useBeloteSocket } from "../features/belote/useBeloteSocket";
 import { BeloteCasinoTable } from "../components/belote/BeloteCasinoTable";
 import { BeloteActionBar } from "../components/belote/BeloteActionBar";
+import { BeloteGameHud } from "../components/belote/BeloteGameHud";
 import { BeloteGameEndOverlay } from "../components/belote/BeloteGameEndOverlay";
 import { BlackjackLobbyBackdrop } from "../components/blackjack/BlackjackLobbyBackdrop";
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
@@ -53,35 +54,16 @@ export function BeloteGame() {
     state?.phase === "PLAYING"
       ? state.deal.currentPlayerPosition
       : state?.biddingTurnPosition;
-  const isMyTurn = myPos != null && turnPos === myPos;
+  const isMyTurn =
+    myPos != null &&
+    turnPos === myPos &&
+    (state?.phase === "PLAYING" ||
+      state?.phase === "BIDDING" ||
+      state?.phase === "CONTREE_ROUND");
 
   return (
-    <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden app-shell-bg pt-[5.25rem]">
+    <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden app-shell-bg">
       <BlackjackLobbyBackdrop />
-
-      <div className="relative z-20 flex shrink-0 items-center justify-between gap-3 px-4 pb-2 pt-1 sm:px-5">
-        <button
-          type="button"
-          onClick={() => setShowQuitConfirm(true)}
-          className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-red-500/40 hover:bg-red-950/40 hover:text-red-100"
-        >
-          <ArrowLeft className="h-4 w-4 shrink-0" />
-          <span className="hidden sm:inline">{t("belote.backLobby")}</span>
-        </button>
-        {state ? (
-          <div className="hidden text-center text-xs text-emerald-200/70 sm:block">
-            {t("belote.targetLine", { score: state.targetScore })}
-          </div>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => setShowQuitConfirm(true)}
-          className="flex items-center gap-2 rounded-xl border border-slate-600/80 bg-slate-900/80 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-red-500/50 hover:bg-red-950/50 hover:text-red-100"
-        >
-          <LogOut className="h-4 w-4 shrink-0" />
-          <span>{t("nav.quitGame")}</span>
-        </button>
-      </div>
 
       <QuitGameConfirmDialog
         open={showQuitConfirm}
@@ -100,39 +82,37 @@ export function BeloteGame() {
       ) : null}
 
       {!state || !userId ? (
-        <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center text-gray-400">
+        <div className="relative z-10 flex flex-1 items-center justify-center text-gray-400">
           <Loader2 className="h-10 w-10 animate-spin text-emerald-400" />
         </div>
       ) : (
-        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain px-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-3">
-          {isMyTurn && turnTimeLeft != null ? (
-            <div className="pointer-events-none fixed bottom-28 left-1/2 z-[70] -translate-x-1/2">
-              <div
-                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 font-bold shadow-lg backdrop-blur-sm ${
-                  turnTimeLeft <= 5
-                    ? "animate-pulse border border-red-500/50 bg-red-950/85 text-red-100"
-                    : "border border-amber-400/40 bg-black/75 text-amber-100"
-                }`}
-              >
-                <Clock className="h-5 w-5" />
-                <span className="tabular-nums text-lg">{turnTimeLeft}s</span>
-              </div>
-            </div>
-          ) : null}
-          <BeloteCasinoTable
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <BeloteGameHud
             state={state}
-            userId={userId}
-            presentUserIds={presentUserIds}
+            myTeam={myTeam}
             turnTimeLeft={turnTimeLeft}
-            rootClassName="min-h-0 flex-1"
-          >
+            isMyTurn={isMyTurn}
+            onBack={() => setShowQuitConfirm(true)}
+            onQuit={() => setShowQuitConfirm(true)}
+          />
+
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            <BeloteCasinoTable
+              state={state}
+              userId={userId}
+              presentUserIds={presentUserIds}
+              turnTimeLeft={turnTimeLeft}
+            />
+          </div>
+
+          <div className="relative max-h-[min(38dvh,13.5rem)] shrink-0 overflow-y-auto overflow-x-hidden border-t border-white/10 bg-slate-950/95 px-2 py-1.5 shadow-[0_-8px_28px_rgba(0,0,0,0.45)] backdrop-blur-md sm:max-h-[min(34dvh,12rem)] sm:px-3 sm:py-2 pb-[max(0.35rem,env(safe-area-inset-bottom))]">
             <BeloteActionBar
               state={state}
               myUserId={userId}
               onAction={handleAction}
               disabled={acting}
             />
-          </BeloteCasinoTable>
+          </div>
         </div>
       )}
     </div>

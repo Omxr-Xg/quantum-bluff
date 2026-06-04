@@ -900,7 +900,8 @@ export function Layout({ children }: LayoutProps) {
     path === "/minigames" ||
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
-    path.startsWith("/blackjack/table");
+    path.startsWith("/blackjack/table") ||
+    path.startsWith("/belote/game");
   /** Scroll sur la fenêtre (document) : évite le double scroll conteneur interne + contenu. */
   const lobbyDocumentScroll =
     path === "/lobby" || path === "/tutorial/game";

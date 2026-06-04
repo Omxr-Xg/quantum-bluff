@@ -10,9 +10,13 @@ const cardSchema = z.object({
 
 export const beloteActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('PASS') }),
-  z.object({ type: z.literal('TAKE') }),
+  z.object({ type: z.literal('BID'), value: z.number().int(), trump: suitSchema }),
+  z.object({ type: z.literal('CONTREE') }),
+  z.object({ type: z.literal('SURCONTREE') }),
   z.object({ type: z.literal('CHOOSE_TRUMP'), trump: suitSchema }),
+  z.object({ type: z.literal('TAKE') }),
   z.object({ type: z.literal('PLAY_CARD'), card: cardSchema }),
+  z.object({ type: z.literal('DECLARE_BELOTE') }),
 ])
 
 export type ParsedBeloteAction = z.infer<typeof beloteActionSchema>

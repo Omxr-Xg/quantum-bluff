@@ -716,6 +716,8 @@
     "waitingTurn": "Esperando tu turno…",
     "playCard": "Juega una carta",
     "chooseTrump": "Elige triunfo",
+    "chooseTrumpFromCard": "Haz clic en una carta para elegir triunfo (su palo)",
+    "legalCardsHint": "Las cartas grises no están permitidas",
     "orChooseTrump": "o toma triunfo",
     "trickEmpty": "Baza en curso",
     "cardsInHand": "{{n}} cartas en mano",

@@ -1,7 +1,24 @@
 import type { BeloteCard, BeloteRank, BeloteSuit } from './types.js'
 
-const TRUMP_ORDER: BeloteRank[] = ['7', '8', 'Q', 'K', '10', 'A', '9', 'J']
-const NON_TRUMP_ORDER: BeloteRank[] = ['7', '8', '9', 'J', 'Q', 'K', '10', 'A']
+/** Faible → fort à l’atout : 7 … J (le Valet est la carte maîtresse). */
+export const TRUMP_RANK_WEAK_TO_STRONG: BeloteRank[] = ['7', '8', 'Q', 'K', '10', 'A', '9', 'J']
+/** Faible → fort en couleur (hors atout) : 7 … A (l’As est la carte maîtresse). */
+export const SIDE_RANK_WEAK_TO_STRONG: BeloteRank[] = ['7', '8', '9', 'J', 'Q', 'K', '10', 'A']
+
+const TRUMP_ORDER = TRUMP_RANK_WEAK_TO_STRONG
+const NON_TRUMP_ORDER = SIDE_RANK_WEAK_TO_STRONG
+
+function normalizeRank(rank: string): BeloteRank {
+  const r = rank.toUpperCase()
+  if (r === '10') return '10'
+  if (['7', '8', '9', 'J', 'Q', 'K', 'A'].includes(r)) return r as BeloteRank
+  return '7'
+}
+
+function rankIndex(order: BeloteRank[], rank: string): number {
+  const i = order.indexOf(normalizeRank(rank))
+  return i >= 0 ? i : 0
+}
 
 const TRUMP_POINTS: Record<BeloteRank, number> = {
   '7': 0,
@@ -33,8 +50,8 @@ export function cardPoints(card: BeloteCard, trump: BeloteSuit): number {
 export function trickCardStrength(card: BeloteCard, trump: BeloteSuit, ledSuit: BeloteSuit): number {
   const isTrump = card.suit === trump
   const isLed = card.suit === ledSuit
-  if (isTrump) return 100 + TRUMP_ORDER.indexOf(card.rank)
-  if (isLed) return 50 + NON_TRUMP_ORDER.indexOf(card.rank)
+  if (isTrump) return 100 + rankIndex(TRUMP_ORDER, card.rank)
+  if (isLed) return 50 + rankIndex(NON_TRUMP_ORDER, card.rank)
   return -1
 }
 

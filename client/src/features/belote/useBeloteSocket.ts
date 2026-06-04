@@ -8,12 +8,25 @@ export type BeloteCard = { suit: string; rank: string };
 export type BeloteSanitizedState = {
   gameId: string;
   phase: string;
+  variant?: string;
   targetScore: number;
   teamScoreA: number;
   teamScoreB: number;
   biddingTurnPosition?: number;
+  contractPoints?: number;
+  contreeLevel?: number;
+  contreePhase?: "DEFENSE" | "ATTACK";
   turnDeadlineAt?: string;
   turnTimeLimitSec?: number;
+  myLegalPlays?: BeloteCard[];
+  myLegalBids?: Array<{ value: number; trump: string }>;
+  dealEndSummary?: {
+    made: boolean;
+    contract: number;
+    multiplier: number;
+    scoreA: number;
+    scoreB: number;
+  };
   players: Array<{
     userId: string;
     username: string;

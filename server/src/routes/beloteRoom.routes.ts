@@ -8,6 +8,7 @@ import {
   BeloteTableController,
   newBeloteGameId,
 } from '../logic/belote/BeloteTableController.js'
+import { DEFAULT_CONTEE_TARGET_SCORE } from '../logic/belote/conteeConstants.js'
 import { activeBeloteGames, persistBeloteSnapshot } from '../shared/activeBeloteGames.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { getGameIo } from '../sockets/gameIo.registry.js'
@@ -124,7 +125,7 @@ router.post('/create', authMiddleware, async (req, res) => {
 
     const visibility = req.body?.visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC'
     let targetScore = Number(req.body?.targetScore)
-    if (!Number.isFinite(targetScore)) targetScore = 1000
+    if (!Number.isFinite(targetScore)) targetScore = DEFAULT_CONTEE_TARGET_SCORE
     targetScore = Math.min(2000, Math.max(500, Math.floor(targetScore)))
 
     let passwordHash: string | undefined

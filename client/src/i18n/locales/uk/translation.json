@@ -718,6 +718,8 @@
     "waitingTurn": "Очікування вашого ходу…",
     "playCard": "Зіграйте карту",
     "chooseTrump": "Оберіть козир",
+    "chooseTrumpFromCard": "Клацніть карту, щоб обрати козир (її масть)",
+    "legalCardsHint": "Сірі карти заборонені правилами",
     "orChooseTrump": "або візьміть козир",
     "trickEmpty": "Взятка в процесі",
     "cardsInHand": "{{n}} карт у руці",

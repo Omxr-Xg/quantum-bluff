@@ -1,12 +1,24 @@
+import { teamForPosition } from './bidding.js'
 import { cardsEqual } from './deck.js'
 import { trickCardStrength } from './scoring.js'
 import type { BeloteCard, BeloteSuit, BeloteTrickCard } from './types.js'
+
+function partnerWinningTrick(
+  currentTrick: BeloteTrickCard[],
+  trump: BeloteSuit,
+  playerPosition: number,
+): boolean {
+  if (currentTrick.length === 0) return false
+  const winnerPos = trickWinnerPosition(currentTrick, trump)
+  return teamForPosition(playerPosition) === teamForPosition(winnerPos)
+}
 
 export function canPlayCard(
   hand: BeloteCard[],
   card: BeloteCard,
   trump: BeloteSuit,
   currentTrick: BeloteTrickCard[],
+  playerPosition: number,
 ): boolean {
   if (!hand.some((c) => cardsEqual(c, card))) return false
   if (currentTrick.length === 0) return true
@@ -16,32 +28,32 @@ export function canPlayCard(
   const hasTrump = hand.some((c) => c.suit === trump)
   const cardIsTrump = card.suit === trump
   const cardIsLed = card.suit === ledSuit
+  const partnerWinning = partnerWinningTrick(currentTrick, trump, playerPosition)
 
   if (hasLed) {
     if (!cardIsLed) return false
-    const highestLedSoFar = highestInTrick(currentTrick, trump, ledSuit)
-    const mustOvertrump =
-      currentTrick.some((t) => t.card.suit === trump) ||
-      (highestLedSoFar && trickCardStrength(highestLedSoFar, trump, ledSuit) >= 50)
-    if (mustOvertrump) {
-      const myBestLed = bestCardInHand(hand.filter((c) => c.suit === ledSuit), trump, ledSuit)
-      if (
-        myBestLed &&
-        trickCardStrength(card, trump, ledSuit) < trickCardStrength(myBestLed, trump, ledSuit)
-      ) {
-        const canBeat = hand.some(
-          (c) =>
-            c.suit === ledSuit &&
-            trickCardStrength(c, trump, ledSuit) >
-              trickCardStrength(highestLedSoFar!, trump, ledSuit),
-        )
-        if (canBeat) return false
-      }
+    if (partnerWinning) return true
+
+    const bestInTrick = highestInTrick(currentTrick, trump, ledSuit)
+    const bestStrength = bestInTrick
+      ? trickCardStrength(bestInTrick, trump, ledSuit)
+      : -1
+
+    const canBeatWithLed = hand.some(
+      (c) =>
+        c.suit === ledSuit &&
+        trickCardStrength(c, trump, ledSuit) > bestStrength,
+    )
+
+    if (canBeatWithLed) {
+      return trickCardStrength(card, trump, ledSuit) > bestStrength
     }
+
     return true
   }
 
   if (hasTrump) {
+    if (partnerWinning) return true
     if (!cardIsTrump) return false
     const highestTrumpSoFar = highestTrumpInTrick(currentTrick, trump)
     if (highestTrumpSoFar) {
@@ -61,13 +73,23 @@ export function canPlayCard(
   return true
 }
 
+export function playableCards(
+  hand: BeloteCard[],
+  trump: BeloteSuit,
+  currentTrick: BeloteTrickCard[],
+  playerPosition: number,
+): BeloteCard[] {
+  return hand.filter((c) => canPlayCard(hand, c, trump, currentTrick, playerPosition))
+}
+
 /** Première carte jouable (timeout automatique). */
 export function firstLegalCard(
   hand: BeloteCard[],
   trump: BeloteSuit,
   currentTrick: BeloteTrickCard[],
+  playerPosition: number,
 ): BeloteCard | undefined {
-  return hand.find((c) => canPlayCard(hand, c, trump, currentTrick))
+  return hand.find((c) => canPlayCard(hand, c, trump, currentTrick, playerPosition))
 }
 
 function highestInTrick(
@@ -96,19 +118,6 @@ function highestTrumpInTrick(trick: BeloteTrickCard[], trump: BeloteSuit): Belot
     if (s > bestStr) {
       bestStr = s
       best = t.card
-    }
-  }
-  return best
-}
-
-function bestCardInHand(hand: BeloteCard[], trump: BeloteSuit, ledSuit: BeloteSuit): BeloteCard | undefined {
-  let best: BeloteCard | undefined
-  let bestStr = -1
-  for (const c of hand) {
-    const s = trickCardStrength(c, trump, ledSuit)
-    if (s > bestStr) {
-      bestStr = s
-      best = c
     }
   }
   return best

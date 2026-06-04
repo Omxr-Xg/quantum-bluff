@@ -7,12 +7,17 @@ export type BeloteCard = {
   rank: BeloteRank
 }
 
+export type BeloteVariant = 'CONTEE'
+
 export type BelotePhase =
-  | 'BIDDING_ROUND_1'
-  | 'BIDDING_ROUND_2'
+  | 'BIDDING'
+  | 'CONTREE_ROUND'
   | 'PLAYING'
   | 'DEAL_END'
   | 'GAME_END'
+  /** @deprecated Ancien moteur — migré vers BIDDING au chargement */
+  | 'BIDDING_ROUND_1'
+  | 'BIDDING_ROUND_2'
 
 export type BelotePlayerState = {
   userId: string
@@ -45,31 +50,65 @@ export type BeloteDealState = {
   dealPointsB: number
 }
 
+export type ContreeBidEntry =
+  | { position: number; action: 'PASS' }
+  | { position: number; action: 'BID'; value: number; trump: BeloteSuit }
+  | { position: number; action: 'CONTREE' }
+  | { position: number; action: 'SURCONTREE' }
+
+export type DealEndSummary = {
+  made: boolean
+  capot: boolean
+  contract: number
+  multiplier: number
+  attackPoints: number
+  defensePoints: number
+  scoreA: number
+  scoreB: number
+  beloteA: number
+  beloteB: number
+}
+
 export type BeloteGameState = {
   gameId: string
   roomId: string
+  variant: BeloteVariant
   targetScore: number
   teamScoreA: number
   teamScoreB: number
   phase: BelotePhase
-  biddingRound: 1 | 2
+  /** @deprecated */
+  biddingRound?: 1 | 2
   biddingTurnPosition: number
-  bids: Array<{ position: number; action: 'PASS' | 'TAKE' | 'CHOOSE_TRUMP'; trump?: BeloteSuit }>
+  bids: ContreeBidEntry[]
+  contractPoints?: number
+  contreeLevel: number
+  contreePhase?: 'DEFENSE' | 'ATTACK'
+  contreeDefensePasses?: number
+  contreeAttackPasses?: number
+  beloteBonusA?: number
+  beloteBonusB?: number
+  dealEndSummary?: DealEndSummary
   players: BelotePlayerState[]
   deal: BeloteDealState
   startedAt: string
   lastActionAt: string
-  /** ISO — fin du temps de parole du joueur courant (enchères / jeu). */
   turnDeadlineAt?: string
   turnTimeLimitSec: number
 }
 
 export type BeloteAction =
   | { type: 'PASS' }
-  | { type: 'TAKE' }
+  | { type: 'BID'; value: number; trump: BeloteSuit }
+  | { type: 'CONTREE' }
+  | { type: 'SURCONTREE' }
   | { type: 'CHOOSE_TRUMP'; trump: BeloteSuit }
+  | { type: 'TAKE' }
   | { type: 'PLAY_CARD'; card: BeloteCard }
+  | { type: 'DECLARE_BELOTE' }
 
 export type SanitizedBeloteState = Omit<BeloteGameState, 'players'> & {
   players: Array<Omit<BelotePlayerState, 'hand'> & { handCount: number; hand?: BeloteCard[] }>
+  myLegalPlays?: BeloteCard[]
+  myLegalBids?: Array<{ value: number; trump: BeloteSuit }>
 }

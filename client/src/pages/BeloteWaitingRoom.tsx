@@ -181,6 +181,7 @@ export function BeloteWaitingRoom() {
                       userId={p.id}
                       heroUserId={userId ?? ""}
                       avatarUrl={p.avatarUrl}
+                      team={pos % 2 === 0 ? "A" : "B"}
                       isYou={p.id === userId}
                       isPresent={isPresent}
                       size="sm"

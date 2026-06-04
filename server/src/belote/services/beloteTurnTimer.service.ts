@@ -44,8 +44,8 @@ export function scheduleBeloteTurnTimer(
 
   const state = table.getState()
   if (
-    state.phase !== 'BIDDING_ROUND_1' &&
-    state.phase !== 'BIDDING_ROUND_2' &&
+    state.phase !== 'BIDDING' &&
+    state.phase !== 'CONTREE_ROUND' &&
     state.phase !== 'PLAYING'
   ) {
     return
