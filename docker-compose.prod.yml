@@ -54,7 +54,7 @@ services:
       INSTANCE_ID: ${INSTANCE_ID:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-quantum-bluff-api}
-      CORS_ORIGIN: "https://mai-projet-integrateur.u-strasbg.fr"
+      CORS_ORIGIN: "https://quantum-bluff.com,https://www.quantum-bluff.com,https://mai-projet-integrateur.u-strasbg.fr"
       TRUST_PROXY: "2"
       AI_SERVICE_ENABLED: ${AI_SERVICE_ENABLED:-true}
       AI_SERVICE_URL: http://ai-service:8000

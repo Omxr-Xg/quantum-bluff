@@ -169,9 +169,16 @@ function mergeCorsOrigins(list: string[]): string[] {
 
 const corsOrigins = (() => {
   const parsed = parseCorsOrigins(process.env.CORS_ORIGIN)
+  const extra = parseCorsOrigins(process.env.CORS_EXTRA_ORIGIN)
+  const publicApp = process.env.PUBLIC_APP_URL?.trim()
+  const merged = [
+    ...parsed,
+    ...extra,
+    ...(publicApp ? [publicApp] : []),
+  ]
 
-  if (parsed.length > 0) {
-    return mergeCorsOrigins(parsed)
+  if (merged.length > 0) {
+    return mergeCorsOrigins(merged)
   }
 
   if (isProduction) {
