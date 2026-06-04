@@ -221,7 +221,17 @@ export class WebRTCVoiceMesh {
     return this.participants().find((p) => p.userId === userId)
   }
 
+  /** Après join canal call:* — micro puis négociation WebRTC. */
+  async bootstrapCallAudio(): Promise<void> {
+    await this.syncPeers()
+  }
+
   private shouldConnectTo(remoteId: string): boolean {
+    if (this.isCallChannel()) {
+      if (remoteId === this.myUserId) return false
+      if (this.blockedIds.has(remoteId)) return false
+      return this.remoteParticipant(remoteId) != null
+    }
     const remote = this.remoteParticipant(remoteId)
     if (!remote) return false
     return shouldWirePeerTo(
@@ -337,7 +347,20 @@ export class WebRTCVoiceMesh {
       ) && this.localStream?.getAudioTracks()[0],
     )
 
-    if (this.myUserId < remoteId) {
+    const sendInitialOffer =
+      this.myUserId < remoteId &&
+      (!this.isCallChannel() ||
+        Boolean(this.localStream?.getAudioTracks()[0]) ||
+        shouldSendToRemote(
+          this.myUserId,
+          remoteId,
+          this.settings.speakTo,
+          this.settings.micMuted,
+          this.friendIds,
+          this.blockedIds,
+        ))
+
+    if (sendInitialOffer) {
       try {
         entry.makingOffer = true
         const offer = await pc.createOffer({ offerToReceiveAudio: true })
@@ -484,6 +507,7 @@ export class WebRTCVoiceMesh {
         if (pc.signalingState !== 'have-local-offer') return
         await pc.setRemoteDescription(desc)
         entry.makingOffer = false
+        await this.refreshPeerTracks(fromUserId)
         await this.flushPendingIce(fromUserId)
       } else if (signal.type === 'ice' && signal.candidate) {
         if (!pc.remoteDescription) {

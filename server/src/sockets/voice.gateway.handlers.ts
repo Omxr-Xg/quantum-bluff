@@ -75,6 +75,19 @@ async function voiceCallTargetProfile(userId: string): Promise<{
   }
 }
 
+function emitCallEnded(
+  io: Server,
+  call: NonNullable<ReturnType<typeof getCall>>,
+  channelId: string,
+  endedByUserId: string,
+): void {
+  const payload = { callId: call.callId, channelId, endedByUserId }
+  const recipients = new Set([call.creatorId, ...call.memberIds])
+  for (const uid of recipients) {
+    io.to(`user:${uid}`).emit('VOICE_CALL_ENDED', payload)
+  }
+}
+
 async function leaveChannel(
   io: Server,
   socket: VoiceSocket,
@@ -93,8 +106,13 @@ async function leaveChannel(
   if (parsed?.kind === 'call') {
     const call = getCall(parsed.id)
     if (call) {
-      const remaining = getVoiceChannel(channelId)
-      if (!remaining || remaining.size === 0) endCall(parsed.id)
+      emitCallEnded(io, call, channelId, userId)
+      if (call.type === 'private') {
+        endCall(parsed.id)
+      } else {
+        const remaining = getVoiceChannel(channelId)
+        if (!remaining || remaining.size === 0) endCall(parsed.id)
+      }
     }
   }
 }
@@ -308,24 +326,34 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
         const target = room?.get(toUserId)
         if (!speaker || !target) return
 
-        const speakerFriends = await getFriendIdSetCached(fromUserId)
-        const listenerFriends = await getFriendIdSetCached(toUserId)
         const blocked = await getBlockedUserIdsCached(fromUserId)
         const listenerBlocked = await getBlockedUserIdsCached(toUserId)
         if (blocked.has(toUserId) || listenerBlocked.has(fromUserId)) return
 
-        // Autoriser la signalisation WebRTC (SDP/ICE) même micro coupé — le mute est côté pistes.
-        const listenerWantsLink = listenerAllowsSpeaker(
-          target.listenTo,
-          fromUserId,
-          listenerFriends,
-        )
-        const speakerMayReachListener = speakerAllowsListener(
-          speaker.speakTo,
-          toUserId,
-          speakerFriends,
-        )
-        if (!listenerWantsLink && !speakerMayReachListener) return
+        if (parsed.kind !== 'call') {
+          const speakerFriends = await getFriendIdSetCached(fromUserId)
+          const listenerFriends = await getFriendIdSetCached(toUserId)
+          const listenerWantsLink = listenerAllowsSpeaker(
+            target.listenTo,
+            fromUserId,
+            listenerFriends,
+          )
+          const speakerMayReachListener = speakerAllowsListener(
+            speaker.speakTo,
+            toUserId,
+            speakerFriends,
+          )
+          if (!listenerWantsLink && !speakerMayReachListener) return
+        } else {
+          const call = getCall(parsed.id)
+          if (
+            !call ||
+            !call.memberIds.includes(fromUserId) ||
+            !call.memberIds.includes(toUserId)
+          ) {
+            return
+          }
+        }
 
         const gameId = parsed.kind === 'table' ? parsed.id : undefined
         for (const sid of target.socketIds) {
@@ -413,6 +441,25 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
       }
     },
   )
+
+  socket.on('VOICE_CALL_END', async (data: { callId?: string }) => {
+    try {
+      const userId = socket.userId
+      const callId = data?.callId?.trim()
+      if (!userId || !callId) return
+      const call = getCall(callId)
+      if (!call) return
+      if (!call.memberIds.includes(userId) && call.creatorId !== userId) return
+      if (socket.voiceChannelId === call.channelId) {
+        await leaveChannel(io, socket, call.channelId)
+      } else {
+        emitCallEnded(io, call, call.channelId, userId)
+        if (call.type === 'private') endCall(callId)
+      }
+    } catch (err) {
+      console.error('[voice] VOICE_CALL_END', err)
+    }
+  })
 
   socket.on('VOICE_CALL_CANCEL', async (data: { callId?: string }) => {
     try {

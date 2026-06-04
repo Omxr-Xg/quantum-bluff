@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { GripVertical, Loader2, Phone, PhoneOff, UserX } from 'lucide-react'
+import { GripVertical, Loader2, Mic, MicOff, Phone, PhoneOff, UserX } from 'lucide-react'
 import { useVoice } from '../contexts/VoiceContext'
 import { useOutgoingCallRingtone } from '../features/voice/useOutgoingCallRingtone'
 import { useUser } from '../hooks/useUser'
@@ -47,7 +47,7 @@ function unansweredMessage(
 export function VoiceCallOutgoingModal() {
   const { t } = useTranslation()
   const { userId } = useUser()
-  const { outgoingCall, hangUpCall } = useVoice()
+  const { outgoingCall, hangUpCall, toggleMic, settings, micDenied } = useVoice()
   const isDialingCaller =
     outgoingCall?.status === 'dialing' && outgoingCall.isCallee !== true
   useOutgoingCallRingtone(Boolean(isDialingCaller))
@@ -152,6 +152,7 @@ export function VoiceCallOutgoingModal() {
   const isConnecting = outgoingCall.status === 'connecting'
   const isUnanswered = outgoingCall.status === 'unanswered'
   const showHangUp = !isUnanswered
+  const showCallControls = isConnecting || isConnected
 
   return createPortal(
     <div
@@ -237,7 +238,22 @@ export function VoiceCallOutgoingModal() {
       </div>
 
       {showHangUp ? (
-        <div className="border-t border-white/10 px-3 pb-3">
+        <div className="space-y-2 border-t border-white/10 px-3 pb-3 pt-2">
+          {showCallControls ? (
+            <button
+              type="button"
+              onClick={toggleMic}
+              disabled={micDenied}
+              className={`flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                settings.micMuted
+                  ? 'border-red-400/40 bg-red-950/50 text-red-200'
+                  : 'border-emerald-400/50 bg-emerald-950/40 text-emerald-100'
+              } disabled:opacity-50`}
+            >
+              {settings.micMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              {settings.micMuted ? t('voice.unmuteMic') : t('voice.muteMic')}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={hangUpCall}

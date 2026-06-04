@@ -128,6 +128,8 @@ sequenceDiagram
 | `VOICE_CALL_OUTGOING` | Appelant | Met à jour `callId` / `channelId`, `dialing` |
 | `VOICE_CALL_CONNECTED` | Les deux | `connected`, join `call:*` |
 | `VOICE_CALL_UNANSWERED` | Appelant (sauf si déjà connecting/connected) | `unanswered` + raison |
+| `VOICE_CALL_END` | Client → serveur | Fin d’appel volontaire |
+| `VOICE_CALL_ENDED` | Autres participants | `finishCallSession` local |
 | `VOICE_ERROR` | Émetteur | `NOT_FRIENDS`, `BLOCKED`, etc. |
 
 ### 3.4 Accès au canal `call:*`
@@ -307,9 +309,23 @@ server/src/
 
 ---
 
-## 12. Évolutions possibles (non implémentées)
+## 12. Fin d’appel et nettoyage (V1)
 
-- Événement serveur `VOICE_CALL_ENDED` explicite quand l’appelant raccroche (aujourd’hui : `VOICE_PEER_LEFT` + `leaveChannel`).
+| Événement | Rôle |
+|-----------|------|
+| `VOICE_CALL_END` (client → serveur) | Un participant raccroche ; le serveur quitte le canal et notifie les autres |
+| `VOICE_CALL_ENDED` (serveur → clients) | Nettoyage UI + `teardownMesh` côté pair (`finishCallSession({ localOnly: true })`) |
+| `VOICE_PEER_LEFT` | Nettoyage local si pair quitte le canal call (connecting **ou** connected) |
+
+Appel privé : dès qu’un participant quitte le canal `call:*`, `endCall` est appelé côté serveur.
+
+**Audio appel** : sur `call:*`, `shouldConnectTo` connecte toujours les pairs du roster ; `prepareCallAudio` = `ensureMic` + `bootstrapCallAudio` ; signalisation SDP en canal call sans filtre amis.
+
+**UI appel** : panneau `VoiceCallOutgoingModal` — raccrocher + micro pour `connecting` / `connected` (appelant et appelé).
+
+---
+
+## 13. Évolutions possibles (non implémentées)
 - Sonnerie groupe différente de l’appel privé.
 - Enregistrement / transcription d’appels.
 - Push mobile pour appel entrant (hors scope web actuel).

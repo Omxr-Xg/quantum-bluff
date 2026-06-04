@@ -159,6 +159,36 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     [socket, userId],
   )
 
+  const clearCallUi = useCallback(() => {
+    setIncomingCall(null)
+    incomingCallRef.current = null
+    setOutgoingCall(null)
+    outgoingCallRef.current = null
+  }, [])
+
+  const finishCallSession = useCallback(
+    (opts?: { emitEnd?: boolean; localOnly?: boolean }) => {
+      if (!socket) return
+      const oc = outgoingCallRef.current
+      const cid = channelIdRef.current
+      const callId = oc?.callId?.trim()
+      const wasCall = Boolean(cid?.startsWith('call:'))
+      clearCallUi()
+      teardownMesh()
+      channelIdRef.current = null
+      setChannelId(null)
+      setChannel(null)
+      setParticipants([])
+      if (opts?.localOnly || !wasCall) return
+      if (opts?.emitEnd !== false && callId) {
+        socket.emit('VOICE_CALL_END', { callId })
+      } else if (cid) {
+        socket.emit('VOICE_LEAVE', { channelId: cid })
+      }
+    },
+    [socket, clearCallUi, teardownMesh],
+  )
+
   const leaveChannel = useCallback(() => {
     if (!socket) return
     const cid = channelIdRef.current
@@ -167,11 +197,15 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     channelIdRef.current = null
     setChannelId(null)
     setChannel(null)
-    setOutgoingCall((prev) => {
-      if (prev?.status === 'connected' && cid && prev.channelId === cid) return null
-      return prev
-    })
-  }, [socket, teardownMesh])
+    if (cid?.startsWith('call:')) {
+      clearCallUi()
+    } else {
+      setOutgoingCall((prev) => {
+        if (prev?.status === 'connected' && cid && prev.channelId === cid) return null
+        return prev
+      })
+    }
+  }, [socket, teardownMesh, clearCallUi])
 
   const isInCallChannel = useCallback((cid: string | null | undefined) => {
     return typeof cid === 'string' && cid.startsWith('call:')
@@ -190,7 +224,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     void meshRef.current?.ensureMic(true)
   }, [pushSettings])
 
-  const prepareCallAudio = useCallback(() => {
+  const prepareCallAudio = useCallback(async () => {
     pushSettings({
       ...settingsRef.current,
       speakTo: 'CHANNEL',
@@ -200,7 +234,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       peerMutes: new Set(settingsRef.current.peerMutes),
     })
     setMicDenied(false)
-    void meshRef.current?.ensureMic(true)
+    await meshRef.current?.ensureMic(true)
+    await meshRef.current?.bootstrapCallAudio()
   }, [pushSettings])
 
   const joinWaitingRoom = useCallback(
@@ -245,16 +280,16 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       return
     }
     if (oc.callId && (oc.status === 'connecting' || oc.status === 'connected')) {
-      if (oc.status === 'connecting') {
+      if (oc.status === 'connecting' && oc.isCallee) {
         socket.emit('VOICE_CALL_RESPOND', { callId: oc.callId, action: 'reject' })
+        finishCallSession({ localOnly: true })
+      } else {
+        finishCallSession({ emitEnd: true })
       }
-      setOutgoingCall(null)
-      outgoingCallRef.current = null
-      leaveChannel()
       return
     }
-    leaveChannel()
-  }, [socket, cancelOutgoingCall, leaveChannel])
+    finishCallSession({ emitEnd: false })
+  }, [socket, cancelOutgoingCall, finishCallSession])
 
   const startPrivateCall = useCallback(
     (targetUserId: string, targetUsername: string, targetAvatarUrl?: string | null) => {
@@ -384,7 +419,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       if (kind === 'waiting' || kind === 'table') {
         prepareActiveVoice()
       } else if (kind === 'call') {
-        prepareCallAudio()
+        void prepareCallAudio()
         const remote = payload.participants.find((p) => p.userId !== userId)
         if (remote && !outgoingCallRef.current) {
           const fallback: VoiceOutgoingCall = {
@@ -425,20 +460,31 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       setParticipants((prev) => prev.filter((p) => p.userId !== payload.userId))
       const oc = outgoingCallRef.current
       const cid = channelIdRef.current
-      if (
-        oc?.status === 'connected' &&
+      const isCallPeer =
         cid?.startsWith('call:') &&
+        oc &&
+        (oc.status === 'connecting' || oc.status === 'connected') &&
         oc.targets.some((t) => t.userId === payload.userId)
-      ) {
-        setOutgoingCall(null)
-        if (socket && cid) {
-          socket.emit('VOICE_LEAVE', { channelId: cid })
-          teardownMesh()
-          channelIdRef.current = null
-          setChannelId(null)
-          setChannel(null)
-        }
+      if (isCallPeer) {
+        finishCallSession({ localOnly: true })
       }
+    }
+
+    const onCallEnded = (payload: {
+      callId?: string
+      channelId?: string
+      endedByUserId?: string
+    }) => {
+      const oc = outgoingCallRef.current
+      if (payload.callId && oc?.callId && payload.callId !== oc.callId) return
+      if (
+        payload.channelId &&
+        channelIdRef.current &&
+        payload.channelId !== channelIdRef.current
+      ) {
+        return
+      }
+      finishCallSession({ localOnly: true })
     }
 
     const onIncoming = (payload: VoiceIncomingCall) => {
@@ -466,6 +512,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
           type: payload.type,
           targets,
           status: 'dialing',
+          isCallee: false,
         }
       })
     }
@@ -486,6 +533,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
             status: 'connected',
             channelId: payload.channelId || prev.channelId,
             connectedAt: prev.connectedAt ?? connectedAt,
+            isCallee: prev.isCallee,
           }
           outgoingCallRef.current = next
           return next
@@ -511,12 +559,12 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         }
         return prev
       })
-      prepareCallAudio()
       if (channelIdRef.current !== payload.channelId) {
         joinChannel(payload.channelId, { replace: true })
       } else if (!meshRef.current) {
         bindMesh(payload.channelId)
       }
+      void prepareCallAudio()
     }
 
     const onUnanswered = (payload: {
@@ -570,6 +618,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     socket.on('VOICE_CALL_OUTGOING', onOutgoing)
     socket.on('VOICE_CALL_CONNECTED', onConnected)
     socket.on('VOICE_CALL_UNANSWERED', onUnanswered)
+    socket.on('VOICE_CALL_ENDED', onCallEnded)
     socket.on('VOICE_ERROR', onVoiceError)
     socket.on('VOICE_CONFIRM_LEAVE', onConfirmLeave)
 
@@ -582,6 +631,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       socket.off('VOICE_CALL_OUTGOING', onOutgoing)
       socket.off('VOICE_CALL_CONNECTED', onConnected)
       socket.off('VOICE_CALL_UNANSWERED', onUnanswered)
+      socket.off('VOICE_CALL_ENDED', onCallEnded)
       socket.off('VOICE_ERROR', onVoiceError)
       socket.off('VOICE_CONFIRM_LEAVE', onConfirmLeave)
       if (channelIdRef.current) socket.emit('VOICE_LEAVE', { channelId: channelIdRef.current })
@@ -596,6 +646,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     joinChannel,
     prepareCallAudio,
     prepareActiveVoice,
+    finishCallSession,
   ])
 
   useEffect(() => {
