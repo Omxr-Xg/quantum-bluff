@@ -10,10 +10,14 @@ fi
 echo "🗄️ Exécution des migrations Prisma..."
 npx prisma migrate deploy
 
-if [ -f prisma/scripts/supabase-rls-hardening.sql ]; then
+RLS_SCRIPT="prisma/scripts/supabase-advisors-fix-all.sql"
+if [ ! -f "$RLS_SCRIPT" ]; then
+  RLS_SCRIPT="prisma/scripts/supabase-rls-hardening.sql"
+fi
+if [ -f "$RLS_SCRIPT" ]; then
   echo "🔒 Durcissement RLS Supabase (tables public)..."
   RLS_URL="${DIRECT_URL:-$DATABASE_URL}"
-  npx prisma db execute --file prisma/scripts/supabase-rls-hardening.sql --url "$RLS_URL"
+  npx prisma db execute --file "$RLS_SCRIPT" --url "$RLS_URL"
 fi
 
 echo "🚀 Démarrage du serveur..."

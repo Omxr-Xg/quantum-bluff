@@ -1,6 +1,7 @@
 -- =============================================================================
 -- À exécuter UNE FOIS dans Supabase → SQL Editor (connexion directe, pas pooler).
--- Corrige TOUTES les alertes "RLS Disabled in Public" (User, UserStats, GameHistory, …).
+-- Corrige TOUTES les alertes "RLS Disabled in Public" (User, UserStats, GameHistory,
+-- FriendRequest, Friendship, …). Les commits Git ne suffisent pas : il faut Run ici.
 -- =============================================================================
 
 DO $$
