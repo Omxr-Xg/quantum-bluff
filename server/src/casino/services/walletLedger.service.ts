@@ -27,6 +27,8 @@ type WalletLedgerReason =
   | 'CASH_POKER_HAND_RESULT'
   | 'BELOTE_WIN'
   | 'BELOTE_PLAY'
+  | 'BELOTE_BUY_IN'
+  | 'BELOTE_POT_WIN'
 
 export type WalletLedgerInput = {
   context: CasinoRoundContext

@@ -11,6 +11,7 @@ import type { BeloteRoomListItem } from "../components/LobbyBeloteSection";
 import { BlackjackLobbyBackdrop } from "../components/blackjack/BlackjackLobbyBackdrop";
 import { NeonButton } from "../components/NeonButton";
 import { BeloteSeatAvatar } from "../components/belote/BeloteSeatAvatar";
+import { belotePotTotal, beloteWinnerShare } from "../features/belote/beloteBuyIn";
 
 function authHeaders(): HeadersInit {
   const token = getAuthItem("token");
@@ -51,16 +52,28 @@ export function BeloteWaitingRoom() {
   useEffect(() => {
     if (!roomId) return;
     (async () => {
-      await fetch(apiUrl(`/api/belote-rooms/${roomId}/join`), {
+      const joinRes = await fetch(apiUrl(`/api/belote-rooms/${roomId}/join`), {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({}),
       });
+      if (!joinRes.ok) {
+        const err = (await joinRes.json().catch(() => ({}))) as {
+          error?: string;
+          code?: string;
+          buyIn?: number;
+        };
+        if (err.code === "INSUFFICIENT_CHIPS" && err.buyIn != null) {
+          addToast(t("belote.insufficientBuyIn", { amount: err.buyIn }), "error");
+          navigate("/lobby?tab=belote");
+          return;
+        }
+      }
       await loadRoom();
     })();
     const iv = window.setInterval(() => void loadRoom(), 4000);
     return () => window.clearInterval(iv);
-  }, [loadRoom, roomId]);
+  }, [loadRoom, roomId, addToast, t, navigate]);
 
   useEffect(() => {
     if (!socket || !roomId) return;
@@ -103,7 +116,18 @@ export function BeloteWaitingRoom() {
         headers: authHeaders(),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error ?? t("common.error"));
+      if (!res.ok) {
+        const err = data as { error?: string; code?: string; players?: string[]; buyIn?: number };
+        if (err.code === "INSUFFICIENT_CHIPS") {
+          const names = err.players?.length ? err.players.join(", ") : "";
+          throw new Error(
+            names
+              ? `${err.error ?? t("common.error")} (${names})`
+              : (err.error ?? t("belote.insufficientBuyIn", { amount: err.buyIn ?? room?.buyIn ?? 0 })),
+          );
+        }
+        throw new Error(err.error ?? t("common.error"));
+      }
       navigate(`/belote/game?gameId=${encodeURIComponent((data as { gameId: string }).gameId)}`);
     } catch (e) {
       addToast(e instanceof Error ? e.message : t("common.error"), "error");
@@ -163,6 +187,15 @@ export function BeloteWaitingRoom() {
           <h1 className="mb-1 text-2xl font-bold text-white">{room.name}</h1>
           <p className="text-sm text-emerald-200/70">
             {t("belote.targetScoreLabel", { score: room.targetScore })}
+          </p>
+          <p className="mt-2 text-sm text-amber-200/90">
+            {t("belote.buyInRoomLine", { amount: room.buyIn })}
+          </p>
+          <p className="mt-1 text-xs text-emerald-200/60">
+            {t("belote.buyInPotHint", {
+              pot: belotePotTotal(room.buyIn),
+              share: beloteWinnerShare(belotePotTotal(room.buyIn)),
+            })}
           </p>
         </div>
 

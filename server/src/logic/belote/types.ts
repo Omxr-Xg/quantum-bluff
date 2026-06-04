@@ -95,6 +95,10 @@ export type BeloteGameState = {
   lastActionAt: string
   turnDeadlineAt?: string
   turnTimeLimitSec: number
+  /** Mise d'entrée par joueur (jetons). */
+  buyIn: number
+  /** Cagnotte totale (buyIn × 4). */
+  potTotal: number
 }
 
 export type BeloteAction =

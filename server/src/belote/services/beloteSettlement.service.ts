@@ -16,10 +16,8 @@ import {
 } from './beloteTurnTimer.service.js'
 import { appendWalletLedgerEntry } from '../../casino/services/walletLedger.service.js'
 import { createCasinoRoundContext } from '../../casino/services/roundContext.service.js'
+import { beloteWinnerPayout } from '../../logic/belote/beloteBuyIn.js'
 import { intChips } from '../../utils/chips.js'
-
-export const BELOTE_WIN_CHIPS = 40
-export const BELOTE_PLAY_CHIPS = 8
 
 /** Retire runtime, snapshot et remet la salle en attente (partie déjà réglée ou abandonnée). */
 export async function closeBelotePlaySession(
@@ -65,40 +63,45 @@ export async function settleBeloteGame(
     xpAwarded: number
   }> = []
 
+  const potTotal = state.potTotal
+  const payoutPerWinner = beloteWinnerPayout(potTotal, 2)
+
   await prisma.$transaction(async (tx) => {
     for (const p of state.players) {
       const won = p.team === winningTeam
-      const chipsAwarded = won ? BELOTE_WIN_CHIPS : BELOTE_PLAY_CHIPS
+      const chipsAwarded = won ? payoutPerWinner : 0
       const xpAwarded = won ? XP_BELOTE_PLAY + XP_BELOTE_WIN : XP_BELOTE_PLAY
 
-      const before = await tx.user.findUnique({
-        where: { id: p.userId },
-        select: { chips: true },
-      })
-      if (!before) continue
-      const balBefore = intChips(before.chips)
+      if (won && chipsAwarded > 0) {
+        const before = await tx.user.findUnique({
+          where: { id: p.userId },
+          select: { chips: true },
+        })
+        if (!before) continue
+        const balBefore = intChips(before.chips)
 
-      const updated = await tx.user.update({
-        where: { id: p.userId },
-        data: { chips: { increment: chipsAwarded } },
-        select: { chips: true, experience: true, level: true },
-      })
+        const updated = await tx.user.update({
+          where: { id: p.userId },
+          data: { chips: { increment: chipsAwarded } },
+          select: { chips: true, experience: true, level: true },
+        })
 
-      await appendWalletLedgerEntry(
-        {
-          context: createCasinoRoundContext({
-            userId: p.userId,
-            gameType: 'belote',
-            roundId: gameId,
-            actionId: randomUUID(),
-          }),
-          reason: won ? 'BELOTE_WIN' : 'BELOTE_PLAY',
-          amount: chipsAwarded,
-          balanceBefore: balBefore,
-          balanceAfter: intChips(updated.chips),
-        },
-        tx,
-      )
+        await appendWalletLedgerEntry(
+          {
+            context: createCasinoRoundContext({
+              userId: p.userId,
+              gameType: 'belote',
+              roundId: gameId,
+              actionId: randomUUID(),
+            }),
+            reason: 'BELOTE_POT_WIN',
+            amount: chipsAwarded,
+            balanceBefore: balBefore,
+            balanceAfter: intChips(updated.chips),
+          },
+          tx,
+        )
+      }
 
       await awardXpInTransaction(tx, p.userId, xpAwarded)
 
@@ -135,7 +138,12 @@ export async function settleBeloteGame(
         targetScore: state.targetScore,
         startedAt: new Date(state.startedAt),
         endedAt,
-        summary: { settlements } as object,
+        summary: {
+          settlements,
+          buyIn: state.buyIn,
+          potTotal,
+          payoutPerWinner,
+        } as object,
         players: {
           create: state.players.map((p) => ({
             userId: p.userId,
@@ -163,6 +171,9 @@ export async function settleBeloteGame(
       winningTeam,
       teamScoreA: state.teamScoreA,
       teamScoreB: state.teamScoreB,
+      buyIn: state.buyIn,
+      potTotal,
+      payoutPerWinner,
       settlements,
     })
     io.to(`belote-room:${roomId}`).emit('BELOTE_ROOM_UPDATED', { roomId, status: 'WAITING' })

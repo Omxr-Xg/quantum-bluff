@@ -23,6 +23,7 @@ export function BeloteGame() {
   const { state, ended, presentUserIds, turnTimeLeft, sendAction } = useBeloteSocket(gameId, {
     spectate: isSpectating,
   });
+  const mySettlement = ended?.settlements?.find((s) => s.userId === userId);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [acting, setActing] = useState(false);
 
@@ -80,6 +81,9 @@ export function BeloteGame() {
           teamScoreB={ended.teamScoreB}
           winningTeam={ended.winningTeam}
           myTeam={myTeam}
+          potTotal={ended.potTotal}
+          payoutPerWinner={ended.payoutPerWinner}
+          chipsWon={mySettlement?.chipsAwarded}
           onLobby={() => navigate("/lobby?tab=belote")}
         />
       ) : null}

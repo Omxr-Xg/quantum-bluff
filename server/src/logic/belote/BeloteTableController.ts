@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { nextPosition, teamForPosition } from './bidding.js'
 import { applyContreeBidAction, getHighestBid } from './conteeBidding.js'
+import { belotePotTotal } from './beloteBuyIn.js'
 import { BELOTE_ANNOUNCE_POINTS } from './conteeConstants.js'
 import { legalBidOptions } from './conteeLegalBids.js'
 import { computeDealScore, detectBeloteInHand } from './conteeScoring.js'
@@ -25,6 +26,7 @@ export type BeloteTableInit = {
   gameId: string
   roomId: string
   targetScore: number
+  buyIn: number
   players: Array<{
     userId: string
     username: string
@@ -76,6 +78,8 @@ export class BeloteTableController {
       startedAt: now,
       lastActionAt: now,
       turnTimeLimitSec: BELOTE_TURN_TIME_SEC,
+      buyIn: init.buyIn,
+      potTotal: belotePotTotal(init.buyIn, players.length),
     }
     this.dealCards()
   }
@@ -98,6 +102,12 @@ export class BeloteTableController {
     }
     for (const p of ctrl.state.players) {
       if (!p.team) p.team = teamForPosition(p.position)
+    }
+    if (ctrl.state.buyIn == null || !Number.isFinite(ctrl.state.buyIn)) {
+      ctrl.state.buyIn = 100
+    }
+    if (ctrl.state.potTotal == null || !Number.isFinite(ctrl.state.potTotal)) {
+      ctrl.state.potTotal = belotePotTotal(ctrl.state.buyIn, ctrl.state.players.length)
     }
     ctrl.dealIndex = 0
     return ctrl

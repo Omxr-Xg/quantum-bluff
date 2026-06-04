@@ -6,6 +6,13 @@ import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
+import {
+  BELOTE_BUY_IN_DEFAULT,
+  BELOTE_BUY_IN_PRESETS,
+  belotePotTotal,
+  beloteWinnerShare,
+  normalizeBeloteBuyIn,
+} from "../features/belote/beloteBuyIn";
 
 type BeloteVisibility = "PUBLIC" | "PRIVATE";
 
@@ -17,6 +24,7 @@ export type BeloteRoomListItem = {
   visibility: BeloteVisibility;
   status: string;
   targetScore: number;
+  buyIn: number;
   gameId: string | null;
   players: Array<{
     id: string;
@@ -83,6 +91,8 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   const [newName, setNewName] = useState("");
   const [newVis, setNewVis] = useState<BeloteVisibility>("PUBLIC");
   const [newTarget, setNewTarget] = useState(1500);
+  const [newBuyIn, setNewBuyIn] = useState(BELOTE_BUY_IN_DEFAULT);
+  const [customBuyIn, setCustomBuyIn] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
 
@@ -152,6 +162,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
           name,
           visibility: newVis,
           targetScore: newTarget,
+          buyIn: newBuyIn,
           ...(newPassword ? { password: newPassword } : {}),
         }),
       });
@@ -259,6 +270,52 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                 onChange={(e) => setNewTarget(Number(e.target.value) || 1500)}
               />
             </label>
+            <div>
+              <p className="mb-1.5 text-xs text-gray-400">{t("belote.buyInLabel")}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {BELOTE_BUY_IN_PRESETS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => {
+                      setNewBuyIn(v);
+                      setCustomBuyIn("");
+                    }}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                      newBuyIn === v && !customBuyIn
+                        ? "bg-emerald-700 text-white"
+                        : "bg-slate-800 text-gray-300 hover:bg-slate-700"
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+              <label className="mt-2 block text-xs text-gray-500">
+                {t("belote.buyInCustom")}
+                <input
+                  type="number"
+                  min={10}
+                  step={10}
+                  placeholder={t("belote.buyInCustomPlaceholder")}
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 py-2 text-white"
+                  value={customBuyIn}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setCustomBuyIn(raw);
+                    if (raw.trim()) {
+                      setNewBuyIn(normalizeBeloteBuyIn(Number(raw)));
+                    }
+                  }}
+                />
+              </label>
+              <p className="mt-1.5 text-[10px] text-emerald-200/70">
+                {t("belote.buyInPotHint", {
+                  pot: belotePotTotal(newBuyIn),
+                  share: beloteWinnerShare(belotePotTotal(newBuyIn)),
+                })}
+              </p>
+            </div>
             <input
               type="password"
               className="w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 py-2 text-white"
@@ -312,6 +369,9 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                         </span>
                         <span className={`shrink-0 text-[10px] ${beloteAccent.minBalance}`}>
                           {room.targetScore} {t("belote.points")}
+                        </span>
+                        <span className="shrink-0 text-[10px] text-amber-200/90">
+                          {t("belote.buyInShort", { amount: room.buyIn ?? BELOTE_BUY_IN_DEFAULT })}
                         </span>
                       </div>
                     </div>

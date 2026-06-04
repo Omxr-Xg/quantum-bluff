@@ -11,6 +11,7 @@ function makeTable() {
     gameId: 'test-game',
     roomId: 'test-room',
     targetScore: 500,
+    buyIn: 100,
     players: [
       { userId: 'u0', username: 'P0', position: 0 },
       { userId: 'u1', username: 'P1', position: 1 },

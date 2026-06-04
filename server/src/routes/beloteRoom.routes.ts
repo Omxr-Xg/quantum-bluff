@@ -9,6 +9,12 @@ import {
   newBeloteGameId,
 } from '../logic/belote/BeloteTableController.js'
 import { DEFAULT_CONTEE_TARGET_SCORE } from '../logic/belote/conteeConstants.js'
+import {
+  BeloteInsufficientChipsError,
+  chargeBeloteBuyIns,
+  normalizeBeloteBuyIn,
+} from '../logic/belote/beloteBuyIn.js'
+import { intChips } from '../utils/chips.js'
 import { activeBeloteGames, persistBeloteSnapshot } from '../shared/activeBeloteGames.js'
 import {
   BELOTE_STUCK_MAX_MS,
@@ -43,6 +49,7 @@ type RoomWithSeats = {
   status: string
   joinCode: string | null
   targetScore: number
+  buyIn: number
   gameId: string | null
   seats: Array<{
     position: number
@@ -63,6 +70,7 @@ function formatRoom(room: RoomWithSeats) {
     status: room.status,
     joinCode: room.visibility === 'PRIVATE' ? room.joinCode : undefined,
     targetScore: room.targetScore,
+    buyIn: room.buyIn,
     gameId: room.gameId,
     players: room.seats.map((s) => ({
       id: s.user.id,
@@ -133,6 +141,7 @@ router.post('/create', authMiddleware, async (req, res) => {
     let targetScore = Number(req.body?.targetScore)
     if (!Number.isFinite(targetScore)) targetScore = DEFAULT_CONTEE_TARGET_SCORE
     targetScore = Math.min(2000, Math.max(500, Math.floor(targetScore)))
+    const buyIn = normalizeBeloteBuyIn(req.body?.buyIn)
 
     let passwordHash: string | undefined
     const password = typeof req.body?.password === 'string' ? req.body.password : ''
@@ -154,6 +163,7 @@ router.post('/create', authMiddleware, async (req, res) => {
           passwordHash,
           joinCode,
           targetScore,
+          buyIn,
           status: 'WAITING',
         },
       })
@@ -383,6 +393,17 @@ router.post('/:id/join', authMiddleware, async (req, res) => {
       if (room.seats.length >= room.maxPlayers) {
         return res.status(400).json({ error: 'Salle pleine' })
       }
+      const me = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { chips: true },
+      })
+      if (!me || intChips(me.chips) < room.buyIn) {
+        return res.status(400).json({
+          error: 'Solde insuffisant pour la mise d’entrée',
+          code: 'INSUFFICIENT_CHIPS',
+          buyIn: room.buyIn,
+        })
+      }
       const taken = new Set(room.seats.map((s) => s.position))
       let position = 0
       while (taken.has(position) && position < room.maxPlayers) position++
@@ -500,34 +521,55 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
       avatarUrl: s.avatarUrl ?? clientAvatarUrlFromUser(s.user),
     }))
 
+    try {
+      await prisma.$transaction(async (tx) => {
+        await chargeBeloteBuyIns(
+          tx,
+          gameId,
+          room.id,
+          players.map((p) => ({ userId: p.userId, username: p.username })),
+          room.buyIn,
+        )
+        await tx.beloteRoom.update({
+          where: { id: room.id },
+          data: { status: 'IN_GAME', gameId },
+        })
+        for (const s of room.seats) {
+          const team = s.position % 2 === 0 ? 'A' : 'B'
+          await tx.beloteRoomSeat.update({
+            where: { roomId_userId: { roomId: room.id, userId: s.user.id } },
+            data: { team },
+          })
+        }
+      })
+    } catch (e) {
+      if (e instanceof BeloteInsufficientChipsError) {
+        return res.status(400).json({
+          error: 'Un ou plusieurs joueurs n’ont pas assez de jetons',
+          code: e.code,
+          players: e.usernames,
+          buyIn: room.buyIn,
+        })
+      }
+      throw e
+    }
+
     const table = new BeloteTableController({
       gameId,
       roomId: room.id,
       targetScore: room.targetScore,
+      buyIn: room.buyIn,
       players,
     })
 
     activeBeloteGames.set(gameId, table)
     await persistBeloteSnapshot(room.id, gameId, table.getState())
 
-    for (const s of room.seats) {
-      const team = s.position % 2 === 0 ? 'A' : 'B'
-      await prisma.beloteRoomSeat.update({
-        where: { roomId_userId: { roomId: room.id, userId: s.user.id } },
-        data: { team },
-      })
-    }
-
-    await prisma.beloteRoom.update({
-      where: { id: room.id },
-      data: { status: 'IN_GAME', gameId },
-    })
-
     const io = getIo(req)
     await broadcastBeloteGame(io, gameId)
     await emitBeloteRoomUpdated(room.id, io)
 
-    return res.json({ gameId, roomId: room.id })
+    return res.json({ gameId, roomId: room.id, buyIn: room.buyIn, potTotal: table.getState().potTotal })
   } catch (e) {
     console.error('[belote-rooms] start', e)
     return res.status(500).json({ error: 'Erreur serveur' })

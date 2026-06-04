@@ -40,6 +40,8 @@ export type BeloteSanitizedState = {
     disconnectDeadline?: string | null;
     forfeited?: boolean;
   }>;
+  buyIn?: number;
+  potTotal?: number;
   deal: {
     trump?: string;
     takerPosition?: number;
@@ -63,7 +65,16 @@ export function useBeloteSocket(
     winningTeam: string;
     teamScoreA: number;
     teamScoreB: number;
-    settlements?: unknown[];
+    buyIn?: number;
+    potTotal?: number;
+    payoutPerWinner?: number;
+    settlements?: Array<{
+      userId: string;
+      username: string;
+      won: boolean;
+      chipsAwarded: number;
+      xpAwarded: number;
+    }>;
   } | null>(null);
 
   const refreshHttp = useCallback(async () => {
@@ -125,7 +136,16 @@ export function useBeloteSocket(
       winningTeam: string;
       teamScoreA: number;
       teamScoreB: number;
-      settlements?: unknown[];
+      buyIn?: number;
+      potTotal?: number;
+      payoutPerWinner?: number;
+      settlements?: Array<{
+        userId: string;
+        username: string;
+        won: boolean;
+        chipsAwarded: number;
+        xpAwarded: number;
+      }>;
     }) => {
       if (payload.gameId === gameId) setEnded(payload);
     };

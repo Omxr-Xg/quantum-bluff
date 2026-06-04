@@ -8,12 +8,18 @@ export function BeloteGameEndOverlay({
   teamScoreB,
   winningTeam,
   myTeam,
+  potTotal,
+  payoutPerWinner,
+  chipsWon,
   onLobby,
 }: {
   teamScoreA: number;
   teamScoreB: number;
   winningTeam: string;
   myTeam?: string;
+  potTotal?: number;
+  payoutPerWinner?: number;
+  chipsWon?: number;
   onLobby: () => void;
 }) {
   const { t } = useTranslation();
@@ -48,9 +54,23 @@ export function BeloteGameEndOverlay({
           <p className="mb-1 text-emerald-200/80">
             {t("belote.finalScore", { a: teamScoreA, b: teamScoreB })}
           </p>
-          <p className="mb-8 text-lg font-semibold text-amber-200">
+          <p className="mb-2 text-lg font-semibold text-amber-200">
             {t("belote.winnerTeam", { team: winningTeam })}
           </p>
+          {potTotal != null && potTotal > 0 ? (
+            <p className="mb-2 text-sm text-emerald-200/80">
+              {t("belote.potTotal", { amount: potTotal })}
+            </p>
+          ) : null}
+          {won && (chipsWon ?? payoutPerWinner) != null && (chipsWon ?? payoutPerWinner)! > 0 ? (
+            <p className="mb-6 text-base font-semibold text-amber-300">
+              {t("belote.youWonChips", { amount: chipsWon ?? payoutPerWinner ?? 0 })}
+            </p>
+          ) : !won && potTotal != null && potTotal > 0 ? (
+            <p className="mb-6 text-sm text-slate-400">{t("belote.buyInLost")}</p>
+          ) : (
+            <p className="mb-6" />
+          )}
           <NeonButton variant="green" className="w-full px-8 py-4" onClick={onLobby}>
             {t("belote.backLobby")}
           </NeonButton>

@@ -100,6 +100,9 @@ export function BeloteGameHud({
             </div>
             <span className="text-center text-[8px] leading-tight text-emerald-200/55 sm:text-[9px]">
               {t("belote.targetLine", { score: state.targetScore })}
+              {state.potTotal != null && state.potTotal > 0
+                ? ` · ${t("belote.potTotal", { amount: state.potTotal })}`
+                : ""}
             </span>
             {contractLine ? (
               <span className="text-center text-[8px] font-semibold leading-tight text-amber-200/80 sm:text-[9px]">
