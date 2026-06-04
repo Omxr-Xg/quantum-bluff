@@ -63,7 +63,12 @@ export function BeloteActionBar({
     return BID_VALUES.filter((v) => v >= minBid);
   }, [minBid]);
 
-  /** Réinitialise le flux enchère quand ce n’est plus notre tour (après acceptation serveur). */
+  const showHandDock =
+    hand.length > 0 &&
+    (state.phase === "BIDDING" ||
+      state.phase === "CONTREE_ROUND" ||
+      state.phase === "PLAYING");
+
   useEffect(() => {
     if (state.phase !== "BIDDING" || state.biddingTurnPosition !== myPos) {
       setPendingBid(null);
@@ -77,184 +82,190 @@ export function BeloteActionBar({
   };
 
   const onCardTrumpPick = (card: BeloteCard) => {
-    if (pendingBid == null) return;
+    if (pendingBid == null || bidSent) return;
     submitBid(pendingBid, card.suit);
   };
 
   const btnBase = "px-4 py-2 text-xs md:px-5 md:py-2.5 md:text-sm min-w-[5.5rem]";
 
-  if (!isAuctionTurn && !isMyTurn) {
-    return (
-      <p className="text-center text-sm text-emerald-200/55">
-        {t("belote.waitingTurn")}
-      </p>
-    );
-  }
+  const renderHand = () => {
+    if (!showHandDock) return null;
 
-  if (isAuctionTurn && state.phase === "BIDDING") {
-    if (pendingBid != null) {
+    if (isAuctionTurn && state.phase === "BIDDING" && pendingBid != null) {
       const pickingDisabled = disabled || bidSent;
-
       return (
-        <div className="flex w-full flex-col items-center gap-3">
-          <p className="text-center text-xs font-semibold uppercase tracking-wider text-amber-200/90">
-            {pendingBid >= 250
-              ? t("belote.bidCapot", { value: pendingBid })
-              : t("belote.bidChooseTrump", { value: pendingBid })}
-          </p>
-          {bidSent ? (
-            <p className="text-center text-[10px] font-medium text-amber-200/80">
-              {t("belote.bidSending")}
-            </p>
-          ) : (
-            <p className="text-center text-[10px] text-emerald-200/65">
-              {t("belote.chooseTrumpAnySuit")}
-            </p>
-          )}
-
-          <BeloteSuitPicker
+        <div className="flex w-full min-w-0 flex-col items-center gap-2 border-b border-white/10 pb-2">
+          <BelotePlayerHand
+            hand={hand}
+            mode="trump"
+            size="md"
+            trump={state.deal.trump}
             disabled={pickingDisabled}
-            size="sm"
-            onSelect={(suit) => submitBid(pendingBid, suit)}
+            onCardClick={onCardTrumpPick}
           />
-
-          {hand.length > 0 ? (
-            <div className="flex w-full flex-col items-center gap-1 border-t border-white/10 pt-2">
-              <p className="text-[10px] text-emerald-200/50">
-                {t("belote.orTrumpFromCard")}
-              </p>
-              <BelotePlayerHand
-                hand={hand}
-                mode="trump"
-                size="sm"
-                trump={state.deal.trump}
-                disabled={pickingDisabled}
-                onCardClick={onCardTrumpPick}
-              />
-            </div>
-          ) : null}
-
-          <NeonButton
-            variant="red"
-            disabled={pickingDisabled}
-            className="text-xs"
-            onClick={() => {
-              setPendingBid(null);
-              setBidSent(false);
-            }}
-          >
-            {t("belote.cancelBid")}
-          </NeonButton>
         </div>
       );
     }
 
-    return (
-      <div className="flex flex-col items-center gap-2">
-        <div className="flex flex-wrap justify-center gap-1.5">
-          <NeonButton
-            variant="red"
-            disabled={disabled}
-            className={btnBase}
-            onClick={() => onAction({ type: "PASS" })}
-          >
-            {t("belote.pass")}
-          </NeonButton>
-          {bidValues.map((v) => (
-            <NeonButton
-              key={v}
-              variant="green"
-              disabled={disabled}
-              className="min-w-[3.25rem] px-3 py-2 text-xs md:text-sm"
-              onClick={() => setPendingBid(v)}
-            >
-              {v >= 250 ? t("belote.capot") : v}
-            </NeonButton>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (isAuctionTurn && state.phase === "CONTREE_ROUND") {
-    if (state.contreePhase === "DEFENSE" && isDefense) {
+    if (state.phase === "PLAYING") {
       return (
-        <div className="flex flex-wrap justify-center gap-2">
-          <NeonButton
-            variant="red"
-            disabled={disabled}
-            className={btnBase}
-            onClick={() => onAction({ type: "PASS" })}
-          >
-            {t("belote.pass")}
-          </NeonButton>
-          <NeonButton
-            variant="amber"
-            disabled={disabled}
-            className={btnBase}
-            onClick={() => onAction({ type: "CONTREE" })}
-          >
-            {t("belote.contree")}
-          </NeonButton>
+        <div className="flex w-full min-w-0 flex-col items-center gap-1 border-b border-white/10 pb-2">
+          <BelotePlayerHand
+            hand={hand}
+            mode={isMyTurn ? "play" : "view"}
+            size="md"
+            trump={state.deal.trump}
+            legalCards={isMyTurn ? state.myLegalPlays : undefined}
+            disabled={disabled || !isMyTurn}
+            onCardClick={(card) => onAction({ type: "PLAY_CARD", card })}
+          />
         </div>
       );
     }
-    if (state.contreePhase === "ATTACK" && isAttack) {
-      return (
-        <div className="flex flex-wrap justify-center gap-2">
-          <NeonButton
-            variant="red"
-            disabled={disabled}
-            className={btnBase}
-            onClick={() => onAction({ type: "PASS" })}
-          >
-            {t("belote.pass")}
-          </NeonButton>
-          <NeonButton
-            variant="amber"
-            disabled={disabled}
-            className={btnBase}
-            onClick={() => onAction({ type: "SURCONTREE" })}
-          >
-            {t("belote.surcontree")}
-          </NeonButton>
-        </div>
-      );
-    }
-    return (
-      <p className="text-center text-sm text-emerald-200/55">
-        {t("belote.waitingContree")}
-      </p>
-    );
-  }
-
-  if (isMyTurn && hand.length > 0) {
-    const legalPlays = state.myLegalPlays ?? [];
 
     return (
-      <div className="flex w-full flex-col items-center gap-1">
-        <p className="text-center text-[10px] font-semibold uppercase tracking-wider text-amber-300/90">
-          {t("belote.playCard")}
-        </p>
-        <p className="text-center text-[9px] text-emerald-300/80">
-          {t("belote.legalCardsHint")}
-        </p>
+      <div className="w-full min-w-0 border-b border-white/10 pb-2">
         <BelotePlayerHand
           hand={hand}
-          legalCards={legalPlays}
-          mode="play"
-          size="sm"
+          mode="view"
+          size="md"
           trump={state.deal.trump}
-          disabled={disabled}
-          onCardClick={(card) => onAction({ type: "PLAY_CARD", card })}
         />
       </div>
     );
-  }
+  };
+
+  const renderControls = () => {
+    if (!isAuctionTurn && !isMyTurn) {
+      return (
+        <p className="py-1 text-center text-sm text-emerald-200/55">
+          {t("belote.waitingTurn")}
+        </p>
+      );
+    }
+
+    if (isAuctionTurn && state.phase === "BIDDING") {
+      if (pendingBid != null) {
+        const pickingDisabled = disabled || bidSent;
+        return (
+          <div className="flex w-full flex-col items-center gap-2 py-1">
+            <p className="text-center text-xs font-semibold uppercase tracking-wider text-amber-200/90">
+              {pendingBid >= 250
+                ? t("belote.bidCapot", { value: pendingBid })
+                : t("belote.bidChooseTrump", { value: pendingBid })}
+            </p>
+            {bidSent ? (
+              <p className="text-center text-[10px] font-medium text-amber-200/80">
+                {t("belote.bidSending")}
+              </p>
+            ) : (
+              <p className="text-center text-[10px] text-emerald-200/65">
+                {t("belote.chooseTrumpAnySuit")}
+              </p>
+            )}
+            <BeloteSuitPicker
+              disabled={pickingDisabled}
+              size="sm"
+              onSelect={(suit) => submitBid(pendingBid, suit)}
+            />
+            <NeonButton
+              variant="red"
+              disabled={pickingDisabled}
+              className="text-xs"
+              onClick={() => {
+                setPendingBid(null);
+                setBidSent(false);
+              }}
+            >
+              {t("belote.cancelBid")}
+            </NeonButton>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex flex-col items-center gap-2 py-1">
+          <div className="flex flex-wrap justify-center gap-1.5">
+            <NeonButton
+              variant="red"
+              disabled={disabled}
+              className={btnBase}
+              onClick={() => onAction({ type: "PASS" })}
+            >
+              {t("belote.pass")}
+            </NeonButton>
+            {bidValues.map((v) => (
+              <NeonButton
+                key={v}
+                variant="green"
+                disabled={disabled}
+                className="min-w-[3.25rem] px-3 py-2 text-xs md:text-sm"
+                onClick={() => setPendingBid(v)}
+              >
+                {v >= 250 ? t("belote.capot") : v}
+              </NeonButton>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (isAuctionTurn && state.phase === "CONTREE_ROUND") {
+      if (state.contreePhase === "DEFENSE" && isDefense) {
+        return (
+          <div className="flex flex-wrap justify-center gap-2 py-1">
+            <NeonButton variant="red" disabled={disabled} className={btnBase} onClick={() => onAction({ type: "PASS" })}>
+              {t("belote.pass")}
+            </NeonButton>
+            <NeonButton variant="amber" disabled={disabled} className={btnBase} onClick={() => onAction({ type: "CONTREE" })}>
+              {t("belote.contree")}
+            </NeonButton>
+          </div>
+        );
+      }
+      if (state.contreePhase === "ATTACK" && isAttack) {
+        return (
+          <div className="flex flex-wrap justify-center gap-2 py-1">
+            <NeonButton variant="red" disabled={disabled} className={btnBase} onClick={() => onAction({ type: "PASS" })}>
+              {t("belote.pass")}
+            </NeonButton>
+            <NeonButton variant="amber" disabled={disabled} className={btnBase} onClick={() => onAction({ type: "SURCONTREE" })}>
+              {t("belote.surcontree")}
+            </NeonButton>
+          </div>
+        );
+      }
+      return (
+        <p className="py-1 text-center text-sm text-emerald-200/55">
+          {t("belote.waitingContree")}
+        </p>
+      );
+    }
+
+    if (isMyTurn) {
+      return (
+        <div className="flex flex-col items-center gap-1 py-1">
+          <p className="text-center text-[10px] font-semibold uppercase tracking-wider text-amber-300/90">
+            {t("belote.playCard")}
+          </p>
+          <p className="text-center text-[9px] text-emerald-300/80">
+            {t("belote.legalCardsHint")}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <p className="py-1 text-center text-sm text-emerald-200/55">
+        {t("belote.waitingTurn")}
+      </p>
+    );
+  };
 
   return (
-    <p className="text-center text-sm text-emerald-200/55">
-      {t("belote.waitingTurn")}
-    </p>
+    <div className="flex w-full min-w-0 flex-col">
+      {renderHand()}
+      {renderControls()}
+    </div>
   );
 }

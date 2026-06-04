@@ -105,7 +105,7 @@ export function BeloteGame() {
             />
           </div>
 
-          <div className="relative max-h-[min(38dvh,13.5rem)] shrink-0 overflow-y-auto overflow-x-hidden border-t border-white/10 bg-slate-950/95 px-2 py-1.5 shadow-[0_-8px_28px_rgba(0,0,0,0.45)] backdrop-blur-md sm:max-h-[min(34dvh,12rem)] sm:px-3 sm:py-2 pb-[max(0.35rem,env(safe-area-inset-bottom))]">
+          <div className="relative max-h-[min(46dvh,18rem)] shrink-0 overflow-y-auto overflow-x-visible border-t border-white/10 bg-slate-950/95 px-2 py-1.5 shadow-[0_-8px_28px_rgba(0,0,0,0.45)] backdrop-blur-md sm:px-3 sm:py-2 pb-[max(0.35rem,env(safe-area-inset-bottom))]">
             <BeloteActionBar
               state={state}
               myUserId={userId}
