@@ -62,6 +62,7 @@ import tournamentRoutes from './routes/tournament.routes.js'
 import tournamentWinnerBetsRoutes from './routes/tournamentWinnerBets.routes.js'
 import { initTournamentScheduler } from './tournament/tournament.scheduler.js'
 import { recoverTournamentsAtBoot } from './tournament/tournament.recovery.service.js'
+import { recoverBeloteAtBoot } from './belote/recovery/beloteRecovery.service.js'
 import adminRouletteOverrideRoutes from './routes/admin.roulette.override.routes.js'
 import { timeoutMiddleware } from './middleware/timeout.middleware.js';
 import { idempotencyMiddleware } from './middleware/idempotency.middleware.js';
@@ -458,6 +459,9 @@ registerGracefulShutdown()
     rootLogger.info({ msg: 'server_boot_step', step: 'tournament_recovery_start' })
     await recoverTournamentsAtBoot(io)
     rootLogger.info({ msg: 'server_boot_step', step: 'tournament_recovery_done' })
+    rootLogger.info({ msg: 'server_boot_step', step: 'belote_recovery_start' })
+    await recoverBeloteAtBoot(io)
+    rootLogger.info({ msg: 'server_boot_step', step: 'belote_recovery_done' })
 
     httpServer.listen(PORT, () => {
       rootLogger.info({

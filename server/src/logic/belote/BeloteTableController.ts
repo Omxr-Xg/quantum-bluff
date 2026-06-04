@@ -107,11 +107,14 @@ export class BeloteTableController {
     return structuredClone(this.state)
   }
 
-  getSanitizedState(forUserId: string): SanitizedBeloteState {
+  getSanitizedState(forUserId: string, forSpectator = false): SanitizedBeloteState {
     const s = this.getState()
     const requester = s.players.find((p) => p.userId === forUserId)
+    const spectator = forSpectator || !requester
+
     let myLegalPlays: BeloteCard[] | undefined
     if (
+      !spectator &&
       requester &&
       s.phase === 'PLAYING' &&
       s.deal.trump &&
@@ -127,6 +130,7 @@ export class BeloteTableController {
 
     let myLegalBids: ReturnType<typeof legalBidOptions> | undefined
     if (
+      !spectator &&
       requester &&
       (s.phase === 'BIDDING' || s.phase === 'CONTREE_ROUND') &&
       s.biddingTurnPosition === requester.position
@@ -152,7 +156,7 @@ export class BeloteTableController {
           disconnectDeadline: p.disconnectDeadline,
           forfeited: p.forfeited,
         }
-        if (p.userId === forUserId) {
+        if (!spectator && p.userId === forUserId) {
           return { ...base, hand: [...p.hand] }
         }
         return base
@@ -390,8 +394,14 @@ export class BeloteTableController {
   }
 
   private checkForfeitEnd(): void {
+    if (this.state.phase === 'GAME_END') return
     const active = this.state.players.filter((p) => !p.forfeited)
-    if (active.length < 4 && this.state.phase !== 'GAME_END') {
+    if (active.length === 0) {
+      this.state.phase = 'GAME_END'
+      this.touch()
+      return
+    }
+    if (active.length < 4) {
       const teams = new Set(active.map((p) => p.team))
       if (teams.size === 1) {
         this.state.phase = 'GAME_END'

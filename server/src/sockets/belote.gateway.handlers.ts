@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io'
 import { prisma } from '../config/database.js'
 import { beloteActionSchema } from '../logic/belote/beloteAction.validation.js'
 import { activeBeloteGames } from '../shared/activeBeloteGames.js'
+import { loadBeloteTable } from '../belote/recovery/beloteRecovery.service.js'
 import {
   broadcastBeloteGame,
   syncBeloteAfterAction,
@@ -76,30 +77,48 @@ export function registerBeloteGatewayHandlers(io: Server, socket: BeloteSocket):
       socket.join(`belote-game:${gameId}`)
       socket.beloteGameId = gameId
 
-      const table = activeBeloteGames.getSync(gameId)
-      if (table) {
-        table.markReconnected(socket.userId)
-        await broadcastBeloteGame(io, gameId)
-        startDisconnectPoller(io, gameId)
-        scheduleBeloteTurnTimer(io, gameId, table)
-      } else {
-        const snap = await prisma.beloteGameSnapshot.findFirst({ where: { gameId } })
-        if (!snap) {
-          socket.emit('ERROR', { code: 'GAME_NOT_FOUND', message: 'Partie introuvable' })
-          return
-        }
-        const { BeloteTableController } = await import('../logic/belote/BeloteTableController.js')
-        const ctrl = BeloteTableController.fromSnapshot(
-          snap.snapshot as import('../logic/belote/types.js').BeloteGameState,
-        )
-        activeBeloteGames.set(gameId, ctrl)
-        ctrl.markReconnected(socket.userId)
-        await broadcastBeloteGame(io, gameId)
-        startDisconnectPoller(io, gameId)
-        scheduleBeloteTurnTimer(io, gameId, ctrl)
+      const table = await loadBeloteTable(gameId)
+      if (!table) {
+        socket.emit('ERROR', { code: 'GAME_NOT_FOUND', message: 'Partie introuvable' })
+        return
       }
+      table.markReconnected(socket.userId)
+      await broadcastBeloteGame(io, gameId)
+      startDisconnectPoller(io, gameId)
+      scheduleBeloteTurnTimer(io, gameId, table)
     } catch (err) {
       console.error('[belote] JOIN_BELOTE_GAME', err)
+    }
+  })
+
+  socket.on('JOIN_BELOTE_SPECTATE', async (data: { gameId?: string }) => {
+    try {
+      const gameId = data?.gameId
+      if (!gameId || !socket.userId) return
+
+      const room = await prisma.beloteRoom.findFirst({
+        where: { gameId, status: 'IN_GAME' },
+        select: { id: true },
+      })
+      if (!room) {
+        socket.emit('ERROR', { code: 'GAME_NOT_FOUND', message: 'Partie introuvable' })
+        return
+      }
+
+      const table = await loadBeloteTable(gameId)
+      if (!table) {
+        socket.emit('ERROR', { code: 'GAME_NOT_FOUND', message: 'Partie introuvable' })
+        return
+      }
+
+      socket.join(`belote-game:${gameId}`)
+      socket.beloteGameId = gameId
+
+      await broadcastBeloteGame(io, gameId)
+      scheduleBeloteTurnTimer(io, gameId, table)
+    } catch (err) {
+      console.error('[belote] JOIN_BELOTE_SPECTATE', err)
+      socket.emit('ERROR', { code: 'SPECTATE_ERROR', message: 'Erreur spectateur' })
     }
   })
 
@@ -125,6 +144,11 @@ export function registerBeloteGatewayHandlers(io: Server, socket: BeloteSocket):
       const table = activeBeloteGames.getSync(gameId)
       if (!table) {
         socket.emit('ERROR', { code: 'GAME_NOT_FOUND', message: 'Partie introuvable' })
+        return
+      }
+
+      if (!table.getState().players.some((p) => p.userId === socket.userId)) {
+        socket.emit('ERROR', { code: 'SPECTATOR', message: 'Action réservée aux joueurs' })
         return
       }
 

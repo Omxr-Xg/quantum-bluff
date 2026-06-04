@@ -824,6 +824,7 @@
     "take": "Prendre",
     "passRound2": "Passer (tour 2)",
     "spectateComingSoon": "Le mode spectateur Belote arrive bientôt.",
+    "spectatorHint": "Mode spectateur : les cartes en main sont masquées, le pli en cours reste visible.",
     "noGamesInProgress": "Aucune partie en cours avec un ami pour le moment.",
     "phaseBidding": "Enchères",
     "phaseContree": "Contrée",

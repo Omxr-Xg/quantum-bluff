@@ -17,9 +17,12 @@ export function BeloteGame() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get("gameId");
+  const isSpectating = searchParams.get("spectate") === "1";
   const { userId } = useUser();
   const { socket } = useSocket();
-  const { state, ended, presentUserIds, turnTimeLeft, sendAction } = useBeloteSocket(gameId);
+  const { state, ended, presentUserIds, turnTimeLeft, sendAction } = useBeloteSocket(gameId, {
+    spectate: isSpectating,
+  });
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [acting, setActing] = useState(false);
 
@@ -105,14 +108,23 @@ export function BeloteGame() {
             />
           </div>
 
-          <div className="relative max-h-[min(46dvh,18rem)] shrink-0 overflow-y-auto overflow-x-visible border-t border-white/10 bg-slate-950/95 px-2 py-1.5 shadow-[0_-8px_28px_rgba(0,0,0,0.45)] backdrop-blur-md sm:px-3 sm:py-2 pb-[max(0.35rem,env(safe-area-inset-bottom))]">
-            <BeloteActionBar
-              state={state}
-              myUserId={userId}
-              onAction={handleAction}
-              disabled={acting}
-            />
-          </div>
+          {isSpectating ? (
+            <div className="shrink-0 border-t border-white/10 bg-slate-950/95 px-3 py-2.5 text-center backdrop-blur-md">
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-200/90">
+                {t("game.spectatorBadge")}
+              </p>
+              <p className="mt-1 text-[11px] text-emerald-200/65">{t("belote.spectatorHint")}</p>
+            </div>
+          ) : (
+            <div className="relative max-h-[min(46dvh,18rem)] shrink-0 overflow-y-auto overflow-x-visible border-t border-white/10 bg-slate-950/95 px-2 py-1.5 shadow-[0_-8px_28px_rgba(0,0,0,0.45)] backdrop-blur-md sm:px-3 sm:py-2 pb-[max(0.35rem,env(safe-area-inset-bottom))]">
+              <BeloteActionBar
+                state={state}
+                myUserId={userId}
+                onAction={handleAction}
+                disabled={acting}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

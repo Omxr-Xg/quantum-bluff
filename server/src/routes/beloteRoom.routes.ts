@@ -10,6 +10,12 @@ import {
 } from '../logic/belote/BeloteTableController.js'
 import { DEFAULT_CONTEE_TARGET_SCORE } from '../logic/belote/conteeConstants.js'
 import { activeBeloteGames, persistBeloteSnapshot } from '../shared/activeBeloteGames.js'
+import {
+  BELOTE_STUCK_MAX_MS,
+  loadBeloteTable,
+  pruneBeloteGameIfStale,
+  pruneStaleBeloteInGameRooms,
+} from '../belote/recovery/beloteRecovery.service.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { getGameIo } from '../sockets/gameIo.registry.js'
 import { broadcastBeloteGame, syncBeloteAfterAction } from '../belote/services/beloteSettlement.service.js'
@@ -215,7 +221,7 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 })
 
-const BELOTE_GAME_MAX_DURATION_MS = 4 * 60 * 60 * 1000
+const BELOTE_GAME_MAX_DURATION_MS = BELOTE_STUCK_MAX_MS
 
 async function getBeloteFriendIds(userId: string): Promise<Set<string>> {
   const friendships = await prisma.friendship.findMany({
@@ -233,6 +239,9 @@ router.get('/games-in-progress', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const io = getIo(req)
+    await pruneStaleBeloteInGameRooms(io)
 
     const myFriends = await getBeloteFriendIds(userId)
     const rooms = await prisma.beloteRoom.findMany({
@@ -257,10 +266,18 @@ router.get('/games-in-progress', authMiddleware, async (req, res) => {
       maxPlayers: number
       phase: string
       canJoin: boolean
+      canSpectate: boolean
     }> = []
 
     for (const room of rooms) {
       if (!room.gameId) continue
+
+      await pruneBeloteGameIfStale(room.gameId, room.id, io)
+      const fresh = await prisma.beloteRoom.findUnique({
+        where: { id: room.id },
+        select: { status: true, gameId: true },
+      })
+      if (!fresh?.gameId || fresh.status !== 'IN_GAME') continue
 
       const seatUserIds = room.seats.map((s) => s.userId)
       const userInGame = seatUserIds.includes(userId)
@@ -274,16 +291,10 @@ router.get('/games-in-progress', authMiddleware, async (req, res) => {
         }
       }
 
-      const table = activeBeloteGames.getSync(room.gameId)
-      const snap = table
-        ? table.getState()
-        : (
-            await prisma.beloteGameSnapshot.findFirst({
-              where: { gameId: room.gameId },
-            })
-          )?.snapshot as import('../logic/belote/types.js').BeloteGameState | undefined
+      const table = await loadBeloteTable(room.gameId)
+      const snap = table?.getState()
 
-      if (!table && !snap) continue
+      if (!snap) continue
 
       const startedAt = snap?.startedAt
         ? Date.parse(snap.startedAt)
@@ -299,6 +310,7 @@ router.get('/games-in-progress', authMiddleware, async (req, res) => {
       if (playerCount === 0) continue
 
       const canJoin = userInGame
+      const canSpectate = !userInGame
 
       result.push({
         roomId: room.id,
@@ -308,6 +320,7 @@ router.get('/games-in-progress', authMiddleware, async (req, res) => {
         maxPlayers: room.maxPlayers,
         phase,
         canJoin,
+        canSpectate,
       })
     }
 
@@ -649,37 +662,24 @@ router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
     const io = getIo(req)
-    const table = activeBeloteGames.getSync(req.params.gameId)
-    if (table) {
-      table.markReconnected(userId)
-      const presentUserIds = await getBeloteGamePresentUserIds(io, req.params.gameId)
-      const ids = new Set(presentUserIds)
-      ids.add(userId)
-      return res.json({
-        gameId: req.params.gameId,
-        state: table.getSanitizedState(userId),
-        presentUserIds: [...ids],
-      })
-    }
-
-    const snap = await prisma.beloteGameSnapshot.findFirst({
-      where: { gameId: req.params.gameId },
-    })
-    if (!snap) {
+    const table = await loadBeloteTable(req.params.gameId)
+    if (!table) {
       return res.status(404).json({ error: 'Partie introuvable' })
     }
 
-    const raw = snap.snapshot as import('../logic/belote/types.js').BeloteGameState
-    const ctrl = BeloteTableController.fromSnapshot(raw)
-    activeBeloteGames.set(req.params.gameId, ctrl)
-    ctrl.markReconnected(userId)
+    const isPlayer = table.getState().players.some((p) => p.userId === userId)
+    if (isPlayer) {
+      table.markReconnected(userId)
+    }
+
     const presentUserIds = await getBeloteGamePresentUserIds(io, req.params.gameId)
     const ids = new Set(presentUserIds)
     ids.add(userId)
     return res.json({
       gameId: req.params.gameId,
-      state: ctrl.getSanitizedState(userId),
+      state: table.getSanitizedState(userId, !isPlayer),
       presentUserIds: [...ids],
+      isSpectator: !isPlayer,
     })
   } catch (e) {
     console.error('[belote-rooms] game state', e)

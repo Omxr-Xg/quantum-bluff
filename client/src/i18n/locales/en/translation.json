@@ -825,6 +825,7 @@
     "take": "Take",
     "passRound2": "Pass (round 2)",
     "spectateComingSoon": "Belote spectator mode is coming soon.",
+    "spectatorHint": "Spectator mode: hole cards are hidden; the current trick stays visible.",
     "noGamesInProgress": "No in-progress games with a friend right now.",
     "phaseBidding": "Bidding",
     "phaseContree": "Contree",

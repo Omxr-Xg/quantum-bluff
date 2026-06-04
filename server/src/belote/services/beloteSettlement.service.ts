@@ -21,16 +21,40 @@ import { intChips } from '../../utils/chips.js'
 export const BELOTE_WIN_CHIPS = 40
 export const BELOTE_PLAY_CHIPS = 8
 
+/** Retire runtime, snapshot et remet la salle en attente (partie déjà réglée ou abandonnée). */
+export async function closeBelotePlaySession(
+  roomId: string,
+  gameId: string,
+): Promise<void> {
+  activeBeloteGames.delete(gameId)
+  stopBeloteTimersForGame(gameId)
+  await prisma.beloteRoom.updateMany({
+    where: { id: roomId },
+    data: { status: 'WAITING', gameId: null },
+  })
+  await prisma.beloteGameSnapshot.deleteMany({ where: { roomId } }).catch(() => {})
+}
+
 export async function settleBeloteGame(
   table: BeloteTableController,
   io?: Server,
 ): Promise<void> {
-  const winningTeam = table.winningTeam()
-  if (!winningTeam) return
-
   const state = table.getState()
   const gameId = table.gameId
   const roomId = table.roomId
+
+  const already = await prisma.beloteGameResult.findUnique({
+    where: { gameId },
+    select: { id: true },
+  })
+  if (already) {
+    await closeBelotePlaySession(roomId, gameId)
+    return
+  }
+
+  const winningTeam = table.winningTeam()
+  if (!winningTeam) return
+
   const endedAt = new Date()
 
   const settlements: Array<{
@@ -131,9 +155,7 @@ export async function settleBeloteGame(
     void result
   })
 
-  activeBeloteGames.delete(gameId)
-  stopBeloteTimersForGame(gameId)
-  await prisma.beloteGameSnapshot.deleteMany({ where: { roomId } }).catch(() => {})
+  await closeBelotePlaySession(roomId, gameId)
 
   if (io) {
     io.to(`belote-game:${gameId}`).emit('BELOTE_GAME_END', {
@@ -161,9 +183,10 @@ export async function broadcastBeloteGame(
     if (!socket.rooms.has(`belote-game:${gameId}`)) continue
     const ids = new Set(presentUserIds)
     ids.add(uid)
+    const isPlayer = table.getState().players.some((p) => p.userId === uid)
     socket.emit('BELOTE_GAME_UPDATE', {
       gameId,
-      state: table.getSanitizedState(uid),
+      state: table.getSanitizedState(uid, !isPlayer),
       presentUserIds: [...ids],
     })
   }

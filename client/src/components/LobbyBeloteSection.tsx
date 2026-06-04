@@ -36,6 +36,7 @@ export type BeloteGameInProgressItem = {
   maxPlayers: number;
   phase: string;
   canJoin: boolean;
+  canSpectate?: boolean;
 };
 
 const beloteAccent = {
@@ -176,6 +177,10 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
     navigate(`/belote/game?gameId=${encodeURIComponent(game.gameId)}`);
   };
 
+  const spectateGame = (game: BeloteGameInProgressItem) => {
+    navigate(`/belote/game?gameId=${encodeURIComponent(game.gameId)}&spectate=1`);
+  };
+
   const handleRequestJoin = async (roomId: string) => {
     setRequestingRoom(roomId);
     try {
@@ -194,10 +199,6 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
     } finally {
       setRequestingRoom(null);
     }
-  };
-
-  const handleSpectateComingSoon = () => {
-    addToast(t("belote.spectateComingSoon"), "info");
   };
 
   if (!active) return null;
@@ -392,14 +393,16 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                           {t("lobby.join")}
                         </button>
                       ) : null}
-                      <button
-                        type="button"
-                        onClick={handleSpectateComingSoon}
-                        className="flex shrink-0 items-center gap-0.5 rounded-md bg-slate-700/80 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-slate-600/90 sm:gap-1 sm:px-2 sm:text-[11px]"
-                      >
-                        <Eye className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                        <span className="whitespace-nowrap">{t("lobby.spectate")}</span>
-                      </button>
+                      {g.canSpectate !== false ? (
+                        <button
+                          type="button"
+                          onClick={() => spectateGame(g)}
+                          className="flex shrink-0 items-center gap-0.5 rounded-md bg-slate-700/80 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-slate-600/90 sm:gap-1 sm:px-2 sm:text-[11px]"
+                        >
+                          <Eye className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+                          <span className="whitespace-nowrap">{t("lobby.spectate")}</span>
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                   <p className="text-xs text-gray-400">

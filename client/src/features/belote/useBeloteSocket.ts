@@ -49,7 +49,11 @@ export type BeloteSanitizedState = {
   };
 };
 
-export function useBeloteSocket(gameId: string | null) {
+export function useBeloteSocket(
+  gameId: string | null,
+  options?: { spectate?: boolean },
+) {
+  const spectate = options?.spectate === true;
   const { socket } = useSocket();
   const { userId: myUserId } = useUser();
   const [state, setState] = useState<BeloteSanitizedState | null>(null);
@@ -89,7 +93,13 @@ export function useBeloteSocket(gameId: string | null) {
 
   useEffect(() => {
     if (!socket || !gameId) return;
-    const join = () => socket.emit("JOIN_BELOTE_GAME", { gameId });
+    const join = () => {
+      if (spectate) {
+        socket.emit("JOIN_BELOTE_SPECTATE", { gameId });
+      } else {
+        socket.emit("JOIN_BELOTE_GAME", { gameId });
+      }
+    };
     if (socket.connected) join();
     else socket.once("connect", join);
     void refreshHttp();
@@ -130,14 +140,14 @@ export function useBeloteSocket(gameId: string | null) {
       socket.off("BELOTE_TURN_TIMER", onTimer);
       socket.off("BELOTE_GAME_END", onEnd);
     };
-  }, [socket, gameId, refreshHttp, myUserId]);
+  }, [socket, gameId, refreshHttp, myUserId, spectate]);
 
   const sendAction = useCallback(
     (action: Record<string, unknown>) => {
-      if (!socket || !gameId) return;
+      if (!socket || !gameId || spectate) return;
       socket.emit("BELOTE_ACTION", { gameId, action });
     },
-    [socket, gameId],
+    [socket, gameId, spectate],
   );
 
   return {
@@ -147,5 +157,6 @@ export function useBeloteSocket(gameId: string | null) {
     turnTimeLeft: effectiveTurnLeft,
     sendAction,
     refreshHttp,
+    isSpectating: spectate,
   };
 }
