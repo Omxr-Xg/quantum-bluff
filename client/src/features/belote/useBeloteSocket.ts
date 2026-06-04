@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSocket } from "../../hooks/useSocket";
+import { useUser } from "../../hooks/useUser";
 import { apiUrl } from "../../utils/apiBase";
 import { getAuthItem } from "../../utils/authStorage";
 
@@ -50,6 +51,7 @@ export type BeloteSanitizedState = {
 
 export function useBeloteSocket(gameId: string | null) {
   const { socket } = useSocket();
+  const { userId: myUserId } = useUser();
   const [state, setState] = useState<BeloteSanitizedState | null>(null);
   const [presentUserIds, setPresentUserIds] = useState<string[]>([]);
   const [turnTimeLeft, setTurnTimeLeft] = useState<number | null>(null);
@@ -72,8 +74,10 @@ export function useBeloteSocket(gameId: string | null) {
       presentUserIds?: string[];
     };
     setState(data.state);
-    if (data.presentUserIds) setPresentUserIds(data.presentUserIds);
-  }, [gameId]);
+    const ids = new Set(data.presentUserIds ?? []);
+    if (myUserId) ids.add(myUserId);
+    setPresentUserIds([...ids]);
+  }, [gameId, myUserId]);
 
   const deadlineTurnLeft = useMemo(() => {
     if (!state?.turnDeadlineAt) return null;
@@ -85,7 +89,9 @@ export function useBeloteSocket(gameId: string | null) {
 
   useEffect(() => {
     if (!socket || !gameId) return;
-    socket.emit("JOIN_BELOTE_GAME", { gameId });
+    const join = () => socket.emit("JOIN_BELOTE_GAME", { gameId });
+    if (socket.connected) join();
+    else socket.once("connect", join);
     void refreshHttp();
 
     const onUpdate = (payload: {
@@ -95,7 +101,9 @@ export function useBeloteSocket(gameId: string | null) {
     }) => {
       if (payload.gameId !== gameId) return;
       setState(payload.state);
-      if (payload.presentUserIds) setPresentUserIds(payload.presentUserIds);
+      const ids = new Set(payload.presentUserIds ?? []);
+      if (myUserId) ids.add(myUserId);
+      setPresentUserIds([...ids]);
     };
     const onTimer = (payload: { gameId: string; timeLeft: number }) => {
       if (payload.gameId === gameId) {
@@ -122,7 +130,7 @@ export function useBeloteSocket(gameId: string | null) {
       socket.off("BELOTE_TURN_TIMER", onTimer);
       socket.off("BELOTE_GAME_END", onEnd);
     };
-  }, [socket, gameId, refreshHttp]);
+  }, [socket, gameId, refreshHttp, myUserId]);
 
   const sendAction = useCallback(
     (action: Record<string, unknown>) => {

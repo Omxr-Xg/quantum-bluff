@@ -651,11 +651,14 @@ router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
     const io = getIo(req)
     const table = activeBeloteGames.getSync(req.params.gameId)
     if (table) {
+      table.markReconnected(userId)
       const presentUserIds = await getBeloteGamePresentUserIds(io, req.params.gameId)
+      const ids = new Set(presentUserIds)
+      ids.add(userId)
       return res.json({
         gameId: req.params.gameId,
         state: table.getSanitizedState(userId),
-        presentUserIds,
+        presentUserIds: [...ids],
       })
     }
 
@@ -669,11 +672,14 @@ router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
     const raw = snap.snapshot as import('../logic/belote/types.js').BeloteGameState
     const ctrl = BeloteTableController.fromSnapshot(raw)
     activeBeloteGames.set(req.params.gameId, ctrl)
+    ctrl.markReconnected(userId)
     const presentUserIds = await getBeloteGamePresentUserIds(io, req.params.gameId)
+    const ids = new Set(presentUserIds)
+    ids.add(userId)
     return res.json({
       gameId: req.params.gameId,
       state: ctrl.getSanitizedState(userId),
-      presentUserIds,
+      presentUserIds: [...ids],
     })
   } catch (e) {
     console.error('[belote-rooms] game state', e)

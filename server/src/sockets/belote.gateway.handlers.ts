@@ -106,13 +106,6 @@ export function registerBeloteGatewayHandlers(io: Server, socket: BeloteSocket):
   socket.on('LEAVE_BELOTE_GAME', async (data: { gameId?: string }) => {
     const gameId = data?.gameId ?? socket.beloteGameId
     if (!gameId) return
-    if (socket.userId) {
-      const table = activeBeloteGames.getSync(gameId)
-      if (table) {
-        table.markDisconnected(socket.userId)
-        await syncBeloteAfterAction(table, io).catch(() => {})
-      }
-    }
     socket.leave(`belote-game:${gameId}`)
     if (socket.beloteGameId === gameId) socket.beloteGameId = undefined
     await broadcastBeloteGame(io, gameId)

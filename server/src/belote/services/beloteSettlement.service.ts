@@ -155,15 +155,16 @@ export async function broadcastBeloteGame(
   const table = activeBeloteGames.getSync(gameId)
   if (!table) return
   const presentUserIds = await getBeloteGamePresentUserIds(io, gameId)
-  const sockets = io.sockets.sockets
-  for (const [, socket] of sockets) {
+  for (const [, socket] of io.sockets.sockets) {
     const uid = (socket as { userId?: string }).userId
     if (!uid) continue
     if (!socket.rooms.has(`belote-game:${gameId}`)) continue
+    const ids = new Set(presentUserIds)
+    ids.add(uid)
     socket.emit('BELOTE_GAME_UPDATE', {
       gameId,
       state: table.getSanitizedState(uid),
-      presentUserIds,
+      presentUserIds: [...ids],
     })
   }
 }

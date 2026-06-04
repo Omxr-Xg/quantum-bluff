@@ -76,7 +76,8 @@ export function BeloteSeatAvatar({
   const showTurnTimer = isTurn && timerLeft != null && !forfeited && !disconnectedAt;
 
   const offline = !isPresent && !disconnectedAt && !forfeited;
-  const disconnected = Boolean(disconnectedAt) && !forfeited;
+  /** Sur l’écran de jeu, le joueur local n’est pas affiché « déco » par un simple LEAVE socket. */
+  const disconnected = Boolean(disconnectedAt) && !forfeited && !(isYou && isPresent);
 
   const teamTitle =
     team === "A" ? t("belote.teamA") : team === "B" ? t("belote.teamB") : undefined;

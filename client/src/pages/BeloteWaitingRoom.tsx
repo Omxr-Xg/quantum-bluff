@@ -133,6 +133,7 @@ export function BeloteWaitingRoom() {
   const allReady = room.players.length === 4 && room.players.every((p) => p.isReady);
   const isHost = room.hostId === userId;
   const presentSet = new Set(room.presentUserIds ?? []);
+  if (userId) presentSet.add(userId);
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden app-shell-bg pt-[5.25rem]">
