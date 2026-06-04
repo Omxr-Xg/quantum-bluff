@@ -61,6 +61,15 @@ export function canPlayCard(
   return true
 }
 
+/** Première carte jouable (timeout automatique). */
+export function firstLegalCard(
+  hand: BeloteCard[],
+  trump: BeloteSuit,
+  currentTrick: BeloteTrickCard[],
+): BeloteCard | undefined {
+  return hand.find((c) => canPlayCard(hand, c, trump, currentTrick))
+}
+
 function highestInTrick(
   trick: BeloteTrickCard[],
   trump: BeloteSuit,

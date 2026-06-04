@@ -2,8 +2,12 @@ import type { Server, Socket } from 'socket.io'
 import { prisma } from '../config/database.js'
 import { beloteActionSchema } from '../logic/belote/beloteAction.validation.js'
 import { activeBeloteGames } from '../shared/activeBeloteGames.js'
-import { syncBeloteAfterAction } from '../belote/services/beloteSettlement.service.js'
+import {
+  broadcastBeloteGame,
+  syncBeloteAfterAction,
+} from '../belote/services/beloteSettlement.service.js'
 import { emitBeloteRoomUpdated } from '../routes/beloteRoom.routes.js'
+import { scheduleBeloteTurnTimer } from '../belote/services/beloteTurnTimer.service.js'
 import sanitizeHtml from 'sanitize-html'
 
 interface BeloteSocket extends Socket {
@@ -25,8 +29,10 @@ function startDisconnectPoller(io: Server, gameId: string): void {
     }
     if (table.processDisconnectTimeouts()) {
       void syncBeloteAfterAction(table, io)
+    } else {
+      void broadcastBeloteGame(io, gameId)
     }
-  }, 5000)
+  }, 1000)
   disconnectTimers.set(gameId, timer)
 }
 
@@ -43,11 +49,12 @@ export function registerBeloteGatewayHandlers(io: Server, socket: BeloteSocket):
     }
   })
 
-  socket.on('LEAVE_BELOTE_ROOM', (data: { roomId?: string }) => {
+  socket.on('LEAVE_BELOTE_ROOM', async (data: { roomId?: string }) => {
     const roomId = data?.roomId ?? socket.beloteRoomId
     if (!roomId) return
     socket.leave(`belote-room:${roomId}`)
     if (socket.beloteRoomId === roomId) socket.beloteRoomId = undefined
+    await emitBeloteRoomUpdated(roomId, io)
   })
 
   socket.on('JOIN_BELOTE_GAME', async (data: { gameId?: string }) => {
@@ -72,11 +79,9 @@ export function registerBeloteGatewayHandlers(io: Server, socket: BeloteSocket):
       const table = activeBeloteGames.getSync(gameId)
       if (table) {
         table.markReconnected(socket.userId)
-        socket.emit('BELOTE_GAME_UPDATE', {
-          gameId,
-          state: table.getSanitizedState(socket.userId),
-        })
+        await broadcastBeloteGame(io, gameId)
         startDisconnectPoller(io, gameId)
+        scheduleBeloteTurnTimer(io, gameId, table)
       } else {
         const snap = await prisma.beloteGameSnapshot.findFirst({ where: { gameId } })
         if (!snap) {
@@ -89,26 +94,28 @@ export function registerBeloteGatewayHandlers(io: Server, socket: BeloteSocket):
         )
         activeBeloteGames.set(gameId, ctrl)
         ctrl.markReconnected(socket.userId)
-        socket.emit('BELOTE_GAME_UPDATE', {
-          gameId,
-          state: ctrl.getSanitizedState(socket.userId),
-        })
+        await broadcastBeloteGame(io, gameId)
         startDisconnectPoller(io, gameId)
+        scheduleBeloteTurnTimer(io, gameId, ctrl)
       }
     } catch (err) {
       console.error('[belote] JOIN_BELOTE_GAME', err)
     }
   })
 
-  socket.on('LEAVE_BELOTE_GAME', (data: { gameId?: string }) => {
+  socket.on('LEAVE_BELOTE_GAME', async (data: { gameId?: string }) => {
     const gameId = data?.gameId ?? socket.beloteGameId
     if (!gameId) return
     if (socket.userId) {
       const table = activeBeloteGames.getSync(gameId)
-      table?.markDisconnected(socket.userId)
+      if (table) {
+        table.markDisconnected(socket.userId)
+        await syncBeloteAfterAction(table, io).catch(() => {})
+      }
     }
     socket.leave(`belote-game:${gameId}`)
     if (socket.beloteGameId === gameId) socket.beloteGameId = undefined
+    await broadcastBeloteGame(io, gameId)
   })
 
   socket.on('BELOTE_ACTION', async (data: { gameId?: string; action?: unknown }) => {
@@ -142,13 +149,16 @@ export function registerBeloteGatewayHandlers(io: Server, socket: BeloteSocket):
 
   socket.on('disconnect', () => {
     const gameId = socket.beloteGameId
+    const roomId = socket.beloteRoomId
     if (gameId && socket.userId) {
-      const table = activeBeloteGames.getSync(gameId)
       const t = activeBeloteGames.getSync(gameId)
       if (t) {
         t.markDisconnected(socket.userId)
         void syncBeloteAfterAction(t, io).catch(() => {})
       }
+    }
+    if (roomId) {
+      void emitBeloteRoomUpdated(roomId, io).catch(() => {})
     }
   })
 

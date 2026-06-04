@@ -23,7 +23,9 @@ export type BeloteRoomListItem = {
     username: string;
     position: number;
     isReady: boolean;
+    avatarUrl?: string | null;
   }>;
+  presentUserIds?: string[];
 };
 
 export type BeloteGameInProgressItem = {

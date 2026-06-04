@@ -20,6 +20,7 @@ export type BelotePlayerState = {
   position: number
   team: BeloteTeam
   hand: BeloteCard[]
+  avatarUrl?: string | null
   disconnectedAt?: string
   disconnectDeadline?: string
   forfeited?: boolean
@@ -58,6 +59,9 @@ export type BeloteGameState = {
   deal: BeloteDealState
   startedAt: string
   lastActionAt: string
+  /** ISO — fin du temps de parole du joueur courant (enchères / jeu). */
+  turnDeadlineAt?: string
+  turnTimeLimitSec: number
 }
 
 export type BeloteAction =

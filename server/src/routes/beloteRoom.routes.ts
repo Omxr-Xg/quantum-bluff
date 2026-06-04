@@ -12,6 +12,10 @@ import { activeBeloteGames, persistBeloteSnapshot } from '../shared/activeBelote
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { getGameIo } from '../sockets/gameIo.registry.js'
 import { broadcastBeloteGame, syncBeloteAfterAction } from '../belote/services/beloteSettlement.service.js'
+import {
+  getBeloteGamePresentUserIds,
+  getBeloteRoomPresentUserIds,
+} from '../belote/services/belotePresence.service.js'
 
 const router = express.Router()
 
@@ -98,9 +102,13 @@ export async function emitBeloteRoomUpdated(
     socketIo.to(`belote-room:${roomId}`).emit('BELOTE_ROOM_UPDATED', null)
     return
   }
+  const presentUserIds = await getBeloteRoomPresentUserIds(socketIo, roomId)
   socketIo
     .to(`belote-room:${roomId}`)
-    .emit('BELOTE_ROOM_UPDATED', formatRoom(room as RoomWithSeats))
+    .emit('BELOTE_ROOM_UPDATED', {
+      ...formatRoom(room as RoomWithSeats),
+      presentUserIds,
+    })
 }
 
 /** POST /create */
@@ -470,6 +478,7 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
       userId: s.user.id,
       username: s.user.username,
       position: s.position,
+      avatarUrl: s.avatarUrl ?? clientAvatarUrlFromUser(s.user),
     }))
 
     const table = new BeloteTableController({
@@ -496,7 +505,7 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
     })
 
     const io = getIo(req)
-    broadcastBeloteGame(io, gameId)
+    await broadcastBeloteGame(io, gameId)
     await emitBeloteRoomUpdated(room.id, io)
 
     return res.json({ gameId, roomId: room.id })
@@ -633,11 +642,14 @@ router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
+    const io = getIo(req)
     const table = activeBeloteGames.getSync(req.params.gameId)
     if (table) {
+      const presentUserIds = await getBeloteGamePresentUserIds(io, req.params.gameId)
       return res.json({
         gameId: req.params.gameId,
         state: table.getSanitizedState(userId),
+        presentUserIds,
       })
     }
 
@@ -651,9 +663,11 @@ router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
     const raw = snap.snapshot as import('../logic/belote/types.js').BeloteGameState
     const ctrl = BeloteTableController.fromSnapshot(raw)
     activeBeloteGames.set(req.params.gameId, ctrl)
+    const presentUserIds = await getBeloteGamePresentUserIds(io, req.params.gameId)
     return res.json({
       gameId: req.params.gameId,
       state: ctrl.getSanitizedState(userId),
+      presentUserIds,
     })
   } catch (e) {
     console.error('[belote-rooms] game state', e)

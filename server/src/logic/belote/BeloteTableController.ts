@@ -9,7 +9,7 @@ import {
 } from './bidding.js'
 import { cardKey, createBeloteDeck, removeCardFromHand, shuffleBeloteDeck } from './deck.js'
 import { DIX_DE_DER, sumTrickPoints, TOTAL_CARD_POINTS } from './scoring.js'
-import { canPlayCard, trickWinnerPosition } from './trickPlay.js'
+import { canPlayCard, firstLegalCard, trickWinnerPosition } from './trickPlay.js'
 import type {
   BeloteAction,
   BeloteCard,
@@ -21,12 +21,19 @@ import type {
 } from './types.js'
 
 const DISCONNECT_MS = 60_000
+export const BELOTE_TURN_TIME_SEC = 30
+const BELOTE_TURN_MS = BELOTE_TURN_TIME_SEC * 1000
 
 export type BeloteTableInit = {
   gameId: string
   roomId: string
   targetScore: number
-  players: Array<{ userId: string; username: string; position: number }>
+  players: Array<{
+    userId: string
+    username: string
+    position: number
+    avatarUrl?: string | null
+  }>
 }
 
 export class BeloteTableController {
@@ -42,6 +49,7 @@ export class BeloteTableController {
       position: p.position,
       team: teamForPosition(p.position),
       hand: [],
+      avatarUrl: p.avatarUrl ?? null,
     }))
     const now = new Date().toISOString()
     this.gameId = init.gameId
@@ -69,6 +77,7 @@ export class BeloteTableController {
       },
       startedAt: now,
       lastActionAt: now,
+      turnTimeLimitSec: BELOTE_TURN_TIME_SEC,
     }
     this.dealCards()
   }
@@ -78,6 +87,9 @@ export class BeloteTableController {
     ctrl.gameId = snapshot.gameId
     ctrl.roomId = snapshot.roomId
     ctrl.state = snapshot
+    if (!ctrl.state.turnTimeLimitSec) {
+      ctrl.state.turnTimeLimitSec = BELOTE_TURN_TIME_SEC
+    }
     ctrl.dealIndex = 0
     return ctrl
   }
@@ -97,6 +109,7 @@ export class BeloteTableController {
           position: p.position,
           team: p.team,
           handCount: p.hand.length,
+          avatarUrl: p.avatarUrl ?? null,
           disconnectedAt: p.disconnectedAt,
           disconnectDeadline: p.disconnectDeadline,
           forfeited: p.forfeited,
@@ -165,6 +178,65 @@ export class BeloteTableController {
     this.state.phase = 'GAME_END'
     this.touch()
     void winningTeam
+  }
+
+  /** Action automatique à l’expiration du timer de tour (PASS ou première carte légale). */
+  applyTurnTimeout(): boolean {
+    if (
+      this.state.phase !== 'BIDDING_ROUND_1' &&
+      this.state.phase !== 'BIDDING_ROUND_2' &&
+      this.state.phase !== 'PLAYING'
+    ) {
+      return false
+    }
+
+    const pos =
+      this.state.phase === 'PLAYING'
+        ? this.state.deal.currentPlayerPosition
+        : this.state.biddingTurnPosition
+    const player = this.state.players.find((p) => p.position === pos)
+    if (!player || player.forfeited) return false
+
+    if (this.state.phase === 'BIDDING_ROUND_1') {
+      const r = this.applyBidding(pos, { type: 'PASS' })
+      return r.ok
+    }
+
+    if (this.state.phase === 'BIDDING_ROUND_2') {
+      const taker = findTaker(this.state)
+      if (taker === pos) {
+        const trump = this.pickDefaultTrump(player.hand)
+        const r = this.applyBidding(pos, { type: 'CHOOSE_TRUMP', trump })
+        return r.ok
+      }
+      const r = this.applyBidding(pos, { type: 'PASS' })
+      return r.ok
+    }
+
+    const trump = this.state.deal.trump
+    if (!trump) return false
+    const card = firstLegalCard(player.hand, trump, this.state.deal.currentTrick)
+    if (!card) return false
+    const r = this.applyPlayCard(pos, card)
+    return r.ok
+  }
+
+  private pickDefaultTrump(hand: BeloteCard[]): BeloteSuit {
+    const counts: Partial<Record<BeloteSuit, number>> = {}
+    for (const c of hand) {
+      counts[c.suit] = (counts[c.suit] ?? 0) + 1
+    }
+    const suits: BeloteSuit[] = ['HEARTS', 'DIAMONDS', 'CLUBS', 'SPADES']
+    let best: BeloteSuit = 'SPADES'
+    let max = -1
+    for (const s of suits) {
+      const n = counts[s] ?? 0
+      if (n > max) {
+        max = n
+        best = s
+      }
+    }
+    return best
   }
 
   private applyBidding(
@@ -406,6 +478,18 @@ export class BeloteTableController {
 
   private touch(): void {
     this.state.lastActionAt = new Date().toISOString()
+    if (
+      this.state.phase === 'BIDDING_ROUND_1' ||
+      this.state.phase === 'BIDDING_ROUND_2' ||
+      this.state.phase === 'PLAYING'
+    ) {
+      this.state.turnDeadlineAt = new Date(Date.now() + BELOTE_TURN_MS).toISOString()
+      if (!this.state.turnTimeLimitSec) {
+        this.state.turnTimeLimitSec = BELOTE_TURN_TIME_SEC
+      }
+    } else {
+      delete this.state.turnDeadlineAt
+    }
   }
 
   winningTeam(): BeloteTeam | null {

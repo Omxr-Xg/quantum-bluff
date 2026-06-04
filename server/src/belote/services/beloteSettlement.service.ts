@@ -9,6 +9,11 @@ import {
 import type { BeloteTableController } from '../../logic/belote/BeloteTableController.js'
 import type { BeloteTeam } from '../../logic/belote/types.js'
 import { activeBeloteGames, persistBeloteSnapshot } from '../../shared/activeBeloteGames.js'
+import { getBeloteGamePresentUserIds } from './belotePresence.service.js'
+import {
+  scheduleBeloteTurnTimer,
+  stopBeloteTimersForGame,
+} from './beloteTurnTimer.service.js'
 import { appendWalletLedgerEntry } from '../../casino/services/walletLedger.service.js'
 import { createCasinoRoundContext } from '../../casino/services/roundContext.service.js'
 import { intChips } from '../../utils/chips.js'
@@ -127,6 +132,7 @@ export async function settleBeloteGame(
   })
 
   activeBeloteGames.delete(gameId)
+  stopBeloteTimersForGame(gameId)
   await prisma.beloteGameSnapshot.deleteMany({ where: { roomId } }).catch(() => {})
 
   if (io) {
@@ -141,10 +147,14 @@ export async function settleBeloteGame(
   }
 }
 
-export function broadcastBeloteGame(io: Server | undefined, gameId: string): void {
+export async function broadcastBeloteGame(
+  io: Server | undefined,
+  gameId: string,
+): Promise<void> {
   if (!io) return
   const table = activeBeloteGames.getSync(gameId)
   if (!table) return
+  const presentUserIds = await getBeloteGamePresentUserIds(io, gameId)
   const sockets = io.sockets.sockets
   for (const [, socket] of sockets) {
     const uid = (socket as { userId?: string }).userId
@@ -153,6 +163,7 @@ export function broadcastBeloteGame(io: Server | undefined, gameId: string): voi
     socket.emit('BELOTE_GAME_UPDATE', {
       gameId,
       state: table.getSanitizedState(uid),
+      presentUserIds,
     })
   }
 }
@@ -169,9 +180,11 @@ export async function syncBeloteAfterAction(
   await persistBeloteSnapshot(table.roomId, table.gameId, state)
 
   if (state.phase === 'GAME_END') {
+    stopBeloteTimersForGame(table.gameId)
     await settleBeloteGame(table, io)
     return
   }
 
-  broadcastBeloteGame(io, table.gameId)
+  await broadcastBeloteGame(io, table.gameId)
+  scheduleBeloteTurnTimer(io, table.gameId, table)
 }
