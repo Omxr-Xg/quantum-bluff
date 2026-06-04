@@ -1,6 +1,4 @@
--- Supabase Database Linter: RLS + deny policies on all public tables (PostgREST / Data API).
--- App data (password, email, etc.) is only accessed via Prisma on the Node server.
--- Safe to re-run after new Prisma migrations (also invoked from docker-entrypoint.sh).
+-- Deny-all RLS policies for Supabase Data API roles (fixes sensitive columns on public."User", etc.)
 
 DO $$
 DECLARE
@@ -28,11 +26,3 @@ BEGIN
     );
   END LOOP;
 END $$;
-
-REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated, PUBLIC;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  REVOKE ALL ON TABLES FROM anon, authenticated, PUBLIC;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  REVOKE ALL ON SEQUENCES FROM anon, authenticated, PUBLIC;

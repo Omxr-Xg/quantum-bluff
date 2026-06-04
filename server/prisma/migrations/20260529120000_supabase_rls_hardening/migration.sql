@@ -16,6 +16,14 @@ BEGIN
       'REVOKE ALL ON TABLE public.%I FROM anon, authenticated, PUBLIC',
       r.tablename
     );
+    EXECUTE format(
+      'DROP POLICY IF EXISTS qb_deny_api_access ON public.%I',
+      r.tablename
+    );
+    EXECUTE format(
+      'CREATE POLICY qb_deny_api_access ON public.%I FOR ALL TO anon, authenticated USING (false) WITH CHECK (false)',
+      r.tablename
+    );
   END LOOP;
 END $$;
 
