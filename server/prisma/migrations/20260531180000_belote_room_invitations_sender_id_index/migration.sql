@@ -1,3 +1,3 @@
--- Supabase Advisors: covering index for belote_room_invitations_senderId_fkey
+-- No-op : voir 20260605150000_belote_fk_indexes.
 
-CREATE INDEX "belote_room_invitations_senderId_idx" ON "belote_room_invitations"("senderId");
+SELECT 1;

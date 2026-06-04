@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react'
-import outgoingCallRingtone from '../../../music/neo_panda_25-girl-child-calling-mom-385605.mp3'
+
+/** Son public (Vite) — évite les échecs de résolution d’import sur Vercel. */
+function outgoingCallRingtoneUrl(): string {
+  const base = import.meta.env.BASE_URL ?? '/'
+  const root = base.endsWith('/') ? base : `${base}/`
+  return `${root}music/neo_panda_25-girl-child-calling-mom-385605.mp3`
+}
 
 /** Sonnerie en boucle pour l'appelant tant que l'appel est en composition (dialing). */
 export function useOutgoingCallRingtone(active: boolean): void {
@@ -16,7 +22,7 @@ export function useOutgoingCallRingtone(active: boolean): void {
       return
     }
 
-    const audio = new Audio(outgoingCallRingtone)
+    const audio = new Audio(outgoingCallRingtoneUrl())
     audio.loop = true
     audio.volume = 0.9
     audioRef.current = audio

@@ -1,3 +1,3 @@
--- Supabase Advisors: covering index for belote_room_seats_userId_fkey
+-- No-op : voir 20260605150000_belote_fk_indexes.
 
-CREATE INDEX "belote_room_seats_userId_idx" ON "belote_room_seats"("userId");
+SELECT 1;

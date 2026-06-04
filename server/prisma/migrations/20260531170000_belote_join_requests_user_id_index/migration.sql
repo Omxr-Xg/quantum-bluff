@@ -1,3 +1,4 @@
--- Supabase Advisors: covering index for belote_join_requests_userId_fkey
+-- No-op : les tables belote n'existent pas encore (créées dans 20260603120000_belote_v1).
+-- Index ajouté dans 20260605150000_belote_fk_indexes.
 
-CREATE INDEX "belote_join_requests_userId_idx" ON "belote_join_requests"("userId");
+SELECT 1;
