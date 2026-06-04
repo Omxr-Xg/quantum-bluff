@@ -12,6 +12,7 @@ import {
   endCall,
   getCall,
   scheduleCallRingTimeout,
+  VOICE_CALL_RING_TIMEOUT_MS,
 } from '../voice/voiceCall.service.js'
 import {
   buildCallChannelId,
@@ -398,7 +399,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
           })
         }
 
-        scheduleCallRingTimeout(call.callId, 30_000, () => {
+        scheduleCallRingTimeout(call.callId, VOICE_CALL_RING_TIMEOUT_MS, () => {
           const pending = getCall(call.callId)
           if (!pending || pending.status !== 'ringing') return
           io.to(`user:${pending.creatorId}`).emit('VOICE_CALL_UNANSWERED', {

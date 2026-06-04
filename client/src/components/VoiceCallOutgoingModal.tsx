@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { GripVertical, Loader2, Phone, PhoneOff, UserX } from 'lucide-react'
 import { useVoice } from '../contexts/VoiceContext'
+import { useOutgoingCallRingtone } from '../features/voice/useOutgoingCallRingtone'
 import { useUser } from '../hooks/useUser'
 import type { VoiceUnansweredReason } from '../features/voice/voiceTypes'
 import { getPlayerAvatar } from '../utils/avatars'
@@ -47,6 +48,9 @@ export function VoiceCallOutgoingModal() {
   const { t } = useTranslation()
   const { userId } = useUser()
   const { outgoingCall, hangUpCall } = useVoice()
+  const isDialingCaller =
+    outgoingCall?.status === 'dialing' && outgoingCall.isCallee !== true
+  useOutgoingCallRingtone(Boolean(isDialingCaller))
   const panelRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState(defaultPosition)
   const posRef = useRef(pos)

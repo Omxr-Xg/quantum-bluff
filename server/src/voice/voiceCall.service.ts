@@ -12,6 +12,9 @@ export type ActiveVoiceCall = {
   createdAt: number
 }
 
+/** Délai avant « non disponible » si personne ne décroche (appelant). */
+export const VOICE_CALL_RING_TIMEOUT_MS = 15_000
+
 const calls = new Map<string, ActiveVoiceCall>()
 
 export function getCall(callId: string): ActiveVoiceCall | undefined {
