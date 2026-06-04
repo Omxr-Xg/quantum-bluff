@@ -18,6 +18,7 @@ import {
   type BeloteGameVariant,
   variantLabelKey,
 } from "../features/belote/beloteVariants";
+import { useIsInVoiceCall } from "../features/voice/useIsInVoiceCall";
 
 type BeloteVisibility = "PUBLIC" | "PRIVATE";
 
@@ -85,6 +86,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   const [searchParams] = useSearchParams();
   const { userId } = useUser();
   const { addToast } = useToast();
+  const inVoiceCall = useIsInVoiceCall();
 
   const [rooms, setRooms] = useState<BeloteRoomListItem[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
@@ -133,7 +135,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   }, [loadWaitingRooms, loadGamesInProgress]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || inVoiceCall) return;
     let cancelled = false;
     (async () => {
       setRoomsLoading(true);
@@ -149,7 +151,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
       cancelled = true;
       window.clearInterval(iv);
     };
-  }, [active, refresh]);
+  }, [active, refresh, inVoiceCall]);
 
   useEffect(() => {
     const roomId = searchParams.get("beloteRoom");

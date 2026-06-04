@@ -44,6 +44,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
 import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { apiUrl } from "../utils/apiBase";
+import { useIsInVoiceCall } from "../features/voice/useIsInVoiceCall";
 import {
   getUserBalance,
   BALANCE_CHANGED_EVENT,
@@ -150,6 +151,7 @@ export function Lobby() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { userId, username } = useUser();
+  const inVoiceCall = useIsInVoiceCall();
   const authHeaders = useCallback(() => {
     const token = getAuthItem('token');
     return {
@@ -444,10 +446,11 @@ export function Lobby() {
   }, [userId]);
 
   useEffect(() => {
+    if (inVoiceCall) return;
     fetchGamesInProgress();
     const iv = setInterval(fetchGamesInProgress, 5000);
     return () => clearInterval(iv);
-  }, [fetchGamesInProgress]);
+  }, [fetchGamesInProgress, inVoiceCall]);
 
   // Auto-navigate when a join request is accepted
   useEffect(() => {
@@ -479,10 +482,11 @@ export function Lobby() {
   }, [t, userId]);
 
   useEffect(() => {
+    if (inVoiceCall) return;
     fetchRooms();
     const interval = setInterval(fetchRooms, 5000);
     return () => clearInterval(interval);
-  }, [fetchRooms]);
+  }, [fetchRooms, inVoiceCall]);
 
   useEffect(() => {
     const onRefetchWaitingRooms = () => {
