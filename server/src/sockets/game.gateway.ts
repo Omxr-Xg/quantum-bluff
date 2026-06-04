@@ -32,6 +32,7 @@ import {
   withPokerTableLock,
 } from "../poker/services/pokerTableLock.service.js";
 import { rootLogger } from "../observability/logger.js";
+import { registerBeloteGatewayHandlers } from "./belote.gateway.handlers.js";
 import { metrics as promMetrics } from "../observability/metrics.js";
 import {
   incrementMultiplayerPlayCount,
@@ -867,6 +868,8 @@ export class GameGateway {
         );
       });
       // 👆 FIN DU NOUVEAU BLOC 👆
+
+      registerBeloteGatewayHandlers(this.io, socket);
 
       socket.on("SPECTATOR_QUEUE_JOIN", async (data: { gameId: string }) => {
         try {

@@ -35,6 +35,7 @@ export function useWaitingRoomInvitationAccept() {
     async (inv: GameInvitationNotification, options?: { confirmBlockedWarning?: boolean }) => {
       const token = getAuthItem("token");
       const isBj = inv.game === "blackjack";
+      const isBelote = inv.game === "belote";
       const sp = new URLSearchParams(window.location.search);
       const gameId = sp.get("gameId");
       const isSpectate = sp.get("spectate") === "1";
@@ -48,7 +49,9 @@ export function useWaitingRoomInvitationAccept() {
       const url = apiUrl(
         isBj
           ? `/api/blackjack-tables/invitations/${inv.invitationId}/accept`
-          : `/api/friends/${inv.invitationId}/accept`,
+          : isBelote
+            ? `/api/belote-rooms/invitations/${inv.invitationId}/accept`
+            : `/api/friends/${inv.invitationId}/accept`,
       );
       const res = await fetch(url, {
         method: "POST",
@@ -64,6 +67,8 @@ export function useWaitingRoomInvitationAccept() {
         dismissInvitation(inv.invitationId);
         if (isBj) {
           navigate(`/lobby?tab=blackjack&bjRoom=${inv.roomId}`);
+        } else if (isBelote) {
+          navigate(`/belote/waiting-room?roomId=${inv.roomId}`);
         } else {
           navigate(`/waiting-room?roomId=${inv.roomId}`);
         }

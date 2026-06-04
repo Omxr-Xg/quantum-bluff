@@ -85,6 +85,8 @@ export const XP_ROULETTE_SPIN = 4
 export const XP_ROULETTE_WIN_BONUS = 10
 export const XP_BLACKJACK_HAND = 5
 export const XP_BLACKJACK_WIN_BONUS = 10
+export const XP_BELOTE_PLAY = 15
+export const XP_BELOTE_WIN = 25
 
 type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
 

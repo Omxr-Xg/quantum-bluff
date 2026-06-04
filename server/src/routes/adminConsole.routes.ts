@@ -9,6 +9,9 @@ import { CashGameController } from '../logic/CashGameController.js'
 import { GameTable } from '../logic/GameTable.js'
 import { activeGames } from '../shared/activeGames.js'
 import { activeBlackjackGames } from '../shared/activeBlackjackGames.js'
+import { activeBeloteGames } from '../shared/activeBeloteGames.js'
+import { forceCloseBeloteGame } from '../sockets/belote.gateway.handlers.js'
+import { getGameIo } from '../sockets/gameIo.registry.js'
 import type { ActiveGame } from '../shared/activeGames.js'
 import * as giftCodesService from '../giftCodes/giftCodes.service.js'
 const router = Router()
@@ -470,6 +473,46 @@ router.delete('/games/blackjack-rooms/:roomId', async (req, res) => {
   } catch (e) {
     return res.status(500).json({
       error: e instanceof Error ? e.message : 'Suppression impossible',
+    })
+  }
+})
+
+router.get('/games/belote-rooms', async (req, res) => {
+  const parsed = listQuery.safeParse(req.query)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Pagination invalide' })
+  }
+  const { take, skip } = parsed.data
+  const [rows, total] = await Promise.all([
+    prisma.beloteRoom.findMany({
+      take,
+      skip,
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        host: { select: { id: true, username: true } },
+        seats: { include: { user: { select: { id: true, username: true } } } },
+      },
+    }),
+    prisma.beloteRoom.count(),
+  ])
+  const items = rows.map((room) => {
+    const gid = room.gameId?.trim() ?? ''
+    const runtimeAlive = gid.length > 0 ? Boolean(activeBeloteGames.getSync(gid)) : false
+    return { ...room, runtimeAlive }
+  })
+  return res.json({ items, total, take, skip })
+})
+
+router.post('/belote/force-close/:gameId', async (req, res) => {
+  const gameId = req.params.gameId
+  if (!gameId) return res.status(400).json({ error: 'gameId requis' })
+  try {
+    const ok = await forceCloseBeloteGame(gameId, getGameIo())
+    if (!ok) return res.status(404).json({ error: 'Partie introuvable' })
+    return res.json({ ok: true })
+  } catch (e) {
+    return res.status(500).json({
+      error: e instanceof Error ? e.message : 'Fermeture impossible',
     })
   }
 })

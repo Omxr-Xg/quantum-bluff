@@ -25,6 +25,8 @@ type WalletLedgerReason =
   | 'CASH_POKER_REBUY'
   | 'CASH_POKER_CASHOUT'
   | 'CASH_POKER_HAND_RESULT'
+  | 'BELOTE_WIN'
+  | 'BELOTE_PLAY'
 
 export type WalletLedgerInput = {
   context: CasinoRoundContext

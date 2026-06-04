@@ -212,6 +212,43 @@ router.get('/', async (req, res) => {
           myRank = Number(cnt[0].c) + 1
         }
       }
+    } else if (category === 'belote_wins') {
+      const rows = await prisma.$queryRaw<{ username: string; value: number; level: number }[]>(
+        Prisma.sql`
+        SELECT u.username,
+               COALESCE(b.wins, 0)::int AS value,
+               u.level
+        FROM "User" u
+        LEFT JOIN belote_player_stats b ON b."userId" = u.id
+        ORDER BY value DESC, u.username ASC
+        LIMIT ${limit} OFFSET ${offset}
+      `
+      )
+      items = rows.map((r, i) => ({
+        username: r.username,
+        rank: rankBase + i,
+        value: r.value,
+        level: r.level,
+      }))
+      if (userId) {
+        const u = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { username: true, belotePlayerStats: { select: { wins: true } } },
+        })
+        if (u) {
+          const myWins = u.belotePlayerStats?.wins ?? 0
+          const cnt = await prisma.$queryRaw<[{ c: bigint }]>(
+            Prisma.sql`
+            SELECT COUNT(*)::bigint AS c
+            FROM "User" ux
+            LEFT JOIN belote_player_stats bx ON bx."userId" = ux.id
+            WHERE COALESCE(bx.wins, 0) > ${myWins}
+               OR (COALESCE(bx.wins, 0) = ${myWins} AND ux.username < ${u.username})
+          `
+          )
+          myRank = Number(cnt[0].c) + 1
+        }
+      }
     } else if (category === 'blackjack_biggest') {
       const rows = await prisma.$queryRaw<{ username: string; value: number; level: number }[]>(
         Prisma.sql`
@@ -257,6 +294,7 @@ router.get('/', async (req, res) => {
           'general',
           'chips',
           'poker_wins',
+          'belote_wins',
           'slot_biggest',
           'roulette_biggest',
           'blackjack_biggest',

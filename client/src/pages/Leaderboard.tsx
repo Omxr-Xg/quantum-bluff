@@ -22,6 +22,7 @@ type LeaderboardCategory =
   | "xp"
   | "chips"
   | "poker_wins"
+  | "belote_wins"
   | "slot_biggest"
   | "roulette_biggest"
   | "blackjack_biggest";
@@ -58,7 +59,7 @@ export function Leaderboard() {
   const { username: meName } = useUser();
 
   const [mainTab, setMainTab] = useState<MainTab>("general");
-  const [pokerMetric, setPokerMetric] = useState<"poker_wins" | "chips">("poker_wins");
+  const [pokerMetric, setPokerMetric] = useState<"poker_wins" | "belote_wins" | "chips">("poker_wins");
   const [casinoMetric, setCasinoMetric] = useState<
     "chips" | "slot_biggest" | "roulette_biggest" | "blackjack_biggest"
   >("chips");
@@ -126,6 +127,8 @@ export function Leaderboard() {
         return t("leaderboard.colChips");
       case "poker_wins":
         return t("leaderboard.colPokerWins");
+      case "belote_wins":
+        return t("leaderboard.colBeloteWins");
       case "slot_biggest":
         return t("leaderboard.colSlotBiggest");
       case "roulette_biggest":
@@ -346,6 +349,15 @@ export function Leaderboard() {
                 }`}
               >
                 {t("leaderboard.metricPokerWins")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPokerMetric("belote_wins")}
+                className={`rounded-xl px-4 py-2 text-xs font-semibold transition sm:text-sm ${
+                  pokerMetric === "belote_wins" ? metricActiveClass : metricIdleClass
+                }`}
+              >
+                {t("leaderboard.metricBeloteWins")}
               </button>
               <button
                 type="button"

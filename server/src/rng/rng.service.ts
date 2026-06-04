@@ -2,7 +2,7 @@ import { randomInt as cryptoRandomInt } from 'node:crypto'
 
 export const RNG_VERSION = 'rng-v1'
 
-export type RngGameType = 'roulette' | 'slot' | 'blackjack' | 'poker'
+export type RngGameType = 'roulette' | 'slot' | 'blackjack' | 'poker' | 'belote'
 
 export interface RngDrawMeta {
   roundId: string

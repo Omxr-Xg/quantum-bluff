@@ -50,6 +50,7 @@ import {
   updateUserBalance,
 } from "../utils/userProfile";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
+import { LobbyBeloteSection } from "../components/LobbyBeloteSection";
 import { DailyChallenges } from "../components/DailyChallenges";
 import { getAuthItem } from "../utils/authStorage";
 import { FreeRechargeButton } from '../components/FreeRechargeButton';
@@ -205,7 +206,6 @@ export function Lobby() {
     "loading"
   );
   const [lobbyMainTab, setLobbyMainTabState] = useState<LobbyMainTab>(readLobbyTabFromUrl);
-  const isBeloteTab = lobbyMainTab === "belote";
   const { addToast } = useToast();
   const [balance, setBalance] = useState<number>(getUserBalance());
   const [rechargeKey, setRechargeKey] = useState(0);
@@ -226,8 +226,8 @@ export function Lobby() {
   }, []);
 
   // Performance: memoize rooms for map operations
-  const roomsMemo = useMemo(() => (isBeloteTab ? [] : rooms), [isBeloteTab, rooms]);
-  const gamesMemo = useMemo(() => (isBeloteTab ? [] : gamesInProgress), [isBeloteTab, gamesInProgress]);
+  const roomsMemo = useMemo(() => (lobbyMainTab === "belote" ? [] : rooms), [lobbyMainTab, rooms]);
+  const gamesMemo = useMemo(() => (lobbyMainTab === "belote" ? [] : gamesInProgress), [lobbyMainTab, gamesInProgress]);
   const openTournamentsMemo = useMemo(() => openTournaments, [openTournaments]);
   const liveTournamentsMemo = useMemo(() => liveTournaments, [liveTournaments]);
 
@@ -706,18 +706,10 @@ export function Lobby() {
   ]);
 
   const handlePlayBot = () => {
-    if (isBeloteTab) {
-      addToast(t("lobby.beloteComingSoon"), "info");
-      return;
-    }
     navigate("/bot-configuration");
   };
 
   const openCreateModal = () => {
-    if (isBeloteTab) {
-      addToast(t("lobby.beloteComingSoon"), "info");
-      return;
-    }
     setShowCreateModal(true);
     setCreateVisibility('PUBLIC');
     setCreateMaxPlayers(5);
@@ -817,10 +809,6 @@ export function Lobby() {
   };
 
   const handleJoinRoom = (roomId: string, room?: WaitingRoomItem) => {
-    if (isBeloteTab) {
-      addToast(t("lobby.beloteComingSoon"), "info");
-      return;
-    }
     if (room?.minBalance && room.minBalance > 0 && balance < room.minBalance) {
       addToast(`Jetons insuffisants — il faut au moins ${room.minBalance} jetons pour cette salle.`, 'error');
       return;
@@ -829,37 +817,20 @@ export function Lobby() {
   };
 
   const handleJoinGame = (game: GameInProgressItem) => {
-    if (isBeloteTab) {
-      addToast(t("lobby.beloteComingSoon"), "info");
-      return;
-    }
     openBlockedRoomWarning(game.blockedPlayers, () => navigate(`/game?gameId=${game.gameId}`));
   };
 
   const handleSpectateGame = (game: GameInProgressItem) => {
-    if (isBeloteTab) {
-      addToast(t("lobby.beloteComingSoon"), "info");
-      return;
-    }
     openBlockedRoomWarning(game.blockedPlayers, () => navigate(`/game?gameId=${game.gameId}&spectate=1`));
   };
 
-  const cardGameAccent = isBeloteTab
-    ? {
-        botIcon: "text-emerald-200",
-        serverIcon: "text-emerald-200",
-        primaryBtn:
-          "border-emerald-300/15 bg-emerald-950/75 hover:border-emerald-200/25 hover:bg-emerald-900/80",
-        joinBtn: "bg-emerald-900 hover:bg-emerald-800",
-        minBalance: "text-emerald-200/95",
-      }
-    : {
-        botIcon: "text-blue-200",
-        serverIcon: "text-cyan-200",
-        primaryBtn: "border-blue-300/15 bg-blue-950/75 hover:border-blue-200/25 hover:bg-blue-900/80",
-        joinBtn: "bg-blue-900 hover:bg-blue-800",
-        minBalance: "text-blue-200/95",
-      };
+  const cardGameAccent = {
+    botIcon: "text-blue-200",
+    serverIcon: "text-cyan-200",
+    primaryBtn: "border-blue-300/15 bg-blue-950/75 hover:border-blue-200/25 hover:bg-blue-900/80",
+    joinBtn: "bg-blue-900 hover:bg-blue-800",
+    minBalance: "text-blue-200/95",
+  };
 
   return (
     <div
@@ -1725,7 +1696,7 @@ export function Lobby() {
               </button>
             </nav>
 
-          {(lobbyMainTab === "poker" || lobbyMainTab === "belote") && (
+          {lobbyMainTab === "poker" && (
             <div className="space-y-6 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">
               {/* Section Jouer contre Bot */}
               <div ref={lobbyMainTab === "poker" ? tourRefBot : undefined} className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:shrink-0">
@@ -2023,6 +1994,12 @@ export function Lobby() {
               )}
 
               </div>{/* /grid serveur (+ tournois si poker) */}
+            </div>
+          )}
+
+          {lobbyMainTab === "belote" && (
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <LobbyBeloteSection active />
             </div>
           )}
 

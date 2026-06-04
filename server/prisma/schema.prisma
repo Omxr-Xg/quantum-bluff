@@ -15,8 +15,10 @@ generator client {
 // }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Migrations / introspection : connexion directe ou session pooler (Supabase). Runtime : DATABASE_URL (pooler 6543).
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -105,6 +107,14 @@ model User {
   blackjackRoomSeats           BlackjackRoomSeat[]
   sentBlackjackInvitations     BlackjackRoomInvitation[] @relation("BjRoomInviteSender")
   receivedBlackjackInvitations BlackjackRoomInvitation[] @relation("BjRoomInviteReceiver")
+
+  beloteHostedRooms         BeloteRoom[]           @relation("BeloteRoomHost")
+  beloteRoomSeats           BeloteRoomSeat[]
+  beloteJoinRequests        BeloteJoinRequest[]
+  sentBeloteInvitations     BeloteRoomInvitation[] @relation("BeloteInviteSender")
+  receivedBeloteInvitations BeloteRoomInvitation[] @relation("BeloteInviteReceiver")
+  belotePlayerStats         BelotePlayerStats?
+  beloteGameResults         BeloteGameResultPlayer[]
 
   gameRatings GameRating[]
 
@@ -635,6 +645,154 @@ model BlackjackRoomInvitation {
   @@unique([blackjackRoomId, receiverId])
   @@index([receiverId, status])
   @@map("blackjack_room_invitations")
+}
+
+enum BeloteRoomStatus {
+  WAITING
+  STARTING
+  IN_GAME
+}
+
+model BeloteRoom {
+  id           String           @id @default(uuid())
+  name         String
+  hostId       String
+  maxPlayers   Int              @default(4)
+  visibility   RoomVisibility   @default(PUBLIC)
+  status       BeloteRoomStatus @default(WAITING)
+  joinCode     String?
+  passwordHash String?
+  targetScore  Int              @default(1000)
+  gameId       String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  host         User                  @relation("BeloteRoomHost", fields: [hostId], references: [id])
+  seats        BeloteRoomSeat[]
+  invitations  BeloteRoomInvitation[]
+  joinRequests BeloteJoinRequest[]
+  snapshot     BeloteGameSnapshot?
+
+  @@index([hostId])
+  @@index([status])
+  @@index([visibility, status])
+  @@index([joinCode])
+  @@map("belote_rooms")
+}
+
+model BeloteRoomSeat {
+  id        String   @id @default(uuid())
+  roomId    String
+  userId    String
+  position  Int
+  isReady   Boolean  @default(false)
+  team      String?
+  avatarUrl String?
+  joinedAt  DateTime @default(now())
+
+  room BeloteRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@unique([roomId, position])
+  @@map("belote_room_seats")
+}
+
+model BeloteJoinRequest {
+  id        String        @id @default(uuid())
+  roomId    String
+  userId    String
+  status    RequestStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  room BeloteRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([roomId, status])
+  @@map("belote_join_requests")
+}
+
+model BeloteRoomInvitation {
+  id         String           @id @default(uuid())
+  roomId     String
+  senderId   String
+  receiverId String
+  status     InvitationStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  room     BeloteRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender   User       @relation("BeloteInviteSender", fields: [senderId], references: [id])
+  receiver User       @relation("BeloteInviteReceiver", fields: [receiverId], references: [id])
+
+  @@unique([roomId, receiverId])
+  @@index([receiverId, status])
+  @@map("belote_room_invitations")
+}
+
+model BeloteGameSnapshot {
+  id        String   @id @default(uuid())
+  roomId    String   @unique
+  gameId    String
+  snapshot  Json
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  room BeloteRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+  @@map("belote_game_snapshots")
+}
+
+model BeloteGameResult {
+  id           String   @id @default(uuid())
+  gameId       String   @unique
+  roomId       String?
+  teamAScore   Int
+  teamBScore   Int
+  winningTeam  String
+  targetScore  Int
+  startedAt    DateTime
+  endedAt      DateTime @default(now())
+  summary      Json?
+
+  players BeloteGameResultPlayer[]
+
+  @@index([endedAt])
+  @@map("belote_game_results")
+}
+
+model BeloteGameResultPlayer {
+  id       String @id @default(uuid())
+  resultId String
+  userId   String
+  username String
+  team     String
+  won      Boolean
+
+  result BeloteGameResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([resultId, userId])
+  @@index([userId])
+  @@map("belote_game_result_players")
+}
+
+model BelotePlayerStats {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  gamesPlayed Int      @default(0)
+  wins        Int      @default(0)
+  losses      Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([wins])
+  @@map("belote_player_stats")
 }
 
 model CasinoStats {

@@ -15,7 +15,7 @@ export interface GameInvitationNotification {
   roomId: string
   roomName: string
   sender: { id: string; username: string }
-  game?: 'poker' | 'blackjack'
+  game?: 'poker' | 'blackjack' | 'belote'
 }
 
 interface SocketContextType {

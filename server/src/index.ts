@@ -34,6 +34,8 @@ import slotRoutes from './routes/slot.routes.js'
 import rouletteRoutes from './routes/roulette.routes.js'
 import blackjackRoutes from './routes/blackjack.routes.js'
 import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
+import beloteRoomRoutes from './routes/beloteRoom.routes.js'
+import beloteHistoryRoutes from './routes/beloteHistory.routes.js'
 import leaderboardRoutes from './routes/leaderboard.routes.js'
 import adminBlackjackRuntimeRoutes from './routes/admin.blackjack.runtime.routes.js'
 import dailyChallengesRoutes from './dailyChallenges/dailyChallenge.routes.js'
@@ -247,6 +249,8 @@ app.use('/api/reports', playerReportRoutes)
 /** Console admin web (JWT role admin, identifiants ADMIN_CONSOLE_*). */
 app.use('/api/admin/console', adminConsoleRoutes)
 app.use('/api/blackjack-tables', blackjackMultiApiLimiter, blackjackMultiRoutes)
+app.use('/api/belote-rooms', beloteRoomRoutes)
+app.use('/api/belote/history', beloteHistoryRoutes)
 app.use('/api/leaderboard', leaderboardRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/daily-challenges', dailyChallengesRoutes)
