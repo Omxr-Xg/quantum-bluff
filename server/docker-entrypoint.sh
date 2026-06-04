@@ -10,5 +10,10 @@ fi
 echo "🗄️ Exécution des migrations Prisma..."
 npx prisma migrate deploy
 
+if [ -f prisma/scripts/supabase-rls-hardening.sql ]; then
+  echo "🔒 Durcissement RLS Supabase (tables public)..."
+  npx prisma db execute --file prisma/scripts/supabase-rls-hardening.sql --schema prisma/schema.prisma
+fi
+
 echo "🚀 Démarrage du serveur..."
 exec "$@"
