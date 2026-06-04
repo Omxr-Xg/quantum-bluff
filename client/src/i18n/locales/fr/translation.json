@@ -799,6 +799,26 @@
     "createRoom": "Créer une salle",
     "roomName": "Nom de la salle",
     "targetScore": "Score cible",
+    "gameVariant": "Mode de jeu",
+    "variant": {
+      "CLASSIQUE": "Classique",
+      "COINCHE": "Coinchée",
+      "CONTEE": "Contrée",
+      "MODERNE": "Moderne"
+    },
+    "variantDesc": {
+      "CLASSIQUE": "Carte retournée : prendre ou passer pour fixer l’atout (idéal débutants).",
+      "COINCHE": "Enchères 80–160, capot, tout atout et sans atout, avec coinche.",
+      "CONTEE": "Enchères contrée : couleur d’atout uniquement (pas de tout/sans atout).",
+      "MODERNE": "Enchères avec atout classique, tout atout et sans atout."
+    },
+    "phaseClassiqueTake": "Prise — carte retournée",
+    "phaseClassiqueChoose": "Choix de l’atout",
+    "take": "Prendre",
+    "turnedCard": "Carte retournée",
+    "chooseTrumpSuit": "Choisir une couleur d’atout",
+    "allTrump": "Tout atout",
+    "noTrump": "Sans atout",
     "buyInLabel": "Mise d'entrée (jetons)",
     "buyInCustom": "Autre montant",
     "buyInCustomPlaceholder": "Ex. 2500",

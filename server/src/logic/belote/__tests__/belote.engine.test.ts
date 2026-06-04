@@ -3,6 +3,7 @@ import { applyContreeBidAction, contractMultiplier, getHighestBid } from '../con
 import { computeDealScore } from '../conteeScoring.js'
 import { canPlayCard, trickWinnerPosition } from '../trickPlay.js'
 import { trickCardStrength } from '../scoring.js'
+import type { TrumpContext } from '../trumpContext.js'
 import { cardPoints, sumTrickPoints } from '../scoring.js'
 import type { BeloteCard, BeloteGameState } from '../types.js'
 
@@ -12,6 +13,7 @@ function makeTable() {
     roomId: 'test-room',
     targetScore: 500,
     buyIn: 100,
+    variant: 'CONTEE' as const,
     players: [
       { userId: 'u0', username: 'P0', position: 0 },
       { userId: 'u1', username: 'P1', position: 1 },
@@ -31,6 +33,10 @@ describe('belote scoring', () => {
   })
 })
 
+function suitCtx(suit: BeloteCard['suit']): TrumpContext {
+  return { mode: 'SUIT', suit }
+}
+
 describe('belote trick legality', () => {
   it('must follow suit when possible', () => {
     const hand: BeloteCard[] = [
@@ -38,8 +44,8 @@ describe('belote trick legality', () => {
       { suit: 'CLUBS', rank: 'A' },
     ]
     const trick = [{ position: 0, card: { suit: 'HEARTS' as const, rank: 'K' as const } }]
-    expect(canPlayCard(hand, { suit: 'CLUBS', rank: 'A' }, 'DIAMONDS', trick, 1)).toBe(false)
-    expect(canPlayCard(hand, { suit: 'HEARTS', rank: '7' }, 'DIAMONDS', trick, 1)).toBe(true)
+    expect(canPlayCard(hand, { suit: 'CLUBS', rank: 'A' }, suitCtx('DIAMONDS'), trick, 1)).toBe(false)
+    expect(canPlayCard(hand, { suit: 'HEARTS', rank: '7' }, suitCtx('DIAMONDS'), trick, 1)).toBe(true)
   })
 
   it('may play a weaker led card when a stronger one also beats', () => {
@@ -48,8 +54,8 @@ describe('belote trick legality', () => {
       { suit: 'HEARTS', rank: 'A' },
     ]
     const trick = [{ position: 0, card: { suit: 'HEARTS' as const, rank: 'K' as const } }]
-    expect(canPlayCard(hand, { suit: 'HEARTS', rank: 'A' }, 'SPADES', trick, 1)).toBe(true)
-    expect(canPlayCard(hand, { suit: 'HEARTS', rank: '10' }, 'SPADES', trick, 1)).toBe(true)
+    expect(canPlayCard(hand, { suit: 'HEARTS', rank: 'A' }, suitCtx('SPADES'), trick, 1)).toBe(true)
+    expect(canPlayCard(hand, { suit: 'HEARTS', rank: '10' }, suitCtx('SPADES'), trick, 1)).toBe(true)
   })
 
   it('must beat with a led card when possible, not only the strongest in hand', () => {
@@ -58,8 +64,8 @@ describe('belote trick legality', () => {
       { suit: 'HEARTS', rank: 'A' },
     ]
     const trick = [{ position: 0, card: { suit: 'HEARTS' as const, rank: 'K' as const } }]
-    expect(canPlayCard(hand, { suit: 'HEARTS', rank: '8' }, 'SPADES', trick, 1)).toBe(false)
-    expect(canPlayCard(hand, { suit: 'HEARTS', rank: 'A' }, 'SPADES', trick, 1)).toBe(true)
+    expect(canPlayCard(hand, { suit: 'HEARTS', rank: '8' }, suitCtx('SPADES'), trick, 1)).toBe(false)
+    expect(canPlayCard(hand, { suit: 'HEARTS', rank: 'A' }, suitCtx('SPADES'), trick, 1)).toBe(true)
   })
 
   it('may discard any card when partner is winning the trick', () => {
@@ -67,13 +73,13 @@ describe('belote trick legality', () => {
       { suit: 'CLUBS', rank: '7' },
       { suit: 'DIAMONDS', rank: 'A' },
     ]
-    const trump = 'SPADES' as const
+    const ctx = suitCtx('SPADES')
     const trick = [
       { position: 0, card: { suit: 'HEARTS' as const, rank: 'A' as const } },
       { position: 2, card: { suit: 'HEARTS' as const, rank: '8' as const } },
     ]
-    expect(canPlayCard(hand, { suit: 'CLUBS', rank: '7' }, trump, trick, 2)).toBe(true)
-    expect(canPlayCard(hand, { suit: 'DIAMONDS', rank: 'A' }, trump, trick, 2)).toBe(true)
+    expect(canPlayCard(hand, { suit: 'CLUBS', rank: '7' }, ctx, trick, 2)).toBe(true)
+    expect(canPlayCard(hand, { suit: 'DIAMONDS', rank: 'A' }, ctx, trick, 2)).toBe(true)
   })
 })
 
@@ -168,13 +174,14 @@ describe('contree scoring', () => {
 describe('card strength (belote order)', () => {
   const trump = 'DIAMONDS' as const
   const led = 'HEARTS' as const
+  const ctx = suitCtx(trump)
 
   it('Ace beats King in led side suit', () => {
     const trick = [
       { position: 0, card: { suit: led, rank: 'K' as const } },
       { position: 1, card: { suit: led, rank: 'A' as const } },
     ]
-    expect(trickWinnerPosition(trick, trump)).toBe(1)
+    expect(trickWinnerPosition(trick, ctx)).toBe(1)
     expect(trickCardStrength({ suit: led, rank: 'A' }, trump, led)).toBeGreaterThan(
       trickCardStrength({ suit: led, rank: 'K' }, trump, led),
     )
@@ -185,7 +192,7 @@ describe('card strength (belote order)', () => {
       { position: 0, card: { suit: led, rank: '10' as const } },
       { position: 1, card: { suit: led, rank: 'A' as const } },
     ]
-    expect(trickWinnerPosition(trick, trump)).toBe(1)
+    expect(trickWinnerPosition(trick, ctx)).toBe(1)
   })
 
   it('trump Jack beats Ace of led suit', () => {
@@ -193,7 +200,7 @@ describe('card strength (belote order)', () => {
       { position: 0, card: { suit: led, rank: 'A' as const } },
       { position: 1, card: { suit: trump, rank: 'J' as const } },
     ]
-    expect(trickWinnerPosition(trick, trump)).toBe(1)
+    expect(trickWinnerPosition(trick, ctx)).toBe(1)
   })
 
   it('when trump is led, Jack beats Ace of trump', () => {
@@ -201,7 +208,7 @@ describe('card strength (belote order)', () => {
       { position: 0, card: { suit: trump, rank: 'A' as const } },
       { position: 1, card: { suit: trump, rank: 'J' as const } },
     ]
-    expect(trickWinnerPosition(trick, trump)).toBe(1)
+    expect(trickWinnerPosition(trick, ctx)).toBe(1)
     expect(trickCardStrength({ suit: trump, rank: 'J' }, trump, trump)).toBeGreaterThan(
       trickCardStrength({ suit: trump, rank: 'A' }, trump, trump),
     )

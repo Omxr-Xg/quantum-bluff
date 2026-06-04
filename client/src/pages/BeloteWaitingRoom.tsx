@@ -12,6 +12,7 @@ import { BlackjackLobbyBackdrop } from "../components/blackjack/BlackjackLobbyBa
 import { NeonButton } from "../components/NeonButton";
 import { BeloteSeatAvatar } from "../components/belote/BeloteSeatAvatar";
 import { belotePotTotal, beloteWinnerShare } from "../features/belote/beloteBuyIn";
+import { variantLabelKey } from "../features/belote/beloteVariants";
 
 function authHeaders(): HeadersInit {
   const token = getAuthItem("token");
@@ -185,6 +186,9 @@ export function BeloteWaitingRoom() {
 
         <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-black/40 p-5 shadow-xl backdrop-blur-sm">
           <h1 className="mb-1 text-2xl font-bold text-white">{room.name}</h1>
+          <p className="text-sm font-medium text-purple-200/90">
+            {t(variantLabelKey(room.variant ?? "CONTEE"))}
+          </p>
           <p className="text-sm text-emerald-200/70">
             {t("belote.targetScoreLabel", { score: room.targetScore })}
           </p>

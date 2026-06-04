@@ -14,6 +14,7 @@ import {
   chargeBeloteBuyIns,
   normalizeBeloteBuyIn,
 } from '../logic/belote/beloteBuyIn.js'
+import { normalizeBeloteVariant } from '../logic/belote/beloteVariants.js'
 import { intChips } from '../utils/chips.js'
 import { activeBeloteGames, persistBeloteSnapshot } from '../shared/activeBeloteGames.js'
 import {
@@ -50,6 +51,7 @@ type RoomWithSeats = {
   joinCode: string | null
   targetScore: number
   buyIn: number
+  variant: string
   gameId: string | null
   seats: Array<{
     position: number
@@ -71,6 +73,7 @@ function formatRoom(room: RoomWithSeats) {
     joinCode: room.visibility === 'PRIVATE' ? room.joinCode : undefined,
     targetScore: room.targetScore,
     buyIn: room.buyIn,
+    variant: room.variant,
     gameId: room.gameId,
     players: room.seats.map((s) => ({
       id: s.user.id,
@@ -142,6 +145,7 @@ router.post('/create', authMiddleware, async (req, res) => {
     if (!Number.isFinite(targetScore)) targetScore = DEFAULT_CONTEE_TARGET_SCORE
     targetScore = Math.min(2000, Math.max(500, Math.floor(targetScore)))
     const buyIn = normalizeBeloteBuyIn(req.body?.buyIn)
+    const variant = normalizeBeloteVariant(req.body?.variant)
 
     let passwordHash: string | undefined
     const password = typeof req.body?.password === 'string' ? req.body.password : ''
@@ -164,6 +168,7 @@ router.post('/create', authMiddleware, async (req, res) => {
           joinCode,
           targetScore,
           buyIn,
+          variant,
           status: 'WAITING',
         },
       })
@@ -557,6 +562,7 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
     const table = new BeloteTableController({
       gameId,
       roomId: room.id,
+      variant: room.variant,
       targetScore: room.targetScore,
       buyIn: room.buyIn,
       players,

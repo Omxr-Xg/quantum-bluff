@@ -45,9 +45,15 @@ export function BeloteActionBar({
 
   const isMyTurn =
     state.phase === "PLAYING" && state.deal.currentPlayerPosition === myPos;
-  const isAuctionTurn =
-    (state.phase === "BIDDING" || state.phase === "CONTREE_ROUND") &&
+  const isBiddingTurn =
+    (state.phase === "BIDDING" ||
+      state.phase === "CONTREE_ROUND" ||
+      state.phase === "CLASSIQUE_TAKE" ||
+      state.phase === "CLASSIQUE_CHOOSE") &&
     state.biddingTurnPosition === myPos;
+
+  const allowsSpecial =
+    state.variant === "COINCHE" || state.variant === "MODERNE";
 
   const contractTeam = state.deal.contractTeam;
   const isDefense = contractTeam && myTeam && myTeam !== contractTeam;
@@ -67,6 +73,8 @@ export function BeloteActionBar({
     hand.length > 0 &&
     (state.phase === "BIDDING" ||
       state.phase === "CONTREE_ROUND" ||
+      state.phase === "CLASSIQUE_TAKE" ||
+      state.phase === "CLASSIQUE_CHOOSE" ||
       state.phase === "PLAYING");
 
   useEffect(() => {
@@ -91,7 +99,7 @@ export function BeloteActionBar({
   const renderHand = () => {
     if (!showHandDock) return null;
 
-    if (isAuctionTurn && state.phase === "BIDDING" && pendingBid != null) {
+    if (isBiddingTurn && state.phase === "BIDDING" && pendingBid != null) {
       const pickingDisabled = disabled || bidSent;
       return (
         <div className="flex w-full min-w-0 flex-col items-center gap-2 border-b border-white/10 pb-2">
@@ -136,7 +144,7 @@ export function BeloteActionBar({
   };
 
   const renderControls = () => {
-    if (!isAuctionTurn && !isMyTurn) {
+    if (!isBiddingTurn && !isMyTurn) {
       return (
         <p className="py-1 text-center text-sm text-emerald-200/55">
           {t("belote.waitingTurn")}
@@ -144,7 +152,52 @@ export function BeloteActionBar({
       );
     }
 
-    if (isAuctionTurn && state.phase === "BIDDING") {
+    if (isBiddingTurn && state.phase === "CLASSIQUE_TAKE") {
+      return (
+        <div className="flex flex-wrap justify-center gap-2 py-1">
+          <NeonButton
+            variant="green"
+            disabled={disabled}
+            className={btnBase}
+            onClick={() => onAction({ type: "TAKE" })}
+          >
+            {t("belote.take")}
+          </NeonButton>
+          <NeonButton
+            variant="red"
+            disabled={disabled}
+            className={btnBase}
+            onClick={() => onAction({ type: "PASS" })}
+          >
+            {t("belote.pass")}
+          </NeonButton>
+        </div>
+      );
+    }
+
+    if (isBiddingTurn && state.phase === "CLASSIQUE_CHOOSE") {
+      const turned = state.deal.turnedCard?.suit;
+      return (
+        <div className="flex w-full flex-col items-center gap-2 py-1">
+          <p className="text-center text-xs text-amber-200/90">{t("belote.chooseTrumpSuit")}</p>
+          <BeloteSuitPicker
+            disabled={disabled}
+            size="sm"
+            onSelect={(suit) => onAction({ type: "CHOOSE_TRUMP", trump: suit })}
+          />
+          <NeonButton
+            variant="red"
+            disabled={disabled}
+            className={btnBase}
+            onClick={() => onAction({ type: "PASS" })}
+          >
+            {t("belote.pass")}
+          </NeonButton>
+        </div>
+      );
+    }
+
+    if (isBiddingTurn && state.phase === "BIDDING") {
       if (pendingBid != null) {
         const pickingDisabled = disabled || bidSent;
         return (
@@ -168,6 +221,26 @@ export function BeloteActionBar({
               size="sm"
               onSelect={(suit) => submitBid(pendingBid, suit)}
             />
+            {allowsSpecial ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                <NeonButton
+                  variant="green"
+                  disabled={pickingDisabled}
+                  className="text-xs"
+                  onClick={() => submitBid(pendingBid, "ALL_TRUMP")}
+                >
+                  {t("belote.allTrump")}
+                </NeonButton>
+                <NeonButton
+                  variant="green"
+                  disabled={pickingDisabled}
+                  className="text-xs"
+                  onClick={() => submitBid(pendingBid, "NO_TRUMP")}
+                >
+                  {t("belote.noTrump")}
+                </NeonButton>
+              </div>
+            ) : null}
             <NeonButton
               variant="red"
               disabled={pickingDisabled}
@@ -210,7 +283,7 @@ export function BeloteActionBar({
       );
     }
 
-    if (isAuctionTurn && state.phase === "CONTREE_ROUND") {
+    if (isBiddingTurn && state.phase === "CONTREE_ROUND") {
       if (state.contreePhase === "DEFENSE" && isDefense) {
         return (
           <div className="flex flex-wrap justify-center gap-2 py-1">

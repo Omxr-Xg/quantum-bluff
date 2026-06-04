@@ -63,7 +63,9 @@ export function BeloteGame() {
     turnPos === myPos &&
     (state?.phase === "PLAYING" ||
       state?.phase === "BIDDING" ||
-      state?.phase === "CONTREE_ROUND");
+      state?.phase === "CONTREE_ROUND" ||
+      state?.phase === "CLASSIQUE_TAKE" ||
+      state?.phase === "CLASSIQUE_CHOOSE");
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden app-shell-bg">

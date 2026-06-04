@@ -1,5 +1,7 @@
 import { nextPosition, teamForPosition } from './bidding.js'
-import type { BeloteGameState, BeloteSuit } from './types.js'
+import { isValidTrumpChoice, usesContreeRound } from './beloteVariants.js'
+import { trumpChoiceToMode } from './trumpContext.js'
+import type { BeloteGameState, BeloteTrumpChoice } from './types.js'
 import {
   CONTEE_BID_STEP,
   CONTEE_CAPOT_BID,
@@ -9,7 +11,7 @@ import {
 
 export type ContreeBidRecord =
   | { position: number; action: 'PASS' }
-  | { position: number; action: 'BID'; value: number; trump: BeloteSuit }
+  | { position: number; action: 'BID'; value: number; trump: BeloteTrumpChoice }
   | { position: number; action: 'CONTREE' }
   | { position: number; action: 'SURCONTREE' }
 
@@ -24,11 +26,11 @@ export function isValidBidValue(value: number): boolean {
 }
 
 export function getHighestBid(
-  bids: ContreeBidRecord[],
-): { position: number; value: number; trump: BeloteSuit } | null {
-  let best: { position: number; value: number; trump: BeloteSuit } | null = null
+  bids: Array<{ action: string; position: number; value?: number; trump?: BeloteTrumpChoice }>,
+): { position: number; value: number; trump: BeloteTrumpChoice } | null {
+  let best: { position: number; value: number; trump: BeloteTrumpChoice } | null = null
   for (const b of bids) {
-    if (b.action !== 'BID') continue
+    if (b.action !== 'BID' || b.value == null || b.trump == null) continue
     if (!best || b.value > best.value) {
       best = { position: b.position, value: b.value, trump: b.trump }
     }
@@ -61,7 +63,7 @@ export function applyContreeBidAction(
   position: number,
   action:
     | { type: 'PASS' }
-    | { type: 'BID'; value: number; trump: BeloteSuit }
+    | { type: 'BID'; value: number; trump: BeloteTrumpChoice }
     | { type: 'CONTREE' }
     | { type: 'SURCONTREE' },
 ): ContreeBidResult {
@@ -81,14 +83,23 @@ export function applyContreeBidAction(
         const highest = getHighestBid(bids)!
         state.deal.takerPosition = highest.position
         state.deal.contractTeam = teamForPosition(highest.position)
-        state.deal.trump = highest.trump
+        state.deal.trumpMode = trumpChoiceToMode(highest.trump)
+        if (state.deal.trumpMode === 'SUIT') {
+          state.deal.trump = highest.trump as import('./types.js').BeloteSuit
+        } else {
+          state.deal.trump = 'SPADES'
+        }
         state.contractPoints = highest.value
         state.contreeLevel = 0
         state.contreeDefensePasses = 0
         state.contreeAttackPasses = 0
-        state.phase = 'CONTREE_ROUND'
-        state.contreePhase = 'DEFENSE'
-        state.biddingTurnPosition = nextPosition(highest.position)
+        if (usesContreeRound(state.variant)) {
+          state.phase = 'CONTREE_ROUND'
+          state.contreePhase = 'DEFENSE'
+          state.biddingTurnPosition = nextPosition(highest.position)
+        } else {
+          return { ok: true, startPlay: true }
+        }
         return { ok: true }
       }
       state.biddingTurnPosition = nextPosition(position)
@@ -96,7 +107,7 @@ export function applyContreeBidAction(
     }
 
     if (action.type === 'BID') {
-      if (!['HEARTS', 'DIAMONDS', 'CLUBS', 'SPADES'].includes(action.trump)) {
+      if (!isValidTrumpChoice(action.trump, state.variant)) {
         return { ok: false, error: 'INVALID_TRUMP' }
       }
       if (!isValidBidValue(action.value)) {

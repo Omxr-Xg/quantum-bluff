@@ -13,6 +13,11 @@ import {
   beloteWinnerShare,
   normalizeBeloteBuyIn,
 } from "../features/belote/beloteBuyIn";
+import {
+  BELOTE_VARIANT_OPTIONS,
+  type BeloteGameVariant,
+  variantLabelKey,
+} from "../features/belote/beloteVariants";
 
 type BeloteVisibility = "PUBLIC" | "PRIVATE";
 
@@ -25,6 +30,7 @@ export type BeloteRoomListItem = {
   status: string;
   targetScore: number;
   buyIn: number;
+  variant: BeloteGameVariant;
   gameId: string | null;
   players: Array<{
     id: string;
@@ -91,6 +97,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   const [newName, setNewName] = useState("");
   const [newVis, setNewVis] = useState<BeloteVisibility>("PUBLIC");
   const [newTarget, setNewTarget] = useState(1500);
+  const [newVariant, setNewVariant] = useState<BeloteGameVariant>("CONTEE");
   const [newBuyIn, setNewBuyIn] = useState(BELOTE_BUY_IN_DEFAULT);
   const [customBuyIn, setCustomBuyIn] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -163,6 +170,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
           visibility: newVis,
           targetScore: newTarget,
           buyIn: newBuyIn,
+          variant: newVariant,
           ...(newPassword ? { password: newPassword } : {}),
         }),
       });
@@ -257,6 +265,26 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                 <Lock className="mb-1 h-4 w-4" />
                 {t("lobby.private")}
               </button>
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs text-gray-400">{t("belote.gameVariant")}</p>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                {BELOTE_VARIANT_OPTIONS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setNewVariant(v)}
+                    className={`rounded-lg px-2 py-2 text-left text-[11px] font-semibold leading-tight transition sm:text-xs ${
+                      newVariant === v
+                        ? "bg-emerald-700 text-white"
+                        : "bg-slate-800 text-gray-300 hover:bg-slate-700"
+                    }`}
+                  >
+                    {t(variantLabelKey(v))}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[10px] text-gray-500">{t(`belote.variantDesc.${newVariant}`)}</p>
             </div>
             <label className="block text-xs text-gray-400">
               {t("belote.targetScore")}
@@ -372,6 +400,9 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                         </span>
                         <span className="shrink-0 text-[10px] text-amber-200/90">
                           {t("belote.buyInShort", { amount: room.buyIn ?? BELOTE_BUY_IN_DEFAULT })}
+                        </span>
+                        <span className="shrink-0 text-[10px] text-purple-200/90">
+                          {t(variantLabelKey(room.variant ?? "CONTEE"))}
                         </span>
                       </div>
                     </div>

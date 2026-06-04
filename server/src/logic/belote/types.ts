@@ -7,9 +7,15 @@ export type BeloteCard = {
   rank: BeloteRank
 }
 
-export type BeloteVariant = 'CONTEE'
+/** Mode de jeu choisi à la création de salle. */
+export type BeloteGameVariant = 'CLASSIQUE' | 'COINCHE' | 'CONTEE' | 'MODERNE'
+
+export type BeloteTrumpChoice = BeloteSuit | 'ALL_TRUMP' | 'NO_TRUMP'
+export type BeloteTrumpMode = 'SUIT' | 'ALL_TRUMP' | 'NO_TRUMP'
 
 export type BelotePhase =
+  | 'CLASSIQUE_TAKE'
+  | 'CLASSIQUE_CHOOSE'
   | 'BIDDING'
   | 'CONTREE_ROUND'
   | 'PLAYING'
@@ -38,7 +44,11 @@ export type BeloteTrickCard = {
 
 export type BeloteDealState = {
   dealerPosition: number
+  /** Couleur d’atout (mode SUIT) ou couleur de référence. */
   trump?: BeloteSuit
+  trumpMode?: BeloteTrumpMode
+  /** Carte retournée (belote classique). */
+  turnedCard?: BeloteCard
   takerPosition?: number
   contractTeam?: BeloteTeam
   currentTrick: BeloteTrickCard[]
@@ -52,9 +62,11 @@ export type BeloteDealState = {
 
 export type ContreeBidEntry =
   | { position: number; action: 'PASS' }
-  | { position: number; action: 'BID'; value: number; trump: BeloteSuit }
+  | { position: number; action: 'BID'; value: number; trump: BeloteTrumpChoice }
   | { position: number; action: 'CONTREE' }
   | { position: number; action: 'SURCONTREE' }
+  | { position: number; action: 'TAKE' }
+  | { position: number; action: 'CHOOSE_TRUMP'; trump: BeloteSuit }
 
 export type DealEndSummary = {
   made: boolean
@@ -72,7 +84,7 @@ export type DealEndSummary = {
 export type BeloteGameState = {
   gameId: string
   roomId: string
-  variant: BeloteVariant
+  variant: BeloteGameVariant
   targetScore: number
   teamScoreA: number
   teamScoreB: number
@@ -95,15 +107,13 @@ export type BeloteGameState = {
   lastActionAt: string
   turnDeadlineAt?: string
   turnTimeLimitSec: number
-  /** Mise d'entrée par joueur (jetons). */
   buyIn: number
-  /** Cagnotte totale (buyIn × 4). */
   potTotal: number
 }
 
 export type BeloteAction =
   | { type: 'PASS' }
-  | { type: 'BID'; value: number; trump: BeloteSuit }
+  | { type: 'BID'; value: number; trump: BeloteTrumpChoice }
   | { type: 'CONTREE' }
   | { type: 'SURCONTREE' }
   | { type: 'CHOOSE_TRUMP'; trump: BeloteSuit }
@@ -114,5 +124,5 @@ export type BeloteAction =
 export type SanitizedBeloteState = Omit<BeloteGameState, 'players'> & {
   players: Array<Omit<BelotePlayerState, 'hand'> & { handCount: number; hand?: BeloteCard[] }>
   myLegalPlays?: BeloteCard[]
-  myLegalBids?: Array<{ value: number; trump: BeloteSuit }>
+  myLegalBids?: Array<{ value: number; trump: BeloteTrumpChoice }>
 }

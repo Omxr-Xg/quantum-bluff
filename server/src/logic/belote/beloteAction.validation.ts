@@ -1,6 +1,14 @@
 import { z } from 'zod'
 
 const suitSchema = z.enum(['HEARTS', 'DIAMONDS', 'CLUBS', 'SPADES'])
+const trumpChoiceSchema = z.enum([
+  'HEARTS',
+  'DIAMONDS',
+  'CLUBS',
+  'SPADES',
+  'ALL_TRUMP',
+  'NO_TRUMP',
+])
 const rankSchema = z.enum(['7', '8', '9', '10', 'J', 'Q', 'K', 'A'])
 
 const cardSchema = z.object({
@@ -10,7 +18,7 @@ const cardSchema = z.object({
 
 export const beloteActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('PASS') }),
-  z.object({ type: z.literal('BID'), value: z.number().int(), trump: suitSchema }),
+  z.object({ type: z.literal('BID'), value: z.number().int(), trump: trumpChoiceSchema }),
   z.object({ type: z.literal('CONTREE') }),
   z.object({ type: z.literal('SURCONTREE') }),
   z.object({ type: z.literal('CHOOSE_TRUMP'), trump: suitSchema }),

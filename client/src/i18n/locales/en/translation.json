@@ -800,6 +800,26 @@
     "createRoom": "Create room",
     "roomName": "Room name",
     "targetScore": "Target score",
+    "gameVariant": "Game mode",
+    "variant": {
+      "CLASSIQUE": "Classic",
+      "COINCHE": "Coinche",
+      "CONTEE": "Contrée",
+      "MODERNE": "Modern"
+    },
+    "variantDesc": {
+      "CLASSIQUE": "Turned card: take or pass to set trump (beginner-friendly).",
+      "COINCHE": "Bids 80–160, capot, all-trump and no-trump, with coinche.",
+      "CONTEE": "Contrée bidding: suit trump only (no all/no trump).",
+      "MODERNE": "Bidding with classic, all-trump and no-trump contracts."
+    },
+    "phaseClassiqueTake": "Take — turned card",
+    "phaseClassiqueChoose": "Choose trump",
+    "take": "Take",
+    "turnedCard": "Turned card",
+    "chooseTrumpSuit": "Choose trump suit",
+    "allTrump": "All trumps",
+    "noTrump": "No trumps",
     "buyInLabel": "Entry fee (chips)",
     "buyInCustom": "Custom amount",
     "buyInCustomPlaceholder": "e.g. 2500",

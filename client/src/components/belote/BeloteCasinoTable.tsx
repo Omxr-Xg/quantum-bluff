@@ -50,6 +50,15 @@ export function BeloteCasinoTable({
       ? state.deal.currentPlayerPosition
       : state.biddingTurnPosition;
 
+  const trumpLabel =
+    state.deal.trumpMode === "ALL_TRUMP"
+      ? t("belote.allTrump")
+      : state.deal.trumpMode === "NO_TRUMP"
+        ? t("belote.noTrump")
+        : state.deal.trump
+          ? (BELOTE_SUIT_LABEL[state.deal.trump] ?? state.deal.trump)
+          : null;
+
   const turnDuration = state.turnTimeLimitSec ?? 30;
   const presentSet = new Set(presentUserIds);
 
@@ -87,17 +96,17 @@ export function BeloteCasinoTable({
               <img src={tableNappeImage} alt="" className="h-full w-full object-cover" />
             </div>
 
-            {state.deal.trump ? (
+            {trumpLabel ? (
               <div className="pointer-events-none absolute bottom-[4%] right-[3%] z-30 sm:bottom-[5%] sm:right-[4%]">
                 <div className="flex min-w-[3.25rem] flex-col items-center rounded-xl border-2 border-amber-400/55 bg-black/65 px-2 py-1.5 shadow-lg shadow-black/50 backdrop-blur-md sm:min-w-[3.75rem] sm:px-2.5 sm:py-2">
                   <span className="text-[8px] font-bold uppercase tracking-wider text-amber-200/90 sm:text-[9px]">
                     {t("belote.trump")}
                   </span>
                   <span
-                    className="mt-0.5 leading-none font-bold text-amber-50 drop-shadow-sm sm:mt-1"
-                    style={{ fontSize: "clamp(1.5rem, 5vw, 2.25rem)" }}
+                    className="mt-0.5 max-w-[5rem] text-center leading-tight font-bold text-amber-50 drop-shadow-sm sm:mt-1"
+                    style={{ fontSize: "clamp(1rem, 4vw, 1.75rem)" }}
                   >
-                    {BELOTE_SUIT_LABEL[state.deal.trump] ?? state.deal.trump}
+                    {trumpLabel}
                   </span>
                   {state.contractPoints != null &&
                   (state.phase === "CONTREE_ROUND" ||
@@ -118,7 +127,16 @@ export function BeloteCasinoTable({
               </div>
             ) : null}
 
-            <div className="absolute left-1/2 top-[38%] z-[15] flex min-h-[2.75rem] -translate-x-1/2 items-center justify-center">
+            <div className="absolute left-1/2 top-[38%] z-[15] flex min-h-[2.75rem] -translate-x-1/2 flex-col items-center justify-center gap-2">
+              {state.deal.turnedCard &&
+              (state.phase === "CLASSIQUE_TAKE" || state.phase === "CLASSIQUE_CHOOSE") ? (
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-amber-200/80">
+                    {t("belote.turnedCard")}
+                  </span>
+                  <BelotePlayingCard card={state.deal.turnedCard} size="md" />
+                </div>
+              ) : null}
               {state.deal.currentTrick.length === 0 ? (
                 <div className="rounded-full border border-dashed border-white/15 px-3 py-1.5 text-[10px] text-white/25">
                   {t("belote.trickEmpty")}

@@ -5,6 +5,10 @@ import type { BeloteSanitizedState } from "../../features/belote/useBeloteSocket
 
 function phaseLabelKey(phase: string, contreePhase?: string): string {
   switch (phase) {
+    case "CLASSIQUE_TAKE":
+      return "belote.phaseClassiqueTake";
+    case "CLASSIQUE_CHOOSE":
+      return "belote.phaseClassiqueChoose";
     case "BIDDING":
       return "belote.phaseBidding";
     case "CONTREE_ROUND":

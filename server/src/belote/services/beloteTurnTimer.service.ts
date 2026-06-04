@@ -46,7 +46,9 @@ export function scheduleBeloteTurnTimer(
   if (
     state.phase !== 'BIDDING' &&
     state.phase !== 'CONTREE_ROUND' &&
-    state.phase !== 'PLAYING'
+    state.phase !== 'PLAYING' &&
+    state.phase !== 'CLASSIQUE_TAKE' &&
+    state.phase !== 'CLASSIQUE_CHOOSE'
   ) {
     return
   }

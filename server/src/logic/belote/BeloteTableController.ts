@@ -1,17 +1,21 @@
 import { randomUUID } from 'crypto'
 import { nextPosition, teamForPosition } from './bidding.js'
+import { applyClassiqueBidAction } from './classiqueBidding.js'
+import { computeClassicDealScore } from './classicScoring.js'
 import { applyContreeBidAction, getHighestBid } from './conteeBidding.js'
 import { belotePotTotal } from './beloteBuyIn.js'
+import { usesAuctionBidding } from './beloteVariants.js'
 import { BELOTE_ANNOUNCE_POINTS } from './conteeConstants.js'
 import { legalBidOptions } from './conteeLegalBids.js'
 import { computeDealScore, detectBeloteInHand } from './conteeScoring.js'
 import { cardKey, createBeloteDeck, removeCardFromHand, shuffleBeloteDeck } from './deck.js'
-import { DIX_DE_DER, sumTrickPoints } from './scoring.js'
+import { cardPoints, resolveTrumpContext } from './trumpContext.js'
 import { canPlayCard, firstLegalCard, playableCards, trickWinnerPosition } from './trickPlay.js'
 import type {
   BeloteAction,
   BeloteCard,
   BeloteGameState,
+  BeloteGameVariant,
   BelotePlayerState,
   BeloteSuit,
   BeloteTeam,
@@ -25,6 +29,7 @@ const BELOTE_TURN_MS = BELOTE_TURN_TIME_SEC * 1000
 export type BeloteTableInit = {
   gameId: string
   roomId: string
+  variant: BeloteGameVariant
   targetScore: number
   buyIn: number
   players: Array<{
@@ -40,6 +45,7 @@ export class BeloteTableController {
   roomId: string
   private state: BeloteGameState
   private dealIndex = 0
+  private remainingDeck: BeloteCard[] = []
 
   constructor(init: BeloteTableInit) {
     const players: BelotePlayerState[] = init.players.map((p) => ({
@@ -56,11 +62,11 @@ export class BeloteTableController {
     this.state = {
       gameId: init.gameId,
       roomId: init.roomId,
-      variant: 'CONTEE',
+      variant: init.variant,
       targetScore: init.targetScore,
       teamScoreA: 0,
       teamScoreB: 0,
-      phase: 'BIDDING',
+      phase: init.variant === 'CLASSIQUE' ? 'CLASSIQUE_TAKE' : 'BIDDING',
       biddingTurnPosition: nextPosition(0),
       bids: [],
       contreeLevel: 0,
@@ -81,7 +87,7 @@ export class BeloteTableController {
       buyIn: init.buyIn,
       potTotal: belotePotTotal(init.buyIn, players.length),
     }
-    this.dealCards()
+    this.startDeal()
   }
 
   static fromSnapshot(snapshot: BeloteGameState): BeloteTableController {
@@ -98,7 +104,11 @@ export class BeloteTableController {
       ctrl.state.phase === 'BIDDING_ROUND_1' ||
       ctrl.state.phase === 'BIDDING_ROUND_2'
     ) {
-      ctrl.state.phase = 'BIDDING'
+      ctrl.state.phase =
+        ctrl.state.variant === 'CLASSIQUE' ? 'CLASSIQUE_TAKE' : 'BIDDING'
+    }
+    if (!ctrl.state.deal.trumpMode && ctrl.state.deal.trump) {
+      ctrl.state.deal.trumpMode = 'SUIT'
     }
     for (const p of ctrl.state.players) {
       if (!p.team) p.team = teamForPosition(p.position)
@@ -122,17 +132,19 @@ export class BeloteTableController {
     const requester = s.players.find((p) => p.userId === forUserId)
     const spectator = forSpectator || !requester
 
+    const ctx = resolveTrumpContext(s)
+
     let myLegalPlays: BeloteCard[] | undefined
     if (
       !spectator &&
       requester &&
       s.phase === 'PLAYING' &&
-      s.deal.trump &&
+      ctx &&
       s.deal.currentPlayerPosition === requester.position
     ) {
       myLegalPlays = playableCards(
         requester.hand,
-        s.deal.trump,
+        ctx,
         s.deal.currentTrick,
         requester.position,
       )
@@ -142,11 +154,10 @@ export class BeloteTableController {
     if (
       !spectator &&
       requester &&
-      (s.phase === 'BIDDING' || s.phase === 'CONTREE_ROUND') &&
       s.biddingTurnPosition === requester.position
     ) {
-      if (s.phase === 'BIDDING') {
-        myLegalBids = legalBidOptions(s.bids)
+      if (s.phase === 'BIDDING' && usesAuctionBidding(s.variant)) {
+        myLegalBids = legalBidOptions(s.bids, s.variant)
       }
     }
 
@@ -183,8 +194,15 @@ export class BeloteTableController {
       return { ok: false, error: 'GAME_FINISHED' }
     }
 
+    if (
+      this.state.phase === 'CLASSIQUE_TAKE' ||
+      this.state.phase === 'CLASSIQUE_CHOOSE'
+    ) {
+      return this.applyClassiqueAction(player.position, action)
+    }
+
     if (this.state.phase === 'BIDDING' || this.state.phase === 'CONTREE_ROUND') {
-      return this.applyContreeAction(player.position, action)
+      return this.applyAuctionAction(player.position, action)
     }
 
     if (this.state.phase === 'PLAYING') {
@@ -234,31 +252,39 @@ export class BeloteTableController {
 
   /** Action automatique à l’expiration du timer de tour (PASS ou première carte légale). */
   applyTurnTimeout(): boolean {
+    const phase = this.state.phase
     if (
-      this.state.phase !== 'BIDDING' &&
-      this.state.phase !== 'CONTREE_ROUND' &&
-      this.state.phase !== 'PLAYING'
+      phase !== 'BIDDING' &&
+      phase !== 'CONTREE_ROUND' &&
+      phase !== 'PLAYING' &&
+      phase !== 'CLASSIQUE_TAKE' &&
+      phase !== 'CLASSIQUE_CHOOSE'
     ) {
       return false
     }
 
     const pos =
-      this.state.phase === 'PLAYING'
+      phase === 'PLAYING'
         ? this.state.deal.currentPlayerPosition
         : this.state.biddingTurnPosition
     const player = this.state.players.find((p) => p.position === pos)
     if (!player || player.forfeited) return false
 
-    if (this.state.phase === 'BIDDING' || this.state.phase === 'CONTREE_ROUND') {
-      const r = this.applyContreeAction(pos, { type: 'PASS' })
+    if (phase === 'CLASSIQUE_TAKE' || phase === 'CLASSIQUE_CHOOSE') {
+      const r = this.applyClassiqueAction(pos, { type: 'PASS' })
       return r.ok
     }
 
-    const trump = this.state.deal.trump
-    if (!trump) return false
+    if (phase === 'BIDDING' || phase === 'CONTREE_ROUND') {
+      const r = this.applyAuctionAction(pos, { type: 'PASS' })
+      return r.ok
+    }
+
+    const ctx = resolveTrumpContext(this.state)
+    if (!ctx) return false
     const card = firstLegalCard(
       player.hand,
-      trump,
+      ctx,
       this.state.deal.currentTrick,
       pos,
     )
@@ -267,7 +293,60 @@ export class BeloteTableController {
     return r.ok
   }
 
-  private applyContreeAction(
+  private applyClassiqueAction(
+    position: number,
+    action: BeloteAction,
+  ): { ok: true } | { ok: false; error: string } {
+    if (action.type === 'PLAY_CARD') {
+      return { ok: false, error: 'INVALID_ACTION' }
+    }
+
+    if (action.type === 'TAKE' && this.state.phase === 'CLASSIQUE_TAKE') {
+      const r = applyClassiqueBidAction(this.state, position, { type: 'TAKE' })
+      if (!r.ok) return r
+      if (r.redeal) {
+        this.redeal()
+        return { ok: true }
+      }
+      if (r.dealComplete) {
+        this.completeClassiqueDeal(position, true)
+        this.startPlaying()
+        return { ok: true }
+      }
+      this.touch()
+      return { ok: true }
+    }
+
+    if (action.type === 'PASS') {
+      const r = applyClassiqueBidAction(this.state, position, { type: 'PASS' })
+      if (!r.ok) return r
+      if (r.redeal) {
+        this.redeal()
+        return { ok: true }
+      }
+      this.touch()
+      return { ok: true }
+    }
+
+    if (
+      action.type === 'CHOOSE_TRUMP' &&
+      this.state.phase === 'CLASSIQUE_CHOOSE'
+    ) {
+      const r = applyClassiqueBidAction(this.state, position, action)
+      if (!r.ok) return r
+      if (r.dealComplete) {
+        this.completeClassiqueDeal(position, false)
+        this.startPlaying()
+        return { ok: true }
+      }
+      this.touch()
+      return { ok: true }
+    }
+
+    return { ok: false, error: 'INVALID_ACTION' }
+  }
+
+  private applyAuctionAction(
     position: number,
     action: BeloteAction,
   ): { ok: true } | { ok: false; error: string } {
@@ -318,11 +397,11 @@ export class BeloteTableController {
     if (position !== this.state.deal.currentPlayerPosition) {
       return { ok: false, error: 'NOT_YOUR_TURN' }
     }
-    const trump = this.state.deal.trump
-    if (!trump) return { ok: false, error: 'NO_TRUMP' }
+    const ctx = resolveTrumpContext(this.state)
+    if (!ctx) return { ok: false, error: 'NO_TRUMP' }
 
     const player = this.state.players.find((p) => p.position === position)!
-    if (!canPlayCard(player.hand, card, trump, this.state.deal.currentTrick, position)) {
+    if (!canPlayCard(player.hand, card, ctx, this.state.deal.currentTrick, position)) {
       return { ok: false, error: 'ILLEGAL_CARD' }
     }
 
@@ -335,18 +414,15 @@ export class BeloteTableController {
       return { ok: true }
     }
 
-    this.completeTrick(trump)
+    this.completeTrick(ctx)
     return { ok: true }
   }
 
-  private completeTrick(trump: BeloteSuit): void {
+  private completeTrick(ctx: import('./trumpContext.js').TrumpContext): void {
     const trick = this.state.deal.currentTrick
-    const winnerPos = trickWinnerPosition(trick, trump)
+    const winnerPos = trickWinnerPosition(trick, ctx)
     const winnerTeam = teamForPosition(winnerPos)
-    const points = sumTrickPoints(
-      trick.map((t) => t.card),
-      trump,
-    )
+    const points = trick.reduce((sum, t) => sum + cardPoints(t.card, ctx), 0)
 
     if (winnerTeam === 'A') {
       this.state.deal.tricksWonA++
@@ -362,12 +438,15 @@ export class BeloteTableController {
 
     const handsEmpty = this.state.players.every((p) => p.hand.length === 0)
     if (handsEmpty) {
-      this.finishDeal(trump, winnerPos, winnerTeam)
+      this.finishDeal(winnerPos, winnerTeam)
     }
   }
 
-  private finishDeal(_trump: BeloteSuit, _lastWinnerPos: number, lastWinnerTeam: BeloteTeam): void {
-    const summary = computeDealScore(this.state, lastWinnerTeam)
+  private finishDeal(_lastWinnerPos: number, lastWinnerTeam: BeloteTeam): void {
+    const summary =
+      this.state.variant === 'CLASSIQUE'
+        ? computeClassicDealScore(this.state, lastWinnerTeam)
+        : computeDealScore(this.state, lastWinnerTeam)
     this.state.dealEndSummary = summary
     this.state.teamScoreA += summary.scoreA
     this.state.teamScoreB += summary.scoreB
@@ -389,7 +468,8 @@ export class BeloteTableController {
     if (this.state.phase !== 'DEAL_END') return
     this.state.deal.dealerPosition = nextPosition(this.state.deal.dealerPosition)
     this.resetDealState()
-    this.state.phase = 'BIDDING'
+    this.state.phase =
+      this.state.variant === 'CLASSIQUE' ? 'CLASSIQUE_TAKE' : 'BIDDING'
     this.state.biddingTurnPosition = nextPosition(this.state.deal.dealerPosition)
     this.state.bids = []
     this.state.contractPoints = undefined
@@ -400,7 +480,7 @@ export class BeloteTableController {
     delete this.state.dealEndSummary
     this.state.beloteBonusA = 0
     this.state.beloteBonusB = 0
-    this.dealCards()
+    this.startDeal()
   }
 
   private checkForfeitEnd(): void {
@@ -423,16 +503,19 @@ export class BeloteTableController {
   private redeal(): void {
     this.state.bids = []
     this.resetDealState()
-    this.state.phase = 'BIDDING'
+    this.state.phase =
+      this.state.variant === 'CLASSIQUE' ? 'CLASSIQUE_TAKE' : 'BIDDING'
     this.state.biddingTurnPosition = nextPosition(this.state.deal.dealerPosition)
     this.state.contreeLevel = 0
-    this.dealCards()
+    this.startDeal()
   }
 
   private resetDealState(): void {
     this.state.deal = {
       ...this.state.deal,
       trump: undefined,
+      trumpMode: undefined,
+      turnedCard: undefined,
       takerPosition: undefined,
       contractTeam: undefined,
       currentTrick: [],
@@ -447,13 +530,15 @@ export class BeloteTableController {
 
   private startPlaying(): void {
     this.state.phase = 'PLAYING'
-    const trump = this.state.deal.trump!
+    const ctx = resolveTrumpContext(this.state)
     this.state.beloteBonusA = 0
     this.state.beloteBonusB = 0
-    for (const p of this.state.players) {
-      if (detectBeloteInHand(p.hand, trump)) {
-        if (p.team === 'A') this.state.beloteBonusA = BELOTE_ANNOUNCE_POINTS
-        else this.state.beloteBonusB = BELOTE_ANNOUNCE_POINTS
+    if (ctx?.mode === 'SUIT') {
+      for (const p of this.state.players) {
+        if (detectBeloteInHand(p.hand, ctx.suit)) {
+          if (p.team === 'A') this.state.beloteBonusA = BELOTE_ANNOUNCE_POINTS
+          else this.state.beloteBonusB = BELOTE_ANNOUNCE_POINTS
+        }
       }
     }
     const taker = this.state.deal.takerPosition ?? 0
@@ -463,19 +548,60 @@ export class BeloteTableController {
     this.touch()
   }
 
-  private dealCards(): void {
+  private startDeal(): void {
+    if (this.state.variant === 'CLASSIQUE') {
+      this.dealClassique()
+    } else {
+      this.dealAuction()
+    }
+  }
+
+  private dealClassique(): void {
+    this.dealIndex++
+    let deck = shuffleBeloteDeck(createBeloteDeck(), this.gameId, this.dealIndex)
+    for (const p of this.state.players) {
+      p.hand = deck.splice(0, 5)
+    }
+    this.state.deal.turnedCard = deck.pop()
+    this.remainingDeck = deck
+    this.state.bids = []
+    this.state.phase = 'CLASSIQUE_TAKE'
+    this.state.biddingTurnPosition = nextPosition(this.state.deal.dealerPosition)
+    this.touch()
+  }
+
+  private completeClassiqueDeal(takerPos: number, fromTake: boolean): void {
+    const turned = this.state.deal.turnedCard
+    const taker = this.state.players.find((p) => p.position === takerPos)!
+    if (fromTake && turned) {
+      taker.hand.push(turned)
+      delete this.state.deal.turnedCard
+    }
+    for (const p of this.state.players) {
+      const extra = p.position === takerPos && fromTake ? 2 : 3
+      p.hand.push(...this.remainingDeck.splice(0, extra))
+    }
+    this.remainingDeck = []
+  }
+
+  private dealAuction(): void {
     this.dealIndex++
     let deck = shuffleBeloteDeck(createBeloteDeck(), this.gameId, this.dealIndex)
     for (const p of this.state.players) {
       p.hand = deck.splice(0, 8)
     }
+    this.remainingDeck = []
     this.state.bids = []
+    this.state.phase = 'BIDDING'
+    this.state.biddingTurnPosition = nextPosition(this.state.deal.dealerPosition)
     this.touch()
   }
 
   private touch(): void {
     this.state.lastActionAt = new Date().toISOString()
     if (
+      this.state.phase === 'CLASSIQUE_TAKE' ||
+      this.state.phase === 'CLASSIQUE_CHOOSE' ||
       this.state.phase === 'BIDDING' ||
       this.state.phase === 'CONTREE_ROUND' ||
       this.state.phase === 'PLAYING'

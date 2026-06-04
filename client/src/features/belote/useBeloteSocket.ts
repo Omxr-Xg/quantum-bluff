@@ -6,10 +6,12 @@ import { getAuthItem } from "../../utils/authStorage";
 
 export type BeloteCard = { suit: string; rank: string };
 
+export type BeloteTrumpChoice = string;
+
 export type BeloteSanitizedState = {
   gameId: string;
   phase: string;
-  variant?: string;
+  variant?: "CLASSIQUE" | "COINCHE" | "CONTEE" | "MODERNE";
   targetScore: number;
   teamScoreA: number;
   teamScoreB: number;
@@ -44,6 +46,8 @@ export type BeloteSanitizedState = {
   potTotal?: number;
   deal: {
     trump?: string;
+    trumpMode?: "SUIT" | "ALL_TRUMP" | "NO_TRUMP";
+    turnedCard?: BeloteCard;
     takerPosition?: number;
     contractTeam?: string;
     currentTrick: Array<{ position: number; card: BeloteCard }>;
