@@ -39,7 +39,7 @@ export function BeloteCasinoTable({
 
   const me = state.players.find((p) => p.userId === userId);
   const myPos = me?.position ?? 0;
-  const myTeam = me?.team;
+  const heroTeam = me?.team;
   const sortedPlayers = useMemo(
     () => [...state.players].sort((a, b) => a.position - b.position),
     [state.players],
@@ -144,7 +144,8 @@ export function BeloteCasinoTable({
             {sortedPlayers.map((p) => {
               const vis = visualSeatIndex(p.position, myPos);
               const isYou = p.userId === userId;
-              const isPartner = p.team === myTeam && !isYou;
+              const isPartner =
+                !isYou && heroTeam != null && p.team != null && p.team === heroTeam;
               const isTurn = turnPos === p.position;
               const isPresent = presentSet.has(p.userId) || p.userId === userId;
               const seatTurnLeft = isTurn ? turnTimeLeft : null;

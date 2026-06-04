@@ -96,6 +96,9 @@ export class BeloteTableController {
     ) {
       ctrl.state.phase = 'BIDDING'
     }
+    for (const p of ctrl.state.players) {
+      if (!p.team) p.team = teamForPosition(p.position)
+    }
     ctrl.dealIndex = 0
     return ctrl
   }
