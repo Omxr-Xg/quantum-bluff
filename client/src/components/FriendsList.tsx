@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Users, UserPlus, Loader2, Search, X, Check, MessageCircle } from "lucide-react";
+import { Users, UserPlus, Loader2, Search, X, Check, MessageCircle, Phone } from "lucide-react";
 import { useUser } from "../hooks/useUser";
+import { useVoice } from "../contexts/VoiceContext";
+import { useToast } from "../contexts/ToastContext";
 import { useSocket } from "../hooks/useSocket";
 import {
   useGetFriendsQuery,
@@ -24,6 +26,8 @@ export function FriendsList() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { userId } = useUser();
+  const { addToast } = useToast();
+  const { startPrivateCall } = useVoice();
   const { socket, isConnected, connect } = useSocket();
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [friendUsername, setFriendUsername] = useState("");
@@ -165,6 +169,17 @@ export function FriendsList() {
     setSelectedChat(friendId);
     setMessageInput("");
   };
+  const handleCallFriend = (
+    event: React.MouseEvent,
+    friend: { id: string; username: string; isOnline?: boolean; avatarUrl?: string | null },
+  ) => {
+    event.stopPropagation();
+    if (!friend.isOnline) {
+      addToast(t("voice.callFriendOffline", { username: friend.username }), "warning");
+      return;
+    }
+    startPrivateCall(friend.id, friend.username, friend.avatarUrl);
+  };
   const closeChat = () => {
     setSelectedChat(null);
     setMessageInput("");
@@ -269,18 +284,29 @@ export function FriendsList() {
                   <p className="truncate font-medium text-white">{friend.username}</p>
                   <p className="truncate text-xs italic text-gray-400">{friend.currentActivity || "Salon poker"}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openFriendChat(friend.id);
-                  }}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-300/15 bg-blue-950/70 text-blue-100 transition hover:border-blue-200/30 hover:bg-blue-900/80"
-                  aria-label={t("friends.message", { defaultValue: "Message" })}
-                  title={t("friends.message", { defaultValue: "Message" })}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                </button>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={(event) => handleCallFriend(event, friend)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-300/15 bg-emerald-950/70 text-emerald-100 transition hover:border-emerald-200/30 hover:bg-emerald-900/80"
+                    aria-label={t("voice.callFriend")}
+                    title={t("voice.callFriend")}
+                  >
+                    <Phone className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openFriendChat(friend.id);
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-300/15 bg-blue-950/70 text-blue-100 transition hover:border-blue-200/30 hover:bg-blue-900/80"
+                    aria-label={t("friends.message", { defaultValue: "Message" })}
+                    title={t("friends.message", { defaultValue: "Message" })}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

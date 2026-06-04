@@ -46,7 +46,11 @@ export type VoiceContextValue = {
   leaveChannel: () => void
   joinWaitingRoom: (roomId: string) => void
   joinTable: (gameId: string) => void
-  startPrivateCall: (targetUserId: string, targetUsername: string) => void
+  startPrivateCall: (
+    targetUserId: string,
+    targetUsername: string,
+    targetAvatarUrl?: string | null,
+  ) => void
   startGroupCall: (targets: { userId: string; username: string }[]) => void
   respondToCall: (action: 'accept' | 'reject' | 'ignore' | 'block') => void
   applyMigrateHint: (hint: VoiceMigrateHint, memberIds: string[]) => void
@@ -185,14 +189,14 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   }, [socket, outgoingCall?.callId, clearOutgoing])
 
   const startPrivateCall = useCallback(
-    (targetUserId: string, targetUsername: string) => {
+    (targetUserId: string, targetUsername: string, targetAvatarUrl?: string | null) => {
       if (!socket) return
       setIncomingCall(null)
       setOutgoingCall({
         callId: '',
         channelId: '',
         type: 'private',
-        targets: [{ userId: targetUserId, username: targetUsername }],
+        targets: [{ userId: targetUserId, username: targetUsername, avatarUrl: targetAvatarUrl }],
         status: 'dialing',
       })
       socket.emit('VOICE_CALL_START', {

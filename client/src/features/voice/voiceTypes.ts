@@ -56,6 +56,7 @@ export type VoiceIncomingCall = {
 export type VoiceOutgoingCallTarget = {
   userId: string
   username: string
+  avatarUrl?: string | null
 }
 
 export type VoiceOutgoingCallStatus = 'dialing' | 'connected' | 'unanswered'
