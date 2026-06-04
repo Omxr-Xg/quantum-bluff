@@ -644,6 +644,7 @@ model BlackjackRoomInvitation {
   receiver User          @relation("BjRoomInviteReceiver", fields: [receiverId], references: [id])
 
   @@unique([blackjackRoomId, receiverId])
+  @@index([senderId])
   @@index([receiverId, status])
   @@map("blackjack_room_invitations")
 }
