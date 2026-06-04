@@ -39,6 +39,7 @@ export function BeloteCasinoTable({
 
   const me = state.players.find((p) => p.userId === userId);
   const myPos = me?.position ?? 0;
+  const myTeam = me?.team;
   const sortedPlayers = useMemo(
     () => [...state.players].sort((a, b) => a.position - b.position),
     [state.players],
