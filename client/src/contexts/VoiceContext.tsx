@@ -38,6 +38,7 @@ export type VoiceContextValue = {
   incomingCall: VoiceIncomingCall | null
   outgoingCall: VoiceOutgoingCall | null
   cancelOutgoingCall: () => void
+  hangUpCall: () => void
   joinChannel: (channelId: string, opts?: { replace?: boolean }) => void
   switchChannel: (
     toChannelId: string,
@@ -235,6 +236,22 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     clearOutgoing()
   }, [socket, outgoingCall?.callId, clearOutgoing])
 
+  const hangUpCall = useCallback(() => {
+    if (!socket) return
+    const oc = outgoingCallRef.current
+    if (!oc) return
+    if (oc.status === 'dialing' && !oc.isCallee) {
+      cancelOutgoingCall()
+      return
+    }
+    if (oc.callId && oc.status === 'connecting') {
+      socket.emit('VOICE_CALL_RESPOND', { callId: oc.callId, action: 'reject' })
+      setOutgoingCall(null)
+      return
+    }
+    leaveChannel()
+  }, [socket, cancelOutgoingCall, leaveChannel])
+
   const startPrivateCall = useCallback(
     (targetUserId: string, targetUsername: string, targetAvatarUrl?: string | null) => {
       if (!socket) return
@@ -277,6 +294,22 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     (action: 'accept' | 'reject' | 'ignore' | 'block') => {
       if (!socket || !incomingCall) return
       incomingCallRef.current = incomingCall
+      if (action === 'accept') {
+        setOutgoingCall({
+          callId: incomingCall.callId,
+          channelId: incomingCall.channelId,
+          type: incomingCall.type,
+          targets: [
+            {
+              userId: incomingCall.fromUserId,
+              username: incomingCall.fromUsername,
+              avatarUrl: incomingCall.fromAvatarUrl ?? null,
+            },
+          ],
+          status: 'connecting',
+          isCallee: true,
+        })
+      }
       socket.emit('VOICE_CALL_RESPOND', { callId: incomingCall.callId, action })
       setIncomingCall(null)
     },
@@ -346,6 +379,18 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         prepareActiveVoice()
       } else if (kind === 'call') {
         prepareCallAudio()
+        const remote = payload.participants.find((p) => p.userId !== userId)
+        if (remote && !outgoingCallRef.current) {
+          setOutgoingCall({
+            callId: payload.channelId.replace(/^call:/, ''),
+            channelId: payload.channelId,
+            type: 'private',
+            targets: [{ userId: remote.userId, username: remote.username }],
+            status: 'connected',
+            connectedAt: Date.now(),
+            isCallee: true,
+          })
+        }
       }
     }
 
@@ -565,6 +610,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       incomingCall,
       outgoingCall,
       cancelOutgoingCall,
+      hangUpCall,
       joinChannel,
       switchChannel,
       leaveChannel,
@@ -613,6 +659,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       incomingCall,
       outgoingCall,
       cancelOutgoingCall,
+      hangUpCall,
       joinChannel,
       switchChannel,
       leaveChannel,

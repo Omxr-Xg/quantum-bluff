@@ -831,6 +831,7 @@
     "outgoingTitle": "Appel en cours",
     "outgoingGroupTitle": "Appel de groupe",
     "outgoingDialing": "Composition…",
+    "outgoingConnecting": "Connexion…",
     "outgoingConnected": "En communication",
     "outgoingDuration": "{{seconds}}",
     "outgoingActiveWith": "Avec {{name}}",

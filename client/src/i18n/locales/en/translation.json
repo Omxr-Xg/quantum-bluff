@@ -832,6 +832,7 @@
     "outgoingTitle": "Calling",
     "outgoingGroupTitle": "Group call",
     "outgoingDialing": "Dialing…",
+    "outgoingConnecting": "Connecting…",
     "outgoingConnected": "Connected",
     "outgoingDuration": "{{seconds}}",
     "outgoingActiveWith": "With {{name}}",

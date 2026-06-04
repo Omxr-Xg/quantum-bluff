@@ -60,7 +60,11 @@ export type VoiceOutgoingCallTarget = {
   avatarUrl?: string | null
 }
 
-export type VoiceOutgoingCallStatus = 'dialing' | 'connected' | 'unanswered'
+export type VoiceOutgoingCallStatus =
+  | 'dialing'
+  | 'connecting'
+  | 'connected'
+  | 'unanswered'
 
 export type VoiceUnansweredReason =
   | 'timeout'
@@ -78,6 +82,8 @@ export type VoiceOutgoingCall = {
   unansweredReason?: VoiceUnansweredReason
   /** Horodatage (ms) au passage en `connected` — pour le compteur d’appel. */
   connectedAt?: number
+  /** True si cet utilisateur a accepté un appel entrant (panneau callee). */
+  isCallee?: boolean
 }
 
 export type VoiceMigrateHint = {

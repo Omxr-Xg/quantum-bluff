@@ -47,7 +47,7 @@ export function VoiceCallIncomingBanner() {
           <button
             type="button"
             onClick={() => respondToCall('reject')}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-400/50 bg-red-950/50 px-3 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-900/60"
+            className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-red-400/60 bg-red-600/90 px-3 py-2.5 text-sm font-bold text-white shadow-lg transition hover:bg-red-500 sm:col-span-1"
           >
             <PhoneOff className="h-4 w-4" />
             {t('voice.rejectCall')}
