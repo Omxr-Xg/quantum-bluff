@@ -6,7 +6,10 @@ import type {
   VoiceParticipantPublic,
   VoiceRosterPayload,
 } from './voice.types.js'
-import { getBlockedUserIds, getFriendIdSet } from './voicePolicy.service.js'
+import {
+  getBlockedUserIdsCached,
+  getFriendIdSetCached,
+} from './voiceSocialCache.js'
 import {
   parseVoiceChannelId,
   type ParsedVoiceChannel,
@@ -15,6 +18,15 @@ import {
 const sessions = new Map<string, Map<string, VoiceParticipant>>()
 /** Un seul canal vocal principal par utilisateur. */
 const userPrimaryChannel = new Map<string, string>()
+
+const channelMetaCache = new Map<
+  string,
+  { expiresAt: number; channel: VoiceChannelMeta; gameId?: string }
+>()
+const CHANNEL_META_TTL_MS = 120_000
+
+const rosterBroadcastTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const ROSTER_BROADCAST_DEBOUNCE_MS = 80
 
 function socketRoomKey(channelId: string): string {
   return `voice:${channelId}`
@@ -34,6 +46,12 @@ function toPublic(p: VoiceParticipant): VoiceParticipantPublic {
 }
 
 export async function channelLabel(parsed: ParsedVoiceChannel): Promise<string> {
+  if (parsed.kind === 'call') {
+    return 'Appel vocal'
+  }
+  if (parsed.kind === 'table') {
+    return `Table #${parsed.id.slice(0, 8)}`
+  }
   if (parsed.kind === 'waiting') {
     const room = await prisma.waitingRoom.findUnique({
       where: { id: parsed.id },
@@ -41,10 +59,30 @@ export async function channelLabel(parsed: ParsedVoiceChannel): Promise<string> 
     })
     return room?.name ? `Waiting room ${room.name}` : `Waiting room`
   }
-  if (parsed.kind === 'table') {
-    return `Table #${parsed.id.slice(0, 8)}`
+  return 'Vocal'
+}
+
+async function channelMetaFor(
+  channelId: string,
+  parsed: ParsedVoiceChannel | null,
+): Promise<{ channel: VoiceChannelMeta; gameId?: string }> {
+  const cached = channelMetaCache.get(channelId)
+  if (cached && cached.expiresAt > Date.now()) {
+    return { channel: cached.channel, gameId: cached.gameId }
   }
-  return `Appel vocal`
+  const label = parsed ? await channelLabel(parsed) : 'Vocal'
+  const channel: VoiceChannelMeta = {
+    channelId,
+    kind: parsed?.kind ?? 'table',
+    label,
+  }
+  const gameId = parsed?.kind === 'table' ? parsed.id : undefined
+  channelMetaCache.set(channelId, {
+    expiresAt: Date.now() + CHANNEL_META_TTL_MS,
+    channel,
+    gameId,
+  })
+  return { channel, gameId }
 }
 
 export function getVoiceChannel(channelId: string): Map<string, VoiceParticipant> | undefined {
@@ -141,19 +179,15 @@ export async function buildRosterForUser(
 ): Promise<VoiceRosterPayload> {
   const parsed = parseVoiceChannelId(channelId)
   const room = sessions.get(channelId) ?? new Map()
-  const friendIds = await getFriendIdSet(userId)
-  const blocked = await getBlockedUserIds(userId)
-  const label = parsed ? await channelLabel(parsed) : 'Vocal'
-  const channel: VoiceChannelMeta = {
-    channelId,
-    kind: parsed?.kind ?? 'table',
-    label,
-  }
-  const gameId = parsed?.kind === 'table' ? parsed.id : undefined
+  const [friendIds, blocked, meta] = await Promise.all([
+    getFriendIdSetCached(userId),
+    getBlockedUserIdsCached(userId),
+    channelMetaFor(channelId, parsed),
+  ])
   return {
     channelId,
-    gameId,
-    channel,
+    gameId: meta.gameId,
+    channel: meta.channel,
     participants: [...room.values()].map(toPublic),
     friendIds: [...friendIds],
     blockedUserIds: [...blocked],
@@ -162,12 +196,46 @@ export async function buildRosterForUser(
 
 export async function broadcastVoiceRoster(io: Server, channelId: string): Promise<void> {
   const room = sessions.get(channelId)
-  if (!room) return
+  if (!room || room.size === 0) return
+
+  const parsed = parseVoiceChannelId(channelId)
+  const participants = [...room.values()].map(toPublic)
+  const meta = await channelMetaFor(channelId, parsed)
   const key = socketRoomKey(channelId)
-  for (const uid of room.keys()) {
-    const payload = await buildRosterForUser(channelId, uid)
-    io.to(key).emit('VOICE_ROSTER', payload)
+  const userIds = [...room.keys()]
+
+  const social = await Promise.all(
+    userIds.map(async (uid) => {
+      const [friendIds, blocked] = await Promise.all([
+        getFriendIdSetCached(uid),
+        getBlockedUserIdsCached(uid),
+      ])
+      return { uid, friendIds, blocked }
+    }),
+  )
+
+  for (const { uid, friendIds, blocked } of social) {
+    io.to(key).emit('VOICE_ROSTER', {
+      channelId,
+      gameId: meta.gameId,
+      channel: meta.channel,
+      participants,
+      friendIds: [...friendIds],
+      blockedUserIds: [...blocked],
+    })
   }
+}
+
+/** Regroupe les mises à jour roster (évite des centaines de requêtes Prisma d’affilée). */
+export function scheduleBroadcastVoiceRoster(io: Server, channelId: string): void {
+  const prev = rosterBroadcastTimers.get(channelId)
+  if (prev) clearTimeout(prev)
+  const t = setTimeout(() => {
+    rosterBroadcastTimers.delete(channelId)
+    void broadcastVoiceRoster(io, channelId)
+  }, ROSTER_BROADCAST_DEBOUNCE_MS)
+  rosterBroadcastTimers.set(channelId, t)
+  t.unref?.()
 }
 
 export function emitPeerLeft(

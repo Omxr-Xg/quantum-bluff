@@ -21,16 +21,19 @@ import {
   resolveChannelId,
 } from '../voice/voiceChannelId.js'
 import {
-  getBlockedUserIds,
-  getFriendIdSet,
   listenerAllowsSpeaker,
   normalizeVoiceAudience,
   speakerAllowsListener,
 } from '../voice/voicePolicy.service.js'
 import {
+  getBlockedUserIdsCached,
+  getFriendIdSetCached,
+  invalidateVoiceSocialCache,
+} from '../voice/voiceSocialCache.js'
+import {
   addVoiceSocket,
-  broadcastVoiceRoster,
   buildRosterForUser,
+  scheduleBroadcastVoiceRoster,
   emitPeerLeft,
   getVoiceChannel,
   getUserPrimaryChannel,
@@ -83,7 +86,7 @@ async function leaveChannel(
   const removed = removeVoiceSocket(channelId, userId, socket.id)
   if (removed) {
     emitPeerLeft(io, channelId, userId)
-    await broadcastVoiceRoster(io, channelId)
+    scheduleBroadcastVoiceRoster(io, channelId)
   }
   const parsed = parseVoiceChannelId(channelId)
   if (parsed?.kind === 'call') {
@@ -145,14 +148,10 @@ async function joinChannel(
   socket.join(socketRoomKey(channelId))
   socket.voiceChannelId = channelId
 
-  if (parsed.kind === 'call') {
-    activateCall(parsed.id)
-  }
-
   const roster = await buildRosterForUser(channelId, userId)
   socket.emit('VOICE_ROSTER', roster)
   socket.emit('VOICE_ACTIVE', { channelId, channel: roster.channel })
-  await broadcastVoiceRoster(io, channelId)
+  scheduleBroadcastVoiceRoster(io, channelId)
 }
 
 export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): void {
@@ -234,7 +233,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
         if (typeof data.soundMuted === 'boolean') p.soundMuted = data.soundMuted
         if (p.micMuted) p.speaking = false
 
-        await broadcastVoiceRoster(io, channelId)
+        scheduleBroadcastVoiceRoster(io, channelId)
       } catch (err) {
         console.error('[voice] VOICE_SETTINGS', err)
       }
@@ -260,7 +259,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
         if (!p) return
         if (data.muted) p.peerMutes.add(target)
         else p.peerMutes.delete(target)
-        await broadcastVoiceRoster(io, channelId)
+        scheduleBroadcastVoiceRoster(io, channelId)
       } catch (err) {
         console.error('[voice] VOICE_PEER_MUTE', err)
       }
@@ -278,7 +277,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
       const p = room?.get(userId)
       if (!p) return
       p.speaking = Boolean(data?.speaking) && !p.micMuted
-      await broadcastVoiceRoster(io, channelId)
+      scheduleBroadcastVoiceRoster(io, channelId)
     },
   )
 
@@ -308,10 +307,10 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
         const target = room?.get(toUserId)
         if (!speaker || !target) return
 
-        const speakerFriends = await getFriendIdSet(fromUserId)
-        const listenerFriends = await getFriendIdSet(toUserId)
-        const blocked = await getBlockedUserIds(fromUserId)
-        const listenerBlocked = await getBlockedUserIds(toUserId)
+        const speakerFriends = await getFriendIdSetCached(fromUserId)
+        const listenerFriends = await getFriendIdSetCached(toUserId)
+        const blocked = await getBlockedUserIdsCached(fromUserId)
+        const listenerBlocked = await getBlockedUserIdsCached(toUserId)
         if (blocked.has(toUserId) || listenerBlocked.has(fromUserId)) return
 
         // Autoriser la signalisation WebRTC (SDP/ICE) même micro coupé — le mute est côté pistes.
@@ -448,6 +447,8 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
             create: { blockerId: userId, blockedId: call.creatorId },
             update: {},
           })
+          invalidateVoiceSocialCache(userId)
+          invalidateVoiceSocialCache(call.creatorId)
         }
 
         if (action === 'accept') {
