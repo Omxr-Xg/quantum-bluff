@@ -550,6 +550,7 @@ model GameInvitation {
   receiver User        @relation("InvitationReceiver", fields: [receiverId], references: [id])
 
   @@unique([roomId, receiverId])
+  @@index([senderId])
   @@index([receiverId, status])
   @@index([roomId])
 }
