@@ -842,6 +842,7 @@
     "orTrumpFromCard": "Or tap any card — trump is that card’s suit",
     "bidCapot": "Capot {{value}} — choose trump",
     "cancelBid": "Cancel",
+    "bidSending": "Sending bid…",
     "waitingContree": "Bidding done — waiting on defenders…",
     "phasePlaying": "Playing",
     "phaseDealEnd": "End of deal",

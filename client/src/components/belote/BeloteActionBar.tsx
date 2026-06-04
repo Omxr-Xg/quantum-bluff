@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NeonButton } from "../NeonButton";
 import { BelotePlayerHand } from "./BelotePlayerHand";
@@ -36,6 +36,7 @@ export function BeloteActionBar({
 }) {
   const { t } = useTranslation();
   const [pendingBid, setPendingBid] = useState<number | null>(null);
+  const [bidSent, setBidSent] = useState(false);
 
   const me = state.players.find((p) => p.userId === myUserId);
   const myPos = me?.position ?? -1;
@@ -62,9 +63,17 @@ export function BeloteActionBar({
     return BID_VALUES.filter((v) => v >= minBid);
   }, [minBid]);
 
+  /** Réinitialise le flux enchère quand ce n’est plus notre tour (après acceptation serveur). */
+  useEffect(() => {
+    if (state.phase !== "BIDDING" || state.biddingTurnPosition !== myPos) {
+      setPendingBid(null);
+      setBidSent(false);
+    }
+  }, [state.phase, state.biddingTurnPosition, myPos]);
+
   const submitBid = (value: number, trump: string) => {
+    setBidSent(true);
     onAction({ type: "BID", value, trump: normalizeTrump(trump) });
-    setPendingBid(null);
   };
 
   const onCardTrumpPick = (card: BeloteCard) => {
@@ -84,6 +93,8 @@ export function BeloteActionBar({
 
   if (isAuctionTurn && state.phase === "BIDDING") {
     if (pendingBid != null) {
+      const pickingDisabled = disabled || bidSent;
+
       return (
         <div className="flex w-full flex-col items-center gap-3">
           <p className="text-center text-xs font-semibold uppercase tracking-wider text-amber-200/90">
@@ -91,12 +102,18 @@ export function BeloteActionBar({
               ? t("belote.bidCapot", { value: pendingBid })
               : t("belote.bidChooseTrump", { value: pendingBid })}
           </p>
-          <p className="text-center text-[10px] text-emerald-200/65">
-            {t("belote.chooseTrumpAnySuit")}
-          </p>
+          {bidSent ? (
+            <p className="text-center text-[10px] font-medium text-amber-200/80">
+              {t("belote.bidSending")}
+            </p>
+          ) : (
+            <p className="text-center text-[10px] text-emerald-200/65">
+              {t("belote.chooseTrumpAnySuit")}
+            </p>
+          )}
 
           <BeloteSuitPicker
-            disabled={disabled}
+            disabled={pickingDisabled}
             size="sm"
             onSelect={(suit) => submitBid(pendingBid, suit)}
           />
@@ -111,7 +128,7 @@ export function BeloteActionBar({
                 mode="trump"
                 size="sm"
                 trump={state.deal.trump}
-                disabled={disabled}
+                disabled={pickingDisabled}
                 onCardClick={onCardTrumpPick}
               />
             </div>
@@ -119,9 +136,12 @@ export function BeloteActionBar({
 
           <NeonButton
             variant="red"
-            disabled={disabled}
+            disabled={pickingDisabled}
             className="text-xs"
-            onClick={() => setPendingBid(null)}
+            onClick={() => {
+              setPendingBid(null);
+              setBidSent(false);
+            }}
           >
             {t("belote.cancelBid")}
           </NeonButton>
