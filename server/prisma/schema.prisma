@@ -720,6 +720,7 @@ model BeloteJoinRequest {
   user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([roomId, userId])
+  @@index([userId])
   @@index([roomId, status])
   @@map("belote_join_requests")
 }
