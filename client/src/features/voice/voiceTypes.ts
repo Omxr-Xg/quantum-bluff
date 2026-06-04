@@ -75,6 +75,8 @@ export type VoiceOutgoingCall = {
   targets: VoiceOutgoingCallTarget[]
   status: VoiceOutgoingCallStatus
   unansweredReason?: VoiceUnansweredReason
+  /** Horodatage (ms) au passage en `connected` — pour le compteur d’appel. */
+  connectedAt?: number
 }
 
 export type VoiceMigrateHint = {

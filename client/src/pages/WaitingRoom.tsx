@@ -341,15 +341,14 @@ export function WaitingRoom() {
   useEffect(() => {
     if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;
     joinRoom(rawRoomId);
+    const voiceTimer = window.setTimeout(() => {
+      voice.joinWaitingRoom(rawRoomId);
+    }, 200);
     return () => {
+      window.clearTimeout(voiceTimer);
       leaveRoom(rawRoomId);
     };
-  }, [userId, rawRoomId, roomLoading, joinRoom, leaveRoom]);
-
-  useEffect(() => {
-    if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;
-    voice.joinWaitingRoom(rawRoomId);
-  }, [userId, rawRoomId, roomLoading, voice]);
+  }, [userId, rawRoomId, roomLoading, joinRoom, leaveRoom, voice.joinWaitingRoom]);
 
   useEffect(() => {
     if (!socket || !navigate) return;

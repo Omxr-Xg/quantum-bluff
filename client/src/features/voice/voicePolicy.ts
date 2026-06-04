@@ -30,6 +30,48 @@ export function canHearParticipant(
   return remoteSpeaksToMe && iWantToHear
 }
 
+/** Établir la liaison WebRTC (négociation) — indépendant du mute micro distant. */
+export function shouldWirePeerTo(
+  myUserId: string,
+  remote: VoiceParticipantPublic,
+  myListenTo: VoiceAudience,
+  mySpeakTo: VoiceAudience,
+  mySoundMuted: boolean,
+  myMicMuted: boolean,
+  myPeerMutes: Set<string>,
+  myFriendIds: Set<string>,
+  blockedIds: Set<string>,
+): boolean {
+  if (remote.userId === myUserId) return false
+  if (blockedIds.has(remote.userId)) return false
+  if (myPeerMutes.has(remote.userId)) return false
+
+  if (
+    shouldSendToRemote(
+      myUserId,
+      remote.userId,
+      mySpeakTo,
+      myMicMuted,
+      myFriendIds,
+      blockedIds,
+    )
+  ) {
+    return true
+  }
+
+  if (mySoundMuted || myListenTo === 'NOBODY') return false
+
+  const remoteMaySpeakToMe =
+    isChannelWide(remote.speakTo) ||
+    (remote.speakTo === 'FRIENDS' && myFriendIds.has(remote.userId))
+
+  const iWantToListen =
+    isChannelWide(myListenTo) ||
+    (myListenTo === 'FRIENDS' && myFriendIds.has(remote.userId))
+
+  return remoteMaySpeakToMe && iWantToListen
+}
+
 export function shouldSendToRemote(
   myUserId: string,
   remoteUserId: string,

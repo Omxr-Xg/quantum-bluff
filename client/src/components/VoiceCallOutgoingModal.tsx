@@ -15,6 +15,13 @@ function defaultPosition(): { left: number; top: number } {
   return { left: EDGE, top: TOP_DEFAULT }
 }
 
+function formatCallDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  if (m > 0) return `${m}:${String(s).padStart(2, '0')}`
+  return `${s}`
+}
+
 function unansweredMessage(
   t: (key: string, opts?: Record<string, unknown>) => string,
   reason: VoiceUnansweredReason | undefined,
@@ -44,6 +51,7 @@ export function VoiceCallOutgoingModal() {
   const posRef = useRef(pos)
   const dragRef = useRef({ dx: 0, dy: 0 })
   const lastCallKeyRef = useRef<string | null>(null)
+  const [elapsedSec, setElapsedSec] = useState(0)
   posRef.current = pos
 
   const clampPos = useCallback((left: number, top: number) => {
@@ -108,6 +116,20 @@ export function VoiceCallOutgoingModal() {
     [clampPos],
   )
 
+  const isConnected = outgoingCall?.status === 'connected'
+  const connectedAt = outgoingCall?.connectedAt
+
+  useEffect(() => {
+    if (!isConnected || !connectedAt) {
+      setElapsedSec(0)
+      return
+    }
+    const tick = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - connectedAt) / 1000)))
+    tick()
+    const id = window.setInterval(tick, 1000)
+    return () => window.clearInterval(id)
+  }, [isConnected, connectedAt])
+
   if (!outgoingCall) return null
 
   const primary = outgoingCall.targets[0]
@@ -122,7 +144,6 @@ export function VoiceCallOutgoingModal() {
       : null
 
   const isDialing = outgoingCall.status === 'dialing'
-  const isConnected = outgoingCall.status === 'connected'
   const isUnanswered = outgoingCall.status === 'unanswered'
 
   const handleHangUp = () => {
@@ -149,13 +170,13 @@ export function VoiceCallOutgoingModal() {
           <GripVertical className="h-3.5 w-3.5 shrink-0 text-sky-400/70" aria-hidden />
           {outgoingCall.type === 'group' ? t('voice.outgoingGroupTitle') : t('voice.outgoingTitle')}
         </span>
-        {isDialing ? (
+        {isDialing || isConnected ? (
           <button
             type="button"
             onClick={handleHangUp}
             className="shrink-0 rounded-lg border border-red-400/40 bg-red-950/50 p-1.5 text-red-200 transition hover:bg-red-900/60"
-            aria-label={t('voice.outgoingCancel')}
-            title={t('voice.outgoingCancel')}
+            aria-label={isConnected ? t('voice.outgoingHangUp') : t('voice.outgoingCancel')}
+            title={isConnected ? t('voice.outgoingHangUp') : t('voice.outgoingCancel')}
           >
             <PhoneOff className="h-3.5 w-3.5" />
           </button>
@@ -193,9 +214,11 @@ export function VoiceCallOutgoingModal() {
             </p>
           ) : null}
           {isConnected ? (
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-emerald-300">
-              <Phone className="h-3.5 w-3.5" />
-              {t('voice.outgoingConnected')}
+            <p className="mt-0.5 flex items-baseline gap-2 text-emerald-300">
+              <Phone className="h-3.5 w-3.5 shrink-0 self-center" />
+              <span className="text-lg font-bold tabular-nums leading-none">
+                {t('voice.outgoingDuration', { seconds: formatCallDuration(elapsedSec) })}
+              </span>
             </p>
           ) : null}
           {isUnanswered ? (

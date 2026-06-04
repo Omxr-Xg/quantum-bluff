@@ -87,7 +87,7 @@ export function BeloteWaitingRoom() {
   useEffect(() => {
     if (!userId || !roomId) return;
     voice.joinWaitingRoom(roomId);
-  }, [userId, roomId, voice]);
+  }, [userId, roomId, voice.joinWaitingRoom]);
 
   useEffect(() => {
     if (!socket || !roomId) return;

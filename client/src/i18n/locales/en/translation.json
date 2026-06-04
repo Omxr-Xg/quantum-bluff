@@ -811,6 +811,8 @@
   },
   "voice": {
     "panelTitle": "Voice chat",
+    "togglePanelShow": "Open voice chat",
+    "togglePanelHide": "Close voice chat",
     "connectedTo": "Connected to voice: {{channel}}",
     "speakTo": "I speak to",
     "listenTo": "I listen to",
@@ -831,6 +833,7 @@
     "outgoingGroupTitle": "Group call",
     "outgoingDialing": "Dialing…",
     "outgoingConnected": "Connected",
+    "outgoingDuration": "{{seconds}} s",
     "outgoingCancel": "Cancel",
     "outgoingHangUp": "Hang up",
     "outgoingUnavailable": "{{name}} is unavailable",

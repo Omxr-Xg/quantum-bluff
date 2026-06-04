@@ -18,11 +18,10 @@ export function socketMayUseTableVoice(socket: Socket, gameId: string): boolean 
 }
 
 async function mayJoinWaitingChannel(
-  socket: Socket,
+  _socket: Socket,
   userId: string,
   roomId: string,
 ): Promise<boolean> {
-  if (!socket.rooms.has(roomId)) return false
   const room = await prisma.waitingRoom.findUnique({
     where: { id: roomId },
     select: {
@@ -47,8 +46,9 @@ async function mayJoinWaitingChannel(
 
 function mayJoinCallChannel(userId: string, callId: string): boolean {
   const call = getCall(callId)
-  if (!call || call.status !== 'active') return false
-  return call.memberIds.includes(userId)
+  if (!call) return false
+  if (!call.memberIds.includes(userId)) return false
+  return call.status === 'active' || call.status === 'ringing'
 }
 
 export async function assertMayJoinVoiceChannel(

@@ -2,6 +2,7 @@ import type { Socket } from 'socket.io-client'
 import {
   canHearParticipant,
   shouldSendToRemote,
+  shouldWirePeerTo,
 } from './voicePolicy'
 import type {
   VoiceParticipantPublic,
@@ -10,7 +11,10 @@ import type {
 } from './voiceTypes'
 
 const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ],
 }
 
 type PeerEntry = {
@@ -18,11 +22,25 @@ type PeerEntry = {
   audio: HTMLAudioElement
   makingOffer: boolean
   ignoreOffer: boolean
+  hadLocalAudio: boolean
 }
 
 export type VoiceMeshCallbacks = {
   onSpeakingChange?: (userIds: string[]) => void
   onMicError?: (message: string) => void
+}
+
+function toSessionDescription(
+  raw: RTCSessionDescriptionInit | RTCSessionDescription | null | undefined,
+): RTCSessionDescriptionInit | null {
+  if (!raw || typeof raw !== 'object') return null
+  const sdp =
+    typeof (raw as RTCSessionDescriptionInit).sdp === 'string'
+      ? (raw as RTCSessionDescriptionInit).sdp
+      : null
+  const type = (raw as RTCSessionDescriptionInit).type
+  if (!sdp || (type !== 'offer' && type !== 'answer')) return null
+  return { type, sdp }
 }
 
 export class WebRTCVoiceMesh {
@@ -31,6 +49,7 @@ export class WebRTCVoiceMesh {
   private socket: Socket
   private settings: VoiceSettings
   private peers = new Map<string, PeerEntry>()
+  private pendingIce = new Map<string, RTCIceCandidateInit[]>()
   private localStream: MediaStream | null = null
   private roster: VoiceRosterPayload | null = null
   private friendIds = new Set<string>()
@@ -98,14 +117,21 @@ export class WebRTCVoiceMesh {
       this.localStream.getAudioTracks().forEach((t) => {
         t.enabled = true
       })
-      void this.syncPeers()
+      await this.renotifyAllPeers()
       return
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false,
+      })
       this.localStream = stream
       this.startSpeakingDetector(stream)
-      void this.syncPeers()
+      await this.renotifyAllPeers()
     } catch {
       this.callbacks.onMicError?.('mic_denied')
     }
@@ -118,6 +144,29 @@ export class WebRTCVoiceMesh {
     this.speakingTimer = null
     void this.analyserCtx?.close()
     this.analyserCtx = null
+  }
+
+  private async renotifyAllPeers(): Promise<void> {
+    await this.syncPeers()
+    for (const uid of this.peers.keys()) {
+      const entry = this.peers.get(uid)
+      if (!entry) continue
+      const send = shouldSendToRemote(
+        this.myUserId,
+        uid,
+        this.settings.speakTo,
+        this.settings.micMuted,
+        this.friendIds,
+        this.blockedIds,
+      )
+      const hasTrack = Boolean(
+        send && this.localStream?.getAudioTracks()[0],
+      )
+      if (hasTrack && !entry.hadLocalAudio && entry.pc.signalingState === 'stable') {
+        await this.renegotiate(uid)
+      }
+      entry.hadLocalAudio = hasTrack
+    }
   }
 
   private stopLocalTracks(): void {
@@ -141,24 +190,28 @@ export class WebRTCVoiceMesh {
   private shouldConnectTo(remoteId: string): boolean {
     const remote = this.remoteParticipant(remoteId)
     if (!remote) return false
-    const send = shouldSendToRemote(
-      this.myUserId,
-      remoteId,
-      this.settings.speakTo,
-      this.settings.micMuted,
-      this.friendIds,
-      this.blockedIds,
-    )
-    const hear = canHearParticipant(
+    return shouldWirePeerTo(
       this.myUserId,
       remote,
       this.settings.listenTo,
+      this.settings.speakTo,
       this.settings.soundMuted,
+      this.settings.micMuted,
       this.settings.peerMutes,
       this.friendIds,
       this.blockedIds,
     )
-    return send || hear
+  }
+
+  private emitSignal(
+    toUserId: string,
+    signal: { type: string; sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit },
+  ): void {
+    this.socket.emit('VOICE_SIGNAL', {
+      channelId: this.channelId,
+      toUserId,
+      signal,
+    })
   }
 
   private async syncPeers(): Promise<void> {
@@ -179,6 +232,13 @@ export class WebRTCVoiceMesh {
     this.applyPlaybackVolumes()
   }
 
+  private ensureRecvTransceiver(pc: RTCPeerConnection): void {
+    const hasAudio = pc.getTransceivers().some((t) => t.receiver.track?.kind === 'audio')
+    if (!hasAudio) {
+      pc.addTransceiver('audio', { direction: 'recvonly' })
+    }
+  }
+
   private async ensurePeer(remoteId: string): Promise<void> {
     if (this.peers.has(remoteId)) return
 
@@ -187,48 +247,96 @@ export class WebRTCVoiceMesh {
     const audio = document.createElement('audio')
     audio.autoplay = true
     audio.setAttribute('playsinline', 'true')
+    audio.dataset.voicePeer = remoteId
+    audio.style.display = 'none'
+    if (!audio.isConnected) document.body.appendChild(audio)
 
-    const entry: PeerEntry = { pc, audio, makingOffer: false, ignoreOffer: false }
+    const entry: PeerEntry = {
+      pc,
+      audio,
+      makingOffer: false,
+      ignoreOffer: false,
+      hadLocalAudio: false,
+    }
     this.peers.set(remoteId, entry)
+    this.pendingIce.set(remoteId, [])
 
     pc.onicecandidate = (ev) => {
       if (!ev.candidate) return
-      this.socket.emit('VOICE_SIGNAL', {
-        channelId: this.channelId,
-        toUserId: remoteId,
-        signal: { type: 'ice', candidate: ev.candidate.toJSON() },
+      this.emitSignal(remoteId, {
+        type: 'ice',
+        candidate: ev.candidate.toJSON(),
       })
     }
 
     pc.ontrack = (ev) => {
       const stream = ev.streams[0] ?? new MediaStream([ev.track])
       audio.srcObject = stream
-      void audio.play().catch(() => undefined)
+      void audio.play().catch(() => {
+        const resume = () => {
+          void audio.play().catch(() => undefined)
+          document.removeEventListener('pointerdown', resume)
+        }
+        document.addEventListener('pointerdown', resume, { once: true })
+      })
       this.applyVolumeForPeer(remoteId)
     }
 
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      if (pc.connectionState === 'failed') {
+        void this.renegotiate(remoteId)
+      } else if (pc.connectionState === 'closed') {
         this.closePeer(remoteId)
       }
     }
 
+    this.ensureRecvTransceiver(pc)
     await this.refreshPeerTracks(remoteId)
+    entry.hadLocalAudio = Boolean(
+      shouldSendToRemote(
+        this.myUserId,
+        remoteId,
+        this.settings.speakTo,
+        this.settings.micMuted,
+        this.friendIds,
+        this.blockedIds,
+      ) && this.localStream?.getAudioTracks()[0],
+    )
 
     if (this.myUserId < remoteId) {
       try {
         entry.makingOffer = true
-        await pc.setLocalDescription(await pc.createOffer())
-        this.socket.emit('VOICE_SIGNAL', {
-          channelId: this.channelId,
-          toUserId: remoteId,
-          signal: { type: 'offer', sdp: pc.localDescription ?? undefined },
-        })
+        const offer = await pc.createOffer({ offerToReceiveAudio: true })
+        await pc.setLocalDescription(offer)
+        const desc = toSessionDescription(pc.localDescription)
+        if (desc) {
+          this.emitSignal(remoteId, { type: 'offer', sdp: desc })
+        }
       } catch (err) {
         console.warn('[voice] initial offer', err)
       } finally {
         entry.makingOffer = false
       }
+    }
+  }
+
+  private async renegotiate(remoteId: string): Promise<void> {
+    const entry = this.peers.get(remoteId)
+    if (!entry || entry.makingOffer) return
+    const { pc } = entry
+    if (pc.signalingState === 'closed') return
+    try {
+      entry.makingOffer = true
+      const offer = await pc.createOffer({ offerToReceiveAudio: true })
+      await pc.setLocalDescription(offer)
+      const desc = toSessionDescription(pc.localDescription)
+      if (desc) {
+        this.emitSignal(remoteId, { type: 'offer', sdp: desc })
+      }
+    } catch (err) {
+      console.warn('[voice] renegotiate', err)
+    } finally {
+      entry.makingOffer = false
     }
   }
 
@@ -245,22 +353,42 @@ export class WebRTCVoiceMesh {
       this.blockedIds,
     )
 
+    const track = send ? this.localStream?.getAudioTracks()[0] : undefined
     const senders = pc.getSenders().filter((s) => s.track?.kind === 'audio')
-    if (send && this.localStream) {
-      const track = this.localStream.getAudioTracks()[0]
-      if (track) {
-        const existing = senders[0]
-        if (existing?.track?.id === track.id) {
-          track.enabled = !this.settings.micMuted
-        } else if (existing) {
-          await existing.replaceTrack(track)
-        } else {
-          pc.addTrack(track, this.localStream)
-        }
+
+    if (track) {
+      track.enabled = !this.settings.micMuted
+      const existing = senders[0]
+      const needsRenegotiate = !entry.hadLocalAudio && pc.signalingState === 'stable'
+      if (existing?.track?.id === track.id) {
+        /* unchanged */
+      } else if (existing) {
+        await existing.replaceTrack(track)
+        if (needsRenegotiate) await this.renegotiate(remoteId)
+      } else {
+        pc.addTrack(track, this.localStream!)
+        if (needsRenegotiate) await this.renegotiate(remoteId)
       }
+      entry.hadLocalAudio = true
     } else {
       for (const s of senders) {
         await s.replaceTrack(null)
+      }
+      entry.hadLocalAudio = false
+      this.ensureRecvTransceiver(pc)
+    }
+  }
+
+  private async flushPendingIce(remoteId: string): Promise<void> {
+    const entry = this.peers.get(remoteId)
+    const queue = this.pendingIce.get(remoteId) ?? []
+    if (!entry?.pc.remoteDescription || queue.length === 0) return
+    this.pendingIce.set(remoteId, [])
+    for (const candidate of queue) {
+      try {
+        await entry.pc.addIceCandidate(candidate)
+      } catch (err) {
+        console.warn('[voice] ice flush', err)
       }
     }
   }
@@ -277,21 +405,33 @@ export class WebRTCVoiceMesh {
     const polite = this.myUserId > fromUserId
 
     try {
-      if (signal.type === 'offer' && signal.sdp) {
+      if (signal.type === 'offer') {
+        const desc = toSessionDescription(signal.sdp ?? null)
+        if (!desc) return
         const offerCollision = entry.makingOffer || pc.signalingState !== 'stable'
         entry.ignoreOffer = !polite && offerCollision
         if (entry.ignoreOffer) return
-        await pc.setRemoteDescription(signal.sdp)
-        await pc.setLocalDescription(await pc.createAnswer())
-        this.socket.emit('VOICE_SIGNAL', {
-          channelId: this.channelId,
-          toUserId: fromUserId,
-          signal: { type: 'answer', sdp: pc.localDescription ?? undefined },
-        })
+        await pc.setRemoteDescription(desc)
+        const answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+        const local = toSessionDescription(pc.localDescription)
+        if (local) {
+          this.emitSignal(fromUserId, { type: 'answer', sdp: local })
+        }
         await this.refreshPeerTracks(fromUserId)
-      } else if (signal.type === 'answer' && signal.sdp) {
-        await pc.setRemoteDescription(signal.sdp)
+        await this.flushPendingIce(fromUserId)
+      } else if (signal.type === 'answer') {
+        const desc = toSessionDescription(signal.sdp ?? null)
+        if (!desc) return
+        await pc.setRemoteDescription(desc)
+        await this.flushPendingIce(fromUserId)
       } else if (signal.type === 'ice' && signal.candidate) {
+        if (!pc.remoteDescription) {
+          const q = this.pendingIce.get(fromUserId) ?? []
+          q.push(signal.candidate)
+          this.pendingIce.set(fromUserId, q)
+          return
+        }
         await pc.addIceCandidate(signal.candidate)
       }
     } catch (err) {
@@ -304,7 +444,9 @@ export class WebRTCVoiceMesh {
     if (!entry) return
     entry.pc.close()
     entry.audio.srcObject = null
+    entry.audio.remove()
     this.peers.delete(userId)
+    this.pendingIce.delete(userId)
   }
 
   private applyPlaybackVolumes(): void {

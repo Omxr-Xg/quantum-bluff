@@ -21,10 +21,11 @@ import {
   resolveChannelId,
 } from '../voice/voiceChannelId.js'
 import {
-  canSendToListener,
   getBlockedUserIds,
   getFriendIdSet,
+  listenerAllowsSpeaker,
   normalizeVoiceAudience,
+  speakerAllowsListener,
 } from '../voice/voicePolicy.service.js'
 import {
   addVoiceSocket,
@@ -39,6 +40,7 @@ import {
   socketRoomKey,
 } from '../voice/voiceSession.registry.js'
 import type { VoiceMigrateHint } from '../voice/voice.types.js'
+import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 
 type VoiceSocket = Socket & { userId?: string; voiceChannelId?: string }
 
@@ -48,6 +50,25 @@ async function usernameFor(userId: string): Promise<string> {
     select: { username: true },
   })
   return u?.username ?? 'Joueur'
+}
+
+async function voiceCallTargetProfile(userId: string): Promise<{
+  userId: string
+  username: string
+  avatarUrl: string | null
+}> {
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, username: true, avatarUrl: true, avatarHasBinary: true },
+  })
+  if (!u) {
+    return { userId, username: 'Joueur', avatarUrl: null }
+  }
+  return {
+    userId: u.id,
+    username: u.username,
+    avatarUrl: clientAvatarUrlFromUser(u),
+  }
 }
 
 async function leaveChannel(
@@ -278,8 +299,6 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
 
         const parsed = parseVoiceChannelId(channelId)
         if (!parsed) return
-        const access = await assertMayJoinVoiceChannel(socket, fromUserId, parsed)
-        if (!access.ok) return
 
         const type = data.signal?.type
         if (type !== 'offer' && type !== 'answer' && type !== 'ice') return
@@ -290,20 +309,23 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
         if (!speaker || !target) return
 
         const speakerFriends = await getFriendIdSet(fromUserId)
+        const listenerFriends = await getFriendIdSet(toUserId)
         const blocked = await getBlockedUserIds(fromUserId)
         const listenerBlocked = await getBlockedUserIds(toUserId)
         if (blocked.has(toUserId) || listenerBlocked.has(fromUserId)) return
 
-        if (
-          !canSendToListener(fromUserId, toUserId, {
-            speakerSpeakTo: speaker.speakTo,
-            speakerMicMuted: speaker.micMuted,
-            friendIds: speakerFriends,
-            blockedIds: blocked,
-          })
-        ) {
-          return
-        }
+        // Autoriser la signalisation WebRTC (SDP/ICE) même micro coupé — le mute est côté pistes.
+        const listenerWantsLink = listenerAllowsSpeaker(
+          target.listenTo,
+          fromUserId,
+          listenerFriends,
+        )
+        const speakerMayReachListener = speakerAllowsListener(
+          speaker.speakTo,
+          toUserId,
+          speakerFriends,
+        )
+        if (!listenerWantsLink && !speakerMayReachListener) return
 
         const gameId = parsed.kind === 'table' ? parsed.id : undefined
         for (const sid of target.socketIds) {
@@ -357,12 +379,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
 
         const call = createCall({ type, creatorId: userId, memberIds: targets })
         const fromName = await usernameFor(userId)
-        const targetProfiles = await Promise.all(
-          targets.map(async (tid) => ({
-            userId: tid,
-            username: await usernameFor(tid),
-          })),
-        )
+        const targetProfiles = await Promise.all(targets.map((tid) => voiceCallTargetProfile(tid)))
         socket.emit('VOICE_CALL_OUTGOING', {
           callId: call.callId,
           channelId: call.channelId,
@@ -435,6 +452,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
 
         if (action === 'accept') {
           clearCallRingTimeout(callId)
+          activateCall(callId)
           const priorCallee = getUserPrimaryChannel(userId)
           if (priorCallee && priorCallee !== call.channelId) {
             removeUserFromAllChannels(userId, call.channelId)
@@ -454,7 +472,6 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
             }
           }
 
-          activateCall(callId)
           const payload = { callId, channelId: call.channelId }
           io.to(`user:${call.creatorId}`).emit('VOICE_CALL_CONNECTED', payload)
           io.to(`user:${userId}`).emit('VOICE_CALL_CONNECTED', payload)

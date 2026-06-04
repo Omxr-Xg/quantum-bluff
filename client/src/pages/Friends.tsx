@@ -153,12 +153,17 @@ export function Friends() {
   const [showGroupCallModal, setShowGroupCallModal] = useState(false);
   const [groupCallSelection, setGroupCallSelection] = useState<Set<string>>(new Set());
 
-  const handleCallFriend = (friendId: string, username: string, isOnline: boolean) => {
+  const handleCallFriend = (
+    friendId: string,
+    username: string,
+    isOnline: boolean,
+    avatarUrl?: string | null,
+  ) => {
     if (!isOnline) {
       addToast(t("voice.callFriendOffline", { username }), "warning");
       return;
     }
-    startPrivateCall(friendId, username);
+    startPrivateCall(friendId, username, avatarUrl);
   };
   const { menuContent } = useTopBar();
 
@@ -1009,7 +1014,7 @@ export function Friends() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleCallFriend(friend.id, friend.username, friend.isOnline)}
+                          onClick={() => handleCallFriend(friend.id, friend.username, friend.isOnline, friend.avatarUrl)}
                           disabled={!friend.isOnline}
                           className="flex items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-950/45 px-4 py-2.5 font-semibold text-emerald-100 transition-all hover:border-emerald-200/35 hover:bg-emerald-900/45 disabled:cursor-not-allowed disabled:opacity-50"
                           title={friend.isOnline ? t("voice.callFriend") : t("friends.offline")}
@@ -1101,7 +1106,7 @@ export function Friends() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleCallFriend(friend.id, friend.username, friend.isOnline)}
+                        onClick={() => handleCallFriend(friend.id, friend.username, friend.isOnline, friend.avatarUrl)}
                         disabled={!friend.isOnline}
                         className="flex items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-950/45 px-3 py-2.5 font-semibold text-emerald-100 transition hover:border-emerald-200/35 hover:bg-emerald-900/45 disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -1605,6 +1610,7 @@ export function Friends() {
                         selectedFriend.id,
                         selectedFriend.username,
                         selectedFriend.isOnline,
+                        selectedFriend.avatarUrl,
                       )
                     }
                     disabled={!selectedFriend.isOnline}

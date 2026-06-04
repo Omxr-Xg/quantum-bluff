@@ -810,6 +810,8 @@
   },
   "voice": {
     "panelTitle": "Chat vocal",
+    "togglePanelShow": "Ouvrir le chat vocal",
+    "togglePanelHide": "Fermer le chat vocal",
     "connectedTo": "Connecté au vocal : {{channel}}",
     "speakTo": "Je parle à",
     "listenTo": "J'écoute",
@@ -830,6 +832,7 @@
     "outgoingGroupTitle": "Appel de groupe",
     "outgoingDialing": "Composition…",
     "outgoingConnected": "En communication",
+    "outgoingDuration": "{{seconds}} s",
     "outgoingCancel": "Annuler",
     "outgoingHangUp": "Raccrocher",
     "outgoingUnavailable": "{{name}} n'est pas disponible",
