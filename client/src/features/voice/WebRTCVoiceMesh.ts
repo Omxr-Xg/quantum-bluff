@@ -66,6 +66,8 @@ export class WebRTCVoiceMesh {
   private settings: VoiceSettings
   private peers = new Map<string, PeerEntry>()
   private pendingIce = new Map<string, RTCIceCandidateInit[]>()
+  /** Une signalisation à la fois par pair (évite offer/answer en parallèle). */
+  private signalChains = new Map<string, Promise<void>>()
   private localStream: MediaStream | null = null
   private roster: VoiceRosterPayload | null = null
   private friendIds = new Set<string>()
@@ -116,7 +118,23 @@ export class WebRTCVoiceMesh {
     const cid = payload.channelId ?? payload.gameId
     if (cid && cid !== this.channelId) return
     if (payload.toUserId !== this.myUserId) return
-    void this.onRemoteSignal(payload.fromUserId, payload.signal)
+    this.enqueueRemoteSignal(payload.fromUserId, payload.signal)
+  }
+
+  private enqueueRemoteSignal(
+    fromUserId: string,
+    signal: { type: string; sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit },
+  ): void {
+    const prev = this.signalChains.get(fromUserId) ?? Promise.resolve()
+    const next = prev
+      .then(() => this.onRemoteSignal(fromUserId, signal))
+      .catch((err) => console.warn('[voice] signal', err))
+    this.signalChains.set(fromUserId, next)
+    void next.finally(() => {
+      if (this.signalChains.get(fromUserId) === next) {
+        this.signalChains.delete(fromUserId)
+      }
+    })
   }
 
   handlePeerLeft(userId: string): void {
@@ -336,11 +354,22 @@ export class WebRTCVoiceMesh {
     }
   }
 
+  private async rollbackLocalOffer(pc: RTCPeerConnection): Promise<boolean> {
+    if (pc.signalingState === 'stable') return true
+    if (pc.signalingState !== 'have-local-offer') return false
+    try {
+      await pc.setLocalDescription({ type: 'rollback' })
+      return pc.signalingState === 'stable'
+    } catch {
+      return false
+    }
+  }
+
   private async renegotiate(remoteId: string): Promise<void> {
     const entry = this.peers.get(remoteId)
     if (!entry || entry.makingOffer) return
     const { pc } = entry
-    if (pc.signalingState === 'closed') return
+    if (pc.signalingState === 'closed' || pc.signalingState !== 'stable') return
     try {
       entry.makingOffer = true
       const offer = await pc.createOffer({ offerToReceiveAudio: true })
@@ -425,9 +454,21 @@ export class WebRTCVoiceMesh {
         const desc = toSessionDescription(signal.sdp ?? null)
         if (!desc) return
         const offerCollision = entry.makingOffer || pc.signalingState !== 'stable'
-        entry.ignoreOffer = !polite && offerCollision
-        if (entry.ignoreOffer) return
+        if (offerCollision) {
+          if (!polite) {
+            entry.ignoreOffer = true
+            return
+          }
+          const rolled = await this.rollbackLocalOffer(pc)
+          if (!rolled) {
+            this.closePeer(fromUserId)
+            return
+          }
+          entry.makingOffer = false
+        }
+        entry.ignoreOffer = false
         await pc.setRemoteDescription(desc)
+        if (pc.signalingState !== 'have-remote-offer') return
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
         const local = toSessionDescription(pc.localDescription)
@@ -439,7 +480,10 @@ export class WebRTCVoiceMesh {
       } else if (signal.type === 'answer') {
         const desc = toSessionDescription(signal.sdp ?? null)
         if (!desc) return
+        if (entry.ignoreOffer) return
+        if (pc.signalingState !== 'have-local-offer') return
         await pc.setRemoteDescription(desc)
+        entry.makingOffer = false
         await this.flushPendingIce(fromUserId)
       } else if (signal.type === 'ice' && signal.candidate) {
         if (!pc.remoteDescription) {
@@ -456,6 +500,7 @@ export class WebRTCVoiceMesh {
   }
 
   private closePeer(userId: string): void {
+    this.signalChains.delete(userId)
     const entry = this.peers.get(userId)
     if (!entry) return
     entry.pc.close()
