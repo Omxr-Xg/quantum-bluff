@@ -5,6 +5,10 @@ import {
   parseVoiceChannelId,
   resolveChannelId,
 } from '../voiceChannelId.js'
+import {
+  voiceMigrateHintForGameReturn,
+  voiceMigrateHintForGameStart,
+} from '../../sockets/voice.gateway.handlers.js'
 
 describe('voiceChannelId', () => {
   it('builds and parses channel ids', () => {
@@ -23,5 +27,18 @@ describe('voiceChannelId', () => {
     expect(resolveChannelId({ gameId: 'abc' })).toBe('table:abc')
     expect(resolveChannelId({ channelId: 'bad' })).toBeNull()
     expect(resolveChannelId({})).toBeNull()
+  })
+
+  it('voice migrate hints link waiting room and table', () => {
+    expect(voiceMigrateHintForGameStart('room-1', 'g-1')).toEqual({
+      fromChannelId: 'waiting:room-1',
+      toChannelId: 'table:g-1',
+      mode: 'continue',
+    })
+    expect(voiceMigrateHintForGameReturn('g-1', 'room-1')).toEqual({
+      fromChannelId: 'table:g-1',
+      toChannelId: 'waiting:room-1',
+      mode: 'continue',
+    })
   })
 })

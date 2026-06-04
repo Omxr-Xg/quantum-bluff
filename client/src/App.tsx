@@ -19,6 +19,7 @@ import { WaitingRoom } from "./pages/WaitingRoom";
 import { HiddenBetsResult } from "./pages/HiddenBetsResult";
 import { Profile } from "./pages/Profile";
 import { Friends } from "./pages/Friends";
+import { FriendProfile } from "./pages/FriendProfile";
 import { EditProfile } from "./pages/EditProfile";
 import { TutorialGame } from "./pages/TutorialGame";
 import { Roulette } from "./pages/Roulette";
@@ -140,6 +141,7 @@ function App() {
             <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
+            <Route path="/friends/:friendId" element={<ProtectedRoute><FriendProfile /></ProtectedRoute>} />
             <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
 
             <Route path="/tutorial/game" element={<ProtectedRoute><TutorialGame /></ProtectedRoute>} />

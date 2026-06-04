@@ -897,6 +897,68 @@ router.delete('/block/:blockedUserId', friendSocialActionLimiter, async (req, re
   }
 })
 
+// GET /api/friends/profile/:friendId — profil public d'un ami
+router.get('/profile/:friendId', async (req, res) => {
+  const viewerId = req.userId!
+  const friendId = req.params.friendId
+
+  if (viewerId === friendId) {
+    return res.status(400).json({ error: 'Utilisez votre propre profil' })
+  }
+
+  try {
+    if (await hasBlockBetween(viewerId, friendId)) {
+      return res.status(403).json({ error: 'Profil indisponible' })
+    }
+
+    const ordered = orderedFriendshipIds(viewerId, friendId)
+    const friendship = await prisma.friendship.findUnique({
+      where: { user1Id_user2Id: ordered },
+      select: { createdAt: true },
+    })
+    if (!friendship) {
+      return res.status(403).json({ error: 'Cet utilisateur n’est pas dans votre liste d’amis' })
+    }
+
+    const friend = await prisma.user.findUnique({
+      where: { id: friendId },
+      select: {
+        id: true,
+        username: true,
+        level: true,
+        avatarUrl: true,
+        avatarHasBinary: true,
+        playerStats: {
+          select: { totalWins: true, totalGames: true },
+        },
+      },
+    })
+    if (!friend) return res.status(404).json({ error: 'Utilisateur introuvable' })
+
+    const totalGames = friend.playerStats?.totalGames ?? 0
+    const totalWins = friend.playerStats?.totalWins ?? 0
+    const winRatePercent =
+      totalGames > 0 ? Math.round((totalWins / totalGames) * 1000) / 10 : 0
+
+    return res.json({
+      id: friend.id,
+      username: friend.username,
+      level: friend.level,
+      avatarUrl: clientAvatarUrlFromUser(friend),
+      isOnline: await isUserOnline(friend.id),
+      friendshipCreatedAt: friendship.createdAt,
+      stats: {
+        totalWins,
+        totalGames,
+        winRatePercent,
+      },
+    })
+  } catch (error) {
+    console.error('GET /api/friends/profile/:friendId error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // GET FRIENDS LIST
 router.get('/:userId', async (req, res) => {
   const { userId } = req.params

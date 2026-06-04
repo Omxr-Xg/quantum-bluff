@@ -36,6 +36,7 @@ import { registerBeloteGatewayHandlers } from "./belote.gateway.handlers.js";
 import {
   handleVoiceDisconnect,
   registerVoiceGatewayHandlers,
+  withVoiceMigrateOnRoomReturn,
 } from "./voice.gateway.handlers.js";
 import { metrics as promMetrics } from "../observability/metrics.js";
 import {
@@ -1521,11 +1522,14 @@ export class GameGateway {
             if (game.getOccupiedCount() === 0) {
               if (!dissolveReason) dissolveReason = "all_players_left";
 
-              this.io.to(gameId).emit("GAME_ENDED", {
-                gameId,
-                reason: dissolveReason,
-                roomId,
-              });
+              this.io.to(gameId).emit(
+                "GAME_ENDED",
+                withVoiceMigrateOnRoomReturn({
+                  gameId,
+                  reason: dissolveReason,
+                  roomId,
+                }),
+              );
 
               await activeGames.delete(gameId);
               try {
@@ -1998,11 +2002,14 @@ export class GameGateway {
                     await activeGames.delete(gameId);
 
                     // 1. 🚀 ON PRÉVIENT LE FRONTEND IMMÉDIATEMENT
-                    this.io.to(gameId).emit("GAME_ENDED", {
-                      gameId,
-                      reason: "all_players_left",
-                      roomId: game.roomId,
-                    });
+                    this.io.to(gameId).emit(
+                      "GAME_ENDED",
+                      withVoiceMigrateOnRoomReturn({
+                        gameId,
+                        reason: "all_players_left",
+                        roomId: game.roomId,
+                      }),
+                    );
 
                     // 2. 💾 ON SAUVEGARDE EN BDD APRÈS (avec un .catch pour le CI GitLab)
                     await prisma.waitingRoom
@@ -2312,11 +2319,14 @@ export class GameGateway {
       });
       // Laisse le temps au front d'afficher l'abattage + gagnant avant retour waiting room.
       const endTimer = setTimeout(() => {
-        this.io.to(gameId).emit("GAME_ENDED", {
-          gameId,
-          reason: dissolveReason,
-          roomId,
-        });
+        this.io.to(gameId).emit(
+          "GAME_ENDED",
+          withVoiceMigrateOnRoomReturn({
+            gameId,
+            reason: dissolveReason,
+            roomId,
+          }),
+        );
       }, SHOWDOWN_RESULT_DISPLAY_MS);
       endTimer.unref?.();
       return true;

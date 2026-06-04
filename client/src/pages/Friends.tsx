@@ -19,6 +19,7 @@ import {
   UserMinus,
   UserPlus,
   Users,
+  UsersRound,
   Unlock,
   X,
 } from "lucide-react";
@@ -148,7 +149,9 @@ export function Friends() {
   const { userId } = useUser();
   const { socket, isConnected, connect } = useSocket();
   const { addToast } = useToast();
-  const { startPrivateCall } = useVoice();
+  const { startPrivateCall, startGroupCall } = useVoice();
+  const [showGroupCallModal, setShowGroupCallModal] = useState(false);
+  const [groupCallSelection, setGroupCallSelection] = useState<Set<string>>(new Set());
 
   const handleCallFriend = (friendId: string, username: string, isOnline: boolean) => {
     if (!isOnline) {
@@ -186,14 +189,23 @@ export function Friends() {
   useEffect(() => {
     const tab = searchParams.get("tab");
     const withUserId = searchParams.get("with");
+    const chatId = searchParams.get("chat");
     if (tab === "requests") {
       setActiveTab("friends");
     } else if (tab === "messages") {
       setActiveTab("messages");
       if (withUserId) setSelectedChat(withUserId);
       else setSelectedChat(null);
+    } else if (chatId && friends?.some((f) => f.id === chatId)) {
+      setActiveTab("friends");
+      setSelectedChat(chatId);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("chat");
+        return next;
+      });
     }
-  }, [searchParams]);
+  }, [searchParams, friends, setSearchParams]);
 
   /* Publie au monde la conversation actuellement ouverte : Layout / NotificationCenter
    * s'en servent pour décider de NE PAS pousser une notif si le sender = celui qu'on
@@ -475,6 +487,36 @@ export function Friends() {
     }
   };
 
+  const openFriendProfile = (friendId: string) => {
+    navigate(`/friends/${encodeURIComponent(friendId)}`);
+  };
+
+  const openGroupCallModal = () => {
+    const onlineIds = (friends ?? []).filter((f) => f.isOnline).map((f) => f.id);
+    setGroupCallSelection(new Set(onlineIds));
+    setShowGroupCallModal(true);
+  };
+
+  const toggleGroupCallFriend = (friendId: string) => {
+    setGroupCallSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(friendId)) next.delete(friendId);
+      else next.add(friendId);
+      return next;
+    });
+  };
+
+  const confirmGroupCall = () => {
+    const ids = [...groupCallSelection];
+    if (ids.length < 2) {
+      addToast(t("voice.groupCallNeedTwo"), "warning");
+      return;
+    }
+    startGroupCall(ids);
+    addToast(t("voice.groupCallOutgoing", { count: ids.length }), "info");
+    setShowGroupCallModal(false);
+  };
+
   const openChat = (friendId: string) => {
     setSelectedChat(friendId);
     setSearchParams(
@@ -650,6 +692,15 @@ export function Friends() {
               {menuContent ? menuContent : null}
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={openGroupCallModal}
+                disabled={onlineFriendsCount < 2}
+                className="flex shrink-0 touch-manipulation items-center justify-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-950/55 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:border-emerald-200/35 hover:bg-emerald-900/55 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <UsersRound className="h-4 w-4" />
+                {t("voice.groupCall")}
+              </button>
               <button
                 type="button"
                 onClick={() => setShowAddFriend(true)}
@@ -923,7 +974,13 @@ export function Friends() {
 
                         <div className="min-w-0 flex-1 pr-10">
                           <div className="mb-2 flex items-start justify-between gap-2">
-                            <h3 className="truncate text-xl font-bold text-white">{friend.username}</h3>
+                            <button
+                            type="button"
+                            onClick={() => openFriendProfile(friend.id)}
+                            className="truncate text-left text-xl font-bold text-white transition hover:text-blue-200"
+                          >
+                            {friend.username}
+                          </button>
                             <span className="shrink-0 rounded-full border border-blue-300/15 bg-blue-950/45 px-2.5 py-1 text-xs font-semibold text-blue-200">
                               {t("friends.level", { level: friend.level })}
                             </span>
@@ -1021,7 +1078,13 @@ export function Friends() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-bold text-white">{friend.username}</p>
+                        <button
+                          type="button"
+                          onClick={() => openFriendProfile(friend.id)}
+                          className="truncate text-left font-bold text-white transition hover:text-blue-200"
+                        >
+                          {friend.username}
+                        </button>
                         <p className="text-xs text-slate-400">{t("friends.level", { level: friend.level })}</p>
                       </div>
                     </div>
@@ -1451,15 +1514,25 @@ export function Friends() {
                 </div>
                 <div className="min-w-0">
                   <h2 className="truncate text-xl font-bold text-white">
-                    {selectedFriend
-                      ? selectedFriend.username
-                      : loadingFriends
-                        ? t("common.loading")
-                        : t("friends.chat")}
+                    {selectedFriend ? (
+                      <button
+                        type="button"
+                        onClick={() => openFriendProfile(selectedFriend.id)}
+                        className="truncate text-left transition hover:text-blue-200"
+                      >
+                        {selectedFriend.username}
+                      </button>
+                    ) : loadingFriends ? (
+                      t("common.loading")
+                    ) : (
+                      t("friends.chat")
+                    )}
                   </h2>
-                  <p className="text-sm text-gray-400">
-                    {selectedFriend ? t("friends.level", { level: selectedFriend.level }) : "\u00a0"}
-                  </p>
+                  {selectedFriend ? (
+                    <p className="text-sm text-gray-400">{t("friends.level", { level: selectedFriend.level })}</p>
+                  ) : (
+                    <p className="text-sm text-gray-400">{"\u00a0"}</p>
+                  )}
                 </div>
               </div>
               <button
@@ -1559,6 +1632,56 @@ export function Friends() {
           </div>
         </div>
       )}
+
+      {showGroupCallModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className={`flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden ${pokerGlassCard}`}>
+            <div className="flex items-center justify-between border-b border-white/10 p-5">
+              <div>
+                <h2 className="text-lg font-bold text-white">{t("voice.groupCallTitle")}</h2>
+                <p className="text-sm text-slate-400">{t("voice.groupCallHint")}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGroupCallModal(false)}
+                className="rounded-lg border border-white/10 bg-white/[0.06] p-2 text-white hover:bg-white/[0.1]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <ul className="flex-1 space-y-2 overflow-y-auto p-4">
+              {(friends ?? [])
+                .filter((f) => f.isOnline)
+                .map((friend) => (
+                  <li key={friend.id}>
+                    <label className={`flex cursor-pointer items-center gap-3 p-3 ${pokerInnerCard}`}>
+                      <input
+                        type="checkbox"
+                        checked={groupCallSelection.has(friend.id)}
+                        onChange={() => toggleGroupCallFriend(friend.id)}
+                        className="h-4 w-4 rounded border-white/20"
+                      />
+                      <span className="font-medium text-white">{friend.username}</span>
+                    </label>
+                  </li>
+                ))}
+            </ul>
+            <div className="flex gap-2 border-t border-white/10 p-4">
+              <button type="button" onClick={() => setShowGroupCallModal(false)} className={`flex-1 py-2.5 ${pokerMutedButton}`}>
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={confirmGroupCall}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-700 py-2.5 font-semibold text-white hover:bg-emerald-600"
+              >
+                <UsersRound className="h-4 w-4" />
+                {t("voice.groupCallStart")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -444,3 +444,27 @@ export function voiceMigrateHintForGameStart(
     mode: 'continue',
   }
 }
+
+/** Émis avec GAME_ENDED (roomId) pour continuité table → waiting room. */
+export function voiceMigrateHintForGameReturn(
+  gameId: string,
+  roomId: string,
+): VoiceMigrateHint {
+  return {
+    fromChannelId: buildTableChannelId(gameId),
+    toChannelId: buildWaitingChannelId(roomId),
+    mode: 'continue',
+  }
+}
+
+export function withVoiceMigrateOnRoomReturn<T extends { gameId?: string; roomId?: string }>(
+  payload: T,
+): T & { voiceMigrate?: VoiceMigrateHint } {
+  if (payload.gameId && payload.roomId) {
+    return {
+      ...payload,
+      voiceMigrate: voiceMigrateHintForGameReturn(payload.gameId, payload.roomId),
+    }
+  }
+  return payload
+}

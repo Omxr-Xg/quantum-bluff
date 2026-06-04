@@ -14,6 +14,12 @@ import { PlayerDashboard } from "../components/PlayerDashboard";
 import { useSocket } from "../hooks/useSocket";
 import { useTableVoiceChat } from "../features/voice/useTableVoiceChat";
 import { TableVoicePanel } from "../features/voice/TableVoicePanel";
+import { useVoice } from "../contexts/VoiceContext";
+import {
+  buildTableChannelId,
+  buildWaitingChannelId,
+  type VoiceMigrateHint,
+} from "../features/voice/voiceTypes";
 import { useToast } from "../contexts/ToastContext";
 import {
   Activity,
@@ -303,6 +309,7 @@ export function Game() {
   const { socket } = useSocket();
   const pokerVoiceEnabled = Boolean(gameIdParam && userId && !isBotMode && !isSpectating);
   const pokerVoice = useTableVoiceChat(gameIdParam, userId, socket, pokerVoiceEnabled);
+  const voice = useVoice();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hiddenBetNextHandId, setHiddenBetNextHandId] = useState<string | null>(null);
   const [hiddenBetWindowOpen, setHiddenBetWindowOpen] = useState(false);
@@ -598,6 +605,19 @@ export function Game() {
   useEffect(() => {
     cashSeatsRef.current = cashSeats;
   }, [cashSeats]);
+
+  const collectVoiceMemberIds = useCallback(() => {
+    const ids = new Set<string>();
+    if (userId) ids.add(userId);
+    for (const p of playersState) {
+      if (!("isBot" in p && p.isBot) && p.id != null) ids.add(String(p.id));
+    }
+    for (const s of cashSeats) {
+      if (s.userId) ids.add(String(s.userId));
+    }
+    return [...ids];
+  }, [userId, playersState, cashSeats]);
+
   const userIdRef = useRef(userId);
   useEffect(() => {
     userIdRef.current = userId;
@@ -2385,6 +2405,7 @@ export function Game() {
       reason: string;
       pot?: number;
       roomId?: string;
+      voiceMigrate?: VoiceMigrateHint;
       tournamentId?: string;
       winnerUserId?: string;
       /** Aligné sur `TournamentTableFinishAdvance` côté serveur. */
@@ -2523,6 +2544,9 @@ export function Game() {
         data.roomId &&
         String(data.gameId) === String(gameIdParam)
       ) {
+        if (data.voiceMigrate) {
+          voice.returnFromTableToWaiting(data.voiceMigrate, collectVoiceMemberIds());
+        }
         setCashGameClosedModal({
           roomId: data.roomId,
           message: t("game.cashTableClosedReturnToWaitingRoom"),
@@ -3709,12 +3733,22 @@ export function Game() {
       return;
     }
     const { roomId, message } = cashGameClosedModal;
+    if (gameIdParam) {
+      voice.returnFromTableToWaiting(
+        {
+          fromChannelId: buildTableChannelId(gameIdParam),
+          toChannelId: buildWaitingChannelId(roomId),
+          mode: "continue",
+        },
+        collectVoiceMemberIds(),
+      );
+    }
     setCashGameClosedModal(null);
     navigate(`/waiting-room?roomId=${encodeURIComponent(roomId)}`, {
       replace: true,
       state: { outcome: "lost" as const, reason: "table_closed", message },
     });
-  }, [cashGameClosedModal, navigate]);
+  }, [cashGameClosedModal, navigate, gameIdParam, voice, collectVoiceMemberIds]);
 
   const handleCashClosedGoLobby = useCallback(() => {
     setCashGameClosedModal(null);

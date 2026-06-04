@@ -46,6 +46,8 @@ export type VoiceContextValue = {
   startGroupCall: (targetUserIds: string[]) => void
   respondToCall: (action: 'accept' | 'reject' | 'ignore' | 'block') => void
   applyMigrateHint: (hint: VoiceMigrateHint, memberIds: string[]) => void
+  returnFromTableToWaiting: (hint: VoiceMigrateHint, memberIds: string[]) => void
+  shouldSkipLeaveOnTableUnmount: (gameId: string) => boolean
   setSpeakTo: (v: VoiceAudience) => void
   setListenTo: (v: VoiceAudience) => void
   toggleMic: () => void
@@ -84,6 +86,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const settingsRef = useRef(settings)
   const channelIdRef = useRef<string | null>(null)
   const pendingCallRef = useRef<string[] | null>(null)
+  const preserveTableUnmountRef = useRef<string | null>(null)
   settingsRef.current = settings
   channelIdRef.current = channelId
 
@@ -152,7 +155,11 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   }, [socket, teardownMesh])
 
   const joinWaitingRoom = useCallback(
-    (roomId: string) => joinChannel(buildWaitingChannelId(roomId)),
+    (roomId: string) => {
+      const cid = buildWaitingChannelId(roomId)
+      if (channelIdRef.current === cid) return
+      joinChannel(cid)
+    },
     [joinChannel],
   )
 
@@ -195,22 +202,44 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const applyMigrateHint = useCallback(
     (hint: VoiceMigrateHint, memberIds: string[]) => {
       if (!userId || !socket) return
-      const inWaiting = channelIdRef.current === hint.fromChannelId
+      const onSourceChannel = channelIdRef.current === hint.fromChannelId
       const overlap =
-        inWaiting &&
         memberIds.includes(userId) &&
-        participants.every((p) => memberIds.includes(p.userId))
-      if (overlap && hint.mode === 'continue') {
+        (participants.length === 0 ||
+          participants.every((p) => memberIds.includes(p.userId)))
+      if (onSourceChannel && overlap && hint.mode === 'continue') {
         switchChannel(hint.toChannelId, {
           mode: 'continue',
           fromChannelId: hint.fromChannelId,
         })
-      } else if (inWaiting) {
-        switchChannel(hint.toChannelId, { mode: 'replace' })
+      } else if (onSourceChannel) {
+        switchChannel(hint.toChannelId, {
+          mode: 'replace',
+          fromChannelId: hint.fromChannelId,
+        })
+      } else if (hint.mode === 'continue') {
+        joinChannel(hint.toChannelId)
       }
     },
-    [userId, socket, participants, switchChannel],
+    [userId, socket, participants, switchChannel, joinChannel],
   )
+
+  const returnFromTableToWaiting = useCallback(
+    (hint: VoiceMigrateHint, memberIds: string[]) => {
+      const parsed = hint.fromChannelId.replace(/^table:/, '')
+      if (parsed) preserveTableUnmountRef.current = parsed
+      applyMigrateHint(hint, memberIds)
+    },
+    [applyMigrateHint],
+  )
+
+  const shouldSkipLeaveOnTableUnmount = useCallback((gameId: string) => {
+    if (preserveTableUnmountRef.current === gameId) {
+      preserveTableUnmountRef.current = null
+      return true
+    }
+    return false
+  }, [])
 
   useEffect(() => {
     if (!socket || !userId) return
@@ -315,6 +344,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       startGroupCall,
       respondToCall,
       applyMigrateHint,
+      returnFromTableToWaiting,
+      shouldSkipLeaveOnTableUnmount,
       setSpeakTo: (v) => pushSettings({ ...settingsRef.current, speakTo: v }),
       setListenTo: (v) => pushSettings({ ...settingsRef.current, listenTo: v }),
       toggleMic: () => {
@@ -359,6 +390,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       startGroupCall,
       respondToCall,
       applyMigrateHint,
+      returnFromTableToWaiting,
+      shouldSkipLeaveOnTableUnmount,
       pushSettings,
       socket,
     ],

@@ -46,6 +46,7 @@ export function useTableVoiceChat(
     if (!enabled || !gameId) return
     voice.joinTable(gameId)
     return () => {
+      if (gameId && voice.shouldSkipLeaveOnTableUnmount(gameId)) return
       voice.leaveChannel()
     }
   }, [enabled, gameId, voice])

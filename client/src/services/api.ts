@@ -4,6 +4,20 @@ import { getAuthItem } from '../utils/authStorage'
 
 
 
+export interface FriendProfile {
+  id: string
+  username: string
+  level: number
+  avatarUrl?: string | null
+  isOnline: boolean
+  friendshipCreatedAt: string
+  stats: {
+    totalWins: number
+    totalGames: number
+    winRatePercent: number
+  }
+}
+
 interface User {
   id: string
   username: string
@@ -215,6 +229,11 @@ export const api = createApi({
         result ? result.map(({ id }) => ({ type: 'Friend', id } as const)) : ['Friend'],
     }),
 
+    getFriendProfile: builder.query<FriendProfile, string>({
+      query: (friendId) => `/friends/profile/${encodeURIComponent(friendId)}`,
+      providesTags: (_r, _e, friendId) => [{ type: 'Friend', id: friendId }],
+    }),
+
     removeFriend: builder.mutation<{ ok: boolean }, string>({
       query: (friendId) => ({
         url: `/friends/${encodeURIComponent(friendId)}`,
@@ -417,6 +436,7 @@ export const {
   useGetFriendRequestsQuery,
   useRespondToFriendRequestMutation,
   useGetFriendsQuery,
+  useGetFriendProfileQuery,
   useRemoveFriendMutation,
   useBlockUserMutation,
   useUnblockUserMutation,
