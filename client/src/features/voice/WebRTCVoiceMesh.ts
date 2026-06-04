@@ -10,12 +10,28 @@ import type {
   VoiceSettings,
 } from './voiceTypes'
 
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-  ],
+const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+]
+
+/** JSON dans VITE_ICE_SERVERS, ex. [{"urls":"stun:..."},{"urls":"turn:...","username":"u","credential":"p"}] */
+function resolveIceConfiguration(): RTCConfiguration {
+  const raw = (import.meta.env.VITE_ICE_SERVERS ?? '').toString().trim()
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as unknown
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return { iceServers: parsed as RTCIceServer[] }
+      }
+    } catch {
+      console.warn('[voice] VITE_ICE_SERVERS invalide — STUN par défaut')
+    }
+  }
+  return { iceServers: DEFAULT_ICE_SERVERS }
 }
+
+const ICE_SERVERS: RTCConfiguration = resolveIceConfiguration()
 
 type PeerEntry = {
   pc: RTCPeerConnection

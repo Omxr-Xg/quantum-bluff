@@ -103,6 +103,18 @@ function parseTrustProxy(value?: string): boolean | number | string {
   return raw
 }
 
+/** Retire guillemets accidentels (ex. Render : `"https://quantum-bluff.com"`). */
+function normalizeCorsOrigin(value: string): string {
+  const trimmed = value.trim()
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim()
+  }
+  return trimmed
+}
+
 function parseCorsOrigins(raw?: string): string[] {
   if (!raw?.trim()) {
     return []
@@ -111,7 +123,9 @@ function parseCorsOrigins(raw?: string): string[] {
   try {
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed)) {
-      return parsed.map((value) => String(value).trim()).filter(Boolean)
+      return parsed
+        .map((value) => normalizeCorsOrigin(String(value)))
+        .filter(Boolean)
     }
   } catch {
     /* JSON invalide : on retombe sur le split par virgules ci-dessous */
@@ -119,7 +133,7 @@ function parseCorsOrigins(raw?: string): string[] {
 
   return raw
     .split(',')
-    .map((value) => value.trim())
+    .map((value) => normalizeCorsOrigin(value))
     .filter(Boolean)
 }
 

@@ -396,6 +396,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
           status: 'dialing',
         }
       })
+      joinChannel(payload.channelId, { replace: true })
     }
 
     const onConnected = (payload: { callId: string; channelId: string }) => {
