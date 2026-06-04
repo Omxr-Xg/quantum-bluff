@@ -514,19 +514,27 @@ export class WebRTCVoiceMesh {
     for (const uid of this.peers.keys()) this.applyVolumeForPeer(uid)
   }
 
+  private isCallChannel(): boolean {
+    return this.channelId.startsWith('call:')
+  }
+
   private applyVolumeForPeer(remoteId: string): void {
     const entry = this.peers.get(remoteId)
     const remote = this.remoteParticipant(remoteId)
     if (!entry || !remote) return
-    const audible = canHearParticipant(
-      this.myUserId,
-      remote,
-      this.settings.listenTo,
-      this.settings.soundMuted,
-      this.settings.peerMutes,
-      this.friendIds,
-      this.blockedIds,
-    )
+    const audible = this.isCallChannel()
+      ? !this.settings.soundMuted &&
+        !this.settings.peerMutes.has(remoteId) &&
+        !this.blockedIds.has(remoteId)
+      : canHearParticipant(
+          this.myUserId,
+          remote,
+          this.settings.listenTo,
+          this.settings.soundMuted,
+          this.settings.peerMutes,
+          this.friendIds,
+          this.blockedIds,
+        )
     entry.audio.muted = !audible
     entry.audio.volume = audible ? 1 : 0
   }

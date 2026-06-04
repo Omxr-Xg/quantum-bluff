@@ -97,9 +97,11 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const pendingCallRef = useRef<string[] | null>(null)
   const preserveTableUnmountRef = useRef<string | null>(null)
   const outgoingCallRef = useRef(outgoingCall)
+  const incomingCallRef = useRef(incomingCall)
   settingsRef.current = settings
   channelIdRef.current = channelId
   outgoingCallRef.current = outgoingCall
+  incomingCallRef.current = incomingCall
 
   const teardownMesh = useCallback(() => {
     meshRef.current?.destroy()
@@ -274,6 +276,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const respondToCall = useCallback(
     (action: 'accept' | 'reject' | 'ignore' | 'block') => {
       if (!socket || !incomingCall) return
+      incomingCallRef.current = incomingCall
       socket.emit('VOICE_CALL_RESPOND', { callId: incomingCall.callId, action })
       setIncomingCall(null)
     },
@@ -367,6 +370,22 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       if (payload.channelId && payload.channelId !== channelIdRef.current) return
       meshRef.current?.handlePeerLeft(payload.userId)
       setParticipants((prev) => prev.filter((p) => p.userId !== payload.userId))
+      const oc = outgoingCallRef.current
+      const cid = channelIdRef.current
+      if (
+        oc?.status === 'connected' &&
+        cid?.startsWith('call:') &&
+        oc.targets.some((t) => t.userId === payload.userId)
+      ) {
+        setOutgoingCall(null)
+        if (socket && cid) {
+          socket.emit('VOICE_LEAVE', { channelId: cid })
+          teardownMesh()
+          channelIdRef.current = null
+          setChannelId(null)
+          setChannel(null)
+        }
+      }
     }
 
     const onIncoming = (payload: VoiceIncomingCall) => {
@@ -400,23 +419,43 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
     const onConnected = (payload: { callId: string; channelId: string }) => {
       setIncomingCall(null)
+      const inc = incomingCallRef.current
+      incomingCallRef.current = null
+      const connectedAt = Date.now()
       setOutgoingCall((prev) => {
-        if (!prev) return prev
-        if (prev.callId && prev.callId !== payload.callId) return prev
-        return {
-          ...prev,
-          callId: payload.callId,
-          status: 'connected',
-          channelId: payload.channelId,
-          connectedAt: Date.now(),
+        if (prev?.callId && payload.callId && prev.callId !== payload.callId) return prev
+        if (prev) {
+          return {
+            ...prev,
+            callId: payload.callId,
+            status: 'connected',
+            channelId: payload.channelId,
+            connectedAt: prev.connectedAt ?? connectedAt,
+          }
         }
+        if (inc && (!payload.callId || !inc.callId || inc.callId === payload.callId)) {
+          return {
+            callId: payload.callId,
+            channelId: payload.channelId,
+            type: inc.type,
+            targets: [
+              {
+                userId: inc.fromUserId,
+                username: inc.fromUsername,
+                avatarUrl: inc.fromAvatarUrl ?? null,
+              },
+            ],
+            status: 'connected',
+            connectedAt,
+          }
+        }
+        return prev
       })
+      prepareCallAudio()
       if (channelIdRef.current !== payload.channelId) {
         joinChannel(payload.channelId, { replace: true })
       } else if (!meshRef.current) {
         bindMesh(payload.channelId)
-      } else {
-        prepareCallAudio()
       }
     }
 

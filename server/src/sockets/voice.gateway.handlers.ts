@@ -378,6 +378,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
 
         const call = createCall({ type, creatorId: userId, memberIds: targets })
         const fromName = await usernameFor(userId)
+        const fromProfile = await voiceCallTargetProfile(userId)
         const targetProfiles = await Promise.all(targets.map((tid) => voiceCallTargetProfile(tid)))
         socket.emit('VOICE_CALL_OUTGOING', {
           callId: call.callId,
@@ -392,6 +393,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
             type: call.type,
             fromUserId: userId,
             fromUsername: fromName,
+            fromAvatarUrl: fromProfile.avatarUrl,
             memberIds: call.memberIds,
           })
         }

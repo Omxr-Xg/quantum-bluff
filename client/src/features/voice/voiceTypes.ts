@@ -50,6 +50,7 @@ export type VoiceIncomingCall = {
   type: 'private' | 'group'
   fromUserId: string
   fromUsername: string
+  fromAvatarUrl?: string | null
   memberIds: string[]
 }
 
