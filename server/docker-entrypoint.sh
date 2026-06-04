@@ -12,7 +12,8 @@ npx prisma migrate deploy
 
 if [ -f prisma/scripts/supabase-rls-hardening.sql ]; then
   echo "🔒 Durcissement RLS Supabase (tables public)..."
-  npx prisma db execute --file prisma/scripts/supabase-rls-hardening.sql --schema prisma/schema.prisma
+  RLS_URL="${DIRECT_URL:-$DATABASE_URL}"
+  npx prisma db execute --file prisma/scripts/supabase-rls-hardening.sql --url "$RLS_URL"
 fi
 
 echo "🚀 Démarrage du serveur..."
