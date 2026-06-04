@@ -31,6 +31,7 @@ import {
 import { validateIban, formatIban, normalizeIban } from "../utils/iban";
 import { AnimatePresence } from "motion/react";
 import { useSocket } from "../hooks/useSocket";
+import { VoiceCallIncomingBanner } from "./VoiceCallIncomingBanner";
 import { useToast } from "../contexts/ToastContext";
 import { useAudio } from "../contexts/MusicContext";
 import {
@@ -2300,6 +2301,7 @@ export function Layout({ children }: LayoutProps) {
         )}
       </div>
       </TopBarProvider>
+      <VoiceCallIncomingBanner />
     </div>
   );
 }

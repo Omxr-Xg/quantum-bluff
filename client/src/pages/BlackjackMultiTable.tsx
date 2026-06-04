@@ -31,6 +31,8 @@ import {
 import { mapBlackjackRuntimeCodeToUi } from "../features/blackjack/runtimeStatus";
 import { NeonButton } from "../components/NeonButton";
 import { getAuthItem } from "../utils/authStorage";
+import { useTableVoiceChat } from "../features/voice/useTableVoiceChat";
+import { TableVoicePanel } from "../features/voice/TableVoicePanel";
 
 const PAYOUT_TABLE_REVEAL_MS = 2000;
 
@@ -82,6 +84,8 @@ export function BlackjackMultiTable() {
   const navigate = useNavigate();
   const { socket } = useSocket();
   const { userId } = useUser();
+  const bjVoiceEnabled = Boolean(gameId && userId && !isSpectator);
+  const bjVoice = useTableVoiceChat(gameId, userId, socket, bjVoiceEnabled);
   const { addToast } = useToast();
 
   const [state, setState] = useState<BjTableState | null>(null);
@@ -470,6 +474,18 @@ export function BlackjackMultiTable() {
       </div>
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] px-2 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 sm:px-3 sm:pt-3 md:pt-4 lg:px-4">
+      {bjVoiceEnabled && userId ? (
+        <div className="pointer-events-auto absolute bottom-28 right-3 z-40 w-[min(100%,14rem)] sm:right-6">
+          <TableVoicePanel
+            voice={bjVoice}
+            myUserId={userId}
+            channelLabel={bjVoice.channelLabel}
+            tablePlayers={state.seats
+              .filter((s) => s.userId && s.username)
+              .map((s) => ({ userId: s.userId!, username: s.username! }))}
+          />
+        </div>
+      ) : null}
       <BlackjackMultiCasinoTable
         rootClassName="min-h-0 flex-1"
         state={state}

@@ -16,6 +16,7 @@ module.exports = {
   /** Périmètre « logique métier » testable unitairement (hors I/O massifs listés). */
   collectCoverageFrom: [
     'src/logic/**/*.ts',
+    '!src/logic/belote/types.ts',
     '!src/logic/botAI.ts',
     '!src/logic/blackjackSessionStore.ts',
     /** Tables runtime volumineuses : couvertes par tests dédiés (`CashGameController.seats`, blackjack), hors métrique globale. */

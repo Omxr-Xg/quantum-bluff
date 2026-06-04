@@ -1,4 +1,4 @@
-import { nextPosition, teamForPosition } from './bidding.js'
+import { nextPosition, nextPositionOnTeam, teamForPosition } from './bidding.js'
 import { isValidTrumpChoice, usesContreeRound } from './beloteVariants.js'
 import { trumpChoiceToMode } from './trumpContext.js'
 import type { BeloteGameState, BeloteTrumpChoice } from './types.js'
@@ -148,7 +148,7 @@ export function applyContreeBidAction(
           state.biddingTurnPosition = state.deal.takerPosition ?? 0
           return { ok: true }
         }
-        state.biddingTurnPosition = nextPosition(position)
+        state.biddingTurnPosition = nextPositionOnTeam(position, defenseTeam)
         return { ok: true }
       }
 
@@ -161,7 +161,7 @@ export function applyContreeBidAction(
         if (state.contreeAttackPasses >= 2) {
           return { ok: true, startPlay: true }
         }
-        state.biddingTurnPosition = nextPosition(position)
+        state.biddingTurnPosition = nextPositionOnTeam(position, contractTeam)
         return { ok: true }
       }
 

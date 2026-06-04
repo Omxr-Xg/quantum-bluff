@@ -13,6 +13,13 @@ import { NeonButton } from "../components/NeonButton";
 import { BeloteSeatAvatar } from "../components/belote/BeloteSeatAvatar";
 import { belotePotTotal, beloteWinnerShare } from "../features/belote/beloteBuyIn";
 import { variantLabelKey } from "../features/belote/beloteVariants";
+import { useVoice } from "../contexts/VoiceContext";
+import { TableVoicePanel } from "../features/voice/TableVoicePanel";
+import { pickVoicePanelState } from "../features/voice/useTableVoiceChat";
+import {
+  buildTableChannelId,
+  buildWaitingChannelId,
+} from "../features/voice/voiceTypes";
 
 function authHeaders(): HeadersInit {
   const token = getAuthItem("token");
@@ -30,6 +37,7 @@ export function BeloteWaitingRoom() {
   const { userId } = useUser();
   const { addToast } = useToast();
   const { socket } = useSocket();
+  const voice = useVoice();
 
   const [room, setRoom] = useState<(BeloteRoomListItem & { presentUserIds?: string[] }) | null>(null);
   const [busy, setBusy] = useState(false);
@@ -77,6 +85,11 @@ export function BeloteWaitingRoom() {
   }, [loadRoom, roomId, addToast, t, navigate]);
 
   useEffect(() => {
+    if (!userId || !roomId) return;
+    voice.joinWaitingRoom(roomId);
+  }, [userId, roomId, voice]);
+
+  useEffect(() => {
     if (!socket || !roomId) return;
     socket.emit("JOIN_BELOTE_ROOM", { roomId });
     const onUpdate = (payload: (BeloteRoomListItem & { presentUserIds?: string[] }) | null) => {
@@ -86,6 +99,14 @@ export function BeloteWaitingRoom() {
       }
       setRoom(payload);
       if (payload.gameId) {
+        voice.applyMigrateHint(
+          {
+            fromChannelId: buildWaitingChannelId(roomId),
+            toChannelId: buildTableChannelId(payload.gameId),
+            mode: "continue",
+          },
+          payload.players.map((p) => p.id),
+        );
         navigate(`/belote/game?gameId=${encodeURIComponent(payload.gameId)}`);
       }
     };
@@ -129,7 +150,18 @@ export function BeloteWaitingRoom() {
         }
         throw new Error(err.error ?? t("common.error"));
       }
-      navigate(`/belote/game?gameId=${encodeURIComponent((data as { gameId: string }).gameId)}`);
+      const started = data as { gameId: string };
+      if (room) {
+        voice.applyMigrateHint(
+          {
+            fromChannelId: buildWaitingChannelId(roomId),
+            toChannelId: buildTableChannelId(started.gameId),
+            mode: "continue",
+          },
+          room.players.map((p) => p.id),
+        );
+      }
+      navigate(`/belote/game?gameId=${encodeURIComponent(started.gameId)}`);
     } catch (e) {
       addToast(e instanceof Error ? e.message : t("common.error"), "error");
     } finally {
@@ -142,6 +174,7 @@ export function BeloteWaitingRoom() {
       method: "POST",
       headers: authHeaders(),
     });
+    voice.leaveChannel();
     navigate("/lobby?tab=belote");
   };
 
@@ -289,6 +322,19 @@ export function BeloteWaitingRoom() {
           )}
         </div>
       </div>
+      {userId ? (
+        <div className="pointer-events-auto fixed bottom-6 right-4 z-40 w-[min(100%,14rem)]">
+          <TableVoicePanel
+            voice={pickVoicePanelState(voice)}
+            myUserId={userId}
+            channelLabel={voice.channel?.label ?? null}
+            tablePlayers={room.players.map((p) => ({
+              userId: p.id,
+              username: p.username,
+            }))}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

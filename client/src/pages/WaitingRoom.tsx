@@ -12,6 +12,9 @@ import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { useVoice } from "../contexts/VoiceContext";
+import { TableVoicePanel } from "../features/voice/TableVoicePanel";
+import { pickVoicePanelState } from "../features/voice/useTableVoiceChat";
 
 interface Player {
   id: string;
@@ -31,6 +34,7 @@ export function WaitingRoom() {
   });
   const { userId, username } = useUser();
   const { socket, joinRoom, leaveRoom } = useSocket();
+  const voice = useVoice();
   const queryParams = new URLSearchParams(location.search);
   const rawRoomId = queryParams.get("roomId");
   const roomId = rawRoomId || `room_${Date.now()}`;
@@ -343,12 +347,27 @@ export function WaitingRoom() {
   }, [userId, rawRoomId, roomLoading, joinRoom, leaveRoom]);
 
   useEffect(() => {
+    if (!userId || !rawRoomId || rawRoomId.startsWith("room_") || roomLoading) return;
+    voice.joinWaitingRoom(rawRoomId);
+  }, [userId, rawRoomId, roomLoading, voice]);
+
+  useEffect(() => {
     if (!socket || !navigate) return;
-    const onGameStarted = (data: { gameId: string; players: { id: string; name: string }[] }) => {
+    const onGameStarted = (data: {
+      gameId: string;
+      players: { id: string; name: string }[];
+      voiceMigrate?: { fromChannelId: string; toChannelId: string; mode: 'continue' | 'replace' };
+    }) => {
       try {
         if (data.gameId && data.players?.length) {
           localStorage.setItem("gamePlayers", JSON.stringify(data.players));
           localStorage.setItem("gameId", data.gameId);
+          if (data.voiceMigrate) {
+            voice.applyMigrateHint(
+              data.voiceMigrate,
+              data.players.map((p) => p.id),
+            );
+          }
           leaveRoom(rawRoomId!);
           navigate(`/game?gameId=${data.gameId}`);
         }
@@ -356,7 +375,7 @@ export function WaitingRoom() {
     };
     socket.on("GAME_STARTED", onGameStarted);
     return () => socket.off("GAME_STARTED", onGameStarted);
-  }, [socket, navigate, rawRoomId]);
+  }, [socket, navigate, rawRoomId, voice, leaveRoom]);
 
   useEffect(() => {
     if (!socket || !userId || !addToast) return;
@@ -569,10 +588,20 @@ export function WaitingRoom() {
         }
         return;
       }
-      const data = await res.json();
+      const data = await res.json() as {
+        gameId?: string;
+        players?: { id: string; name: string }[];
+        voiceMigrate?: { fromChannelId: string; toChannelId: string; mode: 'continue' | 'replace' };
+      };
       if (data.players?.length) {
         localStorage.setItem("gamePlayers", JSON.stringify(data.players));
         localStorage.setItem("gameId", data.gameId || "");
+      }
+      if (data.gameId && data.voiceMigrate) {
+        voice.applyMigrateHint(
+          data.voiceMigrate,
+          data.players?.map((p) => p.id) ?? [],
+        );
       }
       leaveRoom(rawRoomId);
       navigate(data.gameId ? `/game?gameId=${data.gameId}` : "/game");
@@ -602,6 +631,7 @@ export function WaitingRoom() {
         return;
       }
     }
+    voice.leaveChannel();
     leaveRoom(rawRoomId || roomId);
     navigate("/lobby");
   };
@@ -1014,6 +1044,16 @@ export function WaitingRoom() {
           </div>
         </div>
       </div>
+      {userId && rawRoomId && !rawRoomId.startsWith("room_") ? (
+        <div className="pointer-events-auto fixed bottom-6 right-4 z-40 w-[min(100%,14rem)] sm:right-6">
+          <TableVoicePanel
+            voice={pickVoicePanelState(voice)}
+            myUserId={userId}
+            channelLabel={voice.channel?.label ?? null}
+            tablePlayers={players.map((p) => ({ userId: p.id, username: p.name }))}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

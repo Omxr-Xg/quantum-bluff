@@ -27,16 +27,19 @@ export function BeloteCasinoTable({
   userId,
   presentUserIds = [],
   turnTimeLeft = null,
+  speakingUserIds = [],
 }: {
   state: BeloteSanitizedState;
   userId: string;
   presentUserIds?: string[];
   turnTimeLeft?: number | null;
+  speakingUserIds?: string[];
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const { feltGradient, feltBorder, feltBackgroundUrl } = useTableTheme();
 
+  const speakingSet = useMemo(() => new Set(speakingUserIds), [speakingUserIds]);
   const me = state.players.find((p) => p.userId === userId);
   const myPos = me?.position ?? 0;
   const heroTeam = me?.team;
@@ -167,6 +170,7 @@ export function BeloteCasinoTable({
               const isTurn = turnPos === p.position;
               const isPresent = presentSet.has(p.userId) || p.userId === userId;
               const seatTurnLeft = isTurn ? turnTimeLeft : null;
+              const isSpeaking = speakingSet.has(p.userId);
 
               if (isYou) {
                 return (
@@ -188,6 +192,7 @@ export function BeloteCasinoTable({
                       disconnectDeadline={p.disconnectDeadline}
                       forfeited={p.forfeited}
                       isPresent={isPresent}
+                      isSpeaking={isSpeaking}
                       size="sm"
                     />
                     <span className="mt-0.5 max-w-[7rem] truncate text-[10px] font-bold text-amber-200">
@@ -224,6 +229,7 @@ export function BeloteCasinoTable({
                         disconnectDeadline={p.disconnectDeadline}
                         forfeited={p.forfeited}
                         isPresent={isPresent}
+                        isSpeaking={isSpeaking}
                         size="sm"
                       />
                       <span className="max-w-full truncate text-[9px] font-bold text-white/90">

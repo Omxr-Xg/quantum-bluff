@@ -41,24 +41,21 @@ export function canPlayCard(
   const partnerWinning = partnerWinningTrick(currentTrick, ctx, playerPosition)
 
   if (hasLed) {
-    if (!cardIsLed && !cardIsTrump) return false
-    if (cardIsTrump && ctx.mode === 'NO_TRUMP') return false
-    if (cardIsLed && partnerWinning) return true
-    if (cardIsTrump && partnerWinning && ctx.mode !== 'NO_TRUMP') return true
+    if (!cardIsLed) return false
+    if (partnerWinning) return true
 
     const bestInTrick = highestInTrick(currentTrick, ctx, ledSuit)
     const bestStrength = bestInTrick
       ? trickCardStrength(bestInTrick, ctx, ledSuit)
       : -1
 
-    const canBeat = hand.some(
+    const canBeatWithLed = hand.some(
       (c) =>
-        (ctx.mode !== 'NO_TRUMP' && isTrumpCard(c, ctx)) ||
-        (c.suit === ledSuit &&
-          trickCardStrength(c, ctx, ledSuit) > bestStrength),
+        c.suit === ledSuit &&
+        trickCardStrength(c, ctx, ledSuit) > bestStrength,
     )
 
-    if (canBeat) {
+    if (canBeatWithLed) {
       return trickCardStrength(card, ctx, ledSuit) > bestStrength
     }
 

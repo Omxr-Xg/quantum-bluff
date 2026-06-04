@@ -9,10 +9,10 @@ import {
   Home,
   Loader2,
   MessageCircle,
+  Phone,
   MoreVertical,
   RefreshCw,
   Search,
-  Send,
   ShieldBan,
   Flag,
   Trophy,
@@ -29,6 +29,7 @@ import { useSocket } from "../hooks/useSocket";
 import { useNumberFieldInput, NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
 import { useToast } from "../contexts/ToastContext";
 import { useTopBar } from "../contexts/TopBarContext";
+import { useVoice } from "../contexts/VoiceContext";
 
 import {
   useGetFriendsQuery,
@@ -147,6 +148,16 @@ export function Friends() {
   const { userId } = useUser();
   const { socket, isConnected, connect } = useSocket();
   const { addToast } = useToast();
+  const { startPrivateCall } = useVoice();
+
+  const handleCallFriend = (friendId: string, username: string, isOnline: boolean) => {
+    if (!isOnline) {
+      addToast(t("voice.callFriendOffline", { username }), "warning");
+      return;
+    }
+    startPrivateCall(friendId);
+    addToast(t("voice.callOutgoing", { username }), "info");
+  };
   const { menuContent } = useTopBar();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -928,7 +939,7 @@ export function Friends() {
                         </div>
                       </div>
 
-                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
                         <button
                           type="button"
                           onClick={() => openChat(friend.id)}
@@ -936,6 +947,16 @@ export function Friends() {
                         >
                           <MessageCircle className="h-4 w-4 shrink-0" />
                           {t("friends.chat")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCallFriend(friend.id, friend.username, friend.isOnline)}
+                          disabled={!friend.isOnline}
+                          className="flex items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-950/45 px-4 py-2.5 font-semibold text-emerald-100 transition-all hover:border-emerald-200/35 hover:bg-emerald-900/45 disabled:cursor-not-allowed disabled:opacity-50"
+                          title={friend.isOnline ? t("voice.callFriend") : t("friends.offline")}
+                        >
+                          <Phone className="h-4 w-4 shrink-0" />
+                          {t("voice.callFriend")}
                         </button>
                         <button
                           type="button"
@@ -983,11 +1004,9 @@ export function Friends() {
             ) : friends?.length ? (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {friends.map((friend) => (
-                  <button
+                  <div
                     key={friend.id}
-                    type="button"
-                    onClick={() => openChat(friend.id)}
-                    className={`group flex items-center justify-between gap-4 p-4 text-left text-white transition hover:border-blue-300/20 ${pokerInnerCard}`}
+                    className={`flex flex-col gap-3 p-4 text-white ${pokerInnerCard}`}
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
@@ -1001,13 +1020,31 @@ export function Friends() {
                           <span className="text-lg font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
                         )}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate font-bold text-white">{friend.username}</p>
                         <p className="text-xs text-slate-400">{t("friends.level", { level: friend.level })}</p>
                       </div>
                     </div>
-                    <Send className="h-4 w-4 shrink-0 text-blue-200 transition group-hover:translate-x-0.5" />
-                  </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openChat(friend.id)}
+                        className={`flex items-center justify-center gap-2 px-3 py-2.5 ${pokerMutedButton}`}
+                      >
+                        <MessageCircle className="h-4 w-4 shrink-0" />
+                        {t("friends.chat")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCallFriend(friend.id, friend.username, friend.isOnline)}
+                        disabled={!friend.isOnline}
+                        className="flex items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-950/45 px-3 py-2.5 font-semibold text-emerald-100 transition hover:border-emerald-200/35 hover:bg-emerald-900/45 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Phone className="h-4 w-4 shrink-0" />
+                        {t("voice.callFriend")}
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -1476,23 +1513,46 @@ export function Friends() {
             </div>
 
             <div className="border-t border-white/10 p-6">
-              <div className="flex gap-3">
+              <div className="flex gap-2 sm:gap-3">
                 <input
                   type="text"
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
                   placeholder={t("friends.writeMessage")}
-                  className={`flex-1 px-4 py-3 ${pokerInput}`}
+                  className={`min-w-0 flex-1 px-4 py-3 ${pokerInput}`}
                 />
+                {selectedFriend ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCallFriend(
+                        selectedFriend.id,
+                        selectedFriend.username,
+                        selectedFriend.isOnline,
+                      )
+                    }
+                    disabled={!selectedFriend.isOnline}
+                    className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-emerald-300/30 bg-emerald-950/55 px-4 py-3 font-semibold text-emerald-100 transition hover:border-emerald-200/40 hover:bg-emerald-900/55 disabled:cursor-not-allowed disabled:opacity-50"
+                    title={
+                      selectedFriend.isOnline
+                        ? t("voice.callFriend")
+                        : t("friends.offline")
+                    }
+                  >
+                    <Phone className="h-5 w-5 shrink-0" />
+                    <span className="hidden sm:inline">{t("voice.callFriend")}</span>
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={handleSendMessage}
                   disabled={sendingMessage || !messageInput.trim()}
-                  className={`flex shrink-0 items-center gap-2 px-6 py-3 disabled:cursor-not-allowed disabled:opacity-50 ${pokerButton}`}
+                  className={`flex shrink-0 items-center gap-2 px-4 py-3 sm:px-6 disabled:cursor-not-allowed disabled:opacity-50 ${pokerButton}`}
                 >
                   {sendingMessage ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                  {t("friends.send")}
+                  <MessageCircle className="h-5 w-5 shrink-0 sm:hidden" />
+                  <span className="hidden sm:inline">{t("friends.send")}</span>
                 </button>
               </div>
             </div>

@@ -1136,7 +1136,12 @@ router.post('/:roomId/start', waitingRoomHostLimiter, authMiddleware, async (req
           s.emit('GAME_STATE_UPDATED', snap)
         }
       })
-      io.to(roomId).emit('GAME_STARTED', { gameId, players: room.players.map((rp) => ({ id: rp.user.id, name: rp.user.username })) });
+      const { voiceMigrateHintForGameStart } = await import('../sockets/voice.gateway.handlers.js')
+      io.to(roomId).emit('GAME_STARTED', {
+        gameId,
+        players: room.players.map((rp) => ({ id: rp.user.id, name: rp.user.username })),
+        voiceMigrate: voiceMigrateHintForGameStart(roomId, gameId),
+      });
     }
 
     // Mettre à jour la salle
@@ -1153,7 +1158,13 @@ router.post('/:roomId/start', waitingRoomHostLimiter, authMiddleware, async (req
       name: rp.user.username
     }));
 
-    res.json({ gameId, message: 'Partie démarrée', players: playersForClient });
+    const { voiceMigrateHintForGameStart } = await import('../sockets/voice.gateway.handlers.js')
+    res.json({
+      gameId,
+      message: 'Partie démarrée',
+      players: playersForClient,
+      voiceMigrate: voiceMigrateHintForGameStart(roomId, gameId),
+    });
   } catch (error) {
     console.error('Erreur démarrage:', error);
     res.status(500).json({ error: 'Erreur serveur' });

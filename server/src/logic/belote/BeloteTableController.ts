@@ -10,7 +10,7 @@ import { legalBidOptions } from './conteeLegalBids.js'
 import { computeDealScore, detectBeloteInHand } from './conteeScoring.js'
 import { cardKey, createBeloteDeck, removeCardFromHand, shuffleBeloteDeck } from './deck.js'
 import { cardPoints, resolveTrumpContext } from './trumpContext.js'
-import { canPlayCard, firstLegalCard, playableCards, trickWinnerPosition } from './trickPlay.js'
+import { canPlayCard, playableCards, trickWinnerPosition } from './trickPlay.js'
 import type {
   BeloteAction,
   BeloteCard,
@@ -282,12 +282,13 @@ export class BeloteTableController {
 
     const ctx = resolveTrumpContext(this.state)
     if (!ctx) return false
-    const card = firstLegalCard(
+    const legal = playableCards(
       player.hand,
       ctx,
       this.state.deal.currentTrick,
       pos,
     )
+    const card = legal[0]
     if (!card) return false
     const r = this.applyPlayCard(pos, card)
     return r.ok

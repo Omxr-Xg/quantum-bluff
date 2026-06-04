@@ -44,6 +44,7 @@ import { AdminConsole } from "./pages/AdminConsole";
 import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 
 import { InvitationAcceptProvider } from "./contexts/InvitationAcceptContext";
+import { VoiceProvider } from "./contexts/VoiceContext";
 import { socket } from './services/socket';
 
 const isDev = import.meta.env.DEV;
@@ -104,6 +105,7 @@ function App() {
         <ErrorBoundary>
         <LoaderProvider>
         <InvitationAcceptProvider>
+        <VoiceProvider>
         <Layout>
           
           <Routes>
@@ -145,6 +147,7 @@ function App() {
 
           </Routes>
         </Layout>
+        </VoiceProvider>
         </InvitationAcceptProvider>
         </LoaderProvider>
         </ErrorBoundary>

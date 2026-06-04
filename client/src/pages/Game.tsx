@@ -12,6 +12,8 @@ import { PokerChat } from "../components/PokerChat";
 import { MessageFeed } from "../components/MessageFeed";
 import { PlayerDashboard } from "../components/PlayerDashboard";
 import { useSocket } from "../hooks/useSocket";
+import { useTableVoiceChat } from "../features/voice/useTableVoiceChat";
+import { TableVoicePanel } from "../features/voice/TableVoicePanel";
 import { useToast } from "../contexts/ToastContext";
 import {
   Activity,
@@ -299,6 +301,8 @@ export function Game() {
   const winMultiplier = gameIdParam ? 1 : getWinMultiplierFromDifficultyParam(difficultyParam);
 
   const { socket } = useSocket();
+  const pokerVoiceEnabled = Boolean(gameIdParam && userId && !isBotMode && !isSpectating);
+  const pokerVoice = useTableVoiceChat(gameIdParam, userId, socket, pokerVoiceEnabled);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hiddenBetNextHandId, setHiddenBetNextHandId] = useState<string | null>(null);
   const [hiddenBetWindowOpen, setHiddenBetWindowOpen] = useState(false);
@@ -5458,6 +5462,25 @@ export function Game() {
       }
       />
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
+      {pokerVoiceEnabled && userId && gameIdParam ? (
+        <div className="pointer-events-auto fixed bottom-24 right-3 z-40 w-[min(100%,14rem)] sm:right-6">
+          <TableVoicePanel
+            voice={pokerVoice}
+            myUserId={userId}
+            channelLabel={pokerVoice.channelLabel}
+            tablePlayers={[
+              ...playersState
+                .filter((p) => !("isBot" in p && p.isBot))
+                .map((p) => ({ userId: String(p.id), username: p.name })),
+              ...cashSeats
+                .filter((s) => s.userId && s.username)
+                .map((s) => ({ userId: String(s.userId), username: s.username! })),
+            ].filter(
+              (p, i, arr) => arr.findIndex((x) => x.userId === p.userId) === i,
+            )}
+          />
+        </div>
+      ) : null}
       <MessageFeed messages={chatMessages} />
       {userId ? (
         <PlayerGameMenuModal

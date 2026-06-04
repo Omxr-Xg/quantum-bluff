@@ -22,6 +22,7 @@ type Props = {
   disconnectDeadline?: string | null;
   forfeited?: boolean;
   isPresent?: boolean;
+  isSpeaking?: boolean;
   size?: "sm" | "md" | "hero";
 };
 
@@ -45,6 +46,7 @@ export function BeloteSeatAvatar({
   disconnectDeadline,
   forfeited = false,
   isPresent = true,
+  isSpeaking = false,
   size = "md",
 }: Props) {
   const { t } = useTranslation();
@@ -58,11 +60,13 @@ export function BeloteSeatAvatar({
         ? "w-[clamp(3.1rem,8vw,4.35rem)] h-[clamp(3.1rem,8vw,4.35rem)]"
         : "w-[clamp(3.6rem,7vw,5rem)] h-[clamp(3.6rem,7vw,5rem)]";
 
-  const borderClass = isYou
-    ? "border-amber-300/90 ring-2 ring-amber-500/35"
-    : isPartner
-      ? "border-emerald-400/70 ring-1 ring-emerald-500/30"
-      : "border-cyan-100/80";
+  const borderClass = isSpeaking
+    ? "border-emerald-300 ring-2 ring-emerald-400/80 shadow-[0_0_14px_rgba(52,211,153,0.55)] animate-pulse"
+    : isYou
+      ? "border-amber-300/90 ring-2 ring-amber-500/35"
+      : isPartner
+        ? "border-emerald-400/70 ring-1 ring-emerald-500/30"
+        : "border-cyan-100/80";
 
   const timerDuration = Math.max(1, turnDuration);
   const timerLeft =

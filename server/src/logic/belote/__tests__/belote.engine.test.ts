@@ -1,7 +1,8 @@
+import { teamForPosition } from '../bidding.js'
 import { BeloteTableController } from '../BeloteTableController.js'
 import { applyContreeBidAction, contractMultiplier, getHighestBid } from '../conteeBidding.js'
 import { computeDealScore } from '../conteeScoring.js'
-import { canPlayCard, trickWinnerPosition } from '../trickPlay.js'
+import { canPlayCard, playableCards, trickWinnerPosition } from '../trickPlay.js'
 import { trickCardStrength } from '../scoring.js'
 import type { TrumpContext } from '../trumpContext.js'
 import { cardPoints, sumTrickPoints } from '../scoring.js'
@@ -66,6 +67,27 @@ describe('belote trick legality', () => {
     const trick = [{ position: 0, card: { suit: 'HEARTS' as const, rank: 'K' as const } }]
     expect(canPlayCard(hand, { suit: 'HEARTS', rank: '8' }, suitCtx('SPADES'), trick, 1)).toBe(false)
     expect(canPlayCard(hand, { suit: 'HEARTS', rank: 'A' }, suitCtx('SPADES'), trick, 1)).toBe(true)
+  })
+
+  it('must play led suit when holding it even if trump is winning', () => {
+    const hand: BeloteCard[] = [
+      { suit: 'DIAMONDS', rank: '10' },
+      { suit: 'HEARTS', rank: 'K' },
+      { suit: 'CLUBS', rank: 'A' },
+    ]
+    const ctx = suitCtx('HEARTS')
+    const trick = [
+      { position: 1, card: { suit: 'DIAMONDS' as const, rank: 'K' as const } },
+      { position: 2, card: { suit: 'HEARTS' as const, rank: '9' as const } },
+      { position: 3, card: { suit: 'HEARTS' as const, rank: '8' as const } },
+    ]
+    expect(canPlayCard(hand, { suit: 'DIAMONDS', rank: '10' }, ctx, trick, 0)).toBe(
+      true,
+    )
+    expect(canPlayCard(hand, { suit: 'HEARTS', rank: 'K' }, ctx, trick, 0)).toBe(
+      false,
+    )
+    expect(playableCards(hand, ctx, trick, 0).length).toBeGreaterThan(0)
   })
 
   it('may discard any card when partner is winning the trick', () => {
@@ -147,6 +169,65 @@ describe('contree bidding', () => {
     const next = (pos + 1) % 4
     const r = applyContreeBidAction(state, next, { type: 'BID', value: 90, trump: 'HEARTS' })
     expect(r.ok).toBe(false)
+  })
+
+  it('contree round: defenders then attackers can pass in turn', () => {
+    const state = auctionState()
+    const opener = state.biddingTurnPosition
+    applyContreeBidAction(state, opener, { type: 'BID', value: 80, trump: 'HEARTS' })
+    for (let i = 0; i < 3; i++) {
+      applyContreeBidAction(state, state.biddingTurnPosition, { type: 'PASS' })
+    }
+    expect(state.phase).toBe('CONTREE_ROUND')
+    expect(state.contreePhase).toBe('DEFENSE')
+
+    const contractTeam = state.deal.contractTeam!
+    const defenseTeam: 'A' | 'B' = contractTeam === 'A' ? 'B' : 'A'
+
+    const d1 = state.biddingTurnPosition
+    expect(teamForPosition(d1)).toBe(defenseTeam)
+    expect(applyContreeBidAction(state, d1, { type: 'PASS' }).ok).toBe(true)
+
+    const d2 = state.biddingTurnPosition
+    expect(teamForPosition(d2)).toBe(defenseTeam)
+    expect(d2).not.toBe(d1)
+    expect(applyContreeBidAction(state, d2, { type: 'PASS' }).ok).toBe(true)
+    expect(state.contreePhase).toBe('ATTACK')
+
+    const a1 = state.biddingTurnPosition
+    expect(teamForPosition(a1)).toBe(contractTeam)
+    expect(applyContreeBidAction(state, a1, { type: 'PASS' }).ok).toBe(true)
+
+    const a2 = state.biddingTurnPosition
+    expect(teamForPosition(a2)).toBe(contractTeam)
+    expect(a2).not.toBe(a1)
+    const end = applyContreeBidAction(state, a2, { type: 'PASS' })
+    expect(end.ok).toBe(true)
+    if (end.ok) expect(end.startPlay).toBe(true)
+  })
+})
+
+describe('BeloteTableController contree integration', () => {
+  it('plays after auction without skipping contree round', () => {
+    const table = makeTable()
+    const s0 = table.getState()
+    const opener = s0.players.find((p) => p.position === s0.biddingTurnPosition)!
+    table.applyAction(opener.userId, { type: 'BID', value: 80, trump: 'HEARTS' })
+    for (let i = 0; i < 3; i++) {
+      const u = table.getState().players.find(
+        (p) => p.position === table.getState().biddingTurnPosition,
+      )!
+      table.applyAction(u.userId, { type: 'PASS' })
+    }
+    expect(table.getState().phase).toBe('CONTREE_ROUND')
+    for (let i = 0; i < 8 && table.getState().phase === 'CONTREE_ROUND'; i++) {
+      const u = table.getState().players.find(
+        (p) => p.position === table.getState().biddingTurnPosition,
+      )!
+      const r = table.applyAction(u.userId, { type: 'PASS' })
+      expect(r.ok).toBe(true)
+    }
+    expect(table.getState().phase).toBe('PLAYING')
   })
 })
 

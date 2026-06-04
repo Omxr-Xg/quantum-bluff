@@ -11,6 +11,8 @@ import { BeloteGameHud } from "../components/belote/BeloteGameHud";
 import { BeloteGameEndOverlay } from "../components/belote/BeloteGameEndOverlay";
 import { BlackjackLobbyBackdrop } from "../components/blackjack/BlackjackLobbyBackdrop";
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
+import { useTableVoiceChat } from "../features/voice/useTableVoiceChat";
+import { TableVoicePanel } from "../features/voice/TableVoicePanel";
 
 export function BeloteGame() {
   const { t } = useTranslation();
@@ -26,6 +28,8 @@ export function BeloteGame() {
   const mySettlement = ended?.settlements?.find((s) => s.userId === userId);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [acting, setActing] = useState(false);
+  const voiceEnabled = Boolean(gameId && userId && state && !isSpectating && !ended);
+  const voice = useTableVoiceChat(gameId, userId, socket, voiceEnabled);
 
   const handleAction = useCallback(
     (action: Record<string, unknown>) => {
@@ -111,7 +115,21 @@ export function BeloteGame() {
               userId={userId}
               presentUserIds={presentUserIds}
               turnTimeLeft={turnTimeLeft}
+              speakingUserIds={voice.speakingUserIds}
             />
+            {!isSpectating ? (
+              <div className="pointer-events-auto absolute bottom-[max(5.5rem,18%)] right-2 z-30 w-[min(100%,14rem)] sm:right-4">
+                <TableVoicePanel
+                  voice={voice}
+                  myUserId={userId}
+                  channelLabel={voice.channelLabel}
+                  tablePlayers={state.players.map((p) => ({
+                    userId: p.userId,
+                    username: p.username,
+                  }))}
+                />
+              </div>
+            ) : null}
           </div>
 
           {isSpectating ? (
