@@ -55,8 +55,7 @@ export function FriendProfile() {
       addToast(t("voice.callFriendOffline", { username: profile.username }), "warning");
       return;
     }
-    startPrivateCall(profile.id);
-    addToast(t("voice.callOutgoing", { username: profile.username }), "info");
+    startPrivateCall(profile.id, profile.username);
   };
 
   if (isLoading) {

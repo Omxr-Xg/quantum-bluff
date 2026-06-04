@@ -7,9 +7,11 @@ import {
 } from '../voice/voiceAccess.service.js'
 import {
   activateCall,
+  clearCallRingTimeout,
   createCall,
   endCall,
   getCall,
+  scheduleCallRingTimeout,
 } from '../voice/voiceCall.service.js'
 import {
   buildCallChannelId,
@@ -355,6 +357,18 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
 
         const call = createCall({ type, creatorId: userId, memberIds: targets })
         const fromName = await usernameFor(userId)
+        const targetProfiles = await Promise.all(
+          targets.map(async (tid) => ({
+            userId: tid,
+            username: await usernameFor(tid),
+          })),
+        )
+        socket.emit('VOICE_CALL_OUTGOING', {
+          callId: call.callId,
+          channelId: call.channelId,
+          type: call.type,
+          targets: targetProfiles,
+        })
         for (const tid of targets) {
           io.to(`user:${tid}`).emit('VOICE_CALL_INCOMING', {
             callId: call.callId,
@@ -365,12 +379,35 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
             memberIds: call.memberIds,
           })
         }
-        await joinChannel(io, socket, call.channelId, { replace: true })
+
+        scheduleCallRingTimeout(call.callId, 30_000, () => {
+          const pending = getCall(call.callId)
+          if (!pending || pending.status !== 'ringing') return
+          io.to(`user:${pending.creatorId}`).emit('VOICE_CALL_UNANSWERED', {
+            callId: pending.callId,
+            reason: 'timeout',
+          })
+          endCall(pending.callId)
+        })
       } catch (err) {
         console.error('[voice] VOICE_CALL_START', err)
       }
     },
   )
+
+  socket.on('VOICE_CALL_CANCEL', async (data: { callId?: string }) => {
+    try {
+      const userId = socket.userId
+      const callId = data?.callId
+      if (!userId || !callId) return
+      const call = getCall(callId)
+      if (!call || call.creatorId !== userId) return
+      clearCallRingTimeout(callId)
+      endCall(callId)
+    } catch (err) {
+      console.error('[voice] VOICE_CALL_CANCEL', err)
+    }
+  })
 
   socket.on(
     'VOICE_CALL_RESPOND',
@@ -387,12 +424,6 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
         if (!call || !call.memberIds.includes(userId)) return
 
         const fromName = await usernameFor(userId)
-        io.to(`user:${call.creatorId}`).emit('VOICE_CALL_RESPONSE', {
-          callId,
-          userId,
-          username: fromName,
-          action,
-        })
 
         if (action === 'block') {
           await prisma.userBlock.upsert({
@@ -403,18 +434,44 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
         }
 
         if (action === 'accept') {
-          const prior = getUserPrimaryChannel(userId)
-          if (prior && prior !== call.channelId) {
+          clearCallRingTimeout(callId)
+          const priorCallee = getUserPrimaryChannel(userId)
+          if (priorCallee && priorCallee !== call.channelId) {
             removeUserFromAllChannels(userId, call.channelId)
             if (socket.voiceChannelId && socket.voiceChannelId !== call.channelId) {
               await leaveChannel(io, socket, socket.voiceChannelId)
             }
           }
           await joinChannel(io, socket, call.channelId, { replace: true })
+
+          const creatorRoom = io.sockets.adapter.rooms.get(`user:${call.creatorId}`)
+          if (creatorRoom) {
+            for (const sid of creatorRoom) {
+              const creatorSocket = io.sockets.sockets.get(sid) as VoiceSocket | undefined
+              if (creatorSocket?.userId === call.creatorId) {
+                await joinChannel(io, creatorSocket, call.channelId, { replace: true })
+              }
+            }
+          }
+
           activateCall(callId)
-        } else if (action === 'reject' || action === 'block') {
+          const payload = { callId, channelId: call.channelId }
+          io.to(`user:${call.creatorId}`).emit('VOICE_CALL_CONNECTED', payload)
+          io.to(`user:${userId}`).emit('VOICE_CALL_CONNECTED', payload)
+        } else {
+          const reason =
+            action === 'reject' ? 'rejected' : action === 'block' ? 'blocked' : 'ignored'
+          io.to(`user:${call.creatorId}`).emit('VOICE_CALL_UNANSWERED', {
+            callId,
+            userId,
+            username: fromName,
+            reason,
+          })
           call.memberIds = call.memberIds.filter((id) => id !== userId)
-          if (call.memberIds.length <= 1) endCall(callId)
+          if (call.type === 'private' || call.memberIds.length <= 1) {
+            clearCallRingTimeout(callId)
+            endCall(callId)
+          }
         }
       } catch (err) {
         console.error('[voice] VOICE_CALL_RESPOND', err)

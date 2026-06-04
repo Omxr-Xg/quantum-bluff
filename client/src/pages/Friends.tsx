@@ -158,8 +158,7 @@ export function Friends() {
       addToast(t("voice.callFriendOffline", { username }), "warning");
       return;
     }
-    startPrivateCall(friendId);
-    addToast(t("voice.callOutgoing", { username }), "info");
+    startPrivateCall(friendId, username);
   };
   const { menuContent } = useTopBar();
 
@@ -513,8 +512,10 @@ export function Friends() {
       addToast(t("voice.groupCallNeedTwo"), "warning");
       return;
     }
-    startGroupCall(ids);
-    addToast(t("voice.groupCallOutgoing", { count: ids.length }), "info");
+    const targets = (friends ?? [])
+      .filter((f) => groupCallSelection.has(f.id))
+      .map((f) => ({ userId: f.id, username: f.username }));
+    startGroupCall(targets);
     setShowGroupCallModal(false);
   };
 

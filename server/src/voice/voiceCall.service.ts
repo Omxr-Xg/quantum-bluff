@@ -52,6 +52,29 @@ export function activateCall(callId: string): void {
 
 export function endCall(callId: string): void {
   calls.delete(callId)
+  clearCallRingTimeout(callId)
+}
+
+const ringTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+
+export function scheduleCallRingTimeout(
+  callId: string,
+  ms: number,
+  onTimeout: () => void,
+): void {
+  clearCallRingTimeout(callId)
+  const t = setTimeout(() => {
+    ringTimeouts.delete(callId)
+    onTimeout()
+  }, ms)
+  ringTimeouts.set(callId, t)
+  t.unref?.()
+}
+
+export function clearCallRingTimeout(callId: string): void {
+  const t = ringTimeouts.get(callId)
+  if (t) clearTimeout(t)
+  ringTimeouts.delete(callId)
 }
 
 export function addCallMember(callId: string, userId: string): void {

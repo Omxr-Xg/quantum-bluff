@@ -53,6 +53,29 @@ export type VoiceIncomingCall = {
   memberIds: string[]
 }
 
+export type VoiceOutgoingCallTarget = {
+  userId: string
+  username: string
+}
+
+export type VoiceOutgoingCallStatus = 'dialing' | 'connected' | 'unanswered'
+
+export type VoiceUnansweredReason =
+  | 'timeout'
+  | 'rejected'
+  | 'ignored'
+  | 'blocked'
+  | 'error'
+
+export type VoiceOutgoingCall = {
+  callId: string
+  channelId: string
+  type: 'private' | 'group'
+  targets: VoiceOutgoingCallTarget[]
+  status: VoiceOutgoingCallStatus
+  unansweredReason?: VoiceUnansweredReason
+}
+
 export type VoiceMigrateHint = {
   fromChannelId: string
   toChannelId: string

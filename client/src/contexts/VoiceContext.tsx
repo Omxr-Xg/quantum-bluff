@@ -16,6 +16,8 @@ import {
   DEFAULT_VOICE_SETTINGS,
   type VoiceChannelMeta,
   type VoiceIncomingCall,
+  type VoiceOutgoingCall,
+  type VoiceUnansweredReason,
   type VoiceMigrateHint,
   type VoiceParticipantPublic,
   type VoiceRosterPayload,
@@ -34,6 +36,8 @@ export type VoiceContextValue = {
   micDenied: boolean
   joined: boolean
   incomingCall: VoiceIncomingCall | null
+  outgoingCall: VoiceOutgoingCall | null
+  cancelOutgoingCall: () => void
   joinChannel: (channelId: string, opts?: { replace?: boolean }) => void
   switchChannel: (
     toChannelId: string,
@@ -42,8 +46,8 @@ export type VoiceContextValue = {
   leaveChannel: () => void
   joinWaitingRoom: (roomId: string) => void
   joinTable: (gameId: string) => void
-  startPrivateCall: (targetUserId: string) => void
-  startGroupCall: (targetUserIds: string[]) => void
+  startPrivateCall: (targetUserId: string, targetUsername: string) => void
+  startGroupCall: (targets: { userId: string; username: string }[]) => void
   respondToCall: (action: 'accept' | 'reject' | 'ignore' | 'block') => void
   applyMigrateHint: (hint: VoiceMigrateHint, memberIds: string[]) => void
   returnFromTableToWaiting: (hint: VoiceMigrateHint, memberIds: string[]) => void
@@ -81,6 +85,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const [micDenied, setMicDenied] = useState(false)
   const [joined, setJoined] = useState(false)
   const [incomingCall, setIncomingCall] = useState<VoiceIncomingCall | null>(null)
+  const [outgoingCall, setOutgoingCall] = useState<VoiceOutgoingCall | null>(null)
 
   const meshRef = useRef<WebRTCVoiceMesh | null>(null)
   const settingsRef = useRef(settings)
@@ -168,9 +173,28 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     [joinChannel],
   )
 
+  const clearOutgoing = useCallback(() => {
+    setOutgoingCall(null)
+  }, [])
+
+  const cancelOutgoingCall = useCallback(() => {
+    if (!socket) return
+    const cid = outgoingCall?.callId
+    if (cid) socket.emit('VOICE_CALL_CANCEL', { callId: cid })
+    clearOutgoing()
+  }, [socket, outgoingCall?.callId, clearOutgoing])
+
   const startPrivateCall = useCallback(
-    (targetUserId: string) => {
+    (targetUserId: string, targetUsername: string) => {
       if (!socket) return
+      setIncomingCall(null)
+      setOutgoingCall({
+        callId: '',
+        channelId: '',
+        type: 'private',
+        targets: [{ userId: targetUserId, username: targetUsername }],
+        status: 'dialing',
+      })
       socket.emit('VOICE_CALL_START', {
         type: 'private',
         targetUserIds: [targetUserId],
@@ -180,11 +204,19 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   )
 
   const startGroupCall = useCallback(
-    (targetUserIds: string[]) => {
-      if (!socket) return
+    (targets: { userId: string; username: string }[]) => {
+      if (!socket || targets.length < 2) return
+      setIncomingCall(null)
+      setOutgoingCall({
+        callId: '',
+        channelId: '',
+        type: 'group',
+        targets,
+        status: 'dialing',
+      })
       socket.emit('VOICE_CALL_START', {
         type: 'group',
-        targetUserIds,
+        targetUserIds: targets.map((t) => t.userId),
       })
     },
     [socket],
@@ -286,6 +318,56 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       setIncomingCall(payload)
     }
 
+    const onOutgoing = (payload: {
+      callId: string
+      channelId: string
+      type: 'private' | 'group'
+      targets: { userId: string; username: string }[]
+    }) => {
+      setOutgoingCall({
+        callId: payload.callId,
+        channelId: payload.channelId,
+        type: payload.type,
+        targets: payload.targets,
+        status: 'dialing',
+      })
+    }
+
+    const onConnected = (payload: { callId: string; channelId: string }) => {
+      setIncomingCall(null)
+      setOutgoingCall((prev) =>
+        prev && prev.callId === payload.callId
+          ? { ...prev, status: 'connected', channelId: payload.channelId }
+          : prev,
+      )
+    }
+
+    const onUnanswered = (payload: {
+      callId?: string
+      reason?: VoiceUnansweredReason
+    }) => {
+      setOutgoingCall((prev) => {
+        if (!prev) return null
+        if (payload.callId && prev.callId && payload.callId !== prev.callId) return prev
+        return {
+          ...prev,
+          status: 'unanswered',
+          unansweredReason: payload.reason ?? 'timeout',
+        }
+      })
+    }
+
+    const onVoiceError = (payload: { code?: string }) => {
+      const code = payload?.code
+      if (code === 'BLOCKED' || code === 'NOT_FRIENDS') {
+        setOutgoingCall((prev) =>
+          prev?.status === 'dialing'
+            ? { ...prev, status: 'unanswered', unansweredReason: 'error' }
+            : prev,
+        )
+      }
+    }
+
     const onConfirmLeave = (payload: {
       pendingAction?: { type: string; targetUserIds?: string[] }
     }) => {
@@ -300,6 +382,10 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     socket.on('VOICE_SIGNAL', onSignal)
     socket.on('VOICE_PEER_LEFT', onPeerLeft)
     socket.on('VOICE_CALL_INCOMING', onIncoming)
+    socket.on('VOICE_CALL_OUTGOING', onOutgoing)
+    socket.on('VOICE_CALL_CONNECTED', onConnected)
+    socket.on('VOICE_CALL_UNANSWERED', onUnanswered)
+    socket.on('VOICE_ERROR', onVoiceError)
     socket.on('VOICE_CONFIRM_LEAVE', onConfirmLeave)
 
     return () => {
@@ -308,6 +394,10 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       socket.off('VOICE_SIGNAL', onSignal)
       socket.off('VOICE_PEER_LEFT', onPeerLeft)
       socket.off('VOICE_CALL_INCOMING', onIncoming)
+      socket.off('VOICE_CALL_OUTGOING', onOutgoing)
+      socket.off('VOICE_CALL_CONNECTED', onConnected)
+      socket.off('VOICE_CALL_UNANSWERED', onUnanswered)
+      socket.off('VOICE_ERROR', onVoiceError)
       socket.off('VOICE_CONFIRM_LEAVE', onConfirmLeave)
       if (channelIdRef.current) socket.emit('VOICE_LEAVE', { channelId: channelIdRef.current })
       teardownMesh()
@@ -317,13 +407,26 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!socket || !pendingCallRef.current) return
     if (!channelId) {
+      const ids = pendingCallRef.current
       socket.emit('VOICE_CALL_START', {
-        type: pendingCallRef.current.length === 1 ? 'private' : 'group',
-        targetUserIds: pendingCallRef.current,
+        type: ids.length === 1 ? 'private' : 'group',
+        targetUserIds: ids,
       })
       pendingCallRef.current = null
     }
   }, [socket, channelId])
+
+  useEffect(() => {
+    if (outgoingCall?.status !== 'unanswered') return
+    const t = window.setTimeout(() => setOutgoingCall(null), 3500)
+    return () => window.clearTimeout(t)
+  }, [outgoingCall?.status, outgoingCall?.callId])
+
+  useEffect(() => {
+    if (outgoingCall?.status !== 'connected') return
+    const t = window.setTimeout(() => setOutgoingCall(null), 2500)
+    return () => window.clearTimeout(t)
+  }, [outgoingCall?.status, outgoingCall?.callId])
 
   const value = useMemo<VoiceContextValue>(
     () => ({
@@ -335,6 +438,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       micDenied,
       joined,
       incomingCall,
+      outgoingCall,
+      cancelOutgoingCall,
       joinChannel,
       switchChannel,
       leaveChannel,
@@ -381,6 +486,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       micDenied,
       joined,
       incomingCall,
+      outgoingCall,
+      cancelOutgoingCall,
       joinChannel,
       switchChannel,
       leaveChannel,
