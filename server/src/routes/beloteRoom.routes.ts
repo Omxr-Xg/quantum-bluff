@@ -139,7 +139,7 @@ router.post('/create', authMiddleware, async (req, res) => {
 
     const joinCode = visibility === 'PRIVATE' ? makeJoinCode() : null
 
-    const room = await prisma.$transaction(async (tx) => {
+    const roomId = await prisma.$transaction(async (tx) => {
       const r = await tx.beloteRoom.create({
         data: {
           name,
@@ -154,10 +154,15 @@ router.post('/create', authMiddleware, async (req, res) => {
       await tx.beloteRoomSeat.create({
         data: { roomId: r.id, userId, position: 0, isReady: false },
       })
-      return loadRoom(r.id)
+      return r.id
     })
 
-    return res.status(201).json({ room: formatRoom(room! as RoomWithSeats) })
+    const room = await loadRoom(roomId)
+    if (!room) {
+      return res.status(500).json({ error: 'Salle créée mais chargement impossible' })
+    }
+
+    return res.status(201).json({ room: formatRoom(room as RoomWithSeats) })
   } catch (e) {
     console.error('[belote-rooms] create', e)
     return res.status(500).json({ error: 'Erreur serveur' })
