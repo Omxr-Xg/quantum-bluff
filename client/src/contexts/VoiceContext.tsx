@@ -128,8 +128,12 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
   const prefetchCallMicrophone = useCallback(async () => {
     unlockPageAudio()
+    const attachToCallMesh =
+      meshRef.current != null && channelIdRef.current?.startsWith('call:')
     if (micPrefetchRef.current?.getAudioTracks().some((t) => t.readyState === 'live')) {
-      meshRef.current?.prefetchLocalStream(micPrefetchRef.current)
+      if (attachToCallMesh) {
+        meshRef.current?.prefetchLocalStream(micPrefetchRef.current)
+      }
       return
     }
     try {
@@ -143,7 +147,9 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       })
       micPrefetchRef.current?.getTracks().forEach((t) => t.stop())
       micPrefetchRef.current = stream
-      meshRef.current?.prefetchLocalStream(stream)
+      if (attachToCallMesh) {
+        meshRef.current?.prefetchLocalStream(stream)
+      }
       setMicDenied(false)
     } catch {
       setMicDenied(true)
@@ -153,6 +159,15 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const bindMesh = useCallback(
     (cid: string) => {
       if (!socket || !userId) return
+      const oldMesh = meshRef.current
+      const prefetched = micPrefetchRef.current
+      if (
+        oldMesh &&
+        prefetched &&
+        prefetched.getAudioTracks().some((t) => t.readyState === 'live')
+      ) {
+        oldMesh.detachSharedLocalStream(prefetched)
+      }
       teardownMesh()
       const mesh = new WebRTCVoiceMesh(cid, userId, socket, settingsRef.current, {
         onSpeakingChange: setSpeakingUserIds,

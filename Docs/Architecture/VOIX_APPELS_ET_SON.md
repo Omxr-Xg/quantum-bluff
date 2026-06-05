@@ -167,7 +167,7 @@ Les sonneries sont des **`<audio>` HTML locaux** (bundlés par Vite), indépenda
 | Fichier | Hook | Actif quand | Boucle |
 |---------|------|-------------|--------|
 | `client/music/voicebosch-ringtone-bubbly-bubbles-188202.mp3` | `useIncomingCallRingtone` | `incomingCall != null` | Oui |
-| `client/music/neo_panda_25-girl-child-calling-mom-385605.mp3` | `useOutgoingCallRingtone` | `outgoingCall.status === 'dialing'` **et** `!isCallee` | Oui |
+| `client/music/universfield-classic-telephone-signal-151918.mp3` | `useOutgoingCallRingtone` | `outgoingCall.status === 'dialing'` **et** `!isCallee` | Oui |
 
 Implémentation commune : `new Audio(url)`, `loop = true`, `volume = 0.9`, `play().catch()` si autoplay bloqué, cleanup `pause` au démontage.
 
@@ -250,7 +250,7 @@ CORS / origines : voir déploiement API ; apps Capacitor (`capacitor://localhost
 
 1. **Front** : rebuild pour inclure les MP3 et le panneau portal.
 2. **Back** : redéploiement pour timeout 15 s et handlers appels.
-3. **Prod audio uni-directionnel** : configurer **TURN** dans `VITE_ICE_SERVERS`.
+3. **Prod audio uni-directionnel** : configurer **TURN** dans `VITE_ICE_SERVERS` (Vercel → Environment → Production). Exemple complet dans `env.production.example`. Rebuild client obligatoire ; en console prod, l’absence de TURN affiche `[voice] Pas de VITE_ICE_SERVERS` ou `sans TURN`.
 4. **502 / lenteur API** : indépendant du voix mais bloque le socket ; pool Postgres (voir conversations Supabase / `DATABASE_POOL_MAX`).
 5. **RLS Supabase** : scripts `server/prisma/scripts/supabase-advisors-fix-all.sql` — pas d’accès Data API aux tables ; **n’affecte pas** Prisma ni les appels.
 
@@ -270,7 +270,7 @@ Au démarrage Docker : `docker-entrypoint.sh` exécute `migrate deploy` puis le 
 client/
   music/
     voicebosch-ringtone-bubbly-bubbles-188202.mp3   # entrant
-    neo_panda_25-girl-child-calling-mom-385605.mp3  # appelant (composition)
+    universfield-classic-telephone-signal-151918.mp3  # appelant (composition)
   src/
     contexts/VoiceContext.tsx
     components/VoiceCallIncomingBanner.tsx
@@ -334,4 +334,4 @@ Appel privé : dès qu’un participant quitte le canal `call:*`, `endCall` est 
 
 ---
 
-*Dernière mise à jour : alignée sur la branche `develop` (sonnerie sortante neo_panda, timeout 15 s, portals UI, index FK belote/blackjack/game invitation).*
+*Dernière mise à jour : alignée sur la branche `develop` (sonnerie sortante universfield téléphone classique, timeout 15 s, portals UI, index FK belote/blackjack/game invitation).*

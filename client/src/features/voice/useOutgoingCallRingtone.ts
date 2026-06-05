@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import outgoingCallRingtone from '../../../music/neo_panda_25-girl-child-calling-mom-385605.mp3'
+import outgoingCallRingtone from '../../../music/universfield-classic-telephone-signal-151918.mp3'
 import { startLoopingAudio } from './ringtoneAudio'
 
 /** Sonnerie en boucle pour l'appelant tant que l'appel est en composition (dialing). */

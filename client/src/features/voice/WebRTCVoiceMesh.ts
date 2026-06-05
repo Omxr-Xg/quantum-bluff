@@ -10,6 +10,7 @@ import type {
   VoiceSettings,
 } from './voiceTypes'
 import { unlockPageAudio } from './ringtoneAudio'
+import { hasLiveLocalAudio } from './voiceMicUtils'
 
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -127,14 +128,27 @@ export class WebRTCVoiceMesh {
 
   /** Micro pré-acquis au clic « Appeler » / « Accepter » (geste utilisateur). */
   prefetchLocalStream(stream: MediaStream): void {
-    if (this.localStream) return
+    if (!hasLiveLocalAudio(stream)) return
+    if (this.localStream === stream) return
+    if (this.localStream && hasLiveLocalAudio(this.localStream)) return
+    if (this.localStream && !hasLiveLocalAudio(this.localStream)) {
+      this.localStream = null
+    }
     this.localStream = stream
     this.startSpeakingDetector(stream)
     void this.renotifyAllPeers()
   }
 
+  /** Préserve un MediaStream partagé (prefetch) avant destroy() du mesh. */
+  detachSharedLocalStream(stream: MediaStream): void {
+    if (this.localStream !== stream) return
+    if (this.speakingTimer) clearInterval(this.speakingTimer)
+    this.speakingTimer = null
+    this.localStream = null
+  }
+
   private async syncPeersWhenReady(): Promise<void> {
-    if (this.isCallChannel() && !this.localStream?.getAudioTracks()[0]) return
+    if (this.isCallChannel() && !hasLiveLocalAudio(this.localStream)) return
     await this.syncPeers()
   }
 
@@ -177,12 +191,15 @@ export class WebRTCVoiceMesh {
       void this.syncPeers()
       return
     }
-    if (this.localStream) {
+    if (this.localStream && hasLiveLocalAudio(this.localStream)) {
       this.localStream.getAudioTracks().forEach((t) => {
         t.enabled = true
       })
       await this.renotifyAllPeers()
       return
+    }
+    if (this.localStream) {
+      this.stopLocalTracks()
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -223,9 +240,7 @@ export class WebRTCVoiceMesh {
         this.friendIds,
         this.blockedIds,
       )
-      const hasTrack = Boolean(
-        send && this.localStream?.getAudioTracks()[0],
-      )
+      const hasTrack = Boolean(send && hasLiveLocalAudio(this.localStream))
       if (hasTrack && !entry.hadLocalAudio && entry.pc.signalingState === 'stable') {
         await this.renegotiate(uid)
       }
@@ -323,9 +338,17 @@ export class WebRTCVoiceMesh {
     this.applyPlaybackVolumes()
   }
 
+  private hasAudioTransceiver(pc: RTCPeerConnection): boolean {
+    return pc.getTransceivers().some((t) => {
+      if (t.sender.track?.kind === 'audio') return true
+      if (t.receiver.track?.kind === 'audio') return true
+      const d = t.direction
+      return d === 'sendrecv' || d === 'recvonly' || d === 'sendonly'
+    })
+  }
+
   private ensureRecvTransceiver(pc: RTCPeerConnection): void {
-    const hasAudio = pc.getTransceivers().some((t) => t.receiver.track?.kind === 'audio')
-    if (!hasAudio) {
+    if (!this.hasAudioTransceiver(pc)) {
       pc.addTransceiver('audio', { direction: 'recvonly' })
     }
   }
@@ -333,7 +356,6 @@ export class WebRTCVoiceMesh {
   private async ensurePeer(remoteId: string): Promise<void> {
     if (this.peers.has(remoteId)) return
 
-    const polite = this.myUserId > remoteId
     const pc = new RTCPeerConnection(ICE_SERVERS)
     const audio = document.createElement('audio')
     audio.autoplay = true
@@ -393,10 +415,10 @@ export class WebRTCVoiceMesh {
         this.settings.micMuted,
         this.friendIds,
         this.blockedIds,
-      ) && this.localStream?.getAudioTracks()[0],
+      ) && hasLiveLocalAudio(this.localStream),
     )
 
-    const hasLocalAudio = Boolean(this.localStream?.getAudioTracks()[0])
+    const hasLocalAudio = hasLiveLocalAudio(this.localStream)
     const sendInitialOffer =
       this.myUserId < remoteId &&
       (this.isCallChannel()
@@ -414,6 +436,7 @@ export class WebRTCVoiceMesh {
     if (sendInitialOffer) {
       try {
         entry.makingOffer = true
+        this.logPeerAudioState(remoteId, 'before-initial-offer')
         const offer = await pc.createOffer({ offerToReceiveAudio: true })
         await pc.setLocalDescription(offer)
         const desc = toSessionDescription(pc.localDescription)
@@ -446,6 +469,8 @@ export class WebRTCVoiceMesh {
     if (pc.signalingState === 'closed' || pc.signalingState !== 'stable') return
     try {
       entry.makingOffer = true
+      await this.refreshPeerTracks(remoteId)
+      this.logPeerAudioState(remoteId, 'before-renegotiate-offer')
       const offer = await pc.createOffer({ offerToReceiveAudio: true })
       await pc.setLocalDescription(offer)
       const desc = toSessionDescription(pc.localDescription)
@@ -472,7 +497,10 @@ export class WebRTCVoiceMesh {
       this.blockedIds,
     )
 
-    const track = send ? this.localStream?.getAudioTracks()[0] : undefined
+    const track =
+      send && hasLiveLocalAudio(this.localStream)
+        ? this.localStream!.getAudioTracks().find((t) => t.readyState === 'live')
+        : undefined
     const senders = pc.getSenders().filter((s) => s.track?.kind === 'audio')
 
     if (track) {
@@ -521,7 +549,7 @@ export class WebRTCVoiceMesh {
     const entry = this.peers.get(fromUserId)
     if (!entry) return
     const { pc } = entry
-    const polite = this.myUserId > fromUserId
+    const polite = this.isCallChannel() || this.myUserId > fromUserId
 
     try {
       if (signal.type === 'offer') {
@@ -543,13 +571,14 @@ export class WebRTCVoiceMesh {
         entry.ignoreOffer = false
         await pc.setRemoteDescription(desc)
         if (pc.signalingState !== 'have-remote-offer') return
+        await this.refreshPeerTracks(fromUserId)
+        this.logPeerAudioState(fromUserId, 'before-answer')
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
         const local = toSessionDescription(pc.localDescription)
         if (local) {
           this.emitSignal(fromUserId, { type: 'answer', sdp: local })
         }
-        await this.refreshPeerTracks(fromUserId)
         await this.flushPendingIce(fromUserId)
       } else if (signal.type === 'answer') {
         const desc = toSessionDescription(signal.sdp ?? null)
@@ -652,5 +681,20 @@ export class WebRTCVoiceMesh {
       .filter((p) => p.speaking)
       .map((p) => p.userId)
     this.callbacks.onSpeakingChange?.(ids)
+  }
+
+  private logPeerAudioState(remoteId: string, phase: string): void {
+    if (!import.meta.env.DEV) return
+    const entry = this.peers.get(remoteId)
+    if (!entry) return
+    const sendTrack = entry.pc.getSenders().find((s) => s.track?.kind === 'audio')?.track
+    const localTrack = this.localStream?.getAudioTracks()[0]
+    console.warn('[voice] peer audio', {
+      remoteId,
+      phase,
+      localReadyState: localTrack?.readyState,
+      senderReadyState: sendTrack?.readyState,
+      ice: entry.pc.iceConnectionState,
+    })
   }
 }
