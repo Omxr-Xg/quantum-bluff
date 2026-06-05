@@ -1207,6 +1207,7 @@
     "username": "Usuario",
     "password": "Contraseña",
     "signIn": "Entrar",
+    "backToClientPlatform": "Volver a la plataforma de jugadores",
     "loginError": "Credenciales inválidas o consola no configurada.",
     "notConfiguredTitle": "Consola admin: servidor sin configurar",
     "notConfiguredHelp": "La API no permite el inicio de sesión hasta definir en el servidor ADMIN_CONSOLE_USERNAME y ADMIN_CONSOLE_PASSWORD_HASH (hash bcrypt). Genera el hash con: node -e \"require('bcryptjs').hash('TuContraseña',10).then(console.log)\" en la carpeta server. Reinicia la API. Ver server/.env.example.",

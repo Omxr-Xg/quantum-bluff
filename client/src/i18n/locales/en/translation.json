@@ -1473,6 +1473,7 @@
     "username": "Username",
     "password": "Password",
     "signIn": "Sign in",
+    "backToClientPlatform": "Back to client platform",
     "loginError": "Invalid credentials or console not configured.",
     "notConfiguredTitle": "Admin console: server not configured",
     "notConfiguredHelp": "The API will not allow login until admin credentials are set on the server (this is not a browser bug).\n\n1. In the backend env file (e.g. server/.env), set both variables:\n   ADMIN_CONSOLE_USERNAME=\"your_username\"\n   ADMIN_CONSOLE_PASSWORD_HASH=\"$2a$10$...\"  (bcrypt hash of the password, not the plain password)\n\n2. Generate the hash from the server folder:\n   node -e \"require('bcryptjs').hash('YourPassword',10).then(console.log)\"\n\n3. Restart the Node API and try again.\n\nSee server/.env.example (ADMIN_CONSOLE_* section).",

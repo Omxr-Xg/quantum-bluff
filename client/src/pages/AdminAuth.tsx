@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Loader2, Shield } from "lucide-react";
+import { ArrowLeft, Loader2, Shield } from "lucide-react";
+import { Link } from "react-router";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem, setAuthItem } from "../utils/authStorage";
 
@@ -124,6 +125,13 @@ export function AdminAuth() {
             {t("adminConsole.signIn")}
           </button>
         </form>
+        <Link
+          to="/auth"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-600 py-3 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:bg-slate-700/50 hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          {t("adminConsole.backToClientPlatform")}
+        </Link>
       </div>
     </div>
   );
