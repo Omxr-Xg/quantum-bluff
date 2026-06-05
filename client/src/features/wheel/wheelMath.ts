@@ -26,8 +26,37 @@ export const WHEEL_SEGMENTS: readonly WheelSegmentDef[] = [
   { kind: 'x2', multiplier: 2, label: 'x2', color: '#7c3aed', textColor: '#f5f3ff' },
   { kind: 'x3', multiplier: 3, label: 'x3', color: '#a855f7', textColor: '#faf5ff' },
   { kind: 'x5', multiplier: 5, label: 'x5', color: '#db2777', textColor: '#fdf2f8' },
-  { kind: 'jackpot', multiplier: 20, label: 'JP', color: '#ca8a04', textColor: '#fef9c3' },
+  { kind: 'jackpot', multiplier: 20, label: 'x20', color: '#ca8a04', textColor: '#fef9c3' },
 ] as const
+
+/** Légende des coefficients regroupés par couleur (alignée sur la roue). */
+export type WheelPayoutLegendEntry = {
+  multiplier: number
+  label: string
+  color: string
+  textColor: string
+  segmentCount: number
+}
+
+export const WHEEL_PAYOUT_LEGEND: readonly WheelPayoutLegendEntry[] = [
+  { multiplier: 0, label: 'x0', color: '#7f1d1d', textColor: '#fecaca', segmentCount: 3 },
+  { multiplier: 0.5, label: 'x0.5', color: '#c2410c', textColor: '#ffedd5', segmentCount: 2 },
+  { multiplier: 1, label: 'x1', color: '#1e3a8a', textColor: '#dbeafe', segmentCount: 2 },
+  { multiplier: 1.5, label: 'x1.5', color: '#6d28d9', textColor: '#ede9fe', segmentCount: 1 },
+  { multiplier: 2, label: 'x2', color: '#7c3aed', textColor: '#f5f3ff', segmentCount: 1 },
+  { multiplier: 3, label: 'x3', color: '#a855f7', textColor: '#faf5ff', segmentCount: 1 },
+  { multiplier: 5, label: 'x5', color: '#db2777', textColor: '#fdf2f8', segmentCount: 1 },
+  { multiplier: 20, label: 'x20', color: '#ca8a04', textColor: '#fef9c3', segmentCount: 1 },
+] as const
+
+export function wheelSegmentLabelPosition(index: number): { left: string; top: string } {
+  const angleDeg = index * WHEEL_SLICE_DEG + WHEEL_SLICE_DEG / 2 - 90
+  const angleRad = (angleDeg * Math.PI) / 180
+  const radiusPct = 36
+  const x = 50 + radiusPct * Math.cos(angleRad)
+  const y = 50 + radiusPct * Math.sin(angleRad)
+  return { left: `${x}%`, top: `${y}%` }
+}
 
 export function clampBet(value: number, balance: number): number {
   const stepped = Math.round(value / WHEEL_BET_STEP) * WHEEL_BET_STEP

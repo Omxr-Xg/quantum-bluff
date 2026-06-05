@@ -33,6 +33,7 @@ import rouletteRoutes from './routes/roulette.routes.js'
 import crashRoutes from './routes/crash.routes.js'
 import minesRoutes from './routes/mines.routes.js'
 import wheelRoutes from './routes/wheel.routes.js'
+import luckyNumberRoutes from './routes/luckyNumber.routes.js'
 import blackjackRoutes from './routes/blackjack.routes.js'
 import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import beloteRoomRoutes from './routes/beloteRoom.routes.js'
@@ -259,6 +260,7 @@ app.use('/api/roulette', rouletteApiLimiter, rouletteRoutes)
 app.use('/api/crash', slotApiLimiter, crashRoutes)
 app.use('/api/mines', slotApiLimiter, minesRoutes)
 app.use('/api/wheel', slotApiLimiter, wheelRoutes)
+app.use('/api/lucky-number', slotApiLimiter, luckyNumberRoutes)
 app.use('/api/blackjack', blackjackApiLimiter, blackjackRoutes)
 app.use('/api/hidden-bets', hiddenBetsApiLimiter, hiddenBetsRoutes)
 app.use('/api/feedback', feedbackRoutes)

@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
-import { ArrowLeft, Disc, SquareStack, Spade } from "lucide-react";
+import { ArrowLeft, Clover, Disc, SquareStack } from "lucide-react";
 
 type RetroGameCard = {
-  id: "roulette" | "slots" | "video-poker";
+  id: "roulette" | "slots" | "lucky-number";
   titleKey: string;
   blurbKey: string;
   icon: typeof Disc;
@@ -42,16 +42,17 @@ const RETRO_GAMES: RetroGameCard[] = [
     iconFrame: "border-orange-500/40 bg-stone-950/60",
   },
   {
-    id: "video-poker",
-    titleKey: "minigames.retroThirdTitle",
-    blurbKey: "minigames.retroThirdBlurb",
-    icon: Spade,
+    id: "lucky-number",
+    titleKey: "minigames.luckyNumberTitle",
+    blurbKey: "minigames.luckyNumberBlurb",
+    icon: Clover,
+    href: "/minigames/lucky-number",
+    badgeKey: "minigames.quickSoloNew",
     carpet:
       "bg-[radial-gradient(circle_at_1px_1px,rgba(212,175,55,0.12)_1px,transparent_0)] bg-[size:20px_20px]",
-    glow: "shadow-[0_0_28px_rgba(120,113,108,0.18)]",
-    marquee: "from-stone-300 via-stone-200 to-stone-400",
-    iconFrame: "border-stone-500/35 bg-stone-950/70",
-    badgeKey: "minigames.retroComingSoon",
+    glow: "shadow-[0_0_36px_rgba(220,38,38,0.22)]",
+    marquee: "from-red-200 via-amber-100 to-yellow-200",
+    iconFrame: "border-red-600/40 bg-red-950/55",
   },
 ];
 

@@ -415,6 +415,7 @@ export function Layout({ children }: LayoutProps) {
     else if (path === "/minigames/crash") activity = "Crash";
     else if (path === "/minigames/mines") activity = "Mines";
     else if (path === "/minigames/wheel") activity = "Wheel of Fortune";
+    else if (path === "/minigames/lucky-number") activity = "Lucky Number";
     else if (path === "/minigames/quick-solo") activity = "Nouveaux jeux casino";
     else if (path === "/minigames/retro-casino") activity = "Jeux casino rétro";
     else if (path === "/minigames" && minigame === "slots") activity = "Machine à sous";

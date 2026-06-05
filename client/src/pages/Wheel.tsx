@@ -18,11 +18,12 @@ import {
   WHEEL_BET_STEP,
   WHEEL_MAX_BET,
   WHEEL_MIN_BET,
+  WHEEL_PAYOUT_LEGEND,
   WHEEL_SEGMENTS,
-  WHEEL_SLICE_DEG,
   buildWheelConicGradient,
   clampBet,
   historyBadgeClass,
+  wheelSegmentLabelPosition,
 } from "../features/wheel/wheelMath";
 
 type Phase = "ready" | "spinning" | "result";
@@ -267,20 +268,18 @@ export function Wheel() {
                   background: buildWheelConicGradient(),
                 }}
               >
-                {WHEEL_SEGMENTS.map((seg, i) => (
-                  <div
-                    key={`${seg.kind}-${i}`}
-                    className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0"
-                    style={{ transform: `rotate(${i * WHEEL_SLICE_DEG + WHEEL_SLICE_DEG / 2}deg)` }}
-                  >
+                {WHEEL_SEGMENTS.map((seg, i) => {
+                  const pos = wheelSegmentLabelPosition(i)
+                  return (
                     <span
-                      className="absolute left-2 top-0 -translate-y-1/2 whitespace-nowrap text-[9px] font-black uppercase sm:left-3 sm:text-[11px]"
-                      style={{ color: seg.textColor }}
+                      key={`${seg.kind}-${i}`}
+                      className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-[9px] font-black uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] sm:text-[11px]"
+                      style={{ left: pos.left, top: pos.top, color: seg.textColor }}
                     >
                       {seg.label}
                     </span>
-                  </div>
-                ))}
+                  )
+                })}
                 <div className="absolute inset-[26%] flex items-center justify-center rounded-full border-2 border-amber-500/35 bg-[#1a0a2e]/95 shadow-inner">
                   <CircleDot className="h-8 w-8 text-amber-300/80 sm:h-10 sm:w-10" />
                 </div>
@@ -310,6 +309,32 @@ export function Wheel() {
               </p>
             )}
 
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/35 p-3">
+              <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                {t("wheel.payoutLegend")}
+              </p>
+              <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-8 sm:gap-2">
+                {WHEEL_PAYOUT_LEGEND.map((entry) => (
+                  <div
+                    key={entry.label}
+                    className="flex flex-col items-center gap-1 rounded-lg border border-white/8 bg-black/25 px-1 py-1.5"
+                  >
+                    <span
+                      className="h-4 w-full rounded-md border border-white/15 shadow-inner sm:h-5"
+                      style={{ backgroundColor: entry.color }}
+                      aria-hidden
+                    />
+                    <span
+                      className="text-[10px] font-black tabular-nums sm:text-xs"
+                      style={{ color: entry.textColor }}
+                    >
+                      {entry.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide lg:hidden">
               {history.length === 0 ? (
                 <span className="shrink-0 text-xs text-slate-500">{t("wheel.historyEmpty")}</span>
@@ -327,7 +352,28 @@ export function Wheel() {
           </motion.div>
         </div>
 
-        <aside className="hidden w-44 shrink-0 border-l border-white/10 bg-black/25 p-4 lg:block">
+        <aside className="hidden w-52 shrink-0 border-l border-white/10 bg-black/25 p-4 lg:block">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t("wheel.payoutLegend")}</p>
+          <div className="mb-5 flex flex-col gap-1.5">
+            {WHEEL_PAYOUT_LEGEND.map((entry) => (
+              <div
+                key={`legend-${entry.label}`}
+                className="flex items-center gap-2 rounded-lg border border-white/8 bg-black/30 px-2 py-1.5"
+              >
+                <span
+                  className="h-5 w-5 shrink-0 rounded-md border border-white/15 shadow-inner"
+                  style={{ backgroundColor: entry.color }}
+                  aria-hidden
+                />
+                <span className="text-xs font-black tabular-nums" style={{ color: entry.textColor }}>
+                  {entry.label}
+                </span>
+                <span className="ml-auto text-[10px] text-slate-500">
+                  {t("wheel.segmentCount", { count: entry.segmentCount })}
+                </span>
+              </div>
+            ))}
+          </div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">{t("wheel.history")}</p>
           <div className="flex flex-col gap-2">
             {history.map((h, i) => (

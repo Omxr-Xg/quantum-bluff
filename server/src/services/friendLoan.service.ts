@@ -24,6 +24,7 @@ export type WalletPayoutReason =
   | 'CRASH_PAYOUT'
   | 'MINES_PAYOUT'
   | 'WHEEL_PAYOUT'
+  | 'LUCKY_NUMBER_PAYOUT'
 
 export type RepaymentSocketPayload = {
   loanId: string
