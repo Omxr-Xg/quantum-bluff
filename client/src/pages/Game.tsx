@@ -28,7 +28,6 @@ import {
   DoorOpen,
   GripVertical,
   History,
-  Mic,
   Info,
   Loader2,
   Menu,
@@ -430,7 +429,6 @@ export function Game() {
   }, [gameIdParam]);
   const [handActionLog, setHandActionLog] = useState<{ id: string; line: string }[]>([]);
   const [handActionLogOpen, setHandActionLogOpen] = useState(false);
-  const [voicePanelOpen, setVoicePanelOpen] = useState(false);
   const [hasPlayerActed, setHasPlayerActed] = useState(false);
   const hasPlayerActedRef = useRef(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -5498,25 +5496,6 @@ export function Game() {
       }
       />
       <PokerChat isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onSendMessage={handleSendMessage} />
-      {pokerVoiceEnabled && userId && gameIdParam && voicePanelOpen ? (
-        <div className="pointer-events-auto fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] right-3 z-40 w-[min(100%,14rem)] sm:right-5">
-          <TableVoicePanel
-            voice={pokerVoice}
-            myUserId={userId}
-            channelLabel={pokerVoice.channelLabel}
-            tablePlayers={[
-              ...playersState
-                .filter((p) => !("isBot" in p && p.isBot))
-                .map((p) => ({ userId: String(p.id), username: p.name })),
-              ...cashSeats
-                .filter((s) => s.userId && s.username)
-                .map((s) => ({ userId: String(s.userId), username: s.username! })),
-            ].filter(
-              (p, i, arr) => arr.findIndex((x) => x.userId === p.userId) === i,
-            )}
-          />
-        </div>
-      ) : null}
       <MessageFeed messages={chatMessages} />
       {userId ? (
         <PlayerGameMenuModal
@@ -5601,19 +5580,27 @@ export function Game() {
         />
       )}
 
-      {showPlayerActionBar && pokerVoiceEnabled ? (
-        <button
-          type="button"
-          onClick={() => setVoicePanelOpen((open) => !open)}
-          title={voicePanelOpen ? t("voice.togglePanelHide") : t("voice.togglePanelShow")}
-          aria-label={voicePanelOpen ? t("voice.togglePanelHide") : t("voice.togglePanelShow")}
-          aria-expanded={voicePanelOpen}
-          className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)] right-3 z-[90] flex h-12 w-12 items-center justify-center rounded-full border-2 border-emerald-400 bg-slate-950/90 text-emerald-100 shadow-[0_0_14px_rgba(52,211,153,0.45),0_14px_34px_rgba(0,0,0,0.45)] backdrop-blur-md transition hover:bg-emerald-500 hover:text-slate-950 md:right-5 ${
-            voicePanelOpen ? "ring-2 ring-emerald-200/70" : ""
-          }`}
-        >
-          <Mic className="h-5 w-5" aria-hidden />
-        </button>
+      {showPlayerActionBar && pokerVoiceEnabled && userId && gameIdParam ? (
+        <div className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)] right-3 z-[90] md:right-5">
+          <TableVoicePanel
+            layout="room"
+            roomAlign="end"
+            panelHideMs={1000}
+            voice={pokerVoice}
+            myUserId={userId}
+            channelLabel={pokerVoice.channelLabel}
+            tablePlayers={[
+              ...playersState
+                .filter((p) => !("isBot" in p && p.isBot))
+                .map((p) => ({ userId: String(p.id), username: p.name })),
+              ...cashSeats
+                .filter((s) => s.userId && s.username)
+                .map((s) => ({ userId: String(s.userId), username: s.username! })),
+            ].filter(
+              (p, i, arr) => arr.findIndex((x) => x.userId === p.userId) === i,
+            )}
+          />
+        </div>
       ) : null}
 
       {showPlayerActionBar && (

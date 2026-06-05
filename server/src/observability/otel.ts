@@ -38,6 +38,12 @@ export function initOtel(): void {
       instrumentations: [
         getNodeAutoInstrumentations({
           '@opentelemetry/instrumentation-fs': { enabled: false },
+          '@opentelemetry/instrumentation-dns': { enabled: false },
+          '@opentelemetry/instrumentation-net': { enabled: false },
+          '@opentelemetry/instrumentation-grpc': { enabled: false },
+          '@opentelemetry/instrumentation-pino': { enabled: false },
+          '@opentelemetry/instrumentation-mongodb': { enabled: false },
+          '@opentelemetry/instrumentation-mongoose': { enabled: false },
         }),
       ],
     })

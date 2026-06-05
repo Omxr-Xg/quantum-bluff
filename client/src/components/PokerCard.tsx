@@ -25,23 +25,23 @@ interface PokerCardProps {
   colorblindMode?: boolean;
 }
 
-/** Hold’em / tailles par défaut : sous md, board (xs) calculé pour 5 cartes avec léger overlap. Facteur −25 % vs état précédent. */
+/** Hold’em / tailles par défaut : sous md, largeurs vw/rem réduites pour tenir sur téléphone. */
 const SIZE_MAP: Record<CardSize, { card: string }> = {
   xs: {
     card:
-      "w-[30px] h-[42px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[calc(((min(86vw,calc(100vw-2rem))+3.5rem)/5)*0.75)]",
+      "w-[30px] h-[42px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[calc(((min(86vw,calc(100vw-2rem))+3.5rem)/5)*0.66)]",
   },
   sm: {
     card:
-      "w-9 h-[51px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[min(4.6875rem,min(32.25vw,7.21875rem))]",
+      "w-9 h-[51px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[min(4.125rem,min(28vw,6.35rem))]",
   },
   md: {
     card:
-      "w-12 h-[66px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[min(6rem,min(31.5vw,7.875rem))]",
+      "w-12 h-[66px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[min(5.25rem,min(27.5vw,6.9rem))]",
   },
   board: {
     card:
-      "w-14 h-[78px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[min(6rem,min(31.5vw,7.875rem))]",
+      "w-14 h-[78px] max-md:!aspect-[63/88] max-md:!h-auto max-md:!w-[min(5.25rem,min(27.5vw,6.9rem))]",
   },
   lg: { card: "w-20 h-[112px] md:w-28 md:h-[156px]" },
 };

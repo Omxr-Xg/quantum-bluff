@@ -43,4 +43,12 @@ const options: swaggerJsdoc.Options = {
   apis: ['./src/routes/*.ts', './src/swagger.docs.ts'],
 };
 
-export const swaggerSpec = swaggerJsdoc(options);
+let cachedSpec: ReturnType<typeof swaggerJsdoc> | null = null
+
+/** Génération paresseuse — évite de charger tous les fichiers routes en prod. */
+export function getSwaggerSpec(): ReturnType<typeof swaggerJsdoc> {
+  if (!cachedSpec) {
+    cachedSpec = swaggerJsdoc(options)
+  }
+  return cachedSpec
+}

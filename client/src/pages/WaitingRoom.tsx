@@ -1073,8 +1073,9 @@ export function WaitingRoom() {
         </div>
       </div>
       {userId && rawRoomId && !rawRoomId.startsWith("room_") ? (
-        <div className="pointer-events-auto fixed bottom-6 right-4 z-40 w-[min(100%,14rem)] sm:right-6">
+        <div className="pointer-events-none fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-4 z-40 sm:left-6">
           <TableVoicePanel
+            layout="room"
             voice={pickVoicePanelState(voice)}
             myUserId={userId}
             channelLabel={voice.channel?.label ?? null}

@@ -114,7 +114,7 @@ export function CommunityCards({ cards, pot, sidePots, colorblindMode = false, p
         >
           {isMobile ? (
             <>
-              <div className="flex shrink-0 flex-row justify-center gap-x-1.5 px-2">
+              <div className="flex shrink-0 flex-row justify-center gap-x-1 px-2">
                 {cards.map((card, index) => (
                   <motion.div
                     key={index}

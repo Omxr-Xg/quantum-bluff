@@ -455,7 +455,7 @@ export function PokerTable({
                                   className="relative origin-top transition-all duration-300"
                                   style={{
                                     marginLeft: index > 0 ? ((isMobile || isTabletPortrait) ? "3px" : "8px") : "0",
-                                    transform: `rotate(${index === 0 ? -5 : 6}deg)${(isMobile || isTabletPortrait) ? " scale(1.08)" : " scale(1.35)"}`,
+                                    transform: `rotate(${index === 0 ? -5 : 6}deg)${(isMobile || isTabletPortrait) ? " scale(0.94)" : " scale(1.35)"}`,
                                   }}
                                 >
                                   <PokerCard

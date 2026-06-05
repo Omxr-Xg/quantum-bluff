@@ -1,3 +1,4 @@
+import { attachLocalAudioTrack, resolveRemotePlaybackStream } from '../shared/voicePeerMedia'
 import { getIceServersConfig } from '../shared/iceConfig'
 import { unlockPageAudio } from '../ringtoneAudio'
 
@@ -48,16 +49,8 @@ export class VoicePeerConnection {
     }
 
     this.pc.ontrack = (ev) => {
-      let stream = ev.streams[0]
-      if (!stream) {
-        if (!this.remoteStream) this.remoteStream = new MediaStream()
-        stream = this.remoteStream
-        if (!stream.getTracks().includes(ev.track)) {
-          stream.addTrack(ev.track)
-        }
-      } else {
-        this.remoteStream = stream
-      }
+      const stream = resolveRemotePlaybackStream(ev, this.remoteStream)
+      this.remoteStream = stream
       this.remoteAudio.srcObject = stream
       ev.track.onunmute = () => this.tryPlayRemote()
       this.tryPlayRemote()
@@ -82,25 +75,7 @@ export class VoicePeerConnection {
   }
 
   attachLocalTrack(track: MediaStreamTrack, stream: MediaStream): void {
-    const sender = this.pc.getSenders().find((s) => s.track?.kind === 'audio')
-    if (sender?.track?.id === track.id) return
-    if (sender) {
-      void sender.replaceTrack(track)
-      return
-    }
-
-    if (this.pc.remoteDescription) {
-      const negotiated = this.pc.getTransceivers().find((t) => t.mid != null)
-      if (negotiated) {
-        void negotiated.sender.replaceTrack(track)
-        if (negotiated.direction === 'recvonly' || negotiated.direction === 'inactive') {
-          negotiated.direction = 'sendrecv'
-        }
-        return
-      }
-    }
-
-    this.pc.addTrack(track, stream)
+    attachLocalAudioTrack(this.pc, track, stream)
   }
 
   async createOffer(): Promise<RTCSessionDescriptionInit | null> {

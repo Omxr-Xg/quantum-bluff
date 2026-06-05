@@ -6,9 +6,7 @@ import { Server } from 'socket.io'
 import { createAdapter } from '@socket.io/redis-adapter'
 import cors, { type CorsOptions } from 'cors'
 import helmet from 'helmet'
-import swaggerUi from 'swagger-ui-express'
 import { env } from './config/env.js'
-import { swaggerSpec } from './config/swagger.config.js'
 import { initCleanupJobs } from './utils/cleanup.job.js'
 import { pruneInactiveBlackjackWaitingRooms } from './blackjack/recovery/blackjackRecovery.service.js'
 import {
@@ -339,15 +337,6 @@ app.get('/metrics', async (req, res) => {
   res.end(await metrics.getMetricsText())
 })
 
-if (!env.isProduction) {
-  app.use(
-    '/api-docs',
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, {
-      customCss: '.swagger-ui .topbar { display: none }',
-    })
-  )
-}
 
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const msg = err instanceof Error ? err.message : String(err)
@@ -474,6 +463,20 @@ registerGracefulShutdown()
 
 ;(async () => {
   try {
+    if (!env.isProduction) {
+      const [{ default: swaggerUi }, { getSwaggerSpec }] = await Promise.all([
+        import('swagger-ui-express'),
+        import('./config/swagger.config.js'),
+      ])
+      app.use(
+        '/api-docs',
+        swaggerUi.serve,
+        swaggerUi.setup(getSwaggerSpec(), {
+          customCss: '.swagger-ui .topbar { display: none }',
+        }),
+      )
+    }
+
     rootLogger.info({ msg: 'server_boot_step', step: 'connect_db_start' })
     await connectDB()
     bindVoiceCallRedis(redisClient)

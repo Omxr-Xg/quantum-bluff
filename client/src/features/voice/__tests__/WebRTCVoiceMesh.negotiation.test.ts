@@ -206,6 +206,65 @@ describe('WebRTCVoiceMesh negotiation', () => {
     })
   })
 
+  const waitingRoster = (userA: string, userB: string) => ({
+    channelId: 'waiting:room-1',
+    channel: { channelId: 'waiting:room-1', kind: 'waiting' as const, label: 'Salon' },
+    participants: [
+      {
+        userId: userA,
+        username: 'Alice',
+        speakTo: 'CHANNEL' as const,
+        listenTo: 'CHANNEL' as const,
+        micMuted: false,
+        soundMuted: false,
+        peerMutes: [],
+        speaking: false,
+      },
+      {
+        userId: userB,
+        username: 'Bob',
+        speakTo: 'CHANNEL' as const,
+        listenTo: 'CHANNEL' as const,
+        micMuted: false,
+        soundMuted: false,
+        peerMutes: [],
+        speaking: false,
+      },
+    ],
+    friendIds: [userA, userB],
+    blockedUserIds: [],
+  })
+
+  it('waiting room callee attaches mic after remote offer', async () => {
+    const userA = 'aaaa-caller'
+    const userB = 'zzzz-callee'
+    const mesh = new WebRTCVoiceMesh('waiting:room-1', userB, socket, {
+      ...DEFAULT_VOICE_SETTINGS,
+      micMuted: false,
+      speakTo: 'CHANNEL',
+      listenTo: 'CHANNEL',
+      peerMutes: new Set(),
+    })
+    mesh.applyRoster(waitingRoster(userA, userB))
+
+    mesh.handleSignal({
+      channelId: 'waiting:room-1',
+      fromUserId: userA,
+      toUserId: userB,
+      signal: { type: 'offer', sdp: { type: 'offer', sdp: 'v=0' } },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockPc.setRemoteDescription).toHaveBeenCalled()
+      expect(mockPc.addTrack).toHaveBeenCalled()
+      expect(mockPc.createAnswer).toHaveBeenCalled()
+    })
+
+    const remoteOrder = vi.mocked(mockPc.setRemoteDescription).mock.invocationCallOrder[0]
+    const addTrackOrder = vi.mocked(mockPc.addTrack).mock.invocationCallOrder[0]
+    expect(remoteOrder).toBeLessThan(addTrackOrder)
+  })
+
   it('keeps audio sender attached when mic is muted on call channel', async () => {
     const creatorId = 'caller-1'
     const calleeId = 'callee-2'
