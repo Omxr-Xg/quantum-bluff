@@ -962,7 +962,10 @@ export function Layout({ children }: LayoutProps) {
 
   useLayoutEffect(() => {
     /** Admin + lobby : scroll sur le document (#root a overflow:hidden par défaut). */
-    const on = isAdminShell || (lobbyDocumentScroll && !isCasinoFullBleed);
+    const on =
+      isAdminShell ||
+      isAuthPage ||
+      (lobbyDocumentScroll && !isCasinoFullBleed);
     const root = document.getElementById("root");
     document.documentElement.classList.toggle("doc-scroll-mode", on);
     document.body.classList.toggle("doc-scroll-mode", on);
@@ -972,7 +975,7 @@ export function Layout({ children }: LayoutProps) {
       document.body.classList.remove("doc-scroll-mode");
       root?.classList.remove("doc-scroll-mode");
     };
-  }, [isAdminShell, lobbyDocumentScroll, isCasinoFullBleed, path]);
+  }, [isAdminShell, isAuthPage, lobbyDocumentScroll, isCasinoFullBleed, path]);
 
   if (isAdminShell) {
     return (
@@ -1384,14 +1387,16 @@ export function Layout({ children }: LayoutProps) {
     if (tab === "blackjack") return "bg-[#100409]";
     return "bg-[#020716]";
   })();
-  const shellBg =
-    lobbyDocumentScroll && !isCasinoFullBleed
+  const shellBg = isAuthPage
+    ? "bg-transparent"
+    : lobbyDocumentScroll && !isCasinoFullBleed
       ? lobbyShellBg
       : showStandaloneTopBar
         ? "bg-transparent"
-      : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900";
-  const shellClass =
-    lobbyDocumentScroll && !isCasinoFullBleed
+        : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900";
+  const shellClass = isAuthPage
+    ? "flex w-full min-w-0 flex-col overflow-x-clip overflow-y-visible pb-[env(safe-area-inset-bottom,0px)] bg-transparent"
+    : lobbyDocumentScroll && !isCasinoFullBleed
       ? /* Pas de min-h-[100dvh] ni flex-1 sur l’enfant : sinon zone vide en bas (fond document sans dégradés lobby). */
         `flex w-full min-w-0 flex-col overflow-x-clip overflow-y-visible pb-[env(safe-area-inset-bottom,0px)] ${shellBg}`
       : `box-border flex h-[100dvh] max-h-[100dvh] min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden pb-[env(safe-area-inset-bottom,0px)] ${shellBg}`;
@@ -2284,12 +2289,12 @@ export function Layout({ children }: LayoutProps) {
         className={`w-full min-w-0 overflow-x-clip overflow-y-visible ${
           isCasinoFullBleed
             ? "box-border flex min-h-0 flex-1 flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] [&>*:last-child]:flex [&>*:last-child]:min-h-0 [&>*:last-child]:flex-1 [&>*:last-child]:flex-col"
-            : lobbyDocumentScroll
+            : lobbyDocumentScroll || isAuthPage
               ? "w-full min-w-0"
               : "min-h-0 flex-1"
         }`}
       >
-        {isCasinoFullBleed ? (
+        {isCasinoFullBleed || isAuthPage ? (
           children
         ) : lobbyDocumentScroll ? (
           <div className={`w-full min-w-0 ${topPadDocScroll}`}>{children}</div>

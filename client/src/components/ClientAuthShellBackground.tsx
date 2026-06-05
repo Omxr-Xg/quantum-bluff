@@ -20,42 +20,39 @@ export function ClientAuthShellBackground({
   const isBac2 = background === "bac2";
 
   return (
-    <div className={`relative min-h-[100dvh] w-full overflow-x-hidden font-sans ${className}`}>
-      <img
-        src={isBac2 ? bac2Bg : bacBg}
-        alt=""
-        className="pointer-events-none fixed inset-0 h-full w-full object-cover"
-        aria-hidden
-      />
-      <div
-        className={`pointer-events-none fixed inset-0 bg-gradient-to-br ${
-          isBac2
-            ? "from-slate-950/78 via-slate-900/58 to-amber-950/72"
-            : "from-slate-950/86 via-slate-900/72 to-blue-950/80"
-        }`}
-        aria-hidden
-      />
-      <div
-        className={`pointer-events-none fixed inset-0 ${
-          isBac2
-            ? "bg-[radial-gradient(ellipse_at_top,rgba(245,158,11,0.14),transparent_55%)]"
-            : "bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.16),transparent_55%)]"
-        }`}
-        aria-hidden
-      />
-      <div
-        className={`pointer-events-none fixed -left-24 top-1/4 h-72 w-72 rounded-full blur-[90px] ${
-          isBac2 ? "bg-amber-500/10" : "bg-blue-500/10"
-        }`}
-        aria-hidden
-      />
-      <div
-        className={`pointer-events-none fixed -right-16 bottom-1/4 h-80 w-80 rounded-full blur-[100px] ${
-          isBac2 ? "bg-yellow-500/10" : "bg-cyan-500/10"
-        }`}
-        aria-hidden
-      />
-      {children}
+    <div className={`relative isolate min-h-[100dvh] w-full overflow-x-hidden font-sans ${className}`}>
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+        <img
+          src={isBac2 ? bac2Bg : bacBg}
+          alt=""
+          className="h-full w-full object-cover"
+        />
+        <div
+          className={`absolute inset-0 bg-gradient-to-br ${
+            isBac2
+              ? "from-slate-950/45 via-slate-900/20 to-amber-950/40"
+              : "from-slate-950/50 via-slate-900/25 to-blue-950/45"
+          }`}
+        />
+        <div
+          className={`absolute inset-0 ${
+            isBac2
+              ? "bg-[radial-gradient(ellipse_at_top,rgba(245,158,11,0.12),transparent_60%)]"
+              : "bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.1),transparent_60%)]"
+          }`}
+        />
+        <div
+          className={`absolute -left-24 top-1/4 h-72 w-72 rounded-full blur-[90px] ${
+            isBac2 ? "bg-amber-500/15" : "bg-blue-500/12"
+          }`}
+        />
+        <div
+          className={`absolute -right-16 bottom-1/4 h-80 w-80 rounded-full blur-[100px] ${
+            isBac2 ? "bg-yellow-500/12" : "bg-cyan-500/12"
+          }`}
+        />
+      </div>
+      <div className="relative z-10 min-h-[100dvh] w-full">{children}</div>
     </div>
   );
 }
