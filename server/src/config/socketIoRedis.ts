@@ -1,6 +1,7 @@
 import { Redis } from 'ioredis'
 import { env } from './env.js'
 import { rootLogger } from '../observability/logger.js'
+import { attachRedisInstrumentation } from '../observability/redisInstrumentation.js'
 
 let pubClient: Redis | null = null
 let subClient: Redis | null = null
@@ -33,6 +34,9 @@ export function createSocketIoRedisClients(): { pubClient: Redis; subClient: Red
   }
 
   subClient = pubClient.duplicate()
+
+  attachRedisInstrumentation(pubClient, 'socket_io_adapter')
+  attachRedisInstrumentation(subClient, 'socket_io_adapter')
 
   for (const [name, c] of [
     ['socketio_redis_pub', pubClient],

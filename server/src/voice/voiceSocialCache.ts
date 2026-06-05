@@ -1,6 +1,7 @@
+import { env } from '../config/env.js'
 import { getBlockedUserIds, getFriendIdSet } from './voicePolicy.service.js'
 
-const TTL_MS = 60_000
+const TTL_MS = env.voiceSocialCacheTtlMs
 
 type CacheEntry<T> = { expiresAt: number; value: T }
 

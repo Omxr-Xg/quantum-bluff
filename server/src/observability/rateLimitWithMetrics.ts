@@ -5,6 +5,7 @@ import rateLimit, {
 } from 'express-rate-limit'
 import { RedisStore, type RedisReply } from 'rate-limit-redis'
 import redisClient from '../config/redis.config.js'
+import { withRedisFeature } from './redisInstrumentation.js'
 import { env } from '../config/env.js'
 import { rootLogger } from './logger.js'
 import { pathToRouteGroup } from './routeGroup.js'
@@ -31,12 +32,15 @@ export function rateLimitWithMetrics(
   options: Partial<Options>
 ): ReturnType<typeof rateLimit> {
   const userHandler = options.handler ?? defaultExceededHandler
-  const store = env.isJest
+  const store =
+    env.isJest || !env.distributedRedis
       ? undefined
       : new RedisStore({
           sendCommand: (...args: string[]) => {
             const [cmd, ...rest] = args
-            return redisClient.call(cmd, ...rest) as Promise<RedisReply>
+            return withRedisFeature('rate_limit', () =>
+              redisClient.call(cmd, ...rest),
+            ) as Promise<RedisReply>
           },
           prefix: 'rl:qb:',
         })

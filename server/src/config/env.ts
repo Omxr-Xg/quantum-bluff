@@ -253,6 +253,24 @@ const instanceId =
   (typeof os.hostname === 'function' ? os.hostname() : 'unknown') ||
   'unknown'
 
+/**
+ * Nombre d’instances backend déployées (Render : vérifier Dashboard → Service → Scaling).
+ * Utilisé pour activer l’adaptateur Redis Socket.IO uniquement si > 1.
+ */
+const instanceCount = getPositiveIntegerEnv('INSTANCE_COUNT', 1)
+
+/** Adaptateur @socket.io/redis-adapter — désactivé par défaut sur mono-instance (gros gain Upstash). */
+const socketIoRedisAdapter = (() => {
+  const raw = process.env.SOCKET_IO_REDIS_ADAPTER?.trim()
+  if (raw !== undefined && raw !== '') {
+    return parseBooleanEnv('SOCKET_IO_REDIS_ADAPTER', false)
+  }
+  return instanceCount > 1
+})()
+
+/** Locks distribués, rate-limit Redis, pub/sub poker : utiles seulement si plusieurs instances. */
+const distributedRedis = instanceCount > 1
+
 export const env = {
   nodeEnv,
   isDevelopment,
@@ -261,6 +279,15 @@ export const env = {
   isCi,
   isJest,
   instanceId,
+  instanceCount,
+  socketIoRedisAdapter,
+  distributedRedis,
+  /** Legacy `game:*` — désactivé par défaut (poker:runtime:* suffit). */
+  persistLegacyGameKeys: parseBooleanEnv('PERSIST_LEGACY_GAME_KEYS', false),
+  pokerStateWriteDebounceMs: getNonNegativeIntegerEnv('POKER_STATE_REDIS_DEBOUNCE_MS', 800),
+  voiceSocialCacheTtlMs: getNonNegativeIntegerEnv('VOICE_SOCIAL_CACHE_TTL_MS', 5 * 60 * 1000),
+  jwtBlacklistMissCacheSec: getNonNegativeIntegerEnv('JWT_BLACKLIST_MISS_CACHE_SEC', 60),
+  userProfileCacheTtlMs: getNonNegativeIntegerEnv('USER_PROFILE_CACHE_TTL_MS', 5 * 60 * 1000),
   port: getPositiveIntegerEnv('PORT', 3000),
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
   databaseUrl,

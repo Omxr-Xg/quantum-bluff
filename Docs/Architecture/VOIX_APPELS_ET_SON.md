@@ -242,6 +242,8 @@ Enregistrement handlers : `registerVoiceGatewayHandlers` depuis la stack Socket 
 
 CORS / origines : voir déploiement API ; apps Capacitor (`capacitor://localhost`) gérées côté serveur.
 
+**Redis / Upstash** : le vocal (appels, roster, signaling WebRTC) n’utilise **pas** Redis — état en mémoire serveur. Seul le transport Socket.IO peut passer par l’adaptateur Redis si `SOCKET_IO_REDIS_ADAPTER=true` (multi-instance). Voir [`REDIS_USAGE.md`](REDIS_USAGE.md).
+
 ---
 
 ## 9. Déploiement et exploitation

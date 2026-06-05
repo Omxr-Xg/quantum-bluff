@@ -33,6 +33,9 @@ type MetricsApi = {
   incSocketEvent: (event: string) => void
   setSocketIoConnectionsActive: (count: number) => void
   setRedisSocketIoAdapterUp: (up: boolean) => void
+  incRedisCommand: (feature: string, command: string) => void
+  setRedisCommandsPerMinute: (value: number) => void
+  setRedisMonthlyProjection: (value: number) => void
   observeRedisCommandDurationMs: (command: string, durationMs: number) => void
   incDbError: (operation: string) => void
   observePrismaDurationMs: (operation: string, durationMs: number) => void
@@ -143,6 +146,25 @@ function createRealMetrics(): MetricsApi {
     registers: [register],
   })
 
+  const redisCommandsTotal = new Counter({
+    name: 'redis_commands_total',
+    help: 'Commandes Redis exécutées par fonctionnalité',
+    labelNames: ['feature', 'command'],
+    registers: [register],
+  })
+
+  const redisCommandsPerMinute = new Gauge({
+    name: 'redis_commands_per_minute',
+    help: 'Commandes Redis sur la dernière fenêtre d’une minute',
+    registers: [register],
+  })
+
+  const redisMonthlyProjection = new Gauge({
+    name: 'redis_monthly_projection',
+    help: 'Projection mensuelle (cmd/min × 43200) basée sur la dernière minute',
+    registers: [register],
+  })
+
   return {
     observeHttp({ method, routeGroup, status, durationMs }) {
       const sc = statusClass(status)
@@ -181,6 +203,15 @@ function createRealMetrics(): MetricsApi {
     setRedisSocketIoAdapterUp(up: boolean) {
       redisAdapterUp.set(up ? 1 : 0)
     },
+    incRedisCommand(feature: string, command: string) {
+      redisCommandsTotal.inc({ feature, command })
+    },
+    setRedisCommandsPerMinute(value: number) {
+      redisCommandsPerMinute.set(value)
+    },
+    setRedisMonthlyProjection(value: number) {
+      redisMonthlyProjection.set(value)
+    },
     observeRedisCommandDurationMs(command: string, durationMs: number) {
       redisCommandDurationSeconds.observe({ command }, durationMs / 1000)
     },
@@ -210,6 +241,9 @@ const noop: MetricsApi = {
   incSocketEvent: () => {},
   setSocketIoConnectionsActive: () => {},
   setRedisSocketIoAdapterUp: () => {},
+  incRedisCommand: () => {},
+  setRedisCommandsPerMinute: () => {},
+  setRedisMonthlyProjection: () => {},
   observeRedisCommandDurationMs: () => {},
   incDbError: () => {},
   observePrismaDurationMs: () => {},

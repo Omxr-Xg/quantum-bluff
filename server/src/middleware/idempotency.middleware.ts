@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import redisClient from '../config/redis.config.js'
 import { env } from '../config/env.js'
 import { rootLogger } from '../observability/logger.js'
+import { withRedisFeature } from '../observability/redisInstrumentation.js'
 
 /** Fenêtre de déduplication distribuée (secondes) — rejouer la même clé avant expiration → 409 */
 const IDEMPOTENCY_TTL_SEC = Math.max(
@@ -24,7 +25,9 @@ async function tryRedisClaim(key: string): Promise<'ok' | 'duplicate' | 'fallbac
   if (env.isJest) return 'fallback'
   try {
     const redisKey = `${KEY_PREFIX}${key}`
-    const r = await redisClient.set(redisKey, '1', 'EX', IDEMPOTENCY_TTL_SEC, 'NX')
+    const r = await withRedisFeature('http_idempotency', () =>
+      redisClient.set(redisKey, '1', 'EX', IDEMPOTENCY_TTL_SEC, 'NX'),
+    )
     if (r === 'OK') return 'ok'
     return 'duplicate'
   } catch (err) {

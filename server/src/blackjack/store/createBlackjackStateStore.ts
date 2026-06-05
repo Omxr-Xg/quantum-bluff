@@ -1,5 +1,6 @@
 import { Redis } from 'ioredis'
 import { env } from '../../config/env.js'
+import { attachRedisInstrumentation } from '../../observability/redisInstrumentation.js'
 import type { BlackjackStateStore } from './blackjackStateStore.js'
 import { InMemoryBlackjackStateStore } from './inMemoryBlackjackStateStore.js'
 import { RedisBlackjackStateStore } from './redisBlackjackStateStore.js'
@@ -37,6 +38,8 @@ export function createBlackjackStateStore(): BlackjackStateStore {
 
   const redis = createRedisClient()
   const subscriber = createRedisClient()
+  attachRedisInstrumentation(redis, 'blackjack_state')
+  attachRedisInstrumentation(subscriber, 'blackjack_state')
   return new RedisBlackjackStateStore(redis, subscriber)
 }
 

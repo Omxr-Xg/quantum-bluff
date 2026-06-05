@@ -1,7 +1,11 @@
 import { Redis } from 'ioredis'
 import { GameTable } from '../logic/GameTable.js'
 import { rootLogger } from '../observability/logger.js'
-import { metrics } from '../observability/metrics.js'
+import {
+  attachRedisInstrumentation,
+  startRedisUsageProjectionTicker,
+  withRedisFeature,
+} from '../observability/redisInstrumentation.js'
 import type { Card, GamePhase, Player } from '../types/poker.js'
 import { env } from './env.js'
 
@@ -31,25 +35,16 @@ const redisClient = env.redisUrl
       ...sharedRedisOptions,
     })
 
+if (!redisLiteClient) {
+  attachRedisInstrumentation(redisClient, 'core')
+  startRedisUsageProjectionTicker()
+}
+
 redisClient.on('connect', () => {
   if (!env.isJest) {
     rootLogger.info({ msg: 'redis_connected' })
   }
 })
-
-if (!redisLiteClient) {
-  const origSend = redisClient.sendCommand.bind(redisClient) as (
-    ...args: unknown[]
-  ) => Promise<unknown>
-  redisClient.sendCommand = function sendCommandInstrumented(...args: unknown[]) {
-    const cmd = args[0] as { name?: string } | undefined
-    const name = (cmd?.name ?? 'unknown').toLowerCase()
-    const t0 = Date.now()
-    return origSend(...args).finally(() => {
-      metrics.observeRedisCommandDurationMs(name, Date.now() - t0)
-    })
-  }
-}
 
 redisClient.on('error', (err: Error) => {
   if (redisLiteClient) {
@@ -80,6 +75,13 @@ export const isRedisHealthy = async (): Promise<boolean> => {
 }
 
 const GAME_PREFIX = 'game:'
+const GAME_INDEX_KEY = 'game:index'
+
+const actionLogMemory = new Map<string, string[]>()
+
+function actionLogKey(gameId: string, handId: string): string {
+  return `${gameId}:${handId}`
+}
 
 export const serializeGame = (_gameId: string, game: GameTable): string => {
   const state = game.getState()
@@ -137,75 +139,107 @@ export const deserializeGame = (gameId: string, data: string): GameTable | null 
 }
 
 export const saveGame = async (gameId: string, game: GameTable, ttl = 3600): Promise<void> => {
-  const key = `${GAME_PREFIX}${gameId}`
-  const serialized = serializeGame(gameId, game)
-  await redisClient.setex(key, ttl, serialized)
+  await withRedisFeature('core', async () => {
+    const key = `${GAME_PREFIX}${gameId}`
+    const serialized = serializeGame(gameId, game)
+    await redisClient.setex(key, ttl, serialized)
+    await redisClient.sadd(GAME_INDEX_KEY, gameId)
+  })
 }
 
 export const getGame = async (gameId: string): Promise<GameTable | null> => {
-  const key = `${GAME_PREFIX}${gameId}`
-  const data = await redisClient.get(key)
-
-  if (!data) {
-    return null
-  }
-
-  return deserializeGame(gameId, data)
+  return withRedisFeature('core', async () => {
+    const key = `${GAME_PREFIX}${gameId}`
+    const data = await redisClient.get(key)
+    if (!data) return null
+    return deserializeGame(gameId, data)
+  })
 }
 
 export const deleteGame = async (gameId: string): Promise<void> => {
-  const key = `${GAME_PREFIX}${gameId}`
-  await redisClient.del(key)
+  await withRedisFeature('core', async () => {
+    const key = `${GAME_PREFIX}${gameId}`
+    await redisClient.del(key)
+    await redisClient.srem(GAME_INDEX_KEY, gameId)
+  })
 }
 
 const ACTION_LOG_TTL = 60 * 60 * 2
+const ACTION_LOG_MAX = 100
 
 export async function appendActionLog(gameId: string, handId: string, line: string): Promise<void> {
+  const memKey = actionLogKey(gameId, handId)
+  const prev = actionLogMemory.get(memKey) ?? []
+  const next = [...prev, line].slice(-ACTION_LOG_MAX)
+  actionLogMemory.set(memKey, next)
+
+  if (!env.distributedRedis) return
+
   try {
-    const key = `action_log:${gameId}:${handId}`
-    await redisClient.rpush(key, line)
-    await redisClient.expire(key, ACTION_LOG_TTL)
-    await redisClient.ltrim(key, -99, -1)
-  } catch { /* ignore */ }
+    await withRedisFeature('core', async () => {
+      const key = `action_log:${gameId}:${handId}`
+      await redisClient.rpush(key, line)
+      await redisClient.expire(key, ACTION_LOG_TTL)
+      await redisClient.ltrim(key, -99, -1)
+    })
+  } catch {
+    /* ignore */
+  }
 }
 
 export async function getActionLog(gameId: string, handId: string): Promise<string[]> {
+  const memKey = actionLogKey(gameId, handId)
+  const local = actionLogMemory.get(memKey)
+  if (local && local.length > 0) return local
+
   try {
-    const key = `action_log:${gameId}:${handId}`
-    return await redisClient.lrange(key, 0, -1)
+    return await withRedisFeature('core', async () => {
+      const key = `action_log:${gameId}:${handId}`
+      return await redisClient.lrange(key, 0, -1)
+    })
   } catch {
-    return []
+    return local ?? []
   }
 }
 
 export async function clearActionLog(gameId: string, handId: string): Promise<void> {
+  actionLogMemory.delete(actionLogKey(gameId, handId))
   try {
-    await redisClient.del(`action_log:${gameId}:${handId}`)
-  } catch { /* ignore */ }
+    await withRedisFeature('core', () => redisClient.del(`action_log:${gameId}:${handId}`))
+  } catch {
+    /* ignore */
+  }
 }
 
 export const getAllGames = async (): Promise<Map<string, GameTable>> => {
-  const keys = await redisClient.keys(`${GAME_PREFIX}*`)
-  const games = new Map<string, GameTable>()
+  return withRedisFeature('core', async () => {
+    const gameIds = await redisClient.smembers(GAME_INDEX_KEY)
+    if (gameIds.length === 0) return new Map()
 
-  for (const key of keys) {
-    const gameId = key.replace(GAME_PREFIX, '')
-    const data = await redisClient.get(key)
-
-    if (!data) {
-      continue
+    const pipeline = redisClient.pipeline()
+    for (const gameId of gameIds) {
+      pipeline.get(`${GAME_PREFIX}${gameId}`)
     }
+    const results = await pipeline.exec()
+    const games = new Map<string, GameTable>()
 
-    const game = deserializeGame(gameId, data)
-    if (game) {
-      games.set(gameId, game)
-    }
-  }
+    gameIds.forEach((gameId, i) => {
+      const row = results?.[i]
+      if (!row || row[0]) return
+      const data = row[1] as string | null
+      if (!data) return
+      const game = deserializeGame(gameId, data)
+      if (game) games.set(gameId, game)
+    })
 
-  return games
+    return games
+  })
 }
 
 export const restoreAllGames = async (): Promise<Map<string, GameTable>> => {
+  if (!env.persistLegacyGameKeys) {
+    return new Map()
+  }
   if (!env.isJest) {
     rootLogger.info({ msg: 'redis_restore_games_start' })
   }

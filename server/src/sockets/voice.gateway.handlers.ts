@@ -44,7 +44,7 @@ import {
   socketRoomKey,
 } from '../voice/voiceSession.registry.js'
 import type { VoiceMigrateHint } from '../voice/voice.types.js'
-import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
+import { getCachedUserProfile } from '../utils/userProfileCache.js'
 
 type VoiceSocket = Socket & { userId?: string; voiceChannelId?: string }
 
@@ -61,18 +61,7 @@ async function voiceCallTargetProfile(userId: string): Promise<{
   username: string
   avatarUrl: string | null
 }> {
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, username: true, avatarUrl: true, avatarHasBinary: true },
-  })
-  if (!u) {
-    return { userId, username: 'Joueur', avatarUrl: null }
-  }
-  return {
-    userId: u.id,
-    username: u.username,
-    avatarUrl: clientAvatarUrlFromUser(u),
-  }
+  return getCachedUserProfile(userId)
 }
 
 function emitCallEnded(

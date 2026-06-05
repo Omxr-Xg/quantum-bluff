@@ -368,21 +368,36 @@ const io = new Server(httpServer, {
 })
 
 if (!env.isJest) {
-  try {
-    const { pubClient, subClient } = createSocketIoRedisClients()
-    io.adapter(createAdapter(pubClient, subClient))
-    metrics.setRedisSocketIoAdapterUp(true)
-    const onDown = () => metrics.setRedisSocketIoAdapterUp(false)
-    pubClient.on('error', onDown)
-    subClient.on('error', onDown)
-    pubClient.on('end', onDown)
-    subClient.on('end', onDown)
-  } catch (err) {
-    rootLogger.warn({
-      msg: 'socket_io_redis_adapter_failed',
-      detail: err instanceof Error ? err.message : String(err),
-    })
+  rootLogger.info({
+    msg: 'backend_scaling_config',
+    instanceCount: env.instanceCount,
+    instanceId: env.instanceId,
+    socketIoRedisAdapter: env.socketIoRedisAdapter,
+  })
+  if (env.socketIoRedisAdapter) {
+    try {
+      const { pubClient, subClient } = createSocketIoRedisClients()
+      io.adapter(createAdapter(pubClient, subClient))
+      metrics.setRedisSocketIoAdapterUp(true)
+      const onDown = () => metrics.setRedisSocketIoAdapterUp(false)
+      pubClient.on('error', onDown)
+      subClient.on('error', onDown)
+      pubClient.on('end', onDown)
+      subClient.on('end', onDown)
+      rootLogger.info({ msg: 'socket_io_redis_adapter_enabled' })
+    } catch (err) {
+      rootLogger.warn({
+        msg: 'socket_io_redis_adapter_failed',
+        detail: err instanceof Error ? err.message : String(err),
+      })
+      metrics.setRedisSocketIoAdapterUp(false)
+    }
+  } else {
     metrics.setRedisSocketIoAdapterUp(false)
+    rootLogger.info({
+      msg: 'socket_io_redis_adapter_disabled',
+      hint: 'Mono-instance : emits Socket.IO en mémoire locale. Mettre SOCKET_IO_REDIS_ADAPTER=true si INSTANCE_COUNT>1.',
+    })
   }
 } else {
   metrics.setRedisSocketIoAdapterUp(false)

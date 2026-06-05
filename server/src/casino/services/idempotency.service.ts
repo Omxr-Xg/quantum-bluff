@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import redisClient, { isRedisHealthy } from '../../config/redis.config.js'
+import { withRedisFeature } from '../../observability/redisInstrumentation.js'
 import { metrics } from '../../observability/metrics.js'
 import { rootLogger } from '../../observability/logger.js'
 
@@ -107,31 +108,38 @@ async function tryBeginRedis(
   if (depth > 3) {
     return tryBeginMemory(fullKey, incomingFp)
   }
-  const createdAt = Date.now()
-  const initial: Stored = { ...(incomingFp ? { fp: incomingFp } : {}), createdAt }
-  const ok = await redisClient.set(
-    redisKey(fullKey),
-    JSON.stringify(initial),
-    'EX',
-    CASINO_IDEMPOTENCY_TTL_SEC,
-    'NX'
-  )
-  if (ok === 'OK') {
-    memoryStore.set(fullKey, initial)
-    return { accepted: true }
+  const memExisting = memoryStore.get(fullKey)
+  if (memExisting) {
+    return evaluateDuplicate(memExisting, incomingFp)
   }
-  const raw = await redisClient.get(redisKey(fullKey))
-  if (!raw) {
-    return tryBeginRedis(fullKey, incomingFp, depth + 1)
-  }
-  let parsed: Stored
-  try {
-    parsed = JSON.parse(raw) as Stored
-  } catch {
-    return { accepted: false, reason: 'DUPLICATE_ACTION' }
-  }
-  memoryStore.set(fullKey, parsed)
-  return evaluateDuplicate(parsed, incomingFp)
+
+  return withRedisFeature('casino_idempotency', async () => {
+    const createdAt = Date.now()
+    const initial: Stored = { ...(incomingFp ? { fp: incomingFp } : {}), createdAt }
+    const ok = await redisClient.set(
+      redisKey(fullKey),
+      JSON.stringify(initial),
+      'EX',
+      CASINO_IDEMPOTENCY_TTL_SEC,
+      'NX',
+    )
+    if (ok === 'OK') {
+      memoryStore.set(fullKey, initial)
+      return { accepted: true }
+    }
+    const raw = await redisClient.get(redisKey(fullKey))
+    if (!raw) {
+      return tryBeginRedis(fullKey, incomingFp, depth + 1)
+    }
+    let parsed: Stored
+    try {
+      parsed = JSON.parse(raw) as Stored
+    } catch {
+      return { accepted: false, reason: 'DUPLICATE_ACTION' }
+    }
+    memoryStore.set(fullKey, parsed)
+    return evaluateDuplicate(parsed, incomingFp)
+  })
 }
 
 function tryBeginMemory(fullKey: string, incomingFp: string | undefined): TryBeginIdempotentResult {
@@ -186,17 +194,19 @@ export async function saveIdempotentResult(fullKey: string, result: unknown): Pr
   memoryStore.set(fullKey, next)
 
   if (await useRedis()) {
-    const raw = await redisClient.get(redisKey(fullKey))
-    let parsed: Stored = next
-    if (raw) {
-      try {
-        const existing = JSON.parse(raw) as Stored
-        parsed = { ...existing, result }
-      } catch {
-        parsed = next
+    await withRedisFeature('casino_idempotency', async () => {
+      const raw = await redisClient.get(redisKey(fullKey))
+      let parsed: Stored = next
+      if (raw) {
+        try {
+          const existing = JSON.parse(raw) as Stored
+          parsed = { ...existing, result }
+        } catch {
+          parsed = next
+        }
       }
-    }
-    await redisClient.set(redisKey(fullKey), JSON.stringify(parsed), 'EX', CASINO_IDEMPOTENCY_TTL_SEC)
+      await redisClient.set(redisKey(fullKey), JSON.stringify(parsed), 'EX', CASINO_IDEMPOTENCY_TTL_SEC)
+    })
   }
 }
 
@@ -206,7 +216,9 @@ export async function getIdempotentResult(fullKey: string): Promise<unknown | nu
   if (memEntry && memEntry.result !== undefined) return memEntry.result
 
   if (await useRedis()) {
-    const raw = await redisClient.get(redisKey(fullKey))
+    const raw = await withRedisFeature('casino_idempotency', () =>
+      redisClient.get(redisKey(fullKey)),
+    )
     if (!raw) return null
     try {
       const parsed = JSON.parse(raw) as Stored
@@ -224,7 +236,7 @@ export async function abortIdempotentAction(fullKey: string): Promise<void> {
   memoryStore.delete(fullKey)
   if (await useRedis()) {
     try {
-      await redisClient.del(redisKey(fullKey))
+      await withRedisFeature('casino_idempotency', () => redisClient.del(redisKey(fullKey)))
     } catch {
       /* ignore */
     }

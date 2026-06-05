@@ -41,7 +41,13 @@ flowchart LR
 | `SHUTDOWN_DRAIN_MS` | Temps max d’attente après fermeture HTTP avant `io.close()` (défaut `30000`). |
 | `IDEMPOTENCY_TTL_SEC` | TTL des clés idempotency Redis (défaut `3600`). |
 | `PRESENCE_REDIS_TTL_SEC` | TTL des ensembles de sockets par utilisateur (défaut `900`). |
+| `INSTANCE_COUNT` | Nombre d’instances backend (défaut `1`). |
+| `SOCKET_IO_REDIS_ADAPTER` | `true`/`false` — défaut `false` si `INSTANCE_COUNT=1`, sinon `true`. |
+| `PERSIST_LEGACY_GAME_KEYS` | `false` par défaut — n’écrit plus `game:*` (utiliser `poker:runtime:*`). |
+| `POKER_STATE_REDIS_DEBOUNCE_MS` | Debounce écritures snapshot poker (défaut `800`). |
 | `POKER_STATE_STORE` / `BLACKJACK_STATE_STORE` | `memory` ou `redis` pour forcer ; sinon Redis si configuré (hors Jest/CI). |
+
+Voir aussi [`REDIS_USAGE.md`](REDIS_USAGE.md) (métriques `redis_commands_total`, projection mensuelle).
 
 ## Docker Compose
 
@@ -81,7 +87,7 @@ docker compose -f docker-compose.prod.yml -f docker-compose.scaled.yml up -d --s
 
 ## Comportement applicatif
 
-- **Socket.IO** : `@socket.io/redis-adapter` + clients Redis dédiés (`socketIoRedis.ts`). Métrique **`redis_adapter_up`**.
+- **Socket.IO** : `@socket.io/redis-adapter` uniquement si `SOCKET_IO_REDIS_ADAPTER=true` (multi-instance). Sinon emits en mémoire locale. Métrique **`redis_adapter_up`**.
 - **Tournois** : une seule instance exécute le cron et le watcher grâce au verrou Redis `quantum:tournament:cron:leader`. Métrique **`tournament_leader_active{instance_id}`**.
 - **Présence** : Redis `SADD` / `SREM` par `socketId` sous `quantum:presence:user:{userId}`.
 - **Rate limit** : store Redis (`rate-limit-redis`) hors Jest.

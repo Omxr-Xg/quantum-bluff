@@ -3,9 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { Phone, PhoneOff, Ban, BellOff } from 'lucide-react'
 import { useVoice } from '../contexts/VoiceContext'
 import { useIncomingCallRingtone } from '../features/voice/useIncomingCallRingtone'
+import { useUser } from '../hooks/useUser'
+import { getPlayerAvatar } from '../utils/avatars'
+import { ImageWithFallback } from './figma/ImageWithFallback'
 
 export function VoiceCallIncomingBanner() {
   const { t } = useTranslation()
+  const { userId } = useUser()
   const { incomingCall, respondToCall } = useVoice()
 
   useIncomingCallRingtone(Boolean(incomingCall))
@@ -17,6 +21,13 @@ export function VoiceCallIncomingBanner() {
       ? t('voice.incomingGroup')
       : t('voice.incomingPrivate')
 
+  const avatarSrc = getPlayerAvatar(
+    incomingCall.fromUsername,
+    incomingCall.fromUserId,
+    userId,
+    incomingCall.fromAvatarUrl ?? undefined,
+  )
+
   return createPortal(
     <div
       className="pointer-events-none fixed inset-x-0 top-[calc(0.5rem+env(safe-area-inset-top,0px))] z-[100040] flex justify-center px-3 sm:px-4"
@@ -25,8 +36,9 @@ export function VoiceCallIncomingBanner() {
     >
       <div className="pointer-events-auto w-full max-w-lg animate-in slide-in-from-top-4 duration-300 rounded-2xl border border-emerald-400/50 bg-slate-950/95 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.55)] backdrop-blur-md">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-emerald-400/40 bg-emerald-950/60">
-            <Phone className="h-5 w-5 animate-pulse text-emerald-300" />
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-emerald-400/50">
+            <ImageWithFallback src={avatarSrc} alt="" className="h-full w-full object-cover" />
+            <span className="absolute inset-0 animate-pulse rounded-full ring-2 ring-emerald-400/40 ring-offset-2 ring-offset-slate-950" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-300">

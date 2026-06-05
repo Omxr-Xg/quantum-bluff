@@ -1,5 +1,6 @@
 import redisClient from '../../config/redis.config.js'
 import { env } from '../../config/env.js'
+import { withRedisFeature } from '../../observability/redisInstrumentation.js'
 
 const LOCK_PREFIX = 'quantum:poker:tablelock:'
 const LOCK_TTL_SEC = 45
@@ -23,7 +24,7 @@ export async function withPokerTableLock<T>(
   owner: string,
   fn: () => Promise<T>,
 ): Promise<T> {
-  if (env.isJest) {
+  if (env.isJest || !env.distributedRedis) {
     const existing = localLocks.get(tableId)
     if (existing && existing !== owner) {
       throw new PokerTableLockedError()
@@ -42,10 +43,35 @@ export async function withPokerTableLock<T>(
   const redisKey = LOCK_PREFIX + tableId
   const rKey = depthKey(tableId, owner)
 
-  const heldByUs = await redisClient.get(redisKey)
-  if (heldByUs === owner) {
-    localReentrantDepth.set(rKey, (localReentrantDepth.get(rKey) ?? 0) + 1)
-    await redisClient.expire(redisKey, LOCK_TTL_SEC)
+  return withRedisFeature('poker_lock', async () => {
+    const heldByUs = await redisClient.get(redisKey)
+    if (heldByUs === owner) {
+      localReentrantDepth.set(rKey, (localReentrantDepth.get(rKey) ?? 0) + 1)
+      await redisClient.expire(redisKey, LOCK_TTL_SEC)
+      try {
+        return await fn()
+      } finally {
+        const d = (localReentrantDepth.get(rKey) ?? 1) - 1
+        if (d <= 0) {
+          localReentrantDepth.delete(rKey)
+          await redisClient.eval(
+            `if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0`,
+            1,
+            redisKey,
+            owner,
+          )
+        } else {
+          localReentrantDepth.set(rKey, d)
+        }
+      }
+    }
+
+    const acquired = await redisClient.set(redisKey, owner, 'EX', LOCK_TTL_SEC, 'NX')
+    if (acquired !== 'OK') {
+      throw new PokerTableLockedError()
+    }
+
+    localReentrantDepth.set(rKey, 1)
     try {
       return await fn()
     } finally {
@@ -62,28 +88,5 @@ export async function withPokerTableLock<T>(
         localReentrantDepth.set(rKey, d)
       }
     }
-  }
-
-  const acquired = await redisClient.set(redisKey, owner, 'EX', LOCK_TTL_SEC, 'NX')
-  if (acquired !== 'OK') {
-    throw new PokerTableLockedError()
-  }
-
-  localReentrantDepth.set(rKey, 1)
-  try {
-    return await fn()
-  } finally {
-    const d = (localReentrantDepth.get(rKey) ?? 1) - 1
-    if (d <= 0) {
-      localReentrantDepth.delete(rKey)
-      await redisClient.eval(
-        `if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0`,
-        1,
-        redisKey,
-        owner,
-      )
-    } else {
-      localReentrantDepth.set(rKey, d)
-    }
-  }
+  })
 }

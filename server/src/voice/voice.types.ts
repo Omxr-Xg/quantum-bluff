@@ -54,6 +54,7 @@ export type VoiceIncomingCallPayload = {
   type: VoiceCallType
   fromUserId: string
   fromUsername: string
+  fromAvatarUrl?: string | null
   memberIds: string[]
 }
 

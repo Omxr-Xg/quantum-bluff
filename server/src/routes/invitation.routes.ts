@@ -3,7 +3,7 @@ import type { Server } from 'socket.io'
 import sanitizeHtml from 'sanitize-html'
 import { prisma } from '../config/database.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
-import { getUserActivity, isUserOnline } from '../services/presence.service.js'
+import { getPresenceBatch, isUserOnline } from '../services/presence.service.js'
 import {
   searchUserSchema,
   friendRequestSchema,
@@ -1038,27 +1038,27 @@ router.get('/:userId', async (req, res) => {
         seat.room.status === 'PLAYING' ? 'Blackjack' : 'Salon blackjack',
       )
     }
-    const friends = (
-      await Promise.all(
-        friendships.map(async (friendship) => {
-          const friend =
-            String(friendship.user1Id) === userIdStr
-              ? friendship.user2
-              : friendship.user1
-          const liveActivity = await getUserActivity(String(friend.id))
-          return {
-            ...friend,
-            avatarUrl: clientAvatarUrlFromUser(friend),
-            friendshipCreatedAt: friendship.createdAt,
-            isOnline: await isUserOnline(String(friend.id)),
-            currentActivity:
-              normalizeFriendActivity(liveActivity) ||
-              activityByUserId.get(String(friend.id)) ||
-              'Salon poker',
-          }
-        }),
-      )
-    ).filter((f) => String(f.id) !== userIdStr)
+    const presenceByUserId = await getPresenceBatch(friendIds.map(String))
+
+    const friends = friendships
+      .map((friendship) => {
+        const friend =
+          String(friendship.user1Id) === userIdStr ? friendship.user2 : friendship.user1
+        const fid = String(friend.id)
+        const presence = presenceByUserId.get(fid)
+        const liveActivity = presence?.activity ?? null
+        return {
+          ...friend,
+          avatarUrl: clientAvatarUrlFromUser(friend),
+          friendshipCreatedAt: friendship.createdAt,
+          isOnline: presence?.online ?? false,
+          currentActivity:
+            normalizeFriendActivity(liveActivity) ||
+            activityByUserId.get(fid) ||
+            'Salon poker',
+        }
+      })
+      .filter((f) => String(f.id) !== userIdStr)
 
     return res.json(friends)
   } catch (error) {
