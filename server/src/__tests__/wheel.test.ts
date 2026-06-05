@@ -53,10 +53,12 @@ describe('wheel — finalAngle', () => {
     expect(angle).toBeGreaterThanOrEqual(5 * 360)
   })
 
-  it('aligns each segment index', () => {
+  it('aligns each segment index under the top pointer', () => {
     for (let i = 0; i < 12; i++) {
       const angle = computeFinalAngle(i, () => 0)
-      expect(angle % 360).toBeGreaterThanOrEqual(0)
+      const offset = angle % 360
+      const center = i * (360 / 12) + 360 / 12 / 2
+      expect((center + offset) % 360).toBeCloseTo(0, 5)
       expect(getWheelSegment(i).label).toBeTruthy()
     }
   })

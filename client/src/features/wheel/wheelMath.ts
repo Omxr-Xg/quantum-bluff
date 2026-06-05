@@ -29,28 +29,22 @@ export const WHEEL_SEGMENTS: readonly WheelSegmentDef[] = [
   { kind: 'jackpot', multiplier: 20, label: 'x20', color: '#ca8a04', textColor: '#fef9c3' },
 ] as const
 
-/** Légende des coefficients regroupés par couleur (alignée sur la roue). */
-export type WheelPayoutLegendEntry = {
-  multiplier: number
-  label: string
-  color: string
-  textColor: string
-  segmentCount: number
+/** Centre du segment `index` en degrés horaires depuis le pointeur (12 h). */
+export function wheelSegmentCenterDeg(index: number): number {
+  return index * WHEEL_SLICE_DEG + WHEEL_SLICE_DEG / 2
 }
 
-export const WHEEL_PAYOUT_LEGEND: readonly WheelPayoutLegendEntry[] = [
-  { multiplier: 0, label: 'x0', color: '#7f1d1d', textColor: '#fecaca', segmentCount: 3 },
-  { multiplier: 0.5, label: 'x0.5', color: '#c2410c', textColor: '#ffedd5', segmentCount: 2 },
-  { multiplier: 1, label: 'x1', color: '#1e3a8a', textColor: '#dbeafe', segmentCount: 2 },
-  { multiplier: 1.5, label: 'x1.5', color: '#6d28d9', textColor: '#ede9fe', segmentCount: 1 },
-  { multiplier: 2, label: 'x2', color: '#7c3aed', textColor: '#f5f3ff', segmentCount: 1 },
-  { multiplier: 3, label: 'x3', color: '#a855f7', textColor: '#faf5ff', segmentCount: 1 },
-  { multiplier: 5, label: 'x5', color: '#db2777', textColor: '#fdf2f8', segmentCount: 1 },
-  { multiplier: 20, label: 'x20', color: '#ca8a04', textColor: '#fef9c3', segmentCount: 1 },
-] as const
+/** Index du segment sous le pointeur fixe en haut, pour une rotation horaire `rotationDeg`. */
+export function wheelSegmentIndexAtPointer(rotationDeg: number): number {
+  const normalized = ((rotationDeg % 360) + 360) % 360
+  const clockwiseFromTop = (360 - normalized) % 360
+  const index = Math.floor(clockwiseFromTop / WHEEL_SLICE_DEG) % WHEEL_SEGMENT_COUNT
+  return index
+}
 
 export function wheelSegmentLabelPosition(index: number): { left: string; top: string } {
-  const angleDeg = index * WHEEL_SLICE_DEG + WHEEL_SLICE_DEG / 2 - 90
+  const clockwiseFromTop = wheelSegmentCenterDeg(index)
+  const angleDeg = 90 - clockwiseFromTop
   const angleRad = (angleDeg * Math.PI) / 180
   const radiusPct = 36
   const x = 50 + radiusPct * Math.cos(angleRad)

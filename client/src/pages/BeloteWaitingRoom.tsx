@@ -180,7 +180,7 @@ export function BeloteWaitingRoom() {
 
   if (!room) {
     return (
-      <div className="relative flex h-full min-h-0 flex-1 items-center justify-center overflow-hidden app-shell-bg pt-[5.25rem]">
+      <div className="relative flex h-full min-h-0 w-full flex-1 items-center justify-center overflow-hidden">
         <BlackjackLobbyBackdrop />
         <Loader2 className="relative z-10 h-10 w-10 animate-spin text-emerald-400" />
       </div>
@@ -194,7 +194,7 @@ export function BeloteWaitingRoom() {
   if (userId) presentSet.add(userId);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden app-shell-bg pt-[5.25rem]">
+    <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
       <BlackjackLobbyBackdrop />
 
       <div className="relative z-10 mx-auto w-full max-w-lg flex-1 overflow-y-auto px-4 py-5 pb-8">

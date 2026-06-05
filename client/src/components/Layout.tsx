@@ -906,6 +906,7 @@ export function Layout({ children }: LayoutProps) {
             ? "h-[38rem]"
             : "h-[18rem]";
   const path = location.pathname;
+  const isBeloteWaitingRoom = path === "/belote/waiting-room";
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
   const isBotConfigPage = path.includes("bot-configuration");
   const isCasinoFullBleed =
@@ -913,6 +914,7 @@ export function Layout({ children }: LayoutProps) {
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table") ||
+    isBeloteWaitingRoom ||
     path.startsWith("/belote/game");
   /** Scroll sur la fenêtre (document) : évite le double scroll conteneur interne + contenu. */
   const lobbyDocumentScroll =
@@ -920,7 +922,7 @@ export function Layout({ children }: LayoutProps) {
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
-    path.includes("waiting-room") ||
+    path === "/waiting-room" ||
     path.startsWith("/tutorial/") ||
     path.startsWith("/minigames") ||
     path === "/blackjack" ||
@@ -928,7 +930,14 @@ export function Layout({ children }: LayoutProps) {
     path.startsWith("/blackjack/table");
   /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
   const showHamburgerMenu =
-    showTopBar && isGameConfigOrRoom && !isLobby && !path.startsWith("/minigames") && !isBotConfigPage && !isGameHudPage && !isWaitingRoomPage;
+    showTopBar &&
+    isGameConfigOrRoom &&
+    !isLobby &&
+    !path.startsWith("/minigames") &&
+    !isBotConfigPage &&
+    !isGameHudPage &&
+    !isWaitingRoomPage &&
+    !isBeloteWaitingRoom;
   const showLobbyIntegratedBar = showTopBar && isLobby;
   const showFriendsIntegratedBar = showTopBar && path === "/friends";
   const showIntegratedTopBar = showLobbyIntegratedBar || showFriendsIntegratedBar;
@@ -942,7 +951,8 @@ export function Layout({ children }: LayoutProps) {
     !showIntegratedTopBar &&
     showHamburgerMenu &&
     !isGameHudPage &&
-    !isWaitingRoomPage;
+    !isWaitingRoomPage &&
+    !isBeloteWaitingRoom;
 
   useEffect(() => {
     const onHudState = (event: Event) => {

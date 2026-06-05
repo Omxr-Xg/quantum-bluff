@@ -18,7 +18,6 @@ import {
   WHEEL_BET_STEP,
   WHEEL_MAX_BET,
   WHEEL_MIN_BET,
-  WHEEL_PAYOUT_LEGEND,
   WHEEL_SEGMENTS,
   buildWheelConicGradient,
   clampBet,
@@ -313,22 +312,22 @@ export function Wheel() {
               <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
                 {t("wheel.payoutLegend")}
               </p>
-              <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-8 sm:gap-2">
-                {WHEEL_PAYOUT_LEGEND.map((entry) => (
+              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                {WHEEL_SEGMENTS.map((seg, i) => (
                   <div
-                    key={entry.label}
-                    className="flex flex-col items-center gap-1 rounded-lg border border-white/8 bg-black/25 px-1 py-1.5"
+                    key={`legend-${seg.kind}-${i}`}
+                    className="flex min-w-[2.6rem] shrink-0 flex-col items-center gap-1 rounded-lg border border-white/8 bg-black/25 px-1 py-1.5"
                   >
                     <span
                       className="h-4 w-full rounded-md border border-white/15 shadow-inner sm:h-5"
-                      style={{ backgroundColor: entry.color }}
+                      style={{ backgroundColor: seg.color }}
                       aria-hidden
                     />
                     <span
                       className="text-[10px] font-black tabular-nums sm:text-xs"
-                      style={{ color: entry.textColor }}
+                      style={{ color: seg.textColor }}
                     >
-                      {entry.label}
+                      {seg.label}
                     </span>
                   </div>
                 ))}
@@ -354,22 +353,20 @@ export function Wheel() {
 
         <aside className="hidden w-52 shrink-0 border-l border-white/10 bg-black/25 p-4 lg:block">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t("wheel.payoutLegend")}</p>
-          <div className="mb-5 flex flex-col gap-1.5">
-            {WHEEL_PAYOUT_LEGEND.map((entry) => (
+          <div className="mb-5 flex max-h-56 flex-col gap-1 overflow-y-auto pr-1">
+            {WHEEL_SEGMENTS.map((seg, i) => (
               <div
-                key={`legend-${entry.label}`}
+                key={`legend-desk-${seg.kind}-${i}`}
                 className="flex items-center gap-2 rounded-lg border border-white/8 bg-black/30 px-2 py-1.5"
               >
+                <span className="w-4 shrink-0 text-center text-[10px] font-bold text-slate-500">{i + 1}</span>
                 <span
                   className="h-5 w-5 shrink-0 rounded-md border border-white/15 shadow-inner"
-                  style={{ backgroundColor: entry.color }}
+                  style={{ backgroundColor: seg.color }}
                   aria-hidden
                 />
-                <span className="text-xs font-black tabular-nums" style={{ color: entry.textColor }}>
-                  {entry.label}
-                </span>
-                <span className="ml-auto text-[10px] text-slate-500">
-                  {t("wheel.segmentCount", { count: entry.segmentCount })}
+                <span className="text-xs font-black tabular-nums" style={{ color: seg.textColor }}>
+                  {seg.label}
                 </span>
               </div>
             ))}
