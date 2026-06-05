@@ -8,7 +8,7 @@ export function LobbyShellBackground() {
         <img
           src={bacBg}
           alt=""
-          className="h-full w-full scale-105 object-cover blur-[6px] brightness-[0.66]"
+          className="h-full w-full scale-105 object-cover blur-[6px] brightness-[0.66] grayscale"
         />
       </div>
       <div className="absolute inset-0 bg-gradient-to-br from-slate-950/68 via-slate-900/42 to-blue-950/58" />

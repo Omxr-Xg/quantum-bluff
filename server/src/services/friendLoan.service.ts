@@ -23,6 +23,7 @@ export type WalletPayoutReason =
   | 'BLACKJACK_PAYOUT'
   | 'CRASH_PAYOUT'
   | 'MINES_PAYOUT'
+  | 'WHEEL_PAYOUT'
 
 export type RepaymentSocketPayload = {
   loanId: string

@@ -42,6 +42,7 @@ import { MiniGames } from './pages/MiniGames';
 import { QuickSoloGames } from "./pages/QuickSoloGames";
 import { Crash } from "./pages/Crash";
 import { Mines } from "./pages/Mines";
+import { Wheel } from "./pages/Wheel";
 import { RetroCasinoGames } from "./pages/RetroCasinoGames";
 import { TournamentRoom } from "./features/tournament/pages/TournamentRoom";
 import { TournamentWaiting } from "./features/tournament/pages/TournamentWaiting";
@@ -130,6 +131,7 @@ function App() {
             <Route path="/minigames/retro-casino" element={<ProtectedRoute><RetroCasinoGames /></ProtectedRoute>} />
             <Route path="/minigames/crash" element={<ProtectedRoute><Crash /></ProtectedRoute>} />
             <Route path="/minigames/mines" element={<ProtectedRoute><Mines /></ProtectedRoute>} />
+            <Route path="/minigames/wheel" element={<ProtectedRoute><Wheel /></ProtectedRoute>} />
             <Route path="/blackjack" element={<ProtectedRoute><Blackjack /></ProtectedRoute>} />
             <Route path="/blackjack/lobby" element={<ProtectedRoute><BlackjackMultiLobby /></ProtectedRoute>} />
             <Route path="/blackjack/lobby/:roomId" element={<ProtectedRoute><BlackjackMultiLobby /></ProtectedRoute>} />

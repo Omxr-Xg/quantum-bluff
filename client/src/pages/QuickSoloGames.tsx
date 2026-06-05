@@ -40,6 +40,8 @@ const QUICK_GAMES: QuickGameCard[] = [
     mesh: "bg-[radial-gradient(ellipse_85%_70%_at_50%_0%,rgba(168,85,247,0.26),transparent_58%),radial-gradient(ellipse_60%_55%_at_100%_100%,rgba(245,158,11,0.16),transparent_52%),linear-gradient(165deg,#140818_0%,#0c0612_50%,#06040a_100%)]",
     pattern:
       "bg-[conic-gradient(from_0deg_at_50%_50%,rgba(251,191,36,0.06)_0deg,transparent_30deg,transparent_60deg,rgba(192,132,252,0.08)_90deg,transparent_120deg,transparent_180deg,rgba(251,191,36,0.06)_210deg,transparent_240deg,transparent_300deg,rgba(192,132,252,0.08)_330deg)]",
+    href: "/minigames/wheel",
+    badgeKey: "minigames.quickSoloNew",
   },
   {
     id: "mines",

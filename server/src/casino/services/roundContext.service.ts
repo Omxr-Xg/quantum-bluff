@@ -8,7 +8,7 @@ export const CASINO_PAYOUT_TABLE_VERSION = 'casino-payout-v1'
 
 export function createCasinoRoundContext(input: {
   userId: string
-  gameType: 'roulette' | 'slot' | 'blackjack' | 'poker_hidden_bet' | 'friend_loan' | 'belote' | 'crash' | 'mines'
+  gameType: 'roulette' | 'slot' | 'blackjack' | 'poker_hidden_bet' | 'friend_loan' | 'belote' | 'crash' | 'mines' | 'wheel'
   actionId?: string
   roundId?: string
 }): CasinoRoundContext {
