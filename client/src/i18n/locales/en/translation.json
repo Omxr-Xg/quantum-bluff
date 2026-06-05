@@ -1013,6 +1013,8 @@
   "common": {
     "loading": "Loading...",
     "error": "An error occurred",
+    "networkError": "Cannot reach the server. Try again in a few seconds.",
+    "serverBusy": "The server is busy. Please try again shortly.",
     "retry": "Retry",
     "save": "Save",
     "cancel": "Cancel",

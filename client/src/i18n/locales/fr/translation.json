@@ -1012,6 +1012,8 @@
   "common": {
     "loading": "Chargement...",
     "error": "Une erreur est survenue",
+    "networkError": "Connexion au serveur impossible. Réessayez dans quelques secondes.",
+    "serverBusy": "Le serveur est occupé. Réessayez dans un instant.",
     "retry": "Réessayer",
     "save": "Enregistrer",
     "cancel": "Annuler",

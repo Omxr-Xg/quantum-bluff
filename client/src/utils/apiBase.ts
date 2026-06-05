@@ -117,29 +117,43 @@ export function apiUrl(path: string): string {
   return p;
 }
 
-const API_FETCH_429_MAX_RETRIES = 3;
+import { isTransientHttpStatus } from "./fetchErrors";
+
+const API_FETCH_MAX_RETRIES = 3;
+
+function retryDelayMs(attempt: number, retryAfterHeader: string | null): number {
+  const ra = retryAfterHeader;
+  if (ra) {
+    const sec = Number.parseInt(ra, 10);
+    if (Number.isFinite(sec)) {
+      return Math.min(60_000, Math.max(500, sec * 1000));
+    }
+  }
+  return Math.min(8000, 400 * Math.pow(2, attempt));
+}
 
 /**
- * fetch avec backoff sur 429 (Retry-After ou exponentiel) pour limiter les rafales
- * quand le rate limit global API répond « trop de requêtes ».
+ * fetch avec backoff sur erreurs transitoires (429, 502/503/504, coupure réseau).
+ * Réduit les flashes « Load failed » quand l’API Render redémarre ou est saturée.
  */
 export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
   let attempt = 0;
   let last: Response | undefined;
-  while (attempt <= API_FETCH_429_MAX_RETRIES) {
-    last = await fetch(input, init);
-    if (last.status !== 429) return last;
-    if (attempt >= API_FETCH_429_MAX_RETRIES) return last;
-    const ra = last.headers.get("Retry-After");
-    let ms = 1000 * Math.pow(2, attempt);
-    if (ra) {
-      const sec = Number.parseInt(ra, 10);
-      if (Number.isFinite(sec)) {
-        ms = Math.min(60_000, Math.max(500, sec * 1000));
-      }
+
+  while (attempt <= API_FETCH_MAX_RETRIES) {
+    try {
+      last = await fetch(input, init);
+      const transient = isTransientHttpStatus(last.status);
+      if (!transient || attempt >= API_FETCH_MAX_RETRIES) return last;
+      await new Promise((r) => setTimeout(r, retryDelayMs(attempt, last!.headers.get("Retry-After"))));
+      attempt += 1;
+      continue;
+    } catch (err) {
+      if (attempt >= API_FETCH_MAX_RETRIES) throw err;
+      await new Promise((r) => setTimeout(r, retryDelayMs(attempt, null)));
+      attempt += 1;
     }
-    await new Promise((r) => setTimeout(r, ms));
-    attempt += 1;
   }
+
   return last!;
 }

@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
+import { useIsInVoiceCall } from "../features/voice/useIsInVoiceCall";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { useNumberFieldInput, NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
@@ -73,6 +74,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
   const { userId } = useUser();
   const { addToast } = useToast();
   const { socket } = useSocket();
+  const inVoiceCall = useIsInVoiceCall();
   const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
 
   const roomIdParam = searchParams.get("bjRoom") ?? undefined;
@@ -169,20 +171,20 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
   }, [active, loadList]);
 
   useEffect(() => {
-    if (!active || !roomIdParam) {
-      setRoomDetail(null);
+    if (!active || !roomIdParam || inVoiceCall) {
+      if (!roomIdParam) setRoomDetail(null);
       return;
     }
     loadRoom(roomIdParam);
-    const id = window.setInterval(() => loadRoom(roomIdParam), 4000);
+    const id = window.setInterval(() => loadRoom(roomIdParam), 12_000);
     return () => window.clearInterval(id);
-  }, [active, roomIdParam, loadRoom]);
+  }, [active, roomIdParam, loadRoom, inVoiceCall]);
 
   useEffect(() => {
-    if (!active) return;
-    const iv = window.setInterval(() => loadList(), 5000);
+    if (!active || inVoiceCall) return;
+    const iv = window.setInterval(() => loadList(), 12_000);
     return () => window.clearInterval(iv);
-  }, [active, loadList]);
+  }, [active, loadList, inVoiceCall]);
 
   useEffect(() => {
     setInvitedFriendIds([]);

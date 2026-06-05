@@ -155,7 +155,17 @@ const limiter = rateLimitWithMetrics({
   skipSuccessfulRequests: true,
   skip: (req: Request) => {
     const p = req.path
-    if (req.method === 'GET' && (p === '/api/auth/balance' || p === '/api/auth/balance-history')) {
+    if (
+      req.method === 'GET' &&
+      (p === '/api/auth/balance' ||
+        p === '/api/auth/balance-history' ||
+        p === '/api/waiting-room' ||
+        p === '/api/waiting-room/games-in-progress' ||
+        p.startsWith('/api/belote-rooms') ||
+        p === '/api/tournaments' ||
+        p === '/api/tournaments/live-spectate' ||
+        p === '/api/daily-challenges/me')
+    ) {
       return true
     }
     if (

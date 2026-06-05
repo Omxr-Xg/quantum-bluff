@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Eye, Globe, Loader2, Lock, Plus, Server } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
-import { apiUrl } from "../utils/apiBase";
+import { apiFetch, apiUrl } from "../utils/apiBase";
+import { formatFetchError } from "../utils/fetchErrors";
+import { shouldShowPollError, startStaggeredPolling } from "../utils/resilientPoll";
 import { getAuthItem } from "../utils/authStorage";
 import {
   BELOTE_BUY_IN_DEFAULT,
@@ -91,6 +93,8 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   const [rooms, setRooms] = useState<BeloteRoomListItem[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [roomsError, setRoomsError] = useState<string | null>(null);
+  const roomsPollFailuresRef = useRef(0);
+  const roomsCacheRef = useRef<BeloteRoomListItem[]>([]);
   const [games, setGames] = useState<BeloteGameInProgressItem[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
 
@@ -111,23 +115,34 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   );
 
   const loadWaitingRooms = useCallback(async () => {
-    const res = await fetch(apiUrl("/api/belote-rooms"), { headers: authHeaders() });
-    if (!res.ok) {
-      setRoomsError(t("common.error"));
-      return;
+    try {
+      const res = await apiFetch(apiUrl("/api/belote-rooms"), { headers: authHeaders() });
+      if (!res.ok) throw new Error(t("common.error"));
+      const data = (await res.json()) as { rooms: BeloteRoomListItem[] };
+      const next = data.rooms ?? [];
+      roomsCacheRef.current = next;
+      setRooms(next);
+      roomsPollFailuresRef.current = 0;
+      setRoomsError(null);
+    } catch (e) {
+      roomsPollFailuresRef.current += 1;
+      if (shouldShowPollError(roomsCacheRef.current.length > 0, roomsPollFailuresRef.current)) {
+        setRoomsError(formatFetchError(e, t));
+      }
     }
-    const data = (await res.json()) as { rooms: BeloteRoomListItem[] };
-    setRooms(data.rooms ?? []);
-    setRoomsError(null);
   }, [t]);
 
   const loadGamesInProgress = useCallback(async () => {
-    const res = await fetch(apiUrl("/api/belote-rooms/games-in-progress"), {
-      headers: authHeaders(),
-    });
-    if (!res.ok) return;
-    const data = (await res.json()) as BeloteGameInProgressItem[];
-    setGames(Array.isArray(data) ? data : []);
+    try {
+      const res = await apiFetch(apiUrl("/api/belote-rooms/games-in-progress"), {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as BeloteGameInProgressItem[];
+      setGames(Array.isArray(data) ? data : []);
+    } catch {
+      /* conserve la liste précédente */
+    }
   }, []);
 
   const refresh = useCallback(async () => {
@@ -136,21 +151,14 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
 
   useEffect(() => {
     if (!active || inVoiceCall) return;
-    let cancelled = false;
-    (async () => {
-      setRoomsLoading(true);
-      setGamesLoading(true);
+    setRoomsLoading(true);
+    setGamesLoading(true);
+    const stop = startStaggeredPolling(async () => {
       await refresh();
-      if (!cancelled) {
-        setRoomsLoading(false);
-        setGamesLoading(false);
-      }
-    })();
-    const iv = window.setInterval(() => void refresh(), 5000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(iv);
-    };
+      setRoomsLoading(false);
+      setGamesLoading(false);
+    }, 5000, { initialDelayMs: 1600 });
+    return stop;
   }, [active, refresh, inVoiceCall]);
 
   useEffect(() => {
@@ -372,7 +380,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
               <Loader2 className="h-4 w-4 animate-spin" />
               {t("common.loading")}
             </p>
-          ) : roomsError ? (
+          ) : waitingRooms.length === 0 && roomsError ? (
             <p className="py-2 text-center text-sm text-red-400">{roomsError}</p>
           ) : waitingRooms.length === 0 ? (
             <p className="py-2 text-center text-gray-500">{t("lobby.noServersAvailable")}</p>

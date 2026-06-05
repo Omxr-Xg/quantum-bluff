@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { WifiOff, RefreshCw, Wifi, X, CheckCircle2 } from 'lucide-react';
 import { SocketContext } from '../contexts/SocketContext';
 
+/** Délai avant d’afficher l’écran rouge (évite le flash sur micro-coupures socket / 502). */
+const OFFLINE_GRACE_MS = 2800;
+
 export function NetworkOverlay() {
   const { t } = useTranslation();
   const socketCtx = useContext(SocketContext);
@@ -12,17 +15,38 @@ export function NetworkOverlay() {
   const [offlineDismissed, setOfflineDismissed] = useState(false);
   const [reconnectedDismissed, setReconnectedDismissed] = useState(false);
   const hasEverConnected = useRef(false);
+  const offlineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearOfflineTimer = () => {
+    if (offlineTimerRef.current) {
+      clearTimeout(offlineTimerRef.current);
+      offlineTimerRef.current = null;
+    }
+  };
+
+  const scheduleOffline = () => {
+    if (offlineTimerRef.current) return;
+    offlineTimerRef.current = setTimeout(() => {
+      offlineTimerRef.current = null;
+      setNetworkStatus((prev) => {
+        if (prev === 'online' || prev === 'reconnected') setOfflineDismissed(false);
+        return 'offline';
+      });
+    }, OFFLINE_GRACE_MS);
+  };
 
   useEffect(() => {
     const handleBrowserOffline = () => {
+      clearOfflineTimer();
       setOfflineDismissed(false);
       setReconnectedDismissed(false);
       setNetworkStatus('offline');
     };
     const handleBrowserOnline = () => {
+      clearOfflineTimer();
       setOfflineDismissed(false);
       setNetworkStatus('reconnected');
-      setTimeout(() => setNetworkStatus('online'), 3000);
+      setTimeout(() => setNetworkStatus('online'), 2500);
     };
 
     window.addEventListener('offline', handleBrowserOffline);
@@ -39,12 +63,10 @@ export function NetworkOverlay() {
     const handleSocketDisconnect = (reason: string) => {
       if (reason === 'io client disconnect') return;
       if (!hasEverConnected.current) return;
-      setNetworkStatus((prev) => {
-        if (prev === 'online' || prev === 'reconnected') setOfflineDismissed(false);
-        return 'offline';
-      });
+      scheduleOffline();
     };
     const handleSocketConnect = () => {
+      clearOfflineTimer();
       setReconnectAttempts(0);
       setOfflineDismissed(false);
       setNetworkStatus((prev) => {
@@ -54,16 +76,11 @@ export function NetworkOverlay() {
         hasEverConnected.current = true;
         return 'online';
       });
-      setTimeout(() => setNetworkStatus('online'), 3000);
+      setTimeout(() => setNetworkStatus('online'), 2500);
     };
     const handleConnectError = () => {
       if (!hasEverConnected.current) return;
-      if (!socket.connected) {
-        setNetworkStatus((prev) => {
-          if (prev === 'online' || prev === 'reconnected') setOfflineDismissed(false);
-          return 'offline';
-        });
-      }
+      if (!socket.connected) scheduleOffline();
     };
     const handleReconnectAttempt = (attempt: number) => setReconnectAttempts(attempt);
 
@@ -73,6 +90,7 @@ export function NetworkOverlay() {
     socket.io.on('reconnect_attempt', handleReconnectAttempt);
 
     return () => {
+      clearOfflineTimer();
       socket.off('disconnect', handleSocketDisconnect);
       socket.off('connect', handleSocketConnect);
       socket.off('connect_error', handleConnectError);
@@ -83,6 +101,8 @@ export function NetworkOverlay() {
   useEffect(() => {
     if (networkStatus === 'reconnected') setReconnectedDismissed(false);
   }, [networkStatus]);
+
+  useEffect(() => () => clearOfflineTimer(), []);
 
   if (networkStatus === 'online') return null;
 
@@ -129,6 +149,14 @@ export function NetworkOverlay() {
           </div>
           <RefreshCw className="mt-1 h-4 w-4 shrink-0 animate-spin text-red-300/90" aria-hidden />
         </div>
+        <button
+          type="button"
+          onClick={() => setOfflineDismissed(true)}
+          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-red-200/90 transition-colors hover:bg-red-900/55 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80"
+          aria-label={t('networkOverlay.closeLabel')}
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
     </div>
   );

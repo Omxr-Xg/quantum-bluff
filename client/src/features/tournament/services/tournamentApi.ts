@@ -1,4 +1,4 @@
-import { apiUrl } from "../../../utils/apiBase";
+import { apiFetch, apiUrl } from "../../../utils/apiBase";
 import { getAuthItem } from "../../../utils/authStorage";
 
 const API = () => apiUrl("/api/tournaments");
@@ -26,31 +26,31 @@ export async function readApiError(r: Response): Promise<string> {
 }
 
 export async function fetchTournaments() {
-  const r = await fetch(API(), { headers: authHeaders() });
+  const r = await apiFetch(API(), { headers: authHeaders() });
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json();
 }
 
 export async function fetchLiveSpectateTournaments() {
-  const r = await fetch(`${API()}/live-spectate`, { headers: authHeaders() });
+  const r = await apiFetch(`${API()}/live-spectate`, { headers: authHeaders() });
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json();
 }
 
 export async function fetchTournament(id: string) {
-  const r = await fetch(`${API()}/${encodeURIComponent(id)}`, { headers: authHeaders() });
+  const r = await apiFetch(`${API()}/${encodeURIComponent(id)}`, { headers: authHeaders() });
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json();
 }
 
 export async function fetchTournamentResults(id: string) {
-  const r = await fetch(`${API()}/${encodeURIComponent(id)}/results`, { headers: authHeaders() });
+  const r = await apiFetch(`${API()}/${encodeURIComponent(id)}/results`, { headers: authHeaders() });
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json();
 }
 
 export async function createTournament(body: Record<string, unknown>) {
-  const r = await fetch(API(), {
+  const r = await apiFetch(API(), {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(body),
@@ -68,7 +68,7 @@ export async function joinTournament(
   id: string,
   code?: string,
 ): Promise<TournamentJoinLeaveResponse> {
-  const r = await fetch(`${API()}/${encodeURIComponent(id)}/join`, {
+  const r = await apiFetch(`${API()}/${encodeURIComponent(id)}/join`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ code }),
@@ -80,7 +80,7 @@ export async function joinTournament(
 export async function leaveTournament(
   id: string,
 ): Promise<TournamentJoinLeaveResponse> {
-  const r = await fetch(`${API()}/${encodeURIComponent(id)}/leave`, {
+  const r = await apiFetch(`${API()}/${encodeURIComponent(id)}/leave`, {
     method: "POST",
     headers: authHeaders(),
   });
@@ -89,7 +89,7 @@ export async function leaveTournament(
 }
 
 export async function kickTournamentPlayer(tournamentId: string, targetUserId: string) {
-  const r = await fetch(`${API()}/${encodeURIComponent(tournamentId)}/kick`, {
+  const r = await apiFetch(`${API()}/${encodeURIComponent(tournamentId)}/kick`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ userId: targetUserId }),
@@ -99,7 +99,7 @@ export async function kickTournamentPlayer(tournamentId: string, targetUserId: s
 }
 
 export async function startTournamentHost(id: string) {
-  const r = await fetch(`${API()}/${encodeURIComponent(id)}/start`, {
+  const r = await apiFetch(`${API()}/${encodeURIComponent(id)}/start`, {
     method: "POST",
     headers: authHeaders(),
   });

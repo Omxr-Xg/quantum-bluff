@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Phone, PhoneOff, Ban, BellOff } from 'lucide-react'
 import { useVoice } from '../contexts/VoiceContext'
+import { unlockPageAudio } from '../features/voice/ringtoneAudio'
 import { useIncomingCallRingtone } from '../features/voice/useIncomingCallRingtone'
 import { useUser } from '../hooks/useUser'
 import { getPlayerAvatar } from '../utils/avatars'
@@ -15,6 +16,11 @@ export function VoiceCallIncomingBanner() {
   useIncomingCallRingtone(Boolean(incomingCall))
 
   if (!incomingCall || typeof document === 'undefined') return null
+
+  const onAccept = () => {
+    unlockPageAudio()
+    respondToCall('accept')
+  }
 
   const title =
     incomingCall.type === 'group'
@@ -51,7 +57,7 @@ export function VoiceCallIncomingBanner() {
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <button
             type="button"
-            onClick={() => respondToCall('accept')}
+            onClick={onAccept}
             className="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 sm:col-span-1"
           >
             <Phone className="h-4 w-4" />

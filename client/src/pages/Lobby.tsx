@@ -43,7 +43,9 @@ import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
 import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
-import { apiUrl } from "../utils/apiBase";
+import { apiFetch, apiUrl } from "../utils/apiBase";
+import { formatFetchError } from "../utils/fetchErrors";
+import { shouldShowPollError, startStaggeredPolling } from "../utils/resilientPoll";
 import { useIsInVoiceCall } from "../features/voice/useIsInVoiceCall";
 import {
   getUserBalance,
@@ -164,6 +166,10 @@ export function Lobby() {
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
+  const roomsPollFailuresRef = useRef(0);
+  const tournamentsPollFailuresRef = useRef(0);
+  const roomsCacheRef = useRef<WaitingRoomItem[]>([]);
+  const tournamentsCacheRef = useRef({ open: 0, live: 0 });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createVisibility, setCreateVisibility] = useState<'PUBLIC' | 'PRIVATE' | null>(null);
   const [createMaxPlayers, setCreateMaxPlayers] = useState<number | null>(null);
@@ -434,22 +440,20 @@ export function Lobby() {
     try {
       const base = apiUrl("/api/waiting-room/games-in-progress");
       const url = userId ? `${base}?userId=${encodeURIComponent(userId)}` : base;
-      const res = await fetch(url, { headers: authHeaders() });
+      const res = await apiFetch(url, { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       setGamesInProgress(Array.isArray(data) ? data : []);
     } catch {
-      setGamesInProgress([]);
+      /* Garde la liste précédente : erreur transitoire fréquente au refresh. */
     } finally {
       setGamesLoading(false);
     }
-  }, [userId]);
+  }, [authHeaders, userId]);
 
   useEffect(() => {
     if (inVoiceCall) return;
-    fetchGamesInProgress();
-    const iv = setInterval(fetchGamesInProgress, 5000);
-    return () => clearInterval(iv);
+    return startStaggeredPolling(() => void fetchGamesInProgress(), 5000, { initialDelayMs: 400 });
   }, [fetchGamesInProgress, inVoiceCall]);
 
   // Auto-navigate when a join request is accepted
@@ -468,24 +472,27 @@ export function Lobby() {
     try {
       const base = apiUrl("/api/waiting-room");
       const url = userId ? `${base}?userId=${encodeURIComponent(userId)}` : base;
-      const res = await fetch(url, { headers: authHeaders() });
+      const res = await apiFetch(url, { headers: authHeaders() });
       if (!res.ok) throw new Error(t('common.error'));
       const data = await res.json();
-      setRooms(Array.isArray(data) ? data : []);
+      const next = Array.isArray(data) ? data : [];
+      roomsCacheRef.current = next;
+      setRooms(next);
+      roomsPollFailuresRef.current = 0;
       setRoomsError(null);
     } catch (e) {
-      setRoomsError(e instanceof Error ? e.message : t('common.error'));
-      setRooms([]);
+      roomsPollFailuresRef.current += 1;
+      if (shouldShowPollError(roomsCacheRef.current.length > 0, roomsPollFailuresRef.current)) {
+        setRoomsError(formatFetchError(e, t));
+      }
     } finally {
       setRoomsLoading(false);
     }
-  }, [t, userId]);
+  }, [authHeaders, t, userId]);
 
   useEffect(() => {
     if (inVoiceCall) return;
-    fetchRooms();
-    const interval = setInterval(fetchRooms, 5000);
-    return () => clearInterval(interval);
+    return startStaggeredPolling(() => void fetchRooms(), 5000, { initialDelayMs: 800 });
   }, [fetchRooms, inVoiceCall]);
 
   useEffect(() => {
@@ -511,26 +518,32 @@ export function Lobby() {
         throw openResult.reason;
       }
 
-      setOpenTournaments(
-        Array.isArray(openResult.value) ? (openResult.value as TournamentOpenItem[]) : [],
-      );
-      setLiveTournaments(
+      const openNext = Array.isArray(openResult.value)
+        ? (openResult.value as TournamentOpenItem[])
+        : [];
+      const liveNext =
         liveResult.status === "fulfilled" && Array.isArray(liveResult.value)
           ? (liveResult.value as TournamentLiveItem[])
-          : [],
-      );
+          : [];
+      tournamentsCacheRef.current = { open: openNext.length, live: liveNext.length };
+      setOpenTournaments(openNext);
+      setLiveTournaments(liveNext);
+      tournamentsPollFailuresRef.current = 0;
       setTournamentsError(null);
     } catch (e) {
-      setTournamentsError(e instanceof Error ? e.message : t("common.error"));
+      tournamentsPollFailuresRef.current += 1;
+      const hasData =
+        tournamentsCacheRef.current.open > 0 || tournamentsCacheRef.current.live > 0;
+      if (shouldShowPollError(hasData, tournamentsPollFailuresRef.current)) {
+        setTournamentsError(formatFetchError(e, t));
+      }
     } finally {
       setTournamentsLoading(false);
     }
   }, [t]);
 
   useEffect(() => {
-    void fetchTournamentsBoth();
-    const iv = setInterval(fetchTournamentsBoth, 10_000);
-    return () => clearInterval(iv);
+    return startStaggeredPolling(() => void fetchTournamentsBoth(), 10_000, { initialDelayMs: 1200 });
   }, [fetchTournamentsBoth]);
 
   useEffect(() => {
@@ -1750,7 +1763,7 @@ export function Lobby() {
                       <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
                       </p>
-                    ) : roomsError ? (
+                    ) : roomsMemo.length === 0 && roomsError ? (
                       <p className="text-red-400 text-center py-2 text-sm">{roomsError}</p>
                     ) : roomsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
@@ -1908,7 +1921,7 @@ export function Lobby() {
                       <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
                       </p>
-                    ) : tournamentsError ? (
+                    ) : openTournamentsMemo.length === 0 && tournamentsError ? (
                       <p className="text-red-400 text-center py-2 text-sm">{tournamentsError}</p>
                     ) : openTournamentsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2">{t('lobby.noTournamentsAvailable')}</p>

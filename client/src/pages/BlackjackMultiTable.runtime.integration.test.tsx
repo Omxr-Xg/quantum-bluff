@@ -24,6 +24,21 @@ vi.mock("../hooks/useUser", () => ({
   useUser: () => ({ userId: "user-1" }),
 }));
 
+vi.mock("../contexts/VoiceContext", () => ({
+  useVoice: () => ({
+    joinTable: vi.fn(),
+    leaveChannel: vi.fn(),
+    shouldSkipLeaveOnTableUnmount: vi.fn(() => false),
+    channelId: null,
+    settings: { micMuted: true, soundMuted: false, speakTo: "CHANNEL", listenTo: "CHANNEL", peerMutes: new Set() },
+    participants: [],
+    speakingUserIds: [],
+    toggleMic: vi.fn(),
+    toggleSound: vi.fn(),
+    togglePeerMute: vi.fn(),
+  }),
+}));
+
 vi.mock("../contexts/ToastContext", () => ({
   useToast: () => ({ addToast }),
 }));

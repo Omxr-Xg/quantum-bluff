@@ -481,8 +481,8 @@ export function Auth() {
               {checkError && (
                 <div className="text-red-400 text-sm text-center">
                   {"data" in checkError
-                    ? (checkError as { data?: { error?: string } }).data?.error
-                    : t("common.error")}
+                    ? (checkError as { data?: { error?: string } }).data?.error ?? t("common.error")
+                    : t("common.networkError")}
                 </div>
               )}
               <button

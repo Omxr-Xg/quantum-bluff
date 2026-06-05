@@ -9,6 +9,7 @@ import type {
   VoiceRosterPayload,
   VoiceSettings,
 } from './voiceTypes'
+import { unlockPageAudio } from './ringtoneAudio'
 
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -22,13 +23,29 @@ function resolveIceConfiguration(): RTCConfiguration {
     try {
       const parsed = JSON.parse(raw) as unknown
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return { iceServers: parsed as RTCIceServer[] }
+        const hasTurn = parsed.some(
+          (s) =>
+            typeof s === 'object' &&
+            s != null &&
+            String((s as RTCIceServer).urls ?? '')
+              .toLowerCase()
+              .includes('turn'),
+        )
+        if (!hasTurn && import.meta.env.PROD) {
+          console.warn(
+            '[voice] VITE_ICE_SERVERS sans TURN — audio inter-réseaux (4G/box) souvent impossible.',
+          )
+        }
+        return { iceServers: parsed as RTCIceServer[], iceCandidatePoolSize: 10 }
       }
     } catch {
       console.warn('[voice] VITE_ICE_SERVERS invalide — STUN par défaut')
     }
   }
-  return { iceServers: DEFAULT_ICE_SERVERS }
+  if (import.meta.env.PROD) {
+    console.warn('[voice] Pas de VITE_ICE_SERVERS — STUN seul (ajouter TURN Metered sur Vercel).')
+  }
+  return { iceServers: DEFAULT_ICE_SERVERS, iceCandidatePoolSize: 10 }
 }
 
 const ICE_SERVERS: RTCConfiguration = resolveIceConfiguration()
@@ -104,8 +121,21 @@ export class WebRTCVoiceMesh {
     this.roster = roster
     this.friendIds = new Set(roster.friendIds)
     this.blockedIds = new Set(roster.blockedUserIds)
-    void this.syncPeers()
+    void this.syncPeersWhenReady()
     this.emitSpeakingFromRoster()
+  }
+
+  /** Micro pré-acquis au clic « Appeler » / « Accepter » (geste utilisateur). */
+  prefetchLocalStream(stream: MediaStream): void {
+    if (this.localStream) return
+    this.localStream = stream
+    this.startSpeakingDetector(stream)
+    void this.renotifyAllPeers()
+  }
+
+  private async syncPeersWhenReady(): Promise<void> {
+    if (this.isCallChannel() && !this.localStream?.getAudioTracks()[0]) return
+    await this.syncPeers()
   }
 
   handleSignal(payload: {
@@ -223,7 +253,24 @@ export class WebRTCVoiceMesh {
 
   /** Après join canal call:* — micro puis négociation WebRTC. */
   async bootstrapCallAudio(): Promise<void> {
+    await this.ensureMic(true)
     await this.syncPeers()
+  }
+
+  private tryPlayRemoteAudio(audio: HTMLAudioElement): void {
+    unlockPageAudio()
+    void audio.play().catch(() => {
+      const resume = () => {
+        unlockPageAudio()
+        void audio.play().catch(() => undefined)
+        document.removeEventListener('pointerdown', resume)
+        document.removeEventListener('keydown', resume)
+        document.removeEventListener('touchstart', resume)
+      }
+      document.addEventListener('pointerdown', resume, { once: true })
+      document.addEventListener('keydown', resume, { once: true })
+      document.addEventListener('touchstart', resume, { once: true, passive: true })
+    })
   }
 
   private shouldConnectTo(remoteId: string): boolean {
@@ -316,21 +363,23 @@ export class WebRTCVoiceMesh {
     pc.ontrack = (ev) => {
       const stream = ev.streams[0] ?? new MediaStream([ev.track])
       audio.srcObject = stream
-      void audio.play().catch(() => {
-        const resume = () => {
-          void audio.play().catch(() => undefined)
-          document.removeEventListener('pointerdown', resume)
-        }
-        document.addEventListener('pointerdown', resume, { once: true })
-      })
+      this.tryPlayRemoteAudio(audio)
       this.applyVolumeForPeer(remoteId)
     }
 
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed') {
+      if (pc.connectionState === 'connected') {
+        this.tryPlayRemoteAudio(audio)
+      } else if (pc.connectionState === 'failed') {
         void this.renegotiate(remoteId)
       } else if (pc.connectionState === 'closed') {
         this.closePeer(remoteId)
+      }
+    }
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        this.tryPlayRemoteAudio(audio)
       }
     }
 
@@ -347,18 +396,20 @@ export class WebRTCVoiceMesh {
       ) && this.localStream?.getAudioTracks()[0],
     )
 
+    const hasLocalAudio = Boolean(this.localStream?.getAudioTracks()[0])
     const sendInitialOffer =
       this.myUserId < remoteId &&
-      (!this.isCallChannel() ||
-        Boolean(this.localStream?.getAudioTracks()[0]) ||
-        shouldSendToRemote(
-          this.myUserId,
-          remoteId,
-          this.settings.speakTo,
-          this.settings.micMuted,
-          this.friendIds,
-          this.blockedIds,
-        ))
+      (this.isCallChannel()
+        ? hasLocalAudio &&
+          shouldSendToRemote(
+            this.myUserId,
+            remoteId,
+            this.settings.speakTo,
+            this.settings.micMuted,
+            this.friendIds,
+            this.blockedIds,
+          )
+        : true)
 
     if (sendInitialOffer) {
       try {

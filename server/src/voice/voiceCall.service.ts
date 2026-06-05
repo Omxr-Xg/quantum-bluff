@@ -1,6 +1,15 @@
 import { randomUUID } from 'crypto'
-import type { VoiceCallType } from './voice.types.js'
+import type { VoiceCallType, VoiceIncomingCallPayload } from './voice.types.js'
 import { buildCallChannelId } from './voiceChannelId.js'
+
+const PENDING_INCOMING_TTL_MS = 20_000
+
+type PendingIncomingEntry = {
+  payload: VoiceIncomingCallPayload
+  expiresAt: number
+}
+
+const pendingIncomingByUser = new Map<string, PendingIncomingEntry[]>()
 
 export type ActiveVoiceCall = {
   callId: string
@@ -53,9 +62,44 @@ export function activateCall(callId: string): void {
   if (c) c.status = 'active'
 }
 
+export function queuePendingIncomingCall(
+  userId: string,
+  payload: VoiceIncomingCallPayload,
+): void {
+  const now = Date.now()
+  const list = (pendingIncomingByUser.get(userId) ?? []).filter((e) => e.expiresAt > now)
+  if (!list.some((e) => e.payload.callId === payload.callId)) {
+    list.push({ payload, expiresAt: now + PENDING_INCOMING_TTL_MS })
+  }
+  pendingIncomingByUser.set(userId, list)
+}
+
+export function drainPendingIncomingCalls(userId: string): VoiceIncomingCallPayload[] {
+  const list = pendingIncomingByUser.get(userId)
+  if (!list?.length) return []
+  pendingIncomingByUser.delete(userId)
+  const now = Date.now()
+  return list
+    .filter((e) => e.expiresAt > now)
+    .map((e) => e.payload)
+    .filter((payload) => {
+      const call = getCall(payload.callId)
+      return call != null && call.status === 'ringing'
+    })
+}
+
+export function clearPendingIncomingForCall(callId: string): void {
+  for (const [userId, list] of pendingIncomingByUser.entries()) {
+    const next = list.filter((e) => e.payload.callId !== callId)
+    if (next.length === 0) pendingIncomingByUser.delete(userId)
+    else pendingIncomingByUser.set(userId, next)
+  }
+}
+
 export function endCall(callId: string): void {
   calls.delete(callId)
   clearCallRingTimeout(callId)
+  clearPendingIncomingForCall(callId)
 }
 
 const ringTimeouts = new Map<string, ReturnType<typeof setTimeout>>()

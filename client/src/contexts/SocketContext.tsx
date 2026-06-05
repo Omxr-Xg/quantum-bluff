@@ -91,6 +91,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       if (uid) socketInstance.emit('JOIN_USER_ROOM', { userId: uid })
     })
 
+    const forwardVoiceIncoming = (payload: unknown) => {
+      window.dispatchEvent(new CustomEvent('voice-call-incoming', { detail: payload }))
+    }
+    socketInstance.on('VOICE_CALL_INCOMING', forwardVoiceIncoming)
+
     socketInstance.on('disconnect', () => setIsConnected(false))
 
     socketInstance.on('connect_error', (err) => {
@@ -117,12 +122,19 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       socketInstance.off('connect')
       socketInstance.off('disconnect')
       socketInstance.off('connect_error')
+      socketInstance.off('VOICE_CALL_INCOMING', forwardVoiceIncoming)
       const s = socketInstance
       setTimeout(() => {
         if (s.connected) s.disconnect()
       }, 0)
     }
   }, [userId, authVersion, isAdmin])
+
+  /** Rejoint la room `user:{id}` après chaque reconnexion (appels vocaux ciblés). */
+  useEffect(() => {
+    if (!socket || !isConnected || !userId || isAdmin) return
+    socket.emit('JOIN_USER_ROOM', { userId })
+  }, [socket, isConnected, userId, isAdmin])
 
   useEffect(() => {
     if (!socket || !addToast) return

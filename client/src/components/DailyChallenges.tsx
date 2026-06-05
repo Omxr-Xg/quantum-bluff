@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { CheckCircle, Target } from "lucide-react";
 import { useUser } from "../hooks/useUser";
-import { apiUrl } from "../utils/apiBase";
+import { apiFetch, apiUrl } from "../utils/apiBase";
 import { useTranslation } from "react-i18next";
 import { getAuthItem } from "../utils/authStorage";
 
@@ -41,7 +41,7 @@ export function DailyChallenges() {
         return;
       }
 
-      const res = await fetch(apiUrl("/api/daily-challenges/me"), {
+      const res = await apiFetch(apiUrl("/api/daily-challenges/me"), {
         headers: { Authorization: `Bearer ${token}` },
       });
 

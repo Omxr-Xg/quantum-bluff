@@ -123,13 +123,23 @@ export function VoiceCallOutgoingModal() {
 
   const isConnected = outgoingCall?.status === 'connected'
   const connectedAt = outgoingCall?.connectedAt
+  const stableConnectedAtRef = useRef<number | null>(null)
 
   useEffect(() => {
-    if (!isConnected || !connectedAt) {
+    if (isConnected && connectedAt) {
+      if (stableConnectedAtRef.current == null) {
+        stableConnectedAtRef.current = connectedAt
+      }
+    } else if (!isConnected) {
+      stableConnectedAtRef.current = null
       setElapsedSec(0)
-      return
     }
-    const tick = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - connectedAt) / 1000)))
+  }, [isConnected, connectedAt])
+
+  useEffect(() => {
+    const anchor = stableConnectedAtRef.current
+    if (!isConnected || anchor == null) return
+    const tick = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - anchor) / 1000)))
     tick()
     const id = window.setInterval(tick, 1000)
     return () => window.clearInterval(id)

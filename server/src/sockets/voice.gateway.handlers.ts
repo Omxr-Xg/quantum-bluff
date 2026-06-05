@@ -45,6 +45,7 @@ import {
 } from '../voice/voiceSession.registry.js'
 import type { VoiceMigrateHint } from '../voice/voice.types.js'
 import { getCachedUserProfile } from '../utils/userProfileCache.js'
+import { emitVoiceEventToUser } from '../voice/voiceCallDelivery.js'
 
 type VoiceSocket = Socket & { userId?: string; voiceChannelId?: string }
 
@@ -73,7 +74,7 @@ function emitCallEnded(
   const payload = { callId: call.callId, channelId, endedByUserId }
   const recipients = new Set([call.creatorId, ...call.memberIds])
   for (const uid of recipients) {
-    io.to(`user:${uid}`).emit('VOICE_CALL_ENDED', payload)
+    emitVoiceEventToUser(io, uid, 'VOICE_CALL_ENDED', payload)
   }
 }
 
@@ -405,7 +406,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
           targets: targetProfiles,
         })
         for (const tid of targets) {
-          io.to(`user:${tid}`).emit('VOICE_CALL_INCOMING', {
+          emitVoiceEventToUser(io, tid, 'VOICE_CALL_INCOMING', {
             callId: call.callId,
             channelId: call.channelId,
             type: call.type,
@@ -458,6 +459,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
       const call = getCall(callId)
       if (!call || call.creatorId !== userId) return
       clearCallRingTimeout(callId)
+      emitCallEnded(io, call, call.channelId, userId)
       endCall(callId)
     } catch (err) {
       console.error('[voice] VOICE_CALL_CANCEL', err)
@@ -513,8 +515,8 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
           }
 
           const payload = { callId, channelId: call.channelId }
-          io.to(`user:${call.creatorId}`).emit('VOICE_CALL_CONNECTED', payload)
-          io.to(`user:${userId}`).emit('VOICE_CALL_CONNECTED', payload)
+          emitVoiceEventToUser(io, call.creatorId, 'VOICE_CALL_CONNECTED', payload)
+          emitVoiceEventToUser(io, userId, 'VOICE_CALL_CONNECTED', payload)
         } else {
           const reason =
             action === 'reject' ? 'rejected' : action === 'block' ? 'blocked' : 'ignored'

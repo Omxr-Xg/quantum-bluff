@@ -109,7 +109,10 @@ const baseQuery = fetchBaseQuery({
 
 //  LE BOUCLIER RETRY EST LÀ : On enveloppe notre baseQuery
 const staggeredBaseQuery = retry(baseQuery, {
-  maxRetries: 3, // On retente 3 fois maximum
+  maxRetries: 2,
+  backoff: async (attempt) => {
+    await new Promise((resolve) => setTimeout(resolve, Math.min(6000, 500 * 2 ** attempt)));
+  },
 });
 
 export const api = createApi({
