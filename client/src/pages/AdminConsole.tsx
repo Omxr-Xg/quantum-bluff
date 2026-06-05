@@ -26,6 +26,19 @@ import {
   parseAdminGiftCodesList,
   type AdminGiftCodeRow,
 } from "../utils/adminGiftCodes";
+import {
+  AdminShellBackground,
+  adminGlassCardClass,
+  adminGlassPanelClass,
+  adminLanguageButtonClass,
+} from "../components/AdminShellBackground";
+import { QuantumBluffLogo } from "../assets/logo";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
+
+const adminBtnSecondary =
+  "inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/50 px-4 py-2.5 text-sm text-white shadow-sm transition hover:border-amber-300/25 hover:bg-slate-900/70";
+const adminInputClass =
+  "w-full rounded-xl border border-white/10 bg-slate-900/75 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-400/20";
 
 type Tab =
   | "users"
@@ -120,7 +133,7 @@ type ReportRow = {
 };
 
 export function AdminConsole() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("poker");
   const [loading, setLoading] = useState(false);
@@ -487,28 +500,35 @@ export function AdminConsole() {
   const totalCount = listPayload?.total;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
-      <div className="w-full min-w-0 px-4 py-6 md:px-8">
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-700/80 pb-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/15 ring-1 ring-amber-500/30">
-              <Shield className="h-7 w-7 text-amber-400" aria-hidden />
+    <AdminShellBackground>
+      <div className="w-full min-w-0 px-4 py-6 md:px-8 lg:px-10">
+        <header
+          className={`mb-6 flex flex-wrap items-center justify-between gap-4 p-5 md:p-6 ${adminGlassCardClass}`}
+        >
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-500/10 shadow-[0_0_24px_rgba(245,158,11,0.15)]">
+              <QuantumBluffLogo className="h-9 w-9" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-white">
+              <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-950/40 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200/90">
+                <Shield className="h-3 w-3" aria-hidden />
+                {t("adminConsole.title")}
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
                 {t("adminConsole.title")}
               </h1>
-              <p className="text-sm text-slate-400">{t("adminConsole.subtitle")}</p>
+              <p className="text-sm text-slate-300/85">{t("adminConsole.subtitle")}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <LanguageSwitcher buttonClassName={adminLanguageButtonClass} />
             <button
               type="button"
               onClick={() => {
                 setTab("reports");
                 void fetchReportUnread();
               }}
-              className="relative inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800/80 px-3 py-2.5 text-sm text-white transition hover:bg-slate-700"
+              className={`relative ${adminBtnSecondary} px-3`}
               title={t("adminConsole.reportsBellTitle")}
               aria-label={t("adminConsole.reportsBellTitle")}
             >
@@ -519,18 +539,14 @@ export function AdminConsole() {
                 </span>
               )}
             </button>
-            <button
-              type="button"
-              onClick={() => void load()}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2.5 text-sm text-white transition hover:bg-slate-700"
-            >
+            <button type="button" onClick={() => void load()} className={adminBtnSecondary}>
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               {t("adminConsole.refresh")}
             </button>
             <button
               type="button"
               onClick={logout}
-              className="inline-flex items-center gap-2 rounded-xl bg-red-600/90 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-700 to-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:from-red-600 hover:to-red-500"
             >
               <LogOut className="h-4 w-4" />
               {t("adminConsole.logout")}
@@ -538,8 +554,9 @@ export function AdminConsole() {
           </div>
         </header>
 
+        <div className={`${adminGlassCardClass} p-4 md:p-6`}>
         <nav
-          className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-slate-700/60 bg-slate-800/40 p-2"
+          className={`mb-6 flex flex-wrap gap-2 p-2 ${adminGlassPanelClass}`}
           aria-label="Admin sections"
         >
           {tabs.map((x) => (
@@ -549,8 +566,8 @@ export function AdminConsole() {
               onClick={() => setTab(x.id)}
               className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                 tab === x.id
-                  ? "bg-amber-600 text-white shadow-lg shadow-amber-900/30"
-                  : "text-slate-300 hover:bg-slate-700/80 hover:text-white"
+                  ? "bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg shadow-amber-900/35"
+                  : "text-slate-300 hover:bg-white/5 hover:text-white"
               }`}
             >
               {x.id === "giftCodes" ? (
@@ -573,7 +590,7 @@ export function AdminConsole() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder={t("adminConsole.searchPlaceholder")}
-              className="w-full rounded-xl border border-slate-600 bg-slate-900/80 py-2.5 pl-10 pr-10 text-sm text-white placeholder:text-slate-500 focus:border-amber-500/60 focus:outline-none focus:ring-1 focus:ring-amber-500/40"
+              className={`${adminInputClass} pl-10 pr-10`}
               autoComplete="off"
             />
             {searchInput && (
@@ -591,7 +608,7 @@ export function AdminConsole() {
         </div>
 
         {error && (
-          <p className="mb-4 rounded-xl border border-red-500/40 bg-red-950/50 px-4 py-3 text-sm text-red-100">
+          <p className="mb-4 rounded-xl border border-red-500/35 bg-red-950/45 px-4 py-3 text-sm text-red-100 backdrop-blur-sm">
             {error}
           </p>
         )}
@@ -609,7 +626,7 @@ export function AdminConsole() {
               {t("adminConsole.pokerGamesCount")}
             </p>
             {(json as { items: PokerRow[] }).items?.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-600 bg-slate-800/30 px-6 py-16 text-center text-slate-400">
+              <div className={`rounded-2xl border border-dashed border-amber-200/20 bg-slate-950/35 px-6 py-16 text-center text-slate-400 ${adminGlassPanelClass}`}>
                 {t("adminConsole.pokerEmpty")}
               </div>
             ) : (
@@ -617,7 +634,7 @@ export function AdminConsole() {
                 {(json as { items: PokerRow[] }).items?.map((row) => (
                   <div
                     key={row.gameId}
-                    className="flex flex-col rounded-2xl border border-slate-600/80 bg-slate-800/50 p-4 shadow-lg shadow-black/20"
+                    className={`flex flex-col p-4 ${adminGlassPanelClass}`}
                   >
                     <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                       <div>
@@ -719,9 +736,9 @@ export function AdminConsole() {
         )}
 
         {tab === "bj" && json && listPayload?.items && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
+          <div className={`overflow-x-auto p-2 ${adminGlassPanelClass}`}>
             <table className="w-full min-w-[860px] text-left text-sm">
-              <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
+              <thead className="bg-slate-950/70 text-xs uppercase tracking-wide text-amber-200/70">
                 <tr>
                   <th className="px-3 py-3">{t("adminConsole.bjColName")}</th>
                   <th className="px-3 py-3">{t("adminConsole.bjColHost")}</th>
@@ -731,7 +748,7 @@ export function AdminConsole() {
                   <th className="px-3 py-3">{t("adminConsole.colActions")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700/80">
+              <tbody className="divide-y divide-white/5">
                 {(listPayload.items as BjRoom[]).map((room) => {
                   const seatCount = room.seats?.length ?? 0;
                   const statusShown =
@@ -792,7 +809,7 @@ export function AdminConsole() {
         )}
 
         {tab === "users" && json && listPayload?.items && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
+          <div className={`overflow-x-auto p-2 ${adminGlassPanelClass}`}>
             <p className="px-3 py-2 text-xs text-slate-400">
               {totalCount != null ? (
                 <>
@@ -802,7 +819,7 @@ export function AdminConsole() {
             </p>
             <p className="px-3 pb-2 text-xs text-amber-200/80">{t("adminConsole.playersPasswordHint")}</p>
             <table className="w-full min-w-[960px] text-left text-sm">
-              <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
+              <thead className="bg-slate-950/70 text-xs uppercase tracking-wide text-amber-200/70">
                 <tr>
                   <th className="px-3 py-3">{t("adminConsole.colUsername")}</th>
                   <th className="px-3 py-3">{t("adminConsole.colEmail")}</th>
@@ -812,7 +829,7 @@ export function AdminConsole() {
                   <th className="px-3 py-3">{t("adminConsole.colActions")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700/80">
+              <tbody className="divide-y divide-white/5">
                 {(listPayload.items as UserRow[]).map((u) => (
                   <tr key={u.id} className="text-slate-200">
                     <td className="px-3 py-2 font-medium text-white">{u.username}</td>
@@ -867,9 +884,9 @@ export function AdminConsole() {
         )}
 
         {tab === "history" && json && listPayload?.items && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
+          <div className={`overflow-x-auto p-2 ${adminGlassPanelClass}`}>
             <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
+              <thead className="bg-slate-950/70 text-xs uppercase tracking-wide text-amber-200/70">
                 <tr>
                   <th className="px-3 py-3">{t("adminConsole.historyColGameId")}</th>
                   <th className="px-3 py-3">{t("adminConsole.historyColPot")}</th>
@@ -877,7 +894,7 @@ export function AdminConsole() {
                   <th className="px-3 py-3">{t("adminConsole.historyColDate")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700/80">
+              <tbody className="divide-y divide-white/5">
                 {(listPayload.items as HistoryRow[]).map((h) => (
                   <tr key={h.id} className="text-slate-200">
                     <td className="px-3 py-2 font-mono text-xs text-amber-200/90">{h.gameId}</td>
@@ -897,9 +914,9 @@ export function AdminConsole() {
         )}
 
         {tab === "ratings" && json && listPayload?.items && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
+          <div className={`overflow-x-auto p-2 ${adminGlassPanelClass}`}>
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
+              <thead className="bg-slate-950/70 text-xs uppercase tracking-wide text-amber-200/70">
                 <tr>
                   <th className="px-3 py-3">{t("adminConsole.colUsername")}</th>
                   <th className="px-3 py-3">{t("adminConsole.ratingsColStars")}</th>
@@ -907,7 +924,7 @@ export function AdminConsole() {
                   <th className="px-3 py-3">{t("adminConsole.ratingsColDate")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700/80">
+              <tbody className="divide-y divide-white/5">
                 {(listPayload.items as RatingRow[]).map((r) => (
                   <tr key={r.id} className="text-slate-200">
                     <td className="px-3 py-2">{r.user?.username ?? "—"}</td>
@@ -929,9 +946,9 @@ export function AdminConsole() {
         )}
 
         {tab === "reports" && json && listPayload?.items && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-600/80 bg-slate-800/40 p-2">
+          <div className={`overflow-x-auto p-2 ${adminGlassPanelClass}`}>
             <table className="w-full min-w-[960px] text-left text-sm">
-              <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
+              <thead className="bg-slate-950/70 text-xs uppercase tracking-wide text-amber-200/70">
                 <tr>
                   <th className="px-3 py-3">{t("adminConsole.reportsColDate")}</th>
                   <th className="px-3 py-3">{t("adminConsole.reportsColReporter")}</th>
@@ -942,7 +959,7 @@ export function AdminConsole() {
                   <th className="px-3 py-3">{t("adminConsole.colActions")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700/80">
+              <tbody className="divide-y divide-white/5">
                 {(listPayload.items as ReportRow[]).map((r) => (
                   <tr
                     key={r.id}
@@ -996,7 +1013,7 @@ export function AdminConsole() {
           json &&
           totalCount != null &&
           totalCount > PAGE_SIZE && (
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-700/80 pt-4">
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-amber-200/10 pt-4">
               <p className="text-sm text-slate-400">
                 {t("adminConsole.pageInfo", {
                   current: currentPage,
@@ -1008,7 +1025,7 @@ export function AdminConsole() {
                   type="button"
                   disabled={!canPrev || loading}
                   onClick={() => setSkip((s) => Math.max(0, s - PAGE_SIZE))}
-                  className="inline-flex items-center gap-1 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white disabled:opacity-40"
+                  className={`${adminBtnSecondary} gap-1 px-3 disabled:opacity-40`}
                 >
                   <ChevronLeft className="h-4 w-4" />
                   {t("adminConsole.paginationPrev")}
@@ -1017,7 +1034,7 @@ export function AdminConsole() {
                   type="button"
                   disabled={!canNext || loading}
                   onClick={() => setSkip((s) => s + PAGE_SIZE)}
-                  className="inline-flex items-center gap-1 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white disabled:opacity-40"
+                  className={`${adminBtnSecondary} gap-1 px-3 disabled:opacity-40`}
                 >
                   {t("adminConsole.paginationNext")}
                   <ChevronRight className="h-4 w-4" />
@@ -1028,7 +1045,7 @@ export function AdminConsole() {
 
         {tab === "giftCodes" && (
           <div className="space-y-4">
-            <div className="rounded-2xl border border-slate-600 bg-slate-800/50 p-6">
+            <div className={`p-6 ${adminGlassPanelClass}`}>
               <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">
                 <Gift className="h-5 w-5 shrink-0 text-amber-400" aria-hidden />
                 Créer un nouveau code
@@ -1042,7 +1059,7 @@ export function AdminConsole() {
                     value={codeForm.code}
                     onChange={(e) => setCodeForm({ ...codeForm, code: e.target.value.toUpperCase() })}
                     placeholder="BIENVENUE"
-                    className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    className={`${adminInputClass} px-3 py-2`}
                   />
                 </div>
 
@@ -1052,7 +1069,7 @@ export function AdminConsole() {
                     <select
                       value={codeForm.usageType}
                       onChange={(e) => setCodeForm({ ...codeForm, usageType: e.target.value })}
-                      className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                      className={`${adminInputClass} px-3 py-2`}
                     >
                       <option value="TOKENS">Jetons</option>
                       <option value="FIXED_DISCOUNT">Réduction fixe (€)</option>
@@ -1077,10 +1094,8 @@ export function AdminConsole() {
                         setCodeForm({ ...codeForm, amount: Number.isFinite(raw) ? raw : 0 });
                       }}
                       min="1"
-                      className={`w-full rounded-lg border bg-slate-900 px-3 py-2 text-white focus:outline-none ${
-                        codeForm.amount < 1
-                          ? "border-red-500 focus:border-red-500"
-                          : "border-slate-600 focus:border-blue-500"
+                      className={`${adminInputClass} px-3 py-2 ${
+                        codeForm.amount < 1 ? "border-red-500/70 focus:border-red-500" : ""
                       }`}
                       aria-invalid={codeForm.amount < 1}
                     />
@@ -1093,7 +1108,7 @@ export function AdminConsole() {
                     <select
                       value={codeForm.type}
                       onChange={(e) => setCodeForm({ ...codeForm, type: e.target.value })}
-                      className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                      className={`${adminInputClass} px-3 py-2`}
                     >
                       <option>ACHIEVEMENT</option>
                       <option>EVENT</option>
@@ -1109,7 +1124,7 @@ export function AdminConsole() {
                       value={codeForm.maxUses === -1 ? "∞" : codeForm.maxUses}
                       onChange={(e) => setCodeForm({ ...codeForm, maxUses: e.target.value === "∞" ? -1 : parseInt(e.target.value) || -1 })}
                       placeholder="-1 pour illimité"
-                      className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                      className={`${adminInputClass} px-3 py-2`}
                     />
                   </div>
                 </div>
@@ -1121,7 +1136,7 @@ export function AdminConsole() {
                     value={codeForm.description}
                     onChange={(e) => setCodeForm({ ...codeForm, description: e.target.value })}
                     placeholder="Bienvenue! Réclamez votre bonus..."
-                    className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    className={`${adminInputClass} px-3 py-2`}
                   />
                 </div>
 
@@ -1131,7 +1146,7 @@ export function AdminConsole() {
                     type="datetime-local"
                     value={codeForm.expiresAt}
                     onChange={(e) => setCodeForm({ ...codeForm, expiresAt: e.target.value })}
-                    className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    className={`${adminInputClass} px-3 py-2`}
                   />
                 </div>
               </div>
@@ -1142,13 +1157,13 @@ export function AdminConsole() {
               <button
                 onClick={createGiftCode}
                 disabled={codeLoading || !codeForm.code.trim()}
-                className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:cursor-not-allowed px-4 py-2 font-medium text-white transition"
+                className="w-full rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-2.5 font-semibold text-white shadow-[0_8px_24px_rgba(245,158,11,0.22)] transition hover:from-amber-500 hover:to-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {codeLoading ? "Création..." : "Créer le code"}
               </button>
             </div>
 
-            <div className="rounded-2xl border border-slate-600 bg-slate-800/40 p-6">
+            <div className={`p-6 ${adminGlassPanelClass}`}>
               <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">
                 <ClipboardList className="h-5 w-5 text-emerald-300 shrink-0" aria-hidden />
                 Codes existants
@@ -1161,10 +1176,10 @@ export function AdminConsole() {
               {giftCodes.length > 0 && (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {giftCodes.map((code) => (
-                    <div key={code.id} className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
+                    <div key={code.id} className="rounded-xl border border-white/10 bg-slate-900/55 p-3 text-sm backdrop-blur-sm">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <p className="font-mono font-bold text-blue-300">{code.code}</p>
+                          <p className="font-mono font-bold text-amber-300">{code.code}</p>
                           <p className="text-xs text-slate-400">{code.type} · {code.usageType === "TOKENS" ? "Jetons" : code.usageType === "FIXED_DISCOUNT" ? "Réduction €" : "Réduction %"}</p>
                         </div>
                         <div className="text-right">
@@ -1177,7 +1192,7 @@ export function AdminConsole() {
                       {code.description && <p className="text-xs text-slate-400 mb-2">{code.description}</p>}
                       {code.expiresAt && (
                         <p className="text-xs text-orange-400">
-                          Expire: {new Date(code.expiresAt).toLocaleDateString("fr-FR")}
+                          Expire: {new Date(code.expiresAt).toLocaleDateString(i18n.language)}
                         </p>
                       )}
                     </div>
@@ -1187,16 +1202,17 @@ export function AdminConsole() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {pwdModal && (
         <div
-          className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[400] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
           role="dialog"
           aria-modal="true"
           aria-labelledby="admin-pwd-modal-title"
         >
-          <div className="w-full max-w-md rounded-2xl border border-slate-600 bg-slate-900 p-6 shadow-2xl">
+          <div className={`w-full max-w-md p-6 ${adminGlassCardClass}`}>
             <h2 id="admin-pwd-modal-title" className="mb-2 text-lg font-bold text-white">
               {t("adminConsole.setPasswordTitle")}
             </h2>
@@ -1214,14 +1230,14 @@ export function AdminConsole() {
                   value={pwdInput}
                   onChange={(e) => setPwdInput(e.target.value)}
                   placeholder={t("adminConsole.newPasswordPlaceholder")}
-                  className="mb-4 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 font-mono text-sm text-white placeholder:text-slate-600 focus:border-amber-500 focus:outline-none"
+                  className={`mb-4 font-mono ${adminInputClass} px-3 py-2`}
                 />
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     disabled={pwdLoading}
                     onClick={() => void submitAdminPassword()}
-                    className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
+                    className="rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-2 text-sm font-semibold text-white hover:from-amber-500 hover:to-orange-500 disabled:opacity-50"
                   >
                     {pwdLoading ? t("common.loading") : t("adminConsole.applyAndShow")}
                   </button>
@@ -1229,7 +1245,7 @@ export function AdminConsole() {
                     type="button"
                     disabled={pwdLoading}
                     onClick={() => void submitAdminPassword({ generateOnly: true })}
-                    className="rounded-xl border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+                    className={`${adminBtnSecondary} px-4 py-2 disabled:opacity-50`}
                   >
                     {t("adminConsole.generatePassword")}
                   </button>
@@ -1268,6 +1284,6 @@ export function AdminConsole() {
           </div>
         </div>
       )}
-    </div>
+    </AdminShellBackground>
   );
 }

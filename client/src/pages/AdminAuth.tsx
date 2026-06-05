@@ -11,14 +11,14 @@ import {
   Shield,
   User,
 } from "lucide-react";
-import badminBg from "../assets/background/BADMIN.png";
+import {
+  AdminShellBackground,
+  adminLanguageButtonClass,
+} from "../components/AdminShellBackground";
 import { QuantumBluffLogo } from "../assets/logo";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem, setAuthItem } from "../utils/authStorage";
-
-const languageButtonClass =
-  "flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-amber-200/20 bg-slate-950/70 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.35)] backdrop-blur-md transition hover:border-amber-300/40 hover:bg-slate-900/80 md:h-11 md:min-h-11 md:w-11 md:min-w-11";
 
 export function AdminAuth() {
   const { t } = useTranslation();
@@ -80,141 +80,120 @@ export function AdminAuth() {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full flex-col items-center justify-center overflow-hidden px-4 py-10 font-sans sm:px-6">
-      <img
-        src={badminBg}
-        alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-950/90 via-slate-900/78 to-amber-950/72"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(245,158,11,0.16),transparent_52%)]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full bg-amber-500/10 blur-[90px]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -right-16 bottom-1/4 h-80 w-80 rounded-full bg-orange-600/10 blur-[100px]"
-        aria-hidden
-      />
-
-      <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
-        <LanguageSwitcher buttonClassName={languageButtonClass} />
-      </div>
-
-      <div className="relative z-10 w-full max-w-md">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-500/10 shadow-[0_0_32px_rgba(245,158,11,0.18)] backdrop-blur-sm sm:h-[4.5rem] sm:w-[4.5rem]">
-            <QuantumBluffLogo className="h-11 w-11 sm:h-12 sm:w-12" />
-          </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-amber-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200/90">
-            <Shield className="h-3.5 w-3.5" aria-hidden />
-            {t("adminConsole.title")}
-          </div>
-          <h1 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            {t("adminConsole.loginTitle")}
-          </h1>
-          <p className="mt-2 text-sm text-slate-300/90">{t("adminConsole.loginSubtitle")}</p>
+    <AdminShellBackground>
+      <div className="relative flex min-h-[100dvh] flex-col items-center justify-center px-4 py-10 sm:px-6">
+        <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+          <LanguageSwitcher buttonClassName={adminLanguageButtonClass} />
         </div>
 
-        <div className="rounded-3xl border border-amber-200/15 bg-slate-950/55 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45),0_0_0_1px_rgba(255,255,255,0.04)_inset] backdrop-blur-xl sm:p-8">
-          {adminConsoleNotConfigured ? (
-            <div
-              className="mb-6 rounded-2xl border border-amber-500/35 bg-amber-950/50 p-4 text-sm text-amber-50"
-              role="alert"
-            >
-              <p className="mb-2 font-semibold text-amber-200">
-                {t("adminConsole.notConfiguredTitle")}
-              </p>
-              <p className="whitespace-pre-line text-amber-100/90">
-                {t("adminConsole.notConfiguredHelp")}
-              </p>
+        <div className="w-full max-w-md">
+          <div className="mb-6 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-500/10 shadow-[0_0_32px_rgba(245,158,11,0.18)] backdrop-blur-sm sm:h-[4.5rem] sm:w-[4.5rem]">
+              <QuantumBluffLogo className="h-11 w-11 sm:h-12 sm:w-12" />
             </div>
-          ) : null}
-
-          <form onSubmit={submit} className="space-y-5">
-            <div>
-              <label
-                className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-200"
-                htmlFor="admin-user"
-              >
-                <User className="h-3.5 w-3.5 text-amber-300" aria-hidden />
-                {t("adminConsole.username")}
-              </label>
-              <input
-                id="admin-user"
-                autoComplete="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white shadow-inner transition placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
-                placeholder={t("adminConsole.username")}
-              />
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-amber-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200/90">
+              <Shield className="h-3.5 w-3.5" aria-hidden />
+              {t("adminConsole.title")}
             </div>
+            <h1 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              {t("adminConsole.loginTitle")}
+            </h1>
+            <p className="mt-2 text-sm text-slate-300/90">{t("adminConsole.loginSubtitle")}</p>
+          </div>
 
-            <div>
-              <label
-                className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-200"
-                htmlFor="admin-pass"
+          <div className="rounded-3xl border border-amber-200/15 bg-slate-950/55 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45),0_0_0_1px_rgba(255,255,255,0.04)_inset] backdrop-blur-xl sm:p-8">
+            {adminConsoleNotConfigured ? (
+              <div
+                className="mb-6 rounded-2xl border border-amber-500/35 bg-amber-950/50 p-4 text-sm text-amber-50"
+                role="alert"
               >
-                <KeyRound className="h-3.5 w-3.5 text-amber-300" aria-hidden />
-                {t("adminConsole.password")}
-              </label>
-              <div className="relative">
-                <input
-                  id="admin-pass"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 pe-12 text-white shadow-inner transition placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
-                  placeholder={t("adminConsole.password")}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:bg-white/5 hover:text-amber-200"
-                  aria-pressed={showPassword}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" aria-hidden />
-                  ) : (
-                    <Eye className="h-4 w-4" aria-hidden />
-                  )}
-                </button>
+                <p className="mb-2 font-semibold text-amber-200">
+                  {t("adminConsole.notConfiguredTitle")}
+                </p>
+                <p className="whitespace-pre-line text-amber-100/90">
+                  {t("adminConsole.notConfiguredHelp")}
+                </p>
               </div>
-            </div>
-
-            {error ? (
-              <p className="rounded-xl border border-red-500/30 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-                {error}
-              </p>
             ) : null}
 
-            <button
-              type="submit"
-              disabled={loading || !username.trim() || !password}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 py-3.5 font-semibold text-white shadow-[0_12px_32px_rgba(245,158,11,0.28)] transition hover:from-amber-500 hover:to-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <Lock className="h-4 w-4" aria-hidden />}
-              {t("adminConsole.signIn")}
-            </button>
-          </form>
+            <form onSubmit={submit} className="space-y-5">
+              <div>
+                <label
+                  className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-200"
+                  htmlFor="admin-user"
+                >
+                  <User className="h-3.5 w-3.5 text-amber-300" aria-hidden />
+                  {t("adminConsole.username")}
+                </label>
+                <input
+                  id="admin-user"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white shadow-inner transition placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
+                  placeholder={t("adminConsole.username")}
+                />
+              </div>
 
-          <Link
-            to="/auth"
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-900/35 py-3 text-sm font-medium text-slate-200 transition hover:border-amber-300/25 hover:bg-slate-900/55 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            {t("adminConsole.backToClientPlatform")}
-          </Link>
+              <div>
+                <label
+                  className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-200"
+                  htmlFor="admin-pass"
+                >
+                  <KeyRound className="h-3.5 w-3.5 text-amber-300" aria-hidden />
+                  {t("adminConsole.password")}
+                </label>
+                <div className="relative">
+                  <input
+                    id="admin-pass"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 pe-12 text-white shadow-inner transition placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
+                    placeholder={t("adminConsole.password")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:bg-white/5 hover:text-amber-200"
+                    aria-pressed={showPassword}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <Eye className="h-4 w-4" aria-hidden />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {error ? (
+                <p className="rounded-xl border border-red-500/30 bg-red-950/40 px-3 py-2 text-sm text-red-200">
+                  {error}
+                </p>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={loading || !username.trim() || !password}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 py-3.5 font-semibold text-white shadow-[0_12px_32px_rgba(245,158,11,0.28)] transition hover:from-amber-500 hover:to-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <Lock className="h-4 w-4" aria-hidden />}
+                {t("adminConsole.signIn")}
+              </button>
+            </form>
+
+            <Link
+              to="/auth"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-900/35 py-3 text-sm font-medium text-slate-200 transition hover:border-amber-300/25 hover:bg-slate-900/55 hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              {t("adminConsole.backToClientPlatform")}
+            </Link>
+          </div>
         </div>
       </div>
-    </div>
+    </AdminShellBackground>
   );
 }
