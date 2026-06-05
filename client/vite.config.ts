@@ -137,25 +137,16 @@ export default defineConfig(({ mode }) => {
 
   const pwaPlugin = VitePWA({
     registerType: 'autoUpdate',
-    includeAssets: ['favicon.ico', 'logo-512.png', 'apple-touch-icon.png', 'robots.txt', 'sitemap.xml'],
-    manifest: {
-      name: 'Quantum Bluff',
-      short_name: 'Quantum Bluff',
-      description: 'Jeu de poker en ligne - Quantum Bluff',
-      theme_color: '#0f172a',
-      background_color: '#0f172a',
-      display: 'standalone',
-      scope: basePath,
-      start_url: basePath,
-      icons: [
-        {
-          src: `${basePath}logo-personnel.png`,
-          sizes: '192x192',
-          type: 'image/png',
-          purpose: 'any maskable',
-        },
-      ],
-    },
+    includeAssets: [
+      'favicon.ico',
+      'logo-personnel.png',
+      'logo-512.png',
+      'apple-touch-icon.png',
+      'manifest.webmanifest',
+      'robots.txt',
+      'sitemap.xml',
+    ],
+    manifest: false,
     workbox: {
       // On garde le code (js/css/html) et les petits assets en précache ;
       // les gros avatars PNG (~2 Mo pièce) sont exclus pour éviter de remplir
