@@ -20,7 +20,7 @@ export function ClientAuthShellBackground({
   const isBac2 = background === "bac2";
 
   return (
-    <div className={`relative isolate min-h-[100dvh] w-full overflow-x-hidden font-sans ${className}`}>
+    <div className="relative isolate min-h-[100dvh] w-full overflow-x-hidden font-sans">
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
         <img
           src={isBac2 ? bac2Bg : bacBg}
@@ -52,7 +52,11 @@ export function ClientAuthShellBackground({
           }`}
         />
       </div>
-      <div className="relative z-10 min-h-[100dvh] w-full">{children}</div>
+      <div
+        className={`relative z-10 flex min-h-[100dvh] w-full flex-col items-center justify-center ${className}`}
+      >
+        {children}
+      </div>
     </div>
   );
 }

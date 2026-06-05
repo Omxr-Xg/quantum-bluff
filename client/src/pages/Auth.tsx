@@ -354,7 +354,7 @@ export function Auth() {
           : t("auth.createYourAccount");
 
   return (
-    <ClientAuthShellBackground className="flex items-center justify-center p-4 py-10 sm:p-6 sm:py-12">
+    <ClientAuthShellBackground className="p-4 py-10 sm:p-6 sm:py-12">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="auth-float-card auth-float-card-a">
           <span>A</span>
@@ -389,7 +389,7 @@ export function Auth() {
         <div className="auth-chip-dot auth-chip-dot-b"><CircleDot className="h-4 w-4" aria-hidden /></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 mx-auto w-full max-w-md">
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center mb-3">
             <QuantumBluffLogo className="w-20 h-20 sm:w-24 sm:h-24 drop-shadow-2xl" />
