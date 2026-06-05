@@ -12,6 +12,8 @@ type QuickGameCard = {
   glow: string;
   mesh: string;
   pattern: string;
+  href?: string;
+  badgeKey?: string;
 };
 
 const QUICK_GAMES: QuickGameCard[] = [
@@ -25,6 +27,8 @@ const QUICK_GAMES: QuickGameCard[] = [
     mesh: "bg-[radial-gradient(ellipse_90%_80%_at_20%_20%,rgba(244,63,94,0.28),transparent_55%),radial-gradient(ellipse_70%_60%_at_85%_75%,rgba(251,146,60,0.18),transparent_50%),linear-gradient(160deg,#1a0810_0%,#12060c_45%,#0a0408_100%)]",
     pattern:
       "bg-[linear-gradient(90deg,rgba(251,113,133,0.08)_1px,transparent_1px),linear-gradient(rgba(251,113,133,0.08)_1px,transparent_1px)] bg-[size:28px_28px]",
+    href: "/minigames/crash",
+    badgeKey: "minigames.quickSoloNew",
   },
   {
     id: "wheel",
@@ -74,9 +78,22 @@ export function QuickSoloGames() {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: index * 0.1, ease: [0.22, 1, 0.36, 1] }}
+              role={game.href ? "button" : undefined}
+              tabIndex={game.href ? 0 : undefined}
+              onClick={game.href ? () => navigate(game.href!) : undefined}
+              onKeyDown={
+                game.href
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        navigate(game.href!);
+                      }
+                    }
+                  : undefined
+              }
               className={`group relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden border-white/10 px-6 py-8 text-center ${
                 index > 0 ? "border-t" : ""
-              }`}
+              } ${game.href ? "cursor-pointer transition hover:bg-white/[0.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60" : ""}`}
             >
               <div className={`pointer-events-none absolute inset-0 ${game.mesh}`} aria-hidden />
               <div className={`pointer-events-none absolute inset-0 opacity-60 ${game.pattern}`} aria-hidden />
@@ -89,8 +106,14 @@ export function QuickSoloGames() {
                   <Icon className="h-8 w-8 text-white" strokeWidth={2.2} />
                 </div>
 
-                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-200/90">
-                  {t("minigames.quickSoloComingSoon")}
+                <span
+                  className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] ${
+                    game.badgeKey === "minigames.quickSoloNew"
+                      ? "border-orange-300/40 bg-orange-500/20 text-orange-100"
+                      : "border-white/15 bg-white/10 text-slate-200/90"
+                  }`}
+                >
+                  {t(game.badgeKey ?? "minigames.quickSoloComingSoon")}
                 </span>
 
                 <h2

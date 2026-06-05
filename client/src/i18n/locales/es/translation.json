@@ -215,6 +215,7 @@
     "quickSoloWheelBlurb": "Gira la rueda y apunta al gran premio.",
     "quickSoloMinesTitle": "Mines",
     "quickSoloMinesBlurb": "Revela casillas sin activar una mina.",
+    "quickSoloNew": "Nuevo",
     "backToLobbyMinigamesTab": "Volver al lobby",
     "betPresetMax": "Máx",
     "maxBetNote": "Máx: {{amount}}"

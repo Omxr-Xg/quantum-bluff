@@ -217,6 +217,7 @@
     "quickSoloWheelBlurb": "Крутіть колесо та ловіть великий приз.",
     "quickSoloMinesTitle": "Mines",
     "quickSoloMinesBlurb": "Відкривайте клітинки, не натрапивши на міну.",
+    "quickSoloNew": "Нове",
     "backToLobbyMinigamesTab": "Назад до лобі",
     "betPresetMax": "Макс.",
     "maxBetNote": "Макс.: {{amount}}"

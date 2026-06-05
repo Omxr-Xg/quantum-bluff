@@ -40,6 +40,7 @@ import { LoaderProvider } from "./contexts/LoaderContext";
 
 import { MiniGames } from './pages/MiniGames';
 import { QuickSoloGames } from "./pages/QuickSoloGames";
+import { Crash } from "./pages/Crash";
 import { TournamentRoom } from "./features/tournament/pages/TournamentRoom";
 import { TournamentWaiting } from "./features/tournament/pages/TournamentWaiting";
 import { TournamentResults } from "./features/tournament/pages/TournamentResults";
@@ -124,6 +125,7 @@ function App() {
             
             <Route path="/minigames" element={<ProtectedRoute><MiniGames /></ProtectedRoute>} />
             <Route path="/minigames/quick-solo" element={<ProtectedRoute><QuickSoloGames /></ProtectedRoute>} />
+            <Route path="/minigames/crash" element={<ProtectedRoute><Crash /></ProtectedRoute>} />
             <Route path="/blackjack" element={<ProtectedRoute><Blackjack /></ProtectedRoute>} />
             <Route path="/blackjack/lobby" element={<ProtectedRoute><BlackjackMultiLobby /></ProtectedRoute>} />
             <Route path="/blackjack/lobby/:roomId" element={<ProtectedRoute><BlackjackMultiLobby /></ProtectedRoute>} />
