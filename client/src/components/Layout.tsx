@@ -976,11 +976,8 @@ export function Layout({ children }: LayoutProps) {
 
   if (isAdminShell) {
     return (
-      <div className="min-h-screen w-full bg-slate-900 text-white">
+      <div className="min-h-screen w-full text-white">
         <GlobalHoverTooltip />
-        <div className="fixed start-4 top-4 z-[200] flex items-center gap-2">
-          <LanguageSwitcher />
-        </div>
         <AnimatePresence>
           {toasts.map((toast) => (
             <Toast
