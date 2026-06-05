@@ -57,22 +57,35 @@ export function MiniGames() {
       </div>
 
       {game === "slots" && (
-        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/55 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:px-4">
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden bg-[#140a08]">
+          <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+            <div className="absolute inset-0 bg-gradient-to-b from-[#1a100c] via-[#140a08] to-[#0c0604]" />
+            <div
+              className="absolute inset-0 opacity-[0.1]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg,rgba(154,52,18,0.2)_25%,transparent_25%,transparent_50%,rgba(154,52,18,0.2)_50%,rgba(154,52,18,0.2)_75%,transparent_75%)",
+                backgroundSize: "20px 20px",
+              }}
+            />
+          </div>
+          <header className="relative z-10 flex shrink-0 items-center justify-between gap-2 border-b-2 border-amber-800/40 bg-[#1a100c]/90 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.4)] sm:px-4">
             <button
               type="button"
-              onClick={backToLobbyMinigames}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-slate-200 shadow-sm transition hover:border-blue-200/25 hover:bg-white/[0.08] hover:text-white"
+              onClick={() => navigate("/minigames/retro-casino")}
+              className="inline-flex items-center gap-2 rounded-sm border-2 border-amber-800/45 bg-stone-950/70 px-3 py-2 text-sm font-bold uppercase tracking-wide text-amber-100 transition hover:border-amber-600/55 hover:bg-amber-950/50"
             >
               <ArrowLeft className="h-4 w-4" />
-              {t("minigames.backToLobbyMinigamesTab")}
+              {t("minigames.retroCasinoBack")}
             </button>
-            <h1 className="hidden min-w-0 flex-1 items-center justify-center rounded-full border border-amber-200/16 bg-slate-950/45 px-4 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_rgba(245,158,11,0.06)] sm:flex">
-              <span className="truncate bg-gradient-to-r from-slate-50 via-blue-100 to-amber-200 bg-clip-text text-lg font-black tracking-[0.12em] text-transparent md:text-2xl">
+            <h1 className="hidden min-w-0 flex-1 items-center justify-center sm:flex">
+              <span
+                className="truncate bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 bg-clip-text font-serif text-lg font-black uppercase tracking-[0.2em] text-transparent md:text-xl"
+              >
                 {t("slot.brandTitle")}
               </span>
             </h1>
-            <div className="flex min-w-0 shrink-0 items-center justify-end gap-1.5 rounded-full border border-amber-300/15 bg-slate-950/55 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-100">
+            <div className="flex min-w-0 shrink-0 items-center justify-end gap-1.5 rounded-sm border-2 border-amber-700/40 bg-stone-950/75 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-200">
               <span className="truncate">{playerChips.toLocaleString()}</span>
               <ChipIcon size="sm" className="shrink-0 brightness-110" />
             </div>

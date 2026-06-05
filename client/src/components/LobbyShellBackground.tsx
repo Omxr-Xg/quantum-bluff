@@ -8,11 +8,11 @@ export function LobbyShellBackground() {
         <img
           src={bacBg}
           alt=""
-          className="h-full w-full scale-105 object-cover blur-[6px] brightness-[0.66] grayscale"
+          className="h-full w-full scale-105 object-cover blur-[6px] brightness-[0.32] grayscale"
         />
       </div>
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950/68 via-slate-900/42 to-blue-950/58" />
-      <div className="absolute inset-0 bg-black/28" />
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950/82 via-slate-900/58 to-blue-950/72" />
+      <div className="absolute inset-0 bg-black/48" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.04),transparent_60%)]" />
     </div>
   );
