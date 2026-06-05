@@ -17,13 +17,17 @@ function listTsFiles(dir: string): string[] {
   return out
 }
 
+const VOICE_REDIS_ALLOWED = new Set(['voiceCallStore.ts'])
+
 describe('voice module must not use Redis', () => {
-  it('aucun fichier sous server/src/voice n’importe redis.config', () => {
+  it('seul voiceCallStore.ts peut importer redis/ioredis', () => {
     const forbidden = [/redis\.config/, /from ['"]ioredis['"]/, /upstash/i]
     const files = listTsFiles(voiceDir)
     expect(files.length).toBeGreaterThan(0)
 
     for (const file of files) {
+      const base = path.basename(file)
+      if (VOICE_REDIS_ALLOWED.has(base)) continue
       const src = fs.readFileSync(file, 'utf8')
       for (const pattern of forbidden) {
         expect(src).not.toMatch(pattern)

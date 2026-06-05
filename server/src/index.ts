@@ -53,6 +53,8 @@ import { GameGateway } from './sockets/game.gateway.js'
 import { setGameIo } from './sockets/gameIo.registry.js'
 import { socketAuth } from './middleware/socketAuth.middleware.js'
 import { connectDB } from './config/database.js'
+import redisClient from './config/redis.config.js'
+import { bindVoiceCallRedis } from './voice/voiceCallStore.js'
 import { createSocketIoRedisClients, disconnectSocketIoRedisClients } from './config/socketIoRedis.js'
 import { shutdownOtel } from './observability/otel.js'
 import { setDraining } from './observability/readinessDrain.js'
@@ -474,6 +476,7 @@ registerGracefulShutdown()
   try {
     rootLogger.info({ msg: 'server_boot_step', step: 'connect_db_start' })
     await connectDB()
+    bindVoiceCallRedis(redisClient)
     rootLogger.info({ msg: 'server_boot_step', step: 'connect_db_done' })
     rootLogger.info({ msg: 'server_boot_step', step: 'readiness_state_start' })
     await logDegradedStateAtBoot()

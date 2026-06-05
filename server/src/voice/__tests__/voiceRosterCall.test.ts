@@ -1,4 +1,5 @@
 import { createCall, endCall } from '../voiceCall.service.js'
+import { resetVoiceCallStoreForTests } from '../voiceCallStore.js'
 import {
   addVoiceSocket,
   buildRosterForUser,
@@ -11,12 +12,12 @@ jest.mock('../voiceSocialCache.js', () => ({
 }))
 
 describe('voice roster call channels', () => {
-  afterEach(() => {
-    jest.clearAllMocks()
+  beforeEach(() => {
+    resetVoiceCallStoreForTests()
   })
 
   it('includes callCreatorId in roster for call:* channels', async () => {
-    const call = createCall({
+    const call = await createCall({
       type: 'private',
       creatorId: 'caller-1',
       memberIds: ['callee-2'],
@@ -33,7 +34,7 @@ describe('voice roster call channels', () => {
 
     removeVoiceSocket(call.channelId, 'caller-1', 'sock-a')
     removeVoiceSocket(call.channelId, 'callee-2', 'sock-b')
-    endCall(call.callId)
+    await endCall(call.callId)
   })
 
   it('omits callCreatorId for waiting channels', async () => {

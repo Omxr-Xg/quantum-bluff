@@ -73,8 +73,9 @@ Un utilisateur a **au plus un canal vocal principal** (`userPrimaryChannel` côt
 |----------|-----|----------------|
 | `dialing` | Appelant | Composition : en attente de `VOICE_CALL_OUTGOING` / réponse |
 | `dialing` | — | Appelé : non utilisé (bannière entrante à la place) |
-| `connecting` | Appelé | A accepté ; panneau + join canal imminent |
-| `connected` | Les deux | `VOICE_CALL_CONNECTED` ; WebRTC actif |
+| `connecting` | Les deux | `VOICE_CALL_CONNECTED` reçu ; négociation WebRTC en cours |
+| `connected` | Les deux | `VoiceCallManager` : `pc.connectionState === connected` |
+| `failed` | Les deux | Timeout négociation 10 s ou ICE failed |
 | `unanswered` | Appelant | Pas de réponse, refus, blocage, erreur |
 
 Champ `isCallee: true` : panneau sortant affiché pour l’**appelé** après acceptation (même composant `VoiceCallOutgoingModal`).
@@ -99,9 +100,10 @@ sequenceDiagram
   alt Accepte
     B->>S: VOICE_CALL_RESPOND { action: accept }
     S->>S: activateCall, joinChannel call:* pour A et B
-    S->>A: VOICE_CALL_CONNECTED
-    S->>B: VOICE_CALL_CONNECTED
-    Note over A,B: prepareCallAudio, WebRTC mesh
+    S->>A: VOICE_CALL_CONNECTED { callerId, negotiationId }
+    S->>B: VOICE_CALL_CONNECTED { callerId, negotiationId }
+    Note over A: VoiceCallManager createOffer
+    Note over B: VoiceCallManager wait offer then answer
   else Refuse / ignore / block
     B->>S: VOICE_CALL_RESPOND { action }
     S->>A: VOICE_CALL_UNANSWERED { reason }
@@ -126,7 +128,7 @@ sequenceDiagram
 |------------------|-----------|--------------|
 | `VOICE_CALL_INCOMING` | Appelé | `incomingCall` + bannière |
 | `VOICE_CALL_OUTGOING` | Appelant | Met à jour `callId` / `channelId`, `dialing` |
-| `VOICE_CALL_CONNECTED` | Les deux | `connected`, join `call:*` |
+| `VOICE_CALL_CONNECTED` | Les deux | `connecting`, join `call:*`, négociation via `VoiceCallManager` |
 | `VOICE_CALL_UNANSWERED` | Appelant (sauf si déjà connecting/connected) | `unanswered` + raison |
 | `VOICE_CALL_END` | Client → serveur | Fin d’appel volontaire |
 | `VOICE_CALL_ENDED` | Autres participants | `finishCallSession` local |
@@ -177,11 +179,21 @@ Implémentation commune : `new Audio(url)`, `loop = true`, `volume = 0.9`, `play
 
 ---
 
-## 5. WebRTC (`WebRTCVoiceMesh`)
+## 5. WebRTC
 
-Fichier : `client/src/features/voice/WebRTCVoiceMesh.ts`.
+### 5.0 Appels 1v1 (`VoiceCallManager`)
 
-### 5.1 ICE / TURN
+Voir `client/src/features/voice/call/`. ICE partagé : `client/src/features/voice/shared/iceConfig.ts` (`VITE_ICE_SERVERS`).
+
+- Mute : `audioTrack.enabled` seulement — pas de `replaceTrack(null)`, pas de renegotiation SDP.
+- ICE : buffer `pendingCandidates[]` jusqu'à `setRemoteDescription`, puis flush.
+- Signaling : chaque `VOICE_SIGNAL` sur `call:*` porte `negotiationId` (généré à l'accept, stocké Redis).
+
+### 5.1 Salons (`WebRTCVoiceMesh`)
+
+Fichier : `client/src/features/voice/WebRTCVoiceMesh.ts` — **waiting room et tables uniquement** (pas les appels privés).
+
+### 5.2 ICE / TURN
 
 - Défaut : STUN Google (`stun.l.google.com`, `stun1.l.google.com`).
 - Prod / NAT difficiles : `VITE_ICE_SERVERS` (JSON dans `client/.env.example`).

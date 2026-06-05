@@ -6,6 +6,7 @@ import {
   endCall,
   getCall,
 } from '../voiceCall.service.js'
+import { resetVoiceCallStoreForTests } from '../voiceCallStore.js'
 
 function mockIo(roomSizes: Record<string, number> = {}) {
   const emitted: Array<{ room?: string; event: string; payload: unknown }> = []
@@ -33,8 +34,12 @@ function mockIo(roomSizes: Record<string, number> = {}) {
 }
 
 describe('voiceCallDelivery', () => {
-  it('queues incoming call when user room is empty', () => {
-    const call = createCall({ type: 'private', creatorId: 'a', memberIds: ['b'] })
+  beforeEach(() => {
+    resetVoiceCallStoreForTests()
+  })
+
+  it('queues incoming call when user room is empty', async () => {
+    const call = await createCall({ type: 'private', creatorId: 'a', memberIds: ['b'] })
     const { io } = mockIo()
     const payload = {
       callId: call.callId,
@@ -47,14 +52,14 @@ describe('voiceCallDelivery', () => {
 
     emitVoiceEventToUser(io, 'b', 'VOICE_CALL_INCOMING', payload)
 
-    const pending = drainPendingIncomingCalls('b')
+    const pending = await drainPendingIncomingCalls('b')
     expect(pending).toHaveLength(1)
     expect(pending[0]?.callId).toBe(call.callId)
-    endCall(call.callId)
+    await endCall(call.callId)
   })
 
-  it('flushes pending ringing calls on reconnect', () => {
-    const call = createCall({ type: 'private', creatorId: 'a', memberIds: ['b'] })
+  it('flushes pending ringing calls on reconnect', async () => {
+    const call = await createCall({ type: 'private', creatorId: 'a', memberIds: ['b'] })
     const payload = {
       callId: call.callId,
       channelId: call.channelId,
@@ -67,10 +72,10 @@ describe('voiceCallDelivery', () => {
     emitVoiceEventToUser(ioEmpty, 'b', 'VOICE_CALL_INCOMING', payload)
 
     const { io, emitted } = mockIo({ 'user:b': 1 })
-    flushPendingIncomingCalls(io, 'b')
+    await flushPendingIncomingCalls(io, 'b')
 
     expect(emitted.some((e) => e.event === 'VOICE_CALL_INCOMING' && e.room === 'user:b')).toBe(true)
-    expect(getCall(call.callId)?.status).toBe('ringing')
-    endCall(call.callId)
+    expect((await getCall(call.callId))?.status).toBe('ringing')
+    await endCall(call.callId)
   })
 })

@@ -67,6 +67,7 @@ export type VoiceOutgoingCallStatus =
   | 'connecting'
   | 'connected'
   | 'unanswered'
+  | 'failed'
 
 export type VoiceUnansweredReason =
   | 'timeout'

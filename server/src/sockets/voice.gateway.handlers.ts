@@ -11,8 +11,11 @@ import {
   createCall,
   endCall,
   getCall,
+  removeCallMember,
   scheduleCallRingTimeout,
+  userHasActiveCall,
   VOICE_CALL_RING_TIMEOUT_MS,
+  type ActiveVoiceCall,
 } from '../voice/voiceCall.service.js'
 import {
   buildCallChannelId,
@@ -67,7 +70,7 @@ async function voiceCallTargetProfile(userId: string): Promise<{
 
 function emitCallEnded(
   io: Server,
-  call: NonNullable<ReturnType<typeof getCall>>,
+  call: ActiveVoiceCall,
   channelId: string,
   endedByUserId: string,
 ): void {
@@ -94,14 +97,14 @@ async function leaveChannel(
   }
   const parsed = parseVoiceChannelId(channelId)
   if (parsed?.kind === 'call') {
-    const call = getCall(parsed.id)
+    const call = await getCall(parsed.id)
     if (call) {
       emitCallEnded(io, call, channelId, userId)
       if (call.type === 'private') {
-        endCall(parsed.id)
+        await endCall(parsed.id)
       } else {
         const remaining = getVoiceChannel(channelId)
-        if (!remaining || remaining.size === 0) endCall(parsed.id)
+        if (!remaining || remaining.size === 0) await endCall(parsed.id)
       }
     }
   }
@@ -295,6 +298,8 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
     async (data: {
       channelId?: string
       gameId?: string
+      callId?: string
+      negotiationId?: string
       toUserId?: string
       signal?: { type?: string; sdp?: unknown; candidate?: unknown }
     }) => {
@@ -335,12 +340,17 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
           )
           if (!listenerWantsLink && !speakerMayReachListener) return
         } else {
-          const call = getCall(parsed.id)
+          const call = await getCall(parsed.id)
           if (
             !call ||
+            call.status !== 'active' ||
             !call.memberIds.includes(fromUserId) ||
             !call.memberIds.includes(toUserId)
           ) {
+            return
+          }
+          const negId = data.negotiationId?.trim()
+          if (!negId || !call.negotiationId || negId !== call.negotiationId) {
             return
           }
         }
@@ -350,6 +360,8 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
           io.to(sid).emit('VOICE_SIGNAL', {
             channelId,
             gameId,
+            callId: data.callId ?? (parsed.kind === 'call' ? parsed.id : undefined),
+            negotiationId: data.negotiationId,
             fromUserId,
             toUserId,
             signal: data.signal,
@@ -386,6 +398,11 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
           }
         }
 
+        if (await userHasActiveCall(userId)) {
+          socket.emit('VOICE_ERROR', { code: 'ALREADY_IN_CALL' })
+          return
+        }
+
         const prior = getUserPrimaryChannel(userId)
         if (prior && prior !== socket.voiceChannelId) {
           socket.emit('VOICE_CONFIRM_LEAVE', {
@@ -395,7 +412,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
           return
         }
 
-        const call = createCall({ type, creatorId: userId, memberIds: targets })
+        const call = await createCall({ type, creatorId: userId, memberIds: targets })
         const fromName = await usernameFor(userId)
         const fromProfile = await voiceCallTargetProfile(userId)
         const targetProfiles = await Promise.all(targets.map((tid) => voiceCallTargetProfile(tid)))
@@ -403,6 +420,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
           callId: call.callId,
           channelId: call.channelId,
           type: call.type,
+          callerId: call.callerId,
           targets: targetProfiles,
         })
         for (const tid of targets) {
@@ -418,13 +436,15 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
         }
 
         scheduleCallRingTimeout(call.callId, VOICE_CALL_RING_TIMEOUT_MS, () => {
-          const pending = getCall(call.callId)
-          if (!pending || pending.status !== 'ringing') return
-          io.to(`user:${pending.creatorId}`).emit('VOICE_CALL_UNANSWERED', {
-            callId: pending.callId,
-            reason: 'timeout',
-          })
-          endCall(pending.callId)
+          void (async () => {
+            const pending = await getCall(call.callId)
+            if (!pending || pending.status !== 'ringing') return
+            io.to(`user:${pending.creatorId}`).emit('VOICE_CALL_UNANSWERED', {
+              callId: pending.callId,
+              reason: 'timeout',
+            })
+            await endCall(pending.callId)
+          })()
         })
       } catch (err) {
         console.error('[voice] VOICE_CALL_START', err)
@@ -437,14 +457,14 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
       const userId = socket.userId
       const callId = data?.callId?.trim()
       if (!userId || !callId) return
-      const call = getCall(callId)
+      const call = await getCall(callId)
       if (!call) return
       if (!call.memberIds.includes(userId) && call.creatorId !== userId) return
       if (socket.voiceChannelId === call.channelId) {
         await leaveChannel(io, socket, call.channelId)
       } else {
         emitCallEnded(io, call, call.channelId, userId)
-        if (call.type === 'private') endCall(callId)
+        if (call.type === 'private') await endCall(callId)
       }
     } catch (err) {
       console.error('[voice] VOICE_CALL_END', err)
@@ -456,11 +476,11 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
       const userId = socket.userId
       const callId = data?.callId
       if (!userId || !callId) return
-      const call = getCall(callId)
+      const call = await getCall(callId)
       if (!call || call.creatorId !== userId) return
       clearCallRingTimeout(callId)
       emitCallEnded(io, call, call.channelId, userId)
-      endCall(callId)
+      await endCall(callId)
     } catch (err) {
       console.error('[voice] VOICE_CALL_CANCEL', err)
     }
@@ -477,7 +497,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
         const callId = data?.callId
         const action = data?.action
         if (!userId || !callId || !action) return
-        const call = getCall(callId)
+        const call = await getCall(callId)
         if (!call || !call.memberIds.includes(userId)) return
 
         const fromName = await usernameFor(userId)
@@ -494,7 +514,10 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
 
         if (action === 'accept') {
           clearCallRingTimeout(callId)
-          activateCall(callId)
+          const negotiationId = await activateCall(callId)
+          if (!negotiationId) return
+          const activeCall = await getCall(callId)
+          if (!activeCall) return
           const priorCallee = getUserPrimaryChannel(userId)
           if (priorCallee && priorCallee !== call.channelId) {
             removeUserFromAllChannels(userId, call.channelId)
@@ -514,8 +537,13 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
             }
           }
 
-          const payload = { callId, channelId: call.channelId }
-          emitVoiceEventToUser(io, call.creatorId, 'VOICE_CALL_CONNECTED', payload)
+          const payload = {
+            callId,
+            channelId: activeCall.channelId,
+            callerId: activeCall.callerId,
+            negotiationId,
+          }
+          emitVoiceEventToUser(io, activeCall.creatorId, 'VOICE_CALL_CONNECTED', payload)
           emitVoiceEventToUser(io, userId, 'VOICE_CALL_CONNECTED', payload)
         } else {
           const reason =
@@ -526,10 +554,11 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
             username: fromName,
             reason,
           })
-          call.memberIds = call.memberIds.filter((id) => id !== userId)
-          if (call.type === 'private' || call.memberIds.length <= 1) {
+          await removeCallMember(callId, userId)
+          const updated = await getCall(callId)
+          if (!updated || updated.type === 'private' || updated.memberIds.length <= 1) {
             clearCallRingTimeout(callId)
-            endCall(callId)
+            await endCall(callId)
           }
         }
       } catch (err) {

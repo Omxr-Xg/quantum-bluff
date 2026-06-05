@@ -63,6 +63,8 @@ export type VoiceIncomingCallPayload = {
 export type VoiceSignalPayload = {
   channelId: string
   gameId?: string
+  callId?: string
+  negotiationId?: string
   fromUserId: string
   toUserId: string
   signal: {

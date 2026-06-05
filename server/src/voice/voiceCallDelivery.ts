@@ -63,8 +63,8 @@ export function emitVoiceEventToUser(
 }
 
 /** À appeler après `JOIN_USER_ROOM` / connexion — délivre les appels manqués récents. */
-export function flushPendingIncomingCalls(io: Server, userId: string): void {
-  const pending = drainPendingIncomingCalls(userId)
+export async function flushPendingIncomingCalls(io: Server, userId: string): Promise<void> {
+  const pending = await drainPendingIncomingCalls(userId)
   for (const payload of pending) {
     io.to(`user:${userId}`).emit('VOICE_CALL_INCOMING', payload)
     emitDirectToUserSockets(io, userId, 'VOICE_CALL_INCOMING', payload)

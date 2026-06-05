@@ -289,7 +289,7 @@ export class GameGateway {
           }),
         );
         socket.join(`user:${socket.userId}`);
-        flushPendingIncomingCalls(this.io, socket.userId);
+        void flushPendingIncomingCalls(this.io, socket.userId);
         this.io.emit("FRIEND_STATUS_CHANGED", {
           userId: socket.userId,
           status: "online",
@@ -311,7 +311,7 @@ export class GameGateway {
         });
 
         socket.join(`user:${socket.userId}`);
-        flushPendingIncomingCalls(this.io, socket.userId);
+        void flushPendingIncomingCalls(this.io, socket.userId);
         console.log(`✅ Utilisateur ${socket.userId} a rejoint sa room personnelle`);
       });
 

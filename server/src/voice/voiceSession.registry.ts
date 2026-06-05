@@ -185,8 +185,9 @@ export async function buildRosterForUser(
     getBlockedUserIdsCached(userId),
     channelMetaFor(channelId, parsed),
   ])
-  const callCreatorId =
-    parsed?.kind === 'call' ? getCallByChannel(channelId)?.creatorId : undefined
+  const callRecord =
+    parsed?.kind === 'call' ? await getCallByChannel(channelId) : undefined
+  const callCreatorId = callRecord?.callerId ?? callRecord?.creatorId
   return {
     channelId,
     gameId: meta.gameId,
@@ -218,8 +219,9 @@ export async function broadcastVoiceRoster(io: Server, channelId: string): Promi
     }),
   )
 
-  const callCreatorId =
-    parsed?.kind === 'call' ? getCallByChannel(channelId)?.creatorId : undefined
+  const callRecord =
+    parsed?.kind === 'call' ? await getCallByChannel(channelId) : undefined
+  const callCreatorId = callRecord?.callerId ?? callRecord?.creatorId
   for (const { uid, friendIds, blocked } of social) {
     io.to(key).emit('VOICE_ROSTER', {
       channelId,

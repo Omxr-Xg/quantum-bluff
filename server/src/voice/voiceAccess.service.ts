@@ -44,8 +44,8 @@ async function mayJoinWaitingChannel(
   return Boolean(accepted)
 }
 
-function mayJoinCallChannel(userId: string, callId: string): boolean {
-  const call = getCall(callId)
+async function mayJoinCallChannel(userId: string, callId: string): Promise<boolean> {
+  const call = await getCall(callId)
   if (!call) return false
   if (!call.memberIds.includes(userId)) return false
   return call.status === 'active' || call.status === 'ringing'
@@ -69,7 +69,7 @@ export async function assertMayJoinVoiceChannel(
     return { ok: true }
   }
   if (parsed.kind === 'call') {
-    if (!mayJoinCallChannel(userId, parsed.id)) {
+    if (!(await mayJoinCallChannel(userId, parsed.id))) {
       return { ok: false, code: 'NOT_IN_CALL' }
     }
     return { ok: true }
