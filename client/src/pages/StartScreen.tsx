@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles, Crown, Gem, Spade, Heart, Diamond, Club } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
+import { ClientAuthShellBackground } from "../components/ClientAuthShellBackground";
 import i18n from "../i18n/config";
 import { getAuthItem } from "../utils/authStorage";
 
@@ -57,43 +58,7 @@ export function StartScreen() {
   };
 
   return (
-    <div className="relative w-full min-h-full overflow-x-hidden bg-slate-900">
-      {/* Background sophistiqué */}
-      <div className="absolute inset-0">
-        {/* Gradient de base */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_70%_at_50%_-10%,rgba(30,64,175,0.24),transparent_55%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]"></div>
-
-        {/* Motif géométrique subtil - BLEU NUIT */}
-        <div 
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `
-              repeating-linear-gradient(
-                45deg,
-                transparent,
-                transparent 60px,
-                rgba(37, 99, 235, 0.24) 60px,
-                rgba(37, 99, 235, 0.24) 61px
-              ),
-              repeating-linear-gradient(
-                -45deg,
-                transparent,
-                transparent 60px,
-                rgba(37, 99, 235, 0.24) 60px,
-                rgba(37, 99, 235, 0.24) 61px
-              )
-            `
-          }}
-        />
-
-        {/* Vignette sombre */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(15,23,42,0.8)_100%)]"></div>
-
-        {/* Lumières ambiantes - BLEU NUIT */}
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-700/14 rounded-full blur-[100px] animate-pulse-slow"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-700/14 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: "1s" }}></div>
-      </div>
-
+    <ClientAuthShellBackground background="bac2">
       {/* Particules flottantes - BLEU NUIT */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(30)].map((_, i) => (
@@ -420,6 +385,6 @@ export function StartScreen() {
         .animate-shimmer { animation: shimmer 2s ease-in-out infinite; }
         .animate-fade-in { animation: fade-in 1s ease-out; }
       `}</style>
-    </div>
+    </ClientAuthShellBackground>
   );
 }

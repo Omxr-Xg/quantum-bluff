@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Heart, Club, Diamond, CircleDot, Calendar } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
-import bacBg from "../assets/background/BAC.png";
+import { ClientAuthShellBackground } from "../components/ClientAuthShellBackground";
 import {
   useCheckEmailMutation,
   useLoginMutation,
@@ -354,30 +354,7 @@ export function Auth() {
           : t("auth.createYourAccount");
 
   return (
-    <div className="relative flex w-full min-h-[100dvh] items-center justify-center overflow-x-hidden p-4 py-10 sm:p-6 sm:py-12 font-sans">
-      <img
-        src={bacBg}
-        alt=""
-        className="pointer-events-none fixed inset-0 h-full w-full object-cover"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none fixed inset-0 bg-gradient-to-br from-slate-950/86 via-slate-900/72 to-blue-950/80"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.16),transparent_55%)]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none fixed -left-24 top-1/4 h-72 w-72 rounded-full bg-blue-500/10 blur-[90px]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none fixed -right-16 bottom-1/4 h-80 w-80 rounded-full bg-cyan-500/10 blur-[100px]"
-        aria-hidden
-      />
-
+    <ClientAuthShellBackground className="flex items-center justify-center p-4 py-10 sm:p-6 sm:py-12">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="auth-float-card auth-float-card-a">
           <span>A</span>
@@ -1049,6 +1026,6 @@ export function Auth() {
           .auth-chip { display: none; }
         }
       `}</style>
-    </div>
+    </ClientAuthShellBackground>
   );
 }
