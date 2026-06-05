@@ -14,6 +14,7 @@ import {
   parseVoiceChannelId,
   type ParsedVoiceChannel,
 } from './voiceChannelId.js'
+import { getCallByChannel } from './voiceCall.service.js'
 
 const sessions = new Map<string, Map<string, VoiceParticipant>>()
 /** Un seul canal vocal principal par utilisateur. */
@@ -184,6 +185,8 @@ export async function buildRosterForUser(
     getBlockedUserIdsCached(userId),
     channelMetaFor(channelId, parsed),
   ])
+  const callCreatorId =
+    parsed?.kind === 'call' ? getCallByChannel(channelId)?.creatorId : undefined
   return {
     channelId,
     gameId: meta.gameId,
@@ -191,6 +194,7 @@ export async function buildRosterForUser(
     participants: [...room.values()].map(toPublic),
     friendIds: [...friendIds],
     blockedUserIds: [...blocked],
+    ...(callCreatorId ? { callCreatorId } : {}),
   }
 }
 
@@ -214,6 +218,8 @@ export async function broadcastVoiceRoster(io: Server, channelId: string): Promi
     }),
   )
 
+  const callCreatorId =
+    parsed?.kind === 'call' ? getCallByChannel(channelId)?.creatorId : undefined
   for (const { uid, friendIds, blocked } of social) {
     io.to(key).emit('VOICE_ROSTER', {
       channelId,
@@ -222,6 +228,7 @@ export async function broadcastVoiceRoster(io: Server, channelId: string): Promi
       participants,
       friendIds: [...friendIds],
       blockedUserIds: [...blocked],
+      ...(callCreatorId ? { callCreatorId } : {}),
     })
   }
 }

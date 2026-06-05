@@ -101,6 +101,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const outgoingCallRef = useRef(outgoingCall)
   const incomingCallRef = useRef(incomingCall)
   const micPrefetchRef = useRef<MediaStream | null>(null)
+  /** Canal pour lequel prepareActiveVoice / prepareCallAudio a déjà tourné (évite reset mute). */
+  const voicePreparedChannelRef = useRef<string | null>(null)
   /** Appels récemment terminés — évite de recréer l’UI si un VOICE_ROSTER arrive en retard. */
   const endedCallIdsRef = useRef<Set<string>>(new Set())
   settingsRef.current = settings
@@ -111,6 +113,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const teardownMesh = useCallback(() => {
     meshRef.current?.destroy()
     meshRef.current = null
+    voicePreparedChannelRef.current = null
     setJoined(false)
     setParticipants([])
     setSpeakingUserIds([])
@@ -274,6 +277,9 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const prepareActiveVoice = useCallback(() => {
+    const cid = channelIdRef.current
+    if (!cid || voicePreparedChannelRef.current === cid) return
+    voicePreparedChannelRef.current = cid
     pushSettings({
       ...settingsRef.current,
       speakTo: 'CHANNEL',
@@ -286,7 +292,13 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     void meshRef.current?.ensureMic(true)
   }, [pushSettings])
 
-  const prepareCallAudio = useCallback(async () => {
+  const prepareCallAudio = useCallback(async (forcedChannelId?: string) => {
+    const cid = forcedChannelId ?? channelIdRef.current
+    if (!cid || voicePreparedChannelRef.current === cid) return
+    voicePreparedChannelRef.current = cid
+    if (forcedChannelId) {
+      channelIdRef.current = forcedChannelId
+    }
     unlockPageAudio()
     pushSettings({
       ...settingsRef.current,
@@ -400,9 +412,9 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     (action: 'accept' | 'reject' | 'ignore' | 'block') => {
       if (!socket || !incomingCall) return
       incomingCallRef.current = incomingCall
+      const callId = incomingCall.callId
       if (action === 'accept') {
         unlockPageAudio()
-        void prefetchCallMicrophone()
         const panel: VoiceOutgoingCall = {
           callId: incomingCall.callId,
           channelId: incomingCall.channelId,
@@ -419,8 +431,13 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         }
         outgoingCallRef.current = panel
         setOutgoingCall(panel)
+        void (async () => {
+          await prefetchCallMicrophone()
+          socket.emit('VOICE_CALL_RESPOND', { callId, action: 'accept' })
+        })()
+      } else {
+        socket.emit('VOICE_CALL_RESPOND', { callId, action })
       }
-      socket.emit('VOICE_CALL_RESPOND', { callId: incomingCall.callId, action })
       setIncomingCall(null)
     },
     [socket, incomingCall, prefetchCallMicrophone],
@@ -645,12 +662,15 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         }
         return prev
       })
-      if (channelIdRef.current !== payload.channelId) {
-        joinChannelRef.current(payload.channelId, { replace: true })
-      } else if (!meshRef.current) {
+      const needsJoin = channelIdRef.current !== payload.channelId
+      channelIdRef.current = payload.channelId
+      setChannelId(payload.channelId)
+      if (!meshRef.current) {
         bindMeshRef.current(payload.channelId)
+      } else if (needsJoin) {
+        joinChannelRef.current(payload.channelId, { replace: true })
       }
-      void prepareCallAudioRef.current()
+      void prepareCallAudioRef.current(payload.channelId)
     }
 
     const onUnanswered = (payload: {
@@ -786,8 +806,12 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       toggleMic: () => {
         const nextMuted = !settingsRef.current.micMuted
         pushSettings({ ...settingsRef.current, micMuted: nextMuted })
-        void meshRef.current?.ensureMic(!nextMuted)
-        if (!nextMuted) setMicDenied(false)
+        if (nextMuted) {
+          meshRef.current?.applyLocalMicMute(true)
+        } else {
+          setMicDenied(false)
+          void meshRef.current?.ensureMic(true)
+        }
       },
       toggleSound: () => {
         pushSettings({

@@ -26,6 +26,8 @@ export type VoiceRosterPayload = {
   participants: VoiceParticipantPublic[]
   friendIds: string[]
   blockedUserIds: string[]
+  /** Canal call:* — initiateur WebRTC (appelant). */
+  callCreatorId?: string
 }
 
 export type VoiceSettings = {

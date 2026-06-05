@@ -11,6 +11,12 @@ import type {
 } from './voiceTypes'
 import { unlockPageAudio } from './ringtoneAudio'
 import { hasLiveLocalAudio } from './voiceMicUtils'
+import {
+  isPolitePeer,
+  shouldInitiateOffer,
+  shouldKeepAttachedAudioTrack,
+} from './voiceNegotiationPolicy'
+import type { VoiceChannelKind } from './voiceTypes'
 
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -93,6 +99,7 @@ export class WebRTCVoiceMesh {
   private speakingTimer: ReturnType<typeof setInterval> | null = null
   private analyserCtx: AudioContext | null = null
   private callbacks: VoiceMeshCallbacks
+  private callCreatorId: string | null = null
 
   setChannelId(channelId: string): void {
     this.channelId = channelId
@@ -120,6 +127,7 @@ export class WebRTCVoiceMesh {
 
   applyRoster(roster: VoiceRosterPayload): void {
     this.roster = roster
+    this.callCreatorId = roster.callCreatorId ?? null
     this.friendIds = new Set(roster.friendIds)
     this.blockedIds = new Set(roster.blockedUserIds)
     void this.syncPeersWhenReady()
@@ -272,6 +280,30 @@ export class WebRTCVoiceMesh {
     await this.syncPeers()
   }
 
+  /** Sur call:* — micro live avant négociation SDP. */
+  private async ensureCallAudioReady(): Promise<boolean> {
+    if (!this.isCallChannel()) return hasLiveLocalAudio(this.localStream)
+    if (!hasLiveLocalAudio(this.localStream)) {
+      await this.ensureMic(true)
+    }
+    const ready = hasLiveLocalAudio(this.localStream)
+    if (!ready) this.callbacks.onMicError?.('mic_denied')
+    return ready
+  }
+
+  /** Coupe le micro sans stopper le MediaStream (toggle mute UI). */
+  applyLocalMicMute(muted: boolean): void {
+    if (this.localStream) {
+      this.localStream.getAudioTracks().forEach((t) => {
+        t.enabled = !muted
+      })
+    }
+    if (muted) {
+      this.socket.emit('VOICE_SPEAKING', { channelId: this.channelId, speaking: false })
+    }
+    void this.syncPeers()
+  }
+
   private tryPlayRemoteAudio(audio: HTMLAudioElement): void {
     unlockPageAudio()
     void audio.play().catch(() => {
@@ -402,36 +434,37 @@ export class WebRTCVoiceMesh {
     pc.oniceconnectionstatechange = () => {
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
         this.tryPlayRemoteAudio(audio)
+      } else if (pc.iceConnectionState === 'failed') {
+        console.warn(
+          '[voice] ICE failed — vérifier VITE_ICE_SERVERS (TURN) sur Vercel si réseaux différents.',
+          { remoteId, channelId: this.channelId },
+        )
       }
     }
 
     this.ensureRecvTransceiver(pc)
+    if (this.isCallChannel()) {
+      await this.ensureCallAudioReady()
+    }
     await this.refreshPeerTracks(remoteId)
-    entry.hadLocalAudio = Boolean(
-      shouldSendToRemote(
-        this.myUserId,
-        remoteId,
-        this.settings.speakTo,
-        this.settings.micMuted,
-        this.friendIds,
-        this.blockedIds,
-      ) && hasLiveLocalAudio(this.localStream),
-    )
+    entry.hadLocalAudio = this.peerHasAttachedLocalAudio(remoteId)
 
-    const hasLocalAudio = hasLiveLocalAudio(this.localStream)
-    const sendInitialOffer =
-      this.myUserId < remoteId &&
-      (this.isCallChannel()
-        ? hasLocalAudio &&
-          shouldSendToRemote(
-            this.myUserId,
-            remoteId,
-            this.settings.speakTo,
-            this.settings.micMuted,
-            this.friendIds,
-            this.blockedIds,
-          )
-        : true)
+    const canSend = shouldSendToRemote(
+      this.myUserId,
+      remoteId,
+      this.settings.speakTo,
+      this.settings.micMuted,
+      this.friendIds,
+      this.blockedIds,
+    )
+    const sendInitialOffer = shouldInitiateOffer({
+      channelKind: this.channelKind(),
+      myUserId: this.myUserId,
+      remoteUserId: remoteId,
+      callCreatorId: this.callCreatorId,
+      hasLiveMic: hasLiveLocalAudio(this.localStream),
+      canSend,
+    })
 
     if (sendInitialOffer) {
       try {
@@ -456,7 +489,7 @@ export class WebRTCVoiceMesh {
     if (pc.signalingState !== 'have-local-offer') return false
     try {
       await pc.setLocalDescription({ type: 'rollback' })
-      return pc.signalingState === 'stable'
+      return (pc.signalingState as RTCSignalingState) === 'stable'
     } catch {
       return false
     }
@@ -469,6 +502,9 @@ export class WebRTCVoiceMesh {
     if (pc.signalingState === 'closed' || pc.signalingState !== 'stable') return
     try {
       entry.makingOffer = true
+      if (this.isCallChannel()) {
+        await this.ensureCallAudioReady()
+      }
       await this.refreshPeerTracks(remoteId)
       this.logPeerAudioState(remoteId, 'before-renegotiate-offer')
       const offer = await pc.createOffer({ offerToReceiveAudio: true })
@@ -497,23 +533,27 @@ export class WebRTCVoiceMesh {
       this.blockedIds,
     )
 
-    const track =
-      send && hasLiveLocalAudio(this.localStream)
-        ? this.localStream!.getAudioTracks().find((t) => t.readyState === 'live')
-        : undefined
+    const liveTrack = hasLiveLocalAudio(this.localStream)
+      ? this.localStream!.getAudioTracks().find((t) => t.readyState === 'live')
+      : undefined
+    const keepAttached = shouldKeepAttachedAudioTrack(this.channelKind(), Boolean(liveTrack))
+    const attachTrack = liveTrack && (send || keepAttached) ? liveTrack : undefined
     const senders = pc.getSenders().filter((s) => s.track?.kind === 'audio')
 
-    if (track) {
-      track.enabled = !this.settings.micMuted
+    if (attachTrack) {
+      attachTrack.enabled = send && !this.settings.micMuted
       const existing = senders[0]
-      const needsRenegotiate = !entry.hadLocalAudio && pc.signalingState === 'stable'
-      if (existing?.track?.id === track.id) {
+      const needsRenegotiate =
+        !entry.hadLocalAudio &&
+        pc.signalingState === 'stable' &&
+        (!this.isCallChannel() || this.callCreatorId === this.myUserId)
+      if (existing?.track?.id === attachTrack.id) {
         /* unchanged */
       } else if (existing) {
-        await existing.replaceTrack(track)
+        await existing.replaceTrack(attachTrack)
         if (needsRenegotiate) await this.renegotiate(remoteId)
       } else {
-        pc.addTrack(track, this.localStream!)
+        pc.addTrack(attachTrack, this.localStream!)
         if (needsRenegotiate) await this.renegotiate(remoteId)
       }
       entry.hadLocalAudio = true
@@ -549,12 +589,19 @@ export class WebRTCVoiceMesh {
     const entry = this.peers.get(fromUserId)
     if (!entry) return
     const { pc } = entry
-    const polite = this.isCallChannel() || this.myUserId > fromUserId
+    const polite = isPolitePeer({
+      channelKind: this.channelKind(),
+      myUserId: this.myUserId,
+      remoteUserId: fromUserId,
+    })
 
     try {
       if (signal.type === 'offer') {
         const desc = toSessionDescription(signal.sdp ?? null)
         if (!desc) return
+        if (this.isCallChannel()) {
+          await this.ensureCallAudioReady()
+        }
         const offerCollision = entry.makingOffer || pc.signalingState !== 'stable'
         if (offerCollision) {
           if (!polite) {
@@ -585,6 +632,9 @@ export class WebRTCVoiceMesh {
         if (!desc) return
         if (entry.ignoreOffer) return
         if (pc.signalingState !== 'have-local-offer') return
+        if (this.isCallChannel()) {
+          await this.ensureCallAudioReady()
+        }
         await pc.setRemoteDescription(desc)
         entry.makingOffer = false
         await this.refreshPeerTracks(fromUserId)
@@ -620,6 +670,18 @@ export class WebRTCVoiceMesh {
 
   private isCallChannel(): boolean {
     return this.channelId.startsWith('call:')
+  }
+
+  private channelKind(): VoiceChannelKind {
+    return this.roster?.channel.kind ?? (this.isCallChannel() ? 'call' : 'waiting')
+  }
+
+  private peerHasAttachedLocalAudio(remoteId: string): boolean {
+    const entry = this.peers.get(remoteId)
+    if (!entry) return false
+    return entry.pc
+      .getSenders()
+      .some((s) => s.track?.kind === 'audio' && s.track.readyState === 'live')
   }
 
   private applyVolumeForPeer(remoteId: string): void {

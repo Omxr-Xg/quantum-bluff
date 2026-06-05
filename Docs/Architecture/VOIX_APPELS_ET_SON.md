@@ -250,9 +250,10 @@ CORS / origines : voir déploiement API ; apps Capacitor (`capacitor://localhost
 
 1. **Front** : rebuild pour inclure les MP3 et le panneau portal.
 2. **Back** : redéploiement pour timeout 15 s et handlers appels.
-3. **Prod audio uni-directionnel** : configurer **TURN** dans `VITE_ICE_SERVERS` (Vercel → Environment → Production). Exemple complet dans `env.production.example`. Rebuild client obligatoire ; en console prod, l’absence de TURN affiche `[voice] Pas de VITE_ICE_SERVERS` ou `sans TURN`.
-4. **502 / lenteur API** : indépendant du voix mais bloque le socket ; pool Postgres (voir conversations Supabase / `DATABASE_POOL_MAX`).
-5. **RLS Supabase** : scripts `server/prisma/scripts/supabase-advisors-fix-all.sql` — pas d’accès Data API aux tables ; **n’affecte pas** Prisma ni les appels.
+3. **Prod audio uni-directionnel** : configurer **TURN** dans `VITE_ICE_SERVERS` (Vercel → Environment → Production). Exemple complet dans `env.production.example`. Rebuild client obligatoire ; en console prod, l’absence de TURN affiche `[voice] Pas de VITE_ICE_SERVERS` ou `sans TURN`. Si ICE échoue : `[voice] ICE failed — vérifier VITE_ICE_SERVERS (TURN)`.
+4. **Checklist déploiement audio** : (1) `VITE_ICE_SERVERS` avec STUN+TURN sur Vercel Production, (2) redeploy client, (3) test appel lobby entre 2 réseaux, (4) console sans warning TURN et `iceConnectionState: completed`.
+5. **502 / lenteur API** : indépendant du voix mais bloque le socket ; pool Postgres (voir conversations Supabase / `DATABASE_POOL_MAX`).
+6. **RLS Supabase** : scripts `server/prisma/scripts/supabase-advisors-fix-all.sql` — pas d’accès Data API aux tables ; **n’affecte pas** Prisma ni les appels.
 
 Script local (RLS, hors voix) :
 
