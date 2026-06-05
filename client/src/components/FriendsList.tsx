@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Users, UserPlus, Loader2, Search, X, Check, MessageCircle, Phone } from "lucide-react";
@@ -154,6 +154,20 @@ export function FriendsList() {
   };
 
   const friendsCount = friends?.length || 0;
+
+  /** Lobby : connectés d’abord, puis par nom (max 4 affichés). */
+  const lobbyFriendsPreview = useMemo(() => {
+    if (!friends?.length) return [];
+    return [...friends]
+      .sort((a, b) => {
+        const aOnline = Boolean(a.isOnline);
+        const bOnline = Boolean(b.isOnline);
+        if (aOnline !== bOnline) return aOnline ? -1 : 1;
+        return a.username.localeCompare(b.username, undefined, { sensitivity: "base" });
+      })
+      .slice(0, 4);
+  }, [friends]);
+
   const selectedFriend = friends?.find((friend) => friend.id === selectedChat);
   const {
     data: messages = [],
@@ -256,10 +270,14 @@ export function FriendsList() {
           </div>
         ) : friendsCount > 0 ? (
           <div className="max-h-full space-y-2 overflow-y-auto pr-1">
-            {friends!.slice(0, 4).map((friend) => (
+            {lobbyFriendsPreview.map((friend) => (
               <div
                 key={friend.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2.5 backdrop-blur-md"
+                className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-md ${
+                  friend.isOnline
+                    ? "border-emerald-400/30 bg-emerald-950/25 shadow-[inset_0_1px_0_rgba(52,211,153,0.12)]"
+                    : "border-white/10 bg-white/[0.045]"
+                }`}
               >
                 <div className="relative h-10 w-10 shrink-0">
                   <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">

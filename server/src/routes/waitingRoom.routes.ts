@@ -11,6 +11,9 @@ import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js';
 import sanitizeHtml from 'sanitize-html';
 import rateLimit from 'express-rate-limit';
 import { prismaKnownRequestCode } from '../utils/prismaKnownRequestCode.js';
+import type { Server } from 'socket.io';
+import { getGameIo } from '../sockets/gameIo.registry.js';
+import { getWaitingRoomPresentUserIds } from '../services/waitingRoomPresence.service.js';
 
 const router = express.Router();
 
@@ -163,6 +166,53 @@ const formatWaitingRoomPayload = (room: {
     avatarUrl: p.avatarUrl ?? clientAvatarUrlFromUser(p.user),
   })),
 })
+
+const waitingRoomPlayersInclude = {
+  players: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          level: true,
+          avatarUrl: true,
+          avatarHasBinary: true,
+        },
+      },
+    },
+  },
+} as const
+
+function withWaitingRoomPresence<T extends { id: string }>(
+  io: Server | undefined,
+  payload: T,
+): T & { presentUserIds: string[] } {
+  return {
+    ...payload,
+    presentUserIds: getWaitingRoomPresentUserIds(io, payload.id),
+  }
+}
+
+export async function emitWaitingRoomUpdated(
+  roomId: string,
+  io?: Server,
+): Promise<void> {
+  const socketIo = io ?? getGameIo()
+  if (!socketIo) return
+  const room = await prisma.waitingRoom.findUnique({
+    where: { id: roomId },
+    include: waitingRoomPlayersInclude,
+  })
+  if (!room) {
+    socketIo.to(roomId).emit('WAITING_ROOM_UPDATED', null)
+    return
+  }
+  const payload = withWaitingRoomPresence(
+    socketIo,
+    formatWaitingRoomPayload(room as never),
+  )
+  socketIo.to(roomId).emit('WAITING_ROOM_UPDATED', payload)
+}
 
 // Fonction utilitaire pour nettoyer le nom de la salle
 //const sanitizeRoomName = (roomName: string) => sanitizeHtml(roomName);
@@ -592,6 +642,7 @@ router.get('/:roomId', waitingRoomListLimiter, authMiddleware, async (req, res) 
       }
     }
 
+    const io = req.app.get('io') as Server | undefined
     res.json({
       id: room.id,
       name: room.name,
@@ -604,6 +655,7 @@ router.get('/:roomId', waitingRoomListLimiter, authMiddleware, async (req, res) 
       smallBlind: room.smallBlind ?? null,
       bigBlind: room.bigBlind ?? null,
       blockedPlayers: await getBlockedPlayersForViewer(viewerId, room.players),
+      presentUserIds: getWaitingRoomPresentUserIds(io, roomId),
       players: room.players.map(p => ({
         id: p.user.id,
         username: p.user.username,
@@ -695,8 +747,8 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, authMiddleware, async (req,
           }
         }
       })
-      const payload = formatWaitingRoomPayload(updatedRoom as never)
-      const io0 = req.app.get('io') as import('socket.io').Server | undefined;
+      const io0 = req.app.get('io') as Server | undefined;
+      const payload = withWaitingRoomPresence(io0, formatWaitingRoomPayload(updatedRoom as never));
       io0?.to(roomId).emit('WAITING_ROOM_UPDATED', payload);
       return res.json(payload);
     }
@@ -764,8 +816,8 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, authMiddleware, async (req,
       }
     });
 
-    const payload = formatWaitingRoomPayload(updatedRoom as never)
-    const io = req.app.get('io') as import('socket.io').Server | undefined;
+    const io = req.app.get('io') as Server | undefined;
+    const payload = withWaitingRoomPresence(io, formatWaitingRoomPayload(updatedRoom as never));
     io?.to(roomId).emit('WAITING_ROOM_UPDATED', payload);
     res.json(payload);
   } catch (error) {
@@ -846,10 +898,11 @@ router.post('/:roomId/leave', waitingRoomActionLimiter, authMiddleware, async (r
         }
       });
       if (refreshedAfterHostLeave) {
-        io?.to(roomId).emit(
-          'WAITING_ROOM_UPDATED',
-          formatWaitingRoomPayload(refreshedAfterHostLeave as never)
+        const payload = withWaitingRoomPresence(
+          io,
+          formatWaitingRoomPayload(refreshedAfterHostLeave as never),
         );
+        io?.to(roomId).emit('WAITING_ROOM_UPDATED', payload);
       }
 
       return res.json({
@@ -895,7 +948,8 @@ router.post('/:roomId/leave', waitingRoomActionLimiter, authMiddleware, async (r
         }
       });
       if (refreshed) {
-        io?.to(roomId).emit('WAITING_ROOM_UPDATED', formatWaitingRoomPayload(refreshed as never));
+        const payload = withWaitingRoomPresence(io, formatWaitingRoomPayload(refreshed as never));
+        io?.to(roomId).emit('WAITING_ROOM_UPDATED', payload);
       }
     }
 
@@ -947,7 +1001,8 @@ router.put('/:roomId/ready', waitingRoomActionLimiter, authMiddleware, async (re
       }
     });
     if (refreshed) {
-      io?.to(roomId).emit('WAITING_ROOM_UPDATED', formatWaitingRoomPayload(refreshed as never));
+      const payload = withWaitingRoomPresence(io, formatWaitingRoomPayload(refreshed as never));
+      io?.to(roomId).emit('WAITING_ROOM_UPDATED', payload);
     }
 
     res.json({ isReady: player.isReady });

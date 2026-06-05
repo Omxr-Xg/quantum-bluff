@@ -55,6 +55,7 @@ export function WaitingRoom() {
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [myIsReady, setMyIsReady] = useState(false);
+  const [presentUserIds, setPresentUserIds] = useState<string[]>([]);
 
   interface JoinRequestItem {
     id: string;
@@ -83,6 +84,7 @@ export function WaitingRoom() {
     turbo?: boolean;
     hostId?: string;
     minBalance?: number | null;
+    presentUserIds?: string[];
     players?: Array<{ id: string; username: string; level?: number; isReady?: boolean; avatarUrl?: string | null }>;
     blockedPlayers?: Array<{ id: string; username: string }>;
   }) => {
@@ -93,6 +95,7 @@ export function WaitingRoom() {
     setIsCreator(room.hostId === userId);
     const me = room.players?.find((p) => p.id === userId);
     setMyIsReady(me?.isReady ?? false);
+    setPresentUserIds(Array.isArray(room.presentUserIds) ? room.presentUserIds : []);
     setPlayers(
       (room.players || [])
         .filter((p) => p.id !== userId)
@@ -393,6 +396,7 @@ export function WaitingRoom() {
       visibility?: 'PUBLIC' | 'PRIVATE';
       turbo?: boolean;
       hostId?: string;
+      presentUserIds?: string[];
       players?: Array<{ id: string; username: string; level?: number; isReady?: boolean; avatarUrl?: string | null }>;
     } | null) => {
       if (!room) {
@@ -635,6 +639,9 @@ export function WaitingRoom() {
     navigate("/lobby");
   };
 
+  const presentSet = new Set(presentUserIds);
+  if (userId) presentSet.add(userId);
+
   if (roomLoading && !roomName) {
     return (
       <div className="w-full min-h-screen app-shell-bg flex items-center justify-center">
@@ -832,20 +839,29 @@ export function WaitingRoom() {
                     </div>
                   </div>
                 </div>
-                {!myIsReady && (
-                  <button
-                    onClick={handleReady}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold"
+                <div className="flex flex-col items-end gap-1">
+                  {!myIsReady && (
+                    <button
+                      onClick={handleReady}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold"
+                    >
+                      {t('waitingRoom.ready')}
+                    </button>
+                  )}
+                  {myIsReady && (
+                    <span className="inline-flex items-center gap-1.5 text-green-400 font-medium">
+                      <Check className="h-4 w-4 shrink-0" aria-hidden />
+                      {t("waitingRoom.ready")}
+                    </span>
+                  )}
+                  <span
+                    className={`text-[10px] font-semibold ${
+                      userId && presentSet.has(userId) ? "text-emerald-400" : "text-slate-500"
+                    }`}
                   >
-                    {t('waitingRoom.ready')}
-                  </button>
-                )}
-                {myIsReady && (
-                  <span className="inline-flex items-center gap-1.5 text-green-400 font-medium">
-                    <Check className="h-4 w-4 shrink-0" aria-hidden />
-                    {t("waitingRoom.ready")}
+                    {userId && presentSet.has(userId) ? t("belote.present") : t("belote.absent")}
                   </span>
-                )}
+                </div>
               </div>
             </div>
 
@@ -869,7 +885,7 @@ export function WaitingRoom() {
                       <div className="text-gray-400 text-sm">{t('friends.level', { level: player.level })}</div>
                     </div>
                   </div>
-                  <div className="text-sm text-gray-400">
+                  <div className="flex flex-col items-end gap-1 text-sm text-gray-400">
                     {player.isReady ? (
                       <span className="inline-flex items-center gap-1.5">
                         <Check className="h-4 w-4 text-emerald-400 shrink-0" aria-hidden />
@@ -881,6 +897,13 @@ export function WaitingRoom() {
                         {t("game.waiting")}
                       </span>
                     )}
+                    <span
+                      className={`text-[10px] font-semibold ${
+                        presentSet.has(player.id) ? "text-emerald-400" : "text-slate-500"
+                      }`}
+                    >
+                      {presentSet.has(player.id) ? t("belote.present") : t("belote.absent")}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -892,6 +915,12 @@ export function WaitingRoom() {
                   {t('waitingRoom.waitingForOthers')}
                 </div>
               </div>
+            )}
+
+            {userId && presentSet.has(userId) ? (
+              <p className="mt-3 text-center text-xs text-emerald-300/80">{t("belote.youArePresent")}</p>
+            ) : (
+              <p className="mt-3 text-center text-xs text-amber-300/80">{t("belote.connectingPresence")}</p>
             )}
           </div>
 

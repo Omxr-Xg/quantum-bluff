@@ -33,6 +33,7 @@ import {
 } from "../poker/services/pokerTableLock.service.js";
 import { rootLogger } from "../observability/logger.js";
 import { registerBeloteGatewayHandlers } from "./belote.gateway.handlers.js";
+import { emitWaitingRoomUpdated } from "../routes/waitingRoom.routes.js";
 import {
   handleVoiceDisconnect,
   registerVoiceGatewayHandlers,
@@ -386,12 +387,14 @@ export class GameGateway {
           }
           socket.join(roomId);
           console.log(`🚪 Socket ${socket.id} joined waiting room ${roomId}`);
+          void emitWaitingRoomUpdated(roomId, this.io).catch(() => {});
         },
       );
 
       socket.on("leave-room", ({ roomId }: { roomId?: string }) => {
         if (!roomId) return;
         socket.leave(roomId);
+        void emitWaitingRoomUpdated(roomId, this.io).catch(() => {});
       });
 
       socket.on(
