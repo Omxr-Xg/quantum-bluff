@@ -20,8 +20,7 @@ import {
   Club,
   Zap,
   Sparkles,
-  Disc,
-  SquareStack,
+  Crown,
   Trophy,
   AlertTriangle,
   Diamond,
@@ -2017,56 +2016,42 @@ export function Lobby() {
           {lobbyMainTab === "minigames" && (
             <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pr-0.5 scrollbar-hide sm:pr-1">
               <div ref={tourRefMinigames} className="flex w-full flex-col gap-5">
-                <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+                <div className="flex w-full flex-col rounded-2xl border border-cyan-400/15 bg-gradient-to-br from-cyan-950/35 via-slate-950/40 to-blue-950/30 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
                   <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
-                    <Zap className="h-8 w-8 shrink-0 text-cyan-300" strokeWidth={2.2} aria-hidden />
-                    {t("minigames.quickSoloTitle")}
+                    <Sparkles className="h-8 w-8 shrink-0 text-cyan-300" strokeWidth={2.2} aria-hidden />
+                    {t("minigames.newCasinoTitle")}
                   </h2>
                   <p className="mb-4 text-sm leading-relaxed text-gray-400">
-                    {t("minigames.quickSoloBlurb")}
+                    {t("minigames.newCasinoBlurb")}
                   </p>
                   <button
                     type="button"
                     onClick={() => navigate("/minigames/quick-solo")}
                     className="w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80"
-                    aria-label={t("minigames.quickSoloEnter")}
+                    aria-label={t("minigames.newCasinoEnter")}
                   >
-                    {t("minigames.quickSoloEnter")}
+                    {t("minigames.newCasinoEnter")}
                   </button>
                 </div>
-                <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
-                <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
-                  <Disc className="h-8 w-8 shrink-0 text-amber-300" strokeWidth={2.2} aria-hidden />
-                  {t("minigames.rouletteTitle")}
-                </h2>
-                <p className="mb-4 text-sm leading-relaxed text-gray-400">
-                  {t("minigames.rouletteBlurb")}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate("/minigames?game=roulette")}
-                  className="w-full rounded-xl border border-amber-300/15 bg-amber-950/70 py-3 text-base font-bold text-white transition hover:border-amber-200/25 hover:bg-amber-900/80"
-                  aria-label={t("minigames.play")}
-                >
-                  {t("minigames.play")}
-                </button>
-                </div>
-                <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
-                <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
-                  <SquareStack className="h-8 w-8 shrink-0 text-orange-300" strokeWidth={2.2} aria-hidden />
-                  {t("minigames.slotTitle")}
-                </h2>
-                <p className="mb-4 text-sm leading-relaxed text-gray-400">
-                  {t("minigames.slotBlurb")}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate("/minigames?game=slots")}
-                  className="w-full rounded-xl border border-orange-300/15 bg-orange-950/70 py-3 text-base font-bold text-white transition hover:border-orange-200/25 hover:bg-orange-900/80"
-                  aria-label={t("minigames.play")}
-                >
-                  {t("minigames.play")}
-                </button>
+                <div className="flex w-full flex-col rounded-2xl border-2 border-amber-700/25 bg-gradient-to-br from-amber-950/40 via-stone-950/45 to-red-950/35 p-5 shadow-[inset_0_1px_0_rgba(251,191,36,0.08),0_22px_60px_rgba(0,0,0,0.32)] backdrop-blur-xl md:p-6">
+                  <h2
+                    className="mb-3 flex items-center gap-3 text-2xl font-bold uppercase tracking-wide text-amber-100"
+                    style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+                  >
+                    <Crown className="h-8 w-8 shrink-0 text-amber-400" strokeWidth={2.2} aria-hidden />
+                    {t("minigames.retroCasinoTitle")}
+                  </h2>
+                  <p className="mb-4 text-sm leading-relaxed text-amber-100/65">
+                    {t("minigames.retroCasinoBlurb")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/minigames/retro-casino")}
+                    className="w-full rounded-sm border-2 border-amber-600/35 bg-gradient-to-r from-amber-950/80 via-stone-950/70 to-red-950/75 py-3 text-base font-black uppercase tracking-[0.14em] text-amber-100 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)] transition hover:border-amber-500/50 hover:from-amber-900/80 hover:to-red-900/75"
+                    aria-label={t("minigames.retroCasinoEnter")}
+                  >
+                    {t("minigames.retroCasinoEnter")}
+                  </button>
                 </div>
               </div>
             </div>

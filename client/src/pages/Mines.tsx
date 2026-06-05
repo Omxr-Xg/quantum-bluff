@@ -302,7 +302,7 @@ export function Mines() {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-hidden bg-[#021712] text-white">
+    <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-[#021712] text-white">
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute inset-0 bg-gradient-to-b from-[#021712] via-[#041f18] to-[#031510]" />
         <div
@@ -332,22 +332,22 @@ export function Mines() {
         </div>
       </header>
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-4 sm:px-5">
-          <div className="mb-2 text-center">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 pb-2 pt-3 sm:px-5 sm:pt-4">
+          <div className="mb-1 shrink-0 text-center sm:mb-2">
             <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.28em] text-emerald-200/80">
               <Bomb className="h-4 w-4" />
               {t("mines.brand")}
             </div>
-            <p className="mt-1 text-[11px] italic tracking-wide text-teal-200/60">{t("mines.tagline")}</p>
+            <p className="mt-0.5 text-[11px] italic tracking-wide text-teal-200/60">{t("mines.tagline")}</p>
           </div>
 
           <motion.div
             animate={shake ? { x: [0, -8, 8, -6, 6, 0] } : {}}
             transition={{ duration: 0.45 }}
-            className="relative mx-auto flex w-[80%] max-w-md flex-col items-center justify-center sm:w-full"
+            className="relative mx-auto flex w-full max-w-[15.5rem] shrink-0 flex-col items-center sm:max-w-xs"
           >
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t("mines.multiplierLabel")}</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">{t("mines.multiplierLabel")}</p>
             <motion.div
               key={multiplier}
               initial={{ scale: 0.96, opacity: 0.85 }}
@@ -356,7 +356,7 @@ export function Mines() {
                 opacity: 1,
               }}
               transition={{ duration: phase === "running" ? 1.1 : 0.25, repeat: phase === "running" ? Infinity : 0 }}
-              className={`font-black tabular-nums tracking-tight drop-shadow-[0_0_28px_rgba(16,185,129,0.35)] text-5xl sm:text-6xl md:text-7xl ${
+              className={`font-black tabular-nums tracking-tight drop-shadow-[0_0_28px_rgba(16,185,129,0.35)] text-4xl sm:text-5xl md:text-6xl ${
                 phase === "exploded" ? "text-red-400" : multiplierGlowClass(multiplier)
               }`}
             >
@@ -364,7 +364,7 @@ export function Mines() {
             </motion.div>
 
             <div
-              className="mt-5 grid w-full gap-2 sm:gap-2.5"
+              className="mt-3 grid w-full gap-1.5 sm:mt-4 sm:gap-2"
               style={{ gridTemplateColumns: `repeat(${MINES_GRID_COLS}, minmax(0, 1fr))` }}
             >
               {cellStates.map((state, cell) => (
@@ -389,7 +389,7 @@ export function Mines() {
                         animate={{ rotateY: 0, scale: 1.05 }}
                         className="flex h-full w-full items-center justify-center"
                       >
-                        <Gem className="h-5 w-5 text-emerald-300 sm:h-6 sm:w-6" />
+                        <Gem className="h-4 w-4 text-emerald-300 sm:h-5 sm:w-5" />
                       </motion.span>
                     ) : null}
                     {state === "mine" ? (
@@ -399,7 +399,7 @@ export function Mines() {
                         animate={{ scale: [1, 1.15, 1], opacity: 1 }}
                         className="flex h-full w-full items-center justify-center"
                       >
-                        <Bomb className="h-5 w-5 text-red-300 sm:h-6 sm:w-6" />
+                        <Bomb className="h-4 w-4 text-red-300 sm:h-5 sm:w-5" />
                       </motion.span>
                     ) : null}
                   </AnimatePresence>
@@ -407,26 +407,8 @@ export function Mines() {
               ))}
             </div>
 
-            <p className="mt-4 text-sm font-medium text-slate-300/90">{statusLabel}</p>
+            <p className="mt-2 text-center text-xs font-medium text-slate-300/90 sm:mt-3 sm:text-sm">{statusLabel}</p>
           </motion.div>
-
-          <aside className="mt-4 lg:hidden">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t("mines.history")}</p>
-            <div className="flex flex-wrap gap-2">
-              {history.length === 0 ? (
-                <span className="text-xs text-slate-500">{t("mines.historyEmpty")}</span>
-              ) : (
-                history.map((h, i) => (
-                  <span
-                    key={`${h}-${i}`}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-bold ${historyBadgeClass(Math.max(h, 1))}`}
-                  >
-                    {h <= 0 ? "—" : `x${h.toFixed(2)}`}
-                  </span>
-                ))
-              )}
-            </div>
-          </aside>
         </div>
 
         <aside className="hidden w-44 shrink-0 border-l border-white/10 bg-black/25 p-4 lg:block">
@@ -444,8 +426,25 @@ export function Mines() {
         </aside>
       </div>
 
-      <div className="relative z-20 shrink-0 border-t border-white/10 bg-gradient-to-t from-black/80 via-black/55 to-transparent px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-5">
-        <div className="mx-auto w-full max-w-lg space-y-3">
+      <div className="relative z-30 shrink-0 border-t border-white/10 bg-[#021712]/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:px-5 sm:pt-3">
+        <div className="mx-auto w-full max-w-lg space-y-2 sm:space-y-3">
+          <div className="lg:hidden">
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("mines.history")}</p>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+              {history.length === 0 ? (
+                <span className="shrink-0 text-xs text-slate-500">{t("mines.historyEmpty")}</span>
+              ) : (
+                history.map((h, i) => (
+                  <span
+                    key={`${h}-${i}`}
+                    className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${historyBadgeClass(Math.max(h, 1))}`}
+                  >
+                    {h <= 0 ? "—" : `x${h.toFixed(2)}`}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t("mines.betLabel")}</p>
             <div className="flex items-center gap-2">
@@ -470,7 +469,7 @@ export function Mines() {
                 <Plus className="h-4 w-4" />
               </button>
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-1.5 flex flex-wrap gap-1 sm:mt-2 sm:gap-1.5">
               {MINES_BET_PRESETS.map((v) => (
                 <button
                   key={v}

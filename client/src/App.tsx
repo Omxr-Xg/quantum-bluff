@@ -42,6 +42,7 @@ import { MiniGames } from './pages/MiniGames';
 import { QuickSoloGames } from "./pages/QuickSoloGames";
 import { Crash } from "./pages/Crash";
 import { Mines } from "./pages/Mines";
+import { RetroCasinoGames } from "./pages/RetroCasinoGames";
 import { TournamentRoom } from "./features/tournament/pages/TournamentRoom";
 import { TournamentWaiting } from "./features/tournament/pages/TournamentWaiting";
 import { TournamentResults } from "./features/tournament/pages/TournamentResults";
@@ -126,6 +127,7 @@ function App() {
             
             <Route path="/minigames" element={<ProtectedRoute><MiniGames /></ProtectedRoute>} />
             <Route path="/minigames/quick-solo" element={<ProtectedRoute><QuickSoloGames /></ProtectedRoute>} />
+            <Route path="/minigames/retro-casino" element={<ProtectedRoute><RetroCasinoGames /></ProtectedRoute>} />
             <Route path="/minigames/crash" element={<ProtectedRoute><Crash /></ProtectedRoute>} />
             <Route path="/minigames/mines" element={<ProtectedRoute><Mines /></ProtectedRoute>} />
             <Route path="/blackjack" element={<ProtectedRoute><Blackjack /></ProtectedRoute>} />
