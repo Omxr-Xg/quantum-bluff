@@ -137,7 +137,7 @@ export default defineConfig(({ mode }) => {
 
   const pwaPlugin = VitePWA({
     registerType: 'autoUpdate',
-    includeAssets: ['logo-personnel.png', 'favicon.ico'],
+    includeAssets: ['favicon.ico', 'logo-512.png', 'apple-touch-icon.png', 'robots.txt', 'sitemap.xml'],
     manifest: {
       name: 'Quantum Bluff',
       short_name: 'Quantum Bluff',
