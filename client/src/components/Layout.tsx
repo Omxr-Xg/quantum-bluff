@@ -1380,13 +1380,7 @@ export function Layout({ children }: LayoutProps) {
     navigate("/lobby");
   };
 
-  const lobbyShellBg = (() => {
-    if (!lobbyDocumentScroll || isCasinoFullBleed) return "bg-transparent";
-    const tab = new URLSearchParams(location.search).get("tab");
-    if (tab === "minigames" || tab === "roulette") return "bg-[#02100c]";
-    if (tab === "blackjack") return "bg-[#100409]";
-    return "bg-[#020716]";
-  })();
+  const lobbyShellBg = "bg-transparent";
   const shellBg = isAuthPage
     ? "bg-transparent"
     : lobbyDocumentScroll && !isCasinoFullBleed

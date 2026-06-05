@@ -38,6 +38,7 @@ import {
   TOURNAMENT_MAX_PLAYERS,
 } from "../features/tournament/tournamentConstants";
 import lobbyHeaderIcon from "../../app-icon.png";
+import { LobbyShellBackground } from "../components/LobbyShellBackground";
 import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
@@ -850,17 +851,9 @@ export function Lobby() {
   };
 
   return (
-    <div
-      className={`relative w-full min-h-[100dvh] overflow-x-clip overflow-y-visible px-2 py-4 sm:px-4 md:p-6 transition-[background-color] duration-700 ease-in-out ${
-        lobbyMainTab === "poker"
-          ? "bg-[#020716]"
-          : lobbyMainTab === "belote"
-            ? "bg-[#02100c]"
-            : lobbyMainTab === "minigames"
-              ? "bg-[#120e06]"
-              : "bg-[#100409]"
-      }`}
-    >
+    <div className="relative w-full min-h-[100dvh] overflow-x-clip overflow-y-visible bg-transparent px-2 py-4 transition-[background-color] duration-700 ease-in-out sm:px-4 md:p-6">
+      <LobbyShellBackground />
+
       {/* Fond Texas Hold'em */}
       <div
         className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
