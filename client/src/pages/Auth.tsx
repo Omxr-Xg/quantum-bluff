@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Heart, Club, Diamond, CircleDot, Calendar } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
+import bacBg from "../assets/background/BAC.png";
 import {
   useCheckEmailMutation,
   useLoginMutation,
@@ -353,22 +354,29 @@ export function Auth() {
           : t("auth.createYourAccount");
 
   return (
-    <div className="relative flex w-full min-h-full items-center justify-center overflow-x-hidden bg-slate-900 p-4 py-10 sm:p-6 sm:py-12 font-sans">
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_70%_at_50%_-10%,rgba(30,64,175,0.24),transparent_55%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]"></div>
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 60px, rgba(37, 99, 235, 0.24) 60px, rgba(37, 99, 235, 0.24) 61px)`,
-          }}
-        />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(15,23,42,0.8)_100%)]"></div>
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-700/14 rounded-full blur-[100px] animate-pulse-slow"></div>
-        <div
-          className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-700/14 rounded-full blur-[100px] animate-pulse-slow"
-          style={{ animationDelay: "1s" }}
-        ></div>
-      </div>
+    <div className="relative flex w-full min-h-[100dvh] items-center justify-center overflow-x-hidden p-4 py-10 sm:p-6 sm:py-12 font-sans">
+      <img
+        src={bacBg}
+        alt=""
+        className="pointer-events-none fixed inset-0 h-full w-full object-cover"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none fixed inset-0 bg-gradient-to-br from-slate-950/86 via-slate-900/72 to-blue-950/80"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.16),transparent_55%)]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none fixed -left-24 top-1/4 h-72 w-72 rounded-full bg-blue-500/10 blur-[90px]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none fixed -right-16 bottom-1/4 h-80 w-80 rounded-full bg-cyan-500/10 blur-[100px]"
+        aria-hidden
+      />
 
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="auth-float-card auth-float-card-a">
