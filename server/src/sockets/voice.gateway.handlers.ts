@@ -110,6 +110,19 @@ async function leaveChannel(
   }
 }
 
+async function joinAllSocketsForUser(
+  io: Server,
+  userId: string,
+  channelId: string,
+): Promise<void> {
+  for (const sock of io.sockets.sockets.values()) {
+    const vs = sock as VoiceSocket
+    if (vs.userId === userId) {
+      await joinChannel(io, vs, channelId, { replace: true })
+    }
+  }
+}
+
 async function joinChannel(
   io: Server,
   socket: VoiceSocket,
@@ -526,16 +539,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
             }
           }
           await joinChannel(io, socket, call.channelId, { replace: true })
-
-          const creatorRoom = io.sockets.adapter.rooms.get(`user:${call.creatorId}`)
-          if (creatorRoom) {
-            for (const sid of creatorRoom) {
-              const creatorSocket = io.sockets.sockets.get(sid) as VoiceSocket | undefined
-              if (creatorSocket?.userId === call.creatorId) {
-                await joinChannel(io, creatorSocket, call.channelId, { replace: true })
-              }
-            }
-          }
+          await joinAllSocketsForUser(io, call.creatorId, call.channelId)
 
           const payload = {
             callId,

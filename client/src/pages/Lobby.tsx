@@ -2109,24 +2109,6 @@ export function Lobby() {
 
       </div>
 
-      {/* Tutoriel interactif — bouton fixe bas-gauche */}
-      <button
-        type="button"
-        onClick={() => {
-          if (lobbyTourOpen) handleLobbyTourClose();
-          else {
-            setMainTab("poker");
-            setLobbyTourStep(0);
-            setLobbyTourOpen(true);
-          }
-        }}
-        className="fixed left-5 z-[260] flex h-12 w-12 items-center justify-center rounded-full border-2 border-purple-400/90 bg-purple-950/95 text-lg font-bold text-purple-100 shadow-xl backdrop-blur-sm transition hover:border-purple-300 hover:bg-purple-800/95 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))]"
-        aria-label={t('lobby.help.openAria')}
-        title={t('lobby.help.openAria')}
-      >
-        <span aria-hidden className="select-none">?</span>
-      </button>
-
       <LobbyInteractiveTour
         open={lobbyTourOpen}
         onClose={handleLobbyTourClose}

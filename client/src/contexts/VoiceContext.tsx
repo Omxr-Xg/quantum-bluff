@@ -10,6 +10,7 @@ import {
 } from 'react'
 import type { Socket } from 'socket.io-client'
 import { VoiceCallManager } from '../features/voice/call/VoiceCallManager'
+import { CallState } from '../features/voice/call/voiceCallTypes'
 import { isCallSignalPayload } from '../features/voice/call/VoiceSignalingClient'
 import { WebRTCVoiceMesh } from '../features/voice/WebRTCVoiceMesh'
 import {
@@ -417,6 +418,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       const callId = incomingCall.callId
       if (action === 'accept') {
         unlockPageAudio()
+        ensureCallManager()?.onIncoming()
         const panel: VoiceOutgoingCall = {
           callId: incomingCall.callId,
           channelId: incomingCall.channelId,
@@ -442,7 +444,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       }
       setIncomingCall(null)
     },
-    [socket, incomingCall, prefetchCallMicrophone],
+    [socket, incomingCall, prefetchCallMicrophone, ensureCallManager],
   )
 
   const applyMigrateHint = useCallback(
@@ -640,6 +642,11 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       setIncomingCall(null)
       const inc = incomingCallRef.current
       incomingCallRef.current = null
+      const prevOc = outgoingCallRef.current
+      const remoteUserId =
+        payload.callerId === userId
+          ? prevOc?.targets?.[0]?.userId ?? inc?.fromUserId
+          : payload.callerId
       setOutgoingCall((prev) => {
         const prevId = prev?.callId?.trim()
         const nextId = payload.callId?.trim()
@@ -679,17 +686,33 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       setChannelId(payload.channelId)
       joinChannelRef.current(payload.channelId, { replace: true })
 
-      const oc = outgoingCallRef.current
-      const remoteUserId =
-        payload.callerId === userId
-          ? oc?.targets[0]?.userId
-          : payload.callerId
-      if (!remoteUserId || !payload.callerId || !payload.negotiationId) return
+      if (!remoteUserId || !payload.callerId || !payload.negotiationId) {
+        if (import.meta.env.DEV) {
+          console.warn('[voice] VOICE_CALL_CONNECTED sans peer', {
+            remoteUserId,
+            callerId: payload.callerId,
+            negotiationId: payload.negotiationId,
+          })
+        }
+        return
+      }
 
       const manager = ensureCallManagerRef.current()
+      const managerState = manager?.getState()
+      if (managerState === CallState.IDLE) {
+        if (payload.callerId === userId) manager?.onOutgoingStarted()
+        else manager?.onIncoming()
+      }
       if (micPrefetchRef.current) {
         manager?.attachPrefetchedMic(micPrefetchRef.current)
       }
+      pushSettings({
+        ...settingsRef.current,
+        micMuted: false,
+        speakTo: 'FRIENDS',
+        listenTo: 'FRIENDS',
+      })
+
       void manager?.onCallConnected(
         {
           callId: payload.callId,
@@ -699,7 +722,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         },
         remoteUserId,
       ).then(() => {
-        manager?.setMicMuted(settingsRef.current.micMuted)
+        manager?.setMicMuted(false)
         manager?.setSoundMuted(settingsRef.current.soundMuted)
       })
     }

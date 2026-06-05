@@ -103,6 +103,38 @@ describe('VoiceCallManager', () => {
     manager.teardown()
   })
 
+  it('buffers offer until peer connection is ready', async () => {
+    const socket = mockSocket()
+    const manager = new VoiceCallManager('callee-2', socket as never, {})
+    manager.onIncoming()
+    const offerPromise = manager.handleSignal({
+      callId: 'call-1',
+      channelId: 'call:call-1',
+      negotiationId: 'neg-1',
+      fromUserId: 'caller-1',
+      toUserId: 'callee-2',
+      signal: { type: 'offer', sdp: { type: 'offer', sdp: 'v=0' } },
+    })
+    await manager.onCallConnected(
+      {
+        callId: 'call-1',
+        channelId: 'call:call-1',
+        callerId: 'caller-1',
+        negotiationId: 'neg-1',
+      },
+      'caller-1',
+    )
+    await offerPromise
+    const answerEmit = socket.emitted.find(
+      (p) =>
+        typeof p === 'object' &&
+        p != null &&
+        (p as { signal?: { type?: string } }).signal?.type === 'answer',
+    )
+    expect(answerEmit).toBeTruthy()
+    manager.teardown()
+  })
+
   it('ignores signals with stale negotiationId', async () => {
     const socket = mockSocket()
     const manager = new VoiceCallManager('callee-2', socket as never, {})

@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { getPlayerAvatar } from "../utils/avatars";
+import { formatFriendLastSeen } from "../utils/formatLastSeen";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
@@ -893,7 +894,11 @@ export function Friends() {
                 </div>
               ) : filteredFriends.length > 0 ? (
                 <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
-                  {filteredFriends.map((friend) => (
+                  {filteredFriends.map((friend) => {
+                    const lastSeenLabel = !friend.isOnline
+                      ? formatFriendLastSeen(friend.lastSeenAt, t)
+                      : null
+                    return (
                     <div
                       key={friend.id}
                       className={`group relative p-4 transition-all hover:border-blue-300/25 ${pokerInnerCard}`}
@@ -959,24 +964,34 @@ export function Friends() {
                         ) : null}
                       </div>
                       <div className="flex items-start gap-4">
-                        <div className="relative h-16 w-16 shrink-0">
-                          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60 shadow-[0_0_28px_rgba(59,130,246,0.16)]">
-                            {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
-                              <ImageWithFallback
-                                src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
-                                alt={`${friend.username}'s avatar`}
-                                className="h-16 w-16 rounded-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-2xl font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
-                            )}
+                        <div className="flex shrink-0 flex-col items-center gap-1">
+                          <div className="relative h-16 w-16">
+                            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60 shadow-[0_0_28px_rgba(59,130,246,0.16)]">
+                              {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
+                                <ImageWithFallback
+                                  src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
+                                  alt={`${friend.username}'s avatar`}
+                                  className="h-16 w-16 rounded-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-2xl font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
+                              )}
+                            </div>
+                            <span
+                              className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-slate-950 ${
+                                friend.isOnline ? "bg-emerald-400" : "bg-slate-500"
+                              }`}
+                              aria-label={friend.isOnline ? t("friends.online") : t("friends.offline")}
+                            />
                           </div>
-                          <span
-                            className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-slate-950 ${
-                              friend.isOnline ? "bg-emerald-400" : "bg-slate-500"
-                            }`}
-                            aria-label={friend.isOnline ? t("friends.online") : t("friends.offline")}
-                          />
+                          {lastSeenLabel ? (
+                            <span
+                              className="max-w-[6.5rem] truncate text-center text-[10px] leading-tight text-slate-500"
+                              title={lastSeenLabel}
+                            >
+                              {lastSeenLabel}
+                            </span>
+                          ) : null}
                         </div>
 
                         <div className="min-w-0 flex-1 pr-10">
@@ -998,7 +1013,9 @@ export function Friends() {
                             {t("profile.wins")}
                           </div>
                           <div className={`mt-1 text-xs font-semibold ${friend.isOnline ? "text-emerald-300" : "text-slate-500"}`}>
-                            {friend.isOnline ? t("friends.online") : t("friends.offline")}
+                            {friend.isOnline
+                              ? t("friends.online")
+                              : lastSeenLabel ?? t("friends.offline")}
                           </div>
                         </div>
                       </div>
@@ -1036,7 +1053,7 @@ export function Friends() {
                         </button>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               ) : (
                 <div className="py-16 text-center">

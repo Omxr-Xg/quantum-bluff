@@ -14,6 +14,7 @@ import {
   useSendFriendMessageMutation,
 } from "../services/api";
 import { getPlayerAvatar } from "../utils/avatars";
+import { formatFriendLastSeen } from "../utils/formatLastSeen";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 type SearchUser = {
@@ -270,7 +271,11 @@ export function FriendsList() {
           </div>
         ) : friendsCount > 0 ? (
           <div className="max-h-full space-y-2 overflow-y-auto pr-1">
-            {lobbyFriendsPreview.map((friend) => (
+            {lobbyFriendsPreview.map((friend) => {
+              const lastSeenLabel = !friend.isOnline
+                ? formatFriendLastSeen(friend.lastSeenAt, t)
+                : null
+              return (
               <div
                 key={friend.id}
                 className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-md ${
@@ -279,24 +284,34 @@ export function FriendsList() {
                     : "border-white/10 bg-white/[0.045]"
                 }`}
               >
-                <div className="relative h-10 w-10 shrink-0">
-                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
-                    {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
-                      <ImageWithFallback
-                        src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
-                        alt=""
-                        className="h-10 w-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-sm font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
-                    )}
+                <div className="flex shrink-0 flex-col items-center gap-0.5">
+                  <div className="relative h-10 w-10">
+                    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
+                      {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
+                        <ImageWithFallback
+                          src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
+                          alt=""
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-sm font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <span
+                      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 ${
+                        friend.isOnline ? "bg-emerald-400" : "bg-slate-500"
+                      }`}
+                      aria-label={friend.isOnline ? t("friends.online") : t("friends.offline")}
+                    />
                   </div>
-                  <span
-                    className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 ${
-                      friend.isOnline ? "bg-emerald-400" : "bg-slate-500"
-                    }`}
-                    aria-label={friend.isOnline ? t("friends.online") : t("friends.offline")}
-                  />
+                  {lastSeenLabel ? (
+                    <span
+                      className="max-w-[5.25rem] truncate text-center text-[9px] leading-tight text-slate-500"
+                      title={lastSeenLabel}
+                    >
+                      {lastSeenLabel}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-white">{friend.username}</p>
@@ -326,7 +341,7 @@ export function FriendsList() {
                   </button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         ) : (
           <div className="flex h-full min-h-[8rem] items-center justify-center rounded-lg border border-dashed border-white/10 bg-slate-950/25 px-4 text-center text-sm text-slate-400">

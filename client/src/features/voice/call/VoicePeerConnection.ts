@@ -21,10 +21,16 @@ export type VoicePeerConnectionCallbacks = {
   onRemoteTrack?: (stream: MediaStream) => void
 }
 
+export type LocalAudioRef = {
+  track: MediaStreamTrack
+  stream: MediaStream
+}
+
 export class VoicePeerConnection {
   private pc: RTCPeerConnection
   private pendingCandidates: RTCIceCandidateInit[] = []
   private remoteAudio: HTMLAudioElement
+  private remoteStream: MediaStream | null = null
   private callbacks: VoicePeerConnectionCallbacks
 
   constructor(callbacks: VoicePeerConnectionCallbacks = {}) {
@@ -42,8 +48,18 @@ export class VoicePeerConnection {
     }
 
     this.pc.ontrack = (ev) => {
-      const stream = ev.streams[0] ?? new MediaStream([ev.track])
+      let stream = ev.streams[0]
+      if (!stream) {
+        if (!this.remoteStream) this.remoteStream = new MediaStream()
+        stream = this.remoteStream
+        if (!stream.getTracks().includes(ev.track)) {
+          stream.addTrack(ev.track)
+        }
+      } else {
+        this.remoteStream = stream
+      }
       this.remoteAudio.srcObject = stream
+      ev.track.onunmute = () => this.tryPlayRemote()
       this.tryPlayRemote()
       this.callbacks.onRemoteTrack?.(stream)
     }
@@ -66,26 +82,44 @@ export class VoicePeerConnection {
   }
 
   attachLocalTrack(track: MediaStreamTrack, stream: MediaStream): void {
-    const senders = this.pc.getSenders().filter((s) => s.track?.kind === 'audio')
-    if (senders[0]?.track?.id === track.id) return
-    if (senders[0]) {
-      void senders[0].replaceTrack(track)
-    } else {
-      this.pc.addTrack(track, stream)
+    const sender = this.pc.getSenders().find((s) => s.track?.kind === 'audio')
+    if (sender?.track?.id === track.id) return
+    if (sender) {
+      void sender.replaceTrack(track)
+      return
     }
+
+    if (this.pc.remoteDescription) {
+      const negotiated = this.pc.getTransceivers().find((t) => t.mid != null)
+      if (negotiated) {
+        void negotiated.sender.replaceTrack(track)
+        if (negotiated.direction === 'recvonly' || negotiated.direction === 'inactive') {
+          negotiated.direction = 'sendrecv'
+        }
+        return
+      }
+    }
+
+    this.pc.addTrack(track, stream)
   }
 
   async createOffer(): Promise<RTCSessionDescriptionInit | null> {
-    const offer = await this.pc.createOffer({ offerToReceiveAudio: true })
+    const offer = await this.pc.createOffer()
     await this.pc.setLocalDescription(offer)
     return toSessionDescription(this.pc.localDescription)
   }
 
-  async handleOffer(sdp: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit | null> {
+  async handleOffer(
+    sdp: RTCSessionDescriptionInit,
+    local?: LocalAudioRef,
+  ): Promise<RTCSessionDescriptionInit | null> {
     const desc = toSessionDescription(sdp)
     if (!desc) return null
     await this.pc.setRemoteDescription(desc)
     await this.flushPendingCandidates()
+    if (local) {
+      this.attachLocalTrack(local.track, local.stream)
+    }
     const answer = await this.pc.createAnswer()
     await this.pc.setLocalDescription(answer)
     return toSessionDescription(this.pc.localDescription)
@@ -135,6 +169,7 @@ export class VoicePeerConnection {
 
   close(): void {
     this.pendingCandidates = []
+    this.remoteStream = null
     this.pc.close()
     this.remoteAudio.srcObject = null
     this.remoteAudio.remove()

@@ -29,6 +29,8 @@ interface User {
   }
   avatarUrl?: string | null
   isOnline?: boolean
+  /** ISO — dernière déconnexion (null si en ligne ou inconnu). */
+  lastSeenAt?: string | null
   friendshipCreatedAt?: string
   currentActivity?: string
   playerStats?: {

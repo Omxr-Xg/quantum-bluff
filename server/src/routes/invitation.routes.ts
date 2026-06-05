@@ -1052,6 +1052,10 @@ router.get('/:userId', async (req, res) => {
           avatarUrl: clientAvatarUrlFromUser(friend),
           friendshipCreatedAt: friendship.createdAt,
           isOnline: presence?.online ?? false,
+          lastSeenAt:
+            presence?.online || !presence?.lastSeenAt
+              ? null
+              : new Date(presence.lastSeenAt).toISOString(),
           currentActivity:
             normalizeFriendActivity(liveActivity) ||
             activityByUserId.get(fid) ||

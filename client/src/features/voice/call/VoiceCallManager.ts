@@ -26,6 +26,8 @@ export class VoiceCallManager {
   private remoteUserId: string | null = null
   private negotiationId: string | null = null
   private negotiationTimer: ReturnType<typeof setTimeout> | null = null
+  /** Offer/answer reçus avant que le RTCPeerConnection soit prêt. */
+  private pendingSignals: CallSignalPayload[] = []
 
   constructor(myUserId: string, socket: Socket, callbacks: VoiceCallManagerCallbacks = {}) {
     this.myUserId = myUserId
@@ -82,28 +84,25 @@ export class VoiceCallManager {
   }
 
   async handleSignal(payload: CallSignalPayload): Promise<void> {
-    if (!this.matchesSession(payload)) return
-    if (this.state !== CallState.NEGOTIATING && this.state !== CallState.ACCEPTED) return
+    if (!this.canReceiveSignals()) return
 
-    const { signal } = payload
-    if (!this.pc) return
-
-    if (signal.type === 'offer') {
-      if (this.callerId === this.myUserId) return
-      const answer = await this.pc.handleOffer(signal.sdp ?? { type: 'offer', sdp: '' })
-      if (answer) {
-        this.emitSignal('answer', answer)
-      }
-    } else if (signal.type === 'answer') {
-      if (this.callerId !== this.myUserId) return
-      await this.pc.handleAnswer(signal.sdp ?? { type: 'answer', sdp: '' })
-    } else if (signal.type === 'ice' && signal.candidate) {
-      await this.pc.addIceCandidate(signal.candidate)
+    const sessionReady = Boolean(this.negotiationId && this.callId && this.channelId)
+    if (!sessionReady || !this.matchesSession(payload)) {
+      if (sessionReady) return
+      this.pendingSignals.push(payload)
+      return
     }
+
+    if (!this.pc) {
+      this.pendingSignals.push(payload)
+      return
+    }
+    await this.processSignal(payload)
   }
 
   teardown(): void {
     this.clearNegotiationTimer()
+    this.pendingSignals = []
     this.pc?.close()
     this.pc = null
     this.media.destroy()
@@ -149,30 +148,82 @@ export class VoiceCallManager {
       return
     }
 
+    const isCaller = this.callerId === this.myUserId
+
     this.pc = new VoicePeerConnection({
       onIceCandidate: (candidate) => this.emitSignal('ice', undefined, candidate),
       onConnectionState: (connState) => {
         if (connState === 'connected') {
-          this.clearNegotiationTimer()
-          this.transition(CallState.CONNECTED)
-          this.callbacks.onConnected?.()
+          this.markConnected()
         } else if (connState === 'failed') {
           this.failNegotiation('ice_failed')
         }
       },
       onIceConnectionState: (iceState) => {
-        if (iceState === 'failed') {
+        if (iceState === 'connected' || iceState === 'completed') {
+          this.markConnected()
+        } else if (iceState === 'failed') {
           console.warn('[voice-call] ICE failed — vérifier VITE_ICE_SERVERS (TURN) sur Vercel.')
         }
       },
     })
 
-    this.pc.attachLocalTrack(track, stream)
+    // Appelant : attacher le micro avant l’offer. Callee : attacher après setRemoteDescription (dans handleOffer).
+    if (isCaller) {
+      this.pc.attachLocalTrack(track, stream)
+    }
 
-    if (this.callerId === this.myUserId) {
+    await this.flushPendingSignals()
+
+    if (isCaller) {
       const offer = await this.pc.createOffer()
       if (offer) this.emitSignal('offer', offer)
+      await this.flushPendingSignals()
     }
+  }
+
+  private getLocalAudio(): { track: MediaStreamTrack; stream: MediaStream } | undefined {
+    const stream = this.media.getLocalStream()
+    const track = stream?.getAudioTracks().find((t) => t.readyState === 'live')
+    if (!stream || !track) return undefined
+    return { track, stream }
+  }
+
+  private async processSignal(payload: CallSignalPayload): Promise<void> {
+    if (!this.pc) return
+    const { signal } = payload
+    if (signal.type === 'offer') {
+      if (this.callerId === this.myUserId) return
+      const answer = await this.pc.handleOffer(
+        signal.sdp ?? { type: 'offer', sdp: '' },
+        this.getLocalAudio(),
+      )
+      if (answer) {
+        this.emitSignal('answer', answer)
+      }
+    } else if (signal.type === 'answer') {
+      if (this.callerId !== this.myUserId) return
+      await this.pc.handleAnswer(signal.sdp ?? { type: 'answer', sdp: '' })
+    } else if (signal.type === 'ice' && signal.candidate) {
+      await this.pc.addIceCandidate(signal.candidate)
+    }
+  }
+
+  private async flushPendingSignals(): Promise<void> {
+    if (!this.pc || this.pendingSignals.length === 0) return
+    const queue = [...this.pendingSignals]
+    this.pendingSignals = []
+    for (const payload of queue) {
+      if (!this.matchesSession(payload)) continue
+      await this.processSignal(payload)
+    }
+  }
+
+  private markConnected(): void {
+    if (this.state !== CallState.NEGOTIATING) return
+    this.clearNegotiationTimer()
+    this.transition(CallState.CONNECTED)
+    this.callbacks.onConnected?.()
   }
 
   private emitSignal(
@@ -190,6 +241,15 @@ export class VoiceCallManager {
       sdp,
       candidate,
     })
+  }
+
+  private canReceiveSignals(): boolean {
+    return (
+      this.state === CallState.INCOMING ||
+      this.state === CallState.OUTGOING ||
+      this.state === CallState.ACCEPTED ||
+      this.state === CallState.NEGOTIATING
+    )
   }
 
   private matchesSession(payload: CallSignalPayload): boolean {

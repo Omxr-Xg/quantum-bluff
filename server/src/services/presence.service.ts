@@ -5,6 +5,9 @@ import { withRedisFeature } from '../observability/redisInstrumentation.js'
 
 const KEY_PREFIX = 'quantum:presence:user:'
 const ACTIVITY_PREFIX = 'quantum:presence:activity:'
+const LAST_SEEN_PREFIX = 'quantum:presence:lastseen:'
+/** Conservé 90 jours après déconnexion. */
+const LAST_SEEN_TTL_SEC = 90 * 24 * 3600
 /** TTL Redis sur l’ensemble des sockets d’un user (rafraîchi à chaque connexion). */
 const PRESENCE_TTL_SEC = Math.max(
   60,
@@ -13,6 +16,7 @@ const PRESENCE_TTL_SEC = Math.max(
 
 const memorySockets = new Map<string, Set<string>>()
 const memoryActivity = new Map<string, string>()
+const memoryLastSeen = new Map<string, number>()
 
 function memKey(userId: string) {
   return userId
@@ -30,6 +34,8 @@ function activityInMemory(userId: string): string | null {
 export type PresenceSnapshot = {
   online: boolean
   activity: string | null
+  /** Horodatage ms de la dernière déconnexion (null si jamais vu / en ligne). */
+  lastSeenAt: number | null
 }
 
 /**
@@ -45,6 +51,7 @@ export async function getPresenceBatch(userIds: string[]): Promise<Map<string, P
     out.set(uid, {
       online: isOnlineInMemory(uid),
       activity: activityInMemory(uid),
+      lastSeenAt: memoryLastSeen.get(memKey(uid)) ?? null,
     })
   }
 
@@ -52,13 +59,15 @@ export async function getPresenceBatch(userIds: string[]): Promise<Map<string, P
 
   const needRedisOnline: string[] = []
   const needRedisActivity: string[] = []
+  const needRedisLastSeen: string[] = []
   for (const uid of unique) {
     const row = out.get(uid)!
     if (!row.online) needRedisOnline.push(uid)
     if (!row.activity) needRedisActivity.push(uid)
+    if (!row.lastSeenAt) needRedisLastSeen.push(uid)
   }
 
-  if (needRedisOnline.length === 0 && needRedisActivity.length === 0) {
+  if (needRedisOnline.length === 0 && needRedisActivity.length === 0 && needRedisLastSeen.length === 0) {
     return out
   }
 
@@ -70,6 +79,9 @@ export async function getPresenceBatch(userIds: string[]): Promise<Map<string, P
       }
       for (const uid of needRedisActivity) {
         pipeline.get(`${ACTIVITY_PREFIX}${uid}`)
+      }
+      for (const uid of needRedisLastSeen) {
+        pipeline.get(`${LAST_SEEN_PREFIX}${uid}`)
       }
       const results = await pipeline.exec()
       if (!results) return
@@ -87,6 +99,16 @@ export async function getPresenceBatch(userIds: string[]): Promise<Map<string, P
         idx += 1
         if (!err && typeof activity === 'string' && activity) {
           out.get(uid)!.activity = activity
+        }
+      }
+      for (const uid of needRedisLastSeen) {
+        const [err, raw] = results[idx] ?? []
+        idx += 1
+        if (!err && typeof raw === 'string' && raw) {
+          const ms = Number.parseInt(raw, 10)
+          if (Number.isFinite(ms) && ms > 0) {
+            out.get(uid)!.lastSeenAt = ms
+          }
         }
       }
     })
@@ -129,14 +151,47 @@ export async function markUserOnline(userId: string, socketId: string): Promise<
   }
 }
 
+async function persistLastSeen(userId: string, atMs: number): Promise<void> {
+  memoryLastSeen.set(memKey(userId), atMs)
+  if (env.isJest) return
+  try {
+    await withRedisFeature('presence', async () => {
+      await redisClient.set(`${LAST_SEEN_PREFIX}${userId}`, String(atMs), 'EX', LAST_SEEN_TTL_SEC)
+    })
+  } catch {
+    /* mémoire locale suffit en dev */
+  }
+}
+
+export async function getUserLastSeenAt(userId: string): Promise<number | null> {
+  const local = memoryLastSeen.get(memKey(userId))
+  if (local) return local
+  if (env.isJest) return null
+  try {
+    const raw = await withRedisFeature('presence', async () =>
+      redisClient.get(`${LAST_SEEN_PREFIX}${userId}`),
+    )
+    if (!raw) return null
+    const ms = Number.parseInt(raw, 10)
+    return Number.isFinite(ms) && ms > 0 ? ms : null
+  } catch {
+    return memoryLastSeen.get(memKey(userId)) ?? null
+  }
+}
+
 export async function markUserOffline(userId: string, socketId: string): Promise<void> {
   const set = memorySockets.get(memKey(userId))
+  let becameOffline = false
   if (set) {
     set.delete(socketId)
     if (set.size === 0) {
       memorySockets.delete(memKey(userId))
       memoryActivity.delete(memKey(userId))
+      becameOffline = true
     }
+  }
+  if (becameOffline) {
+    await persistLastSeen(userId, Date.now())
   }
 
   if (env.isJest) {
@@ -151,6 +206,7 @@ export async function markUserOffline(userId: string, socketId: string): Promise
       if (n === 0) {
         await redisClient.del(key)
         await redisClient.del(`${ACTIVITY_PREFIX}${userId}`)
+        await persistLastSeen(userId, Date.now())
       }
     })
   } catch (err) {
