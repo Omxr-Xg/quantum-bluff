@@ -748,8 +748,10 @@ router.post('/validate-topup-promo', authMiddleware, async (req, res) => {
 
 // POST /api/auth/add-dev-money - Ajoute des jetons (validation "dev" côté serveur, pas de confiance client)
 router.post('/add-dev-money', authMiddleware, async (req, res) => {
+  const promoRaw = typeof req.body?.promoCode === 'string' ? req.body.promoCode : ''
+  const promoFreeTopup = isFreeTopupPromoCode(promoRaw)
   const allowInProduction = String(process.env.ALLOW_DEV_TOPUP ?? '').toLowerCase() === 'true'
-  if (process.env.NODE_ENV === 'production' && !allowInProduction) {
+  if (process.env.NODE_ENV === 'production' && !allowInProduction && !promoFreeTopup) {
     return res.status(403).json({ error: "Bien essayé !  L'ajout d'argent gratuit est désactivé en production." })
   }
 
@@ -758,7 +760,6 @@ router.post('/add-dev-money', authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
     const secret = typeof req.body?.secret === 'string' ? req.body.secret.trim().toLowerCase() : ''
     if (secret !== 'dev') return res.status(403).json({ error: 'Validation requise' })
-    const promoRaw = typeof req.body?.promoCode === 'string' ? req.body.promoCode : ''
 
     const before = await prisma.user.findUnique({
       where: { id: userId },
@@ -770,7 +771,7 @@ router.post('/add-dev-money', authMiddleware, async (req, res) => {
     const amount = Math.min(999999, Math.max(1, Math.floor(Number(rawAmount))))
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Montant invalide' })
 
-    if (isFreeTopupPromoCode(promoRaw)) {
+    if (promoFreeTopup) {
       const user = await prisma.user.update({
         where: { id: userId },
         data: { chips: { increment: amount } },
@@ -788,6 +789,10 @@ router.post('/add-dev-money', authMiddleware, async (req, res) => {
         },
       })
       return res.json({ ok: true, chips: user.chips, freeCheckout: true })
+    }
+
+    if (process.env.NODE_ENV === 'production' && !allowInProduction) {
+      return res.status(403).json({ error: "Bien essayé !  L'ajout d'argent gratuit est désactivé en production." })
     }
 
     const user = await prisma.user.update({

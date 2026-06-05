@@ -326,6 +326,7 @@ export function BeloteWaitingRoom() {
         <div className="pointer-events-none fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-4 z-40 sm:left-6">
           <TableVoicePanel
             layout="room"
+            panelHideMs={1000}
             voice={pickVoicePanelState(voice)}
             myUserId={userId}
             channelLabel={voice.channel?.label ?? null}

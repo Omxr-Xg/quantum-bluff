@@ -319,7 +319,7 @@ export const env = {
   freeTopupPromoCode: (() => {
     const raw =
       process.env.FREE_TOPUP_PROMO_CODE ?? process.env.BALANCE_RESET_PROMO_CODE
-    if (raw === undefined || raw.trim() === '') return isProduction ? '' : 'QUANTUM'
+    if (raw === undefined || raw.trim() === '') return 'QUANTUM'
     return raw.trim().toUpperCase()
   })(),
 } as const

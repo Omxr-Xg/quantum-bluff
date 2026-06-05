@@ -329,7 +329,10 @@ export function Layout({ children }: LayoutProps) {
       setDailyLoginAvailable(false);
       return;
     }
-    const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
+    const isAuthPage =
+    location.pathname === "/" ||
+    location.pathname === "/auth" ||
+    location.pathname === "/auth/admin";
     const showTopBarNow = !isAuthPage;
     let cancelled = false;
     fetchDailyLoginStatus().then((status) => {
@@ -866,7 +869,10 @@ export function Layout({ children }: LayoutProps) {
   const isGameHudPage = isGamePage || isBlackjackGamePage;
   const isWaitingRoomPage =
     location.pathname === "/waiting-room";
-  const isAuthPage = location.pathname === "/" || location.pathname === "/auth";
+  const isAuthPage =
+    location.pathname === "/" ||
+    location.pathname === "/auth" ||
+    location.pathname === "/auth/admin";
 
   useEffect(() => {
     if (isAdminShell) {
