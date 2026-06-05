@@ -17,7 +17,11 @@ export const LOAN_MIN_AMOUNT = 100
 export const LOAN_MAX_AMOUNT = 1_000_000
 export const LOAN_REQUEST_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
-export type WalletPayoutReason = 'SLOT_PAYOUT' | 'ROULETTE_PAYOUT' | 'BLACKJACK_PAYOUT'
+export type WalletPayoutReason =
+  | 'SLOT_PAYOUT'
+  | 'ROULETTE_PAYOUT'
+  | 'BLACKJACK_PAYOUT'
+  | 'CRASH_PAYOUT'
 
 export type RepaymentSocketPayload = {
   loanId: string
