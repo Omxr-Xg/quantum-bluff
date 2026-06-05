@@ -51,6 +51,8 @@ const QUICK_GAMES: QuickGameCard[] = [
     mesh: "bg-[radial-gradient(ellipse_80%_70%_at_80%_15%,rgba(16,185,129,0.22),transparent_55%),radial-gradient(ellipse_70%_60%_at_10%_90%,rgba(20,184,166,0.14),transparent_50%),linear-gradient(165deg,#041210_0%,#061816_48%,#030a09_100%)]",
     pattern:
       "bg-[radial-gradient(circle_at_1px_1px,rgba(52,211,153,0.14)_1px,transparent_0)] bg-[size:24px_24px]",
+    href: "/minigames/mines",
+    badgeKey: "minigames.quickSoloNew",
   },
 ];
 

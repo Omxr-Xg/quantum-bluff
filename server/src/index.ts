@@ -31,6 +31,7 @@ import updatesRouter from './routes/updates.routes.js'
 import slotRoutes from './routes/slot.routes.js'
 import rouletteRoutes from './routes/roulette.routes.js'
 import crashRoutes from './routes/crash.routes.js'
+import minesRoutes from './routes/mines.routes.js'
 import blackjackRoutes from './routes/blackjack.routes.js'
 import blackjackMultiRoutes from './routes/blackjackMulti.routes.js'
 import beloteRoomRoutes from './routes/beloteRoom.routes.js'
@@ -255,6 +256,7 @@ app.use('/api/bot', botApiLimiter, botRoutes)
 app.use('/api/slot', slotApiLimiter, slotRoutes)
 app.use('/api/roulette', rouletteApiLimiter, rouletteRoutes)
 app.use('/api/crash', slotApiLimiter, crashRoutes)
+app.use('/api/mines', slotApiLimiter, minesRoutes)
 app.use('/api/blackjack', blackjackApiLimiter, blackjackRoutes)
 app.use('/api/hidden-bets', hiddenBetsApiLimiter, hiddenBetsRoutes)
 app.use('/api/feedback', feedbackRoutes)

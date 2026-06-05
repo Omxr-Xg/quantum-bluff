@@ -413,6 +413,7 @@ export function Layout({ children }: LayoutProps) {
     else if (path.startsWith("/blackjack/lobby")) activity = "Salon blackjack";
     else if (path === "/blackjack") activity = "Blackjack";
     else if (path === "/minigames/crash") activity = "Crash";
+    else if (path === "/minigames/mines") activity = "Mines";
     else if (path === "/minigames/quick-solo") activity = "Jeux rapides solo";
     else if (path === "/minigames" && minigame === "slots") activity = "Machine à sous";
     else if (path === "/minigames") activity = "Roulette";

@@ -13,6 +13,8 @@ type WalletLedgerReason =
   | 'SLOT_PAYOUT'
   | 'CRASH_STAKE'
   | 'CRASH_PAYOUT'
+  | 'MINES_STAKE'
+  | 'MINES_PAYOUT'
   | 'BLACKJACK_STAKE'
   | 'BLACKJACK_PAYOUT'
   | 'HIDDEN_BET_STAKE'
