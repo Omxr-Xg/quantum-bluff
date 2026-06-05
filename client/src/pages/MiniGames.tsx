@@ -24,8 +24,8 @@ export function MiniGames() {
     }
   }, [isValidGame, navigate]);
 
-  const backToLobbyMinigames = useCallback(() => {
-    navigate("/lobby?tab=minigames");
+  const backToRetroCasino = useCallback(() => {
+    navigate("/minigames/retro-casino");
   }, [navigate]);
 
   useEffect(() => {
@@ -104,14 +104,14 @@ export function MiniGames() {
       )}
 
       {game === "roulette" && (
-        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden bg-[#140a08]">
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
             className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
           >
-            <Roulette backToMinigamesHub onBackToMinigamesHub={backToLobbyMinigames} />
+            <Roulette retroCasino backToMinigamesHub onBackToMinigamesHub={backToRetroCasino} />
           </motion.div>
         </div>
       )}

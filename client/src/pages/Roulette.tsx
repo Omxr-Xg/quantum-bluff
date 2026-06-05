@@ -666,13 +666,20 @@ function RouletteWheelSvg({
 }
 
 type RouletteProps = {
-  /** Dans `/minigames`, le retour mène au lobby (onglet mini-jeux) au lieu du lobby seul. */
+  /** Hub jeux casino rétro : fond bordeaux/or et navigation vers le salon vintage. */
+  retroCasino?: boolean;
+  /** Dans `/minigames`, le retour mène au hub mini-jeux au lieu du lobby seul. */
   backToMinigamesHub?: boolean;
   onBackToMinigamesHub?: () => void;
   tutorialMode?: boolean;
 };
 
-export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tutorialMode = false }: RouletteProps = {}) {
+export function Roulette({
+  retroCasino = false,
+  backToMinigamesHub = false,
+  onBackToMinigamesHub,
+  tutorialMode = false,
+}: RouletteProps = {}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -1185,47 +1192,107 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tut
     );
   };
 
+  const isRetro = retroCasino;
+  const retroPanel =
+    "rounded-sm border-2 border-amber-800/35 bg-[#1a100c]/75 shadow-[inset_0_1px_0_rgba(251,191,36,0.06),0_22px_60px_rgba(0,0,0,0.35)]";
+  const modernPanel =
+    "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.24)] backdrop-blur-xl";
+
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#020716] text-slate-100">
+    <div
+      className={`relative flex h-full min-h-0 flex-1 flex-col overflow-hidden ${
+        isRetro ? "bg-[#140a08] text-amber-50" : "bg-[#020716] text-slate-100"
+      }`}
+    >
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.22),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_42%,rgba(245,158,11,0.08),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
-        <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/36 blur-[120px]" />
-        <div className="absolute -right-20 top-1/4 h-72 w-72 rounded-full bg-emerald-700/10 blur-[90px]" />
-        <div className="absolute -left-16 bottom-0 h-80 w-80 rounded-full bg-amber-700/8 blur-[95px]" />
-        <div
-          className="absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.26) 1px, transparent 0)",
-            backgroundSize: "22px 22px",
-          }}
-        />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.55),transparent_58%)]" />
+        {isRetro ? (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-b from-[#1a100c] via-[#140a08] to-[#0c0604]" />
+            <div className="absolute left-1/2 top-[16%] h-72 w-72 -translate-x-1/2 rounded-full bg-red-700/14 blur-[110px]" />
+            <div className="absolute -right-12 bottom-1/4 h-64 w-64 rounded-full bg-amber-600/10 blur-[95px]" />
+            <div
+              className="absolute inset-0 opacity-[0.09]"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(45deg, rgba(127,29,29,0.32) 0px, rgba(127,29,29,0.32) 1px, transparent 1px, transparent 12px)",
+              }}
+            />
+            <div
+              className="absolute inset-0 opacity-[0.05]"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(0deg, rgba(0,0,0,0.55) 0px, rgba(0,0,0,0.55) 1px, transparent 1px, transparent 3px)",
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.22),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_42%,rgba(245,158,11,0.08),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
+            <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/36 blur-[120px]" />
+            <div className="absolute -right-20 top-1/4 h-72 w-72 rounded-full bg-emerald-700/10 blur-[90px]" />
+            <div className="absolute -left-16 bottom-0 h-80 w-80 rounded-full bg-amber-700/8 blur-[95px]" />
+            <div
+              className="absolute inset-0 opacity-[0.07]"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.26) 1px, transparent 0)",
+                backgroundSize: "22px 22px",
+              }}
+            />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.55),transparent_58%)]" />
+          </>
+        )}
       </div>
 
       <header
         ref={headerRef}
-        className={`relative z-10 flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/55 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-xl md:px-5 ${tutorialHighlightClass("header")}`}
+        className={`relative z-10 flex shrink-0 items-center justify-between gap-2 px-3 py-2.5 md:px-5 ${tutorialHighlightClass("header")} ${
+          isRetro
+            ? "border-b-2 border-amber-800/40 bg-[#1a100c]/90 shadow-[0_4px_24px_rgba(0,0,0,0.4)]"
+            : "border-b border-white/10 bg-slate-950/55 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+        }`}
       >
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-slate-200 shadow-sm transition hover:border-blue-200/25 hover:bg-white/[0.08] hover:text-white"
+          className={
+            isRetro
+              ? "inline-flex items-center gap-2 rounded-sm border-2 border-amber-800/45 bg-stone-950/70 px-3 py-2 text-sm font-bold uppercase tracking-wide text-amber-100 transition hover:border-amber-600/55 hover:bg-amber-950/50"
+              : "inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-slate-200 shadow-sm transition hover:border-blue-200/25 hover:bg-white/[0.08] hover:text-white"
+          }
         >
           <ArrowLeft className="h-4 w-4" />
-          {backToMinigamesHub
-            ? t("minigames.backToLobbyMinigamesTab")
-            : t("roulette.back")}
+          {isRetro
+            ? t("minigames.retroCasinoBack")
+            : backToMinigamesHub
+              ? t("minigames.backToLobbyMinigamesTab")
+              : t("roulette.back")}
         </button>
-        <h1 className="flex min-w-0 flex-1 items-center justify-center rounded-full border border-amber-200/16 bg-slate-950/45 px-2 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_rgba(245,158,11,0.06)] sm:px-4">
-          <span className="truncate bg-gradient-to-r from-slate-50 via-blue-100 to-amber-200 bg-clip-text text-base font-black tracking-[0.08em] text-transparent sm:text-lg sm:tracking-[0.12em] md:text-2xl">
+        <h1
+          className={
+            isRetro
+              ? "flex min-w-0 flex-1 items-center justify-center sm:px-4"
+              : "flex min-w-0 flex-1 items-center justify-center rounded-full border border-amber-200/16 bg-slate-950/45 px-2 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_rgba(245,158,11,0.06)] sm:px-4"
+          }
+        >
+          <span
+            className={`truncate bg-clip-text font-black text-transparent ${
+              isRetro
+                ? "bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 font-serif text-base uppercase tracking-[0.2em] sm:text-lg md:text-xl"
+                : "bg-gradient-to-r from-slate-50 via-blue-100 to-amber-200 text-base tracking-[0.08em] sm:text-lg sm:tracking-[0.12em] md:text-2xl"
+            }`}
+          >
             {t("roulette.title")}
           </span>
         </h1>
         <div className="flex min-w-0 max-w-[45%] shrink-0 items-center justify-end gap-1.5 md:max-w-none">
         <div
           ref={balanceRef}
-          className={`flex min-w-0 shrink-0 items-center justify-end gap-1.5 rounded-full border border-amber-300/15 bg-slate-950/55 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-100 md:text-base ${tutorialHighlightClass("balance")}`}
+          className={`flex min-w-0 shrink-0 items-center justify-end gap-1.5 px-3 py-1.5 text-sm font-bold tabular-nums md:text-base ${tutorialHighlightClass("balance")} ${
+            isRetro
+              ? "rounded-sm border-2 border-amber-700/40 bg-stone-950/75 text-amber-200"
+              : "rounded-full border border-amber-300/15 bg-slate-950/55 text-amber-100"
+          }`}
         >
           {chips !== null ? (
             <>
@@ -1240,7 +1307,11 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tut
       </header>
 
       <CustomScrollArea className="relative z-10 min-h-0 flex-1" contentClassName="overflow-x-hidden p-2 pb-24 sm:p-3 md:p-5 md:pb-8">
-        <p className="mx-auto mb-4 max-w-lg text-center text-[10px] leading-relaxed text-slate-400 sm:mb-5 sm:text-xs md:text-sm">
+        <p
+          className={`mx-auto mb-4 max-w-lg text-center text-[10px] leading-relaxed sm:mb-5 sm:text-xs md:text-sm ${
+            isRetro ? "text-amber-100/65" : "text-slate-400"
+          }`}
+        >
           {t("roulette.subtitle")}
         </p>
 
@@ -1249,9 +1320,13 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tut
           <div className="flex w-full min-h-0 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-[clamp(0.75rem,2vw,1.25rem)] xl:gap-5">
             <div className="order-2 flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:order-1 lg:flex-row lg:items-stretch lg:gap-[clamp(0.75rem,2vw,1.25rem)] xl:gap-5">
             <aside className="order-1 w-full shrink-0 lg:order-2 lg:w-[clamp(6.25rem,11vw,8.5rem)] lg:max-w-[clamp(6.25rem,11vw,8.5rem)]">
-              <div className="flex h-full min-h-0 flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.24)] backdrop-blur-xl lg:py-4">
-                <div className="border-b border-slate-600/60 pb-2">
-                  <h2 className="text-center text-xs font-semibold uppercase tracking-wide text-slate-100 lg:text-[11px]">
+              <div className={`flex h-full min-h-0 flex-col gap-3 p-3 lg:py-4 ${isRetro ? retroPanel : modernPanel}`}>
+                <div className={`border-b pb-2 ${isRetro ? "border-amber-900/45" : "border-slate-600/60"}`}>
+                  <h2
+                    className={`text-center text-xs font-semibold uppercase tracking-wide lg:text-[11px] ${
+                      isRetro ? "text-amber-200" : "text-slate-100"
+                    }`}
+                  >
                     {t("roulette.tabChips")}
                   </h2>
                 </div>
@@ -1317,11 +1392,18 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tut
 
             <div className="order-2 min-w-0 flex-1 lg:order-1">
             <div
-              className="rounded-2xl border border-amber-200/16 bg-slate-900/58 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_22px_60px_rgba(0,0,0,0.26)] backdrop-blur-xl sm:p-2 md:p-4"
-              style={{
-                background:
-                  "radial-gradient(ellipse 85% 55% at 25% 15%, rgba(16,185,129,0.12) 0%, transparent 55%), radial-gradient(ellipse 100% 80% at 50% 100%, rgba(15,23,42,0.95) 0%, rgba(22,101,52,0.35) 55%, rgba(15,23,42,0.9) 100%), linear-gradient(180deg, rgb(15 23 42 / 0.9) 0%, rgb(15 118 110 / 0.15) 50%, rgb(15 23 42) 100%)",
-              }}
+              className={`p-1.5 sm:p-2 md:p-4 ${isRetro ? "rounded-sm border-2 border-amber-800/35 bg-[#1a100c]/70 shadow-[inset_0_1px_0_rgba(251,191,36,0.05),0_22px_60px_rgba(0,0,0,0.32)]" : "rounded-2xl border border-amber-200/16 bg-slate-900/58 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_22px_60px_rgba(0,0,0,0.26)] backdrop-blur-xl"}`}
+              style={
+                isRetro
+                  ? {
+                      background:
+                        "radial-gradient(ellipse 85% 55% at 25% 15%, rgba(220,38,38,0.12) 0%, transparent 55%), radial-gradient(ellipse 100% 80% at 50% 100%, rgba(26,16,12,0.95) 0%, rgba(127,29,29,0.22) 55%, rgba(20,10,8,0.92) 100%), linear-gradient(180deg, rgb(26 16 12 / 0.92) 0%, rgb(127 29 29 / 0.1) 50%, rgb(20 10 8) 100%)",
+                    }
+                  : {
+                      background:
+                        "radial-gradient(ellipse 85% 55% at 25% 15%, rgba(16,185,129,0.12) 0%, transparent 55%), radial-gradient(ellipse 100% 80% at 50% 100%, rgba(15,23,42,0.95) 0%, rgba(22,101,52,0.35) 55%, rgba(15,23,42,0.9) 100%), linear-gradient(180deg, rgb(15 23 42 / 0.9) 0%, rgb(15 118 110 / 0.15) 50%, rgb(15 23 42) 100%)",
+                    }
+              }
             >
               <div
                 ref={controlsRef}
@@ -1636,7 +1718,11 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tut
               type="button"
               disabled={bettingDisabled || bets.size === 0}
               onClick={() => void spin()}
-              className={`w-full rounded-full border border-amber-300/35 bg-amber-400/16 py-4 text-lg font-black tracking-[0.08em] text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_14px_34px_rgba(0,0,0,0.34),0_0_24px_rgba(245,158,11,0.10)] transition hover:border-amber-200/55 hover:bg-amber-400/24 hover:text-amber-50 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500 disabled:shadow-none ${tutorialHighlightClass("spin")}`}
+              className={`w-full py-4 text-lg font-black uppercase tracking-[0.1em] transition disabled:cursor-not-allowed disabled:opacity-45 ${tutorialHighlightClass("spin")} ${
+                isRetro
+                  ? "rounded-sm border-2 border-amber-400/55 bg-gradient-to-r from-red-700 via-orange-600 to-amber-500 font-serif text-white shadow-[0_0_34px_rgba(220,38,38,0.32)] hover:from-red-600 hover:via-orange-500 hover:to-amber-400"
+                  : "rounded-full border border-amber-300/35 bg-amber-400/16 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_14px_34px_rgba(0,0,0,0.34),0_0_24px_rgba(245,158,11,0.10)] hover:border-amber-200/55 hover:bg-amber-400/24 hover:text-amber-50 disabled:border-white/10 disabled:bg-slate-800/60 disabled:text-slate-500 disabled:shadow-none"
+              }`}
             >
               {spinning ? t("roulette.spinning") : t("roulette.spin")}
             </button>
@@ -1645,14 +1731,18 @@ export function Roulette({ backToMinigamesHub = false, onBackToMinigamesHub, tut
 
             <div
               ref={wheelSectionRef}
-              className="order-1 flex w-full shrink-0 flex-col items-center rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl scroll-mt-3 sm:p-4 md:scroll-mt-4 lg:order-2 lg:w-[min(100%,clamp(17rem,min(48vw,88vmin),36rem))] lg:max-w-[min(100%,clamp(17rem,min(48vw,88vmin),36rem))] lg:flex-none xl:p-5"
+              className={`order-1 flex w-full shrink-0 flex-col items-center scroll-mt-3 p-3 sm:p-4 md:scroll-mt-4 lg:order-2 lg:w-[min(100%,clamp(17rem,min(48vw,88vmin),36rem))] lg:max-w-[min(100%,clamp(17rem,min(48vw,88vmin),36rem))] lg:flex-none xl:p-5 ${isRetro ? retroPanel : `${modernPanel} shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)]`}`}
             >
               <div ref={wheelVisualRef} className={`w-full ${tutorialHighlightClass("wheel", "soft")}`}>
                 <RouletteWheelSvg wheelOrder={wheelOrder} rotation={rotation} ballOrbit={ballOrbit} />
               </div>
               <div
                 ref={resultRef}
-                className={`mt-4 min-h-[2.75rem] w-full max-w-xs rounded-lg border border-slate-600 bg-slate-900/60 px-4 py-2 text-center text-sm text-slate-200 ${tutorialHighlightClass("result")}`}
+                className={`mt-4 min-h-[2.75rem] w-full max-w-xs rounded-sm border px-4 py-2 text-center text-sm ${tutorialHighlightClass("result")} ${
+                  isRetro
+                    ? "border-amber-800/35 bg-[#12060c]/85 text-amber-100"
+                    : "rounded-lg border-slate-600 bg-slate-900/60 text-slate-200"
+                }`}
               >
                 {lastResult !== null ? (
                   <span>
