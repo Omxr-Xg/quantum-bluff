@@ -264,7 +264,7 @@ export function Layout({ children }: LayoutProps) {
       const blackjackMultiInLobby =
         location.pathname === "/lobby" && location.search.includes("tab=blackjack");
       const authoritative =
-        location.pathname === "/minigames" ||
+        location.pathname.startsWith("/minigames") ||
         location.pathname === "/blackjack" ||
         location.pathname.startsWith("/blackjack/lobby") ||
         location.pathname.startsWith("/blackjack/table") ||
@@ -376,7 +376,7 @@ export function Layout({ children }: LayoutProps) {
     const onFocus = () => {
       if (getAuthItem("token") && !isAdminShell) {
         const authoritative =
-          location.pathname === "/minigames" ||
+          location.pathname.startsWith("/minigames") ||
           location.pathname === "/blackjack" ||
           location.pathname.startsWith("/blackjack/lobby") ||
           location.pathname.startsWith("/blackjack/table") ||
@@ -412,6 +412,7 @@ export function Layout({ children }: LayoutProps) {
     else if (path.startsWith("/blackjack/table")) activity = "Blackjack";
     else if (path.startsWith("/blackjack/lobby")) activity = "Salon blackjack";
     else if (path === "/blackjack") activity = "Blackjack";
+    else if (path === "/minigames/quick-solo") activity = "Jeux rapides solo";
     else if (path === "/minigames" && minigame === "slots") activity = "Machine à sous";
     else if (path === "/minigames") activity = "Roulette";
     else if (path.startsWith("/tournaments")) activity = "Tournoi";
@@ -903,7 +904,7 @@ export function Layout({ children }: LayoutProps) {
   const isLobby = path.includes("lobby") && !path.includes("waiting-room");
   const isBotConfigPage = path.includes("bot-configuration");
   const isCasinoFullBleed =
-    path === "/minigames" ||
+    path.startsWith("/minigames") ||
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table") ||
@@ -916,13 +917,13 @@ export function Layout({ children }: LayoutProps) {
     path.includes("bot-configuration") ||
     path.includes("waiting-room") ||
     path.startsWith("/tutorial/") ||
-    path === "/minigames" ||
+    path.startsWith("/minigames") ||
     path === "/blackjack" ||
     path.startsWith("/blackjack/lobby") ||
     path.startsWith("/blackjack/table");
   /** Sur la roulette le panneau du menu recouvre tout le tapis — pas de hamburger (navigation via l’en-tête de la page). */
   const showHamburgerMenu =
-    showTopBar && isGameConfigOrRoom && !isLobby && path !== "/minigames" && !isBotConfigPage && !isGameHudPage && !isWaitingRoomPage;
+    showTopBar && isGameConfigOrRoom && !isLobby && !path.startsWith("/minigames") && !isBotConfigPage && !isGameHudPage && !isWaitingRoomPage;
   const showLobbyIntegratedBar = showTopBar && isLobby;
   const showFriendsIntegratedBar = showTopBar && path === "/friends";
   const showIntegratedTopBar = showLobbyIntegratedBar || showFriendsIntegratedBar;

@@ -860,7 +860,7 @@ export function Lobby() {
         style={{ opacity: lobbyMainTab === "poker" ? 1 : 0 }}
         aria-hidden
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.24),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_40%,rgba(14,116,144,0.10),transparent_48%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.18),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_40%,rgba(14,116,144,0.08),transparent_48%),linear-gradient(165deg,rgba(2,7,22,0.38)_0%,rgba(6,19,38,0.28)_46%,rgba(2,4,12,0.42)_100%)]" />
         <div className="absolute -top-28 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-950/40 blur-[120px]" />
         <div className="absolute -left-20 top-1/3 h-80 w-80 rounded-full bg-cyan-700/10 blur-[90px]" />
         <div className="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-indigo-950/28 blur-[110px]" />
@@ -872,7 +872,7 @@ export function Lobby() {
             backgroundSize: "22px 22px",
           }}
         />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.08),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.55),transparent_58%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.06),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.22),transparent_58%)]" />
       </div>
 
       {/* Fond Belote — vert */}
@@ -881,7 +881,7 @@ export function Lobby() {
         style={{ opacity: lobbyMainTab === "belote" ? 1 : 0 }}
         aria-hidden
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(6,78,59,0.42),transparent_50%),radial-gradient(ellipse_90%_70%_at_100%_50%,rgba(20,83,45,0.10),transparent_45%),linear-gradient(165deg,#02100c_0%,#031b14_40%,#020807_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(6,78,59,0.28),transparent_50%),radial-gradient(ellipse_90%_70%_at_100%_50%,rgba(20,83,45,0.08),transparent_45%),linear-gradient(165deg,rgba(2,16,12,0.38)_0%,rgba(3,27,20,0.28)_40%,rgba(2,8,7,0.42)_100%)]" />
         <div className="absolute -top-32 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-emerald-800/22 blur-[100px]" />
         <div className="absolute -right-16 top-1/4 h-72 w-72 rounded-full bg-teal-950/28 blur-[90px]" />
         <div className="absolute -bottom-20 left-0 h-96 w-96 rounded-full bg-teal-600/10 blur-[100px]" />
@@ -899,7 +899,7 @@ export function Lobby() {
             background: "conic-gradient(from 0deg, rgba(20,184,166,0.24), transparent 8%, transparent 92%, rgba(5,150,105,0.18))",
           }}
         />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(15,23,42,0.45),transparent_58%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(15,23,42,0.2),transparent_58%)]" />
       </div>
 
       {/* Fond Mini-jeux — orangé */}
@@ -908,7 +908,7 @@ export function Lobby() {
         style={{ opacity: lobbyMainTab === "minigames" ? 1 : 0 }}
         aria-hidden
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(180,83,9,0.28),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_40%,rgba(120,53,15,0.12),transparent_48%),linear-gradient(165deg,#120e06_0%,#1a1208_46%,#0a0804_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(180,83,9,0.2),transparent_52%),radial-gradient(ellipse_80%_60%_at_100%_40%,rgba(120,53,15,0.08),transparent_48%),linear-gradient(165deg,rgba(18,14,6,0.38)_0%,rgba(26,18,8,0.28)_46%,rgba(10,8,4,0.42)_100%)]" />
         <div className="absolute -top-28 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-amber-800/22 blur-[110px]" />
         <div className="absolute -left-20 top-1/3 h-80 w-80 rounded-full bg-orange-900/14 blur-[90px]" />
         <div className="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-amber-950/30 blur-[110px]" />
@@ -928,7 +928,7 @@ export function Lobby() {
         style={{ opacity: lobbyMainTab === "blackjack" ? 1 : 0 }}
         aria-hidden
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_-10%,rgba(190,24,93,0.22),transparent_52%),radial-gradient(ellipse_80%_55%_at_100%_40%,rgba(30,10,24,0.85),transparent_50%),linear-gradient(165deg,#1a0a12_0%,#120810_45%,#080406_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_-10%,rgba(190,24,93,0.16),transparent_52%),radial-gradient(ellipse_80%_55%_at_100%_40%,rgba(30,10,24,0.28),transparent_50%),linear-gradient(165deg,rgba(26,10,18,0.38)_0%,rgba(18,8,16,0.28)_45%,rgba(8,4,6,0.42)_100%)]" />
         <div className="absolute -top-28 left-1/3 h-[34rem] w-[34rem] rounded-full bg-rose-600/14 blur-[110px]" />
         <div className="absolute -right-20 top-1/3 h-80 w-80 rounded-full bg-fuchsia-900/20 blur-[95px]" />
         <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-rose-950/40 blur-[90px]" />
@@ -2017,6 +2017,23 @@ export function Lobby() {
           {lobbyMainTab === "minigames" && (
             <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pr-0.5 scrollbar-hide sm:pr-1">
               <div ref={tourRefMinigames} className="flex w-full flex-col gap-5">
+                <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+                  <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
+                    <Zap className="h-8 w-8 shrink-0 text-cyan-300" strokeWidth={2.2} aria-hidden />
+                    {t("minigames.quickSoloTitle")}
+                  </h2>
+                  <p className="mb-4 text-sm leading-relaxed text-gray-400">
+                    {t("minigames.quickSoloBlurb")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/minigames/quick-solo")}
+                    className="w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80"
+                    aria-label={t("minigames.quickSoloEnter")}
+                  >
+                    {t("minigames.quickSoloEnter")}
+                  </button>
+                </div>
                 <div className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
                 <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
                   <Disc className="h-8 w-8 shrink-0 text-amber-300" strokeWidth={2.2} aria-hidden />

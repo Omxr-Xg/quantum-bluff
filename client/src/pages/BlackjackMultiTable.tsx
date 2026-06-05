@@ -474,18 +474,6 @@ export function BlackjackMultiTable() {
       </div>
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] px-2 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 sm:px-3 sm:pt-3 md:pt-4 lg:px-4">
-      {bjVoiceEnabled && userId ? (
-        <div className="pointer-events-auto absolute bottom-28 right-3 z-40 w-[min(100%,14rem)] sm:right-6">
-          <TableVoicePanel
-            voice={bjVoice}
-            myUserId={userId}
-            channelLabel={bjVoice.channelLabel}
-            tablePlayers={state.seats
-              .filter((s) => s.userId && s.username)
-              .map((s) => ({ userId: s.userId!, username: s.username! }))}
-          />
-        </div>
-      ) : null}
       <BlackjackMultiCasinoTable
         rootClassName="min-h-0 flex-1"
         state={state}
@@ -568,6 +556,22 @@ export function BlackjackMultiTable() {
         )}
       </BlackjackMultiCasinoTable>
       </div>
+
+      {bjVoiceEnabled && userId && gameId ? (
+        <div className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)] right-3 z-[90] md:right-5">
+          <TableVoicePanel
+            layout="room"
+            roomAlign="end"
+            panelHideMs={1000}
+            voice={bjVoice}
+            myUserId={userId}
+            channelLabel={bjVoice.channelLabel}
+            tablePlayers={state.seats
+              .filter((s) => s.userId && s.username)
+              .map((s) => ({ userId: s.userId!, username: s.username! }))}
+          />
+        </div>
+      ) : null}
 
       {showdownPhase === "table_reveal" && (
         <div className="pointer-events-none fixed bottom-6 left-1/2 z-[90] max-w-md -translate-x-1/2 rounded-full border border-amber-500/40 bg-black/75 px-6 py-3 text-center text-sm font-semibold text-amber-100 shadow-lg backdrop-blur-sm">
