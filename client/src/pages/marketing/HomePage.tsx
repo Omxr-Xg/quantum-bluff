@@ -92,7 +92,7 @@ export function HomePage() {
               <img
                 src={game.screenshot}
                 alt=""
-                className="h-44 w-full object-cover opacity-85 sm:h-48"
+                className="h-44 w-full bg-slate-950/80 object-contain p-2 sm:h-52"
               />
               <div className="p-5">
                 <h3 className="text-lg font-bold text-cyan-100">{game.name}</h3>

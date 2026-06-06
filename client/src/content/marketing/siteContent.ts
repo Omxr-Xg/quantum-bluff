@@ -1,8 +1,14 @@
 import bacBg from "../../assets/background/BAC.png";
 import bl1Bg from "../../assets/background/BL1.png";
 import ba1Bg from "../../assets/background/BA1.png";
-import ba2Bg from "../../assets/background/BA2.png";
 import bac2Bg from "../../assets/background/BAC2.png";
+import pokerImg from "../../assets/games/poker.png";
+import blackjackImg from "../../assets/games/blackjack.png";
+import rouletteImg from "../../assets/games/roulette.png";
+import slotImg from "../../assets/games/slot.png";
+import crashImg from "../../assets/games/crash.png";
+import minesImg from "../../assets/games/mines.png";
+import luckyImg from "../../assets/games/lucky.png";
 
 export type MarketingLocale = "fr" | "en";
 
@@ -87,7 +93,7 @@ const fr: SiteContent = {
         name: "Texas Hold'em",
         description:
           "Le poker no-limit par excellence : salles publiques et privées de deux à cinq joueurs, tables bots pour s'entraîner, tournois structurés et mode spectateur. Blinds, buy-in et timers sont gérés par le serveur pour une expérience fluide.",
-        screenshot: bl1Bg,
+        screenshot: pokerImg,
       },
       {
         id: "belote",
@@ -101,42 +107,42 @@ const fr: SiteContent = {
         name: "Blackjack",
         description:
           "Affrontez le croupier en solo ou rejoignez une table multijoueur du salon. Les règles (hit, stand, double) sont appliquées côté serveur ; le tapis et les mises suivent le même ledger de jetons que le reste de la plateforme.",
-        screenshot: bac2Bg,
+        screenshot: blackjackImg,
       },
       {
         id: "roulette",
         name: "Roulette",
         description:
           "Roulette européenne au hub casino rétro : mises intérieures et extérieures, animation vintage et retour fluide vers le salon. Un mode tutoriel guidé est disponible depuis le lobby pour apprendre les types de paris.",
-        screenshot: ba1Bg,
+        screenshot: rouletteImg,
       },
       {
         id: "slots",
         name: "Machine à sous",
         description:
           "Slot machine vintage dans l'univers rétro : symboles classiques, effets néon et tirages validés serveur. Idéal pour une pause rapide entre deux parties de cartes sans quitter l'ambiance casino.",
-        screenshot: ba2Bg,
+        screenshot: slotImg,
       },
       {
         id: "crash",
         name: "Crash",
         description:
           "Montez le multiplicateur et encaissez avant le crash. Chaque round est généré côté API : mise de 10 à 500 jetons, historique portefeuille et animation temps réel synchronisée sur le résultat serveur.",
-        screenshot: ba1Bg,
+        screenshot: crashImg,
       },
       {
         id: "mines",
         name: "Mines",
         description:
           "Grille risque/récompense : révélez des cases sans toucher une mine pour faire grimper le gain. Le tirage est serveur-authoritative ; le client illustre uniquement l'état de la grille et les payouts.",
-        screenshot: bac2Bg,
+        screenshot: minesImg,
       },
       {
         id: "lucky-number",
         name: "Lucky Number",
         description:
           "Pariez sur un chiffre porte-bonheur dans le hub rétro. Tirage instantané, coefficients affichés clairement et API dédiée POST /api/lucky-number/play pour une traçabilité complète des gains.",
-        screenshot: ba2Bg,
+        screenshot: luckyImg,
       },
     ],
     socialTitle: "Fonctionnalités sociales",
