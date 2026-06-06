@@ -1,12 +1,29 @@
 import bacBg from "../../assets/background/BAC.png";
 import bl1Bg from "../../assets/background/BL1.png";
 import ba1Bg from "../../assets/background/BA1.png";
+import ba2Bg from "../../assets/background/BA2.png";
 import bac2Bg from "../../assets/background/BAC2.png";
 
 export type MarketingLocale = "fr" | "en";
 
 export type FaqItem = { q: string; a: string };
 export type ScreenshotItem = { src: string; title: string; caption: string };
+export type GameCard = { id: string; name: string; description: string; screenshot: string };
+export type FeatureCard = { title: string; body: string };
+export type HomeContent = {
+  whatIsTitle: string;
+  whatIs: string[];
+  gamesTitle: string;
+  games: GameCard[];
+  socialTitle: string;
+  social: FeatureCard[];
+  whyTitle: string;
+  why: FeatureCard[];
+  faqTitle: string;
+  faq: FaqItem[];
+  ctaTitle: string;
+  ctaBody: string;
+};
 export type NewsArticle = {
   slug: string;
   title: string;
@@ -18,6 +35,7 @@ export type NewsArticle = {
 };
 
 export type SiteContent = {
+  home: HomeContent;
   discover: {
     metaTitle: string;
     heroTitle: string;
@@ -53,6 +71,182 @@ export type SiteContent = {
 };
 
 const fr: SiteContent = {
+  home: {
+    whatIsTitle: "Qu'est-ce que Quantum Bluff ?",
+    whatIs: [
+      "Quantum Bluff est une plateforme de jeux de cartes et de casino social en ligne, née d'un projet porté par une équipe de huit personnes et soutenu devant un jury universitaire avec félicitations. Depuis le 1er juin 2026, le salon est ouvert au public : plus qu'un exercice académique, c'est un véritable hub de divertissement où poker, Belote, blackjack et mini-jeux casino cohabitent dans une interface premium sombre et responsive.",
+      "La promesse du produit tient en une phrase : chaque victoire commence par un bluff. Le Texas Hold'em multijoueur invite à lire les adversaires et gérer son tapis ; la Belote retrouve l'esprit des parties entre amis ; les jeux solo — Crash, Mines, Lucky Number, roulette rétro ou machine à sous — offrent des sessions express entre deux mains. Tout est relié par un lobby unifié accessible depuis le navigateur ou l'application mobile.",
+      "L'intégrité technique est au cœur de l'architecture : chaque main de poker, chaque tirage de roulette et chaque round de mini-jeu est validé côté serveur avant d'être affiché. Les jetons sont une monnaie virtuelle interne, sans valeur monétaire réelle. Vous en gagnez via la connexion quotidienne, les défis, les parties et les événements communautaires — jamais via un service de jeu d'argent réglementé.",
+      "Quantum Bluff se distingue par sa couche sociale native : amis, messagerie, invitations en salle d'attente, appels vocaux un-à-un et appels de groupe WebRTC, présence en temps réel et classements saisonniers. L'accessibilité (contraste élevé, alertes visuelles, cinq langues) et la progression par rangs et badges accompagnent les joueurs occasionnels comme les habitués du salon.",
+      "Que vous découvriez le produit sur cette page, lisiez le blog Quantum Bluff News ou créiez directement votre compte, vous entrez dans un écosystème pensé pour durer : mises à jour mensuelles, nouveaux mini-jeux, tournois communautaires et amélioration continue du vocal. Bienvenue au salon — la table vous attend.",
+    ],
+    gamesTitle: "Les jeux disponibles",
+    games: [
+      {
+        id: "holdem",
+        name: "Texas Hold'em",
+        description:
+          "Le poker no-limit par excellence : salles publiques et privées de deux à cinq joueurs, tables bots pour s'entraîner, tournois structurés et mode spectateur. Blinds, buy-in et timers sont gérés par le serveur pour une expérience fluide.",
+        screenshot: bl1Bg,
+      },
+      {
+        id: "belote",
+        name: "Belote",
+        description:
+          "Quatre joueurs autour d'une table style poker : Classique, Coinchée, Contrée ou Moderne. L'hôte définit le buy-in et le score cible ; la cagnotte est redistribuée aux gagnants. Salle d'attente plein écran et vocal en table.",
+        screenshot: bacBg,
+      },
+      {
+        id: "blackjack",
+        name: "Blackjack",
+        description:
+          "Affrontez le croupier en solo ou rejoignez une table multijoueur du salon. Les règles (hit, stand, double) sont appliquées côté serveur ; le tapis et les mises suivent le même ledger de jetons que le reste de la plateforme.",
+        screenshot: bac2Bg,
+      },
+      {
+        id: "roulette",
+        name: "Roulette",
+        description:
+          "Roulette européenne au hub casino rétro : mises intérieures et extérieures, animation vintage et retour fluide vers le salon. Un mode tutoriel guidé est disponible depuis le lobby pour apprendre les types de paris.",
+        screenshot: ba1Bg,
+      },
+      {
+        id: "slots",
+        name: "Machine à sous",
+        description:
+          "Slot machine vintage dans l'univers rétro : symboles classiques, effets néon et tirages validés serveur. Idéal pour une pause rapide entre deux parties de cartes sans quitter l'ambiance casino.",
+        screenshot: ba2Bg,
+      },
+      {
+        id: "crash",
+        name: "Crash",
+        description:
+          "Montez le multiplicateur et encaissez avant le crash. Chaque round est généré côté API : mise de 10 à 500 jetons, historique portefeuille et animation temps réel synchronisée sur le résultat serveur.",
+        screenshot: ba1Bg,
+      },
+      {
+        id: "mines",
+        name: "Mines",
+        description:
+          "Grille risque/récompense : révélez des cases sans toucher une mine pour faire grimper le gain. Le tirage est serveur-authoritative ; le client illustre uniquement l'état de la grille et les payouts.",
+        screenshot: bac2Bg,
+      },
+      {
+        id: "lucky-number",
+        name: "Lucky Number",
+        description:
+          "Pariez sur un chiffre porte-bonheur dans le hub rétro. Tirage instantané, coefficients affichés clairement et API dédiée POST /api/lucky-number/play pour une traçabilité complète des gains.",
+        screenshot: ba2Bg,
+      },
+    ],
+    socialTitle: "Fonctionnalités sociales",
+    social: [
+      {
+        title: "Appels vocaux",
+        body: "Appelez un ami depuis le lobby ou en table via WebRTC : sonnerie, timeout 15 secondes, audio bidirectionnel et négociation SDP sécurisée. Le dock vocal est déplaçable pendant la partie.",
+      },
+      {
+        title: "Appels de groupe",
+        body: "Lancez une conversation vocale à plusieurs pour coordonner une Belote ou débriefer après un tournoi. Le VoiceCallManager gère les participants et la continuité entre table et salle d'attente.",
+      },
+      {
+        title: "Messagerie",
+        body: "Échangez des messages privés avec vos amis, consultez l'historique et répondez depuis le profil ou la liste d'amis. Les notifications in-app signalent les nouvelles conversations.",
+      },
+      {
+        title: "Classements",
+        body: "Le leaderboard mondial combine volume de parties, performances en tournois et progression de rang sur une période glissante. Comparez votre position à celle de vos amis depuis le lobby.",
+      },
+      {
+        title: "Badges et défis",
+        body: "Défis quotidiens, connexion récompensée et jalons de progression débloquent badges visibles sur le profil. Les récompenses restent cosmétiques ou en jetons bonus — pas d'avantage compétitif injuste.",
+      },
+      {
+        title: "Système d'amis",
+        body: "Ajoutez des joueurs, acceptez des demandes, invitez-les en salle d'attente poker ou Belote et voyez leur présence en ligne. Les amis connectés remontent en priorité dans le lobby.",
+      },
+    ],
+    whyTitle: "Pourquoi Quantum Bluff ?",
+    why: [
+      {
+        title: "Gratuit",
+        body: "Création de compte sans frais, jetons de départ offerts et gains via défis quotidiens et parties. Aucun dépôt bancaire réel n'est requis pour jouer.",
+      },
+      {
+        title: "Multi-plateforme",
+        body: "Navigateur moderne (Chrome, Safari, Firefox, Edge), application mobile Capacitor et build Electron desktop. Une seule progression, quel que soit l'appareil.",
+      },
+      {
+        title: "Temps réel",
+        body: "Sockets Socket.IO pour le multijoueur, mises à jour instantanées du solde et des salles, présence en waiting-room et appels vocaux à faible latence.",
+      },
+      {
+        title: "Progression joueur",
+        body: "Rangs, statistiques de profil, historique de portefeuille et tutoriels intégrés accompagnent votre montée en compétence sur la durée.",
+      },
+    ],
+    faqTitle: "Questions fréquentes",
+    faq: [
+      {
+        q: "Quantum Bluff est-il un casino d'argent réel ?",
+        a: "Non. Les jetons sont virtuels. Les écrans de paiement ou de retrait sont des simulations pédagogiques sans valeur monétaire réelle.",
+      },
+      {
+        q: "Le jeu est-il gratuit ?",
+        a: "Oui. L'inscription est gratuite et vous recevez des jetons de départ. Vous pouvez en gagner via les défis quotidiens, les parties et les événements.",
+      },
+      {
+        q: "Sur quels appareils puis-je jouer ?",
+        a: "Sur navigateur web, application mobile (Capacitor) et client desktop (Electron). Une connexion stable est recommandée pour le multijoueur et le vocal.",
+      },
+      {
+        q: "Comment fonctionnent les appels vocaux ?",
+        a: "Depuis le lobby ou le profil ami, lancez un appel WebRTC. Une sonnerie retentit 15 secondes ; si l'ami décroche, l'audio bidirectionnel s'établit via ICE/TURN.",
+      },
+      {
+        q: "Puis-je jouer avec mes amis ?",
+        a: "Oui : ajoutez-les, invitez-les en salle d'attente poker ou Belote, et utilisez le vocal en table.",
+      },
+      {
+        q: "Quelles variantes de Belote sont disponibles ?",
+        a: "Classique, Coinchée, Contrée et Moderne. L'hôte choisit la variante, le buy-in et le score cible avant le lancement.",
+      },
+      {
+        q: "Comment sont calculés les mini-jeux (Crash, Mines, etc.) ?",
+        a: "Chaque mise part au serveur qui tire le résultat et met à jour le solde de façon atomique. Le client n'affiche que l'animation.",
+      },
+      {
+        q: "Comment fonctionne le classement ?",
+        a: "Il agrège activité récente, tournois et progression de rang. Consultez le blog pour les critères détaillés et les saisons.",
+      },
+      {
+        q: "Y a-t-il des tournois ?",
+        a: "Oui, des tournois Texas Hold'em structurés sont accessibles depuis le lobby avec salles d'attente et écran de résultats dédié.",
+      },
+      {
+        q: "Quelles langues sont supportées ?",
+        a: "Français, anglais, espagnol, arabe et ukrainien. Le sélecteur de langue est disponible depuis le menu principal.",
+      },
+      {
+        q: "Mes données sont-elles protégées ?",
+        a: "Consultez notre politique de confidentialité. Nous limitons la collecte au nécessaire du service et ne vendons pas vos données.",
+      },
+      {
+        q: "Y a-t-il une limite d'âge ?",
+        a: "Le service s'adresse aux personnes de 18 ans et plus. Tout compte identifié comme mineur peut être suspendu.",
+      },
+      {
+        q: "Comment signaler un joueur ?",
+        a: "Utilisez l'outil de signalement intégré en partie lorsque disponible, ou contactez support@quantum-bluff.com.",
+      },
+      {
+        q: "Comment contacter l'équipe ?",
+        a: "Page Contact ou e-mail support@quantum-bluff.com. Délai de réponse habituel : 48 à 72 h ouvrées.",
+      },
+    ],
+    ctaTitle: "Prêt à jouer ?",
+    ctaBody: "Créez votre compte gratuitement, réclamez vos jetons de bienvenue et rejoignez une table en quelques secondes.",
+  },
   discover: {
     metaTitle: "Découvrir Quantum Bluff",
     heroTitle: "Le casino social où le bluff devient stratégie",
@@ -535,6 +729,66 @@ const fr: SiteContent = {
 };
 
 const en: SiteContent = {
+  home: {
+    whatIsTitle: "What is Quantum Bluff?",
+    whatIs: fr.home.whatIs,
+    gamesTitle: "Available games",
+    games: fr.home.games.map((g) => ({
+      ...g,
+      name:
+        g.id === "holdem"
+          ? "Texas Hold'em"
+          : g.id === "belote"
+            ? "Belote"
+            : g.id === "blackjack"
+              ? "Blackjack"
+              : g.id === "roulette"
+                ? "Roulette"
+                : g.id === "slots"
+                  ? "Slot machine"
+                  : g.id === "crash"
+                    ? "Crash"
+                    : g.id === "mines"
+                      ? "Mines"
+                      : "Lucky Number",
+      description:
+        g.id === "holdem"
+          ? "The classic no-limit poker game: public and private 2–5 player rooms, bot tables, structured tournaments and spectator mode. Blinds, buy-in and timers are server-managed."
+          : g.id === "belote"
+            ? "Four players at a poker-style table: Classic, Coinched, Contrée or Modern. The host sets buy-in and target score; the pot goes to winners. Full-screen waiting room and table voice chat."
+            : g.id === "blackjack"
+              ? "Play solo against the dealer or join a multiplayer lounge table. Server-side rules (hit, stand, double) with the same chip ledger as the rest of the platform."
+              : g.id === "roulette"
+                ? "European roulette in the retro casino hub: inside and outside bets, vintage animation. A guided tutorial is available from the lobby."
+                : g.id === "slots"
+                  ? "Vintage slot machine in the retro lounge: classic symbols, neon effects and server-validated spins."
+                  : g.id === "crash"
+                    ? "Ride the multiplier and cash out before the crash. Server-generated rounds, 10–500 chip bets and wallet history."
+                    : g.id === "mines"
+                      ? "Risk/reward grid: reveal tiles without hitting a mine. Server-authoritative draw; the client only renders the grid."
+                      : "Bet on a lucky number in the retro hub. Instant draw, clear coefficients and dedicated API for full traceability.",
+    })),
+    socialTitle: "Social features",
+    social: [
+      { title: "Voice calls", body: "Call a friend from the lobby or table via WebRTC: ringtone, 15s timeout, bidirectional audio and secure SDP negotiation." },
+      { title: "Group calls", body: "Start a multi-party voice chat to coordinate Belote or debrief after a tournament. VoiceCallManager handles participants and table continuity." },
+      { title: "Messaging", body: "Private messages with friends, chat history and in-app notifications for new conversations." },
+      { title: "Leaderboards", body: "Global board combining match volume, tournament results and rank progression over a rolling period." },
+      { title: "Badges & challenges", body: "Daily challenges, login rewards and milestones unlock profile badges. Rewards are cosmetic or bonus chips only." },
+      { title: "Friends system", body: "Add players, accept requests, invite to poker or Belote waiting rooms and see online presence. Connected friends are prioritised in the lobby." },
+    ],
+    whyTitle: "Why Quantum Bluff?",
+    why: [
+      { title: "Free", body: "No-cost signup, starter chips and earnings through daily challenges and matches. No real bank deposit required." },
+      { title: "Cross-platform", body: "Modern browsers, Capacitor mobile app and Electron desktop. One progression across devices." },
+      { title: "Real-time", body: "Socket.IO multiplayer, instant balance and room updates, waiting-room presence and low-latency voice." },
+      { title: "Player progression", body: "Ranks, profile stats, wallet history and built-in tutorials support long-term improvement." },
+    ],
+    faqTitle: "FAQ",
+    faq: [],
+    ctaTitle: "Ready to play?",
+    ctaBody: "Create your free account, claim welcome chips and join a table in seconds.",
+  },
   discover: {
     metaTitle: "Discover Quantum Bluff",
     heroTitle: "The social casino where bluff becomes strategy",
@@ -566,6 +820,31 @@ const en: SiteContent = {
     articles: [],
   },
 };
+
+en.home.faq = [
+  { q: "Is Quantum Bluff a real-money casino?", a: "No. Chips are virtual. Payment or withdrawal screens are educational simulations with no real monetary value." },
+  { q: "Is the game free?", a: "Yes. Signup is free with starter chips. Earn more through daily challenges, matches and events." },
+  { q: "Which devices are supported?", a: "Web browser, Capacitor mobile app and Electron desktop. A stable connection is recommended for multiplayer and voice." },
+  { q: "How do voice calls work?", a: "Launch a WebRTC call from the lobby or friend profile. A 15-second ringtone plays; if they answer, bidirectional audio connects via ICE/TURN." },
+  { q: "Can I play with friends?", a: "Yes: add friends, invite them to poker or Belote waiting rooms and use table voice chat." },
+  { q: "Which Belote variants are available?", a: "Classic, Coinched, Contrée and Modern. The host picks variant, buy-in and target score." },
+  { q: "How are mini-games calculated?", a: "Each bet goes to the server which draws the outcome and atomically updates your balance. The client only animates." },
+  { q: "How does the leaderboard work?", a: "It aggregates recent activity, tournaments and rank progression. See the blog for detailed criteria." },
+  { q: "Are there tournaments?", a: "Yes — structured Texas Hold'em tournaments from the lobby with waiting rooms and a results screen." },
+  { q: "Which languages are supported?", a: "French, English, Spanish, Arabic and Ukrainian via the main menu language selector." },
+  { q: "Is my data protected?", a: "See our privacy policy. We limit collection to what the service needs and do not sell your data." },
+  { q: "Is there an age limit?", a: "The service is for users aged 18 and over. Underage accounts may be suspended." },
+  { q: "How do I report a player?", a: "Use the in-game report tool when available, or email support@quantum-bluff.com." },
+  { q: "How do I contact the team?", a: "Contact page or support@quantum-bluff.com. Typical response time: 48–72 business hours." },
+];
+
+en.home.whatIs = [
+  "Quantum Bluff is a social online card and casino platform born from an eight-person team project, defended before a university jury with honours. Since June 1, 2026 it is open to the public: a full entertainment hub where poker, Belote, blackjack and casino mini-games live in one premium dark responsive interface.",
+  "Our promise: every win starts with a bluff. Multiplayer Texas Hold'em, friend Belote games, solo Crash, Mines, Lucky Number, retro roulette and slots — all reachable from one unified lobby on web or mobile.",
+  "Technical integrity is central: every poker hand, roulette spin and mini-game round is server-validated before display. Chips are internal virtual currency with no real monetary value.",
+  "Native social layer: friends, messaging, waiting-room invites, 1v1 and group WebRTC voice, real-time presence and seasonal leaderboards. Accessibility and rank progression support casual and regular players alike.",
+  "Whether you read this page, browse Quantum Bluff News or sign up now, you join an ecosystem built to last: monthly updates, new mini-games, community tournaments and ongoing voice improvements. Welcome to the lounge.",
+];
 
 // English discover long-form (abbreviated mirror — FR is canonical for word count)
 en.discover.intro = [

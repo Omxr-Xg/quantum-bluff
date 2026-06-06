@@ -33,7 +33,7 @@ export function PublicSiteShell({ children, pageTitle }: PublicSiteShellProps) {
       <div className="relative z-10 flex min-h-[100dvh] flex-col">
         <header className="sticky top-0 z-30 border-b border-blue-300/20 bg-slate-950/75 backdrop-blur-xl">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-            <Link to="/discover" className="flex items-center gap-2.5">
+            <Link to="/" className="flex items-center gap-2.5">
               <QuantumBluffLogo alt="" className="h-9 w-9 brightness-110" />
               <span className="hidden bg-gradient-to-r from-blue-200 to-cyan-100 bg-clip-text text-sm font-black uppercase tracking-wider text-transparent sm:inline">
                 Quantum Bluff
@@ -45,7 +45,9 @@ export function PublicSiteShell({ children, pageTitle }: PublicSiteShellProps) {
                   key={item.to}
                   to={item.to}
                   className={`rounded-full px-2.5 py-1.5 transition sm:px-3 ${
-                    pathname === item.to || (item.to === "/news" && pathname.startsWith("/news"))
+                    pathname === item.to ||
+                    (item.to === "/discover" && pathname === "/") ||
+                    (item.to === "/news" && pathname.startsWith("/news"))
                       ? "bg-blue-500/20 text-cyan-100"
                       : "text-slate-300 hover:bg-white/5 hover:text-white"
                   }`}
