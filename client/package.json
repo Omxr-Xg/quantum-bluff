@@ -147,7 +147,7 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "https://mai-projet-integrateur.u-strasbg.fr/vmProjetIntegrateurgrp10-0/updates/"
+        "url": "https://api.quantum-bluff.com/updates/"
       }
     ],
     "mac": {

@@ -9,8 +9,7 @@ autoUpdater.logger.transports.file.level = 'info';
 
 // Prod : surcharger avec QB_UPDATES_BASE_URL (ex. https://hôte/vm.../ sans /updates/)
 const defaultProdOrigin =
-  process.env.QB_PUBLIC_URL ||
-  'https://mai-projet-integrateur.u-strasbg.fr/vmProjetIntegrateurgrp10-0';
+  process.env.QB_PUBLIC_URL || 'https://api.quantum-bluff.com';
 const updatesBase =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
@@ -28,7 +27,7 @@ autoUpdater.setFeedURL({
  *    En dev, la fenêtre charge le serveur Vite (localhost).
  * 2) Installateur Electron (.exe / .dmg) : electron-updater lit …/updates/latest.yml (et équivalent Mac).
  *    Dialogue demandant l’accord → téléchargement → installation et redémarrage automatiques.
- *    Publier les artefacts sur la VM + bumper client/package.json version (voir Docs/DEPLOY.md).
+ *    Publier les artefacts sur l’hôte de mises à jour + bumper client/package.json version.
  */
 if (app.isPackaged) {
   autoUpdater.autoDownload = false;
@@ -54,7 +53,7 @@ function createWindow() {
 
   if (process.env.NODE_ENV === 'development') {
     const devUrl =
-      process.env.ELECTRON_DEV_URL || 'http://localhost:5175/vmProjetIntegrateurgrp10-0/';
+      process.env.ELECTRON_DEV_URL || 'http://localhost:5175/';
     win.loadURL(devUrl);
   } else {
     // Toujours charger le bundle embarqué (file://) hors dev pour éviter

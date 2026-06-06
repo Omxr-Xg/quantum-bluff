@@ -7,7 +7,7 @@ target/
 .vite/deps/
 node_modules/
 .env
-# Certificats / ACME sur la VM de déploiement (docker-compose.prod.yml) — jamais versionner.
+# Certificats / ACME (docker-compose.prod.yml) — jamais versionner.
 certbot/
 dist/
 build/

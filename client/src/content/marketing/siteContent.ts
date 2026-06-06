@@ -674,7 +674,7 @@ const fr: SiteContent = {
           "• Timer serveur poker amélioré, contrôles table, waiting-room : navigation séparée de la suppression de salle.",
           "• Réseau amis : demandes, messages, invitations en direct, profil ami dédié.",
           "• Avatar par défaut NA.png, fallbacks adversaires alignés, perf avatars (fin chargements longs).",
-          "• Correctif perf login : musique 4,7 Mo retirée du préchargement bloquant VM.",
+          "• Correctif perf login : musique 4,7 Mo retirée du préchargement bloquant au démarrage.",
           "• Sécurité Supabase : RLS sur tables public, durcissement advisors.",
         ],
       },

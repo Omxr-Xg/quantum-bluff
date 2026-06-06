@@ -27,7 +27,7 @@ default:
       - stuck_or_timeout_failure
 
 # Les jobs verify tournent en parallèle (durée ~ max des trois, pas la somme).
-# Si le cluster K8s du runner Unistra sature (OOM, pods Pending), réintroduire par ex. :
+# Si le cluster K8s du runner sature (OOM, pods Pending), réintroduire par ex. :
 #   resource_group: k8s-verify-${CI_PROJECT_ID}
 # sur les jobs lourds uniquement.
 
@@ -36,7 +36,6 @@ stages:
   - test-security
   - build
   - docker-build
-  - deploy
 
 cache:
   key:
@@ -224,7 +223,7 @@ docker:build:
     - main
     - /^release\/.*$/
 
-# Images pour déploiement VM sans « docker compose build » (pull uniquement).
+# Image client Docker (registry GitLab).
 docker:build:client:
   stage: docker-build
   needs:
@@ -239,7 +238,7 @@ docker:build:client:
     entrypoint: [""]
   variables:
     # Surchargeable dans GitLab → Settings → CI/CD → Variables (ex. préfixe API derrière nginx).
-    VITE_API_URL: "/vmProjetIntegrateurgrp10-0"
+    VITE_API_URL: "https://api.quantum-bluff.com"
     # Réduit les pics RAM Kaniko (snapshot) sur runners K8s serrés.
     KUBERNETES_MEMORY_REQUEST: "2Gi"
     KUBERNETES_MEMORY_LIMIT: "4Gi"
@@ -290,81 +289,3 @@ docker:build:ai-service:
   # les pipelines de develop/main tant que l'infra n'est pas élargie.)
   only:
     - /^release\/.*$/
-
-# Déploiement = POST webhook. Les échecs "runner_system_failure" viennent souvent du cluster K8s
-# du runner (disque plein, nœud unreachable). On retente automatiquement ; si ça persiste,
-# contacter les admins GitLab / infra Unistra — ce n’est pas corrigeable uniquement dans ce fichier.
-.deploy_hook_retry: &deploy_hook_retry
-  retry:
-    max: 2
-    when:
-      - runner_system_failure
-      - stuck_or_timeout_failure
-
-deploy:staging:
-  stage: deploy
-  tags:
-    - runner-vm-quantum
-  # Sur la VM, certbot/www et certbot/conf sont des volumes (souvent root). Le défaut
-  # `git clean -ffdx` lors du checkout CI échoue → job en erreur avant tout script.
-  variables:
-    GIT_CLEAN_FLAGS: none
-  script:
-    - echo " Connexion au registre GitLab..."
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-    
-    - echo " Préparation des fichiers de configuration..."
-    # Ne pas écraser server/.env (ADMIN_CONSOLE_*, REDIS, etc.) — mettre à jour seulement les clés CI.
-    # ADMIN_CONSOLE_* : définir ADMIN_CONSOLE_USERNAME + ADMIN_CONSOLE_PASSWORD_HASH dans
-    # GitLab → Settings → CI/CD → Variables (hash bcrypt avec un seul $ ; la CI échappe pour Docker).
-    - touch .env server/.env
-    - |
-      upsert_env() {
-        key="$1"
-        val="$2"
-        file="$3"
-        if grep -q "^${key}=" "$file" 2>/dev/null; then
-          sed -i "s|^${key}=.*|${key}=${val}|" "$file"
-        else
-          printf '%s=%s\n' "$key" "$val" >> "$file"
-        fi
-      }
-      # Docker Compose env_file interprète $VAR : doubler chaque $ du hash bcrypt ($$2a$$10$$…).
-      escape_docker_env_value() {
-        printf '%s' "$1" | sed 's/\$/\$\$/g'
-      }
-      upsert_env JWT_SECRET "$JWT_SECRET" .env
-      upsert_env DATABASE_URL "$DATABASE_URL" .env
-      upsert_env QUANTUM_REGISTRY_IMAGE "$CI_REGISTRY_IMAGE" .env
-      upsert_env JWT_SECRET "$JWT_SECRET" server/.env
-      upsert_env DATABASE_URL "$DATABASE_URL" server/.env
-      if [ -n "${ADMIN_CONSOLE_USERNAME:-}" ] && [ -n "${ADMIN_CONSOLE_PASSWORD_HASH:-}" ]; then
-        ADMIN_HASH_ESCAPED="$(escape_docker_env_value "$ADMIN_CONSOLE_PASSWORD_HASH")"
-        upsert_env ADMIN_CONSOLE_USERNAME "$ADMIN_CONSOLE_USERNAME" server/.env
-        upsert_env ADMIN_CONSOLE_PASSWORD_HASH "$ADMIN_HASH_ESCAPED" server/.env
-        upsert_env ADMIN_CONSOLE_JWT_USER_ID "${ADMIN_CONSOLE_JWT_USER_ID:-00000000-0000-4000-8000-000000000001}" server/.env
-        upsert_env TRUST_PROXY "2" server/.env
-        echo " Console admin : identifiants synchronisés depuis les variables CI."
-      else
-        echo " Console admin : ADMIN_CONSOLE_* absentes des variables CI — server/.env inchangé pour ces clés."
-      fi
-    
-    - echo " Docker Compose au rapport !"
-    - docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml pull
-    - docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml up -d --force-recreate
-    
-    - echo " Migration de la base de données..."
-    - docker compose -f docker-compose.prod.yml -f docker-compose.vm-registry.yml exec -T backend npx prisma migrate deploy
-  only:
-    - develop
-    - main
-
-# Déploiement manuel sur main — même script que deploy:staging (runner sur la VM).
-# Ne pas utiliser SSH depuis le runner Kubernetes : le port 22 de la VM n’est pas joignable
-# depuis le cluster GitLab (timeout). Le runner « runner-vm-quantum » tourne déjà sur la VM.
-deploy:production:
-  <<: *deploy_hook_retry
-  extends: deploy:staging
-  only:
-    - main
-  when: manual

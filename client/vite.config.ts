@@ -16,39 +16,19 @@ const devApiProxy = {
       });
     },
   },
-  '/vmProjetIntegrateurgrp10-0/api': {
-    target: 'http://localhost:3000',
-    changeOrigin: true,
-    rewrite: (p: string) => p.replace(/^\/vmProjetIntegrateurgrp10-0/, ''),
-    configure: (proxy) => {
-      proxy.on('proxyReq', (proxyReq, req) => {
-        const auth = (req.headers as Record<string, string>).authorization;
-        if (auth) proxyReq.setHeader('Authorization', auth);
-      });
-    },
-  },
   '/socket.io': {
     target: 'http://localhost:3000',
     changeOrigin: true,
     ws: true,
   },
-  '/vmProjetIntegrateurgrp10-0/socket.io': {
-    target: 'http://localhost:3000',
-    changeOrigin: true,
-    ws: true,
-    rewrite: (p: string) => p.replace(/^\/vmProjetIntegrateurgrp10-0/, ''),
-  },
 };
 
-/** Déploiement web public (Capacitor : WebView = pas d’origine /vm… — URL absolue obligatoire si pas de .env). */
-const CAPACITOR_DEFAULT_API =
-  'https://mai-projet-integrateur.u-strasbg.fr/vmProjetIntegrateurgrp10-0';
+/** API prod par défaut (Capacitor / Electron sans .env local). */
+const CAPACITOR_DEFAULT_API = 'https://api.quantum-bluff.com';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const basePath =
-    env.VITE_BASE_PATH ??
-    (mode === 'capacitor' || mode === 'electron' ? '/' : '/vmProjetIntegrateurgrp10-0/');
+  const basePath = env.VITE_BASE_PATH ?? '/';
   const basePathWithoutTrailingSlash = basePath === '/' ? '' : basePath.replace(/\/$/, '');
 
   const capacitorEnvDefine =
@@ -56,8 +36,7 @@ export default defineConfig(({ mode }) => {
       ? (() => {
           const api = env.VITE_API_URL?.trim() || CAPACITOR_DEFAULT_API;
           const socket = env.VITE_SOCKET_URL?.trim() || api;
-          const socketPath =
-            env.VITE_SOCKET_PATH?.trim() || '/vmProjetIntegrateurgrp10-0/socket.io';
+          const socketPath = env.VITE_SOCKET_PATH?.trim() || '/socket.io';
           return {
             'import.meta.env.VITE_API_URL': JSON.stringify(api),
             'import.meta.env.VITE_SOCKET_URL': JSON.stringify(socket),
@@ -67,7 +46,7 @@ export default defineConfig(({ mode }) => {
       : {};
 
   /**
-   * Avec `base` non racine (ex. `/vm…/`), une URL du type `http://localhost:5175/tournaments/id`
+   * Avec `base` non racine, une URL du type `http://localhost:5175/tournaments/id`
    * ne passe pas par Vite : 404. On redirige vers `base + chemin` (GET document / deep links).
    */
   function attachBasePathRedirects(server: ViteDevServer | PreviewServer): void {
@@ -150,8 +129,7 @@ export default defineConfig(({ mode }) => {
     workbox: {
       // On garde le code (js/css/html) et les petits assets en précache ;
       // les gros avatars PNG (~2 Mo pièce) sont exclus pour éviter de remplir
-      // 76 Mo de cache au premier chargement (saturait la VM Unistra et
-      // provoquait des timeouts en cascade sur les requêtes API juste après).
+      // 76 Mo de cache au premier chargement provoquait des timeouts en cascade sur l’API juste après.
       // Ils seront mis en cache à la volée par le runtime du service worker
       // quand l'utilisateur consultera réellement les pages qui les utilisent.
       globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],

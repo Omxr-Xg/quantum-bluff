@@ -125,7 +125,7 @@ export const MusicProvider = ({ children }: { children: React.ReactNode }) => {
     const bgm = new Audio(musicSrc);
     bgm.loop = true;
     // IMPORTANT : `preload='none'` évite de télécharger 4,7 Mo de musique de fond
-    // dès le montage de l'app. Sur une connexion lente (VM Unistra, 4G), ce
+    // dès le montage de l'app. Sur une connexion lente (4G, réseau saturé), ce
     // download peut saturer la pool de connexions du navigateur et bloquer les
     // requêtes API juste après (typiquement /api/auth/check-email puis
     // /api/auth/login → loader infini sur la page de login). Le fichier sera

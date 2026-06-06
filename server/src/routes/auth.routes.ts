@@ -932,7 +932,7 @@ router.post('/admin/login', adminConsoleLoginLimiter, async (req, res) => {
   })
 })
 
-/** Codes cadeaux console admin — sous /api/auth/admin/* (même JWT que /admin/login, dispo sur toutes les images VM). */
+/** Codes cadeaux console admin — sous /api/auth/admin/* (même JWT que /admin/login). */
 const adminGiftCodeCreateSchema = z.object({
   code: z.string().min(1).max(64),
   amount: z.number().int().min(1),

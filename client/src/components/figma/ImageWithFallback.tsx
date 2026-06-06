@@ -25,7 +25,7 @@ export function ImageWithFallback(props: React.ImgHTMLAttributes<HTMLImageElemen
     // loading="lazy" + decoding="async" : le navigateur diffère le download
     // des images hors viewport et leur décodage est non bloquant — combiné
     // au runtime caching du service worker, on évite les longs spinners
-    // sur les avatars/logos sur la VM Unistra.
+    // sur les avatars/logos en production.
     <img
       src={src}
       alt={alt}

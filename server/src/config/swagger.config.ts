@@ -10,7 +10,7 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       { url: 'http://localhost:3000', description: 'Dev' },
-      { url: 'https://mai-projet-integrateur.u-strasbg.fr', description: 'Prod' },
+      { url: 'https://api.quantum-bluff.com', description: 'Production' },
     ],
     components: {
       securitySchemes: {

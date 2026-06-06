@@ -41,7 +41,7 @@ services:
       context: ./server
       dockerfile: Dockerfile
     restart: unless-stopped
-    # Même secrets qu’en local : server/.env (gitignored) survit aux git pull sur la VM.
+    # Même secrets qu’en local : server/.env (gitignored) survit aux git pull.
     # Ne pas mettre ADMIN_CONSOLE_* dans environment avec ${VAR:-} vide : ça écraserait les valeurs du fichier.
     env_file:
       - server/.env
@@ -54,7 +54,7 @@ services:
       INSTANCE_ID: ${INSTANCE_ID:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-quantum-bluff-api}
-      CORS_ORIGIN: "https://quantum-bluff.com,https://www.quantum-bluff.com,https://mai-projet-integrateur.u-strasbg.fr"
+      CORS_ORIGIN: "https://quantum-bluff.com,https://www.quantum-bluff.com"
       TRUST_PROXY: "2"
       AI_SERVICE_ENABLED: ${AI_SERVICE_ENABLED:-true}
       AI_SERVICE_URL: http://ai-service:8000
@@ -85,7 +85,7 @@ services:
       context: ./client
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: /vmProjetIntegrateurgrp10-0
+        VITE_API_URL: https://api.quantum-bluff.com
     container_name: quantum_frontend
     restart: unless-stopped
     networks:

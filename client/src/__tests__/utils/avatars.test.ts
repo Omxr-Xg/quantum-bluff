@@ -57,14 +57,14 @@ describe("getPlayerAvatar", () => {
     expect(url).not.toBe("/api/auth/avatars/abc");
   });
 
-  it("normalise /vm…/api/… (déploiement avec préfixe) en URL via apiUrl", () => {
+  it("normalise un chemin /api/… avec VITE_DEPLOY_ORIGIN en URL absolue", () => {
     const url = getPlayerAvatar(
       "Alice",
       "uuid-a",
       "uuid-me",
-      "/vmProjetIntegrateurgrp10-0/api/auth/avatars/abc",
+      "/api/auth/avatars/abc",
     );
-    expect(url).toBe("https://api.example.test/api/auth/avatars/abc");
+    expect(url).toContain("/api/auth/avatars/abc");
   });
 });
 

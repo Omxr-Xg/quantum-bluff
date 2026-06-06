@@ -100,8 +100,8 @@ Temps réel via **Socket.IO** ; persistance via **PostgreSQL** (Prisma) et **Red
 ### Infrastructure
 
 - **Docker Compose** (`database/`) — PostgreSQL 16 + Redis
-- **Nginx** (ex. préfixe VM `/vmProjet…/`) — voir déploiement
-- **PM2** — option courante sur VM
+- **Vercel** — client web (`quantum-bluff.com`)
+- **Render** — API (`api.quantum-bluff.com`)
 
 ---
 
@@ -216,7 +216,7 @@ Voir **`server/.env.example`**.
 
 ### Frontend web — build production
 
-- **`client/.env.production`** (exemple dans le dépôt) : `VITE_API_URL` en chemin relatif type `/vmProjetIntegrateurgrp10-0` quand le site est servi derrière le même hôte HTTPS.
+- **`client/.env.production`** : `VITE_API_URL=https://api.quantum-bluff.com` (build Vercel / Capacitor).
 
 ### Mobile — `client/.env.capacitor` (à créer, non versionné)
 
@@ -296,7 +296,7 @@ En **production**, d’autres routes sous `/api/admin/*` (métriques, overrides 
 | Commande (`client/`) | Description |
 |---------------------|-------------|
 | `npm run dev` | Vite (port **5175**) |
-| `npm run build` | Build web prod (base path VM par défaut) |
+| `npm run build` | Build web prod (base `/`, API Render) |
 | `npm run build:cap` | Build mode `capacitor` |
 | `npm run cap:sync` | `build:cap` + `cap sync` (Android + iOS) |
 | `npm run electron:dev` | Vite + fenêtre Electron |
@@ -307,7 +307,7 @@ En **production**, d’autres routes sous `/api/admin/*` (métriques, overrides 
 
 - **Développement** : `cd client && npm run electron:dev` (attend `http://localhost:5175`).
 - **Build installateurs** : `cd client && npm run electron:build` (ou `:win`, `:mac`, `:linux`).
-- **URL de prod chargée par Electron** : configurable via `QB_PUBLIC_URL` / défaut dans `electron.cjs` (déploiement école / VM).
+- **URL de prod Electron** : configurable via `QB_PUBLIC_URL` (défaut `https://api.quantum-bluff.com`).
 
 Sortie typique : `client/dist-electron/` (souvent ignoré par Git — volumineux).
 
@@ -366,7 +366,7 @@ cd ../client && npm run lint
 
 ## Déploiement
 
-Guide principal : **[Docs/DEPLOY.md](./Docs/DEPLOY.md)** (VM, PM2, mises à jour Electron, nginx).
+Guide Docker local : **[Docs/DEPLOY.md](./Docs/DEPLOY.md)**. Prod : Vercel + Render.
 
 ---
 
@@ -375,7 +375,7 @@ Guide principal : **[Docs/DEPLOY.md](./Docs/DEPLOY.md)** (VM, PM2, mises à jour
 | Fichier | Contenu |
 |---------|---------|
 | [Docs/SETUP_TESTEUR.md](./Docs/SETUP_TESTEUR.md) | Installation locale pour testeurs |
-| [Docs/DEPLOY.md](./Docs/DEPLOY.md) | Déploiement VM / prod |
+| [Docs/DEPLOY.md](./Docs/DEPLOY.md) | Docker local / Electron updates |
 | [Docs/RAPPORT_TESTS.md](./Docs/RAPPORT_TESTS.md) | Inventaire tests |
 | [Docs/POKER_SCENARIOS.md](./Docs/POKER_SCENARIOS.md) | Scénarios poker |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Workflow Git & MR |

@@ -1,11 +1,9 @@
 /**
  * Résout l’URL du backend HTTP.
  *
- * - `VITE_API_URL` si défini (mobile Capacitor, prod dédiée).
- * - Chemin relatif type `/vmProjet...` : OK pour le **web** déployé (même origine qu’Electron prod).
- *   Sous **Capacitor** (`capacitor://localhost`), un chemin seul ne cible pas la VM : utiliser soit
- *   une URL `https://.../vm...` complète, soit `VITE_DEPLOY_ORIGIN=https://hôte` + même chemin relatif
- *   que `.env.production` (voir `.env.capacitor.example`).
+ * - `VITE_API_URL` si défini (mobile Capacitor, prod Render/Vercel).
+ * - Chemin relatif (ex. `/api` ou préfixe SPA) : OK pour le web sur la même origine.
+ *   Sous **Capacitor**, utiliser une URL `https://...` complète ou `VITE_DEPLOY_ORIGIN` + chemin relatif.
  * - Navigateur sur `localhost` / `127.0.0.1` sans env → `http://localhost:3000`
  *   pour éviter les 404 quand `/api` n’est pas proxifié (ex. `vite preview`).
  * - Sinon chaîne vide → requêtes relatives `/api/...` (même origine, nginx, etc.).
@@ -74,8 +72,8 @@ export function getApiBaseUrl(): string {
           if (import.meta.env.MODE === "capacitor") {
             console.warn(
               `[Quantum Bluff] VITE_API_URL est relatif (${raw}). ` +
-                "Sur l’app native, les requêtes ne vont pas vers la VM : définis une URL https complète pour VITE_API_URL, " +
-                "ou VITE_DEPLOY_ORIGIN (origine du site web, comme pour Electron) + ce même chemin.",
+                "Sur l’app native, définis une URL https complète pour VITE_API_URL " +
+                "ou VITE_DEPLOY_ORIGIN + ce même chemin (voir .env.capacitor.example).",
             );
           }
         }
@@ -106,10 +104,9 @@ export function apiUrl(path: string): string {
     const abs = absoluteApiBaseFromEnvUrls();
     if (abs) return `${abs}${p}`;
     const d = (import.meta.env.VITE_DEPLOY_ORIGIN ?? "").toString().replace(/\/$/, "").trim();
-    if (d && /^\/vm[^/]+\/api\//i.test(p)) return `${d}${p}`;
+    if (d && p.startsWith("/api")) return `${d}${p}`;
   }
-  // Build Vite avec `base` non racine : sans ça, `/api/…` part à la racine du domaine
-  // alors que l’API est souvent servie sous le même préfixe que le SPA (ex. `/vm…/api`).
+  // Build Vite avec `base` non racine : préfixer `/api/…` si l’API partage le même chemin de base.
   const viteBase = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
   if (viteBase && p.startsWith("/api")) {
     return `${viteBase}${p}`;
