@@ -7,6 +7,14 @@ import { ClientAuthShellBackground } from "../components/ClientAuthShellBackgrou
 import i18n from "../i18n/config";
 import { getAuthItem } from "../utils/authStorage";
 
+const START_FOOTER_LINKS = [
+  { to: "/discover", labelKey: "publicSite.nav.discover" },
+  { to: "/about", labelKey: "publicSite.nav.about" },
+  { to: "/contact", labelKey: "publicSite.nav.contact" },
+  { to: "/privacy-policy", labelKey: "publicSite.footer.privacy" },
+  { to: "/terms-of-service", labelKey: "publicSite.footer.terms" },
+] as const;
+
 export function StartScreen() {
   /** Splash + boot copy in English; does not overwrite the user’s app language. */
   const { t } = useTranslation(undefined, { lng: "en" });
@@ -275,17 +283,31 @@ export function StartScreen() {
         )}
 
         {!isLoading && (
-          <Link
-            to="/discover"
-            className="mt-5 animate-fade-in rounded-full border border-white/20 bg-slate-950/40 px-8 py-3 text-sm font-semibold tracking-wide text-slate-200 backdrop-blur-sm transition hover:border-cyan-300/35 hover:bg-white/5 hover:text-white"
+          <nav
+            aria-label={tUi("startScreen.footerNav")}
+            className="mt-6 flex max-w-lg animate-fade-in flex-wrap items-center justify-center gap-x-1 gap-y-2 px-4"
           >
-            {tUi("startScreen.discoverButton")}
-          </Link>
+            {START_FOOTER_LINKS.map((link, index) => (
+              <span key={link.to} className="inline-flex items-center">
+                {index > 0 ? (
+                  <span className="mx-2 text-slate-600 select-none" aria-hidden>
+                    ·
+                  </span>
+                ) : null}
+                <Link
+                  to={link.to}
+                  className="text-xs font-medium text-slate-400 transition hover:text-cyan-200 sm:text-sm"
+                >
+                  {tUi(link.labelKey)}
+                </Link>
+              </span>
+            ))}
+          </nav>
         )}
 
         {/* Badge de statut */}
         {!isLoading && (
-          <div className="mt-8 flex items-center gap-2 text-slate-300 text-sm animate-fade-in"> {/* Texte clair */}
+          <div className="mt-6 flex items-center gap-2 text-slate-300 text-sm animate-fade-in"> {/* Texte clair */}
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.7)]"></div>
             <span className="tracking-wide">{t('startScreen.serverOnline')}</span>
           </div>
