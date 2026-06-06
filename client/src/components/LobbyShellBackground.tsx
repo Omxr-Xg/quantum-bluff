@@ -1,4 +1,4 @@
-import bacBg from "../assets/background/BAC.png";
+import bacBg from "../assets/background/BAC.webp";
 
 /** Fond lobby — BAC légèrement flouté, sous les teintes par onglet. */
 export function LobbyShellBackground() {

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { useTableTheme } from "../../contexts/TableThemeContext";
 import { BeloteSeatAvatar } from "./BeloteSeatAvatar";
-import tableNappeImage from "../../assets/nappe/NA1.png";
+import tableNappeImage from "../../assets/nappe/NA1.webp";
 import { BelotePlayingCard } from "./BelotePlayingCard";
 import { BELOTE_SUIT_LABEL } from "../../features/belote/beloteCardUtils";
 import type { BeloteSanitizedState } from "../../features/belote/useBeloteSocket";

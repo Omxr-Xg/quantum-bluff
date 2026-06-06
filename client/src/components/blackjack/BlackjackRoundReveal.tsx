@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { handValueFromCards, type BjTableState } from "./BlackjackMultiCasinoTable";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
-import dealerBjAvatar from "../../assets/avatars/D1.png";
+import dealerBjAvatar from "../../assets/avatars/D1.webp";
 
 export type BjRoundSummaryRow = {
   userId: string;

@@ -1,4 +1,4 @@
-import logoSrc from "../assets/logo-personnel.png";
+import logoSrc from "../assets/logo-personnel.webp";
 
 interface ChipIconProps {
   /** Taille : sm (16px), md (20px), lg (24px) */

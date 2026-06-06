@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import badminBg from "../assets/background/BADMIN.png";
+import badminBg from "../assets/background/BADMIN.webp";
 
 export const adminLanguageButtonClass =
   "flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-amber-200/20 bg-slate-950/70 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.35)] backdrop-blur-md transition hover:border-amber-300/40 hover:bg-slate-900/80 md:h-11 md:min-h-11 md:w-11 md:min-w-11";

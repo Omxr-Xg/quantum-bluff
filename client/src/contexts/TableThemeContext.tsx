@@ -6,10 +6,10 @@ import {
   useMemo,
   ReactNode,
 } from "react";
-import ba1Url from "../assets/background/BA1.png";
-import ba2Url from "../assets/background/BA2.png";
-import ba3Url from "../assets/background/BA3.png";
-import ba4Url from "../assets/background/BA4.png";
+import ba1Url from "../assets/background/BA1.webp";
+import ba2Url from "../assets/background/BA2.webp";
+import ba3Url from "../assets/background/BA3.webp";
+import ba4Url from "../assets/background/BA4.webp";
 
 export type TableThemeId = "default" | "vegasRed" | "vegasPurple" | "darkBlue";
 

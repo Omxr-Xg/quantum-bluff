@@ -1,7 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ChipIcon } from "./ChipIcon";
-import tableNappeImage from "../assets/nappe/NA1.png";
+import tableNappeImage from "../assets/nappe/NA1.webp";
 import { getPokerTableAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { PokerCard } from "./PokerCard";

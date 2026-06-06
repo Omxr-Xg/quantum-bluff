@@ -13,7 +13,7 @@ import {
 
 import { apiUrl } from "../utils/apiBase";
 import { ChipIcon } from "../components/ChipIcon";
-import logoSrc from "../assets/logo-personnel.png";
+import logoSrc from "../assets/logo-personnel.webp";
 import { CustomScrollArea } from "../components/CustomScrollArea";
 import { getAuthItem } from "../utils/authStorage";
 import { TutorialSpotlight } from "../components/tutorial/TutorialSpotlight";

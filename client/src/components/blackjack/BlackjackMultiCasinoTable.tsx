@@ -5,8 +5,8 @@ import { PokerCard } from "../PokerCard";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { getPlayerAvatar } from "../../utils/avatars";
 import { useTableTheme } from "../../contexts/TableThemeContext";
-import tableNappeImage from "../../assets/nappe/NA1.png";
-import dealerBjAvatar from "../../assets/avatars/D1.png";
+import tableNappeImage from "../../assets/nappe/NA1.webp";
+import dealerBjAvatar from "../../assets/avatars/D1.webp";
 
 export type BjCard = { rank: string; suit: string };
 

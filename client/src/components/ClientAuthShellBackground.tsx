@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import bacBg from "../assets/background/BAC.png";
-import bac2Bg from "../assets/background/BAC2.png";
+import bacBg from "../assets/background/BAC.webp";
+import bac2Bg from "../assets/background/BAC2.webp";
 
 export type ClientAuthBackgroundVariant = "bac" | "bac2";
 

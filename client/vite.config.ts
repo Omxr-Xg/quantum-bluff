@@ -118,8 +118,8 @@ export default defineConfig(({ mode }) => {
     registerType: 'autoUpdate',
     includeAssets: [
       'favicon.ico',
-      'logo-personnel.png',
-      'logo-512.png',
+      'logo-personnel.webp',
+      'logo-512.webp',
       'apple-touch-icon.png',
       'manifest.webmanifest',
       'robots.txt',

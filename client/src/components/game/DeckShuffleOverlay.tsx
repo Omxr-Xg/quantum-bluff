@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useTableTheme } from "../../contexts/TableThemeContext";
-import dealerShuffleAvatar from "../../assets/avatars/D1.png";
+import dealerShuffleAvatar from "../../assets/avatars/D1.webp";
 
 /** Dos de carte compact pour les mains du croupier. */
 function MiniCardBack({ className = "" }: { className?: string }) {

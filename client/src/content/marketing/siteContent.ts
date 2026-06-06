@@ -1,14 +1,15 @@
-import bacBg from "../../assets/background/BAC.png";
-import bl1Bg from "../../assets/background/BL1.png";
-import ba1Bg from "../../assets/background/BA1.png";
-import bac2Bg from "../../assets/background/BAC2.png";
-import pokerImg from "../../assets/games/poker.png";
-import blackjackImg from "../../assets/games/blackjack.png";
-import rouletteImg from "../../assets/games/roulette.png";
-import slotImg from "../../assets/games/slot.png";
-import crashImg from "../../assets/games/crash.png";
-import minesImg from "../../assets/games/mines.png";
-import luckyImg from "../../assets/games/lucky.png";
+import bacBg from "../../assets/background/BAC.webp";
+import bl1Bg from "../../assets/background/BL1.webp";
+import ba1Bg from "../../assets/background/BA1.webp";
+import bac2Bg from "../../assets/background/BAC2.webp";
+import pokerImg from "../../assets/games/poker.webp";
+import beloteImg from "../../assets/games/belote.webp";
+import blackjackImg from "../../assets/games/blackjack.webp";
+import rouletteImg from "../../assets/games/roulette.webp";
+import slotImg from "../../assets/games/slot.webp";
+import crashImg from "../../assets/games/crash.webp";
+import minesImg from "../../assets/games/mines.webp";
+import luckyImg from "../../assets/games/lucky.webp";
 
 export type MarketingLocale = "fr" | "en";
 
@@ -100,7 +101,7 @@ const fr: SiteContent = {
         name: "Belote",
         description:
           "Quatre joueurs autour d'une table style poker : Classique, Coinchée, Contrée ou Moderne. L'hôte définit le buy-in et le score cible ; la cagnotte est redistribuée aux gagnants. Salle d'attente plein écran et vocal en table.",
-        screenshot: bacBg,
+        screenshot: beloteImg,
       },
       {
         id: "blackjack",
@@ -664,7 +665,7 @@ const fr: SiteContent = {
         slug: "changelog-avril-2026-poker-social",
         title: "Changelog — Poker, tutoriels et social",
         excerpt:
-          "Tutoriel roulette, timer serveur poker, amis, avatars NA.png et perf chargement.",
+          "Tutoriel roulette, timer serveur poker, amis, avatars NA.webp et perf chargement.",
         date: "2026-04-15",
         readMinutes: 6,
         tags: ["Changelog", "Poker", "Social"],
@@ -673,7 +674,7 @@ const fr: SiteContent = {
           "• Tutoriel poker : emphase visuelle cibles, polish table et smoke tests.",
           "• Timer serveur poker amélioré, contrôles table, waiting-room : navigation séparée de la suppression de salle.",
           "• Réseau amis : demandes, messages, invitations en direct, profil ami dédié.",
-          "• Avatar par défaut NA.png, fallbacks adversaires alignés, perf avatars (fin chargements longs).",
+          "• Avatar par défaut NA.webp, fallbacks adversaires alignés, perf avatars (fin chargements longs).",
           "• Correctif perf login : musique 4,7 Mo retirée du préchargement bloquant au démarrage.",
           "• Sécurité Supabase : RLS sur tables public, durcissement advisors.",
         ],
@@ -997,7 +998,7 @@ en.news.articles = [
   {
     slug: "changelog-avril-2026-poker-social",
     title: "Changelog — Poker, tutorials and social",
-    excerpt: "Roulette tutorial, server poker timer, friends, NA.png avatars and load perf.",
+    excerpt: "Roulette tutorial, server poker timer, friends, NA.webp avatars and load perf.",
     date: "2026-04-15",
     readMinutes: 6,
     tags: ["Changelog", "Poker", "Social"],
@@ -1006,7 +1007,7 @@ en.news.articles = [
       "• Poker tutorial visual emphasis and table polish.",
       "• Improved server game timer and waiting-room navigation.",
       "• Friends network: requests, messages, live invites.",
-      "• Default NA.png avatar and load performance fixes.",
+      "• Default NA.webp avatar and load performance fixes.",
       "• Supabase RLS hardening.",
     ],
   },

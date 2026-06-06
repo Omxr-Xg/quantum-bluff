@@ -2,37 +2,37 @@ import { getUserAvatar, getUsername } from "./userProfile";
 import { apiUrl } from "./apiBase";
 /* Avatars bundlés : tous les PNG de `assets/avatars/` sauf B1 (réservé aux bots).
  * Vite résout l'import en URL hashée du build — utilisable directement dans <img src=…>. */
-import avatarFA1 from "../assets/avatars/FA1.png";
-import avatarFA2 from "../assets/avatars/FA2.png";
-import avatarFJ1 from "../assets/avatars/FJ1.png";
-import avatarFJ2 from "../assets/avatars/FJ2.png";
-import avatarFJ3 from "../assets/avatars/FJ3.png";
-import avatarFJ4 from "../assets/avatars/FJ4.png";
-import avatarFJ5 from "../assets/avatars/FJ5.png";
-import avatarFJ6 from "../assets/avatars/FJ6.png";
-import avatarFJ7 from "../assets/avatars/FJ7.png";
-import avatarFJ8 from "../assets/avatars/FJ8.png";
-import avatarHA1 from "../assets/avatars/HA1.png";
-import avatarHA2 from "../assets/avatars/HA2.png";
-import avatarHA3 from "../assets/avatars/HA3.png";
-import avatarHJ1 from "../assets/avatars/HJ1.png";
-import avatarHJ2 from "../assets/avatars/HJ2.png";
-import avatarHJ3 from "../assets/avatars/HJ3.png";
-import avatarHJ4 from "../assets/avatars/HJ4.png";
-import avatarHJ5 from "../assets/avatars/HJ5.png";
-import avatarHJ6 from "../assets/avatars/HJ6.png";
-import avatarHJ7 from "../assets/avatars/HJ7.png";
-import avatarHJ8 from "../assets/avatars/HJ8.png";
-import avatarHJ9 from "../assets/avatars/HJ9.png";
-import avatarHJ10 from "../assets/avatars/HJ10.png";
-import avatarTJ1 from "../assets/avatars/TJ1.png";
+import avatarFA1 from "../assets/avatars/FA1.webp";
+import avatarFA2 from "../assets/avatars/FA2.webp";
+import avatarFJ1 from "../assets/avatars/FJ1.webp";
+import avatarFJ2 from "../assets/avatars/FJ2.webp";
+import avatarFJ3 from "../assets/avatars/FJ3.webp";
+import avatarFJ4 from "../assets/avatars/FJ4.webp";
+import avatarFJ5 from "../assets/avatars/FJ5.webp";
+import avatarFJ6 from "../assets/avatars/FJ6.webp";
+import avatarFJ7 from "../assets/avatars/FJ7.webp";
+import avatarFJ8 from "../assets/avatars/FJ8.webp";
+import avatarHA1 from "../assets/avatars/HA1.webp";
+import avatarHA2 from "../assets/avatars/HA2.webp";
+import avatarHA3 from "../assets/avatars/HA3.webp";
+import avatarHJ1 from "../assets/avatars/HJ1.webp";
+import avatarHJ2 from "../assets/avatars/HJ2.webp";
+import avatarHJ3 from "../assets/avatars/HJ3.webp";
+import avatarHJ4 from "../assets/avatars/HJ4.webp";
+import avatarHJ5 from "../assets/avatars/HJ5.webp";
+import avatarHJ6 from "../assets/avatars/HJ6.webp";
+import avatarHJ7 from "../assets/avatars/HJ7.webp";
+import avatarHJ8 from "../assets/avatars/HJ8.webp";
+import avatarHJ9 from "../assets/avatars/HJ9.webp";
+import avatarHJ10 from "../assets/avatars/HJ10.webp";
+import avatarTJ1 from "../assets/avatars/TJ1.webp";
 /* Avatar dédié aux bots — volontairement hors de `AVATAR_PRESETS` pour ne pas
  * etre proposé à la sélection profil. */
-import avatarBot from "../assets/avatars/B1.png";
+import avatarBot from "../assets/avatars/B1.webp";
 /* Avatar par défaut affiché pour tout joueur qui n'a pas choisi de preset
  * ni uploadé de photo — volontairement hors de `AVATAR_PRESETS` pour qu'il
  * ne soit pas sélectionnable. */
-import avatarDefault from "../assets/avatars/NA.png";
+import avatarDefault from "../assets/avatars/NA.webp";
 
 /** Avatar utilisé en l'absence de toute photo / preset (joueur "neutre"). */
 export const DEFAULT_AVATAR_URL: string = avatarDefault;
@@ -49,7 +49,7 @@ function normalizeRemoteAvatarUrl(remoteAvatarUrl?: string | null): string {
 
 /**
  * Presets d'avatar offerts à la sélection (Edit Profile / inscription).
- * Ordre alphabétique par fichier (sans B1.png).
+ * Ordre alphabétique par fichier (sans B1.webp).
  */
 export const AVATAR_PRESETS: readonly string[] = [
   avatarFA1,
@@ -116,11 +116,11 @@ function isLocalPlayerSeat(
 
 /**
  * Avatar affiché pour un joueur à la table ou dans les listes.
- * — Siège local : avatar du profil (`getUserAvatar()`), avec fallback `NA.png`
+ * — Siège local : avatar du profil (`getUserAvatar()`), avec fallback `NA.webp`
  *   si l'utilisateur n'a rien choisi.
- * — Bot (mode entrainement / tutoriel) : avatar dédié `B1.png`.
+ * — Bot (mode entrainement / tutoriel) : avatar dédié `B1.webp`.
  * — Multijoueur : si le serveur a diffusé une URL (`remoteAvatarUrl`), on l’utilise.
- * — Adversaire humain sans URL : avatar par défaut `NA.png`.
+ * — Adversaire humain sans URL : avatar par défaut `NA.webp`.
  *
  * Cette fonction renvoie donc toujours une URL exploitable — les composants
  * consommateurs n'ont plus besoin de tester `?` puis fallback initiale.
@@ -146,10 +146,10 @@ export function getPlayerAvatar(
 
 /**
  * Avatars sur la table de poker :
- * - joueur local : avatar du profil (ou `NA.png` si rien de défini) ;
- * - bot : avatar dédié `B1.png` ;
+ * - joueur local : avatar du profil (ou `NA.webp` si rien de défini) ;
+ * - bot : avatar dédié `B1.webp` ;
  * - adversaire humain avec URL serveur (photo uploadée) : on l'utilise ;
- * - adversaire humain sans URL : avatar par défaut `NA.png`.
+ * - adversaire humain sans URL : avatar par défaut `NA.webp`.
  */
 export function getPokerTableAvatar(
   playerName: string,

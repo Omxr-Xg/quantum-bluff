@@ -13,9 +13,9 @@ import { apiUrl } from "../utils/apiBase";
 import { ChipIcon } from "../components/ChipIcon";
 import { CustomScrollArea } from "../components/CustomScrollArea";
 import { getAuthItem } from "../utils/authStorage";
-import slotSevenLucky from "../assets/slot-seven-lucky.png";
-import slotLemon from "../assets/slot-lemon.png";
-import slotCherries from "../assets/slot-cherries.png";
+import slotSevenLucky from "../assets/slot-seven-lucky.webp";
+import slotLemon from "../assets/slot-lemon.webp";
+import slotCherries from "../assets/slot-cherries.webp";
 
 type SlotSymbol = "cherry" | "lemon" | "diamond" | "seven" | "bell";
 

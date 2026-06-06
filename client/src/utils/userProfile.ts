@@ -7,7 +7,7 @@ import {
 import { clearGamificationStorage } from "./gamificationStorage";
 /* Avatar par défaut bundlé localement (Vite) — évite une requête externe
  * vers `ui-avatars.com` et garantit l'affichage hors-ligne / sur VM isolée. */
-import defaultAvatarAsset from "../assets/avatars/NA.png";
+import defaultAvatarAsset from "../assets/avatars/NA.webp";
 
 const defaultAvatar: string = defaultAvatarAsset;
 

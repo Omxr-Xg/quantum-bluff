@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import cardBackSrc from "../assets/cards/back.png";
+import cardBackSrc from "../assets/cards/back.webp";
 
 /** Formes pour mode daltonien : ● Cœur, ◆ Carreau, ■ Trèfle, ▲ Pique */
 const SUIT_SHAPE: Record<string, string> = {
@@ -112,7 +112,7 @@ export function PokerCard({
         }
     : {};
 
-  // ⚠️ CHANGER ICI L'EXTENSION SI BESOIN (.png ou .svg)
+  // ⚠️ CHANGER ICI L'EXTENSION SI BESOIN (.webp ou .svg)
   const IMAGE_EXTENSION = ".svg"; 
   let fileName = "";
 

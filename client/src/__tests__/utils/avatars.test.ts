@@ -33,12 +33,12 @@ describe("getPlayerAvatar", () => {
     expect(url1).toBe(urlQb);
   });
 
-  it("renvoie l'avatar NA.png par défaut pour un adversaire HUMAIN sans URL serveur", () => {
-    /* Plus de chaîne vide : on retombe sur `NA.png` (image bundlée) afin que
+  it("renvoie l'avatar NA.webp par défaut pour un adversaire HUMAIN sans URL serveur", () => {
+    /* Plus de chaîne vide : on retombe sur `NA.webp` (image bundlée) afin que
      * tous les écrans (table de poker, salle d'attente, liste d'amis, etc.)
      * affichent un visage par défaut au lieu d'une initiale. */
-    expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me")).toMatch(/NA\.png$/i);
-    expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me", null)).toMatch(/NA\.png$/i);
+    expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me")).toMatch(/NA\.webp$/i);
+    expect(getPlayerAvatar("Alice", "uuid-a", "uuid-me", null)).toMatch(/NA\.webp$/i);
   });
 
   it("n’utilise pas l’avatar profil pour un adversaire", () => {
@@ -86,8 +86,8 @@ describe("getPokerTableAvatar", () => {
     expect(url).toBe(remote);
   });
 
-  it("renvoie l'avatar NA.png par défaut pour un adversaire HUMAIN sans URL serveur", () => {
-    expect(getPokerTableAvatar("Alice", "uuid-a", "uuid-me", null)).toMatch(/NA\.png$/i);
+  it("renvoie l'avatar NA.webp par défaut pour un adversaire HUMAIN sans URL serveur", () => {
+    expect(getPokerTableAvatar("Alice", "uuid-a", "uuid-me", null)).toMatch(/NA\.webp$/i);
   });
 });
 
@@ -100,7 +100,7 @@ describe("AVATAR_PRESETS", () => {
     }
   });
 
-  it("expose tous les presets utilisateur (24 PNG, sans B1 bot)", () => {
+  it("expose tous les presets utilisateur (24 WebP, sans B1 bot)", () => {
     expect(AVATAR_PRESETS.length).toBe(24);
   });
 });
