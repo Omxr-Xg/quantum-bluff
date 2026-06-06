@@ -2,7 +2,11 @@ import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { QuantumBluffLogo } from "../../assets/logo";
+import { LanguageSwitcher } from "../LanguageSwitcher";
 import { ClientAuthShellBackground } from "../ClientAuthShellBackground";
+
+const PUBLIC_LANG_BUTTON =
+  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-slate-950/55 text-cyan-100 backdrop-blur-sm transition hover:border-cyan-300/35 hover:bg-white/5 sm:h-10 sm:w-10";
 
 type PublicSiteShellProps = {
   children: ReactNode;
@@ -33,12 +37,15 @@ export function PublicSiteShell({ children, pageTitle }: PublicSiteShellProps) {
       <div className="relative z-10 flex min-h-[100dvh] w-full min-w-0 flex-col">
         <header className="sticky top-0 z-30 w-full border-b border-blue-300/20 bg-slate-950/75 backdrop-blur-xl">
           <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            <Link to="/" className="flex items-center gap-2.5">
-              <QuantumBluffLogo alt="" className="h-9 w-9 brightness-110" />
-              <span className="hidden bg-gradient-to-r from-blue-200 to-cyan-100 bg-clip-text text-sm font-black uppercase tracking-wider text-transparent sm:inline">
-                Quantum Bluff
-              </span>
-            </Link>
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <LanguageSwitcher buttonClassName={PUBLIC_LANG_BUTTON} />
+              <Link to="/" className="flex min-w-0 items-center gap-2.5">
+                <QuantumBluffLogo alt="" className="h-9 w-9 shrink-0 brightness-110" />
+                <span className="hidden bg-gradient-to-r from-blue-200 to-cyan-100 bg-clip-text text-sm font-black uppercase tracking-wider text-transparent sm:inline">
+                  Quantum Bluff
+                </span>
+              </Link>
+            </div>
             <nav className="flex flex-wrap items-center gap-1 text-xs font-semibold sm:gap-2 sm:text-sm">
               {NAV.map((item) => (
                 <Link
