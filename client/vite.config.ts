@@ -159,9 +159,9 @@ export default defineConfig(({ mode }) => {
       // Ne pas renvoyer index.html pour ads.txt (vérification AdSense).
       navigateFallbackDenylist: [/^\/ads\.txt$/],
       mode: 'development',
-      // 2 Mo : couvre le bundle JS principal (~1,8 Mo) tout en laissant de
-      // côté les gros avatars 2+ Mo (chargés à la volée par le SW).
-      maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
+      // 3 Mo : couvre le bundle JS principal (~2,1 Mo) tout en laissant de
+      // côté les gros avatars 2+ Mo (hors globPatterns, chargés à la volée).
+      maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       runtimeCaching: [
         {
           // Avatars utilisateur servis par le backend (/api/auth/avatars/:id).
