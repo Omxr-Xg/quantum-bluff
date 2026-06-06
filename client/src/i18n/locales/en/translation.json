@@ -1291,6 +1291,28 @@
     "claiming": "Claiming…",
     "claimButton": "Claim {{amount}} chips"
   },
+  "publicSite": {
+    "nav": {
+      "discover": "Discover",
+      "news": "News",
+      "about": "About",
+      "contact": "Contact"
+    },
+    "footer": {
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "about": "About",
+      "contact": "Contact"
+    },
+    "footerTagline": "Social casino — virtual chips, poker and Belote online.",
+    "login": "Log in",
+    "ctaPlay": "Play now",
+    "ctaNews": "Read the news",
+    "lastUpdated": "Last updated:",
+    "backToNews": "Back to news",
+    "articleNotFound": "Article not found",
+    "articleNotFoundBody": "This article does not exist or has been moved."
+  },
   "startScreen": {
     "tagline": "Poker reinvented",
     "init": "Initializing...",
@@ -1301,6 +1323,7 @@
     "readyToPlay": "Ready to play!",
     "play": "Play",
     "startButton": "START",
+    "discoverButton": "Discover Quantum Bluff",
     "serverOnline": "Server online"
   },
   "profile": {

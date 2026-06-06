@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles, Crown, Gem, Spade, Heart, Diamond, Club } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -10,6 +10,7 @@ import { getAuthItem } from "../utils/authStorage";
 export function StartScreen() {
   /** Splash + boot copy in English; does not overwrite the user’s app language. */
   const { t } = useTranslation(undefined, { lng: "en" });
+  const { t: tUi } = useTranslation();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -271,6 +272,15 @@ export function StartScreen() {
               <Sparkles className="w-7 h-7 text-cyan-100 animate-pulse" style={{ animationDelay: "0.5s" }} />
             </span>
           </button>
+        )}
+
+        {!isLoading && (
+          <Link
+            to="/discover"
+            className="mt-5 animate-fade-in rounded-full border border-white/20 bg-slate-950/40 px-8 py-3 text-sm font-semibold tracking-wide text-slate-200 backdrop-blur-sm transition hover:border-cyan-300/35 hover:bg-white/5 hover:text-white"
+          >
+            {tUi("startScreen.discoverButton")}
+          </Link>
         )}
 
         {/* Badge de statut */}

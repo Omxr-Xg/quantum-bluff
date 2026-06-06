@@ -80,6 +80,7 @@ import { useRespondToFriendRequestMutation, useSendFriendMessageMutation } from 
 import { NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
+import { isPublicShellPath } from "../utils/publicRoutes";
 import {
   FRIEND_CHAT_REPLIED_EVENT,
   getActiveFriendChat,
@@ -329,11 +330,7 @@ export function Layout({ children }: LayoutProps) {
       setDailyLoginAvailable(false);
       return;
     }
-    const isAuthPage =
-    location.pathname === "/" ||
-    location.pathname === "/auth" ||
-    location.pathname === "/auth/admin";
-    const showTopBarNow = !isAuthPage;
+    const showTopBarNow = !isPublicShellPath(location.pathname);
     let cancelled = false;
     fetchDailyLoginStatus().then((status) => {
       if (cancelled) return;
@@ -875,17 +872,14 @@ export function Layout({ children }: LayoutProps) {
   const isGameHudPage = isGamePage || isBlackjackGamePage;
   const isWaitingRoomPage =
     location.pathname === "/waiting-room";
-  const isAuthPage =
-    location.pathname === "/" ||
-    location.pathname === "/auth" ||
-    location.pathname === "/auth/admin";
+  const isPublicShellPage = isPublicShellPath(location.pathname);
 
   useEffect(() => {
     if (isAdminShell) {
       stopBgm();
     }
   }, [isAdminShell, stopBgm]);
-  const showTopBar = !isAuthPage && getAuthItem("token");
+  const showTopBar = !isPublicShellPage && getAuthItem("token");
   const isFreePaymentTopUp =
     freeCheckoutPromo ||
     Boolean(promoDiscount && simulatedEurFromChips(addMoneyAmount || 0, promoDiscount) === 0);
@@ -980,7 +974,7 @@ export function Layout({ children }: LayoutProps) {
     /** Admin + lobby : scroll sur le document (#root a overflow:hidden par défaut). */
     const on =
       isAdminShell ||
-      isAuthPage ||
+      isPublicShellPage ||
       (lobbyDocumentScroll && !isCasinoFullBleed);
     const root = document.getElementById("root");
     document.documentElement.classList.toggle("doc-scroll-mode", on);
@@ -991,7 +985,7 @@ export function Layout({ children }: LayoutProps) {
       document.body.classList.remove("doc-scroll-mode");
       root?.classList.remove("doc-scroll-mode");
     };
-  }, [isAdminShell, isAuthPage, lobbyDocumentScroll, isCasinoFullBleed, path]);
+  }, [isAdminShell, isPublicShellPage, lobbyDocumentScroll, isCasinoFullBleed, path]);
 
   if (isAdminShell) {
     return (
@@ -1397,14 +1391,14 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const lobbyShellBg = "bg-transparent";
-  const shellBg = isAuthPage
+  const shellBg = isPublicShellPage
     ? "bg-transparent"
     : lobbyDocumentScroll && !isCasinoFullBleed
       ? lobbyShellBg
       : showStandaloneTopBar
         ? "bg-transparent"
         : "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900";
-  const shellClass = isAuthPage
+  const shellClass = isPublicShellPage
     ? "flex w-full min-w-0 flex-col overflow-x-clip overflow-y-visible pb-[env(safe-area-inset-bottom,0px)] bg-transparent"
     : lobbyDocumentScroll && !isCasinoFullBleed
       ? /* Pas de min-h-[100dvh] ni flex-1 sur l’enfant : sinon zone vide en bas (fond document sans dégradés lobby). */
@@ -2299,12 +2293,12 @@ export function Layout({ children }: LayoutProps) {
         className={`w-full min-w-0 overflow-x-clip overflow-y-visible ${
           isCasinoFullBleed
             ? "box-border flex min-h-0 flex-1 flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] [&>*:last-child]:flex [&>*:last-child]:min-h-0 [&>*:last-child]:flex-1 [&>*:last-child]:flex-col"
-            : lobbyDocumentScroll || isAuthPage
+            : lobbyDocumentScroll || isPublicShellPage
               ? "w-full min-w-0"
               : "min-h-0 flex-1"
         }`}
       >
-        {isCasinoFullBleed || isAuthPage ? (
+        {isCasinoFullBleed || isPublicShellPage ? (
           children
         ) : lobbyDocumentScroll ? (
           <div className={`w-full min-w-0 ${topPadDocScroll}`}>{children}</div>

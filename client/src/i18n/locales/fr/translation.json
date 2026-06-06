@@ -1290,6 +1290,28 @@
     "claiming": "Récupération…",
     "claimButton": "Récupérer {{amount}} jetons"
   },
+  "publicSite": {
+    "nav": {
+      "discover": "Découvrir",
+      "news": "Actualités",
+      "about": "À propos",
+      "contact": "Contact"
+    },
+    "footer": {
+      "privacy": "Confidentialité",
+      "terms": "CGU",
+      "about": "À propos",
+      "contact": "Contact"
+    },
+    "footerTagline": "Casino social — jetons virtuels, poker et Belote en ligne.",
+    "login": "Connexion",
+    "ctaPlay": "Jouer maintenant",
+    "ctaNews": "Lire les actualités",
+    "lastUpdated": "Dernière mise à jour :",
+    "backToNews": "Retour aux actualités",
+    "articleNotFound": "Article introuvable",
+    "articleNotFoundBody": "Cet article n'existe pas ou a été déplacé."
+  },
   "startScreen": {
     "tagline": "Le poker réinventé",
     "init": "Initialisation...",
@@ -1300,6 +1322,7 @@
     "readyToPlay": "Prêt à jouer !",
     "play": "Jouer",
     "startButton": "COMMENCER",
+    "discoverButton": "Découvrir Quantum Bluff",
     "serverOnline": "Serveur en ligne"
   },
   "profile": {

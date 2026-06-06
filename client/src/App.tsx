@@ -51,6 +51,13 @@ import { TournamentResults } from "./features/tournament/pages/TournamentResults
 import { AdminAuth } from "./pages/AdminAuth";
 import { AdminConsole } from "./pages/AdminConsole";
 import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
+import { DiscoverPage } from "./pages/marketing/DiscoverPage";
+import { AboutPage } from "./pages/marketing/AboutPage";
+import { ContactPage } from "./pages/marketing/ContactPage";
+import { PrivacyPolicyPage } from "./pages/marketing/PrivacyPolicyPage";
+import { TermsOfServicePage } from "./pages/marketing/TermsOfServicePage";
+import { NewsIndexPage } from "./pages/marketing/NewsIndexPage";
+import { NewsArticlePage } from "./pages/marketing/NewsArticlePage";
 
 import { InvitationAcceptProvider } from "./contexts/InvitationAcceptContext";
 import { VoiceProvider } from "./contexts/VoiceContext";
@@ -119,6 +126,13 @@ function App() {
           
           <Routes>
             <Route path="/" element={<StartScreen />} />
+            <Route path="/discover" element={<DiscoverPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+            <Route path="/news" element={<NewsIndexPage />} />
+            <Route path="/news/:slug" element={<NewsArticlePage />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/admin" element={<AdminAuth />} />
 
