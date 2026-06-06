@@ -9,20 +9,26 @@ type Props = {
   className?: string;
   /** `bac2` pour l’écran d’accueil (/), `bac` (défaut) pour /auth. */
   background?: ClientAuthBackgroundVariant;
+  /** `centered` : splash auth ; `fullPage` : landing scroll pleine largeur. */
+  layout?: "centered" | "fullPage";
 };
 
 /** Calques BAC / BAC2 réutilisables (auth, loader, etc.). */
 export function ClientAuthBackgroundLayers({
   variant = "bac",
-  className = "pointer-events-none absolute inset-0 z-0",
+  fixed = false,
 }: {
   variant?: ClientAuthBackgroundVariant;
-  className?: string;
+  /** Fond fixe viewport pour les pages marketing scrollables. */
+  fixed?: boolean;
 }) {
   const isBac2 = variant === "bac2";
 
   return (
-    <div className={className} aria-hidden>
+    <div
+      className={`pointer-events-none z-0 ${fixed ? "fixed inset-0" : "absolute inset-0"}`}
+      aria-hidden
+    >
       <img
         src={isBac2 ? bac2Bg : bacBg}
         alt=""
@@ -61,12 +67,19 @@ export function ClientAuthShellBackground({
   children,
   className = "",
   background = "bac",
+  layout = "centered",
 }: Props) {
+  const isFullPage = layout === "fullPage";
+
   return (
-    <div className="relative isolate min-h-[100dvh] w-full overflow-x-hidden font-sans">
-      <ClientAuthBackgroundLayers variant={background} />
+    <div className="relative isolate min-h-[100dvh] w-full min-w-0 overflow-x-clip font-sans">
+      <ClientAuthBackgroundLayers variant={background} fixed={isFullPage} />
       <div
-        className={`relative z-10 flex min-h-[100dvh] w-full flex-col items-center justify-center ${className}`}
+        className={
+          isFullPage
+            ? `relative z-10 flex min-h-[100dvh] w-full min-w-0 flex-col ${className}`
+            : `relative z-10 flex min-h-[100dvh] w-full flex-col items-center justify-center ${className}`
+        }
       >
         {children}
       </div>

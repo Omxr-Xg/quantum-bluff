@@ -28,9 +28,9 @@ export function HomePage() {
   return (
     <PublicSiteShell>
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-white/5">
+      <section className="relative w-full overflow-hidden border-b border-white/5">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-blue-600/10 via-transparent to-transparent" />
-        <div className="relative mx-auto flex max-w-4xl flex-col items-center px-4 py-16 text-center sm:px-6 sm:py-24">
+        <div className="relative mx-auto flex w-full max-w-7xl flex-col items-center px-4 py-16 text-center sm:px-6 sm:py-24 lg:px-8">
           <div className="mb-8">
             <QuantumBluffLogo
               alt="Quantum Bluff"
@@ -66,8 +66,8 @@ export function HomePage() {
       </section>
 
       {/* Section 1 — Qu'est-ce que Quantum Bluff ? */}
-      <section className="border-b border-white/5 bg-slate-950/40">
-        <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20">
+      <section className="w-full border-b border-white/5 bg-slate-950/55">
+        <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
           <h2 className="mb-8 text-center text-2xl font-black text-white sm:text-3xl">{home.whatIsTitle}</h2>
           <div className="space-y-5">
             {home.whatIs.map((p, i) => (
@@ -80,9 +80,10 @@ export function HomePage() {
       </section>
 
       {/* Section 2 — Jeux */}
-      <section className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-20">
+      <section className="w-full px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl">
         <h2 className="mb-10 text-center text-2xl font-black text-white sm:text-3xl">{home.gamesTitle}</h2>
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {home.games.map((game) => (
             <article
               key={game.id}
@@ -100,11 +101,12 @@ export function HomePage() {
             </article>
           ))}
         </div>
+        </div>
       </section>
 
       {/* Section 3 — Social */}
-      <section className="border-y border-white/5 bg-slate-950/35">
-        <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6 sm:py-20">
+      <section className="w-full border-y border-white/5 bg-slate-950/50">
+        <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
           <h2 className="mb-10 text-center text-2xl font-black text-white sm:text-3xl">{home.socialTitle}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {home.social.map((item, i) => {
@@ -125,7 +127,8 @@ export function HomePage() {
       </section>
 
       {/* Section 4 — Pourquoi */}
-      <section className="mx-auto max-w-4xl px-4 py-14 sm:px-6 sm:py-20">
+      <section className="w-full px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl">
         <h2 className="mb-10 text-center text-2xl font-black text-white sm:text-3xl">{home.whyTitle}</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           {home.why.map((item, i) => {
@@ -146,11 +149,12 @@ export function HomePage() {
             );
           })}
         </div>
+        </div>
       </section>
 
       {/* Section 5 — FAQ */}
-      <section className="border-t border-white/5 bg-slate-950/40">
-        <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20">
+      <section className="w-full border-t border-white/5 bg-slate-950/55">
+        <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
           <h2 className="mb-8 text-center text-2xl font-black text-white sm:text-3xl">{home.faqTitle}</h2>
           <div className="space-y-3">
             {home.faq.map((item) => (
@@ -169,8 +173,8 @@ export function HomePage() {
       </section>
 
       {/* CTA final */}
-      <section className="border-t border-cyan-500/20 bg-gradient-to-b from-blue-950/50 to-slate-950/80">
-        <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6">
+      <section className="w-full border-t border-cyan-500/20 bg-gradient-to-b from-blue-950/60 to-slate-950/90">
+        <div className="mx-auto w-full max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
           <h2 className="text-2xl font-black text-white">{home.ctaTitle}</h2>
           <p className="mt-3 text-slate-300">{home.ctaBody}</p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

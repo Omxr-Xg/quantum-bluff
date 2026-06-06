@@ -29,10 +29,10 @@ export function PublicSiteShell({ children, pageTitle }: PublicSiteShellProps) {
   const { pathname } = useLocation();
 
   return (
-    <ClientAuthShellBackground background="bac2">
-      <div className="relative z-10 flex min-h-[100dvh] flex-col">
-        <header className="sticky top-0 z-30 border-b border-blue-300/20 bg-slate-950/75 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+    <ClientAuthShellBackground background="bac2" layout="fullPage">
+      <div className="relative z-10 flex min-h-[100dvh] w-full min-w-0 flex-col">
+        <header className="sticky top-0 z-30 w-full border-b border-blue-300/20 bg-slate-950/75 backdrop-blur-xl">
+          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <Link to="/" className="flex items-center gap-2.5">
               <QuantumBluffLogo alt="" className="h-9 w-9 brightness-110" />
               <span className="hidden bg-gradient-to-r from-blue-200 to-cyan-100 bg-clip-text text-sm font-black uppercase tracking-wider text-transparent sm:inline">
@@ -65,10 +65,10 @@ export function PublicSiteShell({ children, pageTitle }: PublicSiteShellProps) {
           </div>
         </header>
 
-        <main className="flex-1">
+        <main className="w-full min-w-0 flex-1">
           {pageTitle ? (
-            <div className="border-b border-white/5 bg-slate-950/30">
-              <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+            <div className="w-full border-b border-white/5 bg-slate-950/30">
+              <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                 <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">{pageTitle}</h1>
               </div>
             </div>
@@ -76,8 +76,8 @@ export function PublicSiteShell({ children, pageTitle }: PublicSiteShellProps) {
           {children}
         </main>
 
-        <footer className="border-t border-blue-300/15 bg-slate-950/80">
-          <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 sm:px-6 md:flex-row md:items-center md:justify-between">
+        <footer className="w-full border-t border-blue-300/15 bg-slate-950/80">
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-8 sm:px-6 lg:px-8 md:flex-row md:items-center md:justify-between">
             <p className="text-xs text-slate-400">{t("publicSite.footerTagline")}</p>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-slate-300">
               {FOOTER_LEGAL.map((item) => (
