@@ -64,6 +64,7 @@ import { PrivacyPolicyPage } from "./pages/marketing/PrivacyPolicyPage";
 import { TermsOfServicePage } from "./pages/marketing/TermsOfServicePage";
 import { NewsIndexPage } from "./pages/marketing/NewsIndexPage";
 import { NewsArticlePage } from "./pages/marketing/NewsArticlePage";
+import { SeoGameLandingPage } from "./pages/marketing/SeoGameLandingPage";
 
 import { InvitationAcceptProvider } from "./contexts/InvitationAcceptContext";
 import { VoiceProvider } from "./contexts/VoiceContext";
@@ -139,6 +140,9 @@ function App() {
             <Route path="/terms-of-service" element={<TermsOfServicePage />} />
             <Route path="/news" element={<NewsIndexPage />} />
             <Route path="/news/:slug" element={<NewsArticlePage />} />
+            <Route path="/play-poker-online" element={<SeoGameLandingPage game="poker" />} />
+            <Route path="/online-belote" element={<SeoGameLandingPage game="belote" />} />
+            <Route path="/online-blackjack" element={<SeoGameLandingPage game="blackjack" />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/register" element={<Register />} />
             <Route path="/auth/admin" element={<AdminAuth />} />

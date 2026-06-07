@@ -5,6 +5,9 @@ const PUBLIC_MARKETING_PATHS = [
   "/privacy-policy",
   "/terms-of-service",
   "/news",
+  "/play-poker-online",
+  "/online-belote",
+  "/online-blackjack",
 ] as const;
 
 export function isPublicMarketingPath(pathname: string): boolean {
