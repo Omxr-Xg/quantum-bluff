@@ -35,6 +35,7 @@ import { PlayerHistory } from "./pages/PlayerHistory";
 import { Notifications } from "./pages/Notifications";
 import { Register } from "./pages/Register";
 import { OAuthSuccessPage } from "./pages/OAuthSuccessPage";
+import { SetPasswordPage } from "./pages/SetPasswordPage";
 import { GameDeal } from "./pages/GameDeal";
 import { GameExample } from "./pages/GameExample";
 import { Layout } from "./components/Layout";
@@ -151,6 +152,14 @@ function App() {
             <Route path="/auth" element={<Auth />} />
             <Route path="/register" element={<Register />} />
             <Route path="/oauth-success" element={<OAuthSuccessPage />} />
+            <Route
+              path="/auth/set-password"
+              element={
+                <ProtectedRoute>
+                  <SetPasswordPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/auth/admin" element={<AdminAuth />} />
 
             <Route path="/admin/console" element={<AdminProtectedRoute><AdminConsole /></AdminProtectedRoute>} />

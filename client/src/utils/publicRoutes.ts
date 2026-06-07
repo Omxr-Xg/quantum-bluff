@@ -24,6 +24,7 @@ export function isPublicShellPath(pathname: string): boolean {
   return (
     pathname === "/" ||
     pathname === "/auth" ||
+    pathname === "/auth/set-password" ||
     pathname === "/auth/admin" ||
     isPublicMarketingPath(pathname)
   );

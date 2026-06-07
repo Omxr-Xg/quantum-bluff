@@ -321,6 +321,28 @@ export function Lobby() {
     lobbyTourOpenRef.current = lobbyTourOpen;
   }, [lobbyTourOpen]);
 
+  /** Comptes Google : mot de passe obligatoire avant lobby / tutoriel. */
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(apiUrl("/api/auth/me"), { headers: authHeaders() });
+        const data = (await res.json().catch(() => ({}))) as {
+          user?: { needsPasswordSetup?: boolean };
+        };
+        if (!cancelled && res.ok && data.user?.needsPasswordSetup) {
+          navigate("/auth/set-password", { replace: true });
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, authHeaders, navigate]);
+
   /** État du tuto : une fois par compte (champ serveur), pas par navigateur. */
   useEffect(() => {
     if (!userId) {

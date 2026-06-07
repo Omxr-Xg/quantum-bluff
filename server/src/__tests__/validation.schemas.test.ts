@@ -1,4 +1,4 @@
-import { registerSchema, loginSchema, resetPasswordSchema } from '../validation/auth.validation.js'
+import { registerSchema, loginSchema, resetPasswordSchema, setPasswordSchema } from '../validation/auth.validation.js'
 import { gameActionSchema, botActionSchema } from '../validation/game.validation.js'
 import { searchUserSchema, friendRequestSchema, updateRequestSchema } from '../validation/friends.validation.js'
 import { gameRatingSchema } from '../validation/feedback.validation.js'
@@ -41,6 +41,20 @@ describe('validation schemas', () => {
           newPassword: 'Secret12!',
         }).success,
       ).toBe(true)
+    })
+    it('setPasswordSchema', () => {
+      expect(
+        setPasswordSchema.safeParse({
+          password: 'Secret12!',
+          confirmPassword: 'Secret12!',
+        }).success,
+      ).toBe(true)
+      expect(
+        setPasswordSchema.safeParse({
+          password: 'Secret12!',
+          confirmPassword: 'Mismatch1!',
+        }).success,
+      ).toBe(false)
     })
   })
 

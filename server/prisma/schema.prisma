@@ -45,6 +45,8 @@ model User {
   bannedUntil              DateTime? // Si défini et dans le futur, le compte est bloqué
   /// Date de naissance (jour civil, stockée en UTC à minuit) — inscription / conformité d’âge selon le pays.
   dateOfBirth DateTime?
+  /// Mot de passe choisi par le joueur (comptes Google : requis avant le lobby).
+  passwordSetAt DateTime?
   /// Tutoriel interactif du lobby terminé ou ignoré (une fois par compte).
   lobbyTutorialCompletedAt DateTime?
   /// Dernière fois que le joueur a ouvert l’écran Amis : sert aux compteurs messages/prêts « depuis ta dernière visite » (pas de localStorage).

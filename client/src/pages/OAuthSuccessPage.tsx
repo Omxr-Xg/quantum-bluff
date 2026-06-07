@@ -69,15 +69,23 @@ export function OAuthSuccessPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error("profile_failed");
-        const data = (await res.json()) as { user?: Record<string, unknown> };
+        const data = (await res.json()) as {
+          user?: Record<string, unknown> & { needsPasswordSetup?: boolean };
+        };
         if (!data.user || cancelled) return;
 
         applyAuthSession(token, data.user as Parameters<typeof applyAuthSession>[1]);
         await applyPendingReferralAfterAuth(token);
         await fetchBalanceFromServer({ authoritative: true });
         trackEvent("login");
-        window.history.replaceState({}, "", lobbyHistoryPath());
-        navigate("/lobby", { replace: true });
+
+        const needsPasswordSetup = Boolean(data.user.needsPasswordSetup);
+        if (needsPasswordSetup) {
+          navigate("/auth/set-password", { replace: true });
+        } else {
+          window.history.replaceState({}, "", lobbyHistoryPath());
+          navigate("/lobby", { replace: true });
+        }
       } catch {
         if (!cancelled) setError("profile_failed");
       }

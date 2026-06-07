@@ -34,3 +34,13 @@ export const resetPasswordSchema = z.object({
   secretAnswer: z.string().min(1).max(200),
   newPassword: strongPasswordSchema,
 });
+
+export const setPasswordSchema = z
+  .object({
+    password: strongPasswordSchema,
+    confirmPassword: z.string().min(1),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Les mots de passe ne correspondent pas',
+    path: ['confirmPassword'],
+  });

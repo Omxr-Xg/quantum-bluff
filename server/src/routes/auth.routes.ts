@@ -4,7 +4,7 @@ import sanitizeHtml from 'sanitize-html'
 import { z } from 'zod'
 import { pgPool, prisma } from '../config/database.js'
 import { env } from '../config/env.js'
-import { registerSchema, loginSchema, resetPasswordSchema, strongPasswordSchema } from '../validation/auth.validation.js'
+import { registerSchema, loginSchema, resetPasswordSchema, setPasswordSchema, strongPasswordSchema } from '../validation/auth.validation.js'
 import { resolveCountryFromRequest } from '../utils/registerCountryFromRequest.js'
 import { evaluateRegisterAgeGate, parseIsoDateOfBirth, eligibilityUnblockAtUtc, isBeforeEligibilityDay } from '../utils/registerAgeGate.js'
 import { normalizeSecretAnswer } from '../utils/secretAnswer.js'
@@ -166,6 +166,10 @@ router.get('/avatars/:userId', async (req, res) => {
 // Regex format email: xxx@yyy.zzz
 const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+function userNeedsPasswordSetup(user: { authProvider: string; passwordSetAt: Date | null }): boolean {
+  return user.authProvider !== 'LOCAL' && user.passwordSetAt == null
+}
+
 // CHECK EMAIL - Vérifie si l'email existe (pour flux login/register unifié)
 router.post('/check-email', checkEmailLimiter, async (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
@@ -301,6 +305,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         secretAnswerHash,
         dateOfBirth: gate.dobUtc,
         referralCode: newReferralCode,
+        passwordSetAt: now,
       },
       include: { playerStats: true }
     })
@@ -388,6 +393,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         playerStats: playerStats ?? null,
         lobbyTutorialCompleted: user.lobbyTutorialCompletedAt != null,
         avatarUrl: clientAvatarUrlFromUser(user),
+        needsPasswordSetup: false,
       }
     })
 
@@ -509,6 +515,8 @@ router.post('/login', loginLimiter, async (req, res) => {
         avatarHasBinary: true,
         bannedUntil: true,
         playerStats: true,
+        authProvider: true,
+        passwordSetAt: true,
       },
     })
 
@@ -561,6 +569,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         playerStats: user.playerStats,
         lobbyTutorialCompleted: user.lobbyTutorialCompletedAt != null,
         avatarUrl: clientAvatarUrlFromUser(user),
+        needsPasswordSetup: userNeedsPasswordSetup(user),
       }
     })
 
@@ -594,6 +603,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         avatarHasBinary: true,
         playerStats: true,
         authProvider: true,
+        passwordSetAt: true,
       },
     })
 
@@ -621,11 +631,54 @@ router.get('/me', authMiddleware, async (req, res) => {
         lobbyTutorialCompleted: user.lobbyTutorialCompletedAt != null,
         avatarUrl: clientAvatarUrlFromUser(user),
         authProvider: user.authProvider,
+        needsPasswordSetup: userNeedsPasswordSetup(user),
       },
     })
   } catch (error) {
     console.error('[AUTH] me GET error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/** Définit un mot de passe pour les comptes Google (avant lobby / suppression de compte). */
+router.post('/set-password', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const parsed = setPasswordSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: parsed.error.issues.map((issue) => issue.message).join(', '),
+      })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, authProvider: true, passwordSetAt: true },
+    })
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
+
+    if (user.passwordSetAt) {
+      return res.status(409).json({ error: 'Un mot de passe est déjà défini pour ce compte.' })
+    }
+    if (user.authProvider === 'LOCAL') {
+      return res.status(400).json({ error: 'Ce compte utilise déjà un mot de passe local.' })
+    }
+
+    const hashedPassword = await bcrypt.hash(parsed.data.password, 10)
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        passwordSetAt: new Date(),
+      },
+    })
+
+    return res.json({ ok: true, needsPasswordSetup: false })
+  } catch (error) {
+    console.error('[AUTH] set-password error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
   }
 })
 
@@ -1117,17 +1170,12 @@ router.delete('/account', authMiddleware, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, username: true, password: true, authProvider: true },
+      select: { id: true, username: true, password: true, authProvider: true, passwordSetAt: true },
     })
     if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
 
-    const isOAuth = user.authProvider !== 'LOCAL'
-    if (isOAuth) {
-      const confirm = parsed.data.confirmUsername?.trim() ?? ''
-      if (confirm.toLowerCase() !== user.username.toLowerCase()) {
-        return res.status(400).json({ error: 'Confirmez votre pseudo pour supprimer le compte.' })
-      }
-    } else {
+    const requiresPassword = user.authProvider === 'LOCAL' || user.passwordSetAt != null
+    if (requiresPassword) {
       const password = parsed.data.password ?? ''
       if (!password) {
         return res.status(400).json({ error: 'Mot de passe requis pour supprimer le compte.' })
@@ -1135,6 +1183,11 @@ router.delete('/account', authMiddleware, async (req, res) => {
       const ok = await bcrypt.compare(password, user.password)
       if (!ok) {
         return res.status(401).json({ error: 'Mot de passe incorrect.' })
+      }
+    } else {
+      const confirm = parsed.data.confirmUsername?.trim() ?? ''
+      if (confirm.toLowerCase() !== user.username.toLowerCase()) {
+        return res.status(400).json({ error: 'Confirmez votre pseudo pour supprimer le compte.' })
       }
     }
 
