@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { Bell, CheckCheck, Home, Loader2 } from "lucide-react";
+import { notificationChipsLabel } from "../utils/notificationPayload";
 import {
   useGetNotificationsQuery,
   useMarkAllNotificationsReadMutation,
@@ -25,11 +26,11 @@ function formatMessage(
       return t("growthNotifications.achievement", { name: String(p.achievementId ?? "—") });
     case "REFERRAL":
       return t("growthNotifications.referral", {
-        chips: typeof p.chips === "number" ? p.chips.toLocaleString() : "—",
+        chips: notificationChipsLabel(p),
       });
     case "DAILY_REWARD":
       return t("growthNotifications.dailyReward", {
-        chips: typeof p.chips === "number" ? p.chips.toLocaleString() : "—",
+        chips: notificationChipsLabel(p),
       });
     case "SEASON_ENDED":
       return t("growthNotifications.seasonEnded", { season: String(p.seasonName ?? "—") });

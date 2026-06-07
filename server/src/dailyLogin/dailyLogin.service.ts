@@ -173,6 +173,7 @@ export async function claimDailyLogin(userId: string): Promise<DailyLoginClaimRe
       createNotification(userId, 'DAILY_REWARD', {
         streakCount: nextDayIndex,
         rewardTokens,
+        chips: rewardTokens,
       }),
     )
     return result
