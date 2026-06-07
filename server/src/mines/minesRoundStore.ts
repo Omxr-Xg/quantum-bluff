@@ -14,6 +14,8 @@ export type MinesRound = {
   payout?: number
 }
 
+import { reconcileMinesRound } from './minesRoundReconcile.js'
+
 const roundsById = new Map<string, MinesRound>()
 const activeByUser = new Map<string, string>()
 
@@ -28,15 +30,59 @@ function purgeStale(now = Date.now()): void {
   }
 }
 
+function syncActiveAfterReconcile(roundId: string, round: MinesRound): MinesRound {
+  roundsById.set(roundId, round)
+  if (round.status !== 'running') {
+    if (activeByUser.get(round.userId) === roundId) activeByUser.delete(round.userId)
+  }
+  return round
+}
+
+function reconcileUserActive(userId: string, now = Date.now()): void {
+  const id = activeByUser.get(userId)
+  if (!id) return
+  const round = roundsById.get(id)
+  if (!round) {
+    activeByUser.delete(userId)
+    return
+  }
+  syncActiveAfterReconcile(id, reconcileMinesRound(round, now))
+}
+
 export const minesRoundStore = {
+  reconcileUser(userId: string, now = Date.now()): void {
+    purgeStale(now)
+    reconcileUserActive(userId, now)
+  },
+
   getActiveRoundId(userId: string): string | undefined {
     purgeStale()
-    return activeByUser.get(userId)
+    reconcileUserActive(userId)
+    const id = activeByUser.get(userId)
+    if (!id) return undefined
+    const round = roundsById.get(id)
+    return round?.status === 'running' ? id : undefined
+  },
+
+  getActiveRound(userId: string): MinesRound | undefined {
+    purgeStale()
+    reconcileUserActive(userId)
+    const id = activeByUser.get(userId)
+    if (!id) return undefined
+    const round = roundsById.get(id)
+    return round?.status === 'running' ? round : undefined
   },
 
   getRound(roundId: string): MinesRound | undefined {
     purgeStale()
-    return roundsById.get(roundId)
+    const round = roundsById.get(roundId)
+    if (!round) return undefined
+    return syncActiveAfterReconcile(roundId, reconcileMinesRound(round))
+  },
+
+  _resetForTests(): void {
+    roundsById.clear()
+    activeByUser.clear()
   },
 
   createRound(round: MinesRound): void {

@@ -1,5 +1,5 @@
 const playingUsers = new Map<string, number>()
-const LOCK_TTL_MS = 30_000
+const LOCK_TTL_MS = 15_000
 
 function purgeStale(now = Date.now()): void {
   for (const [userId, until] of playingUsers) {

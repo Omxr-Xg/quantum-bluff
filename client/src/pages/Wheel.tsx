@@ -24,6 +24,7 @@ import {
   historyBadgeClass,
   wheelSegmentLabelPosition,
 } from "../features/wheel/wheelMath";
+import { isSoloActiveConflict } from "../features/soloGames/recoverActiveRound";
 
 type Phase = "ready" | "spinning" | "result";
 
@@ -103,7 +104,7 @@ export function Wheel() {
     }, 2000);
   }, []);
 
-  const handleSpin = async () => {
+  const handleSpin = async (allowRetry = true) => {
     if (!canSpin) return;
     const token = getAuthItem("token");
     if (!token) {
@@ -134,6 +135,11 @@ export function Wheel() {
       };
 
       if (!res.ok) {
+        if (allowRetry && isSoloActiveConflict(data.code)) {
+          setPhase("ready");
+          await new Promise((r) => window.setTimeout(r, 400));
+          return handleSpin(false);
+        }
         setPhase("ready");
         throw new Error(data.error ?? data.code ?? t("common.error"));
       }

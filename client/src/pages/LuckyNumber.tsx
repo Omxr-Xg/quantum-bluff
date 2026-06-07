@@ -24,6 +24,7 @@ import {
   historyBadgeClass,
   runLuckyNumberDrawAnimation,
 } from "../features/luckyNumber/luckyNumberMath";
+import { isSoloActiveConflict } from "../features/soloGames/recoverActiveRound";
 
 type Phase = "ready" | "drawing" | "result";
 
@@ -113,7 +114,7 @@ export function LuckyNumber() {
     }, 2200);
   }, []);
 
-  const handlePlay = async () => {
+  const handlePlay = async (allowRetry = true) => {
     if (!canPlay) return;
     const token = getAuthItem("token");
     if (!token) {
@@ -144,6 +145,11 @@ export function LuckyNumber() {
       };
 
       if (!res.ok) {
+        if (allowRetry && isSoloActiveConflict(data.code)) {
+          setPhase("ready");
+          await new Promise((r) => window.setTimeout(r, 400));
+          return handlePlay(false);
+        }
         setPhase("ready");
         throw new Error(data.error ?? data.code ?? t("common.error"));
       }

@@ -24,6 +24,10 @@ import {
   multiplierAtElapsedMs,
   multiplierColorClass,
 } from "../features/crash/crashMath";
+import {
+  fetchCrashActiveRound,
+  isSoloActiveConflict,
+} from "../features/soloGames/recoverActiveRound";
 
 type Phase = "ready" | "running" | "cashed_out" | "crashed";
 
@@ -76,6 +80,22 @@ export function Crash() {
     window.addEventListener(BALANCE_CHANGED_EVENT, syncBalance);
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, syncBalance);
   }, [syncBalance]);
+
+  const resumeActiveRound = useCallback(async (): Promise<boolean> => {
+    const active = await fetchCrashActiveRound();
+    if (!active) return false;
+    setRoundId(active.roundId);
+    setStartedAtMs(active.startedAt);
+    setBet(active.bet);
+    setMultiplier(active.multiplier);
+    setPhase("running");
+    setLastResult(null);
+    return true;
+  }, []);
+
+  useEffect(() => {
+    void resumeActiveRound();
+  }, [resumeActiveRound]);
 
   const canLaunch = phase === "ready" && balance >= bet && bet >= CRASH_MIN_BET && !acting;
   const insufficient = balance < bet;
@@ -159,7 +179,7 @@ export function Crash() {
     };
   }, [phase, pollSettle, roundId]);
 
-  const handleStart = async () => {
+  const handleStart = async (allowRetry = true) => {
     if (!canLaunch) return;
     const token = getAuthItem("token");
     if (!token) {
@@ -183,6 +203,15 @@ export function Crash() {
         chips?: number;
       };
       if (!res.ok) {
+        if (isSoloActiveConflict(data.code)) {
+          if (await resumeActiveRound()) {
+            addToast(t("minigames.sessionResumed"), "info");
+            return;
+          }
+          if (allowRetry) {
+            return handleStart(false);
+          }
+        }
         throw new Error(data.error ?? data.code ?? t("common.error"));
       }
       if (typeof data.chips === "number") updateUserBalance(data.chips);

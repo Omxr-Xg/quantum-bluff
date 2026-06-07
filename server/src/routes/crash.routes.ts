@@ -16,6 +16,7 @@ function secureRandomUnit(): number {
   return randomBytes(4).readUInt32BE(0) / 0xffffffff
 }
 import { crashRoundStore } from '../crash/crashRoundStore.js'
+import { crashRoundPublicView } from '../crash/crashRoundReconcile.js'
 import { createCasinoRoundContext } from '../casino/services/roundContext.service.js'
 import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
 import { applyRepaymentOnPositiveWin } from '../services/friendLoan.service.js'
@@ -26,13 +27,42 @@ function elapsedSec(startedAtMs: number): number {
   return Math.max(0, (Date.now() - startedAtMs) / 1000)
 }
 
+router.get('/active', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    crashRoundStore.reconcileUser(userId)
+    const round = crashRoundStore.getActiveRound(userId)
+    if (!round) {
+      return res.json({ active: false })
+    }
+
+    return res.json({
+      active: true,
+      ...crashRoundPublicView(round),
+    })
+  } catch (e) {
+    console.error('[crash/active]', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 router.post('/start', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    if (crashRoundStore.getActiveRoundId(userId)) {
-      return res.status(409).json({ error: 'Partie déjà en cours', code: 'ACTIVE_CRASH_ROUND' })
+    crashRoundStore.reconcileUser(userId)
+    const activeId = crashRoundStore.getActiveRoundId(userId)
+    if (activeId) {
+      const round = crashRoundStore.getActiveRound(userId)
+      return res.status(409).json({
+        error: 'Partie déjà en cours',
+        code: 'ACTIVE_CRASH_ROUND',
+        roundId: activeId,
+        ...(round ? crashRoundPublicView(round) : {}),
+      })
     }
 
     const context = createCasinoRoundContext({

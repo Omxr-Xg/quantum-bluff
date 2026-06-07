@@ -27,6 +27,10 @@ import {
   historyBadgeClass,
   multiplierGlowClass,
 } from "../features/mines/minesMath";
+import {
+  fetchMinesActiveRound,
+  isSoloActiveConflict,
+} from "../features/soloGames/recoverActiveRound";
 
 type Phase = "ready" | "running" | "cashed_out" | "exploded";
 
@@ -92,6 +96,24 @@ export function Mines() {
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, syncBalance);
   }, [syncBalance]);
 
+  const resumeActiveRound = useCallback(async (): Promise<boolean> => {
+    const active = await fetchMinesActiveRound();
+    if (!active) return false;
+    setRoundId(active.roundId);
+    setBet(active.bet);
+    setMineCount(active.mineCount);
+    setRevealedCells(active.revealedCells);
+    setMultiplier(active.multiplier);
+    setMinePositions(null);
+    setPhase("running");
+    setLastResult(null);
+    return true;
+  }, []);
+
+  useEffect(() => {
+    void resumeActiveRound();
+  }, [resumeActiveRound]);
+
   const canLaunch = phase === "ready" && balance >= bet && bet >= MINES_MIN_BET && !acting;
   const canCashout = phase === "running" && revealedCells.length > 0 && !acting;
   const insufficient = balance < bet;
@@ -116,7 +138,7 @@ export function Mines() {
     window.setTimeout(() => setShowResultCard(false), 2000);
   }, []);
 
-  const handleStart = async () => {
+  const handleStart = async (allowRetry = true) => {
     if (!canLaunch) return;
     const token = getAuthItem("token");
     if (!token) {
@@ -139,6 +161,15 @@ export function Mines() {
         chips?: number;
       };
       if (!res.ok) {
+        if (isSoloActiveConflict(data.code)) {
+          if (await resumeActiveRound()) {
+            addToast(t("minigames.sessionResumed"), "info");
+            return;
+          }
+          if (allowRetry) {
+            return handleStart(false);
+          }
+        }
         throw new Error(data.error ?? data.code ?? t("common.error"));
       }
       if (typeof data.chips === "number") updateUserBalance(data.chips);

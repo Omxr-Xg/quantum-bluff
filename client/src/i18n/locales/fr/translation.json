@@ -236,7 +236,9 @@
     "quickSoloNew": "Nouveau",
     "backToLobbyMinigamesTab": "Retour au lobby",
     "betPresetMax": "Max",
-    "maxBetNote": "Max : {{amount}}"
+    "maxBetNote": "Max : {{amount}}",
+    "sessionResumed": "Partie en cours reprise.",
+    "sessionRetry": "Nouvelle tentative…"
   },
   "crash": {
     "back": "Retour jeux solo",

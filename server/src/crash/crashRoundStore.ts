@@ -11,6 +11,8 @@ export type CrashRound = {
   payout?: number
 }
 
+import { reconcileCrashRound } from './crashRoundReconcile.js'
+
 const roundsById = new Map<string, CrashRound>()
 const activeByUser = new Map<string, string>()
 
@@ -25,15 +27,61 @@ function purgeStale(now = Date.now()): void {
   }
 }
 
+function syncActiveAfterReconcile(roundId: string, round: CrashRound): CrashRound {
+  roundsById.set(roundId, round)
+  if (round.status !== 'running') {
+    if (activeByUser.get(round.userId) === roundId) activeByUser.delete(round.userId)
+  }
+  return round
+}
+
+function reconcileUserActive(userId: string, now = Date.now()): void {
+  const id = activeByUser.get(userId)
+  if (!id) return
+  const round = roundsById.get(id)
+  if (!round) {
+    activeByUser.delete(userId)
+    return
+  }
+  syncActiveAfterReconcile(id, reconcileCrashRound(round, now))
+}
+
 export const crashRoundStore = {
+  /** Réconcilie les manches abandonnées / crashées avant toute lecture. */
+  reconcileUser(userId: string, now = Date.now()): void {
+    purgeStale(now)
+    reconcileUserActive(userId, now)
+  },
+
   getActiveRoundId(userId: string): string | undefined {
     purgeStale()
-    return activeByUser.get(userId)
+    reconcileUserActive(userId)
+    const id = activeByUser.get(userId)
+    if (!id) return undefined
+    const round = roundsById.get(id)
+    return round?.status === 'running' ? id : undefined
+  },
+
+  getActiveRound(userId: string): CrashRound | undefined {
+    purgeStale()
+    reconcileUserActive(userId)
+    const id = activeByUser.get(userId)
+    if (!id) return undefined
+    const round = roundsById.get(id)
+    return round?.status === 'running' ? round : undefined
   },
 
   getRound(roundId: string): CrashRound | undefined {
     purgeStale()
-    return roundsById.get(roundId)
+    const round = roundsById.get(roundId)
+    if (!round) return undefined
+    return syncActiveAfterReconcile(roundId, reconcileCrashRound(round))
+  },
+
+  /** Tests uniquement — vide le store en mémoire. */
+  _resetForTests(): void {
+    roundsById.clear()
+    activeByUser.clear()
   },
 
   createRound(round: CrashRound): void {

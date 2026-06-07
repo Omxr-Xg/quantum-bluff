@@ -237,7 +237,9 @@
     "quickSoloNew": "New",
     "backToLobbyMinigamesTab": "Back to lobby",
     "betPresetMax": "Max",
-    "maxBetNote": "Max: {{amount}}"
+    "maxBetNote": "Max: {{amount}}",
+    "sessionResumed": "Resumed your in-progress round.",
+    "sessionRetry": "Retrying…"
   },
   "crash": {
     "back": "Back to solo games",
