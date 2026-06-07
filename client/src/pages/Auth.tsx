@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Heart, Club, Diamond, CircleDot, Calendar } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Heart, Club, Diamond, CircleDot, Calendar, Gift } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { ClientAuthShellBackground } from "../components/ClientAuthShellBackground";
 import { AuthPublicFooter } from "../components/marketing/AuthPublicFooter";
@@ -20,9 +20,11 @@ import { fetchBalanceFromServer, updateUserBalance } from "../utils/userProfile"
 import {
   clearPendingReferralCode,
   getPendingReferralCode,
+  normalizeReferralInput,
   persistPendingReferralCode,
 } from "../utils/referralStorage";
 import { translateRegisterApiError, isoDateUtc } from "../utils/authRegisterErrors";
+import { applyPendingReferralAfterAuth } from "../utils/applyPendingReferral";
 
 // Hook loader
 import { useLoader } from "../contexts/LoaderContext";
@@ -94,10 +96,34 @@ export function Auth() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const referralFromUrl = (searchParams.get("ref") ?? "").trim() || undefined;
+  const [savedReferral, setSavedReferral] = useState<string | undefined>(
+    () => referralFromUrl ?? getPendingReferralCode(),
+  );
+  const [showReferralPanel, setShowReferralPanel] = useState(false);
+  const [referralDraft, setReferralDraft] = useState("");
 
   useEffect(() => {
-    if (referralFromUrl) persistPendingReferralCode(referralFromUrl);
+    if (referralFromUrl) {
+      persistPendingReferralCode(referralFromUrl);
+      setSavedReferral(referralFromUrl);
+    }
   }, [referralFromUrl]);
+
+  const handleSaveReferral = () => {
+    const code = normalizeReferralInput(referralDraft);
+    if (code.length < 4) return;
+    persistPendingReferralCode(code);
+    setSavedReferral(code);
+    setShowReferralPanel(false);
+    setReferralDraft("");
+  };
+
+  const handleClearReferral = () => {
+    clearPendingReferralCode();
+    setSavedReferral(undefined);
+    setShowReferralPanel(false);
+    setReferralDraft("");
+  };
   const from = (location.state as { from?: string } | null)?.from ?? "/lobby";
 
   const dobBounds = useMemo(() => {
@@ -267,15 +293,22 @@ export function Auth() {
       socket.auth = { token: response.token };
       socket.connect();
 
-      await fetchBalanceFromServer({ authoritative: true });
-      if ((response as { referral?: { applied?: boolean } }).referral?.applied) {
+      let referralApplied = Boolean(
+        (response as { referral?: { applied?: boolean } }).referral?.applied,
+      );
+      if (!referralApplied) {
+        const fallback = await applyPendingReferralAfterAuth(response.token);
+        referralApplied = fallback.applied;
+      } else {
         clearPendingReferralCode();
       }
+
+      await fetchBalanceFromServer({ authoritative: true });
 
       window.dispatchEvent(new Event("auth-changed"));
 
       trackEvent("register");
-      if ((response as { referral?: { applied?: boolean } }).referral?.applied) {
+      if (referralApplied) {
         trackEvent("referral_applied");
       }
 
@@ -958,6 +991,70 @@ export function Auth() {
                 )}
               </button>
             </form>
+          )}
+        </div>
+
+        <div className="mt-4 w-full max-w-md">
+          {savedReferral ? (
+            <div className="flex items-center justify-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/35 bg-cyan-950/30 px-3 py-1.5 text-xs font-medium text-cyan-100">
+                <Gift className="h-3.5 w-3.5 shrink-0 text-cyan-300" aria-hidden />
+                {t("auth.referralCodeSaved", { code: savedReferral })}
+              </span>
+              <button
+                type="button"
+                onClick={handleClearReferral}
+                className="rounded-full p-1 text-slate-500 transition hover:bg-white/5 hover:text-white"
+                aria-label={t("auth.referralCodeClear")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : showReferralPanel ? (
+            <div className="rounded-xl border border-white/10 bg-slate-900/55 p-3 shadow-lg backdrop-blur-sm">
+              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                {t("auth.referralCodeLabel")}
+              </label>
+              <input
+                type="text"
+                value={referralDraft}
+                onChange={(e) => setReferralDraft(e.target.value.toUpperCase())}
+                placeholder={t("auth.referralCodePlaceholder")}
+                autoComplete="off"
+                spellCheck={false}
+                className="w-full rounded-lg border border-[#414141] bg-transparent px-3 py-2.5 text-sm uppercase tracking-widest text-white focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/20"
+              />
+              <p className="mt-1.5 text-[11px] text-slate-500">{t("auth.referralCodeHint")}</p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveReferral}
+                  disabled={normalizeReferralInput(referralDraft).length < 4}
+                  className="flex-1 rounded-lg border border-cyan-500/40 bg-cyan-950/40 py-2 text-xs font-semibold uppercase tracking-wide text-cyan-100 transition hover:bg-cyan-900/50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {t("auth.referralCodeApply")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReferralPanel(false);
+                    setReferralDraft("");
+                  }}
+                  className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-400 transition hover:text-white"
+                >
+                  {t("common.cancel")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowReferralPanel(true)}
+              className="mx-auto flex items-center gap-1.5 text-xs font-medium text-cyan-400/85 transition hover:text-cyan-300"
+            >
+              <Gift className="h-3.5 w-3.5" aria-hidden />
+              {t("auth.referralCodeButton")}
+            </button>
           )}
         </div>
 

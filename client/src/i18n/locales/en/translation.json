@@ -1199,6 +1199,13 @@
     "resetPasswordSuccess": "Password updated. Sign in with your new password.",
     "backToLogin": "Back to sign in",
     "continueWithGoogle": "Continue with Google",
+    "referralCodeButton": "Have a friend's referral code?",
+    "referralCodeLabel": "Referral code",
+    "referralCodePlaceholder": "ABCD1234",
+    "referralCodeHint": "Enter your friend's code, then sign up with email or Google.",
+    "referralCodeApply": "Apply code",
+    "referralCodeSaved": "Referral code: {{code}}",
+    "referralCodeClear": "Remove referral code",
     "oauthOr": "or",
     "oauthCompleting": "Signing you in…",
     "oauthError": {
@@ -2061,6 +2068,9 @@
   },
   "notifications": {
     "title": "Notifications",
+    "hubTitle": "Activity",
+    "growthSection": "Rewards & achievements",
+    "emptySocial": "Nothing new on the social side",
     "toastTitle": "Notification",
     "empty": "No notifications",
     "gameInvitations": "Game invitations",

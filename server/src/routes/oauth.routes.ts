@@ -1,6 +1,9 @@
+import crypto from 'node:crypto'
 import express from 'express'
+import type { Server } from 'socket.io'
 import { env } from '../config/env.js'
 import { findOrCreateUserFromGoogle, type GoogleUserInfo } from '../auth/googleOAuth.service.js'
+import { normalizeReferralCode } from '../referral/referralCode.js'
 
 const router = express.Router()
 
@@ -22,8 +25,30 @@ function redirectOAuthError(res: express.Response, code: string): void {
   res.redirect(target.toString())
 }
 
+function buildOAuthState(referralCode?: string): string {
+  const payload = {
+    n: crypto.randomBytes(16).toString('hex'),
+    ref: referralCode ? normalizeReferralCode(referralCode) : '',
+  }
+  return Buffer.from(JSON.stringify(payload)).toString('base64url')
+}
+
+function parseOAuthState(raw: string | undefined): { ref: string } {
+  if (!raw) return { ref: '' }
+  try {
+    const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as { ref?: string }
+    const ref = typeof parsed.ref === 'string' ? normalizeReferralCode(parsed.ref) : ''
+    return { ref }
+  } catch {
+    return { ref: '' }
+  }
+}
+
 router.get('/google', (req, res) => {
   if (oauthNotConfigured(req, res)) return
+
+  const refRaw = typeof req.query.ref === 'string' ? req.query.ref : ''
+  const ref = refRaw ? normalizeReferralCode(refRaw) : ''
 
   const params = new URLSearchParams({
     client_id: env.googleClientId!,
@@ -32,6 +57,7 @@ router.get('/google', (req, res) => {
     scope: 'openid email profile',
     access_type: 'online',
     prompt: 'select_account',
+    state: buildOAuthState(ref),
   })
 
   res.redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`)
@@ -81,7 +107,18 @@ router.get('/google/callback', async (req, res) => {
       return
     }
 
+    const oauthState = parseOAuthState(typeof req.query.state === 'string' ? req.query.state : undefined)
     const result = await findOrCreateUserFromGoogle(profile)
+
+    if (result.isNewUser && oauthState.ref) {
+      try {
+        const { applyReferralOnRegister } = await import('../referral/referral.service.js')
+        const io = req.app.get('io') as Server | undefined
+        await applyReferralOnRegister(result.userId, oauthState.ref, io)
+      } catch (refErr) {
+        console.warn('[oauth] referral on google register:', refErr)
+      }
+    }
 
     if (result.bannedUntil) {
       redirectOAuthError(res, 'account_suspended')

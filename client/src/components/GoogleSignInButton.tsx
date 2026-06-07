@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { apiUrl } from "../utils/apiBase";
+import { getPendingReferralCode } from "../utils/referralStorage";
 
 export function GoogleSignInButton() {
   const { t } = useTranslation();
@@ -8,7 +9,13 @@ export function GoogleSignInButton() {
     <button
       type="button"
       onClick={() => {
-        window.location.href = apiUrl("/auth/google");
+        const ref = getPendingReferralCode();
+        const target = apiUrl("/auth/google");
+        const url = target.startsWith("http")
+          ? new URL(target)
+          : new URL(target, window.location.origin);
+        if (ref) url.searchParams.set("ref", ref);
+        window.location.href = url.toString();
       }}
       className="relative w-full py-3.5 rounded-[20px] text-[12px] uppercase tracking-[2px] overflow-hidden transition-all duration-300 flex items-center justify-center gap-3 border border-[#414141] bg-white/5 text-white hover:bg-white/10 hover:border-blue-300/40"
     >

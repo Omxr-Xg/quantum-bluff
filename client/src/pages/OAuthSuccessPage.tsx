@@ -5,6 +5,8 @@ import { Loader2 } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
 import { applyAuthSession } from "../utils/applyAuthSession";
 import { trackEvent } from "../utils/analytics";
+import { fetchBalanceFromServer } from "../utils/userProfile";
+import { applyPendingReferralAfterAuth } from "../utils/applyPendingReferral";
 
 const OAUTH_ERROR_KEYS = [
   "google_denied",
@@ -71,6 +73,8 @@ export function OAuthSuccessPage() {
         if (!data.user || cancelled) return;
 
         applyAuthSession(token, data.user as Parameters<typeof applyAuthSession>[1]);
+        await applyPendingReferralAfterAuth(token);
+        await fetchBalanceFromServer({ authoritative: true });
         trackEvent("login");
         window.history.replaceState({}, "", lobbyHistoryPath());
         navigate("/lobby", { replace: true });

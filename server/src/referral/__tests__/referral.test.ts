@@ -221,11 +221,29 @@ describe('referral.service', () => {
     })
 
     it('rejette si déjà parrainé', async () => {
-      ;(prisma.referral.findUnique as jest.Mock).mockResolvedValue({ id: 'existing' })
+      ;(prisma.referral.findUnique as jest.Mock).mockResolvedValue({
+        id: 'existing',
+        status: 'COMPLETED',
+      })
       await expect(applyReferralCode('user-b', 'VALID123')).rejects.toMatchObject({
         statusCode: 409,
         code: 'ALREADY_REFERRED',
       })
+    })
+
+    it('reprend un parrainage bloqué en PENDING', async () => {
+      const referral = makePendingReferral()
+      mockTransactionForReferral(referral)
+
+      ;(prisma.referral.findUnique as jest.Mock).mockResolvedValue({
+        id: referral.id,
+        status: 'PENDING',
+      })
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue({ id: 'referrer-1' })
+
+      const result = await applyReferralCode('user-b', 'VALID123')
+      expect(result.referralId).toBe('ref-1')
+      expect(prisma.referral.create).not.toHaveBeenCalled()
     })
 
     it('rejette un code introuvable', async () => {
@@ -341,7 +359,10 @@ describe('referral.service', () => {
     })
 
     it('propage les erreurs bloquantes', async () => {
-      ;(prisma.referral.findUnique as jest.Mock).mockResolvedValue({ id: 'existing' })
+      ;(prisma.referral.findUnique as jest.Mock).mockResolvedValue({
+        id: 'existing',
+        status: 'COMPLETED',
+      })
       await expect(applyReferralOnRegister('user-b', 'VALID123')).rejects.toMatchObject({
         code: 'ALREADY_REFERRED',
       })

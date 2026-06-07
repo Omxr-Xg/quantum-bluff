@@ -513,6 +513,21 @@ registerGracefulShutdown()
     await connectDB()
     bindVoiceCallRedis(redisClient)
     rootLogger.info({ msg: 'server_boot_step', step: 'connect_db_done' })
+    void (async () => {
+      const { prisma } = await import('./config/database.js')
+      const { ensureUserReferralCode } = await import('./referral/referral.service.js')
+      const missing = await prisma.user.findMany({
+        where: { referralCode: null },
+        select: { id: true },
+        take: 500,
+      })
+      for (const row of missing) {
+        await ensureUserReferralCode(row.id).catch(() => {})
+      }
+      if (missing.length > 0) {
+        rootLogger.info({ msg: 'referral_codes_backfilled', count: missing.length })
+      }
+    })()
     rootLogger.info({ msg: 'server_boot_step', step: 'readiness_state_start' })
     await logDegradedStateAtBoot()
     rootLogger.info({ msg: 'server_boot_step', step: 'readiness_state_done' })

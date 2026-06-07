@@ -45,7 +45,7 @@ async function ensurePlayerStats(userId: string): Promise<void> {
 
 export async function findOrCreateUserFromGoogle(
   profile: GoogleUserInfo,
-): Promise<{ userId: string; token: string; bannedUntil: Date | null }> {
+): Promise<{ userId: string; token: string; bannedUntil: Date | null; isNewUser: boolean }> {
   const googleId = profile.sub?.trim()
   if (!googleId) {
     throw new Error('GOOGLE_PROFILE_INVALID')
@@ -63,10 +63,10 @@ export async function findOrCreateUserFromGoogle(
 
   if (byGoogle) {
     if (byGoogle.bannedUntil && byGoogle.bannedUntil > new Date()) {
-      return { userId: byGoogle.id, token: '', bannedUntil: byGoogle.bannedUntil }
+      return { userId: byGoogle.id, token: '', bannedUntil: byGoogle.bannedUntil, isNewUser: false }
     }
     const token = generateToken({ userId: byGoogle.id })
-    return { userId: byGoogle.id, token, bannedUntil: null }
+    return { userId: byGoogle.id, token, bannedUntil: null, isNewUser: false }
   }
 
   const byEmail = await prisma.user.findUnique({
@@ -79,14 +79,14 @@ export async function findOrCreateUserFromGoogle(
       throw new Error('GOOGLE_EMAIL_CONFLICT')
     }
     if (byEmail.bannedUntil && byEmail.bannedUntil > new Date()) {
-      return { userId: byEmail.id, token: '', bannedUntil: byEmail.bannedUntil }
+      return { userId: byEmail.id, token: '', bannedUntil: byEmail.bannedUntil, isNewUser: false }
     }
     await prisma.user.update({
       where: { id: byEmail.id },
       data: { googleId, authProvider: 'GOOGLE' },
     })
     const token = generateToken({ userId: byEmail.id })
-    return { userId: byEmail.id, token, bannedUntil: null }
+    return { userId: byEmail.id, token, bannedUntil: null, isNewUser: false }
   }
 
   const username = await generateUniqueUsername(profile.name ?? email.split('@')[0] ?? 'player')
@@ -116,5 +116,5 @@ export async function findOrCreateUserFromGoogle(
   await getGamificationBundle(prisma, user.id).catch(() => {})
 
   const token = generateToken({ userId: user.id })
-  return { userId: user.id, token, bannedUntil: null }
+  return { userId: user.id, token, bannedUntil: null, isNewUser: true }
 }

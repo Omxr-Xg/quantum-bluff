@@ -194,6 +194,12 @@ router.post('/register', registerLimiter, async (req, res) => {
 
   let { email, password, username, secretQuestionId, secretAnswer, dateOfBirth, referralCode } = parsed.data
 
+  if (referralCode) {
+    const { normalizeReferralCode } = await import('../referral/referralCode.js')
+    const normalized = normalizeReferralCode(referralCode)
+    referralCode = normalized.length >= 4 ? normalized : undefined
+  }
+
   email = sanitizeHtml(email)
   username = sanitizeHtml(username)
   const emailKey = email.trim().toLowerCase()
@@ -337,11 +343,28 @@ router.post('/register', registerLimiter, async (req, res) => {
       }
     } catch (refErr) {
       console.warn('[AUTH] Parrainage à l\'inscription:', refErr)
-      const refreshed = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { chips: true },
+    }
+
+    const refreshed = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { chips: true },
+    })
+    if (refreshed) chipsAfterRegister = refreshed.chips
+
+    if (!referralMeta && referralCode) {
+      const { REFERRAL_REFERRED_CHIPS } = await import('../referral/referral.types.js')
+      const appliedRow = await prisma.referral.findUnique({
+        where: { referredUserId: user.id },
+        include: { referrer: { select: { username: true } } },
       })
-      if (refreshed) chipsAfterRegister = refreshed.chips
+      if (appliedRow?.status === 'COMPLETED') {
+        referralMeta = {
+          applied: true,
+          bonusChips: REFERRAL_REFERRED_CHIPS,
+          referrerUsername: appliedRow.referrer.username,
+          friendAdded: true,
+        }
+      }
     }
 
     await prisma.emailRegistrationAgeBlocklist.deleteMany({ where: { email: emailKey } }).catch(() => {})

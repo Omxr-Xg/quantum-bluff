@@ -2,13 +2,20 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Bell, Gamepad2, UserPlus, Check, X, MessageCircle, Info, Spade } from "lucide-react";
+import { Bell, Gamepad2, UserPlus, Check, X, MessageCircle, Info, Spade, Loader2, Sparkles } from "lucide-react";
 import { cn } from "./ui/utils";
 import { useSocket } from "../hooks/useSocket";
 import { useInvitationAccept } from "../contexts/InvitationAcceptContext";
 import { useUser } from "../hooks/useUser";
 import { trackEvent } from "../utils/analytics";
-import { useGetFriendRequestsQuery, useRespondToFriendRequestMutation } from "../services/api";
+import {
+  useGetFriendRequestsQuery,
+  useRespondToFriendRequestMutation,
+  useGetNotificationsQuery,
+  useMarkNotificationReadMutation,
+  type AppNotification,
+} from "../services/api";
+import { formatGrowthNotificationMessage } from "../utils/notificationPayload";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
 import {
@@ -64,14 +71,28 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
 
   const [respondRequest] = useRespondToFriendRequestMutation();
 
+  const { data: growthData, isLoading: growthLoading, refetch: refetchGrowth } = useGetNotificationsQuery(
+    undefined,
+    { skip: !userId, pollingInterval: 60_000 },
+  );
+  const [markGrowthRead] = useMarkNotificationReadMutation();
+
   const pendingFriendRequests = friendRequests?.filter((r) => r.status === "PENDING") ?? [];
-  /** Badge cloche : invitations, amis, messages — pas les infos locales (ex. recharge). */
-  const badgeCount =
+  const growthUnreadCount = growthData?.unreadCount ?? 0;
+  const growthItems = growthData?.items ?? [];
+  const growthPreviewItems = growthItems.slice(0, 6);
+
+  const socialBadgeCount =
     pendingInvitations.length +
     pendingFriendRequests.length +
     unreadMessages.length +
     serverLoanBadge;
-  const panelHasContent = badgeCount > 0 || localNotices.length > 0;
+  const badgeCount = socialBadgeCount + growthUnreadCount;
+  const hasSocialContent =
+    localNotices.length > 0 ||
+    pendingInvitations.length > 0 ||
+    pendingFriendRequests.length > 0 ||
+    unreadMessages.length > 0;
 
   useEffect(() => {
     const onAdd = (e: Event) => {
@@ -143,6 +164,23 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     window.addEventListener("refetch-requests", handler);
     return () => window.removeEventListener("refetch-requests", handler);
   }, [refetchRequests]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onGrowthNew = (payload?: { type?: string; payload?: { achievementId?: string } }) => {
+      if (payload?.type === "ACHIEVEMENT") {
+        const achievement = payload.payload?.achievementId;
+        if (achievement) {
+          trackEvent("achievement_unlocked", { achievement });
+        }
+      }
+      void refetchGrowth();
+    };
+    socket.on("NOTIFICATION_NEW", onGrowthNew);
+    return () => {
+      socket.off("NOTIFICATION_NEW", onGrowthNew);
+    };
+  }, [socket, refetchGrowth]);
 
   // Refetch on incoming socket friend events; collect unread messages
   useEffect(() => {
@@ -332,6 +370,18 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     setOpen(false);
   };
 
+  const handleGrowthItemClick = async (n: AppNotification) => {
+    if (!n.readAt) {
+      try {
+        await markGrowthRead(n.id).unwrap();
+      } catch {
+        /* ignore */
+      }
+    }
+    setOpen(false);
+    navigate("/notifications");
+  };
+
   if (!userId) return null;
 
   const dropdown = open && panelPos && createPortal(
@@ -349,14 +399,14 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
       <div className="sticky top-0 bg-slate-800 px-4 py-3 border-b border-slate-600">
         <h3 className="text-white font-bold text-sm flex items-center gap-2">
           <Bell className="w-4 h-4" />
-          {t("notifications.title")}
+          {t("notifications.hubTitle")}
         </h3>
       </div>
 
       <div className="p-2">
-        {!panelHasContent ? (
-          <p className="text-slate-400 text-sm py-6 text-center">
-            {t("notifications.empty")}
+        {!hasSocialContent ? (
+          <p className="text-slate-400 text-sm py-3 text-center">
+            {t("notifications.emptySocial")}
           </p>
         ) : (
           <>
@@ -476,7 +526,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
 
             {/* UNREAD MESSAGES */}
             {unreadMessages.length > 0 && (
-              <div>
+              <div className="mb-2">
                 <p className="text-slate-400 text-xs font-semibold uppercase mb-1 px-2 flex items-center gap-1">
                   <MessageCircle className="w-3 h-3" />
                   {t("notifications.messages")}
@@ -507,6 +557,52 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
             )}
           </>
         )}
+
+        <div className="mt-2">
+          <p className="text-slate-400 text-xs font-semibold uppercase mb-1 px-2 flex items-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            {t("notifications.growthSection")}
+          </p>
+          {growthLoading ? (
+            <div className="flex justify-center py-6 text-slate-400">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          ) : growthPreviewItems.length === 0 ? (
+            <p className="py-4 text-center text-xs text-slate-500">{t("growthNotifications.empty")}</p>
+          ) : (
+            <ul className="space-y-2">
+              {growthPreviewItems.map((n) => (
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    onClick={() => void handleGrowthItemClick(n)}
+                    className={`w-full rounded-lg border px-3 py-2.5 text-left transition hover:bg-slate-700/60 ${
+                      n.readAt
+                        ? "border-slate-600/60 bg-slate-800/40"
+                        : "border-cyan-500/35 bg-cyan-950/25"
+                    }`}
+                  >
+                    <p className="text-sm text-white">{formatGrowthNotificationMessage(n, t)}</p>
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      {new Date(n.createdAt).toLocaleString()}
+                    </p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            navigate("/notifications");
+          }}
+          className="mx-2 mb-2 mt-1 w-[calc(100%-1rem)] rounded-lg border border-white/10 bg-white/5 py-2.5 text-sm font-semibold text-cyan-200 transition hover:bg-white/10"
+        >
+          {t("growthNotifications.viewAll")}
+        </button>
       </div>
     </div>,
     document.body
@@ -521,12 +617,17 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
         type="button"
         onClick={handleToggle}
         className={isGameHud ? GAME_HUD_BTN : NAV_BTN}
-        title={t("notifications.title")}
+        title={t("notifications.hubTitle")}
+        aria-label={t("notifications.hubTitle")}
       >
         <Bell className={cn("shrink-0", NAV_BELL)} strokeWidth={2.25} />
 
         {badgeCount > 0 && (
-          <span className="absolute right-0 top-0 flex h-[18px] min-w-[18px] translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
+          <span
+            className={`absolute right-0 top-0 flex h-[18px] min-w-[18px] translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full px-1 text-xs font-bold text-white ${
+              socialBadgeCount > 0 ? "bg-red-500" : "bg-cyan-500"
+            }`}
+          >
             {badgeCount > 99 ? "99+" : badgeCount}
           </span>
         )}

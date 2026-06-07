@@ -15,6 +15,7 @@ import {
   getPendingReferralCode,
   persistPendingReferralCode,
 } from "../utils/referralStorage";
+import { applyPendingReferralAfterAuth } from "../utils/applyPendingReferral";
 
 const SECRET_QUESTION_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
@@ -38,7 +39,18 @@ export function Register() {
     if (referralFromUrl) persistPendingReferralCode(referralFromUrl);
   }, [referralFromUrl]);
 
-  const effectiveReferralCode = referralFromUrl ?? getPendingReferralCode();
+  const [pendingReferralCode, setPendingReferralCode] = useState<string | undefined>(
+    () => referralFromUrl ?? getPendingReferralCode(),
+  );
+
+  useEffect(() => {
+    if (referralFromUrl) {
+      setPendingReferralCode(referralFromUrl);
+      return;
+    }
+    const stored = getPendingReferralCode();
+    if (stored) setPendingReferralCode(stored);
+  }, [referralFromUrl]);
 
   const dobBounds = useMemo(() => {
     const today = new Date();
@@ -75,7 +87,7 @@ export function Register() {
       dateOfBirth,
       secretQuestionId,
       secretAnswer: secretAnswer.trim(),
-      ...(effectiveReferralCode ? { referralCode: effectiveReferralCode } : {}),
+      ...(pendingReferralCode ? { referralCode: pendingReferralCode } : {}),
     }).unwrap()
 
     removeAuthItem('userid')
@@ -92,16 +104,20 @@ export function Register() {
     socket.auth = { token: response.token }
     socket.connect()
 
-    await fetchBalanceFromServer({ authoritative: true })
-
-    if (response.referral?.applied || effectiveReferralCode) {
+    let referralApplied = Boolean(response.referral?.applied)
+    if (!referralApplied) {
+      const fallback = await applyPendingReferralAfterAuth(response.token)
+      referralApplied = fallback.applied
+    } else {
       clearPendingReferralCode()
     }
+
+    await fetchBalanceFromServer({ authoritative: true })
 
     window.dispatchEvent(new Event('auth-changed'))
 
     trackEvent('register')
-    if (response.referral?.applied) {
+    if (referralApplied) {
       trackEvent('referral_applied')
     }
 

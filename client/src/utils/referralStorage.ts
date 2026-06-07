@@ -1,7 +1,11 @@
 const KEY = "quantum_bluff_pending_referral";
 
+export function normalizeReferralInput(raw: string): string {
+  return raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 export function persistPendingReferralCode(raw: string | null | undefined): void {
-  const code = (raw ?? "").trim();
+  const code = normalizeReferralInput(raw ?? "");
   if (!code || typeof window === "undefined") return;
   sessionStorage.setItem(KEY, code);
 }

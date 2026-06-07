@@ -2066,6 +2066,9 @@
   },
   "notifications": {
     "title": "Notifications",
+    "hubTitle": "Activité",
+    "growthSection": "Récompenses & succès",
+    "emptySocial": "Rien de nouveau côté social",
     "toastTitle": "Notification",
     "empty": "Aucune notification",
     "gameInvitations": "Invitations à jouer",

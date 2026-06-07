@@ -220,16 +220,24 @@ async function completeReferralRewards(
     emitFriendsUpdated(io, result.referredUserId)
   }
 
-  await createNotification(result.referrerId, 'REFERRAL', {
-    role: 'referrer',
-    username: result.referredUsername,
-    chips: REFERRAL_REFERRER_CHIPS,
-  })
-  await createNotification(result.referredUserId, 'REFERRAL', {
-    role: 'referred',
-    username: result.referrerUsername,
-    chips: REFERRAL_REFERRED_CHIPS,
-  })
+  try {
+    await createNotification(result.referrerId, 'REFERRAL', {
+      role: 'referrer',
+      username: result.referredUsername,
+      chips: REFERRAL_REFERRER_CHIPS,
+    })
+    await createNotification(result.referredUserId, 'REFERRAL', {
+      role: 'referred',
+      username: result.referrerUsername,
+      chips: REFERRAL_REFERRED_CHIPS,
+    })
+  } catch (notifyErr) {
+    rootLogger.warn({
+      msg: 'referral_notification_failed',
+      referralId: result.referralId,
+      detail: notifyErr instanceof Error ? notifyErr.message : String(notifyErr),
+    })
+  }
 
   void import('../achievements/achievement.service.js').then(async ({ checkAchievements }) => {
     const friendCountFor = async (uid: string) =>
@@ -259,29 +267,38 @@ export async function applyReferralCode(
 
   const existing = await prisma.referral.findUnique({
     where: { referredUserId },
-    select: { id: true },
+    select: { id: true, status: true },
   })
-  if (existing) {
+  if (existing?.status === 'COMPLETED') {
     throw new ReferralError(409, 'ALREADY_REFERRED', 'Un code de parrainage a déjà été appliqué')
   }
 
   const referrer = await findReferrerByCode(code)
   if (!referrer) {
+    rootLogger.warn({
+      msg: 'referral_code_not_found',
+      code,
+      referredUserId,
+    })
     throw new ReferralError(404, 'CODE_NOT_FOUND', 'Code de parrainage introuvable')
   }
   if (referrer.id === referredUserId) {
     throw new ReferralError(400, 'SELF_REFERRAL', 'Vous ne pouvez pas utiliser votre propre code')
   }
 
-  const referral = await prisma.referral.create({
-    data: {
-      referrerId: referrer.id,
-      referredUserId,
-      status: 'PENDING',
-    },
-  })
+  let referralId = existing?.id
+  if (!referralId) {
+    const referral = await prisma.referral.create({
+      data: {
+        referrerId: referrer.id,
+        referredUserId,
+        status: 'PENDING',
+      },
+    })
+    referralId = referral.id
+  }
 
-  const result = await completeReferralRewards(referral.id, io)
+  const result = await completeReferralRewards(referralId, io)
   if (!result) {
     throw new ReferralError(500, 'REFERRAL_REWARD_FAILED', 'Impossible de créditer le parrainage')
   }
