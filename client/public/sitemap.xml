@@ -5,8 +5,8 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://www.quantum-bluff.com/privacy-policy</loc>
-    <priority>0.5</priority>
+    <loc>https://www.quantum-bluff.com/discover</loc>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.quantum-bluff.com/play-poker-online</loc>
@@ -19,5 +19,73 @@
   <url>
     <loc>https://www.quantum-bluff.com/online-blackjack</loc>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/lancement-public-1er-juin-2026</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/changelog-mai-2026-site-public</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/changelog-mai-2026-casino-retro</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/changelog-mai-2026-minijeux-solo</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/changelog-mai-2026-seo-visuels</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/changelog-mai-2026-admin-vocal</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/changelog-avril-2026-belote</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/changelog-avril-2026-poker-social</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/guide-texas-holdem-debuter</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/guide-belote-salons</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/systeme-de-rangs-explication</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/news/bienvenue-quantum-bluff-news</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/about</loc>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/contact</loc>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/privacy-policy</loc>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.quantum-bluff.com/terms-of-service</loc>
+    <priority>0.5</priority>
   </url>
 </urlset>
